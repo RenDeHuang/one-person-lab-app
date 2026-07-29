@@ -16,14 +16,6 @@ import {
   assertPromotionTargetIsNewerThanPublishedStable,
   type PublishedRelease,
 } from './stable-release-version-order.ts';
-import {
-  validateSourceQualificationReceipt,
-  type SourceQualificationReceipt,
-} from './source-qualification-receipt.ts';
-import {
-  readOwnerWorkflowRuns,
-  resolveGitWireRef,
-} from './release-dispatch-guard.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -45,20 +37,21 @@ const requiredSecretNames = [
 ] as const;
 const requiredWorkflowPaths = [
   '.github/workflows/release-stable.yml',
-  '.github/workflows/release-source-qualification.yml',
   '.github/workflows/_release-bundle.yml',
-  '.github/workflows/_build-reusable.yml',
-  'contracts/app-source-qualification-receipt.schema.json',
-  'scripts/source-qualification-receipt.ts',
-  'scripts/validate-source-qualification-receipt.ts',
+  '.github/workflows/_release-standard-publish.yml',
+  'scripts/validate-release-source-gate.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
   'scripts/verify-apple-release-credentials.ts',
   'contracts/app-release-channel.json',
 ] as const;
-const activeReleaseStatuses = ['queued', 'in_progress', 'waiting', 'pending'] as const;
+const activeReleaseStatuses = ['requested', 'queued', 'in_progress', 'waiting', 'pending'] as const;
+const activeRunLookupTimeoutMs = 10_000;
+const activeRunPageSize = 100;
 
 type JsonRecord = Record<string, any>;
+type ActiveReleaseStatus = (typeof activeReleaseStatuses)[number];
 type CommandResult = {
   status: number | null;
   stdout: string;
@@ -87,17 +80,42 @@ export type ActiveReleaseRun = {
   head_sha: string;
 };
 
+export type StableAdmissionFailureReceipt = {
+  schema: 'opl_stable_release_admission_failure.v1';
+  status: 'failed';
+  checked_at: string;
+  operation: 'standard';
+  phase: 'collect_observation' | 'build_manifest';
+  admission_run_id: string;
+  cohort: {
+    app_sha: string;
+    shell_sha: string;
+    framework_sha: string;
+  };
+  failure: {
+    class: 'transport' | 'credential' | 'not_found' | 'protocol' | 'deterministic';
+    code:
+      | 'transport_timeout'
+      | 'transport_error'
+      | 'credential_failure'
+      | 'not_found'
+      | 'invalid_response'
+      | 'admission_invariant_failed';
+    message: string;
+  };
+  source_gate_digest: string | null;
+  credential_receipt_digest: string | null;
+  public_mutation_performed: false;
+  old_authority_or_run_reusable: false;
+  retry_disposition: 'repair_then_new_distinct_operation';
+};
+
 export type StableAdmissionObservation = {
   checkedAt: string;
   currentDate: string;
-  mainRefs: {
-    app: string;
-    shell: string;
-    framework: string;
-  };
   workflowBlobs: WorkflowBlob[];
-  sourceQualificationReceipt: JsonRecord;
-  sourceQualificationReceiptBytes: Buffer;
+  sourceGate: JsonRecord;
+  sourceGateBytes: Buffer;
   credentialReceipt: JsonRecord;
   credentialReceiptBytes: Buffer;
   publishedReleases: PublishedRelease[];
@@ -136,6 +154,7 @@ export type StableAdmissionManifest = {
     producer_run_id: string;
     producer_workflow: '.github/workflows/release-stable.yml';
     protected_environment: 'release-stable';
+    executor_sha: string;
     receipt_sha256: string;
     required_secret_names: string[];
     required_secret_count: 6;
@@ -143,15 +162,15 @@ export type StableAdmissionManifest = {
     notarization_authentication: 'passed';
     submission_performed: false;
   };
-  source_qualification: {
+  source_gate: {
     producer_run_id: string;
-    producer_workflow: '.github/workflows/release-source-qualification.yml';
+    producer_workflow: '.github/workflows/release-stable.yml';
     artifact_name: string;
-    receipt_digest: string;
-    receipt_file_sha256: string;
-    preflight_evidence_sha256: string;
-    mode: 'development_validation';
-    same_operation: true;
+    source_gate_digest: string;
+    source_gate_file_sha256: string;
+    operation_fingerprint: string;
+    frozen_cohort_reachable: true;
+    full_source_gate_rerun: false;
     release_authority: false;
     namespace_reservation: false;
     final_signed_byte_authority: false;
@@ -188,7 +207,7 @@ export type StableAdmissionManifest = {
     workflow: '.github/workflows/release-stable.yml';
     ref: 'main';
     artifact_name: string;
-    accepted_inputs: ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'];
+    accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest'];
     raw_standard_version_or_ref_inputs_allowed: false;
     unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel';
   };
@@ -233,6 +252,55 @@ function sha256Bytes(bytes: Buffer | string): string {
   return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
 }
 
+function classifyAdmissionFailure(message: string): StableAdmissionFailureReceipt['failure'] {
+  if (/ETIMEDOUT|timed out|timeout|SIGTERM|signal: killed/i.test(message)) {
+    return { class: 'transport', code: 'transport_timeout', message };
+  }
+  if (/network|could not resolve host|failed to connect|connection reset|unexpected EOF/i.test(message)) {
+    return { class: 'transport', code: 'transport_error', message };
+  }
+  if (/HTTP 401|HTTP 403|bad credentials|authentication failed|requires authentication/i.test(message)) {
+    return { class: 'credential', code: 'credential_failure', message };
+  }
+  if (/HTTP 404|not found/i.test(message)) {
+    return { class: 'not_found', code: 'not_found', message };
+  }
+  if (/did not return JSON|invalid response|bounded active-run page/i.test(message)) {
+    return { class: 'protocol', code: 'invalid_response', message };
+  }
+  return { class: 'deterministic', code: 'admission_invariant_failed', message };
+}
+
+export function buildStableAdmissionFailureReceipt(options: {
+  input: StableAdmissionInput;
+  phase: StableAdmissionFailureReceipt['phase'];
+  error: unknown;
+  sourceGateDigest?: string | null;
+  credentialReceiptDigest?: string | null;
+  checkedAt?: string;
+}): StableAdmissionFailureReceipt {
+  const message = options.error instanceof Error ? options.error.message : String(options.error);
+  return {
+    schema: 'opl_stable_release_admission_failure.v1',
+    status: 'failed',
+    checked_at: options.checkedAt ?? new Date().toISOString(),
+    operation: 'standard',
+    phase: options.phase,
+    admission_run_id: options.input.admissionRunId,
+    cohort: {
+      app_sha: options.input.appRef,
+      shell_sha: options.input.shellRef,
+      framework_sha: options.input.frameworkRef,
+    },
+    failure: classifyAdmissionFailure(message),
+    source_gate_digest: options.sourceGateDigest ?? null,
+    credential_receipt_digest: options.credentialReceiptDigest ?? null,
+    public_mutation_performed: false,
+    old_authority_or_run_reusable: false,
+    retry_disposition: 'repair_then_new_distinct_operation',
+  };
+}
+
 export function stableAdmissionManifestDigest(value: Omit<StableAdmissionManifest, 'manifest_digest'>): string {
   return sha256Bytes(canonicalJson(value));
 }
@@ -247,12 +315,13 @@ function sameStringSet(actual: unknown, expected: readonly string[]): boolean {
 function validateCredentialReceipt(
   receiptValue: unknown,
   input: StableAdmissionInput,
-): JsonRecord {
+): { executorSha: string } {
   const receipt = object(receiptValue, 'Apple credential preflight receipt');
   const execution = object(receipt.execution, 'Apple credential preflight receipt execution');
   const signing = object(receipt.signing, 'Apple credential preflight receipt signing');
   const notarization = object(receipt.notarization, 'Apple credential preflight receipt notarization');
   const mutation = object(receipt.mutation, 'Apple credential preflight receipt mutation');
+  const executorSha = fullSha(execution.head_sha, 'Apple credential preflight receipt executor SHA');
   if (
     receipt.schema !== 'opl_apple_release_credentials_preflight.v1'
     || receipt.status !== 'passed'
@@ -267,9 +336,8 @@ function validateCredentialReceipt(
     || execution.run_attempt !== 1
     || execution.event_name !== 'workflow_dispatch'
     || execution.ref !== 'refs/heads/main'
-    || execution.head_sha !== input.appRef
   ) {
-    throw new Error('Apple credential receipt is not a first-attempt protected preflight for the exact App main cohort.');
+    throw new Error('Apple credential receipt is not a first-attempt protected preflight for the App main executor.');
   }
   if (
     receipt.required_secret_count !== requiredSecretNames.length
@@ -297,7 +365,7 @@ function validateCredentialReceipt(
   ) {
     throw new Error('Apple credential receipt must prove read-only notarization authentication and zero release mutation.');
   }
-  return receipt;
+  return { executorSha };
 }
 
 function normalizeVersionRef(value: string): string {
@@ -340,6 +408,36 @@ function validateWorkflowBlobs(blobs: WorkflowBlob[]): WorkflowBlob[] {
   return sorted;
 }
 
+function validateFrozenSourceGate(
+  value: JsonRecord,
+  expected: { appRef: string; shellRef: string; frameworkRef: string },
+): {
+  operationFingerprint: string;
+} {
+  const cohort = object(value.admission?.immutable_cohort, 'Frozen source-gate cohort');
+  const frozenAppReachable = Array.isArray(value.checks) && value.checks.some(
+    (check: unknown) => check !== null
+      && typeof check === 'object'
+      && !Array.isArray(check)
+      && (check as JsonRecord).id === 'app_frozen_commit_reachable'
+      && (check as JsonRecord).status === 'passed',
+  );
+  const operationFingerprint = requiredString(value.operation_fingerprint, 'Frozen source-gate operation fingerprint');
+  if (
+    value.schema !== 'opl_app_release_source_gate.v1'
+    || value.status !== 'passed'
+    || value.typed_blocker !== null
+    || value.admission?.status !== 'passed'
+    || cohort.app_sha !== expected.appRef
+    || cohort.shell_sha !== expected.shellRef
+    || cohort.framework_sha !== expected.frameworkRef
+    || !frozenAppReachable
+  ) {
+    throw new Error('Frozen source-gate evidence does not prove the exact reachable Stable cohort.');
+  }
+  return { operationFingerprint };
+}
+
 export function buildStableReleaseAdmissionManifest(
   inputValue: StableAdmissionInput,
   observation: StableAdmissionObservation,
@@ -357,24 +455,8 @@ export function buildStableReleaseAdmissionManifest(
     );
   }
   const workflowBlobs = validateWorkflowBlobs(observation.workflowBlobs);
-  const sourceQualification = validateSourceQualificationReceipt(
-    observation.sourceQualificationReceipt,
-    { headSha: input.appRef },
-  );
-  if (
-    sourceQualification.cohort.app.sha !== input.appRef
-    || sourceQualification.cohort.shell.sha !== input.shellRef
-    || sourceQualification.cohort.framework.sha !== input.frameworkRef
-  ) {
-    throw new Error('Source qualification receipt does not bind the frozen Stable cohort.');
-  }
-  if (
-    sourceQualification.execution.operation_scope !== 'stable_operation_source_preflight'
-    || sourceQualification.execution.run_id !== input.admissionRunId
-  ) {
-    throw new Error('Source qualification must be the preflight from the same Stable operation.');
-  }
-  validateCredentialReceipt(observation.credentialReceipt, input);
+  const sourceGate = validateFrozenSourceGate(observation.sourceGate, input);
+  const credentialReceipt = validateCredentialReceipt(observation.credentialReceipt, input);
   if (observation.activeReleaseRuns.length > 0) {
     throw new Error(
       `Stable admission requires zero other active release runs; found ${observation.activeReleaseRuns
@@ -449,6 +531,7 @@ export function buildStableReleaseAdmissionManifest(
       producer_run_id: input.admissionRunId,
       producer_workflow: '.github/workflows/release-stable.yml',
       protected_environment: 'release-stable',
+      executor_sha: credentialReceipt.executorSha,
       receipt_sha256: sha256Bytes(observation.credentialReceiptBytes),
       required_secret_names: [...requiredSecretNames],
       required_secret_count: 6,
@@ -456,15 +539,15 @@ export function buildStableReleaseAdmissionManifest(
       notarization_authentication: 'passed',
       submission_performed: false,
     },
-    source_qualification: {
-      producer_run_id: sourceQualification.execution.run_id,
-      producer_workflow: '.github/workflows/release-source-qualification.yml',
-      artifact_name: `opl-source-qualification-${sourceQualification.execution.run_id}`,
-      receipt_digest: sourceQualification.receipt_digest,
-      receipt_file_sha256: sha256Bytes(observation.sourceQualificationReceiptBytes),
-      preflight_evidence_sha256: sourceQualification.artifact.sha256,
-      mode: 'development_validation',
-      same_operation: true,
+    source_gate: {
+      producer_run_id: input.admissionRunId,
+      producer_workflow: '.github/workflows/release-stable.yml',
+      artifact_name: `opl-stable-operation-control-${input.admissionRunId}`,
+      source_gate_digest: sha256Bytes(observation.sourceGateBytes),
+      source_gate_file_sha256: sha256Bytes(observation.sourceGateBytes),
+      operation_fingerprint: sourceGate.operationFingerprint,
+      frozen_cohort_reachable: true,
+      full_source_gate_rerun: false,
       release_authority: false,
       namespace_reservation: false,
       final_signed_byte_authority: false,
@@ -516,7 +599,7 @@ export function buildStableReleaseAdmissionManifest(
       workflow: '.github/workflows/release-stable.yml',
       ref: 'main',
       artifact_name: `opl-stable-admission-${input.admissionRunId}`,
-      accepted_inputs: ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'],
+      accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest'],
       raw_standard_version_or_ref_inputs_allowed: false,
       unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel',
     },
@@ -554,14 +637,18 @@ export function parseGitHubJsonLookup(endpoint: string, result: CommandResult): 
   }
 }
 
-function ghJson(endpoint: string, fields: Record<string, string> = {}): unknown {
+function ghJson(
+  endpoint: string,
+  fields: Record<string, string> = {},
+  timeoutMs = 45_000,
+): unknown {
   const args = ['api', '-X', 'GET', endpoint];
   for (const [key, value] of Object.entries(fields)) args.push('-f', `${key}=${value}`);
   const result = spawnSync('gh', args, {
     cwd: appRoot,
     encoding: 'utf8',
     env: process.env,
-    timeout: 45_000,
+    timeout: timeoutMs,
     maxBuffer: 16 * 1024 * 1024,
   });
   return parseGitHubJsonLookup(endpoint, {
@@ -570,25 +657,6 @@ function ghJson(endpoint: string, fields: Record<string, string> = {}): unknown 
     stderr: result.stderr || '',
     error: result.error,
   });
-}
-
-function repositoryMainRef(repository: string): string {
-  const remote = repository === appRepository
-    ? 'origin'
-    : `https://github.com/${repository}.git`;
-  const result = resolveGitWireRef({
-    repository,
-    remote,
-    ref: 'refs/heads/main',
-    maxAttempts: 3,
-    cwd: appRoot,
-  });
-  if (result.status === 'failed') {
-    throw new Error(
-      `Git wire lookup ${repository}@refs/heads/main failed as ${result.failure_kind}/${result.failure_code}: ${result.detail}`,
-    );
-  }
-  return result.sha;
 }
 
 function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
@@ -700,36 +768,78 @@ function isReleaseWorkflowPath(value: string): boolean {
   return /^\.github\/workflows\/release-[^/]+\.ya?ml$/.test(workflowPath);
 }
 
-function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
-  const runs = new Map<number, ActiveReleaseRun>();
-  const lookup = readOwnerWorkflowRuns({ maxAttempts: 3, cwd: appRoot });
-  if (lookup.status === 'failed') {
-    throw new Error(
-      `Owner Actions lookup failed as ${lookup.failure_kind}/${lookup.failure_code}: ${lookup.detail}`,
-    );
+export function parseActiveReleaseRunLookups(
+  lookups: Array<{ status: ActiveReleaseStatus; payload: unknown }>,
+  excludedRunId: string,
+): ActiveReleaseRun[] {
+  const observedStatuses = lookups.map((lookup) => lookup.status);
+  if (
+    lookups.length !== activeReleaseStatuses.length
+    || !activeReleaseStatuses.every(
+      (status) => observedStatuses.filter((candidate) => candidate === status).length === 1,
+    )
+  ) {
+    throw new Error('Stable admission must query every active GitHub Actions status exactly once.');
   }
-  for (const entry of lookup.runs) {
-    const candidate = object(entry, 'GitHub Actions run');
-    const id = Number(candidate.id);
-    const runPath = requiredString(candidate.path, 'GitHub Actions run path');
-    const status = requiredString(candidate.status, 'GitHub Actions run status');
-    if (
-      !Number.isSafeInteger(id)
-      || id <= 0
-      || String(id) === excludedRunId
-      || !isReleaseWorkflowPath(runPath)
-      || !activeReleaseStatuses.includes(status as (typeof activeReleaseStatuses)[number])
-    ) {
-      continue;
+  const runs = new Map<number, ActiveReleaseRun>();
+  for (const lookup of lookups) {
+    const page = object(lookup.payload, `GitHub ${lookup.status} runs lookup`);
+    const totalCount = Number(page.total_count);
+    if (!Number.isSafeInteger(totalCount) || totalCount < 0 || !Array.isArray(page.workflow_runs)) {
+      throw new Error(`GitHub ${lookup.status} runs lookup did not return total_count and workflow_runs[].`);
     }
-    runs.set(id, {
-      id,
-      path: runPath.split('@')[0]!,
-      status,
-      head_sha: fullSha(candidate.head_sha, 'GitHub Actions run head'),
-    });
+    if (totalCount !== page.workflow_runs.length || totalCount > activeRunPageSize) {
+      throw new Error(
+        `GitHub ${lookup.status} bounded active-run page is incomplete: `
+        + `total=${totalCount} page=${page.workflow_runs.length} limit=${activeRunPageSize}.`,
+      );
+    }
+    for (const entry of page.workflow_runs) {
+      const candidate = object(entry, `GitHub ${lookup.status} Actions run`);
+      const id = Number(candidate.id);
+      const runPath = requiredString(candidate.path, 'GitHub Actions run path');
+      const status = requiredString(candidate.status, 'GitHub Actions run status');
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error('GitHub Actions run id must be a positive safe integer.');
+      }
+      if (status !== lookup.status) {
+        throw new Error(
+          `GitHub ${lookup.status} runs lookup returned mismatched status ${status}.`,
+        );
+      }
+      if (String(id) === excludedRunId || !isReleaseWorkflowPath(runPath)) continue;
+      if (runs.has(id)) throw new Error(`GitHub active release run ${id} appeared in multiple status pages.`);
+      runs.set(id, {
+        id,
+        path: runPath.split('@')[0]!,
+        status,
+        head_sha: fullSha(candidate.head_sha, 'GitHub Actions run head'),
+      });
+    }
   }
   return [...runs.values()].sort((left, right) => left.id - right.id);
+}
+
+// Keep the release-boundary helper name stable while using the bounded,
+// status-specific lookups required by the current admission contract.
+function readOwnerWorkflowRuns(excludedRunId: string): ActiveReleaseRun[] {
+  const endpoint = `repos/${appRepository}/actions/runs`;
+  return parseActiveReleaseRunLookups(
+    activeReleaseStatuses.map((status) => ({
+      status,
+      payload: ghJson(endpoint, {
+        branch: 'main',
+        status,
+        per_page: String(activeRunPageSize),
+        page: '1',
+      }, activeRunLookupTimeoutMs),
+    })),
+    excludedRunId,
+  );
+}
+
+function activeReleaseRuns(excludedRunId: string): ActiveReleaseRun[] {
+  return readOwnerWorkflowRuns(excludedRunId);
 }
 
 function shanghaiDate(now = new Date()): string {
@@ -745,29 +855,24 @@ function shanghaiDate(now = new Date()): string {
 
 async function collectObservation(
   input: StableAdmissionInput,
-  sourceQualificationReceiptPath: string,
+  sourceGatePath: string,
   credentialReceiptPath: string,
   excludedRunId: string,
   checkedAt = new Date().toISOString(),
 ): Promise<StableAdmissionObservation> {
-  const sourceQualificationReceiptBytes = fs.readFileSync(sourceQualificationReceiptPath);
+  const sourceGateBytes = fs.readFileSync(sourceGatePath);
   const credentialReceiptBytes = fs.readFileSync(credentialReceiptPath);
   const releaseContractBytes = fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'));
   const releaseContract = object(JSON.parse(releaseContractBytes.toString('utf8')), 'App release contract');
   return {
     checkedAt,
     currentDate: shanghaiDate(),
-    mainRefs: {
-      app: repositoryMainRef(appRepository),
-      shell: repositoryMainRef(shellRepository),
-      framework: repositoryMainRef(frameworkRepository),
-    },
     workflowBlobs: localWorkflowBlobs(input.appRef),
-    sourceQualificationReceipt: object(
-      JSON.parse(sourceQualificationReceiptBytes.toString('utf8')),
-      'Source qualification receipt',
+    sourceGate: object(
+      JSON.parse(sourceGateBytes.toString('utf8')),
+      'Frozen source-gate evidence',
     ),
-    sourceQualificationReceiptBytes,
+    sourceGateBytes,
     credentialReceipt: object(
       JSON.parse(credentialReceiptBytes.toString('utf8')),
       'Apple credential receipt',
@@ -816,7 +921,7 @@ export function firstDifference(actual: unknown, expected: unknown, pointer = '$
 
 export async function verifyStableReleaseAdmissionManifest(options: {
   manifest: StableAdmissionManifest;
-  sourceQualificationReceiptPath: string;
+  sourceGatePath: string;
   credentialReceiptPath: string;
   expectedDigest: string;
   currentRunId: string;
@@ -846,7 +951,7 @@ export async function verifyStableReleaseAdmissionManifest(options: {
   };
   const observation = await collectObservation(
     input,
-    options.sourceQualificationReceiptPath,
+    options.sourceGatePath,
     options.credentialReceiptPath,
     runId(options.currentRunId, 'Current Standard run id'),
     manifest.checked_at,
@@ -865,6 +970,14 @@ function writeJson(filePath: string, value: unknown): void {
   fs.writeFileSync(resolved, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
 }
 
+function fileDigestOrNull(filePath: string): string | null {
+  try {
+    return fs.existsSync(filePath) ? sha256Bytes(fs.readFileSync(filePath)) : null;
+  } catch {
+    return null;
+  }
+}
+
 function cliOptions() {
   const { values, positionals } = parseArgs({
     args: process.argv.slice(2),
@@ -876,19 +989,20 @@ function cliOptions() {
       'shell-ref': { type: 'string' },
       'framework-ref': { type: 'string' },
       'admission-run-id': { type: 'string' },
-      'source-qualification-receipt': { type: 'string' },
+      'source-gate': { type: 'string' },
       'credential-receipt': { type: 'string' },
       manifest: { type: 'string' },
       'expected-digest': { type: 'string' },
       'current-run-id': { type: 'string' },
+      'failure-output': { type: 'string' },
       output: { type: 'string' },
     },
   });
   const command = positionals[0] ?? '';
   const output = requiredString(values.output, '--output');
-  const sourceQualificationReceiptPath = path.resolve(requiredString(
-    values['source-qualification-receipt'],
-    '--source-qualification-receipt',
+  const sourceGatePath = path.resolve(requiredString(
+    values['source-gate'],
+    '--source-gate',
   ));
   const credentialReceiptPath = path.resolve(requiredString(
     values['credential-receipt'],
@@ -898,7 +1012,8 @@ function cliOptions() {
     return {
       command,
       output,
-      sourceQualificationReceiptPath,
+      failureOutput: path.resolve(requiredString(values['failure-output'], '--failure-output')),
+      sourceGatePath,
       credentialReceiptPath,
       input: {
         baseVersion: requiredString(values['base-version'], '--base-version'),
@@ -913,7 +1028,7 @@ function cliOptions() {
     return {
       command,
       output,
-      sourceQualificationReceiptPath,
+      sourceGatePath,
       credentialReceiptPath,
       manifestPath: path.resolve(requiredString(values.manifest, '--manifest')),
       expectedDigest: requiredString(values['expected-digest'], '--expected-digest'),
@@ -926,22 +1041,36 @@ function cliOptions() {
 async function main(): Promise<void> {
   const options = cliOptions();
   if (options.command === 'create') {
-    const observation = await collectObservation(
-      options.input,
-      options.sourceQualificationReceiptPath,
-      options.credentialReceiptPath,
-      options.input.admissionRunId,
-    );
-    const manifest = buildStableReleaseAdmissionManifest(options.input, observation);
-    writeJson(options.output, manifest);
-    process.stdout.write(`${JSON.stringify({
-      status: 'created',
-      version: manifest.version.display,
-      updater_version: manifest.version.updater,
-      manifest_digest: manifest.manifest_digest,
-      output: path.resolve(options.output),
-    })}\n`);
-    return;
+    fs.rmSync(options.failureOutput, { force: true });
+    let phase: StableAdmissionFailureReceipt['phase'] = 'collect_observation';
+    try {
+      const observation = await collectObservation(
+        options.input,
+        options.sourceGatePath,
+        options.credentialReceiptPath,
+        options.input.admissionRunId,
+      );
+      phase = 'build_manifest';
+      const manifest = buildStableReleaseAdmissionManifest(options.input, observation);
+      writeJson(options.output, manifest);
+      process.stdout.write(`${JSON.stringify({
+        status: 'created',
+        version: manifest.version.display,
+        updater_version: manifest.version.updater,
+        manifest_digest: manifest.manifest_digest,
+        output: path.resolve(options.output),
+      })}\n`);
+      return;
+    } catch (error) {
+      writeJson(options.failureOutput, buildStableAdmissionFailureReceipt({
+        input: options.input,
+        phase,
+        error,
+        sourceGateDigest: fileDigestOrNull(options.sourceGatePath),
+        credentialReceiptDigest: fileDigestOrNull(options.credentialReceiptPath),
+      }));
+      throw error;
+    }
   }
   const manifest = object(
     JSON.parse(fs.readFileSync(options.manifestPath, 'utf8')),
@@ -949,7 +1078,7 @@ async function main(): Promise<void> {
   ) as StableAdmissionManifest;
   const verified = await verifyStableReleaseAdmissionManifest({
     manifest,
-    sourceQualificationReceiptPath: options.sourceQualificationReceiptPath,
+    sourceGatePath: options.sourceGatePath,
     credentialReceiptPath: options.credentialReceiptPath,
     expectedDigest: options.expectedDigest,
     currentRunId: options.currentRunId,
@@ -960,7 +1089,7 @@ async function main(): Promise<void> {
     manifest_digest: verified.manifest_digest,
     version: verified.version,
     cohort: verified.cohort,
-    source_qualification: verified.source_qualification,
+    source_gate: verified.source_gate,
     admission_run_id: verified.apple_credentials.producer_run_id,
   };
   writeJson(options.output, output);

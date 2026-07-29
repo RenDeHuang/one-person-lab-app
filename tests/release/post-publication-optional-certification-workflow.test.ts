@@ -290,6 +290,7 @@ test('optional certification is an automatic read-only post-publication executor
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable standard/);
+  assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
   assert.match(source, /\.head_branch \| test\("\^v/);
   assert.match(source, /\^OPL Stable append_full/);
   assert.match(source, /test "\$tag" = "\$head_branch"/);
@@ -315,7 +316,7 @@ test('Standard and Full VM certification consume the exact published DMG without
     const capabilityStep = admit.steps.find((step: Record<string, any>) => step.id === 'capability');
     assert.equal(
       capabilityStep.env.RUNNER_INVENTORY_TOKEN,
-      '${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+      '${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}',
     );
     assert.match(capabilityStep.run, /\[ -z "\$RUNNER_INVENTORY_TOKEN" \]/);
     assert.match(capabilityStep.run, /GH_TOKEN="\$RUNNER_INVENTORY_TOKEN" gh api/);

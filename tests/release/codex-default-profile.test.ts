@@ -5,6 +5,7 @@ import { validateAppGuiProductContract } from '../../scripts/validate-active-she
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 import {
+  assertCanonicalThreadDirectoryTimeoutBoundarySources,
   assertCanonicalThreadAffinityConvergenceSources,
   assertCurrentGuidHomeSelectionSources,
   assertProjectlessGuidFileAccessSources,
@@ -767,17 +768,13 @@ test('active-shell source gate preserves explicit local file inputs independentl
   }
 });
 
-test('active-shell source gate makes canonical cwd authoritative over stale local affinity caches', () => {
+test('active-shell source gate keeps canonical cwd transport separate from sidebar affinity', () => {
   const canonicalProjectionMarkers = [
-    'const hasCanonicalProjectAffinity = Boolean(thread.projectId.trim())',
+    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: thread.workspace',
-    'custom_workspace: hasCanonicalProjectAffinity',
+    'custom_workspace: hasCanonicalRecordedCwd',
   ];
   const focusedTestNames = [
-    'rebuilds a stale projectless cache row from the canonical recorded cwd',
-    'replaces stale bound shell affinity with the canonical recorded cwd',
-    'projects a managed Documents Codex task as a projectless sidebar row',
-    'adopts a managed Documents Codex projectless task into a selected project',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
     'keeps canonical adoption successful when a stub projection cannot be materialized',
     'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -791,9 +788,6 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
     'function recordedCwd(value: unknown): string',
     "if (value === undefined || value === null) return ''",
     "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
-    'function isManagedProjectlessWorkspace(workspace: string): boolean',
-    "const managedRoot = path.join(os.homedir(), 'Documents', 'Codex')",
-    "return isManagedProjectlessWorkspace(workspace) ? '' : workspace",
     'workspace: recordedCwd(raw.cwd)',
   ].join('\n');
 
@@ -826,9 +820,8 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
   }
 
   for (const cachedOverride of [
-    'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectAffinity',
+    'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
     'cached?.extra.custom_workspace === true',
-    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: projectAffinityWorkspace',
     'custom_workspace: customWorkspace',
   ]) {
@@ -874,6 +867,254 @@ test('active-shell source gate makes canonical cwd authoritative over stale loca
       }),
     );
   }
+});
+
+test('recorded cwd compatibility does not create sidebar project affinity', () => {
+  const contract = readJson('contracts/app-gui-product-contract.json');
+  const threadDirectory = contract.interaction_baseline.navigation_rail.thread_directory_policy;
+  assert.equal(
+    threadDirectory.directory_group_policy.legacy_missing_marker_policy,
+    'existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration',
+  );
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  assert.equal(
+    runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy.legacy_missing_marker_policy,
+    threadDirectory.directory_group_policy.legacy_missing_marker_policy,
+  );
+  assert.equal(
+    contract.interaction_baseline.conversation_scope.session_workspace_model.project_affinity_source,
+    'explicit_project_id_projection',
+  );
+
+  const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
+  assert.doesNotMatch(JSON.stringify(pageStateMatrix), /directory groups derived from canonical session cwd/);
+  assert.match(JSON.stringify(pageStateMatrix), /directory groups derive only from explicit projectId affinity/);
+
+  const sourceGate = fs.readFileSync(
+    'scripts/validate-active-shell/shell-ordinary-experience-validator.ts',
+    'utf8',
+  );
+  for (const cwdDerivedAffinityMarker of [
+    'rebuilds a stale projectless cache row from the canonical recorded cwd',
+    'replaces stale bound shell affinity with the canonical recorded cwd',
+    'hydrates a legacy missing affinity marker from the canonical recorded cwd',
+  ]) {
+    assert.doesNotMatch(sourceGate, new RegExp(cwdDerivedAffinityMarker));
+  }
+});
+
+test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {
+  const threadAdapter = [
+    "await this.rpc.request('thread/list', {",
+    'cursor,',
+    'archived,',
+    'useStateDbOnly: true,',
+    '...(workspace ? { cwd: workspace } : {}),',
+    '});',
+  ].join('\n');
+  const focusedTests = [
+    'lists active and archived threads through bounded app-server pagination',
+    'useStateDbOnly: true',
+    "expect(request.mock.calls[0]?.[1]).not.toHaveProperty('sourceKinds')",
+  ].join('\n');
+
+  assert.doesNotThrow(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter,
+    }),
+  );
+
+  for (const requiredMarker of [
+    "await this.rpc.request('thread/list'",
+    'archived',
+    'useStateDbOnly: true',
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace(requiredMarker, ''),
+      }),
+    );
+  }
+
+  for (const forbiddenMarker of [
+    'sourceKinds: renamedKinds,',
+    'sourceKinds,',
+    '"sourceKinds": [\'cli\'],',
+    '...legacyOptions,',
+    "...{ sourceKinds: ['cli'] },",
+    "...(workspace ? { cwd: workspace } : { sourceKinds: ['cli'] }),",
+    '...{ archived: false },',
+    '...{ useStateDbOnly: false },',
+    "...{ ['source' + 'Kinds']: ['cli'] },",
+    "...{ ['arch' + 'ived']: false },",
+    "...{ ['useStateDb' + 'Only']: false },",
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace('});', `${forbiddenMarker}\n});`),
+      }),
+    );
+  }
+
+  assert.throws(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: `${threadAdapter.replace('useStateDbOnly: true,', '')}\nconst unrelated = { useStateDbOnly: true };`,
+    }),
+  );
+  assert.throws(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: threadAdapter.replace('useStateDbOnly: true', 'useStateDbOnly: false'),
+    }),
+  );
+  for (const constantArchivedSelector of ['archived: false', 'archived: true']) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace('archived,', `${constantArchivedSelector},`),
+      }),
+    );
+  }
+  for (const duplicatedGuardedOption of ['archived: false', 'useStateDbOnly: false']) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: threadAdapter.replace('});', `${duplicatedGuardedOption},\n});`),
+      }),
+    );
+  }
+  assert.doesNotThrow(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: threadAdapter.replace('archived,', 'archived: archived,'),
+    }),
+  );
+
+  for (const requiredTestMarker of [
+    'lists active and archived threads through bounded app-server pagination',
+    'useStateDbOnly: true',
+    "not.toHaveProperty('sourceKinds')",
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests: focusedTests.replace(requiredTestMarker, ''),
+        threadAdapter,
+      }),
+    );
+  }
+});
+
+test('conversation history and managed scratch keep identity, cwd, and Project affinity distinct', () => {
+  const guiProductContract = readJson('contracts/app-gui-product-contract.json');
+  const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
+  const threadDirectoryPolicy = guiProductContract.interaction_baseline.navigation_rail.thread_directory_policy;
+  const surfaces = threadDirectoryPolicy.conversation_history_surfaces;
+  const guiWorkspaceModel = guiProductContract.interaction_baseline.conversation_scope.session_workspace_model;
+  const profileWorkspaceModel = readJson('contracts/app-product-profile.json')
+    .gui.ordinary_conversation.session_workspace_model;
+  const home = pageStateMatrix.pages.find((page: { id: string }) => page.id === 'guid_home');
+  const ordinaryConversation = pageStateMatrix.pages.find(
+    (page: { id: string }) => page.id === 'ordinary_conversation',
+  );
+
+  assert.equal(
+    surfaces.default_rail.membership,
+    'canonical_unarchived_thread_directory',
+  );
+  assert.equal(surfaces.default_rail.authority, 'codex_app_server_thread_list_archived_false');
+  assert.equal(surfaces.default_rail.thread_classification_required, false);
+  assert.equal(
+    surfaces.default_rail.archived_false_role,
+    'directory_membership_only_never_running_status',
+  );
+  for (const unsupportedClassificationField of [
+    'thread_classification_authority',
+    'classification_values',
+    'unclassified_codex_policy',
+  ]) {
+    assert.equal(unsupportedClassificationField in surfaces.default_rail, false);
+  }
+  assert.equal('unclassified_codex_label' in surfaces.all_search, false);
+  assert.equal(surfaces.running_now.authority, 'same_codex_desktop_runtime_task_status');
+  assert.equal(surfaces.archived.membership, 'canonical_archived_thread_directory');
+  assert.equal(surfaces.all_search.may_replace_default_rail, false);
+  assert.equal(
+    surfaces.acceptance_comparison,
+    'same_instant_same_authority_exact_thread_id_set_and_archived_bit',
+  );
+  assert.equal(surfaces.fixed_count_assertion_allowed, false);
+  assert.deepEqual(surfaces.project_affinity_presentation, {
+    recorded_cwd_role: 'canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity',
+    project_affinity_role: 'explicit_project_id_projection_never_inferred_from_recorded_cwd',
+    managed_projectless_workspace_root: 'user_documents_codex_subtree',
+    managed_root_grouping_policy:
+      'preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups',
+    projectless_adoption_eligibility:
+      'project_id_absent_renders_unbound_but_pre_successor_adoption_remains_conservatively_guarded_by_custom_workspace_and_recorded_cwd_including_managed_root',
+  });
+  assert.equal(
+    threadDirectoryPolicy.directory_group_policy_authority,
+    'current_shell_1c7_compatibility_transport_and_reassignment_guard_only_not_sidebar_project_affinity_authority',
+  );
+  assert.equal(
+    threadDirectoryPolicy.project_affinity_presentation_authority_ref,
+    'conversation_history_surfaces.project_affinity_presentation',
+  );
+  assert.equal(
+    threadDirectoryPolicy.strict_project_affinity_producer,
+    'post_app_shell_successor_project_id_projection',
+  );
+  assert.equal(
+    guiWorkspaceModel.projectless_detection,
+    'explicit_project_id_absent_or_managed_scratch_never_inferred_from_recorded_cwd_or_runtime_pwd',
+  );
+  assert.equal(
+    guiWorkspaceModel.recorded_cwd_role,
+    'canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity',
+  );
+  assert.equal(guiWorkspaceModel.project_affinity_source, 'explicit_project_id_projection');
+  assert.equal(
+    guiWorkspaceModel.project_affinity_role,
+    'explicit_project_id_for_sidebar_grouping_and_new_session_project_shortcut_never_inferred_from_recorded_cwd',
+  );
+  assert.equal(
+    guiWorkspaceModel.managed_scratch_presentation,
+    'user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups',
+  );
+  assert.equal(
+    guiWorkspaceModel.core_workspace_application,
+    'thread_settings_update_cwd_records_runtime_workspace_only',
+  );
+  assert.equal(
+    guiWorkspaceModel.project_adoption_transition,
+    'unbound_to_bound_once_via_explicit_project_affinity_assignment',
+  );
+  assert.deepEqual(profileWorkspaceModel, guiWorkspaceModel);
+  assert.deepEqual(ordinaryConversation.conversation_view_model.session_workspace_model, guiWorkspaceModel);
+  assert.equal(
+    guiProductContract.interaction_baseline.conversation_scope.session_workspace_model_authority,
+    'current_shell_1c7_compatibility_transport_only_not_sidebar_project_affinity_authority',
+  );
+  assert.equal(
+    guiProductContract.interaction_baseline.conversation_scope.project_affinity_presentation_authority_ref,
+    'interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces.project_affinity_presentation',
+  );
+  assert.deepEqual(home.home_view_model.conversation_history_surfaces, {
+    policy_ref:
+      'contracts/app-gui-product-contract.json#interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces',
+    default_rail: 'canonical_unarchived_thread_directory',
+    running_now: 'same_codex_desktop_runtime_task_status_or_explicit_unavailable',
+    archived: 'independent_canonical_archived_thread_directory',
+    all_search: 'explicit_canonical_historical_search_never_default_rail',
+    project_affinity_presentation:
+      'recorded_cwd_preserved_explicit_project_id_groups_managed_user_documents_codex_unbound',
+    visible_id_consumers: ['default_rail', 'archived', 'pinned', 'workspace_groups', 'timeline'],
+    fixed_count_acceptance_allowed: false,
+  });
 });
 
 test('active-shell Runtime source gate allows canonical action refs but rejects legacy fallback reconstruction', () => {

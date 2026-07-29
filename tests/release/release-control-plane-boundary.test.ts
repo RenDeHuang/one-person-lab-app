@@ -15,8 +15,17 @@ import {
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
+import {
+  buildPreNonceDispatchGuard,
+  type CommandRunner,
+} from '../../scripts/release-dispatch-guard.ts';
 
 const workflowDirectory = path.join('.github', 'workflows');
+const appSha = '1'.repeat(40);
+const shellSha = '2'.repeat(40);
+const frameworkSha = '3'.repeat(40);
+const stableWorkflow = '.github/workflows/release-stable.yml';
+const operationId = 'stable-frozen-cohort-42';
 
 function fixture(t: test.TestContext): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-release-boundary-'));
@@ -53,6 +62,55 @@ function withoutExpectedDiagnostics(run: () => number): number {
   }
 }
 
+function sourceGateReport() {
+  return {
+    schema: 'opl_app_release_source_gate.v1',
+    status: 'passed',
+    typed_blocker: null,
+    admission: {
+      status: 'passed',
+      immutable_cohort: {
+        app_sha: appSha,
+        shell_sha: shellSha,
+        framework_sha: frameworkSha,
+      },
+    },
+    checks: [{ id: 'app_frozen_commit_reachable', status: 'passed' }],
+  };
+}
+
+function ownerRun(
+  id: number,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id,
+    path: `${stableWorkflow}@refs/heads/main`,
+    status: 'queued',
+    conclusion: null,
+    event: 'workflow_dispatch',
+    head_branch: 'main',
+    head_sha: appSha,
+    run_attempt: 1,
+    created_at: '2026-07-28T06:00:10.000Z',
+    display_title: `OPL Stable standard operation:${operationId} authority:authority-42`,
+    ...overrides,
+  };
+}
+
+function ownerRunsRunner(runs: unknown[]): CommandRunner {
+  return (command) => {
+    if (command === 'gh') {
+      return {
+        status: 0,
+        stdout: JSON.stringify({ total_count: runs.length, workflow_runs: runs }),
+        stderr: '',
+      };
+    }
+    return { status: 1, stdout: '', stderr: `unexpected command ${command}` };
+  };
+}
+
 test('release boundary admits the three-operation control plane and real no-secret Canary', () => {
   const release = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'contracts/app-release-channel.json'), 'utf8'));
   const canary = release.release_bundle_control_plane.validation_canary;
@@ -85,16 +143,104 @@ test('Stable operation set and global concurrency are exact and fail closed on d
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 2);
 });
 
-test('Stable admission binds attempt one and immutable Actions created_at without legacy authority', (t) => {
+test('append Full selection uses the dispatch operation while payload identity stays admission-bound', (t) => {
   const root = fixture(t);
   const file = workflowPath(root, 'release-stable.yml');
-  const text = fs.readFileSync(file, 'utf8')
-    .replace('test "$GITHUB_RUN_ATTEMPT" = 1', 'test -n "$GITHUB_RUN_ATTEMPT"')
-    .replace('--jq .created_at', '--jq .run_started_at')
-    .replace('set -euo pipefail', 'set -euo pipefail\n          # verify-release-session-lease.ts');
+  const current = fs.readFileSync(file, 'utf8');
+  assert.match(current, /if: \$\{\{ !cancelled\(\) && inputs\.operation == 'append_full' && needs\.admission\.result == 'success' \}\}/);
+  assert.equal(validateStableReleaseControlPlane(root), 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ needs.admission.outputs.operation == 'append_full' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ always() && inputs.operation == 'append_full' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+});
+
+test('Stable admission keeps recovery inputs optional but requires their pre-issued carrier values for Standard', (t) => {
+  const source = fs.readFileSync(path.join(process.cwd(), workflowDirectory, 'release-stable.yml'), 'utf8');
+  const mutations = [
+    (value: string) => value.replace(
+      "authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: false\n        default: ''",
+      "authority_carrier:\n        description: Canonical base64url pre-issued Stable authority JSON carrier\n        required: true\n        default: ''",
+    ),
+    (value: string) => value.replace(
+      'test -n "$AUTHORITY_CARRIER"',
+      'true # missing conditional Standard authority carrier check',
+    ),
+    (value: string) => value.replace(
+      'set -euo pipefail',
+      'set -euo pipefail\n          openssl rand -hex 16',
+    ),
+  ];
+  for (const mutate of mutations) {
+    const root = fixture(t);
+    const text = mutate(source);
+    assert.notEqual(text, source, 'fixture mutation must change the protected Stable workflow');
+    fs.writeFileSync(workflowPath(root, 'release-stable.yml'), text);
+    assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+  }
+});
+
+test('a concurrent visible consumer or later repeated consumer is blocked before mutation', () => {
+  const common = {
+    workflow: stableWorkflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    currentRunId: '42',
+    authorityId: 'authority-42',
+    operationId,
+  };
+  for (const runs of [
+    [ownerRun(42), ownerRun(43)],
+    [
+      ownerRun(41, { status: 'completed', conclusion: 'success' }),
+      ownerRun(42),
+    ],
+  ]) {
+    const report = buildPreNonceDispatchGuard(common, { runner: ownerRunsRunner(runs) });
+    assert.equal(report.status, 'blocked');
+    assert.equal(report.dispatch_allowed, false);
+    assert.equal(report.nonce_consumed, false);
+    assert.equal(report.mutation_invocation_count, 0);
+    assert.equal(report.mutation_retry_count, 0);
+    assert.equal(report.redispatch_allowed, false);
+  }
+});
+
+test('Stable protected admission never interpolates dispatch strings into Bash', (t) => {
+  const root = fixture(t);
+  const file = workflowPath(root, 'release-stable.yml');
+  const text = fs.readFileSync(file, 'utf8').replace(
+    'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+    "test '${{ inputs.authority_carrier }}' = trusted\n          test \"$GITHUB_EVENT_NAME\" = workflow_dispatch",
+  );
   fs.writeFileSync(file, text);
 
-  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 3);
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
 });
 
 test('all privileged Stable entries remain admission-dependent step-free reusable calls', (t) => {
@@ -158,22 +304,41 @@ test('WebUI follower keeps the packages write compile ceiling outside Desktop St
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
-test('Native WebUI follower keeps additive GitHub write behind exact Stable handoff and protected reusable publish', (t) => {
+test('Native WebUI follower remains a read-only consumer of the unified immutable Stable carrier', (t) => {
   const root = fixture(t);
   assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
   assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
 
+  const bundle = parseYaml(
+    fs.readFileSync(workflowPath(root, '_release-bundle.yml'), 'utf8'),
+  ) as Record<string, any>;
+  const publishStandard = bundle.jobs?.['publish-standard'];
+  assert.ok(publishStandard);
+  assert.equal(
+    publishStandard.with?.qualified_native_artifact_name,
+    '${{ (inputs.publication_channel || inputs.channel) == \'stable\' && needs.prepare-native-webui.outputs.qualified_artifact_name || \'\' }}',
+  );
+  assert.equal(
+    publishStandard.with?.qualified_native_macos_artifact_name,
+    '${{ (inputs.publication_channel || inputs.channel) == \'stable\' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || \'\' }}',
+  );
+  assert.equal(bundle.jobs?.['publish-native-webui'], undefined);
+  assert.equal(bundle.jobs?.['publish-native-webui-macos'], undefined);
+
   updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-carrier'].needs = [];
+    workflow.jobs['native-webui-linux-readback'].needs = [];
   });
   assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 
   updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-carrier'].needs = ['resolve-handoff'];
+    workflow.jobs['native-webui-linux-readback'].needs = ['resolve-handoff'];
   });
   updateWorkflow(root, '_release-native-webui-carrier.yml', (workflow) => {
-    delete workflow.jobs['publish-native-assets'].environment;
+    workflow.jobs['readback-native-assets'].permissions = {
+      contents: 'write',
+      actions: 'read',
+    };
   });
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });

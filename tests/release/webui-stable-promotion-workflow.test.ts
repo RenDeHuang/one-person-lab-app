@@ -11,6 +11,7 @@ import {
   writeWebuiStablePromotionReceipt,
   type WebuiStableAdmissionInput,
 } from '../../scripts/webui-stable-promotion.ts';
+import { createWebuiPublicationRecord } from '../../scripts/webui-publication-record.ts';
 import { createWebuiSourceAuthority } from '../../scripts/webui-source-authority.ts';
 import {
   isAuthorizedWebuiStablePromotionWriteJob,
@@ -96,9 +97,16 @@ function carrierReceipt() {
       architecture: 'amd64',
     },
     qualification: {
+      schema: 'opl_app_webui_runtime_qualification.v1',
       status: 'passed',
+      build_stage: 'webui_built',
+      qualification_stage: 'webui_qualified',
       image_digest: imageDigest,
+      build_input_digest: digest('6'),
       content_fingerprint: fingerprint,
+      runtime_summary_sha256: digest('7'),
+      registry_readback_sha256: digest('8'),
+      runtime_image_id: 'webui-test-image',
     },
   };
 }
@@ -269,6 +277,19 @@ function independentPreviewFixture() {
     '.github/workflows/release-webui-development-promote.yml',
   );
   current.input.sourceAuthority = sourceAuthority;
+  const publicationRecord = createWebuiPublicationRecord({
+    authorityMode: 'independent_preview',
+    imageRepository: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+    carrierReceipt: current.input.carrierReceipt,
+    carrierReceiptSha256: digest('9'),
+    versionReadback: current.input.versionReadback,
+    versionReadbackSha256: digest('a'),
+    publicationRunId: carrierFollowerRunId,
+    publicationRunAttempt: 1,
+    publicationExecutorSha: carrierExecutorAppSha,
+    sourceAuthority,
+    sourceAuthoritySha256: digest('b'),
+  });
   current.paths.carrierFollowerRun = writeJson(
     current.root,
     'carrier-follower-run.json',
@@ -282,12 +303,17 @@ function independentPreviewFixture() {
     current.input.promotionExecutorRun,
   );
   const sourceAuthorityPath = writeJson(current.root, 'source-authority.json', sourceAuthority);
+  const publicationRecordPath = writeJson(current.root, 'publication-record.json', publicationRecord);
   current.input.carrierFollowerRunPath = current.paths.carrierFollowerRun;
   current.input.carrierReceiptPath = current.paths.carrier;
   current.input.versionReadbackPath = current.paths.version;
   current.input.promotionExecutorRunPath = current.paths.promotionExecutorRun;
   current.input.sourceAuthorityPath = sourceAuthorityPath;
-  return { ...current, sourceAuthorityPath };
+  current.input.publicationRecord = publicationRecord;
+  current.input.publicationRecordPath = publicationRecordPath;
+  current.input.operator = 'gaofeng21cn';
+  current.input.operatorConfirmation = `move-docker-latest:${previewVersion}`;
+  return { ...current, sourceAuthorityPath, publicationRecordPath };
 }
 
 function clone<T>(value: T): T {
@@ -334,10 +360,16 @@ test('contract separates Stable qualification from carrier Latest selection', ()
     'framework_ref',
   ]);
   assert.deepEqual(independent.promotion_entry_inputs, [
-    'carrier_follower_run_id',
-    'carrier_executor_ref',
-    'carrier_artifact_name',
+    'publication_record_ref',
+    'operator_confirmation',
   ]);
+  assert.deepEqual(independent.operator_confirmation, {
+    schema: 'opl_app_webui_latest_operator_authorization.v1',
+    source: 'workflow_dispatch_exact_version_confirmation',
+    actor: 'github.actor_human_login',
+    value: 'move-docker-latest:<publication_record.release.version>',
+    receipt_field: 'operator_authorization.confirmation_digest',
+  });
   assert.equal(independent.source_authority_schema, 'opl_app_webui_source_authority.v1');
   assert.equal(independent.source_authority_digest_must_equal_carrier_release_bundle_and_cohort_ref, true);
   assert.equal(independent.stable_run_dependency, false);
@@ -374,6 +406,8 @@ test('shared alias writer binds production Stable and independent Preview author
     'carrier_follower_run_id',
     'carrier_executor_ref',
     'carrier_artifact_name',
+    'publication_record_ref',
+    'operator_confirmation',
   ]);
   assert.equal(
     workflow.concurrency.group,
@@ -410,17 +444,30 @@ test('shared alias writer binds production Stable and independent Preview author
   );
   assert.match(
     source,
-    /CARRIER_FOLLOWER_RUN_ID: \$\{\{ inputs\.carrier_follower_run_id \|\| github\.run_id \}\}/,
+    /CARRIER_FOLLOWER_RUN_ID: \$\{\{ inputs\.carrier_follower_run_id \|\| steps\.publication-record\.outputs\.carrier_follower_run_id \|\| github\.run_id \}\}/,
   );
   assert.match(
     source,
-    /CARRIER_EXECUTOR_REF: \$\{\{ inputs\.carrier_executor_ref \|\| github\.sha \}\}/,
+    /CARRIER_EXECUTOR_REF: \$\{\{ inputs\.carrier_executor_ref \|\| steps\.publication-record\.outputs\.carrier_executor_ref \|\| github\.sha \}\}/,
   );
+  const admissionStep = (workflow.jobs.admission.steps as any[]).find(
+    (step) => step.name === 'Seal one immutable WebUI Stable admission',
+  );
+  assert.equal(admissionStep.env.OPERATOR, '${{ github.actor }}');
+  assert.equal(admissionStep.env.OPERATOR_CONFIRMATION, '${{ inputs.operator_confirmation }}');
   assert.doesNotMatch(source, /inputs\.carrier_run_id/);
   assert.match(source, /carrier-follower-jobs\.json/);
   assert.match(source, /carrier-follower-job\.json/);
-  assert.match(source, /Materialize and verify independent source authority/);
-  assert.match(source, /admission_args\+=\(--source-authority evidence\/source-authority\.json\)/);
+  assert.match(source, /Materialize and verify exact durable Preview publication record/);
+  assert.match(source, /Materialize carrier and source authority from durable Preview publication record/);
+  assert.match(
+    source,
+    /admission_args\+=\(\s*--publication-record evidence\/publication-record\.json\s*--operator "\$OPERATOR"\s*--operator-confirmation "\$OPERATOR_CONFIRMATION"\s*\)/,
+  );
+  assert.match(source, /oras pull --output intake\/durable-publication-record/);
+  assert.match(source, /durable Preview publication record sidecar descriptor or manifest is invalid/);
+  assert.match(source, /durable Preview publication record sidecar does not bind the exact record bytes/);
+  assert.match(source, /actions_artifact_used:false/);
   assert.match(source, /in_progress.*completed/);
   assert.match(source, /version-manifest\.json/);
   assert.match(source, /child_digest/);
@@ -429,7 +476,7 @@ test('shared alias writer binds production Stable and independent Preview author
   assert.match(source, /layer-descriptors\.json/);
   assert.match(source, /version_and_latest_identical_bytes:true/);
   assert.match(source, /config_descriptor_verified:true/);
-  assert.match(source, /carrier_artifact="\$CARRIER_ARTIFACT_NAME"/);
+  assert.match(source, /Download exact App WebUI carrier artifact\n        if: \$\{\{ inputs\.authority_mode != 'independent_preview' \}\}/);
   assert.doesNotMatch(source, /basename "\$\(dirname "\$carrier_source"\)"/);
 });
 
@@ -471,10 +518,10 @@ test('independent Preview Latest dispatch reuses one exact immutable carrier wit
   const workflow = YAML.parse(source);
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
-    'carrier_follower_run_id',
-    'carrier_executor_ref',
-    'carrier_artifact_name',
+    'publication_record_ref',
+    'operator_confirmation',
   ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.operator_confirmation.required, true);
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(workflow.permissions.actions, 'read');
   assert.equal(workflow.concurrency.group, 'opl-webui-independent-preview-latest-global');
@@ -484,6 +531,8 @@ test('independent Preview Latest dispatch reuses one exact immutable carrier wit
   assert.equal(promotion.uses, './.github/workflows/release-webui-stable.yml');
   assert.equal(promotion.with.mode, 'execute');
   assert.equal(promotion.with.authority_mode, 'independent_preview');
+  assert.equal(promotion.with.publication_record_ref, '${{ inputs.publication_record_ref }}');
+  assert.equal(promotion.with.operator_confirmation, '${{ inputs.operator_confirmation }}');
   assert.deepEqual(promotion.permissions, {
     contents: 'read',
     actions: 'read',
@@ -491,6 +540,8 @@ test('independent Preview Latest dispatch reuses one exact immutable carrier wit
   });
   assert.equal(promotion.steps, undefined);
   assert.equal(promotion.with.stable_authority_run_id, undefined);
+  assert.equal(promotion.with.carrier_artifact_name, undefined);
+  assert.doesNotMatch(source, /carrier_artifact_name|carrier_follower_run_id|carrier_executor_ref/);
   assert.doesNotMatch(source, /_release-webui-carrier|build-and-qualify|publish-immutable-carrier/);
   assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force/);
 });
@@ -537,10 +588,11 @@ test('write authority is closed to the exact protected promotion job and exact a
 test('workflow reads exact source and carrier evidence before the protected alias CAS', () => {
   const source = fs.readFileSync(workflowPath, 'utf8');
   const ordered = [
+    'Materialize and verify exact durable Preview publication record',
     'Reject noncanonical or partial promotion runs',
     'Download exact App WebUI carrier artifact',
     'Materialize exactly one carrier receipt from the exact follower run',
-    'Materialize and verify independent source authority',
+    'Materialize carrier and source authority from durable Preview publication record',
     'Read immutable, version, Stable, and Latest authority',
     'Seal one immutable WebUI Stable admission',
     'Re-read Stable and Latest prestate and derive CAS decision',
@@ -612,6 +664,12 @@ test('independent Preview admission needs no Desktop Stable and binds a separate
   const admission = admitWebuiStablePromotion(current.input);
   assert.equal(admission.authority_mode, 'independent_preview');
   assert.equal(admission.stable_authority, null);
+  assert.deepEqual(admission.operator_authorization, {
+    schema: 'opl_app_webui_latest_operator_authorization.v1',
+    source: 'workflow_dispatch_exact_version_confirmation',
+    actor: 'gaofeng21cn',
+    confirmation_digest: `sha256:${crypto.createHash('sha256').update('move-docker-latest:26.7.28-preview.r1').digest('hex')}`,
+  });
   assert.equal(admission.source_authority.release.version, '26.7.28-preview.r1');
   assert.equal(
     admission.source_authority.source_authority_digest,
@@ -631,7 +689,11 @@ test('independent Preview admission needs no Desktop Stable and binds a separate
   assert.equal(admission.evidence.stable_authority_run_readback_sha256, null);
   assert.equal(
     admission.evidence.source_authority_sha256,
-    sha256File(current.sourceAuthorityPath),
+    current.input.publicationRecord.evidence.source_authority_sha256,
+  );
+  assert.equal(
+    admission.evidence.publication_record_sha256,
+    sha256File(current.publicationRecordPath),
   );
 });
 
@@ -640,7 +702,7 @@ test('independent Preview admission rejects source drift, incomplete publication
   sourceDigestDrift.input.carrierReceipt.release.bundle_digest = digest('0');
   assert.throws(
     () => admitWebuiStablePromotion(sourceDigestDrift.input),
-    /source authority digest and carrier release\.bundle_digest/,
+    /durable publication bundle digest/,
   );
 
   const sourceRefDrift = independentPreviewFixture();
@@ -652,12 +714,18 @@ test('independent Preview admission rejects source drift, incomplete publication
     runId: carrierFollowerRunId,
     executorSha: carrierExecutorAppSha,
   });
-  sourceRefDrift.input.sourceAuthority = mismatchedAuthority;
-  sourceRefDrift.input.carrierReceipt.release.bundle_digest = mismatchedAuthority.source_authority_digest;
-  sourceRefDrift.input.carrierReceipt.release.cohort_ref = mismatchedAuthority.source_authority_digest;
+  sourceRefDrift.input.carrierReceipt.cohort.shell_sha = mismatchedAuthority.sources.shell.source_commit;
   assert.throws(
     () => admitWebuiStablePromotion(sourceRefDrift.input),
-    /source authority Shell SHA/,
+    /durable publication Shell SHA/,
+  );
+
+  const missingRecord = independentPreviewFixture();
+  missingRecord.input.publicationRecord = undefined;
+  missingRecord.input.publicationRecordPath = undefined;
+  assert.throws(
+    () => admitWebuiStablePromotion(missingRecord.input),
+    /requires one exact durable publication record/,
   );
 
   const incomplete = independentPreviewFixture();
@@ -674,6 +742,34 @@ test('independent Preview admission rejects source drift, incomplete publication
   assert.throws(
     () => admitWebuiStablePromotion(implicit.input),
     /cannot also execute a Latest promotion/,
+  );
+
+  const missingConfirmation = independentPreviewFixture();
+  missingConfirmation.input.operatorConfirmation = undefined;
+  assert.throws(
+    () => admitWebuiStablePromotion(missingConfirmation.input),
+    /operator confirmation/,
+  );
+
+  const mismatchedConfirmation = independentPreviewFixture();
+  mismatchedConfirmation.input.operatorConfirmation = 'move-docker-latest:26.7.28-preview.r2';
+  assert.throws(
+    () => admitWebuiStablePromotion(mismatchedConfirmation.input), /operator confirmation/);
+
+  const botActor = independentPreviewFixture();
+  botActor.input.operator = 'github-actions[bot]';
+  assert.throws(() => admitWebuiStablePromotion(botActor.input), /human GitHub login/);
+
+  const current = independentPreviewFixture();
+  const tamperedAdmission = structuredClone(admitWebuiStablePromotion(current.input));
+  tamperedAdmission.operator_authorization.actor = 'another-user';
+  assert.throws(
+    () => decideWebuiStablePromotion(
+      tamperedAdmission,
+      current.input.stablePrestate,
+      current.input.latestPrestate,
+    ),
+    /admission\.input_digest/,
   );
 });
 
@@ -966,4 +1062,5 @@ test('independent Preview receipt proves Latest-only mutation and unchanged Stab
   assert.equal(receipt.classification.preview_kind, 'dev');
   assert.equal(receipt.classification.non_stable_notice, true);
   assert.equal(receipt.anonymous_readback.stable_unchanged, true);
+  assert.deepEqual(receipt.operator_authorization, admission.operator_authorization);
 });

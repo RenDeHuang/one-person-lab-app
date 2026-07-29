@@ -3,6 +3,11 @@ type GitHubReview = {
   commit_id?: string | null;
 };
 
+type GitHubIssueComment = {
+  user?: { login?: string | null } | null;
+  body?: string | null;
+};
+
 type ReviewThread = {
   isResolved: boolean;
   isOutdated: boolean;
@@ -12,6 +17,7 @@ type ReviewThread = {
 export type CodexReviewGateInput = {
   headSha: string;
   reviews: GitHubReview[];
+  issueComments?: GitHubIssueComment[];
   reviewThreads: ReviewThread[];
 };
 
@@ -36,6 +42,18 @@ function hasCurrentCodexReview(reviews: GitHubReview[], headSha: string): boolea
   );
 }
 
+function isCurrentCleanCodexIssueComment(comment: GitHubIssueComment, headSha: string): boolean {
+  if (!isCodexBot(comment.user?.login)) return false;
+  const body = String(comment.body ?? '');
+  if (!/^Codex Review: Didn't find any major issues\.(?: [^\r\n]+)?$/m.test(body)) return false;
+  const reviewedCommit = body.match(/^\*\*Reviewed commit:\*\* `([0-9a-f]{10,40})`$/im)?.[1];
+  return Boolean(reviewedCommit && headSha.startsWith(reviewedCommit));
+}
+
+function currentCleanCodexIssueCommentCount(comments: GitHubIssueComment[], headSha: string): number {
+  return comments.filter((comment) => isCurrentCleanCodexIssueComment(comment, headSha)).length;
+}
+
 function unresolvedCurrentCodexThreads(reviewThreads: ReviewThread[]): ReviewThread[] {
   return reviewThreads.filter(
     (thread) =>
@@ -47,10 +65,14 @@ function unresolvedCurrentCodexThreads(reviewThreads: ReviewThread[]): ReviewThr
 
 export function evaluateCodexReviewGate(input: CodexReviewGateInput): CodexReviewGateResult {
   const currentReview = hasCurrentCodexReview(input.reviews, input.headSha);
-  if (!currentReview) {
+  const currentCleanCommentCount = currentCleanCodexIssueCommentCount(input.issueComments ?? [], input.headSha);
+  if (!currentReview && currentCleanCommentCount !== 1) {
+    const commentRequirement = currentCleanCommentCount > 1
+      ? `Found ${currentCleanCommentCount} ambiguous connector-authored exact-head clean comments.`
+      : 'No connector-authored exact-head clean comment was found.';
     return {
       status: 'waiting',
-      summary: `Waiting for Codex to create a pull-request review record for ${input.headSha.slice(0, 12)}.`,
+      summary: `${commentRequirement} Waiting for Codex to create a pull-request review record or one exact-head clean comment for ${input.headSha.slice(0, 12)}.`,
     };
   }
 
@@ -64,7 +86,7 @@ export function evaluateCodexReviewGate(input: CodexReviewGateInput): CodexRevie
 
   return {
     status: 'passed',
-    summary: `Codex reviewed ${input.headSha.slice(0, 12)} and has no unresolved current threads.`,
+    summary: `Codex reviewed ${input.headSha.slice(0, 12)} through ${currentReview ? 'a pull-request review record' : 'one exact-head clean issue comment'} and has no unresolved current threads.`,
   };
 }
 
@@ -75,12 +97,12 @@ export function finalizeCodexReviewGateResult(
   if (result.status !== 'waiting') return result;
   return {
     status: 'inconclusive',
-    summary: `${result.summary} No immutable Codex review record arrived after ${waitSeconds} seconds; reaction-only evidence is intentionally inconclusive for this advisory.`,
+    summary: `${result.summary} No immutable Codex review record or unique exact-head clean issue comment arrived after ${waitSeconds} seconds; reaction-only evidence is intentionally inconclusive for this advisory.`,
   };
 }
 
 export function isCodexReviewAdvisoryFailure(result: CodexReviewGateResult): boolean {
-  return result.status === 'failed' || result.status === 'inconclusive';
+  return result.status === 'failed';
 }
 
 type GitHubRequest = <T>(path: string, init?: RequestInit) => Promise<T>;
@@ -194,13 +216,15 @@ async function main(): Promise<void> {
   const deadlineMs = Date.now() + waitSeconds * 1_000;
 
   for (;;) {
-    const [reviews, reviewThreads] = await Promise.all([
+    const [reviews, issueComments, reviewThreads] = await Promise.all([
       paginatedGitHubRequest<GitHubReview>(`/repos/${owner}/${repo}/pulls/${pullNumber}/reviews`),
+      paginatedGitHubRequest<GitHubIssueComment>(`/repos/${owner}/${repo}/issues/${pullNumber}/comments`),
       fetchReviewThreads(githubRequest, owner, repo, pullNumber),
     ]);
     const result = evaluateCodexReviewGate({
       headSha,
       reviews,
+      issueComments,
       reviewThreads,
     });
 

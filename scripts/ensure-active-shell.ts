@@ -6,13 +6,13 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { readAppShellAdapterContract, resolveActiveShellPaths } from './app-shell-adapter.ts';
-import { runCommand } from './release-cleanup-helpers.ts';
+import {
+  ensureActiveShellCheckout,
+  ensureShellHistory,
+  isGitCheckout,
+} from './active-shell-checkout.ts';
 
-const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-function run(command: string, args: string[], options: { capture?: boolean; cwd?: string } = {}) {
-  return runCommand(command, args, { ...options, cwd: options.cwd ?? appRoot });
-}
+export { ensureActiveShellCheckout, ensureShellHistory, isGitCheckout } from './active-shell-checkout.ts';
 
 function parseArgs(argv) {
   const { values } = parseNodeArgs({
@@ -32,24 +32,14 @@ function parseArgs(argv) {
   };
 }
 
-export function isGitCheckout(shellRoot) {
-  const result = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
-    cwd: shellRoot,
-    encoding: 'utf8',
-    stdio: 'pipe',
-  });
-  if (result.status !== 0 || result.stdout.trim() !== 'true') return false;
-  const topLevel = spawnSync('git', ['rev-parse', '--show-toplevel'], {
-    cwd: shellRoot,
-    encoding: 'utf8',
-    stdio: 'pipe',
-  });
-  if (topLevel.status !== 0) return false;
-  return path.resolve(topLevel.stdout.trim()) === path.resolve(fs.realpathSync(shellRoot));
-}
-
 function resolveShellSourceLayout(shellRoot) {
-  const topLevel = run('git', ['rev-parse', '--show-toplevel'], { cwd: shellRoot, capture: true }).stdout.trim();
+  const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: shellRoot,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  if (result.status !== 0) throw new Error(`Unable to resolve active shell Git root: ${result.stderr || ''}`);
+  const topLevel = result.stdout.trim();
   const resolvedShellRoot = fs.realpathSync(shellRoot);
   return path.resolve(topLevel) === path.resolve(resolvedShellRoot) ? 'external_checkout_root' : 'local_nested_source';
 }
@@ -67,12 +57,12 @@ function main() {
     fs.rmSync(shellRoot, { recursive: true, force: true });
   }
 
-  if (!fs.existsSync(shellRoot)) {
-    fs.mkdirSync(path.dirname(shellRoot), { recursive: true });
-    run('git', ['clone', '--depth', '1', '--branch', ref, repo, shellRoot]);
-  } else if (!isGitCheckout(shellRoot)) {
-    throw new Error(`${source.checkout_path} exists but is not a Git checkout. Move it aside or pass --reset.`);
-  }
+  ensureActiveShellCheckout({
+    shellRoot,
+    repo,
+    ref,
+    alignRef: true,
+  });
 
   const packageJsonPath = shellPaths.packageManifestPath;
   const agentsPath = shellPaths.agentsGuidePath;
@@ -80,7 +70,13 @@ function main() {
     throw new Error(`${source.checkout_path} is missing required shell files.`);
   }
 
-  const head = run('git', ['rev-parse', '--short=12', 'HEAD'], { cwd: shellRoot, capture: true }).stdout.trim();
+  const headResult = spawnSync('git', ['rev-parse', '--short=12', 'HEAD'], {
+    cwd: shellRoot,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+  if (headResult.status !== 0) throw new Error(`Unable to resolve active shell HEAD: ${headResult.stderr || ''}`);
+  const head = headResult.stdout.trim();
   console.log(JSON.stringify({
     status: 'active_shell_ready',
     shell_root: shellPaths.shellRootForDisplay,

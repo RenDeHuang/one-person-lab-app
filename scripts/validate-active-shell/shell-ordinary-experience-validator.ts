@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 import {
   assertShellTextIncludesAll,
   assertTextDoesNotMatch,
@@ -49,18 +50,17 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     assertTextIncludesAll(
       source,
       [
-        'const hasCanonicalProjectAffinity = Boolean(thread.projectId.trim())',
+        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
         'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalProjectAffinity',
+        'custom_workspace: hasCanonicalRecordedCwd',
       ],
       `Active shell ${label} cwd projection`,
     );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectAffinity',
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
         'cached?.extra.custom_workspace === true',
-        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
       ],
@@ -73,9 +73,6 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'function recordedCwd(value: unknown): string',
       "if (value === undefined || value === null) return ''",
       "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
-      'function isManagedProjectlessWorkspace(workspace: string): boolean',
-      "const managedRoot = path.join(os.homedir(), 'Documents', 'Codex')",
-      "return isManagedProjectlessWorkspace(workspace) ? '' : workspace",
       'workspace: recordedCwd(raw.cwd)',
     ],
     'Active shell canonical cwd parser fail-closed boundary',
@@ -88,10 +85,6 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   assertTextIncludesAll(
     focusedTests,
     [
-      'rebuilds a stale projectless cache row from the canonical recorded cwd',
-      'replaces stale bound shell affinity with the canonical recorded cwd',
-      'projects a managed Documents Codex task as a projectless sidebar row',
-      'adopts a managed Documents Codex projectless task into a selected project',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -99,6 +92,125 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'rejects a malformed cwd returned by canonical thread read',
     ],
     'Active shell canonical cwd convergence focused regressions',
+  );
+}
+
+export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
+  focusedTests,
+  threadAdapter,
+}: {
+  focusedTests: string;
+  threadAdapter: string;
+}): void {
+  const sourceFile = ts.createSourceFile('codex-app-server-adapter.ts', threadAdapter, ts.ScriptTarget.Latest, true);
+  const threadListOptions: ts.ObjectLiteralExpression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'request' &&
+      ts.isStringLiteralLike(node.arguments[0]) &&
+      node.arguments[0].text === 'thread/list'
+    ) {
+      const options = node.arguments[1];
+      if (!options || !ts.isObjectLiteralExpression(options)) {
+        throw new Error('Active shell canonical thread directory must pass an inline thread/list options object');
+      }
+      threadListOptions.push(options);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  if (threadListOptions.length === 0) {
+    throw new Error('Active shell canonical thread directory must call thread/list');
+  }
+  const propertyName = (property: ts.ObjectLiteralElementLike): string | null => {
+    const name = property.name;
+    if (!name) return null;
+    if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) return name.text;
+    if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)) return name.expression.text;
+    return null;
+  };
+  const assertNoSourceKindsExpression = (expression: ts.Expression): void => {
+    if (ts.isParenthesizedExpression(expression)) {
+      assertNoSourceKindsExpression(expression.expression);
+      return;
+    }
+    if (ts.isConditionalExpression(expression)) {
+      assertNoSourceKindsExpression(expression.whenTrue);
+      assertNoSourceKindsExpression(expression.whenFalse);
+      return;
+    }
+    if (!ts.isObjectLiteralExpression(expression)) {
+      throw new Error(
+        'Active shell canonical thread directory thread/list spreads must use statically inspectable inline objects',
+      );
+    }
+    assertNoSourceKindsProperties(expression.properties);
+  };
+  const assertNoSourceKindsProperties = (
+    properties: ts.NodeArray<ts.ObjectLiteralElementLike>,
+    allowGuardedDirectProperties = false,
+  ): void => {
+    for (const property of properties) {
+      if (ts.isSpreadAssignment(property)) {
+        assertNoSourceKindsExpression(property.expression);
+        continue;
+      }
+      const name = propertyName(property);
+      if (name === null) {
+        throw new Error(
+          'Active shell canonical thread directory thread/list option names must be statically inspectable',
+        );
+      }
+      if (name === 'sourceKinds') {
+        throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
+      }
+      if (!allowGuardedDirectProperties && (name === 'archived' || name === 'useStateDbOnly')) {
+        throw new Error(
+          'Active shell canonical thread directory thread/list option spreads must not override archived or useStateDbOnly',
+        );
+      }
+    }
+  };
+  for (const options of threadListOptions) {
+    const archivedProperties = options.properties.filter((property) => propertyName(property) === 'archived');
+    const stateDbOnlyProperties = options.properties.filter((property) => propertyName(property) === 'useStateDbOnly');
+    if (archivedProperties.length !== 1) {
+      throw new Error('Active shell canonical thread directory thread/list options must include exactly one archived selector');
+    }
+    if (stateDbOnlyProperties.length !== 1) {
+      throw new Error('Active shell canonical thread directory thread/list options must include exactly one useStateDbOnly selector');
+    }
+    const archived = archivedProperties[0];
+    const stateDbOnly = stateDbOnlyProperties[0];
+    if (
+      !ts.isShorthandPropertyAssignment(archived) &&
+      (!ts.isPropertyAssignment(archived) ||
+        !ts.isIdentifier(archived.initializer) ||
+        archived.initializer.text !== 'archived')
+    ) {
+      throw new Error(
+        'Active shell canonical thread directory thread/list options must use the dynamic archived selector rather than a constant',
+      );
+    }
+    if (
+      !stateDbOnly ||
+      !ts.isPropertyAssignment(stateDbOnly) ||
+      stateDbOnly.initializer.kind !== ts.SyntaxKind.TrueKeyword
+    ) {
+      throw new Error('Active shell canonical thread directory thread/list options must set useStateDbOnly to true');
+    }
+    assertNoSourceKindsProperties(options.properties, true);
+  }
+  assertTextIncludesAll(
+    focusedTests,
+    [
+      'lists active and archived threads through bounded app-server pagination',
+      'useStateDbOnly: true',
+      "not.toHaveProperty('sourceKinds')",
+    ],
+    'Active shell canonical thread directory timeout/archive regressions',
   );
 }
 
@@ -1505,11 +1617,14 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     focusedTests: projectAffinityTests,
     threadAdapter,
   });
+  assertCanonicalThreadDirectoryTimeoutBoundarySources({
+    focusedTests: projectAffinityTests,
+    threadAdapter,
+  });
   assertTextIncludesAll(
     projectAffinityTests,
     [
       'keeps directories distinct even when threads share one Git origin',
-      'hydrates a legacy missing affinity marker from the canonical recorded cwd',
       'adopts an explicitly projectless canonical conversation without a cached workspace',
       'updates the App Server cwd before committing the local affinity projection',
       'keeps the conversation projectless when canonical cwd readback does not match',

@@ -98,6 +98,13 @@ function exactJson(left: unknown, right: unknown, label: string): void {
   if (canonicalJson(left) !== canonicalJson(right)) throw new Error(`${label} does not match the frozen Bundle.`);
 }
 
+function latestPointerInspectionIdentity(inspection: JsonRecord): JsonRecord {
+  const release = inspection.release as JsonRecord | undefined;
+  if (!release) return inspection;
+  const { immutable: _immutable, ...pointerRelease } = release;
+  return { ...inspection, release: pointerRelease };
+}
+
 function assertCanonicalBundleDigest(bundle: JsonRecord): void {
   const { bundle_digest: expectedDigest, ...core } = bundle;
   const actualDigest = digestRef(sha256Bytes(canonicalJson(core)));
@@ -185,6 +192,7 @@ function requiredAssetNames(version: string, track: Track): string[] {
         `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
+        'opl-install.sh',
         'opl-app-installer.sh',
         'standard-gatekeeper-launch-policy.json',
         'standard-apple-notarization-receipt.json',
@@ -1365,9 +1373,60 @@ export function inspectRelease(
       prerelease: release.prerelease,
       target_commitish: release.target_commitish,
       body_sha256: sha256Bytes(String(release.body ?? '')),
+      immutable: release.immutable === true,
     },
     assets,
   };
+}
+
+function assertImmutableReleasesEnabled(
+  values: AdapterOptionValues,
+  repo: string,
+  runtime: GitHubAdapterRuntime,
+): void {
+  let capability: JsonRecord | string | null;
+  try {
+    capability = ghRead([
+      'api',
+      `repos/${repo}/immutable-releases`,
+      '-H',
+      'X-GitHub-Api-Version: 2026-03-10',
+    ], runtime);
+  } catch (error) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutable_releases_capability_unavailable',
+      'GitHub immutable Releases capability could not be verified before publication.',
+      {
+        repository: repo,
+        read_failure: error instanceof GitHubReadError
+          ? error.evidence
+          : { error_message: error instanceof Error ? error.message : String(error) },
+      },
+    );
+  }
+  if (
+    capability === null
+    || typeof capability !== 'object'
+    || capability.enabled !== true
+  ) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutable_releases_disabled',
+      'GitHub immutable Releases must be enabled before creating or publishing a release carrier.',
+      {
+        repository: repo,
+        enabled: typeof capability === 'object' && capability !== null
+          ? capability.enabled ?? null
+          : null,
+        enforced_by_owner: typeof capability === 'object' && capability !== null
+          ? capability.enforced_by_owner ?? null
+          : null,
+      },
+    );
+  }
 }
 
 function inspectReleaseForReconcile(repo: string, tag: string, runtime: GitHubAdapterRuntime): JsonRecord {
@@ -1403,7 +1462,7 @@ type GitHubMutationAttempt =
 
 function mutationAttemptId(
   baseAttemptId: string,
-  mutation: 'release_create' | 'asset_upload' | 'latest_patch',
+  mutation: 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch',
   remoteTarget: string,
   subject: string,
 ): string {
@@ -1416,7 +1475,7 @@ function mutationAttemptId(
 }
 
 function runGitHubMutation(input: {
-  mutation: 'release_create' | 'asset_upload' | 'latest_patch';
+  mutation: 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch';
   attemptId: string;
   remoteTarget: string;
   args: string[];
@@ -1529,12 +1588,13 @@ function assertReleaseIdentity(inspection: JsonRecord, options: {
   notes: string;
   targetCommitish: string;
   prerelease: boolean;
+  draft: boolean;
 }): void {
   const release = inspection.release;
   if (
     release.name !== options.name
     || release.prerelease !== options.prerelease
-    || release.draft !== false
+    || release.draft !== options.draft
     || release.target_commitish !== options.targetCommitish
   ) {
     throw new Error(`Existing ${options.tag} Release identity conflicts with the Bundle.`);
@@ -1542,6 +1602,116 @@ function assertReleaseIdentity(inspection: JsonRecord, options: {
   if (release.body_sha256 !== sha256Bytes(options.notes)) {
     throw new Error(`Existing ${options.tag} Release notes conflict with the prepared Bundle notes.`);
   }
+}
+
+function plannedUploadActions(actions: unknown): JsonRecord[] {
+  if (!Array.isArray(actions)) {
+    throw new Error('Framework publish plan has no structured upload_actions.');
+  }
+  const names = new Set<string>();
+  for (const action of actions as JsonRecord[]) {
+    if (
+      action.action !== 'upload'
+      || typeof action.name !== 'string'
+      || action.name.trim() !== action.name
+      || action.name.length === 0
+      || typeof action.source_path !== 'string'
+      || action.source_path.length === 0
+      || !Number.isSafeInteger(action.size_bytes)
+      || Number(action.size_bytes) <= 0
+      || !digestPattern.test(String(action.sha256 ?? ''))
+      || names.has(action.name)
+    ) {
+      throw new Error('Framework publish plan contains duplicate or invalid asset names.');
+    }
+    names.add(action.name);
+  }
+  return actions as JsonRecord[];
+}
+
+function supplementalUploadActions(values: AdapterOptionValues): JsonRecord[] {
+  const source = values['additional-upload-actions'];
+  if (source === undefined || source === '') return [];
+  if (typeof source !== 'string') {
+    throw new Error('Additional immutable upload actions must be one JSON file path.');
+  }
+  const document = readJson(path.resolve(source));
+  if (!document || typeof document !== 'object' || Array.isArray(document)) {
+    throw new Error('Additional immutable upload actions must be one JSON object.');
+  }
+  const actions = (document as JsonRecord).upload_actions;
+  if (!Array.isArray(actions)) {
+    throw new Error('Additional immutable upload actions must expose upload_actions.');
+  }
+  return actions as JsonRecord[];
+}
+
+function assertReleaseAssetSet(
+  inspection: JsonRecord,
+  actions: JsonRecord[],
+  exact: boolean,
+): void {
+  const planned = new Map(actions.map((action) => [String(action.name), action]));
+  const remoteNames = new Set<string>();
+  for (const asset of inspection.assets as JsonRecord[]) {
+    const name = String(asset.name ?? '');
+    if (!name || remoteNames.has(name)) {
+      throw new Error(`Remote Release contains duplicate asset name ${name || '<missing>'}.`);
+    }
+    remoteNames.add(name);
+    const expected = planned.get(name);
+    if (!expected) {
+      throw new Error(`Remote Release contains unexpected asset outside the exact planned set: ${name}.`);
+    }
+    if (asset.sha256 !== expected.sha256 || asset.size_bytes !== expected.size_bytes) {
+      throw new Error(`Remote asset ${name} conflicts with the immutable publish plan.`);
+    }
+  }
+  if (
+    exact
+    && (
+      remoteNames.size !== planned.size
+      || [...planned.keys()].some((name) => !remoteNames.has(name))
+    )
+  ) {
+    throw new Error('Remote Release asset set is incomplete for immutable publication.');
+  }
+}
+
+function publishedMutablePolicyViolation(input: {
+  repo: string;
+  tag: string;
+  attemptEvidence?: JsonRecord;
+  inspection: JsonRecord;
+}): JsonRecord {
+  return {
+    surface_kind: 'opl_app_github_mutation_result.v1',
+    status: 'failed',
+    repository: input.repo,
+    tag: input.tag,
+    uploaded: [],
+    mutation_attempt_id: input.attemptEvidence?.mutation_attempt_id ?? null,
+    remote_target: input.attemptEvidence?.remote_target
+      ?? `github-release:${input.repo}@${input.tag}`,
+    retry_disposition: 'read_only_reconcile_only_no_retry',
+    failure: {
+      schema: 'opl_release_mutation_failure_receipt.v1',
+      failure_taxonomy: 'published_mutable_policy_violation',
+      mutation: 'release_publish',
+      mutation_attempt_id: input.attemptEvidence?.mutation_attempt_id ?? null,
+      remote_target: input.attemptEvidence?.remote_target
+        ?? `github-release:${input.repo}@${input.tag}`,
+      reason: input.attemptEvidence
+        ? 'GitHub accepted publication but did not report immutable=true.'
+        : 'The existing published carrier does not report immutable=true.',
+      mutation_attempt: input.attemptEvidence ?? null,
+      observed_release: input.inspection.release,
+    },
+    reconciliation: {
+      status: 'complete',
+      observation: input.inspection,
+    },
+  };
 }
 
 function ensureRelease(options: {
@@ -1554,17 +1724,18 @@ function ensureRelease(options: {
   prerelease: boolean;
   operationDeadlineAt: string;
   runtime: GitHubAdapterRuntime;
+  initialInspection?: JsonRecord;
 }): JsonRecord {
   const expectedBody = options.notes;
   const remoteTarget = `github-release:${options.repo}@${options.tag}`;
-  let inspection = inspectRelease(options.repo, options.tag, options.runtime);
+  let inspection = options.initialInspection ?? inspectRelease(options.repo, options.tag, options.runtime);
   if (!inspection.release.exists) {
     const payload = JSON.stringify({
       tag_name: options.tag,
       target_commitish: options.targetCommitish,
       name: options.name,
       body: expectedBody,
-      draft: false,
+      draft: true,
       prerelease: options.prerelease,
       make_latest: 'false',
     });
@@ -1599,8 +1770,108 @@ function ensureRelease(options: {
     }
     inspection = reconciliation.observation;
   }
-  assertReleaseIdentity(inspection, options);
+  if (inspection.release.draft === true) {
+    assertReleaseIdentity(inspection, { ...options, draft: true });
+  } else if (inspection.release.draft === false) {
+    assertReleaseIdentity(inspection, { ...options, draft: false });
+  } else {
+    throw new Error(`Existing ${options.tag} Release has an invalid draft state.`);
+  }
   return { status: 'complete', inspection };
+}
+
+function publishDraftRelease(options: {
+  baseAttemptId: string;
+  values: AdapterOptionValues;
+  repo: string;
+  tag: string;
+  name: string;
+  notes: string;
+  targetCommitish: string;
+  prerelease: boolean;
+  actions: JsonRecord[];
+  operationDeadlineAt: string;
+  runtime: GitHubAdapterRuntime;
+}): JsonRecord {
+  const before = inspectRelease(options.repo, options.tag, options.runtime);
+  assertReleaseIdentity(before, { ...options, draft: true });
+  assertReleaseAssetSet(before, options.actions, true);
+  assertImmutableReleasesEnabled(options.values, options.repo, options.runtime);
+  const remoteTarget = `github-release:${options.repo}@${options.tag}`;
+  const attempt = runGitHubMutation({
+    mutation: 'release_publish',
+    attemptId: mutationAttemptId(
+      options.baseAttemptId,
+      'release_publish',
+      remoteTarget,
+      options.tag,
+    ),
+    remoteTarget,
+    args: [
+      'api',
+      '--method',
+      'PATCH',
+      `repos/${options.repo}/releases/${before.release.id}`,
+      '--input',
+      '-',
+    ],
+    body: JSON.stringify({ draft: false, make_latest: 'false' }),
+    operationDeadlineAt: options.operationDeadlineAt,
+    runtime: options.runtime,
+  });
+  if (attempt.status !== 'accepted') {
+    return stoppedMutation({
+      attempt,
+      repo: options.repo,
+      tag: options.tag,
+      reconciliation: inspectReleaseForReconcile(options.repo, options.tag, options.runtime),
+    });
+  }
+  const reconciliation = inspectReleaseForReconcile(options.repo, options.tag, options.runtime);
+  if (reconciliation.status !== 'complete' || !reconciliation.observation.release.exists) {
+    return unknownAfterAcceptedMutation({
+      mutation: 'release_publish',
+      operationDeadlineAt: options.operationDeadlineAt,
+      attemptEvidence: attempt.evidence,
+      repo: options.repo,
+      tag: options.tag,
+      reconciliation,
+      reason: 'GitHub accepted draft publication but exact immutable readback did not complete.',
+    });
+  }
+  const published = reconciliation.observation;
+  if (published.release.immutable !== true) {
+    return publishedMutablePolicyViolation({
+      repo: options.repo,
+      tag: options.tag,
+      attemptEvidence: attempt.evidence,
+      inspection: published,
+    });
+  }
+  try {
+    assertReleaseIdentity(published, { ...options, draft: false });
+    assertReleaseAssetSet(published, options.actions, true);
+  } catch (error) {
+    return unknownAfterAcceptedMutation({
+      mutation: 'release_publish',
+      operationDeadlineAt: options.operationDeadlineAt,
+      attemptEvidence: attempt.evidence,
+      repo: options.repo,
+      tag: options.tag,
+      reconciliation,
+      reason: `GitHub accepted draft publication but exact identity or asset readback failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    });
+  }
+  return {
+    status: 'complete',
+    repository: options.repo,
+    tag: options.tag,
+    uploaded: [],
+    release_publish: attempt.evidence,
+    inspection: published,
+  };
 }
 
 export function applyPublishPlan(
@@ -1671,7 +1942,19 @@ export function applyPublishPlan(
   if (publication.status === 'reconcile_only') {
     return { status: 'reconcile_only', repository: repo, tag, uploaded: [] };
   }
-  if (!Array.isArray(actions)) throw new Error('Framework publish plan has no structured upload_actions.');
+  const uploadActions = plannedUploadActions([
+    ...plannedUploadActions(actions),
+    ...supplementalUploadActions(values),
+  ]);
+  const preexisting = inspectReleaseForReconcile(repo, tag, runtime);
+  const exactPublishedCarrier = preexisting.status === 'complete'
+    && preexisting.observation.release.exists === true
+    && preexisting.observation.release.draft === false;
+  if (!exactPublishedCarrier) {
+    // Creating a draft or publishing it is forbidden until GitHub confirms
+    // immutable Releases are enabled. An already immutable carrier is read-only.
+    assertImmutableReleasesEnabled(values, repo, runtime);
+  }
   const releaseResult = ensureRelease({
     baseAttemptId: admission.attemptId,
     repo,
@@ -1682,16 +1965,41 @@ export function applyPublishPlan(
     prerelease: publicationChannel === 'nightly',
     operationDeadlineAt,
     runtime,
+    initialInspection: preexisting.status === 'complete' ? preexisting.observation : undefined,
   });
   if (releaseResult.status !== 'complete') return releaseResult;
-  const uploaded: string[] = [];
-  for (const action of actions as JsonRecord[]) {
-    if (action.action !== 'upload' || typeof action.source_path !== 'string') {
-      throw new Error('Framework publish plan contains an invalid upload action.');
+  if (releaseResult.inspection.release.draft === false) {
+    assertReleaseAssetSet(releaseResult.inspection, uploadActions, true);
+    if (releaseResult.inspection.release.immutable !== true) {
+      return publishedMutablePolicyViolation({
+        repo,
+        tag,
+        inspection: releaseResult.inspection,
+      });
     }
+    return {
+      status: 'complete',
+      repository: repo,
+      tag,
+      uploaded: [],
+      inspection: releaseResult.inspection,
+    };
+  }
+  assertReleaseAssetSet(releaseResult.inspection, uploadActions, false);
+  const uploaded: string[] = [];
+  for (const action of uploadActions) {
     const expectedDigest = action.sha256;
     const expectedSize = action.size_bytes;
     const before = inspectRelease(repo, tag, runtime);
+    assertReleaseIdentity(before, {
+      tag,
+      name,
+      notes: bundle.prepared_notes.markdown,
+      targetCommitish: bundle.sources.app.source_commit,
+      prerelease: publicationChannel === 'nightly',
+      draft: true,
+    });
+    assertReleaseAssetSet(before, uploadActions, false);
     const current = before.assets.find((asset: JsonRecord) => asset.name === action.name);
     if (current) {
       if (current.sha256 === expectedDigest && current.size_bytes === expectedSize) continue;
@@ -1735,6 +2043,15 @@ export function applyPublishPlan(
       });
     }
     const after = reconciliation.observation;
+    assertReleaseIdentity(after, {
+      tag,
+      name,
+      notes: bundle.prepared_notes.markdown,
+      targetCommitish: bundle.sources.app.source_commit,
+      prerelease: publicationChannel === 'nightly',
+      draft: true,
+    });
+    assertReleaseAssetSet(after, uploadActions, false);
     const observed = after.assets.find((asset: JsonRecord) => asset.name === action.name);
     if (observed?.sha256 === expectedDigest && observed?.size_bytes === expectedSize) {
       uploaded.push(action.name);
@@ -1753,7 +2070,23 @@ export function applyPublishPlan(
       reason: 'GitHub accepted the upload but did not expose its immutable digest.',
     });
   }
-  return { status: 'complete', repository: repo, tag, uploaded };
+  const publicationResult = publishDraftRelease({
+    baseAttemptId: admission.attemptId,
+    values,
+    repo,
+    tag,
+    name,
+    notes: bundle.prepared_notes.markdown,
+    targetCommitish: bundle.sources.app.source_commit,
+    prerelease: publicationChannel === 'nightly',
+    actions: uploadActions,
+    operationDeadlineAt,
+    runtime,
+  });
+  if (publicationResult.status !== 'complete') {
+    return { ...publicationResult, uploaded };
+  }
+  return { ...publicationResult, uploaded };
 }
 
 function activateLatestCas(input: {
@@ -1979,8 +2312,8 @@ export function activatePublishedLatestPointer(
   assertLatestPointerOperationAdmissionReceipt(receipt, pointerInput);
   const freshInspection = inspectRelease(repo, tag, runtime);
   exactJson(
-    freshInspection,
-    readJson(releaseInspectionPath),
+    latestPointerInspectionIdentity(freshInspection),
+    latestPointerInspectionIdentity(readJson(releaseInspectionPath)),
     'Published exact release inspection',
   );
   if (

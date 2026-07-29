@@ -25,8 +25,21 @@ export type NativeWebuiRemoteAsset = {
   browser_download_url?: string;
 };
 
+export type NativeWebuiTarget = {
+  platform: 'linux' | 'darwin';
+  architecture: 'x86_64' | 'arm64';
+};
+
 export type NativeWebuiPublicationAction = NativeWebuiLocalAsset & {
   action: 'upload' | 'reuse';
+};
+
+export type NativeWebuiUploadAction = {
+  action: 'upload';
+  name: string;
+  source_path: string;
+  size_bytes: number;
+  sha256: `sha256:${string}`;
 };
 
 export type NativeWebuiPublicationManifest = {
@@ -34,6 +47,8 @@ export type NativeWebuiPublicationManifest = {
   repository: string;
   tag: string;
   version: string;
+  platform: NativeWebuiTarget['platform'];
+  architecture: NativeWebuiTarget['architecture'];
   release_bundle_digest: string;
   stable_authority_run_id: string;
   cohort: {
@@ -124,8 +139,21 @@ function writeJson(filePath: string, value: unknown): void {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-function expectedAssetNames(version: string): Record<(typeof requiredAssetRoles)[number], string> {
-  const base = `one-person-lab-webui-${version}-linux-x86_64`;
+function assertTarget(target: NativeWebuiTarget): void {
+  const supported =
+    target.platform === 'linux' && target.architecture === 'x86_64'
+    || target.platform === 'darwin' && target.architecture === 'arm64';
+  if (!supported) {
+    fail(`Unsupported Native WebUI target ${target.platform}-${target.architecture}`);
+  }
+}
+
+function expectedAssetNames(
+  version: string,
+  target: NativeWebuiTarget,
+): Record<(typeof requiredAssetRoles)[number], string> {
+  assertTarget(target);
+  const base = `one-person-lab-webui-${version}-${target.platform}-${target.architecture}`;
   return {
     runtime_tarball: `${base}.tar.gz`,
     runtime_metadata: `${base}.tar.gz.sha256`,
@@ -141,6 +169,7 @@ function validateQualificationReceipt(
     version: string;
     bundleDigest: string;
     stableAuthorityRunId: string;
+    target: NativeWebuiTarget;
     appSha: string;
     shellSha: string;
     frameworkSha: string;
@@ -154,8 +183,8 @@ function validateQualificationReceipt(
     || receipt.version !== expected.version
     || receipt.release_bundle_digest !== expected.bundleDigest
     || String(receipt.stable_authority_run_id) !== expected.stableAuthorityRunId
-    || receipt.platform !== 'linux'
-    || receipt.architecture !== 'x86_64'
+    || receipt.platform !== expected.target.platform
+    || receipt.architecture !== expected.target.architecture
     || receipt.non_root !== true
     || cohort.app_sha !== expected.appSha
     || cohort.shell_sha !== expected.shellSha
@@ -201,6 +230,8 @@ export function sealNativeWebuiPublicationManifest(input: {
   version: string;
   releaseBundleDigest: string;
   stableAuthorityRunId: string;
+  platform: NativeWebuiTarget['platform'];
+  architecture: NativeWebuiTarget['architecture'];
   appSha: string;
   shellSha: string;
   frameworkSha: string;
@@ -209,6 +240,8 @@ export function sealNativeWebuiPublicationManifest(input: {
 }): NativeWebuiPublicationManifest {
   if (input.repository !== 'gaofeng21cn/one-person-lab-app') fail('Native WebUI publication repository is not authorized');
   if (!versionPattern.test(input.version)) fail('Native WebUI version must be a canonical Stable display version');
+  const target = { platform: input.platform, architecture: input.architecture };
+  assertTarget(target);
   if (!digestPattern.test(input.releaseBundleDigest)) fail('release_bundle_digest must be a SHA-256 digest reference');
   if (!stableRunPattern.test(input.stableAuthorityRunId)) fail('stable_authority_run_id must be a positive Actions run id');
   for (const [label, value] of Object.entries({
@@ -225,12 +258,13 @@ export function sealNativeWebuiPublicationManifest(input: {
     version: input.version,
     bundleDigest: input.releaseBundleDigest,
     stableAuthorityRunId: input.stableAuthorityRunId,
+    target,
     appSha: input.appSha,
     shellSha: input.shellSha,
     frameworkSha: input.frameworkSha,
   });
 
-  const names = expectedAssetNames(input.version);
+  const names = expectedAssetNames(input.version, target);
   const assets = requiredAssetRoles.map((role) => {
     const assetPath = portableFileRef(input.assetPaths[role], `Native WebUI ${role}`);
     const stat = regularFile(assetPath.absolute, `Native WebUI ${role}`);
@@ -256,6 +290,8 @@ export function sealNativeWebuiPublicationManifest(input: {
     repository: input.repository,
     tag: `v${input.version}`,
     version: input.version,
+    platform: target.platform,
+    architecture: target.architecture,
     release_bundle_digest: input.releaseBundleDigest,
     stable_authority_run_id: input.stableAuthorityRunId,
     cohort: {
@@ -278,6 +314,8 @@ function validateManifest(value: unknown): NativeWebuiPublicationManifest {
     version: manifest.version,
     releaseBundleDigest: manifest.release_bundle_digest,
     stableAuthorityRunId: String(manifest.stable_authority_run_id),
+    platform: manifest.platform,
+    architecture: manifest.architecture,
     appSha: manifest.cohort?.app_sha,
     shellSha: manifest.cohort?.shell_sha,
     frameworkSha: manifest.cohort?.framework_sha,
@@ -453,83 +491,53 @@ export function readbackNativeWebuiAssets(
   }
 }
 
+export function buildNativeWebuiUploadActions(
+  manifest: NativeWebuiPublicationManifest,
+): JsonRecord {
+  const validated = validateManifest(manifest);
+  const names = validated.assets.map((asset) => asset.name);
+  const sourcePaths = validated.assets.map((asset) => path.resolve(asset.path));
+  if (new Set(names).size !== names.length) {
+    fail('Native WebUI publication manifest contains duplicate asset names');
+  }
+  if (new Set(sourcePaths).size !== sourcePaths.length) {
+    fail('Native WebUI publication manifest contains duplicate asset source paths');
+  }
+  const uploadActions: NativeWebuiUploadAction[] = validated.assets.map((asset, index) => {
+    const sourcePath = sourcePaths[index];
+    const stat = regularFile(sourcePath, `Native WebUI upload ${asset.name}`);
+    const sha256 = sha256File(sourcePath);
+    if (stat.size !== asset.size_bytes || sha256 !== asset.sha256) {
+      fail(`Native WebUI upload ${asset.name} changed after manifest sealing`);
+    }
+    return {
+      action: 'upload',
+      name: asset.name,
+      source_path: sourcePath,
+      size_bytes: asset.size_bytes,
+      sha256: `sha256:${asset.sha256}`,
+    };
+  });
+  return {
+    schema: 'opl_app_native_webui_upload_actions.v1',
+    manifest_digest: `sha256:${sha256Bytes(JSON.stringify(validated))}`,
+    repository: validated.repository,
+    tag: validated.tag,
+    release_bundle_digest: validated.release_bundle_digest,
+    cohort: validated.cohort,
+    upload_actions: uploadActions,
+  };
+}
+
 export function publishNativeWebuiAssets(
   manifest: NativeWebuiPublicationManifest,
   mutationAttemptId: string,
   runtime: NativeWebuiGitHubRuntime = defaultRuntime,
 ): JsonRecord {
-  if (!/^gha-[A-Za-z0-9._-]+$/.test(mutationAttemptId)) {
-    fail('Native WebUI mutation attempt id must be a bounded GitHub Actions identity');
-  }
-  const inspection = inspectRelease(manifest, runtime);
-  const plan = planNativeWebuiAssetPublication(manifest.assets, inspection.assets);
-  const missing = plan.filter((action) => action.action === 'upload');
-  const reused = plan.filter((action) => action.action === 'reuse').map((action) => action.name);
-  if (missing.length === 0) {
-    const readback = readbackNativeWebuiAssets(manifest, runtime);
-    if (readback.status !== 'complete') {
-      return {
-        ...readback,
-        status: 'public_readback_failed',
-        mutation_attempt_id: mutationAttemptId,
-        requested_uploads: [],
-        reused,
-        retry_disposition: 'fix_public_readback_then_freeze_a_new_standard_bundle_no_upload_retry',
-      };
-    }
-    return {
-      ...readback,
-      status: 'idempotent',
-      mutation_attempt_id: mutationAttemptId,
-      requested_uploads: [],
-      reused,
-    };
-  }
-  const localPaths = missing.map((action) => {
-    const localPath = path.resolve(action.path);
-    regularFile(localPath, `Native WebUI upload ${action.name}`);
-    return localPath;
-  });
-  const attempt = runtime.run('gh', [
-    'release',
-    'upload',
-    manifest.tag,
-    ...localPaths,
-    '--repo',
-    manifest.repository,
-  ], { timeout: 10 * 60_000 });
-  const readback = readbackNativeWebuiAssets(manifest, runtime);
-  if (attempt.status !== 0 || attempt.error || readback.status !== 'complete') {
-    return {
-      ...readback,
-      status: 'outcome_unknown',
-      mutation_attempt_id: mutationAttemptId,
-      requested_uploads: missing.map((action) => action.name),
-      reused,
-      retry_disposition: 'persist_framework_marker_then_exact_read_only_reconcile_no_upload_retry',
-      mutation_attempt: {
-        exit_status: attempt.status,
-        signal: attempt.signal ?? null,
-        error: attempt.error?.message ?? null,
-        stdout: attempt.stdout,
-        stderr: attempt.stderr,
-      },
-    };
-  }
-  return {
-    ...readback,
-    status: 'complete',
-    mutation_attempt_id: mutationAttemptId,
-    requested_uploads: missing.map((action) => action.name),
-    reused,
-    mutation_attempt: {
-      exit_status: attempt.status,
-      signal: attempt.signal ?? null,
-      error: null,
-      stdout: attempt.stdout,
-      stderr: attempt.stderr,
-    },
-  };
+  void manifest;
+  void mutationAttemptId;
+  void runtime;
+  fail('Native WebUI assets must be published by the unified Stable draft carrier; post-publish append is forbidden');
 }
 
 function option(values: Record<string, string | boolean | string[] | undefined>, name: string): string {
@@ -548,6 +556,8 @@ function main(): void {
       version: { type: 'string' },
       'release-bundle-digest': { type: 'string' },
       'stable-authority-run-id': { type: 'string' },
+      platform: { type: 'string' },
+      architecture: { type: 'string' },
       'app-sha': { type: 'string' },
       'shell-sha': { type: 'string' },
       'framework-sha': { type: 'string' },
@@ -569,6 +579,8 @@ function main(): void {
       version: option(parsed.values, 'version'),
       releaseBundleDigest: option(parsed.values, 'release-bundle-digest'),
       stableAuthorityRunId: option(parsed.values, 'stable-authority-run-id'),
+      platform: option(parsed.values, 'platform') as NativeWebuiTarget['platform'],
+      architecture: option(parsed.values, 'architecture') as NativeWebuiTarget['architecture'],
       appSha: option(parsed.values, 'app-sha'),
       shellSha: option(parsed.values, 'shell-sha'),
       frameworkSha: option(parsed.values, 'framework-sha'),
@@ -583,6 +595,13 @@ function main(): void {
     });
     writeJson(path.resolve(option(parsed.values, 'output')), manifest);
     process.stdout.write(`${JSON.stringify(manifest)}\n`);
+    return;
+  }
+  if (command === 'upload-actions') {
+    const manifest = validateManifest(readJson(path.resolve(option(parsed.values, 'manifest'))));
+    const actions = buildNativeWebuiUploadActions(manifest);
+    writeJson(path.resolve(option(parsed.values, 'output')), actions);
+    process.stdout.write(`${JSON.stringify(actions)}\n`);
     return;
   }
   if (command === 'publish') {
@@ -601,7 +620,7 @@ function main(): void {
     if (receipt.status === 'outcome_unknown') process.exitCode = 2;
     return;
   }
-  fail('Usage: release-native-webui-carrier.ts <seal|publish|readback> ...');
+  fail('Usage: release-native-webui-carrier.ts <seal|upload-actions|publish|readback> ...');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -281,10 +281,16 @@ requires protected single-use authority, an expected-current CAS, exact
 tag/digest binding, and public readback. The target may be an exact Stable or
 Preview: Stable must prove stable qualification with no non-Stable disclosure;
 Preview preserves its quality and discloses non-Stable plus skipped or failed
-gates. The next qualified Stable reclaims Latest by default, and any failed
-operation preserves the existing Latest/LKG. Stable Bundle mutation owns its
-repository-wide mutation mutex; the scheduled Canary cannot write Release,
-Latest, updater, or Homebrew state.
+gates. The target is selected only from a retained
+`carrier_owned_durable_publication_record`, which binds carrier namespace, exact
+version/tag, immutable artifact/image digest, classification, disclosure, and
+public readback. An Actions artifact may carry bytes before publication or
+explain a run, but is never the selector or retention authority for a published
+version. Retired or revoked records are ineligible for selection. The next
+qualified Stable reclaims Latest by default, and any failed operation preserves
+the existing Latest/LKG. Stable Bundle mutation owns its repository-wide
+mutation mutex; the scheduled Canary cannot write Release, Latest, updater, or
+Homebrew state.
 
 The failed Bundle below is permanently ineligible for checkpoint import,
 publication, promotion, or reuse:
@@ -391,8 +397,10 @@ The independent emergency path is deliberately different:
 2. The workflow seals `opl_app_webui_source_authority.v1`, publishes and
    qualifies the immutable OCI version, and does not move `stable` or `latest`.
 3. After explicit user confirmation, dispatch
-   `release-webui-development-promote.yml` for that exact carrier receipt.
-   The protected writer changes only WebUI `latest` through a one-write CAS.
+   `release-webui-development-promote.yml` for that exact carrier receipt with
+   `move-docker-latest:<exact version>`. The protected writer records the
+   human GitHub actor and confirmation digest, then changes only WebUI `latest`
+   through a one-write CAS.
 4. Read back the exact `latest` digest anonymously and prove WebUI `stable`
    remains at its frozen predecessor.
 
@@ -401,7 +409,8 @@ urgent fix can ship immediately once its immutable carrier qualification is
 complete. It does not promote Preview quality, mutate the Docker `stable`
 alias, or change Desktop release state. The receipt/run identifiers are
 evidence handles for the selected exact version; they are not an extra
-quality gate or a requirement to publish Desktop first.
+quality gate or a requirement to publish Desktop first. Selection consumes the
+carrier-owned durable publication record, not a transient Actions artifact.
 
 ## Homebrew Distribution Boundary
 
