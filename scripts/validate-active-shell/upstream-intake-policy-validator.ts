@@ -547,28 +547,27 @@ function validateManagedRuntimeQualification(contract) {
   ) {
     throw new Error('Active shell AionCore qualification must bind package pin and packaged manifest authority');
   }
-  const codexAcp = assertObject(
-    runtimeDependencies.managed_codex_acp,
-    'Manual qualification managed Codex ACP dependency',
-  );
-  const versionBinding = assertObject(
-    codexAcp.version_binding,
-    'Manual qualification managed Codex ACP version binding',
-  );
-  if (
-    versionBinding.authority !==
-      'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json#acpTools[slug=codex-acp].version' ||
-    versionBinding.mode !== 'exact'
-  ) {
-    throw new Error('Active shell managed Codex ACP qualification must bind exact manifest and package lock');
+  if (Object.hasOwn(runtimeDependencies, 'managed_codex_acp')) {
+    throw new Error('Active shell managed runtime qualification must reject retired Codex ACP truth');
   }
-  assertDeepEqualJson(
-    versionBinding.required_consistency,
-    ['manifest_root', 'package_json', 'package_lock', 'installed_package', 'runtime_initialize'],
-    'Active shell managed Codex ACP qualification consistency',
-  );
+  const nodeRuntime = assertObject(runtimeDependencies.node_runtime, 'Manual qualification Node runtime dependency');
+  if (
+    nodeRuntime.version_source !== 'AionCore managed resource manifest' ||
+    nodeRuntime.target_platform_binary_required !== true
+  ) {
+    throw new Error('Active shell Node runtime qualification must bind managed manifest and target binary');
+  }
+  const claudeCli = assertObject(runtimeDependencies.claude_cli, 'Manual qualification Claude CLI dependency');
+  if (
+    claudeCli.package !== '@anthropic-ai/claude-code' ||
+    claudeCli.version_source !== 'AionCore managed resource manifest' ||
+    claudeCli.target_platform_binary_required !== true
+  ) {
+    throw new Error('Active shell Claude CLI qualification must bind official package and target binary');
+  }
   const codexCli = assertObject(runtimeDependencies.codex_cli, 'Manual qualification Codex CLI dependency');
   if (
+    codexCli.package !== '@openai/codex' ||
     codexCli.version_source !== 'AionCore managed resource manifest' ||
     codexCli.target_platform_binary_required !== true
   ) {
@@ -674,12 +673,12 @@ function validateStableCurrentnessReceipt(contract, shellPaths, options, isGitAn
   parseVersion(aionCore.version, 'AionUI receipt AionCore version');
   assertGitSha(aionCore.commit, 'AionUI receipt AionCore source commit');
   assertSha256(aionCore.archive_sha256, 'AionUI receipt AionCore archive');
-  assertSha256(runtime.managed_resources_manifest_sha256, 'AionUI receipt managed resources manifest');
   if (runtime.managed_resources_schema !== 2) {
-    throw new Error('AionUI receipt managed_resources_schema must be 2');
+    throw new Error('AionUI receipt managed resources schema must be 2');
   }
-  if (runtime.codex_acp !== undefined) {
-    throw new Error('AionUI receipt managed_runtime.codex_acp is forbidden for schema v2 direct-CLI resources');
+  assertSha256(runtime.managed_resources_manifest_sha256, 'AionUI receipt managed resources manifest');
+  if (Object.hasOwn(runtime, 'codex_acp')) {
+    throw new Error('AionUI receipt must not retain retired Codex ACP truth');
   }
   const nodeRuntime = assertObject(runtime.node_runtime, 'AionUI receipt managed Node runtime');
   assertExactPackageVersion(nodeRuntime.version, 'AionUI receipt managed Node runtime version');
