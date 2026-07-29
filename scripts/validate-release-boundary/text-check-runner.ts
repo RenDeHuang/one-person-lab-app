@@ -27,10 +27,10 @@ const webuiPromotionPublishEnvironment =
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
-const retiredNativeWebuiWorkflowPaths = [
-  '.github/workflows/release-native-webui-follower.yml',
-  '.github/workflows/_release-native-webui-carrier.yml',
-] as const;
+const nativeWebuiFollowerWorkflowPath =
+  '.github/workflows/release-native-webui-follower.yml';
+const nativeWebuiCarrierWorkflowPath =
+  '.github/workflows/_release-native-webui-carrier.yml';
 const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
 const homebrewFullPublisherWorkflowPath = '.github/workflows/_release-homebrew-full-publish.yml';
 const postPublicationOptionalCertificationWorkflowPath =
@@ -1189,22 +1189,186 @@ export function validateReleaseBundleTopology(appRoot: string): number {
 }
 
 export function validateNativeWebuiPublicationTopology(appRoot: string): number {
-  const id = 'retired_native_webui_carrier_absent';
+  const id = 'native_webui_additive_follower_topology';
+  const follower = parseWorkflow(appRoot, nativeWebuiFollowerWorkflowPath, id);
+  const carrier = parseWorkflow(appRoot, nativeWebuiCarrierWorkflowPath, id);
+  if (!follower || !carrier) return [follower, carrier].filter((value) => !value).length;
+  const followerJobs = workflowJobs(follower.workflow);
+  const followerTriggers = follower.workflow.on ?? {};
+  const linux = followerJobs['native-webui-linux'];
+  const macos = followerJobs['native-webui-macos'];
   let failures = 0;
-  for (const workflowPath of retiredNativeWebuiWorkflowPaths) {
-    if (fs.existsSync(path.join(appRoot, workflowPath))) {
-      failures += reportFailure(id, `${workflowPath} must remain absent after the single Desktop carrier cutover`);
+  if (
+    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run'])
+    || JSON.stringify(followerTriggers.workflow_run?.workflows) !==
+      JSON.stringify(['OPL Stable Release Bundle'])
+    || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !exactObject(follower.workflow.permissions, exactReadPermissions)
+    || JSON.stringify(Object.keys(followerJobs)) !==
+      JSON.stringify(['resolve-handoff', 'native-webui-linux', 'native-webui-macos'])
+  ) {
+    failures += reportFailure(
+      id,
+      'Native WebUI follower must be one automatic post-Stable workflow_run lane',
+    );
+  }
+  for (const [jobId, job, expectedNeeds, platform, architecture] of [
+    ['native-webui-linux', linux, ['resolve-handoff'], 'linux', 'x86_64'],
+    [
+      'native-webui-macos',
+      macos,
+      ['resolve-handoff', 'native-webui-linux'],
+      'darwin',
+      'arm64',
+    ],
+  ] as const) {
+    if (
+      !job
+      || job.uses !== './.github/workflows/_release-native-webui-carrier.yml'
+      || !needsExactly(job, [...expectedNeeds])
+      || !exactObject(job.permissions, exactStableEntryPermissions)
+      || job.with?.mode !== 'execute'
+      || job.with?.target_platform !== platform
+      || job.with?.target_architecture !== architecture
+      || Object.prototype.hasOwnProperty.call(job, 'steps')
+    ) {
+      failures += reportFailure(
+        id,
+        `${jobId} must delegate one exact target to the protected additive carrier`,
+      );
     }
   }
-  if (fs.existsSync(path.join(appRoot, 'scripts/release-native-webui-carrier.ts'))) {
-    failures += reportFailure(id, 'scripts/release-native-webui-carrier.ts must remain absent after the single Desktop carrier cutover');
+  if (
+    linux?.if !== "${{ needs.resolve-handoff.outputs.eligible == 'true' }}"
+    || macos?.if !==
+      "${{ always() && needs.resolve-handoff.outputs.eligible == 'true' }}"
+  ) {
+    failures += reportFailure(
+      id,
+      'Native target execution must preserve handoff admission and cross-target failure isolation',
+    );
   }
-  const workflowDirectory = path.join(appRoot, '.github', 'workflows');
-  for (const name of fs.readdirSync(workflowDirectory)) {
-    if (!name.endsWith('.yml') && !name.endsWith('.yaml')) continue;
-    const text = fs.readFileSync(path.join(workflowDirectory, name), 'utf8');
-    if (/release-native-webui-carrier\.ts|release-native-webui-follower\.yml|_release-native-webui-carrier\.yml|prepare-native-webui|qualified_native_/.test(text)) {
-      failures += reportFailure(id, `.github/workflows/${name} must not reference the retired Native WebUI carrier`);
+  for (const required of [
+    '.path == ".github/workflows/release-stable.yml"',
+    '.run_attempt == 1',
+    'opl-release-activation-${STABLE_AUTHORITY_RUN_ID}',
+    'webui-follower-handoff.json',
+    '.schema == "opl_app_webui_follower_handoff.v1"',
+    '.source.artifact_run_id | test("^[1-9][0-9]*$")',
+    '.source.checkpoint_artifact | test("^[A-Za-z0-9._-]+$")',
+    '.source.standard_identity_sha256 | test("^sha256:[0-9a-f]{64}$")',
+    '.latest_activation.admitted == true',
+    '.latest_activation.framework_terminal_status == "complete"',
+  ]) {
+    if (!follower.text.includes(required)) {
+      failures += reportFailure(id, `Native WebUI follower is missing exact handoff binding ${required}`);
+    }
+  }
+  if (/workflow_dispatch:|packages:\s*write|publication_artifact_name/.test(follower.text)) {
+    failures += reportFailure(
+      id,
+      'Native WebUI follower must not expose manual dispatch, package writes, or stale artifact discovery',
+    );
+  }
+
+  const carrierJobs = workflowJobs(carrier.workflow);
+  const carrierInputs = carrier.workflow.on?.workflow_call?.inputs ?? {};
+  const build = carrierJobs['build-and-qualify'];
+  const publish = carrierJobs['publish-native-assets'];
+  if (
+    JSON.stringify(Object.keys(carrier.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
+    || !exactObject(carrier.workflow.permissions, { contents: 'read' })
+    || JSON.stringify(Object.keys(carrierJobs)) !==
+      JSON.stringify(['startup-canary', 'build-and-qualify', 'publish-native-assets'])
+    || build?.['runs-on'] !==
+      "${{ inputs.target_platform == 'darwin' && 'macos-14' || 'ubuntu-latest' }}"
+    || !exactObject(build?.permissions, exactReadPermissions)
+    || !needsExactly(publish, ['build-and-qualify'])
+    || publish?.environment !== 'release-stable'
+    || !exactObject(publish?.permissions, exactStableEntryPermissions)
+  ) {
+    failures += reportFailure(
+      id,
+      'Native WebUI carrier must separate target qualification from one protected additive writer',
+    );
+  }
+  for (const requiredInput of [
+    'mode',
+    'stable_authority_run_id',
+    'app_ref',
+    'shell_ref',
+    'framework_ref',
+    'opl_version',
+    'target_platform',
+    'target_architecture',
+    'release_bundle_digest',
+    'source_run_id',
+    'source_artifact',
+    'standard_identity_sha256',
+  ]) {
+    if (!carrierInputs[requiredInput]) {
+      failures += reportFailure(id, `Native WebUI carrier is missing input ${requiredInput}`);
+    }
+  }
+  for (const required of [
+    'linux/x86_64|darwin/arm64',
+    'PACK_PLATFORM: ${{ inputs.target_platform }}',
+    "PACK_ARCH: ${{ inputs.target_architecture == 'x86_64' && 'x64' || 'arm64' }}",
+    'OPL_WEBUI_IMAGE_PROFILE: webui-full',
+    'restore-release-checkpoint',
+    'source-run-id: ${{ inputs.source_run_id }}',
+    'source-artifact: ${{ inputs.source_artifact }}',
+    'standard_identity_sha256',
+    'release-native-webui-carrier.ts publish',
+    'release-native-webui-carrier.ts readback',
+    'publication-scope external_target',
+    'prior_mutation_attempt_id',
+    'opl release reconcile',
+    'latest_modified',
+    'container_registry_modified',
+    'homebrew_modified',
+  ]) {
+    if (!carrier.text.includes(required)) {
+      failures += reportFailure(id, `Native WebUI carrier is missing ${required}`);
+    }
+  }
+  if (
+    /packages:\s*write|ghcr\.io|docker (?:build|push)|make_latest|github-activate-latest|--clobber|--max-old-space-size/.test(
+      carrier.text,
+    )
+  ) {
+    failures += reportFailure(
+      id,
+      'Native WebUI carrier must not mutate Latest, containers, Homebrew, or use the retired heap override',
+    );
+  }
+  for (const stablePath of [
+    '.github/workflows/release-stable.yml',
+    '.github/workflows/_release-bundle.yml',
+    '.github/workflows/_release-standard-publish.yml',
+  ]) {
+    const stableText = fs.readFileSync(path.join(appRoot, stablePath), 'utf8');
+    if (
+      /_release-native-webui-carrier\.yml|prepare-native-webui|publish-native-webui|qualified_native_/.test(
+        stableText,
+      )
+    ) {
+      failures += reportFailure(
+        id,
+        `${stablePath} must not make the post-Stable Native follower a Desktop dependency`,
+      );
+    }
+  }
+  for (const [workflowPath, parsed] of [
+    [nativeWebuiFollowerWorkflowPath, follower],
+    [nativeWebuiCarrierWorkflowPath, carrier],
+  ] as const) {
+    for (const [jobId, job] of Object.entries(workflowJobs(parsed.workflow))) {
+      failures += validateExactActionPins(
+        workflowPath,
+        jobId,
+        Array.isArray(job.steps) ? job.steps : [],
+      );
     }
   }
   return failures;
