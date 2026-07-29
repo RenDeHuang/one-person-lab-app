@@ -6,13 +6,13 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-29-refresh-ledger-persona-version-replay-v1",
-  "generated_at": "2026-07-29T02:50:51Z",
+  "generated_at": "2026-07-29T03:03:28Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "764a808bb4867670805d07759e56880992ec8ffb",
-    "tree": "16f3575bdf72c813bbbcfd1578f4b922928d41c3",
-    "observation": "local main, origin/main and the GitHub wire ref agree at 764a808b/tree 16f3575b; this refresh is an isolated, single-file semantic replay"
+    "commit": "eb0e00130d0bce3785e2d437d8bbbcdf3a26b981",
+    "tree": "2e3ea0fabfeee1da4b730cf5c6e7ee16a824e311",
+    "observation": "local main, origin/main and the GitHub wire ref agree at eb0e0013/tree 2e3ea0fa; this refresh is an isolated, single-file semantic replay"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
   "freshness_policy": {
@@ -334,8 +334,8 @@
   ],
   "worktree_snapshot": {
     "repository": "one-person-lab-app",
-    "observed_non_root_count": 10,
-    "active_owned_count": 10,
+    "observed_non_root_count": 9,
+    "active_owned_count": 9,
     "cleanup_ready_count": 0,
     "recovery_owner_required_count": 0,
     "holder_proof_required_count": 0,
