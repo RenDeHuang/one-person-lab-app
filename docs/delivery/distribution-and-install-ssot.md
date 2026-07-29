@@ -179,7 +179,7 @@ Standard/Full 是 Desktop 首装密度；Native/Container 是 Browser WebUI 的�
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
 | Container WebUI GHCR | Active separate carrier | immutable OCI version、`:latest`，`:stable` 为兼容 alias | Production follower 默认把合格 Stable 同时推进 `stable`/`latest`；手工 independent Preview 可独立发布，只有用户显式 promotion 才从 durable publication record 选择并改 Docker `latest`，且不得改 `stable` 或 Desktop 指针 |
 | Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | 发布默认 `make_latest=false`；独立 protected pointer operation 可选择 exact Preview，但不能暗升 Stable 或改写 Homebrew |
-| Windows x64 RC Preview | 实现中，公开发布被 WSL2-only 验收阻断 | 目标为非 `v` prerelease tag、Windows x64 NSIS EXE、SHA256SUMS、Windows RC cohort | 复用 AionUI Windows/NSIS 打包，但禁止 native Windows AionCore/Codex；专属 `OPL-Linux` 自动配置、三路统一 Linux Codex、无 fallback 和 exact-byte 验收通过前不可公开 |
+| Windows x64 RC Preview | 已公开的 opt-in WSL2-only Preview；exact-byte 终态验收通过 | `windows-rc-26.7.28-rc.5` prerelease、`One-Person-Lab-26.7.28-rc.5-win-x64.exe`、SHA256SUMS、Windows RC cohort | 三路 Codex-backed runtime、物理重启持久性、正常退出和 final-zero 已对同一公开 EXE 验收；仍禁止 native Windows fallback、Latest、Stable updater、Homebrew 和 Stable Bundle admission |
 | Nightly | Implemented，首个公开 readback 待完成 | 自动 Standard DMG/ZIP/updater prerelease + Nightly Cask follower | 每日 schedule 默认不改 Latest；独立 protected pointer operation 可临时选择 exact Nightly；不含 Full/WebUI、不复用 Stable mutex；抽样 VM 非阻塞 |
 | Full Homebrew Cask | Generator implemented, public target not promoted | 公开旧 Cask 仍指向旧 Full DMG 并依赖 Formula；目标 Cask 不依赖 Formula | 完成 pre-publication gates、受保护 CAS 发布和 post-publication readback 前不推荐 |
 | Native WebUI artifacts | Linux x86_64 已公开；macOS arm64 已实现待首次发布/readback | 与 Desktop 同 tag 的平台 tarball、SHA256、共享 `install-web.sh`、平台 qualification receipt | 两个平台各自独立 qualification 和 additive publish/readback；公开字节与 exact App/Shell/Framework cohort 绑定；不改变 Container GHCR tags |
@@ -221,7 +221,7 @@ receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` 
 | Source `install.sh` | 与公共入口共享路由逻辑 | Developer compatibility | 仅供 reviewed checkout；不得从可变 `main` 直接管道执行 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | Container WebUI + 挂载的数据/项目目录 | Supported browser/server path | Linux/Windows/server 当前默认浏览器路径 |
-| GitHub Prerelease Windows x64 EXE | Desktop App RC Preview | 尚未公开；WSL2-only 验收通过后才可进入 Opt-in Preview | 目标 EXE 自动配置专属 WSL2 环境，所有 Codex 路径使用同一 Linux Codex；native fallback、Latest、Stable 和 Homebrew 均禁止 |
+| GitHub Prerelease Windows x64 EXE | Desktop App RC Preview | 已公开并完成同一资产的 WSL2-only 安装、三路 runtime、物理重启与 final-zero 验收 | 当前精确资产为 `windows-rc-26.7.28-rc.5` 的 `One-Person-Lab-26.7.28-rc.5-win-x64.exe`；自动配置专属 WSL2 环境，所有 Codex 路径使用同一 Linux Codex；native fallback、Latest、Stable updater 和 Homebrew 均禁止 |
 | Manual Docker/Compose | 与 Docker/WebUI 相同载体 | Advanced fallback | 只用于运维和故障排查 |
 | Nightly Cask | Standard Nightly + Formula `opl` | Implemented，首个 follower readback 待完成 | 仅由成功 GitHub Nightly publication 的 digest-bound follower 更新，不得改 Stable Cask |
 | Full Cask | 公开旧 Cask 为 Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy public / target implemented unpublished | 当前改用直接 Full DMG；目标 Cask 只安装 Full DMG，不安装 Formula |
