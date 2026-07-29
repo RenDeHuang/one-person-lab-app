@@ -6,13 +6,13 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-29-refresh-ledger-persona-version-replay-v1",
-  "generated_at": "2026-07-29T03:03:28Z",
+  "generated_at": "2026-07-29T03:14:26Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
     "commit": "eb0e00130d0bce3785e2d437d8bbbcdf3a26b981",
     "tree": "2e3ea0fabfeee1da4b730cf5c6e7ee16a824e311",
-    "observation": "local main, origin/main and the GitHub wire ref agree at eb0e0013/tree 2e3ea0fa; this refresh is an isolated, single-file semantic replay"
+    "observation": "fresh fetch confirms local main, origin/main and the GitHub wire ref agree at eb0e0013/tree 2e3ea0fa; this refresh is an isolated, single-file semantic replay"
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
   "freshness_policy": {
@@ -176,9 +176,9 @@
       ],
       "scope": "Converge useful historical work, prove owner status, and remove only absorbed task-owned worktrees, refs, receipts, holders and temporary artifacts.",
       "current_evidence": [
-        "App has one formally ACTIVE owned non-root lane: this ledger lane; installer-route and inactive-branch convergence are owner-closed",
-        "one historical detached App worktree is exact_merged but requires holder/owner recovery proof",
-        "stale receipts remain across App, Relay and iCloud paths"
+        "Fresh App lifecycle status reports 9 registered non-root worktrees and active_owned_count=9; cleanup_ready_count=0, recovery_owner_required_count=0 and holder_proof_required_count=0",
+        "This lane is clean, owner-registered and exact1, but remains retained because canonical absorption and owner-native close are not complete; overlapping ledger consumers remain separately registered",
+        "The lifecycle audit still reports stale receipts across App, Relay and iCloud paths; this lane does not mutate or close those unrelated entries"
       ],
       "next_action": "Continue semantic convergence and canonical absorption in parallel; separately reconcile the detached exact-merged lane and stale receipts, then owner-native close each completed lane.",
       "integration_order": 5,
