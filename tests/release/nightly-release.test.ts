@@ -122,6 +122,7 @@ class FakeRemote implements NightlyRemote {
   release: NightlyRemoteRelease | null = null;
   calls: string[] = [];
   visibilityMissesAfterCreate = 0;
+  createThrows = false;
   private releaseVisibilityMisses = 0;
 
   inspectRelease(): NightlyRemoteRelease | null {
@@ -152,6 +153,7 @@ class FakeRemote implements NightlyRemote {
       assets: [],
     };
     this.releaseVisibilityMisses = this.visibilityMissesAfterCreate;
+    if (this.createThrows) throw new Error('simulated create timeout');
   }
 
   uploadAsset(_releaseId: number, filePath: string, name: string): void {
@@ -297,6 +299,23 @@ test('Nightly publisher tolerates eventual-consistency misses after draft creati
   const input = fixture(t);
   const remote = new FakeRemote();
   remote.visibilityMissesAfterCreate = 2;
+  const receipt = publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+  assert.equal(receipt.status, 'published');
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+});
+
+test('Nightly publisher reconciles an unknown create result without retrying the draft mutation', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createThrows = true;
+  remote.visibilityMissesAfterCreate = 1;
   const receipt = publishNightlyRelease({
     request: input.request,
     qualification: input.qualification,
