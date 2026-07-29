@@ -99,13 +99,13 @@ test('Windows Docker/WebUI installer parses and dry-runs when PowerShell is avai
   assert.equal(dryRun.status, 0, dryRun.stderr || dryRun.stdout);
   assert.match(dryRun.stdout, /Dry run: would write/);
   assert.match(dryRun.stdout, /127\.0\.0\.1:3133:3000/);
-  assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+  assert.match(dryRun.stdout, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
   assert.match(dryRun.stdout, /pull_policy: missing/);
   assert.match(dryRun.stdout, /restart: unless-stopped/);
   assert.match(dryRun.stdout, /Update mode: pull the configured WebUI image from the host and recreate the compose service/);
   assert.match(dryRun.stdout, /docker compose .* pull/);
   assert.match(dryRun.stdout, /docker compose .* up -d/);
-  assert.match(dryRun.stdout, /would register scheduled task One Person Lab WebUI Latest Update at 03:00 and at the current user's next logon/);
+  assert.match(dryRun.stdout, /would register scheduled task One Person Lab WebUI Stable Update at 03:00 and at the current user's next logon/);
   assert.match(dryRun.stdout, /would wait up to 5s for WebUI HTTP health at http:\/\/localhost:3133\//);
   assert.match(dryRun.stdout, /would write daily launcher .*Start-OnePersonLab\.ps1/);
   assert.match(dryRun.stdout, /would create desktop shortcut %USERPROFILE%\\Desktop\\One Person Lab\.lnk/);
@@ -463,7 +463,16 @@ test('Windows Docker/WebUI requires failure context for generic TLS/DNS/certific
   assert.match(classification, /(?:error|err|failed|failure|unable|cannot|could not)/i);
 });
 
-test('Windows Docker/WebUI automatic updates stay on the limited host-side latest route', () => {
+test('Windows Docker/WebUI defaults to Stable and keeps Latest as explicit Preview opt-in', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  assert.match(installer, /\[string\]\$Tag = "stable"/);
+  assert.match(installer, /\$requestedImageReference -ne "ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable"/);
+  assert.match(installer, /use -Tag latest only to opt in to Preview/);
+  assert.match(installer, /\$script:LegacyAutoUpdateTaskName = "One Person Lab WebUI Latest Update"/);
+  assert.match(installer, /Unregister-ScheduledTask -TaskName \$script:LegacyAutoUpdateTaskName -Confirm:\$false/);
+});
+
+test('Windows Docker/WebUI automatic updates stay on the limited host-side stable route', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const autoUpdateWriter = installer.slice(
     installer.indexOf('function Write-WebUiAutoUpdater'),
