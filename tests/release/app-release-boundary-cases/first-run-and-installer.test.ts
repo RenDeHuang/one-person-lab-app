@@ -201,6 +201,19 @@ test("one-shot App installer boundary is enforced by release-boundary checks", (
     non_stable_disclosure_before_target_mutation: true,
     legacy_component_manifest_policy: "allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure",
   });
+  assert.deepEqual(install.distribution_install_model.installer_convergence.stable_macos_helper.release_record_recovery, {
+    primary_route: "anonymous_github_release_api",
+    authenticated_fallback_dependency: "github_cli_gh",
+    authenticated_fallback_prerequisite: "existing_authenticated_github.com_session",
+    authenticated_fallback_trigger: "anonymous_release_api_request_failure_including_http_403",
+    authenticated_fallback_behavior: "read_same_requested_latest_or_exact_tag_release_record_via_gh_api",
+    missing_cli_or_authentication: "fail_closed_before_download_or_target_mutation",
+  });
+  const installGuide = fs.readFileSync(path.join(appRoot, "docs/delivery/install/README.md"), "utf8");
+  assert.match(installGuide, /HTTP 403/);
+  assert.match(installGuide, /gh auth/);
+  assert.match(installGuide, /gh api/);
+  assert.match(installGuide, /目标 App 修改前失败关闭/);
   assert.deepEqual(
     install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_entrypoints,
     [],

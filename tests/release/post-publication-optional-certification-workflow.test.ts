@@ -411,6 +411,10 @@ test('receipt projection distinguishes execution, capability absence, and residu
   assert.match(source, /passed\)[\s\S]+require_tart_summary[\s\S]+\.status == "passed"/);
   assert.match(source, /failed\)[\s\S]+require_tart_summary[\s\S]+\.status == "passed" or \.status == "failed"/);
   assert.match(source, /vm_admission_failed\)[\s\S]+require_tart_summary/);
+  assert.equal(
+    (source.match(/--capability-admission-evidence-file "\$capability_admission"/g) ?? []).length,
+    2,
+  );
   const capabilityAdmissionBranch = source.slice(
     source.indexOf('capability_admission_failed)'),
     source.indexOf(';;', source.indexOf('capability_admission_failed)')),

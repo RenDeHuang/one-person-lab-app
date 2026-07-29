@@ -39,6 +39,12 @@ const vmAdmissionFailureStages = new Set([
   'wait_for_ip',
   'wait_for_ssh',
 ]);
+const runtimeProfileByCapability = new Map([
+  ['tart-clean-macos', 'standard'],
+  ['tart-homebrew-macos', 'standard'],
+  ['tart-one-shot-installer', 'standard'],
+  ['tart-full-clean-macos', 'full'],
+]);
 
 function required(value: string | undefined, flag: string): string {
   const normalized = value?.trim() ?? '';
@@ -91,7 +97,7 @@ function nonEmptyText(value: unknown, label: string): string {
 function assertVmAdmission(
   evidence: JsonRecord,
   expected: { status: 'passed' | 'failed'; reasonCode: string | null },
-): void {
+): string {
   exactKeys(evidence, vmAdmissionKeys, 'Admission evidence');
   if (evidence.schema !== vmAdmissionSchema) {
     throw new Error(`Admission evidence schema must be ${vmAdmissionSchema}.`);
@@ -99,7 +105,7 @@ function assertVmAdmission(
   if (evidence.status !== expected.status || evidence.reason_code !== expected.reasonCode) {
     throw new Error('Admission evidence status or reason code does not match the certification result.');
   }
-  nonEmptyText(evidence.source_vm, 'Admission evidence source_vm');
+  return nonEmptyText(evidence.source_vm, 'Admission evidence source_vm');
 }
 
 function assertNotRunDispatchAdmission(
@@ -119,15 +125,33 @@ function assertNotRunDispatchAdmission(
   }
 }
 
-function assertVmAdmissionFailureEvidence(evidence: JsonRecord): void {
+function assertVmAdmissionFailureEvidence(
+  evidence: JsonRecord,
+  input: WriteOptionalCertificationReceiptInput,
+): void {
+  if (!input.capabilityAdmissionEvidencePath) {
+    throw new Error('VM-admission failure requires the exact capability admission evidence.');
+  }
+  const capabilityAdmission = readRegularJson(
+    input.capabilityAdmissionEvidencePath,
+    'Capability admission evidence',
+  );
+  const sourceVm = assertVmAdmission(capabilityAdmission, { status: 'passed', reasonCode: null });
+  const expectedRuntimeProfile = runtimeProfileByCapability.get(input.certification.capability);
+  if (!expectedRuntimeProfile) {
+    throw new Error('VM-admission failure capability does not identify one supported runtime profile.');
+  }
   if (
     evidence.surface_id !== tartSmokeSurface
     || evidence.status !== 'failed'
     || !vmAdmissionFailureStages.has(String(evidence.failure_stage ?? ''))
+    || evidence.source_vm !== sourceVm
+    || evidence.smoke_profile !== 'no-clt-clean-vm'
+    || evidence.runtime_profile !== expectedRuntimeProfile
+    || evidence.framework_source_archive !== null
   ) {
     throw new Error('Admission evidence must be an exact typed VM-admission failure summary.');
   }
-  nonEmptyText(evidence.source_vm, 'VM-admission evidence source_vm');
 }
 
 function assertTypedAdmissionEvidence(input: WriteOptionalCertificationReceiptInput): void {
@@ -143,12 +167,12 @@ function assertTypedAdmissionEvidence(input: WriteOptionalCertificationReceiptIn
   if (input.status !== 'unavailable') {
     throw new Error('Certification status is unsupported.');
   }
-  if (input.reasonCode === 'capability_admission_failed') {
-    assertVmAdmission(evidence, { status: 'failed', reasonCode: input.reasonCode });
+  if (input.reasonCode === 'vm_admission_failed') {
+    assertVmAdmissionFailureEvidence(evidence, input);
     return;
   }
-  if (input.reasonCode === 'vm_admission_failed') {
-    assertVmAdmissionFailureEvidence(evidence);
+  if (input.reasonCode && optionalCertificationUnavailableReasons.has(input.reasonCode)) {
+    assertVmAdmission(evidence, { status: 'failed', reasonCode: input.reasonCode });
     return;
   }
   throw new Error('unavailable requires exact typed capability or VM-admission evidence.');
@@ -171,6 +195,7 @@ export type WriteOptionalCertificationReceiptInput = {
     capability: string;
   };
   admissionEvidencePath: string;
+  capabilityAdmissionEvidencePath?: string | null;
   reasonCode: string | null;
   certificationRunId: string | null;
   evidencePaths: string[];
@@ -284,6 +309,7 @@ function main(argv: string[]): void {
       platform: { type: 'string' },
       capability: { type: 'string' },
       'admission-evidence-file': { type: 'string' },
+      'capability-admission-evidence-file': { type: 'string' },
       'reason-code': { type: 'string' },
       'certification-run-id': { type: 'string' },
       'evidence-file': { type: 'string', multiple: true },
@@ -313,6 +339,7 @@ function main(argv: string[]): void {
       capability: required(values.capability, 'capability'),
     },
     admissionEvidencePath: required(values['admission-evidence-file'], 'admission-evidence-file'),
+    capabilityAdmissionEvidencePath: values['capability-admission-evidence-file']?.trim() || null,
     reasonCode: values['reason-code']?.trim() || null,
     certificationRunId: values['certification-run-id']?.trim() || null,
     evidencePaths: values['evidence-file'] ?? [],

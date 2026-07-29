@@ -176,6 +176,10 @@ test("Stable success has one independent Full append successor trigger", () => {
     actions: "write",
   });
   assert.deepEqual(workflow.jobs.receipt.needs, ["admit", "dispatch"]);
+  assert.equal(
+    workflow.jobs.receipt.if,
+    "${{ always() && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
+  );
   assert.deepEqual(workflow.jobs.receipt.permissions, {
     contents: "read",
     actions: "read",

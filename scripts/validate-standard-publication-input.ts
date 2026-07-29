@@ -163,6 +163,23 @@ export function validateComponentManifest(
   ) {
     throw new Error('Component manifest must bind the exact GitHub-hosted Standard asset set.');
   }
+  const dmgName = `One-Person-Lab-${input.candidateDisplayVersion}-mac-arm64.dmg`;
+  const dmgEntries = (manifest.artifacts as JsonRecord[]).filter((asset) => asset?.name === dmgName);
+  if (dmgEntries.length !== 1) {
+    throw new Error('Component manifest must bind one exact versioned DMG artifact.');
+  }
+  const dmgEntry = dmgEntries[0];
+  requireEqual(manifest.primary_artifact?.name, dmgName, 'Component manifest primary artifact name');
+  requireEqual(
+    requireDigest(manifest.primary_artifact?.digest, 'Component manifest primary artifact digest'),
+    requireDigest(dmgEntry.digest, 'Component manifest DMG digest'),
+    'Component manifest primary artifact digest',
+  );
+  requireEqual(
+    requirePositiveInteger(manifest.primary_artifact?.size, 'Component manifest primary artifact size'),
+    requirePositiveInteger(dmgEntry.size, 'Component manifest DMG size'),
+    'Component manifest primary artifact size',
+  );
   if (classification.qualityStatus === 'preview') {
     requireEqual(manifest.qualification_disclosure?.stable_qualified, false, 'Preview stable_qualified disclosure');
     requireEqual(manifest.qualification_disclosure?.non_stable_notice, true, 'Preview non-Stable disclosure');

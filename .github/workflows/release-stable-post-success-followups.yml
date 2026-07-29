@@ -369,7 +369,7 @@ jobs:
           retention-days: 30
 
   receipt:
-    if: ${{ always() }}
+    if: ${{ always() && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}
     needs: [admit, dispatch]
     runs-on: ubuntu-latest
     timeout-minutes: 5

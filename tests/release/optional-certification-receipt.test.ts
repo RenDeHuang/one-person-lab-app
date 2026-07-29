@@ -110,12 +110,29 @@ function passedCapabilityAdmission(): Record<string, unknown> {
   };
 }
 
-function unavailableCapabilityAdmission(): Record<string, unknown> {
+function unavailableCapabilityAdmission(
+  reasonCode = 'capability_admission_failed',
+): Record<string, unknown> {
   return {
     schema: 'opl_app_optional_certification_vm_admission.v1',
     status: 'failed',
-    reason_code: 'capability_admission_failed',
+    reason_code: reasonCode,
     source_vm: 'opl-clean-macos',
+  };
+}
+
+function vmAdmissionFailureSummary(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    surface_id: 'opl_tart_gui_first_run_smoke',
+    status: 'failed',
+    failure_stage: 'wait_for_ssh',
+    source_vm: 'opl-clean-macos',
+    smoke_profile: 'no-clt-clean-vm',
+    runtime_profile: 'standard',
+    framework_source_archive: null,
+    ...overrides,
   };
 }
 
@@ -293,4 +310,96 @@ test('receipt writer binds every terminal state to an exact typed admission docu
     createdAt: '2026-07-28T01:00:00.000Z',
   });
   assert.deepEqual(validateOptionalCertificationReceipt(value, expected), []);
+});
+
+test('receipt writer accepts every canonical non-VM unavailable reason with exact typed admission', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  for (const reasonCode of [
+    'authority_or_capability_not_provable',
+    'fleet_lease_admission_failed',
+    'capability_admission_failed',
+  ]) {
+    const admission = writeJson(
+      root,
+      `${reasonCode}.json`,
+      unavailableCapabilityAdmission(reasonCode),
+    );
+    const value = writeOptionalCertificationReceipt({
+      expected,
+      status: 'unavailable',
+      certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+      admissionEvidencePath: admission,
+      reasonCode,
+      certificationRunId: '30260000002',
+      evidencePaths: [],
+      createdAt: '2026-07-28T01:00:00.000Z',
+    });
+    assert.deepEqual(validateOptionalCertificationReceipt(value, expected), []);
+  }
+});
+
+test('VM-admission failure binds complete summary identity to the exact capability admission', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-optional-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const capabilityAdmission = writeJson(
+    root,
+    'capability-admission.json',
+    passedCapabilityAdmission(),
+  );
+  const validSummary = writeJson(root, 'valid-summary.json', vmAdmissionFailureSummary());
+  const value = writeOptionalCertificationReceipt({
+    expected,
+    status: 'unavailable',
+    certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+    admissionEvidencePath: validSummary,
+    capabilityAdmissionEvidencePath: capabilityAdmission,
+    reasonCode: 'vm_admission_failed',
+    certificationRunId: '30260000002',
+    evidencePaths: [],
+    createdAt: '2026-07-28T01:00:00.000Z',
+  });
+  assert.deepEqual(validateOptionalCertificationReceipt(value, expected), []);
+
+  for (const [name, override] of Object.entries({
+    source: { source_vm: 'unrelated-vm' },
+    smoke: { smoke_profile: 'default' },
+    runtime: { runtime_profile: 'full' },
+    framework: { framework_source_archive: 'framework.tar.gz' },
+    stage: { failure_stage: 'run_guest_smoke' },
+  })) {
+    const invalidSummary = writeJson(
+      root,
+      `invalid-${name}.json`,
+      vmAdmissionFailureSummary(override),
+    );
+    assert.throws(
+      () => writeOptionalCertificationReceipt({
+        expected,
+        status: 'unavailable',
+        certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+        admissionEvidencePath: invalidSummary,
+        capabilityAdmissionEvidencePath: capabilityAdmission,
+        reasonCode: 'vm_admission_failed',
+        certificationRunId: '30260000002',
+        evidencePaths: [],
+        createdAt: '2026-07-28T01:00:00.000Z',
+      }),
+      /exact typed VM-admission failure summary/,
+    );
+  }
+
+  assert.throws(
+    () => writeOptionalCertificationReceipt({
+      expected,
+      status: 'unavailable',
+      certification: { kind: 'clean_machine_install', platform: 'macos', capability: 'tart-clean-macos' },
+      admissionEvidencePath: validSummary,
+      reasonCode: 'vm_admission_failed',
+      certificationRunId: '30260000002',
+      evidencePaths: [],
+      createdAt: '2026-07-28T01:00:00.000Z',
+    }),
+    /requires the exact capability admission evidence/,
+  );
 });
