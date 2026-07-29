@@ -64,11 +64,12 @@ RC 不会安装、修改或接管 Docker。
 - `{{download.checksum_asset}}`
 
 不要把 Source code ZIP/TAR 当成安装包。文件名中的 `win-x64` 表示 Windows x64，
-`rc.5` 表示当前公开候选预览，不是稳定更新频道。
+`rc.1` 表示当前公开候选预览，不是稳定更新频道。
 
 建议在“下载”目录新建 `OPL-RC` 文件夹，把两个文件放在一起。
 
-Windows 安装包包含首次配置所需的 Linux 运行时，RC.5 安装包约 382 MB。点击下载后，
+Windows 安装包包含首次配置所需的 Linux 运行时，当前安装包
+{{download.installer_size_label}}。点击下载后，
 浏览器可能需要一段时间才完成文件落盘；下载列表没有进度或文件大小没有继续增长时，
 不要重复点击多个下载。先等下载完成，再按下一节校验 SHA-256。
 
@@ -85,7 +86,7 @@ Get-Content ".\{{download.checksum_asset}}"
 
 比较 `Get-FileHash` 输出和 `SHA256SUMS.txt` 中同名 EXE 的 64 位十六进制值：
 
-- 当前 rc.5 EXE 的精确 SHA-256：`{{download.installer_sha256}}`。
+- 当前 rc.1 EXE 的精确 SHA-256：`{{download.installer_sha256}}`。
 - 完全一致：继续安装。
 - 任意一位不同：删除 EXE，重新从同一个 RC Release 下载。
 - 文件名不同：不要猜测或改名，回到 Release 重新选择。
