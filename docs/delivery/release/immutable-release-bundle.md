@@ -168,9 +168,9 @@ Latest, and both display and machine versions must increase.
 `workflow_dispatch`. Lower-level release workflows are reusable
 `workflow_call` implementation details. Nightly has a separate schedule-only
 Standard prerelease workflow that reuses the physical build implementation but
-not the Stable Bundle, Stable mutex, Latest authority, Full/WebUI lanes, or
-heavy VM gate. Historical Nightly tags, assets, updater metadata, and receipts
-remain readable. Canary is an independent validation-only schedule.
+not the Stable Bundle, Stable mutex, Latest authority, Full density, or WebUI
+carrier mutation. Historical Nightly tags, assets, updater metadata, and
+receipts remain readable. Canary is an independent validation-only schedule.
 
 A new `standard` operation consumes an exact successful
 `.github/workflows/release-source-qualification.yml` run id and receipt digest.
@@ -182,11 +182,15 @@ protected job; the caller cannot inject raw version or source refs. The
 standalone Apple credential workflow remains diagnostic-only and cannot create
 the manifest or dispatch Standard.
 
-Desktop Standard alone reaches Latest. After that terminal readback,
-`.github/workflows/release-webui-follower.yml` consumes the successful Stable
-run through `workflow_run`, verifies the exact handoff, and owns WebUI build,
-promotion, and anonymous-pull readback as an independent terminal path. A
-WebUI failure cannot change the completed Desktop Stable result.
+Desktop/WebUI and Standard/Full form four independently qualified product
+cells. Each carrier may move only its own Latest after exact qualification and
+readback; success in one cell does not qualify or publish another.
+`.github/workflows/release-webui-follower.yml` is an internal WebUI carrier
+follower: it consumes an admitted exact Stable handoff, verifies surface,
+density and cohort, then owns that carrier's build, promotion and
+anonymous-pull readback. Its failure cannot rewrite another cell's terminal
+result. This workflow shape does not itself prove any WebUI cell is currently
+public.
 
 Stable exposes exactly `standard`, `resume_standard`, and `append_full`.
 Stable alone owns the repository-wide mutation mutex. Each operation

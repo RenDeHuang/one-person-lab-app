@@ -84,12 +84,14 @@ remain forbidden.
 
 ## Development And Production Modes
 
-WebUI has two explicit task modes that share the same carrier build,
-qualification, protected promotion, and public readback implementation:
+Desktop/WebUI and Standard/Full are orthogonal product axes. WebUI may use
+Native or Container internally, but carrier choice cannot create another
+surface or density. The existing WebUI workflows have two task modes that share
+carrier build, qualification, protected promotion, and public readback:
 
 - `development_validation` enters through
   `.github/workflows/release-webui-development.yml`. It may build, qualify,
-  publish, and promote the WebUI before Desktop Latest so the real carrier path
+  publish, and promote the WebUI before Desktop Latest so the exact carrier path
   can be proven without inheriting production follower order. Public mutation
   remains protected and digest-idempotent. Its receipt does not satisfy
   production Latest or follower handoff.
@@ -97,9 +99,9 @@ qualification, protected promotion, and public readback implementation:
   delivery bridge for exact bytes from a prior first-attempt development
   publication. It cannot rebuild or requalify the carrier.
 - `production_release` enters only through
-  `.github/workflows/release-webui-follower.yml` after Desktop Latest
-  activation. The follower binds the exact Stable handoff, current App main,
-  carrier receipt, and protected promotion readback.
+  `.github/workflows/release-webui-follower.yml` after its admitted Stable
+  handoff. The follower binds the exact surface, density, App main, carrier
+  receipt, and protected promotion readback.
 
 The development path proves and repairs the mechanism; the production path
 restores final release ordering. Neither mode permits force, cross-run artifact
@@ -119,18 +121,25 @@ Registry ~= discovery index
 Full or Release Set ~= exact snapshot of inputs selected for that artifact
 ```
 
-Stable, WebUI, Full, Nightly, and Daily are not competing package authorities:
+Surface, density, quality, pointer, and cadence are not competing package
+authorities:
 
 | Object | Correct meaning | Currentness authority |
 | --- | --- | --- |
 | OPL Base | Framework release; Homebrew Formula and headless installer are carriers | Framework Base release receipt |
-| Desktop Stable | App Stable quality policy; Latest/updater selection is a separate pointer operation | Framework Bundle plus App release executor and exact public readback |
-| Container WebUI | Current browser/server App carrier consuming an exact App receipt/digest | Successful Desktop Stable Latest activation -> `release-webui-follower.yml` `workflow_run` -> carrier-specific publish and anonymous-pull readback |
-| Native WebUI | Approved host-native browser target; not currently an OPL publication or install path | No currentness authority until immutable OPL assets and public readback exist |
-| Full | Same Official Profile with additional first-install/offline seeds; additive to Standard | Frozen Bundle and exact refs/digests only for inputs selected in that artifact |
-| Nightly | Automated Standard-density Preview; its schedule publishes immutable GitHub prerelease assets with `include_full=false` and `make_latest=false`, then starts isolated Homebrew and sampled-VM followers | A separate protected single-use expected-current CAS may temporarily select an exact published Nightly without changing quality; first public publication and follower readbacks remain pending |
+| Desktop Standard | Desktop surface with online convergence; quality and Latest remain independent | Framework Bundle plus exact carrier qualification and public readback |
+| Desktop Full | Desktop surface with the same Profile plus offline seeds | Frozen Bundle and exact Full carrier refs/digests; no Standard updater mutation |
+| WebUI Standard | Browser surface with online convergence; Native/Container are internal carriers | Exact WebUI carrier qualification, durable publication record, and public readback |
+| WebUI Full | Browser surface with the same Profile plus offline seeds | Exact WebUI Full carrier qualification and readback; no second product/channel |
+| Native / Container | Internal WebUI carrier choice | Carrier-bound artifact/digest and installed readback only; never product currentness by itself |
+| Nightly | Derived Automated Preview kind, independent of density; the current schedule publishes Standard-density immutable GitHub prerelease assets with `include_full=false` and `make_latest=false`, then starts isolated Homebrew and sampled-VM followers | A separate protected single-use expected-current CAS may temporarily select an exact published Nightly without changing quality; first public publication and follower readbacks remain pending |
 | OPL Package | Independently published complete Package bytes; immutable version refs are exact, `candidate` is Preview input, `latest-stable` is Stable/LKG, and bare `latest` is retired | Package-owner qualification and protected promotion plus thin Base download/verification, configured carrier activation, and Framework fresh aggregation |
 | Daily | Scheduled candidate/index reconciliation and audit cadence | Daily receipt only; it is not a release channel |
+
+This four-cell model defines supported product semantics, not live publication.
+No cell is publicly available or installed merely because it appears in this
+table; exact release assets, digests, qualification, and install readback remain
+mandatory.
 
 The roots selected by the current Official Profile are replaceable defaults. A
 Release Set may bind exact package refs for Full or qualification, but it must
@@ -378,16 +387,17 @@ This preview remains a transitional compatibility lane. Once formal
 preview cleanup receipt is read back, the preview workflow is a deletion
 candidate. Documentation of the candidate does not authorize its removal.
 
-## Container WebUI Release
+## WebUI Container Carrier
 
-Container WebUI has its own carrier-local `stable` and `latest` pointers. They
-are not aliases for GitHub Release Latest, and Desktop publication neither
-waits for nor authorizes an unrelated Docker mutation.
+Container is an internal carrier for the WebUI surface at Standard or Full
+density. It has carrier-local `stable` and `latest` pointers; they are not
+aliases for GitHub Release Latest, and one product cell neither waits for nor
+authorizes an unrelated carrier mutation.
 
-The default production path is a non-blocking follower after a successful
-Desktop Stable Latest activation. It publishes an immutable OCI version and
-then moves the WebUI `stable` and `latest` aliases together to that qualified
-digest. The public readback must prove the version, immutable digest, both
+The production workflow design consumes an admitted same-cohort Stable handoff,
+publishes an immutable OCI version, and then moves the WebUI carrier aliases
+only when that exact cell is qualified. Public availability is not asserted by
+this guide: readback must prove surface, density, version, immutable digest,
 aliases, image size, and carrier qualification receipt agree.
 
 The independent emergency path is deliberately different:
@@ -440,9 +450,10 @@ owner Package channels. Latest normally selects the newest qualified Stable, but
 an explicit protected one-use CAS may select an exact published Stable or Dev/
 Nightly Preview without changing quality; the next qualified Stable reclaims
 it. Docker/WebUI and Homebrew carry exact owner bytes; Full seeds an offline
-composition. Nightly is the implemented Automated Standard Preview:
-its schedule defaults to `make_latest=false`, followed by isolated Homebrew and
-sampled-VM workflows. Daily is a scheduled reconciliation cadence. Canary is an
+composition. Nightly is the derived Automated Preview kind; the current
+schedule selects Standard density and defaults to `make_latest=false`, followed
+by isolated Homebrew and sampled-VM workflows. Daily is a scheduled
+reconciliation cadence. Canary is an
 independent validation workflow, not a release channel. A Package update must
 not require an App, Base, or unrelated Package release, and a carrier failure
 must not rewrite owner publication currentness.

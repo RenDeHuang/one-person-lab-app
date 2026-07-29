@@ -1,13 +1,20 @@
 # One Person Lab 安装指南
 
-先选择使用体验，不需要先理解发布渠道：
+先选择产品表面和载荷密度，不需要先理解发布渠道：
 
 | 我想要 | 选择 |
 | --- | --- |
 | 独立应用窗口、系统菜单和桌面集成 | Desktop |
 | 在浏览器使用工作台 | WebUI |
-| 服务器、NAS、隔离部署 | Container WebUI |
+| 服务器、NAS、隔离部署 | WebUI；内部通常选择 Container carrier |
+| 较小交付、联网后收敛 | Standard |
+| 预置离线 Base/Package seed | Full |
 | 只要命令行和运行基础 | Headless |
+
+Desktop/WebUI 与 Standard/Full 是两条正交轴，形成 Desktop Standard、Desktop
+Full、WebUI Standard、WebUI Full 四个受支持产品单元。Native/Container 只是 WebUI
+内部 carrier。矩阵不证明任何 exact 版本已经公开或安装成功；这仍需 Release 和安装
+readback。
 
 ## 统一入口
 
@@ -36,74 +43,48 @@ chmod 0755 opl-install.sh
 ./opl-install.sh
 ```
 
-默认路由：
+产品路由：
 
 ```text
-macOS personal        -> Desktop
-Linux x86_64 personal -> Native WebUI
-server / isolated     -> Container WebUI
---headless             -> OPL Base only
+personal             -> Desktop or WebUI + Standard (default) or Full (explicit)
+server / isolated   -> WebUI + Standard (default) or Full (explicit)
+payload density      -> selected only when the exact platform manifest exposes it
+WebUI carrier        -> Native or Container, selected by exact platform manifest
+--headless           -> OPL Base only
 ```
 
-也可以显式选择：
+当前公共入口的产品表面选择使用：
 
 ```bash
 ./opl-install.sh --desktop
 ./opl-install.sh --webui
-./opl-install.sh --native-webui
-./opl-install.sh --container-webui
 ./opl-install.sh --headless
 ```
 
-`--desktop` is currently a macOS Desktop route. Linux Desktop artifacts are
-build-capable but remain outside ordinary support until the Linux package,
-desktop integration, updater metadata, upgrade/rollback, and clean-host
-qualification are published together.
+`--desktop` / `--webui` 选择表面。当前 macOS Stable carrier 通过
+`--stable-macos-install --standard|--full` 选择密度；其他平台只有在 exact Release
+manifest 暴露对应格子时才能选择，缺失必须 fail closed。需要固定 WebUI 内部 carrier
+时，现有 Native/Container compatibility flags 只属于高级部署；它们不能建立额外产品
+表面。入口必须从 exact Release manifest 解析平台资产和 digest，不得用可变 `latest`
+或文档中的历史版本代替。
 
-`--webui` 是用户级选择：Linux 优先使用已验证的 Native WebUI；macOS 会在所选
-Release 同时包含精确 `darwin-arm64` 资产和资格回执时优先 Native，否则回退
-Container；Windows 当前使用 Container。版本冻结的入口会让 Container 使用同一
-显示版本的 GHCR tag，而不是可变 `latest`。`--native-webui` 和
-`--container-webui` 是需要固定部署载体时的高级选择。
+## 产品支持矩阵
 
-## 当前支持矩阵
+| 产品表面 | Standard | Full |
+| --- | --- | --- |
+| Desktop | 同一 Desktop 行为，在线收敛 Official Profile | 同一 Desktop 行为，额外携带离线 seed |
+| WebUI | 同一 WebUI 行为，在线收敛 Official Profile | 同一 WebUI 行为，额外携带离线 seed |
 
-| 平台 | Desktop | Browser WebUI | 推荐入口 |
-| --- | --- | --- | --- |
-| macOS arm64 | 支持：DMG / Homebrew / `opl-install.sh` | 当前支持 Container；Native 已实现，待首次同 cohort 发布/readback | 日常个人电脑优先 Desktop |
-| Linux x86_64 | 构建能力存在，公开资格尚未完成 | 支持：Native WebUI；Container 可选 | `opl-install.sh --webui` |
-| Windows 11 x64 | 尚未进入普通 Stable 支持 | 支持：Docker Desktop / WSL2 container | Docker/WebUI guide |
-| Server / NAS / VM | 不推荐 Desktop | 支持：Container；当前不走 Native | `--server` 或 `--container-webui` |
+四格是支持的产品合同，不是当前公开资产目录。安装前必须从目标 Release 的 component
+manifest 和 owner readback 确认所选平台是否有对应 exact carrier、qualification 和
+digest；缺失时应明确报告不可用，不能借另一表面、另一密度或历史 carrier 的成功兜底
+成“已安装”。
 
-Linux Desktop 不是新产品。它与 macOS Desktop 共用 Electron App 和产品合同，
-但仍需补齐 Linux 公开包、更新元数据、桌面集成、升级/回滚与 clean-host 资格，
-完成前不能把“可构建 `.deb`”写成普通用户支持。
+## WebUI 内部 carrier
 
-## 当前 Native Linux 安装
-
-`v26.7.28-r3` 是首个公开、digest-bound 的 Linux x86_64 Native WebUI 版本。
-它包含 tarball、SHA256、`install-web.sh` 和资格回执。对尚未包含
-`opl-install.sh` 的版本，使用同一 Release 内的精确安装器：
-
-```bash
-TAG=v26.7.28-r3
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${TAG}"
-
-curl -fLO "${BASE}/install-web.sh"
-curl -fLO "${BASE}/install-web.sh.sha256"
-shasum -a 256 -c install-web.sh.sha256
-chmod 0755 install-web.sh
-./install-web.sh --version 26.7.28-r3
-```
-
-更新时重新运行同一安装入口；回滚使用：
-
-```bash
-./install-web.sh --rollback
-```
-
-该路径已验证 non-root 首装、same-version 幂等、跨版本更新、回滚、数据保留、
-HTTP health 和 Official Profile。
+Native 在宿主直接运行 WebUI，Container 通过 OCI 隔离运行 WebUI。两者共享 WebUI
+表面、产品行为和 Official Profile，但可以使用不同目录、service manager、mount 和
+更新 adapter。carrier 选择不会改变 Standard/Full，也不会把 WebUI 变成两套产品。
 
 ## Homebrew
 
@@ -127,14 +108,12 @@ frozen Native payload，而不是重新构建一套字节。该 Formula 是已�
 
 | 安装方式 | 谁负责更新 |
 | --- | --- |
-| Desktop DMG | App updater |
-| Desktop Homebrew Cask | Homebrew |
-| Native WebUI | `opl-install.sh` / `install-web.sh` |
-| Container WebUI | Docker/GHCR installer |
+| Desktop Standard / Full | 对应 Desktop carrier；Full 不进入 Standard updater metadata |
+| WebUI Standard / Full | 对应 WebUI carrier；Native/Container 只负责其自身 installed readback |
 | OPL Base / Packages | Framework managed update |
 
-Standard 和 Full 只表示 Desktop 首装载荷密度，不是两套更新频道。Native 和
-Container 只表示 WebUI 的部署载体，不是两套产品。
+Standard 和 Full 在 Desktop/WebUI 两个表面都只表示载荷密度，不是两套更新频道。
+Native 和 Container 只表示 WebUI 的内部 carrier，不是两套产品。
 
 产品与维护边界见
 [`../distribution-and-install-ssot.md`](../distribution-and-install-ssot.md)。

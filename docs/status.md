@@ -271,18 +271,13 @@ full diagnostics in collapsed technical details.
 
 ## Release State
 
-Standard App release assets and updater metadata are App-owned and currently
-macOS arm64-only. Full first-install assets remain explicitly separate from
-standard updater metadata. The standard updater is desktop-App-assets only; Full
-assets stay as GitHub Release first-install downloads and the explicit stable
-`one-person-lab-full` Homebrew cask. The Full cask is currently a legacy,
-unmanaged public path with a duplicate Formula/Base risk; the direct Full DMG
-is authoritative until the migration gates in
-`docs/delivery/distribution-and-install-ssot.md` pass. Standard updater ZIP
-trust, App-managed local authorization, Full native-runtime trust, size budgets,
-Homebrew tap policy, and release workflow sequencing are governed by
-`contracts/app-release-channel.json`, `docs/delivery/release/README.md`, release
-workflows, validators, and release artifacts.
+The supported product matrix is `Desktop|WebUI x Standard|Full`. Native and
+Container are internal WebUI carriers. Standard and Full use the same product
+behavior and Official Profile on each surface; Full adds offline seeds and
+never enters Standard updater metadata. This product status does not assert
+that any exact carrier is currently public or installed. Live availability,
+version, digest, updater, Homebrew, OCI, clean-host, and installed state come
+only from fresh owner readback.
 
 Release efficiency now has an explicit target architecture:
 `build-once/promote-many`. A frozen App/Shell/Framework cohort should build and
@@ -298,15 +293,15 @@ Release publish/promote must consume prepared release notes and must not call
 AI to generate notes on the critical path. Full runtime bundle preparation is
 owned by OPL Framework and consumed by the App through manifest/lock/readback
 refs; VM smoke qualifies the exact release artifact for the same cohort.
-Standard Stable publication and Latest now follow the GitHub-hosted mandatory
-floor: source/contract/build preflight, Standard publication, exact remote
-digest and current-Latest readback, and Homebrew publication/readback, all
-bound to the same immutable App/Shell/Framework and ZIP/DMG identity. Tart,
+Stable publication and Latest remain carrier-local and follow the
+GitHub-hosted mandatory floor: source/contract/build preflight, exact carrier
+publication, remote digest and current-Latest readback, all bound to one
+immutable App/Shell/Framework cohort and the selected surface/density. Tart,
 clean VM, Hyper-V, and WSL2 checks are asynchronous post-publication optional
 certification of those published bytes. Their status is explicit
-`passed|failed|not_run|unavailable`; they never block or queue Standard
-publication or Latest. Full and Docker/WebUI remain separately tracked
-same-cohort add-ons rather than prerequisites for Standard Latest.
+`passed|failed|not_run|unavailable`; they never block or queue another product
+cell. Full remains additive to Standard within the same surface, and WebUI
+carrier work remains isolated from Desktop pointer mutation.
 The protected `release-manual-full-preview.yml` ingress remains an explicit
 non-Stable manual exception with its own protected handoff and self-hosted
 label; it does not make self-hosted a Stable/Latest dependency. Self-hosted
