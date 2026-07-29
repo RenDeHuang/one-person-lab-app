@@ -131,7 +131,7 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
           : argument && ts.isIdentifier(argument)
             ? objectBindings.get(argument.text)
             : undefined;
-      if (!options) {
+      if (!options || !ts.isObjectLiteralExpression(options)) {
         throw new Error('Active shell canonical thread directory must pass an inline thread/list options object');
       }
       threadListOptions.push(options);
