@@ -42,7 +42,7 @@ function currentManifest(overrides: Record<string, unknown> = {}) {
     qualification_disclosure: {
       stable_qualified: false,
       passed_gates: ['standard_vm'],
-      skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+      skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
       failed_gates: [],
       non_stable_notice: true,
     },
@@ -81,7 +81,7 @@ test('new Manual Preview request allocates a real Preview Bundle identity and bo
   assert.deepEqual(result.qualification_disclosure, {
     stable_qualified: false,
     passed_gates: ['standard_vm'],
-    skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+    skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
     failed_gates: [],
     non_stable_notice: true,
   });
@@ -195,7 +195,7 @@ test('current component manifest binds Preview quality, updater, source commit, 
     qualification_disclosure: {
       stable_qualified: false,
       passed_gates: ['standard_vm'],
-      skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+      skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
       failed_gates: [],
       non_stable_notice: true,
     },

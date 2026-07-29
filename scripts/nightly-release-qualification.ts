@@ -46,7 +46,6 @@ export type NightlyQualificationReceipt = {
     skipped_gates: [
       'stable_heavy_vm',
       'homebrew_clean_install',
-      'native_webui',
       'container_webui',
       'full',
     ];
@@ -110,10 +109,11 @@ export function qualifyNightlyRelease(input: {
   const dmgName = `One-Person-Lab-${request.version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${request.version}-mac-arm64.zip`;
   const blockmapName = `${zipName}.blockmap`;
+  const linuxDesktopName = `One-Person-Lab-${request.version}-linux-x64.deb`;
   const metadataName = 'latest-arm64-mac.yml';
   const policyName = 'standard-local-authorization-policy.json';
   const componentManifestName = 'opl-app-component-manifest.json';
-  const expectedFiles = [blockmapName, dmgName, metadataName, policyName, zipName].sort();
+  const expectedFiles = [blockmapName, dmgName, linuxDesktopName, metadataName, policyName, zipName].sort();
   const observedFiles = exactDirectoryFiles(assetsDir);
   if (JSON.stringify(observedFiles) !== JSON.stringify(expectedFiles)) {
     throw new Error(`Nightly asset directory must contain exactly ${expectedFiles.join(', ')}; found ${observedFiles.join(', ')}.`);
@@ -153,7 +153,7 @@ export function qualifyNightlyRelease(input: {
     throw new Error(`Nightly updater metadata must reference only ${zipName}.`);
   }
 
-  const publicNames = [dmgName, zipName, blockmapName, metadataName];
+  const publicNames = [dmgName, zipName, blockmapName, linuxDesktopName, metadataName];
   const releaseBase =
     `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${request.tag}`;
   const componentManifest = createAppComponentManifest({
@@ -212,7 +212,6 @@ export function qualifyNightlyRelease(input: {
       skipped_gates: [
         'stable_heavy_vm',
         'homebrew_clean_install',
-        'native_webui',
         'container_webui',
         'full',
       ],

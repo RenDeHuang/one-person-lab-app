@@ -28,12 +28,11 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     ['app_github_releases', 'homebrew_tap', 'webui_ghcr'],
     'Publication carrier families',
   );
-  requireEqual(releaseTopology?.current_production_publication_paths, 5, 'Production publication path count');
+  requireEqual(releaseTopology?.current_production_publication_paths, 4, 'Production publication path count');
   assertDeepEqualJson(
     releaseTopology?.production_publication_paths,
     [
       'desktop_stable_github_release',
-      'native_webui_github_release_assets',
       'homebrew_standard_cask',
       'homebrew_full_cask_post_publication_follower',
       'container_webui_latest_with_stable_compatibility_alias',
@@ -53,16 +52,16 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     ],
     'Install entrypoint families',
   );
-  requireEqual(installTopology?.current_supported_app_runtime_forms, 3, 'Supported runtime form count');
+  requireEqual(installTopology?.current_supported_app_runtime_forms, 2, 'Supported runtime form count');
   assertDeepEqualJson(
     installTopology?.supported_app_runtime_forms,
-    ['desktop', 'native_webui', 'container_webui'],
+    ['desktop', 'container_webui'],
     'Supported runtime forms',
   );
-  requireEqual(installTopology?.approved_target_app_runtime_forms, 3, 'Target runtime form count');
+  requireEqual(installTopology?.approved_target_app_runtime_forms, 2, 'Target runtime form count');
   assertDeepEqualJson(
     installTopology?.target_app_runtime_forms,
-    ['desktop', 'native_webui', 'container_webui'],
+    ['desktop', 'container_webui'],
     'Target runtime forms',
   );
   assertDeepEqualJson(installTopology?.payload_densities, ['standard', 'full'], 'Payload densities');
@@ -83,7 +82,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
       },
       distribution_pointer: ['latest'],
       payload_density: ['standard', 'full'],
-      runtime_form: ['desktop', 'native_webui', 'container_webui'],
+      runtime_form: ['desktop', 'container_webui'],
       task_mode: ['development_validation', 'production_release'],
     },
     'Distribution orthogonal dimensions',
@@ -341,7 +340,11 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
 
   const currentCohort = release.cohort_policy?.current_development_state;
   const targetCohort = release.cohort_policy?.approved_production_target;
-  requireEqual(currentCohort?.desktop_and_webui, 'dual_track', 'Current Desktop/WebUI cohort');
+  requireEqual(
+    currentCohort?.desktop_and_webui,
+    'desktop_packaged_webui_and_container_dual_track',
+    'Current Desktop/WebUI cohort',
+  );
   requireEqual(currentCohort?.independent_version_and_cadence_allowed, true, 'Development dual-track version policy');
   requireEqual(currentCohort?.same_production_cohort_claim_allowed, false, 'Development production-cohort claim');
   requireEqual(targetCohort?.model, 'one_app_version_multiple_runtime_forms', 'Production cohort target');
@@ -496,91 +499,50 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Package installed callable authority',
   );
 
-  const nativeWebui = install.runtime_forms?.native_webui;
-  requireEqual(nativeWebui?.source_runtime_status, 'active_production_capability', 'Native WebUI source status');
-  requireEqual(
-    nativeWebui?.implementation_status,
-    'live_linux_x86_64_macos_arm64_implemented_pending_first_publication',
-    'Native WebUI implementation status',
-  );
-  requireEqual(nativeWebui?.public_install_status, 'published_digest_bound', 'Native WebUI public status');
-  requireEqual(
-    nativeWebui?.opl_support_status,
-    'supported_linux_x86_64',
-    'Native WebUI support status',
-  );
-  assertDeepEqualJson(
-    nativeWebui?.supported_targets,
-    ['linux_x86_64'],
-    'Native WebUI supported targets',
-  );
-  assertDeepEqualJson(
-    nativeWebui?.implemented_targets_pending_publication,
-    ['macos_arm64'],
-    'Native WebUI implemented targets pending publication',
-  );
-  requireEqual(nativeWebui?.electron_required, false, 'Native WebUI Electron requirement');
-  requireEqual(nativeWebui?.docker_required, false, 'Native WebUI Docker requirement');
-  requireEqual(
-    nativeWebui?.upstream_aionui_tarballs_are_opl_release_evidence,
-    false,
-    'Native WebUI upstream artifact authority',
-  );
+  const desktop = install.runtime_forms?.desktop;
+  requireEqual(desktop?.electron_required, true, 'Desktop Electron requirement');
+  requireEqual(desktop?.browser_webui_mode, 'packaged_desktop_bytes', 'Desktop WebUI mode');
+  requireEqual(desktop?.native_tarball_carrier, 'retired', 'Native tarball carrier state');
   requireEqual(
     install.runtime_forms?.container_webui?.target,
-    'container_adapter_over_same_frozen_webui_runtime_as_native',
+    'container_adapter_over_the_same_product_webui_runtime',
     'Container WebUI target',
   );
+  const linuxDesktop = release.approved_targets?.desktop_linux_x86_64;
   requireEqual(
-    release.approved_targets?.native_webui?.status,
-    'live_public_linux_x86_64_plus_macos_arm64_implemented_pending_first_publication_readback',
-    'Native WebUI release target status',
-  );
-  requireEqual(release.approved_targets?.native_webui?.initial_platform, 'linux_amd64', 'Native WebUI initial platform');
-  requireEqual(
-    release.approved_targets?.native_webui?.initial_macos_platform,
-    'macos_arm64',
-    'Native WebUI initial macOS platform',
+    linuxDesktop?.status,
+    'implemented_pending_first_publication_readback',
+    'Linux Desktop release target status',
   );
   requireEqual(
-    release.approved_targets?.native_webui?.publication_carrier,
+    linuxDesktop?.publication_carrier,
     'app_github_release_assets',
-    'Native WebUI publication carrier',
+    'Linux Desktop publication carrier',
   );
   requireEqual(
-    release.approved_targets?.native_webui?.production_topology,
-    'standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback',
-    'Native WebUI production topology',
+    linuxDesktop?.desktop_asset,
+    'One-Person-Lab-<version>-linux-x64.deb',
+    'Linux Desktop release asset',
   );
+  requireEqual(linuxDesktop?.installer_asset, 'opl-install.sh', 'Linux Desktop installer asset');
+  requireEqual(linuxDesktop?.browser_webui_mode, 'packaged_desktop_bytes', 'Linux Desktop WebUI mode');
+  requireEqual(linuxDesktop?.native_tarball_carrier, 'retired', 'Linux Desktop Native carrier retirement');
   assertDeepEqualJson(
-    release.approved_targets?.native_webui?.stable_operation_set_must_remain,
-    ['standard', 'resume_standard', 'append_full'],
-    'Native WebUI Stable operation boundary',
-  );
-  assertDeepEqualJson(
-    release.approved_targets?.native_webui?.container_ghcr_tags_must_remain_unchanged,
+    linuxDesktop?.container_ghcr_tags_must_remain_unchanged,
     ['latest', 'stable'],
-    'Native WebUI Container tag boundary',
+    'Linux Desktop Container tag boundary',
   );
   assertDeepEqualJson(
-    release.approved_targets?.native_webui?.promotion_requires,
+    linuxDesktop?.promotion_requires,
     [
-      'carrier_neutral_frozen_platform_payload',
-      'container_overlay_reuses_the_same_frozen_payload',
-      'versioned_runtime_directories_and_atomic_current_pointer',
-      'app_owned_versioned_artifacts',
+      'exact_desktop_asset_and_component_manifest_digest',
       'install_update_rollback_and_data_preservation',
       'framework_and_official_profile_convergence',
-      'non_root_clean_host_qualification',
       'public_digest_readback',
     ],
-    'Native WebUI promotion gates',
+    'Linux Desktop promotion gates',
   );
-  requireEqual(
-    (installExposurePolicy.installer_surfaces ?? []).some((entry) => entry.surface === 'native_webui'),
-    false,
-    'Native WebUI active installer surface',
-  );
+  requireEqual(release.approved_targets?.native_webui, undefined, 'Retired Native WebUI release target');
 
   const installer = install.installer_convergence;
   assertDeepEqualJson(
@@ -594,7 +556,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Current App installer convergence',
   );
   requireEqual(installer?.approved_universal_target?.macos_default, 'desktop', 'Universal macOS target');
-  requireEqual(installer?.approved_universal_target?.linux_personal_default, 'native_webui', 'Universal Linux target');
+  requireEqual(installer?.approved_universal_target?.linux_personal_default, 'desktop', 'Universal Linux target');
   requireEqual(
     installer?.approved_universal_target?.server_or_isolated_explicit,
     'container_webui',
@@ -625,25 +587,22 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'Universal Container WebUI version binding',
   );
   assertDeepEqualJson(
-    installer?.approved_universal_target?.native_webui_public_discovery,
+    installer?.approved_universal_target?.desktop_release_identity,
     {
       repository: 'gaofeng21cn/one-person-lab-app',
       release_selector: 'github_latest_pointer_exact_release',
       required_asset_roles: [
-        'runtime_tarball',
-        'runtime_metadata',
-        'installer',
-        'installer_sha256',
-        'qualification_receipt',
+        'platform_desktop_payload',
+        'component_manifest',
+        'release_universal_installer',
       ],
-      installer_digest_authority: 'github_release_asset_digest_sha256',
-      quality_admission_authority: 'exact_digest_bound_native_qualification_receipt_not_latest_pointer',
+      installer_digest_authority: 'component_manifest_and_github_release_asset_digest',
+      quality_admission_authority: 'same_desktop_qualification_and_component_manifest',
       exact_tag_download_url_required: true,
-      probe_before_selection_required: true,
-      pre_publication_fallback: 'container_webui',
+      native_artifact_discovery_allowed: false,
       target_selection: 'host_platform_and_architecture',
     },
-    'Native WebUI public discovery policy',
+    'Desktop release identity policy',
   );
   requireEqual(
     installer?.stable_macos_helper?.current_status,

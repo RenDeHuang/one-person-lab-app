@@ -38,6 +38,7 @@ function fixture(version = '26.7.27-preview.r1') {
       [`One-Person-Lab-${version}-mac-arm64.dmg`, artifactDigest],
       [`One-Person-Lab-${version}-mac-arm64.zip`, `sha256:${'c'.repeat(64)}`],
       [`One-Person-Lab-${version}-mac-arm64.zip.blockmap`, `sha256:${'d'.repeat(64)}`],
+      [`One-Person-Lab-${version}-linux-x64.deb`, `sha256:${'9'.repeat(64)}`],
       ['standard-gatekeeper-launch-policy.json', `sha256:${'e'.repeat(64)}`],
       ['standard-apple-notarization-receipt.json', `sha256:${'f'.repeat(64)}`],
     ].map(([name, digest]) => ({

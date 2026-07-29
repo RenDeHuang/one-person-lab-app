@@ -50,13 +50,13 @@ function stage(
   };
 }
 
-test('twelve passed stages fold into one non-authoritative terminal observation', () => {
+test('eleven passed stages fold into one non-authoritative terminal observation', () => {
   const result = foldStableStageResults(stableStageIds.map((_stageId, index) => stage(index)));
 
   assert.equal(result.status, 'passed');
   assert.equal(result.authority, 'attempt_observation_only_no_framework_state_projection');
-  assert.equal(result.business_stage_count, 12);
-  assert.equal(result.observed_stage_count, 12);
+  assert.equal(result.business_stage_count, 11);
+  assert.equal(result.observed_stage_count, 11);
   assert.equal(result.primary_failure, null);
   assert.deepEqual(result.secondary_failures, []);
   assert.equal(result.failure_fingerprint, null);
@@ -113,7 +113,7 @@ test('a secondary-only failure still emits the deterministic circuit-breaker fin
 });
 
 test('cleanup command anomaly plus final absent inspection is idempotent success and never primary', () => {
-  const cleanup = stage(11);
+  const cleanup = stage(10);
   cleanup.axes.cleanup = axis('failed', 'vm_cleanup_stop_failure', {
     command_exit_code: 2,
     final_inspection: 'absent',
@@ -180,7 +180,7 @@ test('stage result schema stays closed and enumerates the exact business stages 
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.properties.schema.const, 'opl_app_stable_stage_result.v1');
   assert.equal(schema.properties.authority.const, 'attempt_observation_only_no_framework_state_projection');
-  assert.equal(schema.properties.business_stage_count.const, 12);
+  assert.equal(schema.properties.business_stage_count.const, 11);
   assert.deepEqual(schema.$defs.stage_id.enum, stableStageIds);
   assert.deepEqual(schema.$defs.axis.enum, stableStageAxes);
   assert.equal(schema.$defs.stage.additionalProperties, false);

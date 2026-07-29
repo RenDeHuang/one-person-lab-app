@@ -33,8 +33,6 @@ export const releaseWorkflowPaths = [
   ".github/workflows/release-nightly.yml",
   ".github/workflows/release-nightly-homebrew-follower.yml",
   ".github/workflows/release-nightly-sampled-vm.yml",
-  ".github/workflows/_release-native-webui-carrier.yml",
-  ".github/workflows/release-native-webui-follower.yml",
   ".github/workflows/release-stable.yml",
   ".github/workflows/release-verify-remote.yml",
 ];
@@ -109,6 +107,21 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   {
     id: "retired_standalone_webui_publish_helper_absent",
     file: "scripts/webui-ghcr-release-step.sh",
+    retired: true,
+  },
+  {
+    id: "retired_native_webui_carrier_absent",
+    file: ".github/workflows/_release-native-webui-carrier.yml",
+    retired: true,
+  },
+  {
+    id: "retired_native_webui_follower_absent",
+    file: ".github/workflows/release-native-webui-follower.yml",
+    retired: true,
+  },
+  {
+    id: "retired_native_webui_carrier_script_absent",
+    file: "scripts/release-native-webui-carrier.ts",
     retired: true,
   },
   {
@@ -1550,7 +1563,6 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "standard-build:",
       "seal-standard-identity:",
       "checkpoint-standard:",
-      "prepare-native-webui:",
       "publish-standard:",
       "opl release freeze",
       "opl release build",

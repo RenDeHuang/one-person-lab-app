@@ -156,7 +156,6 @@ const requiredUnknownMarkerFields = [
 const requiredStableBusinessStageIds = [
   'admission_and_circuit_breaker',
   'source_contract_preflight',
-  'native_webui_deterministic_prepare',
   'credential_runner_and_custody_preflight',
   'standard_signed_notarized_build_and_seal',
   'clean_vm_exact_artifact_qualification',
@@ -532,6 +531,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'One-Person-Lab-<version>-mac-arm64.dmg',
     'One-Person-Lab-<version>-mac-arm64.zip',
     'One-Person-Lab-<version>-mac-arm64.zip.blockmap',
+    'One-Person-Lab-<version>-linux-x64.deb',
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
@@ -1314,7 +1314,7 @@ export function validateReleaseAccelerationPolicy(
     stableStageResult?.json_schema !== 'contracts/app-stable-stage-result.schema.json' ||
     stableStageResult?.script !== 'scripts/stable-stage-result.ts' ||
     stableStageResult?.authority !== 'attempt_observation_only_no_framework_state_projection' ||
-    stableStageResult?.business_stage_count !== 12 ||
+    stableStageResult?.business_stage_count !== 11 ||
     JSON.stringify(stableStageResult?.stage_ids) !== JSON.stringify(requiredStableBusinessStageIds) ||
     JSON.stringify(stableStageResult?.axes) !== JSON.stringify(requiredStableStageAxes) ||
     stableStageResult?.primary_failure_rule !== 'lowest_stage_index_failed_qualification_product_axis' ||

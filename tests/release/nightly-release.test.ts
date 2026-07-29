@@ -49,9 +49,11 @@ function fixture(t: test.TestContext) {
   const frozen = request();
   const dmgName = `One-Person-Lab-${frozen.version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${frozen.version}-mac-arm64.zip`;
+  const linuxDesktopName = `One-Person-Lab-${frozen.version}-linux-x64.deb`;
   fs.writeFileSync(path.join(assetsDir, dmgName), 'nightly dmg exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, zipName), 'nightly zip exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, `${zipName}.blockmap`), 'nightly blockmap exact bytes\n');
+  fs.writeFileSync(path.join(assetsDir, linuxDesktopName), 'nightly Linux Desktop exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, 'latest-arm64-mac.yml'), [
     `version: ${frozen.updater_version}`,
     'files:',
@@ -228,14 +230,13 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     skipped_gates: [
       'stable_heavy_vm',
       'homebrew_clean_install',
-      'native_webui',
       'container_webui',
       'full',
     ],
     failed_gates: [],
     non_stable_notice: true,
   });
-  assert.equal(input.qualification.assets.length, 5);
+  assert.equal(input.qualification.assets.length, 6);
   assert.equal(
     input.qualification.assets.filter((asset) => asset.name === 'opl-app-component-manifest.json').length,
     1,
@@ -279,7 +280,7 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(first.github_release.make_latest, false);
   assert.equal(first.github_release.latest_before, 'v26.7.25');
   assert.equal(first.github_release.latest_after, 'v26.7.25');
-  assert.equal(remote.calls.filter((call) => call.startsWith('upload:')).length, 5);
+  assert.equal(remote.calls.filter((call) => call.startsWith('upload:')).length, 6);
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
 
   remote.calls = [];

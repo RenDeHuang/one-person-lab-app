@@ -9,7 +9,6 @@ import { pathToFileURL } from 'node:url';
 export const stableStageIds = [
   'admission_and_circuit_breaker',
   'source_contract_preflight',
-  'native_webui_deterministic_prepare',
   'credential_runner_and_custody_preflight',
   'standard_signed_notarized_build_and_seal',
   'clean_vm_exact_artifact_qualification',
@@ -97,7 +96,7 @@ export type StableNormalizedStage = Omit<StableStageInput, 'axes'> & {
 export type StableStageResult = {
   schema: 'opl_app_stable_stage_result.v1';
   authority: 'attempt_observation_only_no_framework_state_projection';
-  business_stage_count: 12;
+  business_stage_count: 11;
   observed_stage_count: number;
   status: 'passed' | 'failed' | 'incomplete';
   cohort: StableCohort;
@@ -380,7 +379,7 @@ export function foldStableStageResults(inputs: StableStageInput[]): StableStageR
   return {
     schema: 'opl_app_stable_stage_result.v1',
     authority: 'attempt_observation_only_no_framework_state_projection',
-    business_stage_count: 12,
+    business_stage_count: 11,
     observed_stage_count: stages.length,
     status: hasFailure ? 'failed' : complete ? 'passed' : 'incomplete',
     cohort,
