@@ -1,51 +1,400 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { parse as parseYaml } from 'yaml';
 
-import { validateNativeWebuiPublicationTopology } from '../../scripts/validate-release-boundary/text-check-runner.ts';
+import {
+  planNativeWebuiAssetPublication,
+  publishNativeWebuiAssets,
+  readbackNativeWebuiAssets,
+  sealNativeWebuiPublicationManifest,
+  type NativeWebuiGitHubRuntime,
+  type NativeWebuiLocalAsset,
+  type NativeWebuiRemoteAsset,
+} from '../../scripts/release-native-webui-carrier.ts';
 
-const appRoot = path.resolve(import.meta.dirname, '../..');
-const retiredPaths = [
-  '.github/workflows/_release-native-webui-carrier.yml',
-  '.github/workflows/release-native-webui-follower.yml',
-  'scripts/release-native-webui-carrier.ts',
-];
+const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 
-function withoutExpectedDiagnostics(run: () => number): number {
-  const original = console.error;
-  console.error = () => undefined;
-  try {
-    return run();
-  } finally {
-    console.error = original;
-  }
+function workflow(name: string): { source: string; parsed: Record<string, any> } {
+  const source = fs.readFileSync(path.join(workflowRoot, name), 'utf8');
+  return { source, parsed: parseYaml(source) as Record<string, any> };
 }
 
-test('the retired Native WebUI carrier has no live workflow or script surface', () => {
-  for (const relativePath of retiredPaths) {
-    assert.equal(fs.existsSync(path.join(appRoot, relativePath)), false, relativePath);
-  }
-  assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(appRoot)), 0);
+function digest(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+test('Native follower consumes only one successful Stable handoff and executes two isolated targets', () => {
+  const { source, parsed } = workflow('release-native-webui-follower.yml');
+  assert.deepEqual(Object.keys(parsed.on), ['workflow_run']);
+  assert.deepEqual(parsed.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
+  assert.deepEqual(parsed.on.workflow_run.types, ['completed']);
+  assert.deepEqual(parsed.permissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(Object.keys(parsed.jobs), ['resolve-handoff', 'native-webui-linux', 'native-webui-macos']);
+  const linux = parsed.jobs['native-webui-linux'];
+  const macos = parsed.jobs['native-webui-macos'];
+  assert.equal(linux.uses, './.github/workflows/_release-native-webui-carrier.yml');
+  assert.equal(macos.uses, './.github/workflows/_release-native-webui-carrier.yml');
+  assert.deepEqual(linux.permissions, { contents: 'write', actions: 'read' });
+  assert.deepEqual(macos.permissions, { contents: 'write', actions: 'read' });
+  assert.equal(linux.with.mode, 'execute');
+  assert.equal(linux.with.target_platform, 'linux');
+  assert.equal(linux.with.target_architecture, 'x86_64');
+  assert.equal(macos.with.mode, 'execute');
+  assert.equal(macos.with.target_platform, 'darwin');
+  assert.equal(macos.with.target_architecture, 'arm64');
+  assert.deepEqual(macos.needs, ['resolve-handoff', 'native-webui-linux']);
+  assert.match(macos.if, /always\(\)/);
+  assert.match(macos.if, /needs\.resolve-handoff\.outputs\.eligible == 'true'/);
+  assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
+  assert.match(source, /\.run_attempt == 1/);
+  assert.match(source, /opl-release-activation-\$\{STABLE_AUTHORITY_RUN_ID\}/);
+  assert.match(source, /webui-follower-handoff\.json/);
+  assert.match(source, /\.source\.artifact_run_id \| test\("\^\[1-9\]\[0-9\]\*\$"\)/);
+  assert.match(source, /\.source\.checkpoint_artifact \| test/);
+  assert.match(source, /\.source\.standard_identity_sha256 \| test/);
+  assert.match(source, /opl_standard_latest_admission_receipt\.v1/);
+  assert.match(source, /framework_terminal_status == "complete"/);
+  assert.doesNotMatch(source, /workflow_dispatch:/);
+  assert.doesNotMatch(source, /publication_prefix|publication_artifact_name|release-webui-stable\.yml|_release-webui-carrier\.yml|packages: write/);
 });
 
-test('the release-boundary guard rejects carrier restoration and references from other workflows', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-retired-native-webui-'));
+test('Native reusable builds one exact target then performs protected additive publication and readback', () => {
+  const { source, parsed } = workflow('_release-native-webui-carrier.yml');
+  assert.deepEqual(Object.keys(parsed.on), ['workflow_call']);
+  assert.deepEqual(parsed.permissions, { contents: 'read' });
+  assert.deepEqual(Object.keys(parsed.jobs), ['startup-canary', 'build-and-qualify', 'publish-native-assets']);
+  assert.deepEqual(parsed.jobs['build-and-qualify'].permissions, { contents: 'read', actions: 'read' });
+  assert.equal(parsed.jobs['build-and-qualify']['continue-on-error'], undefined);
+  assert.equal(
+    parsed.jobs['build-and-qualify']['runs-on'],
+    "${{ inputs.target_platform == 'darwin' && 'macos-14' || 'ubuntu-latest' }}",
+  );
+  assert.equal(parsed.jobs['publish-native-assets'].environment, 'release-stable');
+  assert.equal(parsed.jobs['publish-native-assets']['continue-on-error'], undefined);
+  assert.deepEqual(parsed.jobs['publish-native-assets'].permissions, { contents: 'write', actions: 'read' });
+  for (const required of [
+    'test "$GITHUB_RUN_ATTEMPT" = 1',
+    'test "$(id -u)" -ne 0',
+    'linux/x86_64|darwin/arm64',
+    'repository: gaofeng21cn/opl-aion-shell',
+    'repository: gaofeng21cn/one-person-lab',
+    'desired_root_package_ids',
+    'OPL_SOURCE_ARCHIVE_URL',
+    'tests/unit/web-cli/nativeDistribution.test.ts',
+    'tests/unit/web-cli/packWebCli.test.ts',
+    '0.0.1',
+    '--rollback',
+    'user-sentinel.txt',
+    'project-sentinel.txt',
+    'official-profile-first-install-complete',
+    'http://127.0.0.1:${port}/',
+    'release-native-webui-carrier.ts publish',
+    'release-native-webui-carrier.ts readback',
+    'restore-release-checkpoint',
+    'publication-scope external_target',
+    'prior_mutation_attempt_id',
+    'find native-release/native-publication-checkpoint -type f -name checkpoint.json',
+    'test -f native-release/publication-manifest.json',
+    'test "$(jq -r .operation_id <<<"$marker")"',
+    'opl release reconcile',
+    'latest_modified',
+    'container_registry_modified',
+    'homebrew_modified',
+  ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(source, /PACK_PLATFORM: \$\{\{ inputs\.target_platform \}\}/);
+  assert.match(source, /PACK_ARCH: \$\{\{ inputs\.target_architecture == 'x86_64' && 'x64' \|\| 'arm64' \}\}/);
+  assert.match(source, /OPL_WEBUI_IMAGE_PROFILE: webui-full/);
+  assert.match(source, /run-id: \$\{\{ github\.run_id \}\}/);
+  assert.match(source, /source-run-id: \$\{\{ inputs\.source_run_id \}\}/);
+  assert.match(source, /source-artifact: \$\{\{ inputs\.source_artifact \}\}/);
+  assert.match(source, /standard_identity_sha256/);
+  assert.doesNotMatch(source, /ghcr\.io|docker build|docker push|packages: write|make_latest|github-activate-latest/);
+  assert.doesNotMatch(source, /release-stable\.yml|_release-full-addon\.yml/);
+  assert.doesNotMatch(source, /NODE_OPTIONS|--max-old-space-size/);
+});
+
+test('Desktop Stable bundle has no Native mandatory job or dependency', () => {
+  const { source, parsed } = workflow('_release-bundle.yml');
+  assert.equal(parsed.jobs['prepare-native-webui'], undefined);
+  assert.equal(parsed.jobs['prepare-native-webui-macos'], undefined);
+  assert.equal(parsed.jobs['publish-native-webui'], undefined);
+  assert.doesNotMatch(source, /_release-native-webui-carrier\.yml|prepare-native-webui|publish-native-webui/);
+});
+
+test('asset plan is idempotent and rejects same-name different bytes', () => {
+  const local: NativeWebuiLocalAsset = {
+    role: 'runtime_tarball',
+    name: 'runtime.tar.gz',
+    path: '/tmp/runtime.tar.gz',
+    size_bytes: 42,
+    sha256: 'a'.repeat(64),
+  };
+  assert.deepEqual(planNativeWebuiAssetPublication([local], []), [{ ...local, action: 'upload' }]);
+  assert.deepEqual(planNativeWebuiAssetPublication([local], [{
+    name: local.name,
+    size: local.size_bytes,
+    digest: `sha256:${local.sha256}`,
+  }]), [{ ...local, action: 'reuse' }]);
+  assert.throws(() => planNativeWebuiAssetPublication([local], [{
+    name: local.name,
+    size: local.size_bytes,
+    digest: `sha256:${'b'.repeat(64)}`,
+  }]), /already exists with different bytes/);
+  assert.throws(() => planNativeWebuiAssetPublication([local], [
+    { name: local.name, size: local.size_bytes, digest: `sha256:${local.sha256}` },
+    { name: local.name, size: local.size_bytes, digest: `sha256:${local.sha256}` },
+  ]), /duplicate Native WebUI asset names/);
+});
+
+function fixtureManifest(
+  t: test.TestContext,
+  target: { platform: 'linux' | 'darwin'; architecture: 'x86_64' | 'arm64' } = {
+    platform: 'linux',
+    architecture: 'x86_64',
+  },
+) {
+  const root = fs.mkdtempSync(path.join(process.cwd(), '.opl-native-publication-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const workflows = path.join(root, '.github', 'workflows');
-  fs.mkdirSync(workflows, { recursive: true });
+  const version = '26.7.25';
+  const base = `one-person-lab-webui-${version}-${target.platform}-${target.architecture}`;
+  const names = {
+    runtime_tarball: `${base}.tar.gz`,
+    runtime_metadata: `${base}.tar.gz.sha256`,
+    installer: 'install-web.sh',
+    installer_sha256: 'install-web.sh.sha256',
+    qualification_receipt: `${base}.qualification.json`,
+  };
+  const paths = Object.fromEntries(Object.entries(names).map(([role, name]) => [role, path.join(root, name)])) as Record<keyof typeof names, string>;
+  fs.writeFileSync(paths.runtime_tarball, 'runtime-bytes');
+  fs.writeFileSync(paths.runtime_metadata, 'runtime-metadata');
+  fs.writeFileSync(paths.installer, '#!/bin/sh\n');
+  fs.writeFileSync(paths.installer_sha256, `${digest('#!/bin/sh\n')}  install-web.sh\n`);
+  fs.writeFileSync(paths.qualification_receipt, `${JSON.stringify({
+    schema: 'opl_app_native_webui_qualification_receipt.v1',
+    status: 'passed',
+    version,
+    release_bundle_digest: `sha256:${'d'.repeat(64)}`,
+    stable_authority_run_id: '123',
+    platform: target.platform,
+    architecture: target.architecture,
+    non_root: true,
+    cohort: { app_sha: 'a'.repeat(40), shell_sha: 'b'.repeat(40), framework_sha: 'c'.repeat(40) },
+    lifecycle: {
+      first_install: 'passed',
+      same_version_idempotence: 'passed',
+      cross_version_update: 'passed',
+      rollback: 'passed',
+      data_preservation: 'passed',
+      http_health: 'passed',
+      official_profile_first_install: 'passed',
+    },
+  })}\n`);
+  const manifest = sealNativeWebuiPublicationManifest({
+    repository: 'gaofeng21cn/one-person-lab-app',
+    version,
+    releaseBundleDigest: `sha256:${'d'.repeat(64)}`,
+    stableAuthorityRunId: '123',
+    platform: target.platform,
+    architecture: target.architecture,
+    appSha: 'a'.repeat(40),
+    shellSha: 'b'.repeat(40),
+    frameworkSha: 'c'.repeat(40),
+    qualificationReceiptPath: path.relative(process.cwd(), paths.qualification_receipt),
+    assetPaths: Object.fromEntries(Object.entries(paths).map(([role, file]) => [
+      role,
+      path.relative(process.cwd(), file),
+    ])) as Record<keyof typeof names, string>,
+  });
+  return { root, manifest, paths };
+}
 
-  fs.writeFileSync(
-    path.join(workflows, 'release-native-webui-follower.yml'),
-    'name: retired carrier must not return\n',
-  );
-  assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
+test('manifests bind both supported Native targets and reject every cross-pair', (t) => {
+  const linux = fixtureManifest(t);
+  const macos = fixtureManifest(t, { platform: 'darwin', architecture: 'arm64' });
+  assert.equal(linux.manifest.platform, 'linux');
+  assert.equal(linux.manifest.architecture, 'x86_64');
+  assert.match(linux.manifest.assets[0].name, /-linux-x86_64\.tar\.gz$/);
+  assert.equal(macos.manifest.platform, 'darwin');
+  assert.equal(macos.manifest.architecture, 'arm64');
+  assert.match(macos.manifest.assets[0].name, /-darwin-arm64\.tar\.gz$/);
 
-  fs.rmSync(path.join(workflows, 'release-native-webui-follower.yml'));
-  fs.writeFileSync(
-    path.join(workflows, 'release-stable.yml'),
-    'jobs:\n  forbidden:\n    uses: ./.github/workflows/_release-native-webui-carrier.yml\n',
-  );
-  assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
+  for (const target of [
+    { platform: 'linux', architecture: 'arm64' },
+    { platform: 'darwin', architecture: 'x86_64' },
+  ] as const) {
+    assert.throws(() => sealNativeWebuiPublicationManifest({
+      repository: linux.manifest.repository,
+      version: linux.manifest.version,
+      releaseBundleDigest: linux.manifest.release_bundle_digest,
+      stableAuthorityRunId: linux.manifest.stable_authority_run_id,
+      platform: target.platform,
+      architecture: target.architecture,
+      appSha: linux.manifest.cohort.app_sha,
+      shellSha: linux.manifest.cohort.shell_sha,
+      frameworkSha: linux.manifest.cohort.framework_sha,
+      qualificationReceiptPath: linux.manifest.qualification_receipt.path,
+      assetPaths: Object.fromEntries(linux.manifest.assets.map((asset) => [asset.role, asset.path])) as never,
+    }), new RegExp(`Unsupported Native WebUI target ${target.platform}-${target.architecture}`));
+  }
+});
+
+test('seal CLI accepts the workflow-relative qualification receipt and preserves target identity', (t) => {
+  const current = fixtureManifest(t, { platform: 'darwin', architecture: 'arm64' });
+  const byRole = Object.fromEntries(current.manifest.assets.map((asset) => [asset.role, asset.path]));
+  const output = path.join(current.root, 'cli-publication-manifest.json');
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/release-native-webui-carrier.ts',
+    'seal',
+    '--repository', current.manifest.repository,
+    '--version', current.manifest.version,
+    '--release-bundle-digest', current.manifest.release_bundle_digest,
+    '--stable-authority-run-id', current.manifest.stable_authority_run_id,
+    '--platform', current.manifest.platform,
+    '--architecture', current.manifest.architecture,
+    '--app-sha', current.manifest.cohort.app_sha,
+    '--shell-sha', current.manifest.cohort.shell_sha,
+    '--framework-sha', current.manifest.cohort.framework_sha,
+    '--runtime-tarball', byRole.runtime_tarball,
+    '--runtime-metadata', byRole.runtime_metadata,
+    '--installer', byRole.installer,
+    '--installer-sha256', byRole.installer_sha256,
+    '--qualification-receipt', current.manifest.qualification_receipt.path,
+    '--output', output,
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(output, 'utf8')), current.manifest);
+});
+
+function remoteAssets(manifest: ReturnType<typeof fixtureManifest>['manifest']): NativeWebuiRemoteAsset[] {
+  return manifest.assets.map((asset, index) => ({
+    id: index + 1,
+    name: asset.name,
+    size: asset.size_bytes,
+    digest: `sha256:${asset.sha256}`,
+    browser_download_url: `https://example.invalid/${asset.name}`,
+  }));
+}
+
+function runtimeFor(input: {
+  manifest: ReturnType<typeof fixtureManifest>['manifest'];
+  initial: NativeWebuiRemoteAsset[];
+  uploadStatus?: number;
+  exposeAfterUpload?: boolean;
+  anonymousReadbackStatus?: number;
+}): NativeWebuiGitHubRuntime & { uploads: string[]; uploadCalls: number } {
+  let assets = [...input.initial];
+  const uploads: string[] = [];
+  let uploadCalls = 0;
+  return {
+    uploads,
+    get uploadCalls() { return uploadCalls; },
+    run(command, args) {
+      if (command === 'gh' && args[0] === 'api') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            tag_name: input.manifest.tag,
+            draft: false,
+            prerelease: false,
+            target_commitish: input.manifest.cohort.app_sha,
+            assets,
+          }),
+          stderr: '',
+        };
+      }
+      if (command === 'gh' && args[0] === 'release' && args[1] === 'upload') {
+        uploadCalls += 1;
+        const localPaths = args.slice(3, args.indexOf('--repo'));
+        const localAssets = localPaths.map((localPath) => {
+          const local = input.manifest.assets.find((asset) => path.resolve(asset.path) === localPath);
+          assert.ok(local);
+          return local;
+        });
+        uploads.push(...localAssets.map((local) => local.name));
+        if (input.exposeAfterUpload !== false) {
+          assets = [...assets, ...localAssets.map((local) => ({
+            name: local.name,
+            size: local.size_bytes,
+            digest: `sha256:${local.sha256}`,
+            browser_download_url: `https://example.invalid/${local.name}`,
+          }))];
+        }
+        return { status: input.uploadStatus ?? 0, stdout: '', stderr: input.uploadStatus ? 'unknown' : '' };
+      }
+      if (command === 'curl') {
+        if (input.anonymousReadbackStatus) {
+          return { status: input.anonymousReadbackStatus, stdout: '', stderr: 'anonymous readback failed' };
+        }
+        const output = args[args.indexOf('--output') + 1];
+        const name = path.basename(args.at(-1) ?? '');
+        const local = input.manifest.assets.find((asset) => asset.name === name);
+        assert.ok(local);
+        fs.copyFileSync(path.resolve(local.path), output);
+        return { status: 0, stdout: '', stderr: '' };
+      }
+      throw new Error(`Unexpected command: ${command} ${args.join(' ')}`);
+    },
+  };
+}
+
+test('publisher performs zero mutations for exact remote bytes and verifies anonymous bytes', (t) => {
+  const current = fixtureManifest(t);
+  const runtime = runtimeFor({ manifest: current.manifest, initial: remoteAssets(current.manifest) });
+  const receipt = publishNativeWebuiAssets(current.manifest, 'gha-123-native', runtime);
+  assert.equal(receipt.status, 'idempotent');
+  assert.deepEqual(runtime.uploads, []);
+  assert.equal(receipt.anonymous_readback.length, 5);
+  assert.equal(receipt.latest_modified, false);
+  assert.equal(receipt.container_registry_modified, false);
+  assert.equal(receipt.homebrew_modified, false);
+});
+
+test('publisher never converts a zero-mutation public readback failure into idempotent completion', (t) => {
+  const current = fixtureManifest(t);
+  const runtime = runtimeFor({
+    manifest: current.manifest,
+    initial: remoteAssets(current.manifest),
+    anonymousReadbackStatus: 22,
+  });
+  const receipt = publishNativeWebuiAssets(current.manifest, 'gha-126-native', runtime);
+  assert.equal(receipt.status, 'public_readback_failed');
+  assert.equal(runtime.uploadCalls, 0);
+  assert.deepEqual(runtime.uploads, []);
+  assert.deepEqual(receipt.requested_uploads, []);
+  assert.equal(receipt.retry_disposition, 'fix_public_readback_then_freeze_a_new_standard_bundle_no_upload_retry');
+});
+
+test('publisher invokes one asset-set mutation and leaves unknown resolution to Framework readback', (t) => {
+  const reconciled = fixtureManifest(t);
+  const reconciledRuntime = runtimeFor({
+    manifest: reconciled.manifest,
+    initial: [],
+    uploadStatus: 1,
+    exposeAfterUpload: true,
+  });
+  const reconciledReceipt = publishNativeWebuiAssets(reconciled.manifest, 'gha-124-native', reconciledRuntime);
+  assert.equal(reconciledReceipt.status, 'outcome_unknown');
+  assert.equal(reconciledRuntime.uploadCalls, 1);
+  assert.equal(reconciledRuntime.uploads.length, 5);
+  assert.deepEqual(reconciledReceipt.requested_uploads, reconciled.manifest.assets.map((asset) => asset.name));
+  assert.equal(readbackNativeWebuiAssets(reconciled.manifest, reconciledRuntime).status, 'complete');
+
+  const unknown = fixtureManifest(t);
+  const unknownRuntime = runtimeFor({
+    manifest: unknown.manifest,
+    initial: [],
+    uploadStatus: 1,
+    exposeAfterUpload: false,
+  });
+  const unknownReceipt = publishNativeWebuiAssets(unknown.manifest, 'gha-125-native', unknownRuntime);
+  assert.equal(unknownReceipt.status, 'outcome_unknown');
+  assert.equal(unknownRuntime.uploadCalls, 1);
+  assert.deepEqual(unknownRuntime.uploads, unknown.manifest.assets.map((asset) => asset.name));
+  assert.equal(unknownReceipt.retry_disposition, 'persist_framework_marker_then_exact_read_only_reconcile_no_upload_retry');
 });
