@@ -282,8 +282,9 @@ jobs:
             and .source_qualification_run_id == ""
             and .source_qualification_receipt_digest == ""
           ' <<<"$inputs_json" >/dev/null
-          dispatch_ref="v${VERSION}"
-          [[ "$dispatch_ref" =~ ^v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(-r[1-9][0-9]*)?$ ]]
+          dispatch_ref="main"
+          current_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$current_main_sha" =~ ^[0-9a-f]{40}$ ]]
           dispatch_payload="$(jq -cn --arg ref "$dispatch_ref" --argjson inputs "$inputs_json" '{ref:$ref,inputs:$inputs}')"
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/dispatches" \
             --input - <<<"$dispatch_payload"
@@ -295,7 +296,7 @@ jobs:
                 "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&per_page=100"
             )"
             matches="$(
-              jq -r --arg head "$APP_REF" --arg branch "$dispatch_ref" --argjson started "$dispatch_started_at" '
+              jq -r --arg head "$current_main_sha" --arg branch "$dispatch_ref" --argjson started "$dispatch_started_at" '
                 [.[]?.workflow_runs[]?
                   | select(.head_sha == $head)
                   | select(.head_branch == $branch)
@@ -323,7 +324,7 @@ jobs:
             exit 1
           }
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > append-run.json
-          jq -e --arg run "$run_id" --arg head "$APP_REF" --arg branch "$dispatch_ref" '
+          jq -e --arg run "$run_id" --arg head "$current_main_sha" --arg branch "$dispatch_ref" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
