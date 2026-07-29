@@ -161,7 +161,6 @@ const exactUnknownMarkerFields = [
 const stableBusinessStageIds = [
   'admission_and_circuit_breaker',
   'source_contract_preflight',
-  'native_webui_deterministic_prepare',
   'credential_runner_and_custody_preflight',
   'standard_signed_notarized_build_and_seal',
   'clean_vm_exact_artifact_qualification',
@@ -626,7 +625,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     stableStageResult?.json_schema !== 'contracts/app-stable-stage-result.schema.json' ||
     stableStageResult?.script !== 'scripts/stable-stage-result.ts' ||
     stableStageResult?.authority !== 'attempt_observation_only_no_framework_state_projection' ||
-    stableStageResult?.business_stage_count !== 12 ||
+    stableStageResult?.business_stage_count !== 11 ||
     stableStageResult?.primary_failure_rule !== 'lowest_stage_index_failed_qualification_product_axis' ||
     stableStageResult?.secondary_failure_rule !==
       'evidence_transport_cleanup_and_later_product_failures_do_not_overwrite_primary' ||

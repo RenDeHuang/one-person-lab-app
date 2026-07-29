@@ -31,6 +31,7 @@ const frameworkCommit = 'd'.repeat(40);
 const bundleDigest = `sha256:${'b'.repeat(64)}`;
 const latestZip = asset(`One-Person-Lab-${version}-mac-arm64.zip`, '9');
 const latestDmg = asset(`One-Person-Lab-${version}-mac-arm64.dmg`, '8');
+const latestDeb = asset(`One-Person-Lab-${version}-linux-x64.deb`, '7');
 const componentManifestAsset = asset('opl-app-component-manifest.json', 'f');
 const expectedCurrentLatestTag = 'v26.7.20';
 const standardOperationId = 'operation-standard-1';
@@ -95,6 +96,7 @@ function previewFixture() {
   const previewTag = `v${previewVersion}`;
   const previewZip = asset(`One-Person-Lab-${previewVersion}-mac-arm64.zip`, '8');
   const previewDmg = asset(`One-Person-Lab-${previewVersion}-mac-arm64.dmg`, '6');
+  const previewDeb = asset(`One-Person-Lab-${previewVersion}-linux-x64.deb`, '5');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   bundle.release = {
     channel: 'preview',
@@ -107,7 +109,7 @@ function previewFixture() {
   const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
   status.release_bundle_status.latest_eligible = false;
   status.release_bundle_status.bundle = bundle;
-  status.release_bundle_status.tracks.standard.assets = [previewZip, previewDmg, componentManifestAsset];
+  status.release_bundle_status.tracks.standard.assets = [previewZip, previewDmg, previewDeb, componentManifestAsset];
   fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.publication_channel = 'preview';
@@ -149,6 +151,7 @@ function previewFixture() {
     previewDmg.name,
     previewZip.name,
     `${previewZip.name}.blockmap`,
+    previewDeb.name,
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
@@ -170,6 +173,7 @@ function nightlyLatestFixture() {
   const nightlyTag = `v${nightlyVersion}`;
   const nightlyZip = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.zip`, '7');
   const nightlyDmg = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.dmg`, '5');
+  const nightlyDeb = asset(`One-Person-Lab-${nightlyVersion}-linux-x64.deb`, '4');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   bundle.release = {
     channel: 'nightly',
@@ -182,7 +186,7 @@ function nightlyLatestFixture() {
   const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
   status.release_bundle_status.latest_eligible = false;
   status.release_bundle_status.bundle = bundle;
-  status.release_bundle_status.tracks.standard.assets = [nightlyZip, nightlyDmg, componentManifestAsset];
+  status.release_bundle_status.tracks.standard.assets = [nightlyZip, nightlyDmg, nightlyDeb, componentManifestAsset];
   fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.publication_channel = 'nightly';
@@ -224,6 +228,7 @@ function nightlyLatestFixture() {
     nightlyDmg.name,
     nightlyZip.name,
     `${nightlyZip.name}.blockmap`,
+    nightlyDeb.name,
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
@@ -320,7 +325,7 @@ function fixture(
       bundle_digest: bundleDigest,
       latest_eligible: true,
       bundle,
-      tracks: { standard: { assets: [latestZip, latestDmg, componentManifestAsset] } },
+      tracks: { standard: { assets: [latestZip, latestDmg, latestDeb, componentManifestAsset] } },
       operation_controls: { standard: operationControl, append_full: null },
     },
   })}\n`);
@@ -372,6 +377,7 @@ function fixture(
         latestDmg.name,
         latestZip.name,
         `${latestZip.name}.blockmap`,
+        latestDeb.name,
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',

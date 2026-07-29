@@ -204,7 +204,6 @@ export function readAppComponentManifestIdentity(
             skipped_gates: [
               'stable_heavy_vm',
               'homebrew_clean_install',
-              'native_webui',
               'container_webui',
               'full',
             ],
@@ -214,11 +213,31 @@ export function readAppComponentManifestIdentity(
         : {
             stable_qualified: false,
             passed_gates: ['standard_vm'],
-            skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+            skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
             failed_gates: [],
             non_stable_notice: true,
           };
-    if (JSON.stringify(qualificationDisclosure) !== JSON.stringify(expectedDisclosure)) {
+    const historicalNativeDisclosure = previewKind === 'nightly'
+      ? {
+          ...expectedDisclosure,
+          skipped_gates: [
+            'stable_heavy_vm',
+            'homebrew_clean_install',
+            'native_webui',
+            'container_webui',
+            'full',
+          ],
+        }
+      : qualityStatus === 'preview'
+        ? {
+            ...expectedDisclosure,
+            skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+          }
+        : expectedDisclosure;
+    if (
+      JSON.stringify(qualificationDisclosure) !== JSON.stringify(expectedDisclosure)
+      && JSON.stringify(qualificationDisclosure) !== JSON.stringify(historicalNativeDisclosure)
+    ) {
       throw new Error('App component manifest qualification disclosure is invalid.');
     }
     validateReleaseVisibility(previewKind, releasePrerelease);

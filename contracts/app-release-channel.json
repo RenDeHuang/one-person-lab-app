@@ -19,10 +19,9 @@
         "homebrew_tap",
         "webui_ghcr"
       ],
-      "current_production_publication_paths": 5,
+      "current_production_publication_paths": 4,
       "production_publication_paths": [
         "desktop_stable_github_release",
-        "native_webui_github_release_assets",
         "homebrew_standard_cask",
         "homebrew_full_cask_post_publication_follower",
         "container_webui_latest_with_stable_compatibility_alias"
@@ -68,7 +67,6 @@
       ],
       "runtime_form": [
         "desktop",
-        "native_webui",
         "container_webui"
       ],
       "task_mode": [
@@ -234,7 +232,7 @@
     },
     "cohort_policy": {
       "current_development_state": {
-        "desktop_and_webui": "dual_track",
+        "desktop_and_webui": "desktop_packaged_webui_and_container_dual_track",
         "independent_version_and_cadence_allowed": true,
         "same_production_cohort_claim_allowed": false,
         "behavior_contract_convergence_required": true
@@ -243,7 +241,6 @@
         "model": "one_app_version_multiple_runtime_forms",
         "runtime_forms": [
           "desktop",
-          "native_webui",
           "container_webui"
         ],
         "same_app_version_and_official_profile_required": true,
@@ -261,7 +258,7 @@
       "windows_x64_rc_preview": "implementation_in_progress_publication_blocked",
       "full": "live_additive_first_install_asset_not_channel",
       "container_webui": "live_separate_development_and_production_carrier_with_independent_preview_publication",
-      "native_webui": "live_public_linux_x86_64_with_digest_bound_lifecycle_qualification",
+      "desktop_linux_x86_64": "implemented_pending_first_publication_readback",
       "homebrew_standard": "live_managed",
       "homebrew_nightly": "implemented_pending_first_follower_readback",
       "homebrew_full": "implemented_pending_first_protected_follower_readback"
@@ -369,30 +366,22 @@
           "exact_public_tap_commit_and_cask_readback"
         ]
       },
-      "native_webui": {
-        "target": "opl_owned_immutable_native_webui_distribution",
-        "status": "live_public_linux_x86_64_plus_macos_arm64_implemented_pending_first_publication_readback",
-        "initial_platform": "linux_amd64",
-        "initial_macos_platform": "macos_arm64",
+      "desktop_linux_x86_64": {
+        "target": "opl_owned_immutable_linux_desktop_distribution",
+        "status": "implemented_pending_first_publication_readback",
         "publication_carrier": "app_github_release_assets",
-        "production_topology": "standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback",
-        "stable_operation_set_must_remain": [
-          "standard",
-          "resume_standard",
-          "append_full"
-        ],
+        "desktop_asset": "One-Person-Lab-<version>-linux-x64.deb",
+        "installer_asset": "opl-install.sh",
+        "browser_webui_mode": "packaged_desktop_bytes",
+        "native_tarball_carrier": "retired",
         "container_ghcr_tags_must_remain_unchanged": [
           "latest",
           "stable"
         ],
         "promotion_requires": [
-          "carrier_neutral_frozen_platform_payload",
-          "container_overlay_reuses_the_same_frozen_payload",
-          "versioned_runtime_directories_and_atomic_current_pointer",
-          "app_owned_versioned_artifacts",
+          "exact_desktop_asset_and_component_manifest_digest",
           "install_update_rollback_and_data_preservation",
           "framework_and_official_profile_convergence",
-          "non_root_clean_host_qualification",
           "public_digest_readback"
         ]
       }
@@ -1065,6 +1054,7 @@
           "One-Person-Lab-<version>-mac-arm64.dmg",
           "One-Person-Lab-<version>-mac-arm64.zip",
           "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+          "One-Person-Lab-<version>-linux-x64.deb",
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
           "opl-install.sh",
@@ -1487,6 +1477,7 @@
         "One-Person-Lab-<version>-mac-arm64.dmg",
         "One-Person-Lab-<version>-mac-arm64.zip",
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+        "One-Person-Lab-<version>-linux-x64.deb",
         "latest-arm64-mac.yml",
         "opl-app-component-manifest.json",
         "opl-install.sh",
@@ -3501,11 +3492,10 @@
       "json_schema": "contracts/app-stable-stage-result.schema.json",
       "script": "scripts/stable-stage-result.ts",
       "authority": "attempt_observation_only_no_framework_state_projection",
-      "business_stage_count": 12,
+      "business_stage_count": 11,
       "stage_ids": [
         "admission_and_circuit_breaker",
         "source_contract_preflight",
-        "native_webui_deterministic_prepare",
         "credential_runner_and_custody_preflight",
         "standard_signed_notarized_build_and_seal",
         "clean_vm_exact_artifact_qualification",

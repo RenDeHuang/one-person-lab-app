@@ -49,6 +49,7 @@ function configureCandidate(
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${version}-linux-x64.deb`,
     ...(includeInstaller ? ['opl-install.sh', 'opl-app-installer.sh'] : []),
     ...(publicationChannel === 'nightly'
       ? []
@@ -211,6 +212,7 @@ test('Latest admission binds the hosted publication floor, exact Standard bytes,
         'One-Person-Lab-26.7.21-r1-mac-arm64.dmg',
         'One-Person-Lab-26.7.21-r1-mac-arm64.zip',
         'One-Person-Lab-26.7.21-r1-mac-arm64.zip.blockmap',
+        'One-Person-Lab-26.7.21-r1-linux-x64.deb',
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',

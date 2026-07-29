@@ -30,7 +30,6 @@ const criticalBlobPaths = [
   '.github/workflows/release-stable.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_release-standard-publish.yml',
-  '.github/workflows/_release-native-webui-carrier.yml',
   'contracts/app-release-channel.json',
   'scripts/framework-release-adapter.ts',
   'scripts/release-dispatch-guard.ts',
@@ -367,7 +366,7 @@ test('Stable operation control permits exactly one matching run-bound consumptio
 test('Stable operation control rejects a drifted critical blob and a mismatched nonce', () => {
   const admitted = control();
   const drifted = structuredClone(admitted);
-  drifted.critical_blobs['contracts/app-release-channel.json'] = `sha256:${'9'.repeat(64)}`;
+  drifted.critical_blobs['contracts/app-release-channel.json'] = `sha256:${'0'.repeat(64)}`;
   assert.throws(() => validateStableOperationControl(drifted), /cohort or critical blob bindings do not match/);
   assert.throws(
     () => consumeStableOperationControl({

@@ -47,6 +47,7 @@ function fixture(kind: 'stable' | 'dev' | 'nightly' = 'dev') {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${version}-linux-x64.deb`,
     ...(kind !== 'nightly'
       ? ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']
       : []),
@@ -170,7 +171,7 @@ test('published Stable, Dev, and Nightly identities admit an exact quality-prese
         ).length,
         1,
       );
-      assert.equal(current.receipt.public_assets.length, kind === 'nightly' ? 5 : 7);
+      assert.equal(current.receipt.public_assets.length, kind === 'nightly' ? 6 : 8);
     } finally {
       fs.rmSync(current.root, { recursive: true, force: true });
     }

@@ -56,7 +56,6 @@ function releaseIdentity(version: string, updaterVersion: string) {
           skipped_gates: [
             'stable_heavy_vm',
             'homebrew_clean_install',
-            'native_webui',
             'container_webui',
             'full',
           ],
@@ -66,7 +65,7 @@ function releaseIdentity(version: string, updaterVersion: string) {
       : {
           stable_qualified: false,
           passed_gates: ['standard_vm'],
-          skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+          skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
           failed_gates: [],
           non_stable_notice: true,
         };
@@ -167,6 +166,7 @@ export function createAppComponentManifest(input: AppComponentManifestInput) {
     `One-Person-Lab-${input.version}-mac-arm64.dmg`,
     `One-Person-Lab-${input.version}-mac-arm64.zip`,
     `One-Person-Lab-${input.version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${input.version}-linux-x64.deb`,
     ...(hasUniversalInstaller ? ['opl-install.sh'] : []),
     ...(hasInstallerBootstrap ? ['opl-app-installer.sh'] : []),
     ...(identity.versionChannel === 'nightly'

@@ -569,7 +569,11 @@ INNER
   writeExecutable(
     path.join(tempRoot, "uname"),
     `#!/bin/sh
-printf 'Darwin\\n'
+if [ "\${1:-}" = "-m" ]; then
+  printf 'arm64\\n'
+else
+  printf 'Darwin\\n'
+fi
 `,
   );
 

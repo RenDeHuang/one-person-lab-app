@@ -159,6 +159,7 @@ export function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${version}-linux-x64.deb`,
     "latest-arm64-mac.yml",
     "opl-install.sh",
     "opl-app-installer.sh",
@@ -218,6 +219,7 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, dmgName), "standard-dmg");
   writeStandardUpdaterZip(path.join(outDir, zipName), updaterVersion);
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
+  writeFile(path.join(outDir, `One-Person-Lab-${version}-linux-x64.deb`), "standard-linux-desktop");
   writeExecutable(path.join(outDir, "opl-install.sh"), "#!/usr/bin/env bash\nexit 0\n");
   writeExecutable(path.join(outDir, "opl-app-installer.sh"), "#!/usr/bin/env bash\nexit 0\n");
   writeStandardDistributionTrust(outDir, version);
