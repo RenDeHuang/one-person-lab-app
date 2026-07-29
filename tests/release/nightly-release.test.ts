@@ -12,6 +12,7 @@ import {
   type NightlyQualificationReceipt,
 } from '../../scripts/nightly-release-qualification.ts';
 import {
+  GhNightlyRemote,
   publishNightlyRelease,
   type NightlyRemote,
   type NightlyRemoteRelease,
@@ -336,6 +337,59 @@ test('Nightly publisher reconciles an unknown create result without retrying the
   assert.equal(receipt.status, 'published');
   assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+});
+
+test('GitHub Nightly remote discovers a draft by tag metadata before GitHub creates the tag ref', () => {
+  const frozen = request();
+  const draft: NightlyRemoteRelease = {
+    id: 101,
+    tag_name: frozen.tag,
+    target_commitish: frozen.source.app_sha,
+    name: `One Person Lab ${frozen.tag}`,
+    body: 'Automated Standard preview.\n',
+    draft: true,
+    prerelease: true,
+    html_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/untagged-fixture',
+    assets: [],
+  };
+  const calls: string[][] = [];
+  const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
+    calls.push(args);
+    if (args[1] === `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`) return '';
+    if (args.includes('--paginate')) return JSON.stringify([[draft]]);
+    throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+  });
+
+  assert.deepEqual(remote.inspectRelease(frozen.tag), draft);
+  assert.deepEqual(calls, [
+    ['api', `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`],
+    ['api', '--paginate', '--slurp', 'repos/gaofeng21cn/one-person-lab-app/releases?per_page=100'],
+  ]);
+});
+
+test('GitHub Nightly remote fails closed when release metadata contains duplicate draft tags', () => {
+  const frozen = request();
+  const draft = {
+    id: 101,
+    tag_name: frozen.tag,
+    target_commitish: frozen.source.app_sha,
+    name: `One Person Lab ${frozen.tag}`,
+    body: 'Automated Standard preview.\n',
+    draft: true,
+    prerelease: true,
+    html_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/untagged-fixture',
+    assets: [],
+  };
+  const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
+    if (args[1] === `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`) return '';
+    if (args.includes('--paginate')) return JSON.stringify([[draft, { ...draft, id: 102 }]]);
+    throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+  });
+
+  assert.throws(
+    () => remote.inspectRelease(frozen.tag),
+    /multiple Releases for Nightly tag/,
+  );
 });
 
 test('Nightly publisher refuses same-name different remote bytes', (t) => {

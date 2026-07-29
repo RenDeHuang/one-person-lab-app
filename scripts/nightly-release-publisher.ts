@@ -94,19 +94,38 @@ function normalizeRelease(value: any): NightlyRemoteRelease {
 
 export class GhNightlyRemote implements NightlyRemote {
   readonly repo: string;
+  private readonly executeGh: typeof runGh;
 
-  constructor(repo = releaseRepo) {
+  constructor(repo = releaseRepo, executeGh: typeof runGh = runGh) {
     if (repo !== releaseRepo) throw new Error(`Nightly publisher is fixed to ${releaseRepo}.`);
     this.repo = repo;
+    this.executeGh = executeGh;
   }
 
   inspectRelease(tag: string): NightlyRemoteRelease | null {
-    const output = runGh(['api', `repos/${this.repo}/releases/tags/${tag}`], true);
-    return output ? normalizeRelease(JSON.parse(output)) : null;
+    const output = this.executeGh(['api', `repos/${this.repo}/releases/tags/${tag}`], true);
+    if (output) return normalizeRelease(JSON.parse(output));
+
+    const pages = JSON.parse(this.executeGh([
+      'api',
+      '--paginate',
+      '--slurp',
+      `repos/${this.repo}/releases?per_page=100`,
+    ])) as unknown;
+    if (!Array.isArray(pages) || pages.some((page) => !Array.isArray(page))) {
+      throw new Error('GitHub paginated Nightly release response must be an array of pages.');
+    }
+    const matches = pages
+      .flatMap((page) => page as unknown[])
+      .filter((release: any) => String(release?.tag_name ?? '') === tag);
+    if (matches.length > 1) {
+      throw new Error(`GitHub release list contains multiple Releases for Nightly tag ${tag}.`);
+    }
+    return matches.length === 1 ? normalizeRelease(matches[0]) : null;
   }
 
   inspectLatestTag(): string | null {
-    const output = runGh(['api', `repos/${this.repo}/releases/latest`], true);
+    const output = this.executeGh(['api', `repos/${this.repo}/releases/latest`], true);
     return output ? String(JSON.parse(output).tag_name ?? '') || null : null;
   }
 
@@ -120,12 +139,12 @@ export class GhNightlyRemote implements NightlyRemote {
       prerelease: true,
       make_latest: 'false',
     }, (inputPath) => {
-      runGh(['api', '--method', 'POST', `repos/${this.repo}/releases`, '--input', inputPath]);
+      this.executeGh(['api', '--method', 'POST', `repos/${this.repo}/releases`, '--input', inputPath]);
     });
   }
 
   uploadAsset(releaseId: number, filePath: string, name: string): void {
-    runGh([
+    this.executeGh([
       'api',
       '--method', 'POST',
       '-H', 'Content-Type: application/octet-stream',
@@ -142,7 +161,7 @@ export class GhNightlyRemote implements NightlyRemote {
       prerelease: true,
       make_latest: 'false',
     }, (inputPath) => {
-      runGh(['api', '--method', 'PATCH', `repos/${this.repo}/releases/${releaseId}`, '--input', inputPath]);
+      this.executeGh(['api', '--method', 'PATCH', `repos/${this.repo}/releases/${releaseId}`, '--input', inputPath]);
     });
   }
 }
