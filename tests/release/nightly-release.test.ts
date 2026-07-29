@@ -322,6 +322,30 @@ test('Nightly publisher tolerates eventual-consistency misses after draft creati
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
 });
 
+test('Nightly publisher resumes an existing draft and reports the publication transition', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createDraft({
+    tag: input.request.tag,
+    targetCommitish: input.request.source.app_sha,
+    name: `One Person Lab ${input.request.tag}`,
+    body: 'Automated Standard preview.\n',
+  });
+  remote.calls = [];
+
+  const receipt = publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+
+  assert.equal(receipt.status, 'published');
+  assert.equal(remote.calls.includes('create'), false);
+  assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+});
+
 test('Nightly publisher reconciles an unknown create result without retrying the draft mutation', (t) => {
   const input = fixture(t);
   const remote = new FakeRemote();

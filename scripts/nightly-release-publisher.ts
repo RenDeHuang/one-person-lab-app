@@ -296,7 +296,7 @@ export function publishNightlyRelease(input: {
   const releaseName = `One Person Lab ${request.tag}`;
   const latestBefore = remote.inspectLatestTag();
   let release = remote.inspectRelease(request.tag);
-  const initiallyMissing = release === null;
+  const initiallyComplete = Boolean(release && !release.draft);
 
   if (!release) {
     release = mutateOnceThenRead({
@@ -360,7 +360,7 @@ export function publishNightlyRelease(input: {
     `https://github.com/${releaseRepo}/releases/download/${request.tag}/${encodeURIComponent(name)}`;
   return {
     schema: 'opl_standard_nightly_publication_receipt.v1',
-    status: initiallyMissing ? 'published' : 'already_complete',
+    status: initiallyComplete ? 'already_complete' : 'published',
     repository: releaseRepo,
     request_digest: request.request_digest,
     version: request.version,
