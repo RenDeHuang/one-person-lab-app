@@ -137,7 +137,7 @@ test('distribution/install SSOT validates the current and approved state split',
   assert.match(hostAutoUpdate.linux_macos_online_command, /--enable-auto-update/);
   assert.doesNotMatch(hostAutoUpdate.linux_server_online_command, /--enable-auto-update/);
   const autoUpdateContract = hostAutoUpdate.host_auto_update;
-  assert.equal(autoUpdateContract.follows_ref, 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest');
+  assert.equal(autoUpdateContract.follows_ref, 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable');
   assert.equal(autoUpdateContract.platform_schedulers.windows.mechanism, 'user_scoped_windows_scheduled_task');
   assert.equal(autoUpdateContract.platform_schedulers.macos.mechanism, 'current_user_launch_agent');
   assert.equal(autoUpdateContract.platform_schedulers.linux_personal.mechanism, 'systemd_user_timer');

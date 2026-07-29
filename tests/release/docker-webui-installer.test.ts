@@ -239,6 +239,18 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
   assert.equal(fs.existsSync(path.join(home, 'OnePersonLab')), false, 'dry-run must not create host directories');
 });
 
+test('Docker/WebUI installer defaults to Stable and requires explicit Preview opt-in', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-channel-default-home-'));
+  const stable = runInstaller(['--dry-run', '--yes', '--no-open'], { HOME: home });
+  assert.equal(stable.status, 0, stable.stderr || stable.stdout);
+  assert.match(stable.stdout, /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
+  assert.doesNotMatch(stable.stdout, /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+
+  const preview = runInstaller(['--dry-run', '--yes', '--tag', 'latest', '--no-open'], { HOME: home });
+  assert.equal(preview.status, 0, preview.stderr || preview.stdout);
+  assert.match(preview.stdout, /image: ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest/);
+});
+
 test('Docker/WebUI installer exposes one host auto-update contract across Linux and macOS', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-auto-update-home-'));
   const bin = path.join(home, 'bin');
@@ -255,7 +267,7 @@ test('Docker/WebUI installer exposes one host auto-update contract across Linux 
   assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
   assert.match(enabled.stdout, /would write local automatic updater/i);
   assert.match(enabled.stdout, /LaunchAgent cn\.onepersonlab\.webui-update at 04:15/);
-  assert.match(enabled.stdout, /Automatic WebUI updates enabled.*:latest at 04:15/);
+  assert.match(enabled.stdout, /Automatic WebUI updates enabled.*:stable at 04:15/);
   const installer = fs.readFileSync(installerPath, 'utf8');
   assert.match(installer, /one-person-lab-webui-update\.timer/);
   assert.match(installer, /Persistent=true/);
@@ -309,7 +321,7 @@ test('Docker/WebUI installer executes the Linux systemd user timer dry-run path'
 
   assert.equal(enabled.status, 0, enabled.stderr || enabled.stdout);
   assert.match(enabled.stdout, /systemd user timer one-person-lab-webui-update\.timer at 04:15/);
-  assert.match(enabled.stdout, /Automatic WebUI updates enabled.*:latest at 04:15/);
+  assert.match(enabled.stdout, /Automatic WebUI updates enabled.*:stable at 04:15/);
 
   const disabled = runInstaller(
     ['--dry-run', '--disable-auto-update'],
@@ -339,14 +351,14 @@ test('Docker/WebUI auto-update rejects custom images and conflicting lifecycle a
     '--no-open',
   ]);
   assert.notEqual(custom.status, 0);
-  assert.match(custom.stderr, /Automatic updates support only .*:latest/);
+  assert.match(custom.stderr, /Automatic updates support only .*:stable/);
 
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-custom-channel-auto-update-home-'));
   const updater = path.join(home, 'OnePersonLab', 'updater');
   fs.mkdirSync(updater, { recursive: true });
   fs.writeFileSync(
     path.join(updater, 'config.env'),
-    'schema=opl_webui_host_auto_update_config.v1\nchannel=ghcr.io/gaofeng21cn/one-person-lab-webui:latest\n',
+    'schema=opl_webui_host_auto_update_config.v1\nchannel=ghcr.io/gaofeng21cn/one-person-lab-webui:stable\n',
   );
   const configuredCustom = runInstaller(
     ['--dry-run', '--yes', '--tag', '26.7.28-r3', '--no-open'],
