@@ -676,14 +676,14 @@ function validateStableCurrentnessReceipt(contract, shellPaths, options, isGitAn
   assertSha256(aionCore.archive_sha256, 'AionUI receipt AionCore archive');
   assertSha256(runtime.managed_resources_manifest_sha256, 'AionUI receipt managed resources manifest');
   if (runtime.managed_resources_schema !== 2) {
-    throw new Error('AionUI receipt managed resources schema must be 2');
+    throw new Error('AionUI receipt managed_resources_schema must be 2');
   }
-  if (Object.hasOwn(runtime, 'codex_acp')) {
-    throw new Error('AionUI receipt must not retain the legacy managed Codex ACP bridge');
+  if (runtime.codex_acp !== undefined) {
+    throw new Error('AionUI receipt managed_runtime.codex_acp is forbidden for schema v2 direct-CLI resources');
   }
   const nodeRuntime = assertObject(runtime.node_runtime, 'AionUI receipt managed Node runtime');
-  assertExactPackageVersion(nodeRuntime.version, 'AionUI receipt managed Node version');
-  assertSha256(nodeRuntime.binary_sha256, 'AionUI receipt managed Node binary');
+  assertExactPackageVersion(nodeRuntime.version, 'AionUI receipt managed Node runtime version');
+  assertSha256(nodeRuntime.binary_sha256, 'AionUI receipt managed Node runtime binary');
   const claudeCli = assertObject(runtime.claude_cli, 'AionUI receipt managed Claude CLI');
   if (claudeCli.package !== '@anthropic-ai/claude-code') {
     throw new Error('AionUI receipt managed Claude CLI package is not authoritative');

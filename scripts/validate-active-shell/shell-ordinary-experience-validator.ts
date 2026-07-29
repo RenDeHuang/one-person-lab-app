@@ -6,7 +6,6 @@ import {
   assertTextDoesNotMatch,
   assertTextExcludesAll,
   assertTextIncludesAll,
-  assertTextIncludesOneOf,
   readShellJson,
   readShellText,
 } from './shell-implementation-helpers.ts';
@@ -48,26 +47,19 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     ['canonical thread lifecycle', canonicalThreadLifecycle],
     ['canonical directory merge', conversationListSync],
   ] as const) {
-    assertTextIncludesOneOf(
+    assertTextIncludesAll(
       source,
       [
-        [
-          'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
-          'workspace: thread.workspace',
-          'custom_workspace: hasCanonicalRecordedCwd',
-        ],
-        [
-          'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
-          'workspace: thread.workspace',
-          'custom_workspace: hasCanonicalProjectWorkspace',
-        ],
+        'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
+        'workspace: thread.workspace',
+        'custom_workspace: hasCanonicalProjectWorkspace',
       ],
       `Active shell ${label} cwd projection`,
     );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectWorkspace',
         'cached?.extra.custom_workspace === true',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
@@ -113,10 +105,19 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
   const sourceFile = ts.createSourceFile('codex-app-server-adapter.ts', threadAdapter, ts.ScriptTarget.Latest, true);
   const threadListOptions: ts.ObjectLiteralExpression[] = [];
   const objectBindings = new Map<string, ts.ObjectLiteralExpression>();
-  const visit = (node: ts.Node): void => {
-    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+  const collectObjectBindings = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isObjectLiteralExpression(node.initializer)
+    ) {
       objectBindings.set(node.name.text, node.initializer);
     }
+    ts.forEachChild(node, collectObjectBindings);
+  };
+  collectObjectBindings(sourceFile);
+  const visit = (node: ts.Node): void => {
     if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
@@ -124,15 +125,15 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
       ts.isStringLiteralLike(node.arguments[0]) &&
       node.arguments[0].text === 'thread/list'
     ) {
-      const argument = node.arguments[1];
+      const optionsArgument = node.arguments[1];
       const options =
-        argument && ts.isObjectLiteralExpression(argument)
-          ? argument
-          : argument && ts.isIdentifier(argument)
-            ? objectBindings.get(argument.text)
+        optionsArgument && ts.isObjectLiteralExpression(optionsArgument)
+          ? optionsArgument
+          : optionsArgument && ts.isIdentifier(optionsArgument)
+            ? objectBindings.get(optionsArgument.text)
             : undefined;
-      if (!options || !ts.isObjectLiteralExpression(options)) {
-        throw new Error('Active shell canonical thread directory must pass an inline thread/list options object');
+      if (!options) {
+        throw new Error('Active shell canonical thread directory must pass a statically inspectable thread/list options object');
       }
       threadListOptions.push(options);
     }
@@ -1568,17 +1569,9 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'CodexThreadSettingsUpdateRequest',
       'codex-threads.update-settings',
       'codexThreads.updateSettings',
+      'getActiveAdapter().updateThreadSettings',
     ],
     'Active shell existing Codex App Server thread settings transport',
-  );
-  assertTextIncludesOneOf(
-    [
-      readShellText(shellPaths, 'packages/desktop/src/common/types/codex/appServerThreads.ts'),
-      readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts'),
-      readShellText(shellPaths, 'packages/desktop/src/process/bridge/codexAppServerBridge.ts'),
-    ].join('\n'),
-    [['adapter.updateThreadSettings'], ['getActiveAdapter().updateThreadSettings']],
-    'Active shell existing Codex App Server thread settings transport wiring',
   );
   const projectAffinityLifecycle = assertShellTextIncludesAll(
     shellPaths,
