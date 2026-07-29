@@ -1,5 +1,5 @@
 name: OPL Stable Release Bundle
-run-name: "${{ inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
+run-name: "${{ inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || inputs.operation == 'append_full' && format('OPL Stable append_full source:{0} run:{1}', inputs.source_run_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
 
 on:
   workflow_dispatch:
