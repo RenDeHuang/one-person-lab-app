@@ -18,7 +18,6 @@ export const stableQualificationGates = [
   'container_webui',
   'full',
   'homebrew_clean_install',
-  'native_webui',
   'stable_heavy_vm',
   'standard_vm',
 ] as const;

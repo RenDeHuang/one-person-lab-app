@@ -26,12 +26,12 @@
       "const": "attempt_observation_only_no_framework_state_projection"
     },
     "business_stage_count": {
-      "const": 12
+      "const": 11
     },
     "observed_stage_count": {
       "type": "integer",
       "minimum": 1,
-      "maximum": 12
+      "maximum": 11
     },
     "status": {
       "enum": [
@@ -50,7 +50,7 @@
     "stages": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 12,
+      "maxItems": 11,
       "items": {
         "$ref": "#/$defs/stage"
       }
@@ -98,7 +98,7 @@
           "stage_index": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 11
+            "maximum": 10
           },
           "anomaly": {
             "$ref": "#/$defs/command_anomaly"
@@ -124,7 +124,6 @@
       "enum": [
         "admission_and_circuit_breaker",
         "source_contract_preflight",
-        "native_webui_deterministic_prepare",
         "credential_runner_and_custody_preflight",
         "standard_signed_notarized_build_and_seal",
         "clean_vm_exact_artifact_qualification",
@@ -256,7 +255,7 @@
         "stage_index": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 11
+          "maximum": 10
         },
         "cohort": {
           "$ref": "#/$defs/cohort"
@@ -357,7 +356,7 @@
         "stage_index": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 11
+          "maximum": 10
         },
         "axis": {
           "$ref": "#/$defs/axis"

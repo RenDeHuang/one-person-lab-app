@@ -304,42 +304,17 @@ test('WebUI follower keeps the packages write compile ceiling outside Desktop St
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
-test('Native WebUI follower remains a read-only consumer of the unified immutable Stable carrier', (t) => {
+test('retired Native WebUI carrier remains absent from the Desktop Stable control plane', (t) => {
   const root = fixture(t);
   assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
   assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
 
-  const bundle = parseYaml(
-    fs.readFileSync(workflowPath(root, '_release-bundle.yml'), 'utf8'),
-  ) as Record<string, any>;
-  const publishStandard = bundle.jobs?.['publish-standard'];
-  assert.ok(publishStandard);
-  assert.equal(
-    publishStandard.with?.qualified_native_artifact_name,
-    '${{ (inputs.publication_channel || inputs.channel) == \'stable\' && needs.prepare-native-webui.outputs.qualified_artifact_name || \'\' }}',
-  );
-  assert.equal(
-    publishStandard.with?.qualified_native_macos_artifact_name,
-    '${{ (inputs.publication_channel || inputs.channel) == \'stable\' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || \'\' }}',
-  );
-  assert.equal(bundle.jobs?.['publish-native-webui'], undefined);
-  assert.equal(bundle.jobs?.['publish-native-webui-macos'], undefined);
-
-  updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-linux-readback'].needs = [];
-  });
+  const retiredFollower = workflowPath(root, 'release-native-webui-follower.yml');
+  const retiredCarrier = workflowPath(root, '_release-native-webui-carrier.yml');
+  assert.equal(fs.existsSync(retiredFollower), false);
+  assert.equal(fs.existsSync(retiredCarrier), false);
+  fs.writeFileSync(retiredFollower, 'name: retired carrier must not return\n');
   assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
-
-  updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-linux-readback'].needs = ['resolve-handoff'];
-  });
-  updateWorkflow(root, '_release-native-webui-carrier.yml', (workflow) => {
-    workflow.jobs['readback-native-assets'].permissions = {
-      contents: 'write',
-      actions: 'read',
-    };
-  });
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 

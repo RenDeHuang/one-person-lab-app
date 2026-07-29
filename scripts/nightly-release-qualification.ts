@@ -46,7 +46,6 @@ export type NightlyQualificationReceipt = {
     skipped_gates: [
       'stable_heavy_vm',
       'homebrew_clean_install',
-      'native_webui',
       'container_webui',
       'full',
     ];
@@ -229,7 +228,6 @@ export function qualifyNightlyRelease(input: {
       skipped_gates: [
         'stable_heavy_vm',
         'homebrew_clean_install',
-        'native_webui',
         'container_webui',
         'full',
       ],

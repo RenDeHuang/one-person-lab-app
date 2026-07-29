@@ -340,20 +340,17 @@ test('Stable and protected Manual Preview are isolated from scheduled Nightly an
     "${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
   );
   assert.equal(
-    stable.jobs['resume-standard'].with.qualified_native_artifact_name,
-    '${{ needs.admission.outputs.qualified_native_artifact_name }}',
+    Object.hasOwn(stable.jobs['resume-standard'].with, 'qualified_native_artifact_name'),
+    false,
   );
   assert.equal(
-    stable.jobs['resume-standard'].with.qualified_native_source_run_id,
-    '${{ needs.admission.outputs.qualified_native_source_run_id }}',
+    Object.hasOwn(stable.jobs['resume-standard'].with, 'qualified_native_source_run_id'),
+    false,
   );
   assert.equal(Object.hasOwn(stable.jobs['resume-standard'].with, 'operation_started_at'), false);
   assert.equal(Object.hasOwn(stable.jobs['resume-standard'].with, 'operation_deadline_at'), false);
   const stableSource = readWorkflow('release-stable.yml');
-  assert.match(stableSource, /Download frozen Native carrier identity for Standard resume/);
-  assert.match(stableSource, /Bind frozen Native carrier identity for Standard resume/);
-  assert.match(stableSource, /find resume-standard-carrier -type f -name stable-operation-control\.json/);
-  assert.match(stableSource, /test "\$manifest_origin_run_id" = "\$native_origin_run_id"/);
+  assert.doesNotMatch(stableSource, /Native carrier identity|resume-standard-carrier|qualified_native_/);
   assert.match(stableSource, /if \[ "\$OPERATION" = standard \] \|\| \[ "\$OPERATION" = append_full \]; then[\s\S]*actions\/runs\/\$GITHUB_RUN_ID" --jq \.created_at/);
   assert.match(stableSource, /--started-at "\$operation_created_at"/);
   assert.match(stableSource, /operation_started_at="\$\(jq -er \.started_at release-operation-admission\.json\)"/);
@@ -558,7 +555,7 @@ test('one signed Standard build is sealed once and every final consumer binds it
   assert.equal(bundle.jobs['standard-qualification'], undefined);
   assert.deepEqual(
     bundle.jobs['checkpoint-standard'].needs,
-    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui', 'prepare-native-webui-macos'],
+    ['admission', 'freeze', 'seal-standard-identity'],
   );
   assert.equal(
     bundle.jobs['publish-standard'].with.standard_identity_sha256,
@@ -864,8 +861,6 @@ test('the live control plane is split into Standard build, Standard publish, and
     'standard-build',
     'seal-standard-identity',
     'checkpoint-standard',
-    'prepare-native-webui',
-    'prepare-native-webui-macos',
     'publish-standard',
   ]);
   assert.ok(standard.jobs.restore);
@@ -1387,7 +1382,7 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(canary.jobs['nested-standard-qualification'].uses, './.github/workflows/opl-first-run-vm.yml');
   assert.equal(canary.jobs['nested-webui-carrier'].uses, './.github/workflows/_release-webui-carrier.yml');
   assert.equal(canary.jobs['nested-webui-stable'].uses, './.github/workflows/release-webui-stable.yml');
-  assert.equal(canary.jobs['nested-native-webui'].uses, './.github/workflows/_release-native-webui-carrier.yml');
+  assert.equal(canary.jobs['nested-native-webui'], undefined);
   assert.equal(canary.jobs['nested-updater-qualification'].uses, './.github/workflows/opl-updater-upgrade-vm.yml');
   assert.equal(canary.jobs['nested-full-build'].uses, './.github/workflows/full-first-install-release.yml');
   const compileCeilingPermissions = { contents: 'read', actions: 'read', packages: 'write' };
@@ -2205,6 +2200,7 @@ test('the App adapter freezes the App Standard compatibility union without Packa
       'One-Person-Lab-26.7.20-mac-arm64.dmg',
       'One-Person-Lab-26.7.20-mac-arm64.zip',
       'One-Person-Lab-26.7.20-mac-arm64.zip.blockmap',
+      'One-Person-Lab-26.7.20-linux-x64.deb',
       'latest-arm64-mac.yml',
       'opl-app-component-manifest.json',
       'opl-install.sh',
@@ -2246,7 +2242,7 @@ test('the App adapter rejects prepared notes that bind a future Full Package pay
   }
 });
 
-test('Stable Standard publication includes qualified Native bytes before one Release publish', () => {
+test('Stable Standard publication binds one Desktop carrier without a retired Native artifact', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
   const follower = parseWorkflow('release-webui-follower.yml');
   const source = readWorkflow('_release-bundle.yml');
@@ -2257,104 +2253,42 @@ test('Stable Standard publication includes qualified Native bytes before one Rel
   assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze']);
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
-    ['admission', 'freeze', 'seal-standard-identity', 'prepare-native-webui', 'prepare-native-webui-macos'],
+    ['admission', 'freeze', 'seal-standard-identity'],
   );
-  assert.deepEqual(workflow.jobs['publish-standard'].needs, [
-    'freeze',
-    'checkpoint-standard',
-    'prepare-native-webui',
-    'prepare-native-webui-macos',
-  ]);
-  assert.deepEqual(workflow.jobs['prepare-native-webui'].needs, ['freeze']);
-  assert.deepEqual(workflow.jobs['prepare-native-webui-macos'].needs, ['freeze']);
+  assert.deepEqual(workflow.jobs['publish-standard'].needs, ['freeze', 'checkpoint-standard']);
+  assert.equal(workflow.jobs['prepare-native-webui'], undefined);
+  assert.equal(workflow.jobs['prepare-native-webui-macos'], undefined);
   assert.equal(workflow.jobs['publish-native-webui'], undefined);
   assert.equal(workflow.jobs['publish-native-webui-macos'], undefined);
-  assert.equal(
-    workflow.jobs['publish-standard'].with.qualified_native_artifact_name,
-    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}",
-  );
-  assert.equal(
-    workflow.jobs['publish-standard'].with.qualified_native_macos_artifact_name,
-    "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || '' }}",
-  );
-  assert.match(standardSource, /Bind qualified Native and consumed operation control into one immutable carrier/);
-  assert.match(standardSource, /cp -a "\$native_qualified_source_dir" native-qualified/);
-  assert.match(standardSource, /cp -a native-qualified\/\. native-release\//);
-  assert.match(standardSource, /diff -r native-qualified native-release/);
-  assert.match(standardSource, /--manifest "native-release\/\$target\/publication-manifest\.json"/);
+  assert.equal(Object.hasOwn(workflow.jobs['publish-standard'].with, 'qualified_native_artifact_name'), false);
+  assert.equal(Object.hasOwn(workflow.jobs['publish-standard'].with, 'qualified_native_macos_artifact_name'), false);
+  assert.match(standardSource, /Download exact immutable carrier source/);
+  assert.match(standardSource, /Bind consumed Stable operation control into the immutable carrier/);
   assert.match(standardSource, /cp -a "\$control_source_dir" stable-operation-control/);
-  assert.doesNotMatch(standardSource, /cd immutable-carrier-input/);
-  assert.doesNotMatch(standardSource, /Download exact qualified Native artifact for the unified draft carrier/);
-  assert.match(standardSource, /release-native-webui-carrier\.ts upload-actions/);
-  assert.match(standardSource, /same-name assets differ/);
+  assert.doesNotMatch(standardSource, /native-qualified|native-release|qualified_native_|release-native-webui-carrier/);
   const resumeCheckpointUpload = parseWorkflow('_release-standard-publish.yml').jobs.restore.steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload reconciled operation checkpoint',
   ) as Record<string, any>;
   const resumableEvidence = parseWorkflow('_release-standard-publish.yml').jobs.restore.steps.find(
     (step: Record<string, unknown>) =>
-      step.name === 'Preserve Stable control and Native qualification in a resumable checkpoint',
+      step.name === 'Preserve Stable control in a resumable checkpoint',
   ) as Record<string, any>;
   assert.equal(resumableEvidence.if, "${{ inputs.publication_channel == 'stable' }}");
   assert.match(resumableEvidence.run, /source="checkpoint-identity-bootstrap\/\$directory"/);
-  assert.match(resumableEvidence.run, /for directory in stable-operation-control native-qualified; do/);
   assert.match(resumableEvidence.run, /stable-operation-consumption\.json/);
   assert.match(resumableEvidence.run, /stable-operation-authority\.json/);
   assert.match(resumableEvidence.run, /source-gate\.json/);
   assert.match(resumableEvidence.run, /pre-issued-pre-nonce-guard\.json/);
   assert.match(resumableEvidence.run, /run-authority-reconcile\.json/);
-  assert.match(resumableEvidence.run, /publication-manifest\.json/);
-  assert.match(resumableEvidence.run, /prepare-status\.json/);
   assert.match(resumeCheckpointUpload.with.path, /stable-operation-control/);
-  assert.match(resumeCheckpointUpload.with.path, /native-qualified/);
   assert.match(standardSource, /--expected-run-id "\$control_run_id"/);
-  assert.match(
-    standardSource,
-    /test '\$\{\{ inputs\.qualified_native_source_run_id \}\}' = "\$control_run_id"/,
-  );
-  assert.match(
-    standardSource,
-    /--arg run '\$\{\{ inputs\.qualified_native_source_run_id \}\}'/,
-  );
-  const bundleSource = readWorkflow('_release-bundle.yml');
-  assert.match(bundleSource, /path: native-release/);
-  const nativeCheckpoint = workflowStep(
-    '_release-bundle.yml',
-    'checkpoint-standard',
-    'Materialize verified Native qualification for the portable checkpoint',
-  );
-  assert.equal(nativeCheckpoint.if, "${{ (inputs.publication_channel || inputs.channel) == 'stable' }}");
-  assert.match(nativeCheckpoint.run, /test -d native-release && test ! -L native-release/);
-  assert.match(nativeCheckpoint.run, /find native-release -type l -print/);
-  assert.match(nativeCheckpoint.run, /for target in linux-x86_64 darwin-arm64; do/);
-  assert.match(nativeCheckpoint.run, /manifest="native-release\/\$target\/publication-manifest\.json"/);
-  assert.match(nativeCheckpoint.run, /status="native-release\/\$target\/prepare-status\.json"/);
-  assert.match(nativeCheckpoint.run, /test ! -e native-qualified/);
-  assert.match(nativeCheckpoint.run, /cp -a native-release\/\. native-qualified\//);
-  assert.match(nativeCheckpoint.run, /diff -r native-release native-qualified/);
-  assert.match(nativeCheckpoint.run, /find native-qualified -type l -print/);
-  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_manifests\[@\]\}" -eq 2/);
-  assert.match(nativeCheckpoint.run, /test "\$\{#qualified_statuses\[@\]\}" -eq 2/);
-  assert.match(nativeCheckpoint.run, /native-upload-actions-checkpoint-\$target\.json/);
-  assert.match(bundleSource, /find native-qualified -type f -name publication-manifest\.json/);
-  assert.doesNotMatch(bundleSource, /cd native-qualified/);
-  const carrierBinding = workflowStep(
-    '_release-standard-publish.yml',
-    'publish-standard-nonlatest',
-    'Bind qualified Native and consumed operation control into one immutable carrier',
-  );
-  assert.match(String(carrierBinding.run), /cp -a "\$native_qualified_source_dir" native-qualified/);
-  assert.match(String(carrierBinding.run), /cp -a native-qualified\/\. native-release\//);
-  assert.match(String(carrierBinding.run), /diff -r native-qualified native-release/);
-  assert.match(String(carrierBinding.run), /--manifest "native-release\/\$target\/publication-manifest\.json"/);
-  assert.match(String(carrierBinding.run), /cp -a "\$control_source_dir" stable-operation-control/);
   const standardPublicationReceipt = workflowStep(
     '_release-standard-publish.yml',
     'publish-standard-nonlatest',
     'Upload Standard publication receipt',
   );
   assert.match(String(standardPublicationReceipt.with.path), /(?:^|\n)\s*stable-operation-control(?:\n|$)/);
-  assert.match(String(standardPublicationReceipt.with.path), /(?:^|\n)\s*native-qualified(?:\n|$)/);
-  assert.match(String(standardPublicationReceipt.with.path), /(?:^|\n)\s*native-release(?:\n|$)/);
+  assert.doesNotMatch(String(standardPublicationReceipt.with.path), /native-qualified|native-release/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);
   assert.equal(workflow.jobs['promote-webui-stable'], undefined);
   assert.deepEqual(Object.keys(follower.on), ['workflow_run']);

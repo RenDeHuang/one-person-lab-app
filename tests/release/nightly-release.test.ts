@@ -233,7 +233,6 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     skipped_gates: [
       'stable_heavy_vm',
       'homebrew_clean_install',
-      'native_webui',
       'container_webui',
       'full',
     ],

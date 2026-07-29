@@ -177,7 +177,7 @@ test('Stable attempt results are deterministic observations and unchanged finger
   assert.equal(stageResult.json_schema, 'contracts/app-stable-stage-result.schema.json');
   assert.equal(stageResult.script, 'scripts/stable-stage-result.ts');
   assert.equal(stageResult.authority, 'attempt_observation_only_no_framework_state_projection');
-  assert.equal(stageResult.business_stage_count, 12);
+  assert.equal(stageResult.business_stage_count, 11);
   assert.deepEqual(stageResult.axes, ['qualification_product', 'evidence', 'transport', 'cleanup']);
   assert.equal(stageResult.primary_failure_rule, 'lowest_stage_index_failed_qualification_product_axis');
   assert.equal(
