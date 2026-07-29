@@ -3120,7 +3120,7 @@
         "workflow": ".github/workflows/release-stable-post-success-followups.yml",
         "trigger": "successful_standard_workflow_run",
         "one_successor_per_standard_run": true,
-        "workflow_dispatch_ref": "exact_stable_tag",
+        "workflow_dispatch_ref": "canonical_main",
         "executor_head_sha": "frozen_app_sha"
       },
       "framework_operation_receipt_schema": "opl_release_bundle_operation_receipt.v1",

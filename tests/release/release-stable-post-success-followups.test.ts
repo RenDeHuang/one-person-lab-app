@@ -209,11 +209,13 @@ test("admission binds Standard run, exact checkpoint, cohort, and stable publica
   assert.match(source, /source_bundle_digest/);
   assert.match(source, /\.bundle_digest "\$bundle"/);
   assert.match(source, /dispatch_payload=.*--argjson inputs "\$inputs_json"/);
-  assert.match(source, /dispatch_ref="v\$\{VERSION\}"/);
+  assert.match(source, /dispatch_ref="main"/);
+  assert.match(source, /current_main_sha="\$\(gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/main" --jq '\.object\.sha'\)"/);
+  assert.match(source, /--arg head "\$current_main_sha"/);
   assert.match(source, /--arg ref "\$dispatch_ref"/);
   assert.match(source, /'\{ref:\$ref,inputs:\$inputs\}'/);
   assert.match(source, /--input - <<<"\$dispatch_payload"/);
-  assert.doesNotMatch(source, /current_main_sha/);
+  assert.match(source, /current_main_sha/);
 });
 
 test("successor dispatch is exactly one append_full JSON input set with no legacy qualification input", () => {
