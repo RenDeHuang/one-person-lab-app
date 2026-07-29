@@ -1,6 +1,6 @@
 # 并行交付与开发清洁 SSOT
 
-Instruction revision: `user-2026-07-27-parallel-work-serialized-integration-v2`
+Instruction revision: `user-2026-07-29-central-ledger-only-clean-baseline-v1`
 
 Owner: `one-person-lab-app` delivery coordination
 
@@ -18,6 +18,44 @@ Active ledger 中的 thread、ETA、current evidence和next action会快速漂�
 旧合同、旧 ledger、历史 callback、候选分支或 AI 推断与最新用户目标冲突时，必须先把
 它们标为 `stale`、`derived` 或 `unknown`，再修订实现流程；不得用旧流程拒绝、降级或
 改写用户目标。真实权限、安全、数据完整性和不可伪造性边界仍然 fail closed。
+
+## 中央总账治理边界
+
+当前唯一协调入口是总账线程
+`019f8f6a-718b-78f1-801f-48d5eae617e7`。所有跨对话的 scope、owner、handoff、merge、
+cleanup、publication、install、标题和 archive 决策都必须先回总账；peer-to-peer 私下改
+任务边界不构成有效接管。每条开发线只有一个 line lead 负责路由，实际源码、canonical
+`main`、外部运行和生命周期清理仍由登记的 execution owner 负责。
+
+模型与 reasoning 是对话自己的配置事实。任何唤醒、续派、handoff 或 reassignment 都必须
+省略 `model` 和 `thinking` 参数，保持原对话配置；总账不得把 `gpt-5.6-sol` 改成
+`gpt-5.6-terra`，也不得以任何理由替换已有模型。
+
+本轮按用户交付终态去重为 6 条线、29 个任务：桌面体验 4、Windows 与 WebUI 6、Stable
+与分发 5、Package 与 Framework 4、Runner 与 CI 3、总账与收口 7。其中 27 个仍为
+`ACTIVE`，2 个仅可标记 `SAFE_TO_ARCHIVE`；实际归档仍需用户对具体 thread 的 fresh 验收。
+数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
+
+每个 ACTIVE task 必须同时具备唯一 controller、可验证 execution owner、精确或有界 write
+set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonical absorption plan。
+任务只有在 fresh main/wire/tree/blob parity、必要的 installed/public/runtime 终态、holder/
+lock=0 和 owner-native lifecycle close 全部完成后，才可转为 `SAFE_TO_ARCHIVE`。
+
+基线整理顺序固定为：
+
+```text
+fresh repo/wire inventory
+-> owner checkpoint and local gates
+-> semantic replay on fresh main
+-> one integrator protected absorption per repository
+-> local/tracking/wire/tree/blob parity
+-> owner-native worktree/branch/PR/receipt/temp cleanup
+-> clean baseline snapshot
+```
+
+总账文档本身也遵守同一规则：本次只在独立 governance worktree 更新，不修改 App 根或其他
+owner lane；PR、task branch、worktree 和测试通过都不是 SSOT，只有 canonical main 的 fresh
+回读才是产物 SSOT。
 
 本轮冻结的协调原则是：
 
