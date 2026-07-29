@@ -22,6 +22,16 @@ on:
         required: false
         default: '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]'
         type: string
+      mac_gui_runner_labels_json:
+        description: JSON array of labels for the trusted logged-in macOS GUI advisory pool.
+        required: false
+        default: '["self-hosted","macOS","ARM64","opl-gui-vm"]'
+        type: string
+      mac_vmware_runner_labels_json:
+        description: JSON array of labels for the trusted Intel macOS VMware advisory pool.
+        required: false
+        default: '["self-hosted","macOS","X64","opl-vmware-intel-host"]'
+        type: string
       windows_runner_labels_json:
         description: JSON array of labels for the trusted Windows/WSL2 advisory pool.
         required: false
@@ -56,6 +66,12 @@ jobs:
       mac_status: ${{ steps.admission.outputs.mac_status }}
       mac_reason_code: ${{ steps.admission.outputs.mac_reason_code }}
       mac_labels_json: ${{ steps.admission.outputs.mac_labels_json }}
+      mac_gui_status: ${{ steps.admission.outputs.mac_gui_status }}
+      mac_gui_reason_code: ${{ steps.admission.outputs.mac_gui_reason_code }}
+      mac_gui_labels_json: ${{ steps.admission.outputs.mac_gui_labels_json }}
+      mac_vmware_status: ${{ steps.admission.outputs.mac_vmware_status }}
+      mac_vmware_reason_code: ${{ steps.admission.outputs.mac_vmware_reason_code }}
+      mac_vmware_labels_json: ${{ steps.admission.outputs.mac_vmware_labels_json }}
       windows_status: ${{ steps.admission.outputs.windows_status }}
       windows_reason_code: ${{ steps.admission.outputs.windows_reason_code }}
       windows_labels_json: ${{ steps.admission.outputs.windows_labels_json }}
@@ -63,13 +79,15 @@ jobs:
       - name: Inspect runner inventory without creating a queue
         id: admission
         env:
-          GH_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
           RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           SOURCE_RUN_ID_INPUT: ${{ inputs.source_run_id }}
           MAC_LABELS_INPUT: ${{ inputs.mac_runner_labels_json || vars.OPL_ADVISORY_MAC_RUNNER_LABELS }}
+          MAC_GUI_LABELS_INPUT: ${{ inputs.mac_gui_runner_labels_json || vars.OPL_ADVISORY_MAC_GUI_RUNNER_LABELS }}
+          MAC_VMWARE_LABELS_INPUT: ${{ inputs.mac_vmware_runner_labels_json || vars.OPL_ADVISORY_MAC_VMWARE_RUNNER_LABELS }}
           WINDOWS_LABELS_INPUT: ${{ inputs.windows_runner_labels_json || vars.OPL_ADVISORY_WINDOWS_RUNNER_LABELS }}
         shell: bash
         run: |
@@ -82,17 +100,21 @@ jobs:
           let sourceSha = process.env.EVENT_NAME === 'workflow_run'
             ? process.env.WORKFLOW_RUN_SHA
             : process.env.GITHUB_SHA;
-          const inventoryToken = (process.env.RUNNER_INVENTORY_TOKEN || process.env.GH_TOKEN || '').trim();
+          const inventoryToken = (process.env.RUNNER_INVENTORY_TOKEN || '').trim();
           const targets = [
             ['mac', process.env.MAC_LABELS_INPUT || '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]'],
+            ['mac_gui', process.env.MAC_GUI_LABELS_INPUT || '["self-hosted","macOS","ARM64","opl-gui-vm"]'],
+            ['mac_vmware', process.env.MAC_VMWARE_LABELS_INPUT || '["self-hosted","macOS","X64","opl-vmware-intel-host"]'],
             ['windows', process.env.WINDOWS_LABELS_INPUT || '["self-hosted","Windows","X64","opl-cert-windows-wsl"]'],
           ];
           const allowedLabels = {
             mac: [['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart']],
+            mac_gui: [['self-hosted', 'macOS', 'ARM64', 'opl-gui-vm']],
+            mac_vmware: [['self-hosted', 'macOS', 'X64', 'opl-vmware-intel-host']],
             windows: [['self-hosted', 'Windows', 'X64', 'opl-cert-windows-wsl']],
           };
           const result = {
-            schema: 'opl_app_self_hosted_advisory_admission.v2',
+            schema: 'opl_app_self_hosted_advisory_admission.v3',
             source_run_id: process.env.WORKFLOW_RUN_ID || null,
             source_sha: sourceSha,
             inventory_source: 'github_actions_api',
@@ -103,6 +125,20 @@ jobs:
             },
             targets: {},
           };
+
+          if (!inventoryToken) {
+            for (const [target, rawLabels] of targets) {
+              let labels = [];
+              try {
+                labels = parseLabels(rawLabels) || [];
+              } catch {
+                labels = [];
+              }
+              unavailable(target, labels, 'not_authorized', 'The dedicated runner inventory token is not configured.');
+            }
+            finishNotRun();
+            process.exit(0);
+          }
 
           if (process.env.EVENT_NAME === 'workflow_run') {
             const sourceRunId = process.env.WORKFLOW_RUN_ID || '';
@@ -228,8 +264,11 @@ jobs:
 
           function unavailable(target, labels, reasonCode, detail) {
             result.targets[target] = {
+              schema: 'opl_app_self_hosted_advisory_target_admission.v1',
               status: 'not_run',
               reason_code: reasonCode,
+              job_started: false,
+              release_blocking: false,
               required_labels: labels || [],
               eligible_runners: [],
               detail: detail || null,
@@ -271,6 +310,8 @@ jobs:
                 .sort((left, right) => Number(right.id) - Number(left.id));
               const jobNames = {
                 mac: 'macOS platform advisory',
+                mac_gui: 'macOS GUI platform advisory',
+                mac_vmware: 'macOS VMware platform advisory',
                 windows: 'Windows WSL2 platform advisory',
               };
               for (const priorRun of priorRuns) {
@@ -299,6 +340,33 @@ jobs:
             } catch (error) {
               dedupeError = error instanceof Error ? error.message : String(error);
             }
+          }
+
+          let runnerInventory = null;
+          let runnerInventoryError = '';
+          function readRunnerInventory() {
+            if (runnerInventory || runnerInventoryError) return runnerInventory;
+            const api = spawnSync('gh', [
+              'api',
+              '--paginate',
+              `repos/${process.env.GITHUB_REPOSITORY}/actions/runners?per_page=100`,
+            ], {
+              encoding: 'utf8',
+              env: { ...process.env, GH_TOKEN: inventoryToken },
+            });
+            if (api.status !== 0) {
+              runnerInventoryError = (api.stderr || api.stdout || 'runner inventory read failed').trim();
+              return null;
+            }
+            try {
+              runnerInventory = api.stdout
+                .split(/\n(?=\{)/)
+                .filter(Boolean)
+                .flatMap((page) => (JSON.parse(page).runners || []));
+            } catch (error) {
+              runnerInventoryError = error instanceof Error ? error.message : String(error);
+            }
+            return runnerInventory;
           }
 
           for (const [target, rawLabels] of targets) {
@@ -331,26 +399,9 @@ jobs:
               unavailable(target, labels, 'not_authorized', 'No token can read repository runner inventory.');
               continue;
             }
-            const api = spawnSync('gh', [
-              'api',
-              '--paginate',
-              `repos/${process.env.GITHUB_REPOSITORY}/actions/runners?per_page=100`,
-            ], {
-              encoding: 'utf8',
-              env: { ...process.env, GH_TOKEN: inventoryToken },
-            });
-            if (api.status !== 0) {
-              unavailable(target, labels, 'not_authorized', (api.stderr || api.stdout || 'runner inventory read failed').trim());
-              continue;
-            }
-            let runners;
-            try {
-              runners = api.stdout
-                .split(/\n(?=\{)/)
-                .filter(Boolean)
-                .flatMap((page) => (JSON.parse(page).runners || []));
-            } catch (error) {
-              unavailable(target, labels, 'operator_deferred', error instanceof Error ? error.message : String(error));
+            const runners = readRunnerInventory();
+            if (!runners) {
+              unavailable(target, labels, 'not_authorized', runnerInventoryError);
               continue;
             }
             const eligible = runners.filter((runner) => {
@@ -371,8 +422,11 @@ jobs:
               ).filter(Boolean),
             }));
             result.targets[target] = {
+              schema: 'opl_app_self_hosted_advisory_target_admission.v1',
               status: eligible.length > 0 ? 'ready' : 'not_run',
               reason_code: eligible.length > 0 ? null : 'operator_deferred',
+              job_started: false,
+              release_blocking: false,
               required_labels: labels,
               eligible_runners: eligible,
               detail: eligible.length > 0 ? null : 'No online idle runner matched the exact labels.',
@@ -505,6 +559,156 @@ jobs:
             macos-tart-clone.log
             macos-tart-run.log
             macos-tart-guest-ip.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  mac-gui-advisory:
+    name: macOS GUI platform advisory
+    needs: admit
+    if: ${{ needs.admit.outputs.mac_gui_status == 'ready' }}
+    runs-on: ${{ fromJSON(needs.admit.outputs.mac_gui_labels_json) }}
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.admit.outputs.source_sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Setup active shell implementation
+        uses: ./.github/actions/setup-active-shell-deps
+        with:
+          shell-ref: main
+          install-dependencies: 'false'
+
+      - name: Install App root validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run admitted macOS GUI and Gatekeeper smoke
+        id: platform-smoke
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.admit.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(id -u)" != 0
+          test "$(stat -f '%Su' /dev/console)" = "$(id -un)"
+          npm run test:smoke 2>&1 | tee macos-gui-source-smoke.log
+          spctl --status 2>&1 | tee macos-gatekeeper-status.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Write macOS GUI advisory receipt
+        if: ${{ always() }}
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ needs.admit.outputs.source_run_id }}
+          SOURCE_SHA: ${{ needs.admit.outputs.source_sha }}
+          SMOKE_OUTCOME: ${{ steps.platform-smoke.outcome }}
+        run: |
+          set -euo pipefail
+          status=failed
+          reason_code=macos_gui_platform_smoke_failed
+          if [ "$SMOKE_OUTCOME" = success ]; then
+            status=passed
+            reason_code=''
+          fi
+          jq -n \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg status "$status" \
+            --arg reason "$reason_code" \
+            '{schema:"opl_app_self_hosted_advisory_receipt.v2",target:"macos-gui",source_run_id:$source_run_id,source_sha:$source_sha,status:$status,reason_code:(if $reason == "" then null else $reason end),checks:["admitted_source_smoke","logged_in_console_session","gatekeeper_enabled"],release_blocking:false}' \
+            > macos-gui-self-hosted-advisory.json
+
+      - name: Upload macOS GUI advisory receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-self-hosted-advisory-macos-gui-${{ github.run_id }}
+          path: |
+            macos-gui-self-hosted-advisory.json
+            macos-gui-source-smoke.log
+            macos-gatekeeper-status.log
+          if-no-files-found: error
+          retention-days: 30
+
+  mac-vmware-advisory:
+    name: macOS VMware platform advisory
+    needs: admit
+    if: ${{ needs.admit.outputs.mac_vmware_status == 'ready' }}
+    runs-on: ${{ fromJSON(needs.admit.outputs.mac_vmware_labels_json) }}
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - name: Checkout admitted source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.admit.outputs.source_sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install App root validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run admitted Intel macOS and VMware capability smoke
+        id: platform-smoke
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.admit.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(uname -m)" = x86_64
+          npm run test:smoke 2>&1 | tee macos-vmware-source-smoke.log
+          vmrun_bin='/Applications/VMware Fusion.app/Contents/Library/vmrun'
+          test -x "$vmrun_bin"
+          "$vmrun_bin" list 2>&1 | tee macos-vmware-inventory.log
+
+      - name: Write macOS VMware advisory receipt
+        if: ${{ always() }}
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ needs.admit.outputs.source_run_id }}
+          SOURCE_SHA: ${{ needs.admit.outputs.source_sha }}
+          SMOKE_OUTCOME: ${{ steps.platform-smoke.outcome }}
+        run: |
+          set -euo pipefail
+          status=failed
+          reason_code=macos_vmware_platform_smoke_failed
+          if [ "$SMOKE_OUTCOME" = success ]; then
+            status=passed
+            reason_code=''
+          fi
+          jq -n \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg status "$status" \
+            --arg reason "$reason_code" \
+            '{schema:"opl_app_self_hosted_advisory_receipt.v2",target:"macos-vmware-intel",source_run_id:$source_run_id,source_sha:$source_sha,status:$status,reason_code:(if $reason == "" then null else $reason end),checks:["admitted_source_smoke","intel_host_architecture","vmware_inventory"],release_blocking:false}' \
+            > macos-vmware-self-hosted-advisory.json
+
+      - name: Upload macOS VMware advisory receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-self-hosted-advisory-macos-vmware-${{ github.run_id }}
+          path: |
+            macos-vmware-self-hosted-advisory.json
+            macos-vmware-source-smoke.log
+            macos-vmware-inventory.log
           if-no-files-found: error
           retention-days: 30
 

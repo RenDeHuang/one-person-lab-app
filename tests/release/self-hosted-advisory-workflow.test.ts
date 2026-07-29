@@ -35,7 +35,15 @@ assert.ok(admissionStep, 'self-hosted advisory must have a hosted admission step
 const admissionScript = String(admissionStep.run ?? '');
 
 const macLabels = ['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart'];
+const macGuiLabels = ['self-hosted', 'macOS', 'ARM64', 'opl-gui-vm'];
+const macVmwareLabels = ['self-hosted', 'macOS', 'X64', 'opl-vmware-intel-host'];
 const windowsLabels = ['self-hosted', 'Windows', 'X64', 'opl-cert-windows-wsl'];
+const targetLabels = {
+  mac: macLabels,
+  mac_gui: macGuiLabels,
+  mac_vmware: macVmwareLabels,
+  windows: windowsLabels,
+};
 
 interface GitHubRun {
   id: number;
@@ -85,7 +93,7 @@ function trustedSourceRun(id: number, sha: string): GitHubRun {
 
 function eligibleRunner(name: string, labels: string[]): Record<string, unknown> {
   return {
-    id: name === 'mac' ? 24 : 23,
+    id: { mac: 24, mac_gui: 21, mac_vmware: 22, windows: 23 }[name] ?? 99,
     name,
     os: labels.includes('Windows') ? 'Windows' : 'macOS',
     status: 'online',
@@ -112,7 +120,10 @@ function executeAdmission(
     githubSha: string;
     sourceRunIdInput?: string;
     macLabelsInput?: string[];
+    macGuiLabelsInput?: string[];
+    macVmwareLabelsInput?: string[];
     windowsLabelsInput?: string[];
+    inventoryToken?: string;
     scenario: AdmissionScenario;
   },
 ): AdmissionExecution {
@@ -170,12 +181,14 @@ process.exit(2);
       GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
       GITHUB_RUN_ID: '9001',
       GITHUB_SHA: options.githubSha,
-      GH_TOKEN: 'runner-inventory-read-test-token',
-      RUNNER_INVENTORY_TOKEN: 'runner-inventory-read-test-token',
+      GH_TOKEN: options.inventoryToken ?? 'runner-inventory-read-test-token',
+      RUNNER_INVENTORY_TOKEN: options.inventoryToken ?? 'runner-inventory-read-test-token',
       WORKFLOW_RUN_ID: '',
       WORKFLOW_RUN_SHA: '',
       SOURCE_RUN_ID_INPUT: options.sourceRunIdInput ?? '',
       MAC_LABELS_INPUT: JSON.stringify(options.macLabelsInput ?? macLabels),
+      MAC_GUI_LABELS_INPUT: JSON.stringify(options.macGuiLabelsInput ?? macGuiLabels),
+      MAC_VMWARE_LABELS_INPUT: JSON.stringify(options.macVmwareLabelsInput ?? macVmwareLabels),
       WINDOWS_LABELS_INPUT: JSON.stringify(options.windowsLabelsInput ?? windowsLabels),
       MOCK_GH_SCENARIO: scenarioPath,
       MOCK_GH_CALLS: callsPath,
@@ -218,6 +231,14 @@ test('hosted admission accepts only trusted main-push sources and exact advisory
     workflow.on.workflow_dispatch.inputs.windows_runner_labels_json.default,
     JSON.stringify(windowsLabels),
   );
+  assert.deepEqual(
+    workflow.on.workflow_dispatch.inputs.mac_gui_runner_labels_json.default,
+    JSON.stringify(macGuiLabels),
+  );
+  assert.deepEqual(
+    workflow.on.workflow_dispatch.inputs.mac_vmware_runner_labels_json.default,
+    JSON.stringify(macVmwareLabels),
+  );
 });
 
 test('scheduled and manual re-admission bind checkout to one successful immutable main run', async (t) => {
@@ -228,7 +249,7 @@ test('scheduled and manual re-admission bind checkout to one successful immutabl
       githubSha: sourceSha,
       scenario: {
         sourceRuns: [trustedSourceRun(101, sourceSha)],
-        runners: [eligibleRunner('mac', macLabels), eligibleRunner('windows', windowsLabels)],
+        runners: Object.entries(targetLabels).map(([target, labels]) => eligibleRunner(target, labels)),
       },
     });
 
@@ -240,6 +261,8 @@ test('scheduled and manual re-admission bind checkout to one successful immutabl
     assert.equal(execution.receipt.retry_policy.mode, 'scheduled_re_admission');
     assert.equal(execution.receipt.retry_policy.dedupe_key, 'source_sha+target');
     assert.equal(execution.receipt.targets.mac.status, 'ready');
+    assert.equal(execution.receipt.targets.mac_gui.status, 'ready');
+    assert.equal(execution.receipt.targets.mac_vmware.status, 'ready');
     assert.equal(execution.receipt.targets.windows.status, 'ready');
   });
 
@@ -252,7 +275,7 @@ test('scheduled and manual re-admission bind checkout to one successful immutabl
       sourceRunIdInput: '202',
       scenario: {
         sourceRuns: [trustedSourceRun(201, dispatchSha), trustedSourceRun(202, sourceSha)],
-        runners: [eligibleRunner('mac', macLabels), eligibleRunner('windows', windowsLabels)],
+        runners: Object.entries(targetLabels).map(([target, labels]) => eligibleRunner(target, labels)),
       },
     });
 
@@ -264,7 +287,7 @@ test('scheduled and manual re-admission bind checkout to one successful immutabl
     assert.equal(execution.receipt.retry_policy.mode, 'event_or_manual_admission');
   });
 
-  for (const jobId of ['mac-advisory', 'windows-advisory']) {
+  for (const jobId of ['mac-advisory', 'mac-gui-advisory', 'mac-vmware-advisory', 'windows-advisory']) {
     const checkout = workflow.jobs[jobId].steps.find(
       (step: Record<string, unknown>) => step.name === 'Checkout admitted source',
     );
@@ -283,10 +306,12 @@ test('scheduled retry de-duplicates each source target without suppressing an un
       jobsByRunId: {
         '701': [
           { name: 'macOS platform advisory', status: 'completed', conclusion: 'success' },
+          { name: 'macOS GUI platform advisory', status: 'completed', conclusion: 'skipped' },
+          { name: 'macOS VMware platform advisory', status: 'completed', conclusion: 'skipped' },
           { name: 'Windows WSL2 platform advisory', status: 'completed', conclusion: 'skipped' },
         ],
       },
-      runners: [eligibleRunner('mac', macLabels), eligibleRunner('windows', windowsLabels)],
+      runners: Object.entries(targetLabels).map(([target, labels]) => eligibleRunner(target, labels)),
     },
   });
 
@@ -295,6 +320,8 @@ test('scheduled retry de-duplicates each source target without suppressing an un
   assert.equal(execution.receipt.targets.mac.status, 'not_run');
   assert.equal(execution.receipt.targets.mac.reason_code, 'already_recorded');
   assert.equal(execution.receipt.targets.windows.status, 'ready');
+  assert.equal(execution.receipt.targets.mac_gui.status, 'ready');
+  assert.equal(execution.receipt.targets.mac_vmware.status, 'ready');
   assert.equal(execution.outputs.mac_status, 'not_run');
   assert.equal(execution.outputs.windows_status, 'ready');
   assert.equal(execution.calls.filter((call) => call.includes('actions/runners?')).length, 1);
@@ -308,12 +335,12 @@ test('unreadable scheduled history fails open as not_run and never creates a sel
     scenario: {
       sourceRuns: [trustedSourceRun(401, sourceSha)],
       historyError: true,
-      runners: [eligibleRunner('mac', macLabels), eligibleRunner('windows', windowsLabels)],
+      runners: Object.entries(targetLabels).map(([target, labels]) => eligibleRunner(target, labels)),
     },
   });
 
   assert.equal(execution.status, 0, execution.stderr || execution.stdout);
-  for (const target of ['mac', 'windows']) {
+  for (const target of Object.keys(targetLabels)) {
     assert.equal(execution.receipt.targets[target].status, 'not_run');
     assert.equal(execution.receipt.targets[target].reason_code, 'operator_deferred');
     assert.match(execution.receipt.targets[target].detail, /Cannot prove scheduled retry de-duplication/);
@@ -321,6 +348,8 @@ test('unreadable scheduled history fails open as not_run and never creates a sel
   }
   assert.equal(execution.calls.some((call) => call.includes('actions/runners?')), false);
   assert.equal(workflow.jobs['mac-advisory'].if, "${{ needs.admit.outputs.mac_status == 'ready' }}");
+  assert.equal(workflow.jobs['mac-gui-advisory'].if, "${{ needs.admit.outputs.mac_gui_status == 'ready' }}");
+  assert.equal(workflow.jobs['mac-vmware-advisory'].if, "${{ needs.admit.outputs.mac_vmware_status == 'ready' }}");
   assert.equal(workflow.jobs['windows-advisory'].if, "${{ needs.admit.outputs.windows_status == 'ready' }}");
 });
 
@@ -331,30 +360,74 @@ test('broadened labels are not authorized and inventory is never used to queue t
     githubSha: sourceSha,
     sourceRunIdInput: '501',
     macLabelsInput: [...macLabels, 'opl-ci-accelerated'],
+    macGuiLabelsInput: [...macGuiLabels, 'opl-ci-accelerated'],
+    macVmwareLabelsInput: [...macVmwareLabels, 'opl-experiment'],
     windowsLabelsInput: [...windowsLabels, 'opl-experiment'],
     scenario: {
       sourceRuns: [trustedSourceRun(501, sourceSha)],
-      runners: [eligibleRunner('mac', macLabels), eligibleRunner('windows', windowsLabels)],
+      runners: Object.entries(targetLabels).map(([target, labels]) => eligibleRunner(target, labels)),
     },
   });
 
   assert.equal(execution.status, 0, execution.stderr || execution.stdout);
-  for (const target of ['mac', 'windows']) {
+  for (const target of Object.keys(targetLabels)) {
     assert.equal(execution.receipt.targets[target].status, 'not_run');
     assert.equal(execution.receipt.targets[target].reason_code, 'not_authorized');
   }
   assert.equal(execution.calls.some((call) => call.includes('actions/runners?')), false);
 });
 
+test('missing dedicated inventory token emits typed not_run for every target without querying runners', (t) => {
+  const sourceSha = '1'.repeat(40);
+  const execution = executeAdmission(t, {
+    eventName: 'workflow_dispatch',
+    githubSha: sourceSha,
+    sourceRunIdInput: '601',
+    inventoryToken: '',
+    scenario: {
+      sourceRuns: [trustedSourceRun(601, sourceSha)],
+      runners: Object.entries(targetLabels).map(([target, labels]) => eligibleRunner(target, labels)),
+    },
+  });
+
+  assert.equal(execution.status, 0, execution.stderr || execution.stdout);
+  assert.equal(execution.receipt.schema, 'opl_app_self_hosted_advisory_admission.v3');
+  for (const target of Object.keys(targetLabels)) {
+    assert.deepEqual(
+      {
+        schema: execution.receipt.targets[target].schema,
+        status: execution.receipt.targets[target].status,
+        reason_code: execution.receipt.targets[target].reason_code,
+        job_started: execution.receipt.targets[target].job_started,
+        release_blocking: execution.receipt.targets[target].release_blocking,
+      },
+      {
+        schema: 'opl_app_self_hosted_advisory_target_admission.v1',
+        status: 'not_run',
+        reason_code: 'not_authorized',
+        job_started: false,
+        release_blocking: false,
+      },
+    );
+  }
+  assert.equal(execution.calls.some((call) => call.includes('actions/runners?')), false);
+});
+
 test('platform jobs perform substantive bounded checks but stay advisory to Stable and Latest', () => {
   const mac = workflow.jobs['mac-advisory'];
+  const macGui = workflow.jobs['mac-gui-advisory'];
+  const macVmware = workflow.jobs['mac-vmware-advisory'];
   const windows = workflow.jobs['windows-advisory'];
   assert.equal(mac['continue-on-error'], true);
+  assert.equal(macGui['continue-on-error'], true);
+  assert.equal(macVmware['continue-on-error'], true);
   assert.equal(windows['continue-on-error'], true);
   assert.equal(mac['timeout-minutes'], 30);
   assert.equal(windows['timeout-minutes'], 30);
   assert.equal(mac['runs-on'], '${{ fromJSON(needs.admit.outputs.mac_labels_json) }}');
   assert.equal(windows['runs-on'], '${{ fromJSON(needs.admit.outputs.windows_labels_json) }}');
+  assert.equal(macGui['runs-on'], '${{ fromJSON(needs.admit.outputs.mac_gui_labels_json) }}');
+  assert.equal(macVmware['runs-on'], '${{ fromJSON(needs.admit.outputs.mac_vmware_labels_json) }}');
 
   const macSmoke = mac.steps.find((step: Record<string, unknown>) => step.id === 'platform-smoke');
   assert.match(macSmoke.run, /npm run test:smoke/);
@@ -363,6 +436,16 @@ test('platform jobs perform substantive bounded checks but stay advisory to Stab
   assert.match(macSmoke.run, /tart ip "\$vm_name"/);
   assert.match(macSmoke.run, /trap cleanup EXIT/);
   assert.match(source, /checks:\["admitted_source_smoke","clean_tart_guest_boot"\]/);
+
+  const macGuiSmoke = macGui.steps.find((step: Record<string, unknown>) => step.id === 'platform-smoke');
+  assert.match(macGuiSmoke.run, /stat -f '%Su' \/dev\/console/);
+  assert.match(macGuiSmoke.run, /spctl --status/);
+  assert.match(source, /checks:\["admitted_source_smoke","logged_in_console_session","gatekeeper_enabled"\]/);
+
+  const macVmwareSmoke = macVmware.steps.find((step: Record<string, unknown>) => step.id === 'platform-smoke');
+  assert.match(macVmwareSmoke.run, /test "\$\(uname -m\)" = x86_64/);
+  assert.match(macVmwareSmoke.run, /VMware Fusion\.app\/Contents\/Library\/vmrun/);
+  assert.match(source, /checks:\["admitted_source_smoke","intel_host_architecture","vmware_inventory"\]/);
 
   const windowsSmoke = windows.steps.find((step: Record<string, unknown>) => step.id === 'platform-smoke');
   assert.match(windowsSmoke.run, /docker-webui-windows-installer\.test\.ts/);
@@ -384,7 +467,7 @@ test('platform jobs perform substantive bounded checks but stay advisory to Stab
     );
     assert.doesNotMatch(
       mandatorySource,
-      /self-hosted-advisory|mac-advisory|windows-advisory|opl-cert-mac-tart|opl-cert-windows-wsl/,
+      /self-hosted-advisory|mac-advisory|mac-gui-advisory|mac-vmware-advisory|windows-advisory|opl-cert-mac-tart|opl-gui-vm|opl-vmware-intel-host|opl-cert-windows-wsl/,
       `${mandatoryWorkflow} must not depend on self-hosted advisory capacity`,
     );
   }
@@ -396,5 +479,6 @@ test('untrusted pull requests cannot reach runner inventory credentials', () => 
   assert.doesNotMatch(source, /pull_request_target|secrets:\s*inherit/);
   const secretNames = [...source.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((match) => match[1]);
   assert.deepEqual([...new Set(secretNames)], ['OPL_RUNNER_INVENTORY_TOKEN']);
-  assert.match(source, /GH_TOKEN: \$\{\{ secrets\.OPL_RUNNER_INVENTORY_TOKEN \|\| github\.token \}\}/);
+  assert.match(source, /GH_TOKEN: \$\{\{ secrets\.OPL_RUNNER_INVENTORY_TOKEN \}\}/);
+  assert.doesNotMatch(source, /OPL_RUNNER_INVENTORY_TOKEN \|\| github\.token/);
 });
