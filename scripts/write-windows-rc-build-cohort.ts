@@ -50,6 +50,7 @@ export type WindowsRcBuildCohortV1 = {
     aioncore: FileIdentity;
     runtime_manifest: FileIdentity;
     managed_resources_manifest: FileIdentity;
+    node: FileIdentity;
     codex: FileIdentity;
   };
   actions: {
@@ -125,19 +126,61 @@ function optionalExactSha(
   return exactSha(value, label);
 }
 
-function exactFile(matches: string[], label: string): string {
-  if (matches.length !== 1)
-    throw new Error(`Expected exactly one ${label}, found ${matches.length}.`);
-  return matches[0];
+function exactPortableRelativePath(value: unknown, label: string): string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value === "." ||
+    value.trim() !== value ||
+    value.includes("\\") ||
+    value.includes(":") ||
+    value.includes("\0") ||
+    path.posix.isAbsolute(value) ||
+    path.posix.normalize(value) !== value ||
+    value.split("/").some((segment) => segment === "..")
+  ) {
+    throw new Error(`${label} must be a normalized portable relative path.`);
+  }
+  return value;
 }
 
-function findFiles(
-  root: string,
-  predicate: (relativePath: string) => boolean,
-): string[] {
-  return collectTreeFiles(root)
-    .filter((entry) => predicate(entry.path))
-    .map((entry) => path.join(root, ...entry.path.split("/")));
+function managedResourceExecutable(
+  managedResourcesRoot: string,
+  descriptor: unknown,
+  label: string,
+): string {
+  if (
+    !descriptor ||
+    typeof descriptor !== "object" ||
+    Array.isArray(descriptor)
+  )
+    throw new Error(`Managed resources must contain exactly one ${label}.`);
+  const resource = descriptor as { root?: unknown; executable?: unknown };
+  const root = exactPortableRelativePath(resource.root, `${label} root`);
+  const executable = exactPortableRelativePath(
+    resource.executable,
+    `${label} executable`,
+  );
+  const filePath = path.resolve(
+    managedResourcesRoot,
+    ...root.split("/"),
+    ...executable.split("/"),
+  );
+  const relativePath = path.relative(managedResourcesRoot, filePath);
+  if (
+    relativePath === "" ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(`${label} executable escapes managed resources.`);
+  }
+  if (!fs.existsSync(filePath))
+    throw new Error(`${label} executable is missing: ${filePath}`);
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink())
+    throw new Error(`${label} executable must be a regular file: ${filePath}`);
+  return filePath;
 }
 
 export function buildWindowsRcBuildCohort(input: {
@@ -197,16 +240,6 @@ export function buildWindowsRcBuildCohort(input: {
     "managed-resources",
     "manifest.json",
   );
-  const codexPackage = `@openai/codex-${runtimeKey}`;
-  const codexPath = exactFile(
-    findFiles(
-      runtimeRoot,
-      (relativePath) =>
-        relativePath.includes(`/node_modules/${codexPackage}/vendor/`) &&
-        relativePath.endsWith("/bin/codex"),
-    ),
-    `${codexPackage} binary`,
-  );
 
   if (fs.existsSync(nativeWindowsRuntimeRoot)) {
     throw new Error(
@@ -219,7 +252,6 @@ export function buildWindowsRcBuildCohort(input: {
     aioncorePath,
     runtimeManifestPath,
     managedManifestPath,
-    codexPath,
   ]) {
     if (!fs.existsSync(required))
       throw new Error(`Windows RC cohort input is missing: ${required}`);
@@ -252,15 +284,41 @@ export function buildWindowsRcBuildCohort(input: {
   const managedManifest = JSON.parse(
     fs.readFileSync(managedManifestPath, "utf8"),
   );
-  const codexTools = Array.isArray(managedManifest.acpTools)
-    ? managedManifest.acpTools.filter(
-        (tool: { slug?: string }) => tool?.slug === "codex-acp",
+  if (
+    !managedManifest ||
+    typeof managedManifest !== "object" ||
+    Array.isArray(managedManifest)
+  ) {
+    throw new Error("Managed resources manifest must be a JSON object.");
+  }
+  if (Object.prototype.hasOwnProperty.call(managedManifest, "acpTools"))
+    throw new Error(
+      "Managed resources must use schema v2; retired acpTools are not accepted.",
+    );
+  if (managedManifest.schemaVersion !== 2)
+    throw new Error("Managed resources manifest must use schemaVersion 2.");
+  if (managedManifest.runtimeKey !== runtimeKey)
+    throw new Error(`Managed resources runtimeKey must be ${runtimeKey}.`);
+  const managedResourcesRoot = path.dirname(managedManifestPath);
+  const nodePath = managedResourceExecutable(
+    managedResourcesRoot,
+    managedManifest.node,
+    "Node runtime",
+  );
+  const codexClis = Array.isArray(managedManifest.clis)
+    ? managedManifest.clis.filter(
+        (cli: { name?: string }) => cli?.name === "codex",
       )
     : [];
-  if (codexTools.length !== 1)
+  if (codexClis.length !== 1)
     throw new Error(
-      "Managed resources must contain exactly one codex-acp tool.",
+      `Managed resources must contain exactly one Codex CLI, found ${codexClis.length}.`,
     );
+  const codexPath = managedResourceExecutable(
+    managedResourcesRoot,
+    codexClis[0],
+    "Codex CLI",
+  );
 
   return {
     schema: "opl_windows_rc_build_cohort.v1",
@@ -307,6 +365,7 @@ export function buildWindowsRcBuildCohort(input: {
         packagedTree,
         managedManifestPath,
       ),
+      node: relativeFileIdentity(packagedTree, nodePath),
       codex: relativeFileIdentity(packagedTree, codexPath),
     },
     actions: {
