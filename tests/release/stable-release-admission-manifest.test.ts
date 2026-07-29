@@ -5,9 +5,11 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+  buildStableAdmissionFailureReceipt,
   buildStableReleaseAdmissionManifest,
   canonicalJson,
   firstDifference,
+  parseActiveReleaseRunLookups,
   parseGitHubJsonLookup,
   stableAdmissionManifestDigest,
   type StableAdmissionInput,
@@ -49,11 +51,15 @@ const operationControlPaths = [
   'scripts/framework-release-adapter.ts',
   'scripts/release-dispatch-guard.ts',
   'scripts/stable-operation-control.ts',
+  'scripts/stable-operation-publication-record.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/validate-release-source-gate.ts',
 ];
 const operationControlBlobs = Object.fromEntries(
-  operationControlPaths.map((file, index) => [file, `sha256:${(index + 1).toString(16).repeat(64)}`]),
+  operationControlPaths.map((file, index) => [
+    file,
+    `sha256:${'0123456789abcdef'[(index + 1) % 16]!.repeat(64)}`,
+  ]),
 );
 const requiredSecretNames = [
   'BUILD_CERTIFICATE_BASE64',
@@ -225,6 +231,13 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   assert.equal(manifest.source_gate.release_authority, false);
   assert.equal(manifest.source_gate.final_signed_byte_authority, false);
   assert.deepEqual(manifest.apple_credentials.required_secret_names, requiredSecretNames);
+  assert.deepEqual(manifest.dispatcher_contract.accepted_inputs, [
+    'operation',
+    'authority_id',
+    'operation_id',
+    'authority_carrier',
+    'authority_digest',
+  ]);
   assert.equal(manifest.dispatcher_contract.raw_standard_version_or_ref_inputs_allowed, false);
   const { manifest_digest: digest, ...core } = manifest;
   assert.equal(digest, stableAdmissionManifestDigest(core));
@@ -470,6 +483,74 @@ test('GitHub lookup failures and non-JSON responses fail closed', () => {
     }),
     /did not return JSON/,
   );
+});
+
+test('active release lookup is bounded by exact status pages and excludes the current run', () => {
+  const emptyPage = { total_count: 0, workflow_runs: [] };
+  const lookups = [
+    { status: 'requested' as const, payload: emptyPage },
+    {
+      status: 'queued' as const,
+      payload: {
+        total_count: 2,
+        workflow_runs: [
+          {
+            id: 30150000002,
+            path: '.github/workflows/release-preview.yml@refs/heads/main',
+            status: 'queued',
+            head_sha: appRef,
+          },
+          {
+            id: Number(admissionRunId),
+            path: '.github/workflows/release-stable.yml@refs/heads/main',
+            status: 'queued',
+            head_sha: appRef,
+          },
+        ],
+      },
+    },
+    { status: 'in_progress' as const, payload: emptyPage },
+    { status: 'waiting' as const, payload: emptyPage },
+    { status: 'pending' as const, payload: emptyPage },
+  ];
+  assert.deepEqual(parseActiveReleaseRunLookups(lookups, admissionRunId), [{
+    id: 30150000002,
+    path: '.github/workflows/release-preview.yml',
+    status: 'queued',
+    head_sha: appRef,
+  }]);
+  assert.throws(
+    () => parseActiveReleaseRunLookups([
+      ...lookups.slice(0, 4),
+      {
+        status: 'pending',
+        payload: { total_count: 101, workflow_runs: Array.from({ length: 100 }, () => ({})) },
+      },
+    ], admissionRunId),
+    /bounded active-run page is incomplete/,
+  );
+});
+
+test('Stable admission failure receipt preserves the transport breakpoint and forbids reuse', () => {
+  const failure = buildStableAdmissionFailureReceipt({
+    input: input(),
+    phase: 'collect_observation',
+    error: new Error('GitHub active runs lookup failed: spawnSync gh ETIMEDOUT'),
+    sourceGateDigest: `sha256:${'a'.repeat(64)}`,
+    credentialReceiptDigest: `sha256:${'b'.repeat(64)}`,
+    checkedAt: '2026-07-29T00:00:00.000Z',
+  });
+  assert.equal(failure.schema, 'opl_stable_release_admission_failure.v1');
+  assert.equal(failure.failure.class, 'transport');
+  assert.equal(failure.failure.code, 'transport_timeout');
+  assert.equal(failure.public_mutation_performed, false);
+  assert.equal(failure.old_authority_or_run_reusable, false);
+  assert.equal(failure.retry_disposition, 'repair_then_new_distinct_operation');
+  assert.deepEqual(failure.cohort, {
+    app_sha: appRef,
+    shell_sha: shellRef,
+    framework_sha: frameworkRef,
+  });
 });
 
 test('manifest comparison accepts equal nested objects and reports exact drift pointers', () => {

@@ -143,6 +143,41 @@ test('Stable operation set and global concurrency are exact and fail closed on d
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) >= 2);
 });
 
+test('append Full selection uses the dispatch operation while payload identity stays admission-bound', (t) => {
+  const root = fixture(t);
+  const file = workflowPath(root, 'release-stable.yml');
+  const current = fs.readFileSync(file, 'utf8');
+  assert.match(current, /if: \$\{\{ !cancelled\(\) && inputs\.operation == 'append_full' && needs\.admission\.result == 'success' \}\}/);
+  assert.equal(validateStableReleaseControlPlane(root), 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ needs.admission.outputs.operation == 'append_full' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ always() && inputs.operation == 'append_full' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      "if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+      "if: ${{ always() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+});
+
 test('Stable admission keeps recovery inputs optional but requires their pre-issued carrier values for Standard', (t) => {
   const source = fs.readFileSync(path.join(process.cwd(), workflowDirectory, 'release-stable.yml'), 'utf8');
   const mutations = [
@@ -274,17 +309,36 @@ test('Native WebUI follower remains a read-only consumer of the unified immutabl
   assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
   assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
 
+  const bundle = parseYaml(
+    fs.readFileSync(workflowPath(root, '_release-bundle.yml'), 'utf8'),
+  ) as Record<string, any>;
+  const publishStandard = bundle.jobs?.['publish-standard'];
+  assert.ok(publishStandard);
+  assert.equal(
+    publishStandard.with?.qualified_native_artifact_name,
+    '${{ (inputs.publication_channel || inputs.channel) == \'stable\' && needs.prepare-native-webui.outputs.qualified_artifact_name || \'\' }}',
+  );
+  assert.equal(
+    publishStandard.with?.qualified_native_macos_artifact_name,
+    '${{ (inputs.publication_channel || inputs.channel) == \'stable\' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || \'\' }}',
+  );
+  assert.equal(bundle.jobs?.['publish-native-webui'], undefined);
+  assert.equal(bundle.jobs?.['publish-native-webui-macos'], undefined);
+
   updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-carrier'].needs = [];
+    workflow.jobs['native-webui-linux-readback'].needs = [];
   });
   assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 
   updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-carrier'].needs = ['resolve-handoff'];
+    workflow.jobs['native-webui-linux-readback'].needs = ['resolve-handoff'];
   });
   updateWorkflow(root, '_release-native-webui-carrier.yml', (workflow) => {
-    workflow.jobs['readback-native-assets'].permissions.contents = 'write';
+    workflow.jobs['readback-native-assets'].permissions = {
+      contents: 'write',
+      actions: 'read',
+    };
   });
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });

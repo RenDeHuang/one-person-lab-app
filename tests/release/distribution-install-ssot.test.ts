@@ -26,13 +26,21 @@ test('distribution/install SSOT validates the current and approved state split',
     'implemented_pending_first_publication_readback',
   );
   assert.equal(release.distribution_semantics.topology_counts.current_publication_carrier_families, 3);
-  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 4);
+  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 5);
   assert.equal(install.distribution_install_model.topology_counts.current_ordinary_install_entrypoint_families, 4);
-  assert.equal(install.distribution_install_model.topology_counts.current_supported_app_runtime_forms, 2);
+  assert.equal(install.distribution_install_model.topology_counts.current_supported_app_runtime_forms, 3);
   assert.equal(install.distribution_install_model.topology_counts.approved_target_app_runtime_forms, 3);
   assert.equal(
     install.distribution_install_model.runtime_forms.native_webui.public_install_status,
-    'not_published',
+    'published_digest_bound',
+  );
+  assert.deepEqual(
+    install.distribution_install_model.runtime_forms.native_webui.supported_targets,
+    ['linux_x86_64'],
+  );
+  assert.deepEqual(
+    install.distribution_install_model.runtime_forms.native_webui.implemented_targets_pending_publication,
+    ['macos_arm64'],
   );
   assert.deepEqual(
     install.distribution_install_model.installer_convergence.approved_universal_target.native_webui_public_discovery,
@@ -51,6 +59,7 @@ test('distribution/install SSOT validates the current and approved state split',
       exact_tag_download_url_required: true,
       probe_before_selection_required: true,
       pre_publication_fallback: 'container_webui',
+      target_selection: 'host_platform_and_architecture',
     },
   );
   assert.equal(
@@ -60,6 +69,10 @@ test('distribution/install SSOT validates the current and approved state split',
   assert.equal(
     install.distribution_install_model.homebrew_carriers.full.formula_dependency_target,
     false,
+  );
+  assert.equal(
+    install.distribution_install_model.homebrew_carriers.native_webui.technical_feasibility,
+    'feasible_same_command_cross_platform',
   );
   assert.equal(
     release.distribution_semantics.approved_targets.homebrew_full.generation_status,
@@ -84,6 +97,31 @@ test('distribution/install SSOT validates the current and approved state split',
   assert.equal(
     release.distribution_semantics.latest_policy.move_latest_pointer.stable_or_preview_candidate_allowed,
     true,
+  );
+  assert.equal(
+    release.distribution_semantics.latest_policy.durable_publication_record_selector.selector,
+    'carrier_owned_durable_publication_record',
+  );
+  assert.equal(
+    release.distribution_semantics.latest_policy.durable_publication_record_selector.actions_artifact.selection_authority,
+    false,
+  );
+  assert.equal(
+    release.distribution_semantics.latest_policy.durable_publication_record_selector.retention.retired_or_revoked_record_selectable,
+    false,
+  );
+  assert.deepEqual(
+    release.distribution_semantics.latest_policy.docker_manual_override.must_not_mutate,
+    ['container_webui.stable', 'desktop.latest'],
+  );
+  assert.deepEqual(
+    release.distribution_semantics.latest_policy.docker_manual_override.operator_confirmation,
+    {
+      source: 'workflow_dispatch_exact_version_confirmation',
+      expected_value: 'move-docker-latest:<exact_version>',
+      actor: 'github_human_login',
+      digest_bound_into_terminal_receipt: true,
+    },
   );
   assert.deepEqual(
     install.software_lifecycle.carrier_adapters.homebrew_cask.payload_profiles.full,
@@ -257,6 +295,24 @@ test('cross-contract drift fails closed for channel, carrier, and convergence mu
       },
     ],
     [
+      'Latest selection depending on an Actions artifact',
+      (release) => {
+        release.distribution_semantics.latest_policy.durable_publication_record_selector.actions_artifact.selection_authority = true;
+      },
+    ],
+    [
+      'retired durable publication record remaining selectable',
+      (release) => {
+        release.distribution_semantics.latest_policy.durable_publication_record_selector.retention.retired_or_revoked_record_selectable = true;
+      },
+    ],
+    [
+      'Docker manual override changing Stable or Desktop pointers',
+      (release) => {
+        release.distribution_semantics.latest_policy.docker_manual_override.must_not_mutate = [];
+      },
+    ],
+    [
       'quality promotion rewriting immutable manifest',
       (release) => {
         release.distribution_semantics.latest_policy.promote_quality.immutable_build_manifest_rewrite_allowed = true;
@@ -354,6 +410,11 @@ test('ordinary docs point to the SSOT without advertising retired or unpublished
   const docsIndex = fs.readFileSync(path.join(appRoot, 'docs/README.md'), 'utf8');
   const deliveryIndex = fs.readFileSync(path.join(appRoot, 'docs/delivery/README.md'), 'utf8');
   const releaseGuide = fs.readFileSync(path.join(appRoot, 'docs/delivery/release/README.md'), 'utf8');
+  const distributionGuide = fs.readFileSync(path.join(appRoot, ssot), 'utf8');
+  const manualLatestGuide = fs.readFileSync(
+    path.join(appRoot, 'docs/delivery/release/manual-latest-builds.md'),
+    'utf8',
+  );
   const macGuide = fs.readFileSync(
     path.join(appRoot, 'docs/guides/macos-app-install/guide.qmd'),
     'utf8',
@@ -365,6 +426,25 @@ test('ordinary docs point to the SSOT without advertising retired or unpublished
   assert.match(docsIndex, /delivery\/distribution-and-install-ssot\.md/);
   assert.match(deliveryIndex, /distribution-and-install-ssot\.md/);
   assert.match(releaseGuide, /\.\.\/distribution-and-install-ssot\.md/);
+  for (const guide of [distributionGuide, releaseGuide, manualLatestGuide]) {
+    assert.match(guide, /carrier_owned_durable_publication_record/);
+  }
+  assert.match(
+    distributionGuide,
+    /Actions artifact[\s\S]{0,240}不得决定已发布版本是否可选/,
+  );
+  assert.match(
+    releaseGuide,
+    /Actions artifact[\s\S]{0,240}never the selector or retention authority/,
+  );
+  assert.match(
+    manualLatestGuide,
+    /Actions artifact is[\s\S]{0,180}cannot make a version\s+selectable after it expires/,
+  );
+  assert.match(
+    releaseGuide,
+    /Selection consumes the\s+carrier-owned durable publication record, not a transient Actions artifact/,
+  );
   assert.match(macGuide, /\{\{download\.stable_install_command\}\}/);
   assert.equal(
     macGuideManifest.download.stable_install_command,

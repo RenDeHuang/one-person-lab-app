@@ -19,9 +19,10 @@
         "homebrew_tap",
         "webui_ghcr"
       ],
-      "current_production_publication_paths": 4,
+      "current_production_publication_paths": 5,
       "production_publication_paths": [
         "desktop_stable_github_release",
+        "native_webui_github_release_assets",
         "homebrew_standard_cask",
         "homebrew_full_cask_post_publication_follower",
         "container_webui_latest_with_stable_compatibility_alias"
@@ -33,7 +34,6 @@
         "container_webui_manual_independent_preview",
         "desktop_nightly_automated_standard_prerelease",
         "homebrew_nightly_post_publication_follower",
-        "native_webui_implemented_unpublished_target",
         "canary_validation_only"
       ]
     },
@@ -135,6 +135,40 @@
       "default_automatic_writer": "newest_qualified_stable",
       "default_behavior": "each_carrier_advances_its_own_latest_pointer_when_that_carrier_publishes_a_new_qualified_stable",
       "automatic_preview_or_nightly_writer_may_move_latest": false,
+      "durable_publication_record_selector": {
+        "selector": "carrier_owned_durable_publication_record",
+        "candidate_target": "retained_immutable_verified_published_version",
+        "candidate_record_must_bind": [
+          "carrier_namespace",
+          "exact_version_or_tag",
+          "immutable_artifact_or_image_digest",
+          "quality_status_and_preview_kind",
+          "qualification_disclosure",
+          "public_readback"
+        ],
+        "actions_artifact": {
+          "selection_authority": false,
+          "expiry_or_retention_may_change_selection_eligibility": false,
+          "allowed_role": "transient_prepublication_transport_or_diagnostic_evidence_only"
+        },
+        "retention": {
+          "selection_eligible_state": "retained_not_retired_or_revoked",
+          "record_must_remain_readable_until_retired": true,
+          "retired_or_revoked_record_selectable": false
+        },
+        "evidence_requirements": {
+          "stable": [
+            "stable_qualification",
+            "exact_immutable_digest",
+            "carrier_public_readback"
+          ],
+          "preview": [
+            "exact_immutable_digest",
+            "carrier_public_readback",
+            "non_stable_and_skipped_or_failed_gate_disclosure"
+          ]
+        }
+      },
       "explicit_user_override": {
         "target": "any_exact_published_version",
         "quality_statuses": [
@@ -174,6 +208,26 @@
         "mutation": "single_expected_current_cas",
         "unknown_outcome": "read_only_reconcile_no_retry"
       },
+      "docker_manual_override": {
+        "target": "retained_immutable_verified_published_version",
+        "requires_explicit_user_confirmation": true,
+        "operator_confirmation": {
+          "source": "workflow_dispatch_exact_version_confirmation",
+          "expected_value": "move-docker-latest:<exact_version>",
+          "actor": "github_human_login",
+          "digest_bound_into_terminal_receipt": true
+        },
+        "selector": "carrier_owned_durable_publication_record",
+        "mutation_scope": [
+          "container_webui.latest"
+        ],
+        "must_not_mutate": [
+          "container_webui.stable",
+          "desktop.latest"
+        ],
+        "compare_and_swap": "exact_expected_current",
+        "fresh_public_readback_required": true
+      },
       "next_qualified_stable_reclaims_pointer": true,
       "latest_pointer_does_not_define_highest_published_stable": true,
       "failure_preserves_current_latest_lkg": true
@@ -207,7 +261,7 @@
       "windows_x64_rc_preview": "implementation_in_progress_publication_blocked",
       "full": "live_additive_first_install_asset_not_channel",
       "container_webui": "live_separate_development_and_production_carrier_with_independent_preview_publication",
-      "native_webui": "approved_target_not_published",
+      "native_webui": "live_public_linux_x86_64_with_digest_bound_lifecycle_qualification",
       "homebrew_standard": "live_managed",
       "homebrew_nightly": "implemented_pending_first_follower_readback",
       "homebrew_full": "implemented_pending_first_protected_follower_readback"
@@ -317,8 +371,9 @@
       },
       "native_webui": {
         "target": "opl_owned_immutable_native_webui_distribution",
-        "status": "production_publisher_implemented_pending_first_publication_readback",
+        "status": "live_public_linux_x86_64_plus_macos_arm64_implemented_pending_first_publication_readback",
         "initial_platform": "linux_amd64",
+        "initial_macos_platform": "macos_arm64",
         "publication_carrier": "app_github_release_assets",
         "production_topology": "standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback",
         "stable_operation_set_must_remain": [
@@ -331,7 +386,7 @@
           "stable"
         ],
         "promotion_requires": [
-          "carrier_neutral_frozen_linux_amd64_payload",
+          "carrier_neutral_frozen_platform_payload",
           "container_overlay_reuses_the_same_frozen_payload",
           "versioned_runtime_directories_and_atomic_current_pointer",
           "app_owned_versioned_artifacts",
@@ -1012,6 +1067,7 @@
           "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
+          "opl-install.sh",
           "standard-gatekeeper-launch-policy.json",
           "standard-apple-notarization-receipt.json",
           "github_hosted_source_contract_build_preflight",
@@ -1432,6 +1488,7 @@
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
         "latest-arm64-mac.yml",
         "opl-app-component-manifest.json",
+        "opl-install.sh",
         "standard-gatekeeper-launch-policy.json",
         "standard-apple-notarization-receipt.json",
         "prepared_ai_release_notes"
@@ -2225,7 +2282,8 @@
         "stable_authority_run_id",
         "carrier_follower_run_id",
         "carrier_executor_ref",
-        "carrier_artifact_name"
+        "carrier_artifact_name",
+        "publication_record_ref"
       ],
       "task_modes": {
         "production_release": {
@@ -2323,16 +2381,22 @@
             "release-webui-development.yml",
             "workflow_dispatch_event",
             "main",
-            "attempt_1",
+            "actual_publication_run_attempt_recorded",
             "completed_success",
             "exact_executor_sha",
             "exact_source_authority_artifact"
           ],
           "promotion_entry_inputs": [
-            "carrier_follower_run_id",
-            "carrier_executor_ref",
-            "carrier_artifact_name"
+            "publication_record_ref",
+            "operator_confirmation"
           ],
+          "operator_confirmation": {
+            "schema": "opl_app_webui_latest_operator_authorization.v1",
+            "source": "workflow_dispatch_exact_version_confirmation",
+            "actor": "github.actor_human_login",
+            "value": "move-docker-latest:<publication_record.release.version>",
+            "receipt_field": "operator_authorization.confirmation_digest"
+          },
           "promotion_protected_environment": "release-preview-publication",
           "receipt_satisfies_production_latest_or_follower_handoff": false
         }
@@ -2345,12 +2409,12 @@
       "carrier_publication_binding_by_mode": {
         "production_follower": "github_run_id_of_release_webui_follower",
         "development_validation": "legacy_exact_development_publication_run",
-        "independent_preview": "user_supplied_exact_successful_preview_publication_run_revalidated_by_workflow"
+        "independent_preview": "user_supplied_exact_durable_preview_publication_record_revalidated_by_workflow"
       },
       "operator_evidence_handle_policy_by_mode": {
         "production_follower": "no_operator_supplied_handles",
         "development_validation": "legacy_only",
-        "independent_preview": "carrier_run_executor_sha_and_artifact_name_allowed_but_revalidated_and_not_target_identity"
+        "independent_preview": "durable_publication_record_ref_and_exact_operator_confirmation_revalidated_before_latest_only_mutation"
       },
       "opaque_run_handles_are_release_identity": false,
       "protected_environment_by_mode": {

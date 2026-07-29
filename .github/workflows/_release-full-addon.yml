@@ -108,7 +108,8 @@ jobs:
           NODE
           fi
           jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' \
-            '{schema:"opl_release_operation_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,run_id:$GITHUB_RUN_ID,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{schema:"opl_release_operation_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,run_id:$run_id,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
             > release-failure-evidence/operation-admission.json
           test "$status" = passed
       - name: Upload Full admission evidence

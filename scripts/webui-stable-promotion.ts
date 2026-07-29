@@ -5,6 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
+import {
+  validateWebuiImageRepository,
+  validateWebuiPublicationRecord,
+} from './webui-publication-record.ts';
 import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
 
 type JsonRecord = Record<string, any>;
@@ -17,8 +21,8 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const runPattern = /^[1-9][0-9]*$/;
 const versionPattern = /^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*|-preview\.r[1-9][0-9]*|-nightly(?:\.r[1-9][0-9]*)?)?$/;
+const githubActorPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})?$/;
 const appRepository = 'gaofeng21cn/one-person-lab-app';
-const webuiRepository = 'ghcr.io/gaofeng21cn/one-person-lab-webui';
 
 function record(value: unknown, label: string): JsonRecord {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -68,6 +72,37 @@ function fileDigest(filePath: string): string {
 
 function objectDigest(value: unknown): string {
   return `sha256:${crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+}
+
+function confirmationDigest(value: string): string {
+  return `sha256:${crypto.createHash('sha256').update(value, 'utf8').digest('hex')}`;
+}
+
+function githubActor(value: unknown, label: string): string {
+  const actor = text(value, label);
+  if (!githubActorPattern.test(actor)) throw new Error(`${label} must be a human GitHub login.`);
+  return actor;
+}
+
+function operatorAuthorization(
+  mode: AuthorityMode,
+  releaseVersion: string,
+  operator: unknown,
+  confirmation: unknown,
+): JsonRecord | null {
+  if (mode !== 'independent_preview') return null;
+  const value = text(confirmation, 'independent Preview operator confirmation');
+  exact(
+    value,
+    `move-docker-latest:${releaseVersion}`,
+    'independent Preview operator confirmation',
+  );
+  return {
+    schema: 'opl_app_webui_latest_operator_authorization.v1',
+    source: 'workflow_dispatch_exact_version_confirmation',
+    actor: githubActor(operator, 'independent Preview operator'),
+    confirmation_digest: confirmationDigest(value),
+  };
 }
 
 function descriptor(value: unknown, expectedRef: string, label: string): JsonRecord {
@@ -130,6 +165,7 @@ function validateCarrierFollowerRun(
   runId: string,
   carrierExecutorAppSha: string,
   authorityMode: AuthorityMode,
+  expectedRunAttempt: number,
 ): void {
   exact(String(run.id), runId, 'carrier follower run.id');
   exact(run.repository?.full_name, appRepository, 'carrier follower run.repository');
@@ -154,7 +190,7 @@ function validateCarrierFollowerRun(
   } else if (!['in_progress', 'completed'].includes(status)) {
     throw new Error('carrier follower run.status must be in_progress or completed.');
   }
-  exact(run.run_attempt, 1, 'carrier follower run.run_attempt');
+  exact(run.run_attempt, expectedRunAttempt, 'carrier follower run.run_attempt');
   exact(
     sha(run.head_sha, 'carrier follower run.head_sha'),
     carrierExecutorAppSha,
@@ -166,6 +202,7 @@ function validateCarrierFollowerJob(
   job: JsonRecord,
   followerRunId: string,
   carrierExecutorAppSha: string,
+  expectedRunAttempt: number,
 ): void {
   positiveInteger(job.id, 'carrier follower job.id');
   exact(String(job.run_id), followerRunId, 'carrier follower job.run_id');
@@ -177,7 +214,7 @@ function validateCarrierFollowerJob(
   exact(job.name, 'webui-carrier / publish-immutable-carrier', 'carrier follower job.name');
   exact(job.status, 'completed', 'carrier follower job.status');
   exact(job.conclusion, 'success', 'carrier follower job.conclusion');
-  exact(job.run_attempt, 1, 'carrier follower job.run_attempt');
+  exact(job.run_attempt, expectedRunAttempt, 'carrier follower job.run_attempt');
   exact(
     sha(job.head_sha, 'carrier follower job.head_sha'),
     carrierExecutorAppSha,
@@ -228,6 +265,7 @@ function appWebuiCarrier(receipt: JsonRecord): {
   release: JsonRecord;
   cohort: JsonRecord;
   carrier: JsonRecord;
+  repository: string;
 } {
   exact(receipt.schema, 'opl_app_webui_release_carrier.v1', 'carrier receipt.schema');
   const release = record(receipt.release, 'carrier receipt.release');
@@ -244,7 +282,11 @@ function appWebuiCarrier(receipt: JsonRecord): {
   exact(carrier.carrier_kind, 'oci_image', 'carrier receipt.carrier.carrier_kind');
   exact(carrier.package_profile, 'webui-full', 'carrier receipt.carrier.package_profile');
   const carrierDigest = digest(carrier.digest, 'carrier receipt.carrier.digest');
-  exact(carrier.ref, `${webuiRepository}@${carrierDigest}`, 'carrier receipt.carrier.ref');
+  const carrierRef = text(carrier.ref, 'carrier receipt.carrier.ref');
+  const separator = carrierRef.lastIndexOf('@');
+  if (separator <= 0) throw new Error('carrier receipt.carrier.ref must be an immutable image reference.');
+  const repository = validateWebuiImageRepository(carrierRef.slice(0, separator));
+  exact(carrierRef, `${repository}@${carrierDigest}`, 'carrier receipt.carrier.ref');
   positiveInteger(carrier.size_bytes, 'carrier receipt.carrier.size_bytes');
   digest(carrier.content_fingerprint, 'carrier receipt.carrier.content_fingerprint');
   exact(carrier.os, 'linux', 'carrier receipt.carrier.os');
@@ -257,7 +299,7 @@ function appWebuiCarrier(receipt: JsonRecord): {
     carrier.content_fingerprint,
     'carrier receipt.qualification.content_fingerprint',
   );
-  return { release, cohort, carrier };
+  return { release, cohort, carrier, repository };
 }
 
 function validateIndependentSourceAuthority(
@@ -289,6 +331,74 @@ function validateIndependentSourceAuthority(
   return authority;
 }
 
+function validateIndependentPublicationRecord(
+  value: unknown,
+  recordPath: string,
+  release: JsonRecord,
+  cohort: JsonRecord,
+  carrier: JsonRecord,
+  repository: string,
+  carrierFollowerRunId: string,
+  carrierExecutorAppSha: string,
+): { publication: JsonRecord; sourceAuthority: JsonRecord; publicationRunAttempt: number } {
+  if (!recordPath.trim()) throw new Error('independent Preview durable publication record path is empty.');
+  const publication = validateWebuiPublicationRecord(value);
+  exact(publication.status, 'published', 'durable publication status');
+  const authority = record(publication.authority, 'durable publication authority');
+  exact(authority.mode, 'independent_preview', 'durable publication authority.mode');
+  exact(authority.publication_run_id, carrierFollowerRunId, 'durable publication run id');
+  exact(
+    authority.publication_executor_sha,
+    carrierExecutorAppSha,
+    'durable publication executor SHA',
+  );
+  const publicationRunAttempt = positiveInteger(
+    authority.publication_run_attempt,
+    'durable publication run attempt',
+  );
+  const image = record(publication.image, 'durable publication image');
+  exact(image.repository, repository, 'durable publication image repository');
+  exact(image.immutable_ref, carrier.ref, 'durable publication immutable ref');
+  exact(image.child_digest, carrier.digest, 'durable publication child digest');
+  exact(image.size_bytes, carrier.size_bytes, 'durable publication image size');
+  exact(
+    image.content_fingerprint,
+    carrier.content_fingerprint,
+    'durable publication content fingerprint',
+  );
+  const publicationRelease = record(publication.release, 'durable publication release');
+  const publicationCohort = record(publication.cohort, 'durable publication cohort');
+  exact(publicationRelease.version, release.version, 'durable publication release.version');
+  exact(publicationRelease.bundle_digest, release.bundle_digest, 'durable publication bundle digest');
+  exact(publicationRelease.cohort_ref, release.cohort_ref, 'durable publication cohort ref');
+  exact(publicationCohort.app_sha, cohort.app_sha, 'durable publication App SHA');
+  exact(publicationCohort.shell_sha, cohort.shell_sha, 'durable publication Shell SHA');
+  exact(publicationCohort.framework_sha, cohort.framework_sha, 'durable publication Framework SHA');
+  const disclosure = record(publication.qualification_disclosure, 'durable publication qualification disclosure');
+  const runtimeQualification = record(
+    disclosure.runtime_qualification,
+    'durable publication runtime qualification',
+  );
+  exact(runtimeQualification.image_digest, carrier.digest, 'durable publication qualification image digest');
+  exact(
+    runtimeQualification.content_fingerprint,
+    carrier.content_fingerprint,
+    'durable publication qualification content fingerprint',
+  );
+  exact(disclosure.stable_qualification, null, 'independent Preview stable qualification disclosure');
+  const nonStable = record(
+    disclosure.non_stable_gate_disclosure,
+    'independent Preview non-Stable disclosure',
+  );
+  exact(nonStable.reason, 'independent_preview_not_stable', 'independent Preview non-Stable reason');
+  exact(nonStable.explicit_latest_override_required, true, 'independent Preview Latest override');
+  return {
+    publication,
+    sourceAuthority: record(authority.source_authority, 'durable publication source authority'),
+    publicationRunAttempt,
+  };
+}
+
 export type WebuiStableAdmissionInput = {
   authorityMode?: AuthorityMode;
   stableAuthorityRun?: JsonRecord;
@@ -315,8 +425,12 @@ export type WebuiStableAdmissionInput = {
   stablePrestatePath: string;
   latestPrestate: JsonRecord;
   latestPrestatePath: string;
+  publicationRecord?: JsonRecord;
+  publicationRecordPath?: string;
   sourceAuthority?: JsonRecord;
   sourceAuthorityPath?: string;
+  operator?: string;
+  operatorConfirmation?: string;
 };
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
@@ -342,12 +456,12 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     if (!input.stableAuthorityRun || !input.stableAuthorityRunPath) {
       throw new Error('Stable authority run readback is required for this promotion mode.');
     }
-  } else if (!input.sourceAuthority || !input.sourceAuthorityPath) {
-    throw new Error('Independent Preview promotion requires one exact source authority readback.');
+  } else if (!input.publicationRecord || !input.publicationRecordPath) {
+    throw new Error('Independent Preview promotion requires one exact durable publication record.');
   }
   const carrierExecutorAppSha = sha(input.carrierExecutorAppSha, 'carrier executor App SHA');
   const promotionAppSha = sha(input.promotionAppSha, 'promotion App SHA');
-  const { release, cohort, carrier } = appWebuiCarrier(input.carrierReceipt);
+  const { release, cohort, carrier, repository } = appWebuiCarrier(input.carrierReceipt);
   if (mode !== 'independent_preview') {
     validateStableAuthorityRun(
       input.stableAuthorityRun!,
@@ -356,26 +470,47 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       cohort.app_sha,
     );
   }
+  const durablePublication = mode === 'independent_preview'
+    ? validateIndependentPublicationRecord(
+        input.publicationRecord!,
+        input.publicationRecordPath!,
+        release,
+        cohort,
+        carrier,
+        repository,
+        input.carrierFollowerRunId,
+        carrierExecutorAppSha,
+      )
+    : null;
+  const latestOperatorAuthorization = operatorAuthorization(
+    mode,
+    release.version,
+    input.operator,
+    input.operatorConfirmation,
+  );
   const sourceAuthority = mode === 'independent_preview'
     ? validateIndependentSourceAuthority(
-        input.sourceAuthority!,
-        input.sourceAuthorityPath!,
+        durablePublication!.sourceAuthority,
+        input.publicationRecordPath!,
         release,
         cohort,
         input.carrierFollowerRunId,
         carrierExecutorAppSha,
       )
     : null;
+  const carrierRunAttempt = durablePublication?.publicationRunAttempt ?? 1;
   validateCarrierFollowerRun(
     input.carrierFollowerRun,
     input.carrierFollowerRunId,
     carrierExecutorAppSha,
     mode,
+    carrierRunAttempt,
   );
   validateCarrierFollowerJob(
     input.carrierFollowerJob,
     input.carrierFollowerRunId,
     carrierExecutorAppSha,
+    carrierRunAttempt,
   );
   const promotionCallerWorkflow = validatePromotionExecutorRun(
     input.promotionExecutorRun,
@@ -388,7 +523,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   const immutable = descriptor(input.immutableReadback, carrier.ref, 'immutable readback');
   exact(immutable.status, 'present', 'immutable readback.status');
   exact(immutable.digest, carrier.digest, 'immutable readback.digest');
-  const versionRef = `${webuiRepository}:${release.version}`;
+  const versionRef = `${repository}:${release.version}`;
   const version = descriptor(input.versionReadback, versionRef, 'version readback');
   exact(version.status, 'present', 'version readback.status');
   const versionDigest = digest(version.digest, 'version readback.digest');
@@ -400,8 +535,8 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   ].includes(text(version.media_type, 'version readback.media_type'))) {
     throw new Error('version readback.media_type must be an OCI index or Docker manifest list.');
   }
-  const stableRef = `${webuiRepository}:stable`;
-  const latestRef = `${webuiRepository}:latest`;
+  const stableRef = `${repository}:stable`;
+  const latestRef = `${repository}:latest`;
   const stablePrestate = descriptor(input.stablePrestate, stableRef, 'Stable prestate');
   const latestPrestate = descriptor(input.latestPrestate, latestRef, 'Latest prestate');
   if (stablePrestate.status === 'unknown' || latestPrestate.status === 'unknown') {
@@ -423,8 +558,13 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     version_readback_sha256: fileDigest(input.versionReadbackPath),
     stable_prestate_sha256: fileDigest(input.stablePrestatePath),
     latest_prestate_sha256: fileDigest(input.latestPrestatePath),
-    source_authority_sha256: input.sourceAuthorityPath
-      ? fileDigest(input.sourceAuthorityPath)
+    source_authority_sha256: durablePublication
+      ? record(durablePublication.publication.evidence, 'durable publication evidence').source_authority_sha256
+      : input.sourceAuthorityPath
+        ? fileDigest(input.sourceAuthorityPath)
+        : null,
+    publication_record_sha256: input.publicationRecordPath
+      ? fileDigest(input.publicationRecordPath)
       : null,
   };
   const authority = {
@@ -453,10 +593,11 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       conclusion: input.stableAuthorityRun!.conclusion,
     },
     source_authority: sourceAuthority,
+    operator_authorization: latestOperatorAuthorization,
     carrier_follower: {
       app_repository: appRepository,
       run_id: input.carrierFollowerRunId,
-      run_attempt: 1,
+      run_attempt: carrierRunAttempt,
       carrier_job_id: input.carrierFollowerJob.id,
       carrier_job_name: input.carrierFollowerJob.name,
       app_head_sha: carrierExecutorAppSha,
@@ -485,7 +626,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       framework_sha: cohort.framework_sha,
     },
     target: {
-      repository: webuiRepository,
+      repository,
       immutable_ref: carrier.ref,
       version_ref: versionRef,
       stable_ref: stableRef,
@@ -518,14 +659,56 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   };
 }
 
+function validateWebuiStablePromotionAdmission(value: unknown): JsonRecord {
+  const admission = record(value, 'admission');
+  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v5', 'admission schema');
+  exact(admission.status, 'passed', 'admission status');
+  exact(admission.mutation_admitted, true, 'admission mutation authorization');
+  const mode = authorityMode(admission.authority_mode);
+  const release = record(admission.release, 'admission.release');
+  const latestOperatorAuthorization = operatorAuthorization(
+    mode,
+    text(release.version, 'admission.release.version'),
+    record(admission.operator_authorization ?? {}, 'admission.operator_authorization').actor,
+    mode === 'independent_preview'
+      ? `move-docker-latest:${text(release.version, 'admission.release.version')}`
+      : '',
+  );
+  if (mode === 'independent_preview') {
+    const authorization = record(admission.operator_authorization, 'admission.operator_authorization');
+    exact(
+      authorization.confirmation_digest,
+      latestOperatorAuthorization!.confirmation_digest,
+      'admission.operator_authorization.confirmation_digest',
+    );
+    exact(authorization.source, latestOperatorAuthorization!.source, 'admission.operator_authorization.source');
+    exact(authorization.schema, latestOperatorAuthorization!.schema, 'admission.operator_authorization.schema');
+  } else {
+    exact(admission.operator_authorization, null, 'admission.operator_authorization');
+  }
+  const authority = {
+    authority_mode: admission.authority_mode,
+    classification: admission.classification,
+    stable_authority: admission.stable_authority,
+    source_authority: admission.source_authority,
+    operator_authorization: admission.operator_authorization,
+    carrier_follower: admission.carrier_follower,
+    promotion_executor: admission.promotion_executor,
+    release: admission.release,
+    target: admission.target,
+    expected_prestate: admission.expected_prestate,
+    evidence: admission.evidence,
+  };
+  exact(admission.input_digest, objectDigest(authority), 'admission.input_digest');
+  return admission;
+}
+
 export function decideWebuiStablePromotion(
   admission: JsonRecord,
   currentStableInput: JsonRecord,
   currentLatestInput: JsonRecord,
 ): JsonRecord {
-  exact(admission.schema, 'opl_app_webui_stable_promotion_admission.v5', 'admission schema');
-  exact(admission.status, 'passed', 'admission status');
-  exact(admission.mutation_admitted, true, 'admission mutation authorization');
+  admission = validateWebuiStablePromotionAdmission(admission);
   const mode = authorityMode(admission.authority_mode);
   const target = record(admission.target, 'admission.target');
   if (JSON.stringify(target.promotion_tags) !== JSON.stringify(promotionTags(mode))) {
@@ -602,11 +785,12 @@ export function writeWebuiStablePromotionReceipt(input: {
   anonymousReadback: JsonRecord;
   latestAnonymousReadback: JsonRecord;
 }): JsonRecord {
-  exact(input.admission.schema, 'opl_app_webui_stable_promotion_admission.v5', 'admission schema');
+  const admission = validateWebuiStablePromotionAdmission(input.admission);
   exact(input.decision.schema, 'opl_app_webui_stable_promotion_decision.v2', 'decision schema');
-  const mode = authorityMode(input.admission.authority_mode);
-  const target = record(input.admission.target, 'admission.target');
-  const expected = record(input.admission.expected_prestate, 'admission.expected_prestate');
+  exact(input.decision.admission_input_digest, admission.input_digest, 'decision.admission_input_digest');
+  const mode = authorityMode(admission.authority_mode);
+  const target = record(admission.target, 'admission.target');
+  const expected = record(admission.expected_prestate, 'admission.expected_prestate');
   const expectedStable = record(expected.stable, 'admission.expected_prestate.stable');
   const decision = text(input.decision.decision, 'decision.decision') as PromotionDecision;
   const attemptCount = Number(input.mutation.attempt_count);
@@ -672,18 +856,19 @@ export function writeWebuiStablePromotionReceipt(input: {
     status = 'failed';
   }
   const evidence = {
-    authority_mode: input.admission.authority_mode,
-    classification: input.admission.classification,
-    admission_input_digest: input.admission.input_digest,
+    authority_mode: admission.authority_mode,
+    classification: admission.classification,
+    admission_input_digest: admission.input_digest,
     decision_input_digest: input.decision.input_digest,
-    stable_authority: input.admission.stable_authority,
-    carrier_follower: input.admission.carrier_follower,
-    promotion_executor: input.admission.promotion_executor,
-    release: input.admission.release,
+    stable_authority: admission.stable_authority,
+    operator_authorization: admission.operator_authorization,
+    carrier_follower: admission.carrier_follower,
+    promotion_executor: admission.promotion_executor,
+    release: admission.release,
     target,
     compare_and_swap: {
       decision,
-      expected_prestate: input.admission.expected_prestate,
+      expected_prestate: admission.expected_prestate,
       observed_prestate: input.decision.observed_prestate,
       promotion_tags: promotionTags(mode),
       tag_attempt_count: attemptCount,
@@ -764,7 +949,10 @@ function main(argv: string[]): void {
       'version-readback': { type: 'string' },
       'stable-prestate': { type: 'string' },
       'latest-prestate': { type: 'string' },
+      'publication-record': { type: 'string' },
       'source-authority': { type: 'string' },
+      operator: { type: 'string' },
+      'operator-confirmation': { type: 'string' },
       admission: { type: 'string' },
       decision: { type: 'string' },
       'current-stable': { type: 'string' },
@@ -802,6 +990,9 @@ function main(argv: string[]): void {
     const latestPrestatePath = required(values['latest-prestate'], 'latest-prestate');
     const sourceAuthorityPath = values['source-authority']
       ? required(values['source-authority'], 'source-authority')
+      : undefined;
+    const publicationRecordPath = values['publication-record']
+      ? required(values['publication-record'], 'publication-record')
       : undefined;
     result = admitWebuiStablePromotion({
       authorityMode,
@@ -844,10 +1035,18 @@ function main(argv: string[]): void {
       stablePrestatePath,
       latestPrestate: readJson(latestPrestatePath, 'Latest prestate'),
       latestPrestatePath,
+      publicationRecord: publicationRecordPath
+        ? readJson(publicationRecordPath, 'durable publication record')
+        : undefined,
+      publicationRecordPath,
       sourceAuthority: sourceAuthorityPath
         ? readJson(sourceAuthorityPath, 'WebUI source authority')
         : undefined,
       sourceAuthorityPath,
+      operator: values.operator ? required(values.operator, 'operator') : undefined,
+      operatorConfirmation: values['operator-confirmation']
+        ? required(values['operator-confirmation'], 'operator-confirmation')
+        : undefined,
     });
   } else if (command === 'decide') {
     result = decideWebuiStablePromotion(

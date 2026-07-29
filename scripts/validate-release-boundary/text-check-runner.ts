@@ -136,7 +136,10 @@ function isAuthorizedNativeWebuiWriteJob(
 ): boolean {
   if (
     workflowPath === nativeWebuiFollowerWorkflowPath
-    && jobId === 'native-webui-carrier'
+    && (
+      jobId === 'native-webui-linux-readback'
+      || jobId === 'native-webui-macos-readback'
+    )
   ) {
     return job.uses === './.github/workflows/_release-native-webui-carrier.yml'
       && needsExactly(job, ['resolve-handoff'])
@@ -319,7 +322,7 @@ const stableEntrySpecs = {
   'append-full': {
     operation: 'append_full',
     workflow: './.github/workflows/_release-full-addon.yml',
-    if: "${{ needs.admission.outputs.operation == 'append_full' }}",
+    if: "${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
     needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
@@ -404,11 +407,12 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     }
   }
   if (
-    !String(workflow['run-name'] ?? '').includes('operation:${{ inputs.operation_id }}')
-    || !String(workflow['run-name'] ?? '').includes('authority:${{ inputs.authority_id }}')
+    !String(workflow['run-name'] ?? '').includes("inputs.operation == 'standard'")
+    || !String(workflow['run-name'] ?? '').includes("format('OPL Stable standard operation:{0} authority:{1} run:{2}'")
+    || !String(workflow['run-name'] ?? '').includes("format('OPL Stable {0} {1}', inputs.operation, github.run_id)")
     || authorityInputs.version?.required !== false
   ) {
-    failures += reportFailure(id, 'Stable run identity must expose its pre-issued authority rather than a self-issued run nonce');
+    failures += reportFailure(id, 'Stable run identity must retain Standard authority binding while recovery operations remain follower-compatible');
   }
 
   const expectedJobs = [
@@ -708,6 +712,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'seal-standard-identity',
     'checkpoint-standard',
     'prepare-native-webui',
+    'prepare-native-webui-macos',
     'publish-standard',
   ])) {
     failures += reportFailure(id, 'Bundle jobs must contain Standard publication plus pre-publication Native qualification');
@@ -770,21 +775,33 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     './.github/workflows/_release-native-webui-carrier.yml',
     exactReadPermissions,
   );
+  failures += validateReusableCall(
+    id,
+    bundleJobs,
+    'prepare-native-webui-macos',
+    './.github/workflows/_release-native-webui-carrier.yml',
+    exactReadPermissions,
+  );
   if (
     !needsExactly(bundleJobs['prepare-native-webui'], ['freeze'])
+    || !needsExactly(bundleJobs['prepare-native-webui-macos'], ['freeze'])
     || !needsExactly(bundleJobs['checkpoint-standard'], [
       'admission',
       'freeze',
       'seal-standard-identity',
       'prepare-native-webui',
+      'prepare-native-webui-macos',
     ])
     || !needsExactly(bundleJobs['publish-standard'], [
       'freeze',
       'checkpoint-standard',
       'prepare-native-webui',
+      'prepare-native-webui-macos',
     ])
     || bundleJobs['publish-standard']?.with?.qualified_native_artifact_name !==
       "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}"
+    || bundleJobs['publish-standard']?.with?.qualified_native_macos_artifact_name !==
+      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || '' }}"
     || bundleJobs['publish-standard']?.with?.qualified_native_source_run_id !==
       "${{ (inputs.publication_channel || inputs.channel) == 'stable' && github.run_id || '' }}"
   ) {
@@ -845,6 +862,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'carrier_follower_run_id',
     'carrier_executor_ref',
     'carrier_artifact_name',
+    'publication_record_ref',
+    'operator_confirmation',
   ])) {
     failures += reportFailure(id, 'WebUI Stable reusable must accept only exact follower identities');
   }
@@ -1095,7 +1114,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl-release-activation-${SOURCE_RUN_ID}',
     'opl-release-full-published-${SOURCE_RUN_ID}',
     'write-optional-certification-receipt.ts',
-    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}',
     'GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api',
     'actions/runners?per_page=100',
     "runner.status === 'online' && runner.busy === false",
@@ -1228,17 +1247,23 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     || JSON.stringify(followerTriggers.workflow_run?.workflows) !== JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify(['resolve-handoff', 'native-webui-carrier'])
+    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify([
+      'resolve-handoff',
+      'native-webui-linux-readback',
+      'native-webui-macos-readback',
+    ])
   ) {
     failures += reportFailure(id, 'Native WebUI follower must be one automatic read-default Stable workflow_run lane');
   }
-  const followerCarrier = followerJobs['native-webui-carrier'];
-  if (!followerCarrier || !isAuthorizedNativeWebuiWriteJob(
-    nativeWebuiFollowerWorkflowPath,
-    'native-webui-carrier',
-    followerCarrier,
-  )) {
-    failures += reportFailure(id, 'Native WebUI follower must delegate only the exact resolved handoff to its reusable carrier');
+  for (const jobId of ['native-webui-linux-readback', 'native-webui-macos-readback']) {
+    const followerCarrier = followerJobs[jobId];
+    if (!followerCarrier || !isAuthorizedNativeWebuiWriteJob(
+      nativeWebuiFollowerWorkflowPath,
+      jobId,
+      followerCarrier,
+    )) {
+      failures += reportFailure(id, `Native WebUI follower ${jobId} must delegate only the exact resolved handoff to its reusable carrier`);
+    }
   }
   for (const required of [
     '.path == ".github/workflows/release-stable.yml"',
@@ -1246,6 +1271,8 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'webui-follower-handoff.json',
     'opl_standard_latest_admission_receipt.v1',
     'framework_terminal_status == "complete"',
+    'linux_publication_artifact',
+    'macos_publication_artifact',
   ]) {
     if (!follower.text.includes(required)) failures += reportFailure(id, `Native follower is missing ${required}`);
   }
@@ -1264,6 +1291,8 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       'shell_ref',
       'framework_ref',
       'opl_version',
+      'target_platform',
+      'target_architecture',
       'release_bundle_digest',
       'source_run_id',
       'source_artifact',
@@ -1309,6 +1338,7 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'user-sentinel.txt',
     'project-sentinel.txt',
     'release-native-webui-carrier.ts readback',
+    'native-webui-qualified-${{ inputs.opl_version }}-${{ inputs.target_platform }}-${{ inputs.target_architecture }}-',
     'restore-release-checkpoint',
     '--publication-scope external_target',
     'prior_mutation_attempt_id',
@@ -1815,6 +1845,8 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         'carrier_follower_run_id',
         'carrier_executor_ref',
         'carrier_artifact_name',
+        'publication_record_ref',
+        'operator_confirmation',
       ].sort();
       if (!exactObject(callee.workflow.permissions, exactReadPermissions) ||
           !admission || admission.if !== "${{ inputs.mode == 'execute' }}" ||
@@ -2109,9 +2141,9 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
         && job.with?.mode === 'execute'
         && job.with?.authority_mode === 'independent_preview'
-        && job.with?.carrier_follower_run_id === '${{ inputs.carrier_follower_run_id }}'
-        && job.with?.carrier_executor_ref === '${{ inputs.carrier_executor_ref }}'
-        && job.with?.carrier_artifact_name === '${{ inputs.carrier_artifact_name }}'
+        && job.with?.publication_record_ref === '${{ inputs.publication_record_ref }}'
+        && job.with?.operator_confirmation === '${{ inputs.operator_confirmation }}'
+        && Object.keys(job.with ?? {}).length === 4
         && steps.length === 0
       ) {
         continue;
@@ -2218,16 +2250,14 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   const promotionWorkflow = promotion.workflow;
   const promotionJobs = workflowJobs(promotionWorkflow);
   const expectedPromotionInputs = [
-    'carrier_follower_run_id',
-    'carrier_executor_ref',
-    'carrier_artifact_name',
+    'publication_record_ref',
+    'operator_confirmation',
   ].sort();
   const expectedPromotionWith = {
     mode: 'execute',
     authority_mode: 'independent_preview',
-    carrier_follower_run_id: '${{ inputs.carrier_follower_run_id }}',
-    carrier_executor_ref: '${{ inputs.carrier_executor_ref }}',
-    carrier_artifact_name: '${{ inputs.carrier_artifact_name }}',
+    publication_record_ref: '${{ inputs.publication_record_ref }}',
+    operator_confirmation: '${{ inputs.operator_confirmation }}',
   };
   const latestWriter = promotionJobs['promote-webui-latest'];
   if (

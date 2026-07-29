@@ -1,5 +1,5 @@
 name: OPL Stable Release Bundle
-run-name: OPL Stable ${{ inputs.operation }} operation:${{ inputs.operation_id }} authority:${{ inputs.authority_id }} run:${{ github.run_id }}
+run-name: "${{ inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
 
 on:
   workflow_dispatch:
@@ -250,6 +250,7 @@ jobs:
             'scripts/framework-release-adapter.ts',
             'scripts/release-dispatch-guard.ts',
             'scripts/stable-operation-control.ts',
+            'scripts/stable-operation-publication-record.ts',
             'scripts/stable-release-admission-manifest.ts',
             'scripts/validate-release-source-gate.ts',
           ];
@@ -318,6 +319,7 @@ jobs:
       source_run_id: ${{ steps.admission.outputs.source_run_id }}
       source_artifact: ${{ steps.admission.outputs.source_artifact }}
       qualified_native_artifact_name: ${{ steps.resume-native-carrier.outputs.qualified_native_artifact_name }}
+      qualified_native_macos_artifact_name: ${{ steps.resume-native-carrier.outputs.qualified_native_macos_artifact_name }}
       qualified_native_source_run_id: ${{ steps.resume-native-carrier.outputs.qualified_native_source_run_id }}
       operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
@@ -438,24 +440,32 @@ jobs:
           while IFS= read -r item; do controls+=("$item"); done < <(
             find resume-standard-carrier -type f -name stable-operation-control.json -print | LC_ALL=C sort
           )
-          test "${#prepare_statuses[@]}" -eq 1
-          test "${#manifests[@]}" -eq 1
+          test "${#prepare_statuses[@]}" -eq 2
+          test "${#manifests[@]}" -eq 2
           test "${#controls[@]}" -eq 1
-          artifact_name="$(jq -er '
-            select(.schema == "opl_app_native_webui_prepare_status.v1" and .status == "qualified")
-            | .qualified_artifact_name
-            | strings
-            | select(test("^native-webui-qualified-[A-Za-z0-9._-]+$"))
-          ' "${prepare_statuses[0]}")"
           native_origin_run_id="$(jq -er '
             .run_id | strings | select(test("^[1-9][0-9]*$"))
           ' "${controls[0]}")"
-          manifest_origin_run_id="$(jq -er '
-            .stable_authority_run_id | tostring | select(test("^[1-9][0-9]*$"))
-          ' "${manifests[0]}")"
-          test "$manifest_origin_run_id" = "$native_origin_run_id"
+          for target in linux-x86_64 darwin-arm64; do
+            manifest="$(find resume-standard-carrier -type f -path "*/native-qualified/$target/publication-manifest.json" -print | LC_ALL=C sort)"
+            status="$(find resume-standard-carrier -type f -path "*/native-qualified/$target/prepare-status.json" -print | LC_ALL=C sort)"
+            test -s "$manifest" && test -s "$status"
+            manifest_origin_run_id="$(jq -er '
+              .stable_authority_run_id | tostring | select(test("^[1-9][0-9]*$"))
+            ' "$manifest")"
+            test "$manifest_origin_run_id" = "$native_origin_run_id"
+            artifact_name="$(jq -er '
+              select(.schema == "opl_app_native_webui_prepare_status.v1" and .status == "qualified")
+              | .qualified_artifact_name
+              | strings
+              | select(test("^native-webui-qualified-[A-Za-z0-9._-]+$"))
+            ' "$status")"
+            case "$target" in
+              linux-x86_64) echo "qualified_native_artifact_name=$artifact_name" ;;
+              darwin-arm64) echo "qualified_native_macos_artifact_name=$artifact_name" ;;
+            esac
+          done >> "$GITHUB_OUTPUT"
           {
-            echo "qualified_native_artifact_name=$artifact_name"
             echo "qualified_native_source_run_id=$native_origin_run_id"
           } >> "$GITHUB_OUTPUT"
 
@@ -565,12 +575,14 @@ jobs:
           process.stdout.write(`${values.year}.${values.month}.${values.day}`);
           NODE
           )"
+          echo "source_gate_path=$source_gate_path" >> "$GITHUB_OUTPUT"
           node --experimental-strip-types scripts/stable-release-admission-manifest.ts create \
             --base-version "$base_version" \
             --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
             --admission-run-id "$GITHUB_RUN_ID" \
             --source-gate "$source_gate_path" \
             --credential-receipt "$RUNNER_TEMP/apple-release-credentials-preflight.json" \
+            --failure-output "$RUNNER_TEMP/stable-release-admission-failure.json" \
             --output "$RUNNER_TEMP/stable-release-admission-manifest.json"
           node - "$RUNNER_TEMP/stable-release-admission-manifest.json" "$GITHUB_OUTPUT" <<'NODE'
           const fs = require('fs');
@@ -583,7 +595,6 @@ jobs:
             '',
           ].join('\n'));
           NODE
-          echo "source_gate_path=$source_gate_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload same-run protected admission evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -593,6 +604,38 @@ jobs:
             ${{ runner.temp }}/stable-release-admission-manifest.json
             ${{ runner.temp }}/apple-release-credentials-preflight.json
             ${{ steps.manifest.outputs.source_gate_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Validate typed Stable admission failure evidence
+        if: ${{ failure() && steps.manifest.outcome == 'failure' }}
+        env:
+          APP_REF: ${{ needs.admission.outputs.app_ref }}
+          SHELL_REF: ${{ needs.admission.outputs.shell_ref }}
+          FRAMEWORK_REF: ${{ needs.admission.outputs.framework_ref }}
+        run: |
+          jq -e \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg app_ref "$APP_REF" \
+            --arg shell_ref "$SHELL_REF" \
+            --arg framework_ref "$FRAMEWORK_REF" \
+            '.schema == "opl_stable_release_admission_failure.v1"
+              and .status == "failed"
+              and .admission_run_id == $run_id
+              and .cohort.app_sha == $app_ref
+              and .cohort.shell_sha == $shell_ref
+              and .cohort.framework_sha == $framework_ref
+              and .public_mutation_performed == false
+              and .old_authority_or_run_reusable == false
+              and .retry_disposition == "repair_then_new_distinct_operation"' \
+            "$RUNNER_TEMP/stable-release-admission-failure.json"
+
+      - name: Upload typed Stable admission failure evidence
+        if: ${{ failure() && steps.manifest.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-stable-admission-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/stable-release-admission-failure.json
           if-no-files-found: error
           retention-days: 30
 
@@ -634,11 +677,12 @@ jobs:
       source_artifact: ${{ needs.admission.outputs.source_artifact }}
       framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
       qualified_native_artifact_name: ${{ needs.admission.outputs.qualified_native_artifact_name }}
+      qualified_native_macos_artifact_name: ${{ needs.admission.outputs.qualified_native_macos_artifact_name }}
       qualified_native_source_run_id: ${{ needs.admission.outputs.qualified_native_source_run_id }}
     secrets: inherit
 
   append-full:
-    if: ${{ needs.admission.outputs.operation == 'append_full' }}
+    if: ${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}
     needs: [admission]
     permissions:
       contents: write
