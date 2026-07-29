@@ -297,7 +297,7 @@ test('AionUI stable receipt validator fails closed on schema, policy, digest, an
       mutate: (receipt) => { receipt.managed_runtime.managed_resources_manifest_sha256 = 'bad'; },
     },
     {
-      error: /legacy managed Codex ACP/,
+      error: /managed_runtime\.codex_acp is forbidden/,
       mutate: (receipt) => { receipt.managed_runtime.codex_acp = {}; },
     },
     {
