@@ -224,6 +224,28 @@ test('GUI design-system validator rejects a missing or reordered visual scene', 
   );
 });
 
+test('GUI design-system validator requires the exact Updates browser route without fallback', () => {
+  for (const route of [
+    '/settings/environment?section=maintenance',
+    '/settings/environment',
+  ]) {
+    const root = createFixture();
+    const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
+    const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8'));
+    const scene = cohort.scene_matrix.find(
+      (entry: { id?: string }) => entry.id === 'settings-maintenance-desktop-dark-zh',
+    );
+    assert.equal(scene.route, '/settings/environment?section=updates');
+    scene.route = route;
+    writeJson(root, 'contracts/app-gui-visual-reference-cohort.json', cohort);
+
+    assert.throws(
+      () => validateGuiDesignSystem(root),
+      /must remain settings-maintenance-desktop-dark-zh with exact binding fields/,
+    );
+  }
+});
+
 test('GUI design-system validator rejects visual evidence ownership drifting into source ownership', () => {
   const root = createFixture();
   const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');

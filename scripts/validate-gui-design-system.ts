@@ -200,7 +200,7 @@ const expectedVisualReferenceScenes = [
     'desktop',
     'dark',
     'zh-CN',
-    '/settings/environment?section=maintenance',
+    '/settings/environment?section=updates',
     'default',
   ],
   [
