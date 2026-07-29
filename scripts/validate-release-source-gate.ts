@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
+import { ensureActiveShellCheckout, isGitCheckout } from './active-shell-checkout.ts';
 import { parseStrictBoolean } from './release-readiness-args.ts';
 
 const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -64,7 +65,8 @@ type CommandOptions = {
 export type CommandRunner = (command: string, args: string[], options: CommandOptions) => CommandResult;
 
 export type ReleaseSourceGateOptions = {
-  version: string;
+  version: string | null;
+  operationFingerprint: string | null;
   expectedAppHead: string;
   shellRef: string;
   frameworkRef: string;
@@ -105,7 +107,8 @@ type SourceGateBlocker = {
 };
 
 type ImmutableCohortIdentity = {
-  version: string;
+  version: string | null;
+  operation_fingerprint: string | null;
   app_sha: string;
   shell_sha: string;
   framework_sha: string;
@@ -116,7 +119,8 @@ export type ReleaseSourceGateReport = {
   generated_at: string;
   status: 'passed' | 'failed';
   repo_root: string;
-  version: string;
+  version: string | null;
+  operation_fingerprint: string | null;
   expected_app_head: string;
   app_head: string | null;
   shell_ref: string;
@@ -142,6 +146,7 @@ export type ReleaseSourceGateEnvironment = {
   pathExists?: (candidatePath: string) => boolean;
   readJson?: (candidatePath: string) => unknown;
   variables?: NodeJS.ProcessEnv;
+  preparationFailure?: string;
 };
 
 function usage(): void {
@@ -150,6 +155,7 @@ function usage(): void {
 
 Options:
   --version <version>              Release version for the candidate cohort.
+  --operation-fingerprint <value>  Version-independent admitted operation identity.
   --app-ref <sha>                  Expected App repository HEAD commit.
   --expected-app-head <sha>        Alias for --app-ref.
   --shell-ref <ref>                Active shell ref to resolve in shells/aionui. Default: main.
@@ -167,7 +173,8 @@ Options:
 
 function defaultOptions(): ReleaseSourceGateOptions {
   return {
-    version: process.env.OPL_RELEASE_VERSION || '',
+    version: process.env.OPL_RELEASE_VERSION || null,
+    operationFingerprint: process.env.OPL_RELEASE_OPERATION_FINGERPRINT || null,
     expectedAppHead: process.env.OPL_EXPECTED_APP_HEAD || process.env.GITHUB_SHA || '',
     shellRef: process.env.OPL_SHELL_REF || 'main',
     frameworkRef: process.env.OPL_FRAMEWORK_REF || 'main',
@@ -188,6 +195,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
     tokens: true,
     options: {
       version: { type: 'string' },
+      'operation-fingerprint': { type: 'string' },
       'app-ref': { type: 'string' },
       'expected-app-head': { type: 'string' },
       'shell-ref': { type: 'string' },
@@ -207,6 +215,7 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
     process.exit(0);
   }
   parsed.version = values.version ?? parsed.version;
+  parsed.operationFingerprint = values['operation-fingerprint'] ?? parsed.operationFingerprint;
   const expectedAppHeadToken = tokens
     .filter((token) => token.kind === 'option' && (token.name === 'app-ref' || token.name === 'expected-app-head'))
     .at(-1);
@@ -225,7 +234,20 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
   parsed.output = values.output ?? parsed.output;
   parsed.json = values.json ?? parsed.json;
 
-  if (!parsed.version.trim()) throw new Error('Pass --version <version> or set OPL_RELEASE_VERSION.');
+  if (
+    (!parsed.version || !parsed.version.trim())
+    && (!parsed.operationFingerprint || !parsed.operationFingerprint.trim())
+  ) {
+    throw new Error('Pass --version <version> or --operation-fingerprint <value>.');
+  }
+  if (parsed.version && !parsed.version.trim()) parsed.version = null;
+  if (parsed.operationFingerprint && !parsed.operationFingerprint.trim()) parsed.operationFingerprint = null;
+  if (
+    parsed.operationFingerprint
+    && !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/.test(parsed.operationFingerprint)
+  ) {
+    throw new Error('operation-fingerprint is not canonical.');
+  }
   if (!parsed.expectedAppHead.trim()) {
     throw new Error('Pass --app-ref <sha>/--expected-app-head <sha> or set OPL_EXPECTED_APP_HEAD/GITHUB_SHA.');
   }
@@ -233,6 +255,8 @@ export function parseReleaseSourceGateArgs(argv: string[]): ReleaseSourceGateOpt
   if (!parsed.frameworkRef.trim()) throw new Error('Pass --framework-ref <ref> or set OPL_FRAMEWORK_REF.');
   return {
     ...parsed,
+    version: parsed.version,
+    operationFingerprint: parsed.operationFingerprint,
     repoRoot: path.resolve(parsed.repoRoot),
     shellRoot: path.resolve(parsed.shellRoot),
     frameworkRoot: path.resolve(parsed.frameworkRoot),
@@ -311,7 +335,10 @@ function buildCommandEnvironment(source: NodeJS.ProcessEnv, options: ReleaseSour
   for (const [name, value] of Object.entries(source)) {
     if (value !== undefined && commandEnvironmentAllowlist.has(name)) commandEnvironment[name] = value;
   }
-  commandEnvironment.OPL_RELEASE_VERSION = options.version;
+  if (options.version !== null) commandEnvironment.OPL_RELEASE_VERSION = options.version;
+  if (options.operationFingerprint !== null) {
+    commandEnvironment.OPL_RELEASE_OPERATION_FINGERPRINT = options.operationFingerprint;
+  }
   commandEnvironment.OPL_EXPECTED_APP_HEAD = options.expectedAppHead;
   commandEnvironment.OPL_SHELL_ROOT = options.shellRoot;
   commandEnvironment.OPL_APP_SHELL_ROOT = options.shellRoot;
@@ -329,7 +356,6 @@ function releaseEnvironmentProblems(source: NodeJS.ProcessEnv, options: ReleaseS
     .filter((name) => typeof source[name] === 'string' && source[name]!.trim())
     .map((name) => `${name} must be unset`);
   const exactBindings: Array<[string, string]> = [
-    ['OPL_RELEASE_VERSION', options.version],
     ['OPL_EXPECTED_APP_HEAD', options.expectedAppHead],
     ['OPL_SHELL_REF', options.shellRef],
     ['OPL_FRAMEWORK_REF', options.frameworkRef],
@@ -340,6 +366,16 @@ function releaseEnvironmentProblems(source: NodeJS.ProcessEnv, options: ReleaseS
     ['OPL_REQUIRE_SHELL_FORMAT', String(options.requireShellFormat)],
     ['OPL_RELEASE_SOURCE_GATE_RUN_SHELL_TESTS', String(options.runShellTests)],
   ];
+  if (options.version !== null) {
+    exactBindings.push(['OPL_RELEASE_VERSION', options.version]);
+  } else if (source.OPL_RELEASE_VERSION !== undefined) {
+    problems.push('OPL_RELEASE_VERSION must be unset for a versionless operation.');
+  }
+  if (options.operationFingerprint !== null) {
+    exactBindings.push(['OPL_RELEASE_OPERATION_FINGERPRINT', options.operationFingerprint]);
+  } else if (source.OPL_RELEASE_OPERATION_FINGERPRINT !== undefined) {
+    problems.push('OPL_RELEASE_OPERATION_FINGERPRINT must be unset when no operation fingerprint is admitted.');
+  }
   for (const [name, expected] of exactBindings) {
     const actual = source[name];
     if (actual !== undefined && actual !== expected) problems.push(`${name} conflicts with the admitted option`);
@@ -470,6 +506,7 @@ export function buildReleaseSourceGateReport(
     const immutableCohort = admissionFailedCheckIds.length === 0 && appHead && shellSha && frameworkSha
       ? {
           version: options.version,
+          operation_fingerprint: options.operationFingerprint,
           app_sha: normalizedSha(appHead),
           shell_sha: shellSha,
           framework_sha: frameworkSha,
@@ -481,6 +518,7 @@ export function buildReleaseSourceGateReport(
       status: checks.every((check) => check.status === 'passed') ? 'passed' : 'failed',
       repo_root: options.repoRoot,
       version: options.version,
+      operation_fingerprint: options.operationFingerprint,
       expected_app_head: options.expectedAppHead,
       app_head: appHead || null,
       shell_ref: options.shellRef,
@@ -520,6 +558,15 @@ export function buildReleaseSourceGateReport(
       : `Release environment is not admissible: ${environmentProblems.join('; ')}.`,
     actual: environmentProblems.length > 0 ? environmentProblems.join(', ') : undefined,
   });
+  const preparationFailure = environment.preparationFailure?.trim() || '';
+  if (preparationFailure) {
+    addCheck(checks, {
+      id: 'active_shell_checkout_preparation',
+      status: 'failed',
+      message: `Active shell checkout preparation failed before source-gate admission. ${preparationFailure}`,
+      actual: preparationFailure,
+    });
+  }
 
   const repoRootResult = runner('git', ['rev-parse', '--show-toplevel'], { cwd: options.repoRoot, env: commandEnvironment });
   const resolvedRepoRoot = repoRootResult.status === 0 ? firstLine(repoRootResult.stdout) : '';
@@ -594,15 +641,21 @@ export function buildReleaseSourceGateReport(
     command: commandText('git', ['ls-remote', '--heads', 'origin', 'refs/heads/main']),
   });
   addCheck(checks, {
-    id: 'app_current_main_identity',
-    status: remoteMainSha !== null && sameSha(appHead, remoteMainSha) && sameSha(options.expectedAppHead, remoteMainSha)
-      ? 'passed'
-      : 'failed',
-    message: remoteMainSha !== null && sameSha(appHead, remoteMainSha) && sameSha(options.expectedAppHead, remoteMainSha)
-      ? 'Local App HEAD, expected App commit, and live origin/main are the same immutable commit.'
-      : 'Stable admission requires local App HEAD and expected App commit to exactly equal live origin/main.',
+    id: 'app_frozen_commit_reachable',
+    status: (
+      remoteMainSha !== null
+      && isFullSha(options.expectedAppHead)
+      && runner('git', ['merge-base', '--is-ancestor', options.expectedAppHead, remoteMainSha], {
+        cwd: options.repoRoot,
+        env: commandEnvironment,
+      }).status === 0
+    ) ? 'passed' : 'failed',
+    message: remoteMainSha !== null
+      ? 'The frozen App commit remains reachable from live origin/main; live head advancement does not invalidate the admitted cohort.'
+      : 'Stable admission requires a resolvable live origin/main to prove frozen commit reachability.',
     expected: remoteMainSha ?? 'live origin/main',
-    actual: `${appHead || '(unresolved)'} / ${options.expectedAppHead}`,
+    actual: options.expectedAppHead,
+    command: commandText('git', ['merge-base', '--is-ancestor', options.expectedAppHead, remoteMainSha ?? 'origin/main']),
   });
 
   const appStatusResult = runner('git', ['status', '--porcelain', '--untracked-files=normal'], {
@@ -628,12 +681,27 @@ export function buildReleaseSourceGateReport(
       message: `Active shell checkout is missing at ${shellRoot}.`,
     });
   } else {
+    const shellTopLevelResult = runner('git', ['rev-parse', '--show-toplevel'], {
+      cwd: shellRoot,
+      env: commandEnvironment,
+    });
+    const shellTopLevel = shellTopLevelResult.status === 0 ? firstLine(shellTopLevelResult.stdout) : '';
+    const standaloneShellCheckout = Boolean(
+      shellTopLevel && canonicalPath(shellTopLevel) === canonicalPath(shellRoot),
+    );
     addCheck(checks, {
       id: 'active_shell_checkout',
-      status: 'passed',
-      message: `Active shell checkout exists at ${shellRoot}.`,
+      status: standaloneShellCheckout ? 'passed' : 'failed',
+      message: standaloneShellCheckout
+        ? `Active shell checkout is a standalone Git checkout at ${shellRoot}.`
+        : `Active shell root ${shellRoot} must be a standalone Git checkout; archive snapshots are valid only for isolated consumer projections.${commandDetail(shellTopLevelResult) ? ` ${commandDetail(shellTopLevelResult)}` : ''}`,
+      expected: canonicalPath(shellRoot),
+      actual: shellTopLevel || undefined,
+      command: commandText('git', ['rev-parse', '--show-toplevel']),
     });
-    shellSha = resolveGitRef(shellRoot, options.shellRef, runner, commandEnvironment);
+    shellSha = standaloneShellCheckout
+      ? resolveGitRef(shellRoot, options.shellRef, runner, commandEnvironment)
+      : null;
     addCheck(checks, {
       id: 'active_shell_ref_resolved',
       status: shellSha ? 'passed' : 'failed',
@@ -644,7 +712,9 @@ export function buildReleaseSourceGateReport(
       actual: shellSha ?? undefined,
       command: commandText('git', ['rev-parse', '--verify', '--quiet', `${options.shellRef}^{commit}`]),
     });
-    const shellHeadResult = runner('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, env: commandEnvironment });
+    const shellHeadResult = standaloneShellCheckout
+      ? runner('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, env: commandEnvironment })
+      : { status: 1, stdout: '', stderr: 'active shell root is not a standalone Git checkout' };
     const shellHead = shellHeadResult.status === 0 ? firstLine(shellHeadResult.stdout) : '';
     addCheck(checks, {
       id: 'active_shell_checkout_identity',
@@ -774,7 +844,9 @@ export function buildReleaseSourceGateReport(
     .filter((check) => check.status !== 'passed')
     .map((check) => check.id);
   if (admissionFailedCheckIds.length > 0) {
-    const blockedReason = 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
+    const blockedReason = preparationFailure
+      ? `Active shell checkout preparation failed before source-gate admission: ${preparationFailure} Required source gates were not run; repair preparation and admit a new immutable cohort.`
+      : 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
     blockRequiredGate('app_release_boundary_contract', blockedReason);
     blockRequiredGate('shell_product_profile_consumer', blockedReason);
     blockRequiredGate('active_shell_format_check', blockedReason);
@@ -914,6 +986,27 @@ export function writeReleaseSourceGateReport(options: ReleaseSourceGateOptions, 
   fs.writeFileSync(options.output, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
+export function prepareReleaseSourceShell(
+  options: ReleaseSourceGateOptions,
+  sourceEnvironment: NodeJS.ProcessEnv = process.env,
+): void {
+  // Reject ambient Git selectors before even probing an existing checkout.
+  if (releaseEnvironmentProblems(sourceEnvironment, options).length > 0) return;
+  // Preserve an existing non-Git projection so the source-gate report can reject it with typed evidence.
+  if (fs.existsSync(options.shellRoot) && !isGitCheckout(options.shellRoot)) return;
+  const commandEnvironment = buildCommandEnvironment(sourceEnvironment, options);
+  ensureActiveShellCheckout({
+    shellRoot: options.shellRoot,
+    repo: sourceEnvironment.OPL_APP_SHELL_REPO || 'git@github.com:gaofeng21cn/opl-aion-shell.git',
+    ref: options.shellRef,
+    alignRef: true,
+    runner: (command, args, commandOptions = {}) => run(command, args, {
+      cwd: commandOptions.cwd || defaultRepoRoot,
+      env: commandEnvironment,
+    }),
+  });
+}
+
 function isMainModule(): boolean {
   return import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
 }
@@ -921,7 +1014,18 @@ function isMainModule(): boolean {
 if (isMainModule()) {
   try {
     const options = parseReleaseSourceGateArgs(process.argv.slice(2));
-    const report = buildReleaseSourceGateReport(options);
+    let preparationFailure: string | undefined;
+    try {
+      prepareReleaseSourceShell(options);
+    } catch (error) {
+      preparationFailure = error instanceof Error ? error.message : String(error);
+    }
+    const report = buildReleaseSourceGateReport(
+      options,
+      run,
+      undefined,
+      preparationFailure ? { preparationFailure } : {},
+    );
     writeReleaseSourceGateReport(options, report);
     if (options.json) {
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

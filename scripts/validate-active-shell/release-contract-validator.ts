@@ -62,6 +62,26 @@ const standardLatestAdmissionContract = {
   },
   failure_mode: 'fail_closed_before_latest_patch',
 };
+const standardPrePublicationAdmissionContract = {
+  validator: 'scripts/validate-standard-publication-input.ts',
+  receipt_schema: 'opl_standard_pre_publication_admission_receipt.v1',
+  required_status: 'passed',
+  runs_before: 'publish-standard-nonlatest',
+  checks: [
+    'exact_component_manifest_identity_and_self_digest',
+    'exact_staged_standard_asset_set',
+    'staged_asset_digest_and_size_binding',
+    'regular_local_asset_presence_and_digest_readback',
+  ],
+  public_mutation_allowed: false,
+  does_not_replace: [
+    'remote_digest_readback',
+    'standard_homebrew_digest_bound_publication',
+    'standard_homebrew_publication_readback',
+    'latest_admission',
+  ],
+  failure_mode: 'fail_closed_before_public_release_creation',
+};
 const publisherReconcileAdmissionContract = {
   persistent_unknown_framework_receipt_required: true,
   unknown_marker_schema: 'opl_release_bundle_unknown_outcome.v1',
@@ -190,6 +210,7 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateProviderConfigurationBoundary(releaseChannel.provider_configuration_boundary);
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateStandardUpdater(releaseChannel.standard_updater);
+  validateDistributionSemantics(releaseChannel.distribution_semantics);
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
@@ -197,6 +218,97 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateOptionalCertificationPolicy(releaseChannel);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateDistributionSemantics(semantics) {
+  const latest = semantics?.latest_policy;
+  const selector = latest?.durable_publication_record_selector;
+  const dockerOverride = latest?.docker_manual_override;
+  if (
+    latest?.default_automatic_writer !== 'newest_qualified_stable'
+    || latest?.default_behavior !==
+      'each_carrier_advances_its_own_latest_pointer_when_that_carrier_publishes_a_new_qualified_stable'
+    || latest?.automatic_preview_or_nightly_writer_may_move_latest !== false
+    || latest?.explicit_user_override?.target !== 'any_exact_published_version'
+    || latest?.explicit_user_override?.authority !== 'protected_single_use'
+    || latest?.explicit_user_override?.compare_and_swap !== 'exact_expected_current'
+    || latest?.explicit_user_override?.public_readback !== 'exact_tag_digest_quality_and_disclosure'
+    || latest?.explicit_user_override?.quality_unchanged !== true
+    || latest?.explicit_user_override?.persistent_override !== false
+    || latest?.explicit_user_override
+      ?.non_stable_and_skipped_or_failed_gate_disclosure_required_for_preview_only !== true
+    || latest?.explicit_user_override?.stable_candidate_requires_stable_qualification_disclosure !== true
+    || latest?.move_latest_pointer?.target !== 'any_exact_published_version'
+    || latest?.move_latest_pointer?.changes_quality !== false
+    || latest?.move_latest_pointer?.explicit_user_override_required !== true
+    || latest?.move_latest_pointer?.stable_or_preview_candidate_allowed !== true
+    || latest?.next_qualified_stable_reclaims_pointer !== true
+    || latest?.latest_pointer_does_not_define_highest_published_stable !== true
+    || latest?.failure_preserves_current_latest_lkg !== true
+    || selector?.selector !== 'carrier_owned_durable_publication_record'
+    || selector?.candidate_target !== 'retained_immutable_verified_published_version'
+    || selector?.actions_artifact?.selection_authority !== false
+    || selector?.actions_artifact?.expiry_or_retention_may_change_selection_eligibility !== false
+    || selector?.actions_artifact?.allowed_role !== 'transient_prepublication_transport_or_diagnostic_evidence_only'
+    || selector?.retention?.selection_eligible_state !== 'retained_not_retired_or_revoked'
+    || selector?.retention?.record_must_remain_readable_until_retired !== true
+    || selector?.retention?.retired_or_revoked_record_selectable !== false
+    || dockerOverride?.target !== 'retained_immutable_verified_published_version'
+    || dockerOverride?.requires_explicit_user_confirmation !== true
+    || dockerOverride?.operator_confirmation?.source !== 'workflow_dispatch_exact_version_confirmation'
+    || dockerOverride?.operator_confirmation?.expected_value !== 'move-docker-latest:<exact_version>'
+    || dockerOverride?.operator_confirmation?.actor !== 'github_human_login'
+    || dockerOverride?.operator_confirmation?.digest_bound_into_terminal_receipt !== true
+    || dockerOverride?.selector !== 'carrier_owned_durable_publication_record'
+    || dockerOverride?.compare_and_swap !== 'exact_expected_current'
+    || dockerOverride?.fresh_public_readback_required !== true
+  ) {
+    throw new Error('Distribution Latest semantics must keep carrier pointers independent from Stable quality while requiring exact explicit overrides');
+  }
+  assertDeepEqualJson(
+    selector.candidate_record_must_bind,
+    [
+      'carrier_namespace',
+      'exact_version_or_tag',
+      'immutable_artifact_or_image_digest',
+      'quality_status_and_preview_kind',
+      'qualification_disclosure',
+      'public_readback',
+    ],
+    'Durable publication record selector bindings',
+  );
+  assertDeepEqualJson(
+    selector.evidence_requirements,
+    {
+      stable: ['stable_qualification', 'exact_immutable_digest', 'carrier_public_readback'],
+      preview: [
+        'exact_immutable_digest',
+        'carrier_public_readback',
+        'non_stable_and_skipped_or_failed_gate_disclosure',
+      ],
+    },
+    'Durable publication record evidence requirements',
+  );
+  assertDeepEqualJson(
+    dockerOverride.mutation_scope,
+    ['container_webui.latest'],
+    'Docker manual override mutation scope',
+  );
+  assertDeepEqualJson(
+    dockerOverride.must_not_mutate,
+    ['container_webui.stable', 'desktop.latest'],
+    'Docker manual override protected pointers',
+  );
+  assertDeepEqualJson(
+    latest.explicit_user_override.quality_statuses,
+    ['stable', 'preview'],
+    'Latest explicit override quality statuses',
+  );
+  assertDeepEqualJson(
+    latest.explicit_user_override.preview_kinds,
+    ['dev', 'nightly'],
+    'Latest explicit override Preview kinds',
+  );
 }
 
 function validateOptionalCertificationPolicy(releaseChannel) {
@@ -468,10 +580,10 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     resumeStandardOperation?.start_refresh_allowed !== false ||
     resumeStandardOperation?.deadline_refresh_allowed !== false ||
     resumeStandardOperation?.rebuild_allowed !== false ||
-    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_qualified' ||
+    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_built' ||
     appendFullOperation?.control !== 'new_independent_append_full_control' ||
     appendFullOperation?.deadline_minutes !== 50 ||
-    appendFullOperation?.standard_qualified_required !== true ||
+    appendFullOperation?.standard_built_required !== true ||
     appendFullOperation?.standard_rebuild_allowed !== false ||
     appendFullOperation?.standard_operation_id_reuse_allowed !== false ||
     appendFullOperation?.standard_deadline_inheritance_allowed !== false ||
@@ -587,6 +699,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     publication?.stable?.latest_admission,
     standardLatestAdmissionContract,
     'Standard Latest admission',
+  );
+  assertDeepEqualJson(
+    publication?.stable?.pre_publication_admission,
+    standardPrePublicationAdmissionContract,
+    'Standard pre-publication admission',
   );
   if (
     localFirst?.entrypoint !== 'scripts/verify.sh release-preflight'
@@ -1012,7 +1129,9 @@ function validateWebuiGhcrImage(webuiImage) {
     contract.seed_metadata?.canonical_path !== '/opt/opl/seed/metadata.json' ||
     contract.publish_gate?.script !== 'scripts/validate-webui-runtime-image.ts' ||
     contract.publish_gate?.moving_channel_expected_profile !== 'webui-full' ||
-    contract.publish_gate?.latest_alias_requires_stable_quality_gate !== true ||
+    contract.publish_gate?.default_latest_alias_requires_stable_quality_gate !== true ||
+    contract.publish_gate
+      ?.explicit_preview_latest_requires_exact_qualified_carrier_and_protected_override !== true ||
     contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_latest_or_stable' ||
     webuiImage.stable_promotion?.default_pointer_ref !==
       'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
@@ -1024,23 +1143,43 @@ function validateWebuiGhcrImage(webuiImage) {
       'ghcr.io/gaofeng21cn/one-person-lab-webui:stable' ||
     webuiImage.stable_promotion?.manual_version_promotion_policy !==
       'manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable' ||
-    webuiImage.stable_promotion?.schema !== 'opl_app_webui_stable_promotion_contract.v4' ||
+    webuiImage.stable_promotion?.schema !== 'opl_app_webui_stable_promotion_contract.v5' ||
     webuiImage.stable_promotion?.admission_schema !==
-      'opl_app_webui_stable_promotion_admission.v4' ||
+      'opl_app_webui_stable_promotion_admission.v5' ||
     webuiImage.stable_promotion?.decision_schema !==
       'opl_app_webui_stable_promotion_decision.v2' ||
     webuiImage.stable_promotion?.receipt_schema !==
-      'opl_app_webui_stable_promotion_receipt.v4' ||
+      'opl_app_webui_stable_promotion_receipt.v5' ||
     webuiImage.stable_promotion?.compare_and_swap
       ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true ||
     webuiImage.stable_promotion?.compare_and_swap
       ?.development_validation_requires_stable_prestate_unchanged !== true ||
+    webuiImage.stable_promotion?.compare_and_swap
+      ?.independent_preview_requires_stable_prestate_unchanged !== true ||
     webuiImage.stable_promotion?.task_modes?.development_validation
       ?.stable_alias_mutation_allowed !== false ||
     webuiImage.stable_promotion?.task_modes?.development_validation
       ?.stable_prestate_must_remain_unchanged !== true
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.desktop_stable_required !== false
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.desktop_latest_required !== false
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.immutable_publication_required !== true
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.publication_does_not_move_stable_or_latest !== true
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.promotion_requires_explicit_user_dispatch !== true
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.source_authority_schema !== 'opl_app_webui_source_authority.v1'
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.source_authority_digest_must_equal_carrier_release_bundle_and_cohort_ref !== true
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.stable_alias_mutation_allowed !== false
+    || webuiImage.stable_promotion?.task_modes?.independent_preview
+      ?.stable_prestate_must_remain_unchanged !== true
   ) {
-    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, and full profile before Latest/Stable tags');
+    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, full profile, and explicit Preview Latest boundaries');
   }
   assertDeepEqualJson(
     webuiImage.stable_promotion.task_modes.production_release.promotion_tags,
@@ -1063,10 +1202,42 @@ function validateWebuiGhcrImage(webuiImage) {
     'Docker/WebUI development preview classification',
   );
   assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.independent_preview.classification,
+    {
+      quality_status: 'preview',
+      build_trigger: 'manual',
+      preview_kind: 'dev',
+      non_stable_notice: true,
+    },
+    'Docker/WebUI independent preview classification',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.independent_preview.publication_entry_inputs,
+    ['version', 'app_ref', 'shell_ref', 'framework_ref'],
+    'Docker/WebUI independent Preview publication inputs',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.independent_preview.promotion_entry_inputs,
+    ['publication_record_ref', 'operator_confirmation'],
+    'Docker/WebUI independent Preview Latest inputs',
+  );
+  assertDeepEqualJson(
+    webuiImage.stable_promotion.task_modes.independent_preview.operator_confirmation,
+    {
+      schema: 'opl_app_webui_latest_operator_authorization.v1',
+      source: 'workflow_dispatch_exact_version_confirmation',
+      actor: 'github.actor_human_login',
+      value: 'move-docker-latest:<publication_record.release.version>',
+      receipt_field: 'operator_authorization.confirmation_digest',
+    },
+    'Docker/WebUI independent Preview Latest operator confirmation',
+  );
+  assertDeepEqualJson(
     webuiImage.stable_promotion.compare_and_swap.promotion_tags_by_authority_mode,
     {
       production_follower: ['stable', 'latest'],
       development_validation: ['latest'],
+      independent_preview: ['latest'],
     },
     'Docker/WebUI promotion tags by authority mode',
   );
@@ -1392,24 +1563,44 @@ function validateWebuiDataVolumeHostActionAbi(abi) {
 }
 
 function validateLocalDataLifecycleImplementation(shellPaths) {
-  assertShellTextIncludesAll(
+  const bridgePath = 'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts';
+  const bridgeText = assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts',
+    bridgePath,
     [
       'function shellToolchainRuntimeRoot(): string',
       "path.join(getSystemDir().workDir, 'runtime')",
-      'function managedOplRuntimeRoot(): string',
-      'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
-      "if (process.platform !== 'darwin')",
-      'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
-      "path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime')",
-      'runtimeRoots: [shellToolchainRuntimeRoot(), managedOplRuntimeRoot()]',
-      'runtimeRoot: managedOplRuntimeRoot()',
+      "import { resolveHostRuntimeRoots } from '../services/localDataLifecycle/hostRuntimeRoots';",
+      'function hostRuntimeRoots()',
+      'runtimeRoots: hostRuntimeRoots().inventoryRoots',
+      'runtimeRoot: hostRuntimeRoots().pruneRoot',
       'archiveRoot: archiveRoot()',
       'receiptRoot: receiptRoot()',
       'allowedSourcePaths: [conversationRoot()]',
     ],
     'local data lifecycle bridge split-root and delete boundary',
+  );
+  assertManagedRuntimeRootBridgeSemantics(bridgeText, bridgePath);
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/services/localDataLifecycle/hostRuntimeRoots.ts',
+    [
+      'export type HostRuntimeRoots = {',
+      'inventoryRoots: string[];',
+      'managedRuntimeRoot: string | null;',
+      'pruneRoot: string;',
+      'export function resolveHostRuntimeRoots(options:',
+      "if (options.platform === 'win32')",
+      'inventoryRoots: [shellToolchainRuntimeRoot]',
+      'managedRuntimeRoot: null',
+      'pruneRoot: shellToolchainRuntimeRoot',
+      'configuredManagedRuntimeRoot ||',
+      "path.join(options.homeDir, 'Library', 'Application Support', 'OPL', 'runtime')",
+      'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
+      'inventoryRoots: [...new Set([shellToolchainRuntimeRoot, managedRuntimeRoot])]',
+      'pruneRoot: managedRuntimeRoot',
+    ],
+    'host runtime root resolver boundary',
   );
   assertShellTextIncludesAll(
     shellPaths,
@@ -1428,6 +1619,31 @@ function validateLocalDataLifecycleImplementation(shellPaths) {
     ],
     'local data lifecycle canonical verifier and runtime authority gate',
   );
+}
+
+export function assertManagedRuntimeRootBridgeSemantics(
+  bridgeText: string,
+  bridgePath = 'localDataLifecycleBridge.ts',
+): void {
+  const forbiddenLegacySemantics = 'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT';
+  if (bridgeText.includes(forbiddenLegacySemantics)) {
+    throw new Error(
+      `Active shell managed runtime root bridge must reject the unconditional OPL runtime override in ${bridgePath}`,
+    );
+  }
+  const requiredCurrentSemantics = [
+    'function managedOplRuntimeRoot(): string',
+    'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim()',
+    'if (configuredRoot) return configuredRoot',
+    "if (process.platform !== 'darwin')",
+    "throw new Error('OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.')",
+    "path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime')",
+    "configuredManagedRuntimeRoot: process.platform === 'win32' ? undefined : managedOplRuntimeRoot()",
+  ];
+  const missing = requiredCurrentSemantics.find((expected) => !bridgeText.includes(expected));
+  if (missing) {
+    throw new Error(`Active shell managed runtime root bridge semantics must include ${missing} in ${bridgePath}`);
+  }
 }
 
 function validateManagedUpdatePlane(managedUpdatePlane) {

@@ -52,13 +52,15 @@ or required human/owner authority is unavailable.
 
 Desktop source qualification is the pre-release cost-control gate. Run
 `.github/workflows/release-source-qualification.yml` on exact `main` before a
-new Standard operation. It performs one unsigned local Standard build and one
-clean Tart VM qualification on the self-hosted macOS runner, then emits an
-immutable `opl_app_source_qualification_receipt.v1` binding the App, Shell, and
-Framework cohort. The receipt is `development_validation`: it reserves no
-version, proves no final signed byte, grants no release authority, and performs
-no public mutation. Its purpose is to expose source, packaging, install, and VM
-smoke defects before the protected signing/notarization path pays for them.
+new Standard operation. It uses the GitHub-hosted source/contract preflight and
+one unsigned local Standard build, then emits an immutable
+`opl_app_source_qualification_receipt.v1` binding the App, Shell, and Framework
+cohort. The receipt is `development_validation`: it reserves no version,
+proves no final signed byte, grants no release authority, and performs no
+public mutation. Tart or another clean-machine check is a separate
+post-publication optional certification of the exact published bytes; it is
+never a prerequisite for this hosted source gate or for Stable/Latest
+publication.
 
 Before consuming a dispatch nonce, run the App source gate and
 `release:dispatch-guard preflight` against the exact App, Shell, and Framework
@@ -203,8 +205,11 @@ argument.
 ## Stable Operations
 
 `standard` freezes one new Bundle, builds and qualifies Standard, exports a
-portable checkpoint, qualifies the actual updater ZIP before any public Release
-mutation, and then publishes, reads back, updates Homebrew, and activates Latest.
+portable checkpoint, runs deterministic manifest and staged-asset admission
+against that checkpoint before any public Release mutation, qualifies the actual
+updater ZIP, and then publishes, reads back, updates Homebrew, and activates
+Latest. This admission is local candidate evidence only; it does not replace
+remote digest readback, Homebrew readback, or Latest CAS admission.
 Its absolute operation budget is 90 minutes. The manual dispatch accepts only
 the exact successful source-qualification run id and receipt digest. The same
 Stable run enters `release-stable`, verifies Apple credentials without
@@ -217,7 +222,7 @@ remaining Standard publication path without rebuilding a completed stage. It
 inherits the checkpoint's original Standard operation id, start, and absolute
 deadline; dispatching a resume cannot refresh that clock.
 
-`append_full` imports a checkpoint at or after `standard_qualified`, builds or
+`append_full` imports a checkpoint at or after `standard_built`, builds or
 qualifies only missing Full stages, and appends the Full DMG and manifest without
 changing Standard assets, updater metadata, prepared notes, or Latest. Its
 absolute operation budget is 50 minutes.
@@ -273,12 +278,19 @@ an immutable artifact, promoting the same exact digest from Preview to Stable,
 and moving Latest are separate operations. `promote_quality` requires the same
 qualification as a direct Stable and does not move Latest. `move_latest_pointer`
 requires protected single-use authority, an expected-current CAS, exact
-tag/digest binding, and public readback; selecting a Preview preserves its
-quality and discloses non-Stable plus skipped or failed gates. The next qualified
-Stable reclaims Latest by default, and any failed operation preserves the
-existing Latest/LKG. Stable Bundle mutation owns its repository-wide mutation
-mutex; the scheduled Canary cannot write Release, Latest, updater, or Homebrew
-state.
+tag/digest binding, and public readback. The target may be an exact Stable or
+Preview: Stable must prove stable qualification with no non-Stable disclosure;
+Preview preserves its quality and discloses non-Stable plus skipped or failed
+gates. The target is selected only from a retained
+`carrier_owned_durable_publication_record`, which binds carrier namespace, exact
+version/tag, immutable artifact/image digest, classification, disclosure, and
+public readback. An Actions artifact may carry bytes before publication or
+explain a run, but is never the selector or retention authority for a published
+version. Retired or revoked records are ineligible for selection. The next
+qualified Stable reclaims Latest by default, and any failed operation preserves
+the existing Latest/LKG. Stable Bundle mutation owns its repository-wide
+mutation mutex; the scheduled Canary cannot write Release, Latest, updater, or
+Homebrew state.
 
 The failed Bundle below is permanently ineligible for checkpoint import,
 publication, promotion, or reuse:
@@ -366,6 +378,40 @@ This preview remains a transitional compatibility lane. Once formal
 preview cleanup receipt is read back, the preview workflow is a deletion
 candidate. Documentation of the candidate does not authorize its removal.
 
+## Container WebUI Release
+
+Container WebUI has its own carrier-local `stable` and `latest` pointers. They
+are not aliases for GitHub Release Latest, and Desktop publication neither
+waits for nor authorizes an unrelated Docker mutation.
+
+The default production path is a non-blocking follower after a successful
+Desktop Stable Latest activation. It publishes an immutable OCI version and
+then moves the WebUI `stable` and `latest` aliases together to that qualified
+digest. The public readback must prove the version, immutable digest, both
+aliases, image size, and carrier qualification receipt agree.
+
+The independent emergency path is deliberately different:
+
+1. Dispatch `release-webui-development.yml` with one immutable
+   `YY.M.D-preview.rN` version and exact App, Shell, and Framework SHAs.
+2. The workflow seals `opl_app_webui_source_authority.v1`, publishes and
+   qualifies the immutable OCI version, and does not move `stable` or `latest`.
+3. After explicit user confirmation, dispatch
+   `release-webui-development-promote.yml` for that exact carrier receipt with
+   `move-docker-latest:<exact version>`. The protected writer records the
+   human GitHub actor and confirmation digest, then changes only WebUI `latest`
+   through a one-write CAS.
+4. Read back the exact `latest` digest anonymously and prove WebUI `stable`
+   remains at its frozen predecessor.
+
+This path requires no Desktop Stable or Desktop Latest, so a Docker-only
+urgent fix can ship immediately once its immutable carrier qualification is
+complete. It does not promote Preview quality, mutate the Docker `stable`
+alias, or change Desktop release state. The receipt/run identifiers are
+evidence handles for the selected exact version; they are not an extra
+quality gate or a requirement to publish Desktop first. Selection consumes the
+carrier-owned durable publication record, not a transient Actions artifact.
+
 ## Homebrew Distribution Boundary
 
 Homebrew has one writer per track inside the protected Bundle executor. A push is
@@ -376,10 +422,11 @@ most three read-only remote reconciliations. If exact state remains unknown, the
 operation stops with typed failure evidence and a later bounded checkpoint
 operation must inspect again.
 
-Standard Homebrew publication and clean-VM readback are required before a
-qualified Stable takes or reclaims Latest by default.
-Full Homebrew publication is additive and cannot change the Standard cask or
-Latest.
+Standard Homebrew publication and hosted public digest readback are required
+before a qualified Stable takes or reclaims Latest by default. Clean-VM,
+Tart, Hyper-V, WSL2, GUI, and upgrade checks may run afterward as optional
+certification and cannot delay or block the Standard cask or Latest. Full
+Homebrew publication is additive and cannot change the Standard cask or Latest.
 
 ## Install And Update Taxonomy
 
@@ -390,10 +437,10 @@ become Package lifecycle or currentness authority.
 
 The normal user-facing path is therefore one App updater pointer plus independent
 owner Package channels. Latest normally selects the newest qualified Stable, but
-may temporarily select an exact published Dev or Nightly Preview through the
-protected one-use CAS without changing quality; the next qualified Stable
-reclaims it. Docker/WebUI and Homebrew carry exact owner bytes; Full seeds an
-offline composition. Nightly is the implemented Automated Standard Preview:
+an explicit protected one-use CAS may select an exact published Stable or Dev/
+Nightly Preview without changing quality; the next qualified Stable reclaims
+it. Docker/WebUI and Homebrew carry exact owner bytes; Full seeds an offline
+composition. Nightly is the implemented Automated Standard Preview:
 its schedule defaults to `make_latest=false`, followed by isolated Homebrew and
 sampled-VM workflows. Daily is a scheduled reconciliation cadence. Canary is an
 independent validation workflow, not a release channel. A Package update must
@@ -433,7 +480,43 @@ progress, but neither is release state authority.
 
 VM, updater, Homebrew, and remote-readback receipts must bind the same Bundle and
 asset digests. Diagnostic reruns may inspect exact bytes but cannot rebuild,
-publish, promote, or upgrade a failed receipt to passed.
+publish, promote, or upgrade a failed receipt to passed. When a self-hosted
+runner is offline, busy, or lacks a proved capability, the optional result is
+typed `unavailable` or `not_run`; Stable/Latest continue on the hosted floor.
+
+## Runner Pools And Local-First Development
+
+Self-hosted runners are an opt-in platform validation and development
+acceleration layer. They are not a homogeneous fallback pool and do not become
+part of the Stable/Latest publication dependency graph. The machine policy is
+single-sourced at
+`contracts/app-release-channel.json#release_acceleration.runner_policy`.
+
+| Pool | Exact role labels | Typical work | Publication effect |
+| --- | --- | --- | --- |
+| `mac-gui` | `self-hosted, macOS, ARM64, opl-cert-mac-gui` | GUI, Gatekeeper, install/upgrade, signed-byte readback | Optional/advisory |
+| `mac-tart` | `self-hosted, macOS, ARM64, opl-cert-mac-tart` | Tart clean guest and no-CLT first-install certification | Optional/advisory |
+| `windows-wsl` | `self-hosted, Windows, X64, opl-cert-windows-wsl` | Windows installer, WSL2, Hyper-V, Docker Desktop | Optional/advisory |
+| `ci-accelerated` | `self-hosted, opl-ci-accelerated` | Long integration, performance, cache warmup | Optional/advisory |
+
+Labels are exact capability selectors; a runner's online/idle state does not
+prove guest qualification. Fleet owns machine capability, reservation,
+preemption, service enablement, and rollback. GitHub owns runner registration,
+groups, labels, scheduling, permissions, and secrets. Fleet membership never
+implicitly registers a GitHub runner, and a GitHub runner inventory entry never
+proves a Fleet lease or capability. Role labels require fresh readback from
+both authorities before use. The existing `opl-gui-vm` label remains a
+compatibility binding for the protected Manual Full preview only until a
+dedicated role mapping and workflow/settings readback are complete; it is not a
+Stable/Latest label.
+
+Before pushing a remote release change, run the same frozen cohort locally
+through the applicable source, type, package, install, and artifact checks.
+Push only after local output is clean and exact bytes/digests are captured.
+Remote GitHub-hosted publication is the routine reproducibility path; a local
+or self-hosted lane may accelerate diagnostics or produce evidence but cannot
+silently become a second release authority. Use the exact published artifact
+for optional certification and never rebuild or resign it.
 
 ## Historical Receipt Compatibility
 

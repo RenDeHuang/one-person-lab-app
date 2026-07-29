@@ -20,6 +20,10 @@ const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-pre
 const manualFullPreviewMutationJob = 'mutate';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
+const webuiCarrierPublishEnvironment =
+  "${{ inputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}";
+const webuiPromotionPublishEnvironment =
+  "${{ needs.admission.outputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}";
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
@@ -90,6 +94,17 @@ function jobRuns(job: Record<string, any> | undefined): string {
     .join('\n');
 }
 
+function jobEvidenceText(job: Record<string, any> | undefined): string {
+  return (Array.isArray(job?.steps) ? job.steps as Array<Record<string, any>> : [])
+    .map((step) => [
+      typeof step.name === 'string' ? step.name : '',
+      typeof step.run === 'string' ? step.run : '',
+      typeof step.uses === 'string' ? step.uses : '',
+      step.with && typeof step.with === 'object' ? JSON.stringify(step.with) : '',
+    ].join('\n'))
+    .join('\n');
+}
+
 function workflowJobs(workflow: Record<string, any>): Record<string, Record<string, any>> {
   return workflow.jobs && typeof workflow.jobs === 'object'
     ? workflow.jobs as Record<string, Record<string, any>>
@@ -110,7 +125,7 @@ export function isAuthorizedWebuiStablePromotionWriteJob(
   return workflowPath === webuiStablePromotionWorkflowPath
     && jobId === webuiStablePromotionMutationJob
     && needsExactly(job, ['admission'])
-    && job.environment === 'release-stable'
+    && job.environment === webuiPromotionPublishEnvironment
     && exactObject(job.permissions, exactWebuiStablePromotionPermissions);
 }
 
@@ -121,17 +136,17 @@ function isAuthorizedNativeWebuiWriteJob(
 ): boolean {
   if (
     workflowPath === nativeWebuiFollowerWorkflowPath
-    && jobId === 'native-webui-carrier'
+    && (
+      jobId === 'native-webui-linux-readback'
+      || jobId === 'native-webui-macos-readback'
+    )
   ) {
     return job.uses === './.github/workflows/_release-native-webui-carrier.yml'
       && needsExactly(job, ['resolve-handoff'])
       && exactObject(job.permissions, exactReadPermissions)
       && job.with?.mode === 'readback';
   }
-  return workflowPath === nativeWebuiCarrierWorkflowPath
-    && jobId === 'publish-native-assets'
-    && job.environment === 'release-stable'
-    && job.permissions === undefined;
+  return false;
 }
 
 function isAuthorizedManualPreviewWriteJob(
@@ -272,20 +287,22 @@ const stableEntrySpecs = {
     operation: 'standard',
     workflow: './.github/workflows/_release-bundle.yml',
     if: "${{ needs.admission.outputs.operation == 'standard' }}",
-    needs: ['admission', 'protected-admission'],
+    needs: ['admission', 'protected-operation-admission', 'stable-admission-manifest'],
     requiredInputs: {
       mode: 'execute',
       operation: 'standard',
       channel: 'stable',
-      version: '${{ needs.protected-admission.outputs.version }}',
+      version: '${{ needs.stable-admission-manifest.outputs.version }}',
       include_full: '${{ fromJSON(needs.admission.outputs.include_full) }}',
       package_compatibility_abi: '${{ needs.admission.outputs.package_compatibility_abi }}',
       package_compatibility_version_range: '${{ needs.admission.outputs.package_compatibility_version_range }}',
-      app_ref: '${{ needs.protected-admission.outputs.app_ref }}',
-      shell_ref: '${{ needs.protected-admission.outputs.shell_ref }}',
-      framework_ref: '${{ needs.protected-admission.outputs.framework_ref }}',
+      app_ref: '${{ needs.protected-operation-admission.outputs.app_ref }}',
+      shell_ref: '${{ needs.protected-operation-admission.outputs.shell_ref }}',
+      framework_ref: '${{ needs.protected-operation-admission.outputs.framework_ref }}',
       operation_started_at: '${{ needs.admission.outputs.operation_started_at }}',
       operation_deadline_at: '${{ needs.admission.outputs.operation_deadline_at }}',
+      stable_operation_control_artifact: 'opl-stable-operation-control-${{ github.run_id }}',
+      stable_operation_control_digest: '${{ needs.protected-operation-admission.outputs.control_digest }}',
     },
     permissions: exactStableStandardPermissions,
   },
@@ -305,7 +322,7 @@ const stableEntrySpecs = {
   'append-full': {
     operation: 'append_full',
     workflow: './.github/workflows/_release-full-addon.yml',
-    if: "${{ needs.admission.outputs.operation == 'append_full' }}",
+    if: "${{ !cancelled() && inputs.operation == 'append_full' && needs.admission.result == 'success' }}",
     needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
@@ -318,6 +335,39 @@ const stableEntrySpecs = {
     permissions: exactStableEntryPermissions,
   },
 } as const;
+
+function validateStableOperationControlArtifactConsumer(appRoot: string): number {
+  const id = 'stable_operation_control_artifact_consumer';
+  const parsed = parseWorkflow(appRoot, '.github/workflows/_release-bundle.yml', id);
+  if (!parsed) return 1;
+  const { text } = parsed;
+  let failures = 0;
+  for (const required of [
+    'stable_operation_control_artifact:',
+    'stable_operation_control_digest:',
+    'Download protected Stable operation control',
+    'Consume one protected Stable operation control before cold work',
+    'stable-operation-control.ts consume',
+    'opl-stable-operation-consumption-${{ github.run_id }}',
+    'Require one matching consumed Stable operation control',
+    '--input "$consumption"',
+  ]) {
+    if (!text.includes(required)) {
+      failures += reportFailure(id, `Stable Bundle is missing durable control consumption ${required}`);
+    }
+  }
+  if (
+    text.includes('validate-release-source-gate.ts')
+    || text.includes('release-dispatch-guard.ts preflight')
+    || text.includes('release-source-qualification.yml')
+  ) {
+    failures += reportFailure(
+      id,
+      'Stable Bundle must consume the protected control artifact and must not rerun source-gate, pre-nonce guard, or source qualification.',
+    );
+  }
+  return failures;
+}
 
 export function validateStableReleaseControlPlane(appRoot: string): number {
   const id = 'stable_release_control_plane';
@@ -347,36 +397,50 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   }
 
   const jobs = workflowJobs(workflow);
+  const authorityInputs = workflow.on?.workflow_dispatch?.inputs ?? {};
+  for (const name of ['authority_id', 'operation_id', 'authority_carrier', 'authority_digest']) {
+    if (authorityInputs[name]?.required !== false || authorityInputs[name]?.default !== '') {
+      failures += reportFailure(
+        id,
+        `${name} must remain an optional recovery input with an empty default; Standard admission enforces it conditionally`,
+      );
+    }
+  }
+  if (
+    !String(workflow['run-name'] ?? '').includes("inputs.operation == 'standard'")
+    || !String(workflow['run-name'] ?? '').includes("format('OPL Stable standard operation:{0} authority:{1} run:{2}'")
+    || !String(workflow['run-name'] ?? '').includes("format('OPL Stable {0} {1}', inputs.operation, github.run_id)")
+    || authorityInputs.version?.required !== false
+  ) {
+    failures += reportFailure(id, 'Stable run identity must retain Standard authority binding while recovery operations remain follower-compatible');
+  }
+
   const expectedJobs = [
-    'source-qualification',
+    'protected-operation-admission',
     'admission',
-    'protected-admission',
+    'stable-admission-manifest',
     ...Object.keys(stableEntrySpecs),
   ].sort();
   if (JSON.stringify(Object.keys(jobs).sort()) !== JSON.stringify(expectedJobs)) {
     failures += reportFailure(id, `jobs must be exactly ${expectedJobs.join(', ')}`);
   }
-  const sourceQualification = jobs['source-qualification'];
   if (
-    !sourceQualification
-    || sourceQualification.if !== "${{ inputs.operation == 'standard' }}"
-    || sourceQualification.uses !== './.github/workflows/release-source-qualification.yml'
-    || sourceQualification.with?.operation_scope !== 'stable_operation_source_preflight'
-    || !exactObject(sourceQualification.permissions, exactReadPermissions)
-    || Object.prototype.hasOwnProperty.call(sourceQualification, 'steps')
+    jobs['source-qualification']
+    || text.includes('uses: ./.github/workflows/release-source-qualification.yml')
+    || text.includes('source-qualification-receipt.ts')
+    || text.includes('validate-source-qualification-receipt.ts')
   ) {
     failures += reportFailure(
       id,
-      'source-qualification must be a read-only Standard-only call to the hosted source preflight',
+      'Stable entry must not retain the legacy source-qualification job or receipt after protected operation admission owns the frozen source gate.',
     );
   }
   const admission = jobs.admission;
   const admissionRun = jobRuns(admission);
   if (
     !admission
-    || !needsExactly(admission, ['source-qualification'])
-    || admission.if !==
-      "${{ always() && (inputs.operation != 'standard' || needs.source-qualification.result == 'success') }}"
+    || !needsExactly(admission, ['protected-operation-admission'])
+    || admission.if !== '${{ always() }}'
     || !exactObject(admission.permissions, exactReadPermissions)
   ) {
     failures += reportFailure(id, 'admission must have only contents:read/actions:read');
@@ -403,47 +467,103 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     failures += reportFailure(id, 'only new standard and append_full operations may resolve a fresh operation window');
   }
 
-  const protectedAdmission = jobs['protected-admission'];
+  const protectedAdmission = jobs['protected-operation-admission'];
   const protectedAdmissionRun = jobRuns(protectedAdmission);
+  const protectedAdmissionEvidence = jobEvidenceText(protectedAdmission);
   if (
     !protectedAdmission
-    || !needsExactly(protectedAdmission, ['admission'])
-    || protectedAdmission.if !== "${{ needs.admission.outputs.operation == 'standard' }}"
+    || protectedAdmission.if !== "${{ inputs.operation == 'standard' }}"
+    || Object.prototype.hasOwnProperty.call(protectedAdmission, 'needs')
     || protectedAdmission.environment !== 'release-stable'
     || !exactObject(protectedAdmission.permissions, exactReadPermissions)
   ) {
     failures += reportFailure(
       id,
-      'protected-admission must be a read-only release-stable job selected only by a new Standard operation',
+      'protected-operation-admission must be the initial read-only protected Standard gate',
     );
   }
   if (workflowMutationCommandPattern.test(protectedAdmissionRun)) {
-    failures += reportFailure(id, 'protected-admission must not perform release or public mutation');
+    failures += reportFailure(id, 'protected-operation-admission must not perform release or public mutation');
+  }
+  for (const binding of [
+    'Reject bare or rerun Stable request before expensive work',
+    'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+    'test -n "$AUTHORITY_ID"',
+    'test -n "$OPERATION_ID"',
+    'test -n "$AUTHORITY_CARRIER"',
+    '[[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]',
+    'stable-operation-control.ts decode-carrier',
+    'stable-operation-control.ts materialize-evidence',
+    'stable-operation-control.ts verify-executor',
+    'stable-operation-control.ts verify-authority',
+    'git -C app-source checkout --detach "$app_sha"',
+    'release-dispatch-guard.ts verify-evidence',
+    'release-dispatch-guard.ts preflight',
+    '--current-run-id "$GITHUB_RUN_ID"',
+    '--authority-id',
+    'stable-operation-control.ts bind',
+    'stable-operation-control.ts verify',
+    'Upload immutable operation control evidence',
+    'opl-stable-operation-control-${{ github.run_id }}',
+  ]) {
+    if (!protectedAdmissionEvidence.includes(binding)) {
+      failures += reportFailure(id, `protected-operation-admission is missing immutable authority binding ${binding}`);
+    }
+  }
+  if (
+    protectedAdmissionRun.includes('node --experimental-strip-types app-source/scripts/validate-release-source-gate.ts')
+    || (protectedAdmissionRun.match(/release-dispatch-guard\.ts verify-evidence/g) ?? []).length !== 1
+    || (protectedAdmissionRun.match(/release-dispatch-guard\.ts preflight/g) ?? []).length !== 1
+  ) {
+    failures += reportFailure(
+      id,
+      'protected-operation-admission must verify the frozen pre-submit evidence once and create exactly one distinct run-authority reconcile without rerunning the full source gate.',
+    );
+  }
+  if (/openssl rand|operation_id="stable-\$\{?GITHUB_RUN_ID\}?"|stable-operation-control\.ts create(?:\s|$)/.test(protectedAdmissionRun)) {
+    failures += reportFailure(id, 'protected-operation-admission must not self-issue an authority, nonce, or operation id');
+  }
+  if (/\$\{\{\s*inputs\./.test(protectedAdmissionRun)) {
+    failures += reportFailure(id, 'protected-operation-admission must consume dispatch strings through quoted environment variables');
+  }
+  const protectedOutputs = protectedAdmission?.outputs ?? {};
+  for (const [name, expected] of Object.entries({
+    app_ref: '${{ steps.control.outputs.app_ref }}',
+    shell_ref: '${{ steps.control.outputs.shell_ref }}',
+    framework_ref: '${{ steps.control.outputs.framework_ref }}',
+    operation_id: '${{ steps.control.outputs.operation_id }}',
+    control_digest: '${{ steps.control.outputs.control_digest }}',
+    authority_id: '${{ steps.authority.outputs.authority_id }}',
+  })) {
+    if (protectedOutputs[name] !== expected) {
+      failures += reportFailure(id, `protected-operation-admission must bind ${name} to the decoded authority control`);
+    }
+  }
+
+  const stableManifest = jobs['stable-admission-manifest'];
+  const stableManifestRun = jobRuns(stableManifest);
+  if (
+    !stableManifest
+    || stableManifest.if !== "${{ needs.admission.outputs.operation == 'standard' }}"
+    || !needsExactly(stableManifest, ['admission', 'protected-operation-admission'])
+    || stableManifest.environment !== 'release-stable'
+    || !exactObject(stableManifest.permissions, exactReadPermissions)
+  ) {
+    failures += reportFailure(id, 'stable-admission-manifest must be a protected post-source-gate identity seal');
   }
   for (const binding of [
     'scripts/verify-apple-release-credentials.ts',
-    'scripts/validate-source-qualification-receipt.ts',
+    'scripts/stable-operation-control.ts verify',
+    '--run-authority-reconcile',
     'scripts/stable-release-admission-manifest.ts create',
     '--admission-run-id "$GITHUB_RUN_ID"',
     'opl-stable-admission-${{ github.run_id }}',
   ]) {
-    if (!protectedAdmissionRun.includes(binding) && !text.includes(binding)) {
-      failures += reportFailure(id, `protected-admission is missing same-run protected binding ${binding}`);
+    if (!stableManifestRun.includes(binding) && !text.includes(binding)) {
+      failures += reportFailure(id, `stable-admission-manifest is missing protected binding ${binding}`);
     }
   }
-  const protectedOutputs = protectedAdmission?.outputs ?? {};
-  for (const [name, expected] of Object.entries({
-    version: '${{ steps.manifest.outputs.version }}',
-    updater_version: '${{ steps.manifest.outputs.updater_version }}',
-    app_ref: '${{ needs.admission.outputs.app_ref }}',
-    shell_ref: '${{ needs.admission.outputs.shell_ref }}',
-    framework_ref: '${{ needs.admission.outputs.framework_ref }}',
-    manifest_digest: '${{ steps.manifest.outputs.manifest_digest }}',
-  })) {
-    if (protectedOutputs[name] !== expected) {
-      failures += reportFailure(id, `protected-admission must bind ${name} to the same-run admitted value`);
-    }
-  }
+  failures += validateStableOperationControlArtifactConsumer(appRoot);
 
   for (const [jobId, spec] of Object.entries(stableEntrySpecs)) {
     const job = jobs[jobId];
@@ -573,7 +693,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     id,
     'bundle',
     bundle.workflow,
-    ['publish-standard', 'publish-native-webui'],
+    ['publish-standard'],
   );
   failures += validateReusablePermissionInheritance(
     id,
@@ -592,10 +712,10 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'seal-standard-identity',
     'checkpoint-standard',
     'prepare-native-webui',
+    'prepare-native-webui-macos',
     'publish-standard',
-    'publish-native-webui',
   ])) {
-    failures += reportFailure(id, 'Bundle jobs must contain only Desktop Standard plus the isolated Native additive sidecar');
+    failures += reportFailure(id, 'Bundle jobs must contain Standard publication plus pre-publication Native qualification');
   }
   if (bundle.workflow.on?.workflow_call?.inputs?.operation?.default !== 'standard') {
     failures += reportFailure(id, 'Bundle workflow operation must be standard');
@@ -658,20 +778,34 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   failures += validateReusableCall(
     id,
     bundleJobs,
-    'publish-native-webui',
+    'prepare-native-webui-macos',
     './.github/workflows/_release-native-webui-carrier.yml',
+    exactReadPermissions,
   );
   if (
     !needsExactly(bundleJobs['prepare-native-webui'], ['freeze'])
-    || !needsExactly(bundleJobs['publish-native-webui'], [
+    || !needsExactly(bundleJobs['prepare-native-webui-macos'], ['freeze'])
+    || !needsExactly(bundleJobs['checkpoint-standard'], [
+      'admission',
+      'freeze',
+      'seal-standard-identity',
+      'prepare-native-webui',
+      'prepare-native-webui-macos',
+    ])
+    || !needsExactly(bundleJobs['publish-standard'], [
       'freeze',
       'checkpoint-standard',
       'prepare-native-webui',
-      'publish-standard',
+      'prepare-native-webui-macos',
     ])
-    || String(bundleJobs['publish-standard']?.needs) !== 'freeze,checkpoint-standard'
+    || bundleJobs['publish-standard']?.with?.qualified_native_artifact_name !==
+      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}"
+    || bundleJobs['publish-standard']?.with?.qualified_native_macos_artifact_name !==
+      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || '' }}"
+    || bundleJobs['publish-standard']?.with?.qualified_native_source_run_id !==
+      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && github.run_id || '' }}"
   ) {
-    failures += reportFailure(id, 'Native preparation must run beside Standard, while Native publish waits for Latest without blocking it');
+    failures += reportFailure(id, 'Native preparation must complete before the unified Standard draft carrier publishes');
   }
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
@@ -728,6 +862,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'carrier_follower_run_id',
     'carrier_executor_ref',
     'carrier_artifact_name',
+    'publication_record_ref',
+    'operator_confirmation',
   ])) {
     failures += reportFailure(id, 'WebUI Stable reusable must accept only exact follower identities');
   }
@@ -978,7 +1114,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl-release-activation-${SOURCE_RUN_ID}',
     'opl-release-full-published-${SOURCE_RUN_ID}',
     'write-optional-certification-receipt.ts',
-    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}',
+    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}',
     'GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api',
     'actions/runners?per_page=100',
     "runner.status === 'online' && runner.busy === false",
@@ -1111,17 +1247,23 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     || JSON.stringify(followerTriggers.workflow_run?.workflows) !== JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify(['resolve-handoff', 'native-webui-carrier'])
+    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify([
+      'resolve-handoff',
+      'native-webui-linux-readback',
+      'native-webui-macos-readback',
+    ])
   ) {
     failures += reportFailure(id, 'Native WebUI follower must be one automatic read-default Stable workflow_run lane');
   }
-  const followerCarrier = followerJobs['native-webui-carrier'];
-  if (!followerCarrier || !isAuthorizedNativeWebuiWriteJob(
-    nativeWebuiFollowerWorkflowPath,
-    'native-webui-carrier',
-    followerCarrier,
-  )) {
-    failures += reportFailure(id, 'Native WebUI follower must delegate only the exact resolved handoff to its reusable carrier');
+  for (const jobId of ['native-webui-linux-readback', 'native-webui-macos-readback']) {
+    const followerCarrier = followerJobs[jobId];
+    if (!followerCarrier || !isAuthorizedNativeWebuiWriteJob(
+      nativeWebuiFollowerWorkflowPath,
+      jobId,
+      followerCarrier,
+    )) {
+      failures += reportFailure(id, `Native WebUI follower ${jobId} must delegate only the exact resolved handoff to its reusable carrier`);
+    }
   }
   for (const required of [
     '.path == ".github/workflows/release-stable.yml"',
@@ -1129,6 +1271,8 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'webui-follower-handoff.json',
     'opl_standard_latest_admission_receipt.v1',
     'framework_terminal_status == "complete"',
+    'linux_publication_artifact',
+    'macos_publication_artifact',
   ]) {
     if (!follower.text.includes(required)) failures += reportFailure(id, `Native follower is missing ${required}`);
   }
@@ -1147,6 +1291,8 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       'shell_ref',
       'framework_ref',
       'opl_version',
+      'target_platform',
+      'target_architecture',
       'release_bundle_digest',
       'source_run_id',
       'source_artifact',
@@ -1158,15 +1304,13 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     || JSON.stringify(Object.keys(carrierJobs)) !== JSON.stringify([
       'startup-canary',
       'build-and-qualify',
-      'publish-native-assets',
       'readback-native-assets',
     ])
   ) {
-    failures += reportFailure(id, 'Native reusable must expose only exact cohort/checkpoint inputs and startup/prepare/publish/readback jobs');
+    failures += reportFailure(id, 'Native reusable must expose only exact cohort/checkpoint inputs and startup/prepare/readback jobs');
   }
   const startup = carrierJobs['startup-canary'];
   const build = carrierJobs['build-and-qualify'];
-  const publish = carrierJobs['publish-native-assets'];
   const readback = carrierJobs['readback-native-assets'];
   if (
     !startup
@@ -1176,15 +1320,11 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     || build.if !== "${{ inputs.mode == 'prepare' }}"
     || !exactObject(build.permissions, exactReadPermissions)
     || build['continue-on-error'] !== true
-    || !publish
-    || publish.if !== "${{ inputs.mode == 'publish' }}"
-    || publish['continue-on-error'] !== true
-    || !isAuthorizedNativeWebuiWriteJob(nativeWebuiCarrierWorkflowPath, 'publish-native-assets', publish)
     || !readback
     || readback.if !== "${{ inputs.mode == 'readback' }}"
     || !exactObject(readback.permissions, exactReadPermissions)
   ) {
-    failures += reportFailure(id, 'Native reusable permissions or canary/prepare/publish/readback isolation drifted');
+    failures += reportFailure(id, 'Native reusable permissions or canary/prepare/readback isolation drifted');
   }
   for (const required of [
     'test "$(id -u)" -ne 0',
@@ -1197,23 +1337,20 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'official-profile-first-install-complete',
     'user-sentinel.txt',
     'project-sentinel.txt',
-    'release-native-webui-carrier.ts publish',
     'release-native-webui-carrier.ts readback',
+    'native-webui-qualified-${{ inputs.opl_version }}-${{ inputs.target_platform }}-${{ inputs.target_architecture }}-',
     'restore-release-checkpoint',
     '--publication-scope external_target',
     'prior_mutation_attempt_id',
-    'find native-release/native-publication-checkpoint -type f -name checkpoint.json',
-    'test -f native-release/publication-manifest.json',
+    'find imported-checkpoint -type f -name publication-manifest.json',
+    'find imported-checkpoint -type f -name standard-identity-receipt.json',
     'test "$(jq -r .operation_id <<<"$marker")"',
     'opl release reconcile',
-    'latest_modified',
-    'container_registry_modified',
-    'homebrew_modified',
   ]) {
     if (!carrier.text.includes(required)) failures += reportFailure(id, `Native reusable is missing ${required}`);
   }
   if (/workflow_dispatch:|ghcr\.io|packages: write|make_latest|github-activate-latest|_release-full-addon\.yml/.test(carrier.text)) {
-    failures += reportFailure(id, 'Native reusable must remain additive GitHub Release publication only');
+    failures += reportFailure(id, 'Native reusable must remain pre-publication qualification plus read-only public reconciliation');
   }
   return failures;
 }
@@ -1612,7 +1749,7 @@ function validateWebUiCarrierCallee(
   }
   if (!publish || publish.if !== "${{ inputs.mode == 'execute' }}" ||
       publish.needs !== 'build-and-qualify' ||
-      publish.environment !== 'release-stable' ||
+      publish.environment !== webuiCarrierPublishEnvironment ||
       !exactObject(publish.permissions, exactWebUiPublishPermissions)) {
     failures += reportFailure(id, 'WebUI immutable publish must be execute-only, protected, and request only contents:read/packages:write');
   }
@@ -1708,6 +1845,8 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
         'carrier_follower_run_id',
         'carrier_executor_ref',
         'carrier_artifact_name',
+        'publication_record_ref',
+        'operator_confirmation',
       ].sort();
       if (!exactObject(callee.workflow.permissions, exactReadPermissions) ||
           !admission || admission.if !== "${{ inputs.mode == 'execute' }}" ||
@@ -1935,6 +2074,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
     validateReleaseBundleCanaryTopology(appRoot) +
     validateNightlyReleaseTopology(appRoot) +
     validatePreviewLatestPointerTopology(appRoot) +
+    validateIndependentWebuiPreviewTopology(appRoot) +
     validateManualFullPreviewControlPlane(appRoot) +
     validateNativeWebuiPublicationTopology(appRoot) +
     validateHomebrewFullPromotionTopology(appRoot);
@@ -1983,40 +2123,27 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       }
       if (
         workflowPath === webuiDevelopmentWorkflowPath
-        && (
-          (
-            jobId === 'webui-carrier'
-            && job.uses === './.github/workflows/_release-webui-carrier.yml'
-            && needsExactly(job, ['resolve-frozen-bundle'])
-            && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
-            && job.with?.mode === 'execute'
-            && job.with?.authority_mode === 'development_validation'
-          )
-          || (
-            jobId === 'promote-webui-stable'
-            && job.uses === './.github/workflows/release-webui-stable.yml'
-            && needsExactly(job, ['resolve-frozen-bundle', 'webui-carrier'])
-            && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
-            && job.with?.mode === 'execute'
-            && job.with?.authority_mode === 'development_validation'
-          )
-        )
+        && jobId === 'webui-carrier'
+        && job.uses === './.github/workflows/_release-webui-carrier.yml'
+        && needsExactly(job, ['source-authority'])
+        && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+        && job.with?.mode === 'execute'
+        && job.with?.authority_mode === 'independent_preview'
         && steps.length === 0
       ) {
         continue;
       }
       if (
         workflowPath === webuiDevelopmentPromotionWorkflowPath
-        && jobId === 'promote-webui-stable'
+        && jobId === 'promote-webui-latest'
         && job.uses === './.github/workflows/release-webui-stable.yml'
         && !Object.prototype.hasOwnProperty.call(job, 'needs')
         && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
         && job.with?.mode === 'execute'
-        && job.with?.authority_mode === 'development_validation'
-        && job.with?.stable_authority_run_id === '${{ inputs.stable_authority_run_id }}'
-        && job.with?.carrier_follower_run_id === '${{ inputs.carrier_follower_run_id }}'
-        && job.with?.carrier_executor_ref === '${{ inputs.carrier_executor_ref }}'
-        && job.with?.carrier_artifact_name === '${{ inputs.carrier_artifact_name }}'
+        && job.with?.authority_mode === 'independent_preview'
+        && job.with?.publication_record_ref === '${{ inputs.publication_record_ref }}'
+        && job.with?.operator_confirmation === '${{ inputs.operator_confirmation }}'
+        && Object.keys(job.with ?? {}).length === 4
         && steps.length === 0
       ) {
         continue;
@@ -2050,6 +2177,109 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       failures += 1;
       failures += validateExactActionPins(workflowPath, jobId, steps);
     }
+  }
+  return failures;
+}
+
+export function validateIndependentWebuiPreviewTopology(appRoot: string): number {
+  const id = 'independent_webui_preview_topology';
+  const publication = parseWorkflow(appRoot, webuiDevelopmentWorkflowPath, id);
+  const promotion = parseWorkflow(appRoot, webuiDevelopmentPromotionWorkflowPath, id);
+  if (!publication || !promotion) return 1;
+  let failures = 0;
+  const publicationWorkflow = publication.workflow;
+  const publicationJobs = workflowJobs(publicationWorkflow);
+  const expectedPublicationInputs = ['version', 'app_ref', 'shell_ref', 'framework_ref'].sort();
+  const expectedCarrierWith = {
+    mode: 'execute',
+    authority_mode: 'independent_preview',
+    app_ref: '${{ needs.source-authority.outputs.app_ref }}',
+    shell_ref: '${{ needs.source-authority.outputs.shell_ref }}',
+    framework_ref: '${{ needs.source-authority.outputs.framework_ref }}',
+    opl_version: '${{ needs.source-authority.outputs.version }}',
+    release_bundle_digest: '${{ needs.source-authority.outputs.source_authority_digest }}',
+    release_cohort_ref: '${{ needs.source-authority.outputs.source_authority_digest }}',
+    source_artifact_run_id: '${{ needs.source-authority.outputs.source_run_id }}',
+    source_authority_artifact_name: '${{ needs.source-authority.outputs.source_authority_artifact_name }}',
+  };
+  if (
+    JSON.stringify(Object.keys(publicationWorkflow.on?.workflow_dispatch?.inputs ?? {}).sort()) !==
+      JSON.stringify(expectedPublicationInputs)
+    || !exactObject(publicationWorkflow.permissions, exactReadPermissions)
+    || !exactObject(publicationWorkflow.concurrency, {
+      group: 'opl-webui-independent-preview-publication-global',
+      'cancel-in-progress': false,
+    })
+    || JSON.stringify(Object.keys(publicationJobs).sort()) !==
+      JSON.stringify(['source-authority', 'webui-carrier'])
+  ) {
+    failures += reportFailure(
+      id,
+      'independent Preview publication must admit exact four refs and contain only source authority plus immutable carrier publication',
+    );
+  }
+  const sourceAuthority = publicationJobs['source-authority'];
+  const carrier = publicationJobs['webui-carrier'];
+  if (
+    !sourceAuthority
+    || Object.prototype.hasOwnProperty.call(sourceAuthority, 'needs')
+    || !exactObject(sourceAuthority.permissions, exactReadPermissions)
+    || !carrier
+    || !needsExactly(carrier, ['source-authority'])
+    || carrier.uses !== './.github/workflows/_release-webui-carrier.yml'
+    || !exactObject(carrier.permissions, exactWebUiCompileCeilingPermissions)
+    || !exactObject(carrier.with, expectedCarrierWith)
+  ) {
+    failures += reportFailure(
+      id,
+      'independent Preview publication must bind source authority directly into the immutable carrier without a pointer writer',
+    );
+  }
+  if (
+    !publication.text.includes('webui-source-authority.ts')
+    || !publication.text.includes('test "$GITHUB_RUN_ATTEMPT" = 1')
+    || !publication.text.includes('test "$GITHUB_REF" = refs/heads/main')
+    || /promote-webui|release-webui-stable\.yml|\boras tag\b/.test(publication.text)
+  ) {
+    failures += reportFailure(
+      id,
+      'independent Preview publication must create and verify source authority but cannot promote stable/latest itself',
+    );
+  }
+
+  const promotionWorkflow = promotion.workflow;
+  const promotionJobs = workflowJobs(promotionWorkflow);
+  const expectedPromotionInputs = [
+    'publication_record_ref',
+    'operator_confirmation',
+  ].sort();
+  const expectedPromotionWith = {
+    mode: 'execute',
+    authority_mode: 'independent_preview',
+    publication_record_ref: '${{ inputs.publication_record_ref }}',
+    operator_confirmation: '${{ inputs.operator_confirmation }}',
+  };
+  const latestWriter = promotionJobs['promote-webui-latest'];
+  if (
+    JSON.stringify(Object.keys(promotionWorkflow.on?.workflow_dispatch?.inputs ?? {}).sort()) !==
+      JSON.stringify(expectedPromotionInputs)
+    || !exactObject(promotionWorkflow.permissions, exactReadPermissions)
+    || !exactObject(promotionWorkflow.concurrency, {
+      group: 'opl-webui-independent-preview-latest-global',
+      'cancel-in-progress': false,
+    })
+    || JSON.stringify(Object.keys(promotionJobs).sort()) !== JSON.stringify(['promote-webui-latest'])
+    || !latestWriter
+    || Object.prototype.hasOwnProperty.call(latestWriter, 'needs')
+    || latestWriter.uses !== './.github/workflows/release-webui-stable.yml'
+    || !exactObject(latestWriter.permissions, exactWebUiCompileCeilingPermissions)
+    || !exactObject(latestWriter.with, expectedPromotionWith)
+    || /stable_authority_run_id|_release-webui-carrier\.yml|build-and-qualify|publish-immutable-carrier/.test(promotion.text)
+  ) {
+    failures += reportFailure(
+      id,
+      'independent Preview Latest promotion must be a separate exact-carrier dispatch with no Desktop Stable authority or rebuild path',
+    );
   }
   return failures;
 }

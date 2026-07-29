@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:latest'
+DEFAULT_IMAGE='ghcr.io/gaofeng21cn/one-person-lab-webui:stable'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPL_WEBUI_HOME=${OPL_WEBUI_HOME:-"$HOME/OnePersonLab"}
 DATA_DIR=${OPL_WEBUI_DATA_DIR:-"$OPL_WEBUI_HOME/data"}
@@ -17,6 +17,10 @@ DIAGNOSTICS_ARCHIVE=${OPL_WEBUI_DIAGNOSTICS_ARCHIVE:-}
 DRY_RUN=0
 YES=0
 UPDATE=0
+ENABLE_AUTO_UPDATE=0
+DISABLE_AUTO_UPDATE=0
+AUTO_UPDATE_STATUS=0
+AUTO_UPDATE_TIME=${OPL_WEBUI_AUTO_UPDATE_TIME:-03:00}
 OPEN_BROWSER=1
 DETACH=1
 CLOUD_TEMPLATE=0
@@ -32,6 +36,11 @@ Options:
   --dry-run                 Print the actions without installing Docker or starting the container.
   --yes                     Allow Ubuntu Docker Engine installation without an interactive prompt.
   --update                  Pull the configured WebUI image and recreate the host-side compose service.
+  --enable-auto-update      Enable a current-user host scheduler for the default :stable channel.
+  --disable-auto-update     Disable the current-user host scheduler. Manual --update remains available.
+  --auto-update-status      Show the current-user host scheduler and last update result.
+  --auto-update-time <HH:MM>
+                            Daily local time for automatic updates (default: 03:00).
   --port <port>             Host port for http://localhost:<port>/ (default: 3000).
   --health-timeout <sec>    Seconds to wait for the WebUI HTTP endpoint (default: 120).
   --health-url <url>        HTTP endpoint to probe (default: http://localhost:<port>/).
@@ -112,6 +121,24 @@ while [ "$#" -gt 0 ]; do
       ;;
     --update)
       UPDATE=1
+      ;;
+    --enable-auto-update)
+      ENABLE_AUTO_UPDATE=1
+      ;;
+    --disable-auto-update)
+      DISABLE_AUTO_UPDATE=1
+      ;;
+    --auto-update-status)
+      AUTO_UPDATE_STATUS=1
+      ;;
+    --auto-update-time)
+      shift
+      need_value --auto-update-time "${1:-}"
+      AUTO_UPDATE_TIME="$1"
+      ;;
+    --auto-update-time=*)
+      AUTO_UPDATE_TIME="${1#--auto-update-time=}"
+      need_value --auto-update-time "$AUTO_UPDATE_TIME"
       ;;
     --port)
       shift
@@ -230,6 +257,17 @@ fi
 if ! is_uint "$HEALTH_TIMEOUT" || [ "$HEALTH_TIMEOUT" -lt 1 ]; then
   die "Health timeout must be a positive integer: $HEALTH_TIMEOUT"
 fi
+case "$AUTO_UPDATE_TIME" in
+  [01][0-9]:[0-5][0-9]|2[0-3]:[0-5][0-9])
+    ;;
+  *)
+    die "Auto-update time must use 24-hour HH:MM format: $AUTO_UPDATE_TIME"
+    ;;
+esac
+auto_update_action_count=$((ENABLE_AUTO_UPDATE + DISABLE_AUTO_UPDATE + AUTO_UPDATE_STATUS))
+if [ "$auto_update_action_count" -gt 1 ]; then
+  die "Choose only one of --enable-auto-update, --disable-auto-update, or --auto-update-status."
+fi
 if [ -z "$HEALTH_URL" ]; then
   HEALTH_URL="http://localhost:${PORT}/"
 fi
@@ -245,8 +283,35 @@ reject_compose_unsafe_value "Health URL" "$HEALTH_URL"
 reject_compose_unsafe_value "Diagnostics directory" "$DIAGNOSTICS_DIR"
 reject_compose_unsafe_value "Diagnostics archive" "$DIAGNOSTICS_ARCHIVE"
 reject_compose_unsafe_value "Cloud template directory" "$CLOUD_TEMPLATE_DIR"
+if [ "$ENABLE_AUTO_UPDATE" = "1" ] && [ "$IMAGE" != "$DEFAULT_IMAGE" ]; then
+  die "Automatic updates support only $DEFAULT_IMAGE. Use manual --update for custom images, tags, or digests."
+fi
 
 OS_NAME="$(uname -s)"
+AUTO_UPDATE_HOME="$OPL_WEBUI_HOME/updater"
+AUTO_UPDATE_RUNNER="$AUTO_UPDATE_HOME/update-webui.sh"
+AUTO_UPDATE_LOG_DIR="$AUTO_UPDATE_HOME/logs"
+AUTO_UPDATE_CURRENT_LOG="$AUTO_UPDATE_LOG_DIR/current.log"
+AUTO_UPDATE_PREVIOUS_LOG="$AUTO_UPDATE_LOG_DIR/previous.log"
+AUTO_UPDATE_RESULT="$AUTO_UPDATE_HOME/last-result.env"
+AUTO_UPDATE_CONFIG="$AUTO_UPDATE_HOME/config.env"
+AUTO_UPDATE_SYSTEMD_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+AUTO_UPDATE_SYSTEMD_SERVICE="$AUTO_UPDATE_SYSTEMD_DIR/one-person-lab-webui-update.service"
+AUTO_UPDATE_SYSTEMD_TIMER="$AUTO_UPDATE_SYSTEMD_DIR/one-person-lab-webui-update.timer"
+AUTO_UPDATE_LAUNCHD_DIR="$HOME/Library/LaunchAgents"
+AUTO_UPDATE_LAUNCHD_PLIST="$AUTO_UPDATE_LAUNCHD_DIR/cn.onepersonlab.webui-update.plist"
+AUTO_UPDATE_LAUNCHD_LABEL="cn.onepersonlab.webui-update"
+
+if [ "$DISABLE_AUTO_UPDATE" = "1" ]; then
+  disable_auto_update_after_definitions=1
+else
+  disable_auto_update_after_definitions=0
+fi
+if [ "$AUTO_UPDATE_STATUS" = "1" ]; then
+  show_auto_update_status_after_definitions=1
+else
+  show_auto_update_status_after_definitions=0
+fi
 
 run() {
   log "+ $*"
@@ -262,6 +327,396 @@ run_shell() {
     bash -lc "$command"
   fi
 }
+
+write_auto_update_runner() {
+  local temporary_path="${AUTO_UPDATE_RUNNER}.new"
+  local docker_bin curl_bin
+  if [ "$DRY_RUN" = "1" ]; then
+    docker_bin=docker
+    curl_bin=curl
+  else
+    docker_bin="$(command -v docker)" || die "Docker CLI is required before enabling automatic updates."
+    curl_bin="$(command -v curl)" || die "curl is required before enabling automatic updates."
+  fi
+  local compose_file_quoted health_url_quoted image_quoted log_dir_quoted result_quoted health_timeout_quoted
+  local docker_bin_quoted curl_bin_quoted
+  printf -v compose_file_quoted '%q' "$COMPOSE_FILE"
+  printf -v health_url_quoted '%q' "$HEALTH_URL"
+  printf -v image_quoted '%q' "$DEFAULT_IMAGE"
+  printf -v log_dir_quoted '%q' "$AUTO_UPDATE_LOG_DIR"
+  printf -v result_quoted '%q' "$AUTO_UPDATE_RESULT"
+  printf -v health_timeout_quoted '%q' "$HEALTH_TIMEOUT"
+  printf -v docker_bin_quoted '%q' "$docker_bin"
+  printf -v curl_bin_quoted '%q' "$curl_bin"
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Dry run: would write local automatic updater: $AUTO_UPDATE_RUNNER"
+    return 0
+  fi
+  mkdir -p "$AUTO_UPDATE_HOME" "$AUTO_UPDATE_LOG_DIR"
+  {
+    printf '%s\n' '#!/usr/bin/env bash' 'set -uo pipefail'
+    printf 'COMPOSE_FILE=%s\n' "$compose_file_quoted"
+    printf 'HEALTH_URL=%s\n' "$health_url_quoted"
+    printf 'IMAGE=%s\n' "$image_quoted"
+    printf 'LOG_DIR=%s\n' "$log_dir_quoted"
+    printf 'RESULT_FILE=%s\n' "$result_quoted"
+    printf 'HEALTH_TIMEOUT=%s\n' "$health_timeout_quoted"
+    printf 'DOCKER_BIN=%s\n' "$docker_bin_quoted"
+    printf 'CURL_BIN=%s\n' "$curl_bin_quoted"
+    cat <<'RUNNER'
+CURRENT_LOG="$LOG_DIR/current.log"
+PREVIOUS_LOG="$LOG_DIR/previous.log"
+LOCK_DIR="$LOG_DIR/update.lock"
+LOCK_OWNER="$LOCK_DIR/owner.pid"
+mkdir -p "$LOG_DIR"
+
+acquire_lock() {
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    printf '%s\n' "$$" > "$LOCK_OWNER"
+    return 0
+  fi
+  local lock_pid='' lock_command=''
+  if [ -f "$LOCK_OWNER" ]; then
+    IFS= read -r lock_pid < "$LOCK_OWNER" || true
+  fi
+  case "$lock_pid" in
+    ''|*[!0-9]*)
+      ;;
+    *)
+      if kill -0 "$lock_pid" 2>/dev/null; then
+        lock_command="$(ps -p "$lock_pid" -o command= 2>/dev/null || true)"
+        case "$lock_command" in
+          *"$0"*)
+            return 1
+            ;;
+        esac
+      fi
+      ;;
+  esac
+  rm -f "$LOCK_OWNER"
+  rmdir "$LOCK_DIR" 2>/dev/null || return 1
+  mkdir "$LOCK_DIR" 2>/dev/null || return 1
+  printf '%s\n' "$$" > "$LOCK_OWNER"
+}
+
+if ! acquire_lock; then
+  exit 0
+fi
+cleanup() {
+  rm -f "$LOCK_OWNER"
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+if [ -f "$CURRENT_LOG" ]; then
+  mv -f "$CURRENT_LOG" "$PREVIOUS_LOG"
+fi
+exec >"$CURRENT_LOG" 2>&1
+
+write_result() {
+  local status="$1"
+  local phase="$2"
+  local rollback_status="$3"
+  local temporary="${RESULT_FILE}.new"
+  {
+    printf 'schema=opl_webui_host_auto_update_result.v1\n'
+    printf 'status=%s\n' "$status"
+    printf 'phase=%s\n' "$phase"
+    printf 'rollback=%s\n' "$rollback_status"
+    printf 'completed_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'image=%s\n' "$IMAGE"
+    printf 'previous_image_id=%s\n' "${PREVIOUS_IMAGE_ID:-unknown}"
+    printf 'resolved_image_id=%s\n' "${RESOLVED_IMAGE_ID:-unknown}"
+  } > "$temporary"
+  mv -f "$temporary" "$RESULT_FILE"
+}
+
+wait_until_healthy() {
+  local deadline
+  deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    if "$CURL_BIN" -fsS --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+restore_previous() {
+  if [ -z "${PREVIOUS_IMAGE_ID:-}" ]; then
+    printf 'No previous image ID was available for rollback.\n' >&2
+    return 1
+  fi
+  "$DOCKER_BIN" image tag "$PREVIOUS_IMAGE_ID" "$IMAGE" &&
+    "$DOCKER_BIN" compose -f "$COMPOSE_FILE" up -d --pull never --force-recreate &&
+    wait_until_healthy
+}
+
+PREVIOUS_CONTAINER_ID="$("$DOCKER_BIN" compose -f "$COMPOSE_FILE" ps -q one-person-lab-webui 2>/dev/null | sed -n '1p' || true)"
+if [ -n "$PREVIOUS_CONTAINER_ID" ]; then
+  PREVIOUS_IMAGE_ID="$("$DOCKER_BIN" inspect "$PREVIOUS_CONTAINER_ID" --format '{{.Image}}' 2>/dev/null || true)"
+else
+  PREVIOUS_IMAGE_ID="$("$DOCKER_BIN" image inspect "$IMAGE" --format '{{.Id}}' 2>/dev/null || true)"
+fi
+if ! "$DOCKER_BIN" compose -f "$COMPOSE_FILE" pull; then
+  write_result failed pull not_required
+  exit 1
+fi
+RESOLVED_IMAGE_ID="$("$DOCKER_BIN" image inspect "$IMAGE" --format '{{.Id}}' 2>/dev/null || true)"
+if ! "$DOCKER_BIN" compose -f "$COMPOSE_FILE" up -d --pull never --force-recreate; then
+  if restore_previous; then
+    write_result failed compose_up passed
+  else
+    write_result failed compose_up failed
+  fi
+  exit 1
+fi
+
+if wait_until_healthy; then
+  write_result passed health not_required
+  exit 0
+fi
+if restore_previous; then
+  write_result failed health passed
+else
+  write_result failed health failed
+fi
+exit 1
+RUNNER
+  } > "$temporary_path"
+  chmod 0755 "$temporary_path"
+  mv -f "$temporary_path" "$AUTO_UPDATE_RUNNER"
+}
+
+write_systemd_auto_update_units() {
+  local hour="${AUTO_UPDATE_TIME%:*}"
+  local minute="${AUTO_UPDATE_TIME#*:}"
+  local runner_path="$AUTO_UPDATE_RUNNER"
+  runner_path="${runner_path//\\/\\\\}"
+  runner_path="${runner_path//\"/\\\"}"
+  runner_path="${runner_path//%/%%}"
+  local service_temporary="${AUTO_UPDATE_SYSTEMD_SERVICE}.new"
+  local timer_temporary="${AUTO_UPDATE_SYSTEMD_TIMER}.new"
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Dry run: would register systemd user timer one-person-lab-webui-update.timer at $AUTO_UPDATE_TIME and after user-manager startup."
+    return 0
+  fi
+  command -v systemctl >/dev/null 2>&1 ||
+    die "systemd user services are unavailable. Keep manual --update or configure an administrator-owned server scheduler."
+  mkdir -p "$AUTO_UPDATE_SYSTEMD_DIR"
+  {
+    printf '%s\n' \
+      '[Unit]' \
+      'Description=Update One Person Lab WebUI from the host' \
+      '' \
+      '[Service]' \
+      'Type=oneshot' \
+      "ExecStart=\"$runner_path\""
+  } > "$service_temporary"
+  {
+    printf '%s\n' \
+      '[Unit]' \
+      'Description=Daily One Person Lab WebUI update' \
+      '' \
+      '[Timer]' \
+      "OnCalendar=*-*-* ${hour}:${minute}:00" \
+      'OnStartupSec=5m' \
+      'Persistent=true' \
+      'Unit=one-person-lab-webui-update.service' \
+      '' \
+      '[Install]' \
+      'WantedBy=timers.target'
+  } > "$timer_temporary"
+  mv -f "$service_temporary" "$AUTO_UPDATE_SYSTEMD_SERVICE"
+  mv -f "$timer_temporary" "$AUTO_UPDATE_SYSTEMD_TIMER"
+  systemctl --user daemon-reload
+  systemctl --user enable --now one-person-lab-webui-update.timer
+}
+
+write_launchd_auto_update_agent() {
+  local hour="${AUTO_UPDATE_TIME%:*}"
+  local minute="${AUTO_UPDATE_TIME#*:}"
+  local runner_xml
+  runner_xml="$(printf '%s' "$AUTO_UPDATE_RUNNER" | sed \
+    -e 's/&/\&amp;/g' \
+    -e 's/</\&lt;/g' \
+    -e 's/>/\&gt;/g')"
+  local temporary_path="${AUTO_UPDATE_LAUNCHD_PLIST}.new"
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Dry run: would register LaunchAgent $AUTO_UPDATE_LAUNCHD_LABEL at $AUTO_UPDATE_TIME and current-user login."
+    return 0
+  fi
+  command -v launchctl >/dev/null 2>&1 || die "launchctl is required for macOS automatic updates."
+  mkdir -p "$AUTO_UPDATE_LAUNCHD_DIR"
+  cat > "$temporary_path" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$AUTO_UPDATE_LAUNCHD_LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$runner_xml</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>$hour</integer>
+    <key>Minute</key>
+    <integer>$minute</integer>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
+PLIST
+  plutil -lint "$temporary_path" >/dev/null
+  mv -f "$temporary_path" "$AUTO_UPDATE_LAUNCHD_PLIST"
+  launchctl bootout "gui/$(id -u)/$AUTO_UPDATE_LAUNCHD_LABEL" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$AUTO_UPDATE_LAUNCHD_PLIST"
+}
+
+write_auto_update_config() {
+  local scheduler="$1"
+  local temporary_path="${AUTO_UPDATE_CONFIG}.new"
+  if [ "$DRY_RUN" = "1" ]; then
+    log "Dry run: would record automatic update time $AUTO_UPDATE_TIME for $scheduler."
+    return 0
+  fi
+  {
+    printf 'schema=opl_webui_host_auto_update_config.v1\n'
+    printf 'scheduler=%s\n' "$scheduler"
+    printf 'channel=%s\n' "$DEFAULT_IMAGE"
+    printf 'daily_time=%s\n' "$AUTO_UPDATE_TIME"
+  } > "$temporary_path"
+  mv -f "$temporary_path" "$AUTO_UPDATE_CONFIG"
+}
+
+enable_auto_update() {
+  [ "$IMAGE" = "$DEFAULT_IMAGE" ] ||
+    die "Automatic updates support only $DEFAULT_IMAGE. Use manual --update for custom images, tags, or digests."
+  write_auto_update_runner
+  case "$OS_NAME" in
+    Linux)
+      write_systemd_auto_update_units
+      write_auto_update_config systemd_user
+      ;;
+    Darwin)
+      write_launchd_auto_update_agent
+      write_auto_update_config launchd_user
+      ;;
+    *)
+      die "Automatic updates are supported only on Linux and macOS by this installer."
+      ;;
+  esac
+  log "Automatic WebUI updates enabled for $DEFAULT_IMAGE at $AUTO_UPDATE_TIME."
+}
+
+disable_auto_update() {
+  case "$OS_NAME" in
+    Linux)
+      if [ "$DRY_RUN" = "1" ]; then
+        log "Dry run: would disable systemd user timer one-person-lab-webui-update.timer."
+      else
+        if command -v systemctl >/dev/null 2>&1; then
+          systemctl --user disable --now one-person-lab-webui-update.timer >/dev/null 2>&1 || true
+        fi
+        rm -f "$AUTO_UPDATE_SYSTEMD_SERVICE" "$AUTO_UPDATE_SYSTEMD_TIMER"
+        if command -v systemctl >/dev/null 2>&1; then
+          systemctl --user daemon-reload >/dev/null 2>&1 || true
+        fi
+      fi
+      ;;
+    Darwin)
+      if [ "$DRY_RUN" = "1" ]; then
+        log "Dry run: would unload LaunchAgent $AUTO_UPDATE_LAUNCHD_LABEL."
+      else
+        launchctl bootout "gui/$(id -u)/$AUTO_UPDATE_LAUNCHD_LABEL" >/dev/null 2>&1 || true
+        rm -f "$AUTO_UPDATE_LAUNCHD_PLIST"
+      fi
+      ;;
+    *)
+      die "Automatic updates are supported only on Linux and macOS by this installer."
+      ;;
+  esac
+  if [ "$DRY_RUN" = "0" ]; then
+    rm -f "$AUTO_UPDATE_RUNNER" "$AUTO_UPDATE_CONFIG"
+  fi
+  log "Automatic WebUI updates are disabled. Manual --update remains available."
+}
+
+show_auto_update_status() {
+  local enabled=false scheduler=unknown
+  case "$OS_NAME" in
+    Linux)
+      scheduler=systemd_user
+      if command -v systemctl >/dev/null 2>&1 &&
+        systemctl --user is-enabled --quiet one-person-lab-webui-update.timer 2>/dev/null; then
+        enabled=true
+      fi
+      ;;
+    Darwin)
+      scheduler=launchd_user
+      if launchctl print "gui/$(id -u)/$AUTO_UPDATE_LAUNCHD_LABEL" >/dev/null 2>&1; then
+        enabled=true
+      fi
+      ;;
+    *)
+      die "Automatic updates are supported only on Linux and macOS by this installer."
+      ;;
+  esac
+  printf 'scheduler=%s\n' "$scheduler"
+  printf 'enabled=%s\n' "$enabled"
+  printf 'runner=%s\n' "$AUTO_UPDATE_RUNNER"
+  printf 'result=%s\n' "$AUTO_UPDATE_RESULT"
+  if [ -f "$AUTO_UPDATE_CONFIG" ]; then
+    cat "$AUTO_UPDATE_CONFIG"
+  else
+    printf 'channel=%s\n' "$DEFAULT_IMAGE"
+    printf 'daily_time=not_configured\n'
+  fi
+  if [ -f "$AUTO_UPDATE_RESULT" ]; then
+    cat "$AUTO_UPDATE_RESULT"
+  else
+    printf 'status=not_run\n'
+  fi
+}
+
+auto_update_is_configured() {
+  if [ -f "$AUTO_UPDATE_CONFIG" ] || [ -f "$AUTO_UPDATE_RUNNER" ] ||
+    [ -f "$AUTO_UPDATE_SYSTEMD_SERVICE" ] || [ -f "$AUTO_UPDATE_SYSTEMD_TIMER" ] ||
+    [ -f "$AUTO_UPDATE_LAUNCHD_PLIST" ]; then
+    return 0
+  fi
+  case "$OS_NAME" in
+    Linux)
+      command -v systemctl >/dev/null 2>&1 &&
+        systemctl --user is-enabled --quiet one-person-lab-webui-update.timer 2>/dev/null
+      ;;
+    Darwin)
+      command -v launchctl >/dev/null 2>&1 &&
+        launchctl print "gui/$(id -u)/$AUTO_UPDATE_LAUNCHD_LABEL" >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+if [ "$disable_auto_update_after_definitions" = "1" ]; then
+  disable_auto_update
+  exit 0
+fi
+if [ "$show_auto_update_status_after_definitions" = "1" ]; then
+  show_auto_update_status
+  exit 0
+fi
+if [ "$IMAGE" != "$DEFAULT_IMAGE" ] && auto_update_is_configured; then
+  die "Automatic updates are already enabled for $DEFAULT_IMAGE. Run --disable-auto-update before switching to a custom image, tag, or digest."
+fi
 
 confirm_ubuntu_docker_install() {
   if [ "$YES" = "1" ]; then
@@ -713,7 +1168,7 @@ if [ "$UPDATE" = "1" ]; then
 else
   log "Update model: rerun this installer, or pass --update, to pull the WebUI image from the host; the WebUI does not self-update through Docker."
 fi
-log "Image/seed: default latest WebUI image uses the full seed; --tag and --image are advanced overrides."
+log "Image/seed: default stable WebUI image uses the full seed; use --tag latest only to opt in to Preview, or --image for an advanced override."
 log "Gateway account credentials and API keys are not accepted by this installer; enter them inside WebUI first-run or Settings -> Account & Access."
 log_user_path_status
 
@@ -727,6 +1182,11 @@ ensure_compose
 write_compose_file
 start_webui
 wait_for_health
+if [ "$ENABLE_AUTO_UPDATE" = "1" ]; then
+  enable_auto_update
+elif [ "$UPDATE" = "0" ]; then
+  log "Automatic WebUI updates are not enabled. Rerun with --enable-auto-update or run --update regularly."
+fi
 if [ -n "$DIAGNOSTICS_DIR" ] || [ -n "$DIAGNOSTICS_ARCHIVE" ]; then
   collect_diagnostics "requested" "$DIAGNOSTICS_DIR"
 fi

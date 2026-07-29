@@ -28,11 +28,12 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     ['app_github_releases', 'homebrew_tap', 'webui_ghcr'],
     'Publication carrier families',
   );
-  requireEqual(releaseTopology?.current_production_publication_paths, 4, 'Production publication path count');
+  requireEqual(releaseTopology?.current_production_publication_paths, 5, 'Production publication path count');
   assertDeepEqualJson(
     releaseTopology?.production_publication_paths,
     [
       'desktop_stable_github_release',
+      'native_webui_github_release_assets',
       'homebrew_standard_cask',
       'homebrew_full_cask_post_publication_follower',
       'container_webui_latest_with_stable_compatibility_alias',
@@ -47,15 +48,15 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     [
       'direct_github_release_asset',
       'homebrew_cask',
-      'app_universal_install_sh',
+      'release_universal_opl_install_sh',
       'container_webui_helper_or_compose',
     ],
     'Install entrypoint families',
   );
-  requireEqual(installTopology?.current_supported_app_runtime_forms, 2, 'Supported runtime form count');
+  requireEqual(installTopology?.current_supported_app_runtime_forms, 3, 'Supported runtime form count');
   assertDeepEqualJson(
     installTopology?.supported_app_runtime_forms,
-    ['desktop', 'container_webui'],
+    ['desktop', 'native_webui', 'container_webui'],
     'Supported runtime forms',
   );
   requireEqual(installTopology?.approved_target_app_runtime_forms, 3, 'Target runtime form count');
@@ -98,6 +99,127 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(release.terms?.latest?.default_target, 'newest_qualified_stable', 'Latest default target');
   requireEqual(release.terms?.latest?.pointer_move_changes_quality, false, 'Latest quality independence');
+  const latestPolicy = release.latest_policy;
+  requireEqual(
+    latestPolicy?.default_behavior,
+    'each_carrier_advances_its_own_latest_pointer_when_that_carrier_publishes_a_new_qualified_stable',
+    'Carrier-local Latest default behavior',
+  );
+  requireEqual(
+    latestPolicy?.automatic_preview_or_nightly_writer_may_move_latest,
+    false,
+    'Automatic Preview Latest mutation',
+  );
+  const durableSelector = latestPolicy?.durable_publication_record_selector;
+  requireEqual(
+    durableSelector?.selector,
+    'carrier_owned_durable_publication_record',
+    'Durable publication record selector',
+  );
+  requireEqual(
+    durableSelector?.candidate_target,
+    'retained_immutable_verified_published_version',
+    'Durable publication record candidate',
+  );
+  assertDeepEqualJson(
+    durableSelector?.candidate_record_must_bind,
+    [
+      'carrier_namespace',
+      'exact_version_or_tag',
+      'immutable_artifact_or_image_digest',
+      'quality_status_and_preview_kind',
+      'qualification_disclosure',
+      'public_readback',
+    ],
+    'Durable publication record bindings',
+  );
+  requireEqual(
+    durableSelector?.actions_artifact?.selection_authority,
+    false,
+    'Actions artifact selector authority',
+  );
+  requireEqual(
+    durableSelector?.actions_artifact?.expiry_or_retention_may_change_selection_eligibility,
+    false,
+    'Actions artifact retention dependency',
+  );
+  requireEqual(
+    durableSelector?.actions_artifact?.allowed_role,
+    'transient_prepublication_transport_or_diagnostic_evidence_only',
+    'Actions artifact role',
+  );
+  requireEqual(
+    durableSelector?.retention?.selection_eligible_state,
+    'retained_not_retired_or_revoked',
+    'Durable record selection retention state',
+  );
+  requireEqual(
+    durableSelector?.retention?.record_must_remain_readable_until_retired,
+    true,
+    'Durable record retention readback',
+  );
+  requireEqual(
+    durableSelector?.retention?.retired_or_revoked_record_selectable,
+    false,
+    'Retired record selection',
+  );
+  assertDeepEqualJson(
+    durableSelector?.evidence_requirements,
+    {
+      stable: ['stable_qualification', 'exact_immutable_digest', 'carrier_public_readback'],
+      preview: [
+        'exact_immutable_digest',
+        'carrier_public_readback',
+        'non_stable_and_skipped_or_failed_gate_disclosure',
+      ],
+    },
+    'Durable publication record evidence requirements',
+  );
+  requireEqual(
+    latestPolicy?.explicit_user_override?.target,
+    'any_exact_published_version',
+    'Explicit Latest override target',
+  );
+  assertDeepEqualJson(
+    latestPolicy?.explicit_user_override?.quality_statuses,
+    ['stable', 'preview'],
+    'Explicit Latest override quality statuses',
+  );
+  assertDeepEqualJson(
+    latestPolicy?.explicit_user_override?.preview_kinds,
+    ['dev', 'nightly'],
+    'Explicit Latest override Preview kinds',
+  );
+  requireEqual(
+    latestPolicy?.explicit_user_override?.authority,
+    'protected_single_use',
+    'Explicit Latest override authority',
+  );
+  requireEqual(
+    latestPolicy?.explicit_user_override?.compare_and_swap,
+    'exact_expected_current',
+    'Explicit Latest override CAS',
+  );
+  requireEqual(
+    latestPolicy?.explicit_user_override?.quality_unchanged,
+    true,
+    'Explicit Latest override quality preservation',
+  );
+  requireEqual(
+    latestPolicy?.explicit_user_override?.persistent_override,
+    false,
+    'Explicit Latest override persistence',
+  );
+  requireEqual(
+    latestPolicy?.move_latest_pointer?.stable_or_preview_candidate_allowed,
+    true,
+    'Latest pointer candidate freedom',
+  );
+  requireEqual(
+    latestPolicy?.next_qualified_stable_reclaims_pointer,
+    true,
+    'Latest Stable reclaim default',
+  );
   requireEqual(release.terms?.nightly?.product_channel_semantics, 'retained', 'Nightly product semantics');
   requireEqual(
     release.terms?.nightly?.current_publication_implementation,
@@ -131,15 +253,21 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   const override = latest?.explicit_user_override;
   requireEqual(override?.target, 'any_exact_published_version', 'Latest override target');
+  assertDeepEqualJson(override?.quality_statuses, ['stable', 'preview'], 'Latest override quality statuses');
   assertDeepEqualJson(override?.preview_kinds, ['dev', 'nightly'], 'Latest override Preview kinds');
   requireEqual(override?.authority, 'protected_single_use', 'Latest override authority');
   requireEqual(override?.compare_and_swap, 'exact_expected_current', 'Latest override CAS');
   requireEqual(override?.quality_unchanged, true, 'Latest override quality');
   requireEqual(override?.persistent_override, false, 'Latest override persistence');
   requireEqual(
-    override?.non_stable_and_skipped_or_failed_gate_disclosure_required,
+    override?.non_stable_and_skipped_or_failed_gate_disclosure_required_for_preview_only,
     true,
-    'Latest override disclosure',
+    'Preview Latest override disclosure',
+  );
+  requireEqual(
+    override?.stable_candidate_requires_stable_qualification_disclosure,
+    true,
+    'Stable Latest override qualification disclosure',
   );
   requireEqual(latest?.promote_quality?.transition, 'preview_to_stable', 'Quality promotion transition');
   requireEqual(latest?.promote_quality?.same_exact_artifact_digest_required, true, 'Quality promotion digest');
@@ -147,8 +275,69 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(latest?.promote_quality?.immutable_build_manifest_rewrite_allowed, false, 'Quality manifest immutability');
   requireEqual(latest?.promote_quality?.moves_latest_pointer, false, 'Quality promotion pointer behavior');
   requireEqual(latest?.move_latest_pointer?.changes_quality, false, 'Latest pointer quality behavior');
+  requireEqual(
+    latest?.move_latest_pointer?.stable_or_preview_candidate_allowed,
+    true,
+    'Latest pointer Stable or Preview target',
+  );
   requireEqual(latest?.next_qualified_stable_reclaims_pointer, true, 'Next Stable Latest behavior');
   requireEqual(latest?.failure_preserves_current_latest_lkg, true, 'Latest LKG failure behavior');
+  const dockerOverride = latest?.docker_manual_override;
+  requireEqual(
+    dockerOverride?.target,
+    'retained_immutable_verified_published_version',
+    'Docker manual override target',
+  );
+  requireEqual(
+    dockerOverride?.requires_explicit_user_confirmation,
+    true,
+    'Docker manual override confirmation',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.source,
+    'workflow_dispatch_exact_version_confirmation',
+    'Docker manual override confirmation source',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.expected_value,
+    'move-docker-latest:<exact_version>',
+    'Docker manual override confirmation value',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.actor,
+    'github_human_login',
+    'Docker manual override confirmation actor',
+  );
+  requireEqual(
+    dockerOverride?.operator_confirmation?.digest_bound_into_terminal_receipt,
+    true,
+    'Docker manual override confirmation receipt binding',
+  );
+  requireEqual(
+    dockerOverride?.selector,
+    'carrier_owned_durable_publication_record',
+    'Docker manual override selector',
+  );
+  assertDeepEqualJson(
+    dockerOverride?.mutation_scope,
+    ['container_webui.latest'],
+    'Docker manual override mutation scope',
+  );
+  assertDeepEqualJson(
+    dockerOverride?.must_not_mutate,
+    ['container_webui.stable', 'desktop.latest'],
+    'Docker manual override protected pointers',
+  );
+  requireEqual(
+    dockerOverride?.compare_and_swap,
+    'exact_expected_current',
+    'Docker manual override CAS',
+  );
+  requireEqual(
+    dockerOverride?.fresh_public_readback_required,
+    true,
+    'Docker manual override readback',
+  );
 
   const currentCohort = release.cohort_policy?.current_development_state;
   const targetCohort = release.cohort_policy?.approved_production_target;
@@ -308,14 +497,28 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
 
   const nativeWebui = install.runtime_forms?.native_webui;
-  requireEqual(nativeWebui?.source_runtime_status, 'active_development_capability', 'Native WebUI source status');
+  requireEqual(nativeWebui?.source_runtime_status, 'active_production_capability', 'Native WebUI source status');
   requireEqual(
     nativeWebui?.implementation_status,
-    'production_publisher_implemented_pending_first_publication_readback',
+    'live_linux_x86_64_macos_arm64_implemented_pending_first_publication',
     'Native WebUI implementation status',
   );
-  requireEqual(nativeWebui?.public_install_status, 'not_published', 'Native WebUI public status');
-  requireEqual(nativeWebui?.opl_support_status, 'approved_target_not_supported', 'Native WebUI support status');
+  requireEqual(nativeWebui?.public_install_status, 'published_digest_bound', 'Native WebUI public status');
+  requireEqual(
+    nativeWebui?.opl_support_status,
+    'supported_linux_x86_64',
+    'Native WebUI support status',
+  );
+  assertDeepEqualJson(
+    nativeWebui?.supported_targets,
+    ['linux_x86_64'],
+    'Native WebUI supported targets',
+  );
+  assertDeepEqualJson(
+    nativeWebui?.implemented_targets_pending_publication,
+    ['macos_arm64'],
+    'Native WebUI implemented targets pending publication',
+  );
   requireEqual(nativeWebui?.electron_required, false, 'Native WebUI Electron requirement');
   requireEqual(nativeWebui?.docker_required, false, 'Native WebUI Docker requirement');
   requireEqual(
@@ -330,10 +533,15 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(
     release.approved_targets?.native_webui?.status,
-    'production_publisher_implemented_pending_first_publication_readback',
+    'live_public_linux_x86_64_plus_macos_arm64_implemented_pending_first_publication_readback',
     'Native WebUI release target status',
   );
   requireEqual(release.approved_targets?.native_webui?.initial_platform, 'linux_amd64', 'Native WebUI initial platform');
+  requireEqual(
+    release.approved_targets?.native_webui?.initial_macos_platform,
+    'macos_arm64',
+    'Native WebUI initial macOS platform',
+  );
   requireEqual(
     release.approved_targets?.native_webui?.publication_carrier,
     'app_github_release_assets',
@@ -357,7 +565,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   assertDeepEqualJson(
     release.approved_targets?.native_webui?.promotion_requires,
     [
-      'carrier_neutral_frozen_linux_amd64_payload',
+      'carrier_neutral_frozen_platform_payload',
       'container_overlay_reuses_the_same_frozen_payload',
       'versioned_runtime_directories_and_atomic_current_pointer',
       'app_owned_versioned_artifacts',
@@ -395,6 +603,28 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installer?.approved_universal_target?.headless_explicit, 'opl_base_only', 'Universal headless target');
   requireEqual(installer?.approved_universal_target?.result, 'official_profile_converged', 'Universal result');
   assertDeepEqualJson(
+    installer?.approved_universal_target?.frozen_identity,
+    {
+      app_source_ref: 'OPL_APP_SOURCE_REF',
+      shell_source_ref: 'OPL_SHELL_SOURCE_REF',
+      framework_source_ref: 'OPL_FRAMEWORK_SOURCE_REF',
+      release_version: 'OPL_RELEASE_VERSION',
+      release_repository: 'OPL_RELEASE_REPO',
+      release_tag: 'OPL_FROZEN_RELEASE_TAG',
+    },
+    'Universal frozen identity',
+  );
+  assertDeepEqualJson(
+    installer?.approved_universal_target?.container_webui,
+    {
+      image_repository: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
+      tag: 'same_display_version',
+      mutable_latest_fallback_allowed: false,
+      missing_exact_tag: 'typed_blocker',
+    },
+    'Universal Container WebUI version binding',
+  );
+  assertDeepEqualJson(
     installer?.approved_universal_target?.native_webui_public_discovery,
     {
       repository: 'gaofeng21cn/one-person-lab-app',
@@ -411,6 +641,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
       exact_tag_download_url_required: true,
       probe_before_selection_required: true,
       pre_publication_fallback: 'container_webui',
+      target_selection: 'host_platform_and_architecture',
     },
     'Native WebUI public discovery policy',
   );

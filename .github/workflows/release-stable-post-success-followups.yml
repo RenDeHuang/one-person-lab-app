@@ -1,0 +1,410 @@
+name: OPL Stable Post-Success Full Follow-up
+run-name: Full append successor for Stable run ${{ github.event.workflow_run.id }}
+
+on:
+  workflow_run:
+    workflows:
+      - OPL Stable Release Bundle
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-full-append-successor-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.bind.outputs.eligible }}
+      reason_code: ${{ steps.bind.outputs.reason_code }}
+      source_run_id: ${{ steps.bind.outputs.source_run_id }}
+      source_artifact: ${{ steps.bind.outputs.source_artifact }}
+      framework_ref: ${{ steps.bind.outputs.framework_ref }}
+      app_ref: ${{ steps.bind.outputs.app_ref }}
+      shell_ref: ${{ steps.bind.outputs.shell_ref }}
+      version: ${{ steps.bind.outputs.version }}
+      source_bundle_digest: ${{ steps.bind.outputs.source_bundle_digest }}
+      existing_run_id: ${{ steps.bind.outputs.existing_run_id }}
+    steps:
+      - name: Validate successful Standard source run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
+          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$SOURCE_HEAD_SHA" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .head_sha == $head
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.display_title | test("^OPL Stable standard (?:[1-9][0-9]*|operation:[A-Za-z0-9._:-]{1,128} authority:[A-Za-z0-9._:-]{1,128} run:[1-9][0-9]*)$"))
+          ' source-run.json >/dev/null
+
+      - name: Download exact Standard checkpoint and activation evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-standard-checkpoint-${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: standard-checkpoint
+
+      - name: Download exact Latest activation evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-activation-${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: standard-activation
+
+      - name: Bind source checkpoint, cohort, and idempotency
+        id: bind
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checkpoints=()
+          while IFS= read -r file; do checkpoints+=("$file"); done < <(
+            find standard-checkpoint -type f -name checkpoint.json -print | LC_ALL=C sort
+          )
+          bundles=()
+          while IFS= read -r file; do bundles+=("$file"); done < <(
+            find standard-checkpoint -type f -name bundle.json -print | LC_ALL=C sort
+          )
+          manifests=()
+          while IFS= read -r file; do manifests+=("$file"); done < <(
+            find standard-activation -type f -name latest-component-manifest.json -print | LC_ALL=C sort
+          )
+          test "${#checkpoints[@]}" = 1
+          test "${#bundles[@]}" = 1
+          test "${#manifests[@]}" = 1
+          checkpoint="${checkpoints[0]}"
+          bundle="${bundles[0]}"
+          manifest="${manifests[0]}"
+
+          checkpoint_stage="$(jq -er .checkpoint_stage "$checkpoint")"
+          case "$checkpoint_stage" in
+            standard_built|standard_qualified) ;;
+            *)
+              echo "::error::Successful Standard source must export standard_built or standard_qualified, got $checkpoint_stage."
+              exit 1
+              ;;
+          esac
+          jq -e --arg head "$SOURCE_HEAD_SHA" '
+            .release.channel == "stable"
+            and .sources.app.source_commit == $head
+            and (.sources.shell.source_commit | test("^[0-9a-f]{40}$"))
+            and (.sources.framework.source_commit | test("^[0-9a-f]{40}$"))
+            and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$"))
+            and (.release.tag == ("v" + .release.version))
+            and (.release.prerelease == false)
+          ' "$bundle" >/dev/null
+          jq -e \
+            --arg head "$SOURCE_HEAD_SHA" \
+            --arg version "$(jq -er .release.version "$bundle")" \
+            --arg tag "$(jq -er .release.tag "$bundle")" \
+            --arg shell "$(jq -er .sources.shell.source_commit "$bundle")" \
+            --arg framework "$(jq -er .sources.framework.source_commit "$bundle")" '
+            .surface_kind == "opl_app_component_manifest.v1"
+            and .quality_status == "stable"
+            and .source_commit == $head
+            and .source_cohort == {app_sha:$head,shell_sha:$shell,framework_sha:$framework}
+            and .version == $version
+            and .release_tag == $tag
+            and (.artifacts | type == "array" and length >= 6)
+            and ([.artifacts[].name] | length == (unique | length))
+            and all(.artifacts[];
+              (.name | type == "string" and length > 0)
+              and (.digest | test("^sha256:[0-9a-f]{64}$"))
+              and (.size | type == "number" and . > 0))
+          ' "$manifest" >/dev/null
+
+          version="$(jq -er .release.version "$bundle")"
+          framework_ref="$(jq -er .sources.framework.source_commit "$bundle")"
+          app_ref="$(jq -er .sources.app.source_commit "$bundle")"
+          shell_ref="$(jq -er .sources.shell.source_commit "$bundle")"
+          bundle_digest="$(jq -er .bundle_digest "$bundle")"
+          [[ "$bundle_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          successor_intent_name="opl-full-append-successor-intent-${SOURCE_RUN_ID}"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$successor_intent_name&per_page=100" \
+            > existing-successor-artifacts.json
+          existing_run_ids="$(
+            jq -r --arg name "$successor_intent_name" '
+              [.artifacts[]?
+                | select(.name == $name and .expired == false)
+                | .workflow_run.id] | unique | .[]
+            ' existing-successor-artifacts.json
+          )"
+          existing_run_count="$(grep -c . <<<"$existing_run_ids" || true)"
+          test "$existing_run_count" -le 1 || {
+            echo "::error::More than one Full append successor intent exists for this Standard run; refusing to dispatch."
+            exit 1
+          }
+          existing_run_id="${existing_run_ids:-}"
+          if [ -n "$existing_run_id" ]; then
+            {
+              echo 'eligible=false'
+              echo 'reason_code=existing_append_full_for_cohort'
+              echo "source_run_id=$SOURCE_RUN_ID"
+              echo "source_artifact=opl-release-standard-checkpoint-$SOURCE_RUN_ID"
+              echo "framework_ref=$framework_ref"
+              echo "app_ref=$app_ref"
+              echo "shell_ref=$shell_ref"
+              echo "version=$version"
+              echo "source_bundle_digest=$bundle_digest"
+              echo "existing_run_id=$existing_run_id"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo 'eligible=true'
+            echo 'reason_code=admitted'
+            echo "source_run_id=$SOURCE_RUN_ID"
+            echo "source_artifact=opl-release-standard-checkpoint-$SOURCE_RUN_ID"
+            echo "framework_ref=$framework_ref"
+            echo "app_ref=$app_ref"
+            echo "shell_ref=$shell_ref"
+            echo "version=$version"
+            echo "source_bundle_digest=$bundle_digest"
+            echo 'existing_run_id='
+          } >> "$GITHUB_OUTPUT"
+
+          jq -n \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_artifact "opl-release-standard-checkpoint-$SOURCE_RUN_ID" \
+            --arg app_ref "$app_ref" \
+            --arg shell_ref "$shell_ref" \
+            --arg framework_ref "$framework_ref" \
+            --arg version "$version" \
+            --arg bundle_digest "$bundle_digest" \
+            '{
+              schema:"opl_app_stable_full_successor_intent.v1",
+              status:"admitted",
+              operation:"append_full",
+              source:{run_id:$source_run_id,artifact:$source_artifact,bundle_digest:$bundle_digest},
+              cohort:{app_sha:$app_ref,shell_sha:$shell_ref,framework_sha:$framework_ref},
+              release:{version:$version,standard_assets_modified:false,latest_modified:false},
+              idempotency:{one_successor_per_standard_run:true,existing_run_id:null}
+            }' > successor-intent.json
+
+      - name: Upload immutable successor intent
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-append-successor-intent-${{ github.event.workflow_run.id }}
+          path: successor-intent.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  dispatch:
+    if: ${{ needs.admit.outputs.eligible == 'true' }}
+    needs: [admit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      status: ${{ steps.dispatch.outputs.status }}
+      run_id: ${{ steps.dispatch.outputs.run_id }}
+      run_attempt: ${{ steps.dispatch.outputs.run_attempt }}
+      conclusion: ${{ steps.dispatch.outputs.conclusion }}
+    steps:
+      - name: Dispatch exactly one independent Full append operation
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ needs.admit.outputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ needs.admit.outputs.source_artifact }}
+          FRAMEWORK_REF: ${{ needs.admit.outputs.framework_ref }}
+          APP_REF: ${{ needs.admit.outputs.app_ref }}
+          SHELL_REF: ${{ needs.admit.outputs.shell_ref }}
+          VERSION: ${{ needs.admit.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dispatch_started_at="$(date -u +%s)"
+          inputs_json="$(
+            jq -cn \
+              --arg framework_ref "$FRAMEWORK_REF" \
+              --arg source_run_id "$SOURCE_RUN_ID" \
+              --arg source_artifact "$SOURCE_ARTIFACT" \
+              '{
+                operation:"append_full",
+                version:"",
+                include_full:"false",
+                shell_ref:"",
+                framework_ref:$framework_ref,
+                source_run_id:$source_run_id,
+                source_artifact:$source_artifact,
+                source_qualification_run_id:"",
+                source_qualification_receipt_digest:""
+              }'
+          )"
+          jq -e '
+            .operation == "append_full"
+            and .version == ""
+            and .include_full == "false"
+            and .shell_ref == ""
+            and (.framework_ref | test("^[0-9a-f]{40}$"))
+            and (.source_run_id | test("^[1-9][0-9]*$"))
+            and (.source_artifact | test("^opl-release-standard-checkpoint-[1-9][0-9]*$"))
+            and .source_qualification_run_id == ""
+            and .source_qualification_receipt_digest == ""
+          ' <<<"$inputs_json" >/dev/null
+          dispatch_ref="v${VERSION}"
+          [[ "$dispatch_ref" =~ ^v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(-r[1-9][0-9]*)?$ ]]
+          dispatch_payload="$(jq -cn --arg ref "$dispatch_ref" --argjson inputs "$inputs_json" '{ref:$ref,inputs:$inputs}')"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/dispatches" \
+            --input - <<<"$dispatch_payload"
+
+          run_id=''
+          for _ in $(seq 1 12); do
+            runs="$(
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&per_page=100"
+            )"
+            matches="$(
+              jq -r --arg head "$APP_REF" --arg branch "$dispatch_ref" --argjson started "$dispatch_started_at" '
+                [.[]?.workflow_runs[]?
+                  | select(.head_sha == $head)
+                  | select(.head_branch == $branch)
+                  | select(.path == ".github/workflows/release-stable.yml")
+                  | select(.run_attempt == 1)
+                  | select(.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
+                  | select((.created_at | fromdateiso8601) >= $started)
+                  | .id] | unique | .[]
+              ' <<<"$runs"
+            )"
+            if [ "$(wc -l <<<"$matches" | tr -d ' ')" = 1 ]; then
+              run_id="$matches"
+              break
+            fi
+            sleep 5
+          done
+          test -n "$run_id" || {
+            echo "::error::Full append dispatch result was not uniquely observable; no retry is allowed."
+            {
+              echo 'status=unknown'
+              echo 'run_id='
+              echo 'run_attempt='
+              echo 'conclusion='
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          }
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > append-run.json
+          jq -e --arg run "$run_id" --arg head "$APP_REF" --arg branch "$dispatch_ref" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == $branch
+            and .head_sha == $head
+            and .run_attempt == 1
+            and (.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
+          ' append-run.json >/dev/null
+          {
+            echo 'status=dispatched'
+            echo "run_id=$run_id"
+            echo "run_attempt=$(jq -er .run_attempt append-run.json)"
+            echo "conclusion=$(jq -r '.conclusion // empty' append-run.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Persist dispatch readback
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-append-dispatch-readback-${{ needs.admit.outputs.source_run_id }}
+          path: append-run.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  receipt:
+    if: ${{ always() }}
+    needs: [admit, dispatch]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Write immutable successor receipt
+        env:
+          SOURCE_RUN_ID: ${{ needs.admit.outputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ needs.admit.outputs.source_artifact }}
+          APP_REF: ${{ needs.admit.outputs.app_ref }}
+          SHELL_REF: ${{ needs.admit.outputs.shell_ref }}
+          FRAMEWORK_REF: ${{ needs.admit.outputs.framework_ref }}
+          VERSION: ${{ needs.admit.outputs.version }}
+          ELIGIBLE: ${{ needs.admit.outputs.eligible }}
+          REASON_CODE: ${{ needs.admit.outputs.reason_code }}
+          EXISTING_RUN_ID: ${{ needs.admit.outputs.existing_run_id }}
+          DISPATCH_STATUS: ${{ needs.dispatch.outputs.status }}
+          DISPATCH_RUN_ID: ${{ needs.dispatch.outputs.run_id }}
+          DISPATCH_ATTEMPT: ${{ needs.dispatch.outputs.run_attempt }}
+          DISPATCH_CONCLUSION: ${{ needs.dispatch.outputs.conclusion }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_artifact "$SOURCE_ARTIFACT" \
+            --arg app_ref "$APP_REF" \
+            --arg shell_ref "$SHELL_REF" \
+            --arg framework_ref "$FRAMEWORK_REF" \
+            --arg version "$VERSION" \
+            --arg eligible "$ELIGIBLE" \
+            --arg reason_code "$REASON_CODE" \
+            --arg existing_run_id "$EXISTING_RUN_ID" \
+            --arg dispatch_status "$DISPATCH_STATUS" \
+            --arg dispatch_run_id "$DISPATCH_RUN_ID" \
+            --arg dispatch_attempt "$DISPATCH_ATTEMPT" \
+            --arg dispatch_conclusion "$DISPATCH_CONCLUSION" \
+            '{
+              schema:"opl_app_stable_full_successor_receipt.v1",
+              operation:"append_full",
+              source:{run_id:$source_run_id,artifact:$source_artifact},
+              cohort:{app_sha:$app_ref,shell_sha:$shell_ref,framework_sha:$framework_ref},
+              release:{version:$version},
+              admission:{eligible:($eligible == "true"),reason_code:$reason_code,existing_run_id:(if $existing_run_id == "" then null else $existing_run_id end)},
+              dispatch:{status:$dispatch_status,run_id:(if $dispatch_run_id == "" then null else $dispatch_run_id end),run_attempt:(if $dispatch_attempt == "" then null else ($dispatch_attempt|tonumber) end),conclusion:(if $dispatch_conclusion == "" then null else $dispatch_conclusion end)},
+              mutation_scope:{standard_assets_modified:false,latest_modified:false,homebrew_modified:false,certification_blocking:false}
+            }' > stable-full-successor-receipt.json
+      - name: Upload successor receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-append-successor-receipt-${{ needs.admit.outputs.source_run_id }}
+          path: stable-full-successor-receipt.json
+          if-no-files-found: error
+          retention-days: 30

@@ -13,12 +13,13 @@
       "ordinary_install_entrypoint_families": [
         "direct_github_release_asset",
         "homebrew_cask",
-        "app_universal_install_sh",
+        "release_universal_opl_install_sh",
         "container_webui_helper_or_compose"
       ],
-      "current_supported_app_runtime_forms": 2,
+      "current_supported_app_runtime_forms": 3,
       "supported_app_runtime_forms": [
         "desktop",
+        "native_webui",
         "container_webui"
       ],
       "approved_target_app_runtime_forms": 3,
@@ -48,17 +49,24 @@
     "runtime_forms": {
       "desktop": {
         "current_status": "supported_macos_carrier",
-        "platform_preview_status": {
-          "windows_x64": "authorized_rc_preview_pending_first_publication_readback"
+      "platform_preview_status": {
+        "linux_x86_64": "build_capable_release_and_clean_host_qualification_pending",
+        "windows_x64": "authorized_rc_preview_pending_first_publication_readback"
         },
         "electron_required": true,
         "browser_only": false
       },
       "native_webui": {
-        "source_runtime_status": "active_development_capability",
-        "implementation_status": "production_publisher_implemented_pending_first_publication_readback",
-        "public_install_status": "not_published",
-        "opl_support_status": "approved_target_not_supported",
+      "source_runtime_status": "active_production_capability",
+      "implementation_status": "live_linux_x86_64_macos_arm64_implemented_pending_first_publication",
+      "public_install_status": "published_digest_bound",
+      "opl_support_status": "supported_linux_x86_64",
+      "supported_targets": [
+        "linux_x86_64"
+      ],
+      "implemented_targets_pending_publication": [
+        "macos_arm64"
+      ],
         "electron_required": false,
         "docker_required": false,
         "upstream_aionui_tarballs_are_opl_release_evidence": false,
@@ -75,12 +83,14 @@
       "macos_personal": {
         "current_recommended_terminal_path": "homebrew_standard_cask",
         "current_direct_gui_path": "github_release_dmg",
-        "approved_default_runtime_form": "desktop"
+        "approved_default_runtime_form": "desktop",
+        "browser_webui_target": "native_webui_with_container_fallback_starting_first_qualified_publication"
       },
       "linux_personal": {
-        "current_default_runtime_form": "container_webui",
-        "approved_default_runtime_form": "native_webui",
-        "target_status": "pending_native_distribution"
+      "current_default_runtime_form": "native_webui",
+      "fallback_runtime_form": "container_webui",
+      "approved_default_runtime_form": "native_webui",
+      "target_status": "live_public_linux_x86_64"
       },
       "server_or_isolated": {
         "current_and_target_runtime_form": "container_webui"
@@ -110,8 +120,24 @@
         ],
         "official_profile_converged_by_installer": true
       },
-      "approved_universal_target": {
-        "entrypoint": "install.sh",
+    "approved_universal_target": {
+      "entrypoint": "opl-install.sh",
+      "release_asset_status": "generated_per_exact_release_starting_next_publication",
+      "source_checkout_compatibility_entrypoint": "install.sh",
+      "frozen_identity": {
+        "app_source_ref": "OPL_APP_SOURCE_REF",
+        "shell_source_ref": "OPL_SHELL_SOURCE_REF",
+        "framework_source_ref": "OPL_FRAMEWORK_SOURCE_REF",
+        "release_version": "OPL_RELEASE_VERSION",
+        "release_repository": "OPL_RELEASE_REPO",
+        "release_tag": "OPL_FROZEN_RELEASE_TAG"
+      },
+      "container_webui": {
+        "image_repository": "ghcr.io/gaofeng21cn/one-person-lab-webui",
+        "tag": "same_display_version",
+        "mutable_latest_fallback_allowed": false,
+        "missing_exact_tag": "typed_blocker"
+      },
         "macos_default": "desktop",
         "linux_personal_default": "native_webui",
         "server_or_isolated_explicit": "container_webui",
@@ -131,7 +157,8 @@
           "quality_admission_authority": "exact_digest_bound_native_qualification_receipt_not_latest_pointer",
           "exact_tag_download_url_required": true,
           "probe_before_selection_required": true,
-          "pre_publication_fallback": "container_webui"
+          "pre_publication_fallback": "container_webui",
+          "target_selection": "host_platform_and_architecture"
         }
       },
       "stable_macos_helper": {
@@ -174,7 +201,7 @@
         "publication_workflow": ".github/workflows/release-nightly-homebrew-follower.yml",
         "stable_cask_mutation_allowed": false
       },
-      "full": {
+    "full": {
         "cask": "one-person-lab-full",
         "dmg_profile": "full_stable",
         "publication_status": "legacy_public_cask_unmanaged_and_stale",
@@ -187,8 +214,18 @@
         "target_framework_carrier": "full_dmg_embedded_opl_base",
         "target_digest_cas_required": true,
         "approved_target": "managed_full_cask_activates_embedded_base_and_official_profile",
-        "target_requires_active_framework_count": 1
-      },
+      "target_requires_active_framework_count": 1
+    },
+    "native_webui": {
+      "target_formula": "one-person-lab-webui",
+      "platforms": [
+        "macos",
+        "linux"
+      ],
+      "technical_feasibility": "feasible_same_command_cross_platform",
+      "current_status": "not_implemented",
+      "role": "optional Homebrew carrier for the browser workbench; it must consume the same frozen Native WebUI release payload and qualification contract"
+    },
       "quarantine": {
         "homebrew_cask_automatically_clears_quarantine_current": false,
         "current_clean_vm_harness_clears_quarantine_outside_homebrew": true,
@@ -566,22 +603,83 @@
         "primary_user_path": "one_click_installer",
         "linux_macos_shell_script": "install-docker-webui.sh",
         "windows_powershell_script": "install-docker-webui.ps1",
-        "linux_macos_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes",
+        "linux_macos_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes --enable-auto-update",
+        "linux_server_online_command": "curl -fsSL https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh | bash -s -- --yes",
         "windows_online_command": "download install-docker-webui.ps1 from raw.githubusercontent.com and run with -EnableAutoUpdate -Yes",
         "windows_prerequisite_mode": "explicit_install_prerequisites_switch_requires_administrator",
-        "default_image_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
-        "compatibility_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
-        "windows_auto_update": {
-          "mechanism": "user_scoped_windows_scheduled_task",
-          "task_name": "One Person Lab WebUI Latest Update",
-          "enable_entrypoint": "install-docker-webui.ps1 -EnableAutoUpdate",
-          "disable_entrypoint": "install-docker-webui.ps1 -DisableAutoUpdate",
-          "schedule": "daily_at_03_00_and_current_user_logon_start_when_available",
-          "execution_context": "limited_current_user_run_only_when_logged_on",
-          "updater_script": "OnePersonLab/updater/update-webui.ps1",
-          "channel_policy": "default_latest_only_custom_image_tag_or_digest_requires_manual_update",
-          "follows_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
-          "update_semantics": "download_current_host_installer_then_run_Update_Yes_NoOpen_with_preserved_data_projects_port_and_health_configuration",
+        "default_image_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+        "explicit_preview_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
+        "explicit_preview_entrypoints": {
+          "linux_macos": "install-docker-webui.sh --tag latest",
+          "windows": "install-docker-webui.ps1 -Tag latest",
+          "automatic_updates_allowed": false
+        },
+        "host_auto_update": {
+          "scope": "optional_current_user_host_scheduler",
+          "shared_actions": [
+            "enable",
+            "disable",
+            "status",
+            "set_daily_local_time",
+            "manual_update"
+          ],
+          "entrypoints": {
+            "linux_macos_enable": "install-docker-webui.sh --enable-auto-update",
+            "linux_macos_disable": "install-docker-webui.sh --disable-auto-update",
+            "linux_macos_status": "install-docker-webui.sh --auto-update-status",
+            "linux_macos_manual_update": "install-docker-webui.sh --update",
+            "windows_enable": "install-docker-webui.ps1 -EnableAutoUpdate",
+            "windows_disable": "install-docker-webui.ps1 -DisableAutoUpdate",
+            "windows_status": "install-docker-webui.ps1 -AutoUpdateStatus",
+            "windows_manual_update": "install-docker-webui.ps1 -Update"
+          },
+          "platform_schedulers": {
+            "windows": {
+              "mechanism": "user_scoped_windows_scheduled_task",
+              "id": "One Person Lab WebUI Stable Update",
+              "legacy_id_migrated_on_enable": "One Person Lab WebUI Latest Update",
+              "schedule": "daily_at_configured_time_and_current_user_logon_start_when_available",
+              "execution_context": "limited_current_user_run_only_when_logged_on"
+            },
+            "macos": {
+              "mechanism": "current_user_launch_agent",
+              "id": "cn.onepersonlab.webui-update",
+              "schedule": "daily_at_configured_time_and_current_user_login"
+            },
+            "linux_personal": {
+              "mechanism": "systemd_user_timer",
+              "id": "one-person-lab-webui-update.timer",
+              "schedule": "daily_at_configured_time_and_persistent_after_user_manager_start"
+            },
+            "linux_server": {
+              "mechanism": "administrator_owned_scheduler_only",
+              "default_enabled": false,
+              "installer_must_not_create_system_scheduler": true
+            }
+          },
+          "reviewed_runner_policy": "enable_copies_or_generates_a_local_reviewed_runner_and_scheduled_execution_never_downloads_or_executes_mutable_main_branch_installer_code",
+          "runner_paths": {
+            "linux_macos": "OnePersonLab/updater/update-webui.sh",
+            "windows": "OnePersonLab/updater/update-webui.ps1"
+          },
+          "channel_policy": "default_stable_only_preview_or_custom_image_tag_or_digest_requires_manual_update",
+          "follows_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+          "update_semantics": "resolve_or_pull_stable_on_the_host_recreate_compose_and_commit_only_after_health_passes",
+          "failure_semantics": "restore_the_previous_image_digest_and_compose_service_when_recreate_or_health_validation_fails",
+          "result_schema": "opl_webui_host_auto_update_result.v1",
+          "config_schema": "opl_webui_host_auto_update_config.v1",
+          "shared_status_fields": [
+            "scheduler",
+            "enabled",
+            "runner",
+            "channel",
+            "daily_time",
+            "result",
+            "status",
+            "phase",
+            "rollback",
+            "completed_at"
+          ],
           "log_policy": "bounded_current_and_previous_log_under_OnePersonLab_updater_logs",
           "security_boundary": "host_side_only_without_Docker_socket_mount_or_browser_container_mutation_authority"
         },
@@ -591,7 +689,7 @@
           "host_projects_dir",
           "compose.yaml",
           "browser_webui_url",
-          "windows_auto_update_task_when_enabled"
+          "host_auto_update_scheduler_when_enabled"
         ],
         "persistent_host_dirs": [
           "OnePersonLab/data",
@@ -668,7 +766,7 @@
             "host_update": "Update the WebUI image from the host by rerunning the installer, using its explicit update mode, or enabling the user-scoped Windows scheduled task; the browser WebUI must not self-update containers through a Docker socket."
           },
           "settings_entry": "Settings -> Account & Access",
-          "image_seed_selection": "Default latest image must use the WebUI full seed; --tag and --image are explicit advanced overrides.",
+          "image_seed_selection": "Default stable image must use the WebUI full seed; --tag latest is explicit Preview opt-in and --image is an advanced override.",
           "must_prefer_over": [
             "release_evidence_bundle",
             "operator_evidence_bundle",
@@ -743,7 +841,7 @@
           "webui_full": "beginner_default_with_payload_capable_seed_and_fast_first_start",
           "webui_slim": "developer_or_ci_only_metadata_seed_online_reconcile"
         },
-        "stable_channel_policy": "latest_and_stable_alias_must_match_and_point_to_webui_full_not_metadata_only_slim",
+        "stable_channel_policy": "stable_is_the_default_full_image_and_latest_is_explicit_preview_opt_in",
         "required_image_manifest": "/opt/opl/image-manifest.json",
         "required_seed_metadata": "/opt/opl/seed/metadata.json",
         "required_full_seed_components": [
@@ -764,11 +862,19 @@
           "owner": "host_installer_or_administrator",
           "linux_macos_entrypoint": "install-docker-webui.sh --update",
           "windows_entrypoint": "install-docker-webui.ps1 -Update",
-          "windows_auto_update_entrypoint": "install-docker-webui.ps1 -EnableAutoUpdate",
-          "windows_auto_update_mechanism": "limited_current_user_scheduled_task_running_host_installer_daily_and_at_logon_for_default_latest_only",
+          "host_auto_update_contract_ref": "installer_surfaces[surface=docker_webui].installer_model.host_auto_update",
+          "host_auto_update_platforms": [
+            "windows_task_scheduler",
+            "macos_launch_agent",
+            "linux_systemd_user_timer"
+          ],
+          "linux_server_auto_update_default": "disabled_until_administrator_explicitly_configures_a_system_scheduler",
+          "automatic_channel_policy": "default_stable_only_preview_or_custom_image_tag_or_digest_requires_manual_update",
+          "scheduled_code_policy": "locally_preserved_reviewed_runner_only_no_mutable_main_branch_download_or_execution",
+          "health_failure_recovery": "restore_previous_image_digest_and_recreate_with_pull_disabled",
           "rerun_semantics": "rerunning_the_one_click_installer_is_equivalent_to_host_side_image_pull_and_compose_recreate",
           "currentness_status_model": "local_image_digest_and_optional_remote_image_digest_compare_only",
-          "currentness_claim_policy": "remote digest comparison is status-only; it does not prove release readiness, live latest, or that a host update was applied",
+          "currentness_claim_policy": "remote digest comparison is status-only; it does not prove release readiness, the live stable channel, or that a host update was applied",
           "required_host_commands": [
             "docker compose pull",
             "docker compose up"

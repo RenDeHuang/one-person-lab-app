@@ -262,6 +262,22 @@
           "horizontal_overflow_allowed": false,
           "virtual_keyboard_preserves_focused_control_visibility": true
         },
+        "conversation_history_surfaces": {
+          "policy_ref": "contracts/app-gui-product-contract.json#interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces",
+          "default_rail": "canonical_unarchived_thread_directory",
+          "running_now": "same_codex_desktop_runtime_task_status_or_explicit_unavailable",
+          "archived": "independent_canonical_archived_thread_directory",
+          "all_search": "explicit_canonical_historical_search_never_default_rail",
+          "project_affinity_presentation": "recorded_cwd_preserved_explicit_project_id_groups_managed_user_documents_codex_unbound",
+          "visible_id_consumers": [
+            "default_rail",
+            "archived",
+            "pinned",
+            "workspace_groups",
+            "timeline"
+          ],
+          "fixed_count_acceptance_allowed": false
+        },
         "activity_center": {
           "authority": "app_owned_home_minimal_command_surface",
           "source": "not_rendered_on_ordinary_home",
@@ -309,7 +325,11 @@
         "history search as one accessible icon at the trailing edge of the conversation-history heading",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
-        "directory groups derived from canonical session cwd as presentation and new-session cwd shortcuts only",
+        "default rail contains every canonically unarchived thread returned by the App Server directory",
+        "Running now uses the same Codex Desktop runtime task-status authority or explicitly reports unavailable",
+        "Archived is an independent canonical archived directory and All/Search is an explicit historical entry",
+        "managed user Documents Codex workspaces preserve recorded cwd while rendering as projectless without leaf-directory Project groups",
+        "directory groups derive only from explicit projectId affinity while recorded session cwd remains runtime metadata and a new-session cwd shortcut",
         "advanced work surfaces closed by default with no third column",
         "runtime/task progress available from Runtime page, not Home activity grid",
         "owner-localized task verbs from dynamically projected Home shortcuts",
@@ -352,6 +372,10 @@
         "directory-group delete action or cascade deletion of grouped sessions",
         "title-based conversation deduplication",
         "stale Codex ACP cache rows absent from an available canonical App Server overview",
+        "archived=false or a separately spawned app-server status treated as Running now authority",
+        "a fixed conversation count accepted in place of a same-instant canonical ID and archived-bit comparison",
+        "unknown Codex cache rows classified into default rail or Archived while canonical authority is unavailable",
+        "recorded cwd alone treated as explicit Project affinity or managed Documents Codex leaf directories rendered as Projects",
         "a standalone projectless or no working directory placeholder row",
         "normal Runtime status notice on Home",
         "clipped or unreachable model and reasoning controls in the context action sheet"
@@ -600,16 +624,19 @@
           "project_affinity_states": ["unbound", "bound"],
           "project_affinity_cardinality": "zero_or_one",
           "projectless_session_semantics": "no_user_selected_project_affinity_not_no_runtime_cwd",
-          "projectless_detection": "custom_workspace_equals_false_or_canonical_recorded_cwd_absent_never_turn_or_command_pwd",
-          "project_affinity_role": "canonical_recorded_thread_cwd_for_ui_grouping_and_default_turn_cwd_hint",
-          "workspace_binding_role": "new_session_initial_cwd_or_projectless_one_time_canonical_cwd_adoption_and_sidebar_grouping_metadata_only",
+          "projectless_detection": "explicit_project_id_absent_or_managed_scratch_never_inferred_from_recorded_cwd_or_runtime_pwd",
+          "recorded_cwd_role": "canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity",
+          "project_affinity_source": "explicit_project_id_projection",
+          "project_affinity_role": "explicit_project_id_for_sidebar_grouping_and_new_session_project_shortcut_never_inferred_from_recorded_cwd",
+          "managed_scratch_presentation": "user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups",
+          "workspace_binding_role": "new_session_initial_cwd_and_explicit_project_affinity_assignment_are_distinct",
           "runtime_pwd_role": "turn_cwd_or_command_pwd_execution_context_not_persisted_as_project_affinity",
           "turn_cwd_override_allowed": true,
           "writable_roots_role": "sandbox_permission_surface_independent_of_project_affinity",
-          "core_workspace_application": "thread_settings_update_cwd_with_exact_thread_read_before_local_projection_commit",
+          "core_workspace_application": "thread_settings_update_cwd_records_runtime_workspace_only",
           "runtime_pwd_changes_project_affinity": false,
           "project_affinity_changes_writable_roots": false,
-          "project_adoption_transition": "projectless_to_bound_once_via_thread_settings_update_cwd",
+          "project_adoption_transition": "unbound_to_bound_once_via_explicit_project_affinity_assignment",
           "bound_project_reassignment": "not_exposed",
           "workspace_owns_session": false,
           "workspace_owns_context": false,
@@ -892,7 +919,7 @@
     {
       "id": "package_contribution",
       "expected_source": "current Framework-projected Package contribution directory entry and descriptor-neutral contribution broker",
-      "machine_source": "app_state.agent_packages.directory.entries[].app_contributions + opl app contribution read|execute --package-id <package_id> --ref <dynamic> --input <json> [--confirm]",
+      "machine_source": "app_state.agent_packages.directory.entries[].app_contributions + opl app contribution read --package-id <package_id> --ref <data_ref> --input <json> + opl app action execute --action package_contribution_execute --payload <json> --json when the exact action is projected",
       "page_contract": "dynamic_package_contribution_standard_view",
       "package_contribution_view_model": {
         "navigation_identity": [
@@ -902,7 +929,19 @@
         "navigation_source_ref": "app_state.agent_packages.directory.entries[].app_contributions.navigation[]",
         "route_resolution_policy": "resolve_navigation_to_its_local_view_and_refs_from_the_same_current_directory_entry_then_delegate_to_the_broker",
         "data_read_command": "opl app contribution read --package-id <package_id> --ref <data_ref> [--input <json>|--input-stdin]",
-        "action_execute_command": "opl app contribution execute --package-id <package_id> --ref <action_ref> [--input <json>|--input-stdin] [--confirm]",
+        "action_execute_command": "opl app action execute --action package_contribution_execute --payload <json> [--dry-run] --json",
+        "action_execute_payload_fields": [
+          "package_id",
+          "ref",
+          "input",
+          "confirmed"
+        ],
+        "action_execute_dry_run_policy": "consume_only_app_action_execution.result.opl_app_contribution_preflight_as_a_read_only_preflight_never_as_action_success",
+        "direct_execute_broker_command_allowed": false,
+        "action_availability_source": "app_state action catalog exact package_contribution_execute entry",
+        "action_unavailable_policy": "render_read_only_view_and_hide_or_disable_commands_with_the_projected_disabled_reason",
+        "broker_response_contract_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.broker_response_contract",
+        "broker_response_validation_policy": "validate_the_Framework_envelope_response_identity_success_and_App_owned_standard_renderer_payload_before_rendering_or_accepting_action_success",
         "supported_view_types_source_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.supported_view_types",
         "rendering_policy": "standard_structured_views_only",
         "package_role_filter_allowed": false,
@@ -3676,12 +3715,33 @@
       "builtin_skill_catalog_policy": {
         "source": "AionUI shell builtin skill catalog classified through the App product profile and capability owner projection",
         "display_role": "local_or_third_party_capability_inventory_never_implicit_OPL_Flow_membership",
-        "raw_provider_id_as_primary_label_allowed": false
+        "raw_provider_id_as_primary_label_allowed": false,
+        "scope_model": {
+          "global_user": {
+            "owner": "user_codex_home_or_framework_companion_projection",
+            "materialization": "$CODEX_HOME/skills",
+            "workspace_injection": "forbidden"
+          },
+          "domain_project": {
+            "owner": "MAS_MAG_RCA_or_other_domain_owner",
+            "materialization": ".agents/skills_or_explicit_project_projection",
+            "workspace_injection": "explicit_owner_action_only"
+          },
+          "aionui_builtin_cache": {
+            "owner": "AionUI_internal_runtime",
+            "materialization": "private_cache_only",
+            "workspace_injection": "forbidden",
+            "ordinary_user_scope": "hidden"
+          }
+        }
       },
       "auto_injected_skills_policy": {
         "source": "active shell builtin-auto list classified through the App product profile",
-        "display_role": "local_or_third_party_support_detail_only",
-        "raw_provider_id_as_primary_label_allowed": false
+        "display_role": "internal_compatibility_diagnostic_only",
+        "raw_provider_id_as_primary_label_allowed": false,
+        "workspace_materialization": "forbidden",
+        "ordinary_ui": "hidden",
+        "retirement_route": "cron_to_scheduled_tasks; other_helpers_to_global_user_or_internal_runtime"
       },
       "capability_detail_presentation_policy": {
         "default_surface": "desktop_right_side_panel_mobile_drawer",

@@ -309,7 +309,14 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullDraft?.mode !== 'unpublished_draft_release_upload_clobber' ||
     fullAddon?.operation !== 'append_full' ||
     fullAddon?.workflow !== '.github/workflows/_release-full-addon.yml' ||
-    fullAddon?.checkpoint_minimum_stage !== 'standard_qualified' ||
+    fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
+    fullAddon?.standard_identity_required !== true ||
+    fullAddon?.standard_release_readback !== 'exact_tag_and_required_asset_set_and_digests' ||
+    fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
+    fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
+    fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
+    fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'exact_stable_tag' ||
+    fullAddon?.successor_trigger?.executor_head_sha !== 'frozen_app_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
     fullAddon?.mode !== 'same_cohort_additive_only' ||
     !sameStringSet(fullAddon?.allowed_assets, [
@@ -527,6 +534,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'One-Person-Lab-<version>-mac-arm64.zip.blockmap',
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
+    'opl-install.sh',
     'standard-gatekeeper-launch-policy.json',
     'standard-apple-notarization-receipt.json',
     'prepared_ai_release_notes',
@@ -606,10 +614,9 @@ function validatePreparedNotesTransportPolicy(releaseContract: Record<string, an
     preparedNotes?.failure_receipt_schema !== 'opl_app_release_notes_prepare_receipt.v1' ||
     preparedNotes?.failure_receipt_uploaded_when_writer_started !== true ||
     preparedNotes?.prebuild_failure_must_not_project_as_qualification_runner_lost !== true ||
-    preparedNotes?.full_intent_evidence_path !== 'payload.include_full_package' ||
-    preparedNotes?.full_intent_admitted_input !== 'include_full' ||
-    preparedNotes?.new_standard_full_intent_value !== false ||
-    preparedNotes?.full_intent_must_match_before_framework_freeze !== true
+    preparedNotes?.full_intent_source !== 'stable_post_success_successor_workflow' ||
+    preparedNotes?.full_intent_admitted_input !== 'successful_standard_workflow_run' ||
+    preparedNotes?.full_intent_must_match_before_append_full_admission !== true
   ) {
     console.error('FAIL prepared_notes_transport: bounded transport retry, typed failure receipts, and admitted Full intent binding are incomplete');
     return 1;
@@ -745,7 +752,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'prepared_ai_release_notes_marker',
     'prepared_ai_release_notes_standard_scope',
     'framework_freeze_request_schema',
-    'source_qualification_receipt_digest',
+    'stable_operation_control_digest',
     'stable_admission_manifest_digest',
     'apple_credentials_runtime_receipt',
     'cross_namespace_version_allocator',
@@ -774,19 +781,23 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || standardAdmission?.digest_algorithm !== 'sha256'
     || !sameStringSet(
       standardAdmission?.standard_dispatch_inputs,
-      ['operation', 'source_qualification_run_id', 'source_qualification_receipt_digest'],
+      ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest'],
     )
     || standardAdmission?.raw_standard_version_or_ref_inputs_allowed !== false
     || standardAdmission?.fresh_verify_before_expensive_work !== true
+    || standardAdmission?.full_source_gate_rerun_in_workflow !== false
     || standardAdmission?.unknown_dispatch_result_policy !== 'read_only_reconcile_without_rerun_redispatch_or_cancel'
   ) {
     console.error('FAIL release_preflight_contract: Standard dispatch must consume one protected digest-bound admission manifest');
     failures += 1;
   }
   for (const binding of [
-    'app_owned_source_qualification_receipt',
-    'github_hosted_source_contract_build_preflight_with_self_hosted_vm_tart_zero',
-    'final_app_shell_framework_main_shas',
+    'pre_issued_stable_authority_carrier',
+    'frozen_app_shell_framework_cohort',
+    'frozen_source_gate_bytes_and_digest',
+    'pre_nonce_guard_bytes_and_digest',
+    'run_authority_reconcile_control',
+    'single_use_control_consumption',
     'critical_workflow_git_blobs_and_sha256',
     'apple_protected_secret_names_6_of_6',
     'developer_id_and_notary_authentication_receipt',
@@ -812,16 +823,19 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || !sameStringSet(
       dispatchGuard?.required_pre_nonce_gates,
       [
-        'release:source-gate',
-        'current_app_profile_exact_shell_consumer',
-        'git_wire_app_shell_framework_main_identity',
-        'single_owner_workflow_runs_query',
+        'release:source-gate_pre_dispatch_once',
+        'current_app_profile_exact_shell_consumer_pre_dispatch_once',
+        'frozen_app_shell_framework_commit_reachability_and_critical_blob_binding',
+        'single_operation_owner_workflow_runs_query',
       ],
     )
     || dispatchGuard?.cross_repository_ref_identity?.transport !== 'git_ls_remote_wire'
     || dispatchGuard?.cross_repository_ref_identity?.commit_or_ref_api_guard_allowed !== false
     || dispatchGuard?.cross_repository_ref_identity?.max_transport_attempts_per_read !== 3
     || dispatchGuard?.cross_repository_ref_identity?.transport_failure_is_credential_failure !== false
+    || dispatchGuard?.cross_repository_ref_identity?.live_main_equality_required_after_freeze !== false
+    || dispatchGuard?.cross_repository_ref_identity?.frozen_commit_reachability_required !== true
+    || dispatchGuard?.cross_repository_ref_identity?.critical_blob_digest_binding_required !== true
     || dispatchGuard?.owner_run_lookup?.logical_query_count !== 1
     || dispatchGuard?.owner_run_lookup?.max_transport_attempts !== 3
     || dispatchGuard?.owner_run_lookup?.parser !== 'node_structured_json_without_jq'
@@ -829,14 +843,15 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
       dispatchGuard?.owner_run_lookup?.identity_fields,
       [
         'workflow_path',
-        'head_sha',
         'event_workflow_dispatch',
         'head_branch_main',
         'run_attempt_1',
-        'operation_started_at_bounded_window',
+        'operation_id_in_run_name',
+        'authority_id_in_run_name',
+        'current_run_id_for_consumption',
       ],
     )
-    || dispatchGuard?.owner_run_lookup?.identity_window_seconds !== 300
+    || dispatchGuard?.owner_run_lookup?.identity_window_seconds !== null
     || dispatchGuard?.owner_run_lookup?.zero_or_ambiguous_result !== 'outcome_unknown'
     || !sameStringSet(
       dispatchGuard?.transport_failure_codes,
@@ -845,7 +860,8 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || JSON.stringify(dispatchGuard?.pre_nonce_failure) !== JSON.stringify({
       nonce_consumed: false,
       mutation_invocation_count: 0,
-      read_only_guard_replacement_allowed: true,
+      read_only_reconcile_allowed: true,
+      guard_replacement_allowed: false,
       dispatch_allowed: false,
     })
     || JSON.stringify(dispatchGuard?.post_dispatch_failure) !== JSON.stringify({
@@ -860,31 +876,44 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     console.error('FAIL release_dispatch_guard_contract: ref identity and owner-run reconciliation must be bounded, structured, and mutation-safe');
     failures += 1;
   }
-  const sourceQualification = preflight?.source_qualification;
+  const stableOperationControl = preflight?.stable_operation_control;
   if (
-    sourceQualification?.schema !== 'opl_app_source_qualification_receipt.v1'
-    || sourceQualification?.workflow !== '.github/workflows/release-source-qualification.yml'
-    || sourceQualification?.receipt_script !== 'scripts/source-qualification-receipt.ts'
-    || sourceQualification?.validator !== 'scripts/validate-source-qualification-receipt.ts'
-    || sourceQualification?.runner !== 'github_hosted_ubuntu_latest'
-    || sourceQualification?.secrets_allowed !== false
-    || sourceQualification?.run_attempt_required !== 1
-    || sourceQualification?.build_invocation_count !== 1
-    || sourceQualification?.self_hosted_invocation_count !== 0
-    || sourceQualification?.tart_vm_invocation_count !== 0
-    || sourceQualification?.local_dmg_is_diagnostic_only !== true
-    || sourceQualification?.release_authority !== false
-    || sourceQualification?.namespace_reservation !== false
-    || sourceQualification?.final_signed_byte_authority !== false
-    || sourceQualification?.accepted_consumer !== '.github/workflows/release-stable.yml'
-    || sourceQualification?.pre_dispatch_profile_consumer_guard !== 'scripts/validate-shell-product-profile-consumer.ts'
-    || sourceQualification?.profile_consumer_test !== 'tests/unit/common-config/oplProductProfile.test.ts'
-    || sourceQualification?.profile_projection !== 'current_app_profile_into_temporary_exact_shell_archive'
-    || sourceQualification?.source_shell_mutation_allowed !== false
-    || sourceQualification?.must_pass_before_source_workflow_dispatch !== true
-    || sourceQualification?.publication_floor_role !== 'same_operation_hosted_source_contract_build_preflight'
+    stableOperationControl?.authority_schema !== 'opl_app_stable_operation_authority.v1'
+    || stableOperationControl?.control_schema !== 'opl_app_stable_operation_control.v1'
+    || stableOperationControl?.consumption_schema !== 'opl_app_stable_operation_consumption.v1'
+    || stableOperationControl?.script !== 'scripts/stable-operation-control.ts'
+    || stableOperationControl?.protected_admission_job !== 'protected-operation-admission'
+    || stableOperationControl?.artifact_name !== 'opl-stable-operation-control-<stable_run_id>'
+    || stableOperationControl?.authority_carrier_required !== true
+    || stableOperationControl?.authority_issuance !== 'operator_issued_github_dispatch_input_non_cryptographic'
+    || stableOperationControl?.workflow_may_self_issue_authority_or_nonce !== false
+    || stableOperationControl?.operation_id_derivation !== 'deterministic_frozen_cohort_and_critical_blob_identity'
+    || stableOperationControl?.bare_dispatch_fails_before_expensive_work !== true
+    || stableOperationControl?.live_main_drift_invalidates_frozen_cohort !== false
+    || stableOperationControl?.current_executor?.live_main_equality_with_frozen_app_required !== false
+    || stableOperationControl?.current_executor?.critical_blob_equality_with_authority_required !== true
+    || stableOperationControl?.current_executor?.frozen_app_commit_checkout_required !== true
+    || stableOperationControl?.source_gate?.script !== 'scripts/validate-release-source-gate.ts'
+    || stableOperationControl?.source_gate?.execution_phase !== 'operator_pre_dispatch_before_authority_issuance'
+    || stableOperationControl?.source_gate?.runs_per_operation !== 1
+    || stableOperationControl?.source_gate?.workflow_rerun_allowed !== false
+    || stableOperationControl?.source_gate?.digest_bound_to_authority_and_control !== true
+    || stableOperationControl?.pre_nonce_guard?.script !== 'scripts/release-dispatch-guard.ts'
+    || stableOperationControl?.pre_nonce_guard?.phase !== 'pre_nonce'
+    || stableOperationControl?.pre_nonce_guard?.execution_phase !== 'operator_pre_dispatch_before_authority_issuance'
+    || stableOperationControl?.pre_nonce_guard?.digest_bound_to_authority_and_control !== true
+    || stableOperationControl?.run_authority_reconcile?.distinct_from_pre_nonce_guard !== true
+    || stableOperationControl?.run_authority_reconcile?.current_run_binding_required !== true
+    || stableOperationControl?.run_authority_reconcile?.prior_consumer_forbidden !== true
+    || stableOperationControl?.run_authority_reconcile?.digest_bound_to_control_and_consumption !== true
+    || stableOperationControl?.single_use_consumption?.required_before_cold_work !== true
+    || stableOperationControl?.single_use_consumption?.one_operation_one_matching_run !== true
+    || stableOperationControl?.single_use_consumption?.control_artifact_consumer !==
+      '.github/workflows/_release-bundle.yml'
+    || stableOperationControl?.actions_artifact?.role !== 'transient_transport_only'
+    || stableOperationControl?.actions_artifact?.durable_authority !== false
   ) {
-    console.error('FAIL release_preflight_contract: source qualification must be one no-secret GitHub-hosted build with zero self-hosted or Tart invocation');
+    console.error('FAIL release_preflight_contract: Stable must consume one protected authority, frozen source-gate, pre-nonce guard, run-authority reconcile, and single-use control artifact.');
     failures += 1;
   }
   if (
@@ -915,13 +944,19 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   const sourceGate = preflight?.source_gate;
   if (
     sourceGate?.package_script !== 'release:source-gate' ||
-    sourceGate?.status !== 'implemented_enforced_before_expensive_release_jobs' ||
+    sourceGate?.status !== 'implemented_once_before_dispatch_then_verified_from_frozen_evidence' ||
+    sourceGate?.execution_owner !== 'operator_pre_dispatch_controller' ||
+    sourceGate?.runs_per_operation !== 1 ||
+    sourceGate?.workflow_rerun_allowed !== false ||
     sourceGate?.failure_next_action !== 'repair_source_gate' ||
     !sourceGate?.scope?.includes('current App profile against exact Shell consumer in a temporary archive') ||
     typeof sourceGate?.rule !== 'string' ||
-    !sourceGate.rule.includes('fail before workflow dispatch or expensive hosted build, Full, WebUI, or post-publication optional certification work')
+    !sourceGate.rule.includes('runs once before dispatch') ||
+    !sourceGate.rule.includes('materializes and verifies the exact frozen bytes') ||
+    !sourceGate.rule.includes('never reruns the full source gate') ||
+    !sourceGate.rule.includes('unrelated live main advancement does not invalidate the frozen cohort')
   ) {
-    console.error('FAIL release_source_gate_contract: source gate must be a contracted fail-fast pre-expensive-gate boundary');
+    console.error('FAIL release_source_gate_contract: source gate must run once before dispatch and be verified from frozen evidence without workflow rerun');
     failures += 1;
   }
   if (!sameStringSet(sourceGate?.scope, requiredSourceGateScopes)) {
@@ -1237,10 +1272,10 @@ export function validateReleaseAccelerationPolicy(
     resumeStandardOperation?.start_refresh_allowed !== false ||
     resumeStandardOperation?.deadline_refresh_allowed !== false ||
     resumeStandardOperation?.rebuild_allowed !== false ||
-    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_qualified' ||
+    appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_built' ||
     appendFullOperation?.control !== 'new_independent_append_full_control' ||
     appendFullOperation?.deadline_minutes !== 50 ||
-    appendFullOperation?.standard_qualified_required !== true ||
+    appendFullOperation?.standard_built_required !== true ||
     appendFullOperation?.standard_rebuild_allowed !== false ||
     appendFullOperation?.standard_operation_id_reuse_allowed !== false ||
     appendFullOperation?.standard_deadline_inheritance_allowed !== false ||

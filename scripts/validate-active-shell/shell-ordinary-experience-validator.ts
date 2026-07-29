@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 import {
   assertShellTextIncludesAll,
   assertTextDoesNotMatch,
@@ -49,16 +50,16 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     assertTextIncludesAll(
       source,
       [
-        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+        'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
         'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalRecordedCwd',
+        'custom_workspace: hasCanonicalProjectWorkspace',
       ],
       `Active shell ${label} cwd projection`,
     );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectWorkspace',
         'cached?.extra.custom_workspace === true',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
@@ -84,8 +85,6 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   assertTextIncludesAll(
     focusedTests,
     [
-      'rebuilds a stale projectless cache row from the canonical recorded cwd',
-      'replaces stale bound shell affinity with the canonical recorded cwd',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -93,6 +92,144 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'rejects a malformed cwd returned by canonical thread read',
     ],
     'Active shell canonical cwd convergence focused regressions',
+  );
+}
+
+export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
+  focusedTests,
+  threadAdapter,
+}: {
+  focusedTests: string;
+  threadAdapter: string;
+}): void {
+  const sourceFile = ts.createSourceFile('codex-app-server-adapter.ts', threadAdapter, ts.ScriptTarget.Latest, true);
+  const threadListOptions: ts.ObjectLiteralExpression[] = [];
+  const objectBindings = new Map<string, ts.ObjectLiteralExpression>();
+  const collectObjectBindings = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isObjectLiteralExpression(node.initializer)
+    ) {
+      objectBindings.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, collectObjectBindings);
+  };
+  collectObjectBindings(sourceFile);
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'request' &&
+      ts.isStringLiteralLike(node.arguments[0]) &&
+      node.arguments[0].text === 'thread/list'
+    ) {
+      const optionsArgument = node.arguments[1];
+      const options =
+        optionsArgument && ts.isObjectLiteralExpression(optionsArgument)
+          ? optionsArgument
+          : optionsArgument && ts.isIdentifier(optionsArgument)
+            ? objectBindings.get(optionsArgument.text)
+            : undefined;
+      if (!options) {
+        throw new Error('Active shell canonical thread directory must pass a statically inspectable thread/list options object');
+      }
+      threadListOptions.push(options);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  if (threadListOptions.length === 0) {
+    throw new Error('Active shell canonical thread directory must call thread/list');
+  }
+  const propertyName = (property: ts.ObjectLiteralElementLike): string | null => {
+    const name = property.name;
+    if (!name) return null;
+    if (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) return name.text;
+    if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)) return name.expression.text;
+    return null;
+  };
+  const assertNoSourceKindsExpression = (expression: ts.Expression): void => {
+    if (ts.isParenthesizedExpression(expression)) {
+      assertNoSourceKindsExpression(expression.expression);
+      return;
+    }
+    if (ts.isConditionalExpression(expression)) {
+      assertNoSourceKindsExpression(expression.whenTrue);
+      assertNoSourceKindsExpression(expression.whenFalse);
+      return;
+    }
+    if (!ts.isObjectLiteralExpression(expression)) {
+      throw new Error(
+        'Active shell canonical thread directory thread/list spreads must use statically inspectable inline objects',
+      );
+    }
+    assertNoSourceKindsProperties(expression.properties);
+  };
+  const assertNoSourceKindsProperties = (
+    properties: ts.NodeArray<ts.ObjectLiteralElementLike>,
+    allowGuardedDirectProperties = false,
+  ): void => {
+    for (const property of properties) {
+      if (ts.isSpreadAssignment(property)) {
+        assertNoSourceKindsExpression(property.expression);
+        continue;
+      }
+      const name = propertyName(property);
+      if (name === null) {
+        throw new Error(
+          'Active shell canonical thread directory thread/list option names must be statically inspectable',
+        );
+      }
+      if (name === 'sourceKinds') {
+        throw new Error('Active shell canonical thread directory thread/list options must not include sourceKinds');
+      }
+      if (!allowGuardedDirectProperties && (name === 'archived' || name === 'useStateDbOnly')) {
+        throw new Error(
+          'Active shell canonical thread directory thread/list option spreads must not override archived or useStateDbOnly',
+        );
+      }
+    }
+  };
+  for (const options of threadListOptions) {
+    const archivedProperties = options.properties.filter((property) => propertyName(property) === 'archived');
+    const stateDbOnlyProperties = options.properties.filter((property) => propertyName(property) === 'useStateDbOnly');
+    if (archivedProperties.length !== 1) {
+      throw new Error('Active shell canonical thread directory thread/list options must include exactly one archived selector');
+    }
+    if (stateDbOnlyProperties.length !== 1) {
+      throw new Error('Active shell canonical thread directory thread/list options must include exactly one useStateDbOnly selector');
+    }
+    const archived = archivedProperties[0];
+    const stateDbOnly = stateDbOnlyProperties[0];
+    if (
+      !ts.isShorthandPropertyAssignment(archived) &&
+      (!ts.isPropertyAssignment(archived) ||
+        !ts.isIdentifier(archived.initializer) ||
+        archived.initializer.text !== 'archived')
+    ) {
+      throw new Error(
+        'Active shell canonical thread directory thread/list options must use the dynamic archived selector rather than a constant',
+      );
+    }
+    if (
+      !stateDbOnly ||
+      !ts.isPropertyAssignment(stateDbOnly) ||
+      stateDbOnly.initializer.kind !== ts.SyntaxKind.TrueKeyword
+    ) {
+      throw new Error('Active shell canonical thread directory thread/list options must set useStateDbOnly to true');
+    }
+    assertNoSourceKindsProperties(options.properties, true);
+  }
+  assertTextIncludesAll(
+    focusedTests,
+    [
+      'lists active and archived threads through bounded app-server pagination',
+      'useStateDbOnly: true',
+      "not.toHaveProperty('sourceKinds')",
+    ],
+    'Active shell canonical thread directory timeout/archive regressions',
   );
 }
 
@@ -1432,7 +1569,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'CodexThreadSettingsUpdateRequest',
       'codex-threads.update-settings',
       'codexThreads.updateSettings',
-      'adapter.updateThreadSettings',
+      'getActiveAdapter().updateThreadSettings',
     ],
     'Active shell existing Codex App Server thread settings transport',
   );
@@ -1499,11 +1636,14 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     focusedTests: projectAffinityTests,
     threadAdapter,
   });
+  assertCanonicalThreadDirectoryTimeoutBoundarySources({
+    focusedTests: projectAffinityTests,
+    threadAdapter,
+  });
   assertTextIncludesAll(
     projectAffinityTests,
     [
       'keeps directories distinct even when threads share one Git origin',
-      'hydrates a legacy missing affinity marker from the canonical recorded cwd',
       'adopts an explicitly projectless canonical conversation without a cached workspace',
       'updates the App Server cwd before committing the local affinity projection',
       'keeps the conversation projectless when canonical cwd readback does not match',
@@ -1832,17 +1972,9 @@ export function validateRuntimePageImplementation(shellPaths) {
 }
 
 function validateSkillsHubImplementation(shellPaths) {
-  const skillsHub = assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx',
-    [
-      'const skills = await ipcBridge.fs.listAvailableSkills.invoke()',
-      'setAvailableSkills(skills)',
-      'const autoSkills = await ipcBridge.fs.listBuiltinAutoSkills.invoke()',
-      'setBuiltinAutoSkills(autoSkills)',
-    ],
-    'Active shell SkillsHubSettings IPC Skill projection',
-  );
+  const skillsHubPath = 'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx';
+  const skillsHub = readShellText(shellPaths, skillsHubPath);
+  assertSkillsHubScopeSource(skillsHub, skillsHubPath);
   assertTextExcludesAll(
     skillsHub,
     [
@@ -1852,6 +1984,34 @@ function validateSkillsHubImplementation(shellPaths) {
       'appPackagedSkills',
     ],
     'Active shell SkillsHubSettings retired App-packaged Skill allowlist',
+  );
+}
+
+export function assertSkillsHubScopeSource(
+  skillsHub: string,
+  skillsHubPath = 'SkillsHubSettings.tsx',
+): void {
+  assertTextIncludesAll(
+    skillsHub,
+    [
+      'const skills = await ipcBridge.fs.listAvailableSkills.invoke()',
+      'setAvailableSkills(skills)',
+      "flowManagedSkillIds === undefined ? 'my-skills-section' : 'manual-and-third-party-capabilities'",
+      "t('settings.skillsHub.mySkillsTitle', { defaultValue: 'Global User Skills' })",
+      "t('settings.skillsHub.globalUserSkillsPath'",
+    ],
+    `Active shell SkillsHubSettings owner and carrier Skill projection in ${skillsHubPath}`,
+  );
+  assertTextExcludesAll(
+    skillsHub,
+    [
+      'ipcBridge.fs.listBuiltinAutoSkills.invoke()',
+      'setBuiltinAutoSkills(',
+      'builtinAutoSkills',
+      "data-testid='auto-skills-section'",
+      'auto-injected-skills',
+    ],
+    `Active shell SkillsHubSettings upstream auto-injected Skill scope in ${skillsHubPath}`,
   );
 }
 

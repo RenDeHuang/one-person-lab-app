@@ -19,7 +19,17 @@ function validSources() {
       current_version_lower_than_downloaded_after_quit_and_install
       semver.gte(normalizedCurrent, normalizedTarget)
     `,
-    mainEntry: 'autoUpdaterService.initialize(statusBroadcast);',
+    mainEntry: `
+      import { createAutoUpdaterBootstrap } from './process/startup/runtime/autoUpdaterBootstrap';
+      const initializeAutoUpdaterForRuntime = createAutoUpdaterBootstrap();
+      void initializeAutoUpdaterForRuntime();
+    `,
+    autoUpdaterBootstrap: `
+      autoUpdater.initialize(statusBroadcast);
+      deps.schedule(() => {
+        void autoUpdater.checkForUpdatesAndNotify();
+      });
+    `,
     managedUpdateMaintenance: `
       if (!componentId || componentId !== input.componentId || componentId !== 'opl_base')
       trigger: 'app_carrier_changed' | 'app_startup_after_core_ready' | 'daily_background_maintenance'
@@ -48,6 +58,27 @@ function validSources() {
 
 test('standard updater gate accepts carrier-neutral managed lifecycle ownership', () => {
   assert.doesNotThrow(() => validateCarrierNeutralManagedUpdateSources(validSources()));
+});
+
+test('standard updater gate rejects a disconnected runtime bootstrap', () => {
+  const sources = validSources();
+  sources.mainEntry = sources.mainEntry.replace('void initializeAutoUpdaterForRuntime();', '');
+  assert.throws(
+    () => validateCarrierNeutralManagedUpdateSources(sources),
+    /App binary updater startup must include void initializeAutoUpdaterForRuntime\(\);/,
+  );
+});
+
+test('standard updater gate rejects a bootstrap that skips initialization', () => {
+  const sources = validSources();
+  sources.autoUpdaterBootstrap = sources.autoUpdaterBootstrap.replace(
+    'autoUpdater.initialize(statusBroadcast);',
+    '',
+  );
+  assert.throws(
+    () => validateCarrierNeutralManagedUpdateSources(sources),
+    /App binary updater bootstrap must include autoUpdater\.initialize\(statusBroadcast\);/,
+  );
 });
 
 test('standard updater gate rejects the retired package user-apply component set', () => {

@@ -566,6 +566,37 @@ test('WebUI carrier schema closes both sealed artifacts', () => {
   assert.equal(schema.$defs.carrier.properties.package_profile.const, 'webui-full');
   assert.equal(schema.$defs.platform.properties.architecture.const, 'amd64');
   assert.equal(schema.$defs.source_cutoff.properties.frozen_base_release_set.type, 'null');
+  assert.match(
+    schema.$defs.release_version.pattern,
+    /preview\\\.r\[1-9\]\[0-9\]\*/,
+  );
+});
+
+test('WebUI carrier accepts one immutable independent Preview version', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-preview-'));
+  const draft = draftBuildInput();
+  draft.release.version = '26.7.28-preview.r1';
+  const buildInputPath = sealBuildInput(root, draft);
+  const result = runCli([
+    'verify-build-input',
+    '--input',
+    buildInputPath,
+    '--expected-version',
+    '26.7.28-preview.r1',
+    '--expected-bundle-digest',
+    bundleDigest,
+    '--expected-cohort-ref',
+    cohortRef,
+    '--expected-app-sha',
+    appSha,
+    '--expected-shell-sha',
+    shellSha,
+    '--expected-framework-sha',
+    frameworkSha,
+    '--expected-architecture',
+    'amd64',
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('reusable WebUI workflow builds independently and gates immutable publication on runtime qualification', () => {
@@ -574,17 +605,24 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const inputs = workflow.on.workflow_call.inputs;
   const build = workflow.jobs['build-and-qualify'];
   const publish = workflow.jobs['publish-immutable-carrier'];
+  assert.equal(inputs.authority_mode.type, 'string');
+  assert.equal(inputs.authority_mode.default, 'production_follower');
   assert.equal(inputs.source_artifact_run_id.type, 'string');
-  assert.equal(inputs.source_artifact_run_id.required, true);
+  assert.equal(inputs.source_artifact_run_id.required, false);
   assert.equal(inputs.standard_checkpoint_artifact_name.type, 'string');
-  assert.equal(inputs.standard_checkpoint_artifact_name.required, true);
+  assert.equal(inputs.standard_checkpoint_artifact_name.required, false);
   assert.equal(inputs.standard_identity_sha256.type, 'string');
-  assert.equal(inputs.standard_identity_sha256.required, true);
+  assert.equal(inputs.standard_identity_sha256.required, false);
+  assert.equal(inputs.source_authority_artifact_name.type, 'string');
+  assert.equal(inputs.source_authority_artifact_name.required, false);
   assert.equal(inputs.frozen_codex_artifact_name, undefined);
   assert.equal(inputs.frozen_build_input_json, undefined);
   assert.equal(build.needs, undefined, 'WebUI build must not depend on Desktop');
   assert.equal(publish.needs, 'build-and-qualify');
-  assert.equal(publish.environment, 'release-stable');
+  assert.equal(
+    publish.environment,
+    "${{ inputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}",
+  );
   assert.equal(publish.permissions.packages, 'write');
   assert.equal(build.permissions.actions, 'read');
   assert.equal(build.permissions.packages, 'read');
@@ -613,11 +651,25 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const downloadCheckpoint = build.steps.find(
     (step: { name?: string }) => step.name === 'Download exact portable Standard checkpoint',
   );
+  assert.equal(
+    downloadCheckpoint.if,
+    "${{ inputs.authority_mode == 'production_follower' || inputs.authority_mode == 'development_validation' }}",
+  );
   assert.equal(downloadCheckpoint.uses, 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c');
   assert.equal(downloadCheckpoint.with.name, '${{ inputs.standard_checkpoint_artifact_name }}');
   assert.equal(downloadCheckpoint.with['run-id'], '${{ inputs.source_artifact_run_id }}');
   assert.equal(downloadCheckpoint.with['github-token'], '${{ github.token }}');
   assert.equal(downloadCheckpoint.with.path, 'webui-carrier/standard-checkpoint');
+  const downloadSourceAuthority = build.steps.find(
+    (step: { name?: string }) => step.name === 'Download exact independent WebUI source authority',
+  );
+  assert.equal(downloadSourceAuthority.if, "${{ inputs.authority_mode == 'independent_preview' }}");
+  assert.equal(downloadSourceAuthority.uses, 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c');
+  assert.equal(downloadSourceAuthority.with.name, '${{ inputs.source_authority_artifact_name }}');
+  assert.equal(downloadSourceAuthority.with['run-id'], '${{ inputs.source_artifact_run_id }}');
+  assert.equal(downloadSourceAuthority.with.path, 'webui-carrier/source-authority');
+  assert.match(buildRun, /webui-source-authority\.ts[\s\\]+validate/);
+  assert.match(buildRun, /source_authority_digest/);
   assert.match(buildRun, /standard-identity-receipt\.json/);
   assert.match(buildRun, /inputs\.standard_identity_sha256/);
   const imageBuildIndex = build.steps.findIndex((step: { name?: string }) => step.name === 'Build WebUI image once from frozen inputs');
@@ -654,6 +706,104 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.doesNotMatch(publishRun, /test "\$readback_digest" = "\$digest"/);
   assert.match(publishRun, /write-carrier-receipt/);
   assert.match(publishRun, /verify-carrier-receipt/);
+  assert.match(publishRun, /source-authority-final-verification\.json/);
+  assert.match(publishRun, /carrier-artifact/);
+  assert.match(publishRun, /source-authority\.json/);
+});
+
+test('WebUI carrier publishes one idempotent durable receipt sidecar only after exact immutable tag readback', () => {
+  const workflow = YAML.parse(fs.readFileSync(workflowPath, 'utf8'));
+  const build = workflow.jobs['build-and-qualify'];
+  const publish = workflow.jobs['publish-immutable-carrier'];
+  const publishRun = publish.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+  const sidecarIndex = publish.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Publish immutable durable carrier receipt sidecar',
+  );
+  const receiptIndex = publish.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Write and verify exact carrier receipt',
+  );
+  const sidecar = publish.steps[sidecarIndex];
+  const stage = publish.steps.find(
+    (step: { name?: string }) => step.name === 'Stage exact carrier receipt evidence',
+  );
+  const setupOras = publish.steps.find(
+    (step: { name?: string }) => step.name === 'Setup ORAS for durable carrier receipt sidecar',
+  );
+  const downloadSourceAuthority = build.steps.find(
+    (step: { name?: string }) => step.name === 'Download exact independent WebUI source authority',
+  );
+
+  assert.deepEqual(publish.permissions, { contents: 'read', packages: 'write' });
+  assert.equal(build.permissions.actions, 'read');
+  assert.ok(receiptIndex >= 0 && receiptIndex < sidecarIndex);
+  assert.equal(setupOras.uses, 'oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6');
+  assert.equal(downloadSourceAuthority.if, "${{ inputs.authority_mode == 'independent_preview' }}");
+  assert.equal(downloadSourceAuthority.uses, 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c');
+  assert.equal(downloadSourceAuthority.with.name, '${{ inputs.source_authority_artifact_name }}');
+  assert.equal(downloadSourceAuthority.with['run-id'], '${{ inputs.source_artifact_run_id }}');
+  assert.equal(downloadSourceAuthority.with['github-token'], '${{ github.token }}');
+  assert.equal(downloadSourceAuthority.with.path, 'webui-carrier/source-authority');
+
+  const versionDescriptorIndex = sidecar.run.indexOf('version-descriptor-readback.json');
+  assert.ok(versionDescriptorIndex >= 0);
+  assert.ok(versionDescriptorIndex < sidecar.run.indexOf('webui-publication-record.ts'));
+  assert.match(publishRun, /opl_app_webui_descriptor_readback\.v1/);
+  assert.match(publishRun, /exact immutable version tag authority is required before durable sidecar publication/);
+
+  assert.match(sidecar.run, /application\/vnd\.onepersonlab\.webui\.publication-record\.v1\+json/);
+  assert.match(sidecar.run, /receipt-\$\{\{ inputs\.opl_version \}\}/);
+  assert.match(sidecar.run, /webui-publication-record\.ts \\\n\s+create/);
+  assert.match(sidecar.run, /--carrier-receipt webui-carrier\/carrier-receipt\.json/);
+  assert.match(sidecar.run, /--version-readback webui-carrier\/version-descriptor-readback\.json/);
+  assert.match(sidecar.run, /--image-repository '\$\{\{ inputs\.image_repository \}\}'/);
+  assert.match(sidecar.run, /--publication-run-id "\$GITHUB_RUN_ID"/);
+  assert.match(sidecar.run, /--publication-run-attempt "\$GITHUB_RUN_ATTEMPT"/);
+  assert.match(sidecar.run, /--publication-executor-sha "\$GITHUB_SHA"/);
+  assert.match(sidecar.run, /stable_authority_run_id='\$\{\{ github\.event\.workflow_run\.id \}\}'/);
+  assert.match(sidecar.run, /--stable-authority-run-id "\$stable_authority_run_id"/);
+  assert.match(sidecar.run, /--source-authority "\$source_authority_path"/);
+  assert.match(sidecar.run, /source_authority_path='webui-carrier\/source-authority\.json'/);
+  assert.match(sidecar.run, /test -f "\$source_authority_path" && test ! -L "\$source_authority_path"/);
+  assert.deepEqual(publish.permissions, { contents: 'read', packages: 'write' });
+  const repositoryValidationIndex = publish.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Validate exact GHCR repository before registry mutation',
+  );
+  const registryPublishIndex = publish.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Publish qualified candidate and CAS immutable version tag',
+  );
+  assert.ok(repositoryValidationIndex >= 0 && repositoryValidationIndex < registryPublishIndex);
+  assert.match(publish.steps[repositoryValidationIndex].run, /validate-repository/);
+
+  assert.match(sidecar.run, /oras manifest fetch --descriptor "\$receipt_ref"/);
+  assert.match(sidecar.run, /publication_outcome=preexisting_idempotent/);
+  assert.match(sidecar.run, /publication_outcome=created/);
+  assert.match(sidecar.run, /publication_outcome=reconciled_after_unknown_write/);
+  assert.match(sidecar.run, /write_reconcile_evidence pending "\$publication_outcome"/);
+  assert.match(sidecar.run, /opl_app_webui_receipt_sidecar_reconcile\.v1/);
+  assert.match(sidecar.run, /receipt-sidecar-reconcile\.json/);
+  assert.match(sidecar.run, /Could not safely distinguish an absent receipt sidecar from a registry read failure/);
+  assert.equal(sidecar.run.match(/\boras push\b/g)?.length, 1);
+  assert.match(sidecar.run, /--artifact-type "\$artifact_media_type"/);
+  assert.match(sidecar.run, /oras manifest fetch "\$receipt_ref" > "\$sidecar_root\/receipt-sidecar-manifest\.json"/);
+  assert.match(sidecar.run, /oras pull --output "\$pull_root" "\$receipt_ref"/);
+  assert.match(sidecar.run, /cmp -s "\$record_path" "\$pulled_record"/);
+  assert.match(sidecar.run, /receipt sidecar descriptor or manifest is not the exact expected OCI artifact/);
+  assert.match(sidecar.run, /receipt sidecar manifest does not bind the exact canonical publication record/);
+  assert.doesNotMatch(sidecar.run, /\boras tag\b/);
+
+  assert.match(stage.run, /version-descriptor-readback\.json/);
+  for (const file of [
+    'webui-publication-record.json',
+    'webui-publication-record-create.json',
+    'webui-publication-record-verification.json',
+    'receipt-sidecar-descriptor.json',
+    'receipt-sidecar-manifest.json',
+    'receipt-sidecar-reconcile.json',
+    'receipt-sidecar-pulled-record.json',
+    'receipt-sidecar-pull-verification.json',
+  ]) {
+    assert.match(stage.run, new RegExp(file.replace(/\./g, '\\.')));
+  }
 });
 
 test('WebUI version tag authority accepts only one exact linux/amd64 child', () => {

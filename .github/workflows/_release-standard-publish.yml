@@ -56,6 +56,21 @@ on:
         required: false
         default: ''
         type: string
+      qualified_native_artifact_name:
+        description: Exact qualified Native asset artifact to include in the same immutable Stable Release carrier; empty outside Stable.
+        required: false
+        default: ''
+        type: string
+      qualified_native_macos_artifact_name:
+        description: Exact qualified macOS arm64 Native asset artifact to include in the same immutable Stable Release carrier; empty outside Stable.
+        required: false
+        default: ''
+        type: string
+      qualified_native_source_run_id:
+        description: Exact Bundle run that produced the qualified Native asset artifact.
+        required: false
+        default: ''
+        type: string
     outputs:
       checkpoint_transport_executor:
         description: Executor that transported the checkpoint into this run
@@ -216,6 +231,63 @@ jobs:
           path: checkpoint-identity-bootstrap
           run-id: ${{ inputs.source_run_id }}
           github-token: ${{ github.token }}
+
+      - name: Preserve Stable control and Native qualification in a resumable checkpoint
+        if: ${{ inputs.publication_channel == 'stable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for directory in stable-operation-control native-qualified; do
+            source="checkpoint-identity-bootstrap/$directory"
+            test -d "$source" && test ! -L "$source"
+            symlinks=()
+            while IFS= read -r link; do symlinks+=("$link"); done < <(
+              find "$source" -type l -print | LC_ALL=C sort
+            )
+            test "${#symlinks[@]}" -eq 0
+            rm -rf "$directory"
+            cp -R "$source" "$directory"
+          done
+          controls=()
+          consumptions=()
+          authorities=()
+          source_gates=()
+          pre_nonce_guards=()
+          run_reconciles=()
+          native_manifests=()
+          native_prepare_statuses=()
+          while IFS= read -r item; do controls+=("$item"); done < <(
+            find stable-operation-control -type f -name stable-operation-control.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do consumptions+=("$item"); done < <(
+            find stable-operation-control -type f -name stable-operation-consumption.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do authorities+=("$item"); done < <(
+            find stable-operation-control -type f -name stable-operation-authority.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do source_gates+=("$item"); done < <(
+            find stable-operation-control -type f -name source-gate.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do pre_nonce_guards+=("$item"); done < <(
+            find stable-operation-control -type f -name pre-issued-pre-nonce-guard.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do run_reconciles+=("$item"); done < <(
+            find stable-operation-control -type f -name run-authority-reconcile.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do native_manifests+=("$item"); done < <(
+            find native-qualified -type f -name publication-manifest.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do native_prepare_statuses+=("$item"); done < <(
+            find native-qualified -type f -name prepare-status.json -print | LC_ALL=C sort
+          )
+          test "${#controls[@]}" -eq 1
+          test "${#consumptions[@]}" -eq 1
+          test "${#authorities[@]}" -eq 1
+          test "${#source_gates[@]}" -eq 1
+          test "${#pre_nonce_guards[@]}" -eq 1
+          test "${#run_reconciles[@]}" -eq 1
+          test "${#native_manifests[@]}" -eq 1
+          test "${#native_prepare_statuses[@]}" -eq 1
 
       - name: Verify sealed Standard identity
         id: standard-identity
@@ -481,6 +553,8 @@ jobs:
             resume-reconcile.receipt.json
             resume-reconcile-result.json
             homebrew-resume-observation.json
+            stable-operation-control
+            native-qualified
           if-no-files-found: warn
           retention-days: 30
 
@@ -650,12 +724,67 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  publish-standard-nonlatest:
+  pre-publication-admission:
     if: ${{ needs.restore.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [restore]
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout canonical App validator
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Restore Standard checkpoint
+        id: checkpoint
+        uses: ./app-source/.github/actions/restore-release-checkpoint
+        with:
+          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          source-run-id: ${{ needs.restore.outputs.source_run_id }}
+          source-artifact: ${{ needs.restore.outputs.source_artifact }}
+          github-token: ${{ github.token }}
+
+      - name: Validate deterministic Standard publication input before GitHub mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          checkpoint_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+          standard_assets="$checkpoint_dir/tracks/standard/assets.json"
+          component_manifest="$checkpoint_dir/tracks/standard/assets/opl-app-component-manifest.json"
+          assets_dir="$checkpoint_dir/tracks/standard/assets"
+          test -f "$standard_assets" && test ! -L "$standard_assets"
+          test -f "$component_manifest" && test ! -L "$component_manifest"
+          node --experimental-strip-types app-source/scripts/validate-standard-publication-input.ts \
+            --bundle '${{ needs.restore.outputs.bundle_digest }}' \
+            --publication-channel '${{ needs.restore.outputs.channel }}' \
+            --candidate-display-version '${{ needs.restore.outputs.version }}' \
+            --candidate-updater-version '${{ needs.restore.outputs.updater_version }}' \
+            --app-sha '${{ needs.restore.outputs.app_ref }}' \
+            --shell-sha '${{ needs.restore.outputs.shell_ref }}' \
+            --framework-sha '${{ needs.restore.outputs.framework_source_ref }}' \
+            --standard-assets "$standard_assets" \
+            --component-manifest "$component_manifest" \
+            --assets-dir "$assets_dir" \
+            --output standard-pre-publication-admission.json
+          test "$(jq -r .status standard-pre-publication-admission.json)" = passed
+
+      - name: Upload immutable pre-publication admission receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-standard-pre-publication-admission-${{ github.run_id }}
+          path: standard-pre-publication-admission.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-standard-nonlatest:
+    if: ${{ needs.restore.result == 'success' && needs.pre-publication-admission.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: ${{ needs.restore.outputs.channel == 'stable' && 'release-stable' || 'release-preview' }}
-    needs: [restore]
+    needs: [restore, pre-publication-admission]
     steps:
       - name: Reject partial rerun before Standard GitHub mutation
         shell: bash
@@ -674,7 +803,7 @@ jobs:
 
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with: { ref: '${{ github.sha }}', path: app-source }
+        with: { ref: '${{ needs.restore.outputs.app_ref }}', path: app-source }
 
       - name: Restore Standard checkpoint
         id: checkpoint
@@ -684,6 +813,15 @@ jobs:
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
+
+      - name: Download exact immutable carrier source
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ needs.restore.outputs.source_artifact }}
+          run-id: ${{ needs.restore.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: immutable-carrier-input
 
       - name: Materialize unique Standard build receipt for portable recovery
         shell: bash
@@ -702,6 +840,118 @@ jobs:
           cp "${standard_build_receipts[0]}" standard-build-receipt.json
           cmp "${standard_build_receipts[0]}" standard-build-receipt.json
 
+      - name: Bind qualified Native and consumed operation control into one immutable carrier
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          native_manifests=()
+          native_prepare_statuses=()
+          while IFS= read -r manifest; do native_manifests+=("$manifest"); done < <(
+            find immutable-carrier-input -type f -path '*/native-qualified/*/publication-manifest.json' -print | LC_ALL=C sort
+          )
+          while IFS= read -r status; do native_prepare_statuses+=("$status"); done < <(
+            find immutable-carrier-input -type f -path '*/native-qualified/*/prepare-status.json' -print | LC_ALL=C sort
+          )
+          test "${#native_manifests[@]}" -eq 2
+          test "${#native_prepare_statuses[@]}" -eq 2
+          native_qualified_source_dir="$(dirname "$(dirname "${native_prepare_statuses[0]}")")"
+          test -d "$native_qualified_source_dir" && test ! -L "$native_qualified_source_dir"
+          native_symlinks=()
+          while IFS= read -r link; do native_symlinks+=("$link"); done < <(
+            find "$native_qualified_source_dir" -type l -print | LC_ALL=C sort
+          )
+          test "${#native_symlinks[@]}" -eq 0
+          test ! -e native-qualified
+          cp -a "$native_qualified_source_dir" native-qualified
+          test ! -e native-release
+          mkdir native-release
+          cp -a native-qualified/. native-release/
+          diff -r native-qualified native-release
+          for target in linux-x86_64 darwin-arm64; do
+            native_source_dir="native-qualified/$target"
+            native_manifest="$native_source_dir/publication-manifest.json"
+            native_status="$native_source_dir/prepare-status.json"
+            test -d "$native_source_dir" && test ! -L "$native_source_dir"
+            case "$target" in
+              linux-x86_64) expected_artifact='${{ inputs.qualified_native_artifact_name }}' ;;
+              darwin-arm64) expected_artifact='${{ inputs.qualified_native_macos_artifact_name }}' ;;
+            esac
+            test "$(jq -er '
+              select(.schema == "opl_app_native_webui_prepare_status.v1" and .status == "qualified")
+              | .qualified_artifact_name
+              | strings
+            ' "$native_status")" = "$expected_artifact"
+            node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts upload-actions \
+              --manifest "native-release/$target/publication-manifest.json" \
+              --output "native-upload-actions-$target.json"
+            jq -e \
+              --arg tag '${{ needs.restore.outputs.tag }}' \
+              --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \
+              --arg app '${{ needs.restore.outputs.app_ref }}' \
+              --arg shell '${{ needs.restore.outputs.shell_ref }}' \
+              --arg framework '${{ needs.restore.outputs.framework_source_ref }}' \
+              --arg platform "$(jq -er .platform "$native_manifest")" \
+              --arg architecture "$(jq -er .architecture "$native_manifest")" \
+              '
+                .schema == "opl_app_native_webui_upload_actions.v1"
+                and .tag == $tag
+                and .release_bundle_digest == $bundle
+                and .platform == $platform
+                and .architecture == $architecture
+                and .cohort == {app_sha:$app, shell_sha:$shell, framework_sha:$framework}
+                and (.upload_actions | length == 5)
+              ' "native-upload-actions-$target.json" >/dev/null
+          done
+          cmp native-release/linux-x86_64/install-web.sh native-release/darwin-arm64/install-web.sh
+          cmp native-release/linux-x86_64/install-web.sh.sha256 native-release/darwin-arm64/install-web.sh.sha256
+          controls=()
+          while IFS= read -r control; do controls+=("$control"); done < <(
+            find immutable-carrier-input -type f -name stable-operation-control.json -print | LC_ALL=C sort
+          )
+          consumptions=()
+          while IFS= read -r consumption; do consumptions+=("$consumption"); done < <(
+            find immutable-carrier-input -type f -name stable-operation-consumption.json -print | LC_ALL=C sort
+          )
+          test "${#controls[@]}" -eq 1
+          test "${#consumptions[@]}" -eq 1
+          control="${controls[0]}"
+          consumption="${consumptions[0]}"
+          control_run_id="$(jq -er '.run_id | strings | select(test("^[1-9][0-9]*$"))' "$control")"
+          test "$control_run_id" = '${{ inputs.qualified_native_source_run_id }}'
+          control_source_dir="$(dirname "$control")"
+          test -d "$control_source_dir" && test ! -L "$control_source_dir"
+          control_symlinks=()
+          while IFS= read -r link; do control_symlinks+=("$link"); done < <(
+            find "$control_source_dir" -type l -print | LC_ALL=C sort
+          )
+          test "${#control_symlinks[@]}" -eq 0
+          test ! -e stable-operation-control
+          cp -a "$control_source_dir" stable-operation-control
+          for required in \
+            stable-operation-control.json \
+            stable-operation-consumption.json \
+            stable-operation-authority.json \
+            source-gate.json \
+            pre-issued-pre-nonce-guard.json \
+            run-authority-reconcile.json; do
+            test -s "$control_source_dir/$required" && test ! -L "$control_source_dir/$required"
+            test -s "stable-operation-control/$required" && test ! -L "stable-operation-control/$required"
+            cmp "$control_source_dir/$required" "stable-operation-control/$required"
+          done
+          source_gate="$control_source_dir/source-gate.json"
+          pre_nonce_guard="$control_source_dir/pre-issued-pre-nonce-guard.json"
+          run_authority_reconcile="$control_source_dir/run-authority-reconcile.json"
+          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+            --control "$control" --input "$consumption" --app-root app-source \
+            --source-gate "$source_gate" --pre-nonce-guard "$pre_nonce_guard" \
+            --run-authority-reconcile "$run_authority_reconcile" \
+            --expected-run-id "$control_run_id" \
+            --expected-actor "$(jq -er .actor "$control")" \
+            --expected-app-sha '${{ needs.restore.outputs.app_ref }}' \
+            --expected-shell-sha '${{ needs.restore.outputs.shell_ref }}' \
+            --expected-framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
+
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -711,6 +961,26 @@ jobs:
           set -euo pipefail
           mkdir -p release-failure-evidence
           exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
+          case '${{ needs.restore.outputs.channel }}' in
+            stable)
+              [[ '${{ inputs.qualified_native_artifact_name }}' =~ ^native-webui-qualified-[A-Za-z0-9._-]+$ ]]
+              [[ '${{ inputs.qualified_native_macos_artifact_name }}' =~ ^native-webui-qualified-[A-Za-z0-9._-]+$ ]]
+              [[ '${{ inputs.qualified_native_source_run_id }}' =~ ^[1-9][0-9]*$ ]]
+              controls=()
+              while IFS= read -r control; do controls+=("$control"); done < <(
+                find immutable-carrier-input -type f -name stable-operation-control.json -print | LC_ALL=C sort
+              )
+              test "${#controls[@]}" -eq 1
+              control_run_id="$(jq -er '.run_id | strings | select(test("^[1-9][0-9]*$"))' "${controls[0]}")"
+              test '${{ inputs.qualified_native_source_run_id }}' = "$control_run_id"
+              ;;
+            preview)
+              test -z '${{ inputs.qualified_native_artifact_name }}'
+              test -z '${{ inputs.qualified_native_macos_artifact_name }}'
+              test -z '${{ inputs.qualified_native_source_run_id }}'
+              ;;
+            *) echo "::error::Unsupported Standard publication channel."; exit 1 ;;
+          esac
           printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.source_run_id }}' '${{ needs.restore.outputs.source_artifact }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
@@ -742,6 +1012,107 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt.json \
             "${operation_args[@]}" \
             --store "$store" --json > publish-plan.json
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            test "$(jq -er .status native-release/linux-x86_64/prepare-status.json)" = qualified
+            test "$(jq -er .status native-release/darwin-arm64/prepare-status.json)" = qualified
+            identity_receipts=()
+            while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+              find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+            )
+            test "${#identity_receipts[@]}" -eq 1
+            for target in linux-x86_64 darwin-arm64; do
+              test -s "native-release/$target/publication-manifest.json"
+              jq -e \
+                --arg tag '${{ needs.restore.outputs.tag }}' \
+                --arg version '${{ needs.restore.outputs.version }}' \
+                --arg bundle "$BUNDLE_DIGEST" \
+                --arg run '${{ inputs.qualified_native_source_run_id }}' \
+                --arg app '${{ needs.restore.outputs.app_ref }}' \
+                --arg shell '${{ needs.restore.outputs.shell_ref }}' \
+                --arg framework '${{ needs.restore.outputs.framework_source_ref }}' \
+                '
+                  .schema == "opl_app_native_webui_publication_manifest.v1"
+                  and .repository == "gaofeng21cn/one-person-lab-app"
+                  and .tag == $tag
+                  and .version == $version
+                  and .release_bundle_digest == $bundle
+                  and (.stable_authority_run_id | tostring) == $run
+                  and .cohort == {
+                    app_sha: $app,
+                    shell_sha: $shell,
+                    framework_sha: $framework
+                  }
+                ' "native-release/$target/publication-manifest.json" >/dev/null
+            done
+            cp "${identity_receipts[0]}" native-release/standard-identity-receipt.json
+            cmp "${identity_receipts[0]}" native-release/standard-identity-receipt.json
+            jq --slurpfile linux native-upload-actions-linux-x86_64.json \
+              --slurpfile macos native-upload-actions-darwin-arm64.json '
+              . as $plan
+              | ($plan.release_bundle_publish.receipt.details.upload_actions // []) as $desktop
+              | (($linux[0].upload_actions // []) + ($macos[0].upload_actions // [])) as $native
+              | reduce ($desktop + $native)[] as $asset
+                  ({}; if has($asset.name)
+                    then if .[$asset.name].sha256 == $asset.sha256 then . else error("same-name assets differ") end
+                    else . + {($asset.name): $asset}
+                    end) as $by_name
+              | $plan
+              | .release_bundle_publish.receipt.details.upload_actions = ([$by_name[]] | sort_by(.name))
+            ' publish-plan.json > publish-plan-with-native.json
+            mv publish-plan-with-native.json publish-plan.json
+          fi
+          additional_upload_args=()
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            controls=()
+            consumptions=()
+            authorities=()
+            source_gates=()
+            pre_nonce_guards=()
+            run_reconciles=()
+            while IFS= read -r item; do controls+=("$item"); done < <(
+              find immutable-carrier-input -type f -name stable-operation-control.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do consumptions+=("$item"); done < <(
+              find immutable-carrier-input -type f -name stable-operation-consumption.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do authorities+=("$item"); done < <(
+              find immutable-carrier-input -type f -name stable-operation-authority.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do source_gates+=("$item"); done < <(
+              find immutable-carrier-input -type f -name source-gate.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do pre_nonce_guards+=("$item"); done < <(
+              find immutable-carrier-input -type f -name pre-issued-pre-nonce-guard.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do run_reconciles+=("$item"); done < <(
+              find immutable-carrier-input -type f -name run-authority-reconcile.json -print | LC_ALL=C sort
+            )
+            test "${#controls[@]}" -eq 1
+            test "${#consumptions[@]}" -eq 1
+            test "${#authorities[@]}" -eq 1
+            test "${#source_gates[@]}" -eq 1
+            test "${#pre_nonce_guards[@]}" -eq 1
+            test "${#run_reconciles[@]}" -eq 1
+            jq '{assets: (.release_bundle_publish.receipt.details.upload_actions // [])}' \
+              publish-plan.json > planned-payload-assets.json
+            record=stable-operation-publication-record.json
+            node --experimental-strip-types app-source/scripts/stable-operation-publication-record.ts create \
+              --authority "${authorities[0]}" --control "${controls[0]}" --consumption "${consumptions[0]}" \
+              --source-gate "${source_gates[0]}" --pre-nonce-guard "${pre_nonce_guards[0]}" \
+              --run-authority-reconcile "${run_reconciles[0]}" \
+              --planned-assets planned-payload-assets.json \
+              --repository "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output "$record"
+            record_size="$(wc -c < "$record" | tr -d ' ')"
+            record_sha="sha256:$(shasum -a 256 "$record" | awk '{print $1}')"
+            # The record binds pre-publish evidence and payload assets only.
+            # Immutable publication readback is a separate terminal receipt.
+            jq -n \
+              --arg name "$record" --arg path "$PWD/$record" \
+              --argjson size "$record_size" --arg sha "$record_sha" \
+              '{schema:"opl_app_immutable_release_upload_actions.v1",upload_actions:[{action:"upload",name:$name,source_path:$path,size_bytes:$size,sha256:$sha}]}' \
+              > immutable-carrier-upload-actions.json
+            additional_upload_args=(--additional-upload-actions immutable-carrier-upload-actions.json)
+          fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --publication-channel '${{ needs.restore.outputs.channel }}' \
@@ -749,6 +1120,7 @@ jobs:
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
+            "${additional_upload_args[@]}" \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"
           if [ "$apply_status" != complete ]; then
@@ -822,6 +1194,24 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > standard-published.json
           test "$(jq -r .release_bundle_publish.status standard-published.json)" = complete
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            framework-executor/bin/opl release checkpoint export \
+              --bundle "$BUNDLE_DIGEST" --output native-release/native-publication-checkpoint \
+              --store "$store" --json > native-release/native-checkpoint-export.json
+            test "$(find native-release/native-publication-checkpoint -type f -name checkpoint.json | wc -l | tr -d ' ')" -eq 1
+            for target in linux-x86_64 darwin-arm64; do
+              GH_TOKEN="$GH_TOKEN" node --experimental-strip-types app-source/scripts/release-native-webui-carrier.ts readback \
+                --manifest "native-release/$target/publication-manifest.json" \
+                --output "native-release/$target/publication-receipt.json" \
+                > "native-release/$target/publication-receipt.stdout.json"
+              test "$(jq -r .status "native-release/$target/publication-receipt.json")" = complete
+              test "$(jq -r .latest_modified "native-release/$target/publication-receipt.json")" = false
+              test "$(jq -r .container_registry_modified "native-release/$target/publication-receipt.json")" = false
+              test "$(jq -r .homebrew_modified "native-release/$target/publication-receipt.json")" = false
+              cp -a native-release/native-publication-checkpoint "native-release/$target/"
+              cp native-release/standard-identity-receipt.json "native-release/$target/"
+            done
+          fi
 
       - name: Persist typed Standard publication failure
         if: ${{ failure() }}
@@ -863,6 +1253,8 @@ jobs:
           path: |
             publish-plan.json
             publish-apply.json
+            planned-payload-assets.json
+            stable-operation-publication-record.json
             unknown-persisted.json
             unknown-checkpoint-export.json
             standard-github-unknown-checkpoint
@@ -873,7 +1265,32 @@ jobs:
             reconcile-observation.json
             reconcile-result.json
             release-failure-evidence
+            native-release
+            native-upload-actions-linux-x86_64.json
+            native-upload-actions-darwin-arm64.json
+            native-qualified
+            stable-operation-control
           if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Native follower carrier after unified Stable publication
+        if: ${{ always() && inputs.qualified_native_artifact_name != '' && inputs.qualified_native_macos_artifact_name != '' && hashFiles('native-release/linux-x86_64/publication-manifest.json', 'native-release/darwin-arm64/publication-manifest.json') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-webui-publication-${{ needs.restore.outputs.version }}-linux-x86_64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: native-release/linux-x86_64
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload macOS Native follower carrier after unified Stable publication
+        if: ${{ always() && inputs.qualified_native_artifact_name != '' && inputs.qualified_native_macos_artifact_name != '' && hashFiles('native-release/linux-x86_64/publication-manifest.json', 'native-release/darwin-arm64/publication-manifest.json') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-webui-publication-${{ needs.restore.outputs.version }}-darwin-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: native-release/darwin-arm64
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 30
 
   remote-digest-verify:
@@ -887,6 +1304,13 @@ jobs:
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with: { ref: '${{ github.sha }}', path: app-source }
+
+      - name: Download pre-publish durable record evidence
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-standard-published-${{ github.run_id }}
+          path: pre-publish-durable-evidence
 
       - name: Restore Standard checkpoint
         id: checkpoint
@@ -918,6 +1342,44 @@ jobs:
             --store "$store" --json > operation-admit.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote.json
+          gh release verify '${{ needs.restore.outputs.tag }}' --repo "$GITHUB_REPOSITORY"
+          jq -e '
+            .release.exists == true
+            and .release.draft == false
+            and .release.immutable == true
+          ' remote.json >/dev/null
+          cp remote.json immutable-release-terminal.json
+          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
+            records=()
+            plans=()
+            while IFS= read -r item; do records+=("$item"); done < <(
+              find pre-publish-durable-evidence -type f -name stable-operation-publication-record.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do plans+=("$item"); done < <(
+              find pre-publish-durable-evidence -type f -name publish-plan.json -print | LC_ALL=C sort
+            )
+            test "${#records[@]}" -eq 1
+            test "${#plans[@]}" -eq 1
+            record="${records[0]}"
+            record_size="$(wc -c < "$record" | tr -d ' ')"
+            record_sha="sha256:$(shasum -a 256 "$record" | awk '{print $1}')"
+            jq \
+              --slurpfile plan "${plans[0]}" \
+              --arg name stable-operation-publication-record.json \
+              --arg sha "$record_sha" \
+              --argjson size "$record_size" \
+              '{
+                assets: (
+                  (($plan[0].release_bundle_publish.receipt.details.upload_actions // [])
+                    | map({name: .name, digest: .sha256, size_bytes: .size_bytes}))
+                  + [{name: $name, digest: $sha, size_bytes: $size}]
+                )
+              }' > expected-immutable-release-assets.json
+            node --experimental-strip-types app-source/scripts/stable-operation-publication-record.ts verify-published \
+              --record "$record" --github-inspection remote.json \
+              --expected-assets expected-immutable-release-assets.json \
+              > stable-operation-published-carrier-binding.json
+          fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-readback" \
             --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
@@ -940,6 +1402,9 @@ jobs:
           name: opl-release-standard-remote-verify-${{ github.run_id }}
           path: |
             remote.json
+            immutable-release-terminal.json
+            expected-immutable-release-assets.json
+            stable-operation-published-carrier-binding.json
             operation-admit.json
             publication.json
             webui-registry-readback.txt

@@ -8,11 +8,15 @@ param(
   [ValidateRange(1, 65535)]
   [int]$Port = 3000,
   [string]$Image = "ghcr.io/gaofeng21cn/one-person-lab-webui",
-  [string]$Tag = "latest",
+  [string]$Tag = "stable",
   [string]$DataDir,
   [string]$ProjectsDir,
   [ValidateRange(30, 7200)]
   [int]$DockerPullTimeoutSeconds = 1800,
+  [ValidateRange(30, 900)]
+  [int]$DockerPullStallTimeoutSeconds = 180,
+  [ValidateRange(0, 3)]
+  [int]$DockerPullRetryCount = 2,
   [ValidateRange(1, 86400)]
   [int]$HealthTimeoutSeconds = 600,
   [string]$HealthUrl,
@@ -24,6 +28,7 @@ param(
   [switch]$Update,
   [switch]$EnableAutoUpdate,
   [switch]$DisableAutoUpdate,
+  [switch]$AutoUpdateStatus,
   [ValidatePattern("^(?:[01]\d|2[0-3]):[0-5]\d$")]
   [string]$AutoUpdateTime = "03:00",
   [switch]$NoOpen,
@@ -34,8 +39,8 @@ Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
 $script:PreDataInventory = ""
 $script:PreProjectsInventory = ""
-$script:AutoUpdateTaskName = "One Person Lab WebUI Latest Update"
-$script:AutoUpdateInstallerUrl = "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1"
+$script:AutoUpdateTaskName = "One Person Lab WebUI Stable Update"
+$script:LegacyAutoUpdateTaskName = "One Person Lab WebUI Latest Update"
 
 function Write-Step {
   param([string]$Message)
@@ -53,7 +58,7 @@ function Write-UserPathStatus {
   Write-Step "  runtime_proxy: WebUI sends Gateway sign-in and API-key configuration through the existing OPL runtime provider."
   Write-Step "  startup_recovery: if startup fails, collect redacted startup diagnostics and rerun after fixing Docker, port, image, or data issues."
   Write-Step "  data_preservation: keep OnePersonLab/data and OnePersonLab/projects mounted and preserved."
-  Write-Step "  host_update: rerun this installer, pass -Update, or enable the user-scoped Windows latest update task."
+  Write-Step "  host_update: rerun this installer, pass -Update, or enable the user-scoped Windows stable update task."
 }
 
 function Test-Administrator {
@@ -187,11 +192,15 @@ function Invoke-DiagnosticDockerCommand {
   )
 
   $display = "docker " + (($Arguments | ForEach-Object { if ($_ -match "\s") { '"' + $_ + '"' } else { $_ } }) -join " ")
-  $output = & $DockerCliPath @Arguments 2>&1 | Out-String
-  $exitCode = $LASTEXITCODE
-  $content = "`$ $display`n$output"
-  if ($exitCode -ne 0) {
-    $content += "`n[command exited with status $exitCode]`n"
+  $result = Invoke-DockerCommandCapture `
+    -DockerCliPath $DockerCliPath `
+    -Arguments $Arguments `
+    -TimeoutSeconds 120
+  $content = "`$ $display`n$($result.Output)"
+  if ($result.TimedOut) {
+    $content += "`n[command timed out after 120 seconds]`n"
+  } elseif ($result.ExitCode -ne 0) {
+    $content += "`n[command exited with status $($result.ExitCode)]`n"
   }
   Write-DiagnosticText -PathValue $OutputPath -Content $content
 }
@@ -308,6 +317,7 @@ function Invoke-DockerCommandCaptureWithTimeout {
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [ValidateRange(0, 900)][int]$NoOutputTimeoutSeconds = 0,
     [switch]$StreamOutput
   )
 
@@ -376,7 +386,9 @@ function Invoke-DockerCommandCaptureWithTimeout {
     $startedAt = Get-Date
     $deadline = $startedAt.AddSeconds($TimeoutSeconds)
     $nextHeartbeatAt = $startedAt.AddSeconds(20)
+    $lastOutputAt = $startedAt
     $timedOut = $false
+    $stalled = $false
     $processExited = $false
 
     while (-not $processExited -or @($streamStates | Where-Object { -not $_.Completed }).Count -gt 0) {
@@ -389,6 +401,7 @@ function Invoke-DockerCommandCaptureWithTimeout {
         if ($StreamOutput) {
           $outputWasStreamed = $true
           $nextHeartbeatAt = (Get-Date).AddSeconds(20)
+          $lastOutputAt = Get-Date
         }
       } elseif ($StreamOutput -and (Get-Date) -ge $nextHeartbeatAt) {
         $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
@@ -399,9 +412,18 @@ function Invoke-DockerCommandCaptureWithTimeout {
         $timedOut = $true
         break
       }
+      if (
+        -not $processExited -and
+        $StreamOutput -and
+        $NoOutputTimeoutSeconds -gt 0 -and
+        (Get-Date) -ge $lastOutputAt.AddSeconds($NoOutputTimeoutSeconds)
+      ) {
+        $stalled = $true
+        break
+      }
     }
 
-    if ($timedOut) {
+    if ($timedOut -or $stalled) {
       if (-not $process.HasExited) {
         try {
           & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
@@ -430,11 +452,12 @@ function Invoke-DockerCommandCaptureWithTimeout {
     }
     $outputText = $output.ToString().Trim()
 
-    if ($timedOut) {
+    if ($timedOut -or $stalled) {
       return [pscustomobject]@{
         ExitCode = 124
         Output = $outputText
         TimedOut = $true
+        Stalled = $stalled
         OutputWasStreamed = $outputWasStreamed
       }
     }
@@ -442,6 +465,7 @@ function Invoke-DockerCommandCaptureWithTimeout {
       ExitCode = $process.ExitCode
       Output = $outputText
       TimedOut = $false
+      Stalled = $false
       OutputWasStreamed = $outputWasStreamed
     }
   } finally {
@@ -493,6 +517,44 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
   }
 }
 
+function Test-DockerPullNetworkFailure {
+  param([Parameter(Mandatory = $true)][pscustomobject]$Result)
+
+  if ($Result.Stalled) {
+    return $true
+  }
+  if ($Result.TimedOut) {
+    return $false
+  }
+  return $Result.Output -match '(?i)(connection\s+(?:reset|refused|closed)|timed?\s*out|timeout|no such host|could not resolve|temporary failure in name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp|network is unreachable|proxy|tls handshake)'
+}
+
+function Invoke-DockerPullWithRetry {
+  param(
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][string]$ImageReference
+  )
+
+  $attempts = [math]::Max(1, $DockerPullRetryCount + 1)
+  for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+    $pull = Invoke-DockerPullWithPublicGhcrIsolation `
+      -DockerCliPath $DockerCliPath `
+      -Arguments $Arguments `
+      -ImageReference $ImageReference
+    if ($pull.ExitCode -eq 0 -and -not $pull.TimedOut) {
+      return $pull
+    }
+    if ($attempt -ge $attempts -or -not (Test-DockerPullNetworkFailure -Result $pull)) {
+      return $pull
+    }
+    $delaySeconds = [int]([math]::Pow(2, $attempt))
+    Write-Step "Docker registry connection failed; retrying image pull in ${delaySeconds}s (${attempt}/$($attempts - 1))."
+    Start-Sleep -Seconds $delaySeconds
+  }
+  throw "Docker image pull retry loop ended unexpectedly."
+}
+
 function Invoke-DockerPullWithPublicGhcrIsolation {
   param(
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
@@ -506,12 +568,14 @@ function Invoke-DockerPullWithPublicGhcrIsolation {
       -DockerCliPath $DockerCliPath `
       -Arguments $Arguments `
       -TimeoutSeconds $DockerPullTimeoutSeconds `
+      -NoOutputTimeoutSeconds $DockerPullStallTimeoutSeconds `
       -StreamOutput
   }
   return Invoke-DockerCommandCaptureWithTimeout `
     -DockerCliPath $DockerCliPath `
     -Arguments $Arguments `
     -TimeoutSeconds $DockerPullTimeoutSeconds `
+    -NoOutputTimeoutSeconds $DockerPullStallTimeoutSeconds `
     -StreamOutput
 }
 
@@ -612,12 +676,15 @@ function Resolve-PinnedImageReference {
   }
 
   Write-Step "Resolving WebUI image once at installer entry: $RequestedImageReference"
-  $pull = Invoke-DockerPullWithPublicGhcrIsolation `
+  $pull = Invoke-DockerPullWithRetry `
     -DockerCliPath $DockerCliPath `
     -Arguments @("pull", $RequestedImageReference) `
     -ImageReference $RequestedImageReference
   if (-not $pull.OutputWasStreamed -and -not [string]::IsNullOrWhiteSpace($pull.Output)) {
     Write-Host $pull.Output
+  }
+  if ($pull.Stalled) {
+    throw "Docker made no layer progress for ${DockerPullStallTimeoutSeconds}s while pulling the requested WebUI image. The stalled pull was stopped. Check GHCR access, proxy/VPN settings, and Docker Desktop networking, then rerun this installer."
   }
   if ($pull.TimedOut) {
     throw "Docker did not finish pulling the requested WebUI image within ${DockerPullTimeoutSeconds}s. The stalled pull was stopped. Check GHCR access, proxy/VPN settings, and Docker Desktop networking, then rerun this installer."
@@ -914,8 +981,74 @@ try {
 }
 
 function Test-DockerReady {
-  & $dockerCliPath info --format "{{.ServerVersion}}" 2>$null | Out-Null
-  return $LASTEXITCODE -eq 0
+  $result = Invoke-DockerCommand -Arguments @("info", "--format", "{{.ServerVersion}}") -TimeoutSeconds 15
+  return $result.ExitCode -eq 0
+}
+
+function Convert-ToWindowsProcessArgument {
+  param([Parameter(Mandatory = $true)][string]$Value)
+
+  if ($Value -notmatch '[\s"]') {
+    return $Value
+  }
+  $quoted = New-Object System.Text.StringBuilder
+  [void]$quoted.Append('"')
+  $backslashCount = 0
+  foreach ($character in $Value.ToCharArray()) {
+    if ($character -eq '\') {
+      $backslashCount++
+      continue
+    }
+    if ($character -eq '"') {
+      [void]$quoted.Append([string]::new([char]92, ($backslashCount * 2) + 1))
+      [void]$quoted.Append('"')
+      $backslashCount = 0
+      continue
+    }
+    if ($backslashCount -gt 0) {
+      [void]$quoted.Append([string]::new([char]92, $backslashCount))
+      $backslashCount = 0
+    }
+    [void]$quoted.Append($character)
+  }
+  if ($backslashCount -gt 0) {
+    [void]$quoted.Append([string]::new([char]92, $backslashCount * 2))
+  }
+  [void]$quoted.Append('"')
+  return $quoted.ToString()
+}
+
+function Invoke-DockerCommand {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [Parameter(Mandatory = $true)][int]$TimeoutSeconds
+  )
+
+  $argumentLine = (@($Arguments | ForEach-Object { Convert-ToWindowsProcessArgument -Value $_ }) -join ' ')
+  $process = [System.Diagnostics.Process]::new()
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $dockerCliPath
+  $startInfo.Arguments = $argumentLine
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  $process.StartInfo = $startInfo
+  if (-not $process.Start()) {
+    return [pscustomobject]@{ ExitCode = 1; Output = "Docker process did not start."; TimedOut = $false }
+  }
+  $stdout = $process.StandardOutput.ReadToEndAsync()
+  $stderr = $process.StandardError.ReadToEndAsync()
+  if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+    try {
+      & "$env:SystemRoot\System32\taskkill.exe" /PID $process.Id /T /F 2>$null | Out-Null
+    } catch {
+    }
+    return [pscustomobject]@{ ExitCode = 124; Output = "Docker command timed out after $TimeoutSeconds seconds."; TimedOut = $true }
+  }
+  $process.WaitForExit()
+  $output = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
+  return [pscustomobject]@{ ExitCode = $process.ExitCode; Output = $output.Trim(); TimedOut = $false }
 }
 
 function Start-OnePersonLabDocker {
@@ -972,9 +1105,9 @@ try {
 
   Start-OnePersonLabDocker
   Write-Host "[One Person Lab] Starting the WebUI container..."
-  $composeOutput = & $dockerCliPath compose -f $composePath up -d 2>&1 | Out-String
-  if ($LASTEXITCODE -ne 0) {
-    throw "Docker Compose failed: $composeOutput"
+  $composeResult = Invoke-DockerCommand -Arguments @("compose", "-f", $composePath, "up", "-d") -TimeoutSeconds 120
+  if ($composeResult.ExitCode -ne 0) {
+    throw "Docker Compose failed: $($composeResult.Output)"
   }
 
   Write-Host "[One Person Lab] Waiting for WebUI health..."
@@ -1068,6 +1201,9 @@ function Install-WebUiLauncher {
 function Write-WebUiAutoUpdater {
   param(
     [Parameter(Mandatory = $true)][string]$UpdaterPath,
+    [Parameter(Mandatory = $true)][string]$InstallerSourcePath,
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
     [Parameter(Mandatory = $true)][string]$DataPath,
     [Parameter(Mandatory = $true)][string]$ProjectsPath,
     [Parameter(Mandatory = $true)][int]$HostPort,
@@ -1077,28 +1213,50 @@ function Write-WebUiAutoUpdater {
 
   $updaterDir = Split-Path -Parent $UpdaterPath
   if ($DryRun) {
-    Write-Step "Dry run: would write automatic updater $UpdaterPath"
+    Write-Step "Dry run: would preserve the reviewed host installer and write automatic updater $UpdaterPath"
     return
   }
 
   New-Item -ItemType Directory -Force -Path $updaterDir | Out-Null
+  $installerPath = Join-Path $updaterDir "install-docker-webui.ps1"
+  $installerTemporaryPath = "$installerPath.download"
+  Copy-Item -LiteralPath $InstallerSourcePath -Destination $installerTemporaryPath -Force
+  Move-Item -LiteralPath $installerTemporaryPath -Destination $installerPath -Force
   $lines = @(
     "[CmdletBinding()]",
     "param()",
     "",
     "Set-StrictMode -Version 3.0",
     "`$ErrorActionPreference = `"Stop`"",
-    "`$installerUrl = $(Convert-ToPowerShellSingleQuoted $script:AutoUpdateInstallerUrl)",
     "`$updaterDir = $(Convert-ToPowerShellSingleQuoted $updaterDir)",
     "`$installerPath = Join-Path `$updaterDir `"install-docker-webui.ps1`"",
-    "`$downloadPath = `"`$installerPath.download`"",
+    "`$dockerCliPath = $(Convert-ToPowerShellSingleQuoted $DockerCliPath)",
+    "`$composePath = $(Convert-ToPowerShellSingleQuoted $ComposePath)",
+    "`$composeBackupPath = `"`$composePath.auto-update-previous`"",
+    "`$healthUrl = $(Convert-ToPowerShellSingleQuoted $Url)",
+    "`$healthTimeoutSeconds = $(Convert-ToPowerShellSingleQuoted ([string]$TimeoutSeconds))",
     "`$logDir = Join-Path `$updaterDir `"logs`"",
     "`$currentLog = Join-Path `$logDir `"current.log`"",
     "`$previousLog = Join-Path `$logDir `"previous.log`"",
-    "`$mutex = New-Object System.Threading.Mutex(`$false, `"Local\OnePersonLabWebUiLatestUpdate`")",
+    "`$resultPath = Join-Path `$updaterDir `"last-result.env`"",
+    "`$mutex = New-Object System.Threading.Mutex(`$false, `"Local\OnePersonLabWebUiStableUpdate`")",
     "`$lockTaken = `$false",
     "`$transcriptStarted = `$false",
     "",
+    'function Test-RestoredWebUiHealth {',
+    '  try {',
+    '    $response = Invoke-WebRequest -Uri $healthUrl -Method Head -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop',
+    '    return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)',
+    '  } catch {',
+    '    try {',
+    '      $response = Invoke-WebRequest -Uri $healthUrl -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop',
+    '      return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 400)',
+    '    } catch {',
+    '      return $false',
+    '    }',
+    '  }',
+    '}',
+    '',
     "try {",
     "  `$lockTaken = `$mutex.WaitOne(0)",
     "  if (-not `$lockTaken) {",
@@ -1110,8 +1268,7 @@ function Write-WebUiAutoUpdater {
     "  }",
     "  Start-Transcript -Path `$currentLog -Force | Out-Null",
     "  `$transcriptStarted = `$true",
-    "  Invoke-WebRequest -UseBasicParsing -Uri `$installerUrl -OutFile `$downloadPath",
-    "  Move-Item -LiteralPath `$downloadPath -Destination `$installerPath -Force",
+    "  Copy-Item -LiteralPath `$composePath -Destination `$composeBackupPath -Force",
     "  `$powershell = Join-Path `$env:SystemRoot `"System32\WindowsPowerShell\v1.0\powershell.exe`"",
     "  `$installerArgs = @(",
     "    `"-NoProfile`",",
@@ -1135,10 +1292,44 @@ function Write-WebUiAutoUpdater {
     "  )",
     "  & `$powershell @installerArgs",
     "  if (`$LASTEXITCODE -ne 0) {",
-    "    throw `"One Person Lab WebUI automatic update failed with exit code `$LASTEXITCODE.`"",
+    "    `$installerExitCode = `$LASTEXITCODE",
+    "    `$rollback = `"failed`"",
+    "    if (Test-Path -LiteralPath `$composeBackupPath -PathType Leaf) {",
+    "      Move-Item -LiteralPath `$composeBackupPath -Destination `$composePath -Force",
+    "      & `$dockerCliPath compose -f `$composePath up -d --pull never --force-recreate",
+    "      if (`$LASTEXITCODE -eq 0) {",
+    "        `$rollbackDeadline = (Get-Date).AddSeconds(`$healthTimeoutSeconds)",
+    "        while ((Get-Date) -lt `$rollbackDeadline) {",
+    "          if (Test-RestoredWebUiHealth) {",
+    "            `$rollback = `"passed`"",
+    "            break",
+    "          }",
+    "          Start-Sleep -Seconds 2",
+    "        }",
+    "      }",
+    "    }",
+    "    @(",
+    "      `"schema=opl_webui_host_auto_update_result.v1`",",
+    "      `"status=failed`",",
+    "      `"phase=installer_update`",",
+    "      `"rollback=`$rollback`",",
+    "      `"completed_at=`$([DateTime]::UtcNow.ToString('o'))`",",
+    "      `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:stable`",",
+    "      `"installer_exit_code=`$installerExitCode`"",
+    "    ) | Set-Content -LiteralPath `$resultPath -Encoding ASCII",
+    "    throw `"One Person Lab WebUI automatic update failed with exit code `$installerExitCode.`"",
     "  }",
+    "  @(",
+    "    `"schema=opl_webui_host_auto_update_result.v1`",",
+    "    `"status=passed`",",
+    "    `"phase=health`",",
+    "    `"rollback=not_required`",",
+    "    `"completed_at=`$([DateTime]::UtcNow.ToString('o'))`",",
+    "    `"image=ghcr.io/gaofeng21cn/one-person-lab-webui:stable`",",
+    "    `"installer_exit_code=0`"",
+    "  ) | Set-Content -LiteralPath `$resultPath -Encoding ASCII",
+    "  Remove-Item -LiteralPath `$composeBackupPath -Force -ErrorAction SilentlyContinue",
     "} finally {",
-    "  Remove-Item -LiteralPath `$downloadPath -Force -ErrorAction SilentlyContinue",
     "  if (`$transcriptStarted) {",
     "    Stop-Transcript | Out-Null",
     "  }",
@@ -1162,17 +1353,76 @@ function Disable-WebUiAutoUpdate {
     return
   }
 
-  $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue
-  if ($null -ne $task) {
-    Unregister-ScheduledTask -TaskName $script:AutoUpdateTaskName -Confirm:$false
+  foreach ($taskName in @($script:AutoUpdateTaskName, $script:LegacyAutoUpdateTaskName)) {
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($null -ne $task) {
+      Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    }
   }
   Remove-Item -LiteralPath $UpdaterPath -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath (Join-Path (Split-Path -Parent $UpdaterPath) "config.env") -Force -ErrorAction SilentlyContinue
   Write-Step "Automatic WebUI updates are disabled. Manual -Update remains available."
+}
+
+function Test-WebUiAutoUpdateConfigured {
+  param([Parameter(Mandatory = $true)][string]$UpdaterPath)
+
+  $updaterDir = Split-Path -Parent $UpdaterPath
+  if (
+    (Test-Path -LiteralPath $UpdaterPath -PathType Leaf) -or
+    (Test-Path -LiteralPath (Join-Path $updaterDir "config.env") -PathType Leaf)
+  ) {
+    return $true
+  }
+  if ($null -ne (Get-Command Get-ScheduledTask -ErrorAction SilentlyContinue)) {
+    foreach ($taskName in @($script:AutoUpdateTaskName, $script:LegacyAutoUpdateTaskName)) {
+      if ($null -ne (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) {
+        return $true
+      }
+    }
+  }
+  return $false
+}
+
+function Show-WebUiAutoUpdateStatus {
+  param([Parameter(Mandatory = $true)][string]$UpdaterPath)
+
+  $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction SilentlyContinue
+  if ($null -eq $task) {
+    $task = Get-ScheduledTask -TaskName $script:LegacyAutoUpdateTaskName -ErrorAction SilentlyContinue
+  }
+  Write-Output "scheduler=windows_task_scheduler"
+  Write-Output "enabled=$(([string]($null -ne $task)).ToLowerInvariant())"
+  Write-Output "runner=$UpdaterPath"
+  $configPath = Join-Path (Split-Path -Parent $UpdaterPath) "config.env"
+  if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+    Get-Content -LiteralPath $configPath
+  } else {
+    Write-Output "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:stable"
+    Write-Output "daily_time=not_configured"
+  }
+  $resultPath = Join-Path (Split-Path -Parent $UpdaterPath) "last-result.env"
+  Write-Output "result=$resultPath"
+  if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
+    Get-Content -LiteralPath $resultPath
+  } else {
+    Write-Output "status=not_run"
+  }
+  if ($null -ne $task) {
+    $taskInfo = $task | Get-ScheduledTaskInfo
+    Write-Output "task_state=$($task.State)"
+    Write-Output "last_run_time=$($taskInfo.LastRunTime.ToString('o'))"
+    Write-Output "last_task_result=$($taskInfo.LastTaskResult)"
+    Write-Output "next_run_time=$($taskInfo.NextRunTime.ToString('o'))"
+  }
 }
 
 function Register-WebUiAutoUpdate {
   param(
     [Parameter(Mandatory = $true)][string]$UpdaterPath,
+    [Parameter(Mandatory = $true)][string]$InstallerSourcePath,
+    [Parameter(Mandatory = $true)][string]$DockerCliPath,
+    [Parameter(Mandatory = $true)][string]$ComposePath,
     [Parameter(Mandatory = $true)][string]$DataPath,
     [Parameter(Mandatory = $true)][string]$ProjectsPath,
     [Parameter(Mandatory = $true)][int]$HostPort,
@@ -1180,7 +1430,7 @@ function Register-WebUiAutoUpdate {
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds
   )
 
-  Write-WebUiAutoUpdater -UpdaterPath $UpdaterPath -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url -TimeoutSeconds $TimeoutSeconds
+  Write-WebUiAutoUpdater -UpdaterPath $UpdaterPath -InstallerSourcePath $InstallerSourcePath -DockerCliPath $DockerCliPath -ComposePath $ComposePath -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url -TimeoutSeconds $TimeoutSeconds
   if ($DryRun) {
     Write-Step "Dry run: would register scheduled task $script:AutoUpdateTaskName at $AutoUpdateTime and at the current user's next logon."
     return
@@ -1216,8 +1466,23 @@ function Register-WebUiAutoUpdate {
     -Trigger $triggers `
     -Settings $settings `
     -Principal $principal `
-    -Description "Checks the One Person Lab WebUI latest image from the Windows host and preserves data/projects." `
+    -Description "Checks the One Person Lab WebUI stable image from the Windows host and preserves data/projects." `
     -Force | Out-Null
+
+  $legacyTask = Get-ScheduledTask -TaskName $script:LegacyAutoUpdateTaskName -ErrorAction SilentlyContinue
+  if ($null -ne $legacyTask) {
+    Unregister-ScheduledTask -TaskName $script:LegacyAutoUpdateTaskName -Confirm:$false
+  }
+
+  $configPath = Join-Path (Split-Path -Parent $UpdaterPath) "config.env"
+  $configTemporaryPath = "$configPath.download"
+  @(
+    "schema=opl_webui_host_auto_update_config.v1",
+    "scheduler=windows_task_scheduler",
+    "channel=ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
+    "daily_time=$AutoUpdateTime"
+  ) | Set-Content -LiteralPath $configTemporaryPath -Encoding ASCII
+  Move-Item -LiteralPath $configTemporaryPath -Destination $configPath -Force
 
   $task = Get-ScheduledTask -TaskName $script:AutoUpdateTaskName -ErrorAction Stop
   $taskInfo = $task | Get-ScheduledTaskInfo
@@ -1250,12 +1515,15 @@ function Invoke-DockerComposeUp {
 
   if ($Update) {
     Write-Step "Running $displayPullCommand"
-    $pull = Invoke-DockerPullWithPublicGhcrIsolation `
+    $pull = Invoke-DockerPullWithRetry `
       -DockerCliPath $DockerCliPath `
       -Arguments $pullArgs `
       -ImageReference $ImageReference
     if (-not [string]::IsNullOrWhiteSpace($pull.Output)) {
       Write-Host $pull.Output
+    }
+    if ($pull.Stalled) {
+      throw "Docker made no layer progress for ${DockerPullStallTimeoutSeconds}s while pulling the WebUI image. The stalled pull was stopped. Check GHCR access, proxy/VPN settings, and Docker Desktop networking, then rerun this installer."
     }
     if ($pull.TimedOut) {
       throw "Docker Compose did not finish pulling the WebUI image within ${DockerPullTimeoutSeconds}s. The stalled pull was stopped. Check GHCR access, proxy/VPN settings, and Docker Desktop networking, then rerun this installer."
@@ -1482,6 +1750,65 @@ function Collect-WebUiDiagnostics {
   }
   Write-Step "Diagnostic directory written: $TargetDir"
   return $TargetDir
+}
+
+function Get-WebUiHealthTimeoutClassification {
+  param(
+    [Parameter(Mandatory = $true)][string]$TargetDir
+  )
+
+  # A health timeout is an external-input blocker only when the captured
+  # container/Docker evidence names a remote OPL dependency and records a
+  # network failure. Local crashes, bad data, and port issues stay local.
+  $evidencePaths = @(
+    "docker-compose-logs.txt",
+    "docker-image.txt",
+    "docker-compose-ps.txt"
+  ) | ForEach-Object {
+    Join-Path $TargetDir $_
+  } | Where-Object {
+    Test-Path -LiteralPath $_ -PathType Leaf
+  }
+  $evidence = ($evidencePaths | ForEach-Object {
+    Get-Content -LiteralPath $_ -Raw -ErrorAction SilentlyContinue
+  }) -join "`n"
+  $networkFailurePattern = "(?i)(?:timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)"
+  $networkErrorContextPattern = "(?i)(?:(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp)[^\r\n]*(?:dns|tls|ssl|certificate)|(?:dns|tls|ssl|certificate)[^\r\n]*(?:error|err|failed|failure|unable|cannot|could not|refused|reset|unreachable|timed?\s*out|timeout|no such host|temporary failure|name resolution|i/o timeout|context deadline exceeded|dial tcp))"
+  $networkAdjacentFailurePattern = "(?i)(?:(?:\bconnect\b|\bresolve\b|\bfetch\b|\bpull\b|\bdownload\b|\brequest\b|\bdial\b|\bproxy\b|\bdns\b|\bnetwork\b|\bhandshake\b)[^\r\n]{0,80}(?:etimedout|econnreset|econnrefused|enetworkunreachable|enetunreach|ehostunreach|eai_again|enotfound|timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)|(?:etimedout|econnreset|econnrefused|enetworkunreachable|enetunreach|ehostunreach|eai_again|enotfound|timed?\s*out|timeout|connection\s+(?:reset|refused|closed)|network\s+is\s+unreachable|no such host|could not resolve|temporary failure in name resolution|name resolution|i/o timeout|context deadline exceeded|failed to (?:resolve|connect)|dial tcp)[^\r\n]{0,80}(?:\bconnect\b|\bresolve\b|\bfetch\b|\bpull\b|\bdownload\b|\brequest\b|\bdial\b|\bproxy\b|\bdns\b|\bnetwork\b|\bhandshake\b))"
+  $evidenceLines = @($evidence -split "`r?`n")
+  $remoteNetworkFailure = $false
+  for ($lineIndex = 0; $lineIndex -lt $evidenceLines.Count; $lineIndex++) {
+    $line = [string]$evidenceLines[$lineIndex]
+    if ($line -notmatch "(?i)(?:ghcr\.io|github\.com|githubusercontent\.com|api\.github\.com)") {
+      continue
+    }
+    if ($line -match $networkFailurePattern -or $line -match $networkErrorContextPattern) {
+      $remoteNetworkFailure = $true
+      break
+    }
+    foreach ($adjacentIndex in @($lineIndex - 1, $lineIndex + 1)) {
+      if ($adjacentIndex -lt 0 -or $adjacentIndex -ge $evidenceLines.Count) {
+        continue
+      }
+      if ([string]$evidenceLines[$adjacentIndex] -match $networkAdjacentFailurePattern) {
+        $remoteNetworkFailure = $true
+        break
+      }
+    }
+    if ($remoteNetworkFailure) {
+      break
+    }
+  }
+  if ($remoteNetworkFailure) {
+    return [pscustomobject]@{
+      Classification = "external_input_required"
+      Reason = "Captured Docker/container evidence names GitHub/GHCR and records a network failure."
+    }
+  }
+  return [pscustomobject]@{
+    Classification = "local_startup_failure"
+    Reason = "Captured evidence does not establish a GitHub/GHCR network blockage."
+  }
 }
 
 function Convert-ToEvidenceRelativePath {
@@ -1756,7 +2083,27 @@ function Wait-WebUiHealth {
     $failureDir = Join-Path (Join-Path (Split-Path -Parent $ComposePath) "diagnostics") ("opl-webui-health-timeout-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
   }
   Collect-WebUiDiagnostics -DockerCliPath $DockerCliPath -Reason "health-timeout" -TargetDir $failureDir -ComposePath $ComposePath -ImageReference $ImageReference -DataPath $DataPath -ProjectsPath $ProjectsPath -HostPort $HostPort -Url $Url | Out-Null
-  throw "WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostic directory: $failureDir"
+  $classification = Get-WebUiHealthTimeoutClassification -TargetDir $failureDir
+  Write-DiagnosticText `
+    -PathValue (Join-Path $failureDir "health-timeout-classification.txt") `
+    -Content (@(
+      "classification=$($classification.Classification)",
+      "reason=$($classification.Reason)"
+    ) -join "`n")
+  if (-not [string]::IsNullOrWhiteSpace($DiagnosticsArchive) -and (Test-Path -LiteralPath $failureDir -PathType Container)) {
+    $archiveParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($DiagnosticsArchive))
+    if (-not [string]::IsNullOrWhiteSpace($archiveParent)) {
+      New-Item -ItemType Directory -Force -Path $archiveParent | Out-Null
+    }
+    if (Test-Path -LiteralPath $DiagnosticsArchive) {
+      Remove-Item -LiteralPath $DiagnosticsArchive -Force
+    }
+    Compress-Archive -Path (Join-Path $failureDir "*") -DestinationPath $DiagnosticsArchive -Force
+  }
+  if ($classification.Classification -eq "external_input_required") {
+    throw "external_input_required: WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostics establish a GitHub/GHCR network blockage; check Docker Desktop -> Settings -> Resources -> Proxies and rerun. Diagnostic directory: $failureDir"
+  }
+  throw "local_startup_failure: WebUI did not become reachable at $Url within ${TimeoutSeconds}s. Diagnostics do not establish a GitHub/GHCR network blockage; inspect the local container, persisted data, port, and Docker logs. Diagnostic directory: $failureDir"
 }
 
 function Open-WebUiBrowser {
@@ -1795,6 +2142,10 @@ $resolvedProjectsDir = Resolve-FullPath $ProjectsDir
 $composeDir = Split-Path -Parent $resolvedDataDir
 $composePath = Join-Path $composeDir "compose.yaml"
 $autoUpdaterPath = Join-Path $composeDir "updater\update-webui.ps1"
+$autoUpdateActionCount = @($EnableAutoUpdate, $DisableAutoUpdate, $AutoUpdateStatus).Where({ $_ }).Count
+if ($autoUpdateActionCount -gt 1) {
+  throw "Choose only one of -EnableAutoUpdate, -DisableAutoUpdate, or -AutoUpdateStatus."
+}
 $resolvedEvidenceDir = ""
 if (-not [string]::IsNullOrWhiteSpace($EvidenceDir)) {
   $resolvedEvidenceDir = Resolve-FullPath $EvidenceDir
@@ -1810,8 +2161,8 @@ if (-not [string]::IsNullOrWhiteSpace($EvidenceArchive)) {
   $resolvedEvidenceArchive = Resolve-FullPath $EvidenceArchive
 }
 $requestedImageReference = Resolve-ImageReference -ImageName $Image -ImageTag $Tag -TagWasProvided $tagWasProvided
-if ($EnableAutoUpdate -and $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:latest") {
-  throw "-EnableAutoUpdate supports only the default ghcr.io/gaofeng21cn/one-person-lab-webui:latest channel. Use -Update manually for custom images, tags, or digests."
+if ($EnableAutoUpdate -and $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:stable") {
+  throw "-EnableAutoUpdate supports only the default ghcr.io/gaofeng21cn/one-person-lab-webui:stable channel. Use -Update manually for custom images, tags, or digests."
 }
 if ([string]::IsNullOrWhiteSpace($HealthUrl)) {
   $HealthUrl = "http://localhost:$Port/"
@@ -1823,6 +2174,16 @@ Assert-PowerShellVersion
 if ($DisableAutoUpdate) {
   Disable-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath
   exit 0
+}
+if ($AutoUpdateStatus) {
+  Show-WebUiAutoUpdateStatus -UpdaterPath $autoUpdaterPath
+  exit 0
+}
+if (
+  $requestedImageReference -ne "ghcr.io/gaofeng21cn/one-person-lab-webui:stable" -and
+  (Test-WebUiAutoUpdateConfigured -UpdaterPath $autoUpdaterPath)
+) {
+  throw "Automatic updates are already enabled for ghcr.io/gaofeng21cn/one-person-lab-webui:stable. Run -DisableAutoUpdate before switching to a custom image, tag, or digest."
 }
 $dockerCliPath = Assert-DockerCli
 Assert-DockerCompose -DockerCliPath $dockerCliPath
@@ -1849,7 +2210,7 @@ if ($Update) {
 } else {
   Write-Step "Update model: rerun this installer to resolve the channel once again; compose never follows a moving tag at runtime."
 }
-Write-Step "Image/seed: default latest WebUI image uses the full seed; -Tag and -Image are advanced overrides."
+Write-Step "Image/seed: default stable WebUI image uses the full seed; use -Tag latest only to opt in to Preview, or -Image for an advanced override."
 Write-Step "Gateway account credentials and API keys are entered inside WebUI first-run or Settings -> Account & Access. This script does not accept or write them."
 Write-UserPathStatus -Url $url
 
@@ -1864,7 +2225,7 @@ try {
 Wait-WebUiHealth -DockerCliPath $dockerCliPath -Url $url -TimeoutSeconds $HealthTimeoutSeconds -ComposePath $composePath -ImageReference $imageReference -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port
 Install-WebUiLauncher -DockerCliPath $dockerCliPath -ComposePath $composePath -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 if ($EnableAutoUpdate) {
-  Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
+  Register-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath -InstallerSourcePath $PSCommandPath -DockerCliPath $dockerCliPath -ComposePath $composePath -DataPath $resolvedDataDir -ProjectsPath $resolvedProjectsDir -HostPort $Port -Url $url -TimeoutSeconds $HealthTimeoutSeconds
 } elseif (-not $Update) {
   Write-Step "Automatic WebUI updates are not enabled. Rerun with -EnableAutoUpdate or run -Update at least monthly."
 }

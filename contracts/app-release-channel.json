@@ -19,9 +19,10 @@
         "homebrew_tap",
         "webui_ghcr"
       ],
-      "current_production_publication_paths": 4,
+      "current_production_publication_paths": 5,
       "production_publication_paths": [
         "desktop_stable_github_release",
+        "native_webui_github_release_assets",
         "homebrew_standard_cask",
         "homebrew_full_cask_post_publication_follower",
         "container_webui_latest_with_stable_compatibility_alias"
@@ -30,9 +31,9 @@
         "desktop_full_additive_asset",
         "manual_full_preview",
         "windows_x64_wsl2_only_rc_preview",
+        "container_webui_manual_independent_preview",
         "desktop_nightly_automated_standard_prerelease",
         "homebrew_nightly_post_publication_follower",
-        "native_webui_implemented_unpublished_target",
         "canary_validation_only"
       ]
     },
@@ -132,9 +133,48 @@
     },
     "latest_policy": {
       "default_automatic_writer": "newest_qualified_stable",
+      "default_behavior": "each_carrier_advances_its_own_latest_pointer_when_that_carrier_publishes_a_new_qualified_stable",
       "automatic_preview_or_nightly_writer_may_move_latest": false,
+      "durable_publication_record_selector": {
+        "selector": "carrier_owned_durable_publication_record",
+        "candidate_target": "retained_immutable_verified_published_version",
+        "candidate_record_must_bind": [
+          "carrier_namespace",
+          "exact_version_or_tag",
+          "immutable_artifact_or_image_digest",
+          "quality_status_and_preview_kind",
+          "qualification_disclosure",
+          "public_readback"
+        ],
+        "actions_artifact": {
+          "selection_authority": false,
+          "expiry_or_retention_may_change_selection_eligibility": false,
+          "allowed_role": "transient_prepublication_transport_or_diagnostic_evidence_only"
+        },
+        "retention": {
+          "selection_eligible_state": "retained_not_retired_or_revoked",
+          "record_must_remain_readable_until_retired": true,
+          "retired_or_revoked_record_selectable": false
+        },
+        "evidence_requirements": {
+          "stable": [
+            "stable_qualification",
+            "exact_immutable_digest",
+            "carrier_public_readback"
+          ],
+          "preview": [
+            "exact_immutable_digest",
+            "carrier_public_readback",
+            "non_stable_and_skipped_or_failed_gate_disclosure"
+          ]
+        }
+      },
       "explicit_user_override": {
         "target": "any_exact_published_version",
+        "quality_statuses": [
+          "stable",
+          "preview"
+        ],
         "preview_kinds": [
           "dev",
           "nightly"
@@ -144,7 +184,8 @@
         "public_readback": "exact_tag_digest_quality_and_disclosure",
         "quality_unchanged": true,
         "persistent_override": false,
-        "non_stable_and_skipped_or_failed_gate_disclosure_required": true
+        "non_stable_and_skipped_or_failed_gate_disclosure_required_for_preview_only": true,
+        "stable_candidate_requires_stable_qualification_disclosure": true
       },
       "promote_quality": {
         "operation": "promote_quality",
@@ -158,13 +199,34 @@
         "operation": "move_latest_pointer",
         "target": "any_exact_published_version",
         "changes_quality": false,
-        "preview_requires_explicit_user_override": true,
+        "explicit_user_override_required": true,
+        "stable_or_preview_candidate_allowed": true,
         "entry_workflow": ".github/workflows/release-manual-preview.yml",
         "reusable_workflow": ".github/workflows/_release-preview-latest-pointer.yml",
         "protected_environment": "release-preview-latest",
         "run_attempt": "first_only",
         "mutation": "single_expected_current_cas",
         "unknown_outcome": "read_only_reconcile_no_retry"
+      },
+      "docker_manual_override": {
+        "target": "retained_immutable_verified_published_version",
+        "requires_explicit_user_confirmation": true,
+        "operator_confirmation": {
+          "source": "workflow_dispatch_exact_version_confirmation",
+          "expected_value": "move-docker-latest:<exact_version>",
+          "actor": "github_human_login",
+          "digest_bound_into_terminal_receipt": true
+        },
+        "selector": "carrier_owned_durable_publication_record",
+        "mutation_scope": [
+          "container_webui.latest"
+        ],
+        "must_not_mutate": [
+          "container_webui.stable",
+          "desktop.latest"
+        ],
+        "compare_and_swap": "exact_expected_current",
+        "fresh_public_readback_required": true
       },
       "next_qualified_stable_reclaims_pointer": true,
       "latest_pointer_does_not_define_highest_published_stable": true,
@@ -198,8 +260,8 @@
       "manual_full_preview": "live_non_latest_temporary_lane",
       "windows_x64_rc_preview": "implementation_in_progress_publication_blocked",
       "full": "live_additive_first_install_asset_not_channel",
-      "container_webui": "live_separate_development_and_production_carrier",
-      "native_webui": "approved_target_not_published",
+      "container_webui": "live_separate_development_and_production_carrier_with_independent_preview_publication",
+      "native_webui": "live_public_linux_x86_64_with_digest_bound_lifecycle_qualification",
       "homebrew_standard": "live_managed",
       "homebrew_nightly": "implemented_pending_first_follower_readback",
       "homebrew_full": "implemented_pending_first_protected_follower_readback"
@@ -309,8 +371,9 @@
       },
       "native_webui": {
         "target": "opl_owned_immutable_native_webui_distribution",
-        "status": "production_publisher_implemented_pending_first_publication_readback",
+        "status": "live_public_linux_x86_64_plus_macos_arm64_implemented_pending_first_publication_readback",
         "initial_platform": "linux_amd64",
+        "initial_macos_platform": "macos_arm64",
         "publication_carrier": "app_github_release_assets",
         "production_topology": "standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback",
         "stable_operation_set_must_remain": [
@@ -323,7 +386,7 @@
           "stable"
         ],
         "promotion_requires": [
-          "carrier_neutral_frozen_linux_amd64_payload",
+          "carrier_neutral_frozen_platform_payload",
           "container_overlay_reuses_the_same_frozen_payload",
           "versioned_runtime_directories_and_atomic_current_pointer",
           "app_owned_versioned_artifacts",
@@ -801,10 +864,10 @@
           "rebuild_allowed": false
         },
         "append_full": {
-          "source": "portable_framework_checkpoint_at_or_after_standard_qualified",
+          "source": "portable_framework_checkpoint_at_or_after_standard_built",
           "control": "new_independent_append_full_control",
           "deadline_minutes": 50,
-          "standard_qualified_required": true,
+          "standard_built_required": true,
           "standard_rebuild_allowed": false,
           "standard_operation_id_reuse_allowed": false,
           "standard_deadline_inheritance_allowed": false
@@ -884,10 +947,9 @@
       "failure_receipt_schema": "opl_app_release_notes_prepare_receipt.v1",
       "failure_receipt_uploaded_when_writer_started": true,
       "prebuild_failure_must_not_project_as_qualification_runner_lost": true,
-      "full_intent_evidence_path": "payload.include_full_package",
-      "full_intent_admitted_input": "include_full",
-      "new_standard_full_intent_value": false,
-      "full_intent_must_match_before_framework_freeze": true,
+      "full_intent_source": "stable_post_success_successor_workflow",
+      "full_intent_admitted_input": "successful_standard_workflow_run",
+      "full_intent_must_match_before_append_full_admission": true,
       "full_payload_authority_binding": {
         "schema": "opl_app_release_notes_full_payload_authority.v1",
         "artifact_path": "notes-full-payload-authority.json",
@@ -939,6 +1001,26 @@
         "only_manual_dispatch_workflow": ".github/workflows/release-stable.yml",
         "trigger": "workflow_dispatch",
         "lower_level_workflows": "workflow_call_only",
+        "pre_publication_admission": {
+          "validator": "scripts/validate-standard-publication-input.ts",
+          "receipt_schema": "opl_standard_pre_publication_admission_receipt.v1",
+          "required_status": "passed",
+          "runs_before": "publish-standard-nonlatest",
+          "checks": [
+            "exact_component_manifest_identity_and_self_digest",
+            "exact_staged_standard_asset_set",
+            "staged_asset_digest_and_size_binding",
+            "regular_local_asset_presence_and_digest_readback"
+          ],
+          "public_mutation_allowed": false,
+          "does_not_replace": [
+            "remote_digest_readback",
+            "standard_homebrew_digest_bound_publication",
+            "standard_homebrew_publication_readback",
+            "latest_admission"
+          ],
+          "failure_mode": "fail_closed_before_public_release_creation"
+        },
         "latest_admission": {
           "validator": "scripts/validate-standard-latest-admission.ts",
           "receipt_schema": "opl_standard_latest_admission_receipt.v1",
@@ -985,6 +1067,7 @@
           "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
+          "opl-install.sh",
           "standard-gatekeeper-launch-policy.json",
           "standard-apple-notarization-receipt.json",
           "github_hosted_source_contract_build_preflight",
@@ -1122,6 +1205,7 @@
             "One-Person-Lab-Full-<version>-mac-arm64.dmg",
             "latest-arm64-mac.yml",
             "opl-app-component-manifest.json",
+            "opl-install.sh",
             "opl-release-manifest.json",
             "standard-gatekeeper-launch-policy.json",
             "standard-apple-notarization-receipt.json"
@@ -1405,6 +1489,7 @@
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
         "latest-arm64-mac.yml",
         "opl-app-component-manifest.json",
+        "opl-install.sh",
         "standard-gatekeeper-launch-policy.json",
         "standard-apple-notarization-receipt.json",
         "prepared_ai_release_notes"
@@ -2104,7 +2189,8 @@
       "publish_gate": {
         "script": "scripts/validate-webui-runtime-image.ts",
         "moving_channel_expected_profile": "webui-full",
-        "latest_alias_requires_stable_quality_gate": true,
+        "default_latest_alias_requires_stable_quality_gate": true,
+        "explicit_preview_latest_requires_exact_qualified_carrier_and_protected_override": true,
         "must_read_back": [
           "docker_image_inspect",
           "image_manifest",
@@ -2174,18 +2260,22 @@
       "destructive_action_requires": "package_admin_with_delete_packages_scope",
       "rule": "WebUI GHCR cleanup must retain protected moving tags, recent stable/nightly versions, and declared rollback tags; deletion is never part of ordinary release publishing."
     },
-    "stable_promotion_requires": [
-      "successful_stable_authority_run_after_latest_activation",
-      "workflow_run_follower_bound_to_that_stable_authority",
-      "unique_successful_carrier_follower_job",
-      "qualified_webui_carrier_receipt",
-      "immutable_version_digest"
-    ],
+    "stable_promotion_requires": {
+      "applies_to": "production_follower_only",
+      "requires": [
+        "successful_stable_authority_run_after_latest_activation",
+        "workflow_run_follower_bound_to_that_stable_authority",
+        "unique_successful_carrier_follower_job",
+        "qualified_webui_carrier_receipt",
+        "immutable_version_digest"
+      ]
+    },
     "stable_promotion": {
-      "schema": "opl_app_webui_stable_promotion_contract.v4",
+      "schema": "opl_app_webui_stable_promotion_contract.v5",
       "writer": "release-webui-stable.yml#promote-webui-stable",
+      "writer_scope": "single_ghcr_alias_writer_for_stable_and_latest",
       "workflow": ".github/workflows/release-webui-stable.yml",
-      "trigger": "successful_release_stable_workflow_run_follower_after_latest_activation",
+      "trigger": "production_follower_after_successful_release_stable_latest_activation_or_explicit_preview_latest_dispatch",
       "follower_workflow": ".github/workflows/release-webui-follower.yml",
       "workflow_call_inputs": [
         "mode",
@@ -2193,7 +2283,8 @@
         "stable_authority_run_id",
         "carrier_follower_run_id",
         "carrier_executor_ref",
-        "carrier_artifact_name"
+        "carrier_artifact_name",
+        "publication_record_ref"
       ],
       "task_modes": {
         "production_release": {
@@ -2201,6 +2292,8 @@
           "entry_workflow": ".github/workflows/release-webui-follower.yml",
           "desktop_latest_required": true,
           "development_receipt_accepted_as_handoff": false,
+          "immutable_publication_then_default_pointer_promotion": true,
+          "protected_environment": "release-stable",
           "promotion_tags": [
             "stable",
             "latest"
@@ -2214,8 +2307,10 @@
         },
         "development_validation": {
           "authority_mode": "development_validation",
-          "entry_workflow": ".github/workflows/release-webui-development.yml",
+          "state": "legacy_receipt_compatibility_only_no_current_dispatcher",
+          "entry_workflow": null,
           "source": "exact_first_attempt_terminal_stable_run_frozen_bundle",
+          "new_publication_allowed": false,
           "desktop_latest_required": false,
           "protected_public_mutation_required": true,
           "promotion_tags": [
@@ -2244,18 +2339,96 @@
             "protected_reusable": ".github/workflows/release-webui-stable.yml",
             "receipt_satisfies_production_latest_or_follower_handoff": false
           }
+        },
+        "independent_preview": {
+          "authority_mode": "independent_preview",
+          "entry_workflow": ".github/workflows/release-webui-development.yml",
+          "source": "exact_user_selected_app_shell_framework_refs_bound_by_opl_app_webui_source_authority.v1",
+          "desktop_stable_required": false,
+          "desktop_latest_required": false,
+          "immutable_publication_required": true,
+          "protected_publication_environment": "release-preview-publication",
+          "publication_entry_inputs": [
+            "version",
+            "app_ref",
+            "shell_ref",
+            "framework_ref"
+          ],
+          "publication_does_not_move_stable_or_latest": true,
+          "promotion_entry_workflow": ".github/workflows/release-webui-development-promote.yml",
+          "promotion_requires_explicit_user_dispatch": true,
+          "promotion_tags": [
+            "latest"
+          ],
+          "stable_alias_mutation_allowed": false,
+          "stable_prestate_must_remain_unchanged": true,
+          "classification": {
+            "quality_status": "preview",
+            "build_trigger": "manual",
+            "preview_kind": "dev",
+            "non_stable_notice": true
+          },
+          "source_authority_schema": "opl_app_webui_source_authority.v1",
+          "source_authority_digest_must_equal_carrier_release_bundle_and_cohort_ref": true,
+          "immutable_version_pattern": "YY.M.D-preview.rN",
+          "required_source_refs": [
+            "app_sha",
+            "shell_sha",
+            "framework_sha"
+          ],
+          "stable_run_dependency": false,
+          "desktop_latest_dependency": false,
+          "carrier_publication_run_requirements": [
+            "release-webui-development.yml",
+            "workflow_dispatch_event",
+            "main",
+            "actual_publication_run_attempt_recorded",
+            "completed_success",
+            "exact_executor_sha",
+            "exact_source_authority_artifact"
+          ],
+          "promotion_entry_inputs": [
+            "publication_record_ref",
+            "operator_confirmation"
+          ],
+          "operator_confirmation": {
+            "schema": "opl_app_webui_latest_operator_authorization.v1",
+            "source": "workflow_dispatch_exact_version_confirmation",
+            "actor": "github.actor_human_login",
+            "value": "move-docker-latest:<publication_record.release.version>",
+            "receipt_field": "operator_authorization.confirmation_digest"
+          },
+          "promotion_protected_environment": "release-preview-publication",
+          "receipt_satisfies_production_latest_or_follower_handoff": false
         }
       },
-      "stable_authority_binding": "stable_authority_run_id_must_equal_github_event_workflow_run_id",
-      "carrier_follower_binding": "github_run_id_of_release_webui_follower",
-      "operator_supplied_run_handle_allowed": false,
+      "stable_authority_binding_by_mode": {
+        "production_follower": "stable_authority_run_id_must_equal_github_event_workflow_run_id",
+        "development_validation": "legacy_stable_run_receipt_binding",
+        "independent_preview": "none"
+      },
+      "carrier_publication_binding_by_mode": {
+        "production_follower": "github_run_id_of_release_webui_follower",
+        "development_validation": "legacy_exact_development_publication_run",
+        "independent_preview": "user_supplied_exact_durable_preview_publication_record_revalidated_by_workflow"
+      },
+      "operator_evidence_handle_policy_by_mode": {
+        "production_follower": "no_operator_supplied_handles",
+        "development_validation": "legacy_only",
+        "independent_preview": "durable_publication_record_ref_and_exact_operator_confirmation_revalidated_before_latest_only_mutation"
+      },
       "opaque_run_handles_are_release_identity": false,
-      "protected_environment": "release-stable",
+      "protected_environment_by_mode": {
+        "production_follower": "release-stable",
+        "development_validation": "release-stable",
+        "independent_preview": "release-preview-publication"
+      },
       "default_pointer_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "automatic_update_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "target_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",
       "compatibility_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
       "manual_version_promotion_policy": "manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable",
+      "independent_preview_policy": "manual_user_selected_exact_refs_publish_an_immutable_preview_version_then_an_explicit_single_use_promotion_may_advance_latest_without_changing_stable",
       "stable_authority_requirements": [
         "release-stable.yml",
         "main",
@@ -2263,23 +2436,44 @@
         "completed_success",
         "latest_activation_handoff_present"
       ],
-      "carrier_follower_requirements": [
-        "release-webui-follower.yml",
-        "workflow_run_event",
-        "main",
-        "attempt_1",
-        "in_progress_or_completed",
-        "exact_current_app_main_sha",
-        "exact_triggering_stable_authority_run_id"
-      ],
-      "promotion_executor_requirements": [
-        "release-webui-stable.yml",
-        "inside_release-webui-follower.yml",
-        "main",
-        "attempt_1",
-        "exact_current_app_main_sha",
-        "release-stable_protected_environment"
-      ],
+      "carrier_follower_requirements_by_mode": {
+        "production_follower": [
+          "release-webui-follower.yml",
+          "workflow_run_event",
+          "main",
+          "attempt_1",
+          "in_progress_or_completed",
+          "exact_current_app_main_sha",
+          "exact_triggering_stable_authority_run_id"
+        ],
+        "independent_preview": [
+          "release-webui-development.yml",
+          "workflow_dispatch_event",
+          "main",
+          "attempt_1",
+          "completed_success",
+          "exact_carrier_executor_sha",
+          "source_authority_digest_matches_carrier_receipt"
+        ]
+      },
+      "promotion_executor_requirements_by_mode": {
+        "production_follower": [
+          "release-webui-stable.yml",
+          "inside_release-webui-follower.yml",
+          "main",
+          "attempt_1",
+          "exact_current_app_main_sha",
+          "release-stable_protected_environment"
+        ],
+        "independent_preview": [
+          "release-webui-development-promote.yml",
+          "workflow_dispatch_event",
+          "main",
+          "attempt_1",
+          "exact_current_app_main_sha",
+          "release-preview-publication_protected_environment"
+        ]
+      },
       "carrier_follower_intake": {
         "cross_run_scanning_allowed": false,
         "latest_artifact_selection_allowed": false,
@@ -2287,14 +2481,22 @@
         "current_follower_run_must_contain_exactly_one_successful_publish_immutable_carrier_job": true,
         "job_and_receipt_must_reverse_bind_follower_run_and_app_sha": true
       },
-      "evidence_order": [
-        "successful_stable_authority_and_workflow_run_event_binding",
-        "exact_carrier_follower_run_and_unique_successful_carrier_job_readback",
-        "qualified_immutable_webui_carrier_and_version_tag_readback",
-        "webui_stable_compare_and_swap",
-        "logout_then_anonymous_exact_digest_readback"
-      ],
-      "operator_inputs_forbidden": [
+      "evidence_order_by_mode": {
+        "production_follower": [
+          "successful_stable_authority_and_workflow_run_event_binding",
+          "exact_carrier_follower_run_and_unique_successful_carrier_job_readback",
+          "qualified_immutable_webui_carrier_and_version_tag_readback",
+          "stable_and_latest_compare_and_swap",
+          "logout_then_anonymous_exact_digest_readback"
+        ],
+        "independent_preview": [
+          "exact_source_authority_and_three_source_refs",
+          "qualified_immutable_preview_carrier_and_version_tag_readback",
+          "explicit_user_dispatch_for_latest_only_compare_and_swap",
+          "stable_alias_unchanged_and_latest_anonymous_exact_digest_readback"
+        ]
+      },
+      "operator_inputs_forbidden_to_pointer_promotion": [
         "target_ref",
         "target_digest",
         "version",
@@ -2318,13 +2520,18 @@
           ],
           "development_validation": [
             "latest"
+          ],
+          "independent_preview": [
+            "latest"
           ]
         },
         "mutation_command_by_authority_mode": {
           "production_follower": "oras tag <repository>@<target_digest> stable latest",
-          "development_validation": "oras tag <repository>@<target_digest> latest"
+          "development_validation": "oras tag <repository>@<target_digest> latest",
+          "independent_preview": "oras tag <repository>@<target_digest> latest"
         },
         "development_validation_requires_stable_prestate_unchanged": true,
+        "independent_preview_requires_stable_prestate_unchanged": true,
         "maximum_tag_attempts": 1,
         "single_command_updates_all_admitted_moving_tags": true,
         "force_allowed": false
@@ -2342,14 +2549,17 @@
         "github_latest_before_webui_stable": true,
         "github_latest_before_webui_stable_applies_to": "production_release",
         "development_validation_may_precede_desktop_latest": true,
+        "independent_preview_may_publish_and_move_webui_latest_without_desktop_stable_or_desktop_latest": true,
+        "independent_preview_immutable_publication_precedes_explicit_latest_only_promotion": true,
+        "independent_preview_never_moves_webui_stable": true,
         "desktop_latest_does_not_wait_for_webui": true,
         "webui_stable_independent_of_framework_package_promotion": true,
         "webui_stable_is_non_blocking_follower": true,
         "webui_failure_may_rollback_or_reactivate_desktop_latest": false
       },
-      "admission_schema": "opl_app_webui_stable_promotion_admission.v4",
+      "admission_schema": "opl_app_webui_stable_promotion_admission.v5",
       "decision_schema": "opl_app_webui_stable_promotion_decision.v2",
-      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v4"
+      "receipt_schema": "opl_app_webui_stable_promotion_receipt.v5"
     },
     "stable_tags": [
       "<app_or_opl_version>",
@@ -2713,6 +2923,22 @@
           "offline_first_install_completeness_preserved": true,
           "size_review_release_blocking_by_size_alone": false
         },
+        "required_evidence": [
+          "full-package-manifest.json#runtime_assertions.offline_required_payloads",
+          "full-runtime-native-trust.json"
+        ],
+        "optional_certification_evidence": [
+          {
+            "id": "full_dmg_clean_vm_smoke",
+            "policy": "post_publication_optional_non_blocking",
+            "allowed_statuses": [
+              "passed",
+              "failed",
+              "not_run",
+              "unavailable"
+            ]
+          }
+        ],
         "required_preserved_payloads": [
           "Contents/Resources/opl-full-runtime",
           "Contents/Resources/bundled-aioncore",
@@ -2727,7 +2953,7 @@
           "full-app-bundle-trim-report.json",
           "full-package-boundary-audit.json"
         ],
-        "rule": "Optimization evidence is part of the Full package manifest/readback surface and may only prove explicit non-runtime pruning plus boundary preservation; it cannot replace Full clean VM smoke or owner receipt evidence."
+        "rule": "Optimization evidence is part of the Full package manifest/readback surface and may only prove explicit non-runtime pruning plus boundary preservation. Full clean VM smoke is separately classified as post-publication optional certification and must never appear in package_optimization.required_evidence or block publication."
       },
       "package_profile_boundary": {
         "standard": {
@@ -2887,7 +3113,16 @@
     "published_addon": {
       "operation": "append_full",
       "workflow": ".github/workflows/_release-full-addon.yml",
-      "checkpoint_minimum_stage": "standard_qualified",
+      "checkpoint_minimum_stage": "standard_built",
+      "standard_identity_required": true,
+      "standard_release_readback": "exact_tag_and_required_asset_set_and_digests",
+      "successor_trigger": {
+        "workflow": ".github/workflows/release-stable-post-success-followups.yml",
+        "trigger": "successful_standard_workflow_run",
+        "one_successor_per_standard_run": true,
+        "workflow_dispatch_ref": "exact_stable_tag",
+        "executor_head_sha": "frozen_app_sha"
+      },
       "framework_operation_receipt_schema": "opl_release_bundle_operation_receipt.v1",
       "mode": "same_cohort_additive_only",
       "allowed_assets": [
@@ -3084,14 +3319,19 @@
       "digest_algorithm": "sha256",
       "standard_dispatch_inputs": [
         "operation",
-        "source_qualification_run_id",
-        "source_qualification_receipt_digest"
+        "authority_id",
+        "operation_id",
+        "authority_carrier",
+        "authority_digest"
       ],
       "raw_standard_version_or_ref_inputs_allowed": false,
       "required_bindings": [
-        "app_owned_source_qualification_receipt",
-        "github_hosted_source_contract_build_preflight_with_self_hosted_vm_tart_zero",
-        "final_app_shell_framework_main_shas",
+        "pre_issued_stable_authority_carrier",
+        "frozen_app_shell_framework_cohort",
+        "frozen_source_gate_bytes_and_digest",
+        "pre_nonce_guard_bytes_and_digest",
+        "run_authority_reconcile_control",
+        "single_use_control_consumption",
         "critical_workflow_git_blobs_and_sha256",
         "apple_protected_secret_names_6_of_6",
         "developer_id_and_notary_authentication_receipt",
@@ -3103,7 +3343,55 @@
         "git_wire_main_refs_and_single_owner_run_query"
       ],
       "fresh_verify_before_expensive_work": true,
+      "full_source_gate_rerun_in_workflow": false,
       "unknown_dispatch_result_policy": "read_only_reconcile_without_rerun_redispatch_or_cancel"
+    },
+    "stable_operation_control": {
+      "authority_schema": "opl_app_stable_operation_authority.v1",
+      "control_schema": "opl_app_stable_operation_control.v1",
+      "consumption_schema": "opl_app_stable_operation_consumption.v1",
+      "script": "scripts/stable-operation-control.ts",
+      "protected_admission_job": "protected-operation-admission",
+      "artifact_name": "opl-stable-operation-control-<stable_run_id>",
+      "authority_carrier_required": true,
+      "authority_issuance": "operator_issued_github_dispatch_input_non_cryptographic",
+      "workflow_may_self_issue_authority_or_nonce": false,
+      "operation_id_derivation": "deterministic_frozen_cohort_and_critical_blob_identity",
+      "bare_dispatch_fails_before_expensive_work": true,
+      "live_main_drift_invalidates_frozen_cohort": false,
+      "current_executor": {
+        "live_main_equality_with_frozen_app_required": false,
+        "critical_blob_equality_with_authority_required": true,
+        "frozen_app_commit_checkout_required": true
+      },
+      "source_gate": {
+        "script": "scripts/validate-release-source-gate.ts",
+        "execution_phase": "operator_pre_dispatch_before_authority_issuance",
+        "runs_per_operation": 1,
+        "workflow_rerun_allowed": false,
+        "digest_bound_to_authority_and_control": true
+      },
+      "pre_nonce_guard": {
+        "script": "scripts/release-dispatch-guard.ts",
+        "phase": "pre_nonce",
+        "execution_phase": "operator_pre_dispatch_before_authority_issuance",
+        "digest_bound_to_authority_and_control": true
+      },
+      "run_authority_reconcile": {
+        "distinct_from_pre_nonce_guard": true,
+        "current_run_binding_required": true,
+        "prior_consumer_forbidden": true,
+        "digest_bound_to_control_and_consumption": true
+      },
+      "single_use_consumption": {
+        "required_before_cold_work": true,
+        "one_operation_one_matching_run": true,
+        "control_artifact_consumer": ".github/workflows/_release-bundle.yml"
+      },
+      "actions_artifact": {
+        "role": "transient_transport_only",
+        "durable_authority": false
+      }
     },
     "dispatch_guard": {
       "schema": "opl_release_dispatch_guard.v1",
@@ -3112,16 +3400,19 @@
       "required_before_nonce_consumption": true,
       "source_gate_report_exact_cohort_binding_required": true,
       "required_pre_nonce_gates": [
-        "release:source-gate",
-        "current_app_profile_exact_shell_consumer",
-        "git_wire_app_shell_framework_main_identity",
-        "single_owner_workflow_runs_query"
+        "release:source-gate_pre_dispatch_once",
+        "current_app_profile_exact_shell_consumer_pre_dispatch_once",
+        "frozen_app_shell_framework_commit_reachability_and_critical_blob_binding",
+        "single_operation_owner_workflow_runs_query"
       ],
       "cross_repository_ref_identity": {
         "transport": "git_ls_remote_wire",
         "commit_or_ref_api_guard_allowed": false,
         "max_transport_attempts_per_read": 3,
-        "transport_failure_is_credential_failure": false
+        "transport_failure_is_credential_failure": false,
+        "live_main_equality_required_after_freeze": false,
+        "frozen_commit_reachability_required": true,
+        "critical_blob_digest_binding_required": true
       },
       "owner_run_lookup": {
         "logical_query_count": 1,
@@ -3129,13 +3420,14 @@
         "parser": "node_structured_json_without_jq",
         "identity_fields": [
           "workflow_path",
-          "head_sha",
           "event_workflow_dispatch",
           "head_branch_main",
           "run_attempt_1",
-          "operation_started_at_bounded_window"
+          "operation_id_in_run_name",
+          "authority_id_in_run_name",
+          "current_run_id_for_consumption"
         ],
-        "identity_window_seconds": 300,
+        "identity_window_seconds": null,
         "zero_or_ambiguous_result": "outcome_unknown"
       },
       "transport_failure_codes": [
@@ -3167,7 +3459,8 @@
       "pre_nonce_failure": {
         "nonce_consumed": false,
         "mutation_invocation_count": 0,
-        "read_only_guard_replacement_allowed": true,
+        "read_only_reconcile_allowed": true,
+        "guard_replacement_allowed": false,
         "dispatch_allowed": false
       },
       "post_dispatch_failure": {
@@ -3194,13 +3487,14 @@
       "release_authority": false,
       "namespace_reservation": false,
       "final_signed_byte_authority": false,
-      "accepted_consumer": ".github/workflows/release-stable.yml",
+      "lifecycle": "retired_for_stable_admission_diagnostic_only",
+      "accepted_consumer": null,
       "pre_dispatch_profile_consumer_guard": "scripts/validate-shell-product-profile-consumer.ts",
       "profile_consumer_test": "tests/unit/common-config/oplProductProfile.test.ts",
       "profile_projection": "current_app_profile_into_temporary_exact_shell_archive",
       "source_shell_mutation_allowed": false,
-      "must_pass_before_source_workflow_dispatch": true,
-      "publication_floor_role": "same_operation_hosted_source_contract_build_preflight"
+      "must_pass_before_source_workflow_dispatch": false,
+      "publication_floor_role": "none"
     },
     "stable_stage_result": {
       "schema": "opl_app_stable_stage_result.v1",
@@ -3279,7 +3573,7 @@
       "prepared_ai_release_notes_marker",
       "prepared_ai_release_notes_standard_scope",
       "framework_freeze_request_schema",
-      "source_qualification_receipt_digest",
+      "stable_operation_control_digest",
       "stable_admission_manifest_digest",
       "apple_credentials_runtime_receipt",
       "cross_namespace_version_allocator",
@@ -3289,7 +3583,10 @@
     "failure_budget": "fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full",
     "source_gate": {
       "package_script": "release:source-gate",
-      "status": "implemented_enforced_before_expensive_release_jobs",
+      "status": "implemented_once_before_dispatch_then_verified_from_frozen_evidence",
+      "execution_owner": "operator_pre_dispatch_controller",
+      "runs_per_operation": 1,
+      "workflow_rerun_allowed": false,
       "scope": [
         "App release-boundary contract",
         "current App profile against exact Shell consumer in a temporary archive",
@@ -3306,7 +3603,7 @@
         "post_publication_optional_certification"
       ],
       "failure_next_action": "repair_source_gate",
-      "rule": "The App release source gate must fail before workflow dispatch or expensive hosted build, Full, WebUI, or post-publication optional certification work when App release-boundary validation, current App profile against the exact Shell consumer, shell format/type, shell ref resolution, or framework ref resolution is invalid."
+      "rule": "The App release source gate runs once before dispatch and is embedded in the operator-issued authority. protected-operation-admission materializes and verifies the exact frozen bytes before dependency installation or expensive hosted build, Full, WebUI, or post-publication optional certification work; it never reruns the full source gate, and unrelated live main advancement does not invalidate the frozen cohort when critical blobs remain exact."
     },
     "rule": "The App freeze-request adapter validates product identity, exact App/Shell/Framework refs, prepared Standard notes, and typed Package compatibility, then hands one app_standard_compatibility request to Framework freeze without Package Release Set or exact Package authority fields. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal and historical Bundle identity remains read-compatible.",
     "stable_operations": [
@@ -3386,6 +3683,199 @@
     "new_session_or_dispatch_allowed": false,
     "state_authority_ref": "release_bundle_control_plane.framework_authority",
     "rule": "Acceleration may change latency or diagnostic coverage only. It cannot create release state, authorize mutation, skip a Framework checkpoint stage, or change artifact identity.",
+    "runner_policy": {
+      "schema": "opl_app_runner_policy.v1",
+      "publication_floor": {
+        "stable_and_latest_executor": "github_hosted",
+        "required_floor": [
+          "github_hosted_source_contract_build_preflight",
+          "github_hosted_signed_notarized_standard_build",
+          "remote_digest_readback",
+          "standard_homebrew_digest_bound_publication",
+          "standard_homebrew_publication_readback"
+        ],
+        "self_hosted_ancestor_count": 0,
+        "offline_or_unavailable_effect": "publication_continues_without_waiting_or_queueing",
+        "optional_certification_effect": "evidence_only_does_not_change_publication_or_latest"
+      },
+      "workload_classes": {
+        "post_publication_optional_certification": {
+          "artifact_binding": "exact_immutable_published_release_artifact",
+          "statuses": [
+            "passed",
+            "failed",
+            "not_run",
+            "unavailable"
+          ],
+          "publication_blocking": false
+        },
+        "pr_advisory_acceleration": {
+          "purpose": "platform_specific_long_running_or_gui_validation",
+          "publication_blocking": false,
+          "merge_blocking": false,
+          "untrusted_pull_request_secrets_allowed": false
+        },
+        "nightly_or_maintenance": {
+          "purpose": "scheduled_environment_drift_cache_warmup_and_sampled_regression",
+          "publication_blocking": false,
+          "merge_blocking": false
+        }
+      },
+      "pools": [
+        {
+          "id": "mac-gui",
+          "labels": [
+            "self-hosted",
+            "macOS",
+            "ARM64",
+            "opl-cert-mac-gui"
+          ],
+          "capabilities": [
+            "macos_gui",
+            "gatekeeper",
+            "desktop_install_upgrade"
+          ],
+          "workload_classes": [
+            "post_publication_optional_certification",
+            "pr_advisory_acceleration"
+          ],
+          "max_concurrency": 1
+        },
+        {
+          "id": "mac-tart",
+          "labels": [
+            "self-hosted",
+            "macOS",
+            "ARM64",
+            "opl-cert-mac-tart"
+          ],
+          "capabilities": [
+            "tart_host",
+            "clean_guest",
+            "no_clt_first_install"
+          ],
+          "workload_classes": [
+            "post_publication_optional_certification",
+            "nightly_or_maintenance"
+          ],
+          "max_concurrency": 1
+        },
+        {
+          "id": "windows-wsl",
+          "labels": [
+            "self-hosted",
+            "Windows",
+            "X64",
+            "opl-cert-windows-wsl"
+          ],
+          "capabilities": [
+            "windows_native",
+            "wsl2",
+            "hyper_v",
+            "docker_desktop"
+          ],
+          "workload_classes": [
+            "post_publication_optional_certification",
+            "pr_advisory_acceleration",
+            "nightly_or_maintenance"
+          ],
+          "max_concurrency": 1
+        },
+        {
+          "id": "ci-accelerated",
+          "labels": [
+            "self-hosted",
+            "opl-ci-accelerated"
+          ],
+          "capabilities": [
+            "long_running_integration",
+            "performance",
+            "cache_warmup"
+          ],
+          "workload_classes": [
+            "pr_advisory_acceleration",
+            "nightly_or_maintenance"
+          ],
+          "max_concurrency": 1
+        }
+      ],
+      "pool_rules": {
+        "label_selection": "exact_capability_labels_only",
+        "homogeneous_shared_label_pool": false,
+        "offline_or_busy_status": "unavailable_or_deferred",
+        "missing_capability_status": "unavailable",
+        "fallback": "hosted_equivalent_or_not_run",
+        "release_priority": [
+          "github_hosted_publication_floor",
+          "post_publication_optional_certification",
+          "pr_advisory_acceleration",
+          "nightly_or_maintenance"
+        ],
+        "preemption": {
+          "stable_latest_publication": "never_preempted_by_self_hosted_work",
+          "p0_release_or_foreground": "never_preempted",
+          "background_or_experiment": "preemptible_only_with_explicit_fleet_lease",
+          "same_pool_concurrency": "one_active_job_per_machine_unless_fleet_capability_allows_more"
+        }
+      },
+      "authority_boundary": {
+        "github_actions_authority": [
+          "runner_registration",
+          "runner_groups",
+          "runner_labels",
+          "workflow_scheduling",
+          "workflow_permissions_and_secrets"
+        ],
+        "fleet_authority": [
+          "machine_capability_inventory",
+          "reservation_and_lease",
+          "preemption_and_release",
+          "service_enablement_and_rollback"
+        ],
+        "app_authority": [
+          "publication_floor",
+          "optional_certification_status_projection",
+          "artifact_digest_binding"
+        ],
+        "no_cross_plane_inference": true,
+        "runner_registration_policy": "opt_in_explicit_role_binding_not_fleet_membership"
+      },
+      "fleet_lease_binding": {
+        "owner_surface": "codex_fleet_lease_verify_machine_readable",
+        "owner_surface_status": "available",
+        "github_job_binding_status": "pending_authenticated_controller_readback_transport",
+        "current_github_preguard": [
+          "exact_runner_role_labels",
+          "runner_online",
+          "runner_idle"
+        ],
+        "current_github_preguard_proves_controller_lease": false,
+        "required_before_controller_authoritative_job_binding": [
+          "authenticated_minimum_disclosure_controller_transport",
+          "exact_runner_role_to_node_binding",
+          "github_run_id_bound_lease_owner",
+          "fresh_lease_ttl_doctor_admission_and_control_commit",
+          "exact_workload_phase_and_preemptible_policy"
+        ],
+        "app_defined_secret_or_variable_names": false,
+        "enforcement_before_authenticated_transport_allowed": false
+      },
+      "binding_status": "role_labels_require_fresh_github_and_fleet_readback_before_use",
+      "legacy_bindings": [
+        {
+          "workflow": ".github/workflows/release-manual-full-preview.yml",
+          "labels": [
+            "self-hosted",
+            "macOS",
+            "ARM64",
+            "opl-gui-vm"
+          ],
+          "scope": "explicit_non_stable_manual_full_preview_only",
+          "migration": "retain_until_dedicated_role_mapping_and_workflow_settings_readback"
+        }
+      ],
+      "rule": "Self-hosted runners add platform evidence and development throughput but are never a Stable or Latest availability dependency. Fleet leases coordinate physical machines; GitHub Actions owns runner registration and scheduling; neither control plane may be inferred from the other's inventory alone."
+    },
     "github_actions": {
       "scope": "cache_and_validation_only",
       "live_release_mutation_authority": false,
@@ -3523,7 +4013,7 @@
             "authority_boundary": "diagnostic_only_not_release_ready_owner_receipt_or_runtime_truth"
           },
           "release_gate": {
-            "purpose": "full deterministic VM release gate used by stable release workflows",
+            "purpose": "full deterministic VM qualification used only when an explicit diagnostic or optional certification workflow requests it",
             "keeps": [
               "same-run or supplied DMG resolution",
               "packaged main bootstrap marker verification",
@@ -3552,8 +4042,8 @@
               "tart-smoke-summary.json"
             ],
             "critical_failure_artifact_policy": "write vm-gate-failure-summary.json/md before uploading large VM artifacts; classify missing large artifacts separately as diagnostic_artifact_missing and recommend rerun_diagnostic_same_artifact",
-            "wrapper_diagnostic_policy": "host_wrapper_preflight_and_smoke_logs_are_supporting_evidence; full release gate failure still comes from the deterministic VM readiness/settings/route/codex checks",
-            "authority_boundary": "release_gate_evidence_only_when_same_cohort_workflow_requires_it"
+            "wrapper_diagnostic_policy": "host_wrapper_preflight_and_smoke_logs are supporting evidence; deterministic VM readiness/settings/route/codex failures classify the optional certification result only",
+            "authority_boundary": "optional_certification_evidence_only_never_stable_latest_publication_authority"
           }
         },
         "writes": [
@@ -3606,12 +4096,12 @@
         "same_artifact_diagnostic_next_action": "rerun_diagnostic_same_artifact",
         "diagnostic_missing_status": "diagnostic_artifact_missing",
         "forbidden_replacements": [
-          "stable release same-run VM gates",
+          "stable publication or Latest authority",
           "published release remote verification",
           "owner receipt",
           "release publish"
         ],
-        "rule": "Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is VM evidence only and must not replace stable same-run VM gates or published asset verification."
+        "rule": "Branch-lane or post-release evidence runs may explicitly download a DMG-only artifact from a completed source Actions run without publishing assets; this handoff is optional VM evidence only and must not replace hosted publication-floor checks or published asset verification."
       }
     },
     "tart_base_prebake": {

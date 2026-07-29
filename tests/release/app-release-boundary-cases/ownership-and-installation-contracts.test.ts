@@ -8,7 +8,10 @@ import {
   runNode,
 } from './helpers.ts';
 import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
-import { validateReleaseChannelContract } from '../../../scripts/validate-active-shell/release-contract-validator.ts';
+import {
+  assertManagedRuntimeRootBridgeSemantics,
+  validateReleaseChannelContract,
+} from '../../../scripts/validate-active-shell/release-contract-validator.ts';
 import {
   appOwnedStorageCarrierBehavior,
   appOwnedWebuiDataVolumeHostActionCapabilityId,
@@ -778,9 +781,41 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   );
 });
 
+test('managed runtime bridge validation rejects the legacy Windows runtime override', () => {
+  const current = [
+    'function managedOplRuntimeRoot(): string {',
+    'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
+    'if (configuredRoot) return configuredRoot;',
+    "if (process.platform !== 'darwin') {",
+    "throw new Error('OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.');",
+    '}',
+    "return path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime');",
+    '}',
+    "configuredManagedRuntimeRoot: process.platform === 'win32' ? undefined : managedOplRuntimeRoot(),",
+  ].join('\n');
+  assert.doesNotThrow(() => assertManagedRuntimeRootBridgeSemantics(current));
+  assert.throws(
+    () => assertManagedRuntimeRootBridgeSemantics(current.replace("if (process.platform !== 'darwin') {", '')),
+    /process\.platform !== 'darwin'/,
+  );
+  assert.throws(
+    () => assertManagedRuntimeRootBridgeSemantics(current.replace('process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim()', "''")),
+    /OPL_RUNTIME_TOOLCHAIN_ROOT/,
+  );
+  assert.throws(
+    () => assertManagedRuntimeRootBridgeSemantics(
+      'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT',
+    ),
+    /reject the unconditional OPL runtime override/,
+  );
+});
+
 test('release contract keeps Standard independent behind Framework checkpoint authority', () => {
   const release = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const gui = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-gui-product-contract.json'), 'utf8'),
   );
   const control = release.release_bundle_control_plane;
   const legacy = control.legacy_compatibility;
@@ -808,6 +843,35 @@ test('release contract keeps Standard independent behind Framework checkpoint au
   assert.equal(legacy.historical_receipts_remain_readable, true);
   assert.equal(legacy.new_legacy_dispatch_publish_or_rebuild_allowed, false);
   assert.equal(release.release_acceleration.new_session_or_dispatch_allowed, false);
+  assert.deepEqual(
+    gui.release_channel_policy.stable.diagnostic_lanes,
+    release.release_validation_profiles.stable.diagnostic_lanes,
+  );
+  assert.deepEqual(
+    gui.release_channel_policy.stable.post_publication_optional_certification_surfaces,
+    release.release_validation_profiles.stable.post_publication_optional_certification_surfaces,
+  );
+  assert.equal(gui.release_channel_policy.stable.must_gate.includes('full_dmg_clean_vm_smoke'), false);
+  assert.equal(gui.release_channel_policy.stable.addon_gate_blocking_standard_terminal, false);
+  assert.equal(gui.release_channel_policy.stable.diagnostic_lanes_block_publication_or_latest, false);
+  assert.equal(gui.release_channel_policy.stable.optional_certification_blocks_publication_or_latest, false);
+  assert.deepEqual(
+    release.full_first_install.size_policy.optimization_artifacts.required_evidence,
+    [
+      'full-package-manifest.json#runtime_assertions.offline_required_payloads',
+      'full-runtime-native-trust.json',
+    ],
+  );
+  assert.deepEqual(
+    release.full_first_install.size_policy.optimization_artifacts.optional_certification_evidence,
+    [
+      {
+        id: 'full_dmg_clean_vm_smoke',
+        policy: 'post_publication_optional_non_blocking',
+        allowed_statuses: ['passed', 'failed', 'not_run', 'unavailable'],
+      },
+    ],
+  );
 
   const competingAuthority = structuredClone(release);
   competingAuthority.release_bundle_control_plane.live_authority
