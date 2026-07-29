@@ -1978,14 +1978,18 @@ function validateSkillsHubImplementation(shellPaths) {
     [
       'const skills = await ipcBridge.fs.listAvailableSkills.invoke()',
       'setAvailableSkills(skills)',
-      'const autoSkills = await ipcBridge.fs.listBuiltinAutoSkills.invoke()',
-      'setBuiltinAutoSkills(autoSkills)',
+      "t('settings.skillsHub.mySkillsTitle', { defaultValue: 'Global User Skills' })",
+      "t('settings.skillsHub.globalUserSkillsPath'",
+      "user_skills_dir",
+      "data-testid='my-skills-section'",
     ],
     'Active shell SkillsHubSettings IPC Skill projection',
   );
   assertTextExcludesAll(
     skillsHub,
     [
+      'listBuiltinAutoSkills',
+      'setBuiltinAutoSkills',
       'getOplDefaultPackagedCodexSkills',
       'getOplPackagedCodexSkills',
       'appVisibleSkills',
