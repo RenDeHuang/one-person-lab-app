@@ -36,7 +36,7 @@ cleanup、publication、install、标题和 archive 决策都必须先回总账�
 `ACTIVE`，2 个仅可标记 `SAFE_TO_ARCHIVE`；实际归档仍需用户对具体 thread 的 fresh 验收。
 数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
 
-Fresh lifecycle 快照生成基线：App canonical 为 `0b914d69/tree 000e8af5`，根 clean/aligned，10 个
+Fresh lifecycle 快照生成基线：App canonical 为 `98b9d55e/tree 6d52c3fe`，根 clean/aligned，9 个
 registered non-root worktree；Framework wire 为 `afdc19b1/tree ee550bb8`，3 个 registered
 worktree，本地根仍 behind6/dirty2。该基线描述本快照生成时的 source/hygiene 表面，不自引用
 后续文档 merge commit，也不限制独立任务
