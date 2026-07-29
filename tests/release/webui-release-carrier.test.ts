@@ -626,6 +626,19 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.equal(publish.permissions.packages, 'write');
   assert.equal(build.permissions.actions, 'read');
   assert.equal(build.permissions.packages, 'read');
+  const productionPublishCheckout = publish.steps.find(
+    (step: { name?: string }) => step.name === 'Checkout exact production App source',
+  );
+  const previewPublishCheckout = publish.steps.find(
+    (step: { name?: string }) => step.name === 'Checkout canonical publication executor',
+  );
+  assert.equal(productionPublishCheckout.if, "${{ inputs.authority_mode == 'production_follower' }}");
+  assert.equal(productionPublishCheckout.with.ref, '${{ inputs.app_ref }}');
+  assert.equal(
+    previewPublishCheckout.if,
+    "${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' }}",
+  );
+  assert.equal(previewPublishCheckout.with.ref, '${{ github.sha }}');
   assert.doesNotMatch(source, /one-person-lab-webui:stable/);
   assert.doesNotMatch(source, /latest-stable|homebrew|releases\/latest/i);
 

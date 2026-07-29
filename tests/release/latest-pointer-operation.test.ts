@@ -178,6 +178,40 @@ test('published Stable, Dev, and Nightly identities admit an exact quality-prese
   }
 });
 
+test('legacy Stable manifest is normalized before Latest override admission', () => {
+  const current = fixture('stable');
+  try {
+    const legacyManifest = structuredClone(current.manifest);
+    for (const key of [
+      'release_version',
+      'updater_version',
+      'quality_status',
+      'build_trigger',
+      'preview_kind',
+      'distribution_pointer_policy',
+      'qualification_disclosure',
+      'source_cohort',
+    ]) {
+      delete legacyManifest[key];
+    }
+    const core = Object.fromEntries(
+      Object.entries(legacyManifest).filter(([key]) => key !== 'component_manifest_digest'),
+    );
+    legacyManifest.component_manifest_digest = sha256(JSON.stringify(core));
+
+    const authority = createLatestPointerOverrideAuthority(
+      legacyManifest,
+      expectedCurrentLatestTag,
+    );
+    assert.equal(authority.candidate.tag, current.tag);
+    assert.equal(authority.candidate.quality_status, 'stable');
+    assert.equal(authority.candidate.preview_kind, null);
+    assert.equal(authority.candidate.component_manifest_digest, legacyManifest.component_manifest_digest);
+  } finally {
+    fs.rmSync(current.root, { recursive: true, force: true });
+  }
+});
+
 test('pointer admission rejects draft, asset drift, authority drift, and replay', () => {
   const current = fixture('nightly');
   try {

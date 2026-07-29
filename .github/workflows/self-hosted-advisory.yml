@@ -423,13 +423,15 @@ jobs:
             }));
             result.targets[target] = {
               schema: 'opl_app_self_hosted_advisory_target_admission.v1',
-              status: eligible.length > 0 ? 'ready' : 'not_run',
-              reason_code: eligible.length > 0 ? null : 'operator_deferred',
+              status: 'not_run',
+              reason_code: 'operator_deferred',
               job_started: false,
               release_blocking: false,
               required_labels: labels,
               eligible_runners: eligible,
-              detail: eligible.length > 0 ? null : 'No online idle runner matched the exact labels.',
+              detail: eligible.length > 0
+                ? 'GitHub runner preguard passed, but authenticated Fleet capability and lease readback is not available in this workflow.'
+                : 'No online idle runner matched the exact labels.',
             };
           }
 
@@ -749,8 +751,17 @@ jobs:
           }
           node --experimental-strip-types --test --test-timeout=120000 tests/release/docker-webui-windows-installer.test.ts *>&1 |
             Tee-Object -FilePath windows-installer-behavior.log
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows installer behavior validation failed with exit code $LASTEXITCODE"
+          }
           wsl.exe --status *>&1 | Tee-Object -FilePath windows-wsl-status.log
+          if ($LASTEXITCODE -ne 0) {
+            throw "WSL2 status probe failed with exit code $LASTEXITCODE"
+          }
           docker version --format '{{json .}}' *>&1 | Tee-Object -FilePath windows-docker-version.log
+          if ($LASTEXITCODE -ne 0) {
+            throw "Docker engine handshake failed with exit code $LASTEXITCODE"
+          }
 
       - name: Write Windows advisory receipt
         if: ${{ always() }}
