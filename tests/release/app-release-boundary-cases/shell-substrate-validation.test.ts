@@ -1,4 +1,7 @@
-import { validateRuntimeSettings } from '../../../scripts/validate-active-shell/shell-substrate-validator.ts';
+import {
+  validateRuntimeSettings,
+  validateTrayStartup,
+} from '../../../scripts/validate-active-shell/shell-substrate-validator.ts';
 import { assert, fs, os, path, test } from './helpers.ts';
 
 const runtimeSettingsMarkers = [
@@ -79,5 +82,71 @@ test('Maintenance validator continues to require the hub description', (t) => {
   assert.throws(
     () => validateRuntimeSettings(runtimeSettingsFixture(t, missingDescription)),
     /settings\.oplEnvironmentPage\.maintenanceHub\.description/,
+  );
+});
+
+function trayStartupFixture(t, { legacyPath = false } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-tray-startup-shell-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  const write = (relativePath, content) => {
+    const target = path.join(root, relativePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content, 'utf8');
+  };
+  const trayStartupPath = legacyPath
+    ? 'packages/desktop/src/process/startup/trayStartup.ts'
+    : 'packages/desktop/src/process/startup/runtime/trayStartup.ts';
+  write(
+    trayStartupPath,
+    [
+      'export async function initializeTrayForDesktopMode() {}',
+      'deps.createOrUpdateTray()',
+      'deps.destroyTray()',
+      'deps.setCloseToTrayEnabled(false)',
+    ].join('\n'),
+  );
+  write(
+    'packages/desktop/src/index.ts',
+    [
+      "import { initializeTrayForDesktopMode } from './process/startup/runtime/trayStartup';",
+      'initializeTrayForDesktopMode',
+      'readCloseToTray: readCloseToTraySetting',
+      'createOrUpdateTray',
+      'destroyTray',
+    ].join('\n'),
+  );
+  write(
+    'packages/desktop/src/process/utils/closeToTraySetting.ts',
+    [
+      "const CLOSE_TO_TRAY_CONFIG_KEY = 'system.closeToTray'",
+      'await ProcessConfig.get(CLOSE_TO_TRAY_CONFIG_KEY)',
+      'await ProcessConfig.set(CLOSE_TO_TRAY_CONFIG_KEY, enabled)',
+    ].join('\n'),
+  );
+  write(
+    'packages/desktop/src/process/utils/tray.ts',
+    [
+      "platform === 'darwin' ? 'trayTemplate.png' : 'app.png'",
+      "path.join(resourcesPath, 'opl-branding', iconFilename)",
+      'path.join(resourcesPath, iconFilename)',
+      'icon.setTemplateImage(true)',
+      'if (icon.isEmpty())',
+    ].join('\n'),
+  );
+  write('packages/desktop/electron-builder.yml', 'from: resources/opl-branding\nto: opl-branding\n');
+  write('resources/opl-branding/trayTemplate.png', 'fixture');
+  write('resources/opl-branding/trayTemplate@2x.png', 'fixture');
+  return { shellRoot: root };
+}
+
+test('Tray substrate validator consumes the current runtime startup module path', (t) => {
+  assert.doesNotThrow(() => validateTrayStartup(trayStartupFixture(t)));
+});
+
+test('Tray substrate validator rejects the retired startup module path', (t) => {
+  assert.throws(
+    () => validateTrayStartup(trayStartupFixture(t, { legacyPath: true })),
+    /packages\/desktop\/src\/process\/startup\/runtime\/trayStartup\.ts/,
   );
 });

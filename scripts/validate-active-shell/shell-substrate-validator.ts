@@ -87,6 +87,7 @@ const trayPackagingExpected = [
 ];
 
 const desktopMainExpected = [
+  "import { initializeTrayForDesktopMode } from './process/startup/runtime/trayStartup'",
   'initializeTrayForDesktopMode',
   'readCloseToTray: readCloseToTraySetting',
   'createOrUpdateTray',
@@ -223,7 +224,7 @@ export function validateRuntimeSettings(shellPaths) {
   );
 }
 
-function validateTrayStartup(shellPaths) {
+export function validateTrayStartup(shellPaths) {
   const trayStartup = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/process/startup/runtime/trayStartup.ts',
