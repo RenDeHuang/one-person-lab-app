@@ -24,32 +24,52 @@ function fixture(t: test.TestContext) {
   const out = path.join(root, 'out');
   const packagedTree = path.join(out, 'win-unpacked');
   const runtimeRoot = path.join(packagedTree, 'resources', 'bundled-aioncore', 'linux-x64');
-  const toolRoot = path.join(
-    runtimeRoot,
-    'managed-resources',
-    'acp',
-    'codex-acp',
-    '1.1.2',
-    'linux-x64',
+  const managedResourcesRoot = path.join(runtimeRoot, 'managed-resources');
+  const nodeRoot = path.join(
+    managedResourcesRoot,
+    'node',
+    'node-v24.11.0-linux-x64',
+    'bin',
   );
   const codexRoot = path.join(
-    toolRoot,
-    'node_modules',
-    '@openai',
-    'codex-linux-x64',
+    managedResourcesRoot,
+    'cli',
+    'codex',
+    '0.144.6',
+    'linux-x64',
     'vendor',
     'x86_64-unknown-linux-musl',
     'bin',
   );
+  const managedManifest = path.join(managedResourcesRoot, 'manifest.json');
+  const node = path.join(nodeRoot, 'node');
+  const codex = path.join(codexRoot, 'codex');
   const distributionProductRoot = path.join(packagedTree, 'resources', 'opl-linux');
+  fs.mkdirSync(nodeRoot, { recursive: true });
   fs.mkdirSync(codexRoot, { recursive: true });
   fs.mkdirSync(distributionProductRoot, { recursive: true });
   fs.writeFileSync(path.join(out, 'One-Person-Lab-26.7.26-rc.1-win-x64.exe'), 'installer');
   fs.writeFileSync(path.join(runtimeRoot, 'aioncore'), 'aioncore');
   fs.writeFileSync(path.join(runtimeRoot, 'manifest.json'), JSON.stringify({ platform: 'linux', arch: 'x64' }));
   fs.writeFileSync(
-    path.join(runtimeRoot, 'managed-resources', 'manifest.json'),
-    JSON.stringify({ acpTools: [{ slug: 'codex-acp', version: '1.1.2' }] }),
+    managedManifest,
+    JSON.stringify({
+      schemaVersion: 2,
+      runtimeKey: 'linux-x64',
+      node: {
+        version: '24.11.0',
+        root: 'node/node-v24.11.0-linux-x64',
+        executable: 'bin/node',
+      },
+      clis: [
+        {
+          name: 'codex',
+          version: '0.144.6',
+          root: 'cli/codex/0.144.6/linux-x64',
+          executable: 'vendor/x86_64-unknown-linux-musl/bin/codex',
+        },
+      ],
+    }),
   );
   fs.writeFileSync(
     path.join(distributionProductRoot, 'product.json'),
@@ -59,12 +79,23 @@ function fixture(t: test.TestContext) {
       framework_source_archive_url: `https://github.com/gaofeng21cn/one-person-lab/archive/${frameworkSha}.tar.gz`,
     }),
   );
-  fs.writeFileSync(path.join(codexRoot, 'codex'), 'codex');
-  fs.writeFileSync(path.join(toolRoot, 'package.json'), '{}');
+  fs.writeFileSync(node, 'node');
+  fs.writeFileSync(codex, 'codex');
   return {
     installer: path.join(out, 'One-Person-Lab-26.7.26-rc.1-win-x64.exe'),
     packagedTree,
+    managedManifest,
+    node,
+    codex,
   };
+}
+
+function readManagedManifest(input: ReturnType<typeof fixture>) {
+  return JSON.parse(fs.readFileSync(input.managedManifest, 'utf8'));
+}
+
+function writeManagedManifest(input: ReturnType<typeof fixture>, manifest: unknown) {
+  fs.writeFileSync(input.managedManifest, JSON.stringify(manifest));
 }
 
 test('Windows RC cohort seals the exact installer, packaged tree, and WSL2-only Linux runtime', (t) => {
@@ -93,10 +124,84 @@ test('Windows RC cohort seals the exact installer, packaged tree, and WSL2-only 
   assert.equal(cohort.runtime.wsl2_only_terminal_claim, true);
   assert.equal(cohort.runtime.native_windows_executor_fallback_allowed, false);
   assert.match(cohort.runtime.distribution_product.path, /resources\/opl-linux\/product\.json$/);
-  assert.match(cohort.runtime.codex.path, /@openai\/codex-linux-x64\/vendor\/.+\/bin\/codex$/);
+  assert.match(cohort.runtime.node.path, /managed-resources\/node\/node-v24\.11\.0-linux-x64\/bin\/node$/);
+  assert.match(
+    cohort.runtime.codex.path,
+    /managed-resources\/cli\/codex\/0\.144\.6\/linux-x64\/vendor\/.+\/bin\/codex$/,
+  );
   assert.ok(cohort.packaged_tree.file_count >= 6);
   assert.equal(cohort.packaged_tree.sha256.length, 64);
 });
+
+test('Windows RC cohort rejects retired or malformed managed resource manifests', (t) => {
+  const invalidRoot = fixture(t);
+  writeManagedManifest(invalidRoot, null);
+  assert.throws(() => buildCohort(invalidRoot), /must be a JSON object/);
+
+  const retired = fixture(t);
+  writeManagedManifest(retired, {
+    acpTools: [{ slug: 'codex-acp', version: '1.1.2' }],
+  });
+  assert.throws(
+    () => buildCohort(retired),
+    /retired acpTools are not accepted/,
+  );
+
+  const oldSchema = fixture(t);
+  const oldSchemaManifest = readManagedManifest(oldSchema);
+  oldSchemaManifest.schemaVersion = 1;
+  writeManagedManifest(oldSchema, oldSchemaManifest);
+  assert.throws(() => buildCohort(oldSchema), /must use schemaVersion 2/);
+
+  const wrongRuntime = fixture(t);
+  const wrongRuntimeManifest = readManagedManifest(wrongRuntime);
+  wrongRuntimeManifest.runtimeKey = 'win32-x64';
+  writeManagedManifest(wrongRuntime, wrongRuntimeManifest);
+  assert.throws(() => buildCohort(wrongRuntime), /runtimeKey must be linux-x64/);
+
+  const unsafePath = fixture(t);
+  const unsafePathManifest = readManagedManifest(unsafePath);
+  unsafePathManifest.node.root = '../node';
+  writeManagedManifest(unsafePath, unsafePathManifest);
+  assert.throws(() => buildCohort(unsafePath), /normalized portable relative path/);
+});
+
+test('Windows RC cohort rejects missing Node or missing and duplicate Codex executables', (t) => {
+  const missingNode = fixture(t);
+  fs.rmSync(missingNode.node);
+  assert.throws(() => buildCohort(missingNode), /Node runtime executable is missing/);
+
+  const missingCodex = fixture(t);
+  fs.rmSync(missingCodex.codex);
+  assert.throws(() => buildCohort(missingCodex), /Codex CLI executable is missing/);
+
+  const duplicateCodex = fixture(t);
+  const duplicateManifest = readManagedManifest(duplicateCodex);
+  duplicateManifest.clis.push({ ...duplicateManifest.clis[0] });
+  writeManagedManifest(duplicateCodex, duplicateManifest);
+  assert.throws(
+    () => buildCohort(duplicateCodex),
+    /exactly one Codex CLI, found 2/,
+  );
+});
+
+function buildCohort(input: ReturnType<typeof fixture>) {
+  return buildWindowsRcBuildCohort({
+    installerPath: input.installer,
+    packagedTreePath: input.packagedTree,
+    appSha,
+    appTree,
+    shellSha,
+    shellTree,
+    frameworkSha,
+    version: '26.7.26-rc.1',
+    platform: 'win32',
+    arch: 'x64',
+    actionsRunId: '12345',
+    actionsRunAttempt: '1',
+    actionsArtifactName: 'windows-build-x64-a1b2c3d',
+  });
+}
 
 test('Windows RC cohort rejects non-RC versions and missing exact source identities', (t) => {
   const input = fixture(t);
