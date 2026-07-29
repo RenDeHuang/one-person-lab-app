@@ -16,22 +16,17 @@
         "version_source": "package.json#aioncoreVersion",
         "resource_authority": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json"
       },
-      "managed_codex_acp": {
-        "package": "@agentclientprotocol/codex-acp",
-        "version_binding": {
-          "authority": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json#acpTools[slug=codex-acp].version",
-          "mode": "exact",
-          "required_consistency": [
-            "manifest_root",
-            "package_json",
-            "package_lock",
-            "installed_package",
-            "runtime_initialize"
-          ]
-        },
-        "forbidden_package": "@zed-industries/codex-acp"
+      "node_runtime": {
+        "version_source": "AionCore managed resource manifest",
+        "target_platform_binary_required": true
+      },
+      "claude_cli": {
+        "package": "@anthropic-ai/claude-code",
+        "version_source": "AionCore managed resource manifest",
+        "target_platform_binary_required": true
       },
       "codex_cli": {
+        "package": "@openai/codex",
         "version_source": "AionCore managed resource manifest",
         "target_platform_binary_required": true
       }
@@ -46,7 +41,7 @@
       "required_processes": [
         "desktop_shell",
         "aioncore",
-        "managed_codex_acp",
+        "managed_codex_cli",
         "opl_runtime_bridge"
       ]
     },
