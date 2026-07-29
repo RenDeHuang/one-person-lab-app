@@ -91,7 +91,7 @@
     },
     "release_url": { "type": "string", "minLength": 1 },
     "primary_artifact": { "$ref": "#/$defs/artifact" },
-    "artifacts": { "type": "array", "minItems": 4, "maxItems": 6, "items": { "$ref": "#/$defs/artifact" } },
+    "artifacts": { "type": "array", "minItems": 5, "maxItems": 10, "items": { "$ref": "#/$defs/artifact" } },
     "component_manifest_ref": { "type": "string", "minLength": 1 },
     "component_manifest_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
   },
