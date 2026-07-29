@@ -112,7 +112,7 @@ function assertManifestMasScholarSkillsRef(
     );
   }
   if (
-    component.role !== "mas_required_framework_capability_package"
+    component.role !== "mas_required_capability_package"
     || component.required !== true
     || JSON.stringify(component.required_by) !== JSON.stringify(["mas"])
     || component.visible_in_first_run_ui !== false

@@ -367,8 +367,8 @@ export function validateSettingsExperienceContract(experience) {
         "contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy",
       section_order: [
         "professional_agents",
+        "capability_packages",
         "workflow_profiles",
-        "shared_dependencies",
         "other_packages",
       ],
       role_label_policy:
@@ -376,7 +376,7 @@ export function validateSettingsExperienceContract(experience) {
       dependency_source:
         "app_state.agent_packages.status_index.packages[].dependent_guard.required_by_package_ids",
       dependency_policy:
-        "single_parent_nested_multi_parent_or_missing_parent_shared_each_package_rendered_once",
+        "single_parent_nested_multi_parent_or_missing_parent_capability_packages_each_package_rendered_once",
       hardcoded_relationships_allowed: false,
     },
     "Settings Agents catalog presentation",

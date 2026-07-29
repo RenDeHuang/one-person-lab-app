@@ -889,7 +889,7 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile): void 
   const presentation = projection.catalog_presentation_policy;
   if (
     JSON.stringify(presentation.section_order) !==
-      JSON.stringify(['professional_agents', 'workflow_profiles', 'shared_dependencies', 'other_packages']) ||
+      JSON.stringify(['professional_agents', 'capability_packages', 'workflow_profiles', 'other_packages']) ||
     presentation.professional_agent_order_source !==
       'app_state.agent_packages.status_index.home_shortcut_preferences[]' ||
     presentation.professional_agent_order_policy !==
@@ -899,7 +899,7 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile): void 
     JSON.stringify(presentation.package_role_labels_i18n) !==
       JSON.stringify({
         standard_agent: { 'zh-CN': '专业智能体', 'en-US': 'Professional agent' },
-        framework_capability_package: { 'zh-CN': '配套能力包', 'en-US': 'Companion capability package' },
+        capability_package: { 'zh-CN': '能力包', 'en-US': 'Capability package' },
         workflow_profile: { 'zh-CN': '工作流配置', 'en-US': 'Workflow profile' },
       }) ||
     presentation.raw_package_role_visible !== false ||
@@ -910,9 +910,9 @@ function assertAgentPackageRegistryProjection(profile: AppProductProfile): void 
     presentation.dependency_hierarchy.single_parent_policy !==
       'render_once_as_a_compact_child_row_under_the_visible_parent' ||
     presentation.dependency_hierarchy.multiple_parent_policy !==
-      'render_once_in_shared_dependencies_with_localized_parent_labels' ||
+      'render_once_in_capability_packages_with_localized_parent_labels' ||
     presentation.dependency_hierarchy.missing_or_invisible_parent_policy !==
-      'render_once_in_shared_dependencies' ||
+      'render_once_in_capability_packages' ||
     presentation.dependency_hierarchy.hardcoded_package_relationships_allowed !== false ||
     presentation.dependency_hierarchy.duplicate_rows_allowed !== false ||
     presentation.dependency_hierarchy.status_and_actions_source !==

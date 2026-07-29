@@ -302,7 +302,7 @@ function createFullRuntimeFixture() {
   writeJson(path.join(scholarRoot, "contracts", "opl_capability_package_manifest.json"), {
     surface_kind: "opl_capability_package_manifest.v2",
     package_id: "mas-scholar-skills",
-    package_role: "framework_capability_package",
+    package_role: "capability_package",
     version: "0.2.3",
     capability_abi: {
       id: "mas-scholar-skills.v1",
@@ -348,7 +348,7 @@ function createFullRuntimeFixture() {
     capability_dependencies: [
       {
         package_id: "mas-scholar-skills",
-        kind: "framework_capability_package",
+        kind: "capability_package",
         required: true,
         version_requirement: ">=0.2.0 <0.3.0",
         capability_abi: "mas-scholar-skills.v1",
@@ -822,7 +822,7 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
     assert.equal(resolved.requested_ref_commit, fixture.sourceCommit);
     assert.equal(resolved.resolved_commit, fixture.sourceCommit);
     assert.equal(resolved.owner_source_commit, fixture.sourceCommit);
-    assert.equal(resolved.package_role, "framework_capability_package");
+    assert.equal(resolved.package_role, "capability_package");
     assert.equal(resolved.runtime_module_relative_path, "modules/mas-scholar-skills");
     assert.equal(resolved.mas_manifest_ref, "contracts/opl_agent_package_manifest.json");
     assert.match(resolved.mas_manifest_sha256, /^sha256:[a-f0-9]{64}$/);
