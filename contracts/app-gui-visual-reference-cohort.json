@@ -257,7 +257,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "locale": "zh-CN",
-      "route": "/settings/environment?section=maintenance",
+      "route": "/settings/environment?section=updates",
       "state": "default",
       "image": "settings-maintenance-desktop-dark-zh.png",
       "masks": []
