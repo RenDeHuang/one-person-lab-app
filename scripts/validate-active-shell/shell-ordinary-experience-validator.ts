@@ -48,12 +48,19 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     ['canonical thread lifecycle', canonicalThreadLifecycle],
     ['canonical directory merge', conversationListSync],
   ] as const) {
-    assertTextIncludesAll(
+    assertTextIncludesOneOf(
       source,
       [
-        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
-        'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalRecordedCwd',
+        [
+          'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+          'workspace: thread.workspace',
+          'custom_workspace: hasCanonicalRecordedCwd',
+        ],
+        [
+          'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
+          'workspace: thread.workspace',
+          'custom_workspace: hasCanonicalProjectWorkspace',
+        ],
       ],
       `Active shell ${label} cwd projection`,
     );
