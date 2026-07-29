@@ -60,6 +60,19 @@ function preserveStandardTrustEvidence(): void {
   }
 }
 
+function preserveLinuxDesktopPayload(version: string): void {
+  if (!version) return;
+  const assetName = `One-Person-Lab-${version}-linux-x64.deb`;
+  const sources = findFilesByName(artifactsDir, assetName);
+  if (sources.length !== 1) {
+    throw new Error(
+      `Expected exactly one ${assetName}, found ${sources.length}: ${sources.join(', ') || '(none)'}`,
+    );
+  }
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.copyFileSync(sources[0], path.join(outputDir, assetName));
+}
+
 function readMetadataVersion(): string {
   const versions = new Set<string>();
   for (const metadataName of ['latest-arm64-mac.yml', 'latest-mac.yml']) {
@@ -110,3 +123,4 @@ function filterStandardAssetsToVersion(version: string): void {
 preserveStandardTrustEvidence();
 ensureCanonicalArm64Metadata();
 filterStandardAssetsToVersion(expectedVersion || readMetadataVersion());
+preserveLinuxDesktopPayload(expectedVersion);
