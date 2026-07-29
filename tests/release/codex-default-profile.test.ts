@@ -10,6 +10,7 @@ import {
   assertCurrentGuidHomeSelectionSources,
   assertProjectlessGuidFileAccessSources,
   assertRuntimePageSourceBoundary,
+  assertSkillsHubScopeSource,
 } from '../../scripts/validate-active-shell/shell-ordinary-experience-validator.ts';
 import { validateShellVisualTokenBindings } from '../../scripts/validate-active-shell/shell-implementation-validator.ts';
 import {
@@ -1006,6 +1007,25 @@ test('active-shell source gate keeps canonical thread directory queries state-db
       }),
     );
   }
+});
+
+test('Skills Hub exposes global and projected Skill scopes without upstream auto-injected UI', () => {
+  const current = [
+    'const skills = await ipcBridge.fs.listAvailableSkills.invoke();',
+    'setAvailableSkills(skills);',
+    "flowManagedSkillIds === undefined ? 'my-skills-section' : 'manual-and-third-party-capabilities'",
+    "t('settings.skillsHub.mySkillsTitle', { defaultValue: 'Global User Skills' })",
+    "t('settings.skillsHub.globalUserSkillsPath', { path: skillPaths.user_skills_dir })",
+  ].join('\n');
+  assert.doesNotThrow(() => assertSkillsHubScopeSource(current));
+  assert.throws(
+    () => assertSkillsHubScopeSource(`${current}\nipcBridge.fs.listBuiltinAutoSkills.invoke();`),
+    /auto-injected Skill scope/,
+  );
+  assert.throws(
+    () => assertSkillsHubScopeSource(current.replace('Global User Skills', 'My Skills')),
+    /Global User Skills/,
+  );
 });
 
 test('conversation history and managed scratch keep identity, cwd, and Project affinity distinct', () => {
