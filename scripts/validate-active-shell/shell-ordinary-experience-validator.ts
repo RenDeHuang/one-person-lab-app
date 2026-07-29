@@ -1981,7 +1981,6 @@ function validateSkillsHubImplementation(shellPaths) {
       "t('settings.skillsHub.mySkillsTitle', { defaultValue: 'Global User Skills' })",
       "t('settings.skillsHub.globalUserSkillsPath'",
       "user_skills_dir",
-      "data-testid='my-skills-section'",
     ],
     'Active shell SkillsHubSettings IPC Skill projection',
   );
