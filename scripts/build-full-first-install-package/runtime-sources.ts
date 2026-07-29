@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { CODEX_MACOS_ARM64_TARGET } from './paths.ts';
 import { requirePath } from './filesystem.ts';
-import { findExecutable } from './process.ts';
+import { commandOutput, findExecutable } from './process.ts';
 
 function existingFile(candidate) {
   return fs.existsSync(candidate) && fs.statSync(candidate).isFile();
@@ -68,7 +68,10 @@ function findCodexRoot(explicitRoot) {
     path.join(os.homedir(), '.nvm', 'versions', 'node', 'v22.16.0', 'lib', 'node_modules', '@openai', 'codex'),
     path.join(os.homedir(), '.bun', 'install', 'global', 'node_modules', '@openai', 'codex'),
   ].filter(Boolean);
-  const found = candidates.find((candidate) => fs.existsSync(path.join(candidate, 'package.json')));
+  const found = candidates.find((candidate) =>
+    fs.existsSync(path.join(candidate, 'package.json')) ||
+    fs.existsSync(path.join(candidate, 'vendor', CODEX_MACOS_ARM64_TARGET, 'bin', 'codex')),
+  );
   if (!found) {
     throw new Error('Codex package root not found. Pass --codex-root or set OPL_FULL_CODEX_ROOT.');
   }
@@ -199,6 +202,11 @@ function findPythonRoot(explicitPythonRoot) {
 export function resolveRuntimeSources(options) {
   const codexRoot = findCodexRoot(options.codexRoot);
   const codexBinaries = findCodexBinary(codexRoot);
+  const codexVersionOutput = commandOutput(codexBinaries.codex, ['--version']);
+  const codexVersion = codexVersionOutput.match(/^codex-cli (\d+\.\d+\.\d+)$/)?.[1];
+  if (!codexVersion) {
+    throw new Error(`Codex binary returned an invalid exact version: ${codexVersionOutput}`);
+  }
   const nodeToolchain = findNodeToolchain(options.nodeBin);
   const bunBin = options.includeBunRuntime ? findBunBinary(options.bunBin) : null;
   const pythonRoot = findPythonRoot(options.pythonRoot);
@@ -211,6 +219,7 @@ export function resolveRuntimeSources(options) {
   return {
     codexRoot,
     codexBinaries,
+    codexVersion,
     nodeToolchain,
     bunBin,
     pythonRoot,

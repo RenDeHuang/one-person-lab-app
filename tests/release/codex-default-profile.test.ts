@@ -770,11 +770,13 @@ test('active-shell source gate preserves explicit local file inputs independentl
 
 test('active-shell source gate keeps canonical cwd transport separate from sidebar affinity', () => {
   const canonicalProjectionMarkers = [
-    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+    'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
     'workspace: thread.workspace',
-    'custom_workspace: hasCanonicalRecordedCwd',
+    'custom_workspace: hasCanonicalProjectWorkspace',
   ];
   const focusedTestNames = [
+    'projects a managed Documents Codex task as a projectless sidebar row',
+    'adopts a managed Documents Codex projectless task into a selected project',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
     'keeps canonical adoption successful when a stub projection cannot be materialized',
     'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -820,8 +822,9 @@ test('active-shell source gate keeps canonical cwd transport separate from sideb
   }
 
   for (const cachedOverride of [
-    'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+    'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectWorkspace',
     'cached?.extra.custom_workspace === true',
+    'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: projectAffinityWorkspace',
     'custom_workspace: customWorkspace',
   ]) {
@@ -924,6 +927,32 @@ test('active-shell source gate keeps canonical thread directory queries state-db
       threadAdapter,
     }),
   );
+  assert.doesNotThrow(() =>
+    assertCanonicalThreadDirectoryTimeoutBoundarySources({
+      focusedTests,
+      threadAdapter: [
+        'const threadListParams = {',
+        'cursor,',
+        'archived,',
+        'useStateDbOnly: true,',
+        '...(workspace ? { cwd: workspace } : {}),',
+        '};',
+        "await this.rpc.request('thread/list', threadListParams);",
+      ].join('\n'),
+    }),
+  );
+  for (const unresolvedOptions of [
+    "await this.rpc.request('thread/list', threadListParams);",
+    "let threadListParams = { archived, useStateDbOnly: true }; await this.rpc.request('thread/list', threadListParams);",
+    "const threadListParams = { archived, useStateDbOnly: true }; const threadListParams = { archived, useStateDbOnly: true }; await this.rpc.request('thread/list', threadListParams);",
+  ]) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryTimeoutBoundarySources({
+        focusedTests,
+        threadAdapter: unresolvedOptions,
+      }),
+    );
+  }
 
   for (const requiredMarker of [
     "await this.rpc.request('thread/list'",

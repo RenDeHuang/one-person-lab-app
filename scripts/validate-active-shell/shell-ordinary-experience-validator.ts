@@ -50,17 +50,18 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     assertTextIncludesAll(
       source,
       [
-        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
+        'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
         'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalRecordedCwd',
+        'custom_workspace: hasCanonicalProjectWorkspace',
       ],
       `Active shell ${label} cwd projection`,
     );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalRecordedCwd',
+        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectWorkspace',
         'cached?.extra.custom_workspace === true',
+        'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
       ],
@@ -85,6 +86,8 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   assertTextIncludesAll(
     focusedTests,
     [
+      'projects a managed Documents Codex task as a projectless sidebar row',
+      'adopts a managed Documents Codex projectless task into a selected project',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
       'requires an exact canonical cwd readback instead of path-normalized equivalence',
@@ -104,6 +107,22 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
 }): void {
   const sourceFile = ts.createSourceFile('codex-app-server-adapter.ts', threadAdapter, ts.ScriptTarget.Latest, true);
   const threadListOptions: ts.ObjectLiteralExpression[] = [];
+  const staticOptionObjects = new Map<string, ts.ObjectLiteralExpression | null>();
+  const collectStaticOptionObjects = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isObjectLiteralExpression(node.initializer) &&
+      ts.isVariableDeclarationList(node.parent) &&
+      (node.parent.flags & ts.NodeFlags.Const) !== 0
+    ) {
+      const name = node.name.text;
+      staticOptionObjects.set(name, staticOptionObjects.has(name) ? null : node.initializer);
+    }
+    ts.forEachChild(node, collectStaticOptionObjects);
+  };
+  collectStaticOptionObjects(sourceFile);
   const visit = (node: ts.Node): void => {
     if (
       ts.isCallExpression(node) &&
@@ -112,9 +131,16 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
       ts.isStringLiteralLike(node.arguments[0]) &&
       node.arguments[0].text === 'thread/list'
     ) {
-      const options = node.arguments[1];
-      if (!options || !ts.isObjectLiteralExpression(options)) {
-        throw new Error('Active shell canonical thread directory must pass an inline thread/list options object');
+      const optionsExpression = node.arguments[1];
+      const options = optionsExpression && ts.isObjectLiteralExpression(optionsExpression)
+        ? optionsExpression
+        : optionsExpression && ts.isIdentifier(optionsExpression)
+          ? staticOptionObjects.get(optionsExpression.text)
+          : undefined;
+      if (!options) {
+        throw new Error(
+          'Active shell canonical thread directory must pass an inline or uniquely named const thread/list options object',
+        );
       }
       threadListOptions.push(options);
     }
@@ -1550,7 +1576,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'CodexThreadSettingsUpdateRequest',
       'codex-threads.update-settings',
       'codexThreads.updateSettings',
-      'adapter.updateThreadSettings',
+      'getActiveAdapter().updateThreadSettings',
     ],
     'Active shell existing Codex App Server thread settings transport',
   );

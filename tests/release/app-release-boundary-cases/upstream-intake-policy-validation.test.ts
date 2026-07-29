@@ -78,7 +78,7 @@ const missingRemediationRef = 'f'.repeat(40);
 
 function stableCurrentnessReceipt() {
   return {
-    schema: 'opl_aionui_upstream_intake.v1',
+    schema: 'opl_aionui_upstream_intake.v2',
     upstream_repository: 'https://github.com/iOfficeAI/AionUi.git',
     channel: 'stable_tags_only',
     reviewed_release: {
@@ -104,16 +104,21 @@ function stableCurrentnessReceipt() {
     },
     managed_runtime: {
       aioncore: {
-        version: 'v0.1.50',
-        commit: '4089fced543d7f439d59940b4ba129dcfad27c23',
-        archive_sha256: '9f37c9d9b5f6e74a69796053be9e52a88dd43a58eee0aa7e042ff334830f8dd5',
+        version: 'v0.1.53',
+        commit: '1644ef26c168e8002dcfa53ccd333054b40697d6',
+        archive_sha256: '57b92b3de046717c7980d2c345d335e2513af514621fcbfff8a3e7cf16f8b7f6',
       },
+      managed_resources_schema: 2,
       managed_resources_manifest_sha256:
-        'a3503fdabd95cc5fa2f84d47097048f5c1297888c0b0f330f8413214c9bafd73',
-      codex_acp: {
-        package: '@agentclientprotocol/codex-acp',
-        version: '1.1.2',
-        package_lock_sha256: 'fb3b47ee03180d9bcf65005cbe9f5cf9792d95de690b49b4b27b55d7c06a81cb',
+        '0a3e1496e0ba6ca1bf522bfe1945e388e7bd4d51ac64ada43ba85ec99e98cd44',
+      node_runtime: {
+        version: '24.11.0',
+        binary_sha256: '8d66cad090d087ed8fac66d8f7248c8a9a55454680232a6d109f609aa2decf89',
+      },
+      claude_cli: {
+        package: '@anthropic-ai/claude-code',
+        version: '2.1.215',
+        binary_sha256: '90608b5c5ab504e96e77365cea6203d046e291d59b2bb42cf28dcb2ccdf9dd58',
       },
       codex_cli: {
         package: '@openai/codex',
@@ -247,7 +252,7 @@ const invalidCases = [
     dependency(c, 'aioncore_database_recovery').capability_gate.recovery_success_boundary = { ...recoveryBoundary, stage: 'database.open' };
   }, /AionCore database recovery boundary contract/),
   invalid('a lowered AionCore minimum version', (c) => { dependency(c, 'aioncore_database_recovery').version_gate.minimum_version = 'v0.1.28'; }, /version_gate\.minimum_version must be v0\.1\.44/),
-  invalid('a Shell package version outside the receipt', () => {}, /active shell package aioncoreVersion v0\.1\.49 must match receipt AionCore version v0\.1\.50/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }) })),
+  invalid('a Shell package version outside the receipt', () => {}, /active shell package aioncoreVersion v0\.1\.49 must match receipt AionCore version v0\.1\.53/, () => ({ readJsonFile: () => ({ aioncoreVersion: 'v0.1.49' }) })),
   invalid('a selective absorption ref outside active shell history', () => {}, (c) => new RegExp('active shell HEAD must contain selective absorption ref ' + c.upstream_intake.source_refs.selective_absorption_head.ref), (c) => ({
     isGitAncestor: (ref) => ref !== c.upstream_intake.source_refs.selective_absorption_head.ref,
   })),
@@ -281,7 +286,7 @@ test('AionUI stable receipt validator fails closed on schema, policy, digest, an
   const mutations = [
     {
       error: /receipt schema/,
-      mutate: (receipt) => { receipt.schema = 'opl_aionui_upstream_intake.v2'; },
+      mutate: (receipt) => { receipt.schema = 'opl_aionui_upstream_intake.v1'; },
     },
     {
       error: /receipt policy/,
@@ -290,6 +295,27 @@ test('AionUI stable receipt validator fails closed on schema, policy, digest, an
     {
       error: /managed resources manifest.*SHA-256/,
       mutate: (receipt) => { receipt.managed_runtime.managed_resources_manifest_sha256 = 'bad'; },
+    },
+    {
+      error: /managed resources schema must be 2/,
+      mutate: (receipt) => { receipt.managed_runtime.managed_resources_schema = 1; },
+    },
+    {
+      error: /must not retain retired Codex ACP truth/,
+      mutate: (receipt) => {
+        receipt.managed_runtime.codex_acp = {
+          package: '@agentclientprotocol/codex-acp',
+          version: '1.1.2',
+        };
+      },
+    },
+    {
+      error: /managed Node runtime binary.*SHA-256/,
+      mutate: (receipt) => { receipt.managed_runtime.node_runtime.binary_sha256 = 'bad'; },
+    },
+    {
+      error: /managed Claude CLI package is not authoritative/,
+      mutate: (receipt) => { receipt.managed_runtime.claude_cli.package = '@example/claude'; },
     },
     {
       error: /official stable release metadata/,
@@ -343,32 +369,30 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   assert.equal(adapter.stable_bundle_claim, 'forbidden');
   assert.equal(adapter.exact_source_lock_required, true);
   const aionCore = adapter.runtime_dependencies.aioncore;
+  const nodeRuntime = adapter.runtime_dependencies.node_runtime;
+  const claudeCli = adapter.runtime_dependencies.claude_cli;
   const codexCli = adapter.runtime_dependencies.codex_cli;
-  const managedCodexAcp = adapter.runtime_dependencies.managed_codex_acp;
   assert.equal(Object.hasOwn(aionCore, 'version'), false);
   assert.deepEqual(aionCore, {
     version_source: 'package.json#aioncoreVersion',
     resource_authority: 'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json',
   });
-  assert.equal(Object.hasOwn(codexCli, 'version'), false);
-  assert.deepEqual(codexCli, {
+  assert.deepEqual(nodeRuntime, {
     version_source: 'AionCore managed resource manifest',
     target_platform_binary_required: true,
   });
-  assert.equal(Object.hasOwn(managedCodexAcp, 'version'), false);
-  assert.deepEqual(managedCodexAcp.version_binding, {
-    authority:
-      'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json#acpTools[slug=codex-acp].version',
-    mode: 'exact',
-    required_consistency: [
-      'manifest_root',
-      'package_json',
-      'package_lock',
-      'installed_package',
-      'runtime_initialize',
-    ],
+  assert.deepEqual(claudeCli, {
+    package: '@anthropic-ai/claude-code',
+    version_source: 'AionCore managed resource manifest',
+    target_platform_binary_required: true,
   });
-  assert.equal(managedCodexAcp.forbidden_package, '@zed-industries/codex-acp');
+  assert.equal(Object.hasOwn(codexCli, 'version'), false);
+  assert.deepEqual(codexCli, {
+    package: '@openai/codex',
+    version_source: 'AionCore managed resource manifest',
+    target_platform_binary_required: true,
+  });
+  assert.equal(Object.hasOwn(adapter.runtime_dependencies, 'managed_codex_acp'), false);
   assert.deepEqual(profile.codex.app_runtime_home, {
     default_path: '~/.codex',
     override_env: 'CODEX_HOME',
@@ -384,7 +408,7 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
     app_env_injection: 'forbidden',
     automatic_mutation: 'forbidden',
     explicit_model_access_mutation: 'framework_action_atomic_merge_with_backup_and_restore',
-    required_processes: ['desktop_shell', 'aioncore', 'managed_codex_acp', 'opl_runtime_bridge'],
+    required_processes: ['desktop_shell', 'aioncore', 'managed_codex_cli', 'opl_runtime_bridge'],
   });
   assert.equal(
     profile.first_run.full_runtime_package_qualification.composition_policy,
@@ -395,11 +419,11 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   const fullDmgScenario = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
   assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('without requiring a fixed count')));
   const managedRuntimeExpectation = fullDmgScenario.expects.find((entry: string) =>
-    entry.includes('Bundled AionCore v0.1.50')
+    entry.includes('Bundled AionCore v0.1.53')
   );
   assert.match(
     managedRuntimeExpectation,
-    /managed resource manifest and package lock.*readback at 1\.1\.2.*Codex CLI 0\.144\.6/,
+    /schema v2 managed resource manifest.*Node 24\.11\.0.*Claude CLI 2\.1\.215.*Codex CLI 0\.144\.6/,
   );
   assert.doesNotMatch(managedRuntimeExpectation, /Codex CLI 0\.145|Codex 0\.145\.0/);
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
