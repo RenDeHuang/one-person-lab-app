@@ -94,8 +94,9 @@ integration 的 keep/adapt/drop 决策。
 
 1. **Authority sync。** 当前裁决固定为 session/thread 是身份与工作单位；working directory
    作为新 session 初始 cwd、projectless 一次性 adoption 与 Project-affinity rail 分组 metadata，
-   仅 `custom_workspace=false` 或无 canonical recorded cwd 可经 `thread/settings/update.cwd` 与 exact
-   `thread/read` 完成一次 adoption；已有 cwd 不任意换组，命令或 turn 的实际 `pwd` 变化不反写该记录。Branch/locality 归
+   仅 canonical `projectId` 缺失且 `thread/read` 再确认缺失的 thread 可经既有 adapter typed affinity
+   assignment 完成一次 adoption；assignment 与 exact `thread/read.projectId` 必须匹配且 recorded cwd 不变，
+   已有显式 affinity 不任意换组，命令或 turn 的实际 `pwd` 变化不反写该记录。Branch/locality 归
    Environment、active capability 留在 composer；当前 composer 只消费用户显式加入的 send-scoped
    输入。最终 Shell profile 必须从包含该 authority 的 App commit 生成，不重放旧 JSON。
 2. **P0 composer。** 把 desktop model/reasoning 移到 composer，保持 access/send/stop

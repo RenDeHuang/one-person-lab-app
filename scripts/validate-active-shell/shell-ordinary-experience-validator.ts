@@ -43,29 +43,41 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   focusedTests: string;
   threadAdapter: string;
 }): void {
+  assertTextIncludesAll(
+    canonicalThreadLifecycle,
+    [
+      'function canonicalProjectId(',
+      'canonical_project_id?.trim() ??',
+      '!canonicalProjectId(conversation)',
+      'const explicitProjectId = thread.projectId.trim() || canonicalProjectId(cached)',
+      'workspace: thread.workspace',
+      'custom_workspace: Boolean(explicitProjectId)',
+    ],
+    'Active shell canonical thread lifecycle explicit project affinity projection',
+  );
+  assertTextIncludesAll(
+    conversationListSync,
+    [
+      "const canonicalProjectId = thread.projectId.trim() || cached.extra.canonical_project_id?.trim() || ''",
+      'workspace: thread.workspace',
+      'custom_workspace: Boolean(canonicalProjectId)',
+      'canonical_project_id: canonicalProjectId || undefined',
+    ],
+    'Active shell canonical directory merge explicit project affinity projection',
+  );
   for (const [label, source] of [
     ['canonical thread lifecycle', canonicalThreadLifecycle],
     ['canonical directory merge', conversationListSync],
   ] as const) {
-    assertTextIncludesAll(
-      source,
-      [
-        'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
-        'workspace: thread.workspace',
-        'custom_workspace: hasCanonicalProjectWorkspace',
-      ],
-      `Active shell ${label} cwd projection`,
-    );
     assertTextExcludesAll(
       source,
       [
-        'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectWorkspace',
-        'cached?.extra.custom_workspace === true',
         'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
         'workspace: projectAffinityWorkspace',
         'custom_workspace: customWorkspace',
+        'Boolean(thread.workspace.trim())',
       ],
-      `Active shell ${label} cache authority boundary`,
+      `Active shell ${label} recorded cwd authority boundary`,
     );
   }
   assertTextIncludesAll(
@@ -75,8 +87,14 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       "if (value === undefined || value === null) return ''",
       "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
       'workspace: recordedCwd(raw.cwd)',
+      'private readonly assignedProjectAffinities = new Map<string, string>()',
+      'async assignProjectAffinity(threadId: string, projectIdValue: string)',
+      'const existingProjectId = this.assignedProjectAffinities.get(threadId) ?? projectId(raw)',
+      "if (existingProjectId) throw new Error('Canonical thread already has explicit project affinity.')",
+      'this.assignedProjectAffinities.set(threadId, selectedProjectId)',
+      'this.assignedProjectAffinities.get(threadId)',
     ],
-    'Active shell canonical cwd parser fail-closed boundary',
+    'Active shell canonical cwd parser and single-assignment project affinity adapter boundary',
   );
   assertTextExcludesAll(
     threadAdapter,
@@ -87,14 +105,18 @@ export function assertCanonicalThreadAffinityConvergenceSources({
     focusedTests,
     [
       'projects a managed Documents Codex task as a projectless sidebar row',
-      'adopts a managed Documents Codex projectless task into a selected project',
+      'assigns explicit project affinity once without changing the recorded cwd',
+      'rejects project affinity reassignment',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
       'keeps canonical adoption successful when a stub projection cannot be materialized',
-      'requires an exact canonical cwd readback instead of path-normalized equivalence',
+      'requires exact projectId readback instead of path-normalized equivalence',
+      'keeps the conversation projectless when assignment changes canonical cwd',
+      'does not change turn pwd or sandbox writable roots during adoption',
+      'keeps an existing explicit affinity stable across shell cache refreshes',
       'rejects malformed canonical cwd instead of treating it as projectless',
       'rejects a malformed cwd returned by canonical thread read',
     ],
-    'Active shell canonical cwd convergence focused regressions',
+    'Active shell project affinity convergence focused regressions',
   );
 }
 
@@ -1544,6 +1566,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       "await this.rpc.request('thread/resume', { threadId, excludeTurns: false })",
       "await this.rpc.request('thread/settings/update'",
       'async updateThreadSettings(',
+      'async assignProjectAffinity(',
     ],
     'Active shell single canonical App Server thread adapter',
   );
@@ -1573,26 +1596,30 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       readShellText(shellPaths, 'packages/desktop/src/process/bridge/codexAppServerBridge.ts'),
     ].join('\n'),
     [
-      'CodexThreadSettingsUpdateRequest',
-      'codex-threads.update-settings',
-      'codexThreads.updateSettings',
-      'getActiveAdapter().updateThreadSettings',
+      'CodexThreadProjectAffinityAssignRequest',
+      'codex-threads.assign-project-affinity',
+      'codexThreads.assignProjectAffinity',
+      'getActiveAdapter().assignProjectAffinity',
     ],
-    'Active shell existing Codex App Server thread settings transport',
+    'Active shell typed project affinity IPC on the existing Codex App Server adapter',
   );
   const projectAffinityLifecycle = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/canonicalThreadLifecycle.ts',
     [
-      'conversation?.extra.custom_workspace === false',
-      '!conversation?.extra.workspace?.trim()',
+      'function canonicalProjectId(',
+      '!canonicalProjectId(conversation)',
       'const selectedWorkspace = workspace.trim()',
-      'ipcBridge.codexThreads.updateSettings.invoke',
+      'ipcBridge.codexThreads.assignProjectAffinity.invoke',
       'ipcBridge.codexThreads.read.invoke',
-      'canonicalReadback.thread.workspace !== selectedWorkspace',
+      'assigned.projectId !== selectedWorkspace',
+      'assigned.workspace !== canonicalBefore.thread.workspace',
+      'canonicalReadback.thread.projectId !== selectedWorkspace',
+      'canonicalReadback.thread.workspace !== canonicalBefore.thread.workspace',
       'ipcBridge.conversation.update.invoke',
       'ipcBridge.conversation.get.invoke',
-      'Canonical thread cwd readback did not match the selected project',
+      'Canonical project affinity readback did not match the selected project',
+      'canonical_project_id: selectedWorkspace',
       'custom_workspace: true',
       'return false',
     ],
@@ -1604,6 +1631,7 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'conversation?.extra.custom_workspace !== true',
       'conversation.extra.custom_workspace !== true',
       'Boolean(conversation.extra.workspace?.trim())',
+      'ipcBridge.codexThreads.updateSettings.invoke',
       'runtimeWorkspaceRoots',
       'workspace_handoff',
       'codexThreads.adoptProject',
@@ -1650,12 +1678,15 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
   assertTextIncludesAll(
     projectAffinityTests,
     [
-      'keeps directories distinct even when threads share one Git origin',
+      'projects a canonical task from explicit project affinity rather than recorded cwd',
       'adopts an explicitly projectless canonical conversation without a cached workspace',
-      'updates the App Server cwd before committing the local affinity projection',
-      'keeps the conversation projectless when canonical cwd readback does not match',
-      'blocks reassignment after a canonical cwd is recorded',
+      'assigns explicit project affinity once without changing the recorded cwd',
+      'rejects project affinity reassignment',
+      'keeps the conversation projectless when assignment changes canonical cwd',
+      'requires exact projectId readback instead of path-normalized equivalence',
+      'blocks reassignment after canonical project affinity is recorded',
       'does not change turn pwd or sandbox writable roots during adoption',
+      'keeps an existing explicit affinity stable across shell cache refreshes',
       'moves an eligible projectless row through native drag and drop',
     ],
     'Active shell project affinity focused regressions',
