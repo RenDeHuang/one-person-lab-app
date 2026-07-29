@@ -255,7 +255,7 @@
       "desktop_dev_preview": "implemented_pending_first_publication_readback",
       "desktop_nightly": "implemented_pending_first_publication_readback",
       "manual_full_preview": "live_non_latest_temporary_lane",
-      "windows_x64_rc_preview": "implementation_in_progress_publication_blocked",
+      "windows_x64_rc_preview": "live_public_wsl2_only_prerelease_with_terminal_acceptance",
       "full": "live_additive_first_install_asset_not_channel",
       "container_webui": "live_separate_development_and_production_carrier_with_independent_preview_publication",
       "desktop_linux_x86_64": "implemented_pending_first_publication_readback",
@@ -299,7 +299,7 @@
       },
       "windows_x64_rc_preview": {
         "target": "manual_opt_in_windows_x64_wsl2_only_prerelease",
-        "status": "implementation_in_progress_publication_blocked",
+        "status": "live_public_wsl2_only_prerelease_with_terminal_acceptance",
         "mainline_source_absorption_allowed": true,
         "existing_stable_latest_dependency_allowed": false,
         "existing_stable_latest_gate_allowed": false,
@@ -315,7 +315,7 @@
         "stable_bundle_operation_allowed": false,
         "runtime_execution_substrate": "dedicated_opl_linux_wsl2",
         "wsl2_only_terminal_claim_required": true,
-        "current_wsl2_only_terminal_claim": false,
+        "current_wsl2_only_terminal_claim": true,
         "native_windows_executor_fallback_allowed": false,
         "required_publication_evidence": [
           "exact_app_shell_framework_refs",
@@ -341,7 +341,7 @@
           "formal_installer_acceptance",
           "stable_channel_and_updater_admission"
         ],
-        "rule": "This lane remains publicly blocked until the exact Windows RC automatically provisions the dedicated OPL-Linux WSL2 environment and proves every Codex-backed route uses one Linux executor identity with no native Windows fallback."
+        "rule": "The current public Windows RC is a manual opt-in WSL2-only Preview with exact release-byte terminal acceptance. Every Codex-backed route remains bound to one Linux executor identity with no native Windows fallback; Latest, Stable updater, Homebrew, and Stable Bundle admission remain forbidden."
       },
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",

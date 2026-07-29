@@ -260,7 +260,7 @@ test('Windows RC Framework binder recognizes a Windows file URL entrypoint', () 
   );
 });
 
-test('Windows RC Preview remains blocked until exact WSL2-only release-byte acceptance', () => {
+test('Windows RC Preview records exact WSL2-only public release-byte acceptance', () => {
   const release = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'));
   const execution = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts/app-windows-wsl2-execution.json'), 'utf8'),
@@ -271,6 +271,11 @@ test('Windows RC Preview remains blocked until exact WSL2-only release-byte acce
   const target = release.distribution_semantics.approved_targets.windows_x64_rc_preview;
   const routing = install.distribution_install_model.platform_routing.windows_personal;
 
+  assert.equal(
+    release.distribution_semantics.implementation_state.windows_x64_rc_preview,
+    'live_public_wsl2_only_prerelease_with_terminal_acceptance',
+  );
+  assert.equal(target.status, 'live_public_wsl2_only_prerelease_with_terminal_acceptance');
   assert.equal(target.mainline_source_absorption_allowed, true);
   assert.equal(target.existing_stable_latest_dependency_allowed, false);
   assert.equal(target.existing_stable_latest_gate_allowed, false);
@@ -280,7 +285,7 @@ test('Windows RC Preview remains blocked until exact WSL2-only release-byte acce
   assert.equal(target.stable_updater_allowed, false);
   assert.equal(target.homebrew_allowed, false);
   assert.equal(target.runtime_execution_substrate, 'dedicated_opl_linux_wsl2');
-  assert.equal(target.current_wsl2_only_terminal_claim, false);
+  assert.equal(target.current_wsl2_only_terminal_claim, true);
   assert.ok(target.blocking_publication_gates.includes(
     'wsl2_only_runtime_for_every_codex_backed_path_without_native_fallback',
   ));
@@ -308,8 +313,12 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   const guide = fs.readFileSync(path.join(appRoot, 'docs/guides/windows-app-install/guide.qmd'), 'utf8');
 
   assert.equal(manifest.state, 'active_preview');
-  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.26-rc.1-win-x64.exe');
-  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.26-rc\.1$/);
+  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.28-rc.5-win-x64.exe');
+  assert.equal(
+    manifest.download.installer_sha256,
+    '287b2847118fb14106d85c8c6d07d37e7ae6841e16f167f7a5aa0e57aa9191ce',
+  );
+  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.28-rc\.5$/);
   for (const term of manifest.required_terms) assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
   assert.match(guide, /密码、token 和 API Key 不应进入 PowerShell/);
