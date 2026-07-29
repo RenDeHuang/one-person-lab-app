@@ -23,6 +23,7 @@ function historicalBundle(version = '26.7.20') {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${version}-linux-x64.deb`,
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
@@ -93,7 +94,7 @@ test('historical App Bundle bytes remain parseable but cannot claim readiness', 
   const bundle = historicalBundle();
   assert.deepEqual(validateReleaseBundle(bundle), []);
   assert.equal(bundle.policy.latest.bundle_can_claim_release_ready, false);
-  assert.equal(bundle.tracks.standard.assets.length, 8);
+  assert.equal(bundle.tracks.standard.assets.length, 9);
 });
 
 test('historical verify and status are read-only', () => {

@@ -136,6 +136,7 @@ export function bindStandardReleaseTrack(input: {
     dmgName,
     zipName,
     `${zipName}.blockmap`,
+    linuxDesktopName,
     'latest-arm64-mac.yml',
     'opl-install.sh',
     'opl-app-installer.sh',
