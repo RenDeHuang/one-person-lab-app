@@ -1972,17 +1972,9 @@ export function validateRuntimePageImplementation(shellPaths) {
 }
 
 function validateSkillsHubImplementation(shellPaths) {
-  const skillsHub = assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx',
-    [
-      'const skills = await ipcBridge.fs.listAvailableSkills.invoke()',
-      'setAvailableSkills(skills)',
-      'const autoSkills = await ipcBridge.fs.listBuiltinAutoSkills.invoke()',
-      'setBuiltinAutoSkills(autoSkills)',
-    ],
-    'Active shell SkillsHubSettings IPC Skill projection',
-  );
+  const skillsHubPath = 'packages/desktop/src/renderer/pages/settings/SkillsHubSettings.tsx';
+  const skillsHub = readShellText(shellPaths, skillsHubPath);
+  assertSkillsHubScopeSource(skillsHub, skillsHubPath);
   assertTextExcludesAll(
     skillsHub,
     [
@@ -1992,6 +1984,34 @@ function validateSkillsHubImplementation(shellPaths) {
       'appPackagedSkills',
     ],
     'Active shell SkillsHubSettings retired App-packaged Skill allowlist',
+  );
+}
+
+export function assertSkillsHubScopeSource(
+  skillsHub: string,
+  skillsHubPath = 'SkillsHubSettings.tsx',
+): void {
+  assertTextIncludesAll(
+    skillsHub,
+    [
+      'const skills = await ipcBridge.fs.listAvailableSkills.invoke()',
+      'setAvailableSkills(skills)',
+      "flowManagedSkillIds === undefined ? 'my-skills-section' : 'manual-and-third-party-capabilities'",
+      "t('settings.skillsHub.mySkillsTitle', { defaultValue: 'Global User Skills' })",
+      "t('settings.skillsHub.globalUserSkillsPath'",
+    ],
+    `Active shell SkillsHubSettings owner and carrier Skill projection in ${skillsHubPath}`,
+  );
+  assertTextExcludesAll(
+    skillsHub,
+    [
+      'ipcBridge.fs.listBuiltinAutoSkills.invoke()',
+      'setBuiltinAutoSkills(',
+      'builtinAutoSkills',
+      "data-testid='auto-skills-section'",
+      'auto-injected-skills',
+    ],
+    `Active shell SkillsHubSettings upstream auto-injected Skill scope in ${skillsHubPath}`,
   );
 }
 

@@ -214,6 +214,44 @@ function exactLocalAssets(
   });
 }
 
+function inspectUpToThree<T>(
+  inspect: () => T,
+  matches: (value: T) => boolean,
+): { matched: true; value: T } | { matched: false } {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const value = inspect();
+      if (matches(value)) return { matched: true, value };
+    } catch {
+      // A mutation with an unknown result permits only bounded read-only inspection.
+    }
+  }
+  return { matched: false };
+}
+
+function mutateOnceThenRead<T>(input: {
+  label: string;
+  mutate: () => void;
+  inspect: () => T;
+  matches: (value: T) => boolean;
+}): T {
+  let mutationError: unknown;
+  try {
+    input.mutate();
+  } catch (error) {
+    mutationError = error;
+  }
+  const observed = inspectUpToThree(input.inspect, input.matches);
+  if (observed.matched) return observed.value;
+  if (mutationError) {
+    throw new Error(
+      `${input.label} outcome is unknown after three read-only inspections; mutation was not retried.`,
+      { cause: mutationError },
+    );
+  }
+  throw new Error(`${input.label} did not reach its exact postcondition.`);
+}
+
 export function publishNightlyRelease(input: {
   request: NightlyReleaseRequest;
   qualification: NightlyQualificationReceipt;
@@ -242,18 +280,17 @@ export function publishNightlyRelease(input: {
   const initiallyMissing = release === null;
 
   if (!release) {
-    try {
-      remote.createDraft({
+    release = mutateOnceThenRead({
+      label: `Create Nightly draft ${request.tag}`,
+      mutate: () => remote.createDraft({
         tag: request.tag,
         targetCommitish: request.source.app_sha,
         name: releaseName,
         body: input.notes,
-      });
-    } catch {
-      // A failed API call has an unknown outcome. Reconcile once and never retry.
-    }
-    release = remote.inspectRelease(request.tag);
-    if (!release) throw new Error('Nightly draft creation outcome is unknown; read-only reconcile did not find the exact release.');
+      }),
+      inspect: () => remote.inspectRelease(request.tag),
+      matches: (value) => value !== null,
+    });
   }
   assertReleaseIdentity(release, request, releaseName, input.notes);
   assertExactRemoteAssets(release, assets, !release.draft);
@@ -272,26 +309,22 @@ export function publishNightlyRelease(input: {
         throw new Error(`Nightly draft has conflicting asset bytes for ${asset.name}.`);
       }
       if (matches.length === 1) continue;
-      try {
-        remote.uploadAsset(release.id, asset.path, asset.name);
-      } catch {
-        // Reconcile the one upload attempt below; never upload the same asset twice.
-      }
-      release = remote.inspectRelease(request.tag);
-      const reconciled = release?.assets.filter((remoteAsset) => remoteAsset.name === asset.name) ?? [];
-      if (reconciled.length !== 1 || !assetMatches(reconciled[0]!, asset)) {
-        throw new Error(`Nightly asset upload outcome is unknown for ${asset.name}; no retry is allowed.`);
-      }
+      release = mutateOnceThenRead({
+        label: `Upload Nightly asset ${asset.name}`,
+        mutate: () => remote.uploadAsset(release!.id, asset.path, asset.name),
+        inspect: () => remote.inspectRelease(request.tag),
+        matches: (value) => {
+          const reconciled = value?.assets.filter((remoteAsset) => remoteAsset.name === asset.name) ?? [];
+          return reconciled.length === 1 && assetMatches(reconciled[0]!, asset);
+        },
+      });
     }
-    try {
-      remote.publishRelease(release.id, releaseName, input.notes);
-    } catch {
-      // Reconcile the one publish attempt below; never republish or redispatch.
-    }
-    release = remote.inspectRelease(request.tag);
-    if (!release || release.draft || !release.prerelease) {
-      throw new Error('Nightly publication outcome is unknown; no retry is allowed.');
-    }
+    release = mutateOnceThenRead({
+      label: `Publish Nightly prerelease ${request.tag}`,
+      mutate: () => remote.publishRelease(release!.id, releaseName, input.notes),
+      inspect: () => remote.inspectRelease(request.tag),
+      matches: (value) => Boolean(value && !value.draft && value.prerelease),
+    });
     assertReleaseIdentity(release, request, releaseName, input.notes);
   }
 

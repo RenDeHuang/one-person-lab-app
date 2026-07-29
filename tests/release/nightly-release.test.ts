@@ -121,9 +121,16 @@ class FakeRemote implements NightlyRemote {
   latest = 'v26.7.25';
   release: NightlyRemoteRelease | null = null;
   calls: string[] = [];
+  visibilityMissesAfterCreate = 0;
+  createThrows = false;
+  private releaseVisibilityMisses = 0;
 
   inspectRelease(): NightlyRemoteRelease | null {
     this.calls.push('inspect-release');
+    if (this.releaseVisibilityMisses > 0) {
+      this.releaseVisibilityMisses -= 1;
+      return null;
+    }
     return this.release ? structuredClone(this.release) : null;
   }
 
@@ -145,6 +152,8 @@ class FakeRemote implements NightlyRemote {
       html_url: `https://example.invalid/${input.tag}`,
       assets: [],
     };
+    this.releaseVisibilityMisses = this.visibilityMissesAfterCreate;
+    if (this.createThrows) throw new Error('simulated create timeout');
   }
 
   uploadAsset(_releaseId: number, filePath: string, name: string): void {
@@ -284,6 +293,39 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(second.status, 'already_complete');
   assert.equal(remote.calls.some((call) => call.startsWith('upload:')), false);
   assert.equal(remote.calls.includes('publish'), false);
+});
+
+test('Nightly publisher tolerates eventual-consistency misses after draft creation without retrying creation', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.visibilityMissesAfterCreate = 2;
+  const receipt = publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+  assert.equal(receipt.status, 'published');
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+});
+
+test('Nightly publisher reconciles an unknown create result without retrying the draft mutation', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createThrows = true;
+  remote.visibilityMissesAfterCreate = 1;
+  const receipt = publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+  assert.equal(receipt.status, 'published');
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
 });
 
 test('Nightly publisher refuses same-name different remote bytes', (t) => {
