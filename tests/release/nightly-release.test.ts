@@ -52,6 +52,11 @@ function fixture(t: test.TestContext) {
   fs.writeFileSync(path.join(assetsDir, dmgName), 'nightly dmg exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, zipName), 'nightly zip exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, `${zipName}.blockmap`), 'nightly blockmap exact bytes\n');
+  fs.writeFileSync(
+    path.join(assetsDir, `One-Person-Lab-${frozen.version}-linux-x64.deb`),
+    'nightly linux desktop exact bytes\n',
+  );
+  fs.writeFileSync(path.join(assetsDir, 'opl-install.sh'), '#!/usr/bin/env bash\nexit 0\n');
   fs.writeFileSync(path.join(assetsDir, 'latest-arm64-mac.yml'), [
     `version: ${frozen.updater_version}`,
     'files:',
@@ -235,7 +240,7 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     failed_gates: [],
     non_stable_notice: true,
   });
-  assert.equal(input.qualification.assets.length, 5);
+  assert.equal(input.qualification.assets.length, 7);
   assert.equal(
     input.qualification.assets.filter((asset) => asset.name === 'opl-app-component-manifest.json').length,
     1,
@@ -252,6 +257,9 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     framework_sha: frameworkSha,
   });
   assert.ok(input.qualification.assets.every((asset) => !/Full|WebUI/.test(asset.name)));
+  assert.ok(input.qualification.assets.some((asset) =>
+    asset.name === `One-Person-Lab-${input.request.version}-linux-x64.deb`));
+  assert.ok(input.qualification.assets.some((asset) => asset.name === 'opl-install.sh'));
   assert.equal(input.qualification.primary_dmg.sha256, input.cohort.artifact.sha256);
 
   fs.writeFileSync(path.join(input.assetsDir, 'One-Person-Lab-Full.dmg'), 'forbidden');
@@ -279,7 +287,10 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(first.github_release.make_latest, false);
   assert.equal(first.github_release.latest_before, 'v26.7.25');
   assert.equal(first.github_release.latest_after, 'v26.7.25');
-  assert.equal(remote.calls.filter((call) => call.startsWith('upload:')).length, 5);
+  assert.equal(
+    remote.calls.filter((call) => call.startsWith('upload:')).length,
+    input.qualification.assets.length,
+  );
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
 
   remote.calls = [];
@@ -385,6 +396,36 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
   assert.deepEqual(Object.keys(release.on), ['schedule']);
   assert.equal(release.jobs['standard-build'].uses, './.github/workflows/_build-reusable.yml');
   assert.equal(release.jobs['standard-build'].with.require_macos_gatekeeper, false);
+  assert.deepEqual(JSON.parse(release.jobs['standard-build'].with.matrix).include, [
+    {
+      platform: 'macos-arm64',
+      os: 'macos-14',
+      command: 'node scripts/build-with-builder.js arm64 --mac --arm64',
+      'artifact-name': 'nightly-macos-arm64',
+      arch: 'arm64',
+      native_arch: 'arm64',
+    },
+    {
+      platform: 'linux-x64',
+      os: 'ubuntu-latest',
+      command: 'node scripts/build-with-builder.js x64 --linux --x64',
+      'artifact-name': 'nightly-linux-x64',
+      arch: 'x64',
+    },
+  ]);
+  const publishSteps = release.jobs['qualify-and-publish'].steps;
+  assert.equal(
+    publishSteps.find((step: any) => step.name === 'Download Linux Desktop build assets')?.with?.name,
+    'nightly-linux-x64',
+  );
+  const qualificationRun = String(
+    publishSteps.find((step: any) => step.name === 'Normalize and qualify Standard-only assets')?.run ?? '',
+  );
+  assert.match(qualificationRun, /generate-frozen-universal-installer\.ts/);
+  assert.match(qualificationRun, /--output nightly-assets\/opl-install\.sh/);
+  assert.match(qualificationRun, /--app-sha '\$\{\{ needs\.admission\.outputs\.app_ref \}\}'/);
+  assert.match(qualificationRun, /--shell-sha '\$\{\{ needs\.admission\.outputs\.shell_ref \}\}'/);
+  assert.match(qualificationRun, /--framework-sha '\$\{\{ needs\.admission\.outputs\.framework_ref \}\}'/);
   assert.equal(release.jobs['qualify-and-publish'].environment, 'release-nightly');
   assert.deepEqual(homebrew.on.workflow_run.workflows, ['OPL Standard Nightly Release']);
   assert.deepEqual(sampledVm.on.workflow_run.workflows, ['OPL Standard Nightly Release']);
