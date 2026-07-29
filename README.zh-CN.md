@@ -36,12 +36,12 @@ AI 已经很擅长回答问题和生成内容，但当工作变成一篇论文�
 
 它不是把研究、基金、汇报压成一排按钮，而是把“开始、继续、查看进度、打开文件、处理阻塞”放到同一个产品里。用户不用关心背后是哪一个专业 Agent 在工作，只需要看到当前任务做到哪一步、生成了什么、还缺什么、下一步怎么继续。
 
-OPL App 也不是只能装在一台 Mac 上的本地工具。当前产品面包括 macOS 桌面
-App、Linux x86_64 Native WebUI，以及 Linux、Windows、服务器或云主机上的
-Container WebUI。macOS arm64 Native WebUI 已实现，但只有首次精确公开发布和
-readback 完成后才会成为普通浏览器路径。Hosted OPL Workspace 是 X0-03 条件
-route，只有真实账号、存储、隔离、backend 和 owner policy 就绪后才出现，不是
-当前普通产品承诺。
+OPL App 也不是只能装在一台 Mac 上的本地工具。它有 Desktop 与 WebUI 两个产品
+表面，以及 Standard 与 Full 两种载荷密度；四个组合共享同一套产品行为和
+Official Profile。Native 与 Container 只是 WebUI 的内部 carrier，不是额外产品。
+某个精确平台资产是否已经公开、安装，仍只能由 release 和 carrier readback 证明。
+Hosted OPL Workspace 是 X0-03 条件 route，只有真实账号、存储、隔离、backend
+和 owner policy 就绪后才出现，不是当前普通产品承诺。
 
 ## 核心亮点
 
@@ -49,7 +49,7 @@ route，只有真实账号、存储、隔离、backend 和 owner policy 就绪�
 从桌面应用进入通用工作、科研、基金、演示和写书，不需要在多个命令、仓库和工具之间切换。
 
 **桌面与浏览器共享一套工作台**<br/>
-本机 App、Native WebUI 与 Container WebUI 共享任务、产物、进度和回执语义。
+Desktop 与 WebUI 在 Standard 或 Full 密度下共享任务、产物、进度和回执语义。
 Hosted Workspace 只有满足 X0 owner/backend gate 后才复用这套表面。
 
 **看得见长任务进度**<br/>
@@ -73,8 +73,9 @@ App 负责把入口、进度、文件和交付体验做好；医学研究、基�
 
 ## 下载与安装
 
-用户先选择 Desktop、WebUI 或 Headless，不需要先理解 GitHub、Homebrew 或
-GHCR。统一入口、平台矩阵、校验、更新和回滚见
+用户先选择 Desktop 或 WebUI，再选择 Standard 或 Full，不需要先理解 GitHub、
+Homebrew 或 GHCR。Headless 只安装 Framework Base，不属于 App 产品四格。统一入口、
+平台矩阵、校验、更新和回滚见
 [One Person Lab 安装指南](docs/delivery/install/README.md)；维护侧术语与状态见
 [分发与安装 SSOT](docs/delivery/distribution-and-install-ssot.md)。
 
@@ -85,19 +86,6 @@ GHCR。统一入口、平台矩阵、校验、更新和回滚见
 ```bash
 brew tap gaofeng21cn/one-person-lab
 brew install --cask one-person-lab
-open -a "One Person Lab"
-```
-
-Nightly 构建需要显式选择：
-
-```bash
-brew install --cask one-person-lab-nightly
-```
-
-需要完整首次安装载荷时：
-
-```bash
-brew install --cask one-person-lab-full
 open -a "One Person Lab"
 ```
 
@@ -114,14 +102,20 @@ Homebrew 是 App cask 分发路径。安装后打开 `One Person Lab.app`；首�
 opl system initialize --json
 ```
 
-Homebrew 本身也支持 Linux。当前 `opl` Formula 在 macOS/Linux 安装 OPL
-Base/CLI；Desktop Cask 仍只适用于 macOS。跨平台
-`one-person-lab-webui` Formula 技术上可行，目标是让 macOS/Linux 使用同一条
-Browser WebUI 命令，但当前尚未实现。
+Homebrew 本身也支持 Linux。`opl` Formula 是 Base/CLI carrier；Cask 和未来可能
+出现的 WebUI Formula 都是 App carrier adapter。host-native WebUI Formula 或
+Container image 仍只是 WebUI 内部 carrier，不会形成第三个产品表面。精确可用性
+由所选 release 或 package owner 证明，不由本 README 外推。
 
-希望通过 Homebrew 一次拿到完整首次安装包时，使用
-`one-person-lab-full`。release channel、updater、Full package 和 macOS trust
-细节由
+公开的 Full Homebrew Cask 仍是旧的非托管路径：它安装整个 Full DMG，同时声明
+`opl` Formula，因而引入两个 Base carrier。修正后的 Full Cask 生成器已实现，但尚未
+完成公开晋升和 clean-host 资格；完整首次安装目前优先使用下文的 Full DMG。
+Nightly 表示 Automated Preview，不是第三种质量或载荷密度。当前 schedule 选择
+Standard 密度且默认不移动 Latest；独立的 protected single-use pointer operation
+可以临时选择 exact published Preview，而不提升质量，下一 qualified Stable 默认
+reclaim Latest。Nightly publication 及其 digest-bound Homebrew follower 已实现，
+但在首个公开 publication 和 follower readback 完成前不得称为 production-verified。
+具体 release channel、updater、Full package 和 macOS trust 细节由
 [App release guide](docs/delivery/release/README.md) 与 App contracts 维护。
 
 ### 可信安装入口
@@ -145,8 +139,10 @@ chmod 0755 opl-install.sh
 ./opl-install.sh
 ```
 
-需要显式选择时使用 `--desktop`、`--webui`、`--native-webui`、
-`--container-webui` 或 `--headless`。
+需要显式选择时，使用 `--desktop` 或 `--webui` 选择产品表面。载荷密度由 exact
+release carrier 解析；当前 macOS Stable installer 提供 `--standard`/`--full`。
+Native/Container selector 只是高级内部 carrier 兼容入口，不是额外产品选项；
+`--headless` 只安装 Framework Base。
 
 已安装 Homebrew 的 macOS 用户使用摘要绑定的 Standard Cask：
 
@@ -172,12 +168,13 @@ chmod 0755 opl-app-installer.sh
 [下载 One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
 没有 Homebrew 的 macOS arm64 新用户优先选择
-`One-Person-Lab-Full-<version>-mac-arm64.dmg`。同一完整首次安装包也可以通过
-`one-person-lab-full` Homebrew cask 安装。
+`One-Person-Lab-Full-<version>-mac-arm64.dmg`。在 Full Homebrew publication
+仍未纳入托管前，它是完整首次安装的权威资产。
 
-macOS 可以通过 DMG、Homebrew 或 Container WebUI 使用；Linux x86_64 已支持
-公开 Native WebUI，Container 仍可用于隔离和服务器。Linux Desktop 已有构建能力，
-但尚未完成公开发行与 clean-host 资格。macOS Desktop 首次启动图文教程以
+支持矩阵是 Desktop/WebUI 与 Standard/Full 的四个组合。DMG、Homebrew、平台
+package、Native 与 Container 都只是这些组合中的 carrier 选择。矩阵本身不声明
+某个精确平台资产已经公开或安装；应检查所选 Release 的 manifest、digest、
+qualification 和安装 readback。macOS Desktop 首次启动图文教程以
 [macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 为主入口；同一份 guide 也提供
 [可转发 PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf)、
@@ -188,7 +185,8 @@ macOS 可以通过 DMG、Homebrew 或 Container WebUI 使用；Linux x86_64 已�
 
 ### 安装与更新对象
 
-Full 首装包是给干净机器准备的预置载荷，不是长期更新通道。安装完成后，App
+Full 密度包是在 Desktop 或 WebUI 上供干净机器或离线使用的预置载荷，不是长期
+更新通道。安装完成后，App
 维护只暴露三个软件对象。运行时、集成、Codex 投影和 profile migration
 都只是所属对象内部的状态详情，不形成独立 updater：
 
@@ -240,7 +238,11 @@ One Person Lab App 负责桌面产品体验：打包、发布、更新、首次�
 
 App 决定用户看到的安装形态、默认入口、首次启动体验和设置界面。One Person Lab Framework 提供背后的运行、初始化和进度数据，MAS、MAG、RCA、OBF 承载各自专业判断和交付物。App 只负责把这些能力呈现为用户能使用的桌面产品体验，不替专业 Agent 做领域判断。
 
-当前 OPL App 工作台有两个必要入口：本机桌面 App 与 Docker/WebUI 浏览器入口。Docker/WebUI 是 U1-05 的同产品浏览器形态，不是第二套产品。Hosted OPL Workspace 是 X0-03，只有真实账号、存储、隔离、backend 和 owner policy 存在时才可复用这套语言；本仓不为它维护 placeholder state 或默认发布义务。
+当前 OPL App 工作台有 Desktop 与 WebUI 两个产品表面，每个表面都支持 Standard
+和 Full 密度。Native 与 Container 是 WebUI 的内部 carrier；Docker/WebUI 因此只是
+WebUI 表面的一种部署方式，不是第二套产品。Hosted OPL Workspace 是 X0-03，只有
+真实账号、存储、隔离、backend 和 owner policy 存在时才可复用这套语言；本仓不为
+它维护 placeholder state 或默认发布义务。
 
 GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；Native Workbench 是开发备选和 foreground candidate；Hermes Desktop / `hermes-codex` 保留为 prior-candidate reference。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 

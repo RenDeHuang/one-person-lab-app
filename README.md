@@ -36,11 +36,12 @@ AI is already strong at answering questions and generating content. The harder p
 
 It does not reduce research, grants, presentations, and books to a row of buttons. It brings start, resume, progress, files, and blockers into one product experience. Users do not need to know which professional agent is working behind the scenes; they need to see where the task stands, what was produced, what is missing, and how to continue.
 
-OPL App is not limited to a single local Mac. The current workbench runs as the
-macOS desktop App, Linux x86_64 Native WebUI, or Container WebUI on Linux,
-Windows, a server, or a cloud VM. macOS arm64 Native WebUI is implemented and
-will become an ordinary browser route only after its first exact public
-publication and readback. Hosted OPL Workspace is a conditional X0-03 route
+OPL App is not limited to a single local Mac. It has two product surfaces,
+Desktop and WebUI, and two payload densities, Standard and Full. The four
+supported cells share one product behavior and Official Profile. Native and
+Container are internal WebUI carriers, not additional products. Exact public
+and installed availability still comes only from release and carrier readback.
+Hosted OPL Workspace is a conditional X0-03 route
 that appears only after account, storage, isolation, backend, and owner policy
 are available; it is not a current ordinary product promise.
 
@@ -50,9 +51,9 @@ are available; it is not a current ordinary product promise.
 Enter general work, medical research, grant writing, presentation preparation, and book writing from the desktop app instead of jumping across commands, repositories, and tools.
 
 **Desktop and browser share one workbench**<br/>
-Use the same OPL task, artifact, progress, and receipt language in the local
-App, Native WebUI, or Container WebUI. A hosted Workspace may reuse this
-surface only after its X0 owner/backend gates are met.
+Use the same OPL task, artifact, progress, and receipt language on Desktop or
+WebUI, at Standard or Full density. A hosted Workspace may reuse this surface
+only after its X0 owner/backend gates are met.
 
 **Visible progress for long tasks**<br/>
 The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
@@ -78,8 +79,9 @@ Read the [OPL App whitepaper (HTML)](https://gaofeng21cn.github.io/one-person-la
 The maintained distribution and installation matrix is in the
 [OPL App distribution and install SSOT](docs/delivery/distribution-and-install-ssot.md).
 The user-first source guide is
-[One Person Lab installation](docs/delivery/install/README.md): choose Desktop,
-WebUI, or Headless first, then let the installer select the carrier.
+[One Person Lab installation](docs/delivery/install/README.md): choose Desktop
+or WebUI and Standard or Full first, then let the installer select an available
+carrier. Headless installs Framework Base only and is not an App product cell.
 The short list below contains only current ordinary-user paths; historical,
 transitional, and planned paths are not presented as supported.
 
@@ -110,20 +112,20 @@ available when needed:
 opl system initialize --json
 ```
 
-Homebrew itself also runs on Linux. The current `opl` Formula installs
-OPL Base/CLI on macOS or Linux; the Desktop Cask remains macOS-only. A
-cross-platform `one-person-lab-webui` Formula is technically feasible and is
-the approved target for a shared macOS/Linux Browser WebUI command, but it is
-not implemented yet.
+Homebrew itself also runs on Linux. The `opl` Formula is a Base/CLI carrier,
+while Casks and any future WebUI Formula are App carrier adapters. A
+host-native WebUI Formula or Container image remains an internal WebUI carrier,
+not a third product surface. Exact availability comes from the selected release
+or package owner, not this README.
 
 The public Full Homebrew Cask remains an old, unmanaged path: it installs the
 whole Full DMG and also declares the `opl` Formula, so it currently introduces
 two Base carriers. The corrected Full Cask generator is implemented but has not
 been publicly promoted or clean-host qualified; for a complete first install,
-prefer the Full DMG below. Nightly remains the Standard-density prerelease
-concept: it is an automated Preview, not a third quality level. Its scheduled
-publication does not move the updater Latest pointer by default. A separate,
-protected single-use pointer operation may temporarily select an exact
+prefer the Full DMG below. Nightly means an Automated Preview, not a third
+quality level or a payload density. The current scheduled Nightly publication
+uses Standard density and does not move the updater Latest pointer by default.
+A separate, protected single-use pointer operation may temporarily select an exact
 published Preview without promoting its quality; the next qualified Stable
 reclaims Latest by default. Nightly publication and its digest-bound Homebrew
 follower automation are implemented, but the first public publication and
@@ -152,8 +154,11 @@ chmod 0755 opl-install.sh
 ./opl-install.sh
 ```
 
-Use `--desktop`, `--webui`, `--native-webui`, `--container-webui`, or
-`--headless` to override automatic routing.
+Use `--desktop` or `--webui` for the product surface. Density is resolved by the
+exact release carrier; the current macOS Stable installer exposes
+`--standard`/`--full`. Native/Container selectors are advanced internal-carrier
+compatibility, not additional product choices. `--headless` installs Framework
+Base only.
 
 Homebrew users can install the current Standard App through the digest-bound
 cask:
@@ -186,11 +191,11 @@ For a first-time macOS arm64 install without Homebrew, choose
 `One-Person-Lab-Full-<version>-mac-arm64.dmg`. It is the authoritative complete
 first-install asset while Full Homebrew publication remains unmanaged.
 
-For macOS, the current ordinary paths are DMG and Homebrew. Linux x86_64
-personal hosts can use the public Native WebUI assets; Container WebUI remains
-available for isolation and servers. Linux Desktop is build-capable but is not
-yet a supported public carrier. For a screenshot-based
-first-run walkthrough, start
+The supported product matrix is Desktop/WebUI by Standard/Full. DMG, Homebrew,
+platform packages, Native, and Container are carrier choices within those
+cells. The matrix does not assert that an exact platform asset is public or
+installed; check the selected Release manifest, digest, qualification, and
+installation readback. For a screenshot-based first-run walkthrough, start
 from the [macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html).
 The same guide is also available as generated latest
 [PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf) and
@@ -206,11 +211,11 @@ overwritten. See [the three-layer managed update model](docs/product/managed-upd
 
 ### Install And Update Objects
 
-Full first-install packages are preloaded payloads for clean machines, not a
-long-term update channel. After install, App maintenance exposes exactly three
-software objects. Runtime, integration, Codex projection, and profile migration
-details stay nested under their owning object instead of becoming separate
-updaters:
+Full-density packages are preloaded payloads for clean or offline use on either
+Desktop or WebUI, not a long-term update channel. After install, App maintenance
+exposes exactly three software objects. Runtime, integration, Codex projection,
+and profile migration details stay nested under their owning object instead of
+becoming separate updaters:
 
 | Object | What it means |
 | --- | --- |
@@ -271,7 +276,12 @@ Public role map:
 
 The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, RCA, and BookForge keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
 
-The current OPL App workbench has two required entry points: the local desktop App and Docker/WebUI in a browser. Docker/WebUI is the U1-05 browser runtime form of the same App experience, not a second product. Hosted OPL Workspace is X0-03 and may reuse that language only when its real account, storage, isolation, backend, and owner policy exist; no placeholder state or default release obligation follows from this repository.
+The current OPL App workbench has two product surfaces: Desktop and WebUI. Each
+supports Standard and Full density. Native and Container are internal WebUI
+carriers; Docker/WebUI is therefore one deployment of the WebUI surface, not a
+second product. Hosted OPL Workspace is X0-03 and may reuse that language only
+when its real account, storage, isolation, backend, and owner policy exist; no
+placeholder state or default release obligation follows from this repository.
 
 OPL Book Forge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
