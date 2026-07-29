@@ -218,6 +218,9 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.on.workflow_dispatch.inputs.framework_ref.type, 'string');
   assert.equal(manual.jobs['build-pipeline'].with.shell_ref, '${{ inputs.shell_ref }}');
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
+  assert.match(manualText, /WINDOWS_X64=.*"os":"windows-2022"/);
+  assert.match(manualText, /WINDOWS_ARM64=.*"os":"windows-2022"/);
+  assert.doesNotMatch(manualText, /WINDOWS_(?:X64|ARM64)=.*"os":"windows-latest"/);
 });
 
 test('Windows RC Framework binder writes the exact ref and URLs into the packaged product manifest', (t) => {
