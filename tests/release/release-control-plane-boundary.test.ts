@@ -304,16 +304,18 @@ test('WebUI follower keeps the packages write compile ceiling outside Desktop St
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
-test('retired Native WebUI carrier remains absent from the Desktop Stable control plane', (t) => {
+test('Native WebUI follower remains additive and target drift fails closed', (t) => {
   const root = fixture(t);
   assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
   assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
 
-  const retiredFollower = workflowPath(root, 'release-native-webui-follower.yml');
-  const retiredCarrier = workflowPath(root, '_release-native-webui-carrier.yml');
-  assert.equal(fs.existsSync(retiredFollower), false);
-  assert.equal(fs.existsSync(retiredCarrier), false);
-  fs.writeFileSync(retiredFollower, 'name: retired carrier must not return\n');
+  assert.equal(fs.existsSync(workflowPath(root, 'release-native-webui-follower.yml')), true);
+  assert.equal(fs.existsSync(workflowPath(root, '_release-native-webui-carrier.yml')), true);
+  updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
+    workflow.jobs['native-webui-macos'].with.target_architecture = 'x86_64';
+    workflow.jobs['native-webui-macos'].if =
+      "${{ needs.resolve-handoff.outputs.eligible == 'true' }}";
+  });
   assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
