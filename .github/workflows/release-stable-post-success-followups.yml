@@ -284,15 +284,16 @@ jobs:
             and .source_qualification_receipt_digest == ""
           ' <<<"$inputs_json" >/dev/null
           dispatch_ref="main"
+          append_full_run_name_regex="^OPL Stable append_full source:${SOURCE_RUN_ID} run:[1-9][0-9]*$"
           prior_run_ids="$(
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&per_page=100" \
-              | jq -c '
+              | jq -c --arg append_full_run_name_regex "$append_full_run_name_regex" '
                 [.[]?.workflow_runs[]?
                   | select(.head_branch == "main")
                   | select(.path == ".github/workflows/release-stable.yml")
                   | select(.run_attempt == 1)
-                  | select(.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
+                  | select(.display_title | test($append_full_run_name_regex))
                   | (.id | tostring)] | unique
               '
           )"
@@ -309,12 +310,12 @@ jobs:
                 "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&per_page=100"
             )"
             matches="$(
-              jq -c --argjson prior_run_ids "$prior_run_ids" --arg branch "$dispatch_ref" --argjson started "$dispatch_started_at" '
+              jq -c --argjson prior_run_ids "$prior_run_ids" --arg branch "$dispatch_ref" --argjson started "$dispatch_started_at" --arg append_full_run_name_regex "$append_full_run_name_regex" '
                 [.[]?.workflow_runs[]?
                   | select(.head_branch == $branch)
                   | select(.path == ".github/workflows/release-stable.yml")
                   | select(.run_attempt == 1)
-                  | select(.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
+                  | select(.display_title | test($append_full_run_name_regex))
                   | select((.created_at | fromdateiso8601) >= $started)
                   | (.id | tostring) as $candidate_id
                   | select(($prior_run_ids | index($candidate_id)) | not)
@@ -338,7 +339,7 @@ jobs:
             exit 1
           }
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" > append-run.json
-          jq -e --arg run "$run_id" --arg branch "$dispatch_ref" '
+          jq -e --arg run "$run_id" --arg branch "$dispatch_ref" --arg append_full_run_name_regex "$append_full_run_name_regex" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
@@ -347,7 +348,7 @@ jobs:
             and .head_branch == $branch
             and (.head_sha | type == "string" and test("^[0-9a-f]{40}$"))
             and .run_attempt == 1
-            and (.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
+            and (.display_title | test($append_full_run_name_regex))
           ' append-run.json >/dev/null
           executor_run_head_sha="$(jq -er '.head_sha | select(test("^[0-9a-f]{40}$"))' append-run.json)"
           {
