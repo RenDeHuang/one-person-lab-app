@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -48,10 +49,6 @@ const OWNER_REPOS = {
 type Mode = 'local-app' | 'full-dmg';
 
 const MANUAL_RUNTIME_KEY = 'darwin-arm64';
-const MANAGED_CLI_PACKAGES = {
-  claude: '@anthropic-ai/claude-code',
-  codex: '@openai/codex',
-} as const;
 
 function requiredString(value: unknown, label: string) {
   if (typeof value !== 'string' || !value.trim()) {
@@ -67,6 +64,63 @@ function requiredObject(value: unknown, label: string): Record<string, any> {
   return value as Record<string, any>;
 }
 
+function requiredRelativePath(value: unknown, label: string) {
+  const relativePath = requiredString(value, label);
+  const segments = relativePath.split('/');
+  if (
+    relativePath.includes('\\')
+    || path.posix.isAbsolute(relativePath)
+    || segments.some((segment) => !segment || segment === '.' || segment === '..')
+    || path.posix.normalize(relativePath) !== relativePath
+  ) {
+    throw new Error(
+      `AionCore managed Codex binding has invalid ${label}: ${relativePath}`,
+    );
+  }
+  return relativePath;
+}
+
+function comparePathNames(left: string, right: string) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+function directoryTreeSha256(directory: string, label: string) {
+  const entries: string[] = [];
+  const collect = (current: string, relativeRoot: string) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })
+      .sort((left, right) => comparePathNames(left.name, right.name))) {
+      const relativePath = relativeRoot
+        ? `${relativeRoot}/${entry.name}`
+        : entry.name;
+      const entryPath = path.join(current, entry.name);
+      const stat = fs.lstatSync(entryPath);
+      const mode = (stat.mode & 0o777).toString(8).padStart(3, '0');
+      if (stat.isSymbolicLink()) {
+        throw new Error(
+          `AionCore managed Codex ${label} contains an unsupported symlink: ${entryPath}`,
+        );
+      }
+      if (stat.isDirectory()) {
+        entries.push(`D\t${relativePath}\t${mode}`);
+        collect(entryPath, relativePath);
+        continue;
+      }
+      if (!stat.isFile()) {
+        throw new Error(
+          `AionCore managed Codex ${label} contains an unsupported filesystem entry: ${entryPath}`,
+        );
+      }
+      entries.push(
+        `F\t${relativePath}\t${mode}\t${stat.size}\t${fileSha256(entryPath)}`,
+      );
+    }
+  };
+  collect(directory, '');
+  return crypto.createHash('sha256').update(`${entries.join('\n')}\n`).digest('hex');
+}
+
 function requireStrictDescendant(
   root: string,
   candidate: string,
@@ -78,7 +132,7 @@ function requireStrictDescendant(
     candidateRealpath = fs.realpathSync(candidate);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new Error(`${label} is missing: ${candidate}`);
+      throw new Error(`AionCore managed Codex ${label} is missing: ${candidate}`);
     }
     throw error;
   }
@@ -132,50 +186,61 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
       `AionCore root manifest target mismatch: expected ${MANUAL_RUNTIME_KEY}`,
     );
   }
+  if (managedManifest.schemaVersion !== 2) {
+    throw new Error(
+      'AionCore managed-resources manifest must use producer schemaVersion 2',
+    );
+  }
+  if (Object.hasOwn(managedManifest, 'acpTools')) {
+    throw new Error(
+      'AionCore managed-resources manifest must not retain retired acpTools truth',
+    );
+  }
+  if (fs.lstatSync(path.join(managedRoot, 'acp'), { throwIfNoEntry: false })) {
+    throw new Error(
+      'AionCore managed-resources must not contain the retired managed-resources/acp directory',
+    );
+  }
   if (managedManifest.runtimeKey !== MANUAL_RUNTIME_KEY) {
     throw new Error(
       `AionCore managed-resources runtimeKey mismatch: expected ${MANUAL_RUNTIME_KEY}`,
     );
   }
-
-  if (
-    managedManifest.schemaVersion !== 2 ||
-    managedManifest.runtimeKey !== MANUAL_RUNTIME_KEY
-  ) {
-    throw new Error(
-      `AionCore managed-resources manifest must use schema v2 for ${MANUAL_RUNTIME_KEY}`,
-    );
-  }
-  if (Object.hasOwn(managedManifest, 'acpTools')) {
-    throw new Error(
-      'AionCore managed-resources manifest must not retain retired ACP tool truth',
-    );
-  }
   const node = requiredObject(managedManifest.node, 'managed Node runtime');
   const nodeVersion = requiredString(node.version, 'managed Node version');
+  const nodeRootRelative = requiredRelativePath(node.root, 'managed Node root');
   const nodeRoot = requireStrictDescendant(
     managedRoot,
-    path.resolve(managedRoot, requiredString(node.root, 'managed Node root')),
+    path.join(managedRoot, ...nodeRootRelative.split('/')),
     'Node runtime root',
+  );
+  if (!fs.statSync(nodeRoot).isDirectory()) {
+    throw new Error(`AionCore managed Codex Node runtime root is missing: ${nodeRoot}`);
+  }
+  const nodeExecutableRelative = requiredRelativePath(
+    node.executable,
+    'managed Node executable',
   );
   const nodeExecutable = requireStrictDescendant(
     nodeRoot,
-    path.resolve(
-      nodeRoot,
-      requiredString(node.executable, 'managed Node executable'),
-    ),
+    path.join(nodeRoot, ...nodeExecutableRelative.split('/')),
     'Node executable',
   );
-  requireFile(nodeExecutable, 'managed Node executable');
+  requireFile(nodeExecutable, 'AionCore managed Node executable');
 
   const clis = Array.isArray(managedManifest.clis) ? managedManifest.clis : [];
-  const cliNames = clis.map((entry) => entry?.name).sort();
-  if (JSON.stringify(cliNames) !== JSON.stringify(['claude', 'codex'])) {
+  const cliNames = clis
+    .map((entry) => entry?.name)
+    .sort((left, right) => comparePathNames(String(left), String(right)));
+  if (
+    clis.length !== 2
+    || JSON.stringify(cliNames) !== JSON.stringify(['claude', 'codex'])
+  ) {
     throw new Error(
       'AionCore managed-resources manifest must contain exactly Claude and Codex direct CLIs',
     );
   }
-  const resolveCli = (name: keyof typeof MANAGED_CLI_PACKAGES) => {
+  const resolveCli = (name: 'claude' | 'codex') => {
     const entry = requiredObject(
       clis.find((candidate) => candidate?.name === name),
       `managed ${name} CLI`,
@@ -184,18 +249,19 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
       entry.version,
       `managed ${name} CLI version`,
     );
-    if (!/^\d+\.\d+\.\d+$/.test(version)) {
-      throw new Error(`AionCore managed ${name} CLI version must be exact`);
+    const expectedRoot = `cli/${name}/${version}/${MANUAL_RUNTIME_KEY}`;
+    const rootRelative = requiredRelativePath(
+      entry.root,
+      `managed ${name} CLI root`,
+    );
+    if (rootRelative !== expectedRoot) {
+      throw new Error(
+        `AionCore managed ${name} CLI root must match its exact version and platform`,
+      );
     }
     if (entry.platformDirectory !== MANUAL_RUNTIME_KEY) {
       throw new Error(
         `AionCore managed ${name} CLI platform must be ${MANUAL_RUNTIME_KEY}`,
-      );
-    }
-    const expectedRoot = `cli/${name}/${version}/${MANUAL_RUNTIME_KEY}`;
-    if (entry.root !== expectedRoot) {
-      throw new Error(
-        `AionCore managed ${name} CLI root must match its exact version and platform`,
       );
     }
     if (
@@ -208,55 +274,67 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
     }
     const root = requireStrictDescendant(
       managedRoot,
-      path.resolve(managedRoot, entry.root),
+      path.join(managedRoot, ...rootRelative.split('/')),
       `${name} CLI root`,
+    );
+    if (!fs.statSync(root).isDirectory()) {
+      throw new Error(`AionCore managed ${name} CLI root is missing: ${root}`);
+    }
+    const executableRelative = requiredRelativePath(
+      entry.executable,
+      `managed ${name} CLI executable`,
     );
     const executable = requireStrictDescendant(
       root,
-      path.resolve(
-        root,
-        requiredString(entry.executable, `managed ${name} CLI executable`),
-      ),
+      path.join(root, ...executableRelative.split('/')),
       `${name} CLI executable`,
     );
     requireFile(executable, `managed ${name} CLI executable`);
     const requiredFiles = entry.requiredFiles.map((value, index) => {
+      const relativePath = requiredRelativePath(
+        value,
+        `managed ${name} required file ${index}`,
+      );
       const file = requireStrictDescendant(
         root,
-        path.resolve(
-          root,
-          requiredString(value, `managed ${name} required file ${index}`),
-        ),
+        path.join(root, ...relativePath.split('/')),
         `${name} CLI required file`,
       );
       requireFile(file, `managed ${name} CLI required file`);
-      return { path: file, sha256: fileSha256(file) };
+      return {
+        relative_path: relativePath,
+        path: file,
+        sha256: fileSha256(file),
+      };
     });
-    const requiredDirectories = entry.requiredDirectories.map(
-      (value, index) => {
-        const directory = requireStrictDescendant(
-          root,
-          path.resolve(
-            root,
-            requiredString(
-              value,
-              `managed ${name} required directory ${index}`,
-            ),
-          ),
-          `${name} CLI required directory`,
+    const requiredDirectories = entry.requiredDirectories.map((value, index) => {
+      const relativePath = requiredRelativePath(
+        value,
+        `managed ${name} required directory ${index}`,
+      );
+      const directory = requireStrictDescendant(
+        root,
+        path.join(root, ...relativePath.split('/')),
+        `${name} CLI required directory`,
+      );
+      if (!fs.statSync(directory).isDirectory()) {
+        throw new Error(
+          `AionCore managed ${name} CLI required directory is missing: ${directory}`,
         );
-        if (!fs.statSync(directory).isDirectory()) {
-          throw new Error(
-            `AionCore managed ${name} CLI required directory is missing: ${directory}`,
-          );
-        }
-        return directory;
-      },
-    );
+      }
+      return {
+        relative_path: relativePath,
+        path: directory,
+        tree_sha256: directoryTreeSha256(directory, `${name} required directory`),
+      };
+    });
     return {
-      package: MANAGED_CLI_PACKAGES[name],
+      name,
       version,
+      platform_directory: MANUAL_RUNTIME_KEY,
+      root_relative: rootRelative,
       root,
+      executable_relative: executableRelative,
       executable,
       executable_sha256: fileSha256(executable),
       required_files: requiredFiles,
@@ -294,7 +372,9 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
     },
     node_runtime: {
       version: nodeVersion,
+      root_relative: nodeRootRelative,
       root: nodeRoot,
+      executable_relative: nodeExecutableRelative,
       executable: nodeExecutable,
       executable_sha256: fileSha256(nodeExecutable),
     },

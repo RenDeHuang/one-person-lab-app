@@ -93,9 +93,30 @@ function createAioncoreManagedCodexFixture() {
     'bin',
     'codex',
   );
+  const codexRequiredFile = path.join(
+    codexRoot,
+    'vendor',
+    'aarch64-apple-darwin',
+    'codex-path',
+    'rg',
+  );
+  const codexRequiredDirectory = path.join(
+    codexRoot,
+    'vendor',
+    'aarch64-apple-darwin',
+    'codex-resources',
+  );
+  const codexRequiredDirectoryFile = path.join(
+    codexRequiredDirectory,
+    'zsh',
+    'bin',
+    'zsh',
+  );
   fs.mkdirSync(path.dirname(nodeExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(claudeExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(codexExecutable), { recursive: true });
+  fs.mkdirSync(path.dirname(codexRequiredFile), { recursive: true });
+  fs.mkdirSync(path.dirname(codexRequiredDirectoryFile), { recursive: true });
   fs.writeFileSync(
     path.join(runtimeRoot, 'aioncore'),
     'aioncore fixture\n',
@@ -104,6 +125,8 @@ function createAioncoreManagedCodexFixture() {
   fs.writeFileSync(nodeExecutable, 'node fixture\n', 'utf8');
   fs.writeFileSync(claudeExecutable, 'claude fixture\n', 'utf8');
   fs.writeFileSync(codexExecutable, 'codex fixture\n', 'utf8');
+  fs.writeFileSync(codexRequiredFile, 'rg fixture\n', 'utf8');
+  fs.writeFileSync(codexRequiredDirectoryFile, 'zsh fixture\n', 'utf8');
   writeJson(path.join(runtimeRoot, 'manifest.json'), {
     platform: 'darwin',
     arch: 'arm64',
@@ -137,8 +160,8 @@ function createAioncoreManagedCodexFixture() {
         root: 'cli/codex/0.144.6/darwin-arm64',
         platformDirectory: 'darwin-arm64',
         executable: 'vendor/aarch64-apple-darwin/bin/codex',
-        requiredFiles: [],
-        requiredDirectories: ['vendor/aarch64-apple-darwin'],
+        requiredFiles: ['vendor/aarch64-apple-darwin/codex-path/rg'],
+        requiredDirectories: ['vendor/aarch64-apple-darwin/codex-resources'],
       },
     ],
   });
@@ -153,6 +176,9 @@ function createAioncoreManagedCodexFixture() {
     claudeExecutable,
     codexRoot,
     codexExecutable,
+    codexRequiredFile,
+    codexRequiredDirectory,
+    codexRequiredDirectoryFile,
   };
 }
 
@@ -419,6 +445,8 @@ test('manual source-lock and build arguments bind Codex to the selected AionCore
   assert.match(binding.node_runtime.executable_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.claude_cli.executable_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.executable_sha256, /^[a-f0-9]{64}$/);
+  assert.match(binding.codex_cli.required_files[0].sha256, /^[a-f0-9]{64}$/);
+  assert.match(binding.codex_cli.required_directories[0].tree_sha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(dependencyLock.aioncore_managed_codex, binding);
   assert.deepEqual(buildAioncoreManagedCodexArgs(binding), [
     '--codex-root',
@@ -478,7 +506,7 @@ test('manual AionCore Codex binding rejects incomplete, ambiguous, escaped, or d
       writeJson(fixture.managedManifest, manifest);
       assert.throws(
         () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
-        /must not retain retired ACP tool truth/,
+        /must not retain retired acpTools truth/,
       );
     } finally {
       fs.rmSync(fixture.root, { recursive: true, force: true });
@@ -528,6 +556,26 @@ test('manual AionCore Codex binding rejects incomplete, ambiguous, escaped, or d
       assert.throws(
         () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
         /root must match its exact version and platform/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('required file and directory content drift change the source-lock binding', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      const before = resolveAioncoreManagedCodexBinding(fixture.shellRoot);
+      fs.writeFileSync(fixture.codexRequiredFile, 'rg changed\n', 'utf8');
+      fs.writeFileSync(fixture.codexRequiredDirectoryFile, 'zsh changed\n', 'utf8');
+      const after = resolveAioncoreManagedCodexBinding(fixture.shellRoot);
+      assert.notEqual(
+        after.codex_cli.required_files[0].sha256,
+        before.codex_cli.required_files[0].sha256,
+      );
+      assert.notEqual(
+        after.codex_cli.required_directories[0].tree_sha256,
+        before.codex_cli.required_directories[0].tree_sha256,
       );
     } finally {
       fs.rmSync(fixture.root, { recursive: true, force: true });
