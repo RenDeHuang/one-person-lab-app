@@ -7,7 +7,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-29-central-ledger-only-clean-baseline-v3",
-  "generated_at": "2026-07-29T05:15:43Z",
+  "generated_at": "2026-07-29T05:21:51Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -58,7 +58,7 @@
     }
   },
   "fresh_execution_graph": {
-    "observed_at": "2026-07-29T05:15:43Z",
+    "observed_at": "2026-07-29T05:21:51Z",
     "baseline_objective": "Absorb every valid source lane into current canonical main, close only owner-owned surfaces, and publish a clean current SSOT without globally freezing independent straightforward work.",
     "transparent_convergence": {
       "baseline_priority": "Source absorption, parity, and owner-native cleanup remain the primary convergence queue.",
@@ -71,7 +71,7 @@
       {
         "objective": "framework-first-party-payload-concurrent-write-repair-20260729",
         "owner": "/root/framework_payload_ci_fix",
-        "result": "Original receipt owner was resumed; PR #14 absorbed exact2 into Framework canonical afdc19b1/tree ee550bb8, and the original owner now owes guarded lifecycle close."
+        "result": "Original receipt owner was resumed; PR #14 absorbed exact2 into Framework canonical afdc19b1/tree ee550bb8, then the original owner completed official guarded close with every task surface absent and remaining empty."
       },
       {
         "objective": "framework-append-full-built-admission-20260729",
@@ -120,8 +120,8 @@
           "objective": "framework-first-party-payload-concurrent-write-repair-20260729",
           "owner": "/root/framework_payload_ci_fix",
           "surface": "Framework exact2 commit 16f5cef9/tree ee550bb8",
-          "state": "exact_merged_owner_close_required",
-          "next_action": "Original receipt owner reruns fresh absorption/holder/lock guards and performs official lifecycle close; preserve the shared Framework dirty root."
+          "state": "owner_closed_remaining_empty",
+          "next_action": "No source or cleanup action; preserve the canonical/absent proof and the unrelated shared Framework dirty root."
         },
         {
           "objective": "framework-append-full-built-admission-20260729",
@@ -222,7 +222,6 @@
       ],
       "framework": [
         "framework-managed-update-process-identity-recovery-20260729",
-        "framework-first-party-payload-concurrent-write-repair-20260729",
         "opl-package-complex-manager-retirement"
       ],
       "shared_integrator": "019fa925-b620-7932-8a0f-35bbf5b7312e"
@@ -620,10 +619,10 @@
       "execution_owner_threads": ["019f9def-0a13-7061-8320-dca8b058c014"],
       "scope": "Framework CI gates, cross-platform lock repair and first-party payload admission.",
       "write_set": ["owner-reported Framework exact paths; current root dirty release-bundle paths are preserved"],
-      "current_authority": "Framework PR #14 absorbed payload exact2 into canonical afdc19b1/tree ee550bb8 with source blob parity; Framework root remains dirty exact2 and behind6.",
-      "next_action": "Original receipt owner performs fresh absorption/holder/lock guards and official lifecycle close; preserve the dirty root bytes.",
+      "current_authority": "Framework PR #14 absorbed payload exact2 into canonical afdc19b1/tree ee550bb8; original owner then completed official lifecycle close with path, registration, gitdir, refs, receipt, temp, holder and lock surfaces absent. Framework root remains unrelated dirty exact2 and behind6.",
+      "next_action": "Preserve payload close evidence and continue the remaining Framework CI/PR #8 work under its original owners; preserve the dirty root bytes.",
       "absorption_plan": "Framework fresh main replay; local/hosted gates; canonical absorption; root dirty-byte disposition by original owners.",
-      "terminal_gaps": ["current root parity", "owner-close"],
+      "terminal_gaps": ["current root parity", "remaining Framework CI and PR #8 source lanes"],
       "archive_performed": false,
       "user_approval_required": true
     },

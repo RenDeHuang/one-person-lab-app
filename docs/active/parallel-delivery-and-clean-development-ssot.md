@@ -44,8 +44,8 @@ worktree，本地根仍 behind6/dirty2。该基线描述本快照生成时的 so
 
 恢复规则：仍有未完成义务的误中止任务，沿原 owner、原 receipt、原 worktree 和原 next action
 恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。Framework payload
-exact2 已由 PR #14 吸收到 Framework canonical，现仅待原 receipt owner guarded close；Framework
-PR #13 已完成吸收与 owner-close。这两条事实分别对应“完成清理”和“不得复活”。
+exact2 已由 PR #14 吸收到 Framework canonical，原 receipt owner 也已完成 official guarded close；
+Framework PR #13 同样已完成吸收与 owner-close。这两条都不得复活，后续只保留终态证据。
 
 每个 ACTIVE task 必须同时具备唯一 controller、可验证 execution owner、精确或有界 write
 set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonical absorption plan。
