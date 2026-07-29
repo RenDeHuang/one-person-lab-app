@@ -1,6 +1,6 @@
 {
   "package_id": "opl-persona",
-  "package_role": "framework_capability_package",
+  "package_role": "capability_package",
   "app_contributions": {
     "schema_version": "opl-app-contributions.v1",
     "navigation": [

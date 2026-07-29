@@ -459,7 +459,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       mas_scholar_skills: {
         ...normalizeComponent(components.mas_scholar_skills),
-        role: 'mas_required_framework_capability_package',
+        role: 'mas_required_capability_package',
         truth_owner: 'gaofeng21cn/mas-scholar-skills',
         lifecycle_owner: 'gaofeng21cn/one-person-lab',
         required: true,
