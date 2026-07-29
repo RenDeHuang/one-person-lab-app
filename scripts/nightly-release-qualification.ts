@@ -111,9 +111,19 @@ export function qualifyNightlyRelease(input: {
   const zipName = `One-Person-Lab-${request.version}-mac-arm64.zip`;
   const blockmapName = `${zipName}.blockmap`;
   const metadataName = 'latest-arm64-mac.yml';
+  const linuxDebName = `One-Person-Lab-${request.version}-linux-x64.deb`;
+  const frozenInstallerName = 'opl-install.sh';
   const policyName = 'standard-local-authorization-policy.json';
   const componentManifestName = 'opl-app-component-manifest.json';
-  const expectedFiles = [blockmapName, dmgName, metadataName, policyName, zipName].sort();
+  const expectedFiles = [
+    blockmapName,
+    dmgName,
+    frozenInstallerName,
+    linuxDebName,
+    metadataName,
+    policyName,
+    zipName,
+  ].sort();
   const observedFiles = exactDirectoryFiles(assetsDir);
   if (JSON.stringify(observedFiles) !== JSON.stringify(expectedFiles)) {
     throw new Error(`Nightly asset directory must contain exactly ${expectedFiles.join(', ')}; found ${observedFiles.join(', ')}.`);
@@ -153,7 +163,14 @@ export function qualifyNightlyRelease(input: {
     throw new Error(`Nightly updater metadata must reference only ${zipName}.`);
   }
 
-  const publicNames = [dmgName, zipName, blockmapName, metadataName];
+  const publicNames = [
+    dmgName,
+    zipName,
+    blockmapName,
+    metadataName,
+    linuxDebName,
+    frozenInstallerName,
+  ];
   const releaseBase =
     `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${request.tag}`;
   const componentManifest = createAppComponentManifest({
