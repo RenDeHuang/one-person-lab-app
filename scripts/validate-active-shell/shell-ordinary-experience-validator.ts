@@ -6,6 +6,7 @@ import {
   assertTextDoesNotMatch,
   assertTextExcludesAll,
   assertTextIncludesAll,
+  assertTextIncludesOneOf,
   readShellJson,
   readShellText,
 } from './shell-implementation-helpers.ts';
@@ -104,7 +105,11 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
 }): void {
   const sourceFile = ts.createSourceFile('codex-app-server-adapter.ts', threadAdapter, ts.ScriptTarget.Latest, true);
   const threadListOptions: ts.ObjectLiteralExpression[] = [];
+  const objectBindings = new Map<string, ts.ObjectLiteralExpression>();
   const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isObjectLiteralExpression(node.initializer)) {
+      objectBindings.set(node.name.text, node.initializer);
+    }
     if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
@@ -112,8 +117,14 @@ export function assertCanonicalThreadDirectoryTimeoutBoundarySources({
       ts.isStringLiteralLike(node.arguments[0]) &&
       node.arguments[0].text === 'thread/list'
     ) {
-      const options = node.arguments[1];
-      if (!options || !ts.isObjectLiteralExpression(options)) {
+      const argument = node.arguments[1];
+      const options =
+        argument && ts.isObjectLiteralExpression(argument)
+          ? argument
+          : argument && ts.isIdentifier(argument)
+            ? objectBindings.get(argument.text)
+            : undefined;
+      if (!options) {
         throw new Error('Active shell canonical thread directory must pass an inline thread/list options object');
       }
       threadListOptions.push(options);
@@ -1550,9 +1561,17 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'CodexThreadSettingsUpdateRequest',
       'codex-threads.update-settings',
       'codexThreads.updateSettings',
-      'adapter.updateThreadSettings',
     ],
     'Active shell existing Codex App Server thread settings transport',
+  );
+  assertTextIncludesOneOf(
+    [
+      readShellText(shellPaths, 'packages/desktop/src/common/types/codex/appServerThreads.ts'),
+      readShellText(shellPaths, 'packages/desktop/src/common/adapter/ipcBridge.ts'),
+      readShellText(shellPaths, 'packages/desktop/src/process/bridge/codexAppServerBridge.ts'),
+    ].join('\n'),
+    [['adapter.updateThreadSettings'], ['getActiveAdapter().updateThreadSettings']],
+    'Active shell existing Codex App Server thread settings transport wiring',
   );
   const projectAffinityLifecycle = assertShellTextIncludesAll(
     shellPaths,

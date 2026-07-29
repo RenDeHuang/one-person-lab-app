@@ -2,7 +2,12 @@ import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import { validateReleaseFullFirstInstallPayloads } from './release-full-first-install-payload-validator.ts';
 import { validateReleaseHomebrewDistribution } from './release-homebrew-distribution-validator.ts';
 import { managedUpdateCarrierAdapters, managedUpdateSoftwareObjectIds } from './managed-update-plane-policy.ts';
-import { assertShellTextIncludesAll } from './shell-implementation-helpers.ts';
+import {
+  assertShellTextIncludesAll,
+  assertTextIncludesAll,
+  assertTextIncludesOneOf,
+  readShellText,
+} from './shell-implementation-helpers.ts';
 import {
   appOwnedStorageCarrierBehavior,
   appOwnedWebuiDataVolumeHostActionCapabilityId,
@@ -1563,24 +1568,42 @@ function validateWebuiDataVolumeHostActionAbi(abi) {
 }
 
 function validateLocalDataLifecycleImplementation(shellPaths) {
+  const bridgeText = readShellText(
+    shellPaths,
+    'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts',
+  );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts',
     [
       'function shellToolchainRuntimeRoot(): string',
       "path.join(getSystemDir().workDir, 'runtime')",
-      'function managedOplRuntimeRoot(): string',
-      'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
-      "if (process.platform !== 'darwin')",
-      'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
-      "path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime')",
-      'runtimeRoots: [shellToolchainRuntimeRoot(), managedOplRuntimeRoot()]',
-      'runtimeRoot: managedOplRuntimeRoot()',
       'archiveRoot: archiveRoot()',
       'receiptRoot: receiptRoot()',
       'allowedSourcePaths: [conversationRoot()]',
     ],
     'local data lifecycle bridge split-root and delete boundary',
+  );
+  assertTextIncludesOneOf(
+    bridgeText,
+    [
+      [
+        'function managedOplRuntimeRoot(): string',
+        'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
+        "if (process.platform !== 'darwin')",
+        'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
+        "path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime')",
+        'runtimeRoots: [shellToolchainRuntimeRoot(), managedOplRuntimeRoot()]',
+        'runtimeRoot: managedOplRuntimeRoot()',
+      ],
+      [
+        'function hostRuntimeRoots()',
+        'resolveHostRuntimeRoots({',
+        'runtimeRoots: hostRuntimeRoots().inventoryRoots',
+        'runtimeRoot: hostRuntimeRoots().pruneRoot',
+      ],
+    ],
+    'local data lifecycle bridge runtime-root authority',
   );
   assertShellTextIncludesAll(
     shellPaths,
