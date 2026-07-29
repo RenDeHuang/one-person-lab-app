@@ -380,14 +380,20 @@ test('GitHub Nightly remote discovers a draft by tag metadata before GitHub crea
   const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
     calls.push(args);
     if (args[1] === `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`) return '';
-    if (args.includes('--paginate')) return JSON.stringify([[draft]]);
+    if (args.includes('--paginate')) return `${JSON.stringify([])}\n${JSON.stringify([draft])}\n`;
     throw new Error(`Unexpected gh call: ${args.join(' ')}`);
   });
 
   assert.deepEqual(remote.inspectRelease(frozen.tag), draft);
   assert.deepEqual(calls, [
     ['api', `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`],
-    ['api', '--paginate', '--slurp', 'repos/gaofeng21cn/one-person-lab-app/releases?per_page=100'],
+    [
+      'api',
+      '--paginate',
+      '--jq',
+      `[.[] | select(.tag_name == ${JSON.stringify(frozen.tag)})]`,
+      'repos/gaofeng21cn/one-person-lab-app/releases?per_page=100',
+    ],
   ]);
 });
 
@@ -406,7 +412,9 @@ test('GitHub Nightly remote fails closed when release metadata contains duplicat
   };
   const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
     if (args[1] === `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`) return '';
-    if (args.includes('--paginate')) return JSON.stringify([[draft, { ...draft, id: 102 }]]);
+    if (args.includes('--paginate')) {
+      return `${JSON.stringify([draft])}\n${JSON.stringify([{ ...draft, id: 102 }])}\n`;
+    }
     throw new Error(`Unexpected gh call: ${args.join(' ')}`);
   });
 

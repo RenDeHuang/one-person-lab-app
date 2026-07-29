@@ -106,18 +106,22 @@ export class GhNightlyRemote implements NightlyRemote {
     const output = this.executeGh(['api', `repos/${this.repo}/releases/tags/${tag}`], true);
     if (output) return normalizeRelease(JSON.parse(output));
 
-    const pages = JSON.parse(this.executeGh([
+    const pageOutput = this.executeGh([
       'api',
       '--paginate',
-      '--slurp',
+      '--jq',
+      `[.[] | select(.tag_name == ${JSON.stringify(tag)})]`,
       `repos/${this.repo}/releases?per_page=100`,
-    ])) as unknown;
-    if (!Array.isArray(pages) || pages.some((page) => !Array.isArray(page))) {
-      throw new Error('GitHub paginated Nightly release response must be an array of pages.');
-    }
-    const matches = pages
-      .flatMap((page) => page as unknown[])
-      .filter((release: any) => String(release?.tag_name ?? '') === tag);
+    ]);
+    const matches = pageOutput.trim() === ''
+      ? []
+      : pageOutput.trim().split(/\r?\n/).flatMap((line) => {
+        const page = JSON.parse(line) as unknown;
+        if (!Array.isArray(page)) {
+          throw new Error('GitHub paginated Nightly release response page must be an array.');
+        }
+        return page;
+      });
     if (matches.length > 1) {
       throw new Error(`GitHub release list contains multiple Releases for Nightly tag ${tag}.`);
     }
