@@ -44,6 +44,8 @@ STABLE_MACOS_RELEASE_PRERELEASE=''
 STABLE_MACOS_COMPONENT_MANIFEST_PATH=''
 STABLE_MACOS_COMPONENT_MANIFEST_SHA256=''
 STABLE_MACOS_RELEASE_QUALITY_ASSERTED=0
+LINUX_DESKTOP_WORK_DIR=''
+DESKTOP_WEBUI_MODE=0
 INSTALL_SCENARIO=${OPL_INSTALL_SCENARIO:-personal}
 PRINT_INSTALL_ROUTE=0
 OPEN_OPTION_EXPLICIT=''
@@ -58,12 +60,13 @@ Usage:
   install.sh --authorize-local-app-only [--app-path "/Applications/One Person Lab.app"] [--yes]
 
 Options:
-  By default, route macOS personal hosts to Desktop, Linux personal hosts to a
-  verified OPL Native WebUI artifact or the Container WebUI fallback, and
-  server/isolated hosts to Container WebUI.
+  By default, route macOS personal hosts to Desktop. Linux x86_64 uses the
+  qualified Desktop DEB when its exact Release contains one; older Releases
+  retain verified Native WebUI and Container fallbacks. Server/isolated hosts
+  use Container WebUI.
   --runtime-form <form>      Select auto, desktop, webui, native-webui, container-webui, or headless.
-  --desktop                 Require the macOS Desktop/bootstrap path.
-  --webui                   Select the best supported browser runtime for this host.
+  --desktop                 Require the platform Desktop payload.
+  --webui                   Prefer the installed Desktop payload in WebUI mode.
   --native-webui            Require a verified OPL Native WebUI artifact.
   --container-webui         Use the Container WebUI installer.
   --server                  Select the Container WebUI server path.
@@ -433,6 +436,9 @@ cleanup_native_installer() {
   if [ -n "$NATIVE_QUALIFICATION_RECEIPT_PATH" ]; then
     rm -f "$NATIVE_QUALIFICATION_RECEIPT_PATH"
   fi
+  if [ -n "$LINUX_DESKTOP_WORK_DIR" ]; then
+    rm -rf "$LINUX_DESKTOP_WORK_DIR"
+  fi
 }
 
 native_configuration_is_empty() {
@@ -665,10 +671,49 @@ verified_native_artifact_available() {
     --probe-artifact >/dev/null 2>&1
 }
 
+linux_desktop_target_supported() {
+  [ "$(platform_family)" = linux ] && { [ "$(uname -m)" = x86_64 ] || [ "$(uname -m)" = amd64 ]; }
+}
+
+linux_desktop_release_available() {
+  linux_desktop_target_supported || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  local work_dir record_path selector tag version asset_name expected_url
+  work_dir=$(mktemp -d "${TMPDIR:-/tmp}/opl-linux-desktop-probe.XXXXXX") || return 1
+  record_path="$work_dir/github-release.json"
+  selector="$OPL_APP_RELEASE_SELECTOR"
+  if [ -n "$OPL_FROZEN_RELEASE_TAG" ]; then
+    selector="$OPL_FROZEN_RELEASE_TAG"
+  fi
+  if ! download_release_record "$selector" "$record_path"; then
+    rm -rf "$work_dir"
+    return 1
+  fi
+  tag=$(release_record_value "$record_path" tag_name 2>/dev/null || true)
+  if ! validate_release_tag "$tag"; then
+    rm -rf "$work_dir"
+    return 1
+  fi
+  version="${tag#v}"
+  asset_name="One-Person-Lab-${version}-linux-x64.deb"
+  if ! resolve_release_asset "$record_path" "$asset_name"; then
+    rm -rf "$work_dir"
+    return 1
+  fi
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
+  if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
+    rm -rf "$work_dir"
+    return 1
+  fi
+  rm -rf "$work_dir"
+  return 0
+}
+
 resolve_install_route() {
-  local platform runtime_form
+  local platform runtime_form machine
   platform=$(platform_family)
   runtime_form=$(normalize_runtime_form) || return 1
+  machine=$(uname -m)
 
   if [ "$platform" = "unsupported" ]; then
     printf 'Unsupported platform for OPL App installer: %s\n' "$(uname -s)" >&2
@@ -698,11 +743,14 @@ resolve_install_route() {
 
   case "$runtime_form" in
     desktop)
-      if [ "$platform" != "macos" ]; then
-        printf 'Desktop installation is currently supported only on macOS.\n' >&2
+      if [ "$platform" = macos ]; then
+        printf 'desktop\n'
+      elif linux_desktop_target_supported; then
+        printf 'linux-desktop\n'
+      else
+        printf 'Desktop installation is currently supported only on macOS and Linux x86_64.\n' >&2
         exit 1
       fi
-      printf 'desktop\n'
       ;;
     native-webui)
       if ! native_target_supported; then
@@ -723,7 +771,11 @@ resolve_install_route() {
       printf 'container-webui\n'
       ;;
     webui)
-      if native_target_supported; then
+      if [ "$platform" = macos ] && [ "$machine" = arm64 ]; then
+        printf 'desktop-webui\n'
+      elif linux_desktop_release_available; then
+        printf 'linux-desktop-webui\n'
+      elif native_target_supported; then
         if native_configuration_is_empty; then
           discover_public_native_webui || true
         fi
@@ -746,16 +798,26 @@ resolve_install_route() {
           printf 'desktop\n'
           ;;
         linux)
-          if native_configuration_is_empty; then
+          if linux_desktop_release_available; then
+            printf 'linux-desktop\n'
+          elif native_configuration_is_empty; then
             discover_public_native_webui || true
-          fi
-          if native_mirror_is_local_development; then
+            if native_mirror_is_local_development; then
+              printf 'Local Native WebUI candidates require explicit --native-webui selection; using Container WebUI.\n' >&2
+              printf 'container-webui\n'
+            elif verified_native_artifact_available; then
+              printf 'native-webui\n'
+            else
+              printf 'No qualified Linux Desktop or verified Native WebUI artifact is available; using Container WebUI.\n' >&2
+              printf 'container-webui\n'
+            fi
+          elif native_mirror_is_local_development; then
             printf 'Local Native WebUI candidates require explicit --native-webui selection; using Container WebUI.\n' >&2
             printf 'container-webui\n'
           elif verified_native_artifact_available; then
             printf 'native-webui\n'
           else
-            printf 'No verified OPL Native WebUI artifact is available; using Container WebUI.\n' >&2
+            printf 'No qualified Linux Desktop or verified Native WebUI artifact is available; using Container WebUI.\n' >&2
             printf 'container-webui\n'
           fi
           ;;
@@ -773,6 +835,83 @@ install_desktop_bootstrap() {
   fi
   export OPL_RELEASE_VERSION OPL_RELEASE_REPO
   curl -fsSL "$OPL_INSTALL_SCRIPT_URL" | bash -s -- "${INSTALL_ARGS[@]}"
+}
+
+find_linux_desktop_executable() {
+  local package_name="$1"
+  local candidate
+  while IFS= read -r candidate; do
+    case "$(basename "$candidate")" in
+      'One Person Lab'|one-person-lab|aionui)
+        printf '%s\n' "$candidate"
+        return 0
+        ;;
+    esac
+  done < <(dpkg -L "$package_name" 2>/dev/null | LC_ALL=C sort)
+  return 1
+}
+
+install_linux_desktop() {
+  local record_path tag version asset_name package_path package_name executable linux_asset_sha256
+  local mac_asset_name mac_asset_sha256
+  for required_command in curl python3 dpkg dpkg-deb apt-get; do
+    if ! command -v "$required_command" >/dev/null 2>&1; then
+      printf 'Linux Desktop install requires: %s\n' "$required_command" >&2
+      return 1
+    fi
+  done
+  LINUX_DESKTOP_WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/opl-linux-desktop-install.XXXXXX") || return 1
+  if [ -z "$STABLE_MACOS_RELEASE_TAG" ]; then
+    resolve_latest_release_tag "$LINUX_DESKTOP_WORK_DIR" >/dev/null || return 1
+  else
+    resolve_release_record "$LINUX_DESKTOP_WORK_DIR" || return 1
+  fi
+  record_path="$STABLE_MACOS_RELEASE_RECORD_PATH"
+  tag="$STABLE_MACOS_RELEASE_TAG"
+  version="${tag#v}"
+  asset_name="One-Person-Lab-${version}-linux-x64.deb"
+  resolve_release_asset "$record_path" "$asset_name" || {
+    printf 'GitHub Release has no unique Linux Desktop asset: %s\n' "$asset_name" >&2
+    return 1
+  }
+  [ "$RELEASE_ASSET_URL" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name" ] || {
+    printf 'Linux Desktop asset URL is not bound to the selected Release.\n' >&2
+    return 1
+  }
+  package_path="$LINUX_DESKTOP_WORK_DIR/$asset_name"
+  download_release_file "$RELEASE_ASSET_URL" "$package_path" 'Linux Desktop package' || return 1
+  verify_file_sha256 "$package_path" "$RELEASE_ASSET_SHA256" 'Linux Desktop package' || return 1
+  linux_asset_sha256="$RELEASE_ASSET_SHA256"
+  mac_asset_name=$(release_asset_name "$tag" standard)
+  resolve_release_asset "$record_path" "$mac_asset_name" || return 1
+  mac_asset_sha256="$RELEASE_ASSET_SHA256"
+  download_and_validate_component_manifest \
+    "$LINUX_DESKTOP_WORK_DIR" "$record_path" "$tag" "$mac_asset_name" "$mac_asset_sha256" || return 1
+  component_manifest_has_exact_artifact \
+    "$STABLE_MACOS_COMPONENT_MANIFEST_PATH" "$asset_name" "$linux_asset_sha256" "$tag" || {
+      printf 'Component manifest does not bind the exact Linux Desktop package.\n' >&2
+      return 1
+    }
+  package_name=$(dpkg-deb -f "$package_path" Package 2>/dev/null) || return 1
+  [ -n "$package_name" ] || return 1
+  run_with_sudo_fallback linux-desktop apt-get install -y "$package_path" || {
+    printf 'Linux Desktop package installation failed.\n' >&2
+    return 1
+  }
+  executable=$(find_linux_desktop_executable "$package_name") || {
+    printf 'Linux Desktop package installed but its executable could not be located.\n' >&2
+    return 1
+  }
+  printf 'Installed Linux Desktop payload: %s\n' "$executable"
+  if [ "$STABLE_MACOS_OPEN" = '1' ]; then
+    if [ "$DESKTOP_WEBUI_MODE" = '1' ]; then
+      nohup "$executable" --webui >/tmp/opl-linux-desktop-webui.log 2>&1 &
+    else
+      nohup "$executable" >/tmp/opl-linux-desktop.log 2>&1 &
+    fi
+  fi
+  rm -rf "$LINUX_DESKTOP_WORK_DIR"
+  LINUX_DESKTOP_WORK_DIR=''
 }
 
 install_headless_base() {
@@ -1018,15 +1157,36 @@ validate_release_tag() {
 release_record_value() {
   local record_path="$1"
   local key_path="$2"
-  plutil -extract "$key_path" raw -o - "$record_path"
+  if command -v plutil >/dev/null 2>&1; then
+    plutil -extract "$key_path" raw -o - "$record_path"
+    return
+  fi
+  python3 - "$record_path" "$key_path" <<'PY'
+import json
+import sys
+
+value = json.load(open(sys.argv[1], encoding='utf-8'))
+for part in sys.argv[2].split('.'):
+    value = value[int(part)] if isinstance(value, list) else value[part]
+if value is None:
+    print('null')
+elif value is True:
+    print('true')
+elif value is False:
+    print('false')
+elif isinstance(value, (dict, list)):
+    print(json.dumps(value, separators=(',', ':')))
+else:
+    print(value)
+PY
 }
 
 download_release_record() {
   local selector="$1"
   local record_path="$2"
   local endpoint api_path curl_error_path curl_status=0
-  if ! command -v plutil >/dev/null 2>&1; then
-    printf 'plutil is required to verify the exact GitHub Release record.\n' >&2
+  if ! command -v plutil >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+    printf 'plutil or python3 is required to verify the exact GitHub Release record.\n' >&2
     return 1
   fi
   if [ "$selector" = "latest" ]; then
@@ -1215,13 +1375,21 @@ download_release_file() {
 component_manifest_value() {
   local manifest_path="$1"
   local key_path="$2"
-  plutil -extract "$key_path" raw -o - "$manifest_path"
+  release_record_value "$manifest_path" "$key_path"
 }
 
 component_manifest_array_json() {
   local manifest_path="$1"
   local key_path="$2"
-  plutil -extract "$key_path" json -o - "$manifest_path"
+  python3 - "$manifest_path" "$key_path" <<'PY'
+import json
+import sys
+
+value = json.load(open(sys.argv[1], encoding='utf-8'))
+for part in sys.argv[2].split('.'):
+    value = value[int(part)] if isinstance(value, list) else value[part]
+print(json.dumps(value, separators=(',', ':')))
+PY
 }
 
 component_manifest_has_exact_artifact() {
@@ -1598,6 +1766,17 @@ fi
 case "$SELECTED_INSTALL_ROUTE" in
   desktop)
     install_desktop_bootstrap
+    ;;
+  desktop-webui)
+    STABLE_MACOS_WEBUI_MODE=1
+    stable_macos_install
+    ;;
+  linux-desktop)
+    install_linux_desktop
+    ;;
+  linux-desktop-webui)
+    DESKTOP_WEBUI_MODE=1
+    install_linux_desktop
     ;;
   native-webui)
     install_native_webui

@@ -30,6 +30,7 @@ const standardAssetNames = (version: string) => [
   `One-Person-Lab-${version}-mac-arm64.dmg`,
   `One-Person-Lab-${version}-mac-arm64.zip`,
   `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+  `One-Person-Lab-${version}-linux-x64.deb`,
   'latest-arm64-mac.yml',
   'opl-app-component-manifest.json',
   'opl-install.sh',
