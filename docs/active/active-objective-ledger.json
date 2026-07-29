@@ -7,7 +7,7 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-29-central-ledger-only-clean-baseline-v3",
-  "generated_at": "2026-07-29T04:51:57Z",
+  "generated_at": "2026-07-29T05:02:07Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
@@ -58,7 +58,7 @@
     }
   },
   "fresh_execution_graph": {
-    "observed_at": "2026-07-29T04:51:57Z",
+    "observed_at": "2026-07-29T05:02:07Z",
     "baseline_objective": "Absorb every valid source lane into current canonical main, close only owner-owned surfaces, and publish a clean current SSOT without globally freezing independent straightforward work.",
     "transparent_convergence": {
       "baseline_priority": "Source absorption, parity, and owner-native cleanup remain the primary convergence queue.",
@@ -149,9 +149,9 @@
         {
           "objective": "single-desktop-carrier-v5-linux-desktop-webui",
           "owner": "019fa719-11cf-7b70-bf2d-ec101f100de4",
-          "surface": "App V5 same-receipt exact41 at ef364ffc/tree 9d804579 with 16 dirty paths",
+          "surface": "App V5 same-receipt exact43 at ef364ffc/tree 9d804579 with active dirty replay",
           "state": "dirty_active_replay",
-          "next_action": "Continue the existing V5 implementation without CodeGraph maintenance. After PR #86 canonical, replay latest App main, preserve P2/PR82 semantics, complete exact41 gates and checkpoint; no publication mutation."
+          "next_action": "Continue the existing V5 implementation without CodeGraph maintenance. The same receipt now adds only scripts/resolve-preview-release-request.ts and tests/release/release-control-plane-contract.test.ts to repair retired-native skipped_gates and the current 11-stage consumer; complete exact43 gates/checkpoint, then replay PR #86 canonical before absorption."
         },
         {
           "objective": "self-hosted-routine-pools-20260729",
@@ -499,8 +499,8 @@
       "execution_owner_threads": ["019fa719-11cf-7b70-bf2d-ec101f100de4"],
       "scope": "Single Desktop V5 additive Linux/Desktop/WebUI payload while preserving Full and Homebrew paths.",
       "write_set": [".github/workflows/_release-bundle.yml", ".github/workflows/_release-standard-publish.yml", "contracts/app-release-channel.json", "install.sh", "scripts/bind-standard-release-track.ts", "scripts/framework-release-adapter.ts", "scripts/release-bundle.ts", "scripts/validate-standard-publication-input.ts", "scripts/verify-remote-release-assets.ts", "scripts/write-opl-app-component-manifest.ts"],
-      "current_authority": "V5 checkpoint 700199ba is superseded by the same-receipt working tree at ef364ffc/tree 9d804579; 16 source paths are dirty and PID40289 holds the V5 CodeGraph files.",
-      "next_action": "Finish the existing exact41 replay and gates against fresh App main, preserve Full/Docker/append_full semantics, callback no-CodeGraph before any daemon maintenance, then checkpoint; no publication mutation.",
+      "current_authority": "V5 checkpoint 700199ba is superseded by the same-receipt working tree at ef364ffc/tree 9d804579; its authorized write set is exact43 after adding two direct stale consumers, and PID40289 holds the V5 CodeGraph files.",
+      "next_action": "Finish the existing exact43 replay and gates against fresh App main, preserve Full/Docker/append_full semantics, callback no-CodeGraph before any daemon maintenance, then checkpoint; no publication mutation.",
       "absorption_plan": "Fresh App main replay; focused/release-boundary gates; Root Integrator protected absorption; parity and close. Preserve Full/append_full/Homebrew.",
       "terminal_gaps": ["Shell producer checkpoint", "Linux public deb normalization", "canonical absorption", "owner-close"],
       "archive_performed": false,
