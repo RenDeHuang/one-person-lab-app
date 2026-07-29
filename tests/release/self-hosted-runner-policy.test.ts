@@ -66,7 +66,7 @@ test('Manual Full Preview keeps its explicit self-hosted exception outside Stabl
   );
 });
 
-test('Tart VM consumers use the exact declared pool and advisory labels cannot be broadened', () => {
+test('Tart VM consumers and routine advisory jobs use distinct exact capability pools', () => {
   const postPublication = readWorkflow('release-post-publication-certification.yml').source;
   assert.equal((postPublication.match(/opl-cert-mac-tart/g) || []).length >= 2, true);
   assert.doesNotMatch(postPublication, /opl-gui-vm/);
@@ -92,6 +92,57 @@ test('Tart VM consumers use the exact declared pool and advisory labels cannot b
     advisory.workflow.on.workflow_dispatch.inputs.windows_runner_labels_json.default,
     '["self-hosted","Windows","X64","opl-cert-windows-wsl"]',
   );
+  assert.deepEqual(
+    advisory.workflow.on.workflow_dispatch.inputs.mac_gui_runner_labels_json.default,
+    '["self-hosted","macOS","ARM64","opl-gui-vm"]',
+  );
+  assert.deepEqual(
+    advisory.workflow.on.workflow_dispatch.inputs.mac_vmware_runner_labels_json.default,
+    '["self-hosted","macOS","X64","opl-vmware-intel-host"]',
+  );
+
+  assert.equal(
+    advisory.workflow.jobs['mac-gui-advisory']['runs-on'],
+    '${{ fromJSON(needs.admit.outputs.mac_gui_labels_json) }}',
+  );
+  assert.equal(
+    advisory.workflow.jobs['mac-vmware-advisory']['runs-on'],
+    '${{ fromJSON(needs.admit.outputs.mac_vmware_labels_json) }}',
+  );
+  assert.equal(advisory.workflow.jobs['mac-gui-advisory']['continue-on-error'], true);
+  assert.equal(advisory.workflow.jobs['mac-vmware-advisory']['continue-on-error'], true);
+});
+
+test('runner policy contract defines four routine targets without changing the hosted publication floor', () => {
+  const contract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'));
+  const policy = contract.release_acceleration.runner_policy;
+  const pools = Object.fromEntries(policy.pools.map((pool: Record<string, any>) => [pool.id, pool]));
+
+  assert.deepEqual(pools['mac-gui'].labels, ['self-hosted', 'macOS', 'ARM64', 'opl-gui-vm']);
+  assert.deepEqual(
+    pools['mac-vmware-intel'].labels,
+    ['self-hosted', 'macOS', 'X64', 'opl-vmware-intel-host'],
+  );
+  assert.deepEqual(pools['mac-tart'].labels, ['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart']);
+  assert.deepEqual(
+    pools['windows-wsl'].labels,
+    ['self-hosted', 'Windows', 'X64', 'opl-cert-windows-wsl'],
+  );
+  assert.deepEqual(policy.routine_advisory.targets, [
+    'mac-gui',
+    'mac-vmware-intel',
+    'mac-tart',
+    'windows-wsl',
+  ]);
+  assert.equal(policy.routine_advisory.source_identity, 'source_run_id+source_sha+target');
+  assert.equal(policy.routine_advisory.artifact_identity_allowed, false);
+  assert.equal(policy.routine_advisory.queue_when_not_ready, false);
+  assert.equal(policy.routine_advisory.release_blocking, false);
+  assert.equal(policy.routine_advisory.merge_blocking, false);
+  assert.equal(policy.routine_advisory.untrusted_pull_request_execution_allowed, false);
+  assert.equal(policy.routine_advisory.inventory_token_least_privilege_verified, false);
+  assert.equal(policy.publication_floor.stable_and_latest_executor, 'github_hosted');
+  assert.equal(policy.publication_floor.self_hosted_ancestor_count, 0);
 });
 
 test('offline self-hosted inventory is deferred before queueing and cannot become a publication dependency', () => {

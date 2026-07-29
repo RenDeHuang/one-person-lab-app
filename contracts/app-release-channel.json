@@ -3728,7 +3728,7 @@
             "self-hosted",
             "macOS",
             "ARM64",
-            "opl-cert-mac-gui"
+            "opl-gui-vm"
           ],
           "capabilities": [
             "macos_gui",
@@ -3738,6 +3738,25 @@
           "workload_classes": [
             "post_publication_optional_certification",
             "pr_advisory_acceleration"
+          ],
+          "max_concurrency": 1
+        },
+        {
+          "id": "mac-vmware-intel",
+          "labels": [
+            "self-hosted",
+            "macOS",
+            "X64",
+            "opl-vmware-intel-host"
+          ],
+          "capabilities": [
+            "macos_intel",
+            "vmware_fusion",
+            "vm_inventory_smoke"
+          ],
+          "workload_classes": [
+            "pr_advisory_acceleration",
+            "nightly_or_maintenance"
           ],
           "max_concurrency": 1
         },
@@ -3859,6 +3878,33 @@
         ],
         "app_defined_secret_or_variable_names": false,
         "enforcement_before_authenticated_transport_allowed": false
+      },
+      "routine_advisory": {
+        "workflow": ".github/workflows/self-hosted-advisory.yml",
+        "admission_schema": "opl_app_self_hosted_advisory_admission.v3",
+        "target_admission_schema": "opl_app_self_hosted_advisory_target_admission.v1",
+        "targets": [
+          "mac-gui",
+          "mac-vmware-intel",
+          "mac-tart",
+          "windows-wsl"
+        ],
+        "source_identity": "source_run_id+source_sha+target",
+        "artifact_identity_allowed": false,
+        "prequeue_admission": [
+          "dedicated_inventory_token_present_and_readable",
+          "exact_labels",
+          "runner_online",
+          "runner_idle"
+        ],
+        "missing_token_or_unreadable_inventory": "typed_not_run_not_authorized",
+        "offline_or_busy": "typed_not_run_operator_deferred",
+        "queue_when_not_ready": false,
+        "release_blocking": false,
+        "merge_blocking": false,
+        "untrusted_pull_request_execution_allowed": false,
+        "inventory_token_least_privilege_verified": false,
+        "rule": "Routine advisory runs only for one admitted immutable successful main validation source. Every target is admitted independently; unavailable capacity produces a typed not_run receipt without queueing or affecting Stable, Latest, or merge availability."
       },
       "binding_status": "role_labels_require_fresh_github_and_fleet_readback_before_use",
       "legacy_bindings": [
