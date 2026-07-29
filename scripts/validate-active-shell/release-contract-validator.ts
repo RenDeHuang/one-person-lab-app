@@ -1591,6 +1591,9 @@ function validateLocalDataLifecycleImplementation(shellPaths) {
       'pruneRoot: string;',
       'export function resolveHostRuntimeRoots(options:',
       "if (options.platform === 'win32')",
+      'inventoryRoots: [shellToolchainRuntimeRoot]',
+      'managedRuntimeRoot: null',
+      'pruneRoot: shellToolchainRuntimeRoot',
       'configuredManagedRuntimeRoot ||',
       "path.join(options.homeDir, 'Library', 'Application Support', 'OPL', 'runtime')",
       'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
@@ -1622,7 +1625,12 @@ export function assertManagedRuntimeRootBridgeSemantics(
   bridgeText: string,
   bridgePath = 'localDataLifecycleBridge.ts',
 ): void {
-  if (bridgeText.includes('configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT')) return;
+  const forbiddenLegacySemantics = 'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT';
+  if (bridgeText.includes(forbiddenLegacySemantics)) {
+    throw new Error(
+      `Active shell managed runtime root bridge must reject the unconditional OPL runtime override in ${bridgePath}`,
+    );
+  }
   const requiredCurrentSemantics = [
     'function managedOplRuntimeRoot(): string',
     'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim()',

@@ -781,7 +781,7 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
   );
 });
 
-test('managed runtime bridge validation accepts current helper semantics and rejects weakened variants', () => {
+test('managed runtime bridge validation rejects the legacy Windows runtime override', () => {
   const current = [
     'function managedOplRuntimeRoot(): string {',
     'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
@@ -802,9 +802,12 @@ test('managed runtime bridge validation accepts current helper semantics and rej
     () => assertManagedRuntimeRootBridgeSemantics(current.replace('process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim()', "''")),
     /OPL_RUNTIME_TOOLCHAIN_ROOT/,
   );
-  assert.doesNotThrow(() => assertManagedRuntimeRootBridgeSemantics(
-    'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT',
-  ));
+  assert.throws(
+    () => assertManagedRuntimeRootBridgeSemantics(
+      'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT',
+    ),
+    /reject the unconditional OPL runtime override/,
+  );
 });
 
 test('release contract keeps Standard independent behind Framework checkpoint authority', () => {
