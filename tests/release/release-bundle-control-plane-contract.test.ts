@@ -352,7 +352,7 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.successor_trigger.workflow, ".github/workflows/release-stable-post-success-followups.yml");
   assert.equal(full.successor_trigger.one_successor_per_standard_run, true);
   assert.equal(full.successor_trigger.workflow_dispatch_ref, "canonical_main");
-  assert.equal(full.successor_trigger.executor_head_sha, "frozen_app_sha");
+  assert.equal(full.successor_trigger.executor_head_sha, "workflow_run_head_sha");
   assert.equal(full.framework_operation_receipt_schema, "opl_release_bundle_operation_receipt.v1");
   assert.equal(full.standard_assets_modified, false);
   assert.equal(full.latest_modified, false);

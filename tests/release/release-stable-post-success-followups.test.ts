@@ -210,12 +210,15 @@ test("admission binds Standard run, exact checkpoint, cohort, and stable publica
   assert.match(source, /\.bundle_digest "\$bundle"/);
   assert.match(source, /dispatch_payload=.*--argjson inputs "\$inputs_json"/);
   assert.match(source, /dispatch_ref="main"/);
-  assert.match(source, /current_main_sha="\$\(gh api "repos\/\$GITHUB_REPOSITORY\/git\/ref\/heads\/main" --jq '\.object\.sha'\)"/);
-  assert.match(source, /--arg head "\$current_main_sha"/);
+  assert.match(source, /prior_run_ids="\$\(/);
+  assert.match(source, /--argjson prior_run_ids "\$prior_run_ids"/);
+  assert.match(source, /select\(\(\$prior_run_ids \| index\(\$candidate_id\)\) \| not\)/);
+  assert.match(source, /executor_run_head_sha="\$\(jq -er '\.head_sha/);
+  assert.match(source, /echo "executor_run_head_sha=\$executor_run_head_sha"/);
   assert.match(source, /--arg ref "\$dispatch_ref"/);
   assert.match(source, /'\{ref:\$ref,inputs:\$inputs\}'/);
   assert.match(source, /--input - <<<"\$dispatch_payload"/);
-  assert.match(source, /current_main_sha/);
+  assert.doesNotMatch(source, /current_main_sha/);
 });
 
 test("successor dispatch is exactly one append_full JSON input set with no legacy qualification input", () => {
@@ -246,7 +249,8 @@ test("successor is idempotent and does not retry an unknown dispatch result", ()
   assert.match(source, /status=unknown/);
   assert.match(source, /run_attempt == 1/);
   assert.match(source, /\.head_branch == \$branch/);
-  assert.match(source, /\.head_sha == \$head/);
+  assert.match(source, /\.head_sha \| type == "string" and test/);
+  assert.match(source, /executor_run_head_sha/);
   assert.match(source, /unique \| \.\[\]/);
 });
 
@@ -259,6 +263,7 @@ test("successor receipt declares additive and non-blocking boundaries", () => {
   assert.match(source, /opl-full-append-successor-intent-/);
   assert.match(source, /opl-full-append-dispatch-readback-/);
   assert.match(source, /opl-full-append-successor-receipt-/);
+  assert.match(source, /executor_run_head_sha/);
 });
 
 test("Full admission accepts exact Standard bytes and rejects remote digest or size drift", () => {
