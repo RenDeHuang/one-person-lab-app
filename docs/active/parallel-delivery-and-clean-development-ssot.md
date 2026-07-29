@@ -1,6 +1,6 @@
 # 并行交付与开发清洁 SSOT
 
-Instruction revision: `user-2026-07-29-central-ledger-only-clean-baseline-v1`
+Instruction revision: `user-2026-07-29-central-ledger-only-clean-baseline-v3`
 
 Owner: `one-person-lab-app` delivery coordination
 
@@ -36,6 +36,16 @@ cleanup、publication、install、标题和 archive 决策都必须先回总账�
 `ACTIVE`，2 个仅可标记 `SAFE_TO_ARCHIVE`；实际归档仍需用户对具体 thread 的 fresh 验收。
 数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
 
+Fresh lifecycle 快照：App canonical 为 `ee486545/tree 87489616`，根 clean/aligned，10 个
+registered non-root worktree；Framework wire 为 `430bbf92/tree d78949d3`，3 个 registered
+worktree，本地根仍 behind4/dirty2。该数字只描述当前 source/hygiene 表面，不限制独立任务
+并发，也不把已启动的 read-only evidence 工作变成等待。
+
+恢复规则：仍有未完成义务的误中止任务，沿原 owner、原 receipt、原 worktree 和原 next action
+恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。Framework payload
+exact2 已由原 receipt owner恢复并 checkpoint，Framework PR #13 已完成吸收与 owner-close；
+这两条事实分别对应“继续执行”和“不得复活”。
+
 每个 ACTIVE task 必须同时具备唯一 controller、可验证 execution owner、精确或有界 write
 set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonical absorption plan。
 任务只有在 fresh main/wire/tree/blob parity、必要的 installed/public/runtime 终态、holder/
@@ -52,6 +62,13 @@ fresh repo/wire inventory
 -> owner-native worktree/branch/PR/receipt/temp cleanup
 -> clean baseline snapshot
 ```
+
+基线优先不等于全局冻结。清洁与收敛工作必须尽量透明：独立的明确修复、文档更新、
+只读证据和已经启动的 operation，只要不争用同一 source lane、canonical `main` 临界区、
+runtime 或 public target，就继续推进。只有 owner 即将进入真实重叠 mutation 的那一刻才短时
+暂停，完成 fresh parity 后立即恢复。Windows 已启动 run 不取消、不重跑、不掩盖；其旧
+Preview 发布指令已被最新用户 SSOT supersede，因此该 run 终态后只保留只读证据，除非用户
+再给出 fresh publication/install authority。
 
 总账文档本身也遵守同一规则：本次只在独立 governance worktree 更新，不修改 App 根或其他
 owner lane；PR、task branch、worktree 和测试通过都不是 SSOT，只有 canonical main 的 fresh
@@ -118,16 +135,15 @@ objective 终态。外部权限或不可获得输入是唯一可暂停执行的 
 同一 repo 最终吸收优先级为：
 
 ```text
-production first-breakpoint repair
--> public pointer blocker repair
+baseline source checkpoints and owner replay
 -> active product contracts and consumers
 -> historical branch convergence
 -> documentation-only coordination snapshots
 ```
 
 优先级只调度 canonical integration 窗口，不要求较低优先级停止开发、测试或 remote
-checkpoint。若较高优先级在较低优先级开发期间进入 `main`，较低优先级 owner fresh-main
-semantic replay 后继续。
+checkpoint，也不阻断无重叠的 straightforward 修复、文档或只读 operation。若较高优先级
+在较低优先级开发期间进入 `main`，较低优先级 owner fresh-main semantic replay 后继续。
 
 ## Local-first / push-last
 
