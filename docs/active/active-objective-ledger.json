@@ -286,23 +286,53 @@
     },
     {
       "id": "dialog-archive-filter",
-      "status": "SAFE_TO_ARCHIVE",
+      "status": "ACTIVE",
       "controller_thread": "019fa6a2-c301-7b93-8a5b-1b85e875e279",
       "execution_owner_threads": ["019fa6a2-c301-7b93-8a5b-1b85e875e279"],
+      "execution_contract": {
+        "worktree": "/Users/gaofeng/workspace/one-person-lab-app/.worktrees/archive-filter-validator-20260728",
+        "branch": "codex/archive-filter-validator-20260728",
+        "base_commit": "5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b",
+        "base_tree": "d3e5d3d93c94698399d472bdc3fada4024297a25",
+      "write_set": [
+        "contracts/app-gui-product-contract.json",
+        "contracts/app-page-state-matrix.json",
+        "contracts/app-product-profile.json",
+        "docs/active/active-objective-ledger.json",
+        "docs/product/gui/README.md",
+        "scripts/validate-active-shell/app-contract-constants.ts",
+        "scripts/validate-active-shell/shell-ordinary-experience-validator.ts",
+        "tests/release/codex-default-profile.test.ts"
+      ],
+        "shared_root_overlap": "none; the root release-bundle dirty packet does not include this write set",
+        "active_lane_overlap": "development may continue; final canonical absorption is serialized by the sole Integrator",
+      "next_action": "resolve current-head PR review P2s, run App contract and current-Shell compatibility gates, create one ordinary checkpoint, then use the protected PR route for canonical absorption and owner-native close",
+        "local_gates": [
+          "JSON parse and git diff check",
+          "tests/release/codex-default-profile.test.ts",
+          "validate-active-shell against current Shell 1c7c compatibility; strict projectId producer enforcement remains post-App successor work",
+          "targeted format and lint"
+        ],
+      "integration_order": "App canonical model and owner-close before the strict projectId managed-scratch Shell successor"
+      },
       "scope": "Converge the App conversation rail contract so Default ordinary, Running now, Archived and All/Search use canonical identity sets, while managed ~/Documents/Codex tasks preserve recorded cwd without becoming leaf-directory Projects.",
       "current_evidence": [
-        "Protected PR #31 merged task head 6a61b4aeea1b0eaa8ddf8c4488f8f4415ade26a3 as canonical App merge 997242199a5f35328dee721e58858cf675885647, which remains an ancestor of the 2026-07-29 App main wire 56fe394502d85f6640c4d1ddac054c19d2d567d0.",
-        "App contracts, validators and focused regressions keep Default, Running now, Archived and All/Search as distinct canonical surfaces; archived=false is directory membership only and never inferred Running state.",
-        "Owner-native close removed the archive-filter worktree, gitdir, local/tracking/remote task refs and lifecycle receipt; the strict projectId managed-scratch producer is tracked separately by the projectless successor objective."
+        "The owner-native lifecycle receipt remains ACTIVE under controller, owner and execution owner 019fa6a2-c301-7b93-8a5b-1b85e875e279 with the exact six-path write set.",
+        "Fresh read-only state_5.sqlite aggregate contains 4975 archived=false rows across exec, user, subagent and other sources, proving archived=false is not an Active, Running now or default-rail identity set and must not be bulk archived or deleted.",
+        "Current App wire main is 5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b. Shell main 1c7c384e8326a3703ab36c2030aaaa22a6da001b remains the current compatibility producer; strict projectId and managed-scratch projection enforcement is intentionally deferred to the distinct post-App Shell successor."
       ],
-      "next_action": "Retain this terminal App source evidence; do not recreate the closed archive-filter writer. Complete runtime and installed behavior only through the separately owned projectless successor objective.",
+      "next_action": "Keep the App SSOT strict, pass the current Shell compatibility bridge, absorb through protected PR #31, verify canonical parity, and owner-close before the separate Shell successor.",
       "integration_order": 8,
       "parallel_group": "app-bug-repair",
       "estimated_remaining": {
-        "wall_clock": "0h",
-        "steps": []
+        "wall_clock": "1-3h",
+        "steps": [
+          {"name": "source reproduction and focused regression", "duration": "20-45m", "necessary": "bind the fix to the actual timeout/fallback root cause"},
+          {"name": "isolated implementation and checkpoint", "duration": "20-45m", "necessary": "make the change recoverable without touching the dirty root"},
+          {"name": "fresh-main absorption and owner-native close", "duration": "20-90m", "necessary": "prove canonical bytes and clean the task lane without install or publication"}
+        ]
       },
-      "terminal_gaps": []
+      "terminal_gaps": ["App exact6 parity", "focused and active-shell gates", "clean remote checkpoint", "canonical parity", "owner-native cleanup"]
     }
   ],
   "worktree_snapshot": {
