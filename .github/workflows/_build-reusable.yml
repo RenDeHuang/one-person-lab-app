@@ -716,7 +716,7 @@ jobs:
           $needsElectronRebuild = $prebuildFailed -or -not (Test-Path $sqliteNode)
           if ($needsElectronRebuild) {
             Remove-Item $sqliteNode -Force -ErrorAction SilentlyContinue
-            bunx electron-rebuild -f -w better-sqlite3
+            bunx --yes @electron/rebuild@4.2.0 -f -w better-sqlite3
             if ($LASTEXITCODE -ne 0) {
               Write-Error "electron-rebuild failed with exit code $LASTEXITCODE"
               exit $LASTEXITCODE

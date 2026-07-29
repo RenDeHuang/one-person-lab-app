@@ -177,7 +177,11 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(windowsNativeRebuild?.run), /\$prebuild\.ExitCode -ne 0/);
   assert.match(String(windowsNativeRebuild?.run), /falling back to electron-rebuild/);
   assert.match(String(windowsNativeRebuild?.run), /\$needsElectronRebuild = \$prebuildFailed -or -not \(Test-Path \$sqliteNode\)/);
-  assert.match(String(windowsNativeRebuild?.run), /if \(\$needsElectronRebuild\) \{[\s\S]+Remove-Item \$sqliteNode[\s\S]+bunx electron-rebuild/);
+  assert.match(
+    String(windowsNativeRebuild?.run),
+    /if \(\$needsElectronRebuild\) \{[\s\S]+Remove-Item \$sqliteNode[\s\S]+bunx --yes @electron\/rebuild@4\.2\.0 -f -w better-sqlite3/,
+  );
+  assert.doesNotMatch(String(windowsNativeRebuild?.run), /bunx electron-rebuild/);
   assert.match(String(windowsNativeRebuild?.run), /electron-rebuild failed with exit code \$LASTEXITCODE/);
   assert.match(String(windowsRuntime?.if), /contains\(inputs\.matrix, 'windows'\)/);
   assert.equal(shellResolver.outputs.shell_sha, '${{ steps.resolve.outputs.shell_sha }}');
