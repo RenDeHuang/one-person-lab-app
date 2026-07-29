@@ -172,7 +172,7 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
     masScholarDependencies.length !== 1
     || !masScholarDependency
     || typeof masScholarDependency !== 'object'
-    || masScholarDependency.kind !== 'framework_capability_package'
+    || masScholarDependency.kind !== 'capability_package'
     || masScholarDependency.required !== true
   ) {
     throw new Error(
@@ -194,7 +194,7 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
     throw new Error(`Full runtime MAS Scholar Skills owner manifest package_id drifted: ${String(sourceManifest.package_id)}.`);
   }
   const packageVersion = stringValue(sourceManifest.version, 'MAS Scholar Skills owner manifest version');
-  if (sourceManifest.package_role !== 'framework_capability_package') {
+  if (sourceManifest.package_role !== 'capability_package') {
     throw new Error(
       `Full runtime MAS Scholar Skills owner manifest package_role drifted: ${String(sourceManifest.package_role)}.`,
     );

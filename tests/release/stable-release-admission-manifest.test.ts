@@ -46,7 +46,6 @@ const operationControlPaths = [
   '.github/workflows/release-stable.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_release-standard-publish.yml',
-  '.github/workflows/_release-native-webui-carrier.yml',
   'contracts/app-release-channel.json',
   'scripts/framework-release-adapter.ts',
   'scripts/release-dispatch-guard.ts',

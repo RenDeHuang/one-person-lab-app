@@ -172,8 +172,8 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   const catalogPolicy = productProfile.gui.agent_package_registry.catalog_presentation_policy;
   assert.deepStrictEqual(catalogPolicy.section_order, [
     'professional_agents',
+    'capability_packages',
     'workflow_profiles',
-    'shared_dependencies',
     'other_packages',
   ]);
   assert.equal(catalogPolicy.raw_package_role_visible, false);

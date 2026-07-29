@@ -78,6 +78,7 @@ function standardAssets(root: string): string {
   fs.writeFileSync(path.join(root, 'latest-mac.yml'), `version: ${updaterVersion}\npath: ${zipName}\n`);
   fs.writeFileSync(path.join(root, `One-Person-Lab-${version}-mac-arm64.dmg`), 'dmg\n');
   fs.writeFileSync(path.join(root, `${zipName}.blockmap`), 'blockmap\n');
+  fs.writeFileSync(path.join(root, `One-Person-Lab-${version}-linux-x64.deb`), 'linux desktop\n');
   fs.writeFileSync(path.join(root, 'opl-install.sh'), '#!/usr/bin/env bash\nexit 0\n', {
     mode: 0o755,
   });

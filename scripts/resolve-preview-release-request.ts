@@ -60,7 +60,7 @@ export function resolvePreviewReleaseRequest(input: PreviewReleaseRequest) {
       qualification_disclosure: {
         stable_qualified: false,
         passed_gates: ['standard_vm'],
-        skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+        skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
         failed_gates: [],
         non_stable_notice: true,
       },

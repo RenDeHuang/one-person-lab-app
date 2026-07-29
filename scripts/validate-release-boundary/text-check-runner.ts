@@ -27,8 +27,10 @@ const webuiPromotionPublishEnvironment =
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
-const nativeWebuiFollowerWorkflowPath = '.github/workflows/release-native-webui-follower.yml';
-const nativeWebuiCarrierWorkflowPath = '.github/workflows/_release-native-webui-carrier.yml';
+const retiredNativeWebuiWorkflowPaths = [
+  '.github/workflows/release-native-webui-follower.yml',
+  '.github/workflows/_release-native-webui-carrier.yml',
+] as const;
 const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
 const homebrewFullPublisherWorkflowPath = '.github/workflows/_release-homebrew-full-publish.yml';
 const postPublicationOptionalCertificationWorkflowPath =
@@ -127,26 +129,6 @@ export function isAuthorizedWebuiStablePromotionWriteJob(
     && needsExactly(job, ['admission'])
     && job.environment === webuiPromotionPublishEnvironment
     && exactObject(job.permissions, exactWebuiStablePromotionPermissions);
-}
-
-function isAuthorizedNativeWebuiWriteJob(
-  workflowPath: string,
-  jobId: string,
-  job: Record<string, any>,
-): boolean {
-  if (
-    workflowPath === nativeWebuiFollowerWorkflowPath
-    && (
-      jobId === 'native-webui-linux-readback'
-      || jobId === 'native-webui-macos-readback'
-    )
-  ) {
-    return job.uses === './.github/workflows/_release-native-webui-carrier.yml'
-      && needsExactly(job, ['resolve-handoff'])
-      && exactObject(job.permissions, exactReadPermissions)
-      && job.with?.mode === 'readback';
-  }
-  return false;
 }
 
 function isAuthorizedManualPreviewWriteJob(
@@ -711,11 +693,9 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'standard-build',
     'seal-standard-identity',
     'checkpoint-standard',
-    'prepare-native-webui',
-    'prepare-native-webui-macos',
     'publish-standard',
   ])) {
-    failures += reportFailure(id, 'Bundle jobs must contain Standard publication plus pre-publication Native qualification');
+    failures += reportFailure(id, 'Bundle jobs must contain only the single Desktop Standard publication topology');
   }
   if (bundle.workflow.on?.workflow_call?.inputs?.operation?.default !== 'standard') {
     failures += reportFailure(id, 'Bundle workflow operation must be standard');
@@ -768,44 +748,18 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'publish-standard',
     './.github/workflows/_release-standard-publish.yml',
   );
-  failures += validateReusableCall(
-    id,
-    bundleJobs,
-    'prepare-native-webui',
-    './.github/workflows/_release-native-webui-carrier.yml',
-    exactReadPermissions,
-  );
-  failures += validateReusableCall(
-    id,
-    bundleJobs,
-    'prepare-native-webui-macos',
-    './.github/workflows/_release-native-webui-carrier.yml',
-    exactReadPermissions,
-  );
   if (
-    !needsExactly(bundleJobs['prepare-native-webui'], ['freeze'])
-    || !needsExactly(bundleJobs['prepare-native-webui-macos'], ['freeze'])
-    || !needsExactly(bundleJobs['checkpoint-standard'], [
+    !needsExactly(bundleJobs['checkpoint-standard'], [
       'admission',
       'freeze',
       'seal-standard-identity',
-      'prepare-native-webui',
-      'prepare-native-webui-macos',
     ])
     || !needsExactly(bundleJobs['publish-standard'], [
       'freeze',
       'checkpoint-standard',
-      'prepare-native-webui',
-      'prepare-native-webui-macos',
     ])
-    || bundleJobs['publish-standard']?.with?.qualified_native_artifact_name !==
-      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui.outputs.qualified_artifact_name || '' }}"
-    || bundleJobs['publish-standard']?.with?.qualified_native_macos_artifact_name !==
-      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && needs.prepare-native-webui-macos.outputs.qualified_artifact_name || '' }}"
-    || bundleJobs['publish-standard']?.with?.qualified_native_source_run_id !==
-      "${{ (inputs.publication_channel || inputs.channel) == 'stable' && github.run_id || '' }}"
   ) {
-    failures += reportFailure(id, 'Native preparation must complete before the unified Standard draft carrier publishes');
+    failures += reportFailure(id, 'Standard checkpoint and publication must not depend on a retired Native carrier');
   }
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
@@ -1235,122 +1189,23 @@ export function validateReleaseBundleTopology(appRoot: string): number {
 }
 
 export function validateNativeWebuiPublicationTopology(appRoot: string): number {
-  const id = 'native_webui_publication_topology';
-  const follower = parseWorkflow(appRoot, nativeWebuiFollowerWorkflowPath, id);
-  const carrier = parseWorkflow(appRoot, nativeWebuiCarrierWorkflowPath, id);
-  if (!follower || !carrier) return [follower, carrier].filter((value) => !value).length;
+  const id = 'retired_native_webui_carrier_absent';
   let failures = 0;
-  const followerTriggers = follower.workflow.on ?? {};
-  const followerJobs = workflowJobs(follower.workflow);
-  if (
-    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run'])
-    || JSON.stringify(followerTriggers.workflow_run?.workflows) !== JSON.stringify(['OPL Stable Release Bundle'])
-    || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
-    || !exactObject(follower.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify([
-      'resolve-handoff',
-      'native-webui-linux-readback',
-      'native-webui-macos-readback',
-    ])
-  ) {
-    failures += reportFailure(id, 'Native WebUI follower must be one automatic read-default Stable workflow_run lane');
-  }
-  for (const jobId of ['native-webui-linux-readback', 'native-webui-macos-readback']) {
-    const followerCarrier = followerJobs[jobId];
-    if (!followerCarrier || !isAuthorizedNativeWebuiWriteJob(
-      nativeWebuiFollowerWorkflowPath,
-      jobId,
-      followerCarrier,
-    )) {
-      failures += reportFailure(id, `Native WebUI follower ${jobId} must delegate only the exact resolved handoff to its reusable carrier`);
+  for (const workflowPath of retiredNativeWebuiWorkflowPaths) {
+    if (fs.existsSync(path.join(appRoot, workflowPath))) {
+      failures += reportFailure(id, `${workflowPath} must remain absent after the single Desktop carrier cutover`);
     }
   }
-  for (const required of [
-    '.path == ".github/workflows/release-stable.yml"',
-    'opl-release-activation-${STABLE_AUTHORITY_RUN_ID}',
-    'webui-follower-handoff.json',
-    'opl_standard_latest_admission_receipt.v1',
-    'framework_terminal_status == "complete"',
-    'linux_publication_artifact',
-    'macos_publication_artifact',
-  ]) {
-    if (!follower.text.includes(required)) failures += reportFailure(id, `Native follower is missing ${required}`);
+  if (fs.existsSync(path.join(appRoot, 'scripts/release-native-webui-carrier.ts'))) {
+    failures += reportFailure(id, 'scripts/release-native-webui-carrier.ts must remain absent after the single Desktop carrier cutover');
   }
-  if (/workflow_dispatch:|continue-on-error|packages: write|release-webui-stable\.yml|_release-webui-carrier\.yml/.test(follower.text)) {
-    failures += reportFailure(id, 'Native follower must not expose manual, GHCR, or hidden failure paths');
-  }
-
-  const carrierInputs = carrier.workflow.on?.workflow_call?.inputs ?? {};
-  const carrierJobs = workflowJobs(carrier.workflow);
-  if (
-    JSON.stringify(Object.keys(carrier.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
-    || JSON.stringify(Object.keys(carrierInputs)) !== JSON.stringify([
-      'mode',
-      'stable_authority_run_id',
-      'app_ref',
-      'shell_ref',
-      'framework_ref',
-      'opl_version',
-      'target_platform',
-      'target_architecture',
-      'release_bundle_digest',
-      'source_run_id',
-      'source_artifact',
-      'standard_identity_sha256',
-      'qualified_artifact_name',
-      'publication_artifact_name',
-    ])
-    || carrier.workflow.permissions !== undefined
-    || JSON.stringify(Object.keys(carrierJobs)) !== JSON.stringify([
-      'startup-canary',
-      'build-and-qualify',
-      'readback-native-assets',
-    ])
-  ) {
-    failures += reportFailure(id, 'Native reusable must expose only exact cohort/checkpoint inputs and startup/prepare/readback jobs');
-  }
-  const startup = carrierJobs['startup-canary'];
-  const build = carrierJobs['build-and-qualify'];
-  const readback = carrierJobs['readback-native-assets'];
-  if (
-    !startup
-    || startup.if !== "${{ inputs.mode == 'canary' }}"
-    || !exactObject(startup.permissions, exactReadPermissions)
-    || !build
-    || build.if !== "${{ inputs.mode == 'prepare' }}"
-    || !exactObject(build.permissions, exactReadPermissions)
-    || build['continue-on-error'] !== true
-    || !readback
-    || readback.if !== "${{ inputs.mode == 'readback' }}"
-    || !exactObject(readback.permissions, exactReadPermissions)
-  ) {
-    failures += reportFailure(id, 'Native reusable permissions or canary/prepare/readback isolation drifted');
-  }
-  for (const required of [
-    'test "$(id -u)" -ne 0',
-    'repository: gaofeng21cn/opl-aion-shell',
-    'repository: gaofeng21cn/one-person-lab',
-    'desired_root_package_ids',
-    'tests/unit/web-cli/nativeDistribution.test.ts',
-    'tests/unit/web-cli/packWebCli.test.ts',
-    '--rollback',
-    'official-profile-first-install-complete',
-    'user-sentinel.txt',
-    'project-sentinel.txt',
-    'release-native-webui-carrier.ts readback',
-    'native-webui-qualified-${{ inputs.opl_version }}-${{ inputs.target_platform }}-${{ inputs.target_architecture }}-',
-    'restore-release-checkpoint',
-    '--publication-scope external_target',
-    'prior_mutation_attempt_id',
-    'find imported-checkpoint -type f -name publication-manifest.json',
-    'find imported-checkpoint -type f -name standard-identity-receipt.json',
-    'test "$(jq -r .operation_id <<<"$marker")"',
-    'opl release reconcile',
-  ]) {
-    if (!carrier.text.includes(required)) failures += reportFailure(id, `Native reusable is missing ${required}`);
-  }
-  if (/workflow_dispatch:|ghcr\.io|packages: write|make_latest|github-activate-latest|_release-full-addon\.yml/.test(carrier.text)) {
-    failures += reportFailure(id, 'Native reusable must remain pre-publication qualification plus read-only public reconciliation');
+  const workflowDirectory = path.join(appRoot, '.github', 'workflows');
+  for (const name of fs.readdirSync(workflowDirectory)) {
+    if (!name.endsWith('.yml') && !name.endsWith('.yaml')) continue;
+    const text = fs.readFileSync(path.join(workflowDirectory, name), 'utf8');
+    if (/release-native-webui-carrier\.ts|release-native-webui-follower\.yml|_release-native-webui-carrier\.yml|prepare-native-webui|qualified_native_/.test(text)) {
+      failures += reportFailure(id, `.github/workflows/${name} must not reference the retired Native WebUI carrier`);
+    }
   }
   return failures;
 }
@@ -2094,9 +1949,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       failures += 1;
       continue;
     }
-    const isNativeWebuiWorkflow = workflowPath === nativeWebuiFollowerWorkflowPath
-      || workflowPath === nativeWebuiCarrierWorkflowPath;
-    if (!Object.prototype.hasOwnProperty.call(workflow?.on ?? {}, 'workflow_dispatch') && !isNativeWebuiWorkflow) continue;
+    if (!Object.prototype.hasOwnProperty.call(workflow?.on ?? {}, 'workflow_dispatch')) continue;
     const topPermissions = workflow.permissions && typeof workflow.permissions === 'object' ? workflow.permissions : {};
     const topWrites = Object.entries(topPermissions).filter(([, value]) => value === 'write').map(([key]) => key);
     if (topWrites.length > 0) {
@@ -2111,10 +1964,6 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
       if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
-        failures += validateExactActionPins(workflowPath, jobId, steps);
-        continue;
-      }
-      if (isAuthorizedNativeWebuiWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }

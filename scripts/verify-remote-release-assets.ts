@@ -115,6 +115,7 @@ function requiredAssetNames(version, includeFullPackage, releaseView) {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${version}-linux-x64.deb`,
     "latest-arm64-mac.yml",
     "opl-install.sh",
     "opl-app-installer.sh",

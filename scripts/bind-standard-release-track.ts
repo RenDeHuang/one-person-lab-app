@@ -106,6 +106,8 @@ export function bindStandardReleaseTrack(input: {
 
   const dmgName = `One-Person-Lab-${input.version}-mac-arm64.dmg`;
   const dmgPath = requiredFile(assetsDir, dmgName);
+  const linuxDesktopName = `One-Person-Lab-${input.version}-linux-x64.deb`;
+  const linuxDesktopPath = requiredFile(assetsDir, linuxDesktopName);
   const notarizationPath = requiredFile(assetsDir, 'standard-apple-notarization-receipt.json');
   const gatekeeperPath = requiredFile(assetsDir, 'standard-gatekeeper-launch-policy.json');
   const notarization = assertAppleNotarizationReceipt(
@@ -134,6 +136,7 @@ export function bindStandardReleaseTrack(input: {
     dmgName,
     zipName,
     `${zipName}.blockmap`,
+    linuxDesktopName,
     'latest-arm64-mac.yml',
     'opl-install.sh',
     'opl-app-installer.sh',
@@ -228,6 +231,11 @@ export function bindStandardReleaseTrack(input: {
       gatekeeper_policy: { name: 'standard-gatekeeper-launch-policy.json', sha256: sha256(gatekeeperPath) },
       notarization_receipt: { name: 'standard-apple-notarization-receipt.json', sha256: sha256(notarizationPath) },
       final_dmg: { name: dmgName, sha256: sha256(dmgPath) },
+    },
+    linux_desktop: {
+      name: linuxDesktopName,
+      sha256: sha256(linuxDesktopPath),
+      launch_modes: ['desktop', 'webui'],
     },
     component_manifest: {
       name: 'opl-app-component-manifest.json',

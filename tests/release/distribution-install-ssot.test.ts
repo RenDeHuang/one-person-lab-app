@@ -26,39 +26,24 @@ test('distribution/install SSOT validates the current and approved state split',
     'implemented_pending_first_publication_readback',
   );
   assert.equal(release.distribution_semantics.topology_counts.current_publication_carrier_families, 3);
-  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 5);
+  assert.equal(release.distribution_semantics.topology_counts.current_production_publication_paths, 4);
   assert.equal(install.distribution_install_model.topology_counts.current_ordinary_install_entrypoint_families, 4);
-  assert.equal(install.distribution_install_model.topology_counts.current_supported_app_runtime_forms, 3);
-  assert.equal(install.distribution_install_model.topology_counts.approved_target_app_runtime_forms, 3);
-  assert.equal(
-    install.distribution_install_model.runtime_forms.native_webui.public_install_status,
-    'published_digest_bound',
-  );
+  assert.equal(install.distribution_install_model.topology_counts.current_supported_app_runtime_forms, 2);
+  assert.equal(install.distribution_install_model.topology_counts.approved_target_app_runtime_forms, 2);
   assert.deepEqual(
-    install.distribution_install_model.runtime_forms.native_webui.supported_targets,
-    ['linux_x86_64'],
-  );
-  assert.deepEqual(
-    install.distribution_install_model.runtime_forms.native_webui.implemented_targets_pending_publication,
-    ['macos_arm64'],
-  );
-  assert.deepEqual(
-    install.distribution_install_model.installer_convergence.approved_universal_target.native_webui_public_discovery,
+    install.distribution_install_model.installer_convergence.approved_universal_target.desktop_release_identity,
     {
       repository: 'gaofeng21cn/one-person-lab-app',
       release_selector: 'github_latest_pointer_exact_release',
       required_asset_roles: [
-        'runtime_tarball',
-        'runtime_metadata',
-        'installer',
-        'installer_sha256',
-        'qualification_receipt',
+        'platform_desktop_payload',
+        'component_manifest',
+        'release_universal_installer',
       ],
-      installer_digest_authority: 'github_release_asset_digest_sha256',
-      quality_admission_authority: 'exact_digest_bound_native_qualification_receipt_not_latest_pointer',
+      installer_digest_authority: 'component_manifest_and_github_release_asset_digest',
+      quality_admission_authority: 'same_desktop_qualification_and_component_manifest',
       exact_tag_download_url_required: true,
-      probe_before_selection_required: true,
-      pre_publication_fallback: 'container_webui',
+      native_artifact_discovery_allowed: false,
       target_selection: 'host_platform_and_architecture',
     },
   );
@@ -70,10 +55,7 @@ test('distribution/install SSOT validates the current and approved state split',
     install.distribution_install_model.homebrew_carriers.full.formula_dependency_target,
     false,
   );
-  assert.equal(
-    install.distribution_install_model.homebrew_carriers.native_webui.technical_feasibility,
-    'feasible_same_command_cross_platform',
-  );
+  assert.equal(install.distribution_install_model.runtime_forms.desktop.browser_webui_mode, 'packaged_desktop_bytes');
   assert.equal(
     release.distribution_semantics.approved_targets.homebrew_full.generation_status,
     'implemented_pending_first_protected_follower_readback',
@@ -83,8 +65,8 @@ test('distribution/install SSOT validates the current and approved state split',
     true,
   );
   assert.equal(
-    release.distribution_semantics.approved_targets.native_webui.production_topology,
-    'standard_operation_nonblocking_prepare_then_post_latest_protected_additive_publish_with_follower_readback',
+    release.distribution_semantics.approved_targets.desktop_linux_x86_64.desktop_asset,
+    'One-Person-Lab-<version>-linux-x64.deb',
   );
   assert.equal(
     release.distribution_semantics.latest_policy.default_behavior,
@@ -337,23 +319,22 @@ test('cross-contract drift fails closed for channel, carrier, and convergence mu
       },
     ],
     [
-      'Native WebUI being advertised before publication',
+      'Desktop runtime restoring the retired Native tarball carrier',
       (_, install) => {
-        install.distribution_install_model.runtime_forms.native_webui.public_install_status = 'supported';
+        install.distribution_install_model.runtime_forms.desktop.native_tarball_carrier = 'active';
       },
     ],
     [
-      'Native WebUI expanding Stable operations',
-      (release) => {
-        release.distribution_semantics.approved_targets.native_webui.stable_operation_set_must_remain.push(
-          'publish_native',
-        );
+      'Desktop installer allowing retired Native asset discovery',
+      (_, install) => {
+        install.distribution_install_model.installer_convergence.approved_universal_target
+          .desktop_release_identity.native_artifact_discovery_allowed = true;
       },
     ],
     [
-      'Native WebUI changing Container moving tags',
+      'Linux Desktop changing Container moving tags',
       (release) => {
-        release.distribution_semantics.approved_targets.native_webui.container_ghcr_tags_must_remain_unchanged = [
+        release.distribution_semantics.approved_targets.desktop_linux_x86_64.container_ghcr_tags_must_remain_unchanged = [
           'native-latest',
         ];
       },

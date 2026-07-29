@@ -210,15 +210,56 @@ test("admission binds Standard run, exact checkpoint, cohort, and stable publica
   assert.match(source, /\.bundle_digest "\$bundle"/);
   assert.match(source, /dispatch_payload=.*--argjson inputs "\$inputs_json"/);
   assert.match(source, /dispatch_ref="main"/);
+  assert.match(source, /append_full_run_name_regex="\^OPL Stable append_full source:\$\{SOURCE_RUN_ID\} run:\[1-9\]\[0-9\]\*\$"/);
   assert.match(source, /prior_run_ids="\$\(/);
+  assert.match(source, /--arg append_full_run_name_regex "\$append_full_run_name_regex"/);
   assert.match(source, /--argjson prior_run_ids "\$prior_run_ids"/);
+  assert.match(source, /--arg append_full_run_name_regex "\$append_full_run_name_regex"/);
   assert.match(source, /select\(\(\$prior_run_ids \| index\(\$candidate_id\)\) \| not\)/);
+  assert.equal((source.match(/test\(\$append_full_run_name_regex\)/g) ?? []).length, 3);
   assert.match(source, /executor_run_head_sha="\$\(jq -er '\.head_sha/);
   assert.match(source, /echo "executor_run_head_sha=\$executor_run_head_sha"/);
   assert.match(source, /--arg ref "\$dispatch_ref"/);
   assert.match(source, /'\{ref:\$ref,inputs:\$inputs\}'/);
   assert.match(source, /--input - <<<"\$dispatch_payload"/);
   assert.doesNotMatch(source, /current_main_sha/);
+});
+
+test("append_full dispatch binds candidates and final readback to one exact Standard source run", () => {
+  const stableWorkflow = parseYaml(
+    fs.readFileSync(path.join(process.cwd(), ".github", "workflows", "release-stable.yml"), "utf8"),
+  ) as Record<string, any>;
+  const sourceRunId = "30123456789";
+  const concurrentSourceRunId = "30123456790";
+  const sourceBoundTitle = (runId: string, appendRunId: string) =>
+    `OPL Stable append_full source:${runId} run:${appendRunId}`;
+  const sourceBoundPattern = new RegExp(
+    `^OPL Stable append_full source:${sourceRunId} run:[1-9][0-9]*$`,
+  );
+  const dispatchSnapshot = ["40100000001"];
+  const dispatchCandidates = [
+    {
+      id: "40100000002",
+      created_at: "2026-07-29T00:00:01Z",
+      display_title: sourceBoundTitle(concurrentSourceRunId, "40100000002"),
+    },
+    {
+      id: "40100000003",
+      created_at: "2026-07-29T00:00:02Z",
+      display_title: sourceBoundTitle(sourceRunId, "40100000003"),
+    },
+  ];
+
+  assert.match(
+    String(stableWorkflow["run-name"]),
+    /format\('OPL Stable append_full source:\{0\} run:\{1\}', inputs\.source_run_id, github\.run_id\)/,
+  );
+  const selected = dispatchCandidates.filter(
+    (candidate) => !dispatchSnapshot.includes(candidate.id) && sourceBoundPattern.test(candidate.display_title),
+  );
+  assert.deepEqual(selected.map((candidate) => candidate.id), ["40100000003"]);
+  assert.doesNotMatch(dispatchCandidates[0].display_title, sourceBoundPattern);
+  assert.match(dispatchCandidates[1].display_title, sourceBoundPattern);
 });
 
 test("successor dispatch is exactly one append_full JSON input set with no legacy qualification input", () => {

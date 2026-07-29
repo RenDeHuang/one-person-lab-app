@@ -27,6 +27,7 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     asset('One-Person-Lab-26.7.13-mac-arm64.dmg', '2'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip', '3'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip.blockmap', '4'),
+    asset('One-Person-Lab-26.7.13-linux-x64.deb', '9'),
     asset('opl-install.sh', '8'),
     asset('opl-app-installer.sh', '5'),
     asset('standard-gatekeeper-launch-policy.json', '6'),
@@ -79,7 +80,7 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     non_stable_notice: false,
   });
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
-  assert.equal(component.artifacts.length, 8);
+  assert.equal(component.artifacts.length, 9);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.deepEqual(
     component.artifacts.find((entry: { name: string }) => entry.name === 'opl-install.sh'),
@@ -140,6 +141,7 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.dmg`, '2'),
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip`, '3'),
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip.blockmap`, '4'),
+          asset(`One-Person-Lab-${fixture.version}-linux-x64.deb`, '9'),
           asset('opl-install.sh', '8'),
           asset('opl-app-installer.sh', '5'),
           asset('standard-gatekeeper-launch-policy.json', '6'),
@@ -178,7 +180,6 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
               skipped_gates: [
                 'stable_heavy_vm',
                 'homebrew_clean_install',
-                'native_webui',
                 'container_webui',
                 'full',
               ],
@@ -188,12 +189,12 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
           : {
               stable_qualified: false,
               passed_gates: ['standard_vm'],
-              skipped_gates: ['homebrew_clean_install', 'native_webui', 'container_webui', 'full'],
+              skipped_gates: ['homebrew_clean_install', 'container_webui', 'full'],
               failed_gates: [],
               non_stable_notice: true,
             },
       );
-      assert.equal(component.artifacts.length, fixture.buildTrigger === 'automated' ? 6 : 8);
+      assert.equal(component.artifacts.length, fixture.buildTrigger === 'automated' ? 7 : 9);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

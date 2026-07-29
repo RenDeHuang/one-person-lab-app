@@ -3944,7 +3944,7 @@
       "list_density_policy": {
         "row_identity_key": "package_id",
         "grouping_policy_ref": "contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy",
-        "row_hierarchy_policy": "one_projected_package_one_row_with_single_parent_dependencies_nested_and_shared_dependencies_grouped",
+        "row_hierarchy_policy": "one_projected_package_one_row_with_single_parent_dependencies_nested_and_capability_packages_grouped",
         "primary_row_fields": [
           "display_name",
           "package_role",
@@ -3974,7 +3974,7 @@
           "last_synced_at",
           "failure_reason_when_failed"
         ],
-        "content_block_policy": "directory may include standard_agent, framework_capability_package, and workflow_profile package roles, but Skill, Plugin, workflow internals, connector, resource, and export catalogs remain on Capabilities or their owner pages",
+        "content_block_policy": "directory may include standard_agent, capability_package, and workflow_profile package roles, but Skill, Plugin, workflow internals, connector, resource, and export catalogs remain on Capabilities or their owner pages",
         "advanced_diagnostic_fields": [
           "package_id",
           "owner_diagnostic_ref",
