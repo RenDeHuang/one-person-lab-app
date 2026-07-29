@@ -7,15 +7,15 @@
   "mutation_authority": false,
   "runtime_truth_authority": false,
   "instruction_revision": "user-2026-07-29-central-ledger-only-clean-baseline-v3",
-  "generated_at": "2026-07-29T05:02:07Z",
+  "generated_at": "2026-07-29T05:32:20Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "ee486545fc531225dedd12bb9808ecaf94f05cd2",
-    "tree": "87489616c538d1d357fff47afa25a73eab05e2f2",
+    "commit": "98b9d55ea8d64dfd8099fb0ba8e9ea0d432c1362",
+    "tree": "6d52c3fe620c32e54e43ac15062eea145f8336a3",
     "local_tracking_wire_parity": true,
     "clean": true,
-    "observation": "Fresh App local, tracking and GitHub wire readback agree at ee486545/tree 87489616 after PR #84 and PR #82 ordinary protected absorption. PR #82 source bytes are canonical; its post-merge source-bound identity defect is tracked as a same-owner successor."
+    "observation": "Snapshot generation baseline: fresh App local, tracking and GitHub wire readback agree at 98b9d55e/tree 6d52c3fe after PR #86 ordinary protected absorption. This is the immutable generation base for this snapshot, not a self-reference to the later documentation merge commit."
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
   "coordination_governance": {
@@ -58,7 +58,7 @@
     }
   },
   "fresh_execution_graph": {
-    "observed_at": "2026-07-29T05:02:07Z",
+    "observed_at": "2026-07-29T05:32:20Z",
     "baseline_objective": "Absorb every valid source lane into current canonical main, close only owner-owned surfaces, and publish a clean current SSOT without globally freezing independent straightforward work.",
     "transparent_convergence": {
       "baseline_priority": "Source absorption, parity, and owner-native cleanup remain the primary convergence queue.",
@@ -71,7 +71,7 @@
       {
         "objective": "framework-first-party-payload-concurrent-write-repair-20260729",
         "owner": "/root/framework_payload_ci_fix",
-        "result": "Original receipt owner was resumed; exact2 checkpoint 16f5cef9/tree ee550bb8 is recoverable and awaits Integrator absorption."
+        "result": "Original receipt owner was resumed; PR #14 absorbed exact2 into Framework canonical afdc19b1/tree ee550bb8, then the original owner completed official guarded close with every task surface absent and remaining empty."
       },
       {
         "objective": "framework-append-full-built-admission-20260729",
@@ -86,22 +86,22 @@
     ],
     "current_repositories": {
       "app": {
-        "wire": "ee486545fc531225dedd12bb9808ecaf94f05cd2",
-        "tree": "87489616c538d1d357fff47afa25a73eab05e2f2",
+        "wire": "98b9d55ea8d64dfd8099fb0ba8e9ea0d432c1362",
+        "tree": "6d52c3fe620c32e54e43ac15062eea145f8336a3",
         "root_clean_aligned": true,
-        "lifecycle_active_owned": 10,
-        "lifecycle_worktree_count": 10,
+        "lifecycle_active_owned": 9,
+        "lifecycle_worktree_count": 9,
         "cleanup_ready": 0
       },
       "framework": {
-        "wire": "430bbf92c037199b917c397d38f2a71b8442ac3d",
-        "tree": "d78949d34e714f489f0e0650e45af8695f74af42",
+        "wire": "afdc19b1b0afba9fe0c4c25351470781f19980c4",
+        "tree": "ee550bb82a536fb5df95d652d2ee17c1fa1676fa",
         "root_local": "48492081bd287fb901ddf5349e00615cb25c57ef",
         "root_dirty_paths": [
           "src/modules/connect/release-bundle/operation-control.ts",
           "tests/src/cli/cases/release-bundle-cases/operation-control.test.ts"
         ],
-        "root_alignment": "behind4_dirty2",
+        "root_alignment": "behind6_dirty2",
         "lifecycle_active_owned": 3,
         "lifecycle_worktree_count": 3,
         "cleanup_ready": 0
@@ -120,8 +120,8 @@
           "objective": "framework-first-party-payload-concurrent-write-repair-20260729",
           "owner": "/root/framework_payload_ci_fix",
           "surface": "Framework exact2 commit 16f5cef9/tree ee550bb8",
-          "state": "checkpoint_ready",
-          "next_action": "Root Integrator absorbs against fresh Framework main, returns exact2 parity, then original owner closes."
+          "state": "owner_closed_remaining_empty",
+          "next_action": "No source or cleanup action; preserve the canonical/absent proof and the unrelated shared Framework dirty root."
         },
         {
           "objective": "framework-append-full-built-admission-20260729",
@@ -137,21 +137,21 @@
           "owner": "019f9d37-99f9-7d03-981b-acdc4c8f34ca",
           "surface": "Framework PR #8 exact4",
           "state": "fresh_main_replay_required",
-          "next_action": "Replay exact4 on Framework main 430bbf92, rerun affected gates, checkpoint, then Integrator absorption."
+          "next_action": "Replay exact4 on Framework main afdc19b1, rerun affected gates, checkpoint, then Integrator absorption."
         },
         {
           "objective": "full-successor-source-bound-20260729",
           "owner": "019fa25a-c8b6-7de3-b436-cb6d13415ce4",
-          "surface": "App post-merge P2 exact3 PR #86 ba50de26/tree b9b6996e",
-          "state": "checkpoint_ready_advisory_in_progress",
-          "next_action": "Required PR/quality/merge/Framework/contract checks are green; after Codex review advisory becomes terminal, Root Integrator performs protected absorption and fresh parity before V5 replay, then the original owner closes."
+          "surface": "App PR #86 exact3 absorbed at 98b9d55e/tree 6d52c3fe from fresh checkpoint 5c23e41f",
+          "state": "owner_closed_remaining_empty",
+          "next_action": "No source or cleanup action; preserve canonical and absent-surface proof. V5 consumes the canonical exact3 result independently."
         },
         {
           "objective": "single-desktop-carrier-v5-linux-desktop-webui",
           "owner": "019fa719-11cf-7b70-bf2d-ec101f100de4",
-          "surface": "App V5 same-receipt exact43 at ef364ffc/tree 9d804579 with active dirty replay",
-          "state": "dirty_active_replay",
-          "next_action": "Continue the existing V5 implementation without CodeGraph maintenance. The same receipt now adds only scripts/resolve-preview-release-request.ts and tests/release/release-control-plane-contract.test.ts to repair retired-native skipped_gates and the current 11-stage consumer; complete exact43 gates/checkpoint, then replay PR #86 canonical before absorption."
+          "surface": "App V5 clean checkpoint 1334078f/tree d368b79e; official receipt expanded to exact45",
+          "state": "active_consumer_fixture_repair",
+          "next_action": "Continue the existing V5 owner without CodeGraph maintenance. Complete exact45 gates/checkpoint, replay canonical PR #86 exact3, then consume the Standard-assets exact6 result before aggregate/absorption."
         },
         {
           "objective": "self-hosted-routine-pools-20260729",
@@ -214,14 +214,13 @@
     },
     "canonical_slots": {
       "app": [
-        "opl-package-classification-ui-20260729",
-        "full-successor-source-bound-20260729",
+        "standard-single-desktop-assets-20260729",
         "single-desktop-carrier-v5-linux-desktop-webui",
-        "self-hosted-routine-pools-20260729"
+        "self-hosted-routine-pools-20260729",
+        "opl-package-classification-ui-20260729"
       ],
       "framework": [
         "framework-managed-update-process-identity-recovery-20260729",
-        "framework-first-party-payload-concurrent-write-repair-20260729",
         "opl-package-complex-manager-retirement"
       ],
       "shared_integrator": "019fa925-b620-7932-8a0f-35bbf5b7312e"
@@ -319,10 +318,10 @@
       "execution_owner_threads": ["019fa6a2-c301-7b93-8a5b-1b85e875e279"],
       "scope": "Projectless App contracts, active-shell validators and release-boundary contract replay.",
       "write_set": ["contracts/app-first-run-test-matrix.json", "contracts/app-shell-adapter.json", "docs/decisions.md", "scripts/build-full-first-install-package/runtime-cache.ts", "scripts/build-full-first-install-package/runtime-sources.ts", "scripts/validate-active-shell/shell-ordinary-experience-validator.ts", "scripts/validate-active-shell/upstream-intake-policy-validator.ts", "tests/release/app-release-boundary-cases/upstream-intake-policy-validation.test.ts", "tests/release/codex-default-profile.test.ts"],
-      "current_authority": "App PR #84 exact9 is absorbed in canonical ee486545/tree 87489616; source parity is complete but owner-native close is held by the shared App CodeGraph daemon.",
+      "current_authority": "App PR #84 exact9 remains absorbed in canonical 98b9d55e/tree 6d52c3fe; source parity is complete but owner-native close is held by the shared App CodeGraph daemon.",
       "next_action": "Keep ACTIVE until the Ledger-authorized App-root CodeGraph drain window completes, then the original owner performs official lifecycle close and absent proof.",
       "absorption_plan": "Fresh App main semantic replay; focused/typecheck/active-shell gates; protected merge by Root Integrator 019fa925; parity and close.",
-      "terminal_gaps": ["protected canonical absorption", "canonical parity", "holder/lock zero", "owner-native close"],
+      "terminal_gaps": ["holder/lock zero", "owner-native close"],
       "archive_performed": false,
       "user_approval_required": true
     },
@@ -499,8 +498,8 @@
       "execution_owner_threads": ["019fa719-11cf-7b70-bf2d-ec101f100de4"],
       "scope": "Single Desktop V5 additive Linux/Desktop/WebUI payload while preserving Full and Homebrew paths.",
       "write_set": [".github/workflows/_release-bundle.yml", ".github/workflows/_release-standard-publish.yml", "contracts/app-release-channel.json", "install.sh", "scripts/bind-standard-release-track.ts", "scripts/framework-release-adapter.ts", "scripts/release-bundle.ts", "scripts/validate-standard-publication-input.ts", "scripts/verify-remote-release-assets.ts", "scripts/write-opl-app-component-manifest.ts"],
-      "current_authority": "V5 checkpoint 700199ba is superseded by the same-receipt working tree at ef364ffc/tree 9d804579; its authorized write set is exact43 after adding two direct stale consumers, and PID40289 holds the V5 CodeGraph files.",
-      "next_action": "Finish the existing exact43 replay and gates against fresh App main, preserve Full/Docker/append_full semantics, callback no-CodeGraph before any daemon maintenance, then checkpoint; no publication mutation.",
+      "current_authority": "V5 clean checkpoint is 1334078f/tree d368b79e and its same-owner official receipt is exact45 after adding four direct/aggregate consumers. PID40289 still holds the V5 CodeGraph files.",
+      "next_action": "Finish exact45 checkpoint and replay canonical PR #86 exact3, then consume Standard-assets exact6 before aggregate; preserve Full/Docker/append_full and perform no CodeGraph or publication mutation.",
       "absorption_plan": "Fresh App main replay; focused/release-boundary gates; Root Integrator protected absorption; parity and close. Preserve Full/append_full/Homebrew.",
       "terminal_gaps": ["Shell producer checkpoint", "Linux public deb normalization", "canonical absorption", "owner-close"],
       "archive_performed": false,
@@ -529,10 +528,10 @@
       "execution_owner_threads": ["019fa73e-d7cc-73c3-a607-258f85b218eb", "019fa719-11cf-7b70-bf2d-ec101f100de4"],
       "scope": "Automated Full DMG, Homebrew Full and clean-VM post-Stable follower terminal evidence.",
       "write_set": [".github/workflows/release-stable-post-success-followups.yml", "contracts/app-release-channel.json", "scripts/validate-release-boundary/release-contract-policy.ts", "tests/release/release-bundle-control-plane-contract.test.ts", "tests/release/release-stable-post-success-followups.test.ts"],
-      "current_authority": "App PR #82 exact5 is canonical in ee486545; the source-bound successor PR #86 is open at ba50de26/tree b9b6996e with focused/local gates PASS and current-head checks pending.",
-      "next_action": "Complete PR #86 current-head checks, then Root Integrator performs protected App absorption and fresh parity; original owner closes before any Full publication.",
+      "current_authority": "App PR #86 exact3 is canonical at 98b9d55e/tree 6d52c3fe; original owner completed guarded close with every task surface absent and remaining empty.",
+      "next_action": "No source or cleanup action for PR #86. Any later Full publication remains a distinct authorized operation.",
       "absorption_plan": "Framework append admission first; App exact5 semantic replay; protected App absorption; Full/Homebrew clean-host terminal.",
-      "terminal_gaps": ["exact5 repair", "fresh checks", "canonical absorption", "Full/Homebrew terminal"],
+      "terminal_gaps": ["Full/Homebrew terminal under separate publication authority"],
       "archive_performed": false,
       "user_approval_required": true
     },
@@ -574,8 +573,8 @@
       "execution_owner_threads": ["019f9d37-99f9-7d03-981b-acdc4c8f34ca"],
       "scope": "Framework managed-update process identity and regression repair.",
       "write_set": ["tests/src/cli/cases/managed-update-kernel-cases/base-runtime-maintenance.ts", "tests/src/cli/cases/managed-update-kernel-projection.test.ts", "tests/src/cli/cases/managed-update-kernel.test.ts", "tests/src/cli/cases/packages-cases/workflow-policy-transaction.test.ts"],
-      "current_authority": "Framework PR #8 remains OPEN/DRAFT at 2aa526b3/tree 813f79ba; its exact4 lane is clean and recoverable, while the canonical Framework wire is 430bbf92/tree d78949d3.",
-      "next_action": "Original owner replays exact4 on fresh Framework wire 430bbf92, reruns affected gates, checkpoints, then Root Integrator absorbs before Package exact1 comparison.",
+      "current_authority": "Framework PR #8 remains OPEN/DRAFT at 2aa526b3/tree 813f79ba; its exact4 lane is clean and recoverable, while the canonical Framework wire is afdc19b1/tree ee550bb8.",
+      "next_action": "Original owner replays exact4 on fresh Framework wire afdc19b1, reruns affected gates, checkpoints, then Root Integrator absorbs before Package exact1 comparison.",
       "absorption_plan": "Fresh Framework replay; exact-head checks; protected merge; parity and owner-native close.",
       "terminal_gaps": ["clean checkpoint", "fresh wire replay", "current-head CI", "canonical absorption", "owner-close"],
       "archive_performed": false,
@@ -604,8 +603,8 @@
       "execution_owner_threads": ["019fa145-fd2d-7a80-ac29-39d36138197f"],
       "scope": "Self-hosted advisory pools, artifact identity/dedupe, Fleet lease readback, trusted branch and least-privilege inventory.",
       "write_set": ["proposed App exact4 workflow/contract/test slice; no writer dispatched yet"],
-      "current_authority": "Runner exact4 is checkpointed at f4cc8b52/tree 9aae9a27 with all local gates PASS; it remains unabsorbed and overlaps V5 on the App contract.",
-      "next_action": "Hold until V5 canonical slot resolves, then fresh-main replay, protected absorption, parity and owner-native close; external runner route/key mutation remains separate.",
+      "current_authority": "Runner exact4 is fresh-main replayed and checkpointed at a507eaa0/tree 20273269 with focused, aggregate, typecheck, actionlint, active-shell, format and lint gates PASS; it remains unabsorbed and overlaps V5 on the App contract.",
+      "next_action": "After V5 canonical slot, perform protected absorption, parity and owner-native close; external runner route/key mutation remains separate.",
       "absorption_plan": "Local gates and checkpoint; protected App absorption; Fleet external binding only as a separate authorized operation.",
       "terminal_gaps": ["exact4 source owner dispatch", "Fleet/App binding", "token scope proof", "canonical close"],
       "archive_performed": false,
@@ -619,10 +618,10 @@
       "execution_owner_threads": ["019f9def-0a13-7061-8320-dca8b058c014"],
       "scope": "Framework CI gates, cross-platform lock repair and first-party payload admission.",
       "write_set": ["owner-reported Framework exact paths; current root dirty release-bundle paths are preserved"],
-      "current_authority": "Framework payload exact2 is checkpointed at 16f5cef9/tree ee550bb8 with focused, aggregate, typecheck, lint, reuse and coverage gates PASS; Framework root remains dirty exact2 and behind4.",
-      "next_action": "Root Integrator performs fresh-main semantic absorption of exact2, returns canonical parity, then the original owner closes; preserve the dirty root bytes.",
+      "current_authority": "Framework PR #14 absorbed payload exact2 into canonical afdc19b1/tree ee550bb8; original owner then completed official lifecycle close with path, registration, gitdir, refs, receipt, temp, holder and lock surfaces absent. Framework root remains unrelated dirty exact2 and behind6.",
+      "next_action": "Preserve payload close evidence and continue the remaining Framework CI/PR #8 work under its original owners; preserve the dirty root bytes.",
       "absorption_plan": "Framework fresh main replay; local/hosted gates; canonical absorption; root dirty-byte disposition by original owners.",
-      "terminal_gaps": ["current root parity", "gate repair checkpoints", "canonical absorption", "owner-close"],
+      "terminal_gaps": ["current root parity", "remaining Framework CI and PR #8 source lanes"],
       "archive_performed": false,
       "user_approval_required": true
     },
@@ -649,7 +648,7 @@
       "execution_owner_threads": ["019f8f6a-718b-78f1-801f-48d5eae617e7"],
       "scope": "Single coordination authority, model preservation and six-line/29-task coverage SSOT.",
       "write_set": ["docs/active/active-objective-ledger.json", "docs/active/parallel-delivery-and-clean-development-ssot.md"],
-      "current_authority": "This ledger worktree is the only governance writer; App canonical ee486545/tree 87489616 remains clean/aligned and Framework wire is 430bbf92/tree d78949d3.",
+      "current_authority": "This ledger worktree is the only governance writer; snapshot generation base is App 98b9d55e/tree 6d52c3fe clean/aligned and Framework wire afdc19b1/tree ee550bb8.",
       "next_action": "Run JSON/diff gates, ordinary checkpoint push, then Ledger-authorized protected absorption and owner-native close.",
       "absorption_plan": "Documentation-only replay into current App main; parity and lifecycle close before any title/archive action.",
       "terminal_gaps": ["local gates", "remote checkpoint", "canonical absorption", "owner-close"],
@@ -664,7 +663,7 @@
       "execution_owner_threads": ["019fa925-b620-7932-8a0f-35bbf5b7312e"],
       "scope": "One Integrator per repository for fresh-main semantic replay, protected absorption and parity.",
       "write_set": ["canonical main mutation is short-lived and Ledger-dispatched only"],
-      "current_authority": "App root is clean/aligned at ee486545/tree 87489616 with nine active lifecycle worktrees; Framework wire is 430bbf92 while its local root remains behind4/dirty2.",
+      "current_authority": "App root is clean/aligned at snapshot base 98b9d55e/tree 6d52c3fe with nine active lifecycle worktrees; Framework wire is afdc19b1 while its local root remains behind6/dirty2.",
       "next_action": "Consume owner checkpoints in dependency order; absorb one lane at a time and return main/wire/tree/blob parity before the next lane.",
       "absorption_plan": "Framework producer and App source lanes first, then distribution and package consumers, then documentation snapshot.",
       "terminal_gaps": ["serial owner schedule", "fresh replay per lane", "canonical parity", "owner-close"],
@@ -770,10 +769,10 @@
   "worktree_snapshot": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "canonical_root": "/Users/gaofeng/workspace/one-person-lab-app",
-    "canonical_commit": "ee486545fc531225dedd12bb9808ecaf94f05cd2",
-    "canonical_tree": "87489616c538d1d357fff47afa25a73eab05e2f2",
-    "observed_non_root_count": 10,
-    "active_owned_count": 10,
+    "canonical_commit": "98b9d55ea8d64dfd8099fb0ba8e9ea0d432c1362",
+    "canonical_tree": "6d52c3fe620c32e54e43ac15062eea145f8336a3",
+    "observed_non_root_count": 9,
+    "active_owned_count": 9,
     "cleanup_ready_count": 0,
     "recovery_owner_required_count": 0,
     "holder_scan_available": true,

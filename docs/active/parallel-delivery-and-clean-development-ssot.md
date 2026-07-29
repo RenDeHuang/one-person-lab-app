@@ -36,15 +36,16 @@ cleanup、publication、install、标题和 archive 决策都必须先回总账�
 `ACTIVE`，2 个仅可标记 `SAFE_TO_ARCHIVE`；实际归档仍需用户对具体 thread 的 fresh 验收。
 数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
 
-Fresh lifecycle 快照：App canonical 为 `ee486545/tree 87489616`，根 clean/aligned，10 个
-registered non-root worktree；Framework wire 为 `430bbf92/tree d78949d3`，3 个 registered
-worktree，本地根仍 behind4/dirty2。该数字只描述当前 source/hygiene 表面，不限制独立任务
+Fresh lifecycle 快照生成基线：App canonical 为 `98b9d55e/tree 6d52c3fe`，根 clean/aligned，9 个
+registered non-root worktree；Framework wire 为 `afdc19b1/tree ee550bb8`，3 个 registered
+worktree，本地根仍 behind6/dirty2。该基线描述本快照生成时的 source/hygiene 表面，不自引用
+后续文档 merge commit，也不限制独立任务
 并发，也不把已启动的 read-only evidence 工作变成等待。
 
 恢复规则：仍有未完成义务的误中止任务，沿原 owner、原 receipt、原 worktree 和原 next action
 恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。Framework payload
-exact2 已由原 receipt owner恢复并 checkpoint，Framework PR #13 已完成吸收与 owner-close；
-这两条事实分别对应“继续执行”和“不得复活”。
+exact2 已由 PR #14 吸收到 Framework canonical，原 receipt owner 也已完成 official guarded close；
+Framework PR #13 同样已完成吸收与 owner-close。这两条都不得复活，后续只保留终态证据。
 
 每个 ACTIVE task 必须同时具备唯一 controller、可验证 execution owner、精确或有界 write
 set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonical absorption plan。
