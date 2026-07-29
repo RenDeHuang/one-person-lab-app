@@ -1563,15 +1563,15 @@ function validateWebuiDataVolumeHostActionAbi(abi) {
 }
 
 function validateLocalDataLifecycleImplementation(shellPaths) {
-  assertShellTextIncludesAll(
+  const bridgePath = 'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts';
+  const bridgeText = assertShellTextIncludesAll(
     shellPaths,
-    'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts',
+    bridgePath,
     [
       'function shellToolchainRuntimeRoot(): string',
       "path.join(getSystemDir().workDir, 'runtime')",
       "import { resolveHostRuntimeRoots } from '../services/localDataLifecycle/hostRuntimeRoots';",
       'function hostRuntimeRoots()',
-      'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT',
       'runtimeRoots: hostRuntimeRoots().inventoryRoots',
       'runtimeRoot: hostRuntimeRoots().pruneRoot',
       'archiveRoot: archiveRoot()',
@@ -1580,6 +1580,7 @@ function validateLocalDataLifecycleImplementation(shellPaths) {
     ],
     'local data lifecycle bridge split-root and delete boundary',
   );
+  assertManagedRuntimeRootBridgeSemantics(bridgeText, bridgePath);
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/process/services/localDataLifecycle/hostRuntimeRoots.ts',
@@ -1615,6 +1616,26 @@ function validateLocalDataLifecycleImplementation(shellPaths) {
     ],
     'local data lifecycle canonical verifier and runtime authority gate',
   );
+}
+
+export function assertManagedRuntimeRootBridgeSemantics(
+  bridgeText: string,
+  bridgePath = 'localDataLifecycleBridge.ts',
+): void {
+  if (bridgeText.includes('configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT')) return;
+  const requiredCurrentSemantics = [
+    'function managedOplRuntimeRoot(): string',
+    'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim()',
+    'if (configuredRoot) return configuredRoot',
+    "if (process.platform !== 'darwin')",
+    "throw new Error('OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.')",
+    "path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime')",
+    "configuredManagedRuntimeRoot: process.platform === 'win32' ? undefined : managedOplRuntimeRoot()",
+  ];
+  const missing = requiredCurrentSemantics.find((expected) => !bridgeText.includes(expected));
+  if (missing) {
+    throw new Error(`Active shell managed runtime root bridge semantics must include ${missing} in ${bridgePath}`);
+  }
 }
 
 function validateManagedUpdatePlane(managedUpdatePlane) {

@@ -8,7 +8,10 @@ import {
   runNode,
 } from './helpers.ts';
 import { validateInstallExposureRuntimeAndDistribution } from '../../../scripts/validate-active-shell/install-exposure-runtime-distribution-validator.ts';
-import { validateReleaseChannelContract } from '../../../scripts/validate-active-shell/release-contract-validator.ts';
+import {
+  assertManagedRuntimeRootBridgeSemantics,
+  validateReleaseChannelContract,
+} from '../../../scripts/validate-active-shell/release-contract-validator.ts';
 import {
   appOwnedStorageCarrierBehavior,
   appOwnedWebuiDataVolumeHostActionCapabilityId,
@@ -776,6 +779,32 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
     () => validateReleaseChannelContract(incompleteRestore),
     /carrier-host action ABI/,
   );
+});
+
+test('managed runtime bridge validation accepts current helper semantics and rejects weakened variants', () => {
+  const current = [
+    'function managedOplRuntimeRoot(): string {',
+    'const configuredRoot = process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim();',
+    'if (configuredRoot) return configuredRoot;',
+    "if (process.platform !== 'darwin') {",
+    "throw new Error('OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.');",
+    '}',
+    "return path.join(app.getPath('home'), 'Library', 'Application Support', 'OPL', 'runtime');",
+    '}',
+    "configuredManagedRuntimeRoot: process.platform === 'win32' ? undefined : managedOplRuntimeRoot(),",
+  ].join('\n');
+  assert.doesNotThrow(() => assertManagedRuntimeRootBridgeSemantics(current));
+  assert.throws(
+    () => assertManagedRuntimeRootBridgeSemantics(current.replace("if (process.platform !== 'darwin') {", '')),
+    /process\.platform !== 'darwin'/,
+  );
+  assert.throws(
+    () => assertManagedRuntimeRootBridgeSemantics(current.replace('process.env.OPL_RUNTIME_TOOLCHAIN_ROOT?.trim()', "''")),
+    /OPL_RUNTIME_TOOLCHAIN_ROOT/,
+  );
+  assert.doesNotThrow(() => assertManagedRuntimeRootBridgeSemantics(
+    'configuredManagedRuntimeRoot: process.env.OPL_RUNTIME_TOOLCHAIN_ROOT',
+  ));
 });
 
 test('release contract keeps Standard independent behind Framework checkpoint authority', () => {
