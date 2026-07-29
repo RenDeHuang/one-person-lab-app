@@ -335,7 +335,18 @@ export function readOwnerWorkflowRuns(options: {
   cwd?: string;
 } = {}): OwnerRunsResult {
   const endpoint = workflowEndpoint(options.workflow);
-  const args = ['api', '-X', 'GET', endpoint, '-f', 'branch=main', '-f', 'per_page=100', '--paginate', '--slurp'];
+  const args = [
+    'api',
+    '-X',
+    'GET',
+    endpoint,
+    '-f',
+    'branch=main',
+    '-f',
+    'per_page=100',
+    '-f',
+    'page=1',
+  ];
   if (options.workflow) args.push('-f', 'event=workflow_dispatch');
   const read = runBoundedReadOnly(
     'gh',
@@ -373,25 +384,20 @@ export function readOwnerWorkflowRuns(options: {
       detail: 'Owner workflow-runs API did not return JSON.',
     };
   }
-  const pages = Array.isArray(payload) ? payload : [payload];
-  const workflowRuns: unknown[] = [];
-  for (const page of pages) {
-    const pageRuns = page && typeof page === 'object' && !Array.isArray(page)
-      ? (page as Record<string, unknown>).workflow_runs
-      : null;
-    if (!Array.isArray(pageRuns)) {
-      return {
-        status: 'failed',
-        endpoint,
-        attempts: read.attempts,
-        logical_query_count: 1,
-        parser: ownerRunParser,
-        failure_kind: 'protocol',
-        failure_code: 'invalid_response',
-        detail: 'Owner workflow-runs API did not return workflow_runs[] on every page.',
-      };
-    }
-    workflowRuns.push(...pageRuns);
+  const workflowRuns = payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? (payload as Record<string, unknown>).workflow_runs
+    : null;
+  if (!Array.isArray(workflowRuns)) {
+    return {
+      status: 'failed',
+      endpoint,
+      attempts: read.attempts,
+      logical_query_count: 1,
+      parser: ownerRunParser,
+      failure_kind: 'protocol',
+      failure_code: 'invalid_response',
+      detail: 'Owner workflow-runs API did not return one bounded workflow_runs[] page.',
+    };
   }
   return {
     status: 'ok',

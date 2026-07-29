@@ -239,7 +239,7 @@ test('pre-nonce guard consumes the frozen-reachability source gate and one owner
   assert.equal(report.nonce_consumed, false);
 });
 
-test('pre-nonce guard paginates owner runs before deciding an older operation was never consumed', () => {
+test('pre-nonce guard uses one bounded owner-run page without pagination or slurp', () => {
   let observedArgs: string[] = [];
   const prior = ownerRun(41, { status: 'completed', conclusion: 'success' });
   const current = ownerRun(42);
@@ -258,19 +258,41 @@ test('pre-nonce guard paginates owner runs before deciding an older operation wa
       observedArgs = args;
       return {
         status: 0,
-        stdout: JSON.stringify([
-          { total_count: 102, workflow_runs: Array.from({ length: 100 }, (_, index) => ownerRun(index + 1000, { head_sha: 'f'.repeat(40) })) },
-          { total_count: 102, workflow_runs: [prior, current] },
-        ]),
+        stdout: JSON.stringify({ total_count: 2, workflow_runs: [prior, current] }),
         stderr: '',
       };
     },
   });
 
-  assert.ok(observedArgs.includes('--paginate'));
-  assert.ok(observedArgs.includes('--slurp'));
+  assert.equal(observedArgs.includes('--paginate'), false);
+  assert.equal(observedArgs.includes('--slurp'), false);
+  assert.ok(observedArgs.includes('page=1'));
+  assert.ok(observedArgs.includes('per_page=100'));
   assert.equal(report.status, 'blocked');
   assert.match(report.reason, /no prior frozen-operation consumer/);
+});
+
+test('pre-nonce guard rejects a paginated slurp array instead of silently flattening it', () => {
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+  }, {
+    runner: () => ({
+      status: 0,
+      stdout: JSON.stringify([{ total_count: 0, workflow_runs: [] }]),
+      stderr: '',
+    }),
+  });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_class, 'protocol');
+  assert.equal(report.failure_code, 'invalid_response');
+  assert.match(report.reason, /one bounded workflow_runs\[\] page/);
+  assert.equal(report.nonce_consumed, false);
+  assert.equal(report.dispatch_allowed, false);
 });
 
 test('pre-nonce guard permits only its own authority-bound run and rejects any second matching run', () => {
