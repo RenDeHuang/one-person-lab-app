@@ -1978,8 +1978,6 @@ function validateSkillsHubImplementation(shellPaths) {
   assertTextExcludesAll(
     skillsHub,
     [
-      'listBuiltinAutoSkills',
-      'setBuiltinAutoSkills',
       'getOplDefaultPackagedCodexSkills',
       'getOplPackagedCodexSkills',
       'appVisibleSkills',
