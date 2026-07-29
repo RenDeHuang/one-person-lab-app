@@ -1445,7 +1445,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     pages.settings_agents.list_density_policy?.grouping_policy_ref !==
       'contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy' ||
     pages.settings_agents.list_density_policy?.row_hierarchy_policy !==
-      'one_projected_package_one_row_with_single_parent_dependencies_nested_and_shared_dependencies_grouped' ||
+      'one_projected_package_one_row_with_single_parent_dependencies_nested_and_capability_packages_grouped' ||
     agentStatusModel?.user_facing_projection_ref !==
       'contracts/app-gui-product-contract.json#pages.settings_agents.agent_package_lifecycle_ux.user_facing_status_projection' ||
     agentStatusModel?.localized_metadata_source_ref !== 'app_state.agent_packages.directory.entries' ||
