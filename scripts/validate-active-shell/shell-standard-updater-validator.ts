@@ -13,7 +13,14 @@ const retiredOplFlowReconcileSymbols = [
 ];
 
 export function validateCarrierNeutralManagedUpdateSources(sources) {
-  const { autoUpdaterService, autoUpdateDiagnostics, mainEntry, managedUpdateMaintenance, rendererMain } = sources;
+  const {
+    autoUpdaterService,
+    autoUpdateDiagnostics,
+    mainEntry,
+    autoUpdaterBootstrap,
+    managedUpdateMaintenance,
+    rendererMain,
+  } = sources;
 
   assertTextIncludesAll(
     autoUpdaterService,
@@ -40,8 +47,21 @@ export function validateCarrierNeutralManagedUpdateSources(sources) {
   );
   assertTextIncludesAll(
     mainEntry,
-    ['autoUpdater.initialize(statusBroadcast);'],
+    [
+      "import { createAutoUpdaterBootstrap } from './process/startup/runtime/autoUpdaterBootstrap';",
+      'const initializeAutoUpdaterForRuntime = createAutoUpdaterBootstrap();',
+      'void initializeAutoUpdaterForRuntime();',
+    ],
     'Active shell App binary updater startup',
+  );
+  assertTextIncludesAll(
+    autoUpdaterBootstrap,
+    [
+      'autoUpdater.initialize(statusBroadcast);',
+      'deps.schedule(() => {',
+      'checkForUpdatesAndNotify()',
+    ],
+    'Active shell App binary updater bootstrap',
   );
 
   assertTextIncludesAll(
@@ -95,7 +115,8 @@ export function validateStandardUpdaterImplementation(shellPaths) {
       shellPaths,
       'packages/desktop/src/process/services/autoUpdateDiagnostics.ts',
     ),
-    mainEntry: readShellText(
+    mainEntry: readShellText(shellPaths, 'packages/desktop/src/index.ts'),
+    autoUpdaterBootstrap: readShellText(
       shellPaths,
       'packages/desktop/src/process/startup/runtime/autoUpdaterBootstrap.ts',
     ),
