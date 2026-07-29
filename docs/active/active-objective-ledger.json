@@ -1,52 +1,54 @@
 {
   "schema": "opl_app_active_objective_ledger.v2",
+  "schema_extension": "six_line_task_inventory_v1",
   "snapshot_kind": "refreshable_operational_coordination",
   "authority_scope": "objective_routing_and_integration_order_only",
   "product_contract_authority": false,
   "mutation_authority": false,
   "runtime_truth_authority": false,
-  "instruction_revision": "user-2026-07-29-refresh-ledger-persona-version-replay-v1",
-  "generated_at": "2026-07-29T03:14:26Z",
+  "instruction_revision": "user-2026-07-29-central-ledger-only-clean-baseline-v1",
+  "generated_at": "2026-07-29T03:34:04Z",
   "canonical_base": {
     "repository": "gaofeng21cn/one-person-lab-app",
     "ref": "origin/main",
-    "commit": "eb0e00130d0bce3785e2d437d8bbbcdf3a26b981",
-    "tree": "2e3ea0fabfeee1da4b730cf5c6e7ee16a824e311",
-    "observation": "fresh fetch confirms local main, origin/main and the GitHub wire ref agree at eb0e0013/tree 2e3ea0fa; this refresh is an isolated, single-file semantic replay"
+    "commit": "9d827db9323f864625623b9e24b4e35e925e1ca1",
+    "tree": "028789896d3c414ddb0f2b8e6864af1a83d94291",
+    "local_tracking_wire_parity": true,
+    "clean": true,
+    "observation": "Fresh local, tracking and GitHub wire readback agree at 9d827db9/tree 02878989. This snapshot is a governance replay and does not absorb source lanes."
   },
   "human_ssot": "docs/active/parallel-delivery-and-clean-development-ssot.md",
-  "freshness_policy": {
-    "thread_ids_and_eta_are_routing_hints": true,
-    "fresh_owner_heartbeat_required_before_mutation": true,
-    "fresh_remote_or_installed_readback_required_for_terminal_claims": true,
-    "stale_snapshot_must_be_regenerated_not_inferred": true
+  "coordination_governance": {
+    "coordination_authority_thread": "019f8f6a-718b-78f1-801f-48d5eae617e7",
+    "coordination_route": "All cross-thread scope, handoff, owner, merge, cleanup, publication and archive decisions route through the Ledger.",
+    "private_peer_intervention": false,
+    "model_override_policy": "forbidden",
+    "thread_action_policy": "Preserve each thread's configured model and reasoning; omit model and thinking fields from every follow-up, wake, handoff or reassignment.",
+    "canonical_integrator_per_repository": 1,
+    "second_writer_policy": "Do not create a second writer for an existing objective or shared canonical checkout.",
+    "canonical_absorption_contract": "fresh main -> semantic replay -> local gates -> ordinary checkpoint -> protected canonical absorption -> fresh local/tracking/wire/tree/blob parity -> holder/lock zero -> owner-native lifecycle close",
+    "archive_contract": "SAFE_TO_ARCHIVE is a status only; actual archive requires fresh user approval for the named thread.",
+    "status_vocabulary": ["ACTIVE", "SAFE_TO_ARCHIVE"]
   },
-  "supersedes": {
-    "path": "/Users/gaofeng/.codex/task-ledgers/one-person-lab-app/ledger.json",
-    "reason": "2026-07-20 schema-v1 snapshot contains stale owners and canonical refs",
-    "reuse_as_authority": false
-  },
-  "status_vocabulary": [
-    "ACTIVE",
-    "SAFE_TO_ARCHIVE"
+  "excluded_scope": [
+    {"thread": "019fa173-73d0-70c2-8988-6180d50a46c7", "reason": "Digital twin / Persona independent development task; not an App Ledger line."},
+    {"thread": "019d75b2-1fa4-7201-9001-6f3a06821b61", "reason": "Photo Steward independent development task; not an App Ledger line."},
+    {"scope": "ambient ops", "reason": "Independent operational development; excluded by direct user instruction."}
   ],
+  "freshness_policy": {
+    "thread_ids_and_titles_are_routing_hints": true,
+    "fresh_owner_readback_required_before_mutation": true,
+    "fresh_remote_or_installed_readback_required_for_terminal_claims": true,
+    "stale_snapshot_must_be_regenerated_not_inferred": true,
+    "worktree_branch_pr_receipt_cleanup_requires_owner_native_close": true
+  },
   "parallel_policy": {
     "mode": "parallel_work_serialized_integration",
     "capacity_model": "dynamic_execution_graph",
     "active_lane_limit": "dynamic",
-    "capacity_constraints": [
-      "unique_owner_and_exact_or_bounded_write_set",
-      "immediate_executable_next_action",
-      "recoverable_checkpoint_or_contained_local_state",
-      "host_capacity",
-      "protected_permission_and_external_quota",
-      "shared_mutation_only_at_final_integration"
-    ],
-    "canonical_main_integrators_per_repository": 1,
     "write_set_overlap_blocks_development": false,
     "write_set_overlap_serializes_final_integration": true,
-    "conflict_resolution": "fresh_main_semantic_replay_against_latest_user_ssot",
-    "local_first_push_last": true,
+    "conflict_resolution": "fresh_main_semantic_replay_against_latest user SSOT and machine contracts",
     "terminal_cleanliness": {
       "stale": 0,
       "ownerless": 0,
@@ -55,293 +57,553 @@
       "git_locks": 0
     }
   },
-  "objectives": [
+  "delivery_lines": [
     {
-      "id": "docker-webui-latest",
-      "status": "ACTIVE",
-      "controller_thread": "019f9725-99e2-7731-bdb6-0d7e073e7704",
-      "execution_owner_threads": [
-        "019fa215-e8e1-7820-a003-8769371592fc"
-      ],
-      "scope": "Publish the repaired WebUI image to GHCR stable/latest and prove the public digest and runnable history repair.",
-      "current_evidence": [
-        "main contains c005e47e fix(release): allow manual WebUI latest preview",
-        "source canonical is not public GHCR pointer readback"
-      ],
-      "next_action": "Run the narrow production promotion immediately under the existing WebUI owner; do not wait for Desktop Stable. Verify GHCR stable/latest digest, anonymous pull/run, and repaired history behavior.",
-      "integration_order": 2,
-      "parallel_group": "public-pointers",
-      "estimated_remaining": {
-        "wall_clock": "0.5-1.5h",
-        "steps": [
-          {"name": "fresh promotion admission and local contract replay", "duration": "10-20m", "necessary": "bind the exact canonical image and prevent a stale or partial promotion"},
-          {"name": "protected GHCR pointer mutation", "duration": "10-30m", "necessary": "move stable/latest to the repaired immutable image"},
-          {"name": "authenticated and anonymous digest/run readback", "duration": "10-25m", "necessary": "prove users pull and run the same repaired bytes"}
-        ]
-      },
-      "terminal_gaps": ["public stable/latest digest parity", "anonymous pull/run", "history repair runtime readback"]
+      "line_id": "desktop-experience",
+      "name": "Desktop experience",
+      "line_lead": "019fa75e-7283-7ae2-95dc-292068cb2119",
+      "line_lead_role": "routing lead only; source mutation remains with registered execution owners",
+      "task_count": 4,
+      "active_task_count": 4,
+      "archive_task_count": 0,
+      "integration_order": 3,
+      "baseline_rule": "App contracts and installed GUI evidence must consume the same fresh App/Shell/Framework cohort."
     },
     {
-      "id": "desktop-stable-latest",
-      "status": "ACTIVE",
-      "controller_thread": "019f9cda-e8d2-71e3-abb6-077964145375",
-      "execution_owner_threads": [
-        "019fa4b7-ad0e-7772-9879-47df59ce9d09",
-        "019f9cda-e8d2-71e3-abb6-077964145375"
-      ],
-      "scope": "Produce one fresh admitted Desktop Stable operation and publish immutable Standard and required Native assets with Latest/public readback.",
-      "current_evidence": [
-        "Stable run 30325431854 attempt 1 completed success and published Latest v26.7.28-r3 with 13 digest-bound public assets; DMG sha256:2cdef0d8ccf23e1ada98fac8dbfecc791d43b7daa98aaa86b61905ebf1c4a5f8 and component manifest sha256:6a96eb0b5eb2252baf924ab53d5420e87a1d764cb54f20c1153cca03dcea07bc remain readable.",
-        "PR #43 merged as 95e7cce8 and landed this thread's manual local version identity slice; later v2/v3 correction work is independently owned and is not a remaining obligation of this objective.",
-        "PR #45 merged as 1142a2f9 and separates the credential executor SHA from the frozen App/Shell/Framework cohort, so unrelated main movement does not invalidate a run-bound operation.",
-        "PR #48 merged as efae838f and closed the trusted current-head Codex review gate replay; PR #53 merged as 9ebe6c1b and exposes operation_id in the runtime dispatcher contract.",
-        "GitHub immutable releases are enabled for the repository. Historical r3 remains immutable=false because the setting cannot retroactively lock an existing release; no replacement release was issued.",
-        "PR #42 merged as c90e6103 with canonical tree aec6ae2c after current-head quality, merge-gate and Codex advisory success. All 14 replay paths passed Git object, GitHub API blob and raw SHA-256 parity; its worktree, gitdir, registration, local/tracking/wire refs and lifecycle entry are absent.",
-        "The remaining source gap is exclusively owned by Release Control thread 019fa4b7-ad0e-7772-9879-47df59ce9d09 through open PR #58; source ownerless=0, and this ledger/authority controller will not cross-write that lane or publish before its canonical owner-close.",
-        "The immutable-release terminal is not closed: the public r3 release reports immutable=false, while the canonical Stable contract requires immutable=true. Repository immutable releases are enabled only for subsequent releases."
-      ],
-      "next_action": "Let sole Release Control owner 019fa4b7-ad0e-7772-9879-47df59ce9d09 replay PR #58 onto fresh main, protected-merge it and owner-close its source lane. Only then may this controller fresh-evaluate one distinct immutable terminal Stable operation; issue no authority, dispatch or publication before that close.",
+      "line_id": "windows-webui",
+      "name": "Windows and WebUI",
+      "line_lead": "019fab5b-46cc-7842-beb5-644f8285905e",
+      "line_lead_role": "routing lead only; Windows host and WebUI external owners retain their mutation boundaries",
+      "task_count": 6,
+      "active_task_count": 6,
+      "archive_task_count": 0,
+      "integration_order": 4,
+      "baseline_rule": "Preview RC and WebUI public/runtime evidence are separate from Stable/publication authority."
+    },
+    {
+      "line_id": "stable-distribution",
+      "name": "Stable and distribution",
+      "line_lead": "019f9cda-e8d2-71e3-abb6-077964145375",
+      "line_lead_role": "release evidence controller; source and publication owners remain distinct",
+      "task_count": 5,
+      "active_task_count": 5,
+      "archive_task_count": 0,
+      "integration_order": 5,
+      "baseline_rule": "A source merge, candidate artifact, or PR is not an immutable Stable or installed terminal."
+    },
+    {
+      "line_id": "package-framework",
+      "name": "Package and Framework platform",
+      "line_lead": "019fa09f-a54e-7d40-aea1-bd728afdb153",
+      "line_lead_role": "Package platform lead; Framework CI owner remains an execution owner",
+      "task_count": 4,
+      "active_task_count": 4,
+      "archive_task_count": 0,
+      "integration_order": 2,
+      "baseline_rule": "Carrier-native replacement, dynamic consumers and installed proof must close before legacy lifecycle removal."
+    },
+    {
+      "line_id": "runner-ci",
+      "name": "Runner and CI infrastructure",
+      "line_lead": "019fa145-fd2d-7a80-ac29-39d36138197f",
+      "line_lead_role": "delivery infrastructure lead; Fleet mutation remains separately authorized",
+      "task_count": 3,
+      "active_task_count": 3,
+      "archive_task_count": 0,
       "integration_order": 1,
-      "parallel_group": "desktop-stable",
-      "estimated_remaining": {
-        "wall_clock": "PR #58 canonical owner-close, then one fresh immutable terminal evaluation and operation if admitted",
-        "steps": [
-          {"name": "PR #58 source canonical and owner-close", "duration": "Release Control owner-authoritative", "necessary": "land the remaining immutable-publication source semantics without a duplicate writer"},
-          {"name": "fresh immutable Stable terminal", "duration": "only after distinct admission", "necessary": "satisfy immutable=true without rewriting or republishing historical r3 in place"}
-        ]
-      },
-      "terminal_gaps": ["PR #58 source canonical and owner-close", "public Stable immutable=true", "fresh user terminal acceptance"],
+      "baseline_rule": "Advisory pools remain non-blocking and must not create runner, key or dispatch mutation without a separate authority."
+    },
+    {
+      "line_id": "ledger-convergence",
+      "name": "Ledger and convergence",
+      "line_lead": "019f8f6a-718b-78f1-801f-48d5eae617e7",
+      "line_lead_role": "sole coordination authority",
+      "task_count": 7,
+      "active_task_count": 5,
+      "archive_task_count": 2,
+      "integration_order": 6,
+      "baseline_rule": "No lane is terminal until canonical parity, holder/lock proof and owner-native cleanup are complete."
+    }
+  ],
+  "objectives": [
+    {
+      "id": "desktop-projectless-contract-replay",
+      "line_id": "desktop-experience",
+      "status": "ACTIVE",
+      "controller_thread": "019fa75e-7283-7ae2-95dc-292068cb2119",
+      "execution_owner_threads": ["019fa6a2-c301-7b93-8a5b-1b85e875e279"],
+      "scope": "Projectless App contracts, active-shell validators and release-boundary contract replay.",
+      "write_set": ["contracts/app-first-run-test-matrix.json", "contracts/app-shell-adapter.json", "docs/decisions.md", "scripts/build-full-first-install-package/runtime-cache.ts", "scripts/build-full-first-install-package/runtime-sources.ts", "scripts/validate-active-shell/shell-ordinary-experience-validator.ts", "scripts/validate-active-shell/upstream-intake-policy-validator.ts", "tests/release/app-release-boundary-cases/upstream-intake-policy-validation.test.ts", "tests/release/codex-default-profile.test.ts"],
+      "current_authority": "App PR #84 checkpoint a4109c8c/tree 9e65386; canonical main 9d827db9/tree 02878989",
+      "next_action": "Consume the completed full active-shell gate, then Ledger-authorized protected absorption, fresh parity and owner-native close.",
+      "absorption_plan": "Fresh App main semantic replay; focused/typecheck/active-shell gates; protected merge by Root Integrator 019fa925; parity and close.",
+      "terminal_gaps": ["protected canonical absorption", "canonical parity", "holder/lock zero", "owner-native close"],
       "archive_performed": false,
       "user_approval_required": true
     },
     {
-      "id": "distribution-install-unification",
+      "id": "desktop-archive-materialization",
+      "line_id": "desktop-experience",
       "status": "ACTIVE",
-      "controller_thread": "019f91f0-5ce9-78f2-84cd-aad34c16246d",
-      "execution_owner_threads": [
-        "019f91f0-5ce9-78f2-84cd-aad34c16246d",
-        "019fa145-fd2d-7a80-ac29-39d36138197f"
-      ],
-      "scope": "Converge Desktop, Native WebUI, Container WebUI, Homebrew and managed install onto one maintained entry model and fresh terminal readbacks.",
-      "current_evidence": [
-        "source blocker is canonical on current main",
-        "main ab61808b contains the fail-closed installer route fix and regression; fresh lifecycle readback shows its source lane owner-closed",
-        "fresh active-shell aggregate still fails only two oplInstallerRouting tests because the Shell consumer has not absorbed the new App fail-closed route semantics",
-        "Shell has an ACTIVE distribution-install-unification lane owned by 019f91f0, currently bounded to the generated product profile",
-        "public Latest, Native/Homebrew exposure and managed installed terminal remain separate evidence"
-      ],
-      "next_action": "Let the existing Shell owner finish/checkpoint its current exact1, then amend or replay the narrow installer-routing consumer/tests in the same controller; rerun active-shell aggregate while Stable and public carrier work continue independently.",
-      "integration_order": 3,
-      "parallel_group": "distribution-and-install",
-      "estimated_remaining": {
-        "wall_clock": "1-2h incremental after Stable; 4-8h including Full/Homebrew terminal",
-        "steps": [
-          {"name": "contract and installer convergence replay", "duration": "30-60m", "necessary": "ensure every entry resolves the same product intent"},
-          {"name": "public carrier and managed install readback", "duration": "30-60m per carrier", "necessary": "prove actual installation rather than source readiness"},
-          {"name": "Full/Homebrew clean-host terminal", "duration": "2-5h", "necessary": "remove duplicate Base carrier and verify upgrade/rollback/data retention"}
-        ]
-      },
-      "terminal_gaps": ["public carrier parity", "managed install readback", "Full/Homebrew clean-host terminal"]
+      "controller_thread": "019fa71a-110a-7410-a052-2493bf1dd6fa",
+      "execution_owner_threads": ["019fa71a-110a-7410-a052-2493bf1dd6fa"],
+      "scope": "Archived dialogue filtering, canonical clone/materialization and stale history provenance.",
+      "write_set": ["App archive/clone source paths from the owner fresh packet"],
+      "current_authority": "No current canonical absorption/close proof in the Ledger baseline.",
+      "next_action": "Reconcile the exact source lane against current App main, prove canonical absorption or supersession, then owner-native close.",
+      "absorption_plan": "Owner fresh-main replay; focused archive/materialization tests; protected App absorption; parity and guarded cleanup.",
+      "terminal_gaps": ["source provenance", "canonical absorption", "worktree/branch/receipt cleanup"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "gui-exact-cohort-acceptance",
+      "id": "desktop-skill-composer-companion",
+      "line_id": "desktop-experience",
+      "status": "ACTIVE",
+      "controller_thread": "019fa910-29b5-7fd0-ab7c-330a6948a38f",
+      "execution_owner_threads": ["019fa910-29b5-7fd0-ab7c-330a6948a38f", "019f9def-0a13-7061-8320-dca8b058c014"],
+      "scope": "Skill scope, Composer builtin-auto, Framework Companion and packaging cross-repo behavior.",
+      "write_set": ["Owner-reported exact App/Shell/Framework paths"],
+      "current_authority": "Framework PR #12 source lane exact-merged; remaining consumer/runtime scope is not terminal.",
+      "next_action": "Fresh-audit the remaining consumer and packaging paths, route each exact write set through its source owner, then integrate in dependency order.",
+      "absorption_plan": "Producer/consumer checkpoints independently; fresh cross-repo contract replay; canonical absorb per repository; installed/readback proof.",
+      "terminal_gaps": ["consumer cross-repo parity", "packaging/runtime readback", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "desktop-gui-16-scene-cohort",
+      "line_id": "desktop-experience",
       "status": "ACTIVE",
       "controller_thread": "019fa0ef-9514-7293-ba5b-15cb8a509522",
-      "execution_owner_threads": [
-        "019fa0ef-9514-7293-ba5b-15cb8a509522",
-        "019fa248-2540-7da2-8bcd-5828c01a7eb4"
-      ],
-      "scope": "Install the exact immutable published cohort and complete Browser-first 16-scene Pixel/Install/Release evidence.",
-      "current_evidence": ["source visual convergence is covered", "no new published+installed cohort has completed the GUI terminal"],
-      "next_action": "Prepare evidence harness while Stable builds; immediately validate digest/manifest, install the same artifact, and run 16 scenes when the fresh published cohort arrives.",
-      "integration_order": 4,
-      "parallel_group": "gui-consumer",
-      "estimated_remaining": {
-        "wall_clock": "0.5-1h after artifact arrival",
-        "steps": [
-          {"name": "cohort and digest binding", "duration": "5-10m", "necessary": "exclude historical or mismatched installers"},
-          {"name": "managed install and installed-byte readback", "duration": "10-20m", "necessary": "prove the tested App is the published artifact"},
-          {"name": "16-scene Browser-first evidence", "duration": "20-35m", "necessary": "close Pixel, Install and Release on the same cohort"}
-        ]
-      },
-      "terminal_gaps": ["fresh immutable cohort", "same-artifact install", "16-scene terminal evidence"]
+      "execution_owner_threads": ["019fa0ef-9514-7293-ba5b-15cb8a509522"],
+      "scope": "Read-only Browser-first 16-scene acceptance on the exact installed cohort.",
+      "write_set": ["read-only GUI evidence; no source write set"],
+      "current_authority": "Same-cohort local install receipts exist for App ba779d73/Shell fa122e6c/Framework c696919c; immutable public cohort is still absent.",
+      "next_action": "Consume only a fresh immutable published cohort, verify digest and installed bytes, then run Browser-first 16-scene readback.",
+      "absorption_plan": "No source absorption; consume Stable authority after publication and report evidence to Ledger.",
+      "terminal_gaps": ["fresh immutable cohort", "same-artifact install", "16-scene terminal evidence"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "worktree-hygiene-and-convergence",
+      "id": "windows-managed-node-network-repair",
+      "line_id": "windows-webui",
+      "status": "ACTIVE",
+      "controller_thread": "019fab5b-46cc-7842-beb5-644f8285905e",
+      "execution_owner_threads": ["019fab5b-46cc-7842-beb5-644f8285905e"],
+      "scope": "Windows Preview RC slow-network retry, managed Node self-heal and manifest-v2 path.",
+      "write_set": ["packages/desktop/src/index.ts", "packages/desktop/src/process/services/windows-wsl/provisioner.ts", "packages/desktop/src/process/services/windows-wsl/provisioningWindow.ts", "resources/opl-linux/bootstrap/install-opl-linux.sh", "resources/opl-linux/bootstrap/opl-runtime-inspect", "scripts/release/generate-windows-rc-build-cohort.mjs", "tests/unit/release/windowsRcBuildCohort.test.ts", "tests/unit/windows-wsl/guestBootstrap.test.ts", "tests/unit/windows-wsl/provisioner.test.ts"],
+      "current_authority": "Shell main aeea1396/tree 88417ab contains PR #16/#18; App frozen build run 30419245520 remains external and App wire has advanced to 9d827db9.",
+      "next_action": "Read terminal build status, reconcile App wire drift, then Ledger-authorized artifact verification and Preview-only publication decision.",
+      "absorption_plan": "Shell canonical is already absorbed; App cohort decision is separate and must not touch Stable/publication without Ledger dispatch.",
+      "terminal_gaps": ["run terminal readback", "cohort drift decision", "artifact/EXE verification", "Preview publication authority"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "windows-rc-build-install-readback",
+      "line_id": "windows-webui",
+      "status": "ACTIVE",
+      "controller_thread": "019fab5b-46cc-7842-beb5-644f8285905e",
+      "execution_owner_threads": ["019fab5b-46cc-7842-beb5-644f8285905e"],
+      "scope": "Windows RC artifact, managed-node/codex digest, install and public readback.",
+      "write_set": ["external build/install/release evidence only"],
+      "current_authority": "No publication or install mutation has occurred in the current managed Node packet.",
+      "next_action": "After the build terminal and Ledger cohort decision, verify EXE/SHA256SUMS/cohort manifests before any distinct Preview operation.",
+      "absorption_plan": "Consume canonical Shell/App/Framework bytes; no source merge in this task.",
+      "terminal_gaps": ["artifact download", "cohort digest parity", "install/runtime readback", "latest=false Preview public readback"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "windows-legacy-mainline-close",
+      "line_id": "windows-webui",
+      "status": "ACTIVE",
+      "controller_thread": "019f9d37-99f9-7d03-981b-acdc4c8f34ca",
+      "execution_owner_threads": ["019f9d37-99f9-7d03-981b-acdc4c8f34ca"],
+      "scope": "Windows native legacy lane and RC evidence reconciliation after PR #7.",
+      "write_set": ["contracts/app-release-channel.json", "contracts/app-windows-wsl2-execution.json", "docs/active/windows-wsl2-rc-implementation-20260726.md", "tests/release/windows-rc-preview.test.ts"],
+      "current_authority": "PR #7 is merged at f74a2193 with runtime/reboot/final-zero PASS; failed PR #3/#6/7064/88a evidence is retained and must not be reused as a writer.",
+      "next_action": "Resolve remaining legacy/CI provenance obligation from fresh owner readback; do not create a second Windows writer or republish old evidence.",
+      "absorption_plan": "Use canonical App/Shell main and preserved evidence; only owner-native close after remaining=[] and exact cleanup proof.",
+      "terminal_gaps": ["fresh legacy receipt disposition", "owner-native close if any residual exists"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "webui-ghcr-promotion",
+      "line_id": "windows-webui",
+      "status": "ACTIVE",
+      "controller_thread": "019fa70a-d63b-7150-b654-178a45f12789",
+      "execution_owner_threads": ["019f9cda-e8d2-71e3-abb6-077964145375"],
+      "scope": "GHCR latest/stable public promotion and anonymous digest/runtime proof.",
+      "write_set": ["external GHCR/publication operation only"],
+      "current_authority": "WebUI recovery itself is terminal; no current live publisher is authorized for a new GHCR promotion in this baseline.",
+      "next_action": "Ledger must nominate or confirm a live publisher owner and distinct operation before any GHCR pointer mutation; otherwise keep source/runtime evidence read-only.",
+      "absorption_plan": "Consume canonical App/Shell/Framework cohort; protected public mutation only after explicit Ledger dispatch.",
+      "terminal_gaps": ["live publisher owner", "distinct operation authority", "public digest/run readback"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "docker-default-stable-runtime",
+      "line_id": "windows-webui",
       "status": "ACTIVE",
       "controller_thread": "019fa25a-c8b6-7de3-b436-cb6d13415ce4",
-      "execution_owner_threads": [
-        "019fa25a-c8b6-7de3-b436-cb6d13415ce4",
-        "019f8f6a-718b-78f1-801f-48d5eae617e7"
-      ],
-      "scope": "Converge useful historical work, prove owner status, and remove only absorbed task-owned worktrees, refs, receipts, holders and temporary artifacts.",
-      "current_evidence": [
-        "Fresh App lifecycle status reports 9 registered non-root worktrees and active_owned_count=9; cleanup_ready_count=0, recovery_owner_required_count=0 and holder_proof_required_count=0",
-        "This lane is clean, owner-registered and exact1, but remains retained because canonical absorption and owner-native close are not complete; overlapping ledger consumers remain separately registered",
-        "The lifecycle audit still reports stale receipts across App, Relay and iCloud paths; this lane does not mutate or close those unrelated entries"
-      ],
-      "next_action": "Continue semantic convergence and canonical absorption in parallel; separately reconcile the detached exact-merged lane and stale receipts, then owner-native close each completed lane.",
-      "integration_order": 5,
-      "parallel_group": "hygiene",
-      "estimated_remaining": {
-        "wall_clock": "2-4h active cleanup; 3-6h including all current lane closeouts",
-        "steps": [
-          {"name": "fresh owner/write-set/holder classification", "duration": "20-40m", "necessary": "prevent deletion of live or unique work"},
-          {"name": "semantic convergence and affected tests", "duration": "60-150m", "necessary": "retain useful historical changes without bulk cherry-pick pollution"},
-          {"name": "serialized main absorption and parity", "duration": "30-75m", "necessary": "prove work is retained before cleanup"},
-          {"name": "guarded worktree/ref/receipt/temp cleanup", "duration": "20-45m", "necessary": "reach stale/ownerless/duplicate_writer zero"}
-        ]
-      },
-      "terminal_gaps": ["historical convergence", "detached lane recovery proof", "stale receipt reconciliation", "owner-native closeouts"]
+      "execution_owner_threads": ["019fa25a-c8b6-7de3-b436-cb6d13415ce4"],
+      "scope": "Docker default WebUI semantics and exact6 reconciliation against App canonical main.",
+      "write_set": ["Owner-reported exact6 Docker/default paths"],
+      "current_authority": "Physical lane is clean/exact_merged but synthetic codex-current owner is invalid; no close authority is established.",
+      "next_action": "Assign a real recovery owner through Ledger to reconcile exact6 semantics and either prove canonical coverage or provide a successor checkpoint.",
+      "absorption_plan": "Fresh App main semantic comparison; protected absorption only if independent value remains; exact lifecycle close afterward.",
+      "terminal_gaps": ["valid execution owner", "semantic coverage proof", "owner-native close"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "package-manager-retirement",
+      "id": "webui-runtime-digest-readback",
+      "line_id": "windows-webui",
       "status": "ACTIVE",
-      "controller_thread": "019fa423-3e4d-7431-95e2-fceafd9b571f",
-      "execution_owner_threads": [
-        "019fa09f-a54e-7d40-aea1-bd728afdb153"
-      ],
-      "execution_owner_tasks": [
-        "/root/cross_repo_package_e2e_audit"
-      ],
-      "scope": "Retire custom Package Manager lifecycle machinery after carrier-native replacement, affected outcome replay and consumer-zero proof.",
-      "current_evidence": [
-        "Fresh Codex Plugin Manager readback lists opl-relay@opl-relay 0.5.1 and opl-persona@opl-persona 0.2.0 as installed and enabled.",
-        "Relay and Persona owner descriptors on their respective origin/main branches declare role-neutral opl-app-contributions.v1: Relay contributes 4 navigation items, 4 views and 8 commands; Persona contributes 3 navigation items, 3 views and 5 commands.",
-        "Fresh opl app state --profile fast --json generated at 2026-07-29T02:58:40.263Z reports directory status=available, entry_count=25 and installed_package_count=25.",
-        "Relay and Persona both report selected_version=installed_version, configured carrier status=installed, enabled=true, executor status=callable, readiness=ready, operational_ready=true and launch_allowed=true.",
-        "The dynamic directory projects the same role-neutral contribution counts as the owner descriptors and exposes generic update, repair, preferences and uninstall actions for both Packages.",
-        "package_currentness remains unknown only because release_set_unavailable; both Packages have recommended_action=null, so that currentness gap is not an installed/readiness failure."
-      ],
-      "next_action": "Existing Framework and App/Shell owners continue their separately registered projection and consumer work. This ledger lane has no Package implementation authority and must not create a second lifecycle manager, hard-code a Package, or infer installed readiness from owner-source metadata.",
-      "integration_order": 6,
-      "parallel_group": "package-retirement",
-      "estimated_remaining": {
-        "wall_clock": "10-18h; normally 1-2 working days",
-        "steps": [
-          {"name": "bootstrap and carrier-native replacement closure", "duration": "2-4h", "necessary": "preserve install/update/repair behavior before retirement"},
-          {"name": "transaction/CAS and uninstall/exposure slices", "duration": "3-6h parallel", "necessary": "remove custom mutation authority without losing safety or user removal persistence"},
-          {"name": "App/Shell consumer switch and aggregate outcomes", "duration": "2-4h parallel", "necessary": "prove users consume the replacement model"},
-          {"name": "consumer-zero and family deletion loops", "duration": "3-6h", "necessary": "retire writers, readers, schemas and fixtures without hidden consumers"},
-          {"name": "fresh-main absorption and installed proof", "duration": "1-3h", "necessary": "separate source completion from live terminal"}
-        ]
-      },
-      "terminal_gaps": ["App/Shell dynamic consumer evidence", "carrier-native maintenance execution proof", "aggregate gates", "consumer-zero per family", "installed proof and cleanup"]
+      "controller_thread": "019fa70a-d63b-7150-b654-178a45f12789",
+      "execution_owner_threads": ["019fa70a-d63b-7150-b654-178a45f12789"],
+      "scope": "WebUI formal container/runtime/port and GHCR digest evidence reconciliation.",
+      "write_set": ["external container/runtime readback only"],
+      "current_authority": "Latest recovery terminal proved formal container 18183 HTTP 200 and historical cleanup; current active public promotion is not proven.",
+      "next_action": "Keep recovery evidence terminal and route any new public/runtime operation through a distinct live owner; do not recreate the cleaned lane.",
+      "absorption_plan": "No source absorption; consume only canonical cohort and exact published digest.",
+      "terminal_gaps": ["current public promotion readback", "owner route for any new mutation"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "carrier-native-installed-package-discovery",
+      "id": "stable-immutable-operation",
+      "line_id": "stable-distribution",
       "status": "ACTIVE",
-      "parent": "package-manager-retirement",
+      "controller_thread": "019f9cda-e8d2-71e3-abb6-077964145375",
+      "execution_owner_threads": ["019f9cda-e8d2-71e3-abb6-077964145375"],
+      "scope": "Distinct immutable Stable operation, publication and same-artifact terminal acceptance.",
+      "write_set": ["external Stable/publication/install operation only"],
+      "current_authority": "Stable operation stable-9e47ce88... was admitted once; public v26.7.28-r3 remains historical and immutable status/readback must be reevaluated fresh.",
+      "next_action": "Wait for the admitted run terminal, then fresh source/cohort gate and distinct operation readback; no rerun or redispatch without Ledger authority.",
+      "absorption_plan": "Consume canonical source after all required producer lanes; publication/install only under distinct authority.",
+      "terminal_gaps": ["operation terminal", "immutable public readback", "same-artifact install", "user terminal acceptance"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "release-control-pr58-owner-close",
+      "line_id": "stable-distribution",
+      "status": "ACTIVE",
+      "controller_thread": "019fa4b7-ad0e-7772-9879-47df59ce9d09",
+      "execution_owner_threads": ["019fa4b7-ad0e-7772-9879-47df59ce9d09"],
+      "scope": "Release Control PR #58 current-head parity and owner-close.",
+      "write_set": ["PR #58 exact owner-reported write set"],
+      "current_authority": "PR #58 canonical merge evidence exists in current main history; fresh owner-close/parity must still be read back before Stable admission.",
+      "next_action": "Owner-native parity and lifecycle close; do not reopen or duplicate the already merged source lane.",
+      "absorption_plan": "Fresh main/tree/blob/raw parity; close only after holder/lock zero.",
+      "terminal_gaps": ["owner-close terminal evidence"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "single-desktop-carrier-v5",
+      "line_id": "stable-distribution",
+      "status": "ACTIVE",
+      "controller_thread": "019fa719-11cf-7b70-bf2d-ec101f100de4",
+      "execution_owner_threads": ["019fa719-11cf-7b70-bf2d-ec101f100de4"],
+      "scope": "Single Desktop V5 additive Linux/Desktop/WebUI payload while preserving Full and Homebrew paths.",
+      "write_set": [".github/workflows/_release-bundle.yml", ".github/workflows/_release-standard-publish.yml", "contracts/app-release-channel.json", "install.sh", "scripts/bind-standard-release-track.ts", "scripts/framework-release-adapter.ts", "scripts/release-bundle.ts", "scripts/validate-standard-publication-input.ts", "scripts/verify-remote-release-assets.ts", "scripts/write-opl-app-component-manifest.ts"],
+      "current_authority": "V5 checkpoint 700199ba/tree 3da1feb3 is clean and recoverable; Linux public filename normalization and Shell producer checkpoint remain unresolved.",
+      "next_action": "Reconcile the Shell producer filename and retired-carrier consumer against fresh main, then replay exact V5 semantics and checkpoint.",
+      "absorption_plan": "Fresh App main replay; focused/release-boundary gates; Root Integrator protected absorption; parity and close. Preserve Full/append_full/Homebrew.",
+      "terminal_gaps": ["Shell producer checkpoint", "Linux public deb normalization", "canonical absorption", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "single-desktop-carrier-v4-provenance",
+      "line_id": "stable-distribution",
+      "status": "ACTIVE",
+      "controller_thread": "019fa719-11cf-7b70-bf2d-ec101f100de4",
+      "execution_owner_threads": ["019fa719-11cf-7b70-bf2d-ec101f100de4"],
+      "scope": "Frozen V4 recovery evidence and provenance decision for the superseded Full/Native deletion lane.",
+      "write_set": ["recovery evidence only; no new source write authorized"],
+      "current_authority": "V4 is superseded/non-consumable; old delete plan is stale because Full/Homebrew/optional certification remain required.",
+      "next_action": "Preserve evidence, produce an explicit supersession/retention decision through Ledger, and do not absorb or delete mechanically.",
+      "absorption_plan": "Only fresh semantic replay of independently valuable paths may enter main; recovery evidence remains external custody.",
+      "terminal_gaps": ["provenance disposition", "owner-native recovery close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "full-homebrew-terminal",
+      "line_id": "stable-distribution",
+      "status": "ACTIVE",
+      "controller_thread": "019fa73e-d7cc-73c3-a607-258f85b218eb",
+      "execution_owner_threads": ["019fa73e-d7cc-73c3-a607-258f85b218eb", "019fa719-11cf-7b70-bf2d-ec101f100de4"],
+      "scope": "Automated Full DMG, Homebrew Full and clean-VM post-Stable follower terminal evidence.",
+      "write_set": [".github/workflows/release-stable-post-success-followups.yml", "contracts/app-release-channel.json", "scripts/validate-release-boundary/release-contract-policy.ts", "tests/release/release-bundle-control-plane-contract.test.ts", "tests/release/release-stable-post-success-followups.test.ts"],
+      "current_authority": "App PR #82 exact5 checkpoint d0ecb6d4/tree 1d30e63 is behind/stale and contains a real executor-head/APP_REF identity gap; Framework exact3 admission checkpoint is separate.",
+      "next_action": "Original owner repairs exact5 on fresh main, reruns identity/race gates, then Ledger dispatches protected absorption before any Full publication.",
+      "absorption_plan": "Framework append admission first; App exact5 semantic replay; protected App absorption; Full/Homebrew clean-host terminal.",
+      "terminal_gaps": ["exact5 repair", "fresh checks", "canonical absorption", "Full/Homebrew terminal"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "package-native-descriptor-retirement",
+      "line_id": "package-framework",
+      "status": "ACTIVE",
       "controller_thread": "019fa09f-a54e-7d40-aea1-bd728afdb153",
       "execution_owner_threads": ["019fa09f-a54e-7d40-aea1-bd728afdb153"],
-      "execution_owner_tasks": ["Framework W3 carrier-native installed Package discovery"],
-      "scope": "Finish carrier-neutral installed Package discovery, status and action semantics through Framework dynamic projections, including OPL Relay and OPL Persona.",
-      "current_evidence": [
-        "Fresh Framework App-state projection discovers both installed Codex Plugins as carrier-neutral OPL Packages and reports their executor routes callable.",
-        "Relay 0.5.1 and Persona 0.2.0 are installed, enabled, ready and launch-allowed; their selected and installed versions agree.",
-        "The directory includes Relay 4/4/8 and Persona 3/3/5 navigation/view/command contribution counts without Package-specific App authority.",
-        "Both Packages expose generic update, repair, preferences and uninstall action ids; package_currentness remains unknown because release_set_unavailable while recommended_action remains null.",
-        "Remaining carrier-maintenance execution and App/Shell consumer proof stays with the existing Framework and App/Shell owners."
-      ],
-      "next_action": "Keep carrier-neutral discovery closed as verified. Existing Framework and App/Shell owners must provide carrier-maintenance execution and dynamic consumer evidence; no new central lifecycle manager or Package-specific consumer may be created.",
-      "integration_order": 6,
-      "parallel_group": "package-retirement",
-      "estimated_remaining": {
-        "wall_clock": "owner-estimated; this coordination snapshot does not set delivery estimates",
-        "steps": [
-          {"name": "carrier-maintenance execution evidence", "duration": "owner-estimated", "necessary": "prove generic maintenance actions without a second lifecycle manager"},
-          {"name": "App/Shell dynamic consumer evidence", "duration": "owner-estimated", "necessary": "render generic Package contributions without Package-specific branches"}
-        ]
-      },
-      "terminal_gaps": ["carrier-maintenance execution proof", "App/Shell dynamic consumer evidence"]
+      "scope": "Retire legacy Package lifecycle machinery through native descriptor optimize/rollback/profile_apply semantics.",
+      "write_set": ["src/modules/connect/agent-package-registry.ts", "tests/src/cli/cases/packages-cases/configured-codex-plugin-carrier.test.ts"],
+      "current_authority": "Package exact2 checkpoint 85f498b4/tree d5f21ef is remote-recoverable but not canonical; exact3 history and receipt-persistence candidates still overlap.",
+      "next_action": "Fresh Framework main semantic replay of exact2, rerun affected gates, ordinary push, then Ledger-authorized absorption and close.",
+      "absorption_plan": "Fresh Framework wire replay; focused/package aggregate/typecheck/lint; protected Framework absorption; consumer-zero proof.",
+      "terminal_gaps": ["canonical absorption", "consumer-zero family proof", "installed maintenance proof", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "stable-exact4-owner-close",
-      "status": "SAFE_TO_ARCHIVE",
-      "controller_thread": "019fa248-2540-7da2-8bcd-5828c01a7eb4",
-      "execution_owner_threads": ["019fa248-2540-7da2-8bcd-5828c01a7eb4"],
-      "scope": "Close the source lane after proving its exact4 tree is absorbed and no holders or unique docs remain.",
-      "current_evidence": ["fresh App lifecycle has no exact4 worktree entry", "main 77d043e9 contains the absorbed source and documentation sequence"],
-      "next_action": "Archive the completed source conversation after retaining its terminal receipt; do not recreate a writer.",
-      "integration_order": 1,
-      "parallel_group": "desktop-stable",
-      "estimated_remaining": {"wall_clock": "0.5-1h", "steps": [{"name": "parity, holder exit and guarded close", "duration": "30-60m", "necessary": "remove source ambiguity and worktree pollution before the next Stable authority"}]},
-      "terminal_gaps": []
+      "id": "package-release-set-currentness",
+      "line_id": "package-framework",
+      "status": "ACTIVE",
+      "controller_thread": "019fa09f-a54e-7d40-aea1-bd728afdb153",
+      "execution_owner_threads": ["019fa09f-a54e-7d40-aea1-bd728afdb153"],
+      "scope": "Package release-set currentness and persistent receipt/lock consumer inventory.",
+      "write_set": ["src/kernel/runtime-state-paths.ts", "src/modules/connect/agent-package-registry-parts/store.ts", "src/modules/connect/agent-package-registry-parts/types.ts", "src/modules/connect/agent-package-registry.ts", "tests/src/cli/cases/packages-cases/package-lifecycle-writer-lock.test.ts"],
+      "current_authority": "Read-only family scan proves legacy lock/index and LKG/rollback consumers remain; no consumer-zero claim is valid.",
+      "next_action": "Wait for exact2/exact3 canonical close, then dispatch the minimal bounded receipt-persistence slice with fresh overlap proof.",
+      "absorption_plan": "Do not create a lane early; fresh Framework replay after predecessor close, then gates, absorption and cleanup.",
+      "terminal_gaps": ["owner dispatch", "legacy consumer inventory", "consumer-zero proof", "canonical cleanup"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "ledger-coordination",
+      "id": "framework-managed-update-pr8",
+      "line_id": "package-framework",
+      "status": "ACTIVE",
+      "controller_thread": "019f9d37-99f9-7d03-981b-acdc4c8f34ca",
+      "execution_owner_threads": ["019f9d37-99f9-7d03-981b-acdc4c8f34ca"],
+      "scope": "Framework managed-update process identity and regression repair.",
+      "write_set": ["tests/src/cli/cases/managed-update-kernel-cases/base-runtime-maintenance.ts", "tests/src/cli/cases/managed-update-kernel-projection.test.ts", "tests/src/cli/cases/managed-update-kernel.test.ts", "tests/src/cli/cases/packages-cases/workflow-policy-transaction.test.ts"],
+      "current_authority": "Framework PR #8 is OPEN/DRAFT with a dirty merge-in-progress lane; local focused/typecheck/lint gates pass but fresh wire replay is incomplete.",
+      "next_action": "Finish current regression/structure gates, classify old Fast failure, replay four paths on Framework wire 3c0d765f, checkpoint and await Ledger integration dispatch.",
+      "absorption_plan": "Fresh Framework replay; exact-head checks; protected merge; parity and owner-native close.",
+      "terminal_gaps": ["clean checkpoint", "fresh wire replay", "current-head CI", "canonical absorption", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "app-shell-consumer-zero-installed-proof",
+      "line_id": "package-framework",
+      "status": "ACTIVE",
+      "controller_thread": "019fa925-b620-7932-8a0f-35bbf5b7312e",
+      "execution_owner_threads": ["019fa925-b620-7932-8a0f-35bbf5b7312e", "019fa09f-a54e-7d40-aea1-bd728afdb153"],
+      "scope": "App/Shell dynamic Package consumer switch, native currentness bridge and installed proof.",
+      "write_set": ["owner-reported App/Shell consumer paths; exact write set must be dispatched after producer checkpoints"],
+      "current_authority": "Installed state reports 25 available entries; legacy lock/currentness consumers remain in Framework and App/Shell bridge is not consumer-zero.",
+      "next_action": "After producer lanes are canonical, fresh-audit App/Shell consumers and dispatch only the minimal bridge; no hard-coded Package catalog or second manager.",
+      "absorption_plan": "Producer first, consumer semantic replay second, cross-repo gates, canonical absorb per repo, installed readback and cleanup.",
+      "terminal_gaps": ["native currentness bridge", "consumer-zero", "installed proof", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "runner-six-optimizations",
+      "line_id": "runner-ci",
+      "status": "ACTIVE",
+      "controller_thread": "019fa145-fd2d-7a80-ac29-39d36138197f",
+      "execution_owner_threads": ["019fa145-fd2d-7a80-ac29-39d36138197f"],
+      "scope": "Self-hosted advisory pools, artifact identity/dedupe, Fleet lease readback, trusted branch and least-privilege inventory.",
+      "write_set": ["proposed App exact4 workflow/contract/test slice; no writer dispatched yet"],
+      "current_authority": "App root 9d827db9 clean; Fleet 404fb7cc provides lease v2 but App workflow has not consumed it.",
+      "next_action": "Ledger dispatch one minimal App exact4 source lane only after proposed paths are reviewed; keep external key/route mutation behind task-mode-gate.",
+      "absorption_plan": "Local gates and checkpoint; protected App absorption; Fleet external binding only as a separate authorized operation.",
+      "terminal_gaps": ["exact4 source owner dispatch", "Fleet/App binding", "token scope proof", "canonical close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "framework-ci-gates",
+      "line_id": "runner-ci",
+      "status": "ACTIVE",
+      "controller_thread": "019f9def-0a13-7061-8320-dca8b058c014",
+      "execution_owner_threads": ["019f9def-0a13-7061-8320-dca8b058c014"],
+      "scope": "Framework CI gates, cross-platform lock repair and first-party payload admission.",
+      "write_set": ["owner-reported Framework exact paths; current root dirty release-bundle paths are preserved"],
+      "current_authority": "Framework wire 3c0d765f/tree 0222cd96; local root has unrelated dirty release-bundle bytes and must not be reset.",
+      "next_action": "Fresh Framework inventory, replay bounded gate fixes on a task worktree, checkpoint and wait for Ledger absorption dispatch.",
+      "absorption_plan": "Framework fresh main replay; local/hosted gates; canonical absorption; root dirty-byte disposition by original owners.",
+      "terminal_gaps": ["current root parity", "gate repair checkpoints", "canonical absorption", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "app-upstream-intake-pr80",
+      "line_id": "runner-ci",
+      "status": "ACTIVE",
+      "controller_thread": "019fa145-fd2d-7a80-ac29-39d36138197f",
+      "execution_owner_threads": ["019fa145-fd2d-7a80-ac29-39d36138197f"],
+      "scope": "App upstream-intake validation and PR #80 current-head repair.",
+      "write_set": ["PR #80 owner-reported exact write set"],
+      "current_authority": "PR #80 is not a canonical or completed runner policy result; current main drift requires fresh replay.",
+      "next_action": "Fresh-main replay and current-head checks under the same owner, then protected absorption or explicit supersession proof.",
+      "absorption_plan": "No new runner writer; integrate only the exact corrected source bytes after current-head validation.",
+      "terminal_gaps": ["fresh PR #80 current-head checks", "canonical parity", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "ledger-governance-six-line-coverage",
+      "line_id": "ledger-convergence",
       "status": "ACTIVE",
       "controller_thread": "019f8f6a-718b-78f1-801f-48d5eae617e7",
-      "execution_owner_threads": ["019fa42a-4322-7851-b34e-3b8320201538", "019fa173-73d0-70c2-8988-6180d50a46c7"],
-      "scope": "Maintain the current objective-to-thread map and prevent stale ledger records from creating owners or blocking current user objectives.",
-      "current_evidence": ["This currentness-only lane is registered for active-objective-ledger.json and uses fresh canonical and native Plugin Manager readbacks.", "Earlier Relay/Persona snapshot claims that cannot be re-read from the current installed runtime are removed rather than carried forward.", "The global schema-v1 ledger remains a stale historical snapshot and is not an authority."],
-      "next_action": "Run the focused JSON and diff gates, create an ordinary remote checkpoint, then hand this exact one-file replay to the Root Integrator for serialized canonical absorption and owner-native close.",
-      "integration_order": 7,
-      "parallel_group": "coordination",
-      "estimated_remaining": {"wall_clock": "0.5-1h", "steps": [{"name": "snapshot validation, checkpoint, absorption and compatibility pointer", "duration": "30-60m", "necessary": "keep ownerless and duplicate-writer gaps at zero without trusting stale records"}]},
-      "terminal_gaps": ["focused validation", "canonical absorption", "owner-close of this lane"]
+      "execution_owner_threads": ["019f8f6a-718b-78f1-801f-48d5eae617e7"],
+      "scope": "Single coordination authority, model preservation and six-line/29-task coverage SSOT.",
+      "write_set": ["docs/active/active-objective-ledger.json", "docs/active/parallel-delivery-and-clean-development-ssot.md"],
+      "current_authority": "This ledger worktree is the only new governance writer; App root remains untouched.",
+      "next_action": "Run JSON/diff gates, ordinary checkpoint push, then Ledger-authorized protected absorption and owner-native close.",
+      "absorption_plan": "Documentation-only replay into current App main; parity and lifecycle close before any title/archive action.",
+      "terminal_gaps": ["local gates", "remote checkpoint", "canonical absorption", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
     },
     {
-      "id": "dialog-archive-filter",
+      "id": "serialized-canonical-absorption",
+      "line_id": "ledger-convergence",
       "status": "ACTIVE",
-      "controller_thread": "019fa6a2-c301-7b93-8a5b-1b85e875e279",
-      "execution_owner_threads": ["019fa6a2-c301-7b93-8a5b-1b85e875e279"],
-      "execution_contract": {
-        "worktree": "/Users/gaofeng/workspace/one-person-lab-app/.worktrees/archive-filter-validator-20260728",
-        "branch": "codex/archive-filter-validator-20260728",
-        "base_commit": "5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b",
-        "base_tree": "d3e5d3d93c94698399d472bdc3fada4024297a25",
-      "write_set": [
-        "contracts/app-gui-product-contract.json",
-        "contracts/app-page-state-matrix.json",
-        "contracts/app-product-profile.json",
-        "docs/active/active-objective-ledger.json",
-        "docs/product/gui/README.md",
-        "scripts/validate-active-shell/app-contract-constants.ts",
-        "scripts/validate-active-shell/shell-ordinary-experience-validator.ts",
-        "tests/release/codex-default-profile.test.ts"
-      ],
-        "shared_root_overlap": "none; the root release-bundle dirty packet does not include this write set",
-        "active_lane_overlap": "development may continue; final canonical absorption is serialized by the sole Integrator",
-      "next_action": "resolve current-head PR review P2s, run App contract and current-Shell compatibility gates, create one ordinary checkpoint, then use the protected PR route for canonical absorption and owner-native close",
-        "local_gates": [
-          "JSON parse and git diff check",
-          "tests/release/codex-default-profile.test.ts",
-          "validate-active-shell against current Shell 1c7c compatibility; strict projectId producer enforcement remains post-App successor work",
-          "targeted format and lint"
-        ],
-      "integration_order": "App canonical model and owner-close before the strict projectId managed-scratch Shell successor"
-      },
-      "scope": "Converge the App conversation rail contract so Default ordinary, Running now, Archived and All/Search use canonical identity sets, while managed ~/Documents/Codex tasks preserve recorded cwd without becoming leaf-directory Projects.",
-      "current_evidence": [
-        "The owner-native lifecycle receipt remains ACTIVE under controller, owner and execution owner 019fa6a2-c301-7b93-8a5b-1b85e875e279 with the exact six-path write set.",
-        "Fresh read-only state_5.sqlite aggregate contains 4975 archived=false rows across exec, user, subagent and other sources, proving archived=false is not an Active, Running now or default-rail identity set and must not be bulk archived or deleted.",
-        "Current App wire main is 5839b2ecce55b3ff84a85f2cfbea9cff4d11bb7b. Shell main 1c7c384e8326a3703ab36c2030aaaa22a6da001b remains the current compatibility producer; strict projectId and managed-scratch projection enforcement is intentionally deferred to the distinct post-App Shell successor."
-      ],
-      "next_action": "Keep the App SSOT strict, pass the current Shell compatibility bridge, absorb through protected PR #31, verify canonical parity, and owner-close before the separate Shell successor.",
-      "integration_order": 8,
-      "parallel_group": "app-bug-repair",
-      "estimated_remaining": {
-        "wall_clock": "1-3h",
-        "steps": [
-          {"name": "source reproduction and focused regression", "duration": "20-45m", "necessary": "bind the fix to the actual timeout/fallback root cause"},
-          {"name": "isolated implementation and checkpoint", "duration": "20-45m", "necessary": "make the change recoverable without touching the dirty root"},
-          {"name": "fresh-main absorption and owner-native close", "duration": "20-90m", "necessary": "prove canonical bytes and clean the task lane without install or publication"}
-        ]
-      },
-      "terminal_gaps": ["App exact6 parity", "focused and active-shell gates", "clean remote checkpoint", "canonical parity", "owner-native cleanup"]
+      "controller_thread": "019fa925-b620-7932-8a0f-35bbf5b7312e",
+      "execution_owner_threads": ["019fa925-b620-7932-8a0f-35bbf5b7312e"],
+      "scope": "One Integrator per repository for fresh-main semantic replay, protected absorption and parity.",
+      "write_set": ["canonical main mutation is short-lived and Ledger-dispatched only"],
+      "current_authority": "App root is clean at 9d827db9; seven registered non-root lanes remain unabsorbed or under owner review.",
+      "next_action": "Consume owner checkpoints in dependency order; absorb one lane at a time and return main/wire/tree/blob parity before the next lane.",
+      "absorption_plan": "Framework producer and App source lanes first, then distribution and package consumers, then documentation snapshot.",
+      "terminal_gaps": ["serial owner schedule", "fresh replay per lane", "canonical parity", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "worktree-hygiene-owner-close",
+      "line_id": "ledger-convergence",
+      "status": "ACTIVE",
+      "controller_thread": "019fa25a-c8b6-7de3-b436-cb6d13415ce4",
+      "execution_owner_threads": ["019fa25a-c8b6-7de3-b436-cb6d13415ce4"],
+      "scope": "Proof-backed cleanup of absorbed task worktrees, branches, PRs, receipts, holders, locks and temp artifacts.",
+      "write_set": ["lifecycle receipts and exact task-owned cleanup surfaces only"],
+      "current_authority": "Fresh App lifecycle reports 7 active registered lanes, cleanup_ready=0; stale receipts and synthetic routes remain.",
+      "next_action": "Reconcile each owner callback and close only after canonical parity and holder/lock proof; do not bulk-delete or clean external custody.",
+      "absorption_plan": "Owner-native close after each serialized absorption; preserve 812b and superseded evidence.",
+      "terminal_gaps": ["stale receipts", "synthetic route recovery", "cleanup-ready proof", "owner-close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "external-812b-custody",
+      "line_id": "ledger-convergence",
+      "status": "ACTIVE",
+      "controller_thread": "019fa719-11cf-7b70-bf2d-ec101f100de4",
+      "execution_owner_threads": ["019fa719-11cf-7b70-bf2d-ec101f100de4"],
+      "scope": "Preserve and reconcile the 812b external-custody dirty worktree without destructive cleanup.",
+      "write_set": ["external custody evidence only; no reset/stash/clean/delete"],
+      "current_authority": "47 dirty paths remain under external custody; remote feature ref is absent and the lane is not recoverable from remote.",
+      "next_action": "Owner performs read-only per-path provenance and Ledger records a retention or semantic successor decision; no mutation by Hygiene.",
+      "absorption_plan": "Only explicitly selected semantic paths may be replayed on fresh main; preserve all other evidence.",
+      "terminal_gaps": ["per-path provenance", "owner decision", "safe custody close"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "synthetic-stale-route-reconciliation",
+      "line_id": "ledger-convergence",
+      "status": "ACTIVE",
+      "controller_thread": "019fa71a-110a-7410-a052-2493bf1dd6fa",
+      "execution_owner_threads": ["019fa71a-110a-7410-a052-2493bf1dd6fa", "019fa25a-c8b6-7de3-b436-cb6d13415ce4"],
+      "scope": "Route synthetic/invalid owners, stale receipts and detached exact-merged lanes to real owner-native proof.",
+      "write_set": ["lifecycle records through repo-native tools only"],
+      "current_authority": "Synthetic codex-current/root routes remain invalid; detached exact-merged and stale receipts require semantic disposition, not age-based deletion.",
+      "next_action": "For each exact object, resolve a real owner, prove canonical coverage or recovery obligation, then close-stale only through the native lifecycle tool.",
+      "absorption_plan": "No source mutation by Hygiene; route source replay to the owning line and return exact absent/first_failed evidence.",
+      "terminal_gaps": ["real owner mapping", "stale receipt proof", "exact close-stale evidence"],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "schema-v2-duplicate-cleanup",
+      "line_id": "ledger-convergence",
+      "status": "SAFE_TO_ARCHIVE",
+      "controller_thread": "019fa853-f12d-7cb1-975f-03e137512f43",
+      "execution_owner_threads": ["019fa853-f12d-7cb1-975f-03e137512f43"],
+      "scope": "Schema-v2 duplicate PR/branch/root parity cleanup.",
+      "write_set": [],
+      "current_authority": "Source/ref/worktree/receipt close is already terminal; canonical main parity is proven and no successor obligation remains.",
+      "next_action": "Keep thread unarchived until the user approves the specific thread; title may be updated to SAFE_TO_ARCHIVE.",
+      "absorption_plan": "Already exact-merged/cleaned; no writer or replay.",
+      "terminal_gaps": [],
+      "archive_performed": false,
+      "user_approval_required": true
+    },
+    {
+      "id": "webui-recovery-close",
+      "line_id": "ledger-convergence",
+      "status": "SAFE_TO_ARCHIVE",
+      "controller_thread": "019fa70a-d63b-7150-b654-178a45f12789",
+      "execution_owner_threads": ["019fa70a-d63b-7150-b654-178a45f12789"],
+      "scope": "WebUI recovery cleanup and runtime/digest evidence close.",
+      "write_set": [],
+      "current_authority": "Fresh recovery callback proves formal container/runtime and isolated test objects are absent; GHCR digests unchanged; remaining=[] and archive_performed=false.",
+      "next_action": "Keep thread unarchived until the user approves the specific thread; title may be updated to SAFE_TO_ARCHIVE.",
+      "absorption_plan": "Already terminal; no publisher or cleanup successor.",
+      "terminal_gaps": [],
+      "archive_performed": false,
+      "user_approval_required": true
+    }
+  ],
+  "coverage": {
+    "delivery_line_count": 6,
+    "task_count": 29,
+    "active_task_count": 27,
+    "safe_to_archive_task_count": 2,
+    "ownerless_gap_count": 0,
+    "duplicate_writer_count": 0,
+    "invalid_synthetic_route_count": "tracked in synthetic-stale-route-reconciliation; not treated as a valid owner",
+    "source_of_count": "User-provided delivery-line consolidation, reconciled against fresh owner packets on 2026-07-29.",
+    "coverage_rule": "Every ACTIVE task has a controller, execution owner, exact/bounded write set, executable next action and explicit absorption/terminal gaps."
+  },
+  "integration_order": [
+    {"order": 1, "group": "runner-ci", "rule": "Complete source checkpoints and gate repairs that do not require public mutation."},
+    {"order": 2, "group": "package-framework", "rule": "Resolve Framework producer and Package native descriptor prerequisites before consumer-zero claims."},
+    {"order": 3, "group": "desktop-experience", "rule": "Absorb App contract/consumer source lanes after their current-head gates."},
+    {"order": 4, "group": "windows-webui", "rule": "Reconcile Preview/WebUI runtime and public operations only with distinct authority."},
+    {"order": 5, "group": "stable-distribution", "rule": "Run one fresh immutable Stable operation only after source cohort parity."},
+    {"order": 6, "group": "ledger-convergence", "rule": "Close absorbed lanes and update the baseline after fresh parity; never bulk-delete."
     }
   ],
   "worktree_snapshot": {
-    "repository": "one-person-lab-app",
-    "observed_non_root_count": 9,
-    "active_owned_count": 9,
+    "repository": "gaofeng21cn/one-person-lab-app",
+    "canonical_root": "/Users/gaofeng/workspace/one-person-lab-app",
+    "canonical_commit": "9d827db9323f864625623b9e24b4e35e925e1ca1",
+    "canonical_tree": "028789896d3c414ddb0f2b8e6864af1a83d94291",
+    "observed_non_root_count": 8,
+    "active_owned_count": 8,
     "cleanup_ready_count": 0,
     "recovery_owner_required_count": 0,
-    "holder_proof_required_count": 0,
-    "unregistered_lane": null,
-    "known_historical_detached_lane": null,
-    "observation_scope": "current host /home/gaofeng/workspace/one-person-lab-app; root and registered non-root worktrees",
-    "cleanup_rule": "retain ACTIVE lanes; clean only after absorbed parity, holder proof and owner-native exact allowlist; route unregistered lanes to recovery before mutation"
-  }
+    "holder_scan_available": false,
+    "observation_scope": "Fresh App lifecycle status after registering the Ledger governance worktree; unrelated external custody and other repositories remain outside this count.",
+    "cleanup_rule": "Retain ACTIVE lanes; clean only after absorbed parity, holder/lock proof and owner-native exact allowlist; route unregistered lanes to recovery before mutation."
+  },
+  "archive_policy": {
+    "safe_to_archive_threads": ["019fa853-f12d-7cb1-975f-03e137512f43", "019fa70a-d63b-7150-b654-178a45f12789"],
+    "archive_performed": false,
+    "user_approval_required": true,
+    "title_updates_allowed": true,
+    "title_updates_applied": false
+  },
+  "superseded_sources": [
+    {"path": "PR #81 static ledger snapshot", "reason": "Superseded/closed unmerged; do not restore its stale counts or refs."},
+    {"path": "old schema-v1 task ledger", "reason": "Stale owner and canonical refs; retained only as historical evidence."}
+  ]
 }
