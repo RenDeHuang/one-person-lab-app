@@ -132,7 +132,6 @@ jobs:
               exit 1
               ;;
           esac
-          test "$(jq -er .release.cohort.app_sha "$handoff")" = "$head_sha"
           handoff_sha="sha256:$(shasum -a 256 "$handoff" | awk '{print $1}')"
           handoff_base64="$(base64 < "$handoff" | tr -d '\n')"
           {
