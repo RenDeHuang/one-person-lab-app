@@ -76,3 +76,14 @@ test('the universal installer has no Native tarball discovery or verifier fallba
   assert.match(source, /if desktop_release_asset_selection_requested; then\s+stable_macos_install/);
   assert.doesNotMatch(source, /OPL_NATIVE_WEBUI_|install-web\.sh|native-webui-qualified/);
 });
+
+test('macOS Full resolves one immutable same-cohort adjunct and never assumes it is on the base tag', () => {
+  const source = fs.readFileSync(installerPath, 'utf8');
+  assert.match(source, /resolve_full_adjunct_release_record/);
+  assert.match(source, /releases\?per_page=100&page=\$page/);
+  assert.match(source, /download_release_record "\$candidate_tag"/);
+  assert.match(source, /target_commitish/);
+  assert.match(source, /Full adjunct exact-tag readback/);
+  assert.match(source, /No immutable same-cohort Full adjunct is published/);
+  assert.match(source, /continuing with the Standard DMG/);
+});

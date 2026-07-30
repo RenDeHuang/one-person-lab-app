@@ -39,6 +39,11 @@ test('frozen universal installer binds one exact release cohort and remains exec
     assert.match(script, /OPL_RELEASE_REPO='gaofeng21cn\/one-person-lab-app'/);
     assert.match(script, new RegExp(`OPL_CONTAINER_WEBUI_TAG='${version.replaceAll('.', '\\.')}'`));
     assert.match(script, new RegExp(`OPL_FROZEN_RELEASE_TAG='v${version.replaceAll('.', '\\.')}'`));
+    assert.match(script, /resolve_full_adjunct_release_record/);
+    assert.match(script, /releases\?per_page=100&page=\$page/);
+    assert.match(script, /download_release_record "\$candidate_tag"/);
+    assert.match(script, /STABLE_MACOS_SOURCE_APP_SHA/);
+    assert.match(script, /STABLE_MACOS_FULL_ADJUNCT_TAG/);
     assert.match(
       script,
       new RegExp(`one-person-lab/archive/${frameworkSha}\\.tar\\.gz`),
