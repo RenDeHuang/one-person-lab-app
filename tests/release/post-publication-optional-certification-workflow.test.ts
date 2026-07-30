@@ -357,7 +357,8 @@ test('Linux x64 certification consumes the exact public DEB and installer and pr
   assert.match(run.run, /installed_executable_digest="sha256:/);
   assert.match(run.run, /preinstall_package_absent:\$preinstall_package_absent/);
   assert.match(run.run, /expected_executable_digest:/);
-  assert.match(run.run, /downloaded_from_published_release:true/);
+  assert.match(run.run, /downloaded_from_published_release:\$linux_artifact_downloaded/);
+  assert.match(run.run, /downloaded_from_published_release:\$installer_downloaded/);
   assert.match(run.run, /rebuilt:false/);
   assert.doesNotMatch(run.run, /status=unavailable|runner_offline|queued_workflow|network_failure/);
 

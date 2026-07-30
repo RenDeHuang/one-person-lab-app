@@ -1132,7 +1132,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'One-Person-Lab-${version}-linux-x64.deb',
     'public-opl-app-installer.sh',
     'bash "$installer_path" --desktop --release-tag "$RELEASE_TAG" --no-open',
-    'preinstall_package_absent:true',
+    'preinstall_package_absent:$preinstall_package_absent',
     'dpkg-deb -x "$linux_artifact_path" "$extracted_package"',
     'test "$installed_executable_digest" = "$expected_executable_digest"',
     '--platform linux',
@@ -1140,7 +1140,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'linux-x64-same-artifact-install.json',
     'Upload recoverable Linux certification evidence',
     'Fail after preserving Linux certification evidence',
-    'downloaded_from_published_release:true',
+    'downloaded_from_published_release:$linux_artifact_downloaded',
+    'downloaded_from_published_release:$installer_downloaded',
     'rebuilt:false',
   ]) {
     if (!optionalCertification.text.includes(required)) {
