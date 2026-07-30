@@ -303,6 +303,14 @@ test('optional certification is an automatic read-only post-publication executor
   assert.match(source, /tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
   assert.match(source, /"\$base_tag"-full-/);
   assert.doesNotMatch(source, /test "\$tag" = "\$head_branch"/);
+  const fullIdentity = String(
+    workflowStep(workflow, 'resolve-full', 'Bind exact public Full identity').run,
+  );
+  assert.doesNotMatch(fullIdentity, /test "\$app_sha" = "\$head_sha"/);
+  assert.match(fullIdentity, /\.target_commitish == \$app/);
+  assert.match(fullIdentity, /test "\$\(jq -er \.artifact\.url "\$handoff"\)" = "\$release_base\/\$artifact_name"/);
+  assert.match(fullIdentity, /test "\$\(jq -er \.manifest\.url "\$handoff"\)" = "\$release_base\/\$manifest_name"/);
+  assert.match(fullIdentity, /--expected-source-commit "\$app_sha"/);
   assert.match(source, /opl-release-activation-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /opl-release-full-published-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /public-component-manifest\.json/);

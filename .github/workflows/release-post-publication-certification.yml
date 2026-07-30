@@ -1127,12 +1127,14 @@ jobs:
           artifact_name="$(jq -er .artifact.name "$handoff")"
           artifact_digest="$(jq -er .artifact.sha256 "$handoff")"
           artifact_size="$(jq -er .artifact.size_bytes "$handoff")"
+          artifact_url="$(jq -er .artifact.url "$handoff")"
           manifest_name="$(jq -er .manifest.name "$handoff")"
           manifest_digest="$(jq -er .manifest.sha256 "$handoff")"
+          manifest_size="$(jq -er .manifest.size_bytes "$handoff")"
+          manifest_url="$(jq -er .manifest.url "$handoff")"
           app_sha="$(jq -er .release.cohort.app_sha "$handoff")"
           shell_sha="$(jq -er .release.cohort.shell_sha "$handoff")"
           framework_sha="$(jq -er .release.cohort.framework_sha "$handoff")"
-          test "$app_sha" = "$head_sha"
           case "$tag" in
             "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
               ;;
@@ -1142,14 +1144,31 @@ jobs:
               ;;
           esac
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > public-release.json
-          jq -e --arg tag "$tag" --arg head "$head_sha" --arg name "$artifact_name" --argjson size "$artifact_size" '
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          test "$(jq -er .artifact.url "$handoff")" = "$release_base/$artifact_name"
+          test "$(jq -er .manifest.url "$handoff")" = "$release_base/$manifest_name"
+          jq -e --arg tag "$tag" --arg app "$app_sha" \
+            --arg name "$artifact_name" --arg digest "$artifact_digest" \
+            --argjson size "$artifact_size" --arg url "$artifact_url" \
+            --arg manifest "$manifest_name" --arg manifest_digest "$manifest_digest" \
+            --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
             .tag_name == $tag
             and .draft == false
             and .prerelease == false
-            and .target_commitish == $head
-            and ([.assets[] | select(.name == $name and .size == $size)] | length == 1)
+            and .target_commitish == $app
+            and ([.assets[] | select(
+              .name == $name
+              and .digest == $digest
+              and .size == $size
+              and .browser_download_url == $url
+            )] | length == 1)
+            and ([.assets[] | select(
+              .name == $manifest
+              and .digest == $manifest_digest
+              and .size == $manifest_size
+              and .browser_download_url == $manifest_url
+            )] | length == 1)
           ' public-release.json >/dev/null
-          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
           curl --fail --location --retry 0 \
             "$release_base/$manifest_name" \
             --output public-full-manifest.json
@@ -1167,7 +1186,7 @@ jobs:
             --manifest public-component-manifest.json \
             --expected-tag "$tag" \
             --release-prerelease false \
-            --expected-source-commit "$head_sha" \
+            --expected-source-commit "$app_sha" \
             > public-component-identity.json
           jq -e \
             --arg app_sha "$app_sha" \
