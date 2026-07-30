@@ -38,6 +38,8 @@ jobs:
       version: ${{ steps.bind.outputs.version }}
       source_bundle_digest: ${{ steps.bind.outputs.source_bundle_digest }}
       existing_run_id: ${{ steps.bind.outputs.existing_run_id }}
+      optional_platforms_enabled: ${{ steps.optional.outputs.optional_platforms_enabled }}
+      optional_platforms: ${{ steps.bind.outputs.optional_platforms }}
     steps:
       - name: Validate successful Standard source run
         id: source
@@ -103,12 +105,18 @@ jobs:
           while IFS= read -r file; do manifests+=("$file"); done < <(
             find standard-activation -type f -name latest-component-manifest.json -print | LC_ALL=C sort
           )
+          controls=()
+          while IFS= read -r file; do controls+=("$file"); done < <(
+            find standard-checkpoint -type f -name stable-operation-control.json -print | LC_ALL=C sort
+          )
           test "${#checkpoints[@]}" = 1
           test "${#bundles[@]}" = 1
           test "${#manifests[@]}" = 1
+          test "${#controls[@]}" = 1
           checkpoint="${checkpoints[0]}"
           bundle="${bundles[0]}"
           manifest="${manifests[0]}"
+          control="${controls[0]}"
 
           checkpoint_stage="$(jq -er .checkpoint_stage "$checkpoint")"
           case "$checkpoint_stage" in
@@ -152,6 +160,10 @@ jobs:
           app_ref="$(jq -er .sources.app.source_commit "$bundle")"
           shell_ref="$(jq -er .sources.shell.source_commit "$bundle")"
           bundle_digest="$(jq -er .bundle_digest "$bundle")"
+          optional_platforms="$(jq -cer .optional_platforms "$control")"
+          test "$(jq -er .cohort.app_sha "$control")" = "$app_ref"
+          test "$(jq -er .cohort.shell_sha "$control")" = "$shell_ref"
+          test "$(jq -er .cohort.framework_sha "$control")" = "$framework_ref"
           [[ "$bundle_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           successor_intent_name="opl-full-append-successor-intent-${SOURCE_RUN_ID}"
           gh api \
@@ -181,6 +193,7 @@ jobs:
               echo "shell_ref=$shell_ref"
               echo "version=$version"
               echo "source_bundle_digest=$bundle_digest"
+              echo "optional_platforms=$optional_platforms"
               echo "existing_run_id=$existing_run_id"
             } >> "$GITHUB_OUTPUT"
             exit 0
@@ -196,6 +209,7 @@ jobs:
             echo "shell_ref=$shell_ref"
             echo "version=$version"
             echo "source_bundle_digest=$bundle_digest"
+            echo "optional_platforms=$optional_platforms"
             echo 'existing_run_id='
           } >> "$GITHUB_OUTPUT"
 
@@ -207,15 +221,43 @@ jobs:
             --arg framework_ref "$framework_ref" \
             --arg version "$version" \
             --arg bundle_digest "$bundle_digest" \
+            --argjson optional_platforms "$optional_platforms" \
             '{
               schema:"opl_app_stable_full_successor_intent.v1",
               status:"admitted",
               operation:"append_full",
               source:{run_id:$source_run_id,artifact:$source_artifact,bundle_digest:$bundle_digest},
               cohort:{app_sha:$app_ref,shell_sha:$shell_ref,framework_sha:$framework_ref},
-              release:{version:$version,standard_assets_modified:false,latest_modified:false},
+              release:{version:$version,optional_platforms:$optional_platforms,standard_assets_modified:false,latest_modified:false},
               idempotency:{one_successor_per_standard_run:true,existing_run_id:null}
             }' > successor-intent.json
+
+      - name: Checkout exact Standard cohort platform policy
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ steps.bind.outputs.app_ref }}
+          path: optional-platform-policy
+
+      - name: Setup Node.js for platform policy
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Resolve enabled optional Stable platforms
+        id: optional
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types \
+            optional-platform-policy/scripts/resolve-release-platform-matrix.ts \
+            --policy stable_optional \
+            --platforms-json '${{ steps.bind.outputs.optional_platforms }}' \
+            --github-output "$GITHUB_OUTPUT"
+          platform_count="$(jq -er 'length' <<< '${{ steps.bind.outputs.optional_platforms }}')"
+          case "$platform_count" in
+            0) echo 'optional_platforms_enabled=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo 'optional_platforms_enabled=true' >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Upload immutable successor intent
         if: ${{ always() }}
@@ -225,6 +267,25 @@ jobs:
           path: successor-intent.json
           if-no-files-found: warn
           retention-days: 30
+
+  publish-optional-platforms:
+    if: ${{ needs.admit.outputs.optional_platforms_enabled == 'true' }}
+    needs: [admit]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/build-manual.yml
+    with:
+      invocation_mode: stable_optional_follower
+      platform_policy: stable_optional
+      app_ref: ${{ needs.admit.outputs.app_ref }}
+      shell_ref: ${{ needs.admit.outputs.shell_ref }}
+      framework_ref: ${{ needs.admit.outputs.framework_ref }}
+      opl_release_version: ${{ needs.admit.outputs.version }}
+      source_run_id: ${{ needs.admit.outputs.source_run_id }}
+      source_bundle_digest: ${{ needs.admit.outputs.source_bundle_digest }}
+      platform_ids: ${{ needs.admit.outputs.optional_platforms }}
+    secrets: inherit
 
   dispatch:
     if: ${{ needs.admit.outputs.eligible == 'true' }}
@@ -286,10 +347,11 @@ jobs:
           dispatch_ref="main"
           append_full_run_name_regex="^OPL Stable append_full source:${SOURCE_RUN_ID} run:[1-9][0-9]*$"
           prior_run_ids="$(
-            gh api --paginate --slurp \
-              "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&per_page=100" \
+            gh api -X GET \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs" \
+              -f event=workflow_dispatch -f branch=main -f per_page=100 -f page=1 \
               | jq -c --arg append_full_run_name_regex "$append_full_run_name_regex" '
-                [.[]?.workflow_runs[]?
+                [.workflow_runs[]?
                   | select(.head_branch == "main")
                   | select(.path == ".github/workflows/release-stable.yml")
                   | select(.run_attempt == 1)
@@ -306,12 +368,13 @@ jobs:
           run_id=''
           for _ in $(seq 1 12); do
             runs="$(
-              gh api --paginate --slurp \
-                "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&per_page=100"
+              gh api -X GET \
+                "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs" \
+                -f event=workflow_dispatch -f branch=main -f per_page=100 -f page=1
             )"
             matches="$(
               jq -c --argjson prior_run_ids "$prior_run_ids" --arg branch "$dispatch_ref" --argjson started "$dispatch_started_at" --arg append_full_run_name_regex "$append_full_run_name_regex" '
-                [.[]?.workflow_runs[]?
+                [.workflow_runs[]?
                   | select(.head_branch == $branch)
                   | select(.path == ".github/workflows/release-stable.yml")
                   | select(.run_attempt == 1)

@@ -22,6 +22,7 @@ import {
   resolveNightlyReleaseRequest,
   type NightlyReleaseRequest,
 } from '../../scripts/resolve-nightly-release-request.ts';
+import { resolveReleasePlatformMatrix } from '../../scripts/resolve-release-platform-matrix.ts';
 import { resolveReleaseVersionIdentity } from '../../scripts/release-version.ts';
 import { validateNightlyReleaseTopology } from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
@@ -481,7 +482,9 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
   assert.deepEqual(Object.keys(release.on), ['schedule']);
   assert.equal(release.jobs['standard-build'].uses, './.github/workflows/_build-reusable.yml');
   assert.equal(release.jobs['standard-build'].with.require_macos_gatekeeper, false);
-  assert.deepEqual(JSON.parse(release.jobs['standard-build'].with.matrix).include, [
+  assert.equal(release.jobs['standard-build'].with.release_validation_profile, 'stable');
+  assert.equal(release.jobs['standard-build'].with.matrix, '${{ needs.admission.outputs.matrix }}');
+  assert.deepEqual(resolveReleasePlatformMatrix({ policy: 'nightly_standard' }).include, [
     {
       platform: 'macos-arm64',
       os: 'macos-14',

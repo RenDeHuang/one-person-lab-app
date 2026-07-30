@@ -190,14 +190,34 @@ Framework Base/CLI，是 Framework 边界，不是第五个 App 产品单元。
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
 | Container WebUI GHCR | Active separate carrier | immutable OCI version、`:latest`，`:stable` 为兼容 alias | Production follower 默认把合格 Stable 同时推进 `stable`/`latest`；手工 independent Preview 可独立发布，只有用户显式 promotion 才从 durable publication record 选择并改 Docker `latest`，且不得改 `stable` 或 Desktop 指针 |
 | Manual Full Preview | Active temporary non-Stable lane | 非 `v` prerelease tag、Full preview DMG | 发布默认 `make_latest=false`；独立 protected pointer operation 可选择 exact Preview，但不能暗升 Stable 或改写 Homebrew |
-| Windows x64 RC Preview | 已公开的 opt-in WSL2-only Preview；Node carrier 修复已通过 exact-byte repair install/runtime 终态验收 | `windows-rc-26.7.30-rc.1` prerelease、`One-Person-Lab-26.7.30-rc.1-win-x64.exe`、SHA256SUMS、Windows RC cohort | 对旧 carrier 的 `npm`/`npx` 入口故障完成真实复现；同一新 EXE 完成覆盖修复、三路 Codex-backed runtime、正常退出 reconcile 和 final-zero，公开下载字节与 sealed cohort 一致；仍禁止 native Windows fallback、Latest、Stable updater、Homebrew 和 Stable Bundle admission |
+| Windows x64 RC Preview | opt-in WSL2-only Preview capability；当前公开状态只由 fresh public receipt/readback 决定 | exact prerelease tag、Windows EXE、SHA256SUMS、Windows RC cohort | 三路 Codex-backed runtime、物理重启持久性、正常退出和 final-zero 必须绑定同一公开 EXE；仍禁止 native Windows fallback、Latest、Stable updater、Homebrew 和 Stable Bundle admission |
 | Nightly | Implemented，首个公开 readback 待完成 | 自动 Standard DMG/ZIP/updater prerelease + Nightly Cask follower | 每日 schedule 默认不改 Latest；独立 protected pointer operation 可临时选择 exact Nightly；不含 Full/WebUI、不复用 Stable mutex；抽样 VM 非阻塞 |
 | Full Homebrew Cask | 目标 carrier 已定义；具体公开状态由 fresh Tap/Release readback 决定 | Full density carrier | 完成受保护 CAS、公开字节和安装 readback 前不得宣称可用 |
 | WebUI internal carriers | Native / Container 均为内部实现选择 | 与产品单元绑定的平台资产、OCI digest、manifest 和 qualification receipt | 每个 exact carrier 独立 qualification/readback；不增加产品表面或暗示另一格完成 |
 | Canary | Validation-only，不是发布路径 | 无用户产物、无 moving tag mutation | 不继承发布 secrets，不执行公开写入 |
 
-远端“现在具体是哪一个版本”必须从对应 owner 的 fresh receipt/readback 获取，
-不能从本文、README、测试通过或本地 Cask 文件推导。
+远端“现在具体是哪一个版本”必须从对应 owner 的 fresh receipt/readback 获取，不能从本文、
+README、测试通过或本地 Cask 文件推导。
+
+Stable 的默认 required/blocking 平台精确为 `macos-arm64` 与 `linux-x64`。`macos-x64`、
+`macos-universal` 和 `linux-arm64` 保留为默认关闭的 optional/nonblocking capability；
+Windows x64/ARM64
+保留构建能力，但只属于默认关闭、非阻塞的 Preview/RC policy，不能进入 Stable admission、
+qualification、Latest activation 或同制品 Standard install/readback 的 required 集合。
+所有入口只选择机器合同登记的 policy 或 platform ID，由
+`scripts/resolve-release-platform-matrix.ts` 生成 reusable build matrix。单次 Stable 的
+optional ID 数组必须由 pre-issued authority 绑定并随 operation control/checkpoint 原样传递，
+不能由 follower 自行扩选。
+
+Full macOS DMG 是同一 Stable cohort 的受保护自动 post-success additive follower：
+它必须绑定相同 App/Shell/Framework refs、version 与 Standard identity，并用独立
+`append_full` operation 生成 durable receipt。因为基础 Stable GitHub Release 在终态是
+immutable，Full DMG 及其 manifest 发布到由基础 tag 与 Bundle digest 派生的独立 immutable
+adjunct Release，而不是回写基础 tag。optional 平台同样使用内容寻址的独立 immutable adjunct
+Release。两类 receipt 都必须给出基础 tag、adjunct tag、Release/下载 URL、三仓 cohort、
+Bundle/manifest/资产 digest；用户从该 adjunct Release 下载附加 DMG 或平台安装包。
+任一 follower 的失败或延迟不得撤销、阻塞或改写基础 Stable publication、Latest activation
+或 Standard 同制品安装终态；恢复必须使用绑定同 cohort 的 distinct operation。
 
 ### Container WebUI 紧急路径
 

@@ -1,7 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { releaseBoundaryChecks, releaseWorkflowPaths } from './release-checks.ts';
+import {
+  releaseBoundaryChecksForProfile,
+  releaseValidationProfile,
+  releaseWorkflowPaths,
+  releaseWorkflowPathsForProfile,
+} from './release-checks.ts';
 
 const workflowMutationCommandPattern = /gh\s+api\s+--method\s+(?:POST|PATCH|PUT|DELETE)|gh\s+workflow\s+run|gh\s+run\s+(?:cancel|rerun)|gh\s+release\s+(?:create|edit|upload|delete)|git\b[^\n]*\s(?:push|tag)\b|\bopl\s+release\s+(?:freeze|operation\s+admit|build|verify|publish|reconcile)\b|publish-(?:release|full-addon)\.ts|cleanup-draft-release-candidates\.ts|curl\b[^\n]*(?:--request|-X)\s*(?:POST|PATCH|PUT|DELETE)/;
 const retiredLiveAuthorityPattern = /release[_ -]broker|verify-release-broker|verify-release-session-lease|release_attempt_id|release_mutation_payload_sha256|pre_api_admission_receipt_base64|release[_ -]session[_ -]lease/i;
@@ -18,6 +23,7 @@ const exactWebUiPublishPermissions = { contents: 'read', packages: 'write' } as 
 const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml';
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
+const manualBuildWorkflowPath = '.github/workflows/build-manual.yml';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
 const webuiCarrierPublishEnvironment =
@@ -174,6 +180,20 @@ function isAuthorizedManualPreviewWriteJob(
     && job.with?.mode === 'execute'
     && job.with?.operation === 'resume_standard'
     && job.with?.publication_channel === 'preview';
+}
+
+function isAuthorizedSelectedPlatformPublishJob(
+  workflowPath: string,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  return workflowPath === manualBuildWorkflowPath
+    && jobId === 'publish-selected-platforms'
+    && needsExactly(job, ['prepare-matrix', 'build-pipeline'])
+    && job.environment ===
+      "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}"
+    && exactObject(job.permissions, exactStableEntryPermissions)
+    && Array.isArray(job.steps);
 }
 
 function validatePreviewLatestPointerTopology(appRoot: string): number {
@@ -688,6 +708,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const bundleJobs = workflowJobs(bundle.workflow);
   if (JSON.stringify(Object.keys(bundleJobs)) !== JSON.stringify([
     'startup-canary',
+    'resolve-platform-matrix',
     'admission',
     'freeze',
     'standard-build',
@@ -1915,7 +1936,7 @@ function validateExactActionPins(
 export function runReleaseBoundaryTextChecks(appRoot: string): number {
   let failures = 0;
 
-  for (const check of releaseBoundaryChecks) {
+  for (const check of releaseBoundaryChecksForProfile()) {
     const absolutePath = path.join(appRoot, check.file);
     if (check.retired) {
       if (fs.existsSync(absolutePath)) {
@@ -1950,7 +1971,7 @@ export function runReleaseBoundaryTextChecks(appRoot: string): number {
 export function validateWorkflowNode24Policy(appRoot: string): number {
   let failures = 0;
 
-  for (const workflowPath of releaseWorkflowPaths) {
+  for (const workflowPath of releaseWorkflowPathsForProfile()) {
     const absolutePath = path.join(appRoot, workflowPath);
     if (!fs.existsSync(absolutePath)) {
       console.error(`FAIL actions_node24_runtime_policy: missing ${workflowPath}`);
@@ -1971,7 +1992,11 @@ export function validateWorkflowNode24Policy(appRoot: string): number {
 
 export function validateStableReleaseActionPinPolicy(appRoot: string): number {
   let failures = 0;
-  for (const relativePath of stableReleaseActionPaths) {
+  const profile = releaseValidationProfile();
+  const profileWorkflowPaths = new Set(releaseWorkflowPathsForProfile(profile));
+  for (const relativePath of stableReleaseActionPaths.filter((candidate) =>
+    !releaseWorkflowPaths.includes(candidate) || profileWorkflowPaths.has(candidate)
+  )) {
     const absolutePath = path.join(appRoot, relativePath);
     let document: Record<string, any>;
     try {
@@ -2132,6 +2157,10 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         continue;
       }
       if (isAuthorizedManualPreviewWriteJob(workflowPath, jobId, job)) {
+        continue;
+      }
+      if (isAuthorizedSelectedPlatformPublishJob(workflowPath, jobId, job)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }
       if (

@@ -74,7 +74,15 @@ jobs:
         run: npm run format:check
 
       - name: Run release-boundary tests
-        run: npm run test:release-boundary
+        env:
+          OPL_RELEASE_VALIDATION_PROFILE: stable
+        run: scripts/verify.sh release-boundary
+
+      - name: Run Windows Preview release checks (advisory)
+        continue-on-error: true
+        env:
+          OPL_RELEASE_VALIDATION_PROFILE: windows-preview
+        run: scripts/verify.sh release-boundary
 
   merge-gate:
     name: PR / merge gate

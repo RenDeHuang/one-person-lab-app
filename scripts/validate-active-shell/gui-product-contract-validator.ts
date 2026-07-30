@@ -980,16 +980,16 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     throw new Error('App GUI Developer Profile must keep source controls and automatic safe-maintenance readback on Agents');
   }
 
-  for (const lane of releaseChannel.release_validation_profiles.stable.required_lanes) {
-    if (!guiContract.release_channel_policy?.stable?.must_gate?.includes(lane)) {
-      throw new Error(`App GUI stable release policy must gate ${lane}`);
-    }
-  }
-  for (const lane of releaseChannel.release_validation_profiles.nightly_standard.required_lanes) {
-    if (!guiContract.release_channel_policy?.nightly?.must_gate?.includes(lane)) {
-      throw new Error(`App GUI nightly release policy must gate ${lane}`);
-    }
-  }
+  assertDeepEqualJson(
+    guiContract.release_channel_policy?.stable?.must_gate,
+    releaseChannel.release_validation_profiles.stable.required_lanes,
+    'App GUI stable release required lanes',
+  );
+  assertDeepEqualJson(
+    guiContract.release_channel_policy?.nightly?.must_gate,
+    releaseChannel.release_validation_profiles.nightly_standard.required_lanes,
+    'App GUI nightly release required lanes',
+  );
   for (const lane of releaseChannel.release_validation_profiles.nightly_standard.forbidden_lanes) {
     if (!guiContract.release_channel_policy?.nightly?.must_not_gate?.includes(lane)) {
       throw new Error(`App GUI nightly release policy must exclude ${lane}`);

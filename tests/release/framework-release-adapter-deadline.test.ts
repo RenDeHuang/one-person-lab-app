@@ -10,6 +10,7 @@ import {
   activateLatest,
   applyPublishPlan,
   buildExecutorReceipt,
+  fullAdjunctReleaseIdentity,
   inspectRelease,
   type GitHubAdapterRuntime,
   type GitHubCommandOptions,
@@ -1097,6 +1098,8 @@ test('raw GitHub mutation commands reject reruns and operation-track mismatches 
 
 test('github-apply admits append_full only for a Framework Full publish plan', () => {
   const files = fixture([], 'append_full');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  const adjunct = fullAdjunctReleaseIdentity(bundle);
   let calls = 0;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
@@ -1104,6 +1107,13 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
       calls += 1;
       if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return success(releaseResponse([]));
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
+        return success({
+          ...releaseResponse([]),
+          name: adjunct.name,
+          body: adjunct.notes,
+        });
+      }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
   };
@@ -1114,7 +1124,77 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
     'operation-deadline-at': deadlineAt,
   }, runtime);
   assert.equal(result.status, 'complete');
+  assert.equal(result.tag, adjunct.tag);
+  assert.equal(calls, 2);
+});
+
+test('append_full fails closed when the exact base Stable Release is not immutable', () => {
+  const files = fixture([], 'append_full');
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls += 1;
+      if (isReleaseInspect(args)) {
+        return success(releaseResponse([], { immutable: false }));
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission('append_full', 'full'),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    (error: any) => {
+      assert.equal(error.result.status, 'failed');
+      assert.equal(error.result.failure.failure_taxonomy, 'github_full_adjunct_base_not_terminal');
+      return true;
+    },
+  );
   assert.equal(calls, 1);
+});
+
+test('an exact published Full adjunct remains idempotent with complete discovery metadata', () => {
+  const fullDmg = asset(`One-Person-Lab-Full-${version}-mac-arm64.dmg`, '4');
+  const files = fixture([fullDmg], 'append_full');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  const adjunct = fullAdjunctReleaseIdentity(bundle);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isReleaseInspect(args)) {
+        return success(releaseResponse([], { immutable: true }));
+      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
+        return success({
+          ...releaseResponse([fullDmg], { immutable: true }),
+          name: adjunct.name,
+          body: adjunct.notes,
+        });
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  const result = applyPublishPlan({
+    ...mutationAdmission('append_full', 'full'),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+  assert.equal(result.status, 'complete');
+  assert.equal(result.adjunct.base_tag, tag);
+  assert.equal(result.adjunct.tag, adjunct.tag);
+  assert.equal(result.adjunct.release_url, `https://github.com/${repo}/releases/tag/${adjunct.tag}`);
+  assert.equal(
+    result.adjunct.asset_download_base_url,
+    `https://github.com/${repo}/releases/download/${adjunct.tag}`,
+  );
+  assert.equal(calls.every((args) => args[0] === 'api'), true);
 });
 
 test('github-apply publishes a Nightly Bundle as prerelease and never as Latest', () => {

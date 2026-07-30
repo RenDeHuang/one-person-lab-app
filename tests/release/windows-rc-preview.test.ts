@@ -10,6 +10,7 @@ import {
   bindWindowsRcFrameworkManifest,
   isMainModule,
 } from '../../scripts/bind-windows-rc-framework-manifest.ts';
+import { resolveReleasePlatformMatrix } from '../../scripts/resolve-release-platform-matrix.ts';
 import { buildWindowsRcBuildCohort } from '../../scripts/write-windows-rc-build-cohort.ts';
 
 const appSha = 'a'.repeat(40);
@@ -327,9 +328,41 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.on.workflow_dispatch.inputs.framework_ref.type, 'string');
   assert.equal(manual.jobs['build-pipeline'].with.shell_ref, '${{ inputs.shell_ref }}');
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
-  assert.match(manualText, /WINDOWS_X64=.*"os":"windows-2022"/);
-  assert.match(manualText, /WINDOWS_ARM64=.*"os":"windows-2022"/);
-  assert.doesNotMatch(manualText, /WINDOWS_(?:X64|ARM64)=.*"os":"windows-latest"/);
+  assert.match(manualText, /resolve-release-platform-matrix\.ts/);
+  const windows = resolveReleasePlatformMatrix({ policy: 'windows_preview' }).include;
+  assert.deepEqual(windows.map((row) => row.platform), ['windows-x64', 'windows-arm64']);
+  assert.ok(windows.every((row) => row.os === 'windows-2022'));
+  assert.deepEqual(
+    resolveReleasePlatformMatrix({ policy: 'manual_all', platform: 'all' }).include.map(
+      (row) => row.platform,
+    ),
+    [
+      'macos-arm64',
+      'macos-x64',
+      'macos-universal',
+      'linux-x64',
+      'linux-arm64',
+      'windows-x64',
+      'windows-arm64',
+    ],
+  );
+  assert.deepEqual(
+    manual.on.workflow_dispatch.inputs.publication_mode.options,
+    ['build_only', 'windows_preview_rc'],
+  );
+  const publish = manual.jobs['publish-selected-platforms'];
+  assert.equal(publish.permissions.contents, 'write');
+  assert.equal(publish.permissions.actions, 'read');
+  const publishRun = String(publish.steps.find(
+    (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
+  )?.run);
+  assert.match(
+    publishRun,
+    /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/,
+  );
+  assert.match(publishRun, /prerelease:\$prerelease,make_latest:"false"/);
+  assert.match(publishRun, /and \.prerelease == \$prerelease[\s\S]*and \.immutable == true/);
+  assert.match(publishRun, /test "\$latest_after" = "\$latest_before"/);
 });
 
 test('Windows RC Framework binder writes the exact ref and URLs into the packaged product manifest', (t) => {
