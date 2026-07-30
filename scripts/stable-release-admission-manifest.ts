@@ -50,6 +50,8 @@ const requiredWorkflowPaths = [
 const activeReleaseStatuses = ['requested', 'queued', 'in_progress', 'waiting', 'pending'] as const;
 const activeRunLookupTimeoutMs = 10_000;
 const activeRunPageSize = 100;
+const releaseNamespacePageSize = 100;
+const releaseNamespacePageLimit = 20;
 
 type JsonRecord = Record<string, any>;
 type ActiveReleaseStatus = (typeof activeReleaseStatuses)[number];
@@ -260,7 +262,10 @@ function classifyAdmissionFailure(message: string): StableAdmissionFailureReceip
   if (/network|could not resolve host|failed to connect|connection reset|unexpected EOF/i.test(message)) {
     return { class: 'transport', code: 'transport_error', message };
   }
-  if (/HTTP 401|HTTP 403|bad credentials|authentication failed|requires authentication/i.test(message)) {
+  if (
+    /HTTP 401|HTTP 403|bad credentials|authentication failed|requires authentication|credential lacks required push permission/i
+      .test(message)
+  ) {
     return { class: 'credential', code: 'credential_failure', message };
   }
   if (/HTTP 404|not found/i.test(message)) {
@@ -682,17 +687,90 @@ function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
   });
 }
 
+export function assertGitHubReleaseNamespaceAccess(payload: unknown): void {
+  const repository = object(payload, 'GitHub release namespace repository');
+  const permissions = object(repository.permissions, 'GitHub release namespace repository permissions');
+  if (permissions.push !== true) {
+    throw new Error(
+      'GitHub release namespace credential lacks required push permission to observe draft Releases.',
+    );
+  }
+}
+
+export function parseGitHubReleaseNamespacePages(
+  pages: unknown[],
+  pageSize = releaseNamespacePageSize,
+): PublishedRelease[] {
+  if (
+    !Number.isSafeInteger(pageSize)
+    || pageSize <= 0
+    || !Array.isArray(pages)
+    || pages.length === 0
+    || pages.length > releaseNamespacePageLimit
+  ) {
+    throw new Error('GitHub release namespace pagination is invalid or exceeds its bounded page limit.');
+  }
+  const releaseIds = new Set<number>();
+  const releaseTags = new Set<string>();
+  const releases: PublishedRelease[] = [];
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+    const page = pages[pageIndex];
+    if (!Array.isArray(page) || page.length > pageSize) {
+      throw new Error(`GitHub release namespace page ${pageIndex + 1} is malformed.`);
+    }
+    const isFinalPage = pageIndex === pages.length - 1;
+    if ((!isFinalPage && page.length !== pageSize) || (isFinalPage && page.length === pageSize)) {
+      throw new Error(
+        `GitHub release namespace pages are incomplete at page ${pageIndex + 1}; `
+        + `page_size=${page.length} limit=${pageSize}.`,
+      );
+    }
+    for (let entryIndex = 0; entryIndex < page.length; entryIndex += 1) {
+      const label = `GitHub release page ${pageIndex + 1} entry ${entryIndex}`;
+      const release = object(page[entryIndex], label);
+      const id = Number(release.id);
+      const tagName = requiredString(release.tag_name, `${label} tag`);
+      requiredString(release.target_commitish, `${label} target`);
+      if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error(`${label} id must be a positive safe integer.`);
+      }
+      if (typeof release.draft !== 'boolean' || typeof release.prerelease !== 'boolean') {
+        throw new Error(`${label} must declare boolean draft and prerelease state.`);
+      }
+      if (releaseIds.has(id) || releaseTags.has(tagName)) {
+        throw new Error(`${label} duplicates a prior release id or tag.`);
+      }
+      releaseIds.add(id);
+      releaseTags.add(tagName);
+      releases.push({
+        tag_name: tagName,
+        draft: release.draft,
+        prerelease: release.prerelease,
+      });
+    }
+  }
+  return releases;
+}
+
 function publishedReleases(): PublishedRelease[] {
-  const payload = ghJson(`repos/${appRepository}/releases`, { per_page: '100' });
-  if (!Array.isArray(payload)) throw new Error('GitHub releases lookup did not return an array.');
-  return payload.map((entry, index) => {
-    const release = object(entry, `GitHub release ${index}`);
-    return {
-      tag_name: requiredString(release.tag_name, `GitHub release ${index} tag`),
-      draft: release.draft === true,
-      prerelease: release.prerelease === true,
-    };
-  });
+  assertGitHubReleaseNamespaceAccess(ghJson(`repos/${appRepository}`));
+  const pages: unknown[] = [];
+  for (let page = 1; page <= releaseNamespacePageLimit; page += 1) {
+    const payload = ghJson(`repos/${appRepository}/releases`, {
+      per_page: String(releaseNamespacePageSize),
+      page: String(page),
+    });
+    if (!Array.isArray(payload) || payload.length > releaseNamespacePageSize) {
+      throw new Error(`GitHub release namespace page ${page} is malformed.`);
+    }
+    pages.push(payload);
+    if (payload.length < releaseNamespacePageSize) {
+      return parseGitHubReleaseNamespacePages(pages);
+    }
+  }
+  throw new Error(
+    `GitHub release namespace pagination remained full after ${releaseNamespacePageLimit} pages; response is incomplete.`,
+  );
 }
 
 function matchingTagRefs(baseVersion: string): string[] {

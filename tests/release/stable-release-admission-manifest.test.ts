@@ -9,7 +9,9 @@ import {
   buildStableReleaseAdmissionManifest,
   canonicalJson,
   firstDifference,
+  assertGitHubReleaseNamespaceAccess,
   parseActiveReleaseRunLookups,
+  parseGitHubReleaseNamespacePages,
   parseGitHubJsonLookup,
   stableAdmissionManifestDigest,
   type StableAdmissionInput,
@@ -248,6 +250,94 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   const { manifest_digest: digest, ...core } = manifest;
   assert.equal(digest, stableAdmissionManifestDigest(core));
   assert.equal(canonicalJson(manifest), canonicalJson(JSON.parse(JSON.stringify(manifest))));
+});
+
+test('owner-visible draft reserves revision zero even when tag endpoints and refs are absent', () => {
+  const releases = parseGitHubReleaseNamespacePages([[
+    {
+      id: 362629121,
+      tag_name: 'v26.7.31',
+      target_commitish: '3032898363e843cd6773c82e2e77b4f41b00afd2',
+      draft: true,
+      prerelease: false,
+    },
+    {
+      id: 360830749,
+      tag_name: 'v26.7.28-r3',
+      target_commitish: 'd105adc1b5b01a387d7ea0c69bcfb3590a525364',
+      draft: false,
+      prerelease: false,
+    },
+  ]]);
+  const manifest = buildStableReleaseAdmissionManifest(
+    { ...input(), baseVersion: '26.7.31' },
+    observation({
+      currentDate: '2026-07-31',
+      publishedReleases: releases,
+      tagRefs: [],
+      webuiTags: ['latest', 'stable', '26.7.28-r3'],
+    }),
+  );
+  assert.equal(manifest.version.display, '26.7.31-r1');
+  assert.equal(manifest.version.revision, 1);
+  assert.equal(manifest.version.tag, 'v26.7.31-r1');
+  assert.deepEqual(manifest.namespace.github_release_tags, ['26.7.31']);
+  assert.deepEqual(manifest.namespace.github_tag_refs, []);
+  assert.equal(manifest.allocator.highest_published_stable, 'v26.7.28-r3');
+  assert.equal(manifest.namespace.target_release_absent, true);
+});
+
+test('Stable admission requires a push-authorized draft-visible release namespace credential', () => {
+  assert.doesNotThrow(() => assertGitHubReleaseNamespaceAccess({
+    permissions: { pull: true, push: true },
+  }));
+  assert.throws(
+    () => assertGitHubReleaseNamespaceAccess({
+      permissions: { pull: true, push: false },
+    }),
+    /credential lacks required push permission/,
+  );
+  const failure = buildStableAdmissionFailureReceipt({
+    input: input(),
+    phase: 'collect_observation',
+    error: new Error(
+      'GitHub release namespace credential lacks required push permission to observe draft Releases.',
+    ),
+  });
+  assert.equal(failure.failure.class, 'credential');
+  assert.equal(failure.failure.code, 'credential_failure');
+  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/release-stable.yml'), 'utf8');
+  assert.match(
+    workflow,
+    /stable-admission-manifest:[\s\S]*?permissions:\n\s+contents: read\n\s+actions: read[\s\S]*?GH_TOKEN: \$\{\{ secrets\.OPL_HOMEBREW_TAP_TOKEN \}\}/,
+  );
+});
+
+test('release namespace collection rejects malformed or truncated pages', () => {
+  assert.throws(
+    () => parseGitHubReleaseNamespacePages([[
+      {
+        id: 362629121,
+        tag_name: 'v26.7.31',
+        target_commitish: '3032898363e843cd6773c82e2e77b4f41b00afd2',
+        draft: 'true',
+        prerelease: false,
+      },
+    ]]),
+    /boolean draft and prerelease state/,
+  );
+  assert.throws(
+    () => parseGitHubReleaseNamespacePages([
+      Array.from({ length: 100 }, (_, index) => ({
+        id: index + 1,
+        tag_name: `v26.7.${index + 1}`,
+        target_commitish: appRef,
+        draft: false,
+        prerelease: false,
+      })),
+    ]),
+    /pages are incomplete/,
+  );
 });
 
 test('admission retains the frozen three-repository cohort without reading moving main', () => {
