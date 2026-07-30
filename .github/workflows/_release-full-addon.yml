@@ -954,12 +954,27 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt.json \
             "${operation_args[@]}" \
             --store "$store" --json > publish-plan.json
+          capability_dir="$RUNNER_TEMP/opl-full-immutable-capability-${GITHUB_RUN_ID}"
+          mkdir -p "$capability_dir"
+          gh release download '${{ needs.restore-standard.outputs.tag }}' \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern stable-operation-publication-record.json \
+            --dir "$capability_dir"
+          capability_records=()
+          while IFS= read -r item; do capability_records+=("$item"); done < <(
+            find "$capability_dir" -type f -name stable-operation-publication-record.json -print
+          )
+          test "${#capability_records[@]}" -eq 1
+          capability_record="${capability_records[0]}"
+          test -f "$capability_record"
+          test ! -L "$capability_record"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            --publication-record "$capability_record" \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"
           if [ "$apply_status" != complete ]; then

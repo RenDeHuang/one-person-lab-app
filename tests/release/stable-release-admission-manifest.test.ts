@@ -130,6 +130,12 @@ function sourceGate(overrides: Record<string, unknown> = {}) {
     typed_blocker: null,
     operation_fingerprint: 'fix-all-five-stable-control-gaps-20260728',
     observed_main_sha: appRef,
+    immutable_release_capability: stableOperationControlSource.createGithubImmutableReleaseCapabilityEvidence({
+      repository: 'gaofeng21cn/one-person-lab-app',
+      checkedAt: String(overrides.generated_at ?? '2026-07-28T00:10:00.000Z'),
+      enabled: true,
+      enforcedByOwner: false,
+    }),
     admission: {
       status: 'passed',
       immutable_cohort: {

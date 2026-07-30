@@ -16,10 +16,22 @@ import {
   type GitHubCommandOptions,
   type GitHubCommandResult,
 } from '../../scripts/framework-release-adapter.ts';
+import {
+  bindStableOperationAuthority,
+  canonicalJson,
+  consumeStableOperationControl,
+  createGithubImmutableReleaseCapabilityEvidence,
+  createStableOperationAuthority,
+  stableOperationIdForFrozenCohort,
+} from '../../scripts/stable-operation-control.ts';
+import {
+  createStableOperationPublicationRecord,
+} from '../../scripts/stable-operation-publication-record.ts';
 
 type Asset = { name: string; size_bytes: number; sha256: string; source_path: string };
 
 const repo = 'example/one-person-lab-app';
+const canonicalRepo = 'gaofeng21cn/one-person-lab-app';
 const version = '26.7.22';
 const updaterVersion = '26.7.2200';
 const tag = `v${version}`;
@@ -40,6 +52,156 @@ const appendFullOperationId = 'operation-append-full-1';
 const standardOperationStartedAt = '2026-07-21T00:00:00.000Z';
 const appendFullOperationStartedAt = '2026-07-21T00:05:00.000Z';
 const workflowAttemptId = 'gha-workflow-attempt-1';
+const stableObjectiveFingerprint = 'stable-immutable-capability-evidence-test';
+const stableCriticalBlobPaths = [
+  '.github/workflows/release-stable.yml',
+  '.github/workflows/_release-bundle.yml',
+  '.github/workflows/_release-standard-publish.yml',
+  'contracts/app-release-channel.json',
+  'scripts/framework-release-adapter.ts',
+  'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
+  'scripts/stable-operation-publication-record.ts',
+  'scripts/stable-release-admission-manifest.ts',
+  'scripts/validate-release-source-gate.ts',
+];
+const stableCriticalBlobs = Object.fromEntries(
+  stableCriticalBlobPaths.map((file, index) => [
+    file,
+    `sha256:${'0123456789abcdef'[(index + 4) % 16]!.repeat(64)}`,
+  ]),
+);
+
+function sha256Evidence(bytes: Buffer | string): string {
+  return `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function durablePublicationRecord(root: string, payloadAssets: Asset[]) {
+  const generatedAt = '2026-07-21T00:10:00.000Z';
+  const sourceGate = {
+    schema: 'opl_app_release_source_gate.v1',
+    generated_at: generatedAt,
+    status: 'passed',
+    operation_fingerprint: stableObjectiveFingerprint,
+    typed_blocker: null,
+    immutable_release_capability: createGithubImmutableReleaseCapabilityEvidence({
+      repository: canonicalRepo,
+      checkedAt: generatedAt,
+      enabled: true,
+      enforcedByOwner: false,
+    }),
+    admission: {
+      status: 'passed',
+      immutable_cohort: {
+        app_sha: sourceCommit,
+        shell_sha: shellCommit,
+        framework_sha: frameworkCommit,
+      },
+    },
+    checks: [{ id: 'app_frozen_commit_reachable', status: 'passed' }],
+  };
+  const operationId = stableOperationIdForFrozenCohort({
+    objectiveFingerprint: stableObjectiveFingerprint,
+    appSha: sourceCommit,
+    shellSha: shellCommit,
+    frameworkSha: frameworkCommit,
+    criticalBlobs: stableCriticalBlobs,
+  });
+  const preNonceGuard = {
+    schema: 'opl_release_dispatch_guard.v1',
+    phase: 'pre_nonce',
+    status: 'passed',
+    dispatch_allowed: true,
+    operation_id: operationId,
+    owner_run_match_count: 0,
+    nonce_consumed: false,
+    mutation_invocation_count: 0,
+    source_gate: {
+      schema: 'opl_app_release_source_gate.v1',
+      status: 'passed',
+      exact_cohort_bound: true,
+    },
+  };
+  const sourceGateBytes = Buffer.from(canonicalJson(sourceGate), 'utf8');
+  const preNonceGuardBytes = Buffer.from(canonicalJson(preNonceGuard), 'utf8');
+  const authority = createStableOperationAuthority({
+    authorityId: 'authority-stable-capability-evidence-test',
+    operationId,
+    issuer: 'gaofeng21cn',
+    issuedAt: '2026-07-21T00:15:00.000Z',
+    expiresAt: '2026-07-21T00:55:00.000Z',
+    objectiveFingerprint: stableObjectiveFingerprint,
+    nonce: 'a'.repeat(32),
+    appSha: sourceCommit,
+    shellSha: shellCommit,
+    frameworkSha: frameworkCommit,
+    criticalBlobs: stableCriticalBlobs,
+    sourceGate,
+    preNonceGuard,
+  });
+  const runAuthorityReconcile = {
+    schema: 'opl_release_dispatch_guard.v1',
+    phase: 'run_bound',
+    status: 'passed',
+    dispatch_allowed: true,
+    operation_id: operationId,
+    authority_id: authority.authority_id,
+    run_id: '30325431854',
+    owner_run_match_count: 1,
+    nonce_consumed: false,
+    mutation_invocation_count: 0,
+  };
+  const runAuthorityReconcileBytes = Buffer.from(canonicalJson(runAuthorityReconcile), 'utf8');
+  const control = bindStableOperationAuthority({
+    authority,
+    authorityDigest: authority.authority_digest,
+    actor: authority.issuer,
+    runId: '30325431854',
+    runAttempt: 1,
+    sourceGateDigest: sha256Evidence(sourceGateBytes),
+    preNonceGuardDigest: sha256Evidence(preNonceGuardBytes),
+    runAuthorityReconcileDigest: sha256Evidence(runAuthorityReconcileBytes),
+    now: '2026-07-21T00:20:00.000Z',
+  });
+  const consumption = consumeStableOperationControl({
+    control,
+    operationId,
+    runId: control.run_id,
+    runAttempt: 1,
+    nonce: 'a'.repeat(32),
+  });
+  const record = createStableOperationPublicationRecord({
+    authority,
+    control,
+    consumption,
+    sourceGateBytes,
+    preNonceGuardBytes,
+    runAuthorityReconcileBytes,
+    repository: canonicalRepo,
+    tag,
+    plannedAssets: {
+      assets: payloadAssets.map((item) => ({
+        name: item.name,
+        digest: item.sha256,
+        size_bytes: item.size_bytes,
+      })),
+    },
+  });
+  const recordPath = path.join(root, 'stable-operation-publication-record.json');
+  const recordBytes = Buffer.from(canonicalJson(record), 'utf8');
+  fs.writeFileSync(recordPath, recordBytes);
+  return {
+    operationId,
+    recordPath,
+    recordAction: {
+      action: 'upload',
+      name: 'stable-operation-publication-record.json',
+      source_path: recordPath,
+      size_bytes: recordBytes.length,
+      sha256: sha256Evidence(recordBytes),
+    },
+  };
+}
 
 function mutationAdmission(
   operation: 'standard' | 'resume_standard' | 'append_full' = 'standard',
@@ -1318,6 +1480,114 @@ test('release inspection treats an absent immutable field as false, never true',
     },
   };
   assert.equal(inspectRelease(repo, tag, runtime).release.immutable, false);
+});
+
+test('canonical Stable publication fails closed without bound capability evidence and never calls the admin API', () => {
+  const files = fixture([asset('first.zip', '1')]);
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.sources.app.repo = canonicalRepo;
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    (error: any) => {
+      assert.equal(error.result.status, 'failed');
+      assert.equal(error.result.failure.failure_taxonomy, 'github_immutable_releases_evidence_invalid');
+      return true;
+    },
+  );
+  assert.equal(calls, 1, 'only the absent Release inspection is allowed before evidence rejection');
+});
+
+test('canonical Stable publication consumes the exact durable record and never calls immutable-releases at runtime', () => {
+  const first = asset('first.zip', '2');
+  const files = fixture([first]);
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.sources.app.repo = canonicalRepo;
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  const durable = durablePublicationRecord(files.root, [first]);
+  const plan = JSON.parse(fs.readFileSync(files.planPath, 'utf8'));
+  plan.release_bundle_publish.receipt.operation_control.operation_id = durable.operationId;
+  fs.writeFileSync(files.planPath, `${JSON.stringify(plan)}\n`);
+  const additionalPath = path.join(files.root, 'additional-upload-actions.json');
+  fs.writeFileSync(additionalPath, `${JSON.stringify({
+    schema: 'opl_app_immutable_release_upload_actions.v1',
+    upload_actions: [durable.recordAction],
+  })}\n`);
+
+  const calls: string[][] = [];
+  const remoteAssets: Asset[] = [];
+  let exists = false;
+  let published = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`) {
+        throw new Error('The Actions runtime must not read the admin-only immutable Releases endpoint.');
+      }
+      if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/releases/tags/${tag}`) {
+        if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success(releaseResponse(remoteAssets, {
+          draft: !published,
+          immutable: published,
+        }));
+      }
+      if (args.includes('POST')) {
+        exists = true;
+        return success();
+      }
+      if (args[0] === 'release' && args[1] === 'upload') {
+        const uploaded = [first, durable.recordAction].find(
+          (candidate) => candidate.source_path === args[3],
+        );
+        assert.ok(uploaded);
+        remoteAssets.push({
+          name: uploaded.name,
+          source_path: uploaded.source_path,
+          size_bytes: uploaded.size_bytes,
+          sha256: uploaded.sha256,
+        });
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
+        return success();
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    'operation-id': durable.operationId,
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'additional-upload-actions': additionalPath,
+    'publication-record': durable.recordPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'complete');
+  assert.deepEqual(result.uploaded, [first.name, durable.recordAction.name]);
+  assert.equal(
+    calls.some((args) => args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`),
+    false,
+  );
+  assert.equal(result.inspection.release.immutable, true);
 });
 
 test('immutable capability disabled fails closed before every public mutation', () => {
