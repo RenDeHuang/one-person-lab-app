@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type { ReleaseValidationProfile } from './release-checks.ts';
 
 const requiredHomebrewStandardCaskRef = 'gaofeng21cn/one-person-lab/one-person-lab';
 const requiredHomebrewTrustedCaskRefs = [
@@ -1685,11 +1686,16 @@ function validateSourceMaterialRouteContract(appRoot: string): number {
   return failures;
 }
 
-function validateReleasePlatformMatrix(releaseContract: Record<string, any>): number {
+export function validateReleasePlatformMatrix(
+  releaseContract: Record<string, any>,
+  profile: ReleaseValidationProfile = 'aggregate',
+): number {
   const matrix = releaseContract.release_platform_matrix;
   const capabilities = matrix?.capabilities;
   const policies = matrix?.policies;
   let failures = 0;
+  const requiredCapabilityIds = ['macos-arm64', 'linux-x64'];
+  const windowsCapabilityIds = ['windows-x64', 'windows-arm64'];
   const capabilityIds = [
     'macos-arm64',
     'macos-x64',
@@ -1709,7 +1715,12 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
     return failures;
   }
 
-  for (const id of capabilityIds) {
+  const validatedCapabilityIds = profile === 'stable'
+    ? requiredCapabilityIds
+    : profile === 'windows-preview'
+      ? windowsCapabilityIds
+      : capabilityIds;
+  for (const id of validatedCapabilityIds) {
     const capability = capabilities[id];
     if (
       typeof capability?.default_enabled !== 'boolean'
@@ -1729,13 +1740,13 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
       console.error(`FAIL release_platform_matrix: capability ${id} is incomplete`);
       failures += 1;
     }
-    if (capability.publication_status.includes('unavailable')) {
+    if (String(capability?.publication_status ?? '').includes('unavailable')) {
       console.error(`FAIL release_platform_matrix: capability ${id} must retain a real publication route`);
       failures += 1;
     }
   }
 
-  for (const id of ['macos-arm64', 'linux-x64']) {
+  for (const id of requiredCapabilityIds) {
     const capability = capabilities[id];
     if (
       capability.default_enabled !== true
@@ -1753,10 +1764,13 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
       failures += 1;
     }
   }
-  for (const id of ['windows-x64', 'windows-arm64']) {
+  for (const id of windowsCapabilityIds) {
     if (
       capabilities[id].stable_allowed !== false
-      || !capabilities[id].quality_channels.includes('preview_rc')
+      || (
+        profile !== 'stable'
+        && !capabilities[id].quality_channels.includes('preview_rc')
+      )
     ) {
       console.error(`FAIL release_platform_matrix: ${id} must remain Preview/RC-only`);
       failures += 1;
@@ -1768,7 +1782,11 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
     ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
     ['stable_optional', ['macos-x64', 'macos-universal', 'linux-arm64'], false, false],
     ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
-  ];
+  ].filter(([name]) => (
+    profile === 'aggregate'
+    || (profile === 'stable' && name !== 'windows_preview')
+    || (profile === 'windows-preview' && name === 'windows_preview')
+  )) as Array<[string, string[], boolean, boolean]>;
   for (const [name, platforms, required, blocks] of policyAssertions) {
     const policy = policies?.[name];
     if (
@@ -1780,7 +1798,7 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
       failures += 1;
     }
   }
-  if (!sameStringSet(policies?.manual_all?.platforms, capabilityIds)) {
+  if (profile === 'aggregate' && !sameStringSet(policies?.manual_all?.platforms, capabilityIds)) {
     console.error('FAIL release_platform_matrix: manual_all must preserve every build capability');
     failures += 1;
   }
@@ -1788,18 +1806,21 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
     policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
     || releaseContract.release_platform_matrix?.validation_ownership?.stable?.excluded_profile !==
       'windows-preview'
-    || !sameStringSet(
-      releaseContract.release_platform_matrix?.validation_ownership?.['windows-preview']
-        ?.owned_test_paths,
-      [
-        'tests/release/docker-webui-clean-windows-dispatch.test.ts',
-        'tests/release/docker-webui-native-windows-smoke.test.ts',
-        'tests/release/docker-webui-windows-installer.test.ts',
-        'tests/release/docker-webui-windows-validation-fixtures.test.ts',
-        'tests/release/windows-platform-factory-contract.test.ts',
-        'tests/release/windows-rc-preview.test.ts',
-        'tests/release/windows-wsl2-validation-fixtures.test.ts',
-      ],
+    || (
+      profile !== 'stable'
+      && !sameStringSet(
+        releaseContract.release_platform_matrix?.validation_ownership?.['windows-preview']
+          ?.owned_test_paths,
+        [
+          'tests/release/docker-webui-clean-windows-dispatch.test.ts',
+          'tests/release/docker-webui-native-windows-smoke.test.ts',
+          'tests/release/docker-webui-windows-installer.test.ts',
+          'tests/release/docker-webui-windows-validation-fixtures.test.ts',
+          'tests/release/windows-platform-factory-contract.test.ts',
+          'tests/release/windows-rc-preview.test.ts',
+          'tests/release/windows-wsl2-validation-fixtures.test.ts',
+        ],
+      )
     )
   ) {
     console.error('FAIL release_platform_matrix: optional switches and validation ownership must be contract-audited');
@@ -1852,7 +1873,10 @@ function validateReleasePlatformMatrix(releaseContract: Record<string, any>): nu
   return failures;
 }
 
-export function validateReleaseContractPolicies(appRoot: string): number {
+export function validateReleaseContractPolicies(
+  appRoot: string,
+  profile: ReleaseValidationProfile = 'aggregate',
+): number {
   const releaseContract = readJson(appRoot, 'contracts/app-release-channel.json');
   const brokerAuthority = readJson(appRoot, 'contracts/app-release-broker-authority.json');
   const firstRunMatrix = readJson(appRoot, 'contracts/app-first-run-test-matrix.json');
@@ -1871,7 +1895,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateWebuiPackagePolicy(releaseContract);
   failures += validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);
   failures += validateSourceMaterialRouteContract(appRoot);
-  failures += validateReleasePlatformMatrix(releaseContract);
+  failures += validateReleasePlatformMatrix(releaseContract, profile);
 
   return failures;
 }

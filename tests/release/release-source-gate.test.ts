@@ -484,6 +484,11 @@ test('release source gate strips ambient controller SHA from required gate comma
   assert.equal(requiredGateEnvironment?.OPL_EXPECTED_APP_HEAD, appHead);
   assert.equal(requiredGateEnvironment?.OPL_SHELL_REF, shellHead);
   assert.equal(requiredGateEnvironment?.OPL_FRAMEWORK_REF, frameworkHead);
+  assert.equal(requiredGateEnvironment?.OPL_RELEASE_VALIDATION_PROFILE, 'stable');
+  assert.equal(
+    report.required_gates.find((gate) => gate.id === 'app_release_boundary_contract')?.command,
+    'OPL_RELEASE_VALIDATION_PROFILE=stable npm run validate:release-boundary',
+  );
 });
 
 test('release source gate passes for clean canonical main and an immutable source cohort', () => {
