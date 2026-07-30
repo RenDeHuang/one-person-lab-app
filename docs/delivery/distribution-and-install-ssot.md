@@ -273,8 +273,8 @@ receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` 
 | WebUI Standard | Browser workbench + 在线收敛 | 产品单元支持；具体安装可用性需 fresh readback | 平台选择 Native 或 Container internal carrier |
 | WebUI Full | Browser workbench + offline seeds | 产品单元支持；具体安装可用性需 fresh readback | 同一 WebUI 表面，额外离线 seed |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | carrier contract 已定义；exact Tap/install currentness 需 fresh readback | macOS 终端用户入口 |
-| Release `opl-install.sh` | 选择 Desktop/WebUI；仅在 exact manifest 暴露对应格子时选择 Standard/Full，再解析平台 carrier；headless 仍是独立 Framework 边界 | 入口模型已定义；exact Release 可用性需 readback | 固定 App/Shell/Framework SHA、Release tag 和资产 digest |
-| Source `install.sh` | 与公共入口共享路由逻辑 | Developer compatibility | 仅供 reviewed checkout；不得从可变 `main` 直接管道执行 |
+| Release `opl-install.sh` | 选择 Desktop/WebUI 和 Standard/Full 两个独立轴；macOS 显式密度解析到 exact DMG，Linux 仅支持 Standard，显式 Full 在任何 Release 资产查询前失败关闭；headless 仍是独立 Framework 边界 | 入口模型已定义；exact Release 可用性需 readback | 固定 App/Shell/Framework SHA、Release tag 和资产 digest |
+| Source `install.sh` | 与公共入口共享路由逻辑；显式 `--standard`/`--full` 使用相同平台密度约束，无显式密度时保留 Framework `--with-app` compatibility | Developer compatibility | 仅供 reviewed checkout；不得从可变 `main` 直接管道执行 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | WebUI 的 Container internal carrier + 挂载的数据/项目目录 | carrier 路径；具体公开/安装状态需 fresh readback | 适合 server/isolation，不是第三产品表面 |
 | GitHub Prerelease Windows x64 EXE | Desktop App Preview carrier | exact 公开与安装状态需 fresh Release/receipt readback | 不从历史 RC、另一格或支持矩阵推导 Latest、Stable updater 或当前可安装性 |
@@ -283,6 +283,12 @@ receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` 
 | Full Cask | 公开旧 Cask 为 Full DMG + Formula `opl`，存在重复 Base carrier 风险 | Legacy public / target implemented unpublished | 当前改用直接 Full DMG；目标 Cask 只安装 Full DMG，不安装 Formula |
 | Native WebUI | WebUI 的 host-native internal carrier | carrier 路径；具体公开/安装状态需 fresh readback | 不作为独立产品表面或独立密度 |
 | Framework headless installer | Base-only，无 App runtime form | Framework source boundary | 不是 OPL App 产品单元；exact 可安装性仍需 owner readback |
+
+Full follower 只消费 `append_full` handoff 中的 `release.base_tag` 与
+`release.adjunct_tag`：前者绑定同 cohort Standard identity，后者绑定实际 Full
+Release、下载 URL、Homebrew Cask 与 same-artifact certification。GitHub Actions
+executor 固定运行在 canonical `main`，因此不得再把 workflow run `head_branch`
+误当 Release tag，也不得回退读取已退役的 `release.tag`。
 
 ## 平台默认目标
 

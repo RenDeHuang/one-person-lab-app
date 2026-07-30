@@ -218,6 +218,23 @@ test("one-shot App installer boundary is enforced by release-boundary checks", (
     install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_entrypoints,
     [],
   );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.current_default_app_script.explicit_density_override,
+    {
+      macos_standard_or_full: "direct_exact_release_component_manifest_asset_selection",
+      linux_standard: "exact_release_linux_x64_deb",
+      linux_full: "fail_closed_before_release_asset_lookup",
+    },
+  );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.approved_universal_target.payload_density_routing,
+    {
+      macos: "explicit_standard_or_full_selects_the_matching_exact_release_asset",
+      linux_x86_64: "standard_only_and_explicit_full_fails_closed_before_release_asset_lookup",
+      frozen_macos_default: "prefer_full_and_fallback_to_standard_only_when_full_is_confirmed_absent",
+      source_checkout_default_without_explicit_density: "framework_with_app_compatibility",
+    },
+  );
   assert.equal(
     install.distribution_install_model.installer_convergence.stable_macos_helper.compatibility_wrapper_status,
     "retired",
@@ -716,7 +733,10 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   writeExecutable(
     path.join(fakeBin, "uname"),
     `#!/bin/sh
-printf 'Darwin\\n'
+case "\${1:-}" in
+  -m) printf 'arm64\\n' ;;
+  *) printf 'Darwin\\n' ;;
+esac
 `,
   );
   writeExecutable(
@@ -833,6 +853,7 @@ exit 1
         prerelease,
         releaseApiHttp = "200",
         ghStatus = "1",
+        stableMacosInstall = true,
       }: {
         fullHttp?: string;
         fullPresent?: boolean;
@@ -843,6 +864,7 @@ exit 1
         prerelease?: boolean;
         releaseApiHttp?: string;
         ghStatus?: string;
+        stableMacosInstall?: boolean;
       } = {},
     ) => {
       writeRelease({
@@ -859,7 +881,7 @@ exit 1
         "/bin/bash",
         [
           path.join(appRoot, "install.sh"),
-          "--stable-macos-install",
+          ...(stableMacosInstall ? ["--stable-macos-install"] : []),
           ...profileArgs,
           ...(releaseTag ? ["--release-tag", tag] : []),
           "--yes",
@@ -900,6 +922,18 @@ exit 1
       /attach/,
       availableFullResult.stderr || availableFullResult.stdout,
     );
+
+    const universalFullResult = runInstaller(["--full"], { stableMacosInstall: false });
+    assert.notEqual(
+      universalFullResult.status,
+      0,
+      "fake hdiutil should stop after the universal Desktop route selects Full",
+    );
+    assert.match(
+      fs.readFileSync(curlArgsPath, "utf8"),
+      /releases\/download\/v26\.7\.20\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
+    );
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
 
     const latestResult = runInstaller(["--standard"], { releaseTag: false });
     assert.notEqual(latestResult.status, 0, "fake hdiutil should stop after Latest DMG verification");
