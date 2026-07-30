@@ -348,7 +348,7 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
   assert.equal(full.checkpoint_minimum_stage, "standard_built");
   assert.equal(full.standard_identity_required, true);
-  assert.equal(full.standard_release_readback, "exact_tag_and_required_asset_set_and_digests");
+  assert.equal(full.standard_release_readback, "exact_tag_required_asset_set_digests_and_immutable_true");
   assert.equal(full.successor_trigger.workflow, ".github/workflows/release-stable-post-success-followups.yml");
   assert.equal(full.successor_trigger.one_successor_per_standard_run, true);
   assert.equal(full.successor_trigger.workflow_dispatch_ref, "canonical_main");

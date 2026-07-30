@@ -133,6 +133,7 @@ jobs:
       version: ${{ steps.identity.outputs.version }}
       updater_version: ${{ steps.identity.outputs.updater_version }}
       tag: ${{ steps.identity.outputs.tag }}
+      adjunct_tag: ${{ steps.identity.outputs.adjunct_tag }}
       bundle_digest: ${{ steps.identity.outputs.bundle_digest }}
       app_ref: ${{ steps.identity.outputs.app_ref }}
       shell_ref: ${{ steps.identity.outputs.shell_ref }}
@@ -264,15 +265,17 @@ jobs:
             prior_attempt="$(jq -er .prior_mutation_attempt_id <<<"$marker")"
             publication_scope="$(jq -er .publication_scope <<<"$marker")"
             repo="$(jq -er .sources.app.repo "$bundle")"
-            tag="$(jq -er .release.tag "$bundle")"
+            base_tag="$(jq -er .release.tag "$bundle")"
+            bundle_digest_hex="${BUNDLE_DIGEST#sha256:}"
+            adjunct_tag="${base_tag}-full-${bundle_digest_hex:0:12}"
             reconcile_attempt="gha-${GITHUB_RUN_ID}-full-resume-reconcile"
             outcome=unknown
             case "$target" in
               github-release:*)
                 test "$publication_scope" = track_assets
-                test "$target" = "github-release:${repo}@${tag}"
+                test "$target" = "github-release:${repo}@${adjunct_tag}"
                 if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-                  --repo "$repo" --tag "$tag" --output full-resume-observation.json; then
+                  --repo "$repo" --tag "$adjunct_tag" --output full-resume-observation.json; then
                   outcome=complete
                 fi
                 ;;
@@ -473,6 +476,7 @@ jobs:
             | .tag_name == $tag
             and .draft == false
             and .prerelease == false
+            and .immutable == true
             and ([.assets[]?.name] | unique | contains($required))
             and all($expected[]; . as $asset
               | ([$release.assets[]? | select(.name == $asset.name and (.digest // "") == $asset.digest and (.size == $asset.size))] | length) == 1)
@@ -481,10 +485,13 @@ jobs:
             exit 1
           }
           {
+            bundle_digest="$(jq -r .bundle_digest "$bundle")"
             echo "version=$(jq -r .release.version "$bundle")"
             echo "updater_version=$(jq -r .release.updater_version "$bundle")"
             echo "tag=$bundle_tag"
-            echo "bundle_digest=$(jq -r .bundle_digest "$bundle")"
+            bundle_digest_hex="${bundle_digest#sha256:}"
+            echo "adjunct_tag=${bundle_tag}-full-${bundle_digest_hex:0:12}"
+            echo "bundle_digest=$bundle_digest"
             echo "app_ref=$(jq -r .sources.app.source_commit "$bundle")"
             echo "shell_ref=$(jq -r .sources.shell.source_commit "$bundle")"
             echo "framework_source_ref=$(jq -r .sources.framework.source_commit "$bundle")"
@@ -908,7 +915,7 @@ jobs:
           source-artifact: ${{ needs.provenance.outputs.source_artifact }}
           github-token: ${{ github.token }}
 
-      - name: Append only exact Full bytes
+      - name: Publish exact Full bytes as an immutable adjunct
         env:
           GH_TOKEN: ${{ github.token }}
           BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
@@ -931,12 +938,12 @@ jobs:
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}'
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
           )
-          remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore-standard.outputs.tag }}"
+          remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore-standard.outputs.adjunct_tag }}"
           framework-executor/bin/opl release operation admit \
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
             --store "$store" --json > publish-operation-admit.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.tag }}' --output remote-before.json
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.adjunct_tag }}' --output remote-before.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-before" \
             --release-operation append_full --operation-id "$operation_id" \
@@ -1002,7 +1009,7 @@ jobs:
             unknown_target="$(jq -er .remote_target <<<"$marker")"
             test "$unknown_target" = "$remote_target"
             node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-              --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.tag }}' \
+              --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.adjunct_tag }}' \
               --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' --output reconcile-observation.json
             node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
               --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" \
@@ -1021,7 +1028,7 @@ jobs:
             }
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.tag }}' --output remote-after.json
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.adjunct_tag }}' --output remote-after.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-after" \
             --release-operation append_full --operation-id "$operation_id" \
@@ -1059,7 +1066,7 @@ jobs:
           test "$(jq -r .qualification.result "$full_qualification")" = passed
           test "$(jq -r .bundle_digest "$full_qualification")" = "$BUNDLE_DIGEST"
           published_sha="sha256:$(shasum -a 256 full-published.json | awk '{print $1}')"
-          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${{ needs.restore-standard.outputs.tag }}"
+          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${{ needs.restore-standard.outputs.adjunct_tag }}"
           jq -n \
             --arg authority_run_id "$GITHUB_RUN_ID" --arg authority_head_sha "$GITHUB_SHA" \
             --arg source_run_id '${{ needs.provenance.outputs.source_run_id }}' \
@@ -1068,7 +1075,8 @@ jobs:
             --arg transport_run_id '${{ needs.provenance.outputs.transport_run_id }}' \
             --arg bundle_digest "$BUNDLE_DIGEST" --arg version '${{ needs.restore-standard.outputs.version }}' \
             --arg updater_version '${{ needs.restore-standard.outputs.updater_version }}' \
-            --arg tag '${{ needs.restore-standard.outputs.tag }}' \
+            --arg base_tag '${{ needs.restore-standard.outputs.tag }}' \
+            --arg adjunct_tag '${{ needs.restore-standard.outputs.adjunct_tag }}' \
             --arg app_sha '${{ needs.restore-standard.outputs.app_ref }}' \
             --arg shell_sha '${{ needs.restore-standard.outputs.shell_ref }}' \
             --arg framework_sha '${{ needs.restore-standard.outputs.framework_source_ref }}' \
@@ -1085,13 +1093,15 @@ jobs:
               authority:{repository:"gaofeng21cn/one-person-lab-app",workflow:".github/workflows/release-stable.yml",run_id:$authority_run_id,run_attempt:1,executor_head_sha:$authority_head_sha},
               operation_control:{operation_id:$operation_id,operation_started_at:$operation_started_at,operation_deadline_at:$operation_deadline_at},
               source:{run_id:$source_run_id,checkpoint_artifact:$source_artifact,checkpoint_transport_executor:$checkpoint_transport_executor,transport_run_id:$transport_run_id,completed_stage:"full_qualified",qualification_receipt_sha256:$qualification_sha},
-              release:{bundle_digest:$bundle_digest,version:$version,updater_version:$updater_version,tag:$tag,cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}},
+              release:{bundle_digest:$bundle_digest,version:$version,updater_version:$updater_version,base_tag:$base_tag,adjunct_tag:$adjunct_tag,cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}},
               artifact:{name:$dmg_name,size_bytes:$dmg_size,sha256:$dmg_sha,url:$dmg_url},
               manifest:{name:$manifest_name,size_bytes:$manifest_size,sha256:$manifest_sha,url:$manifest_url},
               github_full_publication:{status:"complete",receipt_sha256:$published_sha},homebrew_modified:false,latest_modified:false
             }' > homebrew-full-handoff.json
           jq -n --arg bundle "$BUNDLE_DIGEST" \
-            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",bundle_digest:$bundle,standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
+            --arg base_tag '${{ needs.restore-standard.outputs.tag }}' \
+            --arg adjunct_tag '${{ needs.restore-standard.outputs.adjunct_tag }}' \
+            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",bundle_digest:$bundle,carrier:{kind:"immutable_adjunct_release",base_tag:$base_tag,adjunct_tag:$adjunct_tag},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
             > append-full-boundary.json
 
       - name: Persist typed Full publication failure

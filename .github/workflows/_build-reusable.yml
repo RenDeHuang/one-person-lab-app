@@ -8,9 +8,13 @@ on:
         type: string
         default: execute
       matrix:
-        description: 'Build matrix as JSON string (passed via fromJSON in caller)'
+        description: 'Build matrix JSON emitted by an audited source resolver or another trusted reusable caller'
         type: string
         required: true
+      release_validation_profile:
+        description: 'Audited App release validation ownership profile'
+        type: string
+        default: aggregate
       ref:
         description: 'Git ref to checkout (leave empty to use the triggering commit)'
         type: string
@@ -221,11 +225,11 @@ jobs:
       - name: Install App root validation dependencies
         run: npm ci --ignore-scripts
 
-      - name: Run release-boundary tests
-        run: node --experimental-strip-types --test --test-concurrency=4 --test-timeout=120000 --test-force-exit tests/release/*.test.ts tests/release/app-release-boundary-cases/*.test.ts
-
-      - name: Validate release-boundary contract
-        run: npm run validate:release-boundary
+      - name: Run audited release-boundary profile
+        env:
+          OPL_RELEASE_VALIDATION_PROFILE: ${{ inputs.release_validation_profile }}
+          OPL_RELEASE_SKIP_MODEL_POLICY_CHECK: 'true'
+        run: scripts/verify.sh release-boundary
 
   active-shell-tests:
     name: Active shell tests (${{ matrix.project }})

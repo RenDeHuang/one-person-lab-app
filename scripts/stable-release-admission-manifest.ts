@@ -207,7 +207,7 @@ export type StableAdmissionManifest = {
     workflow: '.github/workflows/release-stable.yml';
     ref: 'main';
     artifact_name: string;
-    accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest'];
+    accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest', 'optional_platforms'];
     raw_standard_version_or_ref_inputs_allowed: false;
     unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel';
   };
@@ -599,7 +599,7 @@ export function buildStableReleaseAdmissionManifest(
       workflow: '.github/workflows/release-stable.yml',
       ref: 'main',
       artifact_name: `opl-stable-admission-${input.admissionRunId}`,
-      accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest'],
+      accepted_inputs: ['operation', 'authority_id', 'operation_id', 'authority_carrier', 'authority_digest', 'optional_platforms'],
       raw_standard_version_or_ref_inputs_allowed: false,
       unknown_result_policy: 'read_only_reconcile_without_rerun_redispatch_or_cancel',
     },

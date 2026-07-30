@@ -81,6 +81,11 @@ on:
         required: false
         default: ''
         type: string
+      stable_optional_platforms:
+        description: Canonical authority-bound JSON array of audited optional Stable platform IDs
+        required: false
+        default: '[]'
+        type: string
     outputs:
       source_run_id:
         description: Run containing the exported Standard checkpoint
@@ -126,6 +131,33 @@ jobs:
           test '${{ inputs.framework_ref }}' = "$OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF"
           test '${{ inputs.package_compatibility_abi }}' = opl_packages.v1
           test '${{ inputs.package_compatibility_version_range }}' = '>=0.1.0 <1.0.0'
+
+  resolve-platform-matrix:
+    if: ${{ inputs.mode == 'execute' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - name: Checkout exact App platform contract
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Resolve required Stable platform matrix
+        id: resolve
+        run: >-
+          node --experimental-strip-types scripts/resolve-release-platform-matrix.ts
+          --policy stable_required
+          --github-output "$GITHUB_OUTPUT"
 
   admission:
     if: ${{ inputs.mode == 'execute' }}
@@ -180,6 +212,10 @@ jobs:
               status=failed
               reason=missing_protected_operation_control_digest
             }
+            jq -e 'type == "array"' <<< '${{ inputs.stable_optional_platforms }}' >/dev/null || {
+              status=failed
+              reason=invalid_optional_platform_selection
+            }
           fi
           if [ "$publication_channel" != stable ] && [ '${{ inputs.include_full }}' = true ]; then
             status=failed
@@ -209,6 +245,8 @@ jobs:
           control="${controls[0]}"
           test -f "$control" && test ! -L "$control"
           test "$(jq -er .authority_digest "$control")" = '${{ inputs.stable_operation_control_digest }}'
+          test "$(jq -cer .optional_platforms "$control")" = \
+            "$(jq -cer . <<< '${{ inputs.stable_optional_platforms }}')"
           node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
             --control "$control" --app-root app-source \
             --source-gate stable-operation-control/source-gate.json \
@@ -640,15 +678,15 @@ jobs:
 
   standard-build:
     if: ${{ inputs.mode == 'execute' }}
-    needs: [freeze]
+    needs: [freeze, resolve-platform-matrix]
     permissions:
       contents: read
       actions: read
     uses: ./.github/workflows/_build-reusable.yml
     with:
       mode: execute
-      matrix: >-
-        {"include":[{"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"},{"platform":"linux-x64","os":"ubuntu-latest","command":"node scripts/build-with-builder.js x64 --linux --x64","artifact-name":"linux-build-x64","arch":"x64"}]}
+      matrix: ${{ needs.resolve-platform-matrix.outputs.matrix }}
+      release_validation_profile: stable
       ref: ${{ needs.freeze.outputs.app_sha }}
       shell_ref: ${{ needs.freeze.outputs.shell_sha }}
       framework_ref: ${{ needs.freeze.outputs.framework_sha }}

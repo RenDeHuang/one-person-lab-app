@@ -5253,6 +5253,7 @@
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
+        "standard_linux_x64_build",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],
@@ -5286,6 +5287,7 @@
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
+        "standard_linux_x64_build",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],

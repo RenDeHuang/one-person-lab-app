@@ -43,6 +43,11 @@ on:
         required: false
         default: false
         type: boolean
+      optional_platforms:
+        description: Canonical JSON array of audited optional Stable platform IDs bound by the authority
+        required: false
+        default: '[]'
+        type: string
       shell_ref:
         description: Legacy raw Standard input; must be empty because the admission manifest owns the cohort
         required: false
@@ -94,6 +99,7 @@ jobs:
       operation_id: ${{ steps.control.outputs.operation_id }}
       control_digest: ${{ steps.control.outputs.control_digest }}
       authority_id: ${{ steps.authority.outputs.authority_id }}
+      optional_platforms: ${{ steps.authority.outputs.optional_platforms }}
     steps:
       - name: Reject bare or rerun Stable request before expensive work
         env:
@@ -108,6 +114,7 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
           INCLUDE_FULL: ${{ inputs.include_full }}
+          REQUESTED_OPTIONAL_PLATFORMS: ${{ inputs.optional_platforms }}
         shell: bash
         run: |
           set -euo pipefail
@@ -121,6 +128,7 @@ jobs:
           [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
           test "$INCLUDE_FULL" = false
+          jq -e 'type == "array"' <<<"$REQUESTED_OPTIONAL_PLATFORMS" >/dev/null
 
       - name: Checkout current Stable workflow executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -136,6 +144,7 @@ jobs:
           OPERATION_ID: ${{ inputs.operation_id }}
           AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
           AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+          REQUESTED_OPTIONAL_PLATFORMS: ${{ inputs.optional_platforms }}
         shell: bash
         run: |
           set -euo pipefail
@@ -152,6 +161,9 @@ jobs:
           framework_sha="$(jq -er .cohort.framework_sha stable-operation-authority.json)"
           operation_id="$(jq -er .operation_id stable-operation-authority.json)"
           objective_fingerprint="$(jq -er .objective_fingerprint stable-operation-authority.json)"
+          optional_platforms="$(jq -cer .optional_platforms stable-operation-authority.json)"
+          requested_optional_platforms="$(jq -cer . <<<"$REQUESTED_OPTIONAL_PLATFORMS")"
+          test "$optional_platforms" = "$requested_optional_platforms"
           test "$operation_id" = "$OPERATION_ID"
           for value in "$shell_sha" "$framework_sha"; do
             [[ "$value" =~ ^[0-9a-f]{40}$ ]]
@@ -174,6 +186,7 @@ jobs:
             echo "app_ref=$app_sha"
             echo "shell_ref=$shell_sha"
             echo "framework_ref=$framework_sha"
+            echo "optional_platforms=$optional_platforms"
           } >> "$GITHUB_OUTPUT"
 
       - name: Checkout frozen Shell authority cohort
@@ -601,6 +614,7 @@ jobs:
       operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
       stable_operation_control_artifact: opl-stable-operation-control-${{ github.run_id }}
       stable_operation_control_digest: ${{ needs.protected-operation-admission.outputs.control_digest }}
+      stable_optional_platforms: ${{ needs.protected-operation-admission.outputs.optional_platforms }}
     secrets: inherit
 
   resume-standard:
