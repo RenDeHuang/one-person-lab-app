@@ -36,12 +36,13 @@ export type NightlyRemoteRelease = {
 export interface NightlyRemote {
   inspectRelease(tag: string, releaseId?: number): NightlyRemoteRelease | null;
   inspectLatestTag(): string | null;
+  waitForReconcileVisibility?(attempt: number): void;
   createDraft(input: {
     tag: string;
     targetCommitish: string;
     name: string;
     body: string;
-  }): NightlyRemoteRelease;
+  }): NightlyRemoteRelease | null;
   uploadAsset(releaseId: number, filePath: string, name: string): void;
   publishRelease(releaseId: number, name: string, body: string): void;
   deleteDraft(releaseId: number): void;
@@ -147,12 +148,18 @@ export class GhNightlyRemote implements NightlyRemote {
     return output ? String(JSON.parse(output).tag_name ?? '') || null : null;
   }
 
+  waitForReconcileVisibility(attempt: number): void {
+    const delayMs = [2_000, 8_000, 20_000][attempt - 1];
+    if (delayMs === undefined) throw new Error('Nightly reconcile attempt is outside the bounded policy.');
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+  }
+
   createDraft(input: {
     tag: string;
     targetCommitish: string;
     name: string;
     body: string;
-  }): NightlyRemoteRelease {
+  }): NightlyRemoteRelease | null {
     return withJsonInput({
       tag_name: input.tag,
       target_commitish: input.targetCommitish,
@@ -168,7 +175,13 @@ export class GhNightlyRemote implements NightlyRemote {
         `repos/${this.repo}/releases`,
         '--input', inputPath,
       ]);
-      return normalizeRelease(JSON.parse(output));
+      try {
+        return normalizeRelease(JSON.parse(output));
+      } catch {
+        // A successful mutation with an empty or malformed response is reconciled
+        // through the bounded read-only path without issuing a second POST.
+        return null;
+      }
     });
   }
 
@@ -296,9 +309,11 @@ function exactLocalAssets(
 function inspectUpToThree<T>(
   inspect: () => T,
   matches: (value: T) => boolean,
+  waitBeforeInspect?: (attempt: number) => void,
 ): { matched: true; value: T } | { matched: false } {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
+      waitBeforeInspect?.(attempt);
       const value = inspect();
       if (matches(value)) return { matched: true, value };
     } catch {
@@ -313,6 +328,7 @@ function mutateOnceThenRead<T>(input: {
   mutate: () => T | void;
   inspect: () => T;
   matches: (value: T) => boolean;
+  waitBeforeInspect?: (attempt: number) => void;
 }): T {
   let mutationError: unknown;
   let mutationValue: T | void;
@@ -325,11 +341,12 @@ function mutateOnceThenRead<T>(input: {
     const acknowledged = mutationValue as T;
     if (input.matches(acknowledged)) return acknowledged;
   }
-  const observed = inspectUpToThree(input.inspect, input.matches);
+  const observed = inspectUpToThree(input.inspect, input.matches, input.waitBeforeInspect);
   if (observed.matched) return observed.value;
   if (mutationError) {
+    const detail = mutationError instanceof Error ? mutationError.message : String(mutationError);
     throw new Error(
-      `${input.label} outcome is unknown after three read-only inspections; mutation was not retried.`,
+      `${input.label} outcome is unknown after three read-only inspections; mutation was not retried. Cause: ${detail}`,
       { cause: mutationError },
     );
   }
@@ -363,7 +380,7 @@ export function publishNightlyRelease(input: {
   const latestBefore = remote.inspectLatestTag();
   let release = remote.inspectRelease(request.tag);
   const initiallyComplete = Boolean(release && !release.draft);
-  let creationAcknowledged = false;
+  let creationAttempted = false;
   let createdReleaseId: number | null = null;
 
   try {
@@ -371,17 +388,21 @@ export function publishNightlyRelease(input: {
       release = mutateOnceThenRead({
         label: `Create Nightly draft ${request.tag}`,
         mutate: () => {
+          creationAttempted = true;
           const created = remote.createDraft({
             tag: request.tag,
             targetCommitish: request.source.app_sha,
             name: releaseName,
             body: input.notes,
           });
-          creationAcknowledged = true;
           return created;
         },
         inspect: () => remote.inspectRelease(request.tag),
-        matches: (value) => value !== null,
+        matches: (value) => value !== null
+          && Number.isSafeInteger(value.id)
+          && value.id > 0
+          && value.tag_name === request.tag,
+        waitBeforeInspect: remote.waitForReconcileVisibility?.bind(remote),
       });
       createdReleaseId = release.id;
     }
@@ -411,6 +432,7 @@ export function publishNightlyRelease(input: {
             const reconciled = value?.assets.filter((remoteAsset) => remoteAsset.name === asset.name) ?? [];
             return reconciled.length === 1 && assetMatches(reconciled[0]!, asset);
           },
+          waitBeforeInspect: remote.waitForReconcileVisibility?.bind(remote),
         });
       }
       const releaseId = release.id;
@@ -419,6 +441,7 @@ export function publishNightlyRelease(input: {
         mutate: () => remote.publishRelease(releaseId, releaseName, input.notes),
         inspect: () => remote.inspectRelease(request.tag, releaseId),
         matches: (value) => Boolean(value && !value.draft && value.prerelease),
+        waitBeforeInspect: remote.waitForReconcileVisibility?.bind(remote),
       });
       assertReleaseIdentity(release, request, releaseName, input.notes);
     }
@@ -471,7 +494,7 @@ export function publishNightlyRelease(input: {
       webui_modified: false,
     };
   } catch (error) {
-    if (creationAcknowledged) {
+    if (creationAttempted) {
       let candidate: NightlyRemoteRelease | null = null;
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
@@ -501,6 +524,7 @@ export function publishNightlyRelease(input: {
             mutate: () => remote.deleteDraft(candidate.id),
             inspect: () => remote.inspectRelease(request.tag, candidate.id),
             matches: (value) => value === null,
+            waitBeforeInspect: remote.waitForReconcileVisibility?.bind(remote),
           });
           if (remote.inspectRelease(request.tag, candidate.id) !== null) {
             throw new Error(`Deleted Nightly draft ${request.tag} reappeared after cleanup.`);
