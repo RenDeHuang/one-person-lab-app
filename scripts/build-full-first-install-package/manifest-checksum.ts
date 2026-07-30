@@ -172,7 +172,7 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
     masScholarDependencies.length !== 1
     || !masScholarDependency
     || typeof masScholarDependency !== 'object'
-    || masScholarDependency.kind !== 'capability_package'
+    || masScholarDependency.kind !== 'framework_capability_package'
     || masScholarDependency.required !== true
   ) {
     throw new Error(
