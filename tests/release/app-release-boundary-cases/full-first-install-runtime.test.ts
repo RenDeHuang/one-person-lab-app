@@ -348,7 +348,7 @@ function createFullRuntimeFixture() {
     capability_dependencies: [
       {
         package_id: "mas-scholar-skills",
-        kind: "capability_package",
+        kind: "framework_capability_package",
         required: true,
         version_requirement: ">=0.2.0 <0.3.0",
         capability_abi: "mas-scholar-skills.v1",
@@ -1065,6 +1065,10 @@ test("MAS Scholar Skills source resolution rejects ref, owner dependency, ABI, a
     assertInvalidMasDependency();
     masManifest.capability_dependencies = [
       { ...scholarDependency, package_id: "mas-scholar-skills-drifted" },
+    ];
+    assertInvalidMasDependency();
+    masManifest.capability_dependencies = [
+      { ...scholarDependency, kind: "capability_package" },
     ];
     assertInvalidMasDependency();
     masManifest.capability_dependencies = [{ ...scholarDependency, required: false }];
