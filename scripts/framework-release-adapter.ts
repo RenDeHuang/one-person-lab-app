@@ -1401,6 +1401,21 @@ export function inspectRelease(
     { allow404: true },
   ) as JsonRecord | null;
   if (!release) {
+    const hiddenRelease = ghRead(
+      ['release', 'view', tag, '--repo', repo, '--json', 'databaseId,tagName'],
+      runtime,
+      { allow404: true },
+    ) as JsonRecord | null;
+    if (hiddenRelease) {
+      if (
+        !Number.isSafeInteger(hiddenRelease.databaseId)
+        || Number(hiddenRelease.databaseId) <= 0
+        || hiddenRelease.tagName !== tag
+      ) {
+        throw new Error(`GitHub Release discovery identity conflicts with ${tag}.`);
+      }
+      return inspectReleaseById(repo, tag, Number(hiddenRelease.databaseId), runtime);
+    }
     return {
       surface_kind: 'opl_app_github_release_inspection.v1',
       repository: repo,
@@ -1408,6 +1423,57 @@ export function inspectRelease(
       release: { exists: false },
       assets: [],
     };
+  }
+  const assets = (Array.isArray(release.assets) ? release.assets : []).map((asset: JsonRecord) => {
+    const digest = typeof asset.digest === 'string' && /^sha256:[0-9a-f]{64}$/.test(asset.digest)
+      ? asset.digest
+      : null;
+    if (!digest) throw new Error(`GitHub asset ${asset.name} has no authoritative SHA-256 digest.`);
+    return { name: asset.name, size_bytes: asset.size, sha256: digest };
+  });
+  return {
+    surface_kind: 'opl_app_github_release_inspection.v1',
+    repository: repo,
+    tag,
+    release: {
+      exists: true,
+      id: release.id,
+      name: release.name,
+      draft: release.draft,
+      prerelease: release.prerelease,
+      target_commitish: release.target_commitish,
+      body_sha256: sha256Bytes(String(release.body ?? '')),
+      immutable: release.immutable === true,
+    },
+    assets,
+  };
+}
+
+function inspectReleaseById(
+  repo: string,
+  tag: string,
+  releaseId: number,
+  runtime: GitHubAdapterRuntime,
+): JsonRecord {
+  if (!Number.isSafeInteger(releaseId) || releaseId <= 0) {
+    throw new Error(`GitHub Release ${tag} has an invalid numeric identity.`);
+  }
+  const release = ghRead(
+    ['api', `repos/${repo}/releases/${releaseId}`],
+    runtime,
+    { allow404: true },
+  ) as JsonRecord | null;
+  if (!release) {
+    return {
+      surface_kind: 'opl_app_github_release_inspection.v1',
+      repository: repo,
+      tag,
+      release: { exists: false, id: releaseId },
+      assets: [],
+    };
+  }
+  if (release.id !== releaseId || release.tag_name !== tag) {
+    throw new Error(`GitHub Release ${releaseId} identity conflicts with ${tag}.`);
   }
   const assets = (Array.isArray(release.assets) ? release.assets : []).map((asset: JsonRecord) => {
     const digest = typeof asset.digest === 'string' && /^sha256:[0-9a-f]{64}$/.test(asset.digest)
@@ -1600,6 +1666,24 @@ function inspectReleaseForReconcile(repo: string, tag: string, runtime: GitHubAd
   }
 }
 
+function inspectReleaseByIdForReconcile(
+  repo: string,
+  tag: string,
+  releaseId: number,
+  runtime: GitHubAdapterRuntime,
+): JsonRecord {
+  try {
+    return { status: 'complete', observation: inspectReleaseById(repo, tag, releaseId, runtime) };
+  } catch (error) {
+    return {
+      status: 'inspect_failed',
+      failure: error instanceof GitHubReadError
+        ? error.evidence
+        : { error_message: error instanceof Error ? error.message : String(error) },
+    };
+  }
+}
+
 function inspectLatestForReconcile(repo: string, runtime: GitHubAdapterRuntime): JsonRecord {
   try {
     const latest = ghRead(['api', `repos/${repo}/releases/latest`], runtime, { allow404: true });
@@ -1762,6 +1846,42 @@ function assertReleaseIdentity(inspection: JsonRecord, options: {
   }
 }
 
+function acceptedDraftReleaseId(
+  attemptEvidence: JsonRecord,
+  options: {
+    tag: string;
+    name: string;
+    notes: string;
+    targetCommitish: string;
+    prerelease: boolean;
+  },
+): number {
+  let response: JsonRecord;
+  try {
+    response = JSON.parse(String(attemptEvidence.stdout ?? '')) as JsonRecord;
+  } catch {
+    throw new Error('Accepted GitHub Release creation returned no structured response.');
+  }
+  if (
+    !response
+    || typeof response !== 'object'
+    || Array.isArray(response)
+    || !Number.isSafeInteger(response.id)
+    || response.id <= 0
+    || response.tag_name !== options.tag
+    || response.target_commitish !== options.targetCommitish
+    || response.name !== options.name
+    || response.draft !== true
+    || response.prerelease !== options.prerelease
+    || sha256Bytes(String(response.body ?? '')) !== sha256Bytes(options.notes)
+    || !Array.isArray(response.assets)
+    || response.assets.length !== 0
+  ) {
+    throw new Error('Accepted GitHub Release creation response conflicts with the exact draft identity.');
+  }
+  return response.id;
+}
+
 function plannedUploadActions(actions: unknown): JsonRecord[] {
   if (!Array.isArray(actions)) {
     throw new Error('Framework publish plan has no structured upload_actions.');
@@ -1914,7 +2034,31 @@ function ensureRelease(options: {
         reconciliation: inspectReleaseForReconcile(options.repo, options.tag, options.runtime),
       });
     }
-    const reconciliation = inspectReleaseForReconcile(options.repo, options.tag, options.runtime);
+    let releaseId: number;
+    try {
+      releaseId = acceptedDraftReleaseId(attempt.evidence, options);
+    } catch (error) {
+      const fallback = inspectReleaseForReconcile(options.repo, options.tag, options.runtime);
+      return unknownAfterAcceptedMutation({
+        mutation: 'release_create',
+        operationDeadlineAt: options.operationDeadlineAt,
+        attemptEvidence: attempt.evidence,
+        repo: options.repo,
+        tag: options.tag,
+        reconciliation: {
+          status: 'create_response_invalid',
+          failure: { error_message: error instanceof Error ? error.message : String(error) },
+          fallback,
+        },
+        reason: 'GitHub accepted Release creation but returned an invalid draft identity response.',
+      });
+    }
+    const reconciliation = inspectReleaseByIdForReconcile(
+      options.repo,
+      options.tag,
+      releaseId,
+      options.runtime,
+    );
     if (reconciliation.status !== 'complete' || !reconciliation.observation.release.exists) {
       return unknownAfterAcceptedMutation({
         mutation: 'release_create',
@@ -1947,12 +2091,13 @@ function publishDraftRelease(options: {
   notes: string;
   targetCommitish: string;
   prerelease: boolean;
+  releaseId: number;
   actions: JsonRecord[];
   operationDeadlineAt: string;
   runtime: GitHubAdapterRuntime;
   bundle: JsonRecord;
 }): JsonRecord {
-  const before = inspectRelease(options.repo, options.tag, options.runtime);
+  const before = inspectReleaseById(options.repo, options.tag, options.releaseId, options.runtime);
   assertReleaseIdentity(before, { ...options, draft: true });
   assertReleaseAssetSet(before, options.actions, true);
   assertImmutableReleasesEnabled(
@@ -1993,10 +2138,20 @@ function publishDraftRelease(options: {
       attempt,
       repo: options.repo,
       tag: options.tag,
-      reconciliation: inspectReleaseForReconcile(options.repo, options.tag, options.runtime),
+      reconciliation: inspectReleaseByIdForReconcile(
+        options.repo,
+        options.tag,
+        options.releaseId,
+        options.runtime,
+      ),
     });
   }
-  const reconciliation = inspectReleaseForReconcile(options.repo, options.tag, options.runtime);
+  const reconciliation = inspectReleaseByIdForReconcile(
+    options.repo,
+    options.tag,
+    options.releaseId,
+    options.runtime,
+  );
   if (reconciliation.status !== 'complete' || !reconciliation.observation.release.exists) {
     return unknownAfterAcceptedMutation({
       mutation: 'release_publish',
@@ -2191,10 +2346,11 @@ export function applyPublishPlan(
   }
   assertReleaseAssetSet(releaseResult.inspection, uploadActions, false);
   const uploaded: string[] = [];
+  const releaseId = Number(releaseResult.inspection.release.id);
   for (const action of uploadActions) {
     const expectedDigest = action.sha256;
     const expectedSize = action.size_bytes;
-    const before = inspectRelease(repo, tag, runtime);
+    const before = inspectReleaseById(repo, tag, releaseId, runtime);
     assertReleaseIdentity(before, {
       tag,
       name,
@@ -2229,10 +2385,10 @@ export function applyPublishPlan(
         tag,
         uploaded,
         unresolvedAsset: action.name,
-        reconciliation: inspectReleaseForReconcile(repo, tag, runtime),
+        reconciliation: inspectReleaseByIdForReconcile(repo, tag, releaseId, runtime),
       });
     }
-    const reconciliation = inspectReleaseForReconcile(repo, tag, runtime);
+    const reconciliation = inspectReleaseByIdForReconcile(repo, tag, releaseId, runtime);
     if (reconciliation.status !== 'complete') {
       return unknownAfterAcceptedMutation({
         mutation: 'asset_upload',
@@ -2283,6 +2439,7 @@ export function applyPublishPlan(
     notes,
     targetCommitish: bundle.sources.app.source_commit,
     prerelease: publicationChannel === 'nightly',
+    releaseId,
     actions: uploadActions,
     operationDeadlineAt,
     runtime,

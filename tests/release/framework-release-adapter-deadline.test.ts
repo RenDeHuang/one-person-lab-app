@@ -419,6 +419,7 @@ function releaseResponse(
 ): Record<string, unknown> {
   return {
     id: 12345,
+    tag_name: tag,
     name: `One Person Lab v${version}`,
     draft: options.draft ?? false,
     prerelease: false,
@@ -577,7 +578,26 @@ function asset(name: string, byte: string): Asset {
 }
 
 function isReleaseInspect(args: string[]): boolean {
-  return args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`;
+  return args[0] === 'api' && (
+    args[1] === `repos/${repo}/releases/tags/${tag}`
+    || args[1] === `repos/${repo}/releases/12345`
+  );
+}
+
+function isReleaseView(args: string[]): boolean {
+  return isReleaseViewFor(args, tag, repo);
+}
+
+function isReleaseViewFor(args: string[], releaseTag: string, releaseRepo: string): boolean {
+  return (
+    args[0] === 'release'
+    && args[1] === 'view'
+    && args[2] === releaseTag
+    && args[3] === '--repo'
+    && args[4] === releaseRepo
+    && args[5] === '--json'
+    && args[6] === 'databaseId,tagName'
+  );
 }
 
 function isImmutableCapabilityRead(args: string[]): boolean {
@@ -847,6 +867,7 @@ test('a timed out Release create performs one mutation and then read-only reconc
         assert.equal(options.timeout, 2_222);
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (args.includes('POST')) {
         return {
           status: null,
@@ -879,6 +900,166 @@ test('a timed out Release create performs one mutation and then read-only reconc
   assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
   assert.equal(calls.filter(isReleaseInspect).length, 2, 'one pre-create read and one bounded reconcile read');
+});
+
+test('accepted Release create uses its exact id while the draft remains absent by tag', () => {
+  const first = asset('first.zip', '6');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const remoteAssets: Asset[] = [];
+  let created = false;
+  let published = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    readTimeoutMs: 2_333,
+    run(_command, args, options) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
+        assert.equal(options.timeout, 2_333);
+        if (!published) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
+        assert.equal(created, true);
+        assert.equal(options.timeout, 2_333);
+        return success(releaseResponse(remoteAssets, {
+          draft: !published,
+          immutable: published,
+        }));
+      }
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (args.includes('POST')) {
+        created = true;
+        return success(releaseResponse([], { draft: true, immutable: false }));
+      }
+      if (args[0] === 'release' && args[1] === 'upload') {
+        remoteAssets.push(first);
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'complete');
+  assert.deepEqual(result.uploaded, [first.name]);
+  assert.equal(result.inspection.release.id, 12345);
+  assert.equal(result.inspection.release.immutable, true);
+  assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
+  assert.equal(
+    calls.filter((args) => args[1] === `repos/${repo}/releases/tags/${tag}`).length,
+    1,
+    'the draft is never re-queried through the by-tag endpoint',
+  );
+  assert.ok(
+    calls.filter((args) => args[1] === `repos/${repo}/releases/12345`).length >= 4,
+    'create, upload, and publish readback stay bound to the exact release id',
+  );
+});
+
+test('an existing draft hidden from the by-tag endpoint is bound by id before any create', () => {
+  const first = asset('first.zip', '6');
+  const files = fixture([first]);
+  const calls: string[][] = [];
+  const remoteAssets: Asset[] = [];
+  let published = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
+        if (!published) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+      }
+      if (isReleaseView(args)) {
+        return success({ databaseId: 12345, tagName: tag });
+      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
+        return success(releaseResponse(remoteAssets, {
+          draft: !published,
+          immutable: published,
+        }));
+      }
+      if (args[0] === 'release' && args[1] === 'upload') {
+        remoteAssets.push(first);
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'complete');
+  assert.deepEqual(result.uploaded, [first.name]);
+  assert.equal(result.inspection.release.id, 12345);
+  assert.equal(calls.filter(isReleaseView).length, 1);
+  assert.equal(calls.filter((args) => args.includes('POST')).length, 0);
+  assert.ok(
+    calls.findIndex(isReleaseView)
+      < calls.findIndex((args) => args[1] === `repos/${repo}/releases/12345`),
+  );
+});
+
+test('accepted Release create with a mismatched response identity fails closed without follow-up mutation', () => {
+  const files = fixture([asset('first.zip', '7')]);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (args.includes('POST')) {
+        return success({
+          ...releaseResponse([], { draft: true, immutable: false }),
+          tag_name: `${tag}-other`,
+        });
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'outcome_unknown');
+  assert.equal(result.failure.mutation, 'release_create');
+  assert.equal(result.failure.failure_taxonomy, 'github_mutation_readback_unknown');
+  assert.equal(result.reconciliation.status, 'create_response_invalid');
+  assert.match(result.reconciliation.failure.error_message, /conflicts with the exact draft identity/);
+  assert.equal(result.reconciliation.fallback.status, 'complete');
+  assert.equal(result.reconciliation.fallback.observation.release.exists, false);
+  assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
+  assert.equal(calls.filter(isReleaseInspect).length, 2);
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
 });
 
 test('a timed out Latest PATCH performs readback only and remains outcome_unknown', () => {
@@ -1384,6 +1565,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success({
           id: 12345,
+          tag_name: `v${nightlyVersion}`,
           name: `One Person Lab v${nightlyVersion}`,
           draft: !published,
           prerelease: true,
@@ -1393,9 +1575,35 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
           assets: [],
         });
       }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
+        return success({
+          id: 12345,
+          tag_name: `v${nightlyVersion}`,
+          name: `One Person Lab v${nightlyVersion}`,
+          draft: !published,
+          prerelease: true,
+          target_commitish: sourceCommit,
+          body: notes,
+          immutable: published,
+          assets: [],
+        });
+      }
+      if (isReleaseViewFor(args, `v${nightlyVersion}`, repo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
       if (args.includes('POST')) {
         exists = true;
-        return success();
+        return success({
+          id: 12345,
+          tag_name: `v${nightlyVersion}`,
+          name: `One Person Lab v${nightlyVersion}`,
+          draft: true,
+          prerelease: true,
+          target_commitish: sourceCommit,
+          body: notes,
+          immutable: false,
+          assets: [],
+        });
       }
       if (args.includes('PATCH')) {
         published = true;
@@ -1434,6 +1642,7 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success({
           id: 12345,
+          tag_name: files.previewTag,
           name: `One Person Lab v${files.previewVersion}`,
           draft: !published,
           prerelease: false,
@@ -1443,9 +1652,35 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
           assets: [],
         });
       }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
+        return success({
+          id: 12345,
+          tag_name: files.previewTag,
+          name: `One Person Lab v${files.previewVersion}`,
+          draft: !published,
+          prerelease: false,
+          target_commitish: sourceCommit,
+          body: notes,
+          immutable: published,
+          assets: [],
+        });
+      }
+      if (isReleaseViewFor(args, files.previewTag, repo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
       if (args.includes('POST')) {
         exists = true;
-        return success();
+        return success({
+          id: 12345,
+          tag_name: files.previewTag,
+          name: `One Person Lab v${files.previewVersion}`,
+          draft: true,
+          prerelease: false,
+          target_commitish: sourceCommit,
+          body: notes,
+          immutable: false,
+          assets: [],
+        });
       }
       if (args.includes('PATCH')) {
         published = true;
@@ -1510,7 +1745,7 @@ test('canonical Stable publication fails closed without bound capability evidenc
       return true;
     },
   );
-  assert.equal(calls, 1, 'only the absent Release inspection is allowed before evidence rejection');
+  assert.equal(calls, 2, 'only bounded tag and draft discovery reads are allowed before evidence rejection');
 });
 
 test('canonical Stable publication consumes the exact durable record and never calls immutable-releases at runtime', () => {
@@ -1545,9 +1780,18 @@ test('canonical Stable publication consumes the exact durable record and never c
           immutable: published,
         }));
       }
+      if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/releases/12345`) {
+        return success(releaseResponse(remoteAssets, {
+          draft: !published,
+          immutable: published,
+        }));
+      }
+      if (isReleaseViewFor(args, tag, canonicalRepo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
       if (args.includes('POST')) {
         exists = true;
-        return success();
+        return success(releaseResponse([], { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
         const uploaded = [first, durable.recordAction].find(
@@ -1751,9 +1995,10 @@ test('supplemental immutable carrier receipt joins the exact draft asset set onc
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success(releaseResponse(remoteAssets, { draft: !published, immutable: published }));
       }
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (args.includes('POST')) {
         exists = true;
-        return success();
+        return success(releaseResponse([], { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
         const uploaded = [first, durableReceipt].find((asset) => asset.source_path === args[3]);
@@ -1889,9 +2134,10 @@ test('immutable=false after accepted draft publication returns typed terminal ev
           immutable: false,
         }));
       }
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (args.includes('POST')) {
         exists = true;
-        return success();
+        return success(releaseResponse([], { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
         remoteAssets.push(first);
