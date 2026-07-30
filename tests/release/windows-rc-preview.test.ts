@@ -465,6 +465,9 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   );
   assert.equal(manifest.download.installer_size_bytes, '328030592');
   assert.equal(manifest.download.installer_size_label, '约 328 MB');
+  assert.equal(manifest.download.release_tag, 'windows-rc-26.7.30-rc.1');
+  assert.equal(manifest.download.download_helper_asset, 'download-windows-preview.ps1');
+  assert.equal(manifest.download.download_helper_publication_status, 'starting_next_windows_preview_rc');
   assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.30-rc\.1$/);
   for (const term of manifest.required_terms) assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
@@ -472,6 +475,68 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   assert.match(guide, /登录只建立 Gateway 账户会话，不会代替第 6 步的模型访问确认/);
   assert.match(guide, /点击单独出现的“设为模型访问方式”/);
   assert.match(guide, /不要关闭\s+Microsoft Defender/);
+  assert.match(guide, /BITS 持久任务/);
+  assert.match(guide, /当前 `\{\{download\.release_tag\}\}` 尚未携带下载助手/);
+  assert.match(guide, /不会调用 `Unblock-File`/);
+  assert.match(guide, /不会自动切换到聊天群、网盘或任意第三方\s*镜像/);
   assert.match(guide, /这个 RC 的所有 Codex-backed 执行都进入 App 专用的 `OPL-Linux`/);
   assert.doesNotMatch(guide, /当前 RC 的桌面会话仍使用随包的原生 Windows/);
+});
+
+test('Windows Preview resilient downloader is exact-release, resumable, verified, and packaged', () => {
+  const downloader = fs.readFileSync(path.join(appRoot, 'scripts/download-windows-preview.ps1'), 'utf8');
+  const build = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
+  const publish = fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8');
+  const install = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'),
+  );
+  const policy = install.distribution_install_model.platform_routing.windows_personal.preview_download_resilience;
+
+  assert.equal(policy.transport, 'windows_bits_persistent_background_transfer');
+  assert.equal(policy.mirror_policy.automatic_arbitrary_third_party_mirror_allowed, false);
+  assert.deepEqual(policy.mirror_policy.current_additional_approved_sources, []);
+  assert.match(downloader, /Import-Module BitsTransfer/);
+  assert.match(downloader, /Get-MatchingBitsJob/);
+  assert.match(downloader, /Start-BitsTransfer[\s\S]*-Asynchronous/);
+  assert.match(downloader, /Resume-BitsTransfer/);
+  assert.match(downloader, /Suspend-BitsTransfer/);
+  assert.doesNotMatch(downloader, /"TransientError"\s*\{\s*Resume-BitsTransfer/);
+  assert.match(downloader, /BytesTransferred/);
+  assert.match(downloader, /BytesTotal/);
+  assert.match(downloader, /\$release\.immutable -ne \$true/);
+  assert.match(downloader, /\$Asset\.PSObject\.Properties\["digest"\]/);
+  assert.match(downloader, /unsupported digest for \$AssetLabel/);
+  assert.match(downloader, /GitHub asset digest and \$checksumAssetName disagree/);
+  assert.match(downloader, /Get-FileHash -LiteralPath \$PathValue -Algorithm SHA256/);
+  assert.match(downloader, /Move-Item -LiteralPath \$installerDownloadPath -Destination \$installerPath/);
+  assert.match(downloader, /does not discard the BITS job/);
+  assert.match(downloader, /Do not disable Defender or SmartScreen/);
+  assert.doesNotMatch(downloader, /Unblock-File/);
+  assert.doesNotMatch(downloader, /mirror|registry-mirrors/i);
+  assert.match(build, /cp \.\.\/\.\.\/scripts\/download-windows-preview\.ps1 out\/download-windows-preview\.ps1/);
+  assert.match(build, /shasum -a 256 .*download-windows-preview\.ps1 > SHA256SUMS\.txt/);
+  assert.match(build, /shells\/aionui\/out\/\*\.ps1/);
+  assert.match(build, /shells\/aionui\/out\/SHA256SUMS\.txt/);
+  assert.match(publish, /-name 'download-windows-preview\.ps1'/);
+  assert.match(publish, /-name 'SHA256SUMS\.txt'/);
+});
+
+test('packaged installation-integrity recovery exposes bounded diagnostics and a fresh recheck path', () => {
+  const adapter = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/app-shell-adapter.json'), 'utf8'));
+  const recovery = adapter.startup_installation_integrity_recovery;
+
+  assert.equal(recovery.trigger, 'packaged_backend_incomplete_installation');
+  assert.equal(recovery.blocking_surface, true);
+  assert.deepEqual(recovery.required_actions, [
+    'restart_and_recheck_same_installation',
+    'copy_redacted_diagnostic_summary',
+    'open_local_app_log_directory',
+    'open_prefilled_support_issue',
+    'open_official_release_download',
+  ]);
+  assert.ok(recovery.required_visible_state.includes('deduplicated_relative_missing_resource_names_when_reported'));
+  assert.ok(recovery.diagnostic_copy_forbidden.includes('absolute_user_paths'));
+  assert.equal(recovery.log_action.backend_http_dependency_allowed, false);
+  assert.equal(recovery.self_heal_or_reinstall_success_claim_without_fresh_readback_allowed, false);
+  assert.equal(recovery.smartscreen_or_security_software_bypass_allowed, false);
 });

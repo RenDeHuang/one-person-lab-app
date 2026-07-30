@@ -318,6 +318,7 @@ function Invoke-DockerCommandCaptureWithTimeout {
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
     [ValidateRange(0, 900)][int]$NoOutputTimeoutSeconds = 0,
+    [string]$ProgressContext = "Docker image download",
     [switch]$StreamOutput
   )
 
@@ -405,7 +406,12 @@ function Invoke-DockerCommandCaptureWithTimeout {
         }
       } elseif ($StreamOutput -and (Get-Date) -ge $nextHeartbeatAt) {
         $elapsedSeconds = [math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
-        Write-Step "Docker is still downloading the WebUI image (${elapsedSeconds}s without new layer output). If this persists, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies; Windows proxy/VPN settings are not always inherited by Docker Engine."
+        $stallMessage = if ($NoOutputTimeoutSeconds -gt 0) {
+          "This attempt will stop and retry after ${NoOutputTimeoutSeconds}s without layer progress."
+        } else {
+          "The installer is still waiting for Docker."
+        }
+        Write-Step "$ProgressContext is still active (${elapsedSeconds}s without new layer output). $stallMessage Completed layers remain in Docker's local cache. If this persists, set the proxy in Docker Desktop -> Settings -> Resources -> Proxies; Windows proxy/VPN settings are not always inherited by Docker Engine."
         $nextHeartbeatAt = (Get-Date).AddSeconds(20)
       }
       if (-not $processExited -and (Get-Date) -ge $deadline) {
@@ -497,6 +503,8 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [Parameter(Mandatory = $true)][int]$TimeoutSeconds,
+    [ValidateRange(0, 900)][int]$NoOutputTimeoutSeconds = 0,
+    [string]$ProgressContext = "Docker image download",
     [switch]$StreamOutput
   )
 
@@ -511,6 +519,8 @@ function Invoke-PublicGhcrAnonymousDockerCommandCapture {
       -DockerCliPath $DockerCliPath `
       -Arguments (@('--config', $temporaryConfigDir) + $Arguments) `
       -TimeoutSeconds $TimeoutSeconds `
+      -NoOutputTimeoutSeconds $NoOutputTimeoutSeconds `
+      -ProgressContext $ProgressContext `
       -StreamOutput:$StreamOutput
   } finally {
     Remove-Item -LiteralPath $temporaryConfigDir -Force -Recurse -ErrorAction SilentlyContinue
@@ -538,11 +548,15 @@ function Invoke-DockerPullWithRetry {
 
   $attempts = [math]::Max(1, $DockerPullRetryCount + 1)
   for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+    $progressContext = "WebUI image download attempt ${attempt}/${attempts}"
+    Write-Step "$progressContext started. Docker keeps completed layers, so a retry does not restart every layer."
     $pull = Invoke-DockerPullWithPublicGhcrIsolation `
       -DockerCliPath $DockerCliPath `
       -Arguments $Arguments `
-      -ImageReference $ImageReference
+      -ImageReference $ImageReference `
+      -ProgressContext $progressContext
     if ($pull.ExitCode -eq 0 -and -not $pull.TimedOut) {
+      Write-Step "$progressContext completed."
       return $pull
     }
     if ($attempt -ge $attempts -or -not (Test-DockerPullNetworkFailure -Result $pull)) {
@@ -559,7 +573,8 @@ function Invoke-DockerPullWithPublicGhcrIsolation {
   param(
     [Parameter(Mandatory = $true)][string]$DockerCliPath,
     [Parameter(Mandatory = $true)][string[]]$Arguments,
-    [Parameter(Mandatory = $true)][string]$ImageReference
+    [Parameter(Mandatory = $true)][string]$ImageReference,
+    [Parameter(Mandatory = $true)][string]$ProgressContext
   )
 
   if (Test-PublicOplGhcrImageReference -ImageReference $ImageReference) {
@@ -569,6 +584,7 @@ function Invoke-DockerPullWithPublicGhcrIsolation {
       -Arguments $Arguments `
       -TimeoutSeconds $DockerPullTimeoutSeconds `
       -NoOutputTimeoutSeconds $DockerPullStallTimeoutSeconds `
+      -ProgressContext $ProgressContext `
       -StreamOutput
   }
   return Invoke-DockerCommandCaptureWithTimeout `
@@ -576,6 +592,7 @@ function Invoke-DockerPullWithPublicGhcrIsolation {
     -Arguments $Arguments `
     -TimeoutSeconds $DockerPullTimeoutSeconds `
     -NoOutputTimeoutSeconds $DockerPullStallTimeoutSeconds `
+    -ProgressContext $ProgressContext `
     -StreamOutput
 }
 

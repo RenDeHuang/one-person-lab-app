@@ -78,8 +78,12 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   );
   for (const expected of [
     'buildStartupSupportIssueUrl',
+    'buildStartupDiagnosticSummary',
     'getDesktopAppInfo.invoke()',
     'openExternalUrl(buildStartupSupportIssueUrl',
+    'openAppLogDirectory',
+    'copyDiagnosticsText',
+    "missingResources={failure?.missingResources}",
     'failure={failure}',
   ]) {
     if (!startupFailureDialog.includes(expected)) {
@@ -88,6 +92,22 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   }
   if (startupFailureDialog.includes('ipcBridge.shell.openExternal')) {
     throw new Error('Active shell startup failure issue action must not depend on the AionCore HTTP shell bridge');
+  }
+
+  const shellPreload = readShellText(shellPaths, 'packages/desktop/src/preload/main.ts');
+  if (!shellPreload.includes("openAppLogDirectory: () => ipcRenderer.invoke('app:open-log-directory')")) {
+    throw new Error('Active shell startup failure log action must use the Electron main-process log-directory IPC');
+  }
+
+  const shellMain = readShellText(shellPaths, 'packages/desktop/src/index.ts');
+  for (const expected of [
+    "ipcMain.handle('app:open-log-directory'",
+    "app.getPath('logs')",
+    'shell.openPath(logsDirectory)',
+  ]) {
+    if (!shellMain.includes(expected)) {
+      throw new Error(`Active shell startup failure log action must include ${expected}`);
+    }
   }
 
   const rendererPlatform = readShellText(shellPaths, 'packages/desktop/src/renderer/utils/platform.ts');
