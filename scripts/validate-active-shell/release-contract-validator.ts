@@ -1121,6 +1121,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
         'tests/release/docker-webui-windows-installer.test.ts',
         'tests/release/docker-webui-windows-validation-fixtures.test.ts',
         'tests/release/windows-platform-factory-contract.test.ts',
+        'tests/release/windows-preview-bits-powershell.test.ts',
         'tests/release/windows-rc-preview.test.ts',
         'tests/release/windows-wsl2-validation-fixtures.test.ts',
       ],

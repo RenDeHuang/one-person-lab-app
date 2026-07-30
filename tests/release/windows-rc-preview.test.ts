@@ -583,6 +583,11 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.match(downloader, /Import-Module BitsTransfer/);
   assert.match(downloader, /Get-MatchingBitsJob/);
   assert.match(downloader, /Start-BitsTransfer[\s\S]*-Asynchronous/);
+  assert.match(downloader, /Get-BitsTransfer -JobId \$job\.JobId/);
+  assert.doesNotMatch(downloader, /\$job\.Id\b/);
+  assert.match(downloader, /\[uint64\]::MaxValue/);
+  assert.match(downloader, /total size pending/);
+  assert.doesNotMatch(downloader, /\[int64\]\$job\.BytesTotal/);
   assert.match(downloader, /Resume-BitsTransfer/);
   assert.match(downloader, /Suspend-BitsTransfer/);
   assert.doesNotMatch(downloader, /"TransientError"\s*\{\s*Resume-BitsTransfer/);

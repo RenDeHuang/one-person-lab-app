@@ -123,6 +123,30 @@ function Get-MatchingBitsJob {
   return $job
 }
 
+function Get-BitsProgress {
+  param([Parameter(Mandatory = $true)]$BitsJob)
+
+  [uint64]$total = $BitsJob.BytesTotal
+  [uint64]$transferred = $BitsJob.BytesTransferred
+  $totalKnown = $total -ne [uint64]::MaxValue -and $total -gt 0
+  $percent = if ($totalKnown) {
+    [int][math]::Min(100, [math]::Floor(($transferred * 100.0) / $total))
+  } else {
+    $null
+  }
+  $status = if ($totalKnown) {
+    "$percent% ($transferred / $total bytes), state $($BitsJob.JobState)"
+  } else {
+    "$transferred bytes, total size pending, state $($BitsJob.JobState)"
+  }
+  return [pscustomobject]@{
+    Percent = $percent
+    Status = $status
+    TotalKnown = $totalKnown
+    Transferred = $transferred
+  }
+}
+
 function Receive-BitsFile {
   param(
     [Parameter(Mandatory = $true)][string]$Source,
@@ -149,7 +173,7 @@ function Receive-BitsFile {
 
   $nextHeartbeatAt = Get-Date
   while ($true) {
-    $job = Get-BitsTransfer -Id $job.Id
+    $job = Get-BitsTransfer -JobId $job.JobId
     switch ([string]$job.JobState) {
       "Transferred" {
         Complete-BitsTransfer -BitsJob $job
@@ -175,16 +199,13 @@ function Receive-BitsFile {
       }
     }
 
-    $total = [int64]$job.BytesTotal
-    $transferred = [int64]$job.BytesTransferred
-    $status = if ($total -gt 0) {
-      $percent = [math]::Min(100, [math]::Floor(($transferred * 100.0) / $total))
-      Write-Progress -Activity $DisplayName -Status "$transferred / $total bytes" -PercentComplete $percent
-      "$percent% ($transferred / $total bytes), state $($job.JobState)"
+    $progress = Get-BitsProgress -BitsJob $job
+    if ($progress.TotalKnown) {
+      Write-Progress -Activity $DisplayName -Status $progress.Status -PercentComplete $progress.Percent
     } else {
-      Write-Progress -Activity $DisplayName -Status "$transferred bytes, state $($job.JobState)"
-      "$transferred bytes, state $($job.JobState)"
+      Write-Progress -Activity $DisplayName -Status $progress.Status
     }
+    $status = [string]$progress.Status
     if ((Get-Date) -ge $nextHeartbeatAt) {
       Write-Step "${DisplayName}: $status. Closing this PowerShell window does not discard the BITS job; rerun the same command to reattach."
       $nextHeartbeatAt = (Get-Date).AddSeconds(15)
