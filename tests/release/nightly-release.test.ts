@@ -129,7 +129,9 @@ class FakeRemote implements NightlyRemote {
   release: NightlyRemoteRelease | null = null;
   calls: string[] = [];
   visibilityMissesAfterCreate = 0;
+  visibilityMissesAfterUpload = 0;
   createThrows = false;
+  deleteThrows = false;
   private releaseVisibilityMisses = 0;
 
   inspectRelease(): NightlyRemoteRelease | null {
@@ -171,11 +173,18 @@ class FakeRemote implements NightlyRemote {
       size: fs.statSync(filePath).size,
       digest: `sha256:${sha256File(filePath)}`,
     });
+    this.releaseVisibilityMisses = this.visibilityMissesAfterUpload;
   }
 
   publishRelease(): void {
     this.calls.push('publish');
     this.release!.draft = false;
+  }
+
+  deleteDraft(): void {
+    this.calls.push('delete-draft');
+    if (this.deleteThrows) throw new Error('simulated delete timeout');
+    this.release = null;
   }
 }
 
@@ -364,6 +373,135 @@ test('Nightly publisher reconciles an unknown create result without retrying the
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
 });
 
+test('Nightly publisher deletes its acknowledged draft when creation readback never reaches its postcondition', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.visibilityMissesAfterCreate = 3;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    /Create Nightly draft .* did not reach its exact postcondition/
+  );
+
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'delete-draft').length, 1);
+  assert.equal(remote.release, null);
+});
+
+test('Nightly publisher preserves a draft when creation returned an unknown result', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createThrows = true;
+  remote.visibilityMissesAfterCreate = 3;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    /outcome is unknown after three read-only inspections/
+  );
+
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.includes('delete-draft'), false);
+  assert.notEqual(remote.release, null);
+});
+
+test('Nightly publisher deletes its acknowledged draft when asset upload readback fails', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.visibilityMissesAfterUpload = 5;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    /Upload Nightly asset .* did not reach its exact postcondition/
+  );
+
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'delete-draft').length, 1);
+  assert.equal(remote.release, null);
+});
+
+test('Nightly publisher preserves both publication and cleanup failures when rollback is unknown', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.visibilityMissesAfterUpload = 5;
+  remote.deleteThrows = true;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.match(error.message, /draft cleanup did not reach exact absence/);
+      assert.equal(error.errors.length, 2);
+      assert.match(String(error.errors[0]), /Upload Nightly asset/);
+      assert.match(String(error.errors[1]), /Delete failed Nightly draft/);
+      return true;
+    },
+  );
+
+  assert.equal(remote.calls.filter((call) => call === 'delete-draft').length, 1);
+  assert.notEqual(remote.release, null);
+});
+
+test('Nightly publisher never deletes a draft that existed before this invocation', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createDraft({
+    tag: input.request.tag,
+    targetCommitish: input.request.source.app_sha,
+    name: `One Person Lab ${input.request.tag}`,
+    body: 'Automated Standard preview.\n',
+  });
+  remote.release!.assets.push({
+    id: 999,
+    name: 'unexpected-existing-asset.txt',
+    size: 1,
+    digest: `sha256:${'e'.repeat(64)}`,
+  });
+  remote.calls = [];
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    /unexpected public asset/
+  );
+
+  assert.equal(remote.calls.includes('delete-draft'), false);
+  assert.notEqual(remote.release, null);
+});
+
 test('GitHub Nightly remote discovers a draft by tag metadata before GitHub creates the tag ref', () => {
   const frozen = request();
   const draft: NightlyRemoteRelease = {
@@ -396,6 +534,19 @@ test('GitHub Nightly remote discovers a draft by tag metadata before GitHub crea
       'repos/gaofeng21cn/one-person-lab-app/releases?per_page=100',
     ],
   ]);
+});
+
+test('GitHub Nightly remote deletes only an exact positive release id', () => {
+  const calls: string[][] = [];
+  const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
+    calls.push(args);
+    return '';
+  });
+
+  remote.deleteDraft(101);
+
+  assert.deepEqual(calls, [['api', '--method', 'DELETE', 'repos/gaofeng21cn/one-person-lab-app/releases/101']]);
+  assert.throws(() => remote.deleteDraft(0), /positive safe integer/);
 });
 
 test('GitHub Nightly remote fails closed when release metadata contains duplicate draft tags', () => {

@@ -44,6 +44,7 @@ export interface NightlyRemote {
   }): void;
   uploadAsset(releaseId: number, filePath: string, name: string): void;
   publishRelease(releaseId: number, name: string, body: string): void;
+  deleteDraft(releaseId: number): void;
 }
 
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
@@ -168,6 +169,13 @@ export class GhNightlyRemote implements NightlyRemote {
       this.executeGh(['api', '--method', 'PATCH', `repos/${this.repo}/releases/${releaseId}`, '--input', inputPath]);
     });
   }
+
+  deleteDraft(releaseId: number): void {
+    if (!Number.isSafeInteger(releaseId) || releaseId <= 0) {
+      throw new Error('Nightly draft release id must be a positive safe integer.');
+    }
+    this.executeGh(['api', '--method', 'DELETE', `repos/${this.repo}/releases/${releaseId}`]);
+  }
 }
 
 function assetMatches(remote: RemoteAsset, expected: { name: string; size_bytes: number; sha256: string }): boolean {
@@ -212,6 +220,30 @@ function assertExactRemoteAssets(
       throw new Error(`Nightly release ${release.tag_name} has conflicting asset ${asset.name}.`);
     }
   }
+}
+
+function invocationDraftIsSafeToDelete(
+  release: NightlyRemoteRelease,
+  request: NightlyReleaseRequest,
+  releaseName: string,
+  notes: string,
+  assets: Array<{ name: string; size_bytes: number; sha256: string }>,
+  createdReleaseId: number | null
+): boolean {
+  if (!release.draft || (createdReleaseId !== null && release.id !== createdReleaseId)) return false;
+  try {
+    assertReleaseIdentity(release, request, releaseName, notes);
+  } catch {
+    return false;
+  }
+  const expectedByName = new Map(assets.map((asset) => [asset.name, asset]));
+  const observedNames = new Set<string>();
+  for (const asset of release.assets) {
+    const expected = expectedByName.get(asset.name);
+    if (!expected || observedNames.has(asset.name) || !assetMatches(asset, expected)) return false;
+    observedNames.add(asset.name);
+  }
+  return true;
 }
 
 function exactLocalAssets(
@@ -285,14 +317,14 @@ export function publishNightlyRelease(input: {
   const { request, qualification, remote } = input;
   assertNightlyRequestDigest(request);
   if (
-    qualification.schema !== 'opl_standard_nightly_qualification.v1'
-    || qualification.status !== 'passed'
-    || qualification.request_digest !== request.request_digest
-    || qualification.include_full !== false
-    || qualification.stable_qualified !== false
-    || qualification.heavy_vm_required !== false
-    || qualification.full_assets_present !== false
-    || qualification.webui_assets_present !== false
+    qualification.schema !== 'opl_standard_nightly_qualification.v1' ||
+    qualification.status !== 'passed' ||
+    qualification.request_digest !== request.request_digest ||
+    qualification.include_full !== false ||
+    qualification.stable_qualified !== false ||
+    qualification.heavy_vm_required !== false ||
+    qualification.full_assets_present !== false ||
+    qualification.webui_assets_present !== false
   ) {
     throw new Error('Nightly publication requires an exact passed Standard-only qualification receipt.');
   }
@@ -301,102 +333,154 @@ export function publishNightlyRelease(input: {
   const latestBefore = remote.inspectLatestTag();
   let release = remote.inspectRelease(request.tag);
   const initiallyComplete = Boolean(release && !release.draft);
+  let creationAcknowledged = false;
+  let createdReleaseId: number | null = null;
 
-  if (!release) {
-    release = mutateOnceThenRead({
-      label: `Create Nightly draft ${request.tag}`,
-      mutate: () => remote.createDraft({
-        tag: request.tag,
-        targetCommitish: request.source.app_sha,
-        name: releaseName,
-        body: input.notes,
-      }),
-      inspect: () => remote.inspectRelease(request.tag),
-      matches: (value) => value !== null,
-    });
-  }
-  assertReleaseIdentity(release, request, releaseName, input.notes);
-  assertExactRemoteAssets(release, assets, !release.draft);
+  try {
+    if (!release) {
+      release = mutateOnceThenRead({
+        label: `Create Nightly draft ${request.tag}`,
+        mutate: () => {
+          remote.createDraft({
+            tag: request.tag,
+            targetCommitish: request.source.app_sha,
+            name: releaseName,
+            body: input.notes,
+          });
+          creationAcknowledged = true;
+        },
+        inspect: () => remote.inspectRelease(request.tag),
+        matches: (value) => value !== null,
+      });
+      createdReleaseId = release.id;
+    }
+    assertReleaseIdentity(release, request, releaseName, input.notes);
+    assertExactRemoteAssets(release, assets, !release.draft);
 
-  if (!release.draft) {
+    if (!release.draft) {
+      for (const asset of assets) {
+        const matches = release.assets.filter((remoteAsset) => remoteAsset.name === asset.name);
+        if (matches.length !== 1 || !assetMatches(matches[0]!, asset)) {
+          throw new Error(`Published Nightly release has missing or conflicting asset ${asset.name}.`);
+        }
+      }
+    } else {
+      for (const asset of assets) {
+        const matches = release.assets.filter((remoteAsset) => remoteAsset.name === asset.name);
+        if (matches.length > 1 || (matches.length === 1 && !assetMatches(matches[0]!, asset))) {
+          throw new Error(`Nightly draft has conflicting asset bytes for ${asset.name}.`);
+        }
+        if (matches.length === 1) continue;
+        release = mutateOnceThenRead({
+          label: `Upload Nightly asset ${asset.name}`,
+          mutate: () => remote.uploadAsset(release!.id, asset.path, asset.name),
+          inspect: () => remote.inspectRelease(request.tag),
+          matches: (value) => {
+            const reconciled = value?.assets.filter((remoteAsset) => remoteAsset.name === asset.name) ?? [];
+            return reconciled.length === 1 && assetMatches(reconciled[0]!, asset);
+          },
+        });
+      }
+      release = mutateOnceThenRead({
+        label: `Publish Nightly prerelease ${request.tag}`,
+        mutate: () => remote.publishRelease(release!.id, releaseName, input.notes),
+        inspect: () => remote.inspectRelease(request.tag),
+        matches: (value) => Boolean(value && !value.draft && value.prerelease),
+      });
+      assertReleaseIdentity(release, request, releaseName, input.notes);
+    }
+
+    const latestAfter = remote.inspectLatestTag();
+    if (latestAfter !== latestBefore) throw new Error('Nightly publication changed GitHub Latest.');
+    assertExactRemoteAssets(release, assets, true);
     for (const asset of assets) {
       const matches = release.assets.filter((remoteAsset) => remoteAsset.name === asset.name);
       if (matches.length !== 1 || !assetMatches(matches[0]!, asset)) {
-        throw new Error(`Published Nightly release has missing or conflicting asset ${asset.name}.`);
+        throw new Error(`Nightly public readback does not match ${asset.name}.`);
       }
     }
-  } else {
-    for (const asset of assets) {
-      const matches = release.assets.filter((remoteAsset) => remoteAsset.name === asset.name);
-      if (matches.length > 1 || (matches.length === 1 && !assetMatches(matches[0]!, asset))) {
-        throw new Error(`Nightly draft has conflicting asset bytes for ${asset.name}.`);
+    const assetUrl = (name: string) =>
+      `https://github.com/${releaseRepo}/releases/download/${request.tag}/${encodeURIComponent(name)}`;
+    return {
+      schema: 'opl_standard_nightly_publication_receipt.v1',
+      status: initiallyComplete ? 'already_complete' : 'published',
+      repository: releaseRepo,
+      request_digest: request.request_digest,
+      version: request.version,
+      updater_version: request.updater_version,
+      tag: request.tag,
+      cohort: request.source,
+      actions: request.actions,
+      include_full: false,
+      github_release: {
+        id: release.id,
+        url: release.html_url,
+        draft: false,
+        prerelease: true,
+        make_latest: false,
+        latest_before: latestBefore,
+        latest_after: latestAfter,
+      },
+      assets: assets.map(({ path: _path, ...asset }) => ({ ...asset, url: assetUrl(asset.name) })),
+      primary_dmg: {
+        ...qualification.primary_dmg,
+        url: assetUrl(qualification.primary_dmg.name),
+      },
+      updater_metadata: {
+        ...qualification.updater_metadata,
+        url: assetUrl(qualification.updater_metadata.name),
+      },
+      stable_qualified: false,
+      heavy_vm_blocking: false,
+      homebrew_modified: false,
+      full_modified: false,
+      webui_modified: false,
+    };
+  } catch (error) {
+    if (creationAcknowledged) {
+      let candidate: NightlyRemoteRelease | null = null;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const observed = remote.inspectRelease(request.tag);
+          if (!observed) continue;
+          if (
+            invocationDraftIsSafeToDelete(
+              observed,
+              request,
+              releaseName,
+              input.notes,
+              assets,
+              createdReleaseId,
+            )
+          ) {
+            candidate = observed;
+          }
+          break;
+        } catch {
+          // Cleanup discovery is read-only and bounded; unsafe or unknown state is retained.
+        }
       }
-      if (matches.length === 1) continue;
-      release = mutateOnceThenRead({
-        label: `Upload Nightly asset ${asset.name}`,
-        mutate: () => remote.uploadAsset(release!.id, asset.path, asset.name),
-        inspect: () => remote.inspectRelease(request.tag),
-        matches: (value) => {
-          const reconciled = value?.assets.filter((remoteAsset) => remoteAsset.name === asset.name) ?? [];
-          return reconciled.length === 1 && assetMatches(reconciled[0]!, asset);
-        },
-      });
+      if (candidate) {
+        try {
+          mutateOnceThenRead({
+            label: `Delete failed Nightly draft ${request.tag}`,
+            mutate: () => remote.deleteDraft(candidate.id),
+            inspect: () => remote.inspectRelease(request.tag),
+            matches: (value) => value === null,
+          });
+          if (remote.inspectRelease(request.tag) !== null) {
+            throw new Error(`Deleted Nightly draft ${request.tag} reappeared after cleanup.`);
+          }
+        } catch (cleanupError) {
+          throw new AggregateError(
+            [error, cleanupError],
+            `Nightly publication failed and invocation-created draft cleanup did not reach exact absence.`,
+          );
+        }
+      }
     }
-    release = mutateOnceThenRead({
-      label: `Publish Nightly prerelease ${request.tag}`,
-      mutate: () => remote.publishRelease(release!.id, releaseName, input.notes),
-      inspect: () => remote.inspectRelease(request.tag),
-      matches: (value) => Boolean(value && !value.draft && value.prerelease),
-    });
-    assertReleaseIdentity(release, request, releaseName, input.notes);
+    throw error;
   }
-
-  const latestAfter = remote.inspectLatestTag();
-  if (latestAfter !== latestBefore) throw new Error('Nightly publication changed GitHub Latest.');
-  assertExactRemoteAssets(release, assets, true);
-  for (const asset of assets) {
-    const matches = release.assets.filter((remoteAsset) => remoteAsset.name === asset.name);
-    if (matches.length !== 1 || !assetMatches(matches[0]!, asset)) {
-      throw new Error(`Nightly public readback does not match ${asset.name}.`);
-    }
-  }
-  const assetUrl = (name: string) =>
-    `https://github.com/${releaseRepo}/releases/download/${request.tag}/${encodeURIComponent(name)}`;
-  return {
-    schema: 'opl_standard_nightly_publication_receipt.v1',
-    status: initiallyComplete ? 'already_complete' : 'published',
-    repository: releaseRepo,
-    request_digest: request.request_digest,
-    version: request.version,
-    updater_version: request.updater_version,
-    tag: request.tag,
-    cohort: request.source,
-    actions: request.actions,
-    include_full: false,
-    github_release: {
-      id: release.id,
-      url: release.html_url,
-      draft: false,
-      prerelease: true,
-      make_latest: false,
-      latest_before: latestBefore,
-      latest_after: latestAfter,
-    },
-    assets: assets.map(({ path: _path, ...asset }) => ({ ...asset, url: assetUrl(asset.name) })),
-    primary_dmg: {
-      ...qualification.primary_dmg,
-      url: assetUrl(qualification.primary_dmg.name),
-    },
-    updater_metadata: {
-      ...qualification.updater_metadata,
-      url: assetUrl(qualification.updater_metadata.name),
-    },
-    stable_qualified: false,
-    heavy_vm_blocking: false,
-    homebrew_modified: false,
-    full_modified: false,
-    webui_modified: false,
-  };
 }
 
 function main(argv: string[]): void {
