@@ -112,7 +112,7 @@
           "properties": {
             "name": { "const": "opl-app-installer.sh" },
             "digest": { "$ref": "#/$defs/digest" },
-            "downloaded_from_published_release": { "const": true }
+            "downloaded_from_published_release": { "type": "boolean" }
           }
         }
       }
@@ -204,11 +204,6 @@
               "certification_run_attempt": { "const": 1 },
               "job_started": { "const": true }
             }
-          },
-          "artifact_handling": {
-            "properties": {
-              "downloaded_from_published_release": { "const": true }
-            }
           }
         }
       }
@@ -244,6 +239,71 @@
           },
           "artifact_handling": {
             "required": ["installer"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "passed" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "artifact_handling": {
+            "properties": {
+              "downloaded_from_published_release": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["failed", "unavailable"] },
+          "certification": {
+            "properties": {
+              "platform": { "enum": ["macos", "windows"] }
+            },
+            "required": ["platform"]
+          }
+        },
+        "required": ["status", "certification"]
+      },
+      "then": {
+        "properties": {
+          "artifact_handling": {
+            "properties": {
+              "downloaded_from_published_release": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "passed" },
+          "certification": {
+            "properties": {
+              "platform": { "const": "linux" }
+            },
+            "required": ["platform"]
+          }
+        },
+        "required": ["status", "certification"]
+      },
+      "then": {
+        "properties": {
+          "artifact_handling": {
+            "properties": {
+              "installer": {
+                "properties": {
+                  "downloaded_from_published_release": { "const": true }
+                }
+              }
+            }
           }
         }
       }

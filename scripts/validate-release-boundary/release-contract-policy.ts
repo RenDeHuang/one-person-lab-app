@@ -529,6 +529,7 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
     hostedLinux?.typed_execution_evidence_schema !== 'opl_app_linux_same_artifact_install_evidence.v1' ||
     hostedLinux?.clean_machine_preinstall_absence_required !== true ||
     hostedLinux?.installed_executable_byte_parity_required !== true ||
+    hostedLinux?.failed_download_evidence_truthful_required !== true ||
     JSON.stringify(hostedLinux?.terminal_statuses) !== JSON.stringify(['passed', 'failed']) ||
     hostedLinux?.unavailable_allowed !== false ||
     hostedLinux?.downloaded_from_published_release_required !== true ||

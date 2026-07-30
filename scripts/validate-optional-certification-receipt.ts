@@ -84,7 +84,11 @@ export function validateOptionalCertificationReceipt(
       || receipt.admission?.status !== 'passed'
       || receipt.admission?.reason_code !== null
       || receipt.artifact_handling?.installer?.digest !== expected.installerDigest
-      || receipt.artifact_handling?.installer?.downloaded_from_published_release !== true
+      || typeof receipt.artifact_handling?.installer?.downloaded_from_published_release !== 'boolean'
+      || (
+        receipt.status === 'passed'
+        && receipt.artifact_handling.installer.downloaded_from_published_release !== true
+      )
     )
   ) {
     errors.push('hosted Linux certification requires a passed typed admission and an executed passed or failed install');
@@ -149,8 +153,14 @@ export function validateOptionalCertificationReceipt(
     ) {
       errors.push('executed or admitted certification requires one started run attempt');
     }
-    if (receipt.artifact_handling?.downloaded_from_published_release !== true) {
-      errors.push('started certification must download the published artifact');
+    const downloadedFromPublishedRelease = receipt.artifact_handling?.downloaded_from_published_release;
+    if (typeof downloadedFromPublishedRelease !== 'boolean') {
+      errors.push('started certification must record whether the published artifact was downloaded');
+    } else if (
+      (receipt.status === 'passed' || receipt.certification?.platform !== 'linux')
+      && downloadedFromPublishedRelease !== true
+    ) {
+      errors.push('passed certification and non-Linux execution must download the published artifact');
     }
   }
   if (receipt.status === 'unavailable') {

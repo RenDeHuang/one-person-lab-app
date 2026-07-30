@@ -225,6 +225,8 @@ executable digest 与 `dpkg` 已安装路径的 executable digest 精确比较�
 GitHub-hosted admission 使用
 `opl_app_optional_certification_hosted_admission.v1` exact typed evidence；认证只产生
 `passed` 或 `failed`。网络、队列或 hosted runner 故障一律按执行失败处理，绝不能伪装成 `unavailable`。
+失败 receipt 必须分别记录 `.deb` 与 installer 是否已从公开 Release 下载，不能把下载前失败
+写成已下载。
 失败路径也必须先上传 receipt、installer 输出与安装
 readback evidence，再让这个独立 follower job 失败。该 follower 永不进入 Stable/Latest
 DAG，不能撤销、阻塞或改写已完成的 publication。源码实现不等于首次 public/install

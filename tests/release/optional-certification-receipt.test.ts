@@ -180,7 +180,7 @@ function hostedLinuxExecution(
     installer: {
       name: linuxExpected.installerName,
       digest: linuxExpected.installerDigest,
-      downloaded_from_published_release: true,
+      downloaded_from_published_release: passed,
       invoked: passed,
       exit_code: passed ? 0 : null,
     },
@@ -264,6 +264,7 @@ test('hosted Linux receipt binds exact public DEB, installer, manifest, and coho
     assert.equal(value.status, status);
     assert.equal(value.artifact_handling.downloaded_from_published_release, true);
     assert.equal(value.artifact_handling.rebuilt, false);
+    assert.equal(value.artifact_handling.installer.downloaded_from_published_release, status === 'passed');
     assert.equal(value.admission.status, 'passed');
     assert.equal(value.admission.reason_code, null);
     const missingInstallerExpectation = {
@@ -330,6 +331,42 @@ test('hosted Linux receipt rejects unavailable and non-exact admission identity'
   );
 });
 
+test('hosted Linux failed receipt preserves truthful pre-download handling', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const admission = writeJson(root, 'hosted-admission.json', hostedLinuxAdmission());
+  const execution = writeJson(
+    root,
+    'pre-download-failure.json',
+    hostedLinuxExecution('failed', {
+      failure_stage: 'download_linux_artifact',
+      certification_exit_code: 13,
+      artifact: {
+        name: linuxExpected.artifactName,
+        digest: linuxExpected.artifactDigest,
+        downloaded_from_published_release: false,
+      },
+    }),
+  );
+  const value = writeOptionalCertificationReceipt({
+    expected: linuxExpected,
+    status: 'failed',
+    certification: {
+      kind: 'clean_machine_install',
+      platform: 'linux',
+      capability: 'github-hosted-ubuntu-x64',
+    },
+    admissionEvidencePath: admission,
+    reasonCode: null,
+    certificationRunId: '30260000002',
+    evidencePaths: [execution],
+    createdAt: '2026-07-30T01:00:00.000Z',
+  });
+  assert.deepEqual(validateOptionalCertificationReceipt(value, linuxExpected), []);
+  assert.equal(value.artifact_handling.downloaded_from_published_release, false);
+  assert.equal(value.artifact_handling.installer.downloaded_from_published_release, false);
+});
+
 test('hosted Linux passed receipt rejects a non-clean prestate or installed executable byte drift', (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-certification-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -382,6 +419,16 @@ test('not_run remains explicit non-execution and cannot masquerade as unavailabl
   assert.ok(
     validateOptionalCertificationReceipt(value, expected)
       .includes('not_run requires a typed non-execution reason'),
+  );
+});
+
+test('non-Linux executed certification still requires downloaded public artifact bytes', () => {
+  const value = receipt('failed');
+  value.artifact_handling.downloaded_from_published_release = false;
+  seal(value);
+  assert.ok(
+    validateOptionalCertificationReceipt(value, expected)
+      .includes('passed certification and non-Linux execution must download the published artifact'),
   );
 });
 

@@ -210,7 +210,7 @@ function assertHostedAdmission(
 
 function assertHostedLinuxExecutionEvidence(
   input: WriteOptionalCertificationReceiptInput,
-): void {
+): { artifactDownloaded: boolean; installerDownloaded: boolean } {
   if (input.evidencePaths.length !== 1) {
     throw new Error('Hosted Linux certification requires exactly one typed execution evidence file.');
   }
@@ -246,6 +246,8 @@ function assertHostedLinuxExecutionEvidence(
   const exitCode = evidence.certification_exit_code;
   const installerInvoked = installer.invoked;
   const installerExitCode = installer.exit_code;
+  const artifactDownloaded = artifact.downloaded_from_published_release;
+  const installerDownloaded = installer.downloaded_from_published_release;
   if (
     evidence.schema !== 'opl_app_linux_same_artifact_install_evidence.v1'
     || evidence.status !== input.status
@@ -257,10 +259,10 @@ function assertHostedLinuxExecutionEvidence(
     || evidence.rebuilt !== false
     || artifact.name !== input.expected.artifactName
     || artifact.digest !== input.expected.artifactDigest
-    || artifact.downloaded_from_published_release !== true
     || installer.name !== input.expected.installerName
     || installer.digest !== input.expected.installerDigest
-    || installer.downloaded_from_published_release !== true
+    || typeof artifactDownloaded !== 'boolean'
+    || typeof installerDownloaded !== 'boolean'
     || cohort.app_sha !== input.expected.appSha
     || cohort.shell_sha !== input.expected.shellSha
     || cohort.framework_sha !== input.expected.frameworkSha
@@ -289,6 +291,8 @@ function assertHostedLinuxExecutionEvidence(
       evidence.failure_stage !== 'complete'
       || exitCode !== 0
       || evidence.preinstall_package_absent !== true
+      || artifactDownloaded !== true
+      || installerDownloaded !== true
       || installerInvoked !== true
       || installerExitCode !== 0
       || !nonEmptyText(installedPackage.name, 'Hosted Linux package name')
@@ -303,7 +307,7 @@ function assertHostedLinuxExecutionEvidence(
     ) {
       throw new Error('Passed hosted Linux evidence must prove a clean install with exact executable byte parity.');
     }
-    return;
+    return { artifactDownloaded, installerDownloaded };
   }
   if (
     input.status !== 'failed'
@@ -313,6 +317,7 @@ function assertHostedLinuxExecutionEvidence(
   ) {
     throw new Error('Failed hosted Linux evidence must preserve one nonzero terminal failure stage.');
   }
+  return { artifactDownloaded, installerDownloaded };
 }
 
 function assertVmAdmissionFailureEvidence(
@@ -453,9 +458,9 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
     }
   }
   assertTypedAdmissionEvidence(input);
-  if (certification.platform === 'linux') {
-    assertHostedLinuxExecutionEvidence(input);
-  }
+  const hostedLinuxHandling = certification.platform === 'linux'
+    ? assertHostedLinuxExecutionEvidence(input)
+    : null;
 
   const receipt = sealReceipt({
     schema: 'opl_app_optional_certification_receipt.v1',
@@ -483,7 +488,9 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
       job_started: !isNotRun,
     },
     artifact_handling: {
-      downloaded_from_published_release: !isNotRun,
+      downloaded_from_published_release: hostedLinuxHandling
+        ? hostedLinuxHandling.artifactDownloaded
+        : !isNotRun,
       rebuilt: false,
       component_manifest_mutated: false,
       component_manifest_resigned: false,
@@ -492,7 +499,7 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
             installer: {
               name: input.expected.installerName,
               digest: input.expected.installerDigest,
-              downloaded_from_published_release: true,
+              downloaded_from_published_release: hostedLinuxHandling?.installerDownloaded,
             },
           }
         : {}),

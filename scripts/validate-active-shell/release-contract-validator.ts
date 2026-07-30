@@ -1026,6 +1026,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
       typed_execution_evidence_schema: 'opl_app_linux_same_artifact_install_evidence.v1',
       clean_machine_preinstall_absence_required: true,
       installed_executable_byte_parity_required: true,
+      failed_download_evidence_truthful_required: true,
       terminal_statuses: ['passed', 'failed'],
       unavailable_allowed: false,
       downloaded_from_published_release_required: true,
