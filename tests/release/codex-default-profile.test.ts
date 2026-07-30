@@ -770,28 +770,47 @@ test('active-shell source gate preserves explicit local file inputs independentl
 });
 
 test('active-shell source gate keeps canonical cwd transport separate from sidebar affinity', () => {
-  const canonicalProjectionMarkers = [
-    'const hasCanonicalProjectWorkspace = Boolean(thread.projectId.trim() && thread.workspace.trim())',
+  const lifecycleProjectionMarkers = [
+    'function canonicalProjectId(',
+    'canonical_project_id?.trim() ??',
+    '!canonicalProjectId(conversation)',
+    'const explicitProjectId = thread.projectId.trim() || canonicalProjectId(cached)',
     'workspace: thread.workspace',
-    'custom_workspace: hasCanonicalProjectWorkspace',
+    'custom_workspace: Boolean(explicitProjectId)',
+  ];
+  const directoryProjectionMarkers = [
+    "const canonicalProjectId = thread.projectId.trim() || cached.extra.canonical_project_id?.trim() || ''",
+    'workspace: thread.workspace',
+    'custom_workspace: Boolean(canonicalProjectId)',
+    'canonical_project_id: canonicalProjectId || undefined',
   ];
   const focusedTestNames = [
     'projects a managed Documents Codex task as a projectless sidebar row',
-    'adopts a managed Documents Codex projectless task into a selected project',
+    'assigns explicit project affinity once without changing the recorded cwd',
+    'rejects project affinity reassignment',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
     'keeps canonical adoption successful when a stub projection cannot be materialized',
-    'requires an exact canonical cwd readback instead of path-normalized equivalence',
+    'requires exact projectId readback instead of path-normalized equivalence',
+    'keeps the conversation projectless when assignment changes canonical cwd',
+    'does not change turn pwd or sandbox writable roots during adoption',
+    'keeps an existing explicit affinity stable across shell cache refreshes',
     'rejects malformed canonical cwd instead of treating it as projectless',
     'rejects a malformed cwd returned by canonical thread read',
   ];
-  const conversationListSync = canonicalProjectionMarkers.join('\n');
-  const canonicalThreadLifecycle = canonicalProjectionMarkers.join('\n');
+  const conversationListSync = directoryProjectionMarkers.join('\n');
+  const canonicalThreadLifecycle = lifecycleProjectionMarkers.join('\n');
   const focusedTests = focusedTestNames.join('\n');
   const threadAdapter = [
     'function recordedCwd(value: unknown): string',
     "if (value === undefined || value === null) return ''",
     "if (typeof value !== 'string') throw new Error('Invalid Codex app-server thread cwd.')",
     'workspace: recordedCwd(raw.cwd)',
+    'private readonly assignedProjectAffinities = new Map<string, string>()',
+    'async assignProjectAffinity(threadId: string, projectIdValue: string)',
+    'const existingProjectId = this.assignedProjectAffinities.get(threadId) ?? projectId(raw)',
+    "if (existingProjectId) throw new Error('Canonical thread already has explicit project affinity.')",
+    'this.assignedProjectAffinities.set(threadId, selectedProjectId)',
+    'this.assignedProjectAffinities.get(threadId)',
   ].join('\n');
 
   assert.doesNotThrow(() =>
@@ -803,15 +822,7 @@ test('active-shell source gate keeps canonical cwd transport separate from sideb
     }),
   );
 
-  for (const requiredMarker of canonicalProjectionMarkers) {
-    assert.throws(() =>
-      assertCanonicalThreadAffinityConvergenceSources({
-        canonicalThreadLifecycle,
-        conversationListSync: conversationListSync.replace(requiredMarker, ''),
-        focusedTests,
-        threadAdapter,
-      }),
-    );
+  for (const requiredMarker of lifecycleProjectionMarkers) {
     assert.throws(() =>
       assertCanonicalThreadAffinityConvergenceSources({
         canonicalThreadLifecycle: canonicalThreadLifecycle.replace(requiredMarker, ''),
@@ -821,13 +832,22 @@ test('active-shell source gate keeps canonical cwd transport separate from sideb
       }),
     );
   }
+  for (const requiredMarker of directoryProjectionMarkers) {
+    assert.throws(() =>
+      assertCanonicalThreadAffinityConvergenceSources({
+        canonicalThreadLifecycle,
+        conversationListSync: conversationListSync.replace(requiredMarker, ''),
+        focusedTests,
+        threadAdapter,
+      }),
+    );
+  }
 
   for (const cachedOverride of [
-    'cached?.extra.custom_workspace === false ? false : hasCanonicalProjectWorkspace',
-    'cached?.extra.custom_workspace === true',
     'const hasCanonicalRecordedCwd = Boolean(thread.workspace.trim())',
     'workspace: projectAffinityWorkspace',
     'custom_workspace: customWorkspace',
+    'Boolean(thread.workspace.trim())',
   ]) {
     assert.throws(() =>
       assertCanonicalThreadAffinityConvergenceSources({
@@ -877,13 +897,13 @@ test('recorded cwd compatibility does not create sidebar project affinity', () =
   const contract = readJson('contracts/app-gui-product-contract.json');
   const threadDirectory = contract.interaction_baseline.navigation_rail.thread_directory_policy;
   assert.equal(
-    threadDirectory.directory_group_policy.legacy_missing_marker_policy,
-    'existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration',
+    threadDirectory.directory_group_policy.recorded_cwd_compatibility_policy,
+    'preserve_runtime_cwd_without_creating_or_blocking_project_affinity',
   );
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
   assert.equal(
-    runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy.legacy_missing_marker_policy,
-    threadDirectory.directory_group_policy.legacy_missing_marker_policy,
+    runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy.recorded_cwd_compatibility_policy,
+    threadDirectory.directory_group_policy.recorded_cwd_compatibility_policy,
   );
   assert.equal(
     contract.interaction_baseline.conversation_scope.session_workspace_model.project_affinity_source,
@@ -1103,11 +1123,11 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     managed_root_grouping_policy:
       'preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups',
     projectless_adoption_eligibility:
-      'project_id_absent_renders_unbound_but_pre_successor_adoption_remains_conservatively_guarded_by_custom_workspace_and_recorded_cwd_including_managed_root',
+      'explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd',
   });
   assert.equal(
     threadDirectoryPolicy.directory_group_policy_authority,
-    'current_shell_1c7_compatibility_transport_and_reassignment_guard_only_not_sidebar_project_affinity_authority',
+    'app_owned_explicit_project_affinity_contract_implemented_by_active_shell',
   );
   assert.equal(
     threadDirectoryPolicy.project_affinity_presentation_authority_ref,
@@ -1115,7 +1135,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(
     threadDirectoryPolicy.strict_project_affinity_producer,
-    'post_app_shell_successor_project_id_projection',
+    'codex_app_server_adapter_project_id_projection',
   );
   assert.equal(
     guiWorkspaceModel.projectless_detection,
@@ -1146,7 +1166,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   assert.deepEqual(ordinaryConversation.conversation_view_model.session_workspace_model, guiWorkspaceModel);
   assert.equal(
     guiProductContract.interaction_baseline.conversation_scope.session_workspace_model_authority,
-    'current_shell_1c7_compatibility_transport_only_not_sidebar_project_affinity_authority',
+    'app_owned_contract_with_active_shell_explicit_project_affinity_adapter',
   );
   assert.equal(
     guiProductContract.interaction_baseline.conversation_scope.project_affinity_presentation_authority_ref,
