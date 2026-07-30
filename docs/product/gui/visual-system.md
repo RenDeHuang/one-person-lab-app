@@ -11,12 +11,13 @@ shell source 承接；机器可读产品状态、模型策略、page-state 和 r
 
 ## 基准与例外
 
-当前视觉像素基准固定为 **ChatGPT Codex macOS 26.707.72221 / build 5307
-(2026-07-15)**，执行与验收细节见 [`codex-app-visual-parity.md`](codex-app-visual-parity.md)。
-`26.707.41301` 继续保留为既有交互 observation；`26.707.31428` 与 `26.707.31123` 只保留为
-历史 observation，不再称为 latest/current。使用范围仅限布局、密度、层级、时间线、
-composer、项目 rail 和按需环境详情交互的对齐；不得复制 ChatGPT/Codex 源码、品牌资产、
-文案、账户权限或产品 authority。
+外部设计参考使用**观察时最新可验证的官方 ChatGPT Codex macOS**；每次观察必须记录
+官方来源、精确版本/build 和日期，但不要求把该外部制品下载、安装或纳入 OPL 发布链。
+正式像素回归使用 OPL App 自有、经人工批准的 16-scene baseline，执行与验收细节见
+[`codex-app-visual-parity.md`](codex-app-visual-parity.md)。`26.707.72221` / build `5307`、
+`26.707.41301`、`26.707.31428` 与 `26.707.31123` 只保留为历史 observation。
+外部参考仅用于布局、密度、层级、时间线、composer、项目 rail 和按需环境详情交互；
+不得复制 ChatGPT/Codex 源码、品牌资产、文案、账户权限或产品 authority。
 
 OPL App 在基准上保留以下产品例外：
 
@@ -396,9 +397,8 @@ Home package starter 的状态不得只靠颜色：只渲染 installed + Home-vi
 4. Home、conversation、Settings、first-run 的 light/dark 与中英文；仅当 X0-01 Runtime route
    被本 cohort 显式启用时，才把 Runtime 纳入该 route 自身的视觉 QA。
 5. Composer 的单层 surface、稳定尺寸、model/reasoning controls、send/stop states。
-6. Visual screenshot 与 ChatGPT Codex macOS 26.707.72221 / build 5307 的同 cohort
-   布局、密度和稳定像素比较；`26.707.41301` 仅用于既有交互 observation，并明确记录 OPL
-   branding exception。
+6. 参考观察对照观察时最新可验证的官方 ChatGPT Codex macOS，并记录精确 receipt；稳定像素
+   比较只对 OPL App 自有、经人工批准的 baseline 执行，同时明确记录 OPL branding exception。
 7. Environment floating details 保持按需、anchored 和 summary-first；OPL 次级 refs 与
    advanced work surfaces 默认折叠或关闭。
 8. Settings 截图在记录证据前校验 requested/resolved route 与 expected/visible page title；

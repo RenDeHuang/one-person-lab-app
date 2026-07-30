@@ -236,9 +236,11 @@ Settings route、registry、slot 与 compatibility 变化再使用以下四类�
 
 ## 视觉实现边界
 
-- ChatGPT macOS 26.707.41301 是当前布局、密度、composer、timeline、project rail 和
-  Environment floating details 基准；`26.707.31428` 与 `26.707.31123` 仅保留为历史
-  observation。OPL branding 与 product contracts 是例外。
+- 布局、密度、composer、timeline、project rail 和 Environment floating details 的外部
+  设计参考使用观察时最新可验证的官方 ChatGPT Codex macOS，并记录精确 observation receipt；
+  `26.707.41301`、`26.707.31428` 与 `26.707.31123` 仅保留为历史 observations。正式像素
+  回归只绑定 OPL App 自有、经人工批准的 baseline；OPL branding 与 product contracts
+  始终是 authority。
 - AionUI 是 active implementation carrier 和 native candidate 的 regression floor，
   不是理想视觉 authority。
 - 优先通过 tokens、CSS、existing layout primitives、composition 和 i18n 对齐。

@@ -6,7 +6,8 @@ State: `active_visual_target_and_acceptance_protocol`
 Machine boundary: 本文是人读视觉目标与验收协议。机器真相归 App GUI contracts、
 validators、Shell source/tests 与 exact-cohort pixel/install/release evidence；source 或候选
 截图不能替代 installed pixels 或 release readback。
-Reference: `ChatGPT Codex macOS 26.707.72221 (build 5307, observed 2026-07-15)`
+External design reference: `latest verified official ChatGPT Codex macOS observation`
+Pixel baseline: `opl-app-approved-visual-baseline-v1` (App-owned, approval pending)
 
 ## 结论
 
@@ -17,6 +18,10 @@ OPL App 的主界面以当前 Codex App 为 1:1 视觉目标。除 One Person La
 这里的 1:1 指同一机器、同一缩放、同一窗口尺寸和同一内容状态下，对稳定界面 chrome
 做可测量复刻。它不授权复制 Codex 的品牌、专有实现、云端能力或内部数据模型；OPL 只
 复用视觉语法、空间关系和交互位置。
+
+“当前 Codex App”指观察时最新可验证的官方版本，精确版本只存在于该次 observation receipt。
+ChatGPT App 安装包、ZIP、DMG 或历史 build 不进入 OPL Pixel、Install、Release 或 Stable
+依赖。稳定像素回归只使用 App-owned baseline；外部观察用于设计判断和 delta 分类。
 
 本规范与 [`visual-system.md`](visual-system.md) 都是
 `contracts/app-gui-product-contract.json#interaction_baseline.visual_target` 的人读投影；发生
@@ -214,8 +219,16 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
 - 窗口 CSS/physical 尺寸、DPR、route、fixture 和交互状态；
 - reference 与 candidate 的原图路径和 SHA-256。
 
-当前 reference 为本机 `/Applications/ChatGPT.app` 的 `26.707.72221` / build `5307`。
-`26.707.41301` 继续保留为既有交互合同 observation，但不再代表最新视觉像素。
+外部 observation 取观察时最新可验证的官方 ChatGPT Codex macOS，并记录精确来源、
+版本/build 与日期。历史 `26.707.72221` / build `5307` 和 `26.707.41301` 只保留为
+provenance。正式 reference PNG 必须来自 `opl-app-approved-visual-baseline-v1`，其
+approval receipt、16 个 SHA-256 和人工 verdict 必须完整；无需下载或安装外部历史制品。
+Baseline 从 `capture_and_human_approval_required` 晋升为 `approved` 时，App contract 与
+cohort 必须同步更新，并绑定 reference 目录中的 `baseline-approval-receipt.json` 及其
+SHA-256。Receipt 固定记录 schema、owner、baseline ID、reviewer、reviewed-at、
+`human_visual_review` 方法、总 verdict，以及 16 个 scene 的 ID、PNG 文件名、SHA-256 和
+逐场景 `accepted` verdict。Comparator 会验证 receipt bytes 与每张 reference PNG，但不会
+自动生成或替代人工批准。
 
 ## 视觉 Token
 
@@ -354,7 +367,9 @@ keyboard traversal、rendered contrast 和安装版 readback 仍分别由 Pixel/
 ## 机器治理标记
 
 - `visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas`
-- `visual_reference=ChatGPT Codex macOS 26.707.72221 build 5307 (2026-07-15)`
+- `external_design_reference=latest_verified_official_chatgpt_codex_macos_observation`
+- `pixel_reference=opl_app_owned_approved_visual_baseline`
+- `external_reference_artifact_required_for_release=false`
 - `project_owns_session=false`
 - `project_context_row=forbidden`
 - `new_session_context_bar=required_above_composer`

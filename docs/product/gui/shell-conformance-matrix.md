@@ -136,10 +136,10 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   `aligned_contract`；共享 primitive/comparator 进入本轮 source 实现；Pixel、Install、
   Release 在 exact same-cohort evidence 前均保持 `pixel_unverified / install_unverified /
   release_unverified`，不得从 source gate 外推。
-- Current visual reference：本机 ChatGPT Codex macOS `26.707.72221`（bundle build `5307`），
-  `2026-07-15` 观察，精度与例外见 [`codex-app-visual-parity.md`](codex-app-visual-parity.md)。
-  `26.707.41301` 继续保留为既有交互 observation；`26.707.31428/31123` 只保留为
-  superseded observations。
+- Current design reference policy：使用观察时最新可验证的官方 ChatGPT Codex macOS，并在
+  observation receipt 记录精确身份；它不进入 OPL 发布依赖。正式像素回归绑定
+  `opl-app-approved-visual-baseline-v1` 及审批 receipt。既有 `26.707.72221` / build `5307`、
+  `26.707.41301` 与更早 build 只保留为 historical observations。
 - AionUI GUI conformance ancestor：`opl-aion-shell@a0ce713b65801fd9ca7f46ad168c977c75a187de`。
   该字段绑定最低 verified ancestor；active checkout exact HEAD 由下一项 current source cohort 记录。
 - Current Shell source cohort：symbolic `session_workspace_minimal_current_source_cohort`，由 active checkout 的
@@ -222,7 +222,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 本表是主线决策入口。先看 P0/P1，再看 P2；Settings 完成不能抵消核心工作流偏差。
 X0 只记录已保留 source 的收敛债务，不进入核心完成度、默认 release gate 或 Native phase-1 parity。
 
-| Priority | Product surface | OPL-owned target translated from 26.707.41301 | AionUI current implementation | Contract | Source | Pixel | Install | Release | Next decision |
+| Priority | Product surface | OPL-owned target informed by verified official design observations | AionUI current implementation | Contract | Source | Pixel | Install | Release | Next decision |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | P0 | App frame | 左 project/conversation rail + 中央单列 timeline + 底部 composer + 右上按需 Environment details。 | Rail/timeline/composer/Environment composition 保留；默认无综合第三列。 | `aligned_contract` | `source_implemented` | `pixel_verified` | `install_unverified` | `release_unverified` | Current desktop/mobile Home与conversation package pixels覆盖主 composition；不外推为完整视觉 parity。 |
 | X0-01 | Runtime cockpit | 条件保留的跨项目 Work Item projection / owner route；不是 B0/R1/U1 核心。 | Runtime V2 与入口已有 source；Framework producer 保留，AionUI route 可选，Native phase-1 不要求页面/full drilldown/capability。 | `aligned_contract` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | 默认 product/design/release gates 已解耦；完整 route 只跑 `npm run validate:runtime-route`。历史 cohort 不回填 Pixel/Install/Release。 |
@@ -251,7 +251,7 @@ Install、Release 五轴；没有 exact-feature installed/release evidence 的�
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | AionUI install | AionUI release | Native install | Native release | 验证入口与当前差距 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 |   App repo 拥有 GUI product truth | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | `A1/A2`, `N1/N2`；两边 adapter 均禁止 authority transfer。   |
-|   ChatGPT macOS 26.707.41301 是当前人读交互基线 | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Current 9-scene AionUI evidence只证明指定route/layout；不宣称与Codex 1:1 parity。   |
+|   最新官方 ChatGPT Codex macOS observation 只作设计参考 | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_partial` | `not_applicable` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | 外部 observation 不承担 Pixel/Install/Release authority；当前 9-scene AionUI evidence只证明指定route/layout。 |
 |   Home 是动态问题标题、全部用户可见 configured starters，不是 dashboard/landing | `aligned_contract` | `source_implemented` | `pixel_verified` | `current_contract_deviation` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Current desktop/mobile Home pixels绑定 `b2c05a1c...`；source仍负责证明无静默截断。   |
 |   宽桌面 rail 默认展开且 `280-340px` 可调 | `aligned_contract` | `source_implemented` | `pixel_verified` | `candidate_target` | `source_partial` | `pixel_verified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Current Home desktop pixel证明rail展开且不覆盖main；resize行为由source/DOM证明。   |
 |   窄窗口 rail 可收起并以 drawer/overlay 打开 | `aligned_contract` | `source_implemented` | `pixel_verified` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Current mobile Home pixel证明collapsed rail与main viewport；drawer交互仍由source/DOM证明。   |

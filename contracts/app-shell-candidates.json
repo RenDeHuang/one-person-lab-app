@@ -191,7 +191,7 @@
       "pixel_verified_claim": "fresh_pixels_exist_not_visual_parity_or_release_readiness"
     },
     "codex_reference": {
-      "comparison_baseline": "ChatGPT Codex macOS 26.707.41301 (2026-07-11)",
+      "comparison_baseline": "latest verified official ChatGPT Codex macOS observation",
       "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy"
     },
     "state_boundary": {
@@ -569,12 +569,12 @@
       },
       "candidate_stage": "opl_native_workbench_single_app_server_adapter_candidate_only",
       "visual_parity_contract": {
-        "comparison_baseline": "ChatGPT Codex macOS 26.707.41301 (2026-07-11)",
-        "visual_style_baseline": "ChatGPT Codex macOS 26.707.61608 (2026-07-13)",
+        "comparison_baseline": "latest verified official ChatGPT Codex macOS observation",
+        "visual_style_baseline": "One Person Lab App-owned visual system and approved pixel baseline",
         "visual_style_scope": "light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface",
-        "visual_token_source": "installed_app_css_and_fresh_window_screenshot",
+        "visual_token_source": "app_owned_visual_contracts_plus_optional_verified_official_observation_receipts",
         "font_asset_policy": "match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries",
-        "current_reference_status": "current_app_reference_candidate_conformance_pending",
+        "current_reference_status": "rolling_external_design_reference_only",
         "superseded_observations": [
           "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
           "ChatGPT Codex macOS 26.707.31123 (2026-07-10)"
@@ -593,8 +593,8 @@
           "settings_locale_surface"
         ],
         "required_evidence": [
-          "desktop screenshot comparison against ChatGPT Codex macOS 26.707.41301",
-          "desktop palette and typography comparison against ChatGPT Codex macOS 26.707.61608",
+          "desktop design review against the latest verified official ChatGPT Codex macOS observation",
+          "desktop pixel regression against the App-owned approved visual baseline",
           "persistent project rail and single conversation timeline screenshot comparison",
           "composer model and reasoning controls screenshot comparison",
           "floating on-demand environment screenshot comparison",

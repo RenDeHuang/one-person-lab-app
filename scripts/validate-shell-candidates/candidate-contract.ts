@@ -635,12 +635,12 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   }
   const visual = candidate.visual_parity_contract as NativeVisualParityContract | undefined;
   if (
-    visual?.comparison_baseline !== 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)' ||
-    visual.visual_style_baseline !== 'ChatGPT Codex macOS 26.707.61608 (2026-07-13)' ||
+    visual?.comparison_baseline !== 'latest verified official ChatGPT Codex macOS observation' ||
+    visual.visual_style_baseline !== 'One Person Lab App-owned visual system and approved pixel baseline' ||
     visual.visual_style_scope !== 'light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface' ||
-    visual.visual_token_source !== 'installed_app_css_and_fresh_window_screenshot' ||
+    visual.visual_token_source !== 'app_owned_visual_contracts_plus_optional_verified_official_observation_receipts' ||
     visual.font_asset_policy !== 'match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries' ||
-    visual.current_reference_status !== 'current_app_reference_candidate_conformance_pending' ||
+    visual.current_reference_status !== 'rolling_external_design_reference_only' ||
     visual.regression_floor !== 'AionUI active release shell' ||
     visual.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
     visual.minimum_bar !== 'one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details' ||
@@ -665,8 +665,8 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     `${candidate.id}.visual_parity_contract.required_surfaces`,
   );
   assertStringArrayIncludes(visual.required_evidence, [
-    'desktop screenshot comparison against ChatGPT Codex macOS 26.707.41301',
-    'desktop palette and typography comparison against ChatGPT Codex macOS 26.707.61608',
+    'desktop design review against the latest verified official ChatGPT Codex macOS observation',
+    'desktop pixel regression against the App-owned approved visual baseline',
     'persistent project rail and single conversation timeline screenshot comparison',
     'composer model and reasoning controls screenshot comparison',
     'floating on-demand environment screenshot comparison',

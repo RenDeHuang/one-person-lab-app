@@ -103,9 +103,10 @@ Shell authority is `gui_shell_authority: implementation_only`: a shell
 implements the higher layers and records deviations, but cannot reverse-define
 the product from renderer code, screenshots, upstream defaults, or visual QA.
 
-The current visual and interaction reference is ChatGPT Codex macOS
-`26.707.41301` observed on `2026-07-11`. Builds `26.707.31428` and
-`26.707.31123` are retained only as superseded observations. The ideal/native target keeps the
+The external visual and interaction reference is the latest official ChatGPT Codex macOS
+version verified at observation time, with exact identity recorded in that observation receipt.
+Builds `26.707.41301`, `26.707.31428`, and `26.707.31123` are retained only as historical
+observations. The ideal/native target keeps the
 desktop workspace/session rail visible and the inspector closed by default.
 The conformance matrix reads active AionUI state from
 `contracts/app-product-profile.json#gui.home.home_layout`, compares it with the

@@ -74,6 +74,9 @@ function readAuthority() {
   );
   const cohort = JSON.parse(cohortBytes.toString("utf8"));
   const appContract = JSON.parse(appContractBytes.toString("utf8"));
+  cohort.reference.state = "approved";
+  cohort.reference.approval_receipt_file =
+    "baseline-approval-receipt.json";
   cohort.capture_contract.supported_viewports.desktop = {
     width: 4,
     height: 4,
@@ -126,8 +129,8 @@ function makeFixture(
   fs.mkdirSync(referenceDirectory);
   fs.mkdirSync(candidateDirectory);
   const authority = readAuthority();
-  const referenceBuild = `${authority.cohort.reference.product} ${authority.cohort.reference.bundle_version} build ${authority.cohort.reference.build}`;
   const bindings: Record<string, string>[] = [];
+  const approvedScenes: Record<string, string>[] = [];
 
   for (const scene of authority.cohort.scene_matrix) {
     const referenceBytes = encodeRgbaPng(solidImage(4, 4, [20, 40, 60, 255]));
@@ -142,8 +145,9 @@ function makeFixture(
     );
     bindings.push({
       scene_id: scene.id,
-      reference_product_build: referenceBuild,
-      reference_observed_at: authority.cohort.reference.observed_on,
+      reference_baseline_id: authority.cohort.reference.baseline_id,
+      reference_approval_receipt_sha256:
+        authority.cohort.reference.approval_receipt_sha256,
       app_contract_ref: authority.cohort.candidate.app_contract_ref,
       shell_commit: "1c7c384e8326a3703ab36c2030aaaa22a6da001b",
       package_or_dev_build_identity: "local:test",
@@ -159,6 +163,38 @@ function makeFixture(
       candidate_screenshot_sha256: digest(candidateBytes),
       verdict: "accepted",
     });
+    approvedScenes.push({
+      scene_id: scene.id,
+      image: scene.image,
+      reference_screenshot_sha256: digest(referenceBytes),
+      verdict: "accepted",
+    });
+  }
+  const approvalReceipt = {
+    schema: "opl_app_gui_visual_baseline_approval_receipt.v1",
+    owner: "one-person-lab-app",
+    baseline_id: authority.cohort.reference.baseline_id,
+    reviewer: "test-human-reviewer",
+    reviewed_at: "2026-07-30T00:00:00.000Z",
+    review_method: "human_visual_review",
+    verdict: "accepted",
+    scenes: approvedScenes,
+  };
+  const approvalReceiptBytes = Buffer.from(
+    `${JSON.stringify(approvalReceipt, null, 2)}\n`,
+  );
+  fs.writeFileSync(
+    path.join(referenceDirectory, "baseline-approval-receipt.json"),
+    approvalReceiptBytes,
+  );
+  authority.cohort.reference.approval_receipt_sha256 =
+    digest(approvalReceiptBytes);
+  authority.cohortBytes = Buffer.from(
+    `${JSON.stringify(authority.cohort, null, 2)}\n`,
+  );
+  for (const binding of bindings) {
+    binding.reference_approval_receipt_sha256 =
+      authority.cohort.reference.approval_receipt_sha256;
   }
   const input: ComparisonInput = {
     schema: "opl_app_gui_visual_comparison_input.v1",
@@ -279,6 +315,57 @@ test("canonical 16-scene cohort passes only with exact bindings and emits every 
       4,
     );
   }
+});
+
+test("comparison rejects an unapproved App-owned baseline without requiring an external product artifact", (t) => {
+  const fixture = makeFixture(({ authority }) => {
+    authority.cohort.reference.state = "capture_and_human_approval_required";
+    authority.cohort.reference.approval_receipt_file = null;
+    authority.cohort.reference.approval_receipt_sha256 = null;
+  });
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+
+  const receipt = fixture.receipt();
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    receipt.violations.some(
+      (violation) => violation.code === "reference_baseline_not_approved",
+    ),
+  );
+  assert.equal(
+    "product" in fixture.authority.cohort.reference,
+    false,
+  );
+});
+
+test("comparison rejects a forged approval receipt digest and reference PNG drift", (t) => {
+  const fixture = makeFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  fixture.authority.cohort.reference.approval_receipt_sha256 = "a".repeat(64);
+  const forged = fixture.receipt();
+  assert.ok(
+    forged.violations.some(
+      (violation) =>
+        violation.code ===
+        "reference_approval_receipt_sha256_mismatch",
+    ),
+  );
+
+  const validFixture = makeFixture();
+  t.after(() =>
+    fs.rmSync(validFixture.root, { recursive: true, force: true }),
+  );
+  const first = validFixture.authority.cohort.scene_matrix[0];
+  fs.writeFileSync(
+    path.join(validFixture.root, "reference", first.image),
+    encodeRgbaPng(solidImage(4, 4, [1, 2, 3, 255])),
+  );
+  const drifted = validFixture.receipt();
+  assert.ok(
+    drifted.scenes[0]!.violations.some(
+      (violation) => violation.code === "reference_png_not_approved",
+    ),
+  );
 });
 
 test("pixel, digest, and human review violations are deterministic and fail closed", (t) => {

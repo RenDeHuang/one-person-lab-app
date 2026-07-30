@@ -6,6 +6,10 @@ import {
   validateCandidate,
   validateNativeThreadAdapterBoundary,
 } from '../../scripts/validate-shell-candidates/candidate-contract.ts';
+import {
+  validateCodexDesignReferenceAlignment,
+  validateCodexDesignReferenceEvidence,
+} from '../../scripts/validate-shell-candidates/candidate-evidence.ts';
 import type {
   NativeThreadAdapterBoundary,
   ShellCandidateRegistry,
@@ -119,7 +123,7 @@ test('native candidate machine contract removes retired private capabilities', (
   }
 });
 
-test('native candidate keeps 41301 interaction authority and pins 61608 visual style', () => {
+test('native candidate uses rolling external design observations and an App-owned pixel baseline', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
   const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
@@ -127,7 +131,7 @@ test('native candidate keeps 41301 interaction authority and pins 61608 visual s
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
   assert.equal(
     candidate.visual_parity_contract?.visual_style_baseline,
-    'ChatGPT Codex macOS 26.707.61608 (2026-07-13)',
+    'One Person Lab App-owned visual system and approved pixel baseline',
   );
   assert.equal(
     candidate.visual_parity_contract?.font_asset_policy,
@@ -137,10 +141,65 @@ test('native candidate keeps 41301 interaction authority and pins 61608 visual s
   const staleCandidate = structuredClone(candidate);
   assert.ok(staleCandidate.visual_parity_contract);
   staleCandidate.visual_parity_contract.comparison_baseline =
-    'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+    'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
   assert.throws(
     () => validateCandidate(staleCandidate, policy),
     /visual_parity_contract must consume the App-owned configured model policy/,
+  );
+});
+
+test('native candidate evidence validates stable interaction semantics without an external build pin', () => {
+  const alignment = {
+    project_rail: 'persistent',
+    timeline: 'single_conversation_timeline',
+    model_controls: 'composer_bottom_row',
+    reasoning_controls: 'composer_bottom_row',
+    environment_details: 'floating_on_demand',
+    settings_locale_surface: 'settings',
+    model_policy_source:
+      'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options',
+    model_policy_consumption: 'dynamic_build_injection_with_minimal_offline_fallback',
+    required_surfaces: [
+      'persistent_project_rail',
+      'single_conversation_timeline',
+      'composer_model_and_reasoning_controls',
+      'floating_on_demand_environment',
+      'settings_locale_surface',
+    ],
+  };
+
+  assert.doesNotThrow(() =>
+    validateCodexDesignReferenceEvidence('opl-native-workbench', {
+      codex_design_reference_alignment: alignment,
+    }),
+  );
+
+  const missingTimeline = structuredClone(alignment);
+  missingTimeline.timeline = 'split_conversation_timeline';
+  assert.throws(
+    () => validateCodexDesignReferenceAlignment('opl-native-workbench', missingTimeline),
+    /stable Codex-style interaction semantics/,
+  );
+
+  const pinnedExternalBuild = {
+    ...alignment,
+    reference_version: '26.707.41301',
+  };
+  assert.throws(
+    () =>
+      validateCodexDesignReferenceAlignment(
+        'opl-native-workbench',
+        pinnedExternalBuild,
+      ),
+    /without pinning current conformance to an external product build/,
+  );
+
+  assert.throws(
+    () =>
+      validateCodexDesignReferenceEvidence('opl-native-workbench', {
+        codex_2026_07_11_alignment: alignment,
+      }),
+    /historical provenance and cannot satisfy current conformance/,
   );
 });
 
