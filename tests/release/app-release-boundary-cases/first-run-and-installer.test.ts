@@ -629,19 +629,26 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   const ghArgsPath = path.join(tempRoot, "gh-args.txt");
   const hdiutilArgsPath = path.join(tempRoot, "hdiutil-args.txt");
   const releaseJsonPath = path.join(tempRoot, "release.json");
+  const releaseListJsonPath = path.join(tempRoot, "release-list.json");
+  const fullReleaseJsonPath = path.join(tempRoot, "full-release.json");
   const customDmgPath = path.join(tempRoot, "custom.dmg");
   const version = "26.7.20";
   const tag = `v${version}`;
+  const adjunctTag = `${tag}-full-${"d".repeat(12)}`;
+  const appSha = "a".repeat(40);
+  const shellSha = "b".repeat(40);
+  const frameworkSha = "c".repeat(40);
   const fullName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const standardName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const componentManifestName = "opl-app-component-manifest.json";
+  const fullManifestName = "opl-release-manifest.json";
   const fullBytes = "full-dmg-bytes\n";
   const standardBytes = "standard-dmg-bytes\n";
   const digest = (bytes: string) => createHash("sha256").update(bytes).digest("hex");
-  const asset = (name: string, bytes: string, digestOverride?: string) => ({
+  const asset = (releaseTag: string, name: string, bytes: string, digestOverride?: string) => ({
     name,
     digest: `sha256:${digestOverride ?? digest(bytes)}`,
-    browser_download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${name}`,
+    browser_download_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${releaseTag}/${name}`,
   });
   const componentManifest = ({
     qualityStatus = "stable",
@@ -673,6 +680,11 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     release_url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${tag}`,
     component_manifest_ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${componentManifestName}`,
     component_manifest_digest: `sha256:${"a".repeat(64)}`,
+    source_cohort: {
+      app_sha: appSha,
+      shell_sha: shellSha,
+      framework_sha: frameworkSha,
+    },
     primary_artifact: {
       name: primaryName,
       digest: `sha256:${primaryDigest ?? digest(standardBytes)}`,
@@ -695,37 +707,97 @@ test("Stable macOS installer binds exact release assets before mount and preserv
       },
     }),
   });
+  const fullManifest = ({
+    primaryName = fullName,
+    primaryDigest = digest(fullBytes),
+    releaseVersion = version,
+  }: {
+    primaryName?: string;
+    primaryDigest?: string;
+    releaseVersion?: string;
+  } = {}) => JSON.stringify({
+    schema: "opl_public_release_manifest.v1",
+    package_kind: "opl_full_first_install_macos_arm64",
+    version,
+    release_version: releaseVersion,
+    primary_install_asset: primaryName,
+    assets: [{
+      name: fullName,
+      role: "full_first_install_carrier",
+      size_bytes: Buffer.byteLength(fullBytes),
+      sha256: `sha256:${primaryDigest}`,
+    }],
+  });
   const writeRelease = ({
     fullPresent = true,
     standardDigest,
     manifest,
     manifestAssetDigest,
     prerelease = false,
+    duplicateFullCandidate = false,
+    fullDraft = false,
+    fullImmutable = true,
+    fullPrerelease = false,
+    fullTargetAppSha = appSha,
+    fullManifestOptions,
+    fullManifestAssetDigest,
   }: {
     fullPresent?: boolean;
     standardDigest?: string;
     manifest?: Parameters<typeof componentManifest>[0];
     manifestAssetDigest?: string;
     prerelease?: boolean;
+    duplicateFullCandidate?: boolean;
+    fullDraft?: boolean;
+    fullImmutable?: boolean;
+    fullPrerelease?: boolean;
+    fullTargetAppSha?: string;
+    fullManifestOptions?: Parameters<typeof fullManifest>[0];
+    fullManifestAssetDigest?: string;
   } = {}) => {
     const manifestBytes = componentManifest({
       ...manifest,
       primaryDigest: manifest?.primaryDigest ?? standardDigest ?? digest(standardBytes),
     });
+    const fullManifestBytes = fullManifest(fullManifestOptions);
+    const fullRelease = {
+      tag_name: adjunctTag,
+      draft: fullDraft,
+      prerelease: fullPrerelease,
+      immutable: fullImmutable,
+      target_commitish: fullTargetAppSha,
+      assets: [
+        asset(adjunctTag, fullName, fullBytes),
+        asset(adjunctTag, fullManifestName, fullManifestBytes, fullManifestAssetDigest),
+      ],
+    };
     fs.writeFileSync(
       releaseJsonPath,
       JSON.stringify({
         tag_name: tag,
         draft: false,
         prerelease,
+        immutable: true,
+        target_commitish: appSha,
         assets: [
-          ...(fullPresent ? [asset(fullName, fullBytes)] : []),
-          asset(standardName, standardBytes, standardDigest),
-          asset(componentManifestName, manifestBytes, manifestAssetDigest),
+          asset(tag, standardName, standardBytes, standardDigest),
+          asset(tag, componentManifestName, manifestBytes, manifestAssetDigest),
         ],
       }),
     );
+    fs.writeFileSync(fullReleaseJsonPath, JSON.stringify(fullRelease));
+    fs.writeFileSync(
+      releaseListJsonPath,
+      JSON.stringify(fullPresent ? [
+        fullRelease,
+        ...(duplicateFullCandidate ? [{
+          ...fullRelease,
+          tag_name: `${tag}-full-${"e".repeat(12)}`,
+        }] : []),
+      ] : []),
+    );
     fs.writeFileSync(path.join(tempRoot, componentManifestName), manifestBytes);
+    fs.writeFileSync(path.join(tempRoot, fullManifestName), fullManifestBytes);
   };
   fs.mkdirSync(fakeBin, { recursive: true });
   fs.writeFileSync(customDmgPath, standardBytes);
@@ -761,6 +833,26 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$url" in
+  *"/releases?per_page=100&page=1")
+    if [ "$OPL_FAKE_RELEASE_API_HTTP" = "200" ]; then
+      cp "$OPL_FAKE_RELEASE_LIST_JSON" "$output"
+      exit 0
+    fi
+    printf 'release-list-api-status=%s\n' "$OPL_FAKE_RELEASE_API_HTTP" >&2
+    exit 22
+    ;;
+  *"/releases?per_page=100&page="*)
+    printf '[]' > "$output"
+    exit 0
+    ;;
+  *"/releases/tags/$OPL_FAKE_FULL_TAG")
+    if [ "$OPL_FAKE_RELEASE_API_HTTP" = "200" ]; then
+      cp "$OPL_FAKE_FULL_RELEASE_JSON" "$output"
+      exit 0
+    fi
+    printf 'full-release-api-status=%s\n' "$OPL_FAKE_RELEASE_API_HTTP" >&2
+    exit 22
+    ;;
   https://api.github.com/*)
     if [ "$OPL_FAKE_RELEASE_API_HTTP" = "200" ]; then
       cp "$OPL_FAKE_RELEASE_JSON" "$output"
@@ -788,6 +880,11 @@ case "$url" in
     printf '200'
     exit 0
     ;;
+  *opl-release-manifest.json)
+    cp "$OPL_FAKE_FULL_MANIFEST" "$output"
+    printf '200'
+    exit 0
+    ;;
   https://example.invalid/custom.dmg)
     printf 'standard-dmg-bytes\\n' > "$output"
     printf '200'
@@ -804,7 +901,17 @@ esac
     `#!/bin/sh
 printf '%s\\n' "$*" >> "$OPL_GH_ARGS_CAPTURE"
 if [ "$1" = "api" ] && [ "$OPL_FAKE_GH_STATUS" = "0" ]; then
-  cat "$OPL_FAKE_RELEASE_JSON"
+  case "$*" in
+    *"releases?per_page=100&page="*)
+      cat "$OPL_FAKE_RELEASE_LIST_JSON"
+      ;;
+    *"/releases/tags/$OPL_FAKE_FULL_TAG"*)
+      cat "$OPL_FAKE_FULL_RELEASE_JSON"
+      ;;
+    *)
+      cat "$OPL_FAKE_RELEASE_JSON"
+      ;;
+  esac
   exit 0
 fi
 exit 1
@@ -854,6 +961,13 @@ exit 1
         releaseApiHttp = "200",
         ghStatus = "1",
         stableMacosInstall = true,
+        duplicateFullCandidate = false,
+        fullDraft = false,
+        fullImmutable = true,
+        fullPrerelease = false,
+        fullTargetAppSha = appSha,
+        fullManifestOptions,
+        fullManifestAssetDigest,
       }: {
         fullHttp?: string;
         fullPresent?: boolean;
@@ -865,6 +979,13 @@ exit 1
         releaseApiHttp?: string;
         ghStatus?: string;
         stableMacosInstall?: boolean;
+        duplicateFullCandidate?: boolean;
+        fullDraft?: boolean;
+        fullImmutable?: boolean;
+        fullPrerelease?: boolean;
+        fullTargetAppSha?: string;
+        fullManifestOptions?: Parameters<typeof fullManifest>[0];
+        fullManifestAssetDigest?: string;
       } = {},
     ) => {
       writeRelease({
@@ -873,6 +994,13 @@ exit 1
         manifest,
         manifestAssetDigest,
         prerelease,
+        duplicateFullCandidate,
+        fullDraft,
+        fullImmutable,
+        fullPrerelease,
+        fullTargetAppSha,
+        fullManifestOptions,
+        fullManifestAssetDigest,
       });
       fs.writeFileSync(curlArgsPath, "");
       fs.writeFileSync(ghArgsPath, "");
@@ -896,7 +1024,11 @@ exit 1
             OPL_GH_ARGS_CAPTURE: ghArgsPath,
             OPL_HDIUTIL_ARGS_CAPTURE: hdiutilArgsPath,
             OPL_FAKE_RELEASE_JSON: releaseJsonPath,
+            OPL_FAKE_RELEASE_LIST_JSON: releaseListJsonPath,
+            OPL_FAKE_FULL_RELEASE_JSON: fullReleaseJsonPath,
+            OPL_FAKE_FULL_TAG: adjunctTag,
             OPL_FAKE_COMPONENT_MANIFEST: path.join(tempRoot, componentManifestName),
+            OPL_FAKE_FULL_MANIFEST: path.join(tempRoot, fullManifestName),
             OPL_FAKE_FULL_HTTP: fullHttp,
             OPL_FAKE_RELEASE_API_HTTP: releaseApiHttp,
             OPL_FAKE_GH_STATUS: ghStatus,
@@ -911,7 +1043,7 @@ exit 1
     const availableFullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
     assert.match(
       availableFullCurlArgs,
-      /releases\/download\/v26\.7\.20\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
+      /releases\/download\/v26\.7\.20-full-dddddddddddd\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
     );
     assert.doesNotMatch(
       availableFullCurlArgs,
@@ -931,7 +1063,7 @@ exit 1
     );
     assert.match(
       fs.readFileSync(curlArgsPath, "utf8"),
-      /releases\/download\/v26\.7\.20\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
+      /releases\/download\/v26\.7\.20-full-dddddddddddd\/One-Person-Lab-Full-26\.7\.20-mac-arm64\.dmg/,
     );
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
 
@@ -1068,12 +1200,53 @@ exit 1
     const fullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
     assert.match(
       fullCurlArgs,
-      /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\/tags\/v26\.7\.20/,
+      /api\.github\.com\/repos\/gaofeng21cn\/one-person-lab-app\/releases\?per_page=100&page=1/,
     );
     assert.doesNotMatch(
       fullCurlArgs,
       /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
     );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const ambiguousFullResult = runInstaller(["--full"], { duplicateFullCandidate: true });
+    assert.notEqual(ambiguousFullResult.status, 0);
+    assert.match(
+      ambiguousFullResult.stderr,
+      /requires exactly one immutable same-cohort Release.*found 2 matching tag\(s\), 2 eligible/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const mutableFullResult = runInstaller(["--full"], { fullImmutable: false });
+    assert.notEqual(mutableFullResult.status, 0);
+    assert.match(
+      mutableFullResult.stderr,
+      /requires exactly one immutable same-cohort Release.*found 1 matching tag\(s\), 0 eligible/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const wrongCohortFullResult = runInstaller(["--full"], { fullTargetAppSha: "f".repeat(40) });
+    assert.notEqual(wrongCohortFullResult.status, 0);
+    assert.match(
+      wrongCohortFullResult.stderr,
+      /requires exactly one immutable same-cohort Release.*found 1 matching tag\(s\), 0 eligible/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const fullManifestIdentityMismatchResult = runInstaller(["--full"], {
+      fullManifestOptions: { primaryDigest: "0".repeat(64) },
+    });
+    assert.notEqual(fullManifestIdentityMismatchResult.status, 0);
+    assert.match(
+      fullManifestIdentityMismatchResult.stderr,
+      /Full adjunct public manifest does not bind the exact Full DMG digest/,
+    );
+    assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+
+    const fullManifestDigestMismatchResult = runInstaller(["--full"], {
+      fullManifestAssetDigest: "0".repeat(64),
+    });
+    assert.notEqual(fullManifestDigestMismatchResult.status, 0);
+    assert.match(fullManifestDigestMismatchResult.stderr, /Full release manifest SHA256 mismatch/);
     assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
 
     const mismatchResult = runInstaller(["--standard"], { standardDigest: "0".repeat(64) });
@@ -1100,7 +1273,7 @@ exit 1
 
     const malformedRecordResult = runInstaller(["--standard"], { standardDigest: "missing" });
     assert.notEqual(malformedRecordResult.status, 0);
-    assert.match(malformedRecordResult.stderr, /no unique digest-bound DMG asset/);
+    assert.match(malformedRecordResult.stderr, /no unique digest-bound Standard DMG asset/);
     assert.doesNotMatch(
       fs.readFileSync(curlArgsPath, "utf8"),
       /releases\/download\/v26\.7\.20\/One-Person-Lab-26\.7\.20-mac-arm64\.dmg/,
