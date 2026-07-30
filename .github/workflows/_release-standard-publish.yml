@@ -910,6 +910,7 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > publish-plan.json
           additional_upload_args=()
+          publication_record_args=()
           if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
             controls=()
             consumptions=()
@@ -960,6 +961,7 @@ jobs:
               '{schema:"opl_app_immutable_release_upload_actions.v1",upload_actions:[{action:"upload",name:$name,source_path:$path,size_bytes:$size,sha256:$sha}]}' \
               > immutable-carrier-upload-actions.json
             additional_upload_args=(--additional-upload-actions immutable-carrier-upload-actions.json)
+            publication_record_args=(--publication-record "$record")
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
@@ -968,6 +970,7 @@ jobs:
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
+            "${publication_record_args[@]}" \
             "${additional_upload_args[@]}" \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"

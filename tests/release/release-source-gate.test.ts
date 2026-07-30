@@ -106,6 +106,17 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
       return { status: 0, stdout: 'https://github.com/gaofeng21cn/one-person-lab-app.git\n', stderr: '' };
     }
     if (
+      command === 'gh'
+      && args.join(' ') === 'api repos/gaofeng21cn/one-person-lab-app/immutable-releases -H X-GitHub-Api-Version: 2026-03-10'
+      && commandOptions.cwd === repoRoot
+    ) {
+      return {
+        status: 0,
+        stdout: '{"enabled":true,"enforced_by_owner":false}\n',
+        stderr: '',
+      };
+    }
+    if (
       command === 'git'
       && args.join(' ') === 'ls-remote --heads origin refs/heads/main'
       && commandOptions.cwd === repoRoot
@@ -221,6 +232,41 @@ test('release source gate fails stale expected App HEAD before expensive release
   assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
   assert.equal(calls.some((call) => call === 'bun run format:check'), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+});
+
+test('release source gate fails closed when an Actions integration token cannot read immutable capability', () => {
+  const calls: string[] = [];
+  const capabilityKey = `${repoRoot} $ gh api repos/gaofeng21cn/one-person-lab-app/immutable-releases -H X-GitHub-Api-Version: 2026-03-10`;
+  const baseRunner = runner({
+    [capabilityKey]: {
+      status: 1,
+      stderr: 'gh: Resource not accessible by integration (HTTP 403)',
+    },
+  });
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(report.immutable_release_capability, null);
+  assert.equal(checkStatus(report, 'github_immutable_release_capability'), 'failed');
+  assert.match(
+    report.checks.find((check) => check.id === 'github_immutable_release_capability')?.actual ?? '',
+    /Resource not accessible by integration/,
+  );
+  assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
 });
 
 test('release source gate rejects an abbreviated expected App SHA', () => {
@@ -503,6 +549,8 @@ test('release source gate passes for clean canonical main and an immutable sourc
   assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
   assert.equal(checkStatus(report, 'app_frozen_commit_reachable'), 'passed');
   assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'passed');
+  assert.equal(checkStatus(report, 'github_immutable_release_capability'), 'passed');
+  assert.equal(report.immutable_release_capability?.capability.enabled, true);
   assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
   assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');

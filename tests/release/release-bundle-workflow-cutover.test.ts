@@ -2422,3 +2422,28 @@ test('Standard moving pointers require exact Desktop readback and hosted admissi
   assert.doesNotMatch(source, /opl-webui-carrier\.json/);
   assert.doesNotMatch(source, /oras tag[^\n]+stable|docker buildx imagetools create[^\n]+stable/);
 });
+
+test('Stable and Full publication consume one cohort-bound immutable capability proof outside the Actions token', () => {
+  const standard = readWorkflow('_release-standard-publish.yml');
+  const full = readWorkflow('_release-full-addon.yml');
+  const adapter = readAdapter();
+
+  assert.match(standard, /stable-operation-publication-record\.ts create/);
+  assert.match(standard, /publication_record_args=\(--publication-record "\$record"\)/);
+  assert.match(standard, /"\$\{publication_record_args\[@\]\}"/);
+  assert.match(
+    full,
+    /gh release download '\$\{\{ needs\.restore-standard\.outputs\.tag \}\}'[\s\S]*--pattern stable-operation-publication-record\.json/,
+  );
+  assert.match(full, /test "\$\{#capability_records\[@\]\}" -eq 1/);
+  assert.match(full, /test -f "\$capability_record"/);
+  assert.match(full, /test ! -L "\$capability_record"/);
+  assert.match(full, /--publication-record "\$capability_record"/);
+  assert.match(adapter, /validateStableOperationPublicationRecord/);
+  assert.match(adapter, /validateGithubImmutableReleaseCapabilityEvidence/);
+  assert.match(adapter, /github_immutable_releases_evidence_invalid/);
+  assert.match(adapter, /Canonical Stable publication requires the source-gate-bound immutable Releases capability record/);
+  assert.match(adapter, /Publication record operation does not match the admitted Standard operation/);
+  assert.match(adapter, /Publication record payload assets do not match the exact Standard publish plan/);
+  assert.match(adapter, /published\.release\.immutable !== true/);
+});

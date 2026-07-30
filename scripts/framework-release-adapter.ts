@@ -20,6 +20,8 @@ import {
 import { assertLatestPointerOperationAdmissionReceipt } from './validate-latest-pointer-operation.ts';
 import { assertStandardLatestAdmissionReceipt } from './validate-standard-latest-admission.ts';
 import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
+import { validateGithubImmutableReleaseCapabilityEvidence } from './stable-operation-control.ts';
+import { validateStableOperationPublicationRecord } from './stable-operation-publication-record.ts';
 
 type JsonRecord = Record<string, any>;
 type Track = 'standard' | 'full';
@@ -42,6 +44,7 @@ const packageIds = [
 ] as const;
 const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
+const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
 const appStandardIdentityMode = 'app_standard_compatibility';
 const packageCompatibility = {
   abi: 'opl_packages.v1',
@@ -308,6 +311,7 @@ function parseCommon(argv: string[]) {
       'operation-started-at': { type: 'string' },
       'operation-deadline-at': { type: 'string' },
       'additional-upload-actions': { type: 'string' },
+      'publication-record': { type: 'string' },
       'latest-admission': { type: 'string' },
       'pointer-admission': { type: 'string' },
       'component-manifest': { type: 'string' },
@@ -1433,7 +1437,104 @@ function assertImmutableReleasesEnabled(
   values: AdapterOptionValues,
   repo: string,
   runtime: GitHubAdapterRuntime,
+  bundle: JsonRecord,
+  admission: { operationId: string; track: Track },
+  actions: JsonRecord[],
 ): void {
+  const publicationRecordPath = values['publication-record'];
+  if (typeof publicationRecordPath === 'string' && publicationRecordPath.trim()) {
+    try {
+      if (bundle.release?.channel !== 'stable') {
+        throw new Error('A Stable publication record cannot authorize a non-Stable carrier.');
+      }
+      const publicationRecord = validateStableOperationPublicationRecord(
+        readJson(path.resolve(publicationRecordPath)),
+      );
+      const authority = publicationRecord.operation.authority;
+      if (
+        publicationRecord.publication_target.repository !== repo
+        || publicationRecord.publication_target.tag !== bundle.release?.tag
+        || authority.cohort.app_sha !== bundle.sources?.app?.source_commit
+        || authority.cohort.shell_sha !== bundle.sources?.shell?.source_commit
+        || authority.cohort.framework_sha !== bundle.sources?.framework?.source_commit
+      ) {
+        throw new Error('Publication record repository, base tag, or cohort does not match the exact Bundle.');
+      }
+      const sourceGateEvidence = publicationRecord.operation.pre_dispatch_evidence.source_gate;
+      const sourceGate = JSON.parse(
+        Buffer.from(sourceGateEvidence.bytes_base64, 'base64').toString('utf8'),
+      ) as JsonRecord;
+      const capability = validateGithubImmutableReleaseCapabilityEvidence(
+        sourceGate.immutable_release_capability,
+        repo,
+      );
+      if (capability.checked_at !== sourceGate.generated_at) {
+        throw new Error('Immutable release capability time does not match the bound source gate.');
+      }
+      if (admission.track === 'standard') {
+        if (authority.operation_id !== admission.operationId) {
+          throw new Error('Publication record operation does not match the admitted Standard operation.');
+        }
+        const recordActions = actions.filter(
+          (action) => action.name === 'stable-operation-publication-record.json',
+        );
+        if (recordActions.length !== 1) {
+          throw new Error('Standard publication must upload exactly one durable publication record.');
+        }
+        const recordAction = recordActions[0]!;
+        const recordBytes = regularFileBytes(
+          path.resolve(String(recordAction.source_path)),
+          'Stable operation publication record',
+        );
+        if (
+          recordAction.size_bytes !== recordBytes.length
+          || recordAction.sha256 !== `sha256:${sha256Bytes(recordBytes)}`
+        ) {
+          throw new Error('Durable publication record upload action does not match the exact record bytes.');
+        }
+        const expectedPayload = publicationRecord.publication_intent.payload_assets
+          .map((asset) => ({
+            name: asset.name,
+            digest: asset.digest,
+            size_bytes: asset.size_bytes,
+          }))
+          .sort((left, right) => left.name.localeCompare(right.name));
+        const actualPayload = actions
+          .filter((action) => action.name !== 'stable-operation-publication-record.json')
+          .map((action) => ({
+            name: String(action.name),
+            digest: String(action.sha256),
+            size_bytes: Number(action.size_bytes),
+          }))
+          .sort((left, right) => left.name.localeCompare(right.name));
+        if (canonicalJson(actualPayload) !== canonicalJson(expectedPayload)) {
+          throw new Error('Publication record payload assets do not match the exact Standard publish plan.');
+        }
+      }
+      return;
+    } catch (error) {
+      rejectGitHubMutation(
+        'github-apply',
+        values,
+        'github_immutable_releases_evidence_invalid',
+        'Bound GitHub immutable Releases capability evidence is invalid.',
+        {
+          repository: repo,
+          publication_record: publicationRecordPath,
+          validation_error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+  }
+  if (bundle.release?.channel === 'stable' && repo === canonicalStableRepository) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutable_releases_evidence_invalid',
+      'Canonical Stable publication requires the source-gate-bound immutable Releases capability record.',
+      { repository: repo, publication_record: null },
+    );
+  }
   let capability: JsonRecord | string | null;
   try {
     capability = ghRead([
@@ -1842,11 +1943,22 @@ function publishDraftRelease(options: {
   actions: JsonRecord[];
   operationDeadlineAt: string;
   runtime: GitHubAdapterRuntime;
+  bundle: JsonRecord;
 }): JsonRecord {
   const before = inspectRelease(options.repo, options.tag, options.runtime);
   assertReleaseIdentity(before, { ...options, draft: true });
   assertReleaseAssetSet(before, options.actions, true);
-  assertImmutableReleasesEnabled(options.values, options.repo, options.runtime);
+  assertImmutableReleasesEnabled(
+    options.values,
+    options.repo,
+    options.runtime,
+    options.bundle,
+    {
+      operationId: requireOption(options.values, 'operation-id'),
+      track: requireOption(options.values, 'track') as Track,
+    },
+    options.actions,
+  );
   const remoteTarget = `github-release:${options.repo}@${options.tag}`;
   const attempt = runGitHubMutation({
     mutation: 'release_publish',
@@ -2037,7 +2149,7 @@ export function applyPublishPlan(
   if (!exactPublishedCarrier) {
     // Creating a draft or publishing it is forbidden until GitHub confirms
     // immutable Releases are enabled. An already immutable carrier is read-only.
-    assertImmutableReleasesEnabled(values, repo, runtime);
+    assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, uploadActions);
   }
   const releaseResult = ensureRelease({
     baseAttemptId: admission.attemptId,
@@ -2167,6 +2279,7 @@ export function applyPublishPlan(
     actions: uploadActions,
     operationDeadlineAt,
     runtime,
+    bundle,
   });
   if (publicationResult.status !== 'complete') {
     return { ...publicationResult, uploaded };

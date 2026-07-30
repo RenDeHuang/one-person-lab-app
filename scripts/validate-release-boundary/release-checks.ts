@@ -1763,6 +1763,8 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "opl release reconcile",
       "opl release status",
       "validate-standard-publication-input.ts",
+      "stable-operation-publication-record.ts create",
+      "publication_record_args=(--publication-record \"$record\")",
       "Activate Latest after exact remote parity",
     ],
     forbidden: [
@@ -1792,6 +1794,9 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "checkpoint-full:",
       "publish-full:",
       "Publish exact Full bytes as an immutable adjunct",
+      "gh release download '${{ needs.restore-standard.outputs.tag }}'",
+      "--pattern stable-operation-publication-record.json",
+      "--publication-record \"$capability_record\"",
       "opl_app_full_append_boundary_receipt.v1",
       "carrier:{kind:\"immutable_adjunct_release\"",
       "standard_updater_metadata_modified:false",
