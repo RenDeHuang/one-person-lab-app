@@ -115,7 +115,8 @@ thin adaptation.
 
 The product mapping is also fixed:
 
-- inherit the ChatGPT `26.707.41301` directory/session rail, single timeline,
+- use the latest verified official ChatGPT Codex macOS observation as an
+  optional design reference for the directory/session rail, single timeline,
   bottom composer, quiet visual grammar and on-demand Environment details;
 - adapt labels, product profile, model/access policy and desktop/WebUI affordances;
 - add OPL capability selection, progress, evidence/artifacts and safe action receipts
@@ -124,8 +125,10 @@ The product mapping is also fixed:
 - reject Home dashboards, card walls, ordinary provider/backend controls, permanent
   third columns and raw runtime/protocol surfaces.
 
-The exact observed baseline and OPL delta live in
-`docs/product/gui/codex-to-opl-app-delta.md`; this ADR owns maintenance strategy only.
+Exact historical observations, including `26.707.41301`, and the OPL delta live
+in `docs/product/gui/codex-to-opl-app-delta.md`; they are provenance, not an
+external artifact dependency. Formal pixel regression uses the App-owned,
+human-approved baseline. This ADR owns maintenance strategy only.
 The repeatable stable-tag, reference-promotion, overlap-budget and visual-comparison
 workflow lives in `docs/product/gui/gui-maintenance-policy.md` and is machine-backed by
 `contracts/app-gui-product-contract.json#gui_maintenance_policy`.

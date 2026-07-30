@@ -4,8 +4,8 @@ import { createHash } from 'node:crypto';
 import { assert, fs, os, path, test, appRoot } from './helpers.ts';
 
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
-const codexPixelReference = 'ChatGPT Codex macOS 26.707.72221 / build 5307 (2026-07-15)';
+const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
+const codexPixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
 const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
 const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const designRoot = 'docs/product/gui';
@@ -94,7 +94,7 @@ function createFixture(): string {
     `entry_docs=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md,${designRoot}/visual-system.md,${designRoot}/codex-to-opl-app-delta.md,${designRoot}/element-audit.md,${designRoot}/shell-implementation-guide.md,${designRoot}/shell-conformance-matrix.md`,
     'contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json',
     shellAuthorityMarker,
-    `current_interaction_reference=${codexReference}`,
+    `external_design_reference_policy=${codexReference}`,
     `superseded_interaction_observations=${supersededCodexReference},${earlierSupersededCodexReference}`,
     'human_target.owner=one-person-lab-app',
     'active_aionui.role=current_implementation_conformance_only',
@@ -179,7 +179,9 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   });
   assert.deepEqual(summary.visual_reference_cohort, {
     contract: 'contracts/app-gui-visual-reference-cohort.json',
-    reference_product_build: '26.707.72221+5307',
+    reference_baseline_id: 'opl-app-approved-visual-baseline-v1',
+    reference_state: 'capture_and_human_approval_required',
+    external_product_artifact_required: false,
     scenes_required: 16,
     surface_families: ['home', 'conversation', 'rail', 'settings'],
     viewports: ['desktop', 'narrow'],
@@ -188,6 +190,25 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     reference_assets_complete: false,
     scene_bound_visual_parity: false,
   });
+});
+
+test('GUI design-system validator accepts an approved App-owned baseline without promoting release readiness', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8'));
+  contract.interaction_baseline.pixel_baseline.state = 'approved';
+  cohort.reference.state = 'approved';
+  cohort.reference.approval_receipt_file = 'baseline-approval-receipt.json';
+  cohort.reference.approval_receipt_sha256 = 'a'.repeat(64);
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  writeJson(root, 'contracts/app-gui-visual-reference-cohort.json', cohort);
+
+  const summary = validateGuiDesignSystem(root);
+  assert.equal(summary.status, 'consistent');
+  assert.equal(summary.visual_reference_cohort.reference_state, 'approved');
+  assert.equal(summary.release_ready, false);
 });
 
 test('GUI design-system validator rejects a weakened visual threshold or undeclared mask reason', () => {
@@ -438,45 +459,53 @@ test('GUI design-system validator reports a collapsed active AionUI rail as a co
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
 });
 
-test('GUI design-system validator rejects a missing current interaction reference marker', () => {
+test('GUI design-system validator rejects a missing external design reference policy marker', () => {
   const root = createFixture();
   const readmePath = path.join(root, designRoot, 'README.md');
   const readme = fs
     .readFileSync(readmePath, 'utf8')
-    .replace(`current_interaction_reference=${codexReference}`, 'current_interaction_reference=missing');
+    .replace(`external_design_reference_policy=${codexReference}`, 'external_design_reference_policy=missing');
   fs.writeFileSync(readmePath, readme, 'utf8');
-  assert.throws(() => validateGuiDesignSystem(root), /must include exact marker current_interaction_reference=/);
+  assert.throws(() => validateGuiDesignSystem(root), /must include exact marker external_design_reference_policy=/);
 });
 
-test('GUI design-system validator rejects a stale App-owned current baseline', () => {
+test('GUI design-system validator rejects pinning the design reference to a historical build', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.current_reference.build = '26.707.31123';
-  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
-  assert.throws(() => validateGuiDesignSystem(root), /schema v2 with current reference ChatGPT Codex macOS 26\.707\.41301/);
-});
-
-test('GUI design-system validator rejects mixing the interaction observation with the pixel baseline', () => {
-  const root = createFixture();
-  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
-  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.pixel_reference.bundle_version = '26.707.41301';
+  contract.interaction_baseline.external_design_reference.selection_policy =
+    'fixed_historical_build_26_707_72221_5307';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /must keep a separate pixel reference ChatGPT Codex macOS 26\.707\.72221 \/ build 5307/,
+    /external design reference policy must use the latest verified official observation/,
   );
 });
 
-test('GUI design-system validator rejects the superseded v1 interaction baseline schema', () => {
+test('GUI design-system validator rejects an external-product pixel baseline', () => {
+  const root = createFixture();
+  const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  contract.interaction_baseline.pixel_baseline.owner = 'ChatGPT Codex macOS';
+  contract.interaction_baseline.pixel_baseline.external_product_artifact_required = true;
+  writeJson(root, 'contracts/app-gui-product-contract.json', contract);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /pixel regression must use the App-owned baseline/,
+  );
+});
+
+test('GUI design-system validator rejects a superseded external design reference schema', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
   contract.schema_version = 1;
   contract.interaction_baseline.schema = 'opl_app_codex_interaction_baseline.v1';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
-  assert.throws(() => validateGuiDesignSystem(root), /schema v2/);
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /external design reference policy must use the latest verified official observation/,
+  );
 });
 
 test('GUI design-system validator rejects the legacy eight-surface inspector taxonomy', () => {
@@ -526,11 +555,12 @@ test('GUI design-system validator rejects an undeclared candidate-registry Codex
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.design_system_governance.codex_reference.comparison_baseline = 'ChatGPT Codex macOS 0.0.0 (2026-07-11)';
+  registry.design_system_governance.codex_reference.comparison_baseline =
+    'ChatGPT Codex macOS 26.707.72221 build 5307';
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /design-system governance Codex comparison baseline must be current or a declared superseded observation/,
+    /design-system governance Codex comparison baseline must be the rolling latest official observation/,
   );
 });
 
