@@ -130,15 +130,31 @@ jobs:
           manifest_sha="$(jq -er .manifest.sha256 handoff.json)"
           dmg_name="$(jq -er .artifact.name handoff.json)"
           dmg_size="$(jq -er .artifact.size_bytes handoff.json)"
+          dmg_url="$(jq -er .artifact.url handoff.json)"
           manifest_name="$(jq -er .manifest.name handoff.json)"
           manifest_size="$(jq -er .manifest.size_bytes handoff.json)"
+          manifest_url="$(jq -er .manifest.url handoff.json)"
           qualification_sha="$(jq -er .source.qualification_receipt_sha256 handoff.json)"
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$adjunct_tag" > release.json
-          jq -e --arg dmg "$(jq -er .artifact.name handoff.json)" --arg dmg_sha "$dmg_sha" \
-            --arg manifest "$(jq -er .manifest.name handoff.json)" --arg manifest_sha "$manifest_sha" '
-            .draft == false and .prerelease == false
-            and ([.assets[] | select(.name == $dmg and .digest == $dmg_sha)] | length == 1)
-            and ([.assets[] | select(.name == $manifest and .digest == $manifest_sha)] | length == 1)
+          jq -e --arg tag "$adjunct_tag" --arg app "$app_sha" \
+            --arg dmg "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" --arg dmg_url "$dmg_url" \
+            --arg manifest "$manifest_name" --arg manifest_sha "$manifest_sha" \
+            --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
+            .tag_name == $tag
+            and .draft == false and .prerelease == false
+            and .target_commitish == $app
+            and ([.assets[] | select(
+              .name == $dmg
+              and .digest == $dmg_sha
+              and .size == $dmg_size
+              and .browser_download_url == $dmg_url
+            )] | length == 1)
+            and ([.assets[] | select(
+              .name == $manifest
+              and .digest == $manifest_sha
+              and .size == $manifest_size
+              and .browser_download_url == $manifest_url
+            )] | length == 1)
           ' release.json >/dev/null
           git clone --depth=1 https://github.com/gaofeng21cn/homebrew-one-person-lab.git tap-source
           tap_base_commit="$(git -C tap-source rev-parse HEAD)"
@@ -146,8 +162,8 @@ jobs:
             --channel stable --package-kind app_full_first_install \
             --version "$version" --updater-version "$updater_version" \
             --tap-root tap-source --cask Casks/one-person-lab-full.rb \
-            --manifest-url "$(jq -er .manifest.url handoff.json)" \
-            --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$(jq -er .artifact.url handoff.json)" \
+            --manifest-url "$manifest_url" \
+            --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$dmg_url" \
             --remote-write-mode inspect_only --summary-path homebrew-full-plan.json >/dev/null
           test "$(jq -r .schema homebrew-full-plan.json)" = opl_homebrew_tap_cas_plan.v1
           test "$(jq -r .policy.formula_dependency_required homebrew-full-plan.json)" = false
@@ -166,8 +182,8 @@ jobs:
               --channel stable --package-kind app_full_first_install \
               --version "$version" --updater-version "$updater_version" \
               --tap-root tap-source --cask Casks/one-person-lab-full.rb \
-              --manifest-url "$(jq -er .manifest.url handoff.json)" \
-              --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$(jq -er .artifact.url handoff.json)" \
+              --manifest-url "$manifest_url" \
+              --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$dmg_url" \
               --remote-write-mode direct_commit --expected-current-cask-sha256 "$current_cask_sha" \
               --summary-path homebrew-full-candidate.json --write >/dev/null
           fi
