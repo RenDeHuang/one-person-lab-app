@@ -131,10 +131,17 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 
 ### Temporal 状态与维护
 
-Temporal server 与 worker 是完整 OPL durable workflow 的必要依赖。Plain Codex chat 可以在
-它们异常时继续可用，但这不把 Temporal 降级为 optional，也不能把问题藏成原始
-`attention_needed`。Overview 必须分别显示 server/worker 的本地化状态与原因，并路由到
-`Maintenance > Services`。
+Temporal 是完整 OPL durable workflow 的单一外部运行依赖；用户界面将它呈现为“持久任务运行
+（Temporal）”。其中“Temporal 基础服务”是依赖底座，“OPL 任务执行器”负责执行 workflow 与
+activity，“周期计划”是 Temporal Schedule cadence，不是第二套 scheduler 服务。Plain Codex
+chat 可以在这条链异常时继续可用，但这不把 Temporal 降级为 optional，也不能把问题藏成原始
+`attention_needed`。Overview 只显示一次根因与影响，并路由到 `Maintenance > Services`。
+
+Service Status 必须保持 service -> worker -> schedule 因果关系：上游未就绪时，下游显示“等待
+Temporal 基础服务”或“等待 OPL 任务执行器”，而不是重复“需要处理”。页面只强调第一个可执行
+根因的安全操作和一个重新检查操作；地址、namespace、task queue、supervisor、组件时间戳和
+次级诊断操作折叠在技术详情中。`provider_scheduler_install` 的用户文案是“启用周期计划”，
+`provider_scheduler_trigger` 的用户文案是“立即执行一次”。
 
 Maintenance 消费真实 Framework action，不自行拼 CLI 或虚构 action id：
 
