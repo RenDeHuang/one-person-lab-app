@@ -614,6 +614,8 @@ jobs:
       operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
       stable_operation_control_artifact: opl-stable-operation-control-${{ github.run_id }}
       stable_operation_control_digest: ${{ needs.protected-operation-admission.outputs.control_digest }}
+      stable_admission_artifact: opl-stable-admission-${{ github.run_id }}
+      stable_admission_manifest_digest: ${{ needs.stable-admission-manifest.outputs.manifest_digest }}
       stable_optional_platforms: ${{ needs.protected-operation-admission.outputs.optional_platforms }}
     secrets: inherit
 

@@ -517,6 +517,14 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
     stable.jobs.standard.with.stable_operation_control_artifact,
     'opl-stable-operation-control-${{ github.run_id }}',
   );
+  assert.equal(
+    stable.jobs.standard.with.stable_admission_artifact,
+    'opl-stable-admission-${{ github.run_id }}',
+  );
+  assert.equal(
+    stable.jobs.standard.with.stable_admission_manifest_digest,
+    '${{ needs.stable-admission-manifest.outputs.manifest_digest }}',
+  );
 
   for (const name of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
     const workflow = parseWorkflow(name);
@@ -649,6 +657,30 @@ test('Stable manifest consumes exactly one protected evidence set before any Sta
   );
   assert.equal(stable.jobs.standard.needs.includes('protected-operation-admission'), true);
   assert.equal(stable.jobs.standard.needs.includes('stable-admission-manifest'), true);
+  const bundle = parseWorkflow('_release-bundle.yml');
+  assert.equal(bundle.on.workflow_call.inputs.stable_admission_artifact.required, false);
+  assert.equal(bundle.on.workflow_call.inputs.stable_admission_manifest_digest.required, false);
+  const admissionDownload = workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Download same-run protected Stable admission',
+  );
+  assert.equal(admissionDownload.if, "${{ inputs.channel == 'stable' }}");
+  assert.equal(admissionDownload.with.name, '${{ inputs.stable_admission_artifact }}');
+  const freezeIdentity = String(workflowStep(
+    '_release-bundle.yml',
+    'freeze',
+    'Freeze source, version, and compatibility identity',
+  ).run);
+  assert.match(freezeIdentity, /stableAdmissionManifestDigest/);
+  assert.match(freezeIdentity, /EXPECTED_MANIFEST_DIGEST/);
+  assert.match(freezeIdentity, /find stable-operation-control -type f -name source-gate\.json/);
+  assert.match(freezeIdentity, /source_gate_file_sha256/);
+  assert.match(freezeIdentity, /apple_credentials\?\.receipt_sha256/);
+  assert.match(freezeIdentity, /producer_run_id !== process\.env\.GITHUB_RUN_ID/);
+  assert.match(freezeIdentity, /cohort\?\.app_sha !== process\.env\.EXPECTED_APP_SHA/);
+  assert.match(freezeIdentity, /allocator\?\.selected_version !== process\.env\.EXPECTED_VERSION/);
+  assert.doesNotMatch(freezeIdentity, /resolveStableReleaseVersion/);
 });
 
 test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {
@@ -1118,10 +1150,12 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
   assert.equal(standard.jobs['updater-upgrade-qualification-highest'], undefined);
   assert.equal(standard.jobs['homebrew-standard-vm'], undefined);
   assert.match(readWorkflow('_release-standard-publish.yml'), /highest_public_stable/);
-  assert.match(readWorkflow('_release-bundle.yml'), /resolveStableReleaseVersion/);
+  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /resolveStableReleaseVersion/);
+  assert.match(readWorkflow('_release-bundle.yml'), /resolvePreviewReleaseVersion/);
+  assert.match(readWorkflow('_release-bundle.yml'), /stableAdmissionManifestDigest/);
   assert.match(readWorkflow('_release-bundle.yml'), /ghcr\.io\/token\?scope=repository:gaofeng21cn\/one-person-lab-webui:pull/);
   assert.match(readWorkflow('_release-bundle.yml'), /ghcr\.io\/v2\/gaofeng21cn\/one-person-lab-webui\/manifests/);
-  assert.match(readWorkflow('_release-bundle.yml'), /PUBLISHED_WEBUI_TAGS_TXT/);
+  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /PUBLISHED_WEBUI_TAGS_TXT/);
   assert.match(readWorkflow('_release-bundle.yml'), /--published-releases-json/);
 
   const updater = readWorkflow('opl-updater-upgrade-vm.yml');
