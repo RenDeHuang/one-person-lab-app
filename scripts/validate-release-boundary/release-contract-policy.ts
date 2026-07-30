@@ -1580,6 +1580,11 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.nightly?.mode !== 'post_publication_digest_bound_single_attempt_follower' ||
     homebrew?.tap_update_policy?.nightly?.workflow !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     homebrew?.tap_update_policy?.nightly?.environment !== 'release-nightly' ||
+    homebrew?.tap_update_policy?.nightly?.credential?.kind !== 'repository_scoped_write_deploy_key' ||
+    homebrew?.tap_update_policy?.nightly?.credential?.repository !== 'gaofeng21cn/homebrew-one-person-lab' ||
+    homebrew?.tap_update_policy?.nightly?.credential?.secret !==
+      'release-nightly.OPL_HOMEBREW_TAP_DEPLOY_KEY' ||
+    homebrew?.tap_update_policy?.nightly?.credential?.stable_environment_credentials_reused !== false ||
     homebrew?.tap_update_policy?.nightly?.target !== 'Casks/one-person-lab-nightly.rb' ||
     homebrew?.tap_update_policy?.nightly?.may_update_stable !== false ||
     homebrew?.tap_update_policy?.nightly?.mutation_allowed !== true ||

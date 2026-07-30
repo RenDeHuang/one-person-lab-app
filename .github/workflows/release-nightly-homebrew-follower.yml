@@ -80,7 +80,8 @@ jobs:
 
       - name: Publish one digest-bound Nightly Cask commit
         env:
-          OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          OPL_HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.OPL_HOMEBREW_TAP_DEPLOY_KEY }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
@@ -129,12 +130,18 @@ jobs:
             and (.primary_dmg.sha256 | test("^[0-9a-f]{64}$"))
           ' "$receipt" >/dev/null
           test "$(jq -r .cohort.app_sha "$receipt")" = "$(git rev-parse HEAD)"
-          test -n "$OPL_HOMEBREW_TAP_TOKEN"
-          export GH_TOKEN="$OPL_HOMEBREW_TAP_TOKEN"
-          gh auth setup-git
+          test -n "$OPL_HOMEBREW_TAP_DEPLOY_KEY"
+          tap_ssh_dir="$RUNNER_TEMP/nightly-homebrew-ssh"
+          install -d -m 700 "$tap_ssh_dir"
+          printf '%s\n' "$OPL_HOMEBREW_TAP_DEPLOY_KEY" > "$tap_ssh_dir/deploy-key"
+          chmod 600 "$tap_ssh_dir/deploy-key"
+          ssh-keygen -y -f "$tap_ssh_dir/deploy-key" >/dev/null
+          gh api meta --jq '.ssh_keys[]' | sed 's/^/github.com /' > "$tap_ssh_dir/known_hosts"
+          chmod 600 "$tap_ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $tap_ssh_dir/deploy-key -o IdentitiesOnly=yes -o UserKnownHostsFile=$tap_ssh_dir/known_hosts -o StrictHostKeyChecking=yes"
           tap_repo=gaofeng21cn/homebrew-one-person-lab
           default_branch="$(gh api "repos/$tap_repo" --jq .default_branch)"
-          git clone --depth=1 "https://github.com/${tap_repo}.git" tap-source
+          git clone --depth=1 "git@github.com:${tap_repo}.git" tap-source
           tap_base="$(git -C tap-source rev-parse HEAD)"
           git -C tap-source show HEAD:Casks/one-person-lab.rb > stable-cask-before.rb
           stable_before="sha256:$(shasum -a 256 stable-cask-before.rb | awk '{print $1}')"
