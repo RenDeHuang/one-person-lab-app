@@ -107,11 +107,12 @@
             "fifteen_second_heartbeat"
           ],
           "verification_before_final_name": [
-            "exact_public_prerelease_is_immutable",
+            "release_generated_helper_is_bound_to_exact_immutable_prerelease_tag_asset_digest_and_size",
             "sha256sums_exact_filename_entry",
-            "github_asset_digest_when_present",
+            "release_bound_embedded_installer_digest_and_size",
             "downloaded_file_sha256"
           ],
+          "public_github_api_required_for_download": false,
           "browser_direct_download_remains_available": true,
           "partial_or_mismatched_bytes_must_not_receive_final_exe_name": true,
           "smartscreen_zone_marker_removal_allowed": false,

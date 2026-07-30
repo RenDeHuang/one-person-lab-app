@@ -1306,7 +1306,12 @@ jobs:
             --actions-run-id "$GITHUB_RUN_ID" \
             --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
             --actions-artifact-name "$artifact_name"
-          cp ../../scripts/download-windows-preview.ps1 out/download-windows-preview.ps1
+          node --experimental-strip-types ../../scripts/render-windows-preview-downloader.ts \
+            --template ../../scripts/download-windows-preview.ps1 \
+            --output out/download-windows-preview.ps1 \
+            --repository "$GITHUB_REPOSITORY" \
+            --release-tag "windows-rc-$OPL_BUILD_VERSION" \
+            --installer "$installer_path"
           node --experimental-strip-types ../../scripts/write-sha256-sums.ts \
             --output out/SHA256SUMS.txt \
             "$installer_path" \

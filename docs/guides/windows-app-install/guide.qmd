@@ -88,7 +88,8 @@ powershell -ExecutionPolicy Bypass -File ".\{{download.download_helper_asset}}" 
 
 助手使用 Windows BITS 持久任务，显示已下载字节、总字节、百分比和任务状态。网络短暂
 断开或关闭 PowerShell 后，再运行同一条命令会重新附着到同一个精确 Release、URL 和目标
-路径，不会从零开始；完成后先核对 `SHA256SUMS.txt`、GitHub asset digest 和本地
+路径，不会从零开始；helper 已在构建时绑定该 RC 的 tag、EXE 文件名、size 和 SHA-256，
+不需要调用未认证 GitHub API。完成后先交叉核对内嵌摘要、`SHA256SUMS.txt` 和本地
 SHA-256，完全一致才把临时文件原子改为最终 EXE 文件名。
 
 浏览器直接下载会一直保留作为备用入口。项目不会自动切换到聊天群、网盘或任意第三方

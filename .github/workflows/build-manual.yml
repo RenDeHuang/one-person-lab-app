@@ -435,6 +435,7 @@ jobs:
           ## What changed
 
           - Added a persistent BITS download helper with visible progress, reconnect support, and fail-closed SHA-256 verification.
+          - Bound the helper to this exact RC installer digest and size, removing the unauthenticated GitHub REST API rate-limit dependency from the download path.
           - Added actionable recovery when packaged runtime components are missing: recheck, safe diagnostics, local logs, support, and the official download page.
           - Kept Docker/WebUI as a separate installation path; this Desktop Preview does not install, modify, or take over Docker.
 
@@ -454,7 +455,7 @@ jobs:
             -AssetName "One-Person-Lab-__VERSION__-win-x64.exe"
           ```
 
-          The helper uses a persistent Windows BITS job. It reports transferred bytes and percentage, keeps partial progress across temporary network loss or a closed PowerShell window, and verifies the immutable Release digest plus `SHA256SUMS.txt` before exposing the final EXE.
+          The helper uses a persistent Windows BITS job. It reports transferred bytes and percentage, keeps partial progress across temporary network loss or a closed PowerShell window, and verifies its release-bound installer digest and size plus `SHA256SUMS.txt` before exposing the final EXE. It does not require an unauthenticated GitHub API request.
 
           Direct browser download remains available as a fallback. If a click appears to do nothing, open the browser download list before clicking again.
 

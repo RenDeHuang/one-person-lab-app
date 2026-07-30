@@ -2,11 +2,10 @@
 
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true)]
   [ValidatePattern("^windows-rc-[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$")]
-  [string]$ReleaseTag,
+  [string]$ReleaseTag = "__OPL_WINDOWS_PREVIEW_RELEASE_TAG__",
   [ValidatePattern("^One-Person-Lab-[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*-win-x64\.exe$")]
-  [string]$AssetName,
+  [string]$AssetName = "__OPL_WINDOWS_PREVIEW_INSTALLER_ASSET__",
   [string]$OutputDirectory = (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads\OPL-RC"),
   [ValidateRange(5, 1440)]
   [int]$MaxWaitMinutes = 120
@@ -14,25 +13,16 @@ param(
 
 Set-StrictMode -Version 3.0
 $ErrorActionPreference = "Stop"
-$repository = "gaofeng21cn/one-person-lab-app"
+$repository = "__OPL_WINDOWS_PREVIEW_REPOSITORY__"
+$embeddedReleaseTag = "__OPL_WINDOWS_PREVIEW_RELEASE_TAG__"
+$embeddedInstallerAsset = "__OPL_WINDOWS_PREVIEW_INSTALLER_ASSET__"
+$embeddedInstallerSha256 = "__OPL_WINDOWS_PREVIEW_INSTALLER_SHA256__"
+[int64]$embeddedInstallerSizeBytes = __OPL_WINDOWS_PREVIEW_INSTALLER_SIZE_BYTES__
 $checksumAssetName = "SHA256SUMS.txt"
 
 function Write-Step {
   param([Parameter(Mandatory = $true)][string]$Message)
   Write-Host "[One Person Lab] $Message"
-}
-
-function Get-ReleaseAsset {
-  param(
-    [Parameter(Mandatory = $true)][object[]]$Assets,
-    [Parameter(Mandatory = $true)][string]$Name
-  )
-
-  $matches = @($Assets | Where-Object { $_.name -ceq $Name })
-  if ($matches.Count -ne 1) {
-    throw "Expected exactly one Release asset named $Name, found $($matches.Count)."
-  }
-  return $matches[0]
 }
 
 function Get-InstallerChecksum {
@@ -56,23 +46,6 @@ function Get-InstallerChecksum {
   return [string]$matches[0]
 }
 
-function Get-OptionalAssetSha256 {
-  param(
-    [Parameter(Mandatory = $true)][object]$Asset,
-    [Parameter(Mandatory = $true)][string]$AssetLabel
-  )
-
-  $digestProperty = $Asset.PSObject.Properties["digest"]
-  if ($null -eq $digestProperty -or [string]::IsNullOrWhiteSpace([string]$digestProperty.Value)) {
-    return $null
-  }
-  $digest = [string]$digestProperty.Value
-  if ($digest -notmatch "^sha256:[0-9a-fA-F]{64}$") {
-    throw "GitHub reported an unsupported digest for $AssetLabel."
-  }
-  return $digest.Substring(7).ToLowerInvariant()
-}
-
 function Test-FileSha256 {
   param(
     [Parameter(Mandatory = $true)][string]$PathValue,
@@ -84,6 +57,23 @@ function Test-FileSha256 {
   }
   $actual = (Get-FileHash -LiteralPath $PathValue -Algorithm SHA256).Hash.ToLowerInvariant()
   return $actual -ceq $ExpectedSha256
+}
+
+function Test-InstallerIdentity {
+  param(
+    [Parameter(Mandatory = $true)][string]$PathValue,
+    [Parameter(Mandatory = $true)][int64]$ExpectedSizeBytes,
+    [Parameter(Mandatory = $true)][string]$ExpectedSha256
+  )
+
+  if (-not (Test-Path -LiteralPath $PathValue -PathType Leaf)) {
+    return $false
+  }
+  $actualSizeBytes = (Get-Item -LiteralPath $PathValue).Length
+  if ($actualSizeBytes -ne $ExpectedSizeBytes) {
+    return $false
+  }
+  return Test-FileSha256 -PathValue $PathValue -ExpectedSha256 $ExpectedSha256
 }
 
 function Move-InvalidDownloadAside {
@@ -217,76 +207,80 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
 Import-Module BitsTransfer -ErrorAction Stop
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
-$headers = @{
-  Accept = "application/vnd.github+json"
-  "X-GitHub-Api-Version" = "2026-03-10"
-  "User-Agent" = "One-Person-Lab-Windows-Preview-Downloader"
+if ($ReleaseTag -cne $embeddedReleaseTag) {
+  throw "This helper is bound to $embeddedReleaseTag and cannot download $ReleaseTag."
 }
-$releaseApi = "https://api.github.com/repos/$repository/releases/tags/$ReleaseTag"
-Write-Step "Reading exact Release identity: $ReleaseTag"
-$release = Invoke-RestMethod -Uri $releaseApi -Headers $headers -Method Get -UseBasicParsing
-if ($release.tag_name -cne $ReleaseTag -or $release.draft -ne $false -or $release.prerelease -ne $true) {
-  throw "The requested tag is not one public Windows Preview prerelease."
+if ($AssetName -cne $embeddedInstallerAsset) {
+  throw "This helper is bound to $embeddedInstallerAsset and cannot download $AssetName."
 }
-if ($release.immutable -ne $true) {
-  throw "The requested Release is not immutable; refusing to download executable bytes."
+if ($embeddedInstallerSha256 -notmatch "^[0-9a-f]{64}$") {
+  throw "This helper does not contain a valid release-bound installer SHA-256."
 }
-
-$assets = @($release.assets)
-if ([string]::IsNullOrWhiteSpace($AssetName)) {
-  $installerCandidates = @(
-    $assets |
-      Where-Object { $_.name -match "^One-Person-Lab-[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*-win-x64\.exe$" }
-  )
-  if ($installerCandidates.Count -ne 1) {
-    throw "Expected exactly one Windows x64 installer asset, found $($installerCandidates.Count)."
-  }
-  $AssetName = [string]$installerCandidates[0].name
+if ($embeddedInstallerSizeBytes -le 0) {
+  throw "This helper does not contain a valid release-bound installer size."
 }
-$installerAsset = Get-ReleaseAsset -Assets $assets -Name $AssetName
-$checksumAsset = Get-ReleaseAsset -Assets $assets -Name $checksumAssetName
+$releaseAssetBaseUrl = "https://github.com/$repository/releases/download/$ReleaseTag"
+$checksumAssetUrl = "$releaseAssetBaseUrl/$checksumAssetName"
+$installerAssetUrl = "$releaseAssetBaseUrl/$AssetName"
+Write-Step "Using embedded exact identity for immutable Windows Preview $ReleaseTag."
+Write-Step "Expected installer: $AssetName ($embeddedInstallerSizeBytes bytes)."
 $deadline = (Get-Date).AddMinutes($MaxWaitMinutes)
 
 $checksumPath = Join-Path $resolvedOutputDirectory $checksumAssetName
 $checksumDownloadPath = "${checksumPath}.download"
 Move-InvalidDownloadAside -PathValue $checksumDownloadPath
 Receive-BitsFile `
-  -Source ([string]$checksumAsset.browser_download_url) `
+  -Source $checksumAssetUrl `
   -Destination $checksumDownloadPath `
   -DisplayName "OPL $ReleaseTag checksums" `
   -Deadline $deadline
 Move-Item -LiteralPath $checksumDownloadPath -Destination $checksumPath -Force
 $expectedSha256 = Get-InstallerChecksum -ChecksumPath $checksumPath -InstallerName $AssetName
-$installerAssetSha256 = Get-OptionalAssetSha256 -Asset $installerAsset -AssetLabel $AssetName
-if (
-  $null -ne $installerAssetSha256 -and
-  $installerAssetSha256 -cne $expectedSha256
-) {
-  throw "GitHub asset digest and $checksumAssetName disagree for $AssetName."
+if ($expectedSha256 -cne $embeddedInstallerSha256) {
+  throw "The release-bound installer digest and $checksumAssetName disagree for $AssetName."
 }
 
 $installerPath = Join-Path $resolvedOutputDirectory $AssetName
-if (Test-FileSha256 -PathValue $installerPath -ExpectedSha256 $expectedSha256) {
+if (
+  Test-InstallerIdentity `
+    -PathValue $installerPath `
+    -ExpectedSizeBytes $embeddedInstallerSizeBytes `
+    -ExpectedSha256 $expectedSha256
+) {
   Write-Step "Verified installer already exists: $installerPath"
   exit 0
 }
 Move-InvalidDownloadAside -PathValue $installerPath
 $installerDownloadPath = "${installerPath}.download"
-if (-not (Test-FileSha256 -PathValue $installerDownloadPath -ExpectedSha256 $expectedSha256)) {
+if (
+  -not (
+    Test-InstallerIdentity `
+      -PathValue $installerDownloadPath `
+      -ExpectedSizeBytes $embeddedInstallerSizeBytes `
+      -ExpectedSha256 $expectedSha256
+  )
+) {
   Move-InvalidDownloadAside -PathValue $installerDownloadPath
   Receive-BitsFile `
-    -Source ([string]$installerAsset.browser_download_url) `
+    -Source $installerAssetUrl `
     -Destination $installerDownloadPath `
     -DisplayName "OPL $ReleaseTag installer" `
     -Deadline $deadline
 }
 
-Write-Step "Verifying SHA-256 before exposing the installer."
-if (-not (Test-FileSha256 -PathValue $installerDownloadPath -ExpectedSha256 $expectedSha256)) {
+Write-Step "Verifying exact size and SHA-256 before exposing the installer."
+if (
+  -not (
+    Test-InstallerIdentity `
+      -PathValue $installerDownloadPath `
+      -ExpectedSizeBytes $embeddedInstallerSizeBytes `
+      -ExpectedSha256 $expectedSha256
+  )
+) {
   Move-InvalidDownloadAside -PathValue $installerDownloadPath
-  throw "Downloaded installer SHA-256 does not match the immutable Release checksum."
+  throw "Downloaded installer bytes do not match the immutable Release identity."
 }
 Move-Item -LiteralPath $installerDownloadPath -Destination $installerPath
-Write-Step "Download and SHA-256 verification passed: $installerPath"
+Write-Step "Download, size, and SHA-256 verification passed: $installerPath"
 Write-Step "Expected SHA-256: $expectedSha256"
 Write-Step "This Preview may still show SmartScreen until it has production Authenticode signing. Do not disable Defender or SmartScreen."

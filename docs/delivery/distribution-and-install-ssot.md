@@ -202,7 +202,8 @@ README、测试通过或本地 Cask 文件推导。
 Windows Preview 的弱网下载从下一份 RC 起把 `download-windows-preview.ps1` 与
 `SHA256SUMS.txt` 作为同一不可变 Release 资产发布。助手使用当前用户的 BITS 持久任务，
 允许关闭窗口或短暂断网后按相同 tag/asset 重新附着，显示真实字节和状态，并在最终命名前
-核对 Release checksum、GitHub asset digest 和本地 SHA-256。浏览器直接下载仍是备用。
+核对发布时内嵌的 exact installer digest/size、Release checksum 和本地 SHA-256。下载路径
+不依赖未认证 GitHub API 配额；浏览器直接下载仍是备用。
 任何自动镜像回退都必须由 App owner 预先登记 HTTPS 来源并绑定同一 exact digest；任意
 第三方镜像、网盘或用户侧 `registry-mirrors` 不构成产品自动选择 authority。
 

@@ -573,6 +573,13 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.equal(policy.transport, 'windows_bits_persistent_background_transfer');
   assert.equal(policy.mirror_policy.automatic_arbitrary_third_party_mirror_allowed, false);
   assert.deepEqual(policy.mirror_policy.current_additional_approved_sources, []);
+  assert.equal(policy.public_github_api_required_for_download, false);
+  assert.deepEqual(policy.verification_before_final_name, [
+    'release_generated_helper_is_bound_to_exact_immutable_prerelease_tag_asset_digest_and_size',
+    'sha256sums_exact_filename_entry',
+    'release_bound_embedded_installer_digest_and_size',
+    'downloaded_file_sha256',
+  ]);
   assert.match(downloader, /Import-Module BitsTransfer/);
   assert.match(downloader, /Get-MatchingBitsJob/);
   assert.match(downloader, /Start-BitsTransfer[\s\S]*-Asynchronous/);
@@ -581,17 +588,21 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.doesNotMatch(downloader, /"TransientError"\s*\{\s*Resume-BitsTransfer/);
   assert.match(downloader, /BytesTransferred/);
   assert.match(downloader, /BytesTotal/);
-  assert.match(downloader, /\$release\.immutable -ne \$true/);
-  assert.match(downloader, /\$Asset\.PSObject\.Properties\["digest"\]/);
-  assert.match(downloader, /unsupported digest for \$AssetLabel/);
-  assert.match(downloader, /GitHub asset digest and \$checksumAssetName disagree/);
+  assert.match(downloader, /\$ReleaseTag -cne \$embeddedReleaseTag/);
+  assert.match(downloader, /\$AssetName -cne \$embeddedInstallerAsset/);
+  assert.match(downloader, /\$expectedSha256 -cne \$embeddedInstallerSha256/);
+  assert.match(downloader, /\$releaseAssetBaseUrl = "https:\/\/github\.com\/\$repository\/releases\/download\/\$ReleaseTag"/);
+  assert.doesNotMatch(downloader, /api\.github\.com|Invoke-RestMethod|Invoke-WebRequest/);
   assert.match(downloader, /Get-FileHash -LiteralPath \$PathValue -Algorithm SHA256/);
+  assert.match(downloader, /Test-InstallerIdentity/);
   assert.match(downloader, /Move-Item -LiteralPath \$installerDownloadPath -Destination \$installerPath/);
   assert.match(downloader, /does not discard the BITS job/);
   assert.match(downloader, /Do not disable Defender or SmartScreen/);
   assert.doesNotMatch(downloader, /Unblock-File/);
   assert.doesNotMatch(downloader, /mirror|registry-mirrors/i);
-  assert.match(build, /cp \.\.\/\.\.\/scripts\/download-windows-preview\.ps1 out\/download-windows-preview\.ps1/);
+  assert.match(build, /node --experimental-strip-types \.\.\/\.\.\/scripts\/render-windows-preview-downloader\.ts/);
+  assert.match(build, /--release-tag "windows-rc-\$OPL_BUILD_VERSION"/);
+  assert.match(build, /--installer "\$installer_path"/);
   assert.match(build, /node --experimental-strip-types \.\.\/\.\.\/scripts\/write-sha256-sums\.ts/);
   assert.match(build, /--output out\/SHA256SUMS\.txt/);
   assert.match(build, /out\/download-windows-preview\.ps1/);
@@ -600,6 +611,8 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.match(build, /shells\/aionui\/out\/SHA256SUMS\.txt/);
   assert.match(publish, /-name 'download-windows-preview\.ps1'/);
   assert.match(publish, /-name 'SHA256SUMS\.txt'/);
+  assert.match(publish, /removing the unauthenticated GitHub REST API rate-limit dependency/);
+  assert.match(publish, /does not require an unauthenticated GitHub API request/);
 });
 
 test('packaged installation-integrity recovery exposes bounded diagnostics and a fresh recheck path', () => {
