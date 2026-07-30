@@ -34,14 +34,14 @@ export type NightlyRemoteRelease = {
 };
 
 export interface NightlyRemote {
-  inspectRelease(tag: string): NightlyRemoteRelease | null;
+  inspectRelease(tag: string, releaseId?: number): NightlyRemoteRelease | null;
   inspectLatestTag(): string | null;
   createDraft(input: {
     tag: string;
     targetCommitish: string;
     name: string;
     body: string;
-  }): void;
+  }): NightlyRemoteRelease;
   uploadAsset(releaseId: number, filePath: string, name: string): void;
   publishRelease(releaseId: number, name: string, body: string): void;
   deleteDraft(releaseId: number): void;
@@ -61,12 +61,12 @@ function runGh(args: string[], allow404 = false): string {
   throw new Error(`gh ${args.slice(0, 3).join(' ')} failed: ${(result.stderr || result.stdout).trim()}`);
 }
 
-function withJsonInput(value: unknown, run: (inputPath: string) => void): void {
+function withJsonInput<T>(value: unknown, run: (inputPath: string) => T): T {
   const root = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP || os.tmpdir(), 'opl-nightly-gh-'));
   const input = path.join(root, 'input.json');
   try {
     fs.writeFileSync(input, `${JSON.stringify(value)}\n`, { mode: 0o600 });
-    run(input);
+    return run(input);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -103,7 +103,20 @@ export class GhNightlyRemote implements NightlyRemote {
     this.executeGh = executeGh;
   }
 
-  inspectRelease(tag: string): NightlyRemoteRelease | null {
+  inspectRelease(tag: string, releaseId?: number): NightlyRemoteRelease | null {
+    if (releaseId !== undefined) {
+      if (!Number.isSafeInteger(releaseId) || releaseId <= 0) {
+        throw new Error('Nightly release id must be a positive safe integer.');
+      }
+      const output = this.executeGh(['api', `repos/${this.repo}/releases/${releaseId}`], true);
+      if (!output) return null;
+      const release = normalizeRelease(JSON.parse(output));
+      if (release.tag_name !== tag) {
+        throw new Error(`GitHub release ${releaseId} does not match Nightly tag ${tag}.`);
+      }
+      return release;
+    }
+
     const output = this.executeGh(['api', `repos/${this.repo}/releases/tags/${tag}`], true);
     if (output) return normalizeRelease(JSON.parse(output));
 
@@ -134,8 +147,13 @@ export class GhNightlyRemote implements NightlyRemote {
     return output ? String(JSON.parse(output).tag_name ?? '') || null : null;
   }
 
-  createDraft(input: { tag: string; targetCommitish: string; name: string; body: string }): void {
-    withJsonInput({
+  createDraft(input: {
+    tag: string;
+    targetCommitish: string;
+    name: string;
+    body: string;
+  }): NightlyRemoteRelease {
+    return withJsonInput({
       tag_name: input.tag,
       target_commitish: input.targetCommitish,
       name: input.name,
@@ -144,7 +162,13 @@ export class GhNightlyRemote implements NightlyRemote {
       prerelease: true,
       make_latest: 'false',
     }, (inputPath) => {
-      this.executeGh(['api', '--method', 'POST', `repos/${this.repo}/releases`, '--input', inputPath]);
+      const output = this.executeGh([
+        'api',
+        '--method', 'POST',
+        `repos/${this.repo}/releases`,
+        '--input', inputPath,
+      ]);
+      return normalizeRelease(JSON.parse(output));
     });
   }
 
@@ -286,15 +310,20 @@ function inspectUpToThree<T>(
 
 function mutateOnceThenRead<T>(input: {
   label: string;
-  mutate: () => void;
+  mutate: () => T | void;
   inspect: () => T;
   matches: (value: T) => boolean;
 }): T {
   let mutationError: unknown;
+  let mutationValue: T | void;
   try {
-    input.mutate();
+    mutationValue = input.mutate();
   } catch (error) {
     mutationError = error;
+  }
+  if (!mutationError && mutationValue !== undefined) {
+    const acknowledged = mutationValue as T;
+    if (input.matches(acknowledged)) return acknowledged;
   }
   const observed = inspectUpToThree(input.inspect, input.matches);
   if (observed.matched) return observed.value;
@@ -342,13 +371,14 @@ export function publishNightlyRelease(input: {
       release = mutateOnceThenRead({
         label: `Create Nightly draft ${request.tag}`,
         mutate: () => {
-          remote.createDraft({
+          const created = remote.createDraft({
             tag: request.tag,
             targetCommitish: request.source.app_sha,
             name: releaseName,
             body: input.notes,
           });
           creationAcknowledged = true;
+          return created;
         },
         inspect: () => remote.inspectRelease(request.tag),
         matches: (value) => value !== null,
@@ -372,20 +402,22 @@ export function publishNightlyRelease(input: {
           throw new Error(`Nightly draft has conflicting asset bytes for ${asset.name}.`);
         }
         if (matches.length === 1) continue;
+        const releaseId = release.id;
         release = mutateOnceThenRead({
           label: `Upload Nightly asset ${asset.name}`,
-          mutate: () => remote.uploadAsset(release!.id, asset.path, asset.name),
-          inspect: () => remote.inspectRelease(request.tag),
+          mutate: () => remote.uploadAsset(releaseId, asset.path, asset.name),
+          inspect: () => remote.inspectRelease(request.tag, releaseId),
           matches: (value) => {
             const reconciled = value?.assets.filter((remoteAsset) => remoteAsset.name === asset.name) ?? [];
             return reconciled.length === 1 && assetMatches(reconciled[0]!, asset);
           },
         });
       }
+      const releaseId = release.id;
       release = mutateOnceThenRead({
         label: `Publish Nightly prerelease ${request.tag}`,
-        mutate: () => remote.publishRelease(release!.id, releaseName, input.notes),
-        inspect: () => remote.inspectRelease(request.tag),
+        mutate: () => remote.publishRelease(releaseId, releaseName, input.notes),
+        inspect: () => remote.inspectRelease(request.tag, releaseId),
         matches: (value) => Boolean(value && !value.draft && value.prerelease),
       });
       assertReleaseIdentity(release, request, releaseName, input.notes);
@@ -443,7 +475,7 @@ export function publishNightlyRelease(input: {
       let candidate: NightlyRemoteRelease | null = null;
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
-          const observed = remote.inspectRelease(request.tag);
+          const observed = remote.inspectRelease(request.tag, createdReleaseId ?? undefined);
           if (!observed) continue;
           if (
             invocationDraftIsSafeToDelete(
@@ -467,10 +499,10 @@ export function publishNightlyRelease(input: {
           mutateOnceThenRead({
             label: `Delete failed Nightly draft ${request.tag}`,
             mutate: () => remote.deleteDraft(candidate.id),
-            inspect: () => remote.inspectRelease(request.tag),
+            inspect: () => remote.inspectRelease(request.tag, candidate.id),
             matches: (value) => value === null,
           });
-          if (remote.inspectRelease(request.tag) !== null) {
+          if (remote.inspectRelease(request.tag, candidate.id) !== null) {
             throw new Error(`Deleted Nightly draft ${request.tag} reappeared after cleanup.`);
           }
         } catch (cleanupError) {
