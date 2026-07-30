@@ -150,7 +150,9 @@ class FakeRemote implements NightlyRemote {
   visibilityMissesAfterCreate = 0;
   visibilityMissesAfterUpload = 0;
   createThrows = false;
+  createReturnsNull = false;
   deleteThrows = false;
+  reconcileWaitAttempts: number[] = [];
   private releaseVisibilityMisses = 0;
 
   inspectRelease(_tag?: string, releaseId?: number): NightlyRemoteRelease | null {
@@ -168,12 +170,16 @@ class FakeRemote implements NightlyRemote {
     return this.latest;
   }
 
+  waitForReconcileVisibility(attempt: number): void {
+    this.reconcileWaitAttempts.push(attempt);
+  }
+
   createDraft(input: {
     tag: string;
     targetCommitish: string;
     name: string;
     body: string;
-  }): NightlyRemoteRelease {
+  }): NightlyRemoteRelease | null {
     this.calls.push('create');
     this.release = {
       id: 101,
@@ -188,6 +194,7 @@ class FakeRemote implements NightlyRemote {
     };
     this.releaseVisibilityMisses = this.visibilityMissesAfterCreate;
     if (this.createThrows) throw new Error('simulated create timeout');
+    if (this.createReturnsNull) return null;
     return structuredClone(this.release);
   }
 
@@ -434,6 +441,27 @@ test('Nightly publisher reconciles an unknown create result without retrying the
   assert.equal(receipt.status, 'published');
   assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+  assert.deepEqual(remote.reconcileWaitAttempts.slice(0, 2), [1, 2]);
+});
+
+test('Nightly publisher reconciles an empty acknowledged create response without retrying the draft mutation', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createReturnsNull = true;
+  remote.visibilityMissesAfterCreate = 1;
+
+  const receipt = publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+
+  assert.equal(receipt.status, 'published');
+  assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+  assert.deepEqual(remote.reconcileWaitAttempts.slice(0, 2), [1, 2]);
 });
 
 test('Nightly publisher uses the acknowledged draft response while tag discovery remains stale', (t) => {
@@ -455,7 +483,7 @@ test('Nightly publisher uses the acknowledged draft response while tag discovery
   assert.equal(remote.release?.draft, false);
 });
 
-test('Nightly publisher preserves a draft when creation returned an unknown result', (t) => {
+test('Nightly publisher safely deletes its exact draft when creation visibility exceeds the bounded reconcile window', (t) => {
   const input = fixture(t);
   const remote = new FakeRemote();
   remote.createThrows = true;
@@ -474,8 +502,9 @@ test('Nightly publisher preserves a draft when creation returned an unknown resu
   );
 
   assert.equal(remote.calls.filter((call) => call === 'create').length, 1);
-  assert.equal(remote.calls.includes('delete-draft'), false);
-  assert.notEqual(remote.release, null);
+  assert.equal(remote.calls.filter((call) => call === 'delete-draft').length, 1);
+  assert.deepEqual(remote.reconcileWaitAttempts.slice(0, 3), [1, 2, 3]);
+  assert.equal(remote.release, null);
 });
 
 test('Nightly publisher deletes its acknowledged draft when asset upload readback fails', (t) => {
@@ -626,6 +655,42 @@ test('GitHub Nightly remote returns the created draft and reads it back by exact
   assert.deepEqual(remote.inspectRelease(frozen.tag, draft.id), draft);
   assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
   assert.deepEqual(calls.at(-1), ['api', 'repos/gaofeng21cn/one-person-lab-app/releases/101']);
+});
+
+test('GitHub Nightly remote returns null for a successful empty create response', () => {
+  const frozen = request();
+  const draft: NightlyRemoteRelease = {
+    id: 101,
+    tag_name: frozen.tag,
+    target_commitish: frozen.source.app_sha,
+    name: `One Person Lab ${frozen.tag}`,
+    body: 'Automated Standard preview.\n',
+    draft: true,
+    prerelease: true,
+    html_url: `https://example.invalid/${frozen.tag}`,
+    assets: [],
+  };
+  const calls: string[][] = [];
+  const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
+    calls.push(args);
+    if (args.includes('POST')) return '';
+    if (args[1] === `repos/gaofeng21cn/one-person-lab-app/releases/tags/${frozen.tag}`) {
+      return JSON.stringify(draft);
+    }
+    throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+  });
+
+  assert.equal(remote.createDraft({
+    tag: frozen.tag,
+    targetCommitish: frozen.source.app_sha,
+    name: draft.name,
+    body: draft.body,
+  }), null);
+  assert.deepEqual(remote.inspectRelease(frozen.tag), draft);
+  assert.equal(
+    calls.filter((args) => args.includes('POST') && args.some((arg) => arg.includes('/releases'))).length,
+    1,
+  );
 });
 
 test('GitHub Nightly remote deletes only an exact positive release id', () => {
