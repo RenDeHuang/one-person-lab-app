@@ -50,7 +50,7 @@ usage() {
   cat <<'USAGE'
 Usage:
   install.sh [OPL install args...]
-  install.sh [--runtime-form auto|desktop|webui|container-webui|headless]
+  install.sh [--runtime-form auto|desktop|webui|container-webui|headless] [--standard|--full]
   install.sh [--server|--isolated|--headless]
   install.sh --stable-macos-install [--full|--standard] [--release-tag vX.Y.Z] [--yes]
   install.sh --authorize-local-app-only [--app-path "/Applications/One Person Lab.app"] [--yes]
@@ -69,8 +69,9 @@ Options:
   --headless                Install OPL Base only, without an App runtime form.
   --print-install-route     Resolve and print the selected route without installing.
   --stable-macos-install     Download, copy, locally authorize, and open the App release.
-  --full                     Require the Full first-install DMG for --stable-macos-install.
-  --standard                 Require the standard App DMG for --stable-macos-install.
+  --full                     Require the Full Desktop density. macOS selects the exact Full DMG;
+                             Linux fails closed because no Linux Full carrier is published.
+  --standard                 Require the Standard Desktop density for the selected platform.
   --release-tag <tag>        GitHub Release tag for --stable-macos-install. Defaults to latest.
   --dmg-url <url>            Download a specific DMG URL for --stable-macos-install.
   --dmg-path <path>          Install from a local DMG path for --stable-macos-install.
@@ -397,6 +398,40 @@ resolve_install_route() {
       esac
       ;;
   esac
+}
+
+validate_install_density_for_route() {
+  local selected_route="$1"
+  case "$selected_route" in
+    linux-desktop|linux-desktop-webui)
+      if [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "1" ] \
+        && [ "$STABLE_MACOS_PACKAGE_PROFILE" = "full" ]; then
+        printf 'Full Desktop density is not published for Linux x86_64; use --standard or select a published macOS Full carrier.\n' >&2
+        return 1
+      fi
+      ;;
+  esac
+}
+
+print_resolved_install_route() {
+  local selected_route="$1"
+  case "$selected_route" in
+    desktop|desktop-webui|linux-desktop|linux-desktop-webui)
+      if [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "1" ]; then
+        printf '%s-%s\n' "$selected_route" "$STABLE_MACOS_PACKAGE_PROFILE"
+        return
+      fi
+      ;;
+  esac
+  printf '%s\n' "$selected_route"
+}
+
+desktop_release_asset_selection_requested() {
+  [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = "1" ] \
+    || [ -n "$OPL_FROZEN_RELEASE_TAG" ] \
+    || [ -n "$STABLE_MACOS_RELEASE_TAG" ] \
+    || [ -n "$STABLE_MACOS_DMG_URL" ] \
+    || [ -n "$STABLE_MACOS_DMG_PATH" ]
 }
 
 install_desktop_bootstrap() {
@@ -1315,14 +1350,19 @@ fi
 
 trap cleanup_installer EXIT
 SELECTED_INSTALL_ROUTE=$(resolve_install_route) || exit 1
+validate_install_density_for_route "$SELECTED_INSTALL_ROUTE" || exit 1
 if [ "$PRINT_INSTALL_ROUTE" = "1" ]; then
-  printf '%s\n' "$SELECTED_INSTALL_ROUTE"
+  print_resolved_install_route "$SELECTED_INSTALL_ROUTE"
   exit 0
 fi
 
 case "$SELECTED_INSTALL_ROUTE" in
   desktop)
-    install_desktop_bootstrap
+    if desktop_release_asset_selection_requested; then
+      stable_macos_install
+    else
+      install_desktop_bootstrap
+    fi
     ;;
   desktop-webui)
     STABLE_MACOS_WEBUI_MODE=1
