@@ -221,14 +221,14 @@ becoming separate updaters:
 | --- | --- |
 | OPL Base | The Framework-owned headless prerequisite. Runtime substrate, the isolated embedded Codex CLI, Temporal, native helpers, and companion-tool integration are dependency or integration details under Base. Homebrew Formula `opl` and the Framework installer are carrier adapters for this same object. |
 | OPL App | The GUI and control plane. The standard updater, Homebrew Cask, and signed installer update only the App carrier; they do not mutate Base or Packages. |
-| OPL Packages | Framework-managed Agent, capability, and workflow packages, including MAS/MAG/RCA/OMA/OBF, MAS Scholar Skills, and OPL Flow. Codex Surface readiness and workflow-profile migration are package transaction substatus, not separate software objects or update channels. |
+| OPL Packages | Agent, capability, and workflow packages, including MAS/MAG/RCA/OMA/OBF, MAS Scholar Skills, and OPL Flow. Each owner defines identity and publication; the configured native carrier owns physical lifecycle and installed readback; Framework aggregates installed/callable status and generic actions. Codex Surface readiness and workflow-profile migration remain nested details, not separate software objects or update channels. |
 
-Install sources provide bytes only. Framework `check -> plan -> apply` owns Base
-and Packages reconciliation, terminal readback, and apply receipts, while the App projects five user
-states: current, updating in background, restart to finish, refresh Codex
-recommended, or attention required. Packages normally activate after their
-receipt; staged Base runtime and App carrier changes switch on App restart and
-retain rollback evidence.
+Install sources provide bytes only. Framework owns Base reconciliation and
+aggregates Package state/actions from configured native carriers, while the App
+projects five user states: current, updating in background, restart to finish,
+refresh Codex recommended, or attention required. Package actions complete only
+after carrier-native readback; staged Base runtime and App carrier changes switch
+on App restart and retain their owner-defined rollback evidence.
 
 User Data / Artifacts is a separate storage, retention, and cleanup boundary. It
 is not installable software and never becomes a fourth updater object.
@@ -270,7 +270,7 @@ One Person Lab App owns the desktop product experience: packaging, releases, upd
 Public role map:
 
 - App is the ordinary-user product entry and GUI product truth. It owns product navigation, page-state expectations, user documentation, screenshots, and the agent package-management UI that makes OPL usable without knowing the underlying repositories.
-- Agent package management is an App product surface, but Framework/root owns package locks, lifecycle receipts, validation, rollback refs, and package truth. The App requests and displays those facts; shell-local state cannot become install authority.
+- Agent package management is an App product surface. Each Package owner defines identity and publication, the configured native carrier owns physical lifecycle and installed readback, and Framework/root aggregates installed/callable status plus generic actions. The App renders that dynamic projection; shell-local state cannot become install authority.
 - One Person Lab Framework/root owns runtime state, action execution, package/runtime projections, provider/domain projections, and domain routes behind the App views.
 - AionUI is the mainline shell implementation carrier. Native Workbench is the developer backup candidate. Both consume App/root canonical state and do not own product, runtime, package, or domain truth.
 

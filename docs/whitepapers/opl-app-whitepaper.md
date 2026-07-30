@@ -59,7 +59,7 @@ OPL App 把工作表达为一条可以复查的链：
 
 这条原则让用户既能判断最终文件是否可信，也能在首屏聚焦真正要做的事；完整内部证据则按需展开。
 
-OPL App 负责把已有事实翻译成用户能采取行动的状态，并沿用各 owner 持有的唯一事实。运行状态来自 OPL Base，Package 状态来自 Framework 管理的 Package 记录，研究、基金、视觉和书稿质量来自对应专业 Agent 与人工 owner。界面说明“发生了什么”和“下一步是什么”，ready 结论仍由对应 owner 给出。
+OPL App 负责把已有事实翻译成用户能采取行动的状态，并沿用各 owner 持有的唯一事实。运行状态来自 OPL Base；Package identity 与 publication 来自对应 owner，物理 lifecycle 与 installed readback 来自配置的平台原生 carrier，Framework 只聚合完整 Package 的 installed/callable 状态与通用 actions；研究、基金、视觉和书稿质量来自对应专业 Agent 与人工 owner。界面说明“发生了什么”和“下一步是什么”，ready 结论仍由对应 owner 给出。
 
 ## 设计三：状态必须指向行动
 
