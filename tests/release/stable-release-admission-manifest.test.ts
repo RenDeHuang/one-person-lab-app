@@ -9,7 +9,6 @@ import {
   buildStableReleaseAdmissionManifest,
   canonicalJson,
   firstDifference,
-  assertGitHubReleaseNamespaceAccess,
   parseActiveReleaseRunLookups,
   parseGitHubReleaseNamespacePages,
   parseGitHubJsonLookup,
@@ -17,6 +16,7 @@ import {
   type StableAdmissionInput,
   type StableAdmissionObservation,
 } from '../../scripts/stable-release-admission-manifest.ts';
+import { createGithubOwnerReleaseNamespaceEvidence } from '../../scripts/validate-release-source-gate.ts';
 import * as stableOperationControlSource from '../../scripts/stable-operation-control.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
@@ -124,20 +124,59 @@ function receipt() {
   };
 }
 
+function ownerReleaseNamespace(checkedAt: string) {
+  return createGithubOwnerReleaseNamespaceEvidence({
+    repository: 'gaofeng21cn/one-person-lab-app',
+    checkedAt,
+    authenticatedUser: { login: 'gaofeng21cn' },
+    repositoryObservation: {
+      full_name: 'gaofeng21cn/one-person-lab-app',
+      owner: { login: 'gaofeng21cn' },
+      permissions: { push: true },
+    },
+    releasePages: [[
+      {
+        id: 362629121,
+        tag_name: 'v26.7.31',
+        target_commitish: '3032898363e843cd6773c82e2e77b4f41b00afd2',
+        draft: true,
+        prerelease: false,
+        assets: [],
+      },
+      {
+        id: 360830749,
+        tag_name: 'v26.7.28-r3',
+        target_commitish: 'd105adc1b5b01a387d7ea0c69bcfb3590a525364',
+        draft: false,
+        prerelease: false,
+        assets: [{
+          id: 1,
+          name: 'One-Person-Lab.dmg',
+          size: 1024,
+          digest: `sha256:${'a'.repeat(64)}`,
+          browser_download_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.28-r3/One-Person-Lab.dmg',
+        }],
+      },
+    ]],
+  });
+}
+
 function sourceGate(overrides: Record<string, unknown> = {}) {
+  const generatedAt = String(overrides.generated_at ?? '2026-07-28T00:10:00.000Z');
   return {
     schema: 'opl_app_release_source_gate.v1',
-    generated_at: '2026-07-28T00:10:00.000Z',
+    generated_at: generatedAt,
     status: 'passed',
     typed_blocker: null,
     operation_fingerprint: 'fix-all-five-stable-control-gaps-20260728',
     observed_main_sha: appRef,
     immutable_release_capability: stableOperationControlSource.createGithubImmutableReleaseCapabilityEvidence({
       repository: 'gaofeng21cn/one-person-lab-app',
-      checkedAt: String(overrides.generated_at ?? '2026-07-28T00:10:00.000Z'),
+      checkedAt: generatedAt,
       enabled: true,
       enforcedByOwner: false,
     }),
+    owner_release_namespace: ownerReleaseNamespace(generatedAt),
     admission: {
       status: 'passed',
       immutable_cohort: {
@@ -252,28 +291,16 @@ test('single Stable admission manifest allocates the first unused cross-namespac
   assert.equal(canonicalJson(manifest), canonicalJson(JSON.parse(JSON.stringify(manifest))));
 });
 
-test('owner-visible draft reserves revision zero even when tag endpoints and refs are absent', () => {
-  const releases = parseGitHubReleaseNamespacePages([[
-    {
-      id: 362629121,
-      tag_name: 'v26.7.31',
-      target_commitish: '3032898363e843cd6773c82e2e77b4f41b00afd2',
-      draft: true,
-      prerelease: false,
-    },
-    {
-      id: 360830749,
-      tag_name: 'v26.7.28-r3',
-      target_commitish: 'd105adc1b5b01a387d7ea0c69bcfb3590a525364',
-      draft: false,
-      prerelease: false,
-    },
-  ]]);
+test('owner source-gate draft reserves revision zero when hosted releases and refs cannot see it', () => {
   const manifest = buildStableReleaseAdmissionManifest(
     { ...input(), baseVersion: '26.7.31' },
     observation({
       currentDate: '2026-07-31',
-      publishedReleases: releases,
+      publishedReleases: [{
+        tag_name: 'v26.7.28-r3',
+        draft: false,
+        prerelease: false,
+      }],
       tagRefs: [],
       webuiTags: ['latest', 'stable', '26.7.28-r3'],
     }),
@@ -281,35 +308,34 @@ test('owner-visible draft reserves revision zero even when tag endpoints and ref
   assert.equal(manifest.version.display, '26.7.31-r1');
   assert.equal(manifest.version.revision, 1);
   assert.equal(manifest.version.tag, 'v26.7.31-r1');
-  assert.deepEqual(manifest.namespace.github_release_tags, ['26.7.31']);
+  assert.deepEqual(manifest.namespace.github_release_tags, []);
+  assert.deepEqual(manifest.namespace.owner_draft_release_tags, ['26.7.31']);
   assert.deepEqual(manifest.namespace.github_tag_refs, []);
   assert.equal(manifest.allocator.highest_published_stable, 'v26.7.28-r3');
+  assert.equal(manifest.source_gate.owner_draft_reservation_count, 1);
+  assert.match(manifest.source_gate.owner_release_namespace_evidence_digest, /^sha256:[0-9a-f]{64}$/);
   assert.equal(manifest.namespace.target_release_absent, true);
 });
 
-test('Stable admission requires a push-authorized draft-visible release namespace credential', () => {
-  assert.doesNotThrow(() => assertGitHubReleaseNamespaceAccess({
-    permissions: { pull: true, push: true },
-  }));
+test('Stable admission fails closed when owner draft evidence is absent or tampered', () => {
+  const missing = sourceGate();
+  delete missing.owner_release_namespace;
   assert.throws(
-    () => assertGitHubReleaseNamespaceAccess({
-      permissions: { pull: true, push: false },
-    }),
-    /credential lacks required push permission/,
+    () => buildStableReleaseAdmissionManifest(input(), observation({
+      sourceGate: missing,
+      sourceGateBytes: Buffer.from(`${JSON.stringify(missing)}\n`),
+    })),
+    /owner release namespace evidence/,
   );
-  const failure = buildStableAdmissionFailureReceipt({
-    input: input(),
-    phase: 'collect_observation',
-    error: new Error(
-      'GitHub release namespace credential lacks required push permission to observe draft Releases.',
-    ),
-  });
-  assert.equal(failure.failure.class, 'credential');
-  assert.equal(failure.failure.code, 'credential_failure');
-  const workflow = fs.readFileSync(path.join(appRoot, '.github/workflows/release-stable.yml'), 'utf8');
-  assert.match(
-    workflow,
-    /stable-admission-manifest:[\s\S]*?permissions:\n\s+contents: read\n\s+actions: read[\s\S]*?GH_TOKEN: \$\{\{ secrets\.OPL_HOMEBREW_TAP_TOKEN \}\}/,
+
+  const tampered = sourceGate();
+  tampered.owner_release_namespace.draft_reservations[0].target = 'f'.repeat(40);
+  assert.throws(
+    () => buildStableReleaseAdmissionManifest(input(), observation({
+      sourceGate: tampered,
+      sourceGateBytes: Buffer.from(`${JSON.stringify(tampered)}\n`),
+    })),
+    /exact digest-bound proof/,
   );
 });
 
