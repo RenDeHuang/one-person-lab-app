@@ -689,8 +689,13 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     publication?.nightly?.mutation_available !== true ||
     publication?.nightly?.historical_readback_allowed !== true ||
     publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
-    publication?.nightly?.trigger !== 'schedule_or_owner_workflow_dispatch' ||
-    publication?.nightly?.owner_dispatch_confirmation !== 'publish_nonlatest_nightly' ||
+    publication?.nightly?.default_trigger !== 'daily_schedule' ||
+    JSON.stringify(publication?.nightly?.development_validation_trigger) !== JSON.stringify({
+      event: 'workflow_dispatch',
+      authority: 'user_explicit',
+      confirmation: 'publish_nonlatest_nightly',
+      execution_path: 'same_as_scheduled_nightly',
+    }) ||
     publication?.nightly?.scheduled_latest_allowed !== false ||
     publication?.nightly?.explicit_user_override_may_move_latest !== true ||
     publication?.nightly?.include_full !== false ||
@@ -701,7 +706,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
-    throw new Error('Nightly invocations must stay Standard-only, non-Latest by default, and isolated from Stable authority');
+    throw new Error('Nightly must default to the daily schedule and keep user-explicit development validation on the same Standard-only non-Latest path');
   }
   assertDeepEqualJson(
     publication?.stable?.latest_admission,

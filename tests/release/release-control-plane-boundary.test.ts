@@ -350,7 +350,7 @@ test('Nightly cannot reuse the Stable Bundle, heavy VM, or Stable mutation mutex
   assert.ok(withoutExpectedDiagnostics(() => validateNightlyReleaseTopology(root)) >= 3);
 });
 
-test('Nightly keeps one schedule and moves Homebrew and VM work out of band', (t) => {
+test('Nightly keeps one production schedule, one development-validation trigger, and out-of-band followers', (t) => {
   const root = fixture(t);
   updateWorkflow(root, 'release-nightly.yml', (workflow) => {
     delete workflow.on.workflow_dispatch.inputs.operator_confirmation;
@@ -359,7 +359,7 @@ test('Nightly keeps one schedule and moves Homebrew and VM work out of band', (t
 
   updateWorkflow(root, 'release-nightly.yml', (workflow) => {
     workflow.on.workflow_dispatch.inputs.operator_confirmation = {
-      description: 'Type publish_nonlatest_nightly to run the protected Nightly publisher now',
+      description: 'Type publish_nonlatest_nightly for user-explicit development validation',
       required: true,
       type: 'string',
     };

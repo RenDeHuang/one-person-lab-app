@@ -35,6 +35,7 @@ export type NightlyQualificationReceipt = {
   preview_kind: 'nightly';
   cohort: NightlyReleaseRequest['source'];
   actions: NightlyReleaseRequest['actions'];
+  invocation: NightlyReleaseRequest['invocation'];
   package_kind: 'app_standard';
   include_full: false;
   stable_qualified: false;
@@ -217,6 +218,7 @@ export function qualifyNightlyRelease(input: {
     preview_kind: 'nightly',
     cohort: request.source,
     actions: request.actions,
+    invocation: request.invocation,
     package_kind: 'app_standard',
     include_full: false,
     stable_qualified: false,

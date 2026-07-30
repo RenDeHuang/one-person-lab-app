@@ -40,6 +40,25 @@ function request(): NightlyReleaseRequest {
     frameworkRef: frameworkSha,
     actionsRunId: '424242',
     actionsRunAttempt: '1',
+    invocationMode: 'scheduled_production',
+    event: 'schedule',
+    authoritySource: 'daily_schedule',
+  });
+}
+
+function developmentValidationRequest(): NightlyReleaseRequest {
+  return resolveNightlyReleaseRequest({
+    baseVersion: '26.7.26-nightly',
+    existingRefs: ['refs/tags/v26.7.26-nightly', 'v26.7.26-nightly.r1'],
+    appRef: appSha,
+    shellRef: shellSha,
+    frameworkRef: frameworkSha,
+    actionsRunId: '424243',
+    actionsRunAttempt: '1',
+    invocationMode: 'development_validation',
+    event: 'workflow_dispatch',
+    authoritySource: 'user_explicit',
+    operatorConfirmation: 'publish_nonlatest_nightly',
   });
 }
 
@@ -204,6 +223,13 @@ test('Nightly request freezes exact Standard refs, revision, and non-Stable publ
   assert.equal(frozen.quality_status, 'preview');
   assert.equal(frozen.build_trigger, 'automated');
   assert.equal(frozen.preview_kind, 'nightly');
+  assert.deepEqual(frozen.invocation, {
+    mode: 'scheduled_production',
+    event: 'schedule',
+    authority_source: 'daily_schedule',
+    confirmation: null,
+    execution_path: 'scheduled_nightly',
+  });
   assert.equal(frozen.publication.make_latest, false);
   assert.equal(frozen.publication.include_full, false);
   assert.equal(frozen.publication.full_allowed, false);
@@ -217,7 +243,34 @@ test('Nightly request freezes exact Standard refs, revision, and non-Stable publ
     frameworkRef: frameworkSha,
     actionsRunId: '424242',
     actionsRunAttempt: '2',
+    invocationMode: 'scheduled_production',
+    event: 'schedule',
+    authoritySource: 'daily_schedule',
   }), /attempt 1/);
+});
+
+test('Nightly request distinguishes user-explicit development validation from scheduled production', () => {
+  const frozen = developmentValidationRequest();
+  assert.deepEqual(frozen.invocation, {
+    mode: 'development_validation',
+    event: 'workflow_dispatch',
+    authority_source: 'user_explicit',
+    confirmation: 'publish_nonlatest_nightly',
+    execution_path: 'same_as_scheduled_nightly',
+  });
+  assert.throws(() => resolveNightlyReleaseRequest({
+    baseVersion: '26.7.26-nightly',
+    existingRefs: [],
+    appRef: appSha,
+    shellRef: shellSha,
+    frameworkRef: frameworkSha,
+    actionsRunId: '424243',
+    actionsRunAttempt: '1',
+    invocationMode: 'development_validation',
+    event: 'schedule',
+    authoritySource: 'user_explicit',
+    operatorConfirmation: 'publish_nonlatest_nightly',
+  }), /invocation identity/);
 });
 
 test('Nightly request rejects digest-valid policy widening', () => {
@@ -238,6 +291,7 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
   assert.equal(input.qualification.quality_status, 'preview');
   assert.equal(input.qualification.build_trigger, 'automated');
   assert.equal(input.qualification.preview_kind, 'nightly');
+  assert.deepEqual(input.qualification.invocation, input.request.invocation);
   assert.deepEqual(input.qualification.qualification_disclosure, {
     stable_qualified: false,
     passed_gates: [],
@@ -297,6 +351,8 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(first.github_release.make_latest, false);
   assert.equal(first.github_release.latest_before, 'v26.7.25');
   assert.equal(first.github_release.latest_after, 'v26.7.25');
+  assert.deepEqual(first.invocation, input.request.invocation);
+  assert.deepEqual(first.actions, input.request.actions);
   assert.equal(
     remote.calls.filter((call) => call.startsWith('upload:')).length,
     input.qualification.assets.length,
@@ -634,6 +690,18 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
   assert.deepEqual(Object.keys(release.on.workflow_dispatch.inputs), ['operator_confirmation']);
   assert.equal(release.on.workflow_dispatch.inputs.operator_confirmation.required, true);
   assert.equal(release.on.workflow_dispatch.inputs.operator_confirmation.type, 'string');
+  assert.match(release['run-name'], /scheduled-production/);
+  assert.match(release['run-name'], /development-validation/);
+  const admissionRun = String(
+    release.jobs.admission.steps.find((step: any) => step.id === 'request')?.run ?? '',
+  );
+  assert.match(admissionRun, /invocation_mode=scheduled_production/);
+  assert.match(admissionRun, /invocation_mode=development_validation/);
+  assert.match(admissionRun, /authority_source=daily_schedule/);
+  assert.match(admissionRun, /authority_source=user_explicit/);
+  assert.match(admissionRun, /--invocation-mode "\$invocation_mode"/);
+  assert.match(admissionRun, /--event "\$GITHUB_EVENT_NAME"/);
+  assert.match(admissionRun, /--authority-source "\$authority_source"/);
   assert.equal(release.jobs['standard-build'].uses, './.github/workflows/_build-reusable.yml');
   assert.equal(release.jobs['standard-build'].with.require_macos_gatekeeper, false);
   assert.equal(release.jobs['standard-build'].with.release_validation_profile, 'stable');
@@ -675,10 +743,27 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
     String(homebrew.jobs['publish-nightly-cask'].steps.find((step: any) => step.id === 'authority')?.run ?? ''),
     /\.event == "schedule" or \.event == "workflow_dispatch"/,
   );
+  const homebrewPublish = String(
+    homebrew.jobs['publish-nightly-cask'].steps.find(
+      (step: any) => step.name === 'Publish one digest-bound Nightly Cask commit',
+    )?.run ?? '',
+  );
+  assert.match(homebrewPublish, /\.actions\.run_id == \$run/);
+  assert.match(homebrewPublish, /\.invocation\.event == \$event/);
+  assert.match(homebrewPublish, /mode: "scheduled_production"/);
+  assert.match(homebrewPublish, /mode: "development_validation"/);
+  assert.match(homebrewPublish, /\.cohort\.app_sha == \$head/);
   assert.match(
     String(sampledVm.jobs['resolve-sample'].steps.find((step: any) => step.id === 'receipt')?.run ?? ''),
     /\.event == "schedule" or \.event == "workflow_dispatch"/,
   );
+  const sampledReceipt = String(
+    sampledVm.jobs['resolve-sample'].steps.find((step: any) => step.id === 'receipt')?.run ?? '',
+  );
+  assert.match(sampledReceipt, /\.actions\.run_id == \$run/);
+  assert.match(sampledReceipt, /\.invocation\.event == \$event/);
+  assert.match(sampledReceipt, /authority_source: "user_explicit"/);
+  assert.match(sampledReceipt, /\.cohort\.app_sha == \$head/);
   assert.equal(sampledVm.jobs['sampled-standard-vm'].uses, './.github/workflows/opl-first-run-vm.yml');
   assert.equal(sampledVm.jobs['sampled-standard-vm'].with.require_macos_gatekeeper, false);
   assert.equal(validateNightlyReleaseTopology(process.cwd()), 0);

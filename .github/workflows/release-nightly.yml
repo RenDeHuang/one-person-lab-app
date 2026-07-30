@@ -1,5 +1,5 @@
 name: OPL Standard Nightly Release
-run-name: OPL Standard Nightly
+run-name: OPL Standard Nightly (${{ github.event_name == 'schedule' && 'scheduled-production' || 'development-validation' }})
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       operator_confirmation:
-        description: Type publish_nonlatest_nightly to run the protected Nightly publisher now
+        description: Type publish_nonlatest_nightly for user-explicit development validation
         required: true
         type: string
 
@@ -38,6 +38,9 @@ jobs:
       shell_ref: ${{ steps.request.outputs.shell_ref }}
       framework_ref: ${{ steps.request.outputs.framework_ref }}
       request_digest: ${{ steps.request.outputs.request_digest }}
+      invocation_mode: ${{ steps.request.outputs.invocation_mode }}
+      invocation_event: ${{ steps.request.outputs.invocation_event }}
+      authority_source: ${{ steps.request.outputs.authority_source }}
       matrix: ${{ steps.platforms.outputs.matrix }}
     steps:
       - name: Checkout canonical App source
@@ -51,7 +54,7 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - name: Freeze one automatic Standard preview request
+      - name: Freeze one exact Standard Nightly request
         id: request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -66,15 +69,19 @@ jobs:
           case "$GITHUB_EVENT_NAME" in
             schedule)
               test -z "$OPERATOR_CONFIRMATION"
+              invocation_mode=scheduled_production
+              authority_source=daily_schedule
               ;;
             workflow_dispatch)
               test "$OPERATOR_CONFIRMATION" = publish_nonlatest_nightly || {
-                echo "::error::Owner-invoked Nightly requires the exact non-Latest confirmation."
+                echo "::error::Development-validation Nightly requires the exact non-Latest confirmation."
                 exit 1
               }
+              invocation_mode=development_validation
+              authority_source=user_explicit
               ;;
             *)
-              echo "::error::Nightly requires schedule or owner workflow_dispatch."
+              echo "::error::Nightly requires the daily schedule or user-explicit development validation."
               exit 1
               ;;
           esac
@@ -104,6 +111,10 @@ jobs:
             --framework-ref "$framework_ref" \
             --actions-run-id "$GITHUB_RUN_ID" \
             --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --invocation-mode "$invocation_mode" \
+            --event "$GITHUB_EVENT_NAME" \
+            --authority-source "$authority_source" \
+            --operator-confirmation "$OPERATOR_CONFIRMATION" \
             --output opl-nightly-request.json \
             --github-output "$GITHUB_OUTPUT"
 
@@ -229,11 +240,19 @@ jobs:
       - name: Write deterministic Nightly notes
         shell: bash
         run: |
-          cat > nightly-notes.md <<'NOTES'
-          Automated Standard preview.
-
-          This prerelease is built from exact App, Shell, and Framework commits with the same physical Standard build pipeline used by Stable. It is not Stable-qualified, does not include Full or WebUI, does not change GitHub Latest, and does not require the Stable heavy VM gate. A sampled clean-VM follower may run independently after publication.
-          NOTES
+          set -euo pipefail
+          invocation_mode="$(jq -er .invocation.mode nightly-request/opl-nightly-request.json)"
+          if [ "$invocation_mode" = scheduled_production ]; then
+            invocation_disclosure="Scheduled production Nightly."
+          else
+            test "$invocation_mode" = development_validation
+            invocation_disclosure="User-explicit development validation of the Nightly publication path."
+          fi
+          {
+            echo "$invocation_disclosure"
+            echo
+            echo "This Standard Preview prerelease is built from exact App, Shell, and Framework commits with the same physical Standard build pipeline used by Stable. It is not Stable-qualified, does not include Full or WebUI, does not change GitHub Latest, and does not require the Stable heavy VM gate. A sampled clean-VM follower may run independently after publication."
+          } > nightly-notes.md
 
       - name: Publish one immutable non-Latest prerelease
         env:
@@ -251,6 +270,12 @@ jobs:
           test "$(jq -r .github_release.prerelease nightly-publication.json)" = true
           test "$(jq -r .github_release.make_latest nightly-publication.json)" = false
           test "$(jq -r .include_full nightly-publication.json)" = false
+          test "$(jq -r .invocation.mode nightly-publication.json)" = \
+            '${{ needs.admission.outputs.invocation_mode }}'
+          test "$(jq -r .invocation.event nightly-publication.json)" = \
+            '${{ needs.admission.outputs.invocation_event }}'
+          test "$(jq -r .invocation.authority_source nightly-publication.json)" = \
+            '${{ needs.admission.outputs.authority_source }}'
           test "$(jq -r .github_release.latest_before nightly-publication.json)" = \
             "$(jq -r .github_release.latest_after nightly-publication.json)"
 

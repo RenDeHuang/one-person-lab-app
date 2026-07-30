@@ -1528,8 +1528,13 @@
         "mutation_available": true,
         "historical_readback_allowed": true,
         "workflow": ".github/workflows/release-nightly.yml",
-        "trigger": "schedule_or_owner_workflow_dispatch",
-        "owner_dispatch_confirmation": "publish_nonlatest_nightly",
+        "default_trigger": "daily_schedule",
+        "development_validation_trigger": {
+          "event": "workflow_dispatch",
+          "authority": "user_explicit",
+          "confirmation": "publish_nonlatest_nightly",
+          "execution_path": "same_as_scheduled_nightly"
+        },
         "scheduled_latest_allowed": false,
         "explicit_user_override_may_move_latest": true,
         "component_manifest_required": true,
@@ -2360,8 +2365,13 @@
     "workflow": ".github/workflows/release-nightly.yml",
     "homebrew_follower": ".github/workflows/release-nightly-homebrew-follower.yml",
     "sampled_vm_follower": ".github/workflows/release-nightly-sampled-vm.yml",
-    "trigger": "daily_schedule_or_owner_workflow_dispatch",
-    "owner_dispatch_confirmation": "publish_nonlatest_nightly",
+    "default_trigger": "daily_schedule",
+    "development_validation_trigger": {
+      "event": "workflow_dispatch",
+      "authority": "user_explicit",
+      "confirmation": "publish_nonlatest_nightly",
+      "execution_path": "same_as_scheduled_nightly"
+    },
     "prerelease": true,
     "include_full": false,
     "full_first_install_allowed": false,
@@ -2392,7 +2402,7 @@
       "latest-arm64-mac.yml",
       "opl-app-component-manifest.json"
     ],
-    "rule": "Nightly builds the Standard desktop Preview through either the daily schedule or an explicitly confirmed owner workflow_dispatch. Both triggers use the same physical build workflow, immutable GitHub prerelease publisher, concurrency group, and post-publication followers. Neither trigger publishes Full or WebUI or changes Latest. A separate explicit protected single-use exact-CAS operation may move Latest to the published Nightly without changing Preview quality; the next qualified Stable reclaims by default."
+    "rule": "Nightly production defaults to the daily schedule. A user-explicit development_validation may invoke workflow_dispatch with the exact publish_nonlatest_nightly confirmation and must execute the same scheduled Nightly path. The frozen request, qualification, publication receipt, and followers bind the invocation mode, event, authority source, exact run, and cohort. Neither mode publishes Full or WebUI or changes Latest. A separate explicit protected single-use exact-CAS operation may move Latest to the published Nightly without changing Preview quality; the next qualified Stable reclaims by default."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",

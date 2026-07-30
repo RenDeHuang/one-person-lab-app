@@ -166,7 +166,7 @@ test("local and GitHub executors consume one exact build-once Bundle", () => {
   assert.equal(control.prepared_notes.template_fallback_may_publish, false);
 });
 
-test("qualified Stable defaults Latest while scheduled Nightly needs a separate exact override", () => {
+test("qualified Stable defaults Latest while daily-default Nightly keeps development validation identity-distinct", () => {
   assert.equal(
     control.publication.stable.only_manual_dispatch_workflow,
     ".github/workflows/release-stable.yml",
@@ -197,8 +197,13 @@ test("qualified Stable defaults Latest while scheduled Nightly needs a separate 
   assert.equal(control.publication.nightly.mutation_available, true);
   assert.equal(control.publication.nightly.historical_readback_allowed, true);
   assert.equal(control.publication.nightly.workflow, ".github/workflows/release-nightly.yml");
-  assert.equal(control.publication.nightly.trigger, "schedule_or_owner_workflow_dispatch");
-  assert.equal(control.publication.nightly.owner_dispatch_confirmation, "publish_nonlatest_nightly");
+  assert.equal(control.publication.nightly.default_trigger, "daily_schedule");
+  assert.deepEqual(control.publication.nightly.development_validation_trigger, {
+    event: "workflow_dispatch",
+    authority: "user_explicit",
+    confirmation: "publish_nonlatest_nightly",
+    execution_path: "same_as_scheduled_nightly",
+  });
   assert.equal(control.publication.nightly.scheduled_latest_allowed, false);
   assert.equal(control.publication.nightly.explicit_user_override_may_move_latest, true);
   assert.equal(control.publication.nightly.include_full, false);
@@ -211,8 +216,13 @@ test("qualified Stable defaults Latest while scheduled Nightly needs a separate 
   assert.equal(release.nightly_standard.mutation_available, true);
   assert.equal(release.nightly_standard.historical_tag_and_receipt_parsing_allowed, true);
   assert.equal(release.nightly_standard.workflow, ".github/workflows/release-nightly.yml");
-  assert.equal(release.nightly_standard.trigger, "daily_schedule_or_owner_workflow_dispatch");
-  assert.equal(release.nightly_standard.owner_dispatch_confirmation, "publish_nonlatest_nightly");
+  assert.equal(release.nightly_standard.default_trigger, "daily_schedule");
+  assert.deepEqual(release.nightly_standard.development_validation_trigger, {
+    event: "workflow_dispatch",
+    authority: "user_explicit",
+    confirmation: "publish_nonlatest_nightly",
+    execution_path: "same_as_scheduled_nightly",
+  });
   assert.equal(release.nightly_standard.include_full, false);
   assert.equal(release.nightly_standard.quality_status, "preview");
   assert.equal(release.nightly_standard.build_trigger, "automated");

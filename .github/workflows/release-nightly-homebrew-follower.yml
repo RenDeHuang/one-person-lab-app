@@ -81,13 +81,36 @@ jobs:
       - name: Publish one digest-bound Nightly Cask commit
         env:
           OPL_HOMEBREW_TAP_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
         shell: bash
         run: |
           set -euo pipefail
           receipt=nightly-publication/nightly-publication.json
-          jq -e '
+          source_event="$(jq -er .event source-run.json)"
+          source_head_sha="$(jq -er .head_sha source-run.json)"
+          jq -e --arg run "$SOURCE_RUN_ID" --arg event "$source_event" --arg head "$source_head_sha" '
             .schema == "opl_standard_nightly_publication_receipt.v1"
             and (.status == "published" or .status == "already_complete")
+            and .actions.run_id == $run
+            and .actions.run_attempt == "1"
+            and .invocation.event == $event
+            and (
+              (.invocation == {
+                mode: "scheduled_production",
+                event: "schedule",
+                authority_source: "daily_schedule",
+                confirmation: null,
+                execution_path: "scheduled_nightly"
+              })
+              or
+              (.invocation == {
+                mode: "development_validation",
+                event: "workflow_dispatch",
+                authority_source: "user_explicit",
+                confirmation: "publish_nonlatest_nightly",
+                execution_path: "same_as_scheduled_nightly"
+              })
+            )
             and .github_release.draft == false
             and .github_release.prerelease == true
             and .github_release.make_latest == false
@@ -102,6 +125,7 @@ jobs:
             and (.cohort.app_sha | test("^[0-9a-f]{40}$"))
             and (.cohort.shell_sha | test("^[0-9a-f]{40}$"))
             and (.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and .cohort.app_sha == $head
             and (.primary_dmg.sha256 | test("^[0-9a-f]{64}$"))
           ' "$receipt" >/dev/null
           test "$(jq -r .cohort.app_sha "$receipt")" = "$(git rev-parse HEAD)"
@@ -169,13 +193,16 @@ jobs:
           test "$stable_after" = "$stable_before"
           jq -n \
             --arg source_run_id '${{ github.event.workflow_run.id }}' \
+            --arg source_event "$source_event" \
+            --arg source_invocation_mode "$(jq -er .invocation.mode "$receipt")" \
+            --arg source_authority_source "$(jq -er .invocation.authority_source "$receipt")" \
             --arg request_digest "$(jq -er .request_digest "$receipt")" \
             --arg version "$version" --arg updater_version "$updater_version" \
             --arg dmg_sha256 "sha256:$dmg_sha" --arg tap_base "$tap_base" \
             --arg tap_commit "$remote_head" --arg cask_sha256 "$expected_cask" \
             --arg stable_before "$stable_before" --arg stable_after "$stable_after" \
             --arg decision "$decision" --arg push_exit_status "$push_exit_status" \
-            '{schema:"opl_standard_nightly_homebrew_receipt.v1",status:"passed",source_run_id:$source_run_id,request_digest:$request_digest,version:$version,updater_version:$updater_version,dmg_sha256:$dmg_sha256,tap:{repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$tap_base,commit:$tap_commit,cask:"Casks/one-person-lab-nightly.rb",cask_sha256:$cask_sha256,decision:$decision,push_exit_status:$push_exit_status,push_attempts:(if $decision == "write_once" then 1 else 0 end)},stable_cask:{before_sha256:$stable_before,after_sha256:$stable_after,modified:false},latest_modified:false,full_modified:false,retry_performed:false}' \
+            '{schema:"opl_standard_nightly_homebrew_receipt.v1",status:"passed",source_run_id:$source_run_id,source_event:$source_event,source_invocation_mode:$source_invocation_mode,source_authority_source:$source_authority_source,request_digest:$request_digest,version:$version,updater_version:$updater_version,dmg_sha256:$dmg_sha256,tap:{repository:"gaofeng21cn/homebrew-one-person-lab",base_commit:$tap_base,commit:$tap_commit,cask:"Casks/one-person-lab-nightly.rb",cask_sha256:$cask_sha256,decision:$decision,push_exit_status:$push_exit_status,push_attempts:(if $decision == "write_once" then 1 else 0 end)},stable_cask:{before_sha256:$stable_before,after_sha256:$stable_after,modified:false},latest_modified:false,full_modified:false,retry_performed:false}' \
             > nightly-homebrew-receipt.json
 
       - name: Upload Nightly Homebrew readback

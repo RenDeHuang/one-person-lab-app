@@ -127,7 +127,7 @@ Agents & Capabilities, Runtime & Maintenance, and Preferences over all ten carri
 routes and second-level destinations, with About
 as the only secondary page and Advanced/Update/Theme/Local Services/Personalization
 as compatibility redirects, module path source explanation, Stable/Canary release
-gating plus scheduled Nightly Standard publication and historical read compatibility, MDS non-default display, and
+gating plus daily-default Nightly Standard publication, user-explicit development validation, and historical read compatibility, MDS non-default display, and
 OPL Flow context before shell validation runs.
 The App product profile is declared in
 `contracts/app-product-profile.json`; `validate-active-shell.ts --quick` and
@@ -247,7 +247,8 @@ release-boundary tests.
 
 Stable, Canary validation, refresh, Homebrew, Full, WebUI, one-shot installer,
 VM smoke, and promote flows use different release profiles. Public Nightly is a
-daily or explicitly owner-invoked Standard prerelease and not an in-App channel selector;
+daily-by-default Standard prerelease; user-explicit `development_validation` uses the same
+path but remains identity-distinct from scheduled production and is not an in-App channel selector;
 historical artifacts retain read compatibility. Treat the release guide and contract as the SSOT for
 those profiles; this testing guide should not duplicate their full workflow policy.
 

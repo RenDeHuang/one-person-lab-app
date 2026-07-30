@@ -1601,15 +1601,15 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     failures += reportFailure(id, 'Nightly must have exactly one scheduled dispatcher: release-nightly.yml');
   }
   const releaseJobs = workflowJobs(release.workflow);
-  const ownerDispatchInputs = release.workflow.on?.workflow_dispatch?.inputs ?? {};
-  const ownerConfirmation = ownerDispatchInputs.operator_confirmation;
+  const developmentValidationInputs = release.workflow.on?.workflow_dispatch?.inputs ?? {};
+  const developmentValidationConfirmation = developmentValidationInputs.operator_confirmation;
   if (
     JSON.stringify(Object.keys(release.workflow.on ?? {}).sort()) !==
       JSON.stringify(['schedule', 'workflow_dispatch'])
     || JSON.stringify(release.workflow.on?.schedule) !== JSON.stringify([{ cron: '17 19 * * *' }])
-    || JSON.stringify(Object.keys(ownerDispatchInputs)) !== JSON.stringify(['operator_confirmation'])
-    || ownerConfirmation?.required !== true
-    || ownerConfirmation?.type !== 'string'
+    || JSON.stringify(Object.keys(developmentValidationInputs)) !== JSON.stringify(['operator_confirmation'])
+    || developmentValidationConfirmation?.required !== true
+    || developmentValidationConfirmation?.type !== 'string'
     || !exactObject(release.workflow.permissions, exactReadPermissions)
     || !exactObject(release.workflow.concurrency, {
       group: 'opl-standard-nightly',
@@ -1618,7 +1618,7 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     || JSON.stringify(Object.keys(releaseJobs)) !==
       JSON.stringify(['admission', 'standard-build', 'qualify-and-publish'])
   ) {
-    failures += reportFailure(id, 'Nightly must be one scheduled or explicitly confirmed owner-invoked Standard prerelease lane with its own concurrency');
+    failures += reportFailure(id, 'Nightly must keep one daily production schedule and one user-explicit development-validation entry on the same Standard prerelease lane');
   }
   const admission = releaseJobs.admission;
   const build = releaseJobs['standard-build'];
@@ -1646,6 +1646,16 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     'test "$GITHUB_RUN_ATTEMPT" = 1',
     'GITHUB_EVENT_NAME',
     'publish_nonlatest_nightly',
+    'invocation_mode=scheduled_production',
+    'invocation_mode=development_validation',
+    'authority_source=daily_schedule',
+    'authority_source=user_explicit',
+    '--invocation-mode "$invocation_mode"',
+    '--event "$GITHUB_EVENT_NAME"',
+    '--authority-source "$authority_source"',
+    '.invocation.mode',
+    '.invocation.event',
+    '.invocation.authority_source',
     'refs/heads/main',
     'TZ=Asia/Shanghai',
     'resolve-nightly-release-request.ts',
@@ -1687,6 +1697,12 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
   for (const required of [
     '.path == ".github/workflows/release-nightly.yml"',
     '.event == "schedule" or .event == "workflow_dispatch"',
+    '.actions.run_id == $run',
+    '.actions.run_attempt == "1"',
+    '.invocation.event == $event',
+    'mode: "scheduled_production"',
+    'mode: "development_validation"',
+    '.cohort.app_sha == $head',
     '.run_attempt == 1',
     'update-homebrew-tap.ts',
     '--channel nightly',
@@ -1738,6 +1754,12 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
   if (
     !sampledVm.text.includes('TZ=Asia/Shanghai date +%u')
     || !sampledVm.text.includes('.event == "schedule" or .event == "workflow_dispatch"')
+    || !sampledVm.text.includes('.actions.run_id == $run')
+    || !sampledVm.text.includes('.actions.run_attempt == "1"')
+    || !sampledVm.text.includes('.invocation.event == $event')
+    || !sampledVm.text.includes('mode: "scheduled_production"')
+    || !sampledVm.text.includes('mode: "development_validation"')
+    || !sampledVm.text.includes('.cohort.app_sha == $head')
     || !sampledVm.text.includes('heavy_vm_blocking == false')
     || /workflow_dispatch:|contents: write|packages: write|update-homebrew|make_latest:\s*(?:true|'true')|make_latest\s*==\s*true|gh release/.test(sampledVm.text)
   ) {
