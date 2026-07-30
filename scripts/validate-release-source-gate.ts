@@ -468,7 +468,7 @@ export function buildReleaseSourceGateReport(
     {
       id: 'app_release_boundary_contract',
       required: true,
-      command: 'npm run validate:release-boundary',
+      command: 'OPL_RELEASE_VALIDATION_PROFILE=stable npm run validate:release-boundary',
       cwd: options.repoRoot,
       executed: false,
       reason: 'Release source gate must prove the App-owned release boundary before expensive release work.',
@@ -866,7 +866,10 @@ export function buildReleaseSourceGateReport(
   requiredGates[0].executed = true;
   const releaseBoundaryResult = runner('npm', ['run', 'validate:release-boundary'], {
     cwd: options.repoRoot,
-    env: commandEnvironment,
+    env: {
+      ...commandEnvironment,
+      OPL_RELEASE_VALIDATION_PROFILE: 'stable',
+    },
   });
   addCheck(checks, {
     id: 'app_release_boundary_contract',

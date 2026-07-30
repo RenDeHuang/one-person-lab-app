@@ -12,8 +12,10 @@ import {
   validateWorkflowDispatchWriteAuthority,
   validateWorkflowNode24Policy,
 } from './validate-release-boundary/text-check-runner.ts';
+import { releaseValidationProfile } from './validate-release-boundary/release-checks.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const validationProfile = releaseValidationProfile();
 
 let failures = 0;
 try {
@@ -29,7 +31,7 @@ failures += validateStableReleaseActionPinPolicy(appRoot);
 failures += validateWorkflowDispatchWriteAuthority(appRoot);
 failures += validateActionsCachePolicy(appRoot);
 failures += validateReleaseBoundaryScriptDependencies(appRoot);
-failures += validateReleaseContractPolicies(appRoot);
+failures += validateReleaseContractPolicies(appRoot, validationProfile);
 
 if (failures > 0) {
   process.exit(1);
