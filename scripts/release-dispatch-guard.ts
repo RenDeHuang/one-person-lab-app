@@ -35,6 +35,7 @@ export type ReadFailureCode =
   | 'credential_failure'
   | 'not_found'
   | 'invalid_response'
+  | 'truncated_response'
   | 'unchanged_failure_fingerprint';
 
 export type CommandResult = {
@@ -335,7 +336,18 @@ export function readOwnerWorkflowRuns(options: {
   cwd?: string;
 } = {}): OwnerRunsResult {
   const endpoint = workflowEndpoint(options.workflow);
-  const args = ['api', '-X', 'GET', endpoint, '-f', 'branch=main', '-f', 'per_page=100', '--paginate', '--slurp'];
+  const args = [
+    'api',
+    '-X',
+    'GET',
+    endpoint,
+    '-f',
+    'branch=main',
+    '-f',
+    'per_page=100',
+    '-f',
+    'page=1',
+  ];
   if (options.workflow) args.push('-f', 'event=workflow_dispatch');
   const read = runBoundedReadOnly(
     'gh',
@@ -373,25 +385,46 @@ export function readOwnerWorkflowRuns(options: {
       detail: 'Owner workflow-runs API did not return JSON.',
     };
   }
-  const pages = Array.isArray(payload) ? payload : [payload];
-  const workflowRuns: unknown[] = [];
-  for (const page of pages) {
-    const pageRuns = page && typeof page === 'object' && !Array.isArray(page)
-      ? (page as Record<string, unknown>).workflow_runs
-      : null;
-    if (!Array.isArray(pageRuns)) {
-      return {
-        status: 'failed',
-        endpoint,
-        attempts: read.attempts,
-        logical_query_count: 1,
-        parser: ownerRunParser,
-        failure_kind: 'protocol',
-        failure_code: 'invalid_response',
-        detail: 'Owner workflow-runs API did not return workflow_runs[] on every page.',
-      };
-    }
-    workflowRuns.push(...pageRuns);
+  const response = payload && typeof payload === 'object' && !Array.isArray(payload)
+    ? payload as Record<string, unknown>
+    : null;
+  const workflowRuns = response?.workflow_runs;
+  if (!Array.isArray(workflowRuns)) {
+    return {
+      status: 'failed',
+      endpoint,
+      attempts: read.attempts,
+      logical_query_count: 1,
+      parser: ownerRunParser,
+      failure_kind: 'protocol',
+      failure_code: 'invalid_response',
+      detail: 'Owner workflow-runs API did not return one bounded workflow_runs[] page.',
+    };
+  }
+  const totalCount = response?.total_count;
+  if (typeof totalCount !== 'number' || !Number.isSafeInteger(totalCount) || totalCount < 0) {
+    return {
+      status: 'failed',
+      endpoint,
+      attempts: read.attempts,
+      logical_query_count: 1,
+      parser: ownerRunParser,
+      failure_kind: 'protocol',
+      failure_code: 'invalid_response',
+      detail: 'Owner workflow-runs API did not return a nonnegative safe integer total_count.',
+    };
+  }
+  if (totalCount !== workflowRuns.length) {
+    return {
+      status: 'failed',
+      endpoint,
+      attempts: read.attempts,
+      logical_query_count: 1,
+      parser: ownerRunParser,
+      failure_kind: 'protocol',
+      failure_code: 'truncated_response',
+      detail: `Owner workflow-runs API returned ${workflowRuns.length} of ${totalCount} runs; one bounded page cannot prove operation absence.`,
+    };
   }
   return {
     status: 'ok',
