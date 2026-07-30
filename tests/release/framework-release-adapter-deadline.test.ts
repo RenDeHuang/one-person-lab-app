@@ -1856,8 +1856,10 @@ test('raw mutation CLI persists typed failure evidence at the deterministic defa
       '--operation', 'standard',
       '--track', 'standard',
       '--run-attempt', '2',
+      '--additional-upload-actions', path.join(root, 'additional-upload-actions.json'),
     ], { encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: root } });
     assert.equal(result.status, 1);
+    assert.doesNotMatch(result.stderr, /Unknown option '--additional-upload-actions'/);
     const evidence = path.join(root, 'opl-release-mutation-failure/github-apply');
     const output = path.join(evidence, 'failure.json');
     const failure = JSON.parse(fs.readFileSync(output, 'utf8'));
