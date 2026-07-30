@@ -328,6 +328,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(upload?.with?.path), /opl-windows-rc-build-cohort\.json/);
   assert.equal(manual.on.workflow_dispatch.inputs.shell_ref.type, 'string');
   assert.equal(manual.on.workflow_dispatch.inputs.framework_ref.type, 'string');
+  assert.equal(manual.on.workflow_dispatch.inputs.immutable_release_capability_evidence.type, 'string');
   assert.equal(manual.jobs['build-pipeline'].with.shell_ref, '${{ inputs.shell_ref }}');
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
   assert.match(manualText, /resolve-release-platform-matrix\.ts/);
@@ -355,12 +356,42 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const publish = manual.jobs['publish-selected-platforms'];
   assert.equal(publish.permissions.contents, 'write');
   assert.equal(publish.permissions.actions, 'read');
+  const publisherCheckout = publish.steps.find(
+    (step: { name?: string }) => step.name === 'Checkout exact App publisher source',
+  );
+  assert.equal(publisherCheckout?.with?.ref, '${{ needs.prepare-matrix.outputs.app_ref }}');
+  assert.equal(publisherCheckout?.with?.['persist-credentials'], false);
   const publishRun = String(publish.steps.find(
     (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.run);
   assert.match(
     publishRun,
     /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/,
+  );
+  assert.equal(
+    publish.steps.find(
+      (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
+    )?.env?.IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE,
+    '${{ inputs.immutable_release_capability_evidence }}',
+  );
+  assert.match(publishRun, /test "\$DISPATCH_ACTOR" = "\$REPOSITORY_OWNER"/);
+  assert.match(publishRun, /validateGithubImmutableReleaseCapabilityEvidence/);
+  assert.match(publishRun, /immutable-capability-evidence-digest\.txt/);
+  assert.doesNotMatch(publishRun, /"repos\/\$GITHUB_REPOSITORY\/immutable-releases"/);
+  assert.match(publishRun, /jq -S -n/);
+  assert.match(publishRun, /test -s "\$manifest_path"/);
+  assert.match(publishRun, /test "\$manifest_size" -gt 0/);
+  assert.match(publishRun, /opl_app_immutable_platform_adjunct_manifest\.v1/);
+  assert.match(publishRun, /immutable_release_capability_evidence_digest/);
+  const failureRun = String(publish.steps.find(
+    (step: { name?: string }) => step.name === 'Persist typed optional publication failure',
+  )?.run);
+  assert.match(failureRun, /failure_stage:\$failure_stage/);
+  assert.match(failureRun, /mutation_attempt_count:\$attempts/);
+  assert.match(failureRun, /immutable_release_capability_evidence_digest/);
+  assert.ok(
+    publishRun.indexOf('test -s "$manifest_path"')
+      < publishRun.indexOf('printf \'draft_release_creation\\n\''),
   );
   assert.match(publishRun, /prerelease:\$prerelease,make_latest:"false"/);
   assert.match(publishRun, /and \.prerelease == \$prerelease[\s\S]*and \.immutable == true/);

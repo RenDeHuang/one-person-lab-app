@@ -138,6 +138,22 @@ function validateReleaseHomebrewTapUpdatePolicy(homebrew) {
         expected: '.github/workflows/release-nightly-homebrew-follower.yml',
       },
       { actual: tapUpdate?.nightly?.environment, expected: 'release-nightly' },
+      {
+        actual: tapUpdate?.nightly?.credential?.kind,
+        expected: 'repository_scoped_write_deploy_key',
+      },
+      {
+        actual: tapUpdate?.nightly?.credential?.repository,
+        expected: 'gaofeng21cn/homebrew-one-person-lab',
+      },
+      {
+        actual: tapUpdate?.nightly?.credential?.secret,
+        expected: 'release-nightly.OPL_HOMEBREW_TAP_DEPLOY_KEY',
+      },
+      {
+        actual: tapUpdate?.nightly?.credential?.stable_environment_credentials_reused,
+        expected: false,
+      },
       { actual: tapUpdate?.nightly?.target, expected: 'Casks/one-person-lab-nightly.rb' },
       { actual: tapUpdate?.nightly?.may_update_stable, expected: false },
       { actual: tapUpdate?.nightly?.mutation_allowed, expected: true },

@@ -2992,6 +2992,12 @@
       "mode": "post_publication_digest_bound_single_attempt_follower",
       "workflow": ".github/workflows/release-nightly-homebrew-follower.yml",
       "environment": "release-nightly",
+      "credential": {
+        "kind": "repository_scoped_write_deploy_key",
+        "repository": "gaofeng21cn/homebrew-one-person-lab",
+        "secret": "release-nightly.OPL_HOMEBREW_TAP_DEPLOY_KEY",
+        "stable_environment_credentials_reused": false
+      },
       "target": "Casks/one-person-lab-nightly.rb",
       "may_update_stable": false,
       "mutation_allowed": true,
