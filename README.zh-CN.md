@@ -194,7 +194,13 @@ Full 密度包是在 Desktop 或 WebUI 上供干净机器或离线使用的预�
 | --- | --- |
 | OPL Base | Framework 持有的无界面运行前提。Runtime substrate、隔离的 embedded Codex CLI、Temporal、native helpers 和 companion-tool integration 都是 Base 内部的依赖或集成状态。Homebrew Formula `opl` 与 Framework installer 只是同一 Base 对象的不同 carrier。 |
 | OPL App | GUI 与控制面。standard updater、Homebrew Cask 和 signed installer 只更新 App carrier，不修改 Base 或 Packages。 |
-| OPL Packages | Framework 管理的 Agent、能力和工作流 package，包括 MAS/MAG/RCA/OMA/OBF、MAS Scholar Skills 与 OPL Flow。Codex Surface readiness 和 workflow-profile migration 是 package transaction 子状态，不是独立软件对象或更新通道。 |
+| OPL Packages | Agent、能力和工作流 package，包括 MAS/MAG/RCA/OMA/OBF、MAS Scholar Skills 与 OPL Flow。各 owner 定义 identity 与 publication，配置的平台原生 carrier 持有物理 lifecycle 与 installed readback，Framework 聚合 installed/callable 状态和通用 actions。Codex Surface readiness 和 workflow-profile migration 仍是内部详情，不是独立软件对象或更新通道。 |
+
+安装源只提供 bytes。Framework 持有 Base reconciliation，并从配置的平台原生 carrier
+聚合 Package 状态与 actions；App 只投影“已是最新、后台更新、重启完成、建议刷新
+Codex、需要处理”五类用户状态。Package action 只有在 carrier-native readback 后才完成；
+staged Base runtime 与 App carrier 变更在 App 重启后切换，并保留各自 owner 定义的
+rollback evidence。
 
 User Data / Artifacts 属于独立的存储、保留与清理边界，不是可安装软件，也不会成为第四个 updater 对象。
 
