@@ -1,13 +1,16 @@
 import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveIsolatedProfileRealpath } from "./preflight-installed-gui-cohort.ts";
 
 const INPUT_SCHEMA = "opl_app_gui_visual_capture_input.v1";
 const RECEIPT_SCHEMA = "opl_app_gui_visual_capture_receipt.v1";
 const PREFLIGHT_SCHEMA = "opl_app_installed_gui_cohort_preflight_receipt.v1";
 const COMPARATOR_INPUT_SCHEMA = "opl_app_gui_visual_comparison_input.v1";
 const EXPECTED_SCENE_COUNT = 16;
+const PREFLIGHT_MAX_AGE_MS = 5 * 60 * 1_000;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 const INTERACTIVE_AX_ROLES = new Set([
@@ -68,8 +71,12 @@ type SceneObservation = {
   unnamed_interactive_roles: string[];
   contrast: Array<{
     selector: string;
+    element_index: number | null;
     ratio: number | null;
     visible: boolean;
+    required: boolean;
+    minimum: number;
+    failure: string | null;
   }>;
 };
 
@@ -91,7 +98,17 @@ type CaptureDriver = {
 };
 
 type CaptureDependencies = {
-  createDriver: (input: { endpoint: string; targetUrlIncludes: string }) => Promise<CaptureDriver>;
+  createDriver: (input: {
+    endpoint: string;
+    targetUrlIncludes: string;
+    pid: number;
+    executablePath: string;
+    processStartedAt: string;
+    profileRoot: string;
+    profileRealpath: string;
+    targetId: string;
+    targetUrl: string;
+  }) => Promise<CaptureDriver>;
   now?: () => Date;
 };
 
@@ -168,6 +185,16 @@ function resolveContained(root: string, candidate: string, label: string): strin
     throw new Error(`${label} must remain inside ${resolvedRoot}`);
   }
   return resolved;
+}
+
+function writeNewFile(filePath: string, bytes: Buffer | string): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, bytes, { flag: "wx" });
+}
+
+function hasExactProcessArgument(commandLine: string, argument: string): boolean {
+  const escaped = argument.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)${escaped}(?=$|\\s)`).test(commandLine);
 }
 
 function parseInput(value: unknown, baseDirectory: string): CaptureInput {
@@ -282,7 +309,10 @@ function readCaptureAuthority(contractRoot: string): {
   };
 }
 
-function parsePreflight(input: CaptureInput): {
+function parsePreflight(
+  input: CaptureInput,
+  now: Date,
+): {
   receipt: JsonRecord;
   cohort: JsonRecord;
   runtime: JsonRecord;
@@ -297,15 +327,29 @@ function parsePreflight(input: CaptureInput): {
   if (receipt.schema !== PREFLIGHT_SCHEMA || receipt.status !== "passed") {
     throw new Error("preflight receipt must be a passed installed GUI cohort preflight");
   }
+  const inspectedAt = Date.parse(requiredString(receipt.inspected_at, "preflight inspected_at"));
+  const ageMs = now.getTime() - inspectedAt;
+  if (!Number.isFinite(inspectedAt) || ageMs < 0 || ageMs > PREFLIGHT_MAX_AGE_MS) {
+    throw new Error(
+      `preflight receipt must be no older than ${PREFLIGHT_MAX_AGE_MS / 1_000} seconds`,
+    );
+  }
   const cohort = record(receipt.cohort, "preflight cohort");
   for (const field of ["app_sha", "shell_sha", "framework_sha"] as const) {
     exactCommit(cohort[field], `preflight cohort.${field}`);
   }
   const runtime = record(receipt.runtime, "preflight runtime");
+  positiveInteger(runtime.pid, "preflight runtime.pid");
+  requiredString(runtime.executable_path, "preflight runtime.executable_path");
+  requiredString(runtime.app_process_started_at, "preflight runtime.app_process_started_at");
+  requiredString(runtime.cdp_target_id, "preflight runtime.cdp_target_id");
+  requiredString(runtime.cdp_target_url, "preflight runtime.cdp_target_url");
   const profile = record(receipt.profile, "preflight profile");
   if (profile.kind !== "isolated" || profile.user_profile_protected !== true) {
     throw new Error("capture requires an isolated profile with user_profile_protected=true");
   }
+  requiredString(profile.root, "preflight profile.root");
+  requiredString(profile.realpath, "preflight profile.realpath");
   const claims = record(receipt.claims, "preflight claims");
   const installedBound =
     claims.same_cohort_installed === true &&
@@ -330,6 +374,140 @@ function screenshotDimensions(bytes: Buffer): { width: number; height: number } 
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
+function validateReferenceAssets(
+  authority: ReturnType<typeof readCaptureAuthority>,
+  referenceDirectory: string,
+): { complete: boolean; first_failed: string | null; checked_scene_count: number } {
+  const reference = record(authority.cohort.reference, "reference");
+  if (reference.state !== "approved") {
+    return {
+      complete: false,
+      first_failed: "reference_baseline_not_approved",
+      checked_scene_count: 0,
+    };
+  }
+  if (!fs.statSync(referenceDirectory, { throwIfNoEntry: false })?.isDirectory()) {
+    return {
+      complete: false,
+      first_failed: "reference_directory_missing",
+      checked_scene_count: 0,
+    };
+  }
+  const receiptFile = requiredString(
+    reference.approval_receipt_file,
+    "reference.approval_receipt_file",
+  );
+  if (path.basename(receiptFile) !== receiptFile) {
+    return {
+      complete: false,
+      first_failed: "reference_approval_receipt_path_invalid",
+      checked_scene_count: 0,
+    };
+  }
+  const expectedReceiptSha256 = exactSha256(
+    reference.approval_receipt_sha256,
+    "reference.approval_receipt_sha256",
+  );
+  const receiptPath = resolveContained(
+    referenceDirectory,
+    receiptFile,
+    "reference approval receipt",
+  );
+  if (!fs.statSync(receiptPath, { throwIfNoEntry: false })?.isFile()) {
+    return {
+      complete: false,
+      first_failed: "reference_approval_receipt_missing",
+      checked_scene_count: 0,
+    };
+  }
+  const receiptBytes = fs.readFileSync(receiptPath);
+  if (sha256(receiptBytes) !== expectedReceiptSha256) {
+    return {
+      complete: false,
+      first_failed: "reference_approval_receipt_sha256_mismatch",
+      checked_scene_count: 0,
+    };
+  }
+  const receipt = record(JSON.parse(receiptBytes.toString("utf8")), "reference approval receipt");
+  if (
+    receipt.schema !== "opl_app_gui_visual_baseline_approval_receipt.v1" ||
+    receipt.owner !== "one-person-lab-app" ||
+    receipt.baseline_id !== reference.baseline_id ||
+    typeof receipt.reviewer !== "string" ||
+    !receipt.reviewer.trim() ||
+    typeof receipt.reviewed_at !== "string" ||
+    !Number.isFinite(Date.parse(receipt.reviewed_at)) ||
+    receipt.review_method !== "human_visual_review" ||
+    receipt.verdict !== "accepted"
+  ) {
+    return {
+      complete: false,
+      first_failed: "reference_approval_receipt_invalid",
+      checked_scene_count: 0,
+    };
+  }
+  const receiptScenes = array(receipt.scenes, "reference approval receipt scenes").map((value) =>
+    record(value, "reference approval scene"),
+  );
+  if (
+    receiptScenes.length !== EXPECTED_SCENE_COUNT ||
+    new Set(receiptScenes.map((scene) => scene.scene_id)).size !== EXPECTED_SCENE_COUNT
+  ) {
+    return {
+      complete: false,
+      first_failed: "reference_approval_scene_set_invalid",
+      checked_scene_count: 0,
+    };
+  }
+  const pngNames = fs
+    .readdirSync(referenceDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".png"))
+    .map((entry) => entry.name)
+    .sort();
+  const expectedPngNames = authority.scenes.map((scene) => scene.image).sort();
+  if (JSON.stringify(pngNames) !== JSON.stringify(expectedPngNames)) {
+    return {
+      complete: false,
+      first_failed: "reference_scene_file_set_mismatch",
+      checked_scene_count: 0,
+    };
+  }
+  let checkedSceneCount = 0;
+  for (const scene of authority.scenes) {
+    const approved = receiptScenes.find((entry) => entry.scene_id === scene.id);
+    const pngPath = resolveContained(referenceDirectory, scene.image, `reference ${scene.id}`);
+    if (
+      !approved ||
+      approved.image !== scene.image ||
+      approved.verdict !== "accepted" ||
+      !SHA256_PATTERN.test(String(approved.reference_screenshot_sha256 ?? "")) ||
+      !fs.statSync(pngPath, { throwIfNoEntry: false })?.isFile()
+    ) {
+      return {
+        complete: false,
+        first_failed: `reference_scene_invalid:${scene.id}`,
+        checked_scene_count: checkedSceneCount,
+      };
+    }
+    const pngBytes = fs.readFileSync(pngPath);
+    const dimensions = screenshotDimensions(pngBytes);
+    const expectedDimensions = authority.viewports.get(scene.viewport)!;
+    if (
+      sha256(pngBytes) !== approved.reference_screenshot_sha256 ||
+      dimensions.width !== expectedDimensions.width ||
+      dimensions.height !== expectedDimensions.height
+    ) {
+      return {
+        complete: false,
+        first_failed: `reference_scene_bytes_mismatch:${scene.id}`,
+        checked_scene_count: checkedSceneCount,
+      };
+    }
+    checkedSceneCount += 1;
+  }
+  return { complete: true, first_failed: null, checked_scene_count: checkedSceneCount };
+}
+
 function sceneFailure(
   scene: CaptureScene,
   route: string,
@@ -350,9 +528,38 @@ function sceneFailure(
   if (!observation.route.startsWith(route)) return "route_identity_mismatch";
   if (observation.theme !== scene.theme) return "theme_mismatch";
   if (observation.locale !== scene.locale) return "locale_mismatch";
+  if (scene.surface_family === "settings") {
+    const probe = execution.result.announcement_probe;
+    if (
+      !probe ||
+      typeof probe !== "object" ||
+      Array.isArray(probe) ||
+      (probe as JsonRecord).triggered !== true ||
+      (probe as JsonRecord).cleared !== true ||
+      (probe as JsonRecord).changed !== true ||
+      !Array.isArray((probe as JsonRecord).messages) ||
+      ((probe as JsonRecord).messages as unknown[]).length === 0
+    ) {
+      return "live_region_announcement_failed";
+    }
+  }
   if (execution.result.ok !== true) return "interaction_failed";
   if (observation.unnamed_interactive_roles.length > 0) {
     return "unnamed_interactive_control";
+  }
+  const requiredContrast = observation.contrast.filter((entry) => entry.required);
+  if (
+    requiredContrast.length === 0 ||
+    requiredContrast.some(
+      (entry) =>
+        entry.visible !== true ||
+        entry.failure !== null ||
+        entry.ratio === null ||
+        !Number.isFinite(entry.ratio) ||
+        entry.ratio < entry.minimum,
+    )
+  ) {
+    return "contrast_requirement_failed";
   }
   if (errors.console.length > 0) return "console_error";
   if (errors.page.length > 0) return "page_error";
@@ -365,6 +572,7 @@ function bindingFor(
   preflight: ReturnType<typeof parsePreflight>,
   input: CaptureInput,
   candidateDigest: string,
+  referenceDigest: string,
 ): JsonRecord {
   const reference = record(authority.cohort.reference, "reference");
   const candidate = record(authority.cohort.candidate, "candidate");
@@ -384,7 +592,7 @@ function bindingFor(
     locale: scene.locale,
     route: scene.route,
     state: scene.state,
-    reference_screenshot_sha256: "",
+    reference_screenshot_sha256: referenceDigest,
     candidate_screenshot_sha256: candidateDigest,
     verdict: "pending_human_review",
   };
@@ -397,10 +605,12 @@ export async function captureGuiVisualCohort(
 ): Promise<JsonRecord> {
   const input = parseInput(rawInput, baseDirectory);
   const authority = readCaptureAuthority(input.contract_root);
-  const preflight = parsePreflight(input);
+  const now = (dependencies.now ?? (() => new Date()))();
+  const preflight = parsePreflight(input, now);
   if (
     input.output_directory === input.reference_directory ||
-    input.output_directory === input.diff_directory
+    input.output_directory === input.diff_directory ||
+    input.reference_directory === input.diff_directory
   ) {
     throw new Error("capture output, reference, and diff directories must be distinct");
   }
@@ -411,12 +621,35 @@ export async function captureGuiVisualCohort(
     "candidate directory",
   );
   fs.mkdirSync(candidateDirectory, { recursive: true });
+  for (const outputPath of [
+    path.join(input.output_directory, "capture-receipt.json"),
+    path.join(input.output_directory, "comparator-input.json"),
+    ...authority.scenes.map((scene) => path.join(candidateDirectory, scene.image)),
+  ]) {
+    if (fs.existsSync(outputPath)) {
+      throw new Error(`capture evidence output already exists: ${outputPath}`);
+    }
+  }
+  const referenceValidation = validateReferenceAssets(authority, input.reference_directory);
   const endpoint = requiredString(preflight.runtime.cdp_endpoint, "runtime.cdp_endpoint");
   const targetUrlIncludes = requiredString(
     preflight.runtime.target_url_includes,
     "runtime.target_url_includes",
   );
-  const driver = await dependencies.createDriver({ endpoint, targetUrlIncludes });
+  const driver = await dependencies.createDriver({
+    endpoint,
+    targetUrlIncludes,
+    pid: positiveInteger(preflight.runtime.pid, "runtime.pid"),
+    executablePath: requiredString(preflight.runtime.executable_path, "runtime.executable_path"),
+    processStartedAt: requiredString(
+      preflight.runtime.app_process_started_at,
+      "runtime.app_process_started_at",
+    ),
+    profileRoot: requiredString(preflight.profile.root, "profile.root"),
+    profileRealpath: requiredString(preflight.profile.realpath, "profile.realpath"),
+    targetId: requiredString(preflight.runtime.cdp_target_id, "runtime.cdp_target_id"),
+    targetUrl: requiredString(preflight.runtime.cdp_target_url, "runtime.cdp_target_url"),
+  });
   const scenes: JsonRecord[] = [];
   const bindings: JsonRecord[] = [];
   let firstFailed: JsonRecord | null = null;
@@ -440,7 +673,7 @@ export async function captureGuiVisualCohort(
           scene.image,
           `scene ${scene.id} screenshot`,
         );
-        fs.writeFileSync(screenshotPath, screenshot);
+        writeNewFile(screenshotPath, screenshot);
         const screenshotSha256 = sha256(screenshot);
         const failure =
           actualDimensions.width === dimensions.width &&
@@ -462,7 +695,12 @@ export async function captureGuiVisualCohort(
           },
           first_failed: failure,
         };
-        bindings.push(bindingFor(scene, authority, preflight, input, screenshotSha256));
+        const referenceDigest = referenceValidation.complete
+          ? sha256(fs.readFileSync(path.join(input.reference_directory, scene.image)))
+          : "";
+        bindings.push(
+          bindingFor(scene, authority, preflight, input, screenshotSha256, referenceDigest),
+        );
         if (failure && !firstFailed) {
           firstFailed = { scene_id: scene.id, reason: failure };
         }
@@ -500,11 +738,7 @@ export async function captureGuiVisualCohort(
     scenes.length === EXPECTED_SCENE_COUNT &&
     passedSceneCount === EXPECTED_SCENE_COUNT &&
     bindings.length === EXPECTED_SCENE_COUNT;
-  const reference = record(authority.cohort.reference, "reference");
-  const referenceAssetsComplete =
-    reference.state === "approved" &&
-    typeof reference.approval_receipt_file === "string" &&
-    SHA256_PATTERN.test(String(reference.approval_receipt_sha256 ?? ""));
+  const referenceAssetsComplete = referenceValidation.complete;
   const comparatorInput = {
     schema: COMPARATOR_INPUT_SCHEMA,
     reference_directory: input.reference_directory,
@@ -515,7 +749,7 @@ export async function captureGuiVisualCohort(
   const receipt: JsonRecord = {
     schema: RECEIPT_SCHEMA,
     status: firstFailed ? "failed" : "passed",
-    captured_at: (dependencies.now ?? (() => new Date()))().toISOString(),
+    captured_at: now.toISOString(),
     classification: input.classification,
     authority: {
       visual_cohort_sha256: authority.cohortSha256,
@@ -525,6 +759,7 @@ export async function captureGuiVisualCohort(
     cohort: preflight.cohort,
     runtime: preflight.runtime,
     profile: preflight.profile,
+    reference_validation: referenceValidation,
     summary: {
       expected_scene_count: EXPECTED_SCENE_COUNT,
       captured_scene_count: bindings.length,
@@ -545,15 +780,15 @@ export async function captureGuiVisualCohort(
     first_failed:
       firstFailed ??
       (!referenceAssetsComplete
-        ? { reason: "reference_assets_incomplete" }
+        ? { reason: referenceValidation.first_failed ?? "reference_assets_incomplete" }
         : { reason: "comparator_and_human_review_required" }),
     restored,
   };
-  fs.writeFileSync(
+  writeNewFile(
     path.join(input.output_directory, "capture-receipt.json"),
     `${JSON.stringify(receipt, null, 2)}\n`,
   );
-  fs.writeFileSync(
+  writeNewFile(
     path.join(input.output_directory, "comparator-input.json"),
     `${JSON.stringify(comparatorInput, null, 2)}\n`,
   );
@@ -662,6 +897,7 @@ class CdpCaptureDriver implements CaptureDriver {
   private consoleErrors: string[] = [];
   private pageErrors: string[] = [];
   private original: { route: string; locale: string; theme: string } | null = null;
+  private currentScene: CaptureScene | null = null;
   private readonly client: CdpClient;
 
   constructor(client: CdpClient) {
@@ -707,6 +943,7 @@ class CdpCaptureDriver implements CaptureDriver {
   async beginScene(scene: CaptureScene): Promise<void> {
     this.consoleErrors = [];
     this.pageErrors = [];
+    this.currentScene = scene;
     const dimensions =
       scene.viewport === "desktop" ? { width: 1440, height: 900 } : { width: 400, height: 800 };
     await this.client.send("Emulation.setDeviceMetricsOverride", {
@@ -798,27 +1035,50 @@ class CdpCaptureDriver implements CaptureDriver {
             element.focus();
             return document.activeElement === element;
           };
+          const focusIdentity = () => document.activeElement?.getAttribute("data-testid")
+            || document.activeElement?.getAttribute("aria-label")
+            || document.activeElement?.id
+            || document.activeElement?.tagName
+            || "";
+          const canonicalRailRow = () => {
+            const match = location.hash.match(/^#\\/conversation\\/([^/?#]+)/);
+            if (!match) return null;
+            const row = document.getElementById("c-" + decodeURIComponent(match[1]));
+            return row && row.getClientRects().length > 0 ? row : null;
+          };
+          const setComposerValue = (value) => {
+            const composer = visible(
+              '[data-testid="conversation-composer"] textarea, textarea[data-testid="guid-input"], input[data-testid="guid-input"]'
+            );
+            if (!composer) return false;
+            composer.focus();
+            const prototype = composer instanceof HTMLTextAreaElement
+              ? HTMLTextAreaElement.prototype
+              : HTMLInputElement.prototype;
+            const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+            if (!setter) return false;
+            setter.call(composer, value);
+            composer.dispatchEvent(new Event("input", { bubbles: true }));
+            return true;
+          };
           let ok = true;
           let keyboard = [];
           let hover = null;
+          let rail_row_id = null;
           if (input.state === "model_menu_open") {
-            ok = click('[data-testid="guid-model-selector"], [data-testid="conversation-model-selector"]');
+            ok = click('[data-testid="guid-model-selector"], .sendbox-model-btn');
           } else if (input.state === "capability_palette_open") {
-            ok = click('[data-testid="agent-mode-selector-codex"]');
+            ok = click('[data-testid="file-upload-btn"]');
           } else if (input.state === "command_menu_open") {
-            const composer = visible('[data-testid="conversation-composer"] textarea, [data-testid="guid-input"]');
-            if (!composer) ok = false;
-            else {
-              composer.focus();
-              composer.value = "/";
-              composer.dispatchEvent(new Event("input", { bubbles: true }));
-              keyboard = ["Home", "End", "Escape"];
-            }
+            ok = setComposerValue("/");
           } else if (input.state === "selected_row") {
-            ok = click(".opl-codex-rail-row");
+            const row = canonicalRailRow();
+            rail_row_id = row?.id || null;
+            ok = Boolean(rail_row_id && click("#" + CSS.escape(rail_row_id)));
           } else if (input.state === "row_hover_actions_visible") {
-            const row = visible(".opl-codex-rail-row");
-            if (!row) ok = false;
+            const row = canonicalRailRow();
+            rail_row_id = row?.id || null;
+            if (!row || !rail_row_id) ok = false;
             else {
               const bounds = row.getBoundingClientRect();
               hover = {
@@ -832,10 +1092,13 @@ class CdpCaptureDriver implements CaptureDriver {
             ok = focus('[data-testid="settings-search-input"]');
             keyboard = ["Tab"];
           } else if (input.surface_family === "home") {
-            ok = focus('[data-testid="guid-input"]');
+            ok = focus('textarea[data-testid="guid-input"], input[data-testid="guid-input"]');
+            keyboard = ["Tab"];
+          } else if (input.surface_family === "conversation") {
+            ok = focus('[data-testid="conversation-composer"] textarea');
             keyboard = ["Tab"];
           }
-          return { ok, keyboard, hover };
+          return { ok, keyboard, hover, rail_row_id, focus_before: focusIdentity() };
         }`,
         scene,
       ),
@@ -847,6 +1110,87 @@ class CdpCaptureDriver implements CaptureDriver {
       prepared.hover && typeof prepared.hover === "object"
         ? record(prepared.hover, "hover coordinates")
         : null;
+    let announcementProbe: JsonRecord | null = null;
+    if (scene.surface_family === "settings" && prepared.ok === true) {
+      const before = await evaluate<string[]>(
+        this.client,
+        browserExpression(`() =>
+          [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')]
+            .filter((element) => element.getClientRects().length > 0)
+            .map((element) => (element.textContent || "").trim())
+            .filter(Boolean)`),
+      );
+      const triggered = await evaluate<boolean>(
+        this.client,
+        browserExpression(`() => {
+          const container = [...document.querySelectorAll('[data-testid="settings-search-input"]')]
+            .find((element) => element.getClientRects().length > 0);
+          const input = container instanceof HTMLInputElement
+            ? container
+            : container?.querySelector("input");
+          if (!(input instanceof HTMLInputElement)) return false;
+          input.focus();
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+          if (!setter) return false;
+          setter.call(input, "__opl_gui_accessibility_probe_no_result__");
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          return true;
+        }`),
+      );
+      let messages: string[] = [];
+      if (triggered) {
+        try {
+          await waitFor(
+            async () =>
+              (
+                await evaluate<string[]>(
+                  this.client,
+                  browserExpression(`() =>
+                  [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')]
+                    .filter((element) => element.getClientRects().length > 0)
+                    .map((element) => (element.textContent || "").trim())
+                    .filter(Boolean)`),
+                )
+              ).some((message) => !before.includes(message)),
+            "settings live-region announcement",
+          );
+          messages = await evaluate<string[]>(
+            this.client,
+            browserExpression(`() =>
+              [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')]
+                .filter((element) => element.getClientRects().length > 0)
+                .map((element) => (element.textContent || "").trim())
+                .filter(Boolean)`),
+          );
+        } catch {
+          messages = [];
+        }
+      }
+      const cleared = await evaluate<boolean>(
+        this.client,
+        browserExpression(`() => {
+          const container = [...document.querySelectorAll('[data-testid="settings-search-input"]')]
+            .find((element) => element.getClientRects().length > 0);
+          const input = container instanceof HTMLInputElement
+            ? container
+            : container?.querySelector("input");
+          if (!(input instanceof HTMLInputElement)) return false;
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+          if (!setter) return false;
+          setter.call(input, "");
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+          input.focus();
+          return true;
+        }`),
+      );
+      announcementProbe = {
+        triggered,
+        before,
+        messages,
+        changed: messages.some((message) => !before.includes(message)),
+        cleared,
+      };
+    }
     if (hover) {
       await this.client.send("Input.dispatchMouseEvent", {
         type: "mouseMoved",
@@ -854,7 +1198,7 @@ class CdpCaptureDriver implements CaptureDriver {
         y: Number(hover.y),
       });
     }
-    for (const key of keyboard) {
+    const dispatchKey = async (key: string) => {
       await this.client.send("Input.dispatchKeyEvent", {
         type: "keyDown",
         key,
@@ -865,6 +1209,9 @@ class CdpCaptureDriver implements CaptureDriver {
         key,
         code: key,
       });
+    };
+    for (const key of keyboard) {
+      await dispatchKey(key);
     }
     await evaluate(
       this.client,
@@ -872,82 +1219,417 @@ class CdpCaptureDriver implements CaptureDriver {
         `() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
       ),
     );
+    let commandKeyboard: JsonRecord | null = null;
+    let capabilityKeyboard: JsonRecord | null = null;
+    if (scene.state === "capability_palette_open" && prepared.ok === true) {
+      const paletteVisible = () =>
+        evaluate<boolean>(
+          this.client,
+          browserExpression(
+            `() => Boolean([...document.querySelectorAll('[data-testid="guid-capability-palette"]')]
+              .find((element) => element.getClientRects().length > 0))`,
+          ),
+        );
+      await waitFor(paletteVisible, "capability palette");
+      await dispatchKey("Home");
+      const afterHome = await evaluate<string>(
+        this.client,
+        browserExpression(`() => document.activeElement?.getAttribute("data-testid") || ""`),
+      );
+      await dispatchKey("End");
+      const afterEnd = await evaluate<string>(
+        this.client,
+        browserExpression(`() => document.activeElement?.getAttribute("data-testid") || ""`),
+      );
+      capabilityKeyboard = {
+        commands: ["Home", "End"],
+        after_home: afterHome,
+        after_end: afterEnd,
+        traversed: Boolean(afterHome && afterEnd && afterHome !== afterEnd),
+      };
+    }
+    if (scene.state === "command_menu_open" && prepared.ok === true) {
+      const listboxVisible = () =>
+        evaluate<boolean>(
+          this.client,
+          browserExpression(
+            `() => [...document.querySelectorAll('[role="listbox"]')]
+              .some((element) => element.getClientRects().length > 0)`,
+          ),
+        );
+      await waitFor(listboxVisible, "slash-command listbox");
+      await dispatchKey("Home");
+      const afterHome = await evaluate<string>(
+        this.client,
+        browserExpression(
+          `() => document.activeElement?.getAttribute("aria-activedescendant") || ""`,
+        ),
+      );
+      await dispatchKey("End");
+      const afterEnd = await evaluate<string>(
+        this.client,
+        browserExpression(
+          `() => document.activeElement?.getAttribute("aria-activedescendant") || ""`,
+        ),
+      );
+      await dispatchKey("Escape");
+      await waitFor(async () => !(await listboxVisible()), "slash-command Escape close");
+      const reopened = await evaluate<boolean>(
+        this.client,
+        browserExpression(`() => {
+          const composer = [...document.querySelectorAll(
+            '[data-testid="conversation-composer"] textarea, textarea[data-testid="guid-input"], input[data-testid="guid-input"]'
+          )].find((element) => element.getClientRects().length > 0);
+          if (!composer) return false;
+          composer.focus();
+          const prototype = composer instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype;
+          const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+          if (!setter) return false;
+          setter.call(composer, "");
+          composer.dispatchEvent(new Event("input", { bubbles: true }));
+          setter.call(composer, "/");
+          composer.dispatchEvent(new Event("input", { bubbles: true }));
+          return true;
+        }`),
+      );
+      if (reopened) await waitFor(listboxVisible, "slash-command listbox reopen");
+      commandKeyboard = {
+        commands: ["Home", "End", "Escape"],
+        after_home: afterHome,
+        after_end: afterEnd,
+        traversed: Boolean(afterHome && afterEnd && afterHome !== afterEnd),
+        escape_closed: true,
+        reopened,
+      };
+    }
     const result = await evaluate<JsonRecord>(
       this.client,
-      browserExpression(`() => ({
-        ok: true,
-        active: document.activeElement?.getAttribute("data-testid")
-          || document.activeElement?.getAttribute("aria-label")
-          || document.activeElement?.tagName
-          || "",
-      })`),
+      browserExpression(
+        `(input) => {
+          const visible = (selector) => [...document.querySelectorAll(selector)]
+            .find((element) => element.getClientRects().length > 0);
+          const active = document.activeElement?.getAttribute("data-testid")
+            || document.activeElement?.getAttribute("aria-label")
+            || document.activeElement?.id
+            || document.activeElement?.tagName
+            || "";
+          const assertions = [];
+          const requireVisible = (id, selector) => {
+            const passed = Boolean(visible(selector));
+            assertions.push({ id, selector, passed });
+            return passed;
+          };
+          let stateOk = true;
+          if (input.state === "model_menu_open") {
+            const trigger = visible('[data-testid="guid-model-selector"], .sendbox-model-btn');
+            const popup = visible('[role="menu"], [role="listbox"], .arco-dropdown-menu');
+            const expanded = trigger?.getAttribute("aria-expanded");
+            stateOk = Boolean(popup && (expanded === null || expanded === "true"));
+            assertions.push({
+              id: "model_menu_open",
+              selector: '[role="menu"], [role="listbox"], .arco-dropdown-menu',
+              passed: stateOk,
+              aria_expanded: expanded,
+            });
+          } else if (input.state === "capability_palette_open") {
+            stateOk = requireVisible(
+              "capability_palette_open",
+              '[data-testid="guid-capability-palette"], [data-testid="conversation-capability-palette"]'
+            );
+          } else if (input.state === "command_menu_open") {
+            stateOk = requireVisible("command_menu_open", '[role="listbox"]');
+          } else if (input.state === "selected_row") {
+            const row = input.rail_row_id
+              ? document.getElementById(input.rail_row_id)
+              : null;
+            stateOk = Boolean(
+              row
+              && row.getClientRects().length > 0
+              && (row.getAttribute("aria-current") === "page"
+                || row.getAttribute("data-selected") === "true")
+            );
+            assertions.push({
+              id: "selected_row",
+              selector: input.rail_row_id ? "#" + input.rail_row_id : "",
+              passed: stateOk,
+            });
+          } else if (input.state === "row_hover_actions_visible") {
+            const row = input.rail_row_id
+              ? document.getElementById(input.rail_row_id)
+              : null;
+            const action = row
+              ? [...row.querySelectorAll(".sider-action-btn")]
+                .find((element) => element.getClientRects().length > 0)
+              : null;
+            stateOk = Boolean(row && row.getClientRects().length > 0 && action);
+            assertions.push({
+              id: "row_hover_actions_visible",
+              selector: input.rail_row_id
+                ? "#" + input.rail_row_id + " .sider-action-btn"
+                : "",
+              passed: stateOk,
+            });
+          } else if (input.surface_family === "home") {
+            stateOk = requireVisible(
+              "home_composer_visible",
+              'textarea[data-testid="guid-input"], input[data-testid="guid-input"]'
+            );
+          } else if (input.surface_family === "conversation") {
+            stateOk = requireVisible(
+              "conversation_composer_visible",
+              '[data-testid="conversation-composer"]'
+            );
+          } else if (input.surface_family === "settings") {
+            stateOk = requireVisible(
+              "settings_search_visible",
+              '[data-testid="settings-search-input"]'
+            );
+          }
+          const focusMoved = !input.keyboard.includes("Tab")
+            || (Boolean(input.focus_before) && Boolean(active) && active !== input.focus_before);
+          return {
+            ok: stateOk && focusMoved,
+            active,
+            focus_before: input.focus_before,
+            focus_moved: focusMoved,
+            state_assertions: assertions,
+            live_regions: [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')]
+              .filter((element) => element.getClientRects().length > 0)
+              .map((element) => (element.textContent || "").trim())
+              .filter(Boolean),
+          };
+        }`,
+        {
+          ...scene,
+          keyboard,
+          rail_row_id: prepared.rail_row_id,
+          focus_before: String(prepared.focus_before ?? ""),
+        },
+      ),
     );
-    result.ok = prepared.ok === true;
+    result.ok =
+      prepared.ok === true &&
+      result.ok === true &&
+      (capabilityKeyboard === null || capabilityKeyboard.traversed === true) &&
+      (commandKeyboard === null || commandKeyboard.traversed === true);
     result.keyboard = keyboard;
+    result.announcement_probe = announcementProbe;
+    result.capability_keyboard = capabilityKeyboard;
+    result.command_keyboard = commandKeyboard;
     result.hover = hover;
     return { interaction, result };
   }
 
   async observe(): Promise<SceneObservation> {
+    if (!this.currentScene) throw new Error("capture scene was not initialized");
+    const primaryContrastTarget =
+      this.currentScene.surface_family === "home"
+        ? {
+            selector: 'textarea[data-testid="guid-input"], input[data-testid="guid-input"]',
+            required: true,
+            minimum: 4.5,
+          }
+        : this.currentScene.surface_family === "conversation"
+          ? {
+              selector:
+                '[data-testid="conversation-composer"] textarea, [data-testid="conversation-composer"] input, textarea[data-testid="guid-input"], input[data-testid="guid-input"]',
+              required: true,
+              minimum: 4.5,
+            }
+          : this.currentScene.surface_family === "rail"
+            ? {
+                selector:
+                  '.opl-codex-rail-row[aria-current="page"], .opl-codex-rail-row[data-selected="true"], .opl-codex-rail-row',
+                required: true,
+                minimum: 4.5,
+              }
+            : {
+                selector:
+                  'input[data-testid="settings-search-input"], [data-testid="settings-search-input"] input',
+                required: true,
+                minimum: 4.5,
+              };
+    const stateContrastTarget =
+      this.currentScene.state === "model_menu_open"
+        ? {
+            selector:
+              '[role="menu"] [role="menuitem"], [role="listbox"] [role="option"], .arco-dropdown-menu .arco-dropdown-option, .arco-select-popup .arco-select-option',
+            required: true,
+            minimum: 4.5,
+          }
+        : this.currentScene.state === "capability_palette_open"
+          ? {
+              selector: "[data-capability-palette-item]",
+              required: true,
+              minimum: 4.5,
+            }
+          : this.currentScene.state === "command_menu_open"
+            ? {
+                selector: '[role="listbox"] [role="option"]',
+                required: true,
+                minimum: 4.5,
+              }
+            : null;
+    const contrastTargets = [
+      primaryContrastTarget,
+      ...(stateContrastTarget ? [stateContrastTarget] : []),
+    ];
     const dom = await evaluate<Omit<SceneObservation, "unnamed_interactive_roles">>(
       this.client,
-      browserExpression(`() => {
-        const parse = (value) => {
-          const match = String(value).match(/rgba?\\(\\s*([\\d.]+)[, ]+\\s*([\\d.]+)[, ]+\\s*([\\d.]+)/i);
-          return match ? [+match[1], +match[2], +match[3]] : null;
-        };
-        const luminance = (color) => color.map((value) => {
-          const normalized = value / 255;
-          return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-        }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
-        const contrastRatio = (first, second) => {
-          const left = luminance(first);
-          const right = luminance(second);
-          return (Math.max(left, right) + 0.05) / (Math.min(left, right) + 0.05);
-        };
-        const contrast = [
-          '[data-testid="guid-send-btn"]',
-          '[data-testid="guid-input"]',
-          ".opl-codex-rail-row",
-          '[data-testid="settings-search-input"]',
-        ].map((selector) => {
-          const element = [...document.querySelectorAll(selector)].find((candidate) => candidate.getClientRects().length > 0);
-          if (!element) return { selector, ratio: null, visible: false };
-          const style = getComputedStyle(element);
-          const parentStyle = element.parentElement ? getComputedStyle(element.parentElement) : null;
-          const foreground = parse(style.color);
-          const background = parse(style.backgroundColor) || parse(parentStyle?.backgroundColor);
-          return {
-            selector,
-            ratio: foreground && background ? Number(contrastRatio(foreground, background).toFixed(3)) : null,
-            visible: true,
+      browserExpression(
+        `(targets) => {
+          const parseRgb = (value) => {
+            const match = String(value).trim().match(
+              /^rgba?\\(\\s*(-?(?:\\d+|\\d*\\.\\d+))\\s*(?:,\\s*|\\s+)(-?(?:\\d+|\\d*\\.\\d+))\\s*(?:,\\s*|\\s+)(-?(?:\\d+|\\d*\\.\\d+))(?:\\s*(?:,|\\/)\\s*(-?(?:\\d+|\\d*\\.\\d+)%?))?\\s*\\)$/i
+            );
+            if (!match) return null;
+            const channels = match.slice(1, 4).map(Number);
+            const alpha = match[4]?.endsWith("%")
+              ? Number(match[4].slice(0, -1)) / 100
+              : Number(match[4] ?? 1);
+            if (channels.some((entry) => !Number.isFinite(entry)) || !Number.isFinite(alpha)) {
+              return null;
+            }
+            return [
+              ...channels.map((entry) => Math.min(255, Math.max(0, entry))),
+              Math.min(1, Math.max(0, alpha)),
+            ];
           };
-        });
-        const active = document.activeElement;
-        return {
-          route: location.hash.replace(/^#/, ""),
-          ready_state: document.readyState,
-          text_length: (document.body?.innerText || "").trim().length,
-          overlay_count: [...document.querySelectorAll(".vite-error-overlay,#webpack-dev-server-client-overlay,[data-nextjs-dialog]")]
-            .filter((element) => element.getClientRects().length > 0).length,
-          theme: document.documentElement.getAttribute("data-theme") || "",
-          locale: document.documentElement.lang || Intl.DateTimeFormat().resolvedOptions().locale,
-          viewport: { width: innerWidth, height: innerHeight },
-          visible_test_ids: [...document.querySelectorAll("[data-testid]")]
-            .filter((element) => element.getClientRects().length > 0)
-            .map((element) => element.getAttribute("data-testid"))
-            .filter(Boolean),
-          focus: {
-            before: "",
-            after: active?.getAttribute("data-testid") || active?.getAttribute("aria-label") || active?.tagName || "",
-          },
-          live_regions: [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')]
-            .filter((element) => element.getClientRects().length > 0)
-            .map((element) => (element.textContent || "").trim())
-            .filter(Boolean),
-          contrast,
-        };
-      }`),
+          const composite = (foreground, background) => {
+            const alpha = foreground[3] + background[3] * (1 - foreground[3]);
+            if (alpha <= 0) return [0, 0, 0, 0];
+            return [
+              ...[0, 1, 2].map((index) =>
+                (foreground[index] * foreground[3]
+                  + background[index] * background[3] * (1 - foreground[3])) / alpha
+              ),
+              alpha,
+            ];
+          };
+          const unsupportedEffect = (element) => {
+            for (let current = element; current; current = current.parentElement) {
+              const style = getComputedStyle(current);
+              if (Number(style.opacity) !== 1) return "opacity_not_supported";
+              if (style.backgroundImage !== "none") return "background_image_not_supported";
+            }
+            return null;
+          };
+          const resolvedBackground = (element) => {
+            const layers = [];
+            for (let current = element; current; current = current.parentElement) {
+              const rawColor = getComputedStyle(current).backgroundColor;
+              const color = parseRgb(rawColor);
+              if (!color) return { color: null, failure: "background_color_not_supported" };
+              if (color[3] > 0) layers.push(color);
+            }
+            let background = [255, 255, 255, 1];
+            for (const layer of layers.reverse()) background = composite(layer, background);
+            return { color: background, failure: null };
+          };
+          const resolvedForeground = (element, background) => {
+            const placeholder = "placeholder" in element
+              && String(element.value || "") === ""
+              && String(element.placeholder || "") !== "";
+            const style = getComputedStyle(element, placeholder ? "::placeholder" : null);
+            const color = parseRgb(style.color);
+            return color ? composite(color, background) : null;
+          };
+          const luminance = (color) => color.map((value) => {
+            const normalized = value / 255;
+            return normalized <= 0.03928
+              ? normalized / 12.92
+              : ((normalized + 0.055) / 1.055) ** 2.4;
+          }).slice(0, 3).reduce(
+            (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
+            0
+          );
+          const contrastRatio = (first, second) => {
+            const left = luminance(first);
+            const right = luminance(second);
+            return (Math.max(left, right) + 0.05) / (Math.min(left, right) + 0.05);
+          };
+          const contrast = targets.flatMap(({ selector, required, minimum }) => {
+            const elements = [...document.querySelectorAll(selector)]
+              .filter((candidate) => candidate.getClientRects().length > 0);
+            if (elements.length === 0) {
+              return [{
+                selector,
+                element_index: null,
+                ratio: null,
+                visible: false,
+                required,
+                minimum,
+                failure: "missing_visible_target",
+              }];
+            }
+            return elements.map((element, element_index) => {
+              const effectFailure = unsupportedEffect(element);
+              if (effectFailure) {
+                return {
+                  selector,
+                  element_index,
+                  ratio: null,
+                  visible: true,
+                  required,
+                  minimum,
+                  failure: effectFailure,
+                };
+              }
+              const background = resolvedBackground(element);
+              if (!background.color) {
+                return {
+                  selector,
+                  element_index,
+                  ratio: null,
+                  visible: true,
+                  required,
+                  minimum,
+                  failure: background.failure,
+                };
+              }
+              const foreground = resolvedForeground(element, background.color);
+              return {
+                selector,
+                element_index,
+                ratio: foreground
+                  ? Number(contrastRatio(foreground, background.color).toFixed(3))
+                  : null,
+                visible: true,
+                required,
+                minimum,
+                failure: foreground ? null : "foreground_color_not_supported",
+              };
+            });
+          });
+          const active = document.activeElement;
+          return {
+            route: location.hash.replace(/^#/, ""),
+            ready_state: document.readyState,
+            text_length: (document.body?.innerText || "").trim().length,
+            overlay_count: [...document.querySelectorAll(".vite-error-overlay,#webpack-dev-server-client-overlay,[data-nextjs-dialog]")]
+              .filter((element) => element.getClientRects().length > 0).length,
+            theme: document.documentElement.getAttribute("data-theme") || "",
+            locale: document.documentElement.lang || Intl.DateTimeFormat().resolvedOptions().locale,
+            viewport: { width: innerWidth, height: innerHeight },
+            visible_test_ids: [...document.querySelectorAll("[data-testid]")]
+              .filter((element) => element.getClientRects().length > 0)
+              .map((element) => element.getAttribute("data-testid"))
+              .filter(Boolean),
+            focus: {
+              before: "",
+              after: active?.getAttribute("data-testid") || active?.getAttribute("aria-label") || active?.tagName || "",
+            },
+            live_regions: [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')]
+              .filter((element) => element.getClientRects().length > 0)
+              .map((element) => (element.textContent || "").trim())
+              .filter(Boolean),
+            contrast,
+          };
+        }`,
+        contrastTargets,
+      ),
     );
     const tree = await this.client.send("Accessibility.getFullAXTree");
     const unnamedInteractiveRoles = array(tree.nodes ?? [], "AX tree nodes")
@@ -1003,11 +1685,54 @@ class CdpCaptureDriver implements CaptureDriver {
 export async function createCdpCaptureDriver(input: {
   endpoint: string;
   targetUrlIncludes: string;
+  pid: number;
+  executablePath: string;
+  processStartedAt: string;
+  profileRoot: string;
+  profileRealpath: string;
+  targetId: string;
+  targetUrl: string;
 }): Promise<CaptureDriver> {
   const endpoint = new URL(input.endpoint);
   if (!["127.0.0.1", "localhost", "::1"].includes(endpoint.hostname)) {
     throw new Error("CDP endpoint must be loopback-only");
   }
+  const port = Number(endpoint.port);
+  if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
+    throw new Error("CDP endpoint must declare a valid explicit port");
+  }
+  if (resolveIsolatedProfileRealpath(input.profileRoot) !== input.profileRealpath) {
+    throw new Error("isolated profile root no longer resolves to the preflight directory");
+  }
+  const run = (command: string, args: string[]): string => {
+    const result = spawnSync(command, args, {
+      encoding: "utf8",
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024,
+    });
+    if (result.status !== 0 || result.error) {
+      throw new Error(
+        `${command} ${args.join(" ")} failed: ${result.error?.message ?? result.stderr}`,
+      );
+    }
+    return result.stdout.trim();
+  };
+  const executable = run("/bin/ps", ["-p", String(input.pid), "-o", "comm="]);
+  if (path.resolve(executable) !== path.resolve(input.executablePath)) {
+    throw new Error(`live PID ${input.pid} executable no longer matches preflight`);
+  }
+  const processStartedAt = run("/bin/ps", ["-p", String(input.pid), "-o", "lstart="]);
+  if (processStartedAt !== input.processStartedAt) {
+    throw new Error(`live PID ${input.pid} start time no longer matches preflight`);
+  }
+  const processCommand = run("/bin/ps", ["-p", String(input.pid), "-ww", "-o", "command="]);
+  if (
+    !hasExactProcessArgument(processCommand, `--user-data-dir=${input.profileRoot}`) ||
+    !hasExactProcessArgument(processCommand, `--remote-debugging-port=${port}`)
+  ) {
+    throw new Error(`live PID ${input.pid} is not bound to the isolated profile and CDP port`);
+  }
+  run("/usr/sbin/lsof", ["-nP", "-a", "-p", String(input.pid), `-iTCP:${port}`, "-sTCP:LISTEN"]);
   const targetsResponse = await fetch(new URL("/json/list", endpoint));
   if (!targetsResponse.ok) {
     throw new Error(`CDP target discovery failed with HTTP ${targetsResponse.status}`);
@@ -1015,7 +1740,8 @@ export async function createCdpCaptureDriver(input: {
   const targets = array(await targetsResponse.json(), "CDP targets")
     .map((value) => record(value, "CDP target"))
     .filter((target) => target.type === "page")
-    .filter((target) => String(target.url ?? "").includes(input.targetUrlIncludes));
+    .filter((target) => String(target.url ?? "").includes(input.targetUrlIncludes))
+    .filter((target) => target.id === input.targetId && target.url === input.targetUrl);
   if (targets.length !== 1) {
     throw new Error(`expected exactly one matching CDP page target, found ${targets.length}`);
   }
@@ -1046,13 +1772,24 @@ function parseCli(argv: string[]): { input: string; output: string | null } {
 async function main(): Promise<void> {
   const options = parseCli(process.argv.slice(2));
   const inputPath = path.resolve(options.input);
-  const receipt = await captureGuiVisualCohort(
-    readJson(inputPath, "capture input"),
-    path.dirname(inputPath),
-    { createDriver: createCdpCaptureDriver },
-  );
+  const rawInput = readJson(inputPath, "capture input");
+  const parsedInput = parseInput(rawInput, path.dirname(inputPath));
+  const outputPath = options.output ? path.resolve(options.output) : null;
+  if (
+    outputPath &&
+    (outputPath === parsedInput.output_directory ||
+      outputPath.startsWith(`${parsedInput.output_directory}${path.sep}`))
+  ) {
+    throw new Error("--output must be outside the immutable capture evidence directory");
+  }
+  if (outputPath && fs.existsSync(outputPath)) {
+    throw new Error(`capture CLI output already exists: ${outputPath}`);
+  }
+  const receipt = await captureGuiVisualCohort(rawInput, path.dirname(inputPath), {
+    createDriver: createCdpCaptureDriver,
+  });
   const payload = `${JSON.stringify(receipt, null, 2)}\n`;
-  if (options.output) fs.writeFileSync(path.resolve(options.output), payload);
+  if (outputPath) writeNewFile(outputPath, payload);
   process.stdout.write(payload);
   if (receipt.status !== "passed") process.exitCode = 1;
 }

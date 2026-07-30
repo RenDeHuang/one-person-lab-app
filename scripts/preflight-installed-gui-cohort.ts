@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -8,6 +9,7 @@ const AUTHORITY_SCHEMA = "opl_app_installed_gui_cohort_authority.v1";
 const RECEIPT_SCHEMA = "opl_app_installed_gui_cohort_preflight_receipt.v1";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
+const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 type JsonRecord = Record<string, unknown>;
 
@@ -70,6 +72,33 @@ function sha256File(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function collectTreeEntries(root: string, relative = ""): string[] {
+  const directory = path.join(root, relative);
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const childRelative = path.posix.join(relative.split(path.sep).join("/"), entry.name);
+      const childPath = path.join(root, childRelative);
+      const stat = fs.lstatSync(childPath);
+      const mode = (stat.mode & 0o777).toString(8);
+      if (entry.isDirectory()) {
+        return [`D\t${childRelative}\t${mode}`, ...collectTreeEntries(root, childRelative)];
+      }
+      if (entry.isSymbolicLink()) {
+        return [`L\t${childRelative}\t${mode}\t${fs.readlinkSync(childPath)}`];
+      }
+      return [`F\t${childRelative}\t${mode}\t${stat.size}\t${sha256File(childPath)}`];
+    });
+}
+
+function sha256Tree(root: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${collectTreeEntries(root).join("\n")}\n`)
+    .digest("hex");
+}
+
 function readJson(filePath: string, label: string): JsonRecord {
   let parsed: unknown;
   try {
@@ -120,22 +149,56 @@ function commandDiagnostic(result: CommandResult): JsonRecord {
   };
 }
 
-function deepContains(value: unknown, expected: unknown): boolean {
+function valueAtPath(value: unknown, fieldPath: string): unknown {
+  return fieldPath.split(".").reduce<unknown>((current, field) => {
+    if (!current || typeof current !== "object" || Array.isArray(current)) return undefined;
+    return (current as JsonRecord)[field];
+  }, value);
+}
+
+function valuesEqual(actual: unknown, expected: unknown): boolean {
+  if (actual === expected) return true;
   if (
-    value === expected ||
-    ((typeof value === "string" || typeof value === "number" || typeof value === "boolean") &&
-      (typeof expected === "string" ||
-        typeof expected === "number" ||
-        typeof expected === "boolean") &&
-      String(value) === String(expected))
+    (typeof actual === "string" || typeof actual === "number") &&
+    (typeof expected === "string" || typeof expected === "number")
   ) {
-    return true;
-  }
-  if (Array.isArray(value)) return value.some((entry) => deepContains(entry, expected));
-  if (value && typeof value === "object") {
-    return Object.values(value as JsonRecord).some((entry) => deepContains(entry, expected));
+    return String(actual) === String(expected);
   }
   return false;
+}
+
+function exactPathMatches(value: unknown, paths: string[], expected: unknown): boolean {
+  const present = paths
+    .map((fieldPath) => valueAtPath(value, fieldPath))
+    .filter((entry) => entry !== undefined);
+  return present.length > 0 && present.every((entry) => valuesEqual(entry, expected));
+}
+
+function hasExactProcessArgument(commandLine: string, argument: string): boolean {
+  const escaped = argument.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)${escaped}(?=$|\\s)`).test(commandLine);
+}
+
+function requireExactPath(
+  value: unknown,
+  paths: string[],
+  expected: unknown,
+  violations: Violation[],
+  code: string,
+  label: string,
+): void {
+  if (!exactPathMatches(value, paths, expected)) {
+    addViolation(
+      violations,
+      code,
+      `${label} must equal ${JSON.stringify(expected)} at ${paths.join(" or ")}`,
+    );
+  }
+}
+
+function writeNewJson(filePath: string, value: unknown): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
 }
 
 function addViolation(violations: Violation[], code: string, message: string): void {
@@ -163,17 +226,41 @@ function assertFileDigest(
   return actual;
 }
 
-function portFromEndpoint(endpoint: string): number {
+function portFromEndpoint(endpoint: string, label = "CDP"): number {
   const parsed = new URL(endpoint);
-  if (!["127.0.0.1", "localhost", "::1"].includes(parsed.hostname)) {
-    throw new Error("CDP endpoint must be loopback-only");
+  if (parsed.protocol !== "http:") {
+    throw new Error(`${label} endpoint must use plain loopback HTTP`);
   }
-  if (!parsed.port) throw new Error("CDP endpoint must declare an explicit port");
+  if (!["127.0.0.1", "localhost", "::1"].includes(parsed.hostname)) {
+    throw new Error(`${label} endpoint must be loopback-only`);
+  }
+  if (!parsed.port) throw new Error(`${label} endpoint must declare an explicit port`);
   const port = Number(parsed.port);
   if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
-    throw new Error("CDP endpoint port is invalid");
+    throw new Error(`${label} endpoint port is invalid`);
   }
   return port;
+}
+
+function isPathWithin(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
+}
+
+export function resolveIsolatedProfileRealpath(profileRoot: string): string | null {
+  try {
+    const lstat = fs.lstatSync(profileRoot);
+    if (!lstat.isDirectory() || lstat.isSymbolicLink()) return null;
+    const realpath = fs.realpathSync(profileRoot);
+    const protectedRoots = [
+      path.join(os.homedir(), ".codex"),
+      path.join(os.homedir(), "Library", "Application Support"),
+    ];
+    if (protectedRoots.some((root) => isPathWithin(root, realpath))) return null;
+    return realpath;
+  } catch {
+    return null;
+  }
 }
 
 function plistValue(
@@ -193,6 +280,264 @@ function plistValue(
     value: commandPassed(result) ? result.stdout.trim() : null,
     command: commandDiagnostic(result),
   };
+}
+
+function sha256WithoutPrefix(value: unknown): string {
+  return requiredString(value, "SHA-256 digest")
+    .replace(/^sha256:/, "")
+    .toLowerCase();
+}
+
+function validateSourceLockReceipt(
+  receipt: JsonRecord,
+  cohort: JsonRecord,
+  violations: Violation[],
+): void {
+  const schema = receipt.schema;
+  const paths =
+    schema === "opl_app_release_cohort_lock.v1"
+      ? {
+          app_sha: "app.resolved_sha",
+          shell_sha: "shell.resolved_sha",
+          framework_sha: "framework.resolved_sha",
+        }
+      : schema === "opl_manual_latest_build_source_lock.v1"
+        ? {
+            app_sha: "repositories.app.head",
+            shell_sha: "repositories.shell.head",
+            framework_sha: "repositories.framework.head",
+          }
+        : null;
+  if (!paths) {
+    addViolation(
+      violations,
+      "source_lock_schema_unsupported",
+      `unsupported source-lock schema: ${String(schema)}`,
+    );
+    return;
+  }
+  for (const [field, fieldPath] of Object.entries(paths)) {
+    requireExactPath(
+      receipt,
+      [fieldPath],
+      cohort[field],
+      violations,
+      "source_lock_cohort_mismatch",
+      `source-lock ${field}`,
+    );
+  }
+}
+
+function validatePublishedCarrierReceipt(
+  receipt: JsonRecord,
+  artifact: JsonRecord,
+  violations: Violation[],
+): void {
+  if (
+    receipt.schema !== "opl_app_stable_operation_published_carrier_binding.v1" ||
+    receipt.status !== "published_immutable"
+  ) {
+    addViolation(
+      violations,
+      "public_release_receipt_schema_mismatch",
+      "public release receipt must be one published immutable Stable carrier binding",
+    );
+    return;
+  }
+  requireExactPath(
+    receipt,
+    ["publication_target.tag"],
+    artifact.release_tag,
+    violations,
+    "public_release_receipt_binding_mismatch",
+    "public release tag",
+  );
+  const carrier = record(receipt.published_carrier, "published carrier");
+  if (
+    carrier.release_id !== artifact.release_id ||
+    carrier.immutable !== true ||
+    carrier.draft !== false
+  ) {
+    addViolation(
+      violations,
+      "public_release_receipt_binding_mismatch",
+      "published carrier identity, immutable state, or draft state does not match",
+    );
+  }
+  const assets = Array.isArray(carrier.assets)
+    ? carrier.assets.map((entry) => record(entry, "published carrier asset"))
+    : [];
+  const matches = assets.filter(
+    (entry) =>
+      entry.name === artifact.asset_name &&
+      sha256WithoutPrefix(entry.digest) === artifact.sha256 &&
+      entry.size_bytes === artifact.size_bytes,
+  );
+  if (matches.length !== 1) {
+    addViolation(
+      violations,
+      "public_release_receipt_binding_mismatch",
+      "published carrier does not contain exactly one matching artifact name, digest, and size",
+    );
+  }
+}
+
+type BuildReceiptBinding = {
+  kind: "standard" | "full" | "diagnostic";
+  packagedTreeSha256: string | null;
+  fullManifestSha256: string | null;
+};
+
+function validateBuildReceipt(
+  receipt: JsonRecord,
+  authority: {
+    classification: "diagnostic" | "immutable_stable";
+    cohort: JsonRecord;
+    artifact: JsonRecord;
+    installed: JsonRecord;
+    identity: JsonRecord;
+  },
+  violations: Violation[],
+): BuildReceiptBinding {
+  if (authority.classification === "immutable_stable") {
+    if (receipt.schema !== "opl_app_build_artifact_cohort.v2") {
+      addViolation(
+        violations,
+        "build_receipt_schema_mismatch",
+        "immutable Stable requires opl_app_build_artifact_cohort.v2",
+      );
+      return { kind: "standard", packagedTreeSha256: null, fullManifestSha256: null };
+    }
+    const build = record(receipt.build, "build receipt build");
+    const artifact = record(receipt.artifact, "build receipt artifact");
+    const digests = record(receipt.digests, "build receipt digests");
+    const kind = build.kind === "full" ? "full" : "standard";
+    if (build.kind !== "standard" && build.kind !== "full") {
+      addViolation(violations, "build_receipt_binding_mismatch", "build kind is invalid");
+    }
+    for (const field of ["app_sha", "shell_sha", "framework_sha"] as const) {
+      requireExactPath(
+        receipt,
+        [`cohort.${field}`],
+        authority.cohort[field],
+        violations,
+        "build_receipt_binding_mismatch",
+        `build receipt cohort.${field}`,
+      );
+    }
+    if (
+      build.version !== authority.identity.display_version ||
+      artifact.name !== authority.artifact.asset_name ||
+      artifact.sha256 !== authority.artifact.sha256 ||
+      artifact.size_bytes !== authority.artifact.size_bytes
+    ) {
+      addViolation(
+        violations,
+        "build_receipt_binding_mismatch",
+        "build version or artifact name, digest, and size does not match the acceptance authority",
+      );
+    }
+    for (const [field, filePath] of [
+      ["app_product_profile_sha256", path.join(APP_ROOT, "contracts/app-product-profile.json")],
+      [
+        "gui_product_contract_sha256",
+        path.join(APP_ROOT, "contracts/app-gui-product-contract.json"),
+      ],
+    ] as const) {
+      if (digests[field] !== sha256File(filePath)) {
+        addViolation(
+          violations,
+          "build_receipt_contract_digest_mismatch",
+          `build receipt ${field} does not match current App contract bytes`,
+        );
+      }
+    }
+    const packagedTreeSha256 = exactSha256(
+      digests.packaged_tree_sha256,
+      "build receipt packaged_tree_sha256",
+    );
+    const fullManifestSha256 =
+      kind === "full"
+        ? exactSha256(
+            digests.full_package_manifest_sha256,
+            "build receipt full_package_manifest_sha256",
+          )
+        : null;
+    return { kind, packagedTreeSha256, fullManifestSha256 };
+  }
+
+  if (
+    receipt.schema !== "opl_manual_latest_build_receipt.v1" ||
+    receipt.status !== "completed" ||
+    receipt.mode !== "local-app"
+  ) {
+    addViolation(
+      violations,
+      "build_receipt_schema_mismatch",
+      "diagnostic acceptance requires one completed manual local-app build receipt",
+    );
+    return { kind: "diagnostic", packagedTreeSha256: null, fullManifestSha256: null };
+  }
+  requireExactPath(
+    receipt,
+    ["source_lock_sha256"],
+    authority.artifact.source_lock_sha256,
+    violations,
+    "build_receipt_binding_mismatch",
+    "manual build source_lock_sha256",
+  );
+  return { kind: "diagnostic", packagedTreeSha256: null, fullManifestSha256: null };
+}
+
+function validateManualInstallReceipt(
+  receipt: JsonRecord,
+  authority: {
+    artifact: JsonRecord;
+    installed: JsonRecord;
+    identity: JsonRecord;
+  },
+  violations: Violation[],
+): void {
+  if (
+    receipt.schema !== "opl_manual_local_app_installation.v1" ||
+    receipt.status !== "completed" ||
+    receipt.launched !== true
+  ) {
+    addViolation(
+      violations,
+      "install_receipt_schema_mismatch",
+      "manual install receipt must be completed and launched",
+    );
+    return;
+  }
+  if (
+    path.resolve(String(receipt.installed_app)) !==
+      path.resolve(String(authority.installed.app_path)) ||
+    !Array.isArray(receipt.launch_process_ids) ||
+    !receipt.launch_process_ids.includes(authority.installed.pid)
+  ) {
+    addViolation(
+      violations,
+      "install_receipt_binding_mismatch",
+      "manual install receipt does not bind the installed App path and live PID",
+    );
+  }
+  const version = record(receipt.installed_version, "manual installed version");
+  for (const [field, expected] of [
+    ["bundle_id", authority.identity.bundle_id],
+    ["display_version", authority.identity.display_version],
+    ["public_updater_version", authority.identity.public_updater_version],
+    ["bundle_version", authority.identity.machine_version],
+    ["source_lock_sha256", authority.artifact.source_lock_sha256],
+  ] as const) {
+    if (version[field] !== expected) {
+      addViolation(
+        violations,
+        "install_receipt_binding_mismatch",
+        `manual installed_version.${field} does not match`,
+      );
+    }
+  }
 }
 
 function parseAuthority(
@@ -220,7 +565,9 @@ function parseAuthority(
     cohort[field] = exactCommit(cohort[field], `cohort.${field}`);
   }
   for (const field of ["app_tree", "shell_tree", "framework_tree"] as const) {
-    cohort[field] = exactCommit(cohort[field], `cohort.${field}`);
+    if (cohort[field] !== undefined) {
+      cohort[field] = exactCommit(cohort[field], `cohort.${field}`);
+    }
   }
   const normalizePath = (value: unknown, label: string) =>
     path.resolve(baseDirectory, requiredString(value, label));
@@ -237,16 +584,19 @@ function parseAuthority(
     artifact.build_receipt_sha256,
     "artifact.build_receipt_sha256",
   );
-  artifact.install_receipt = normalizePath(artifact.install_receipt, "artifact.install_receipt");
-  artifact.install_receipt_sha256 = exactSha256(
-    artifact.install_receipt_sha256,
-    "artifact.install_receipt_sha256",
-  );
+  if (artifact.install_receipt !== undefined || artifact.install_receipt_sha256 !== undefined) {
+    artifact.install_receipt = normalizePath(artifact.install_receipt, "artifact.install_receipt");
+    artifact.install_receipt_sha256 = exactSha256(
+      artifact.install_receipt_sha256,
+      "artifact.install_receipt_sha256",
+    );
+  }
   if (classification === "immutable_stable") {
     if (artifact.immutable !== true || artifact.public !== true) {
       throw new Error("immutable_stable requires immutable=true and public=true");
     }
-    requiredString(artifact.release_id, "artifact.release_id");
+    artifact.release_id = positiveInteger(artifact.release_id, "artifact.release_id");
+    requiredString(artifact.release_tag, "artifact.release_tag");
     requiredString(artifact.asset_name, "artifact.asset_name");
     artifact.size_bytes = positiveInteger(artifact.size_bytes, "artifact.size_bytes");
     artifact.public_release_receipt = normalizePath(
@@ -264,11 +614,13 @@ function parseAuthority(
   installed.executable_path = normalizePath(installed.executable_path, "installed.executable_path");
   installed.app_asar = normalizePath(installed.app_asar, "installed.app_asar");
   installed.app_asar_sha256 = exactSha256(installed.app_asar_sha256, "installed.app_asar_sha256");
-  installed.full_manifest = normalizePath(installed.full_manifest, "installed.full_manifest");
-  installed.full_manifest_sha256 = exactSha256(
-    installed.full_manifest_sha256,
-    "installed.full_manifest_sha256",
-  );
+  if (installed.full_manifest !== undefined || installed.full_manifest_sha256 !== undefined) {
+    installed.full_manifest = normalizePath(installed.full_manifest, "installed.full_manifest");
+    installed.full_manifest_sha256 = exactSha256(
+      installed.full_manifest_sha256,
+      "installed.full_manifest_sha256",
+    );
+  }
   const runtime = record(input.runtime, "runtime");
   runtime.cdp_endpoint = requiredString(runtime.cdp_endpoint, "runtime.cdp_endpoint");
   runtime.target_url_includes = requiredString(
@@ -306,6 +658,17 @@ function parseAuthority(
     runtime.aioncore_runtime_url,
     "runtime.aioncore_runtime_url",
   );
+  portFromEndpoint(String(runtime.cdp_endpoint), "CDP");
+  const aioncoreHealth = new URL(String(runtime.aioncore_health_url));
+  const aioncoreRuntime = new URL(String(runtime.aioncore_runtime_url));
+  const aioncoreHealthPort = portFromEndpoint(aioncoreHealth.toString(), "AionCore health");
+  const aioncoreRuntimePort = portFromEndpoint(aioncoreRuntime.toString(), "AionCore runtime");
+  if (
+    aioncoreHealth.origin !== aioncoreRuntime.origin ||
+    aioncoreHealthPort !== aioncoreRuntimePort
+  ) {
+    throw new Error("AionCore health and runtime endpoints must share one loopback origin");
+  }
   if (runtime.aioncore_parent_pid !== installed.pid) {
     throw new Error("runtime.aioncore_parent_pid must equal installed.pid");
   }
@@ -314,8 +677,10 @@ function parseAuthority(
     throw new Error("profile.kind must be isolated and user_profile_protected must be true");
   }
   profile.root = normalizePath(profile.root, "profile.root");
-  profile.receipt = normalizePath(profile.receipt, "profile.receipt");
-  profile.receipt_sha256 = exactSha256(profile.receipt_sha256, "profile.receipt_sha256");
+  if (profile.receipt !== undefined || profile.receipt_sha256 !== undefined) {
+    profile.receipt = normalizePath(profile.receipt, "profile.receipt");
+    profile.receipt_sha256 = exactSha256(profile.receipt_sha256, "profile.receipt_sha256");
+  }
   const identity = record(input.identity, "identity");
   requiredString(identity.package_or_build_identity, "identity.package_or_build_identity");
   requiredString(identity.bundle_id, "identity.bundle_id");
@@ -380,12 +745,14 @@ export async function preflightInstalledGuiCohort(
     "source-lock receipt",
     violations,
   );
-  const installReceiptActual = assertFileDigest(
-    String(authority.artifact.install_receipt),
-    String(authority.artifact.install_receipt_sha256),
-    "install receipt",
-    violations,
-  );
+  const installReceiptActual = authority.artifact.install_receipt
+    ? assertFileDigest(
+        String(authority.artifact.install_receipt),
+        String(authority.artifact.install_receipt_sha256),
+        "install receipt",
+        violations,
+      )
+    : null;
   const buildReceiptActual = assertFileDigest(
     String(authority.artifact.build_receipt),
     String(authority.artifact.build_receipt_sha256),
@@ -398,12 +765,14 @@ export async function preflightInstalledGuiCohort(
     "installed app.asar",
     violations,
   );
-  const fullManifestActual = assertFileDigest(
-    String(authority.installed.full_manifest),
-    String(authority.installed.full_manifest_sha256),
-    "installed full manifest",
-    violations,
-  );
+  const fullManifestActual = authority.installed.full_manifest
+    ? assertFileDigest(
+        String(authority.installed.full_manifest),
+        String(authority.installed.full_manifest_sha256),
+        "installed full manifest",
+        violations,
+      )
+    : null;
   const aioncoreBinaryActual = assertFileDigest(
     String(authority.runtime.aioncore_binary),
     String(authority.runtime.aioncore_binary_sha256),
@@ -422,12 +791,14 @@ export async function preflightInstalledGuiCohort(
     "AionCore resources manifest",
     violations,
   );
-  const profileReceiptActual = assertFileDigest(
-    String(authority.profile.receipt),
-    String(authority.profile.receipt_sha256),
-    "isolated profile receipt",
-    violations,
-  );
+  const profileReceiptActual = authority.profile.receipt
+    ? assertFileDigest(
+        String(authority.profile.receipt),
+        String(authority.profile.receipt_sha256),
+        "isolated profile receipt",
+        violations,
+      )
+    : null;
   checks.digests = {
     artifact: artifactActual,
     public_release_receipt: publicReleaseReceiptActual,
@@ -451,108 +822,76 @@ export async function preflightInstalledGuiCohort(
       `installed App is missing: ${String(authority.installed.app_path)}`,
     );
   }
-  if (!fs.statSync(String(authority.profile.root), { throwIfNoEntry: false })?.isDirectory()) {
+  const profileRealpath = resolveIsolatedProfileRealpath(String(authority.profile.root));
+  if (!profileRealpath) {
     addViolation(
       violations,
-      "isolated_profile_root_missing",
-      `isolated profile root is missing: ${String(authority.profile.root)}`,
+      "isolated_profile_root_unsafe",
+      `isolated profile root must be one real, non-symlink directory outside protected user profiles: ${String(authority.profile.root)}`,
     );
   }
 
   if (sourceLockActual) {
     const sourceLock = readJson(String(authority.artifact.source_lock), "source-lock receipt");
-    for (const [field, expected] of Object.entries(authority.cohort)) {
-      if (!deepContains(sourceLock, String(expected))) {
-        addViolation(
-          violations,
-          "source_lock_cohort_mismatch",
-          `source-lock receipt does not bind cohort.${field}=${String(expected)}`,
-        );
-      }
-    }
+    validateSourceLockReceipt(sourceLock, authority.cohort, violations);
   }
   if (publicReleaseReceiptActual) {
     const publicReleaseReceipt = readJson(
       String(authority.artifact.public_release_receipt),
       "public release receipt",
     );
-    for (const expected of [
-      authority.artifact.release_id,
-      authority.artifact.asset_name,
-      authority.artifact.sha256,
-      authority.artifact.size_bytes,
-      authority.artifact.source_lock_sha256,
-    ]) {
-      if (deepContains(publicReleaseReceipt, expected)) continue;
-      addViolation(
-        violations,
-        "public_release_receipt_binding_mismatch",
-        `public release receipt does not bind ${String(expected)}`,
-      );
-    }
+    validatePublishedCarrierReceipt(publicReleaseReceipt, authority.artifact, violations);
   }
+  let buildBinding: BuildReceiptBinding = {
+    kind: authority.classification === "immutable_stable" ? "standard" : "diagnostic",
+    packagedTreeSha256: null,
+    fullManifestSha256: null,
+  };
   if (buildReceiptActual) {
     const buildReceipt = readJson(String(authority.artifact.build_receipt), "build receipt");
-    for (const expected of [
-      authority.artifact.source_lock_sha256,
-      authority.artifact.sha256,
-      authority.installed.app_asar_sha256,
-    ]) {
-      if (deepContains(buildReceipt, expected)) continue;
-      addViolation(
-        violations,
-        "build_receipt_binding_mismatch",
-        `build receipt does not bind ${String(expected)}`,
-      );
-    }
+    buildBinding = validateBuildReceipt(buildReceipt, authority, violations);
   }
   if (installReceiptActual) {
     const installReceipt = readJson(String(authority.artifact.install_receipt), "install receipt");
-    for (const expected of [
-      authority.artifact.source_lock_sha256,
-      authority.artifact.build_receipt_sha256,
-      authority.artifact.sha256,
-      authority.installed.app_path,
-      authority.installed.app_asar_sha256,
-      authority.installed.pid,
-    ]) {
-      if (!deepContains(installReceipt, String(expected))) {
-        addViolation(
-          violations,
-          "install_receipt_binding_mismatch",
-          `install receipt does not bind ${String(expected)}`,
-        );
-      }
-    }
-  }
-  if (profileReceiptActual) {
-    const profileReceipt = readJson(String(authority.profile.receipt), "isolated profile receipt");
-    if (
-      !deepContains(profileReceipt, String(authority.profile.root)) ||
-      !deepContains(profileReceipt, "isolated")
-    ) {
+    if (authority.classification !== "diagnostic") {
       addViolation(
         violations,
-        "isolated_profile_receipt_mismatch",
-        "isolated profile receipt does not bind the profile root and isolated kind",
+        "install_receipt_classification_mismatch",
+        "manual install receipts are diagnostic-only and cannot prove immutable Stable installation",
+      );
+    } else {
+      validateManualInstallReceipt(installReceipt, authority, violations);
+    }
+  }
+  let installedTreeSha256: string | null = null;
+  if (
+    buildBinding.packagedTreeSha256 &&
+    fs.statSync(String(authority.installed.app_path), { throwIfNoEntry: false })?.isDirectory()
+  ) {
+    installedTreeSha256 = sha256Tree(String(authority.installed.app_path));
+    if (installedTreeSha256 !== buildBinding.packagedTreeSha256) {
+      addViolation(
+        violations,
+        "installed_app_tree_mismatch",
+        "installed App tree does not match the exact packaged tree from the Stable build receipt",
       );
     }
   }
+  checks.installed_tree_sha256 = installedTreeSha256;
   if (fullManifestActual) {
-    const fullManifest = readJson(
-      String(authority.installed.full_manifest),
-      "installed full manifest",
-    );
-    if (
-      !deepContains(fullManifest, authority.identity.display_version) ||
-      !deepContains(fullManifest, authority.artifact.source_lock_sha256)
-    ) {
+    if (buildBinding.kind !== "full" || fullManifestActual !== buildBinding.fullManifestSha256) {
       addViolation(
         violations,
         "full_manifest_identity_mismatch",
-        "installed full manifest does not bind display version and source-lock",
+        "installed Full manifest does not match the Full build receipt",
       );
     }
+  } else if (buildBinding.kind === "full") {
+    addViolation(
+      violations,
+      "full_manifest_missing",
+      "Full Stable acceptance requires the installed Full package manifest",
+    );
   }
 
   const appPath = String(authority.installed.app_path);
@@ -585,8 +924,14 @@ export async function preflightInstalledGuiCohort(
   checks.plist = identityChecks;
 
   const pid = Number(authority.installed.pid);
+  const cdpEndpoint = String(authority.runtime.cdp_endpoint);
+  const cdpPort = portFromEndpoint(cdpEndpoint);
   const process = run("/bin/ps", ["-p", String(pid), "-o", "comm="]);
+  const processStart = run("/bin/ps", ["-p", String(pid), "-o", "lstart="]);
+  const processCommand = run("/bin/ps", ["-p", String(pid), "-ww", "-o", "command="]);
   checks.app_process = commandDiagnostic(process);
+  checks.app_process_start = commandDiagnostic(processStart);
+  checks.app_process_command = commandDiagnostic(processCommand);
   if (
     !commandPassed(process) ||
     path.resolve(process.stdout.trim()) !==
@@ -596,6 +941,26 @@ export async function preflightInstalledGuiCohort(
       violations,
       "pid_executable_mismatch",
       `PID ${pid} does not resolve to ${String(authority.installed.executable_path)}`,
+    );
+  }
+  if (!commandPassed(processStart) || !processStart.stdout.trim()) {
+    addViolation(
+      violations,
+      "pid_start_time_unavailable",
+      `PID ${pid} start time could not be read`,
+    );
+  }
+  const expectedProfileArgument = `--user-data-dir=${String(authority.profile.root)}`;
+  const expectedCdpArgument = `--remote-debugging-port=${cdpPort}`;
+  if (
+    !commandPassed(processCommand) ||
+    !hasExactProcessArgument(processCommand.stdout, expectedProfileArgument) ||
+    !hasExactProcessArgument(processCommand.stdout, expectedCdpArgument)
+  ) {
+    addViolation(
+      violations,
+      "isolated_profile_process_binding_failed",
+      `PID ${pid} must include ${expectedProfileArgument} and ${expectedCdpArgument}`,
     );
   }
 
@@ -639,8 +1004,6 @@ export async function preflightInstalledGuiCohort(
     );
   }
 
-  const cdpEndpoint = String(authority.runtime.cdp_endpoint);
-  const cdpPort = portFromEndpoint(cdpEndpoint);
   const cdpListener = run("/usr/sbin/lsof", [
     "-nP",
     "-a",
@@ -657,6 +1020,8 @@ export async function preflightInstalledGuiCohort(
       `CDP port ${cdpPort} is not owned by App PID ${pid}`,
     );
   }
+  let cdpTargetId: string | null = null;
+  let cdpTargetUrl: string | null = null;
   try {
     const version = await fetchJson(new URL("/json/version", cdpEndpoint).toString());
     const targets = await fetchJson(new URL("/json/list", cdpEndpoint).toString());
@@ -683,6 +1048,9 @@ export async function preflightInstalledGuiCohort(
         "cdp_target_identity_mismatch",
         `expected one matching renderer target, found ${matchingTargets.length}`,
       );
+    } else {
+      cdpTargetId = requiredString(matchingTargets[0]!.id, "CDP target id");
+      cdpTargetUrl = requiredString(matchingTargets[0]!.url, "CDP target url");
     }
   } catch (error) {
     addViolation(
@@ -693,10 +1061,20 @@ export async function preflightInstalledGuiCohort(
   }
 
   const aioncorePid = Number(authority.runtime.aioncore_pid);
+  const aioncorePort = portFromEndpoint(String(authority.runtime.aioncore_health_url), "AionCore");
   const aioncoreProcess = run("/bin/ps", ["-p", String(aioncorePid), "-o", "comm="]);
   const aioncoreParent = run("/bin/ps", ["-p", String(aioncorePid), "-o", "ppid="]);
+  const aioncoreListener = run("/usr/sbin/lsof", [
+    "-nP",
+    "-a",
+    "-p",
+    String(aioncorePid),
+    `-iTCP:${aioncorePort}`,
+    "-sTCP:LISTEN",
+  ]);
   checks.aioncore_process = commandDiagnostic(aioncoreProcess);
   checks.aioncore_parent = commandDiagnostic(aioncoreParent);
+  checks.aioncore_listener = commandDiagnostic(aioncoreListener);
   if (
     !commandPassed(aioncoreProcess) ||
     path.resolve(aioncoreProcess.stdout.trim()) !==
@@ -718,6 +1096,13 @@ export async function preflightInstalledGuiCohort(
       "AionCore parent PID does not match the bound runtime receipt",
     );
   }
+  if (!commandPassed(aioncoreListener)) {
+    addViolation(
+      violations,
+      "aioncore_pid_listener_mismatch",
+      `AionCore port ${aioncorePort} is not owned by PID ${aioncorePid}`,
+    );
+  }
   const version = run(String(authority.runtime.aioncore_binary), ["--version"]);
   checks.aioncore_version = commandDiagnostic(version);
   if (
@@ -736,29 +1121,34 @@ export async function preflightInstalledGuiCohort(
       String(authority.runtime.aioncore_resources_manifest),
       "AionCore resources manifest",
     );
-    if (!deepContains(manifest, String(authority.runtime.aioncore_version))) {
-      addViolation(
-        violations,
-        "aioncore_manifest_version_mismatch",
-        "AionCore manifest does not bind the expected version",
-      );
-    }
-    if (!deepContains(resources, 2)) {
-      addViolation(
-        violations,
-        "aioncore_resources_schema_mismatch",
-        "AionCore managed resources do not declare schema version 2",
-      );
-    }
+    requireExactPath(
+      manifest,
+      ["version", "aioncore.version"],
+      authority.runtime.aioncore_version,
+      violations,
+      "aioncore_manifest_version_mismatch",
+      "AionCore manifest version",
+    );
+    requireExactPath(
+      resources,
+      ["schemaVersion", "schema_version"],
+      2,
+      violations,
+      "aioncore_resources_schema_mismatch",
+      "AionCore managed resources schema version",
+    );
   }
   try {
     const health = await fetchJson(String(authority.runtime.aioncore_health_url));
     checks.aioncore_health = { status: health.status, value: health.value };
-    if (health.status !== 200) {
+    if (
+      health.status !== 200 ||
+      !exactPathMatches(health.value, ["status", "health.status"], "ok")
+    ) {
       addViolation(
         violations,
         "aioncore_health_mismatch",
-        "AionCore health readback did not return HTTP 200",
+        "AionCore health readback must return HTTP 200 with status=ok",
       );
     }
   } catch (error) {
@@ -773,8 +1163,16 @@ export async function preflightInstalledGuiCohort(
     checks.aioncore_runtime = { status: runtime.status, value: runtime.value };
     if (
       runtime.status !== 200 ||
-      (!deepContains(runtime.value, String(authority.runtime.aioncore_version)) &&
-        !deepContains(runtime.value, String(authority.runtime.aioncore_version).replace(/^v/, "")))
+      ![
+        String(authority.runtime.aioncore_version),
+        String(authority.runtime.aioncore_version).replace(/^v/, ""),
+      ].some((expected) =>
+        exactPathMatches(
+          runtime.value,
+          ["runtime_version", "version", "runtime.version"],
+          expected,
+        ),
+      )
     ) {
       addViolation(
         violations,
@@ -803,8 +1201,15 @@ export async function preflightInstalledGuiCohort(
       ...authority.runtime,
       pid: authority.installed.pid,
       executable_path: authority.installed.executable_path,
+      app_process_started_at: processStart.stdout.trim(),
+      app_process_command: processCommand.stdout.trim(),
+      cdp_target_id: cdpTargetId,
+      cdp_target_url: cdpTargetUrl,
     },
-    profile: authority.profile,
+    profile: {
+      ...authority.profile,
+      realpath: profileRealpath,
+    },
     identity: authority.identity,
     checks,
     violations,
@@ -820,9 +1225,16 @@ export async function preflightInstalledGuiCohort(
       same_cohort_installed: status === "passed",
       pid_executable_bound: status === "passed" && commandPassed(process),
       cdp_pid_bound: status === "passed" && commandPassed(cdpListener),
-      aioncore_runtime_bound: status === "passed" && commandPassed(aioncoreProcess),
+      aioncore_runtime_bound:
+        status === "passed" &&
+        commandPassed(aioncoreProcess) &&
+        commandPassed(aioncoreParent) &&
+        commandPassed(aioncoreListener),
       isolated_profile_bound:
-        status === "passed" && profileReceiptActual === authority.profile.receipt_sha256,
+        status === "passed" &&
+        profileRealpath !== null &&
+        commandPassed(processCommand) &&
+        hasExactProcessArgument(processCommand.stdout, expectedProfileArgument),
       installed_pixel_acceptance: false,
       release_ready: false,
     },
@@ -854,7 +1266,7 @@ async function main(): Promise<void> {
     path.dirname(inputPath),
   );
   const payload = `${JSON.stringify(receipt, null, 2)}\n`;
-  if (options.output) fs.writeFileSync(path.resolve(options.output), payload);
+  if (options.output) writeNewJson(path.resolve(options.output), receipt);
   process.stdout.write(payload);
   if (receipt.status !== "passed") process.exitCode = 1;
 }
