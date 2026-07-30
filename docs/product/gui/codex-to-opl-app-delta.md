@@ -51,7 +51,7 @@ direct-control buttons。
 以下项目不是 26.707.41301 的 literal observation，必须明确标为 OPL-owned delta：
 
 - 当前 session composer 的显式 attachment/paste/drop/`/open` 边界与 OPL workspace state，不存在 project context preload；
-- canonical session 身份独立于 project/workspace，目录组不拥有或级联删除 session；workspace 设置新 session 初始 cwd，projectless session 可经 `thread/settings/update.cwd` 与 exact `thread/read` 一次性 adoption，已有 recorded cwd 不任意换组，运行时 `pwd` 不反写 rail 分组；
+- canonical session 身份独立于 project/workspace，目录组不拥有或级联删除 session；workspace 设置新 session 初始 cwd，projectless session 可经既有 adapter 的 typed affinity assignment 与 exact `thread/read.projectId` 一次性 adoption，recorded cwd 保持不变，已有显式 affinity 不任意换组，运行时 `pwd` 不反写 rail 分组；
 - Research、Grant、Presentation、Book 等 capability/package 语义；
 - OPL task progress、evidence、artifact、action confirmation 与 receipt；
 - OPL Settings IA、first-run、双语、runtime 和 release authority。
@@ -311,7 +311,8 @@ OPL App 在 Codex baseline 上增加可解释的本机准备：
 
 - macOS desktop 使用 native window、directory picker 和 packaged App。
 - Desktop 在新任务创建时选择初始工作目录，也允许 projectless session 用户触发一次性 Project adoption；
-  adoption 只允许 `custom_workspace=false` 或无 canonical recorded cwd，且 exact readback 成功后才提交本地 projection。
+  adoption 只允许 canonical `projectId` 缺失且 `thread/read` 再确认缺失的 thread，typed assignment 和
+  exact `thread/read.projectId` 匹配、recorded cwd 不变后才提交本地 projection。
   不自建 managed Worktree/Handoff，也不提供已绑定 session 的持久 cwd 重绑。命令或 turn 的实际 `pwd`
   仍由 Codex 执行上下文决定，不扩展 Project affinity。
 - Docker/WebUI 在受控 workspace/volume 中提供同一产品语义。

@@ -90,10 +90,9 @@ Environment 只读显示 recorded workspace 与 live Git context；Shell 不自�
 也不允许已绑定 session 在 Project 之间任意重分组。Recorded cwd 是运行上下文，不等于用户显式 Project affinity；
 `~/Documents/Codex/**` managed scratch 保留真实 recorded cwd，但在侧栏投影为 projectless，不按叶子目录拆成 Project。
 Project 分组只接受显式 `projectId` projection，绝不从 recorded cwd、`custom_workspace`、turn 或 command `pwd` 推断。
-当前 Shell 1c7 兼容 transport 只能通过既有 `thread/settings/update.cwd` 写入并以 `thread/read` exact readback 验证
-recorded cwd；它不能把该 transport write 提升为 Project binding。严格的 projectId producer 属于后续独立 Shell lane；
-在该 producer 可用前，缺少显式 projectId 的会话保持 unbound，且不得被 cwd 叶子目录拆分。
-App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加私有 adoption RPC 或第二 client。
+当前 Shell 通过既有单一 App Server adapter 的 typed affinity IPC 分配一次显式 `projectId`，并以 assignment 与
+`thread/read.projectId` exact readback、recorded cwd 不变作为提交门；成功后才提交 rebuildable local projection。
+App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加第二 client 或私有 adoption service。
 它不从 turn/command `pwd` 推断绑定、要求 Project 覆盖显式输入、修改 writable roots，或创建 pending/receipt/Handoff 层。
 工作目录 picker 缺失或不可用时，projectless new task、输入、显式
 send-scoped local inputs 与普通 Codex conversation 仍保持可用；只有 owner-projected action 的
@@ -255,7 +254,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - Environment 使用右上按需浮层，只读渲染真实
   recorded workspace/locality/branch/changes/subtasks/sources；artifact、
   evidence、receipt refs 属于次级信息，不默认形成全高第三列。它不提供已绑定 session cwd
-  重绑或 rail 重分组；新任务初始 cwd 只从 composer `+` 菜单选择，projectless adoption 留在 rail。
+  重绑或 rail 重分组；新任务初始 cwd 只从 composer 上方独立 context bar 选择，projectless adoption 留在 rail。
 - Files/Changes 是按需 workspace surface，Preview 独立；Terminal/Browser 只从 Environment
   或任务需要打开。旧八类 inspector taxonomy 与会话级 Runtime duplicate 不再是产品面。
 - Files/Changes 开关在每个 viewport 状态只能有一个可见 owner：关闭时由 conversation header

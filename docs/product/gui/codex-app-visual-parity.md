@@ -172,11 +172,11 @@ Server ready 与 worker blocked 必须分别显示。若 worker mutation guard �
   rail 分组、thread id、transcript、turn history、title 或 task state。
 - 项目下直接显示 sessions。禁止显示“上下文 / 添加上下文”层级，禁止把目录描述成
   session、附件或 artifact 的 owner。
-- 目录组提供“以此目录新建任务”的快捷动作，并允许 `custom_workspace=false` 或无 canonical recorded cwd 的
-  projectless session 通过拖动或键盘等价动作一次性归入该组；实现必须依次执行
-  `thread/settings/update.cwd`、exact `thread/read`、本地 projection commit。已有 cwd 不允许任意换组，也不提供
-  Local/Worktree launch mode 或 managed Worktree/Handoff。当前 AionUI 仍缺这条 canonical adoption source，不能把
-  contract target 写成已实现。
+- 目录组提供“以此目录新建任务”的快捷动作，并允许无 canonical `projectId` 的 projectless session
+  通过拖动或键盘等价动作一次性归入该组；实现必须在同一现有 adapter 内依次完成 typed affinity
+  assignment、exact `thread/read.projectId` 与 recorded-cwd-unchanged readback、本地 projection commit。
+  已有显式 affinity 不允许任意换组，也不提供 Local/Worktree launch mode 或 managed Worktree/Handoff。
+  当前 AionUI 已实现该 Source；Pixel、Install 和 Release 证据仍独立未闭合。
 - 当前 Agent Package 可通过 Codex-first carrier/executor 提供用户能力；OPL 额外呈现安装、更新、启停、
   可见性和运行状态，但不得把普通对话改成 agent dashboard，也不得把 Codex plugin id 当 Package identity。
 - Agents 普通列表从 Framework 动态 installed directory 读取本地化角色名、owner kind/exposure 和用户排序；
