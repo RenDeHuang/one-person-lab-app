@@ -176,6 +176,54 @@ function digestRef(digest: string): string {
   return digest.startsWith('sha256:') ? digest : `sha256:${digest}`;
 }
 
+export function fullAdjunctReleaseIdentity(bundle: JsonRecord): JsonRecord {
+  const baseTag = String(bundle.release?.tag ?? '');
+  const version = String(bundle.release?.version ?? '');
+  const bundleDigest = String(bundle.bundle_digest ?? '');
+  const repository = String(bundle.sources?.app?.repo ?? '');
+  const appSha = String(bundle.sources?.app?.source_commit ?? '');
+  const shellSha = String(bundle.sources?.shell?.source_commit ?? '');
+  const frameworkSha = String(bundle.sources?.framework?.source_commit ?? '');
+  if (
+    !/^v[0-9A-Za-z][0-9A-Za-z.-]*$/.test(baseTag)
+    || !version
+    || !digestPattern.test(bundleDigest)
+    || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
+    || ![appSha, shellSha, frameworkSha].every((value) => /^[0-9a-f]{40}$/.test(value))
+  ) {
+    throw new Error('Full adjunct identity requires one exact Stable Bundle and source cohort.');
+  }
+  const tag = `${baseTag}-full-${bundleDigest.slice('sha256:'.length, 'sha256:'.length + 12)}`;
+  const baseUrl = `https://github.com/${repository}/releases/tag/${baseTag}`;
+  const notes = [
+    `# One Person Lab v${version} Full macOS adjunct`,
+    '',
+    'This immutable adjunct carries the optional Full macOS first-install package for the exact Stable cohort below.',
+    `Base Stable Release: ${baseUrl}`,
+    `Bundle digest: ${bundleDigest}`,
+    `App source: ${appSha}`,
+    `Shell source: ${shellSha}`,
+    `Framework source: ${frameworkSha}`,
+    '',
+    'Download the Full DMG and its manifest from the assets attached to this adjunct Release. The base Stable Release and GitHub Latest pointer are not modified.',
+  ].join('\n');
+  return {
+    schema: 'opl_app_immutable_release_adjunct_identity.v1',
+    kind: 'full_macos',
+    base_tag: baseTag,
+    tag,
+    name: `One Person Lab v${version} Full macOS adjunct`,
+    notes,
+    make_latest: false,
+    bundle_digest: bundleDigest,
+    cohort: {
+      app_sha: appSha,
+      shell_sha: shellSha,
+      framework_sha: frameworkSha,
+    },
+  };
+}
+
 function gitSha(root: string): string {
   const result = spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
   if (result.status !== 0 || !/^[0-9a-f]{40}$/.test(result.stdout.trim())) {
@@ -1899,8 +1947,19 @@ export function applyPublishPlan(
     String(bundle.release?.updater_version ?? ''),
   );
   const repo = bundle.sources.app.repo;
-  const tag = bundle.release.tag;
-  const name = `One Person Lab v${bundle.release.version}`;
+  const fullAdjunct = admission.track === 'full'
+    ? fullAdjunctReleaseIdentity(bundle)
+    : null;
+  const tag = fullAdjunct?.tag ?? bundle.release.tag;
+  const name = fullAdjunct?.name ?? `One Person Lab v${bundle.release.version}`;
+  const notes = fullAdjunct?.notes ?? bundle.prepared_notes.markdown;
+  const adjunct = fullAdjunct
+    ? {
+        ...fullAdjunct,
+        release_url: `https://github.com/${repo}/releases/tag/${tag}`,
+        asset_download_base_url: `https://github.com/${repo}/releases/download/${tag}`,
+      }
+    : null;
   const plan = readJson(path.resolve(requireOption(values, 'plan')));
   const publication = plan.release_bundle_publish;
   if (publication?.bundle_digest !== bundle.bundle_digest) {
@@ -1947,6 +2006,29 @@ export function applyPublishPlan(
     ...plannedUploadActions(actions),
     ...supplementalUploadActions(values),
   ]);
+  if (fullAdjunct) {
+    const baseInspection = inspectRelease(repo, String(fullAdjunct.base_tag), runtime);
+    if (
+      baseInspection.release.exists !== true
+      || baseInspection.release.draft !== false
+      || baseInspection.release.prerelease !== false
+      || baseInspection.release.immutable !== true
+      || baseInspection.release.target_commitish !== bundle.sources.app.source_commit
+    ) {
+      rejectGitHubMutation(
+        'github-apply',
+        values,
+        'github_full_adjunct_base_not_terminal',
+        'Full adjunct publication requires the exact base Stable Release to be published and immutable.',
+        {
+          base_tag: fullAdjunct.base_tag,
+          bundle_digest: bundle.bundle_digest,
+          observed_release: baseInspection.release,
+        },
+        'inspect_only_require_exact_immutable_base',
+      );
+    }
+  }
   const preexisting = inspectReleaseForReconcile(repo, tag, runtime);
   const exactPublishedCarrier = preexisting.status === 'complete'
     && preexisting.observation.release.exists === true
@@ -1961,7 +2043,7 @@ export function applyPublishPlan(
     repo,
     tag,
     name,
-    notes: bundle.prepared_notes.markdown,
+    notes,
     targetCommitish: bundle.sources.app.source_commit,
     prerelease: publicationChannel === 'nightly',
     operationDeadlineAt,
@@ -1984,6 +2066,7 @@ export function applyPublishPlan(
       tag,
       uploaded: [],
       inspection: releaseResult.inspection,
+      adjunct,
     };
   }
   assertReleaseAssetSet(releaseResult.inspection, uploadActions, false);
@@ -1995,7 +2078,7 @@ export function applyPublishPlan(
     assertReleaseIdentity(before, {
       tag,
       name,
-      notes: bundle.prepared_notes.markdown,
+      notes,
       targetCommitish: bundle.sources.app.source_commit,
       prerelease: publicationChannel === 'nightly',
       draft: true,
@@ -2047,7 +2130,7 @@ export function applyPublishPlan(
     assertReleaseIdentity(after, {
       tag,
       name,
-      notes: bundle.prepared_notes.markdown,
+      notes,
       targetCommitish: bundle.sources.app.source_commit,
       prerelease: publicationChannel === 'nightly',
       draft: true,
@@ -2077,7 +2160,7 @@ export function applyPublishPlan(
     repo,
     tag,
     name,
-    notes: bundle.prepared_notes.markdown,
+    notes,
     targetCommitish: bundle.sources.app.source_commit,
     prerelease: publicationChannel === 'nightly',
     actions: uploadActions,
@@ -2087,7 +2170,11 @@ export function applyPublishPlan(
   if (publicationResult.status !== 'complete') {
     return { ...publicationResult, uploaded };
   }
-  return { ...publicationResult, uploaded };
+  return {
+    ...publicationResult,
+    uploaded,
+    adjunct,
+  };
 }
 
 function activateLatestCas(input: {

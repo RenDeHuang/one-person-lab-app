@@ -13,6 +13,16 @@ export type ReleaseBoundaryCheck = {
   retired?: boolean;
 };
 
+export type ReleaseValidationProfile = 'aggregate' | 'stable' | 'windows-preview';
+
+export function releaseValidationProfile(
+  value = process.env.OPL_RELEASE_VALIDATION_PROFILE,
+): ReleaseValidationProfile {
+  if (value === undefined || value === '') return 'aggregate';
+  if (value === 'aggregate' || value === 'stable' || value === 'windows-preview') return value;
+  throw new Error(`Unsupported OPL_RELEASE_VALIDATION_PROFILE: ${value}.`);
+}
+
 export const releaseWorkflowPaths = [
   ".github/workflows/_build-reusable.yml",
   ".github/workflows/_release-bundle.yml",
@@ -37,6 +47,26 @@ export const releaseWorkflowPaths = [
   ".github/workflows/release-verify-remote.yml",
 ];
 
+const windowsPreviewOnlyWorkflowPaths = new Set([
+  '.github/workflows/docker-webui-clean-windows-vm.yml',
+]);
+
+export function releaseWorkflowPathsForProfile(
+  profile = releaseValidationProfile(),
+): string[] {
+  if (profile === 'aggregate') return releaseWorkflowPaths;
+  if (profile === 'stable') {
+    return releaseWorkflowPaths.filter((workflowPath) =>
+      !windowsPreviewOnlyWorkflowPaths.has(workflowPath)
+    );
+  }
+  return releaseWorkflowPaths.filter((workflowPath) =>
+    windowsPreviewOnlyWorkflowPaths.has(workflowPath)
+    || workflowPath === '.github/workflows/_build-reusable.yml'
+    || workflowPath === '.github/workflows/build-manual.yml'
+  );
+}
+
 const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   {
     id: "local_first_release_preflight",
@@ -50,7 +80,8 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "npm run test:release-boundary",
       "npm run validate:shell-candidates",
       "npm run build-mac:arm64",
-      "github_hosted_linux_windows_macos_matrix",
+      "github_hosted_required_macos_linux_matrix",
+      "github_hosted_optional_platform_matrix_nonblocking",
       "protected_signing_and_notarization_credentials",
       "owner_authoritative_remote_readback",
       "post_publication_clean_machine_certification",
@@ -1578,6 +1609,51 @@ const supersededLiveControlPlaneChecks = new Set([
 export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   ...legacyReleaseBoundaryChecks.filter((check) => !supersededLiveControlPlaneChecks.has(check.id)),
   {
+    id: "audited_optional_platform_publication_carrier",
+    file: ".github/workflows/build-manual.yml",
+    required: [
+      "workflow_call:",
+      "stable_optional_follower",
+      "windows_preview_rc",
+      "resolve-release-platform-matrix.ts",
+      "--policy stable_optional",
+      "--policy \"$policy\"",
+      "environment: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}",
+      "gh release upload \"$tag\" \"$asset_path\"",
+      "no retry is allowed",
+      "opl_app_optional_platform_publication_receipt.v1",
+      "base_stable_terminal_modified:false",
+      "latest_modified:false",
+      "start_distinct_operation_after_read_only_reconciliation",
+    ],
+    forbidden: [
+      "--clobber",
+      "make_latest: true",
+      "gh run rerun",
+      "gh run cancel",
+      "inputs.matrix",
+      "inputs.command",
+      "inputs.os",
+    ],
+  },
+  {
+    id: "automatic_optional_platform_follower",
+    file: ".github/workflows/release-stable-post-success-followups.yml",
+    required: [
+      "workflow_run:",
+      "publish-optional-platforms:",
+      "optional_platforms_enabled",
+      "uses: ./.github/workflows/build-manual.yml",
+      "invocation_mode: stable_optional_follower",
+      "platform_policy: stable_optional",
+      "source_bundle_digest:",
+    ],
+    forbidden: [
+      "workflow_dispatch:",
+      "continue-on-error:",
+    ],
+  },
+  {
     id: "release_bundle_package_scripts",
     file: "package.json",
     required: [
@@ -1704,8 +1780,11 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "full-qualification:",
       "checkpoint-full:",
       "publish-full:",
-      "Append only exact Full bytes",
+      "Publish exact Full bytes as an immutable adjunct",
+      "opl_app_full_append_boundary_receipt.v1",
+      "carrier:{kind:\"immutable_adjunct_release\"",
       "standard_updater_metadata_modified:false",
+      "latest_modified:false",
     ],
     forbidden: [
       "workflow_dispatch:",
@@ -1979,3 +2058,20 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     forbidden: ["workflow_dispatch:", "contents: write", "packages: write", "gh release upload"],
   },
 ];
+
+const windowsPreviewOnlyCheckIds = new Set([
+  'docker_webui_clean_windows_vm_workflow',
+  'docker_webui_clean_windows_dispatch_helper',
+  'docker_webui_clean_windows_dispatch_npm_script',
+  'docker_webui_clean_windows_runner_bootstrap_runbook',
+]);
+
+export function releaseBoundaryChecksForProfile(
+  profile = releaseValidationProfile(),
+): ReleaseBoundaryCheck[] {
+  if (profile === 'aggregate') return releaseBoundaryChecks;
+  if (profile === 'stable') {
+    return releaseBoundaryChecks.filter((check) => !windowsPreviewOnlyCheckIds.has(check.id));
+  }
+  return releaseBoundaryChecks.filter((check) => windowsPreviewOnlyCheckIds.has(check.id));
+}

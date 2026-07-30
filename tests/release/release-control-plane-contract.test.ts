@@ -49,6 +49,30 @@ test('Framework checkpoint plus the App executor is the only live release mutati
   assert.equal(control.framework_authority.app_may_derive_or_project_release_stage_state, false);
 });
 
+test('release platform contract keeps Stable required platforms separate from optional capability', () => {
+  const release = readJson('contracts/app-release-channel.json');
+  const matrix = release.release_platform_matrix;
+  assert.deepEqual(matrix.policies.stable_required.platforms, ['macos-arm64', 'linux-x64']);
+  assert.equal(matrix.policies.stable_required.blocks_base_terminal, true);
+  assert.deepEqual(
+    matrix.policies.stable_optional.platforms,
+    ['macos-x64', 'macos-universal', 'linux-arm64'],
+  );
+  assert.equal(matrix.policies.stable_optional.default_enabled, false);
+  assert.equal(matrix.policies.stable_optional.blocks_base_terminal, false);
+  assert.deepEqual(matrix.policies.windows_preview.platforms, ['windows-x64', 'windows-arm64']);
+  assert.equal(matrix.policies.windows_preview.default_enabled, false);
+  assert.equal(matrix.policies.windows_preview.blocks_base_terminal, false);
+  assert.equal(matrix.capabilities['windows-x64'].stable_allowed, false);
+  assert.equal(matrix.capabilities['windows-arm64'].stable_allowed, false);
+  assert.ok(release.release_validation_profiles.stable.required_lanes.includes('standard_linux_x64_build'));
+  assert.ok(
+    release.release_validation_profiles.nightly_standard.required_lanes.includes(
+      'standard_linux_x64_build',
+    ),
+  );
+});
+
 test('App contract matches the current Framework release checkpoint ABI', () => {
   const release = readJson('contracts/app-release-channel.json');
   const framework = release.release_bundle_control_plane.framework_authority;

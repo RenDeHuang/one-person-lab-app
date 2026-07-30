@@ -46,7 +46,8 @@ const payload = {
     'standard_package_build',
   ],
   remote_only: [
-    'github_hosted_linux_windows_macos_matrix',
+    'github_hosted_required_macos_linux_matrix',
+    'github_hosted_optional_platform_matrix_nonblocking',
     'protected_signing_and_notarization_credentials',
     'public_mutation',
     'owner_authoritative_remote_readback',
@@ -57,6 +58,58 @@ const payload = {
 };
 fs.writeFileSync(summaryPath, `${JSON.stringify(payload, null, 2)}\n`);
 NODE
+}
+
+run_release_boundary_profile() {
+  local profile="$1"
+  local -a test_files=()
+
+  case "${OPL_RELEASE_SKIP_MODEL_POLICY_CHECK:-false}" in
+    false)
+      npm run codex:model-policy:check
+      ;;
+    true)
+      ;;
+    *)
+      printf 'OPL_RELEASE_SKIP_MODEL_POLICY_CHECK must be true or false.\n' >&2
+      return 2
+      ;;
+  esac
+  OPL_RELEASE_VALIDATION_PROFILE="$profile" npm run validate:release-boundary
+  while IFS= read -r file_path; do test_files+=("$file_path"); done < <(
+    node --experimental-strip-types --input-type=module - "$profile" <<'NODE'
+  import fs from 'node:fs';
+  import path from 'node:path';
+  const profile = process.argv[2];
+  const contract = JSON.parse(fs.readFileSync('contracts/app-release-channel.json', 'utf8'));
+  const ownership = contract.release_platform_matrix?.validation_ownership;
+  const windowsOwned = ownership?.['windows-preview']?.owned_test_paths;
+  if (!Array.isArray(windowsOwned) || windowsOwned.length === 0) {
+    throw new Error('Windows Preview test ownership is missing from the release platform contract.');
+  }
+  const releaseTests = fs.readdirSync('tests/release', { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
+    .map((entry) => path.posix.join('tests/release', entry.name));
+  const boundaryTests = fs.readdirSync('tests/release/app-release-boundary-cases', { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
+    .map((entry) => path.posix.join('tests/release/app-release-boundary-cases', entry.name));
+  const allTests = [...releaseTests, ...boundaryTests].sort();
+  const owned = new Set(windowsOwned);
+  for (const file of owned) {
+    if (!allTests.includes(file)) throw new Error(`Owned release test does not exist: ${file}.`);
+  }
+  const selected = profile === 'stable'
+    ? allTests.filter((file) => !owned.has(file))
+    : profile === 'windows-preview'
+      ? allTests.filter((file) => owned.has(file))
+      : null;
+  if (!selected) throw new Error(`Unsupported release validation profile: ${profile}.`);
+  process.stdout.write(`${selected.join('\n')}\n`);
+NODE
+  )
+  test "${#test_files[@]}" -gt 0
+  node --experimental-strip-types --test --test-concurrency=4 --test-timeout=120000 \
+    --test-force-exit "${test_files[@]}"
 }
 
 run_lane() {
@@ -72,7 +125,11 @@ run_lane() {
       ;;
     release-boundary)
       npm run ensure:shell
-      npm run test:release-boundary
+      if [ -n "${OPL_RELEASE_VALIDATION_PROFILE:-}" ]; then
+        run_release_boundary_profile "$OPL_RELEASE_VALIDATION_PROFILE"
+      else
+        npm run test:release-boundary
+      fi
       ;;
     candidate-shell)
       npm run ensure:shell
@@ -98,7 +155,7 @@ run_lane() {
       actionlint -shellcheck= -pyflakes=
       npm run typecheck
       npm run validate:active-shell
-      npm run test:release-boundary
+      OPL_RELEASE_VALIDATION_PROFILE=stable run_release_boundary_profile stable
       npm run validate:shell-candidates
       npm run build-mac:arm64
       OPL_PREFLIGHT_FINAL_STATUS=passed

@@ -120,6 +120,7 @@ function issuedAuthority(input: {
   criticalBlobs?: Record<string, string>;
   issuer?: string;
   nonce?: string;
+  optionalPlatforms?: unknown;
   sourceGate?: Record<string, unknown>;
   preNonceGuard?: Record<string, unknown>;
 } = {}) {
@@ -142,13 +143,14 @@ function issuedAuthority(input: {
     appSha,
     shellSha,
     frameworkSha,
+    optionalPlatforms: input.optionalPlatforms,
     criticalBlobs: authorityCriticalBlobs,
     sourceGate: input.sourceGate ?? sourceGate(),
     preNonceGuard: input.preNonceGuard ?? preNonceGuard({ operationId: authorityOperationId }),
   });
 }
 
-function control() {
+function control(optionalPlatforms: unknown = []) {
   return createStableOperationControl({
     operationId,
     actor: 'gaofeng21cn',
@@ -158,11 +160,12 @@ function control() {
     appSha,
     shellSha,
     frameworkSha,
+    optionalPlatforms,
     criticalBlobs,
     sourceGateDigest: evidenceDigest(sourceGate()),
     preNonceGuardDigest: evidenceDigest(preNonceGuard()),
     runAuthorityReconcileDigest: evidenceDigest(runAuthorityReconcile()),
-    issuedAuthority: issuedAuthority(),
+    issuedAuthority: issuedAuthority({ optionalPlatforms }),
   });
 }
 
@@ -173,6 +176,23 @@ test('Stable operation control binds one actor, exact frozen cohort, critical bl
   assert.equal(actual.cohort.app_sha, appSha);
   assert.match(actual.nonce_digest, /^sha256:[0-9a-f]{64}$/);
   assert.equal(validateStableOperationControl(actual).authority_digest, actual.authority_digest);
+});
+
+test('Stable authority canonically binds audited optional platform selection into the run control', () => {
+  const actual = control(['linux-arm64', 'macos-x64']);
+  assert.deepEqual(actual.optional_platforms, ['macos-x64', 'linux-arm64']);
+  assert.deepEqual(actual.issued_authority.optional_platforms, actual.optional_platforms);
+
+  const drifted = structuredClone(actual);
+  drifted.optional_platforms = ['linux-arm64'];
+  assert.throws(
+    () => validateStableOperationControl(drifted),
+    /cohort or critical blob bindings do not match/,
+  );
+  assert.throws(
+    () => control(['windows-x64']),
+    /optional_platforms contains an unknown or duplicate platform ID/,
+  );
 });
 
 test('Stable operation control rejects a missing issued authority reference', () => {

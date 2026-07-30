@@ -719,7 +719,8 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   assertDeepEqualJson(
     localFirst.remote_only,
     [
-      'github_hosted_linux_windows_macos_matrix',
+      'github_hosted_required_macos_linux_matrix',
+      'github_hosted_optional_platform_matrix_nonblocking',
       'protected_signing_and_notarization_credentials',
       'public_mutation',
       'owner_authoritative_remote_readback',
@@ -1010,6 +1011,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   }
 
   const stableValidation = releaseChannel?.release_validation_profiles?.stable;
+  const nightlyValidation = releaseChannel?.release_validation_profiles?.nightly_standard;
   assertDeepEqualJson(
     stableValidation?.post_publication_optional_certification_surfaces,
     [
@@ -1023,9 +1025,96 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   if (
     stableValidation?.addon_gate_blocking_standard_terminal !== false ||
     stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
-    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke')
+    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
+    !stableValidation?.required_lanes?.includes('standard_linux_x64_build') ||
+    !nightlyValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
+    !nightlyValidation?.required_lanes?.includes('standard_linux_x64_build')
   ) {
     throw new Error('Full clean-VM certification must remain outside the Stable publication terminal');
+  }
+  const platformMatrix = releaseChannel?.release_platform_matrix;
+  const capabilities = platformMatrix?.capabilities;
+  const policies = platformMatrix?.policies;
+  const capabilityIds = [
+    'macos-arm64',
+    'macos-x64',
+    'macos-universal',
+    'linux-x64',
+    'linux-arm64',
+    'windows-x64',
+    'windows-arm64',
+  ];
+  assertDeepEqualJson(
+    Object.keys(capabilities ?? {}).sort(),
+    capabilityIds.slice().sort(),
+    'Release platform capabilities',
+  );
+  assertDeepEqualJson(
+    policies?.stable_required?.platforms,
+    ['macos-arm64', 'linux-x64'],
+    'Stable required platform policy',
+  );
+  assertDeepEqualJson(
+    policies?.nightly_standard?.platforms,
+    ['macos-arm64', 'linux-x64'],
+    'Nightly required platform policy',
+  );
+  assertDeepEqualJson(
+    policies?.stable_optional?.platforms,
+    ['macos-x64', 'macos-universal', 'linux-arm64'],
+    'Stable optional platform policy',
+  );
+  assertDeepEqualJson(
+    platformMatrix?.validation_ownership?.['windows-preview']?.owned_test_paths,
+    [
+      'tests/release/docker-webui-clean-windows-dispatch.test.ts',
+      'tests/release/docker-webui-native-windows-smoke.test.ts',
+      'tests/release/docker-webui-windows-installer.test.ts',
+      'tests/release/docker-webui-windows-validation-fixtures.test.ts',
+      'tests/release/windows-platform-factory-contract.test.ts',
+      'tests/release/windows-rc-preview.test.ts',
+      'tests/release/windows-wsl2-validation-fixtures.test.ts',
+    ],
+    'Windows Preview validation ownership',
+  );
+  if (
+    platformMatrix?.schema !== 'opl_app_release_platform_matrix.v1'
+    || platformMatrix?.resolver !== 'scripts/resolve-release-platform-matrix.ts'
+    || capabilities?.['macos-arm64']?.default_enabled !== true
+    || capabilities?.['macos-arm64']?.blocks_stable !== true
+    || capabilities?.['linux-x64']?.default_enabled !== true
+    || capabilities?.['linux-x64']?.blocks_stable !== true
+    || capabilities?.['windows-x64']?.default_enabled !== false
+    || capabilities?.['windows-x64']?.stable_allowed !== false
+    || capabilities?.['windows-x64']?.blocks_stable !== false
+    || capabilities?.['windows-arm64']?.default_enabled !== false
+    || capabilities?.['windows-arm64']?.stable_allowed !== false
+    || capabilities?.['windows-arm64']?.blocks_stable !== false
+    || Object.values(capabilities ?? {}).some((capability) =>
+      typeof capability?.publication_route !== 'string'
+      || capability?.publication_status?.includes('unavailable')
+    )
+    || policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
+    || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows-preview'
+    || platformMatrix?.stable_optional_selection?.authority_field !==
+      'opl_app_stable_operation_authority.v1#optional_platforms'
+    || platformMatrix?.stable_optional_selection?.control_field !==
+      'opl_app_stable_operation_control.v1#optional_platforms'
+    || platformMatrix?.stable_optional_selection?.arbitrary_command_or_os_input_allowed !== false
+    || platformMatrix?.optional_platform_additive_follower?.carrier !==
+      'independent_immutable_adjunct_release'
+    || platformMatrix?.optional_platform_additive_follower?.base_release_must_be_published_immutable !== true
+    || platformMatrix?.optional_platform_additive_follower?.make_latest !== false
+    || platformMatrix?.full_macos_additive_follower?.trigger !==
+      'protected_automatic_post_success'
+    || platformMatrix?.full_macos_additive_follower?.carrier !==
+      'independent_immutable_adjunct_release'
+    || platformMatrix?.full_macos_additive_follower?.base_release_must_be_published_immutable !== true
+    || platformMatrix?.full_macos_additive_follower?.blocks_stable_base_terminal !== false
+    || platformMatrix?.full_macos_additive_follower?.blocks_latest_activation !== false
+  ) {
+    throw new Error('Release platform matrix must keep macOS ARM64 plus Linux x64 required, Windows Preview-only, and Full non-blocking');
   }
 }
 

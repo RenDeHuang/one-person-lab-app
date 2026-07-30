@@ -856,6 +856,7 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.equal(full.permissions, undefined);
   assert.deepEqual(Object.keys(bundle.jobs), [
     'startup-canary',
+    'resolve-platform-matrix',
     'admission',
     'freeze',
     'standard-build',
@@ -2250,7 +2251,18 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   const followerSource = readWorkflow('release-webui-follower.yml');
   const webuiSource = readWorkflow('_release-webui-carrier.yml');
   const adapterSource = readAdapter();
-  assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze']);
+  assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze', 'resolve-platform-matrix']);
+  assert.equal(
+    workflow.jobs['standard-build'].with.matrix,
+    '${{ needs.resolve-platform-matrix.outputs.matrix }}',
+  );
+  assert.equal(workflow.jobs['standard-build'].with.release_validation_profile, 'stable');
+  assert.match(
+    String(workflow.jobs['resolve-platform-matrix'].steps.find(
+      (step: Record<string, unknown>) => step.id === 'resolve',
+    )?.run),
+    /resolve-release-platform-matrix\.ts[\s\S]*--policy stable_required/,
+  );
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
     ['admission', 'freeze', 'seal-standard-identity'],
