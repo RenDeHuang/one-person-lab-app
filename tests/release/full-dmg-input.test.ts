@@ -14,6 +14,13 @@ import {
 
 type JsonRecord = Record<string, any>;
 
+const desiredRootPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'opl-flow'];
+const dependencyClosure = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'];
+const appProductProfileFixture = fs.readFileSync(
+  new URL('../../contracts/app-product-profile.json', import.meta.url),
+  'utf8',
+);
+
 function sha256(value: Buffer | string): string {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
@@ -42,14 +49,13 @@ function initRepo(root: string, files: Record<string, string>): string {
   return git(root, ['rev-parse', 'HEAD']);
 }
 
-function selectedPackageSet() {
-  const packageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'];
+function selectedPackageSet(packageIds = desiredRootPackageIds) {
   const payload = {
     schema: 'opl_full_runtime_selected_package_set.v1',
     profile_id: 'starter',
     package_ids: packageIds,
-    dependency_closure: packageIds,
-    packages: packageIds.map((packageId, index) => ({
+    dependency_closure: dependencyClosure,
+    packages: dependencyClosure.map((packageId, index) => ({
       package_id: packageId,
       source_commit: String(index + 1).repeat(40),
       source_fingerprint: `sha256:${String(index + 1).repeat(64)}`,
@@ -142,7 +148,7 @@ function fixture(pythonRuntimeVersion = '3.12.12', expectedPythonVersion = '3.12
   const appRef = initRepo(appRoot, {
     'contracts/app-full-third-party-source-manifest.json': `${JSON.stringify(thirdParty, null, 2)}\n`,
     'contracts/app-release-qualification-input-manifest.json': `${JSON.stringify(qualification, null, 2)}\n`,
-    'contracts/app-product-profile.json': '{"schema":"profile"}\n',
+    'contracts/app-product-profile.json': appProductProfileFixture,
     'contracts/full-runtime-prune-policy.json': '{"schema":"prune"}\n',
     'scripts/build-full-first-install-package/skills.ts': 'export const skills = true;\n',
   });
@@ -229,6 +235,26 @@ test('development qualification closes exact Full offline inputs without grantin
     assert.equal(first.input_closure_digest, second.input_closure_digest);
     assert.equal(first.observed_input.sources.app.commit, request.appRef);
     assert.equal(first.observed_input.selected_package_set_identity, selectedPackageSet().identity);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('dependency closure cannot become a second fixed Full root package list', () => {
+  const { root, request } = fixture();
+  try {
+    const report = JSON.parse(fs.readFileSync(request.runtimeCacheKeyReportPath, 'utf8')) as JsonRecord;
+    const staleFixedRoots = selectedPackageSet(dependencyClosure);
+    report.selected_package_set = staleFixedRoots;
+    report.layer_key_inputs['domain-runtime'].selected_package_set = staleFixedRoots;
+    writeJson(request.runtimeCacheKeyReportPath, report);
+
+    const receipt = buildFullDmgInputQualification(request);
+    assert.equal(receipt.status, 'blocked');
+    assert.ok(
+      receipt.issues.some((issue) => issue.code === 'selected_package_set_membership_invalid'),
+      JSON.stringify(receipt.issues),
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

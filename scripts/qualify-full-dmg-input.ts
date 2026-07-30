@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 
+import { readAppProductProfile } from './app-product-profile/profile-contract.ts';
 import { validateSelectedPackageSetInput } from './build-full-first-install-package/runtime-cache-package-set.ts';
 
 type JsonRecord = Record<string, any>;
@@ -43,7 +44,6 @@ const shaPattern = /^[0-9a-f]{40}$/;
 const digestPattern = /^[0-9a-f]{64}$/;
 const digestRefPattern = /^sha256:[0-9a-f]{64}$/;
 const expectedLayerIds = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
-const expectedPackageIds = ['mas', 'mag', 'rca', 'oma', 'obf', 'mas-scholar-skills', 'opl-flow'];
 
 function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
@@ -223,6 +223,7 @@ function validateRuntimeCacheReport(
   thirdParty: JsonRecord,
   qualification: JsonRecord,
   appProductProfileSha256: string,
+  desiredRootPackageIds: readonly string[],
   skillsPackagerSha256: string,
   refs: { framework: string; officeCli: string; uiUxProMax: string },
   issues: FullDmgInputQualification['issues'],
@@ -253,8 +254,11 @@ function validateRuntimeCacheReport(
       message: error instanceof Error ? error.message : String(error),
     });
   }
-  if (!exactArray(report.selected_package_set?.package_ids, expectedPackageIds)) {
-    issues.push({ code: 'selected_package_set_membership_invalid', message: 'Selected package set is not the exact Full starter closure.' });
+  if (!exactArray(report.selected_package_set?.package_ids, desiredRootPackageIds)) {
+    issues.push({
+      code: 'selected_package_set_membership_invalid',
+      message: 'Selected package set roots do not match the App Official Profile.',
+    });
   }
 
   const toolchain = report.layer_key_inputs?.toolchain ?? {};
@@ -306,6 +310,7 @@ export function buildFullDmgInputQualification(
     path.join(appRoot, 'contracts', 'app-product-profile.json'),
     'App product profile',
   );
+  const appProductProfile = readAppProductProfile(productProfilePath);
   const prunePolicyPath = regularFile(
     path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'),
     'Full runtime prune policy',
@@ -350,6 +355,7 @@ export function buildFullDmgInputQualification(
     thirdParty,
     qualification,
     manifestDigests.app_product_profile,
+    appProductProfile.official_profile.desired_root_package_ids,
     manifestDigests.full_skills_packager,
     {
       framework: request.frameworkRef,
