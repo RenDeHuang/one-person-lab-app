@@ -196,21 +196,34 @@
     }
   },
   "interaction_baseline": {
-    "schema": "opl_app_codex_interaction_baseline.v2",
-    "current_reference": {
+    "schema": "opl_app_external_design_reference_policy.v3",
+    "external_design_reference": {
       "product": "ChatGPT Codex macOS",
-      "build": "26.707.41301",
-      "observed_on": "2026-07-11",
+      "selection_policy": "latest_official_verified_at_observation_time",
       "observation_ref": "docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary",
-      "usage": "interaction_reference_only_no_code_brand_account_or_authority_copy"
+      "required_observation_identity": [
+        "official_source",
+        "bundle_version",
+        "build",
+        "observed_on"
+      ],
+      "usage": "design_reference_only_no_code_brand_account_product_pixel_install_or_release_authority",
+      "external_artifact_required_for_release": false
     },
-    "pixel_reference": {
-      "product": "ChatGPT Codex macOS",
-      "bundle_version": "26.707.72221",
-      "build": "5307",
-      "observed_on": "2026-07-15",
-      "reference_ref": "docs/product/gui/visual-system.md",
-      "usage": "pixel_reference_only_no_interaction_authority_or_code_brand_account_copy"
+    "pixel_baseline": {
+      "owner": "one-person-lab-app",
+      "baseline_id": "opl-app-approved-visual-baseline-v1",
+      "state": "capture_and_human_approval_required",
+      "allowed_states": [
+        "capture_and_human_approval_required",
+        "approved"
+      ],
+      "approval_receipt_schema": "opl_app_gui_visual_baseline_approval_receipt.v1",
+      "approval_receipt_required_for_approved_state": true,
+      "reference_ref": "contracts/app-gui-visual-reference-cohort.json",
+      "usage": "app_owned_pixel_regression_only",
+      "external_product_artifact_required": false,
+      "release_dependency": "opl_contract_current_cohort_installed_evidence_and_human_acceptance_only"
     },
     "superseded_observations": [
       {
@@ -1096,22 +1109,23 @@
     "human_policy_ref": "docs/product/gui/gui-maintenance-policy.md",
     "goal": {
       "upstream_following": "aionui_stable_tags_through_bounded_selective_intake",
-      "visual_alignment": "versioned_chatgpt_codex_reference_cohorts_with_explicit_opl_deltas",
+      "visual_alignment": "latest_official_codex_design_observation_with_explicit_opl_deltas_and_app_owned_pixel_baselines",
       "one_to_one_claim_policy": "scene_bound_comparison_only_never_unqualified_product_wide_claim"
     },
     "codex_reference_promotion": {
-      "active_interaction_reference_ref": "contracts/app-gui-product-contract.json#interaction_baseline.current_reference",
-      "active_pixel_reference_ref": "contracts/app-gui-product-contract.json#interaction_baseline.pixel_reference",
+      "active_design_reference_policy_ref": "contracts/app-gui-product-contract.json#interaction_baseline.external_design_reference",
+      "active_pixel_baseline_ref": "contracts/app-gui-product-contract.json#interaction_baseline.pixel_baseline",
       "required_evidence": [
-        "exact_reference_product_build_and_observation_date",
-        "literal_observation_notes_and_reference_screenshots",
+        "latest_official_source_and_exact_observation_identity",
+        "literal_observation_notes_and_optional_design_screenshots",
         "contract_delta_classification",
         "protected_opl_surface_non_regression_review",
         "desktop_and_narrow_light_dark_zh_en_comparison_manifest"
       ],
       "promotion_gate": "all_required_evidence_present_and_app_gui_validator_passes",
-      "supersession_policy": "previous_active_reference_moves_to_interaction_baseline.superseded_observations",
-      "release_independence": true
+      "supersession_policy": "prior_exact_observations_remain_historical_provenance_only",
+      "release_independence": true,
+      "external_artifact_download_install_or_launch_required": false
     },
     "aionui_upstream_following": {
       "channel": "stable_tags_only",
@@ -1167,8 +1181,8 @@
         "settings_row"
       ],
       "required_binding_fields": [
-        "reference_product_build",
-        "reference_observed_at",
+        "reference_baseline_id",
+        "reference_approval_receipt_sha256",
         "app_contract_ref",
         "shell_commit",
         "package_or_dev_build_identity",

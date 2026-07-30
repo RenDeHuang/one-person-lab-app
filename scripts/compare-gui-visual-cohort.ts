@@ -10,6 +10,8 @@ const PNG_SIGNATURE = Buffer.from([
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const COMPARATOR_SCHEMA = "opl_app_gui_visual_comparison_receipt.v1";
 const INPUT_SCHEMA = "opl_app_gui_visual_comparison_input.v1";
+const APPROVAL_RECEIPT_SCHEMA =
+  "opl_app_gui_visual_baseline_approval_receipt.v1";
 const EXPECTED_SCENE_COUNT = 16;
 const SCRIPT_RELATIVE_PATH = "scripts/compare-gui-visual-cohort.ts";
 const PIXEL_CHANNEL_DELTA_THRESHOLD = 8;
@@ -18,8 +20,8 @@ const MEAN_ABSOLUTE_CHANNEL_DELTA_MAX = 1.5;
 const MAXIMUM_MASKED_AREA_RATIO = 0.08;
 const MAXIMUM_DECODED_PNG_BYTES = 512 * 1024 * 1024;
 const REQUIRED_BINDING_FIELDS = [
-  "reference_product_build",
-  "reference_observed_at",
+  "reference_baseline_id",
+  "reference_approval_receipt_sha256",
   "app_contract_ref",
   "shell_commit",
   "package_or_dev_build_identity",
@@ -108,6 +110,24 @@ type SceneReceipt = {
   violations: Violation[];
 };
 
+type BaselineApprovalScene = {
+  scene_id: string;
+  image: string;
+  reference_screenshot_sha256: string;
+  verdict: string;
+};
+
+type BaselineApprovalReceipt = {
+  schema: string;
+  owner: string;
+  baseline_id: string;
+  reviewer: string;
+  reviewed_at: string;
+  review_method: string;
+  verdict: string;
+  scenes: BaselineApprovalScene[];
+};
+
 export type ComparisonReceipt = {
   schema: typeof COMPARATOR_SCHEMA;
   status: "passed" | "failed";
@@ -174,6 +194,33 @@ function finiteNumber(value: unknown): number {
 
 function sha256(bytes: Buffer | Uint8Array): string {
   return crypto.createHash("sha256").update(bytes).digest("hex");
+}
+
+function parseApprovalReceipt(value: unknown): BaselineApprovalReceipt {
+  const receipt = record(value);
+  const scenes = Array.isArray(receipt.scenes)
+    ? receipt.scenes.map((entry) => {
+        const scene = record(entry);
+        return {
+          scene_id: stringValue(scene.scene_id),
+          image: stringValue(scene.image),
+          reference_screenshot_sha256: stringValue(
+            scene.reference_screenshot_sha256,
+          ),
+          verdict: stringValue(scene.verdict),
+        };
+      })
+    : [];
+  return {
+    schema: stringValue(receipt.schema),
+    owner: stringValue(receipt.owner),
+    baseline_id: stringValue(receipt.baseline_id),
+    reviewer: stringValue(receipt.reviewer),
+    reviewed_at: stringValue(receipt.reviewed_at),
+    review_method: stringValue(receipt.review_method),
+    verdict: stringValue(receipt.verdict),
+    scenes,
+  };
 }
 
 const CRC_TABLE = (() => {
@@ -587,8 +634,9 @@ function validateAuthority(
   maximumMaskRatio: number;
   acceptedMaskReasons: string[];
   acceptedVerdict: string;
-  expectedReferenceBuild: string;
-  expectedReferenceDate: string;
+  expectedReferenceBaselineId: string;
+  expectedReferenceApprovalReceiptFile: string;
+  expectedReferenceApprovalReceiptSha256: string;
   expectedAppContractRef: string;
 } {
   const cohort = authority.cohort;
@@ -628,6 +676,30 @@ function validateAuthority(
       violations,
       "invalid_authority_binding",
       "App GUI protocol must bind the canonical cohort and comparator",
+    );
+  }
+  const referenceBaselineId = stringValue(reference.baseline_id);
+  const referenceApprovalReceiptFile = stringValue(
+    reference.approval_receipt_file,
+  );
+  const referenceApprovalReceiptSha256 = stringValue(
+    reference.approval_receipt_sha256,
+  );
+  if (
+    reference.owner !== "one-person-lab-app" ||
+    reference.state !== "approved" ||
+    !referenceBaselineId ||
+    referenceApprovalReceiptFile !== "baseline-approval-receipt.json" ||
+    !SHA256_PATTERN.test(referenceApprovalReceiptSha256) ||
+    reference.approval_receipt_schema !== APPROVAL_RECEIPT_SCHEMA ||
+    reference.reference_role !== "app_owned_pixel_regression_baseline" ||
+    reference.external_product_artifact_required !== false ||
+    reference.stable_release_dependency !== false
+  ) {
+    pushViolation(
+      violations,
+      "reference_baseline_not_approved",
+      "App-owned visual baseline must be approved and bound to an exact approval receipt before comparison",
     );
   }
   if (
@@ -715,10 +787,108 @@ function validateAuthority(
     maximumMaskRatio: MAXIMUM_MASKED_AREA_RATIO,
     acceptedMaskReasons,
     acceptedVerdict: stringValue(humanReview.accepted_verdict),
-    expectedReferenceBuild: `${stringValue(reference.product)} ${stringValue(reference.bundle_version)} build ${stringValue(reference.build)}`,
-    expectedReferenceDate: stringValue(reference.observed_on),
+    expectedReferenceBaselineId: referenceBaselineId,
+    expectedReferenceApprovalReceiptFile: referenceApprovalReceiptFile,
+    expectedReferenceApprovalReceiptSha256:
+      referenceApprovalReceiptSha256,
     expectedAppContractRef: stringValue(candidate.app_contract_ref),
   };
+}
+
+function validateBaselineApprovalReceipt(
+  referenceDirectory: string,
+  policy: {
+    scenes: SceneContract[];
+    expectedReferenceBaselineId: string;
+    expectedReferenceApprovalReceiptFile: string;
+    expectedReferenceApprovalReceiptSha256: string;
+  },
+  violations: Violation[],
+): Map<string, BaselineApprovalScene> {
+  const approvedScenes = new Map<string, BaselineApprovalScene>();
+  const receiptPath = path.join(
+    referenceDirectory,
+    policy.expectedReferenceApprovalReceiptFile ||
+      "baseline-approval-receipt.json",
+  );
+  if (!fs.existsSync(receiptPath) || !fs.statSync(receiptPath).isFile()) {
+    pushViolation(
+      violations,
+      "reference_approval_receipt_missing",
+      "App-owned baseline approval receipt is missing from the reference directory",
+    );
+    return approvedScenes;
+  }
+
+  try {
+    const bytes = fs.readFileSync(receiptPath);
+    if (sha256(bytes) !== policy.expectedReferenceApprovalReceiptSha256) {
+      pushViolation(
+        violations,
+        "reference_approval_receipt_sha256_mismatch",
+        "App-owned baseline approval receipt bytes do not match the canonical SHA-256",
+      );
+      return approvedScenes;
+    }
+    const receipt = parseApprovalReceipt(
+      JSON.parse(bytes.toString("utf8")),
+    );
+    if (
+      receipt.schema !== APPROVAL_RECEIPT_SCHEMA ||
+      receipt.owner !== "one-person-lab-app" ||
+      receipt.baseline_id !== policy.expectedReferenceBaselineId ||
+      !receipt.reviewer ||
+      !receipt.reviewed_at ||
+      receipt.review_method !== "human_visual_review" ||
+      receipt.verdict !== "accepted"
+    ) {
+      pushViolation(
+        violations,
+        "reference_approval_receipt_invalid",
+        "App-owned baseline approval receipt identity and human acceptance are incomplete",
+      );
+      return approvedScenes;
+    }
+    if (
+      receipt.scenes.length !== EXPECTED_SCENE_COUNT ||
+      new Set(receipt.scenes.map((scene) => scene.scene_id)).size !==
+        EXPECTED_SCENE_COUNT
+    ) {
+      pushViolation(
+        violations,
+        "reference_approval_scene_set_invalid",
+        `App-owned baseline approval receipt must contain exactly ${EXPECTED_SCENE_COUNT} unique scenes`,
+      );
+      return approvedScenes;
+    }
+    for (const scene of receipt.scenes) {
+      const contractScene = policy.scenes.find(
+        (entry) => entry.id === scene.scene_id,
+      );
+      if (
+        !contractScene ||
+        scene.image !== contractScene.image ||
+        !SHA256_PATTERN.test(scene.reference_screenshot_sha256) ||
+        scene.verdict !== "accepted"
+      ) {
+        pushViolation(
+          violations,
+          "reference_approval_scene_invalid",
+          "Every approved scene must bind its canonical image, SHA-256, and accepted human verdict",
+          scene.scene_id || undefined,
+        );
+        continue;
+      }
+      approvedScenes.set(scene.scene_id, scene);
+    }
+  } catch (error) {
+    pushViolation(
+      violations,
+      "reference_approval_receipt_invalid",
+      `App-owned baseline approval receipt cannot be read: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return approvedScenes;
 }
 
 function expectedDimensions(
@@ -779,8 +949,8 @@ function validateBinding(
   scene: SceneContract,
   requiredFields: string[],
   expected: {
-    referenceBuild: string;
-    referenceDate: string;
+    referenceBaselineId: string;
+    referenceApprovalReceiptSha256: string;
     appContractRef: string;
     referenceDigest: string | null;
     candidateDigest: string | null;
@@ -809,8 +979,9 @@ function validateBinding(
   }
   const exactFields: Record<string, string> = {
     scene_id: scene.id,
-    reference_product_build: expected.referenceBuild,
-    reference_observed_at: expected.referenceDate,
+    reference_baseline_id: expected.referenceBaselineId,
+    reference_approval_receipt_sha256:
+      expected.referenceApprovalReceiptSha256,
     app_contract_ref: expected.appContractRef,
     viewport: scene.viewport,
     theme: scene.theme,
@@ -962,6 +1133,11 @@ export function compareGuiVisualCohort(
     baseDirectory,
     input.diff_directory || ".",
   );
+  const approvedReferenceScenes = validateBaselineApprovalReceipt(
+    referenceDirectory,
+    policy,
+    violations,
+  );
   if (
     referenceDirectory === candidateDirectory ||
     referenceDirectory === diffDirectory ||
@@ -1047,6 +1223,19 @@ export function compareGuiVisualCohort(
       scene.id,
       sceneViolations,
     );
+    const approvedReference = approvedReferenceScenes.get(scene.id);
+    if (
+      !reference ||
+      !approvedReference ||
+      approvedReference.reference_screenshot_sha256 !== reference.digest
+    ) {
+      pushViolation(
+        sceneViolations,
+        "reference_png_not_approved",
+        "Reference PNG bytes must match the human-approved scene receipt",
+        scene.id,
+      );
+    }
     const candidate = safeReadPng(
       path.join(candidateDirectory, scene.image),
       "candidate",
@@ -1058,8 +1247,9 @@ export function compareGuiVisualCohort(
       scene,
       policy.requiredBindingFields,
       {
-        referenceBuild: policy.expectedReferenceBuild,
-        referenceDate: policy.expectedReferenceDate,
+        referenceBaselineId: policy.expectedReferenceBaselineId,
+        referenceApprovalReceiptSha256:
+          policy.expectedReferenceApprovalReceiptSha256,
         appContractRef: policy.expectedAppContractRef,
         referenceDigest: reference?.digest ?? null,
         candidateDigest: candidate?.digest ?? null,

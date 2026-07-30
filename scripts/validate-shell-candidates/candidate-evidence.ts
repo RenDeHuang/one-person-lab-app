@@ -235,32 +235,9 @@ function validateNativeWorkbenchImplementationEvidence(
     throw new Error(`${candidate.id} evidence must prove the Codex project rail is visible and the environment inspector is closed by default`);
   }
 
-  const codexAlignment = evidence.default_home_layout?.codex_2026_07_11_alignment;
-  if (
-    codexAlignment?.reference_product !== 'ChatGPT Codex macOS'
-    || codexAlignment?.reference_version !== '26.707.41301'
-    || codexAlignment?.reference_observed_at !== '2026-07-11'
-    || codexAlignment?.current_reference_status !== 'current_app_reference_candidate_conformance_pending'
-    || codexAlignment?.project_rail !== 'persistent'
-    || codexAlignment?.timeline !== 'single_conversation_timeline'
-    || codexAlignment?.model_controls !== 'composer_bottom_row'
-    || codexAlignment?.reasoning_controls !== 'composer_bottom_row'
-    || codexAlignment?.environment_details !== 'floating_on_demand'
-    || codexAlignment?.settings_locale_surface !== 'settings'
-    || codexAlignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options'
-    || codexAlignment?.model_policy_consumption !== 'dynamic_build_injection_with_minimal_offline_fallback'
-  ) {
-    throw new Error(`${candidate.id} evidence must prove the Codex 26.707.41301 project rail, single timeline, dynamically injected App-owned model controls, floating environment, and Settings locale surface`);
-  }
-  assertStringArrayIncludes(
-    codexAlignment.superseded_observations ?? [],
-    ['26.707.31428', '26.707.31123'],
-    `${candidate.id} evidence default_home_layout.codex_2026_07_11_alignment.superseded_observations`,
-  );
-  assertStringArrayIncludes(
-    codexAlignment.required_surfaces ?? [],
-    requiredNativeVisualParitySurfaces,
-    `${candidate.id} evidence default_home_layout.codex_2026_07_11_alignment.required_surfaces`,
+  validateCodexDesignReferenceEvidence(
+    candidate.id,
+    evidence.default_home_layout,
   );
 
   if (
@@ -341,4 +318,50 @@ function validateNativeWorkbenchImplementationEvidence(
       throw new Error(`${candidate.id} evidence framework_surfaces.${surface} must be ${expected}`);
     }
   }
+}
+
+export function validateCodexDesignReferenceAlignment(
+  candidateId: string,
+  alignment: Record<string, any> | undefined,
+): void {
+  const fixedExternalIdentityFields = [
+    'reference_version',
+    'reference_build',
+    'reference_observed_at',
+    'observed_on',
+    'current_reference_status',
+  ];
+  if (
+    alignment?.project_rail !== 'persistent'
+    || alignment?.timeline !== 'single_conversation_timeline'
+    || alignment?.model_controls !== 'composer_bottom_row'
+    || alignment?.reasoning_controls !== 'composer_bottom_row'
+    || alignment?.environment_details !== 'floating_on_demand'
+    || alignment?.settings_locale_surface !== 'settings'
+    || alignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options'
+    || alignment?.model_policy_consumption !== 'dynamic_build_injection_with_minimal_offline_fallback'
+    || fixedExternalIdentityFields.some((field) => field in alignment)
+  ) {
+    throw new Error(`${candidateId} evidence must prove stable Codex-style interaction semantics without pinning current conformance to an external product build`);
+  }
+  assertStringArrayIncludes(
+    alignment.required_surfaces ?? [],
+    requiredNativeVisualParitySurfaces,
+    `${candidateId} evidence default_home_layout Codex design reference required_surfaces`,
+  );
+}
+
+export function validateCodexDesignReferenceEvidence(
+  candidateId: string,
+  defaultHomeLayout: Record<string, any> | undefined,
+): void {
+  if (defaultHomeLayout?.codex_2026_07_11_alignment !== undefined) {
+    throw new Error(
+      `${candidateId} evidence legacy codex_2026_07_11_alignment is historical provenance and cannot satisfy current conformance`,
+    );
+  }
+  validateCodexDesignReferenceAlignment(
+    candidateId,
+    defaultHomeLayout?.codex_design_reference_alignment,
+  );
 }
