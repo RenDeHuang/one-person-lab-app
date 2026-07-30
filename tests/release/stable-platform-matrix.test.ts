@@ -279,7 +279,11 @@ test('optional platform publication is an independent protected post-success ope
     (step: any) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.run);
   assert.match(publishRun, /gh release upload "\$tag" "\$asset_path"/);
-  assert.match(publishRun, /immutable-releases/);
+  assert.match(publishRun, /and \.immutable == true/);
+  assert.match(publishRun, /validateGithubImmutableReleaseCapabilityEvidence/);
+  assert.doesNotMatch(publishRun, /"repos\/\$GITHUB_REPOSITORY\/immutable-releases"/);
+  assert.match(publishRun, /jq -S -n/);
+  assert.match(publishRun, /test -s "\$manifest_path"/);
   assert.match(publishRun, /draft:true/);
   assert.match(publishRun, /draft:false,make_latest:"false"/);
   assert.match(publishRun, /and \.immutable == true/);

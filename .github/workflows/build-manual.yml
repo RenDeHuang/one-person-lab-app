@@ -92,6 +92,11 @@ on:
         required: false
         type: string
         default: ''
+      immutable_release_capability_evidence:
+        description: 'Base64 digest-bound immutable Releases capability evidence from the owner-authenticated pre-dispatch controller.'
+        required: false
+        type: string
+        default: ''
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -211,6 +216,12 @@ jobs:
       contents: write
       actions: read
     steps:
+      - name: Checkout exact App publisher source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ needs.prepare-matrix.outputs.app_ref }}
+          persist-credentials: false
+
       - name: Download exact selected platform assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -230,6 +241,9 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           SOURCE_BUNDLE_DIGEST: ${{ inputs.source_bundle_digest }}
           PLATFORM_IDS: ${{ needs.prepare-matrix.outputs.platform_ids }}
+          IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE: ${{ inputs.immutable_release_capability_evidence }}
+          DISPATCH_ACTOR: ${{ github.actor }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         shell: bash
         run: |
           set -euo pipefail
@@ -240,13 +254,17 @@ jobs:
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           mkdir -p optional-publication-evidence
           printf '0\n' > optional-publication-evidence/mutation-attempt-count.txt
+          printf 'publication_admission\n' > optional-publication-evidence/failure-stage.txt
+          : > optional-publication-evidence/immutable-capability-evidence-digest.txt
           case "$PUBLICATION_MODE" in
             stable_optional_follower)
+              test -z "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE"
               [[ "$SOURCE_BUNDLE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
               base_tag="v${VERSION}"
               carrier_kind=stable_optional_adjunct
               manifest_name=opl-optional-platforms-manifest.json
               expected_prerelease=false
+              capability_evidence_digest=
               gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > base-release.json
               jq -e --arg tag "$base_tag" --arg target "$APP_REF" '
                 .tag_name == $tag
@@ -261,12 +279,43 @@ jobs:
               ;;
             windows_preview_rc)
               test -z "$SOURCE_BUNDLE_DIGEST"
+              test "$GITHUB_EVENT_NAME" = workflow_dispatch
+              test "$DISPATCH_ACTOR" = "$REPOSITORY_OWNER"
+              test -n "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE"
               [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]
               tag="windows-rc-${VERSION}"
               base_tag=
               carrier_kind=windows_preview_rc
               manifest_name=opl-windows-preview-platforms-manifest.json
               expected_prerelease=true
+              printf '%s' "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE" \
+                | base64 --decode > optional-publication-evidence/immutable-release-capability.json
+              test -s optional-publication-evidence/immutable-release-capability.json
+              capability_evidence_digest="$(
+                node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {
+            validateGithubImmutableReleaseCapabilityEvidence,
+          } from './scripts/stable-operation-control.ts';
+
+          const evidence = validateGithubImmutableReleaseCapabilityEvidence(
+            JSON.parse(fs.readFileSync(
+              'optional-publication-evidence/immutable-release-capability.json',
+              'utf8',
+            )),
+            process.env.GITHUB_REPOSITORY,
+          );
+          const checkedAt = Date.parse(evidence.checked_at);
+          const ageMilliseconds = Date.now() - checkedAt;
+          if (!Number.isFinite(checkedAt) || ageMilliseconds < -300_000 || ageMilliseconds > 21_600_000) {
+            throw new Error('Immutable Releases capability evidence must be generated within six hours before publication.');
+          }
+          process.stdout.write(evidence.evidence_digest);
+          NODE
+              )"
+              [[ "$capability_evidence_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+              printf '%s\n' "$capability_evidence_digest" \
+                > optional-publication-evidence/immutable-capability-evidence-digest.txt
               ;;
             *)
               echo '::error::Unsupported selected-platform publication mode.'
@@ -276,6 +325,7 @@ jobs:
           operation_id="${PUBLICATION_MODE}-${SOURCE_RUN_ID}-${GITHUB_RUN_ID}"
           latest_before="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
 
+          printf 'asset_inventory\n' > optional-publication-evidence/failure-stage.txt
           asset_paths=()
           while IFS= read -r file_path; do asset_paths+=("$file_path"); done < <(
             find selected-platform-assets -type f \
@@ -288,7 +338,9 @@ jobs:
           for asset_path in "${asset_paths[@]}"; do
             asset_name="$(basename "$asset_path")"
             asset_size="$(wc -c < "$asset_path" | tr -d ' ')"
+            test "$asset_size" -gt 0
             asset_digest="sha256:$(shasum -a 256 "$asset_path" | awk '{print $1}')"
+            [[ "$asset_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
             jq \
               --arg name "$asset_name" --arg digest "$asset_digest" --argjson size "$asset_size" \
               --arg source_path "$asset_path" \
@@ -297,11 +349,14 @@ jobs:
               > optional-publication-evidence/assets.next.json
             mv optional-publication-evidence/assets.next.json optional-publication-evidence/assets.json
           done
-          jq -S \
+          printf 'manifest_generation\n' > optional-publication-evidence/failure-stage.txt
+          jq -S -n \
             --arg kind "$carrier_kind" \
             --arg source_run_id "$SOURCE_RUN_ID" \
             --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" \
             --arg base_tag "$base_tag" \
+            --arg capability_evidence_digest "$capability_evidence_digest" \
+            --arg dispatch_actor "$DISPATCH_ACTOR" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
             --argjson platforms "$PLATFORM_IDS" \
             --argjson assets "$(jq 'map(del(.source_path))' optional-publication-evidence/assets.json)" '
@@ -312,12 +367,47 @@ jobs:
                 base_release_tag:(if $base_tag == "" then null else $base_tag end),
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
                 platforms:$platforms,
-                assets:$assets
+                assets:$assets,
+                publication_control:{
+                  immutable_release_capability_evidence_digest:(
+                    if $capability_evidence_digest == "" then null else $capability_evidence_digest end
+                  ),
+                  dispatch_actor:(if $capability_evidence_digest == "" then null else $dispatch_actor end)
+                }
               }
             ' > "selected-platform-assets/$manifest_name"
           manifest_path="selected-platform-assets/$manifest_name"
+          test -s "$manifest_path"
+          jq -e \
+            --arg kind "$carrier_kind" \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" \
+            --arg base_tag "$base_tag" \
+            --arg capability_evidence_digest "$capability_evidence_digest" \
+            --arg dispatch_actor "$DISPATCH_ACTOR" \
+            --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
+            --argjson platforms "$PLATFORM_IDS" '
+              .schema == "opl_app_immutable_platform_adjunct_manifest.v1"
+              and .kind == $kind
+              and .source.run_id == $source_run_id
+              and .source.bundle_digest == (if $bundle_digest == "" then null else $bundle_digest end)
+              and .base_release_tag == (if $base_tag == "" then null else $base_tag end)
+              and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+              and .platforms == $platforms
+              and (.assets | type == "array" and length > 0)
+              and all(.assets[];
+                (.name | type == "string" and length > 0)
+                and (.digest | test("^sha256:[0-9a-f]{64}$"))
+                and (.size_bytes | type == "number" and . > 0))
+              and .publication_control.immutable_release_capability_evidence_digest
+                == (if $capability_evidence_digest == "" then null else $capability_evidence_digest end)
+              and .publication_control.dispatch_actor
+                == (if $capability_evidence_digest == "" then null else $dispatch_actor end)
+            ' "$manifest_path" >/dev/null
           manifest_size="$(wc -c < "$manifest_path" | tr -d ' ')"
+          test "$manifest_size" -gt 0
           manifest_digest="sha256:$(shasum -a 256 "$manifest_path" | awk '{print $1}')"
+          [[ "$manifest_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           jq \
             --arg name "$manifest_name" --arg digest "$manifest_digest" --argjson size "$manifest_size" \
             --arg source_path "$manifest_path" \
@@ -378,15 +468,14 @@ jobs:
             release_notes="${release_notes_template//__VERSION__/$VERSION}"
           fi
 
-          gh api -H 'X-GitHub-Api-Version: 2026-03-10' \
-            "repos/$GITHUB_REPOSITORY/immutable-releases" > immutable-release-capability.json
-          jq -e '.enabled == true' immutable-release-capability.json >/dev/null
+          printf 'release_reconciliation\n' > optional-publication-evidence/failure-stage.txt
           release_json=selected-platform-release.json
           release_exists=true
           if ! gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json" 2>/dev/null; then
             release_exists=false
           fi
           if [ "$release_exists" = false ]; then
+            printf 'draft_release_creation\n' > optional-publication-evidence/failure-stage.txt
             jq -n \
               --arg tag "$tag" --arg target "$APP_REF" --arg name "$release_name" \
               --arg body "$release_notes" --argjson prerelease "$expected_prerelease" \
@@ -435,6 +524,7 @@ jobs:
               remote_count="$(jq --arg name "$asset_name" '[.assets[] | select(.name == $name)] | length' "$release_json")"
               test "$remote_count" -le 1
               if [ "$remote_count" = 0 ]; then
+                printf 'draft_asset_upload\n' > optional-publication-evidence/failure-stage.txt
                 attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
                 printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
                 set +e
@@ -463,6 +553,7 @@ jobs:
                       and .size == $asset.size_bytes))
               ' "$release_json" >/dev/null
             release_id="$(jq -er .id "$release_json")"
+            printf 'immutable_release_publication\n' > optional-publication-evidence/failure-stage.txt
             jq -n '{draft:false,make_latest:"false"}' > release-publish.json
             attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
             printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
@@ -505,6 +596,8 @@ jobs:
             --arg base_tag "$base_tag" --arg tag "$tag" --arg release_url "$release_url" \
             --arg download_base "$download_base" --arg manifest_name "$manifest_name" \
             --arg manifest_digest "$manifest_digest" \
+            --arg capability_evidence_digest "$capability_evidence_digest" \
+            --arg dispatch_actor "$DISPATCH_ACTOR" \
             --arg latest_before "$latest_before" --arg latest_after "$latest_after" \
             --argjson platforms "$PLATFORM_IDS" \
             --argjson assets "$(jq 'map(del(.source_path))' optional-publication-evidence/assets.json)" \
@@ -516,6 +609,12 @@ jobs:
                 mode:$mode,
                 source:{run_id:$source_run_id,bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
+                publication_control:{
+                  immutable_release_capability_evidence_digest:(
+                    if $capability_evidence_digest == "" then null else $capability_evidence_digest end
+                  ),
+                  dispatch_actor:(if $capability_evidence_digest == "" then null else $dispatch_actor end)
+                },
                 release:{
                   carrier:"independent_immutable_release",
                   base_tag:(if $base_tag == "" then null else $base_tag end),
@@ -537,6 +636,7 @@ jobs:
                 }
               }
             ' > optional-publication-evidence/receipt.json
+          printf 'passed\n' > optional-publication-evidence/failure-stage.txt
 
       - name: Persist typed optional publication failure
         if: ${{ failure() }}
@@ -544,15 +644,25 @@ jobs:
         run: |
           mkdir -p optional-publication-evidence
           attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt 2>/dev/null || printf 0)"
+          failure_stage="$(cat optional-publication-evidence/failure-stage.txt 2>/dev/null || printf publication_admission)"
+          capability_evidence_digest="$(
+            cat optional-publication-evidence/immutable-capability-evidence-digest.txt 2>/dev/null || true
+          )"
           jq -n \
             --arg mode '${{ needs.prepare-matrix.outputs.publication_mode }}' \
             --arg source_run_id '${{ inputs.source_run_id || github.run_id }}' \
+            --arg failure_stage "$failure_stage" \
+            --arg capability_evidence_digest "$capability_evidence_digest" \
             --argjson attempts "$attempts" '
               {
                 schema:"opl_app_optional_platform_publication_failure.v1",
                 status:"failed",
                 mode:$mode,
                 source_run_id:$source_run_id,
+                failure_stage:$failure_stage,
+                immutable_release_capability_evidence_digest:(
+                  if $capability_evidence_digest == "" then null else $capability_evidence_digest end
+                ),
                 mutation_attempt_count:$attempts,
                 retry_performed:false,
                 recovery:"start_distinct_operation_after_read_only_reconciliation"
