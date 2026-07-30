@@ -295,6 +295,33 @@ test('pre-nonce guard rejects a paginated slurp array instead of silently flatte
   assert.equal(report.dispatch_allowed, false);
 });
 
+test('pre-nonce guard rejects a truncated bounded page before proving operation absence', () => {
+  const unrelatedRuns = Array.from(
+    { length: 100 },
+    (_, index) => ownerRun(index + 1000, { head_sha: 'f'.repeat(40) }),
+  );
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+  }, {
+    runner: () => ({
+      status: 0,
+      stdout: JSON.stringify({ total_count: 102, workflow_runs: unrelatedRuns }),
+      stderr: '',
+    }),
+  });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_class, 'protocol');
+  assert.equal(report.failure_code, 'truncated_response');
+  assert.match(report.reason, /100 of 102 runs/);
+  assert.equal(report.nonce_consumed, false);
+  assert.equal(report.dispatch_allowed, false);
+});
+
 test('pre-nonce guard permits only its own authority-bound run and rejects any second matching run', () => {
   const own = ownerRun(42);
   const another = ownerRun(43);
