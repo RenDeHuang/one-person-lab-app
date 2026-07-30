@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import {
   FULL_RUNTIME_PRUNE_POLICY,
+  FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS,
   FULL_RUNTIME_RESOURCE_DIR,
 } from '../full-first-install-package.ts';
 import { directorySizeBytes } from './filesystem.ts';
@@ -137,6 +138,20 @@ function bundleEntry(appPath: string, relativePath: string, owner: string, role:
 }
 
 export function auditFullPackageBundleBoundaries(appPath: string, manifest: Record<string, any> | null = null) {
+  const fullRuntimeRoot = path.join(
+    appPath,
+    'Contents',
+    'Resources',
+    FULL_RUNTIME_RESOURCE_DIR,
+    'runtime',
+    'current',
+  );
+  const forbiddenFrameworkCodexPaths = FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS.map(
+    (relativePath) => ({
+      path: relativePath,
+      exists: fs.existsSync(path.join(fullRuntimeRoot, ...relativePath.split('/'))),
+    }),
+  );
   const entries = {
     opl_full_runtime: bundleEntry(
       appPath,
@@ -181,8 +196,11 @@ export function auditFullPackageBundleBoundaries(appPath: string, manifest: Reco
     full_package_boundary: {
       contains_opl_full_runtime: entries.opl_full_runtime.exists,
       contains_shell_runtime: entries.aionui_bundled_runtime.exists,
-      dedupe_policy: 'audit_only_without_same_cohort_full_clean_vm_evidence',
-      rule: 'Do not dedupe or remove declared offline Full runtime, shell runtime, native trust, or Core readiness payloads for size alone.',
+      aioncore_codex_carrier_present: entries.aionui_bundled_runtime.exists,
+      framework_codex_payload_absent: forbiddenFrameworkCodexPaths.every((entry) => !entry.exists),
+      forbidden_framework_codex_paths: forbiddenFrameworkCodexPaths,
+      dedupe_policy: 'aioncore_is_the_only_codex_carrier_in_the_aionui_app_bundle',
+      rule: 'Keep the bundled AionCore shell carrier and reject every Framework-managed Codex archive, wrapper, cache, or companion rg path from the Full runtime.',
     },
     entries,
   };
@@ -196,6 +214,8 @@ function offlineFirstInstallCompletenessPreserved(args: {
   return args.trimReport.required_payload_boundary?.preserved === true
     && args.boundaryAudit.full_package_boundary?.contains_opl_full_runtime === true
     && args.boundaryAudit.full_package_boundary?.contains_shell_runtime === true
+    && args.boundaryAudit.full_package_boundary?.aioncore_codex_carrier_present === true
+    && args.boundaryAudit.full_package_boundary?.framework_codex_payload_absent === true
     && entries.app_asar?.exists === true
     && entries.electron_framework?.exists === true;
 }
@@ -235,6 +255,12 @@ function buildFullPackageOptimizationSection(args: {
         args.boundaryAudit.standard_app_boundary?.standard_package_allowed_to_contain_full_runtime,
       contains_opl_full_runtime: args.boundaryAudit.full_package_boundary?.contains_opl_full_runtime,
       contains_shell_runtime: args.boundaryAudit.full_package_boundary?.contains_shell_runtime,
+      aioncore_codex_carrier_present:
+        args.boundaryAudit.full_package_boundary?.aioncore_codex_carrier_present,
+      framework_codex_payload_absent:
+        args.boundaryAudit.full_package_boundary?.framework_codex_payload_absent,
+      forbidden_framework_codex_paths:
+        args.boundaryAudit.full_package_boundary?.forbidden_framework_codex_paths,
       dedupe_policy: args.boundaryAudit.full_package_boundary?.dedupe_policy,
       audited_entries: Object.fromEntries(
         Object.entries(args.boundaryAudit.entries ?? {}).map(([id, value]) => [

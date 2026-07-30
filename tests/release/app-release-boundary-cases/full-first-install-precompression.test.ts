@@ -7,6 +7,12 @@ import {
 
 const MATCHING_SHA = '1'.repeat(40);
 const OTHER_SHA = '2'.repeat(40);
+const FORBIDDEN_FRAMEWORK_CODEX_PATHS = [
+  'bin/codex',
+  'bin/rg',
+  'vendor/codex',
+  '.runtime-cache/codex-cli',
+];
 
 function writeMachO(filePath: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -14,7 +20,15 @@ function writeMachO(filePath: string) {
   fs.chmodSync(filePath, 0o755);
 }
 
-function writePackagedManifest(appPath: string, resolvedRefs: Record<string, unknown>) {
+function writePackagedManifest(
+  appPath: string,
+  resolvedRefs: Record<string, unknown>,
+  declaredPrunedPaths = FORBIDDEN_FRAMEWORK_CODEX_PATHS.map((relativePath) => ({
+    path: relativePath,
+    expected: 'absent',
+    present: false,
+  })),
+) {
   const manifestPath = path.join(
     appPath,
     'Contents',
@@ -32,6 +46,7 @@ function writePackagedManifest(appPath: string, resolvedRefs: Record<string, unk
       offline_required_payloads: [
         { path: 'node/bin/node', exists: true, executable: true },
       ],
+      declared_pruned_paths: declaredPrunedPaths,
     },
     native_trust: { status: 'local_authorized_unsigned' },
   }, null, 2)}\n`, 'utf8');
@@ -311,4 +326,66 @@ test('Full precompression gate rejects prepared-to-packaged ref drift and unexpe
   } finally {
     fs.rmSync(fixture.tempRoot, { recursive: true, force: true });
   }
+});
+
+test('Full precompression gate rejects missing declarations or physical Framework Codex payloads', async (context) => {
+  await context.test('manifest absence declaration is incomplete', () => {
+    const fixture = createFixture();
+    try {
+      writePackagedManifest(fixture.appPath, fixture.resolvedRefs, []);
+      assert.throws(
+        () => runFullPackagePrecompressionGate({
+          builtAppPath: fixture.appPath,
+          resolvedRefs: fixture.resolvedRefs,
+          runtimeCurrentness: { status: 'passed' },
+          reportPath: fixture.reportPath,
+        }),
+        /framework_codex_absence_evidence_invalid/,
+      );
+      const report = JSON.parse(fs.readFileSync(fixture.reportPath, 'utf8'));
+      assert.deepEqual(
+        report.issues
+          .filter((issue) => issue.code === 'framework_codex_absence_evidence_invalid')
+          .map((issue) => issue.relative_path),
+        FORBIDDEN_FRAMEWORK_CODEX_PATHS,
+      );
+    } finally {
+      fs.rmSync(fixture.tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('built App contains forbidden paths', () => {
+    const fixture = createFixture();
+    try {
+      const runtimeRoot = path.join(
+        fixture.appPath,
+        'Contents',
+        'Resources',
+        'opl-full-runtime',
+        'runtime',
+        'current',
+      );
+      for (const relativePath of FORBIDDEN_FRAMEWORK_CODEX_PATHS) {
+        fs.mkdirSync(path.join(runtimeRoot, ...relativePath.split('/')), { recursive: true });
+      }
+      assert.throws(
+        () => runFullPackagePrecompressionGate({
+          builtAppPath: fixture.appPath,
+          resolvedRefs: fixture.resolvedRefs,
+          runtimeCurrentness: { status: 'passed' },
+          reportPath: fixture.reportPath,
+        }),
+        /framework_codex_payload_present/,
+      );
+      const report = JSON.parse(fs.readFileSync(fixture.reportPath, 'utf8'));
+      assert.deepEqual(
+        report.issues
+          .filter((issue) => issue.code === 'framework_codex_payload_present')
+          .map((issue) => issue.relative_path),
+        FORBIDDEN_FRAMEWORK_CODEX_PATHS,
+      );
+    } finally {
+      fs.rmSync(fixture.tempRoot, { recursive: true, force: true });
+    }
+  });
 });

@@ -1772,6 +1772,15 @@ test('release helpers reject duplicate mounted Apps, promotion receipts, and pac
     path.join(process.cwd(), 'scripts', 'full-first-install-runtime-wrappers.ts'),
     'utf8',
   );
+  const codexCarrierValidator = fs.readFileSync(
+    path.join(
+      process.cwd(),
+      'scripts',
+      'validate-active-shell',
+      'release-full-first-install-payload-validator.ts',
+    ),
+    'utf8',
+  );
 
   for (const source of [installer, promotion, runtimeLayers, runtimeWrappers]) {
     assert.doesNotMatch(source, /find[^\n]*(?:-print -quit|\|[^\n]*head\s+-n?\s*1)/);
@@ -1780,8 +1789,19 @@ test('release helpers reject duplicate mounted Apps, promotion receipts, and pac
   assert.match(installer, /Mounted DMG must contain exactly one App bundle/);
   assert.match(promotion, /must contain exactly one JSON receipt/);
   assert.match(runtimeLayers, /multiple executable temporal binaries/);
-  assert.match(runtimeLayers, /multiple executable codex binaries/);
   assert.match(runtimeWrappers, /multiple Python bin roots/);
+  assert.match(codexCarrierValidator, /resolver_env !== 'OPL_CODEX_BIN'/);
+  assert.match(codexCarrierValidator, /version_source !== 'AionCore managed resource manifest'/);
+  assert.match(
+    codexCarrierValidator,
+    /\['bin\/codex', 'bin\/rg', 'vendor\/codex', '\.runtime-cache\/codex-cli'\]/,
+  );
+  for (const source of [runtimeLayers, runtimeWrappers]) {
+    assert.doesNotMatch(
+      source,
+      /writeCodexCliWrapper|createCodexCliArchive|sources\.codexBinaries|vendor\/codex|\.runtime-cache\/codex-cli/,
+    );
+  }
 });
 
 test('first-run VM uploads critical diagnostics only on a real failure path', () => {

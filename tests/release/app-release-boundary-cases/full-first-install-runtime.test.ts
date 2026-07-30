@@ -412,14 +412,6 @@ function createFullRuntimeFixture() {
   }
 
   const toolsRoot = path.join(tempRoot, "tools");
-  const codexRoot = path.join(toolsRoot, "codex-package");
-  const codexVendorRoot = path.join(toolsRoot, "codex-vendor", "aarch64-apple-darwin");
-  const codexBin = path.join(codexVendorRoot, "bin", "codex");
-  const rgBin = path.join(codexVendorRoot, "codex-path", "rg");
-  writeJson(path.join(codexRoot, "package.json"), { name: "@openai/codex", version: "1.0.0" });
-  writeVersionExecutable(codexBin, "codex-cli 1.0.0");
-  writeVersionExecutable(rgBin, "ripgrep 1.0.0");
-
   const nodeRoot = path.join(toolsRoot, "node");
   const nodeBin = path.join(nodeRoot, "bin", "node");
   const npmBin = path.join(nodeRoot, "bin", "npm");
@@ -484,8 +476,6 @@ function createFullRuntimeFixture() {
     runtimeCacheMode: "off",
   };
   const sources = {
-    codexRoot,
-    codexBinaries: { vendorRoot: codexVendorRoot, codex: codexBin, rg: rgBin },
     nodeToolchain: { nodeBin, npmBin, npxBin, npmRoot },
     bunBin: null,
     pythonRoot,
@@ -584,7 +574,7 @@ test("Full first-install manifest consumes the OPL runtime bundle boundary inste
   );
 });
 
-test("Full runtime wrapper labels only its own Temporal default as packaged local", async () => {
+test("Full runtime wrapper preserves the Shell Codex executable and labels only its own Temporal default", async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-wrapper-"));
   const runtimeRoot = path.join(tempRoot, "runtime");
   const runtimeCommand = path.join(runtimeRoot, "opl", "bin", "opl");
@@ -592,7 +582,7 @@ test("Full runtime wrapper labels only its own Temporal default as packaged loca
     runtimeCommand,
     [
       "#!/bin/bash",
-      "printf '%s|%s\\n' \"${OPL_TEMPORAL_ADDRESS:-unset}\" \"${OPL_TEMPORAL_ADDRESS_SOURCE:-unset}\"",
+      "printf '%s|%s|%s\\n' \"${OPL_TEMPORAL_ADDRESS:-unset}\" \"${OPL_TEMPORAL_ADDRESS_SOURCE:-unset}\" \"${OPL_CODEX_BIN:-unset}\"",
       "",
     ].join("\n"),
   );
@@ -615,32 +605,35 @@ test("Full runtime wrapper labels only its own Temporal default as packaged loca
       return result.stdout.trim();
     };
 
-    assert.equal(runWrapper(), "127.0.0.1:7233|packaged_local_default");
+    assert.equal(runWrapper(), "127.0.0.1:7233|packaged_local_default|unset");
     assert.equal(
-      runWrapper({ OPL_TEMPORAL_ADDRESS: "temporal.example:7233" }),
-      "temporal.example:7233|unset",
+      runWrapper({
+        OPL_TEMPORAL_ADDRESS: "temporal.example:7233",
+        OPL_CODEX_BIN: "/shell/managed-resources/codex",
+      }),
+      "temporal.example:7233|unset|/shell/managed-resources/codex",
     );
     assert.equal(
       runWrapper({ OPL_TEMPORAL_ADDRESS: "127.0.0.1:7233" }),
-      "127.0.0.1:7233|unset",
+      "127.0.0.1:7233|unset|unset",
     );
     assert.equal(
       runWrapper({
         OPL_TEMPORAL_ADDRESS: "temporal.example:7233",
         OPL_TEMPORAL_ADDRESS_SOURCE: "operator_environment",
       }),
-      "temporal.example:7233|operator_environment",
+      "temporal.example:7233|operator_environment|unset",
     );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("Full runtime executable discovery fails closed on duplicate archive or Python candidates", async () => {
+test("Full runtime executable discovery fails closed on duplicate Temporal or Python candidates", async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-runtime-duplicate-candidates-"));
   const runtimeRoot = path.join(tempRoot, "runtime");
   try {
-    const { writeTemporalCliWrapper, writeCodexCliWrapper } =
+    const { writeTemporalCliWrapper } =
       await import("../../../scripts/build-full-first-install-package/runtime-layers.ts");
     const { writeRuntimeWrappers } =
       await import("../../../scripts/full-first-install-runtime-wrappers.ts");
@@ -664,16 +657,6 @@ test("Full runtime executable discovery fails closed on duplicate archive or Pyt
     const temporal = spawnSync(temporalWrapper, ["server"], { encoding: "utf8" });
     assert.notEqual(temporal.status, 0);
     assert.match(temporal.stderr, /multiple executable temporal binaries/);
-
-    const codexWrapper = path.join(runtimeRoot, "bin", "codex");
-    writeCodexCliWrapper(codexWrapper, "codex-cli 1.0.0");
-    makeDuplicateArchive(
-      path.join(runtimeRoot, "vendor", "codex", "codex_cli_darwin_arm64.tar.gz"),
-      ["one/bin/codex", "two/bin/codex"],
-    );
-    const codex = spawnSync(codexWrapper, ["exec"], { encoding: "utf8" });
-    assert.notEqual(codex.status, 0);
-    assert.match(codex.stderr, /multiple executable codex binaries/);
 
     writeExecutable(path.join(runtimeRoot, "opl", "bin", "opl"), "#!/bin/sh\nexit 0\n");
     fs.mkdirSync(path.join(runtimeRoot, "python", "3.11", "bin"), { recursive: true });
@@ -721,6 +704,14 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
       fixture.sources,
       selectedBundle ? { resolvedSelectedBundleDescriptor: selectedBundle.descriptor } : {},
     );
+    assert.equal(Object.prototype.hasOwnProperty.call(prepared.manifest.components, "codex"), false);
+    for (const relativePath of ["bin/codex", "bin/rg", "vendor/codex", ".runtime-cache/codex-cli"]) {
+      assert.equal(fs.existsSync(path.join(prepared.runtimeRoot, relativePath)), false, relativePath);
+    }
+    assert.equal("codex_package_version" in prepared.runtime_cache.key_inputs.toolchain, false);
+    assert.equal("codex_binary_sha256" in prepared.runtime_cache.key_inputs.toolchain, false);
+    assert.equal("rg_sha256" in prepared.runtime_cache.key_inputs.toolchain, false);
+    assert.equal("codex_vendor_fingerprint" in prepared.runtime_cache.key_inputs.toolchain, false);
     const packagedSkillsRoot = path.join(prepared.runtimeRoot, "skills");
     assert.equal(
       fs.existsSync(path.join(packagedSkillsRoot, "agent-reach")),
@@ -1611,11 +1602,6 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
   }
 
   const runtimeRoot = path.join(tempRoot, "runtime");
-  writeExecutable(path.join(runtimeRoot, "bin", "codex"), "#!/bin/sh\nexit 0\n");
-  writeFile(
-    path.join(runtimeRoot, "vendor", "codex", "codex_cli_darwin_arm64.tar.gz"),
-    "codex archive",
-  );
   writeExecutable(path.join(runtimeRoot, "bin", "temporal"), "#!/bin/sh\nexit 0\n");
   writeFile(
     path.join(runtimeRoot, "vendor", "temporal", "temporal_cli_darwin_arm64.tar.gz"),
@@ -1701,7 +1687,6 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
   assert.match(assertions.prune_policy_hash, /^[a-f0-9]{64}$/);
   assert.deepEqual(assertions.packaged_global_node_packages, ["corepack", "npm"]);
   for (const [entryPath, field] of [
-    ["vendor/codex/codex_cli_darwin_arm64.tar.gz", "exists"],
     ["vendor/temporal/temporal_cli_darwin_arm64.tar.gz", "exists"],
     ["opl/node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node", "exists"],
     ["node/bin/npm", "executable"],
@@ -1739,6 +1724,26 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
       {},
     ),
   );
+  for (const relativePath of ["bin/codex", "bin/rg", "vendor/codex", ".runtime-cache/codex-cli"]) {
+    assert.equal(
+      assertions.declared_pruned_paths.find((entry) => entry.path === relativePath)?.present,
+      false,
+      relativePath,
+    );
+  }
+  writeExecutable(path.join(runtimeRoot, "bin", "codex"), "#!/bin/sh\nexit 0\n");
+  assert.throws(
+    () =>
+      writeFullRuntimeManifest(
+        runtimeRoot,
+        { version: "26.7.7-test" },
+        "2026-07-07T00:00:00.000Z",
+        {},
+        {},
+      ),
+    /bin\/codex/,
+  );
+  fs.rmSync(path.join(runtimeRoot, "bin", "codex"));
   assert.equal(
     assertions.offline_required_payloads.some(
       (entry) => entry.path === "modules/meta-agent/runtime/authority_functions/README.md",

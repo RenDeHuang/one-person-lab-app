@@ -3117,18 +3117,22 @@
     "generated_companion_text_language": "en",
     "required_payloads": {
       "codex_cli": {
-        "compatibility_mode": "minimum_version_plus_capability_smoke",
-        "minimum_version_source": "distribution cohort manifest components.codex_cli.minimum_version",
+        "compatibility_mode": "shell_carrier_exact_manifest_binary",
+        "carrier_contract_ref": "contracts/app-shell-adapter.json#codex_executable_contract",
         "preferred_sources": [
-          "app_owned_archive_wrapper"
+          "shell_aioncore_managed_resources_manifest"
         ],
-        "fallback_version_source": "distribution cohort manifest components.codex_cli.fallback_version",
-        "fallback_runtime_path": "runtime/current/bin/codex",
-        "fallback_payload_path": "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz",
-        "must_prefer_valid_newer_user_version": false,
-        "system_sources_visible_as_diagnostics": true,
-        "system_sources_require_expert_opt_in": true,
-        "verification": "App-owned runtime/current/bin/codex must satisfy minimum_version, execute offline from the packaged archive wrapper, and pass Codex functional smoke; system PATH/Homebrew/global Codex may be reported as diagnostics but is not the default runtime source"
+        "resolver_env": "OPL_CODEX_BIN",
+        "version_source": "AionCore managed resource manifest",
+        "aioncore_required": true,
+        "framework_managed_payload_in_full_runtime_allowed": false,
+        "forbidden_framework_runtime_paths": [
+          "bin/codex",
+          "bin/rg",
+          "vendor/codex",
+          ".runtime-cache/codex-cli"
+        ],
+        "verification": "The active AionUI shell must resolve one exact Codex executable from bundled-aioncore managed-resources and pass it through OPL_CODEX_BIN; the Full Framework runtime must prove all forbidden duplicate paths absent."
       },
       "temporal_cli": {
         "compatibility_mode": "minimum_version_plus_capability_smoke",

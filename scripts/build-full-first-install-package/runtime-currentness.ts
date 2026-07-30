@@ -46,7 +46,6 @@ function runtimeProbeEnv(runtimeRoot: string): NodeJS.ProcessEnv {
     ...process.env,
     OPL_FULL_RUNTIME_HOME: runtimeRoot,
     OPL_PACKAGED_SKILLS_ROOT: path.join(runtimeRoot, "skills"),
-    OPL_CODEX_BIN: path.join(runtimeRoot, "bin", "codex"),
     OPL_SKIP_SKILL_SYNC: "1",
     PATH: [
       path.join(runtimeRoot, "bin"),

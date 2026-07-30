@@ -69,14 +69,6 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
   assertOfficeCliBinaryMatchesRelease(officeCliVersion, options.officeCliRelease);
   const components = {
     opl: { source_path: options.frameworkRoot, git_commit: readGitHead(options.frameworkRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'opl')) },
-    codex: {
-      source_path: sources.codexRoot,
-      version: commandOutput(path.join(runtimeRoot, 'bin', 'codex'), ['--version']),
-      size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'codex')),
-      binary_path: null,
-      archive_path: 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
-      archive_size_bytes: fs.statSync(path.join(runtimeRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64.tar.gz')).size,
-    },
     mas: { source_path: options.masRoot, git_commit: readGitHead(options.masRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas')) },
     mas_scholar_skills: {
       source_path: options.masScholarSkillsRoot,
