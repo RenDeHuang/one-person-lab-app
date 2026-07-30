@@ -119,27 +119,28 @@ test('dual GUI conversation continuity rejects shell-owned thread history', () =
   );
 });
 
-test('dual GUI conversation continuity accepts only projectless one-time adoption', () => {
+test('dual GUI conversation continuity accepts only explicit projectless one-time affinity assignment', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
 
   const policy = runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy
     .project_adoption_policy;
-  assert.equal(policy.canonical_thread_cwd_initialization_allowed, true);
-  assert.equal(policy.canonical_thread_cwd_exact_readback_required, true);
-  assert.equal(policy.existing_canonical_thread_cwd_blocks_reassignment, true);
+  assert.equal(policy.canonical_project_id_assignment_allowed, true);
+  assert.equal(policy.canonical_project_id_exact_readback_required, true);
+  assert.equal(policy.recorded_runtime_cwd_preservation_required, true);
+  assert.equal(policy.recorded_runtime_cwd_blocks_assignment, false);
   assert.equal(policy.runtime_workspace_roots_mutation_allowed, false);
   assert.equal(policy.private_pending_deferred_revision_state_allowed, false);
   assert.equal(
     policy.core_workspace_application,
-    'thread_settings_update_cwd_then_thread_read_exact_readback_then_local_projection_custom_workspace_true',
+    'assign_project_affinity_then_thread_read_exact_project_id_and_recorded_cwd_readback_then_local_projection',
   );
   assert.equal(
     policy.turn_or_command_pwd_requirement,
-    'never_used_for_adoption_eligibility_or_readback',
+    'never_used_for_project_affinity_eligibility_or_readback',
   );
-  assert.equal(policy.transport, 'codex_app_server_thread_settings_update_cwd');
+  assert.equal(policy.transport, 'single_active_codex_app_server_adapter_typed_assign_project_affinity_ipc');
   assert.ok(
     runtimeBridge.canonical_conversation_continuity_policy.required_operations.includes(
       'thread/settings/update',
@@ -155,21 +156,21 @@ test('dual GUI conversation continuity accepts only projectless one-time adoptio
     /Canonical conversation directory group policy/,
   );
 
-  const missingCwdReadback = structuredClone(runtimeBridge);
-  missingCwdReadback.canonical_conversation_continuity_policy.directory_group_policy
-    .project_adoption_policy.canonical_thread_cwd_exact_readback_required = false;
+  const missingProjectIdReadback = structuredClone(runtimeBridge);
+  missingProjectIdReadback.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy.canonical_project_id_exact_readback_required = false;
 
   assert.throws(
-    () => validateRuntimeBridgeContract(missingCwdReadback, activeAdapter),
+    () => validateRuntimeBridgeContract(missingProjectIdReadback, activeAdapter),
     /Canonical conversation directory group policy/,
   );
 
-  const reassignsExistingCwd = structuredClone(runtimeBridge);
-  reassignsExistingCwd.canonical_conversation_continuity_policy.directory_group_policy
-    .project_adoption_policy.existing_canonical_thread_cwd_blocks_reassignment = false;
+  const mutatesRecordedCwd = structuredClone(runtimeBridge);
+  mutatesRecordedCwd.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy.recorded_runtime_cwd_preservation_required = false;
 
   assert.throws(
-    () => validateRuntimeBridgeContract(reassignsExistingCwd, activeAdapter),
+    () => validateRuntimeBridgeContract(mutatesRecordedCwd, activeAdapter),
     /Canonical conversation directory group policy/,
   );
 

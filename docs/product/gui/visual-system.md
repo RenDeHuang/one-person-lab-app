@@ -242,8 +242,9 @@ Composer 是底部唯一主 command surface：
 - Active AionUI 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 不因此进入 Native/default-release gate。capability starter
   属于 Home，package/capability 管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
 - 中段按显式 Project-affinity metadata 组织 canonical sessions，同时容纳 projectless sessions；分组不拥有
-  session、context 或 artifact。只有 `custom_workspace=false` 或无 canonical recorded cwd 的 Projectless row 可经
-  canonical update/readback 一次归入一个目录组；已绑定 row 不任意换组。命令或 turn
+  session、context 或 artifact。只有无 canonical `projectId` 且 `thread/read` 再确认缺失的 Projectless row 可经
+  typed affinity assignment 与 exact projectId/recorded-cwd-unchanged readback 一次归入一个目录组；
+  已绑定 row 不任意换组。Recorded cwd、命令或 turn
   的实际 `pwd` 变化不移动 canonical-thread row，也不复制 row/history 或按标题/workspace 去重。
 - Directory group 展开后显示 conversations、“使用此工作目录新建对话”，并作为 projectless adoption 的拖动目标；
   同一动作必须有键盘可达等价入口。失败时 row 留在 projectless 组。不显示“添加上下文”或组级删除，

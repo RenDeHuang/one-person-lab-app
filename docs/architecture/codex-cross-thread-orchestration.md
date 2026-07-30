@@ -29,11 +29,13 @@ thread surface needed by an ordinary user:
 - Shell-local persistence is limited to drafts, preferences, and rebuildable cache;
 - project/workspace is a zero-or-one affinity used for initial cwd, projectless
   one-time adoption, visible metadata, and sidebar grouping only, never an
-  authorization domain or a second thread owner. Only `custom_workspace=false`
-  or no canonical recorded cwd is eligible; adoption uses the same adapter's
-  `thread/settings/update.cwd`, requires exact `thread/read`, and commits local
-  projection only after a match. Existing cwd blocks reassignment. Runtime `pwd`
-  and writable roots do not create additional project membership.
+  authorization domain or a second thread owner. Only an explicit projectless
+  thread whose canonical `thread/read.projectId` is empty is eligible. Adoption
+  uses the same adapter's typed affinity IPC, requires exact assignment and
+  `thread/read.projectId` readback with recorded cwd unchanged, and only then
+  commits the rebuildable local projection. Existing explicit affinity prevents
+  reassignment. Runtime cwd, turn/command `pwd`, and writable roots do not create
+  or block project membership.
 
 These operations are `user_initiated_only=true` and
 `model_tool_access=false`. A newer model or Codex release does not authorize the

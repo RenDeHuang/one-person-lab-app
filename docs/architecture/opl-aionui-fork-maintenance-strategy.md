@@ -73,13 +73,14 @@ Maintain the AionUI fork through the existing App-owned control path:
    acceptance, or production readiness.
 6. **Session Project affinity stays minimal.** The thread ID owns task identity;
    the workspace selector only sets a new task's initial cwd. A projectless
-   session with `custom_workspace=false` or no canonical recorded cwd may make
-   one user-triggered `unbound -> bound` transition. The existing App Server
-   adapter calls `thread/settings/update.cwd`, requires exact `thread/read`, and
-   only then commits the local projection. Failure leaves the session projectless
-   and usable; an existing cwd blocks reassignment. Environment stays read-only,
-   and turn/command `pwd` plus writable roots remain independent. The fork does
-   not maintain a private adoption RPC, managed Worktree/Handoff, projection
+   session with no canonical `projectId` may make one user-triggered
+   `unbound -> bound` transition. The existing App Server adapter uses its typed
+   affinity IPC, requires exact assignment and `thread/read.projectId` readback
+   with recorded cwd unchanged, and only then commits the local projection.
+   Failure leaves the session projectless and usable; an existing explicit
+   affinity blocks reassignment. Environment stays read-only, and recorded cwd,
+   turn/command `pwd`, plus writable roots remain independent. The fork does not
+   maintain a second client or adoption service, managed Worktree/Handoff, projection
    rollback, receipt, or `workspace_handoff` metadata.
 7. **Package user results stay whole while lifecycle machinery shrinks.**
    Package owners define identity, capabilities, complete bytes, runtime health,

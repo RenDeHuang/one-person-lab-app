@@ -1174,7 +1174,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     e2e_fixture_storage_policy: 'isolated_storage_root_never_production_user_data',
     acceptance: 'both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity',
     implementation_status:
-      'projectless_adoption_contract_target_source_missing_other_continuity_not_proven_across_both_shells',
+      'project_affinity_source_implemented_other_continuity_not_proven_across_both_shells',
   })) {
     if (policy?.[field] !== expected) {
       throw new Error(`Runtime bridge canonical conversation continuity policy ${field} must be ${expected}`);
@@ -1221,28 +1221,29 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       cascade_session_delete_allowed: false,
       new_session_action_language: 'use_this_working_directory_not_create_project_child',
       project_directory_cardinality: 'one_project_affinity_one_canonical_directory',
-      legacy_missing_marker_policy:
-        'existing_recorded_thread_cwd_blocks_reassignment_without_sidebar_project_affinity_or_local_affinity_hydration',
+      recorded_cwd_compatibility_policy:
+        'preserve_runtime_cwd_without_creating_or_blocking_project_affinity',
       git_origin_url_project_identity_allowed: false,
       turn_cwd_reclassifies_bound_session: false,
       project_adoption_policy: {
-        eligible_state: 'custom_workspace_equals_false_or_canonical_recorded_cwd_absent',
+        eligible_state: 'canonical_project_id_absent_and_thread_read_project_id_absent',
         triggers: ['drag_to_directory_group', 'keyboard_move_to_project_action'],
         destination_policy:
           'one_user_selected_canonical_project_directory_independent_of_explicit_inputs_turn_cwd_and_writable_roots',
         result:
-          'persist_selected_directory_as_the_canonical_recorded_cwd_preserving_thread_id_and_history',
+          'assign_explicit_project_id_preserving_canonical_thread_id_history_and_recorded_runtime_cwd',
         assignment_commit_policy:
-          'only_after_thread_read_exact_readback_cwd_matches_selected_directory',
-        transport: 'codex_app_server_thread_settings_update_cwd',
+          'only_after_assignment_and_thread_read_exact_project_id_readback_with_recorded_cwd_unchanged',
+        transport: 'single_active_codex_app_server_adapter_typed_assign_project_affinity_ipc',
         core_workspace_application:
-          'thread_settings_update_cwd_then_thread_read_exact_readback_then_local_projection_custom_workspace_true',
+          'assign_project_affinity_then_thread_read_exact_project_id_and_recorded_cwd_readback_then_local_projection',
         turn_or_command_pwd_requirement:
-          'never_used_for_adoption_eligibility_or_readback',
+          'never_used_for_project_affinity_eligibility_or_readback',
         assignment_failure_policy: 'keep_unbound_conversation_available_and_show_lightweight_error',
-        canonical_thread_cwd_initialization_allowed: true,
-        canonical_thread_cwd_exact_readback_required: true,
-        existing_canonical_thread_cwd_blocks_reassignment: true,
+        canonical_project_id_assignment_allowed: true,
+        canonical_project_id_exact_readback_required: true,
+        recorded_runtime_cwd_preservation_required: true,
+        recorded_runtime_cwd_blocks_assignment: false,
         runtime_workspace_roots_mutation_allowed: false,
         bound_session_reassignment_allowed: false,
         managed_handoff_or_receipt_layer_allowed: false,
