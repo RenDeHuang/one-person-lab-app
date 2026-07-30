@@ -985,6 +985,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const certificationJobs = workflowJobs(optionalCertification.workflow);
   const expectedCertificationJobs = [
     'resolve-standard',
+    'certify-linux-x64',
     'admit-standard-vm',
     'certify-standard-vm',
     'write-standard-receipts',
@@ -1009,6 +1010,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     certificationJobs['resolve-standard']?.needs !== undefined
     || certificationJobs['resolve-full']?.needs !== undefined
+    || !certificationJobs['certify-linux-x64']
+    || !needsExactly(certificationJobs['certify-linux-x64'], ['resolve-standard'])
     || !certificationJobs['admit-standard-vm']
     || !needsExactly(certificationJobs['admit-standard-vm'], ['resolve-standard'])
     || !certificationJobs['certify-standard-vm']
@@ -1037,6 +1040,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
   for (const jobId of [
     'resolve-standard',
+    'certify-linux-x64',
     'admit-standard-vm',
     'write-standard-receipts',
     'resolve-full',
@@ -1123,6 +1127,21 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl_framework_installed_source_identity.v1',
     'opl_full_runtime_source_identity.v1',
     'source == "packaged_app_resource"',
+    'opl_app_optional_certification_hosted_admission.v1',
+    'opl_app_linux_same_artifact_install_evidence.v1',
+    'One-Person-Lab-${version}-linux-x64.deb',
+    'public-opl-app-installer.sh',
+    'bash "$installer_path" --desktop --release-tag "$RELEASE_TAG" --no-open',
+    'preinstall_package_absent:true',
+    'dpkg-deb -x "$linux_artifact_path" "$extracted_package"',
+    'test "$installed_executable_digest" = "$expected_executable_digest"',
+    '--platform linux',
+    '--capability github-hosted-ubuntu-x64',
+    'linux-x64-same-artifact-install.json',
+    'Upload recoverable Linux certification evidence',
+    'Fail after preserving Linux certification evidence',
+    'downloaded_from_published_release:true',
+    'rebuilt:false',
   ]) {
     if (!optionalCertification.text.includes(required)) {
       failures += reportFailure(id, `post-publication certification follower is missing ${required}`);

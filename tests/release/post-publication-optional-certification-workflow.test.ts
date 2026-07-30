@@ -226,6 +226,7 @@ test('optional certification is an automatic read-only post-publication executor
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs), [
     'resolve-standard',
+    'certify-linux-x64',
     'admit-standard-vm',
     'certify-standard-vm',
     'write-standard-receipts',
@@ -234,6 +235,11 @@ test('optional certification is an automatic read-only post-publication executor
     'certify-full-vm',
     'write-full-receipt',
   ]);
+  const linux = workflow.jobs['certify-linux-x64'];
+  assert.deepEqual(linux.needs, ['resolve-standard']);
+  assert.equal(linux['runs-on'], 'ubuntu-latest');
+  assert.deepEqual(linux.permissions, { contents: 'read', actions: 'read' });
+  assert.equal(linux['timeout-minutes'], 20);
 
   for (const profile of ['standard', 'full']) {
     const resolve = workflow.jobs[`resolve-${profile}`];
@@ -302,6 +308,77 @@ test('optional certification is an automatic read-only post-publication executor
     source,
     /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/,
   );
+});
+
+test('Linux x64 certification consumes the exact public DEB and installer and preserves failure evidence', () => {
+  const { source, workflow } = readWorkflow(workflowPath);
+  const resolve = workflow.jobs['resolve-standard'];
+  const linux = workflow.jobs['certify-linux-x64'];
+  assert.equal(resolve.outputs.linux_artifact_name, '${{ steps.identity.outputs.linux_artifact_name }}');
+  assert.equal(resolve.outputs.linux_artifact_digest, '${{ steps.identity.outputs.linux_artifact_digest }}');
+  assert.equal(resolve.outputs.installer_name, '${{ steps.identity.outputs.installer_name }}');
+  assert.equal(resolve.outputs.installer_digest, '${{ steps.identity.outputs.installer_digest }}');
+
+  const run = workflowStep(workflow, 'certify-linux-x64', 'Run exact published Linux Desktop installer');
+  const write = workflowStep(
+    workflow,
+    'certify-linux-x64',
+    'Write exact Linux same-artifact certification receipt',
+  );
+  const upload = workflowStep(
+    workflow,
+    'certify-linux-x64',
+    'Upload recoverable Linux certification evidence',
+  );
+  const fail = workflowStep(
+    workflow,
+    'certify-linux-x64',
+    'Fail after preserving Linux certification evidence',
+  );
+
+  assert.equal(run['continue-on-error'], true);
+  assert.match(run.run, /opl_app_optional_certification_hosted_admission\.v1/);
+  assert.match(run.run, /opl_app_linux_same_artifact_install_evidence\.v1/);
+  assert.match(run.run, /runner_environment:"github-hosted-ubuntu"/);
+  assert.match(run.run, /platform:"linux"/);
+  assert.match(run.run, /architecture:"x64"/);
+  assert.match(run.run, /bash "\$installer_path" --desktop --release-tag "\$RELEASE_TAG" --no-open/);
+  assert.match(run.run, /dpkg-deb -f "\$linux_artifact_path" Package/);
+  assert.match(run.run, /dpkg-deb -f "\$linux_artifact_path" Version/);
+  assert.match(run.run, /dpkg-deb -f "\$linux_artifact_path" Architecture/);
+  assert.match(run.run, /failure_stage=preinstall_package_state/);
+  assert.match(run.run, /dpkg-query -W -f=/);
+  assert.match(run.run, /preinstall_package_absent=true/);
+  assert.match(run.run, /test "\$package_version" = "\$expected_package_version"/);
+  assert.match(run.run, /test "\$package_architecture" = "\$expected_package_architecture"/);
+  assert.match(run.run, /dpkg -L "\$package_name"/);
+  assert.match(run.run, /dpkg-deb -x "\$linux_artifact_path" "\$extracted_package"/);
+  assert.match(run.run, /test "\$installed_executable_digest" = "\$expected_executable_digest"/);
+  assert.match(run.run, /installed_executable_digest="sha256:/);
+  assert.match(run.run, /preinstall_package_absent:\$preinstall_package_absent/);
+  assert.match(run.run, /expected_executable_digest:/);
+  assert.match(run.run, /downloaded_from_published_release:true/);
+  assert.match(run.run, /rebuilt:false/);
+  assert.doesNotMatch(run.run, /status=unavailable|runner_offline|queued_workflow|network_failure/);
+
+  assert.match(write.run, /--platform linux/);
+  assert.match(write.run, /--capability github-hosted-ubuntu-x64/);
+  assert.match(write.run, /--status "\$CERTIFICATION_STATUS"/);
+  assert.match(write.run, /validate-optional-certification-receipt\.ts/);
+  assert.equal(upload.if, '${{ always() }}');
+  assert.equal(upload.with['if-no-files-found'], 'error');
+  assert.match(String(upload.with.path), /linux-x64-same-artifact-install\.json/);
+  assert.match(String(upload.with.path), /linux-certification-evidence/);
+  assert.equal(
+    fail.if,
+    "${{ always() && steps.certification.outputs.status == 'failed' }}",
+  );
+  assert.match(fail.run, /receipt and evidence were uploaded/);
+
+  assert.match(source, /\.digest == \$linux_digest/);
+  assert.match(source, /\.digest == \$installer_digest/);
+  assert.match(source, /sha256sum public-linux-artifact\.deb/);
+  assert.match(source, /sha256sum public-opl-app-installer\.sh/);
 });
 
 test('Standard and Full VM certification consume the exact published DMG without rebuilding it', () => {
@@ -382,6 +459,7 @@ test('receipt projection distinguishes execution, capability absence, and residu
     'standard-dmg-clean-machine.json',
     'homebrew-standard-clean-machine.json',
     'one-shot-installer-clean-machine.json',
+    'linux-x64-same-artifact-install.json',
     'full-dmg-clean-machine.json',
   ]) {
     assert.match(source, new RegExp(output.replaceAll('.', '\\.')));

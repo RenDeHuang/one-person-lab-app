@@ -17,6 +17,8 @@ export type OptionalCertificationExpectation = {
   shellSha: string;
   frameworkSha: string;
   sourceRunId: string;
+  installerName?: string;
+  installerDigest?: string;
 };
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
@@ -66,6 +68,27 @@ export function validateOptionalCertificationReceipt(
     errors.push('receipt status must be passed, failed, not_run, or unavailable');
   }
   if (receipt.required_for_publication !== false) errors.push('optional certification must not authorize publication');
+  if (!['macos', 'linux', 'windows'].includes(receipt.certification?.platform)) {
+    errors.push('certification platform is invalid');
+  }
+  if (
+    receipt.certification?.platform === 'linux'
+    && (
+      expected.installerName !== 'opl-app-installer.sh'
+      || !expected.installerDigest
+      || !digestPattern.test(expected.installerDigest)
+      || receipt.artifact_handling?.installer?.name !== 'opl-app-installer.sh'
+      || !['passed', 'failed'].includes(receipt.status)
+      || receipt.certification?.kind !== 'clean_machine_install'
+      || receipt.certification?.capability !== 'github-hosted-ubuntu-x64'
+      || receipt.admission?.status !== 'passed'
+      || receipt.admission?.reason_code !== null
+      || receipt.artifact_handling?.installer?.digest !== expected.installerDigest
+      || receipt.artifact_handling?.installer?.downloaded_from_published_release !== true
+    )
+  ) {
+    errors.push('hosted Linux certification requires a passed typed admission and an executed passed or failed install');
+  }
   if (receipt.release?.tag !== expected.releaseTag) errors.push('release tag does not match');
   if (receipt.release?.artifact?.name !== expected.artifactName) errors.push('artifact name does not match');
   if (receipt.release?.artifact?.digest !== expected.artifactDigest) errors.push('artifact digest does not match');
@@ -193,9 +216,12 @@ function main(argv: string[]): void {
       'shell-sha': { type: 'string' },
       'framework-sha': { type: 'string' },
       'source-run-id': { type: 'string' },
+      'installer-name': { type: 'string' },
+      'installer-digest': { type: 'string' },
     },
   });
   const receipt = readJson(required(values.receipt, 'receipt'));
+  const linuxReceipt = receipt.certification?.platform === 'linux';
   const errors = validateOptionalCertificationReceipt(receipt, {
     releaseTag: required(values['release-tag'], 'release-tag'),
     artifactName: required(values['artifact-name'], 'artifact-name'),
@@ -205,6 +231,12 @@ function main(argv: string[]): void {
     shellSha: required(values['shell-sha'], 'shell-sha'),
     frameworkSha: required(values['framework-sha'], 'framework-sha'),
     sourceRunId: required(values['source-run-id'], 'source-run-id'),
+    installerName: linuxReceipt
+      ? required(values['installer-name'], 'installer-name')
+      : values['installer-name']?.trim() || undefined,
+    installerDigest: linuxReceipt
+      ? required(values['installer-digest'], 'installer-digest')
+      : values['installer-digest']?.trim() || undefined,
   });
   if (errors.length > 0) throw new Error(errors.join('; '));
   process.stdout.write(`${JSON.stringify({ status: 'valid', certification_status: receipt.status })}\n`);

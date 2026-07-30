@@ -4810,6 +4810,36 @@
         "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
       }
     ],
+    "hosted_linux_certification": {
+      "id": "linux_x64_same_artifact_install_smoke",
+      "workflow": ".github/workflows/release-post-publication-certification.yml",
+      "runner": "ubuntu-latest",
+      "platform": "linux-x64",
+      "artifact": "One-Person-Lab-<version>-linux-x64.deb",
+      "installer": "opl-app-installer.sh",
+      "installer_arguments": [
+        "--desktop",
+        "--release-tag",
+        "<exact-tag>",
+        "--no-open"
+      ],
+      "component_manifest_binding_required": true,
+      "same_app_shell_framework_cohort_required": true,
+      "typed_admission_schema": "opl_app_optional_certification_hosted_admission.v1",
+      "typed_execution_evidence_schema": "opl_app_linux_same_artifact_install_evidence.v1",
+      "clean_machine_preinstall_absence_required": true,
+      "installed_executable_byte_parity_required": true,
+      "terminal_statuses": [
+        "passed",
+        "failed"
+      ],
+      "unavailable_allowed": false,
+      "downloaded_from_published_release_required": true,
+      "rebuilt_allowed": false,
+      "failure_receipt_uploaded_before_job_failure": true,
+      "gate_policy": "optional_non_blocking_same_published_artifact",
+      "required_for_publication_or_latest": false
+    },
     "vm_gate": {
       "source": "clean no-CLT Tart base clone",
       "artifact": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
@@ -4930,6 +4960,9 @@
         "homebrew_standard_cask_clean_vm_smoke",
         "one_shot_app_installer_fresh_install_smoke",
         "full_dmg_clean_vm_smoke"
+      ],
+      "hosted_post_publication_optional_certification_surfaces": [
+        "linux_x64_same_artifact_install_smoke"
       ],
       "optional_certification_statuses": [
         "passed",
