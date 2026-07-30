@@ -18,6 +18,10 @@ function writeJson(filePath: string, value: unknown): void {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function appContractBytes(filePath: string): string {
+  return fs.readFileSync(path.join(appRoot, filePath), "utf8");
+}
+
 function fixture(
   t: { after(callback: () => void): void },
   mutate?: (input: Record<string, unknown>) => void,
@@ -219,6 +223,15 @@ function fixture(
 function successfulDependencies(value: ReturnType<typeof fixture>["values"]) {
   return {
     run: (command: string, args: string[]) => {
+      if (command === "/usr/bin/git" && args[2] === "show") {
+        const [, filePath = ""] = args[3].split(":", 2);
+        return {
+          status: 0,
+          stdout: appContractBytes(filePath),
+          stderr: "",
+          error: null,
+        };
+      }
       if (command === "/usr/bin/plutil") {
         const key = args[1];
         const values: Record<string, string> = {
@@ -407,6 +420,79 @@ test("installed preflight accepts the real manual build and installation receipt
   assert.equal((receipt.claims as Record<string, unknown>).same_cohort_installed, true);
   assert.equal((receipt.claims as Record<string, unknown>).public_release_bound, false);
   assert.equal((receipt.claims as Record<string, unknown>).release_ready, false);
+});
+
+test("installed preflight binds Stable contract digests to the declared App cohort", async (t) => {
+  const value = fixture(t);
+  const dependencies = successfulDependencies(value.values);
+  const receipt = await preflightInstalledGuiCohort(value.input, value.root, {
+    ...dependencies,
+    run: (command, args) => {
+      if (command === "/usr/bin/git" && args[2] === "show") {
+        return {
+          status: 0,
+          stdout: `${dependencies.run(command, args).stdout}\ncohort drift`,
+          stderr: "",
+          error: null,
+        };
+      }
+      return dependencies.run(command, args);
+    },
+  });
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "build_receipt_contract_digest_mismatch",
+    ),
+  );
+});
+
+test("installed preflight rejects a manual source lock for immutable Stable", async (t) => {
+  const value = fixture(t);
+  const artifact = value.input.artifact as Record<string, unknown>;
+  const cohort = value.input.cohort as Record<string, unknown>;
+  writeJson(String(artifact.source_lock), {
+    schema: "opl_manual_latest_build_source_lock.v1",
+    repositories: {
+      app: { head: cohort.app_sha },
+      shell: { head: cohort.shell_sha },
+      framework: { head: cohort.framework_sha },
+    },
+  });
+  artifact.source_lock_sha256 = digest(String(artifact.source_lock));
+  value.values.sourceLockSha256 = String(artifact.source_lock_sha256);
+
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "source_lock_schema_mismatch",
+    ),
+  );
+});
+
+test("installed preflight rejects a release source lock for diagnostic acceptance", async (t) => {
+  const value = fixture(t);
+  value.input.classification = "diagnostic";
+
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "source_lock_schema_mismatch",
+    ),
+  );
 });
 
 test("installed preflight fails closed when artifact bytes drift", async (t) => {

@@ -72,6 +72,24 @@ function sha256File(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function gitBlobSha256(
+  run: NonNullable<PreflightDependencies["run"]>,
+  commit: string,
+  filePath: string,
+  violations: Violation[],
+): string | null {
+  const result = run("/usr/bin/git", ["-C", APP_ROOT, "show", `${commit}:${filePath}`]);
+  if (!commandPassed(result)) {
+    addViolation(
+      violations,
+      "app_contract_blob_unavailable",
+      `cannot read ${filePath} from App cohort ${commit}`,
+    );
+    return null;
+  }
+  return crypto.createHash("sha256").update(result.stdout, "utf8").digest("hex");
+}
+
 function collectTreeEntries(root: string, relative = ""): string[] {
   const directory = path.join(root, relative);
   return fs
@@ -291,9 +309,22 @@ function sha256WithoutPrefix(value: unknown): string {
 function validateSourceLockReceipt(
   receipt: JsonRecord,
   cohort: JsonRecord,
+  classification: "diagnostic" | "immutable_stable",
   violations: Violation[],
 ): void {
   const schema = receipt.schema;
+  const expectedSchema =
+    classification === "immutable_stable"
+      ? "opl_app_release_cohort_lock.v1"
+      : "opl_manual_latest_build_source_lock.v1";
+  if (schema !== expectedSchema) {
+    addViolation(
+      violations,
+      "source_lock_schema_mismatch",
+      `${classification} acceptance requires ${expectedSchema}`,
+    );
+    return;
+  }
   const paths =
     schema === "opl_app_release_cohort_lock.v1"
       ? {
@@ -398,6 +429,7 @@ function validateBuildReceipt(
     identity: JsonRecord;
   },
   violations: Violation[],
+  run: NonNullable<PreflightDependencies["run"]>,
 ): BuildReceiptBinding {
   if (authority.classification === "immutable_stable") {
     if (receipt.schema !== "opl_app_build_artifact_cohort.v2") {
@@ -438,17 +470,20 @@ function validateBuildReceipt(
       );
     }
     for (const [field, filePath] of [
-      ["app_product_profile_sha256", path.join(APP_ROOT, "contracts/app-product-profile.json")],
-      [
-        "gui_product_contract_sha256",
-        path.join(APP_ROOT, "contracts/app-gui-product-contract.json"),
-      ],
+      ["app_product_profile_sha256", "contracts/app-product-profile.json"],
+      ["gui_product_contract_sha256", "contracts/app-gui-product-contract.json"],
     ] as const) {
-      if (digests[field] !== sha256File(filePath)) {
+      const cohortDigest = gitBlobSha256(
+        run,
+        String(authority.cohort.app_sha),
+        filePath,
+        violations,
+      );
+      if (cohortDigest !== null && digests[field] !== cohortDigest) {
         addViolation(
           violations,
           "build_receipt_contract_digest_mismatch",
-          `build receipt ${field} does not match current App contract bytes`,
+          `build receipt ${field} does not match App cohort ${String(authority.cohort.app_sha)}`,
         );
       }
     }
@@ -833,7 +868,7 @@ export async function preflightInstalledGuiCohort(
 
   if (sourceLockActual) {
     const sourceLock = readJson(String(authority.artifact.source_lock), "source-lock receipt");
-    validateSourceLockReceipt(sourceLock, authority.cohort, violations);
+    validateSourceLockReceipt(sourceLock, authority.cohort, authority.classification, violations);
   }
   if (publicReleaseReceiptActual) {
     const publicReleaseReceipt = readJson(
@@ -849,7 +884,7 @@ export async function preflightInstalledGuiCohort(
   };
   if (buildReceiptActual) {
     const buildReceipt = readJson(String(authority.artifact.build_receipt), "build receipt");
-    buildBinding = validateBuildReceipt(buildReceipt, authority, violations);
+    buildBinding = validateBuildReceipt(buildReceipt, authority, violations, run);
   }
   if (installReceiptActual) {
     const installReceipt = readJson(String(authority.artifact.install_receipt), "install receipt");
