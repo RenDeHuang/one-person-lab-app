@@ -297,9 +297,12 @@ test('optional certification is an automatic read-only post-publication executor
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable standard/);
   assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
-  assert.match(source, /\.head_branch \| test\("\^v/);
-  assert.match(source, /\^OPL Stable append_full/);
-  assert.match(source, /test "\$tag" = "\$head_branch"/);
+  assert.match(source, /\.head_branch == "main"/);
+  assert.match(source, /\^OPL Stable append_full source:/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.base_tag "\$handoff"\)"/);
+  assert.match(source, /tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
+  assert.match(source, /"\$base_tag"-full-/);
+  assert.doesNotMatch(source, /test "\$tag" = "\$head_branch"/);
   assert.match(source, /opl-release-activation-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /opl-release-full-published-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /public-component-manifest\.json/);

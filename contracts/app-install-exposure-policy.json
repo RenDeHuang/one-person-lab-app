@@ -102,6 +102,11 @@
         "framework_arguments": [
           "--with-app"
         ],
+        "explicit_density_override": {
+          "macos_standard_or_full": "direct_exact_release_component_manifest_asset_selection",
+          "linux_standard": "exact_release_linux_x64_deb",
+          "linux_full": "fail_closed_before_release_asset_lookup"
+        },
         "official_profile_converged_by_installer": true
       },
     "approved_universal_target": {
@@ -124,6 +129,12 @@
       },
         "macos_default": "desktop",
         "linux_personal_default": "desktop",
+        "payload_density_routing": {
+          "macos": "explicit_standard_or_full_selects_the_matching_exact_release_asset",
+          "linux_x86_64": "standard_only_and_explicit_full_fails_closed_before_release_asset_lookup",
+          "frozen_macos_default": "prefer_full_and_fallback_to_standard_only_when_full_is_confirmed_absent",
+          "source_checkout_default_without_explicit_density": "framework_with_app_compatibility"
+        },
         "server_or_isolated_explicit": "container_webui",
         "headless_explicit": "opl_base_only",
         "result": "official_profile_converged",
