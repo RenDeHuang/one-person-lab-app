@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import {
   isMainModule,
 } from '../../scripts/bind-windows-rc-framework-manifest.ts';
 import { resolveReleasePlatformMatrix } from '../../scripts/resolve-release-platform-matrix.ts';
+import { writeSha256Sums } from '../../scripts/write-sha256-sums.ts';
 import { buildWindowsRcBuildCohort } from '../../scripts/write-windows-rc-build-cohort.ts';
 
 const appSha = 'a'.repeat(40);
@@ -491,6 +493,33 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   assert.doesNotMatch(guide, /当前 RC 的桌面会话仍使用随包的原生 Windows/);
 });
 
+test('Windows Preview checksum manifest uses portable Node hashing with byte readback', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-windows-preview-checksums-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const installer = path.join(root, 'One-Person-Lab-26.7.30-rc.2-win-x64.exe');
+  const downloader = path.join(root, 'download-windows-preview.ps1');
+  const output = path.join(root, 'SHA256SUMS.txt');
+  fs.writeFileSync(installer, 'installer-bytes');
+  fs.writeFileSync(downloader, 'downloader-bytes');
+
+  const result = writeSha256Sums(output, [installer, downloader]);
+  const expected = [installer, downloader]
+    .map((filePath) => {
+      const digest = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+      return `${digest}  ${path.basename(filePath)}`;
+    })
+    .join('\n');
+
+  assert.equal(fs.readFileSync(output, 'utf8'), `${expected}\n`);
+  assert.deepEqual(
+    result.entries.map(({ name, sha256 }) => ({ name, sha256 })),
+    [installer, downloader].map((filePath) => ({
+      name: path.basename(filePath),
+      sha256: crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex'),
+    })),
+  );
+});
+
 test('Windows Preview resilient downloader is exact-release, resumable, verified, and packaged', () => {
   const downloader = fs.readFileSync(path.join(appRoot, 'scripts/download-windows-preview.ps1'), 'utf8');
   const build = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
@@ -522,7 +551,10 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.doesNotMatch(downloader, /Unblock-File/);
   assert.doesNotMatch(downloader, /mirror|registry-mirrors/i);
   assert.match(build, /cp \.\.\/\.\.\/scripts\/download-windows-preview\.ps1 out\/download-windows-preview\.ps1/);
-  assert.match(build, /shasum -a 256 .*download-windows-preview\.ps1 > SHA256SUMS\.txt/);
+  assert.match(build, /node --experimental-strip-types \.\.\/\.\.\/scripts\/write-sha256-sums\.ts/);
+  assert.match(build, /--output out\/SHA256SUMS\.txt/);
+  assert.match(build, /out\/download-windows-preview\.ps1/);
+  assert.doesNotMatch(build, /shasum -a 256 .*download-windows-preview\.ps1/);
   assert.match(build, /shells\/aionui\/out\/\*\.ps1/);
   assert.match(build, /shells\/aionui\/out\/SHA256SUMS\.txt/);
   assert.match(publish, /-name 'download-windows-preview\.ps1'/);

@@ -1307,11 +1307,10 @@ jobs:
             --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
             --actions-artifact-name "$artifact_name"
           cp ../../scripts/download-windows-preview.ps1 out/download-windows-preview.ps1
-          (
-            cd out
-            shasum -a 256 "$(basename "$installer_path")" download-windows-preview.ps1 > SHA256SUMS.txt
-            shasum -a 256 -c SHA256SUMS.txt
-          )
+          node --experimental-strip-types ../../scripts/write-sha256-sums.ts \
+            --output out/SHA256SUMS.txt \
+            "$installer_path" \
+            out/download-windows-preview.ps1
 
       - name: Upload build artifact cohort manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
