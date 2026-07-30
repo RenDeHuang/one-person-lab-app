@@ -197,14 +197,16 @@ next useful action is. Its normal first viewport contains:
 - signed-in Gateway identity, connection and availability, plus compact today
   token, cost, and balance summary;
 - one persistent **Background tasks** summary derived from explicit Temporal
-  server, worker, and scheduler readiness;
+  service, OPL task worker, and scheduled-run readiness;
 - an impact-ordered exception queue;
 - one next useful action.
 
 When all required background components are ready, Overview shows one quiet
-available row. An unready, unknown, or stale component contributes one item to
-the attention queue and links to Service Status. Server, worker, scheduler, and
-supervisor details never expand on Overview.
+available row. An unready, unknown, or stale chain contributes one root-cause
+item to the attention queue and links to Service Status. Downstream components
+show that they are waiting for their named prerequisite instead of adding
+duplicate generic-attention items. Service, worker, schedule, and supervisor
+details never expand on Overview.
 
 It does not show the full Gateway account card, total historical usage or cost,
 managed Key detail, login or connection-management controls, workspace path, a
@@ -355,9 +357,14 @@ three destinations into one long “Services & Maintenance” page.
 
 1. **Service Status** (`environment#services`) answers whether Codex and the
    required background services are available now. It starts with one
-   availability summary, followed by flat Codex and Temporal server, worker, and
-   scheduler rows. Healthy rows stay quiet; only unavailable, stale, or unknown
-   components expand their impact and projected start/restart/check action.
+   availability summary. The Temporal area is titled **Durable tasks
+   (Temporal)** and presents **Temporal service**, **OPL task worker**, and
+   **Scheduled runs** as the causal chain service -> worker -> Temporal
+   Schedule, not as three peer services. It states the user impact once,
+   emphasizes one safe action for the first actionable root cause, and renders
+   downstream failures as waiting states. Address, namespace, task queue,
+   supervisor, component timestamps, and secondary checks stay in technical
+   details.
    Overview consumes these same component fields but renders only one persistent
    **Background tasks** summary. It never duplicates Temporal topology.
 2. **Updates & Repair** (`environment#updates`) answers what is outdated or

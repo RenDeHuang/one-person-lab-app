@@ -19,9 +19,11 @@
   },
   "download": {
     "pdf_href": "windows-app-install-detailed-guide.pdf",
-    "preview_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/windows-rc-26.7.28-rc.5",
-    "installer_asset": "One-Person-Lab-26.7.28-rc.5-win-x64.exe",
-    "installer_sha256": "287b2847118fb14106d85c8c6d07d37e7ae6841e16f167f7a5aa0e57aa9191ce",
+    "preview_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/windows-rc-26.7.30-rc.1",
+    "installer_asset": "One-Person-Lab-26.7.30-rc.1-win-x64.exe",
+    "installer_sha256": "abc9913706e029d1d3f6aa257c4d59441bafd49c771f1abfb2aa96324e5e85af",
+    "installer_size_bytes": "328030592",
+    "installer_size_label": "约 328 MB",
     "checksum_asset": "SHA256SUMS.txt",
     "docker_guide_url": "https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html",
     "issues_url": "https://github.com/gaofeng21cn/one-person-lab-app/issues/new"

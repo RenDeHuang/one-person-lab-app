@@ -1713,8 +1713,9 @@
         "three independent second-level destinations: Service Status, Updates & Repair, and Logs & Diagnostics",
         "exactly one selected destination presented as the ordinary page purpose",
         "active Codex CLI, OPL-managed Temporal Runtime, and optional system Temporal CLI with version, source, currentness, and update guidance on the main Maintenance surface",
-        "Temporal server, worker, and scheduler status with localized reasons plus check, install or configure, start, restart, and fresh readback maintenance",
+        "one Durable tasks (Temporal) summary that presents Temporal service, OPL task worker, and Scheduled runs as a causal dependency chain rather than three peer services",
         "Temporal server, worker, and scheduler detail only under Service Status",
+        "Temporal component detail only under Service Status, with one root-cause action and downstream waiting states instead of repeated generic attention",
         "update channel as an inline persistent configuration",
         "single recommended repair or maintenance action",
         "check, apply, repair, rollback, and package maintenance directly on the daily Maintenance page with progressive confirmation and fresh readback",
@@ -1731,6 +1732,7 @@
       "machine_source": "opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_environment",
+      "temporal_service_user_mental_model_ref": "contracts/app-gui-product-contract.json#pages.settings_environment.temporal_maintenance_contract.user_mental_model",
       "sections": [
         "selected_destination",
         "health",
