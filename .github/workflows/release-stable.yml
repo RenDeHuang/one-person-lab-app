@@ -480,7 +480,7 @@ jobs:
       - name: Seal one same-run Stable admission manifest
         id: manifest
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.OPL_HOMEBREW_TAP_TOKEN }}
           APP_REF: ${{ needs.admission.outputs.app_ref }}
           SHELL_REF: ${{ needs.admission.outputs.shell_ref }}
           FRAMEWORK_REF: ${{ needs.admission.outputs.framework_ref }}
