@@ -58,6 +58,57 @@
       "mas_scholar_visibility": "mas_workspace_binding_only"
     }
   },
+  "startup_installation_integrity_recovery": {
+    "authority": "one-person-lab-app",
+    "implementation_owner": "gaofeng21cn/opl-aion-shell",
+    "trigger": "packaged_backend_incomplete_installation",
+    "blocking_surface": true,
+    "required_visible_state": [
+      "plain_language_failure_summary",
+      "deduplicated_relative_missing_resource_names_when_reported",
+      "security_software_quarantine_recovery_hint",
+      "reinstall_is_fallback_not_the_only_action"
+    ],
+    "required_actions": [
+      "restart_and_recheck_same_installation",
+      "copy_redacted_diagnostic_summary",
+      "open_local_app_log_directory",
+      "open_prefilled_support_issue",
+      "open_official_release_download"
+    ],
+    "diagnostic_copy_allowlist": [
+      "app_version",
+      "platform",
+      "architecture",
+      "failure_reason",
+      "backend_boundary_code",
+      "backend_boundary_stage",
+      "relative_missing_resources"
+    ],
+    "diagnostic_copy_forbidden": [
+      "credentials",
+      "tokens",
+      "absolute_user_paths",
+      "log_contents",
+      "project_contents"
+    ],
+    "log_action": {
+      "owner": "electron_main_process",
+      "path_source": "electron_app_getPath_logs",
+      "backend_http_dependency_allowed": false,
+      "create_missing_directory_allowed": true
+    },
+    "restart_semantics": "restart_current_app_then_reclassify_from_fresh_packaged_resource_readback",
+    "self_heal_or_reinstall_success_claim_without_fresh_readback_allowed": false,
+    "smartscreen_or_security_software_bypass_allowed": false,
+    "required_evidence": [
+      "shell_source:packages/desktop/src/renderer/components/layout/InstallationIntegrityDialog.tsx",
+      "shell_source:packages/desktop/src/preload/main.ts",
+      "shell_source:packages/desktop/src/index.ts",
+      "shell_test:tests/unit/bootstrap/backendStartupFailure.test.ts",
+      "app_gate:scripts/validate-active-shell/shell-branding-validator.ts"
+    ]
+  },
   "upstream_family": "AionUI",
   "shell_source": {
     "owner_repo": "gaofeng21cn/opl-aion-shell",

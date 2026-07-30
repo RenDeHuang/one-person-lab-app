@@ -162,18 +162,91 @@ function runPassedWindowsEvidenceGate(evidence: string) {
   return payload;
 }
 
-function zipEvidence(evidence: string) {
+function zipCrc32(payload: Buffer) {
+  let crc = 0xffffffff;
+  for (const byte of payload) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function writeZipFixture(
+  archivePath: string,
+  entries: Array<{ name: string; payload: Buffer }>,
+) {
+  const localChunks: Buffer[] = [];
+  const centralChunks: Buffer[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const name = Buffer.from(entry.name, 'utf8');
+    const crc = zipCrc32(entry.payload);
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0x0800, 6);
+    localHeader.writeUInt32LE(crc, 14);
+    localHeader.writeUInt32LE(entry.payload.length, 18);
+    localHeader.writeUInt32LE(entry.payload.length, 22);
+    localHeader.writeUInt16LE(name.length, 26);
+    localChunks.push(localHeader, name, entry.payload);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0x0800, 8);
+    centralHeader.writeUInt32LE(crc, 16);
+    centralHeader.writeUInt32LE(entry.payload.length, 20);
+    centralHeader.writeUInt32LE(entry.payload.length, 24);
+    centralHeader.writeUInt16LE(name.length, 28);
+    centralHeader.writeUInt32LE(localOffset, 42);
+    centralChunks.push(centralHeader, name);
+
+    localOffset += localHeader.length + name.length + entry.payload.length;
+  }
+
+  const centralSize = centralChunks.reduce((total, chunk) => total + chunk.length, 0);
+  const endOfCentralDirectory = Buffer.alloc(22);
+  endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
+  endOfCentralDirectory.writeUInt16LE(entries.length, 8);
+  endOfCentralDirectory.writeUInt16LE(entries.length, 10);
+  endOfCentralDirectory.writeUInt32LE(centralSize, 12);
+  endOfCentralDirectory.writeUInt32LE(localOffset, 16);
+  fs.writeFileSync(archivePath, Buffer.concat([
+    ...localChunks,
+    ...centralChunks,
+    endOfCentralDirectory,
+  ]));
+}
+
+function zipEvidence(evidence: string, powerShellEntryNames = false) {
   const archivePath = path.join(
     fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')),
     'windows-clean-evidence.zip',
   );
-  const zipped = assertCommandDidNotTimeOut(spawnSync('zip', ['-qr', archivePath, '.'], {
-    cwd: evidence,
-    encoding: 'utf8',
-    timeout: fixtureCommandTimeoutMs,
-    killSignal: 'SIGKILL',
-  }), 'Docker/WebUI evidence archive fixture');
-  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
+  const entries: Array<{ name: string; payload: Buffer }> = [];
+  const collect = (root: string) => {
+    const children = fs.readdirSync(root, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of children) {
+      const absolutePath = path.join(root, entry.name);
+      if (entry.isDirectory()) {
+        collect(absolutePath);
+      } else if (entry.isFile()) {
+        const relativePath = path.relative(evidence, absolutePath).split(path.sep).join('/');
+        entries.push({
+          name: powerShellEntryNames ? relativePath.replaceAll('/', '\\') : relativePath,
+          payload: fs.readFileSync(absolutePath),
+        });
+      }
+    }
+  };
+  collect(evidence);
+  writeZipFixture(archivePath, entries);
   return archivePath;
 }
 
@@ -513,6 +586,9 @@ test('Windows Docker/WebUI image pulls stream progress, identify Docker proxy co
   assert.match(boundedCapture, /Docker Desktop -> Settings -> Resources -> Proxies/);
   assert.match(boundedCapture, /\$nextHeartbeatAt = \$startedAt\.AddSeconds\(20\)/);
   assert.match(boundedCapture, /\$NoOutputTimeoutSeconds/);
+  assert.match(boundedCapture, /\$ProgressContext is still active/);
+  assert.match(boundedCapture, /Completed layers remain in Docker's local cache/);
+  assert.match(boundedCapture, /This attempt will stop and retry after \$\{NoOutputTimeoutSeconds\}s/);
   assert.match(boundedCapture, /\$stalled = \$true/);
   assert.match(boundedCapture, /if \(-not \$process\.HasExited\)/);
   assert.match(boundedCapture, /taskkill\.exe" \/PID \$process\.Id \/T \/F 2>\$null/);
@@ -527,6 +603,8 @@ test('Windows Docker/WebUI image pulls stream progress, identify Docker proxy co
   assert.match(resolver, /Invoke-DockerCommandCapture[\s\S]*"image", "inspect"/);
   assert.match(installer, /function Invoke-DockerPullWithRetry/);
   assert.match(installer, /Test-DockerPullNetworkFailure/);
+  assert.match(installer, /WebUI image download attempt \$\{attempt\}\/\$\{attempts\}/);
+  assert.match(installer, /Docker keeps completed layers/);
   assert.match(installer, /retrying image pull in/);
 });
 
@@ -550,10 +628,52 @@ test('Windows Docker/WebUI isolates public OPL GHCR pulls from host credentials'
   assert.match(fallback, /ghcr\\\.io\/gaofeng21cn\/one-person-lab-webui/);
   assert.match(fallback, /return Invoke-PublicGhcrAnonymousDockerCommandCapture/);
   assert.match(fallback, /return Invoke-DockerCommandCaptureWithTimeout/);
+  assert.match(fallback, /\[int\]\$NoOutputTimeoutSeconds = 0/);
+  assert.match(fallback, /-NoOutputTimeoutSeconds \$NoOutputTimeoutSeconds/);
+  assert.match(fallback, /-ProgressContext \$ProgressContext/);
   assert.match(fallback, /-StreamOutput/);
   assert.doesNotMatch(fallback, /Test-DockerCredentialHelperFailure/);
   assert.match(fallback, /@\('--config', \$temporaryConfigDir\) \+ \$Arguments/);
   assert.match(fallback, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
+});
+
+test('Windows Docker/WebUI anonymous GHCR wrapper forwards stall and progress controls', () => {
+  if (!pwshPath) {
+    return;
+  }
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const result = runPwshHarness([
+    extractPowerShellFunction(installer, 'Invoke-PublicGhcrAnonymousDockerCommandCapture'),
+    [
+      'function Invoke-DockerCommandCaptureWithTimeout {',
+      '  param(',
+      '    [string]$DockerCliPath,',
+      '    [string[]]$Arguments,',
+      '    [int]$TimeoutSeconds,',
+      '    [int]$NoOutputTimeoutSeconds,',
+      '    [string]$ProgressContext,',
+      '    [switch]$StreamOutput',
+      '  )',
+      '  if ($NoOutputTimeoutSeconds -ne 37) { throw "stall timeout was not forwarded" }',
+      '  if ($ProgressContext -ne "attempt 2/3") { throw "progress context was not forwarded" }',
+      '  if (-not $StreamOutput) { throw "stream output was not forwarded" }',
+      '  return [pscustomobject]@{ ExitCode = 0; TimedOut = $false; Stalled = $false; Output = ""; OutputWasStreamed = $true }',
+      '}',
+    ].join('\n'),
+    [
+      '$result = Invoke-PublicGhcrAnonymousDockerCommandCapture',
+      '  -DockerCliPath "C:\\missing-docker.exe"',
+      '  -Arguments @("pull", "example")',
+      '  -TimeoutSeconds 60',
+      '  -NoOutputTimeoutSeconds 37',
+      '  -ProgressContext "attempt 2/3"',
+      '  -StreamOutput',
+      'if ($result.ExitCode -ne 0) { throw "unexpected wrapper result" }',
+    ].join(' `\n'),
+  ].join('\n\n'));
+
+  assert.ok(result);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('Windows Docker/WebUI compose commands use exit codes instead of native stderr exceptions', () => {
@@ -725,30 +845,7 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
     const bomPath = path.join(evidence, bomFile);
     fs.writeFileSync(bomPath, `\uFEFF${fs.readFileSync(bomPath, 'utf8')}`);
   }
-  const archivePath = path.join(
-    fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')),
-    'windows-clean-evidence.zip',
-  );
-  const createArchive = assertCommandDidNotTimeOut(spawnSync(
-    'python3',
-    [
-      '-c',
-      [
-        'import os, sys, zipfile',
-        'source, archive = sys.argv[1], sys.argv[2]',
-        'with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:',
-        '    for root, _, files in os.walk(source):',
-        '        for file_name in files:',
-        '            full_path = os.path.join(root, file_name)',
-        '            rel = os.path.relpath(full_path, source).replace(os.sep, "\\\\")',
-        '            zf.write(full_path, rel)',
-      ].join('\n'),
-      evidence,
-      archivePath,
-    ],
-    { encoding: 'utf8', timeout: fixtureCommandTimeoutMs, killSignal: 'SIGKILL' },
-  ), 'PowerShell-style evidence archive fixture');
-  assert.equal(createArchive.status, 0, createArchive.stderr || createArchive.stdout);
+  const archivePath = zipEvidence(evidence, true);
 
   const payload = runPassedWindowsEvidenceGate(archivePath);
   assert.equal(payload.diagnostics_validation.preservation_verdict, 'preserved_or_reused');
@@ -763,14 +860,10 @@ test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Wind
 test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows evidence paths', () => {
   const archiveRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-unsafe-archive-'));
   const archivePath = path.join(archiveRoot, 'windows-clean-evidence.zip');
-  fs.writeFileSync(path.join(archiveRoot, '..', 'evil.txt'), 'unsafe\n');
-  const zipped = assertCommandDidNotTimeOut(spawnSync('zip', ['-q', archivePath, '../evil.txt'], {
-    cwd: archiveRoot,
-    encoding: 'utf8',
-    timeout: fixtureCommandTimeoutMs,
-    killSignal: 'SIGKILL',
-  }), 'unsafe archive rejection fixture');
-  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
+  writeZipFixture(archivePath, [{
+    name: '../evil.txt',
+    payload: Buffer.from('unsafe\n'),
+  }]);
 
   const { result } = runWindowsEvidenceGate(archivePath);
   assert.notEqual(result.status, 0);

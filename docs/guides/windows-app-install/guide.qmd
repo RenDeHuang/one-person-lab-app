@@ -58,10 +58,11 @@ RC 不会安装、修改或接管 Docker。
 
 <{{download.preview_release_url}}>
 
-在 **Assets** 中只下载以下两个文件：
+在 **Assets** 中下载：
 
 - `{{download.installer_asset}}`
 - `{{download.checksum_asset}}`
+- 如果 Release 提供：`{{download.download_helper_asset}}`
 
 不要把 Source code ZIP/TAR 当成安装包。文件名中的 `win-x64` 表示 Windows x64，
 `rc.1` 表示当前公开候选预览，不是稳定更新频道。
@@ -69,9 +70,30 @@ RC 不会安装、修改或接管 Docker。
 建议在“下载”目录新建 `OPL-RC` 文件夹，把两个文件放在一起。
 
 Windows 安装包包含首次配置所需的 Linux 运行时，当前安装包
-{{download.installer_size_label}}。点击下载后，
-浏览器可能需要一段时间才完成文件落盘；下载列表没有进度或文件大小没有继续增长时，
-不要重复点击多个下载。先等下载完成，再按下一节校验 SHA-256。
+{{download.installer_size_label}}。当前 `{{download.release_tag}}` 尚未携带下载助手，
+因此浏览器直接下载仍是这份 RC 的可用路径。点击后浏览器可能先把页面导航替换为后台
+下载；即使页面看起来没有变化，也先打开浏览器下载列表，确认是否出现 `.crdownload`
+或正在下载的任务，不要重复点击多个下载。
+
+从下一份包含 `{{download.download_helper_asset}}` 的 Windows RC 开始，弱网用户优先把
+这个名为 `download-windows-preview.ps1` 的小脚本和 `{{download.checksum_asset}}` 下载到
+`OPL-RC`，先按下一节校验脚本自身，再在普通 PowerShell 运行：
+
+```powershell
+cd "$HOME\Downloads\OPL-RC"
+powershell -ExecutionPolicy Bypass -File ".\{{download.download_helper_asset}}" `
+  -ReleaseTag "{{download.release_tag}}" `
+  -AssetName "{{download.installer_asset}}"
+```
+
+助手使用 Windows BITS 持久任务，显示已下载字节、总字节、百分比和任务状态。网络短暂
+断开或关闭 PowerShell 后，再运行同一条命令会重新附着到同一个精确 Release、URL 和目标
+路径，不会从零开始；完成后先核对 `SHA256SUMS.txt`、GitHub asset digest 和本地
+SHA-256，完全一致才把临时文件原子改为最终 EXE 文件名。
+
+浏览器直接下载会一直保留作为备用入口。项目不会自动切换到聊天群、网盘或任意第三方
+镜像；以后只有项目 owner 公布、使用 HTTPS 且由同一不可变 Release 绑定相同 SHA-256 的
+候选源，才有资格进入自动回退列表。
 
 ## 2. 校验 SHA-256
 
@@ -91,6 +113,15 @@ Get-Content ".\{{download.checksum_asset}}"
 - 任意一位不同：删除 EXE，重新从同一个 RC Release 下载。
 - 文件名不同：不要猜测或改名，回到 Release 重新选择。
 
+如果 Release 包含下载助手，在运行脚本前也检查同一 `SHA256SUMS.txt` 中
+`{{download.download_helper_asset}}` 的条目：
+
+```powershell
+Get-FileHash -Algorithm SHA256 ".\{{download.download_helper_asset}}"
+Select-String -Path ".\{{download.checksum_asset}}" `
+  -Pattern "{{download.download_helper_asset}}"
+```
+
 不要从聊天群、网盘、邮件附件或第三方镜像获取同名 EXE。哈希一致只证明字节
 一致，不等于这个 RC 已完成正式代码签名。
 
@@ -109,6 +140,10 @@ Get-Content ".\{{download.checksum_asset}}"
 
 如果系统显示的文件名、发布者或路径与刚校验的文件不一致，立即取消。不要关闭
 Microsoft Defender，也不要修改全局 SmartScreen 策略。
+
+BITS 助手不会调用 `Unblock-File`、删除下载区域标记或绕过 SmartScreen。真正减少
+SmartScreen 提示仍需要正式 Authenticode 签名和持续信誉积累；下载进度、断点续传和
+SHA-256 校验只能让来源与字节状态更清楚，不能替代代码签名。
 
 ## 4. 安装 One Person Lab
 

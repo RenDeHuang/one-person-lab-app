@@ -93,7 +93,34 @@
         "native_windows_executor_fallback_allowed": false,
         "wsl2_only_desktop_target_contract": "contracts/app-windows-wsl2-execution.json",
         "wsl2_only_supported_desktop_target_requires_exact_release_acceptance": true,
-        "desktop_webui_target_requires_same_desktop_qualification": true
+        "desktop_webui_target_requires_same_desktop_qualification": true,
+        "preview_download_resilience": {
+          "delivery_status": "starting_next_windows_preview_rc",
+          "helper_asset": "download-windows-preview.ps1",
+          "transport": "windows_bits_persistent_background_transfer",
+          "resume_identity": "exact_immutable_release_tag_asset_url_and_destination",
+          "progress": [
+            "transferred_bytes",
+            "total_bytes_when_known",
+            "percentage_when_known",
+            "bits_job_state",
+            "fifteen_second_heartbeat"
+          ],
+          "verification_before_final_name": [
+            "exact_public_prerelease_is_immutable",
+            "sha256sums_exact_filename_entry",
+            "github_asset_digest_when_present",
+            "downloaded_file_sha256"
+          ],
+          "browser_direct_download_remains_available": true,
+          "partial_or_mismatched_bytes_must_not_receive_final_exe_name": true,
+          "smartscreen_zone_marker_removal_allowed": false,
+          "mirror_policy": {
+            "automatic_arbitrary_third_party_mirror_allowed": false,
+            "automatic_candidate_requirement": "owner_published_https_source_bound_to_the_same_exact_asset_sha256_in_the_immutable_release_contract",
+            "current_additional_approved_sources": []
+          }
+        }
       }
     },
     "installer_convergence": {
