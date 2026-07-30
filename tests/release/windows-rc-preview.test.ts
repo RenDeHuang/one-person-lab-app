@@ -363,6 +363,14 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(publishRun, /prerelease:\$prerelease,make_latest:"false"/);
   assert.match(publishRun, /and \.prerelease == \$prerelease[\s\S]*and \.immutable == true/);
   assert.match(publishRun, /test "\$latest_after" = "\$latest_before"/);
+  assert.match(publishRun, /One Person Lab Windows Preview __VERSION__/);
+  assert.match(publishRun, /download-windows-preview\.ps1/);
+  assert.match(publishRun, /persistent Windows BITS job/);
+  assert.match(publishRun, /SHA256SUMS\.txt/);
+  assert.match(publishRun, /Direct browser download remains available as a fallback/);
+  assert.match(publishRun, /Docker\/WebUI as a separate installation path/);
+  assert.match(publishRun, /Do not disable Microsoft Defender or SmartScreen/);
+  assert.match(publishRun, /does not replace GitHub Latest/);
 });
 
 test('Windows RC Framework binder writes the exact ref and URLs into the packaged product manifest', (t) => {
