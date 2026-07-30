@@ -16,6 +16,7 @@ import { validateInstallExposurePolicy } from './validate-active-shell/install-e
 import { validatePageStateMatrix } from './validate-active-shell/page-state-matrix-validator.ts';
 import { validateProductProfile } from './validate-active-shell/product-profile-validator.ts';
 import { validateReleaseChannelContract } from './validate-active-shell/release-contract-validator.ts';
+import { activeShellReleaseValidationProfile } from './validate-release-boundary/release-checks.ts';
 import { validateReleaseEvidenceBundle } from './validate-active-shell/release-evidence-bundle-validator.ts';
 import { validateSettingsControlPlane } from './validate-active-shell/settings-control-plane-validator.ts';
 import {
@@ -37,6 +38,7 @@ import {
 
 assertAppRootBoundary({ phase: 'active shell validation' });
 const args = parseArgs(process.argv);
+const releaseValidationProfile = activeShellReleaseValidationProfile(args.quick);
 const contract = readAppShellAdapterContract();
 const shellPaths = resolveActiveShellPaths({ contract });
 const requestedShellRef = process.env.OPL_APP_SHELL_REF?.trim();
@@ -72,7 +74,7 @@ validateFirstRunCompiledExpectations({
   release: releaseChannel,
 });
 validateProductProfile(productProfile, installExposurePolicy);
-validateReleaseChannelContract(releaseChannel, shellPaths);
+validateReleaseChannelContract(releaseChannel, shellPaths, releaseValidationProfile);
 validateReleaseEvidenceBundle(releaseChannel, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
 validateShellThreadCoordination(shellPaths);

@@ -5,10 +5,6 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import {
-  dockerWebuiImageDigest as imageDigest,
-  writeDockerWebuiDiagnostics,
-} from './docker-webui-fixtures.ts';
 import { shouldRetryConfigureCodexProbe } from '../../scripts/docker-webui-smoke-gate.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -33,50 +29,6 @@ function runInstaller(args: string[], env: NodeJS.ProcessEnv = {}) {
   }), 'Docker/WebUI installer fixture');
 }
 
-function writeWindowsEvidence(root: string, overrides: Record<string, unknown> = {}) {
-  const diagnostics = path.join(root, 'diagnostics');
-  writeDockerWebuiDiagnostics(diagnostics);
-  fs.writeFileSync(
-    path.join(root, 'api-key-flow-evidence.json'),
-    `${JSON.stringify(
-      {
-        schema: 'opl_docker_webui_api_key_flow_evidence.v1',
-        status: 'passed',
-        mode: 'webui_proxy_configure_codex',
-        endpoint: 'http://127.0.0.1:3000/api/opl-runtime/configure-codex',
-        response_http_status: 200,
-        response_success: true,
-        command: 'opl system configure-codex --api-key-stdin --json',
-        stdin_transport: true,
-        key_material_recorded: false,
-        errors: [],
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  fs.writeFileSync(
-    path.join(root, 'windows-smoke-evidence.json'),
-    `${JSON.stringify(
-      {
-        schema: 'opl_docker_webui_windows_smoke_evidence.v1',
-        gate_id: 'clean_windows_vm',
-        status: 'passed',
-        host_platform: 'win32',
-        observed_at: '2026-06-30T00:00:00Z',
-        installer_command:
-          'powershell -ExecutionPolicy Bypass -File scripts/install-docker-webui.ps1 -Yes -NoOpen -DiagnosticsDir diagnostics',
-        diagnostics_dir: 'diagnostics',
-        api_key_flow_evidence: 'api-key-flow-evidence.json',
-        ...overrides,
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  return { diagnostics };
-}
-
 function runSmokeGate(args: string[]) {
   return assertCommandDidNotTimeOut(spawnSync(process.execPath, ['--experimental-strip-types', smokeGatePath, ...args], {
     cwd: appRoot,
@@ -84,53 +36,6 @@ function runSmokeGate(args: string[]) {
     timeout: fixtureCommandTimeoutMs,
     killSignal: 'SIGKILL',
   }), 'Docker/WebUI smoke-gate fixture');
-}
-
-function runWindowsEvidenceGate(evidence: string) {
-  const artifacts = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-gate-artifacts-'));
-  const result = runSmokeGate(['--gate', 'clean_windows_vm', '--evidence', evidence, '--artifacts', artifacts, '--json']);
-  const resultPath = path.join(artifacts, 'docker-webui-smoke-gate-result.json');
-  const payload = fs.existsSync(resultPath) ? JSON.parse(fs.readFileSync(resultPath, 'utf8')) : null;
-  return { artifacts, result, payload };
-}
-
-function assertPassedWindowsEvidencePayload(payload: any) {
-  assert.equal(payload.status, 'passed');
-  assert.equal(payload.gate_id, 'clean_windows_vm');
-  assert.equal(payload.diagnostics_validation.status, 'passed');
-  assert.equal(payload.diagnostics_validation.compose_volume_mapping.status, 'passed');
-  assert.equal(payload.diagnostics_validation.preservation_evidence.status, 'passed');
-  assert.equal(payload.diagnostics_validation.image_identity.digest, imageDigest);
-  assert.equal(payload.image.digest, imageDigest);
-  assert.equal(payload.image.currentness_claim, false);
-  assert.equal(payload.api_key_flow.status, 'passed');
-  assert.equal(payload.api_key_flow.stdin_transport, true);
-  assert.equal(payload.evidence_validation.status, 'passed');
-  assert.equal(payload.ordinary_user_status.path_id, 'ordinary_docker_webui_user_path');
-  assert.equal(payload.ordinary_user_status.access_key_settings.status, 'passed');
-  assert.equal(payload.ordinary_user_status.runtime_proxy.status, 'passed');
-}
-
-function runPassedWindowsEvidenceGate(evidence: string) {
-  const { result, payload } = runWindowsEvidenceGate(evidence);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assertPassedWindowsEvidencePayload(payload);
-  return payload;
-}
-
-function zipEvidence(evidence: string) {
-  const archivePath = path.join(
-    fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')),
-    'windows-clean-evidence.zip',
-  );
-  const zipped = assertCommandDidNotTimeOut(spawnSync('zip', ['-qr', archivePath, '.'], {
-    cwd: evidence,
-    encoding: 'utf8',
-    timeout: fixtureCommandTimeoutMs,
-    killSignal: 'SIGKILL',
-  }), 'Docker/WebUI evidence archive fixture');
-  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
-  return archivePath;
 }
 
 test('Docker/WebUI installer shell parses cleanly', () => {
@@ -144,50 +49,6 @@ test('Docker/WebUI installer shell parses cleanly', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const composeFunction = installer.match(/compose_content\(\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
   assert.doesNotMatch(composeFunction, /<<YAML/, 'compose dry-run must not depend on a heredoc writer process');
-});
-
-test('Windows Docker/WebUI installer resolves a moving tag once and pins compose to its digest', () => {
-  const windowsInstaller = fs.readFileSync(path.join(appRoot, 'scripts', 'install-docker-webui.ps1'), 'utf8');
-  const resolver = windowsInstaller.match(/function Resolve-PinnedImageReference \{([\s\S]*?)\n\}/)?.[1] ?? '';
-  const pullRoute = windowsInstaller.match(/function Invoke-DockerPullWithPublicGhcrIsolation \{([\s\S]*?)\n\}/)?.[1] ?? '';
-  const anonymousPull = windowsInstaller.match(/function Invoke-PublicGhcrAnonymousDockerCommandCapture \{([\s\S]*?)\n\}/)?.[1] ?? '';
-  const composeWriter = windowsInstaller.match(/function Write-ComposeFile \{([\s\S]*?)\n\}/)?.[1] ?? '';
-  const execution = windowsInstaller.slice(windowsInstaller.indexOf('$tagWasProvided ='));
-
-  assert.match(resolver, /Invoke-DockerPullWithRetry/);
-  assert.match(resolver, /Write-Host \$pull\.Output/);
-  assert.doesNotMatch(
-    resolver,
-    /& docker pull/,
-    'native docker progress must not leak into the resolver success output',
-  );
-  assert.match(
-    resolver,
-    /Invoke-DockerCommandCapture[\s\S]*-Arguments @\("image", "inspect", "--format", "\{\{json \.RepoDigests\}\}"[\s\S]*-TimeoutSeconds 30/,
-  );
-  assert.match(resolver, /matchingDigests\.Count -ne 1/);
-  assert.match(resolver, /@sha256:\[0-9a-f\]\{64\}/);
-  assert.match(pullRoute, /Test-PublicOplGhcrImageReference/);
-  assert.match(pullRoute, /\[Parameter\(Mandatory = \$true\)\]\[string\]\$DockerCliPath/);
-  assert.match(pullRoute, /return Invoke-PublicGhcrAnonymousDockerCommandCapture/);
-  assert.match(pullRoute, /-DockerCliPath \$DockerCliPath/);
-  assert.match(pullRoute, /return Invoke-DockerCommandCaptureWithTimeout/);
-  assert.doesNotMatch(pullRoute, /Test-DockerCredentialHelperFailure/);
-  assert.match(anonymousPull, /'\{"auths":\{\}\}'/);
-  assert.doesNotMatch(anonymousPull, /"auth"\s*:|"credsStore"\s*:/);
-  assert.match(anonymousPull, /Remove-Item -LiteralPath \$temporaryConfigDir -Force -Recurse/);
-  assert.doesNotMatch(anonymousPull, /USERPROFILE|\.docker\\config\.json/);
-  assert.match(composeWriter, /pull_policy: missing/);
-  assert.doesNotMatch(composeWriter, /pull_policy: always/);
-  assert.ok(
-    execution.indexOf('Assert-DockerCompose') < execution.indexOf('Resolve-PinnedImageReference'),
-    'tag resolution must run only after Docker is available',
-  );
-  assert.match(execution, /\$dockerCliPath = Assert-DockerCli/);
-  assert.ok(
-    execution.indexOf('Resolve-PinnedImageReference') < execution.indexOf('Write-ComposeFile'),
-    'compose must be written only after the immutable digest is resolved',
-  );
 });
 
 test('Docker/WebUI installer dry-run generates the compose-only startup plan', () => {
@@ -444,126 +305,3 @@ test('Docker/WebUI smoke gate writes typed blocker instead of passing unmatched 
   assert.equal(payload.ordinary_user_status.access_key_settings.status, 'typed_blocker');
   assert.ok(payload.ordinary_user_status.must_not_claim.includes('clean_windows_vm_pass_without_clean_windows_evidence'));
 });
-
-test('Docker/WebUI clean Windows smoke gate imports minimal Windows evidence', () => {
-  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-  writeWindowsEvidence(evidence);
-
-  const payload = runPassedWindowsEvidenceGate(evidence);
-  assert.equal(payload.host_platform, process.platform);
-  assert.equal(payload.evidence.windows_evidence_dir, evidence);
-  assert.equal(payload.evidence.windows_diagnostics_dir, path.join(evidence, 'diagnostics'));
-  assert.equal(payload.evidence.windows_api_key_flow_evidence, path.join(evidence, 'api-key-flow-evidence.json'));
-  assert.equal(payload.ordinary_user_status.settings_entry, 'Settings -> Account & Access');
-});
-
-test('Docker/WebUI clean Windows smoke gate imports zipped Windows evidence', () => {
-  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-  writeWindowsEvidence(evidence);
-  const archivePath = zipEvidence(evidence);
-
-  const payload = runPassedWindowsEvidenceGate(archivePath);
-  assert.equal(payload.evidence.windows_evidence_archive, archivePath);
-  assert.match(payload.evidence.windows_evidence_dir, /windows-evidence-archive/);
-});
-
-test('Docker/WebUI clean Windows smoke gate imports PowerShell-style zipped Windows evidence', () => {
-  const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-  const { diagnostics } = writeWindowsEvidence(evidence);
-  for (const bomFile of [
-    'api-key-flow-evidence.json',
-    'windows-smoke-evidence.json',
-    path.join('diagnostics', 'data-preservation.txt'),
-    path.join('diagnostics', 'metadata.txt'),
-  ]) {
-    const bomPath = path.join(evidence, bomFile);
-    fs.writeFileSync(bomPath, `\uFEFF${fs.readFileSync(bomPath, 'utf8')}`);
-  }
-  const archivePath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-archive-')), 'windows-clean-evidence.zip');
-  const createArchive = assertCommandDidNotTimeOut(spawnSync(
-    'python3',
-    [
-      '-c',
-      [
-        'import os, sys, zipfile',
-        'source, archive = sys.argv[1], sys.argv[2]',
-        'with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:',
-        '    for root, _, files in os.walk(source):',
-        '        for file_name in files:',
-        '            full_path = os.path.join(root, file_name)',
-        '            rel = os.path.relpath(full_path, source).replace(os.sep, "\\\\")',
-        '            zf.write(full_path, rel)',
-      ].join('\n'),
-      evidence,
-      archivePath,
-    ],
-    { encoding: 'utf8', timeout: fixtureCommandTimeoutMs, killSignal: 'SIGKILL' },
-  ), 'PowerShell-style evidence archive fixture');
-  assert.equal(createArchive.status, 0, createArchive.stderr || createArchive.stdout);
-
-  const payload = runPassedWindowsEvidenceGate(archivePath);
-  assert.equal(payload.diagnostics_validation.preservation_verdict, 'preserved_or_reused');
-  assert.equal(payload.data_preservation.status, 'passed');
-  assert.equal(payload.evidence.windows_evidence_archive, archivePath);
-  assert.ok(fs.existsSync(path.join(payload.evidence.windows_evidence_dir, 'diagnostics', 'compose.yaml')));
-  assert.ok(fs.existsSync(path.join(diagnostics, 'data-preservation.txt')));
-});
-
-test('Docker/WebUI clean Windows smoke gate rejects unsafe zipped Windows evidence paths', () => {
-  const archiveRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-unsafe-archive-'));
-  const archivePath = path.join(archiveRoot, 'windows-clean-evidence.zip');
-  fs.writeFileSync(path.join(archiveRoot, '..', 'evil.txt'), 'unsafe\n');
-  const zipped = assertCommandDidNotTimeOut(spawnSync('zip', ['-q', archivePath, '../evil.txt'], {
-    cwd: archiveRoot,
-    encoding: 'utf8',
-    timeout: fixtureCommandTimeoutMs,
-    killSignal: 'SIGKILL',
-  }), 'unsafe archive rejection fixture');
-  assert.equal(zipped.status, 0, zipped.stderr || zipped.stdout);
-
-  const { result } = runWindowsEvidenceGate(archivePath);
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /unsafe parent traversal entry/);
-});
-
-for (const { name, mutate, assertPayload } of [
-  {
-    name: 'incomplete Windows evidence',
-    mutate({ diagnostics }: { diagnostics: string }) {
-      fs.rmSync(path.join(diagnostics, 'http-probe.txt'));
-    },
-    assertPayload(payload: any) {
-      assert.ok(payload.diagnostics_validation.missing_files.includes('http-probe.txt'));
-    },
-  },
-  {
-    name: 'secret-like markers in imported evidence',
-    mutate({ diagnostics }: { diagnostics: string }) {
-      fs.writeFileSync(path.join(diagnostics, 'docker-compose-logs.txt'), 'Bearer abcdefghijklmnopqrstuvwxyz123456\n');
-    },
-    assertPayload(payload: any) {
-      assert.ok(payload.evidence_validation.forbidden_secret_markers.some((marker: string) => marker.includes('Bearer')));
-    },
-  },
-  {
-    name: 'evidence without API key UI flow receipt',
-    mutate({ evidence }: { evidence: string }) {
-      fs.rmSync(path.join(evidence, 'api-key-flow-evidence.json'));
-    },
-    assertPayload(payload: any) {
-      assert.ok(payload.evidence_validation.errors.some((error: string) => error.includes('API key flow evidence validation failed')));
-    },
-  },
-]) {
-  test(`Docker/WebUI clean Windows smoke gate rejects ${name}`, () => {
-    const evidence = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-windows-evidence-'));
-    const { diagnostics } = writeWindowsEvidence(evidence);
-    mutate({ evidence, diagnostics });
-
-    const { result, payload } = runWindowsEvidenceGate(evidence);
-    assert.equal(result.status, 1, result.stderr || result.stdout);
-    assert.equal(payload.status, 'failed');
-    assert.equal(payload.evidence_validation.status, 'failed');
-    assertPayload(payload);
-  });
-}

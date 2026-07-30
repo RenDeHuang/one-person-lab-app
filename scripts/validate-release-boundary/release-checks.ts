@@ -23,6 +23,17 @@ export function releaseValidationProfile(
   throw new Error(`Unsupported OPL_RELEASE_VALIDATION_PROFILE: ${value}.`);
 }
 
+export function activeShellReleaseValidationProfile(
+  quick: boolean,
+  value = process.env.OPL_RELEASE_VALIDATION_PROFILE,
+): ReleaseValidationProfile {
+  return releaseValidationProfile(
+    value === undefined || value === ''
+      ? (quick ? 'stable' : 'aggregate')
+      : value,
+  );
+}
+
 export const releaseWorkflowPaths = [
   ".github/workflows/_build-reusable.yml",
   ".github/workflows/_release-bundle.yml",

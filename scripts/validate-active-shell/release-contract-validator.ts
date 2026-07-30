@@ -7,6 +7,7 @@ import {
   appOwnedStorageCarrierBehavior,
   appOwnedWebuiDataVolumeHostActionCapabilityId,
 } from './app-contract-constants.ts';
+import type { ReleaseValidationProfile } from '../validate-release-boundary/release-checks.ts';
 
 const retiredReleasePackageScripts = [
   'release:stable',
@@ -204,7 +205,14 @@ const validationCanaryContract = {
   synthetic_identity_may_authorize_release: false,
 };
 
-export function validateReleaseChannelContract(releaseChannel, shellPaths = null) {
+export function validateReleaseChannelContract(
+  releaseChannel,
+  shellPaths = null,
+  validationProfile: ReleaseValidationProfile = 'aggregate',
+) {
+  if (!['aggregate', 'stable', 'windows-preview'].includes(validationProfile)) {
+    throw new Error(`Unsupported release validation profile: ${validationProfile}`);
+  }
   validateReleaseCalendarGuard(releaseChannel.github_release_name);
   validateProviderConfigurationBoundary(releaseChannel.provider_configuration_boundary);
   const managedUpdatePlane = releaseChannel.managed_update_plane;
@@ -213,7 +221,7 @@ export function validateReleaseChannelContract(releaseChannel, shellPaths = null
   validateLocalDataLifecycle(releaseChannel.local_data_lifecycle, shellPaths);
   validateWebuiGhcrImage(releaseChannel.webui_ghcr_image);
   validateManagedUpdatePlane(managedUpdatePlane);
-  validateReleaseExecutionPolicy(releaseChannel, shellPaths);
+  validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationProfile);
   validateOptionalCertificationPolicy(releaseChannel);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
@@ -429,7 +437,7 @@ function validateStandardUpdater(updater) {
   }
 }
 
-function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
+function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationProfile) {
   const control = releaseChannel?.release_bundle_control_plane;
   const framework = control?.framework_authority;
   const live = control?.live_authority;
@@ -1098,19 +1106,26 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     ['macos-x64', 'macos-universal', 'linux-arm64'],
     'Stable optional platform policy',
   );
-  assertDeepEqualJson(
-    platformMatrix?.validation_ownership?.['windows-preview']?.owned_test_paths,
-    [
-      'tests/release/docker-webui-clean-windows-dispatch.test.ts',
-      'tests/release/docker-webui-native-windows-smoke.test.ts',
-      'tests/release/docker-webui-windows-installer.test.ts',
-      'tests/release/docker-webui-windows-validation-fixtures.test.ts',
-      'tests/release/windows-platform-factory-contract.test.ts',
-      'tests/release/windows-rc-preview.test.ts',
-      'tests/release/windows-wsl2-validation-fixtures.test.ts',
-    ],
-    'Windows Preview validation ownership',
-  );
+  if (validationProfile !== 'stable') {
+    assertDeepEqualJson(
+      platformMatrix?.validation_ownership?.['windows-preview']?.owned_test_paths,
+      [
+        'tests/release/docker-webui-clean-windows-dispatch.test.ts',
+        'tests/release/docker-webui-native-windows-smoke.test.ts',
+        'tests/release/docker-webui-windows-installer.test.ts',
+        'tests/release/docker-webui-windows-validation-fixtures.test.ts',
+        'tests/release/windows-platform-factory-contract.test.ts',
+        'tests/release/windows-rc-preview.test.ts',
+        'tests/release/windows-wsl2-validation-fixtures.test.ts',
+      ],
+      'Windows Preview validation ownership',
+    );
+  }
+  const publicationCapabilityIds = validationProfile === 'stable'
+    ? ['macos-arm64', 'linux-x64']
+    : validationProfile === 'windows-preview'
+      ? ['windows-x64', 'windows-arm64']
+      : capabilityIds;
   if (
     platformMatrix?.schema !== 'opl_app_release_platform_matrix.v1'
     || platformMatrix?.resolver !== 'scripts/resolve-release-platform-matrix.ts'
@@ -1124,9 +1139,9 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
     || capabilities?.['windows-arm64']?.default_enabled !== false
     || capabilities?.['windows-arm64']?.stable_allowed !== false
     || capabilities?.['windows-arm64']?.blocks_stable !== false
-    || Object.values(capabilities ?? {}).some((capability) =>
-      typeof capability?.publication_route !== 'string'
-      || capability?.publication_status?.includes('unavailable')
+    || publicationCapabilityIds.some((capabilityId) =>
+      typeof capabilities?.[capabilityId]?.publication_route !== 'string'
+      || capabilities?.[capabilityId]?.publication_status?.includes('unavailable')
     )
     || policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
     || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows-preview'

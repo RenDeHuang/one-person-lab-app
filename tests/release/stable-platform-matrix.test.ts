@@ -7,9 +7,12 @@ import { parse as parseYaml } from 'yaml';
 
 import { resolveReleasePlatformMatrix } from '../../scripts/resolve-release-platform-matrix.ts';
 import {
+  activeShellReleaseValidationProfile,
   releaseBoundaryChecksForProfile,
   releaseWorkflowPathsForProfile,
 } from '../../scripts/validate-release-boundary/release-checks.ts';
+import { validateReleasePlatformMatrix } from '../../scripts/validate-release-boundary/release-contract-policy.ts';
+import { validateReleaseChannelContract } from '../../scripts/validate-active-shell/release-contract-validator.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const contract = JSON.parse(
@@ -189,6 +192,51 @@ test('Stable profile excludes only Windows-only checks and retains shared build 
     ),
     false,
   );
+});
+
+test('Stable validation ignores Windows publication drift while aggregate and Preview remain fail-closed', () => {
+  const changed = structuredClone(contract);
+  changed.release_platform_matrix.capabilities['windows-x64'].publication_route = null;
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(validateReleasePlatformMatrix(changed, 'stable'), 0);
+    assert.ok(validateReleasePlatformMatrix(changed, 'aggregate') > 0);
+    assert.ok(validateReleasePlatformMatrix(changed, 'windows-preview') > 0);
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert.doesNotThrow(() => validateReleaseChannelContract(changed, null, 'stable'));
+  assert.throws(
+    () => validateReleaseChannelContract(changed, null, 'aggregate'),
+    /Release platform matrix/,
+  );
+  assert.throws(
+    () => validateReleaseChannelContract(changed, null, 'windows-preview'),
+    /Release platform matrix/,
+  );
+});
+
+test('active-shell quick validation defaults to Stable while full validation remains aggregate', () => {
+  assert.equal(activeShellReleaseValidationProfile(true, ''), 'stable');
+  assert.equal(activeShellReleaseValidationProfile(false, ''), 'aggregate');
+  assert.equal(activeShellReleaseValidationProfile(true, 'windows-preview'), 'windows-preview');
+  assert.throws(
+    () => activeShellReleaseValidationProfile(true, 'unsupported'),
+    /Unsupported OPL_RELEASE_VALIDATION_PROFILE/,
+  );
+});
+
+test('Windows-only Docker/WebUI cases live only in the Preview-owned test file', () => {
+  const windowsOwned = contract.release_platform_matrix.validation_ownership['windows-preview']
+    .owned_test_paths;
+  assert.ok(windowsOwned.includes('tests/release/docker-webui-windows-installer.test.ts'));
+  assert.equal(windowsOwned.includes('tests/release/docker-webui-installer.test.ts'), false);
+  const sharedInstallerTests = fs.readFileSync(
+    path.join(appRoot, 'tests/release/docker-webui-installer.test.ts'),
+    'utf8',
+  );
+  assert.doesNotMatch(sharedInstallerTests, /test\(['"`][^\n]*Windows/);
 });
 
 test('Full macOS post-success follower is automatic, same-cohort, recoverable, and non-blocking', () => {
