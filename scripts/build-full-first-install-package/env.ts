@@ -77,7 +77,6 @@ function defaultWorkspaceRoots() {
 
 function defaultToolchainOptions() {
   return {
-    codexRoot: envValue('OPL_FULL_CODEX_ROOT', ''),
     nodeBin: envValue('OPL_FULL_NODE_BIN', ''),
     bunBin: envValue('OPL_FULL_BUN_BIN', ''),
     uvBin: envValue('OPL_FULL_UV_BIN', path.join(os.homedir(), '.local', 'bin', 'uv')),
@@ -156,7 +155,6 @@ const valueOptionSetters = {
   'meta-agent-root': (parsed, value) => { parsed.metaAgentRoot = path.resolve(value); },
   'bookforge-root': (parsed, value) => { parsed.bookforgeRoot = path.resolve(value); },
   'opl-flow-root': (parsed, value) => { parsed.oplFlowRoot = path.resolve(value); },
-  'codex-root': (parsed, value) => { parsed.codexRoot = path.resolve(value); },
   'node-bin': (parsed, value) => { parsed.nodeBin = path.resolve(value); },
   'bun-bin': (parsed, value) => { parsed.bunBin = path.resolve(value); },
   'uv-bin': (parsed, value) => { parsed.uvBin = path.resolve(value); },

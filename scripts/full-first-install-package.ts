@@ -10,6 +10,12 @@ import { readAppProductProfile } from './app-product-profile/profile-contract.ts
 export const FULL_FIRST_INSTALL_OUTPUT_DIR = '/Users/gaofeng/Downloads/One-Person-Lab-Full-First-Install';
 export const FULL_RELEASE_OUTPUT_DIR = 'dist/opl-full-release';
 export const FULL_RUNTIME_RESOURCE_DIR = 'opl-full-runtime';
+export const FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS = [
+  'bin/codex',
+  'bin/rg',
+  'vendor/codex',
+  '.runtime-cache/codex-cli',
+] as const;
 export const PACKAGED_MODULE_MARKER_FILE = 'opl-runtime-module.json';
 const FULL_RUNTIME_CACHE_LAYOUT_VERSION = 2;
 export const FULL_RUNTIME_CACHE_LAYER_IDS = ['toolchain', 'domain-runtime', 'opl-runtime', 'skills'] as const;
@@ -33,9 +39,9 @@ export const FULL_RUNTIME_CACHE_LAYER_TAXONOMY = {
 const RUNTIME_FABRIC_BUNDLE_TAXONOMY = {
   'execution-core.bundle': {
     display_name: 'Agent Execution Core',
-    components: ['codex', 'temporal_cli', 'opl'],
+    components: ['temporal_cli', 'opl'],
     cache_layers: ['base-toolchain', 'opl-framework-runtime'],
-    smoke: 'Codex and Temporal wrapper version checks plus OPL CLI startup smoke',
+    smoke: 'Temporal wrapper version check plus OPL CLI startup smoke',
   },
   'environment-materializer.bundle': {
     display_name: 'Environment Materializer',
@@ -441,15 +447,6 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         role: 'framework_cli_and_shared_contracts_payload_source',
         required: true,
       },
-      codex: {
-        ...normalizeComponent(components.codex),
-        role: 'default_agent_cli_offline_archive_wrapper',
-        required: true,
-        binary_path: components.codex?.binary_path ?? null,
-        archive_path: components.codex?.archive_path
-          ?? 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz',
-        archive_size_bytes: components.codex?.archive_size_bytes ?? null,
-      },
       mas: {
         ...normalizeComponent(components.mas),
         role: 'primary_domain_module',
@@ -808,7 +805,7 @@ export function buildFullFirstInstallReadme(input: {
     '3. The runtime version is recorded only in current.json and current/.opl-full-runtime-installed.json; it is not encoded in the runtime directory name.',
     '4. Bundled MAS, its MAS Scholar Skills capability dependency, MAG, RCA, OPL Meta Agent, and OPL Book Forge payloads are launch sources inside the Full runtime. Managed repo reconciliation may later populate the standard module directory, but it is deferred maintenance and does not block first launch:',
     '   ~/Library/Application Support/OPL/state/modules/<repo-name>',
-    '5. The Full runtime includes the Codex CLI, OPL Flow workflow package, officecli CLI binary, mineru-open-api CLI binary, and OPL Meta Agent. It may also carry compatible Flow-declared Skill payloads that are available at build time; missing optional payloads are resolved later by Framework and do not block installation or readiness.',
+    '5. The App shell resolves Codex from the bundled AionCore managed-resources manifest and passes the exact executable through OPL_CODEX_BIN. The Full runtime does not carry a second Framework-managed Codex archive, wrapper, cache, or ripgrep binary.',
     `6. The bundled Codex profile seeds ${codexProfile} for first-run App sessions after OPL Gateway is configured; existing usable Codex login or provider access can satisfy first-launch model access without forcing Gateway setup.`,
     '7. The Full package only assembles and validates declared framework/runtime, domain module, and companion tool payloads. Runtime truth, provider implementation, domain truth, domain quality verdicts, and artifact authority remain owned by the OPL Framework and the domain agents.',
     '8. The Full package includes local state and module material required by the family runtime provider. OPL Framework source and contracts are runtime payload inputs, not owners of the App release flow. Production durable stage attempts are governed by the Temporal provider contract.',

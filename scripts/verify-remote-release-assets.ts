@@ -11,6 +11,7 @@ import { fileSha256 } from "./release-file-helpers.ts";
 import { runCommand } from "./release-cleanup-helpers.ts";
 import { assertFullRuntimeNativeTrustObject } from "./full-runtime-native-trust.ts";
 import { readManagedUpdateLifecycleProviderMap } from "./managed-update-lifecycle-contract.ts";
+import { FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS } from "./full-first-install-package.ts";
 
 function parseArgs(argv) {
   const parsed = {
@@ -654,6 +655,10 @@ function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
       "Full package boundary audit must prove the Full package still contains the shell runtime.",
     );
   }
+  assertFrameworkCodexCarrierBoundary(
+    boundaryAudit.full_package_boundary,
+    "Full package boundary audit",
+  );
   if (boundaryAudit.entries?.app_asar?.exists !== true) {
     throw new Error(
       "Full package boundary audit must prove the App app.asar payload is still present.",
@@ -688,6 +693,10 @@ function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
       "Full manifest package_optimization must record electron_framework as present.",
     );
   }
+  assertFrameworkCodexCarrierBoundary(
+    manifest.package_optimization?.package_boundary_audit,
+    "Full manifest package_optimization",
+  );
   return {
     app_bundle_trim: {
       before_bytes: trimReport.before_bytes,
@@ -702,6 +711,26 @@ function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
         boundaryAudit.standard_app_boundary?.standard_package_allowed_to_contain_full_runtime,
     },
   };
+}
+
+function assertFrameworkCodexCarrierBoundary(boundary, label) {
+  if (
+    boundary?.aioncore_codex_carrier_present !== true
+    || boundary?.framework_codex_payload_absent !== true
+  ) {
+    throw new Error(
+      `${label} must prove the AionCore Codex carrier is present and the Framework Codex payload is absent.`,
+    );
+  }
+  const forbiddenPaths = boundary.forbidden_framework_codex_paths;
+  if (
+    !Array.isArray(forbiddenPaths)
+    || JSON.stringify(forbiddenPaths.map((entry) => entry?.path))
+      !== JSON.stringify(FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS)
+    || forbiddenPaths.some((entry) => entry?.exists !== false)
+  ) {
+    throw new Error(`${label} Framework Codex absence evidence is incomplete.`);
+  }
 }
 
 function assertPlainObject(value, label) {
@@ -824,31 +853,27 @@ function assertFullSizeBudget(manifest, fullDmgAssetSize) {
       `Full runtime must not package modules/*/.venv directories; count=${runtimeAssertions.excluded_module_venv_count}`,
     );
   }
-  const codex = assertFullComponent(manifest, "codex");
-  if (codex.required !== true || codex.role !== "default_agent_cli_offline_archive_wrapper") {
+  const components = assertPlainObject(manifest.components, "Full manifest components");
+  if (Object.prototype.hasOwnProperty.call(components, "codex")) {
+    throw new Error("Full manifest must not contain components.codex.");
+  }
+  const declaredPrunedPaths = runtimeAssertions.declared_pruned_paths;
+  if (!Array.isArray(declaredPrunedPaths)) {
     throw new Error(
-      "Full manifest components.codex must be a required default_agent_cli_offline_archive_wrapper component.",
+      "Full manifest runtime_assertions.declared_pruned_paths must be an array.",
     );
   }
-  if (!String(codex.version || "").startsWith("codex-cli ")) {
-    throw new Error(
-      `Full manifest components.codex.version must record codex --version; got ${codex.version}`,
-    );
-  }
-  if (codex.binary_path !== null) {
-    throw new Error(
-      `Full manifest components.codex.binary_path must be null for archive-only packaging; got ${codex.binary_path}`,
-    );
-  }
-  if (codex.archive_path !== "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz") {
-    throw new Error(
-      `Full manifest components.codex.archive_path is unexpected: ${codex.archive_path}`,
-    );
-  }
-  assertSafePositiveInteger(
-    codex.archive_size_bytes,
-    "Full manifest components.codex.archive_size_bytes",
+  const declarationByPath = new Map(
+    declaredPrunedPaths.map((entry) => [entry?.path, entry]),
   );
+  for (const relativePath of FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS) {
+    const declaration = declarationByPath.get(relativePath);
+    if (declaration?.expected !== "absent" || declaration?.present !== false) {
+      throw new Error(
+        `Full manifest must prove Framework Codex path ${relativePath} absent.`,
+      );
+    }
+  }
 
   const temporalCli = assertFullComponent(manifest, "temporal_cli");
   if (

@@ -16,7 +16,6 @@ import { archiveLayer, extractLayer } from './archive-output.ts';
 import { copyPathContents } from './filesystem.ts';
 import { readGitHead } from './git.ts';
 import {
-  completeDirectoryFingerprint,
   directoryFingerprint,
   existingFileSha256,
   packageJsonVersion,
@@ -82,16 +81,12 @@ export function buildRuntimeCacheKeyInputs(
 
   return {
     toolchain: {
-      codex_package_version: sources.codexVersion,
-      codex_binary_sha256: existingFileSha256(sources.codexBinaries.codex),
-      rg_sha256: existingFileSha256(sources.codexBinaries.rg),
       node_sha256: existingFileSha256(sources.nodeToolchain.nodeBin),
       npm_bin_sha256: existingFileSha256(sources.nodeToolchain.npmBin),
       npx_bin_sha256: existingFileSha256(sources.nodeToolchain.npxBin),
       npm_package_version: packageJsonVersion(path.join(sources.nodeToolchain.npmRoot, 'package.json')),
         npm_package_fingerprint: directoryFingerprint(sources.nodeToolchain.npmRoot, 'node/lib/node_modules/npm'),
         node_runtime_fingerprint: directoryFingerprint(nodeRoot, 'node'),
-        codex_vendor_fingerprint: completeDirectoryFingerprint(sources.codexBinaries.vendorRoot),
         bun_runtime_included: options.includeBunRuntime,
         bun_sha256: sources.bunBin ? existingFileSha256(sources.bunBin) : null,
         uv_sha256: existingFileSha256(sources.uvBin),

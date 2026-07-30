@@ -24,7 +24,6 @@ fi
 PYTHON_BIN="\${PYTHON_BIN_CANDIDATES[0]:-}"
 export OPL_FULL_RUNTIME_HOME="$RUNTIME_HOME"
 export OPL_PACKAGED_SKILLS_ROOT="$RUNTIME_HOME/skills"
-export OPL_CODEX_BIN="$RUNTIME_HOME/bin/codex"
 # Packaged Python must never materialize bytecode in the signed runtime tree.
 export PYTHONDONTWRITEBYTECODE="1"
 OPL_RUNTIME_STATE_ROOT="\${OPL_STATE_DIR:-}"

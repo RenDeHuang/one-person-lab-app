@@ -98,6 +98,17 @@ test("Full workflow provisions the frozen Python through uv on macOS arm64", () 
   assert.ok(pythonExamples.every((entry: string) => entry.startsWith(pythonRoot)));
 });
 
+test("Full workflow delegates Codex to the Shell AionCore carrier without a Framework install", () => {
+  const workflow = fs.readFileSync(
+    path.join(appRoot, ".github/workflows/full-first-install-release.yml"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(workflow, /codex_tarball|codex_platform_tarball|OPL_FULL_CODEX_ROOT/);
+  assert.doesNotMatch(workflow, /--codex-root|npm install -g "\$codex_tarball"/);
+  assert.match(workflow, /working-directory: one-person-lab-app[\s\S]*npm run release:full --/);
+});
+
 test("Full runtime cache classifies hit and miss modes from one canonical key", async () => {
   const mod = await import("../../../scripts/full-first-install-package.ts");
   const cacheDir = path.join(os.tmpdir(), "opl-full-runtime-cache-test");

@@ -402,32 +402,27 @@ export function buildManualRuntimeDependencyLock(
   return { aioncore_managed_codex: binding };
 }
 
-export function buildAioncoreManagedCodexArgs(
-  binding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
-) {
-  return ['--codex-root', binding.codex_cli.root];
-}
-
-export function assertFullDmgCodexBinding(
-  manifest: any,
-  binding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
-) {
-  const codex = manifest?.components?.codex;
-  const sourcePath = requiredString(
-    codex?.source_path,
-    'Full manifest Codex source_path',
-  );
-  const sourceRealpath = fs.realpathSync(sourcePath);
-  if (sourceRealpath !== binding.codex_cli.root) {
+export function assertFullDmgCodexCarrierBoundary(manifest: any) {
+  if (Object.prototype.hasOwnProperty.call(manifest?.components ?? {}, 'codex')) {
+    throw new Error('Full manifest must not contain components.codex.');
+  }
+  const boundary = manifest?.package_optimization?.package_boundary_audit;
+  if (
+    boundary?.aioncore_codex_carrier_present !== true
+    || boundary?.framework_codex_payload_absent !== true
+  ) {
     throw new Error(
-      `Full manifest Codex source mismatch: actual=${sourceRealpath} expected=${binding.codex_cli.root}`,
+      'Full manifest must prove the AionCore Codex carrier is present and Framework Codex payload is absent.',
     );
   }
-  const expectedVersion = `codex-cli ${binding.codex_cli.version}`;
-  if (codex?.version !== expectedVersion) {
-    throw new Error(
-      `Full manifest Codex version mismatch: actual=${String(codex?.version)} expected=${expectedVersion}`,
-    );
+  const forbidden = boundary.forbidden_framework_codex_paths;
+  const expected = ['bin/codex', 'bin/rg', 'vendor/codex', '.runtime-cache/codex-cli'];
+  if (
+    !Array.isArray(forbidden)
+    || JSON.stringify(forbidden.map((entry) => entry?.path)) !== JSON.stringify(expected)
+    || forbidden.some((entry) => entry?.exists !== false)
+  ) {
+    throw new Error('Full manifest Framework Codex absence evidence is incomplete.');
   }
 }
 
@@ -718,7 +713,6 @@ function runBuild(
   options: ReturnType<typeof parseOptions> & { help: false },
   snapshots: ReturnType<typeof repoSnapshots>,
   upstreams: ReturnType<typeof prepareLatestUpstreams>,
-  aioncoreBinding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
   buildIdentity: StampedManualLocalAppIdentity,
 ) {
   const args = [
@@ -743,7 +737,6 @@ function runBuild(
     '--ui-ux-pro-max-root', snapshots.uiUxRoot,
     '--temporal-cli-bin', upstreams.temporal.binary,
     '--temporal-cli-archive', upstreams.temporal.archive,
-    ...buildAioncoreManagedCodexArgs(aioncoreBinding),
   ];
   if (options.mode === 'local-app') args.push('--app-only');
   if (options.reuseGuiViteOutput) args.push('--reuse-gui-vite-output');
@@ -768,7 +761,6 @@ function runBuild(
 function fullDmgEvidence(
   options: ReturnType<typeof parseOptions> & { help: false },
   buildOutDir: string,
-  aioncoreBinding: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
 ) {
   const names = {
     dmg: `One-Person-Lab-Full-${options.version}-mac-arm64.dmg`,
@@ -789,7 +781,7 @@ function fullDmgEvidence(
       + `release=${String(releaseManifest.version)} expected=${options.version}`,
     );
   }
-  assertFullDmgCodexBinding(manifest, aioncoreBinding);
+  assertFullDmgCodexCarrierBoundary(manifest);
   commandResult('hdiutil', ['verify', dmg], { timeoutMs: 300_000 });
   return {
     dmg: path.join(options.outDir, names.dmg),
@@ -871,7 +863,6 @@ function main() {
       buildOptions,
       snapshots,
       upstreams,
-      aioncoreBinding,
       stampedLocalAppIdentity,
     );
     assertAioncoreManagedCodexBindingUnchanged(
@@ -911,7 +902,7 @@ function main() {
       writeJson(path.join(buildOutDir, 'manual-local-app-installation.json'), installation);
     }
     const output = options.mode === 'full-dmg'
-      ? fullDmgEvidence(options, buildOutDir, aioncoreBinding)
+      ? fullDmgEvidence(options, buildOutDir)
       : {
           installed_app: options.installPath,
           installation_receipt: path.join(options.outDir, 'manual-local-app-installation.json'),

@@ -438,6 +438,69 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
 });
 
+test('remote release verifier rejects a duplicate Framework Codex manifest or absence claim', () => {
+  const cases = [
+    {
+      label: 'component',
+      mutate(manifest) {
+        manifest.manifest.components.codex = {
+          required: true,
+          role: 'default_agent_cli_offline_archive_wrapper',
+        };
+      },
+      expected: /must not contain components\.codex/,
+    },
+    {
+      label: 'absence-claim',
+      mutate(manifest) {
+        manifest.manifest.runtime_assertions.declared_pruned_paths
+          .find((entry) => entry.path === 'bin/codex').present = true;
+      },
+      expected: /must prove Framework Codex path bin\/codex absent/,
+    },
+  ];
+
+  for (const fixture of cases) {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `opl-app-remote-codex-${fixture.label}-`));
+    const binDir = path.join(tempRoot, 'bin');
+    const version = `26.5.19-remote-codex-${fixture.label}`;
+    const names = [
+      ...writeStandardRemoteAssets(tempRoot, version),
+      ...writeFullRemoteAssets(tempRoot, version),
+    ];
+    const manifestPath = path.join(tempRoot, 'opl-release-manifest.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    fixture.mutate(manifest);
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const releaseView = buildRemoteReleaseView(
+      tempRoot,
+      names,
+      `v${version}`,
+      validFullReleaseNotes(version),
+    );
+    writeFakeMacosTrustCommands(binDir);
+
+    const result = runNode([
+      'scripts/verify-remote-release-assets.ts',
+      '--version',
+      version,
+      '--repo',
+      'gaofeng21cn/one-person-lab-app',
+      '--include-full-package',
+      '--download-dir',
+      tempRoot,
+      '--no-download',
+    ], {
+      env: fakeMacosTrustEnvironment(binDir, {
+        OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      }),
+    });
+
+    assert.notEqual(result.status, 0, fixture.label);
+    assert.match(result.stderr, fixture.expected, fixture.label);
+  }
+});
+
 test('remote release verifier rejects mixed Developer ID identities in Full evidence', () => {
   const cases = [
     {
