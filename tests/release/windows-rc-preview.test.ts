@@ -383,6 +383,16 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(publishRun, /test "\$manifest_size" -gt 0/);
   assert.match(publishRun, /opl_app_immutable_platform_adjunct_manifest\.v1/);
   assert.match(publishRun, /immutable_release_capability_evidence_digest/);
+  assert.match(publishRun, /fetch_release_including_drafts/);
+  assert.match(
+    publishRun,
+    /gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"[\s\S]*--slurp/,
+  );
+  assert.match(publishRun, /\[.\[\]\[\] \| select\(.tag_name == \$tag\)\] \| length/);
+  assert.match(publishRun, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/\$release_id"/);
+  assert.match(publishRun, /if \[ "\$create_status" -eq 0 \]; then[\s\S]*exit 1/);
+  assert.match(publishRun, /if \[ "\$upload_status" -eq 0 \]; then[\s\S]*exit 1/);
+  assert.match(publishRun, /if \[ "\$publish_status" -eq 0 \]; then[\s\S]*exit 1/);
   const failureRun = String(publish.steps.find(
     (step: { name?: string }) => step.name === 'Persist typed optional publication failure',
   )?.run);

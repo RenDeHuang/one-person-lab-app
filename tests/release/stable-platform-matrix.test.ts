@@ -288,6 +288,12 @@ test('optional platform publication is an independent protected post-success ope
   assert.match(publishRun, /draft:false,make_latest:"false"/);
   assert.match(publishRun, /and \.immutable == true/);
   assert.match(publishRun, /-optional-\$\{manifest_hex:0:12\}/);
+  assert.match(publishRun, /fetch_release_including_drafts/);
+  assert.match(
+    publishRun,
+    /gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"[\s\S]*--slurp/,
+  );
+  assert.match(publishRun, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/\$release_id"/);
   assert.doesNotMatch(publishRun, /--clobber|gh run rerun|gh run cancel/);
   assert.match(publishRun, /latest_after.*latest_before/);
   assert.match(publishRun, /opl_app_optional_platform_publication_receipt\.v1/);

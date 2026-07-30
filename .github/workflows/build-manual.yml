@@ -468,13 +468,49 @@ jobs:
             release_notes="${release_notes_template//__VERSION__/$VERSION}"
           fi
 
+          fetch_release_including_drafts() {
+            local target_tag="$1"
+            local output_path="$2"
+            local releases_path=optional-publication-evidence/owner-visible-releases.json
+            local match_count
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$target_tag" \
+              > "$output_path" 2>/dev/null; then
+              return 0
+            fi
+            if ! gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --slurp > "$releases_path"; then
+              return 2
+            fi
+            if ! match_count="$(
+              jq -er --arg tag "$target_tag" \
+                '[.[][] | select(.tag_name == $tag)] | length' "$releases_path"
+            )"; then
+              return 2
+            fi
+            if [ "$match_count" -gt 1 ]; then
+              echo "::error::Multiple owner-visible Releases use tag $target_tag."
+              return 2
+            fi
+            if [ "$match_count" = 0 ]; then
+              rm -f "$output_path"
+              return 1
+            fi
+            jq -e --arg tag "$target_tag" \
+              'first(.[][] | select(.tag_name == $tag))' "$releases_path" \
+              > "$output_path"
+          }
+
           printf 'release_reconciliation\n' > optional-publication-evidence/failure-stage.txt
           release_json=selected-platform-release.json
-          release_exists=true
-          if ! gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json" 2>/dev/null; then
-            release_exists=false
+          set +e
+          fetch_release_including_drafts "$tag" "$release_json"
+          release_lookup_status=$?
+          set -e
+          if [ "$release_lookup_status" -gt 1 ]; then
+            echo "::error::Owner-visible Release reconciliation failed before mutation."
+            exit "$release_lookup_status"
           fi
-          if [ "$release_exists" = false ]; then
+          if [ "$release_lookup_status" = 1 ]; then
             printf 'draft_release_creation\n' > optional-publication-evidence/failure-stage.txt
             jq -n \
               --arg tag "$tag" --arg target "$APP_REF" --arg name "$release_name" \
@@ -488,10 +524,30 @@ jobs:
               --input release-create.json > release-create-response.json
             create_status=$?
             set -e
-            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json" || {
+            create_response_valid=false
+            if [ "$create_status" = 0 ] \
+              && jq -e '.id and .tag_name and .draft == true' \
+                release-create-response.json >/dev/null 2>&1; then
+              release_id="$(jq -er .id release-create-response.json)"
+              if gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$release_json"; then
+                create_response_valid=true
+              fi
+            fi
+            if [ "$create_response_valid" = false ]; then
+              set +e
+              fetch_release_including_drafts "$tag" "$release_json"
+              release_lookup_status=$?
+              set -e
+            else
+              release_lookup_status=0
+            fi
+            if [ "$release_lookup_status" -ne 0 ]; then
               echo "::error::Draft Release creation result is unknown; no retry is allowed in this operation."
+              if [ "$create_status" -eq 0 ]; then
+                exit 1
+              fi
               exit "$create_status"
-            }
+            fi
           fi
           jq -e \
             --arg tag "$tag" --arg target "$APP_REF" --arg name "$release_name" \
@@ -503,6 +559,7 @@ jobs:
               and .prerelease == $prerelease
               and (.draft == true or (.draft == false and .immutable == true))
             ' "$release_json" >/dev/null
+          release_id="$(jq -er .id "$release_json")"
 
           jq -e \
             --argjson expected "$(cat optional-publication-evidence/assets.json)" '
@@ -531,8 +588,11 @@ jobs:
                 gh release upload "$tag" "$asset_path" --repo "$GITHUB_REPOSITORY"
                 upload_status=$?
                 set -e
-                gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json" || {
+                gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$release_json" || {
                   echo "::error::Draft asset upload result is unknown; no retry is allowed in this operation."
+                  if [ "$upload_status" -eq 0 ]; then
+                    exit 1
+                  fi
                   exit "$upload_status"
                 }
               fi
@@ -552,7 +612,6 @@ jobs:
                       and .digest == $asset.digest
                       and .size == $asset.size_bytes))
               ' "$release_json" >/dev/null
-            release_id="$(jq -er .id "$release_json")"
             printf 'immutable_release_publication\n' > optional-publication-evidence/failure-stage.txt
             jq -n '{draft:false,make_latest:"false"}' > release-publish.json
             attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
@@ -562,11 +621,15 @@ jobs:
               --input release-publish.json > release-publish-response.json
             publish_status=$?
             set -e
-            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json" || {
+            gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$release_json" || {
               echo "::error::Immutable publication result is unknown; no retry is allowed in this operation."
+              if [ "$publish_status" -eq 0 ]; then
+                exit 1
+              fi
               exit "$publish_status"
             }
           fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json"
           jq -e \
             --arg tag "$tag" --arg target "$APP_REF" --argjson prerelease "$expected_prerelease" \
             --argjson expected "$(cat optional-publication-evidence/assets.json)" '
