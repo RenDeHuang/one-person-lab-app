@@ -748,11 +748,23 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
       (step: any) => step.name === 'Publish one digest-bound Nightly Cask commit',
     )?.run ?? '',
   );
+  const homebrewPublishStep = homebrew.jobs['publish-nightly-cask'].steps.find(
+    (step: any) => step.name === 'Publish one digest-bound Nightly Cask commit',
+  );
+  assert.equal(homebrew.jobs['publish-nightly-cask'].environment, 'release-nightly');
+  assert.equal(
+    homebrewPublishStep?.env?.OPL_HOMEBREW_TAP_DEPLOY_KEY,
+    '${{ secrets.OPL_HOMEBREW_TAP_DEPLOY_KEY }}',
+  );
+  assert.equal(homebrewPublishStep?.env?.OPL_HOMEBREW_TAP_TOKEN, undefined);
   assert.match(homebrewPublish, /\.actions\.run_id == \$run/);
   assert.match(homebrewPublish, /\.invocation\.event == \$event/);
   assert.match(homebrewPublish, /mode: "scheduled_production"/);
   assert.match(homebrewPublish, /mode: "development_validation"/);
   assert.match(homebrewPublish, /\.cohort\.app_sha == \$head/);
+  assert.match(homebrewPublish, /git@github\.com:\$\{tap_repo\}\.git/);
+  assert.match(homebrewPublish, /IdentitiesOnly=yes/);
+  assert.match(homebrewPublish, /StrictHostKeyChecking=yes/);
   assert.match(
     String(sampledVm.jobs['resolve-sample'].steps.find((step: any) => step.id === 'receipt')?.run ?? ''),
     /\.event == "schedule" or \.event == "workflow_dispatch"/,
