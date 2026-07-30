@@ -1704,6 +1704,10 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     'mode: "development_validation"',
     '.cohort.app_sha == $head',
     '.run_attempt == 1',
+    'OPL_HOMEBREW_TAP_DEPLOY_KEY',
+    'git@github.com:${tap_repo}.git',
+    'IdentitiesOnly=yes',
+    'StrictHostKeyChecking=yes',
     'update-homebrew-tap.ts',
     '--channel nightly',
     'Casks/one-person-lab-nightly.rb',
@@ -1721,11 +1725,14 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     failures += reportFailure(id, 'Nightly Homebrew follower must contain exactly one ordinary non-force push');
   }
   if (
-    /workflow_dispatch:|opl-first-run-vm|one-person-lab-full\.rb|make_latest:\s*(?:true|'true')|gh workflow run|gh run (?:rerun|cancel)/.test(
+    /workflow_dispatch:|opl-first-run-vm|one-person-lab-full\.rb|make_latest:\s*(?:true|'true')|gh workflow run|gh run (?:rerun|cancel)|OPL_HOMEBREW_TAP_TOKEN|environment:\s*release-stable/.test(
       homebrew.text,
     )
   ) {
-    failures += reportFailure(id, 'Nightly Homebrew follower must not contain VM, Full, Latest, dispatch, or retry paths');
+    failures += reportFailure(
+      id,
+      'Nightly Homebrew follower must not contain VM, Full, Latest, dispatch, retry, or Stable credential paths',
+    );
   }
 
   const vmJobs = workflowJobs(sampledVm.workflow);
