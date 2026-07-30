@@ -7,6 +7,21 @@
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
+  "codex_executable_contract": {
+    "resolver_env": "OPL_CODEX_BIN",
+    "protocol": "codex_app_server_stdio",
+    "thread_store_owner": "codex_core_app_server",
+    "codex_home_policy": "preserve_existing_env_else_codex_system_default",
+    "carrier_scope": "shell_adapter_only",
+    "carrier": {
+      "kind": "aioncore_managed_resources_manifest",
+      "source_ref": "manual_qualification_contract.runtime_dependencies.aioncore.resource_authority",
+      "manifest_parser_owner": "gaofeng21cn/opl-aion-shell",
+      "aioncore_required": true,
+      "framework_managed_payload_in_app_bundle_allowed": false
+    },
+    "framework_headless_carrier_policy": "preserved_outside_app_bundle"
+  },
   "manual_qualification_contract": {
     "classification": "non_stable_manual_qualification_candidate",
     "stable_bundle_claim": "forbidden",

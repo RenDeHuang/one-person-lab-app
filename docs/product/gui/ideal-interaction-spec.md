@@ -38,6 +38,10 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
    owner truth。
 8. **Thread operations stay native and thin。** 用户通过现有 directory/actions 执行 thread
    list/read/start/resume/fork/archive；App Server 拥有 thread truth，Shell 只做一个薄 adapter。
+9. **Executable carrier stays replaceable。** Shell 只通过 `OPL_CODEX_BIN` 获取 exact
+   Codex executable 并启动 App Server。当前 AionUI 可从 AionCore managed-resources
+   manifest 解析该路径，但 AionCore 不能进入 App/Framework 的 thread、product 或 Native
+   adoption authority；替换 shell 只改变 executable source，不改变 `CODEX_HOME` 或 thread truth。
 
 没有明确 OPL delta 的主流程采用 OPL contracts 对观察时最新可验证的官方 ChatGPT Codex
 macOS 所做的 composition 翻译；精确版本由每次 observation receipt 记录。

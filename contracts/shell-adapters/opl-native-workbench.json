@@ -9,6 +9,21 @@
   "adapter_role": "foreground_alternative_candidate_adapter",
   "shell_root": "shells/opl-native-workbench",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
+  "codex_executable_contract": {
+    "resolver_env": "OPL_CODEX_BIN",
+    "protocol": "codex_app_server_stdio",
+    "thread_store_owner": "codex_core_app_server",
+    "codex_home_policy": "preserve_existing_env_else_codex_system_default",
+    "carrier_scope": "shell_adapter_only",
+    "carrier": {
+      "kind": "candidate_owned_or_exact_external_binary",
+      "source_ref": null,
+      "manifest_parser_owner": null,
+      "aioncore_required": false,
+      "framework_managed_payload_in_app_bundle_allowed": false
+    },
+    "framework_headless_carrier_policy": "preserved_outside_app_bundle"
+  },
   "upstream_family": "OPL Native Workbench",
   "shell_source": {
     "owner_repo": "gaofeng21cn/opl-native-workbench",

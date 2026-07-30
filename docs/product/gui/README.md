@@ -40,6 +40,11 @@ GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本�
 也不修改 release/updater authority。共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
 当前 Runtime/session 偏差统一见
 [`gui-shell-candidates.md`](gui-shell-candidates.md)，不在本入口复制命令或状态矩阵。
+Codex executable 也遵循该 shell-adapter 边界：当前 AionUI 只消费 bundled AionCore
+managed-resources manifest 中的 Codex，App bundle 不再携带 Framework managed Codex
+payload；Framework headless carrier 继续留在 App bundle 之外。未来 Native adoption
+通过同一 `OPL_CODEX_BIN` 和 Codex App Server 接口选择自己的或 exact external binary，
+不继承 AionCore 依赖。
 
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；

@@ -257,6 +257,21 @@ export type ShellAdapterContract = {
   adapter_role?: string;
   shell_root: string;
   runtime_bridge_contract: string;
+  codex_executable_contract?: {
+    resolver_env: string;
+    protocol: string;
+    thread_store_owner: string;
+    codex_home_policy: string;
+    carrier_scope: string;
+    carrier: {
+      kind: string;
+      source_ref: string | null;
+      manifest_parser_owner: string | null;
+      aioncore_required: boolean;
+      framework_managed_payload_in_app_bundle_allowed: boolean;
+    };
+    framework_headless_carrier_policy: string;
+  };
   upstream_family: string;
   release_role: string;
   candidate_stage?: string;
@@ -423,6 +438,7 @@ export function resolveShellAdapterIdentity(contract: ShellAdapterContract): str
 export function readAppShellAdapterContract(filePath = resolveAdapterContractPath()): ShellAdapterContract {
   const contract = readJson(filePath) as ShellAdapterContract;
   assertAdapterContractIdentity(contract, { explicitOverride: isExplicitAdapterOverride(filePath) });
+  validateCodexExecutableContract(contract);
   assertAdapterGuiAuthority(contract);
   assertActiveShellSpecificPolicy(contract);
   assertShellReplacementPolicy(contract);
@@ -431,6 +447,61 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   assertStateSurfaceContract(contract);
   assertValidationCommandPaths(contract);
   return contract;
+}
+
+export function validateCodexExecutableContract(contract: ShellAdapterContract): void {
+  const executable = contract.codex_executable_contract;
+  if (!executable) {
+    if (contract.active_shell !== 'aionui' && contract.candidate_shell !== 'opl-native-workbench') {
+      return;
+    }
+    throw new Error('shell adapter must declare codex_executable_contract');
+  }
+  if (executable.resolver_env !== 'OPL_CODEX_BIN') {
+    throw new Error('shell Codex executable resolver must remain OPL_CODEX_BIN');
+  }
+  if (executable.protocol !== 'codex_app_server_stdio') {
+    throw new Error('shell Codex protocol must remain codex_app_server_stdio');
+  }
+  if (executable.thread_store_owner !== 'codex_core_app_server') {
+    throw new Error('shell Codex thread store authority must remain codex_core_app_server');
+  }
+  if (executable.codex_home_policy !== 'preserve_existing_env_else_codex_system_default') {
+    throw new Error('shell Codex home policy must preserve existing env or use the Codex system default');
+  }
+  if (executable.carrier_scope !== 'shell_adapter_only') {
+    throw new Error('shell Codex carrier knowledge must remain scoped to the shell adapter');
+  }
+  if (executable.carrier.framework_managed_payload_in_app_bundle_allowed !== false) {
+    throw new Error('App bundles must not embed the Framework-managed Codex payload');
+  }
+  if (executable.framework_headless_carrier_policy !== 'preserved_outside_app_bundle') {
+    throw new Error('Framework headless Codex carrier policy must remain outside the App bundle');
+  }
+
+  if (contract.active_shell === 'aionui') {
+    if (
+      executable.carrier.kind !== 'aioncore_managed_resources_manifest' ||
+      executable.carrier.source_ref !==
+        'manual_qualification_contract.runtime_dependencies.aioncore.resource_authority' ||
+      executable.carrier.manifest_parser_owner !== 'gaofeng21cn/opl-aion-shell' ||
+      executable.carrier.aioncore_required !== true
+    ) {
+      throw new Error('active AionUI must resolve its Codex executable only from the bundled AionCore manifest');
+    }
+    return;
+  }
+
+  if (contract.candidate_shell === 'opl-native-workbench') {
+    if (
+      executable.carrier.kind !== 'candidate_owned_or_exact_external_binary' ||
+      executable.carrier.source_ref !== null ||
+      executable.carrier.manifest_parser_owner !== null ||
+      executable.carrier.aioncore_required !== false
+    ) {
+      throw new Error('Native Workbench Codex carrier must remain independent from AionCore');
+    }
+  }
 }
 
 function assertAdapterContractIdentity(contract: ShellAdapterContract, options: { explicitOverride: boolean }): void {

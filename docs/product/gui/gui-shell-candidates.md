@@ -59,6 +59,15 @@ runtime 路径；Native 通过 App launcher 使用显式 `opl`/`codex` 路径，
 仍回退到宿主 PATH。在两者都返回相同
 executable path/version/cohort readback 前，不得声称物理 Runtime parity。
 
+Codex carrier 选择也不进入共享产品 truth。Active AionUI 只从
+`bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json` 解析 exact Codex，
+通过 `OPL_CODEX_BIN` 交给单一 App Server adapter；App bundle 不再嵌入 Framework managed
+Codex archive、cache 或 generation。Framework headless carrier 继续作为独立 Base
+安装能力保留，不得因为 App 选择 AionCore 而打入 App bundle。Native candidate 与后续
+adopted Native shell 继续使用同一 resolver/protocol，但其 carrier 必须是 Native-owned
+或 exact external binary，不能要求 AionCore，也不能读取 AionUI 私有 manifest parser。
+这保证替换 GUI 时只切换 executable source，不迁移 canonical thread history。
+
 ## 两条选择轴
 
 | Decision | Meaning | Authority / effect |
