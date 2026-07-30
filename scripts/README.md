@@ -115,7 +115,7 @@ node --experimental-strip-types scripts/validate-active-shell.ts --only i18n_typ
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run release:version:validate -- --channel stable --version <YY.M.D>
-# Nightly source/qualification diagnostics; the scheduled protected workflow owns publication.
+# Nightly source/qualification diagnostics; daily schedule is the production default and user-explicit development validation uses the same protected workflow with distinct receipt identity.
 npm run release:version:validate -- --channel nightly --version <YY.M.D-nightly-or-YY.M.D-nightly.r1>
 npm run release:nightly-version:resolve -- --base-version <YY.M.D-nightly> --existing-ref-file <path>
 npm run release:notes -- --version <version> --channel stable --include-full-package

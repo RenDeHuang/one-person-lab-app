@@ -344,7 +344,13 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
     nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml' ||
-    nightly?.trigger !== 'daily_schedule' ||
+    nightly?.default_trigger !== 'daily_schedule' ||
+    JSON.stringify(nightly?.development_validation_trigger) !== JSON.stringify({
+      event: 'workflow_dispatch',
+      authority: 'user_explicit',
+      confirmation: 'publish_nonlatest_nightly',
+      execution_path: 'same_as_scheduled_nightly',
+    }) ||
     nightly?.stable_bundle_authority_used !== false ||
     nightly?.stable_mutation_mutex_used !== false ||
     nightly?.heavy_vm_blocks_publication !== false ||
@@ -365,7 +371,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.scheduled_latest_release_allowed !== false ||
     nightly?.explicit_user_override_may_move_latest !== true
   ) {
-    console.error('FAIL release_immutability: Full is additive and the Nightly schedule is immutable, prerelease-only, and non-Latest by default');
+    console.error('FAIL release_immutability: Full is additive and every Nightly invocation is immutable, prerelease-only, and non-Latest by default');
     return 1;
   }
   return 0;
@@ -1414,7 +1420,13 @@ export function validateReleaseAccelerationPolicy(
     publication?.nightly?.mutation_available !== true ||
     publication?.nightly?.historical_readback_allowed !== true ||
     publication?.nightly?.workflow !== '.github/workflows/release-nightly.yml' ||
-    publication?.nightly?.trigger !== 'schedule_only' ||
+    publication?.nightly?.default_trigger !== 'daily_schedule' ||
+    JSON.stringify(publication?.nightly?.development_validation_trigger) !== JSON.stringify({
+      event: 'workflow_dispatch',
+      authority: 'user_explicit',
+      confirmation: 'publish_nonlatest_nightly',
+      execution_path: 'same_as_scheduled_nightly',
+    }) ||
     publication?.nightly?.scheduled_latest_allowed !== false ||
     publication?.nightly?.explicit_user_override_may_move_latest !== true ||
     publication?.nightly?.include_full !== false ||
@@ -1425,7 +1437,7 @@ export function validateReleaseAccelerationPolicy(
     publication?.nightly?.homebrew_follower !== '.github/workflows/release-nightly-homebrew-follower.yml' ||
     publication?.nightly?.sampled_vm_follower !== '.github/workflows/release-nightly-sampled-vm.yml'
   ) {
-    console.error('FAIL release_nightly_publication: Nightly schedule must remain Standard-only, non-Latest by default, and outside the Stable Bundle and heavy VM');
+    console.error('FAIL release_nightly_publication: Nightly must default to the daily schedule and keep user-explicit development validation on the same Standard-only non-Latest path');
     failures += 1;
   }
   if (

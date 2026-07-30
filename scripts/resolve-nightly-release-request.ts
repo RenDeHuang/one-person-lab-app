@@ -8,6 +8,22 @@ import { parseArgs } from 'node:util';
 
 import { resolveNightlyReleaseVersion, resolveReleaseVersionIdentity } from './release-version.ts';
 
+export type NightlyInvocation =
+  | {
+      mode: 'scheduled_production';
+      event: 'schedule';
+      authority_source: 'daily_schedule';
+      confirmation: null;
+      execution_path: 'scheduled_nightly';
+    }
+  | {
+      mode: 'development_validation';
+      event: 'workflow_dispatch';
+      authority_source: 'user_explicit';
+      confirmation: 'publish_nonlatest_nightly';
+      execution_path: 'same_as_scheduled_nightly';
+    };
+
 export type NightlyReleaseRequest = {
   schema: 'opl_standard_nightly_request.v1';
   channel: 'nightly';
@@ -28,6 +44,7 @@ export type NightlyReleaseRequest = {
     run_id: string;
     run_attempt: '1';
   };
+  invocation: NightlyInvocation;
   publication: {
     github_prerelease: true;
     make_latest: false;
@@ -59,11 +76,55 @@ function positiveInteger(value: string, label: string): string {
   return value;
 }
 
+function resolveNightlyInvocation(input: {
+  invocationMode: string;
+  event: string;
+  authoritySource: string;
+  operatorConfirmation?: string;
+}): NightlyInvocation {
+  const confirmation = input.operatorConfirmation?.trim() || null;
+  if (
+    input.invocationMode === 'scheduled_production'
+    && input.event === 'schedule'
+    && input.authoritySource === 'daily_schedule'
+    && confirmation === null
+  ) {
+    return {
+      mode: 'scheduled_production',
+      event: 'schedule',
+      authority_source: 'daily_schedule',
+      confirmation: null,
+      execution_path: 'scheduled_nightly',
+    };
+  }
+  if (
+    input.invocationMode === 'development_validation'
+    && input.event === 'workflow_dispatch'
+    && input.authoritySource === 'user_explicit'
+    && confirmation === 'publish_nonlatest_nightly'
+  ) {
+    return {
+      mode: 'development_validation',
+      event: 'workflow_dispatch',
+      authority_source: 'user_explicit',
+      confirmation: 'publish_nonlatest_nightly',
+      execution_path: 'same_as_scheduled_nightly',
+    };
+  }
+  throw new Error('Nightly invocation identity must be scheduled production or user-explicit development validation.');
+}
+
 function digestRequest(value: Omit<NightlyReleaseRequest, 'request_digest'>): `sha256:${string}` {
   return `sha256:${crypto.createHash('sha256').update(`${JSON.stringify(value)}\n`).digest('hex')}`;
 }
 
 export function assertNightlyRequestDigest(request: NightlyReleaseRequest): void {
+  const invocation = resolveNightlyInvocation({
+    invocationMode: request.invocation?.mode,
+    event: request.invocation?.event,
+    authoritySource: request.invocation?.authority_source,
+    operatorConfirmation: request.invocation?.confirmation ?? undefined,
+  });
   if (
     request.schema !== 'opl_standard_nightly_request.v1'
     || request.channel !== 'nightly'
@@ -83,6 +144,9 @@ export function assertNightlyRequestDigest(request: NightlyReleaseRequest): void
   ) {
     throw new Error('Nightly request must remain an attempt-one Standard-only non-Latest prerelease.');
   }
+  if (JSON.stringify(request.invocation) !== JSON.stringify(invocation)) {
+    throw new Error('Nightly request invocation identity is not canonical.');
+  }
   if (!digestPattern.test(request.request_digest)) throw new Error('Nightly request digest is invalid.');
   const { request_digest: _digest, ...body } = request;
   if (digestRequest(body) !== request.request_digest) {
@@ -98,6 +162,10 @@ export function resolveNightlyReleaseRequest(input: {
   frameworkRef: string;
   actionsRunId: string;
   actionsRunAttempt: string;
+  invocationMode: string;
+  event: string;
+  authoritySource: string;
+  operatorConfirmation?: string;
 }): NightlyReleaseRequest {
   if (!nightlyBasePattern.test(input.baseVersion)) {
     throw new Error('Nightly base version must use YY.M.D-nightly without a rebuild revision.');
@@ -107,6 +175,7 @@ export function resolveNightlyReleaseRequest(input: {
   }
   const resolution = resolveNightlyReleaseVersion(input.baseVersion, input.existingRefs);
   const identity = resolveReleaseVersionIdentity('nightly', resolution.version);
+  const invocation = resolveNightlyInvocation(input);
   const body: Omit<NightlyReleaseRequest, 'request_digest'> = {
     schema: 'opl_standard_nightly_request.v1',
     channel: 'nightly',
@@ -127,6 +196,7 @@ export function resolveNightlyReleaseRequest(input: {
       run_id: positiveInteger(input.actionsRunId, 'Actions run id'),
       run_attempt: '1',
     },
+    invocation,
     publication: {
       github_prerelease: true,
       make_latest: false,
@@ -153,6 +223,10 @@ function main(argv: string[]): void {
       'framework-ref': { type: 'string' },
       'actions-run-id': { type: 'string' },
       'actions-run-attempt': { type: 'string' },
+      'invocation-mode': { type: 'string' },
+      event: { type: 'string' },
+      'authority-source': { type: 'string' },
+      'operator-confirmation': { type: 'string' },
       output: { type: 'string' },
       'github-output': { type: 'string' },
     },
@@ -172,6 +246,10 @@ function main(argv: string[]): void {
     frameworkRef: required('framework-ref'),
     actionsRunId: required('actions-run-id'),
     actionsRunAttempt: required('actions-run-attempt'),
+    invocationMode: required('invocation-mode'),
+    event: required('event'),
+    authoritySource: required('authority-source'),
+    operatorConfirmation: values['operator-confirmation'],
   });
   const output = path.resolve(required('output'));
   fs.mkdirSync(path.dirname(output), { recursive: true });
@@ -186,6 +264,9 @@ function main(argv: string[]): void {
       `shell_ref=${request.source.shell_sha}`,
       `framework_ref=${request.source.framework_sha}`,
       `request_digest=${request.request_digest}`,
+      `invocation_mode=${request.invocation.mode}`,
+      `invocation_event=${request.invocation.event}`,
+      `authority_source=${request.invocation.authority_source}`,
     ].join('\n')}\n`);
   }
   process.stdout.write(`${JSON.stringify(request)}\n`);

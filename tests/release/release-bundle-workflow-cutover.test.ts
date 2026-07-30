@@ -305,7 +305,7 @@ function runPortableStandardBuildReceiptStep(jobName: string, receiptFixture: nu
   }
 }
 
-test('Stable and protected Manual Preview are isolated from scheduled Nightly and Canary', () => {
+test('Stable and protected Manual Preview are isolated from daily-default Nightly and Canary', () => {
   const stable = parseWorkflow('release-stable.yml');
   const canary = parseWorkflow('release-bundle-canary.yml');
   const nightly = parseWorkflow('release-nightly.yml');
@@ -323,8 +323,13 @@ test('Stable and protected Manual Preview are isolated from scheduled Nightly an
     group: 'opl-release-validation-canary-${{ github.ref }}',
     'cancel-in-progress': true,
   });
-  assert.deepEqual(Object.keys(nightly.on), ['schedule']);
+  assert.deepEqual(Object.keys(nightly.on).sort(), ['schedule', 'workflow_dispatch']);
   assert.deepEqual(nightly.on.schedule, [{ cron: '17 19 * * *' }]);
+  assert.deepEqual(Object.keys(nightly.on.workflow_dispatch.inputs), ['operator_confirmation']);
+  assert.equal(nightly.on.workflow_dispatch.inputs.operator_confirmation.required, true);
+  assert.equal(nightly.on.workflow_dispatch.inputs.operator_confirmation.type, 'string');
+  assert.match(nightly['run-name'], /scheduled-production/);
+  assert.match(nightly['run-name'], /development-validation/);
   assert.deepEqual(nightly.concurrency, {
     group: 'opl-standard-nightly',
     'cancel-in-progress': false,
