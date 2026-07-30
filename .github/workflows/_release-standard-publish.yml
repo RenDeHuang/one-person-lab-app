@@ -962,6 +962,7 @@ jobs:
               > immutable-carrier-upload-actions.json
             additional_upload_args=(--additional-upload-actions immutable-carrier-upload-actions.json)
             publication_record_args=(--publication-record "$record")
+            publication_record_args+=(--authority-run-id '${{ needs.restore.outputs.source_run_id }}')
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
