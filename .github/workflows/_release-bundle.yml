@@ -81,6 +81,16 @@ on:
         required: false
         default: ''
         type: string
+      stable_admission_artifact:
+        description: Exact same-run protected Stable admission artifact
+        required: false
+        default: ''
+        type: string
+      stable_admission_manifest_digest:
+        description: Exact digest of the protected Stable admission manifest
+        required: false
+        default: ''
+        type: string
       stable_optional_platforms:
         description: Canonical authority-bound JSON array of audited optional Stable platform IDs
         required: false
@@ -212,6 +222,14 @@ jobs:
               status=failed
               reason=missing_protected_operation_control_digest
             }
+            [[ '${{ inputs.stable_admission_artifact }}' =~ ^opl-stable-admission-[1-9][0-9]*$ ]] || {
+              status=failed
+              reason=missing_protected_stable_admission
+            }
+            [[ '${{ inputs.stable_admission_manifest_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]] || {
+              status=failed
+              reason=missing_protected_stable_admission_digest
+            }
             jq -e 'type == "array"' <<< '${{ inputs.stable_optional_platforms }}' >/dev/null || {
               status=failed
               reason=invalid_optional_platform_selection
@@ -335,6 +353,13 @@ jobs:
             --expected-shell-sha '${{ inputs.shell_ref }}' \
             --expected-framework-sha '${{ inputs.framework_ref }}'
 
+      - name: Download same-run protected Stable admission
+        if: ${{ inputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.stable_admission_artifact }}
+          path: stable-admission-evidence
+
       - name: Checkout Shell source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -369,6 +394,8 @@ jobs:
           REQUESTED_APP_REF: ${{ inputs.app_ref }}
           REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          STABLE_ADMISSION_MANIFEST_DIGEST: ${{ inputs.stable_admission_manifest_digest }}
+          STABLE_OPERATION_CONTROL_ARTIFACT: ${{ inputs.stable_operation_control_artifact }}
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -399,6 +426,108 @@ jobs:
           }
           version="$REQUESTED_VERSION"
           test -n "$version"
+          verified_admission_identity_json="$RUNNER_TEMP/opl-verified-stable-admission-$GITHUB_RUN_ID.json"
+          if [ "$CHANNEL" = stable ]; then
+            admission_manifests=()
+            source_gates=()
+            credential_receipts=()
+            while IFS= read -r item; do admission_manifests+=("$item"); done < <(
+              find stable-admission-evidence -type f -name stable-release-admission-manifest.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do source_gates+=("$item"); done < <(
+              find stable-operation-control -type f -name source-gate.json -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do credential_receipts+=("$item"); done < <(
+              find stable-admission-evidence -type f -name apple-release-credentials-preflight.json -print | LC_ALL=C sort
+            )
+            test "${#admission_manifests[@]}" -eq 1
+            test "${#source_gates[@]}" -eq 1
+            test "${#credential_receipts[@]}" -eq 1
+            ADMISSION_MANIFEST="${admission_manifests[0]}" \
+              ADMISSION_SOURCE_GATE="${source_gates[0]}" \
+              ADMISSION_CREDENTIAL_RECEIPT="${credential_receipts[0]}" \
+              EXPECTED_MANIFEST_DIGEST="$STABLE_ADMISSION_MANIFEST_DIGEST" \
+              EXPECTED_CONTROL_ARTIFACT="$STABLE_OPERATION_CONTROL_ARTIFACT" \
+              EXPECTED_VERSION="$version" \
+              EXPECTED_APP_SHA="$app_sha" \
+              EXPECTED_SHELL_SHA="$shell_sha" \
+              EXPECTED_FRAMEWORK_SHA="$framework_sha" \
+              node --experimental-strip-types --input-type=module > "$verified_admission_identity_json" <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+          import { stableAdmissionManifestDigest } from './scripts/stable-release-admission-manifest.ts';
+          import { resolveReleaseVersionIdentity } from './scripts/release-version.ts';
+
+          const manifest = JSON.parse(fs.readFileSync(process.env.ADMISSION_MANIFEST, 'utf8'));
+          const { manifest_digest: declaredDigest, ...core } = manifest;
+          const computedDigest = stableAdmissionManifestDigest(core);
+          const fail = (message) => {
+            throw new Error(`Protected Stable admission is invalid: ${message}.`);
+          };
+          const digest = (filePath) => `sha256:${crypto
+            .createHash('sha256')
+            .update(fs.readFileSync(filePath))
+            .digest('hex')}`;
+
+          if (manifest.schema !== 'opl_stable_release_admission_manifest.v1' || manifest.status !== 'passed') {
+            fail('schema or status mismatch');
+          }
+          if (declaredDigest !== computedDigest || computedDigest !== process.env.EXPECTED_MANIFEST_DIGEST) {
+            fail('manifest digest mismatch');
+          }
+          if (
+            manifest.operation !== 'standard'
+            || manifest.apple_credentials?.producer_run_id !== process.env.GITHUB_RUN_ID
+            || manifest.source_gate?.producer_run_id !== process.env.GITHUB_RUN_ID
+            || manifest.source_gate?.artifact_name !== process.env.EXPECTED_CONTROL_ARTIFACT
+          ) {
+            fail('same-run operation binding mismatch');
+          }
+          if (
+            manifest.cohort?.app_sha !== process.env.EXPECTED_APP_SHA
+            || manifest.cohort?.shell_sha !== process.env.EXPECTED_SHELL_SHA
+            || manifest.cohort?.framework_sha !== process.env.EXPECTED_FRAMEWORK_SHA
+          ) {
+            fail('cohort binding mismatch');
+          }
+          if (
+            manifest.version?.display !== process.env.EXPECTED_VERSION
+            || manifest.version?.tag !== `v${process.env.EXPECTED_VERSION}`
+            || manifest.allocator?.selected_version !== process.env.EXPECTED_VERSION
+            || manifest.allocator?.selected_updater_version !== manifest.version?.updater
+          ) {
+            fail('allocated version binding mismatch');
+          }
+          if (
+            manifest.source_gate?.source_gate_file_sha256 !== digest(process.env.ADMISSION_SOURCE_GATE)
+            || manifest.apple_credentials?.receipt_sha256 !== digest(process.env.ADMISSION_CREDENTIAL_RECEIPT)
+          ) {
+            fail('attached evidence digest mismatch');
+          }
+          if (
+            manifest.namespace?.target_release_absent !== true
+            || manifest.namespace?.target_tag_absent !== true
+            || manifest.namespace?.target_webui_tag_absent !== true
+            || manifest.namespace?.target_homebrew_version_absent !== true
+            || !Array.isArray(manifest.active_release_runs)
+            || manifest.active_release_runs.length !== 0
+          ) {
+            fail('admitted namespace or active-run state mismatch');
+          }
+          const identity = resolveReleaseVersionIdentity('stable', manifest.version.display);
+          if (
+            identity.updaterVersion !== manifest.version.updater
+            || identity.revision !== manifest.version.revision
+            || identity.tag !== manifest.version.tag
+          ) {
+            fail('canonical version identity mismatch');
+          }
+          process.stdout.write(`${JSON.stringify({
+            version: manifest.version.display,
+            updater_version: manifest.version.updater,
+          })}\n`);
+          NODE
+          fi
           published_releases_json="$RUNNER_TEMP/opl-published-releases-$GITHUB_RUN_ID.json"
           published_tags_txt="$RUNNER_TEMP/opl-published-tags-$GITHUB_RUN_ID.txt"
           previous_latest_json="$RUNNER_TEMP/opl-previous-latest-$GITHUB_RUN_ID.json"
@@ -406,46 +535,24 @@ jobs:
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$published_releases_json"
           git ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
           if [ "$CHANNEL" = stable ]; then
-            published_webui_tags_txt="$RUNNER_TEMP/opl-published-webui-tags-$GITHUB_RUN_ID.txt"
             stable_version_order_json="$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json"
-            webui_base_version="${version%-r*}"
             registry_token="$(
               curl --fail --silent --show-error --connect-timeout 10 --max-time 30 \
                 "https://ghcr.io/token?scope=repository:gaofeng21cn/one-person-lab-webui:pull" \
                 | jq -er .token
             )"
-            : > "$published_webui_tags_txt"
-            for revision in {0..9}; do
-              candidate="$webui_base_version"
-              if [ "$revision" != 0 ]; then candidate="$webui_base_version-r$revision"; fi
-              status="$(
-                curl --silent --show-error --connect-timeout 10 --max-time 30 \
-                  --output /dev/null --write-out '%{http_code}' \
-                  --header "Authorization: Bearer $registry_token" \
-                  --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
-                  "https://ghcr.io/v2/gaofeng21cn/one-person-lab-webui/manifests/$candidate"
-              )"
-              case "$status" in
-                200) printf 'v%s\n' "$candidate" >> "$published_webui_tags_txt" ;;
-                404) ;;
-                *) echo "::error::Unable to resolve public WebUI version tag $candidate (HTTP $status)."; exit 1 ;;
-              esac
-            done
-            PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
-              PUBLISHED_WEBUI_TAGS_TXT="$published_webui_tags_txt" \
-              BASE_VERSION="${version%-r*}" VERSION="$version" \
-              node --experimental-strip-types --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import { resolveStableReleaseVersion } from './scripts/release-version.ts';
-          const pages = JSON.parse(fs.readFileSync(process.env.PUBLISHED_RELEASES_JSON, 'utf8'));
-          const refs = Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [];
-          refs.push(...fs.readFileSync(process.env.PUBLISHED_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
-          refs.push(...fs.readFileSync(process.env.PUBLISHED_WEBUI_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
-          const resolved = resolveStableReleaseVersion(process.env.BASE_VERSION, refs);
-          if (resolved.version !== process.env.VERSION) {
-            throw new Error(`Stable must use next immutable same-day revision ${resolved.version}; got ${process.env.VERSION}.`);
-          }
-          NODE
+            status="$(
+              curl --silent --show-error --connect-timeout 10 --max-time 30 \
+                --output /dev/null --write-out '%{http_code}' \
+                --header "Authorization: Bearer $registry_token" \
+                --header 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+                "https://ghcr.io/v2/gaofeng21cn/one-person-lab-webui/manifests/$version"
+            )"
+            case "$status" in
+              404) ;;
+              200) echo "::error::Public WebUI version tag $version already exists."; exit 1 ;;
+              *) echo "::error::Unable to resolve public WebUI version tag $version (HTTP $status)."; exit 1 ;;
+            esac
             node --experimental-strip-types scripts/stable-release-version-order.ts \
               --target "$version" --published-releases-json "$published_releases_json" > "$stable_version_order_json"
           else
@@ -473,6 +580,10 @@ jobs:
           }
           version_json="$(node --experimental-strip-types scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json)"
           updater_version="$(jq -er .updater_version <<<"$version_json")"
+          if [ "$CHANNEL" = stable ]; then
+            test "$(jq -er .version "$verified_admission_identity_json")" = "$version"
+            test "$(jq -er .updater_version "$verified_admission_identity_json")" = "$updater_version"
+          fi
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$previous_latest_json"
           previous_latest_tag="$(jq -er .tag_name "$previous_latest_json")"
           previous_display="${previous_latest_tag#v}"
