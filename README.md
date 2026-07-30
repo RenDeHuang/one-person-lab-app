@@ -270,7 +270,7 @@ One Person Lab App owns the desktop product experience: packaging, releases, upd
 Public role map:
 
 - App is the ordinary-user product entry and GUI product truth. It owns product navigation, page-state expectations, user documentation, screenshots, and the agent package-management UI that makes OPL usable without knowing the underlying repositories.
-- Agent package management is an App product surface, but Framework/root owns package locks, lifecycle receipts, validation, rollback refs, and package truth. The App requests and displays those facts; shell-local state cannot become install authority.
+- Agent package management is an App product surface. Each Package owner defines identity and publication, the configured native carrier owns physical lifecycle and installed readback, and Framework/root aggregates installed/callable status plus generic actions. The App renders that dynamic projection; shell-local state cannot become install authority.
 - One Person Lab Framework/root owns runtime state, action execution, package/runtime projections, provider/domain projections, and domain routes behind the App views.
 - AionUI is the mainline shell implementation carrier. Native Workbench is the developer backup candidate. Both consume App/root canonical state and do not own product, runtime, package, or domain truth.
 

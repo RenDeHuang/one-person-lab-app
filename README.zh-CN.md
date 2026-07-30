@@ -232,7 +232,7 @@ One Person Lab App 负责桌面产品体验：打包、发布、更新、首次�
 公开角色图：
 
 - App 是普通用户产品入口和 GUI 产品事实源。产品导航、页面状态预期、用户文档、截图，以及让用户管理专业 Agent package 的界面，都由 App 仓维护。
-- Agent package management 是 App 产品面，但 package lock、生命周期 receipt、校验、rollback ref 和 package truth 归 Framework/root。App 负责请求和展示这些事实，不能把 shell 本地状态当成安装权威。
+- Agent package management 是 App 产品面。各 Package owner 定义 identity 与 publication，配置的平台原生 carrier 持有物理 lifecycle 与 installed readback，Framework/root 聚合 installed/callable 状态和通用 actions。App 渲染这份动态 projection，不能把 shell 本地状态当成安装权威。
 - One Person Lab Framework/root 持有 App 背后的 runtime state、action execution、package/runtime projection、provider/domain projection 和领域路由事实。
 - AionUI 是主线 shell implementation carrier；Native Workbench 是开发备选候选。二者都消费 App/root canonical state，不持有 product、runtime、package 或 domain truth。
 
