@@ -40,6 +40,7 @@ jobs:
         run: >-
           node --experimental-strip-types --test --test-timeout=120000
           tests/release/docker-webui-windows-installer.test.ts
+          tests/release/windows-preview-bits-powershell.test.ts
 
   release-boundary:
     name: App release-boundary tests

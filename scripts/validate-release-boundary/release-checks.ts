@@ -1416,6 +1416,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a",
       "OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json",
       "OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow",
+      "tests/release/windows-preview-bits-powershell.test.ts",
       "npm run test:release-boundary",
       "npm run validate:release-boundary",
     ],
