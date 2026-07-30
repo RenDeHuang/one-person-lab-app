@@ -307,6 +307,7 @@ function parseCommon(argv: string[]) {
       'publication-channel': { type: 'string' },
       'operation-started-at': { type: 'string' },
       'operation-deadline-at': { type: 'string' },
+      'additional-upload-actions': { type: 'string' },
       'latest-admission': { type: 'string' },
       'pointer-admission': { type: 'string' },
       'component-manifest': { type: 'string' },
