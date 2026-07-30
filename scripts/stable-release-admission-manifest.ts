@@ -17,6 +17,7 @@ import {
   type PublishedRelease,
 } from './stable-release-version-order.ts';
 import { validateGithubImmutableReleaseCapabilityEvidence } from './stable-operation-control.ts';
+import { validateGithubOwnerReleaseNamespaceEvidence } from './validate-release-source-gate.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -172,6 +173,8 @@ export type StableAdmissionManifest = {
     source_gate_digest: string;
     source_gate_file_sha256: string;
     operation_fingerprint: string;
+    owner_release_namespace_evidence_digest: string;
+    owner_draft_reservation_count: number;
     frozen_cohort_reachable: true;
     full_source_gate_rerun: false;
     release_authority: false;
@@ -187,6 +190,7 @@ export type StableAdmissionManifest = {
   };
   namespace: {
     github_release_tags: string[];
+    owner_draft_release_tags: string[];
     github_tag_refs: string[];
     webui_tags: string[];
     homebrew_standard_cask_version: string;
@@ -419,6 +423,8 @@ function validateFrozenSourceGate(
   expected: { appRef: string; shellRef: string; frameworkRef: string },
 ): {
   operationFingerprint: string;
+  ownerReleaseNamespaceEvidenceDigest: string;
+  ownerDraftReleaseTags: string[];
 } {
   const cohort = object(value.admission?.immutable_cohort, 'Frozen source-gate cohort');
   const frozenAppReachable = Array.isArray(value.checks) && value.checks.some(
@@ -433,6 +439,10 @@ function validateFrozenSourceGate(
     value.immutable_release_capability,
     appRepository,
   );
+  const ownerReleaseNamespace = validateGithubOwnerReleaseNamespaceEvidence(
+    value.owner_release_namespace,
+    appRepository,
+  );
   if (
     value.schema !== 'opl_app_release_source_gate.v1'
     || value.status !== 'passed'
@@ -443,10 +453,15 @@ function validateFrozenSourceGate(
     || cohort.framework_sha !== expected.frameworkRef
     || !frozenAppReachable
     || immutableReleaseCapability.checked_at !== value.generated_at
+    || ownerReleaseNamespace.checked_at !== value.generated_at
   ) {
     throw new Error('Frozen source-gate evidence does not prove the exact reachable Stable cohort.');
   }
-  return { operationFingerprint };
+  return {
+    operationFingerprint,
+    ownerReleaseNamespaceEvidenceDigest: ownerReleaseNamespace.evidence_digest,
+    ownerDraftReleaseTags: ownerReleaseNamespace.draft_reservations.map((reservation) => reservation.tag),
+  };
 }
 
 export function buildStableReleaseAdmissionManifest(
@@ -489,6 +504,7 @@ export function buildStableReleaseAdmissionManifest(
     .filter(Boolean);
   const namespaceRefs = [
     ...publishedTags,
+    ...sourceGate.ownerDraftReleaseTags,
     ...observation.tagRefs,
     ...observation.webuiTags,
     homebrewVersion,
@@ -557,6 +573,8 @@ export function buildStableReleaseAdmissionManifest(
       source_gate_digest: sha256Bytes(observation.sourceGateBytes),
       source_gate_file_sha256: sha256Bytes(observation.sourceGateBytes),
       operation_fingerprint: sourceGate.operationFingerprint,
+      owner_release_namespace_evidence_digest: sourceGate.ownerReleaseNamespaceEvidenceDigest,
+      owner_draft_reservation_count: sourceGate.ownerDraftReleaseTags.length,
       frozen_cohort_reachable: true,
       full_source_gate_rerun: false,
       release_authority: false,
@@ -575,6 +593,7 @@ export function buildStableReleaseAdmissionManifest(
     },
     namespace: {
       github_release_tags: sameDayVersions(input.baseVersion, publishedTags),
+      owner_draft_release_tags: sameDayVersions(input.baseVersion, sourceGate.ownerDraftReleaseTags),
       github_tag_refs: sameDayVersions(input.baseVersion, observation.tagRefs),
       webui_tags: sameDayVersions(input.baseVersion, observation.webuiTags),
       homebrew_standard_cask_version: homebrewVersion,
@@ -687,16 +706,6 @@ function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
   });
 }
 
-export function assertGitHubReleaseNamespaceAccess(payload: unknown): void {
-  const repository = object(payload, 'GitHub release namespace repository');
-  const permissions = object(repository.permissions, 'GitHub release namespace repository permissions');
-  if (permissions.push !== true) {
-    throw new Error(
-      'GitHub release namespace credential lacks required push permission to observe draft Releases.',
-    );
-  }
-}
-
 export function parseGitHubReleaseNamespacePages(
   pages: unknown[],
   pageSize = releaseNamespacePageSize,
@@ -753,7 +762,6 @@ export function parseGitHubReleaseNamespacePages(
 }
 
 function publishedReleases(): PublishedRelease[] {
-  assertGitHubReleaseNamespaceAccess(ghJson(`repos/${appRepository}`));
   const pages: unknown[] = [];
   for (let page = 1; page <= releaseNamespacePageLimit; page += 1) {
     const payload = ghJson(`repos/${appRepository}/releases`, {

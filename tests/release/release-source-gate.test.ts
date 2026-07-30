@@ -5,8 +5,10 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   buildReleaseSourceGateReport,
+  createGithubOwnerReleaseNamespaceEvidence,
   parseReleaseSourceGateArgs,
   prepareReleaseSourceShell,
+  validateGithubOwnerReleaseNamespaceEvidence,
   writeReleaseSourceGateReport,
   type CommandRunner,
   type ReleaseSourceGateOptions,
@@ -19,6 +21,9 @@ const repoLocalFrameworkRoot = path.join(repoRoot, 'one-person-lab');
 const appHead = '0123456789abcdef0123456789abcdef01234567';
 const shellHead = 'abcdef0123456789abcdef0123456789abcdef01';
 const frameworkHead = '789abcdef0123456789abcdef0123456789abcde';
+const preservedDraftId = 362629121;
+const preservedDraftTag = 'v26.7.31';
+const preservedDraftTarget = '3032898363e843cd6773c82e2e77b4f41b00afd2';
 const managedUpdateProviders = {
   opl_base: 'runtime_substrate',
   opl_app: 'installation_carrier',
@@ -113,6 +118,58 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
       return {
         status: 0,
         stdout: '{"enabled":true,"enforced_by_owner":false}\n',
+        stderr: '',
+      };
+    }
+    if (command === 'gh' && args.join(' ') === 'api user' && commandOptions.cwd === repoRoot) {
+      return {
+        status: 0,
+        stdout: '{"login":"gaofeng21cn"}\n',
+        stderr: '',
+      };
+    }
+    if (
+      command === 'gh'
+      && args.join(' ') === 'api repos/gaofeng21cn/one-person-lab-app'
+      && commandOptions.cwd === repoRoot
+    ) {
+      return {
+        status: 0,
+        stdout: '{"full_name":"gaofeng21cn/one-person-lab-app","owner":{"login":"gaofeng21cn"},"permissions":{"push":true}}\n',
+        stderr: '',
+      };
+    }
+    if (
+      command === 'gh'
+      && args.join(' ') === 'api -X GET repos/gaofeng21cn/one-person-lab-app/releases -f per_page=100 -f page=1'
+      && commandOptions.cwd === repoRoot
+    ) {
+      return {
+        status: 0,
+        stdout: `${JSON.stringify([
+          {
+            id: preservedDraftId,
+            tag_name: preservedDraftTag,
+            target_commitish: preservedDraftTarget,
+            draft: true,
+            prerelease: false,
+            assets: [],
+          },
+          {
+            id: 360830749,
+            tag_name: 'v26.7.28-r3',
+            target_commitish: 'd105adc1b5b01a387d7ea0c69bcfb3590a525364',
+            draft: false,
+            prerelease: false,
+            assets: [{
+              id: 1,
+              name: 'One-Person-Lab.dmg',
+              size: 1024,
+              digest: `sha256:${'a'.repeat(64)}`,
+              browser_download_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.28-r3/One-Person-Lab.dmg',
+            }],
+          },
+        ])}\n`,
         stderr: '',
       };
     }
@@ -267,6 +324,98 @@ test('release source gate fails closed when an Actions integration token cannot 
   );
   assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
   assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+});
+
+test('release source gate binds complete owner-visible draft reservations before required gates', () => {
+  const report = reportFor();
+
+  assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'passed');
+  assert.equal(report.owner_release_namespace?.owner.authenticated_login, 'gaofeng21cn');
+  assert.equal(report.owner_release_namespace?.pagination.complete, true);
+  assert.equal(report.owner_release_namespace?.pagination.release_count, 2);
+  assert.deepEqual(report.owner_release_namespace?.draft_reservations, [{
+    id: preservedDraftId,
+    tag: preservedDraftTag,
+    target: preservedDraftTarget,
+    draft: true,
+    prerelease: false,
+    assets: [],
+  }]);
+  assert.equal(
+    validateGithubOwnerReleaseNamespaceEvidence(report.owner_release_namespace).evidence_digest,
+    report.owner_release_namespace?.evidence_digest,
+  );
+});
+
+test('release source gate fails closed when the controller identity is not the repository owner', () => {
+  const ownerIdentityKey = `${repoRoot} $ gh api user`;
+  const calls: string[] = [];
+  const baseRunner = runner({
+    [ownerIdentityKey]: {
+      status: 0,
+      stdout: '{"login":"github-actions[bot]"}\n',
+    },
+  });
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(report.owner_release_namespace, null);
+  assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'failed');
+  assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
+});
+
+test('owner release namespace evidence rejects incomplete pagination and digest tampering', () => {
+  const release = {
+    id: preservedDraftId,
+    tag_name: preservedDraftTag,
+    target_commitish: preservedDraftTarget,
+    draft: true,
+    prerelease: false,
+    assets: [],
+  };
+  const identity = { login: 'gaofeng21cn' };
+  const repository = {
+    full_name: 'gaofeng21cn/one-person-lab-app',
+    owner: { login: 'gaofeng21cn' },
+    permissions: { push: true },
+  };
+  assert.throws(
+    () => createGithubOwnerReleaseNamespaceEvidence({
+      repository: 'gaofeng21cn/one-person-lab-app',
+      checkedAt: '2026-07-31T00:00:00.000Z',
+      authenticatedUser: identity,
+      repositoryObservation: repository,
+      releasePages: [[release], []],
+    }),
+    /pages are incomplete/,
+  );
+
+  const evidence = createGithubOwnerReleaseNamespaceEvidence({
+    repository: 'gaofeng21cn/one-person-lab-app',
+    checkedAt: '2026-07-31T00:00:00.000Z',
+    authenticatedUser: identity,
+    repositoryObservation: repository,
+    releasePages: [[release]],
+  });
+  const tampered = structuredClone(evidence);
+  tampered.draft_reservations[0]!.target = 'f'.repeat(40);
+  assert.throws(
+    () => validateGithubOwnerReleaseNamespaceEvidence(tampered),
+    /exact digest-bound proof/,
+  );
 });
 
 test('release source gate rejects an abbreviated expected App SHA', () => {
@@ -551,6 +700,8 @@ test('release source gate passes for clean canonical main and an immutable sourc
   assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'passed');
   assert.equal(checkStatus(report, 'github_immutable_release_capability'), 'passed');
   assert.equal(report.immutable_release_capability?.capability.enabled, true);
+  assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'passed');
+  assert.equal(report.owner_release_namespace?.draft_reservations[0]?.id, preservedDraftId);
   assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
   assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
