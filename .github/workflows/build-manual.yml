@@ -279,7 +279,8 @@ jobs:
           asset_paths=()
           while IFS= read -r file_path; do asset_paths+=("$file_path"); done < <(
             find selected-platform-assets -type f \
-              \( -name '*.dmg' -o -name '*.deb' -o -name '*.exe' -o -name '*.msi' \) \
+              \( -name '*.dmg' -o -name '*.deb' -o -name '*.exe' -o -name '*.msi' \
+                 -o -name 'download-windows-preview.ps1' -o -name 'SHA256SUMS.txt' \) \
               -print | LC_ALL=C sort
           )
           test "${#asset_paths[@]}" -gt 0

@@ -1306,6 +1306,12 @@ jobs:
             --actions-run-id "$GITHUB_RUN_ID" \
             --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
             --actions-artifact-name "$artifact_name"
+          cp ../../scripts/download-windows-preview.ps1 out/download-windows-preview.ps1
+          (
+            cd out
+            shasum -a 256 "$(basename "$installer_path")" download-windows-preview.ps1 > SHA256SUMS.txt
+            shasum -a 256 -c SHA256SUMS.txt
+          )
 
       - name: Upload build artifact cohort manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -1329,6 +1335,8 @@ jobs:
             shells/aionui/out/*.zip
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml
+            shells/aionui/out/*.ps1
+            shells/aionui/out/SHA256SUMS.txt
             shells/aionui/out/opl-windows-rc-build-cohort.json
             shells/aionui/out/standard-local-authorization-policy.json
             shells/aionui/out/standard-gatekeeper-launch-policy.json
