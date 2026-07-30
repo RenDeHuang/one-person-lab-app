@@ -8,6 +8,7 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 import { assertReleaseOperationDeadline } from '../../scripts/release-operation-deadline.ts';
 import { resolveGithubReleaseCommit } from '../../scripts/resolve-github-target-commit.ts';
+import { createGithubOwnerReleaseNamespaceEvidence } from '../../scripts/validate-release-source-gate.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 const readWorkflow = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
@@ -259,6 +260,62 @@ function runAdmissionGate(
         RUNNER_TEMP: root,
       },
     });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function runStableRestoreVersionIdentity(
+  version: string,
+  sourceGate: Record<string, unknown>,
+) {
+  const run = String(workflowStep(
+    '_release-standard-publish.yml',
+    'restore',
+    'Resolve checkpoint and predecessor identity',
+  ).run);
+  const stableStart = run.indexOf('BASE_VERSION="${version%-r*}"');
+  const heredocStart = run.indexOf("<<'NODE'\n", stableStart);
+  const heredocEnd = run.indexOf('\nNODE', heredocStart);
+  assert.ok(stableStart >= 0 && heredocStart >= 0 && heredocEnd > heredocStart);
+  const script = run.slice(heredocStart + "<<'NODE'\n".length, heredocEnd);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-restore-version-'));
+  try {
+    fs.symlinkSync(process.cwd(), path.join(root, 'app-source'), 'dir');
+    fs.mkdirSync(path.join(root, 'stable-operation-control'));
+    const publicReleasesPath = path.join(root, 'public-releases.json');
+    const publicTagsPath = path.join(root, 'public-tags.txt');
+    const sourceGatePath = path.join(root, 'stable-operation-control', 'source-gate.json');
+    fs.writeFileSync(publicReleasesPath, `${JSON.stringify([[
+      {
+        id: 360830749,
+        tag_name: 'v26.7.28-r3',
+        target_commitish: 'd'.repeat(40),
+        draft: false,
+        prerelease: false,
+        assets: [],
+      },
+    ]])}\n`);
+    fs.writeFileSync(publicTagsPath, '');
+    fs.writeFileSync(sourceGatePath, `${JSON.stringify(sourceGate)}\n`);
+    return spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', '--input-type=module'],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        input: script,
+        env: {
+          ...process.env,
+          BASE_VERSION: '26.7.31',
+          VERSION: version,
+          PUBLIC_RELEASES: publicReleasesPath,
+          PUBLIC_TAGS: publicTagsPath,
+          OWNER_SOURCE_GATE: sourceGatePath,
+          GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
+        },
+      },
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -681,6 +738,66 @@ test('Stable manifest consumes exactly one protected evidence set before any Sta
   assert.match(freezeIdentity, /cohort\?\.app_sha !== process\.env\.EXPECTED_APP_SHA/);
   assert.match(freezeIdentity, /allocator\?\.selected_version !== process\.env\.EXPECTED_VERSION/);
   assert.doesNotMatch(freezeIdentity, /resolveStableReleaseVersion/);
+});
+
+test('Standard restore includes the checkpoint-bound owner draft namespace in version collision checks', () => {
+  const ownerNamespace = createGithubOwnerReleaseNamespaceEvidence({
+    repository: 'gaofeng21cn/one-person-lab-app',
+    checkedAt: '2026-07-30T22:14:00.058Z',
+    authenticatedUser: { login: 'gaofeng21cn' },
+    repositoryObservation: {
+      full_name: 'gaofeng21cn/one-person-lab-app',
+      owner: { login: 'gaofeng21cn' },
+      permissions: { push: true },
+    },
+    releasePages: [[
+      {
+        id: 362629121,
+        tag_name: 'v26.7.31',
+        target_commitish: '3032898363e843cd6773c82e2e77b4f41b00afd2',
+        draft: true,
+        prerelease: false,
+        assets: [],
+      },
+    ]],
+  });
+  const sourceGate = {
+    schema: 'opl_app_release_source_gate.v1',
+    status: 'passed',
+    admission: { status: 'passed' },
+    typed_blocker: null,
+    owner_release_namespace: ownerNamespace,
+  };
+  const restoreIdentity = String(workflowStep(
+    '_release-standard-publish.yml',
+    'restore',
+    'Resolve checkpoint and predecessor identity',
+  ).run);
+  assert.match(restoreIdentity, /find stable-operation-control -type f -name source-gate\.json/);
+  assert.match(restoreIdentity, /test "\$\{#source_gates\[@\]\}" -eq 1/);
+  assert.match(restoreIdentity, /validateGithubOwnerReleaseNamespaceEvidence/);
+  assert.match(restoreIdentity, /ownerNamespace\.draft_reservations\.map/);
+  assert.ok(
+    restoreIdentity.indexOf('ownerNamespace.draft_reservations.map')
+      < restoreIdentity.indexOf('resolveStableReleaseVersion(process.env.BASE_VERSION, refs)'),
+  );
+
+  const admittedRevision = runStableRestoreVersionIdentity('26.7.31-r1', sourceGate);
+  assert.equal(admittedRevision.status, 0, admittedRevision.stderr);
+
+  const staleRevisionZero = runStableRestoreVersionIdentity('26.7.31', sourceGate);
+  assert.notEqual(staleRevisionZero.status, 0);
+  assert.match(
+    staleRevisionZero.stderr,
+    /Stable version collision: expected next immutable revision 26\.7\.31-r1, got 26\.7\.31\./,
+  );
+
+  const missingOwnerEvidence = runStableRestoreVersionIdentity('26.7.31-r1', {
+    ...sourceGate,
+    owner_release_namespace: undefined,
+  });
+  assert.notEqual(missingOwnerEvidence.status, 0);
+  assert.match(missingOwnerEvidence.stderr, /GitHub owner release namespace evidence/);
 });
 
 test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {

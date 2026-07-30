@@ -584,12 +584,40 @@ jobs:
           git ls-remote --tags "https://github.com/$GITHUB_REPOSITORY.git" 'refs/tags/v*' > public-tags.txt
           if [ '${{ inputs.operation }}' = standard ]; then
             if [ "$channel" = stable ]; then
-              BASE_VERSION="${version%-r*}" VERSION="$version" node --experimental-strip-types --input-type=module <<'NODE'
+              source_gates=()
+              while IFS= read -r source_gate; do source_gates+=("$source_gate"); done < <(
+                find stable-operation-control -type f -name source-gate.json -print | LC_ALL=C sort
+              )
+              test "${#source_gates[@]}" -eq 1 || {
+                echo "::error::Stable restore requires exactly one checkpoint-preserved source gate."
+                exit 1
+              }
+              PUBLIC_RELEASES=public-releases.json \
+                PUBLIC_TAGS=public-tags.txt \
+                OWNER_SOURCE_GATE="${source_gates[0]}" \
+                BASE_VERSION="${version%-r*}" \
+                VERSION="$version" \
+                node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { resolveStableReleaseVersion } from './app-source/scripts/release-version.ts';
-          const pages = JSON.parse(fs.readFileSync('public-releases.json', 'utf8'));
+          import { validateGithubOwnerReleaseNamespaceEvidence } from './app-source/scripts/validate-release-source-gate.ts';
+          const sourceGate = JSON.parse(fs.readFileSync(process.env.OWNER_SOURCE_GATE, 'utf8'));
+          if (
+            sourceGate.schema !== 'opl_app_release_source_gate.v1'
+            || sourceGate.status !== 'passed'
+            || sourceGate.admission?.status !== 'passed'
+            || sourceGate.typed_blocker !== null
+          ) {
+            throw new Error('Stable restore owner release namespace must come from one passed pre-nonce source gate.');
+          }
+          const ownerNamespace = validateGithubOwnerReleaseNamespaceEvidence(
+            sourceGate.owner_release_namespace,
+            process.env.GITHUB_REPOSITORY,
+          );
+          const pages = JSON.parse(fs.readFileSync(process.env.PUBLIC_RELEASES, 'utf8'));
           const refs = [...(Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [])];
-          refs.push(...fs.readFileSync('public-tags.txt', 'utf8').split(/\r?\n/).filter(Boolean));
+          refs.push(...fs.readFileSync(process.env.PUBLIC_TAGS, 'utf8').split(/\r?\n/).filter(Boolean));
+          refs.push(...ownerNamespace.draft_reservations.map((reservation) => reservation.tag));
           const resolved = resolveStableReleaseVersion(process.env.BASE_VERSION, refs);
           if (resolved.version !== process.env.VERSION) {
             throw new Error(`Stable version collision: expected next immutable revision ${resolved.version}, got ${process.env.VERSION}.`);
