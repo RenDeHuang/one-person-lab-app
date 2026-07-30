@@ -388,6 +388,317 @@
     },
     "rule": "quality_status, build_trigger, derived preview_kind, the Latest distribution pointer, payload density, runtime form, and task mode are independent. promote_quality and move_latest_pointer are separate operations; pointer movement never changes quality."
   },
+  "release_platform_matrix": {
+    "schema": "opl_app_release_platform_matrix.v1",
+    "resolver": "scripts/resolve-release-platform-matrix.ts",
+    "selection_boundary": "workflow_callers_pass_only_audited_policy_or_platform_ids_and_the_canonical_source_resolver_emits_build_json; Stable optional IDs are canonicalized into the pre-issued authority, copied into the run-bound operation control, preserved in the Standard checkpoint, and consumed unchanged by the post-success follower",
+    "capabilities": {
+      "macos-arm64": {
+        "default_enabled": true,
+        "quality_channels": [
+          "stable",
+          "nightly",
+          "development_validation"
+        ],
+        "stable_allowed": true,
+        "blocks_stable": true,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "stable_and_nightly",
+        "publication_route": ".github/workflows/_release-bundle.yml",
+        "build": {
+          "os": "macos-14",
+          "command": "node scripts/build-with-builder.js arm64 --mac --arm64",
+          "arch": "arm64",
+          "native_arch": "arm64",
+          "artifact_names": {
+            "stable_required": "macos-build-arm64",
+            "nightly_standard": "nightly-macos-arm64",
+            "manual": "macos-build-arm64"
+          }
+        }
+      },
+      "macos-x64": {
+        "default_enabled": false,
+        "quality_channels": [
+          "stable_optional",
+          "development_validation"
+        ],
+        "stable_allowed": true,
+        "blocks_stable": false,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "stable_optional_follower_supported_default_off",
+        "publication_route": ".github/workflows/build-manual.yml",
+        "build": {
+          "os": "macos-14",
+          "command": "node scripts/build-with-builder.js x64 --mac --x64",
+          "arch": "x64",
+          "artifact_names": {
+            "stable_optional": "optional-macos-x64",
+            "manual": "macos-build-x64"
+          }
+        }
+      },
+      "macos-universal": {
+        "default_enabled": false,
+        "quality_channels": [
+          "stable_optional",
+          "development_validation"
+        ],
+        "stable_allowed": true,
+        "blocks_stable": false,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "stable_optional_follower_supported_default_off",
+        "publication_route": ".github/workflows/build-manual.yml",
+        "build": {
+          "os": "macos-14",
+          "command": "node scripts/build-with-builder.js universal --mac --universal",
+          "arch": "universal",
+          "native_arch": "arm64",
+          "artifact_names": {
+            "stable_optional": "optional-macos-universal",
+            "manual": "macos-build-universal"
+          }
+        }
+      },
+      "linux-x64": {
+        "default_enabled": true,
+        "quality_channels": [
+          "stable",
+          "nightly",
+          "development_validation"
+        ],
+        "stable_allowed": true,
+        "blocks_stable": true,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "stable_and_nightly",
+        "publication_route": ".github/workflows/_release-bundle.yml",
+        "build": {
+          "os": "ubuntu-latest",
+          "command": "node scripts/build-with-builder.js x64 --linux --x64",
+          "arch": "x64",
+          "artifact_names": {
+            "stable_required": "linux-build-x64",
+            "nightly_standard": "nightly-linux-x64",
+            "manual": "linux-build-x64"
+          }
+        }
+      },
+      "linux-arm64": {
+        "default_enabled": false,
+        "quality_channels": [
+          "stable_optional",
+          "development_validation"
+        ],
+        "stable_allowed": true,
+        "blocks_stable": false,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "stable_optional_follower_supported_default_off",
+        "publication_route": ".github/workflows/build-manual.yml",
+        "build": {
+          "os": "ubuntu-latest",
+          "command": "node scripts/build-with-builder.js arm64 --linux --arm64",
+          "arch": "arm64",
+          "artifact_names": {
+            "stable_optional": "optional-linux-arm64",
+            "manual": "linux-build-arm64"
+          }
+        }
+      },
+      "windows-x64": {
+        "default_enabled": false,
+        "quality_channels": [
+          "preview_rc",
+          "development_validation"
+        ],
+        "stable_allowed": false,
+        "blocks_stable": false,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "preview_rc_only",
+        "publication_route": ".github/workflows/build-manual.yml#protected_windows_preview_rc",
+        "build": {
+          "os": "windows-2022",
+          "command": "node scripts/build-with-builder.js x64 --win --x64",
+          "arch": "x64",
+          "artifact_names": {
+            "windows_preview": "windows-preview-x64",
+            "manual": "windows-build-x64"
+          }
+        }
+      },
+      "windows-arm64": {
+        "default_enabled": false,
+        "quality_channels": [
+          "preview_rc",
+          "development_validation"
+        ],
+        "stable_allowed": false,
+        "blocks_stable": false,
+        "build_available": true,
+        "build_route": ".github/workflows/_build-reusable.yml",
+        "publication_status": "preview_rc_supported_default_off",
+        "publication_route": ".github/workflows/build-manual.yml#protected_windows_preview_rc",
+        "build": {
+          "os": "windows-2022",
+          "command": "node scripts/build-with-builder.js arm64 --win --arm64",
+          "arch": "arm64",
+          "artifact_names": {
+            "windows_preview": "windows-preview-arm64",
+            "manual": "windows-build-arm64"
+          }
+        }
+      }
+    },
+    "policies": {
+      "stable_required": {
+        "quality_channel": "stable",
+        "platforms": [
+          "macos-arm64",
+          "linux-x64"
+        ],
+        "default_enabled": true,
+        "required": true,
+        "blocks_base_terminal": true,
+        "artifact_profile": "stable_required"
+      },
+      "nightly_standard": {
+        "quality_channel": "nightly",
+        "platforms": [
+          "macos-arm64",
+          "linux-x64"
+        ],
+        "default_enabled": true,
+        "required": true,
+        "blocks_base_terminal": true,
+        "artifact_profile": "nightly_standard"
+      },
+      "stable_optional": {
+        "quality_channel": "stable_optional",
+        "platforms": [
+          "macos-x64",
+          "macos-universal",
+          "linux-arm64"
+        ],
+        "default_enabled": false,
+        "required": false,
+        "blocks_base_terminal": false,
+        "selection_mode": "capability_default_enabled_only",
+        "operation_override": "authority_bound_explicit_subset",
+        "artifact_profile": "stable_optional"
+      },
+      "windows_preview": {
+        "quality_channel": "preview_rc",
+        "platforms": [
+          "windows-x64",
+          "windows-arm64"
+        ],
+        "default_enabled": false,
+        "required": false,
+        "blocks_base_terminal": false,
+        "artifact_profile": "windows_preview"
+      },
+      "manual_all": {
+        "quality_channel": "development_validation",
+        "platforms": [
+          "macos-arm64",
+          "macos-x64",
+          "macos-universal",
+          "linux-x64",
+          "linux-arm64",
+          "windows-x64",
+          "windows-arm64"
+        ],
+        "default_enabled": false,
+        "required": false,
+        "blocks_base_terminal": false,
+        "artifact_profile": "manual"
+      }
+    },
+    "stable_optional_selection": {
+      "workflow_input": ".github/workflows/release-stable.yml#optional_platforms",
+      "encoding": "canonical_json_array_of_audited_platform_ids",
+      "allowed_platforms_ref": "release_platform_matrix.policies.stable_optional.platforms",
+      "default": [],
+      "authority_field": "opl_app_stable_operation_authority.v1#optional_platforms",
+      "control_field": "opl_app_stable_operation_control.v1#optional_platforms",
+      "checkpoint_transport": "stable-operation-control/stable-operation-control.json",
+      "resolver_mode": "stable_optional_explicit_subset",
+      "arbitrary_command_or_os_input_allowed": false,
+      "blocks_base_terminal": false
+    },
+    "optional_platform_additive_follower": {
+      "workflow": ".github/workflows/release-stable-post-success-followups.yml",
+      "publisher": ".github/workflows/build-manual.yml",
+      "carrier": "independent_immutable_adjunct_release",
+      "tag_derivation": "<base-tag>-optional-<first12-sha256-of-exact-adjunct-manifest>",
+      "base_release_must_be_published_immutable": true,
+      "draft_asset_set_must_be_exact_before_publication": true,
+      "manifest": "opl-optional-platforms-manifest.json",
+      "make_latest": false,
+      "base_release_mutation_allowed": false,
+      "blocks_stable_base_terminal": false,
+      "blocks_latest_activation": false,
+      "receipt_must_include": [
+        "base_tag",
+        "adjunct_tag",
+        "release_url",
+        "download_base_url",
+        "bundle_digest",
+        "cohort",
+        "platforms",
+        "asset_digests",
+        "manifest_digest"
+      ]
+    },
+    "validation_ownership": {
+      "stable": {
+        "selection": "all_release_tests_except_exact_windows_preview_owned_paths",
+        "excluded_profile": "windows-preview"
+      },
+      "windows-preview": {
+        "selection": "exact_owned_paths_only",
+        "owned_test_paths": [
+          "tests/release/docker-webui-clean-windows-dispatch.test.ts",
+          "tests/release/docker-webui-native-windows-smoke.test.ts",
+          "tests/release/docker-webui-windows-installer.test.ts",
+          "tests/release/docker-webui-windows-validation-fixtures.test.ts",
+          "tests/release/windows-platform-factory-contract.test.ts",
+          "tests/release/windows-rc-preview.test.ts",
+          "tests/release/windows-wsl2-validation-fixtures.test.ts"
+        ]
+      },
+      "shared_security_surfaces": [
+        ".github/workflows/_build-reusable.yml",
+        ".github/workflows/build-manual.yml",
+        "workflow_dispatch_write_authority",
+        "stable_release_action_pin_policy"
+      ]
+    },
+    "full_macos_additive_follower": {
+      "workflow": ".github/workflows/release-stable-post-success-followups.yml",
+      "trigger": "protected_automatic_post_success",
+      "source_policy": "stable_required",
+      "same_app_shell_framework_cohort_required": true,
+      "same_standard_identity_and_version_required": true,
+      "operation": "append_full",
+      "carrier": "independent_immutable_adjunct_release",
+      "tag_derivation": "<base-tag>-full-<first12-bundle-digest>",
+      "base_release_must_be_published_immutable": true,
+      "draft_asset_set_must_be_exact_before_publication": true,
+      "manifest": "opl-release-manifest.json",
+      "user_download_surface": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/<adjunct-tag>",
+      "standard_asset_or_latest_mutation_allowed": false,
+      "blocks_stable_base_terminal": false,
+      "blocks_latest_activation": false,
+      "failure_receipt_required": true,
+      "recovery": "distinct_append_full_operation_bound_to_the_same_cohort"
+    }
+  },
   "release_repo": "gaofeng21cn/one-person-lab-app",
   "provider_configuration_boundary": {
     "schema": "opl_release_provider_configuration_boundary.v1",
@@ -2720,7 +3031,7 @@
         "release_set_manifest_digest"
       ]
     },
-    "full_first_install_policy": "github_release_full_dmg_is_current_authority; protected post-publication Homebrew Full follower publishes the exact hosted-qualified Full cohort with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; standard updater metadata remains excluded",
+    "full_first_install_policy": "the independent immutable Full adjunct GitHub Release is the Full DMG authority and binds the exact immutable base Stable tag, Bundle digest, and App/Shell/Framework cohort; its durable receipt exposes the adjunct Release and asset URLs; the protected post-publication Homebrew Full follower consumes that exact hosted-qualified adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,
@@ -3106,7 +3417,7 @@
       "workflow": ".github/workflows/_release-full-addon.yml",
       "checkpoint_minimum_stage": "standard_built",
       "standard_identity_required": true,
-      "standard_release_readback": "exact_tag_and_required_asset_set_and_digests",
+      "standard_release_readback": "exact_tag_required_asset_set_digests_and_immutable_true",
       "successor_trigger": {
         "workflow": ".github/workflows/release-stable-post-success-followups.yml",
         "trigger": "successful_standard_workflow_run",
@@ -3115,7 +3426,15 @@
         "executor_head_sha": "workflow_run_head_sha"
       },
       "framework_operation_receipt_schema": "opl_release_bundle_operation_receipt.v1",
-      "mode": "same_cohort_additive_only",
+      "mode": "same_cohort_independent_immutable_adjunct_release",
+      "carrier_identity": {
+        "base_release_tag": "v<version>",
+        "adjunct_release_tag": "v<version>-full-<first12-bundle-digest>",
+        "base_release_mutation_allowed": false,
+        "adjunct_make_latest": false,
+        "adjunct_prerelease": false,
+        "publication_sequence": "create_draft_upload_exact_closed_asset_set_publish_once_require_immutable_readback"
+      },
       "allowed_assets": [
         "One-Person-Lab-Full-<version>-mac-arm64.dmg",
         "opl-release-manifest.json"
@@ -3126,6 +3445,11 @@
       "updater_metadata_modified": false,
       "release_notes_modified": false,
       "latest_modified": false,
+      "download_discovery": {
+        "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/<adjunct-release-tag>",
+        "asset_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/<adjunct-release-tag>/<asset-name>",
+        "durable_receipt": "opl_homebrew_full_follower_handoff.v1"
+      },
       "source_or_bom_change_requires_new_version": true
     },
     "payload_boundary": {
@@ -3282,7 +3606,8 @@
         "standard_package_build"
       ],
       "remote_only": [
-        "github_hosted_linux_windows_macos_matrix",
+        "github_hosted_required_macos_linux_matrix",
+        "github_hosted_optional_platform_matrix_nonblocking",
         "protected_signing_and_notarization_credentials",
         "public_mutation",
         "owner_authoritative_remote_readback"
@@ -4546,6 +4871,7 @@
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
+        "standard_linux_x64_build",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],
@@ -4581,6 +4907,7 @@
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
+        "standard_linux_x64_build",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],

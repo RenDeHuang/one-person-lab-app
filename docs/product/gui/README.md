@@ -54,12 +54,13 @@ AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两�
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
 
 视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
-品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态以
-当前安装的 Codex App 做 1:1 对齐。既有 `26.707.41301` 仍是 machine contract 中的交互
-observation；最新视觉像素 cohort 独立绑定 `26.707.72221` / build `5307`，不得混用。
+品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态参考
+观察时最新可验证的官方 ChatGPT Codex macOS。精确版本只写入该次观察 receipt，不成为
+下载、安装、Pixel、Release 或 Stable 的外部依赖。正式像素回归独立绑定 OPL App 自有、
+经人工批准的 16-scene baseline。
 
-当前人读交互 observation 基准是本机 ChatGPT macOS `26.707.41301`（观察于 `2026-07-11`）；
-它不替代上面的最新视觉像素 cohort。
+历史 `26.707.41301` 与 `26.707.72221` / build `5307` 仅保留为 provenance，不再是 active
+machine baseline。
 App machine authority 已升为 baseline schema v2；最低已验证 AionUI GUI conformance ancestor 是
 `a0ce713b65801fd9ca7f46ad168c977c75a187de`，当前 Shell HEAD 必须从 active checkout Git
 readback 获取，不复制成动态默认值。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
@@ -173,7 +174,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
-- `current_interaction_reference=ChatGPT Codex macOS 26.707.41301 (2026-07-11)`
+- `external_design_reference_policy=latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)`
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`

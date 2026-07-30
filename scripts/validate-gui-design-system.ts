@@ -76,7 +76,9 @@ export type GuiDesignSystemValidation = {
   };
   visual_reference_cohort: {
     contract: 'contracts/app-gui-visual-reference-cohort.json';
-    reference_product_build: '26.707.72221+5307';
+    reference_baseline_id: 'opl-app-approved-visual-baseline-v1';
+    reference_state: 'capture_and_human_approval_required' | 'approved';
+    external_product_artifact_required: false;
     scenes_required: 16;
     surface_families: ['home', 'conversation', 'rail', 'settings'];
     viewports: ['desktop', 'narrow'];
@@ -92,8 +94,8 @@ const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex';
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
-const codexPixelReference = 'ChatGPT Codex macOS 26.707.72221 / build 5307 (2026-07-15)';
+const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
+const codexPixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
 const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
 const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const supersededCodexReferences = [supersededCodexReference, earlierSupersededCodexReference];
@@ -675,7 +677,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     requireExactMarkerLine(foundationReadme, `contract_refs=${contractRefs.join(',')}`, foundationDocs.readme, issues);
     requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
     for (const marker of [
-      `current_interaction_reference=${codexReference}`,
+      `external_design_reference_policy=${codexReference}`,
       `superseded_interaction_observations=${supersededCodexReferences.join(',')}`,
       'human_target.owner=one-person-lab-app',
       'active_aionui.role=current_implementation_conformance_only',
@@ -693,30 +695,46 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const interactionBaseline = record(guiContract.interaction_baseline);
-  const currentReference = record(interactionBaseline.current_reference);
-  const pixelReference = record(interactionBaseline.pixel_reference);
+  const currentReference = record(interactionBaseline.external_design_reference);
+  const pixelReference = record(interactionBaseline.pixel_baseline);
   if (
     guiContract.schema_version !== 2 ||
     profile.schema_version !== 2 ||
     pageStateMatrix.schema_version !== 2 ||
-    interactionBaseline.schema !== 'opl_app_codex_interaction_baseline.v2' ||
+    interactionBaseline.schema !== 'opl_app_external_design_reference_policy.v3' ||
     currentReference.product !== 'ChatGPT Codex macOS' ||
-    currentReference.build !== '26.707.41301' ||
-    currentReference.observed_on !== '2026-07-11' ||
+    currentReference.selection_policy !== 'latest_official_verified_at_observation_time' ||
     currentReference.observation_ref !== 'docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary' ||
-    currentReference.usage !== 'interaction_reference_only_no_code_brand_account_or_authority_copy'
+    !sameStrings(currentReference.required_observation_identity, [
+      'official_source',
+      'bundle_version',
+      'build',
+      'observed_on',
+    ]) ||
+    currentReference.usage !==
+      'design_reference_only_no_code_brand_account_product_pixel_install_or_release_authority' ||
+    currentReference.external_artifact_required_for_release !== false
   ) {
-    issues.add(`interaction baseline and App authority contracts must use schema v2 with current reference ${codexReference}`);
+    issues.add(`external design reference policy must use the latest verified official observation without release authority`);
   }
   if (
-    pixelReference.product !== 'ChatGPT Codex macOS' ||
-    pixelReference.bundle_version !== '26.707.72221' ||
-    pixelReference.build !== '5307' ||
-    pixelReference.observed_on !== '2026-07-15' ||
-    pixelReference.reference_ref !== 'docs/product/gui/visual-system.md' ||
-    pixelReference.usage !== 'pixel_reference_only_no_interaction_authority_or_code_brand_account_copy'
+    pixelReference.owner !== 'one-person-lab-app' ||
+    pixelReference.baseline_id !== 'opl-app-approved-visual-baseline-v1' ||
+    !['capture_and_human_approval_required', 'approved'].includes(String(pixelReference.state)) ||
+    !sameStrings(pixelReference.allowed_states, [
+      'capture_and_human_approval_required',
+      'approved',
+    ]) ||
+    pixelReference.approval_receipt_schema !==
+      'opl_app_gui_visual_baseline_approval_receipt.v1' ||
+    pixelReference.approval_receipt_required_for_approved_state !== true ||
+    pixelReference.reference_ref !== 'contracts/app-gui-visual-reference-cohort.json' ||
+    pixelReference.usage !== 'app_owned_pixel_regression_only' ||
+    pixelReference.external_product_artifact_required !== false ||
+    pixelReference.release_dependency !==
+      'opl_contract_current_cohort_installed_evidence_and_human_acceptance_only'
   ) {
-    issues.add(`interaction baseline must keep a separate pixel reference ${codexPixelReference}`);
+    issues.add(`pixel regression must use the App-owned baseline ${codexPixelReference}`);
   }
   const supersededObservations = Array.isArray(interactionBaseline.superseded_observations)
     ? interactionBaseline.superseded_observations.map(record)
@@ -766,23 +784,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     maintenancePolicy.human_policy_ref !== maintenancePolicyRef ||
     !fs.existsSync(path.join(root, maintenancePolicyRef)) ||
     maintenanceGoal.upstream_following !== 'aionui_stable_tags_through_bounded_selective_intake' ||
-    maintenanceGoal.visual_alignment !== 'versioned_chatgpt_codex_reference_cohorts_with_explicit_opl_deltas' ||
+    maintenanceGoal.visual_alignment !==
+      'latest_official_codex_design_observation_with_explicit_opl_deltas_and_app_owned_pixel_baselines' ||
     maintenanceGoal.one_to_one_claim_policy !== 'scene_bound_comparison_only_never_unqualified_product_wide_claim' ||
-    referencePromotion.active_interaction_reference_ref !==
-      'contracts/app-gui-product-contract.json#interaction_baseline.current_reference' ||
-    referencePromotion.active_pixel_reference_ref !==
-      'contracts/app-gui-product-contract.json#interaction_baseline.pixel_reference' ||
+    referencePromotion.active_design_reference_policy_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.external_design_reference' ||
+    referencePromotion.active_pixel_baseline_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.pixel_baseline' ||
     !sameStrings(referencePromotion.required_evidence, [
-      'exact_reference_product_build_and_observation_date',
-      'literal_observation_notes_and_reference_screenshots',
+      'latest_official_source_and_exact_observation_identity',
+      'literal_observation_notes_and_optional_design_screenshots',
       'contract_delta_classification',
       'protected_opl_surface_non_regression_review',
       'desktop_and_narrow_light_dark_zh_en_comparison_manifest',
     ]) ||
     referencePromotion.promotion_gate !== 'all_required_evidence_present_and_app_gui_validator_passes' ||
     referencePromotion.supersession_policy !==
-      'previous_active_reference_moves_to_interaction_baseline.superseded_observations' ||
-    referencePromotion.release_independence !== true
+      'prior_exact_observations_remain_historical_provenance_only' ||
+    referencePromotion.release_independence !== true ||
+    referencePromotion.external_artifact_download_install_or_launch_required !== false
   ) {
     issues.add('GUI maintenance policy must version Codex reference promotion without implying release completion');
   }
@@ -833,8 +853,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     visualComparison.shell_comparator_ref !== 'scripts/compare-gui-visual-cohort.ts' ||
     !sameStrings(visualComparison.shared_primitive_ids, visualPrimitiveIds) ||
     !sameStrings(visualComparison.required_binding_fields, [
-      'reference_product_build',
-      'reference_observed_at',
+      'reference_baseline_id',
+      'reference_approval_receipt_sha256',
       'app_contract_ref',
       'shell_commit',
       'package_or_dev_build_identity',
@@ -873,13 +893,27 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     visualReferenceCohort.schema_version !== 1 ||
     visualReferenceCohort.schema !== 'opl_app_gui_visual_reference_cohort.v1' ||
     visualReferenceCohort.owner !== 'one-person-lab-app' ||
-    visualReferenceCohort.state !== 'active_reference_capture_required' ||
-    cohortReference.product !== 'ChatGPT Codex macOS' ||
-    cohortReference.bundle_version !== '26.707.72221' ||
-    cohortReference.build !== '5307' ||
-    cohortReference.observed_on !== '2026-07-15' ||
+    visualReferenceCohort.state !== 'app_owned_baseline_governance_active' ||
+    cohortReference.owner !== 'one-person-lab-app' ||
+    cohortReference.baseline_id !== 'opl-app-approved-visual-baseline-v1' ||
+    !['capture_and_human_approval_required', 'approved'].includes(String(cohortReference.state)) ||
+    !sameStrings(cohortReference.allowed_states, [
+      'capture_and_human_approval_required',
+      'approved',
+    ]) ||
+    cohortReference.approval_receipt_schema !==
+      'opl_app_gui_visual_baseline_approval_receipt.v1' ||
+    (cohortReference.state === 'capture_and_human_approval_required' &&
+      (cohortReference.approval_receipt_file !== null ||
+        cohortReference.approval_receipt_sha256 !== null)) ||
+    (cohortReference.state === 'approved' &&
+      (cohortReference.approval_receipt_file !== 'baseline-approval-receipt.json' ||
+        !/^[a-f0-9]{64}$/.test(String(cohortReference.approval_receipt_sha256)))) ||
+    pixelReference.state !== cohortReference.state ||
     cohortReference.platform !== 'macos' ||
-    cohortReference.reference_role !== 'pixel_reference_only_no_brand_code_account_or_authority_copy' ||
+    cohortReference.reference_role !== 'app_owned_pixel_regression_baseline' ||
+    cohortReference.external_product_artifact_required !== false ||
+    cohortReference.stable_release_dependency !== false ||
     cohortCandidate.product !== 'One Person Lab App' ||
     cohortCandidate.shell !== 'opl-aion-shell' ||
     cohortCandidate.app_contract_ref !==
@@ -887,7 +921,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     cohortCandidate.shell_source_ref !== 'active_shell_checkout_git_head' ||
     cohortCandidate.comparison_tool !== 'scripts/compare-gui-visual-cohort.ts'
   ) {
-    issues.add('visual reference cohort must bind the active Codex pixel build and thin AionUI candidate route');
+    issues.add('visual reference cohort must bind a reachable pending-or-approved App-owned baseline and thin AionUI candidate route');
   }
   if (
     cohortPrimitiveContract.authority !== 'one-person-lab-app' ||
@@ -1980,8 +2014,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const codexGovernance = record(governance.codex_reference);
-  if (![codexReference, ...supersededCodexReferences].includes(String(codexGovernance.comparison_baseline))) {
-    issues.add(`design-system governance Codex comparison baseline must be current or a declared superseded observation`);
+  if (codexGovernance.comparison_baseline !== codexReference.replace(
+    ' (exact version recorded per receipt)',
+    '',
+  )) {
+    issues.add('design-system governance Codex comparison baseline must be the rolling latest official observation');
   }
   if (
     codexGovernance.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy'
@@ -2072,7 +2109,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     },
     visual_reference_cohort: {
       contract: visualReferenceCohortPath,
-      reference_product_build: '26.707.72221+5307',
+      reference_baseline_id: 'opl-app-approved-visual-baseline-v1',
+      reference_state: cohortReference.state as
+        | 'capture_and_human_approval_required'
+        | 'approved',
+      external_product_artifact_required: false,
       scenes_required: expectedVisualReferenceScenes.length as 16,
       surface_families: ['home', 'conversation', 'rail', 'settings'],
       viewports: ['desktop', 'narrow'],

@@ -310,14 +310,20 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.workflow !== '.github/workflows/_release-full-addon.yml' ||
     fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
     fullAddon?.standard_identity_required !== true ||
-    fullAddon?.standard_release_readback !== 'exact_tag_and_required_asset_set_and_digests' ||
+    fullAddon?.standard_release_readback !==
+      'exact_tag_required_asset_set_digests_and_immutable_true' ||
     fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
     fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
     fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
     fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'canonical_main' ||
     fullAddon?.successor_trigger?.executor_head_sha !== 'workflow_run_head_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
-    fullAddon?.mode !== 'same_cohort_additive_only' ||
+    fullAddon?.mode !== 'same_cohort_independent_immutable_adjunct_release' ||
+    fullAddon?.carrier_identity?.base_release_mutation_allowed !== false ||
+    fullAddon?.carrier_identity?.adjunct_make_latest !== false ||
+    fullAddon?.carrier_identity?.adjunct_prerelease !== false ||
+    fullAddon?.carrier_identity?.publication_sequence !==
+      'create_draft_upload_exact_closed_asset_set_publish_once_require_immutable_readback' ||
     !sameStringSet(fullAddon?.allowed_assets, [
       'One-Person-Lab-Full-<version>-mac-arm64.dmg',
       'opl-release-manifest.json',
@@ -730,7 +736,8 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
       'standard_package_build',
     ])
     || !sameStringSet(localFirst?.remote_only, [
-      'github_hosted_linux_windows_macos_matrix',
+      'github_hosted_required_macos_linux_matrix',
+      'github_hosted_optional_platform_matrix_nonblocking',
       'protected_signing_and_notarization_credentials',
       'public_mutation',
       'owner_authoritative_remote_readback',
@@ -1542,12 +1549,12 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
     homebrew?.tap_update_policy?.full?.promotion_status !== 'approved_pending_first_protected_follower_readback' ||
     homebrew?.tap_update_policy?.full?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
-    homebrew?.full_first_install_policy !== 'github_release_full_dmg_is_current_authority; protected post-publication Homebrew Full follower publishes the exact hosted-qualified Full cohort with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; standard updater metadata remains excluded' ||
+    homebrew?.full_first_install_policy !== 'the independent immutable Full adjunct GitHub Release is the Full DMG authority and binds the exact immutable base Stable tag, Bundle digest, and App/Shell/Framework cohort; its durable receipt exposes the adjunct Release and asset URLs; the protected post-publication Homebrew Full follower consumes that exact hosted-qualified adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
   ) {
-    console.error('FAIL release_homebrew_distribution: Nightly and Full must use isolated post-publication digest followers; Full must remain independent of physical VM certification with embedded Base');
+    console.error('FAIL release_homebrew_distribution: Nightly and Full must use isolated digest-bound followers; Full must use its immutable adjunct without changing base Stable, Latest, or updater state');
     failures += 1;
   }
   const readiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);
@@ -1678,6 +1685,173 @@ function validateSourceMaterialRouteContract(appRoot: string): number {
   return failures;
 }
 
+function validateReleasePlatformMatrix(releaseContract: Record<string, any>): number {
+  const matrix = releaseContract.release_platform_matrix;
+  const capabilities = matrix?.capabilities;
+  const policies = matrix?.policies;
+  let failures = 0;
+  const capabilityIds = [
+    'macos-arm64',
+    'macos-x64',
+    'macos-universal',
+    'linux-x64',
+    'linux-arm64',
+    'windows-x64',
+    'windows-arm64',
+  ];
+  if (
+    matrix?.schema !== 'opl_app_release_platform_matrix.v1'
+    || matrix?.resolver !== 'scripts/resolve-release-platform-matrix.ts'
+    || !sameStringSet(Object.keys(capabilities ?? {}), capabilityIds)
+  ) {
+    console.error('FAIL release_platform_matrix: one canonical resolver must own every declared build capability');
+    failures += 1;
+    return failures;
+  }
+
+  for (const id of capabilityIds) {
+    const capability = capabilities[id];
+    if (
+      typeof capability?.default_enabled !== 'boolean'
+      || typeof capability?.stable_allowed !== 'boolean'
+      || typeof capability?.blocks_stable !== 'boolean'
+      || capability?.build_available !== true
+      || capability?.build_route !== '.github/workflows/_build-reusable.yml'
+      || !Array.isArray(capability?.quality_channels)
+      || capability.quality_channels.length === 0
+      || typeof capability?.publication_status !== 'string'
+      || typeof capability?.publication_route !== 'string'
+      || !capability?.build?.os
+      || !capability?.build?.command
+      || !capability?.build?.arch
+      || !capability?.build?.artifact_names
+    ) {
+      console.error(`FAIL release_platform_matrix: capability ${id} is incomplete`);
+      failures += 1;
+    }
+    if (capability.publication_status.includes('unavailable')) {
+      console.error(`FAIL release_platform_matrix: capability ${id} must retain a real publication route`);
+      failures += 1;
+    }
+  }
+
+  for (const id of ['macos-arm64', 'linux-x64']) {
+    const capability = capabilities[id];
+    if (
+      capability.default_enabled !== true
+      || capability.stable_allowed !== true
+      || capability.blocks_stable !== true
+    ) {
+      console.error(`FAIL release_platform_matrix: ${id} must be a default Stable blocker`);
+      failures += 1;
+    }
+  }
+  for (const id of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64', 'windows-arm64']) {
+    const capability = capabilities[id];
+    if (capability.default_enabled !== false || capability.blocks_stable !== false) {
+      console.error(`FAIL release_platform_matrix: ${id} must remain default-off and non-blocking`);
+      failures += 1;
+    }
+  }
+  for (const id of ['windows-x64', 'windows-arm64']) {
+    if (
+      capabilities[id].stable_allowed !== false
+      || !capabilities[id].quality_channels.includes('preview_rc')
+    ) {
+      console.error(`FAIL release_platform_matrix: ${id} must remain Preview/RC-only`);
+      failures += 1;
+    }
+  }
+
+  const policyAssertions: Array<[string, string[], boolean, boolean]> = [
+    ['stable_required', ['macos-arm64', 'linux-x64'], true, true],
+    ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
+    ['stable_optional', ['macos-x64', 'macos-universal', 'linux-arm64'], false, false],
+    ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
+  ];
+  for (const [name, platforms, required, blocks] of policyAssertions) {
+    const policy = policies?.[name];
+    if (
+      !sameStringSet(policy?.platforms, platforms)
+      || policy?.required !== required
+      || policy?.blocks_base_terminal !== blocks
+    ) {
+      console.error(`FAIL release_platform_matrix: policy ${name} drifted`);
+      failures += 1;
+    }
+  }
+  if (!sameStringSet(policies?.manual_all?.platforms, capabilityIds)) {
+    console.error('FAIL release_platform_matrix: manual_all must preserve every build capability');
+    failures += 1;
+  }
+  if (
+    policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
+    || releaseContract.release_platform_matrix?.validation_ownership?.stable?.excluded_profile !==
+      'windows-preview'
+    || !sameStringSet(
+      releaseContract.release_platform_matrix?.validation_ownership?.['windows-preview']
+        ?.owned_test_paths,
+      [
+        'tests/release/docker-webui-clean-windows-dispatch.test.ts',
+        'tests/release/docker-webui-native-windows-smoke.test.ts',
+        'tests/release/docker-webui-windows-installer.test.ts',
+        'tests/release/docker-webui-windows-validation-fixtures.test.ts',
+        'tests/release/windows-platform-factory-contract.test.ts',
+        'tests/release/windows-rc-preview.test.ts',
+        'tests/release/windows-wsl2-validation-fixtures.test.ts',
+      ],
+    )
+  ) {
+    console.error('FAIL release_platform_matrix: optional switches and validation ownership must be contract-audited');
+    failures += 1;
+  }
+
+  const follower = matrix.full_macos_additive_follower;
+  if (
+    follower?.workflow !== '.github/workflows/release-stable-post-success-followups.yml'
+    || follower?.trigger !== 'protected_automatic_post_success'
+    || follower?.same_app_shell_framework_cohort_required !== true
+    || follower?.same_standard_identity_and_version_required !== true
+    || follower?.operation !== 'append_full'
+    || follower?.carrier !== 'independent_immutable_adjunct_release'
+    || follower?.base_release_must_be_published_immutable !== true
+    || follower?.draft_asset_set_must_be_exact_before_publication !== true
+    || follower?.standard_asset_or_latest_mutation_allowed !== false
+    || follower?.blocks_stable_base_terminal !== false
+    || follower?.blocks_latest_activation !== false
+    || follower?.failure_receipt_required !== true
+  ) {
+    console.error('FAIL release_platform_matrix: Full macOS follower must remain automatic, same-cohort, durable, and non-blocking');
+    failures += 1;
+  }
+  const optionalSelection = matrix.stable_optional_selection;
+  const optionalFollower = matrix.optional_platform_additive_follower;
+  if (
+    optionalSelection?.authority_field !== 'opl_app_stable_operation_authority.v1#optional_platforms'
+    || optionalSelection?.control_field !== 'opl_app_stable_operation_control.v1#optional_platforms'
+    || optionalSelection?.arbitrary_command_or_os_input_allowed !== false
+    || optionalFollower?.carrier !== 'independent_immutable_adjunct_release'
+    || optionalFollower?.base_release_must_be_published_immutable !== true
+    || optionalFollower?.make_latest !== false
+    || optionalFollower?.base_release_mutation_allowed !== false
+  ) {
+    console.error('FAIL release_platform_matrix: optional selection and immutable adjunct carrier must remain authority-bound');
+    failures += 1;
+  }
+
+  for (const profileName of ['stable', 'nightly_standard']) {
+    const requiredLanes = releaseContract.release_validation_profiles?.[profileName]?.required_lanes;
+    if (
+      !requiredLanes?.includes('standard_macos_arm64_build')
+      || !requiredLanes?.includes('standard_linux_x64_build')
+    ) {
+      console.error(`FAIL release_platform_matrix: ${profileName} validation must require macOS ARM64 and Linux x64`);
+      failures += 1;
+    }
+  }
+  return failures;
+}
+
 export function validateReleaseContractPolicies(appRoot: string): number {
   const releaseContract = readJson(appRoot, 'contracts/app-release-channel.json');
   const brokerAuthority = readJson(appRoot, 'contracts/app-release-broker-authority.json');
@@ -1697,6 +1871,7 @@ export function validateReleaseContractPolicies(appRoot: string): number {
   failures += validateWebuiPackagePolicy(releaseContract);
   failures += validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);
   failures += validateSourceMaterialRouteContract(appRoot);
+  failures += validateReleasePlatformMatrix(releaseContract);
 
   return failures;
 }

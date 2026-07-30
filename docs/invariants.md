@@ -25,10 +25,12 @@ Machine boundary: Human-readable invariants. Machine-readable truth lives in `co
   prove implementation or record a deviation, but cannot redefine App product
   truth or override a higher GUI definition layer.
 - Upstream inheritance is reuse-first. AionUI/AionCore official capabilities remain available by default unless an App contract explicitly classifies a surface as `adapt`, `redirect`, or `reject`; Team is an explicit reject. Absence from an OPL allowlist is not general authority to disable upstream behavior. OPL does not privately recreate complex capabilities that upstream does not provide unless a protected B0/R1/U1 user result requires them. Defects confined to rejected, retired, or private legacy surfaces do not enter the product repair mainline.
-- The current GUI interaction observation is ChatGPT Codex macOS
-  `26.707.41301` observed on `2026-07-11`; the independent visual pixel baseline is
-  `26.707.72221` / build `5307` observed on `2026-07-15`. Neither cohort may be
-  used as the other's evidence. The ideal/native target requires the
+- The external GUI design reference is the latest official ChatGPT Codex macOS
+  version verified at observation time. Its exact identity belongs in the observation
+  receipt and never becomes a required Pixel, Install, Release, or Stable artifact.
+  Formal pixel regression uses the App-owned approved visual baseline in
+  `contracts/app-gui-visual-reference-cohort.json`; historical external observations
+  cannot substitute for it. The ideal/native target requires the
   desktop workspace/session rail visible and inspector closed by default. The
   active AionUI state is read dynamically from
   `contracts/app-product-profile.json#gui.home.home_layout` and compared with

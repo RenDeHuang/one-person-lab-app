@@ -2,15 +2,23 @@
   "schema_version": 1,
   "schema": "opl_app_gui_visual_reference_cohort.v1",
   "owner": "one-person-lab-app",
-  "state": "active_reference_capture_required",
-  "machine_boundary": "Defines the required scene matrix and comparison semantics for scene-bound Codex visual convergence. It does not contain installed evidence and cannot imply product-wide parity, release readiness, installation currentness, or upstream absorption.",
+  "state": "app_owned_baseline_governance_active",
+  "machine_boundary": "Defines the App-owned scene matrix and comparison semantics for OPL visual regression. External products are design references only; their artifacts are not required inputs and cannot own Pixel, Install, Release, product authority, or Stable admission.",
   "reference": {
-    "product": "ChatGPT Codex macOS",
-    "bundle_version": "26.707.72221",
-    "build": "5307",
-    "observed_on": "2026-07-15",
+    "owner": "one-person-lab-app",
+    "baseline_id": "opl-app-approved-visual-baseline-v1",
+    "state": "capture_and_human_approval_required",
+    "allowed_states": [
+      "capture_and_human_approval_required",
+      "approved"
+    ],
+    "approval_receipt_schema": "opl_app_gui_visual_baseline_approval_receipt.v1",
+    "approval_receipt_file": null,
+    "approval_receipt_sha256": null,
     "platform": "macos",
-    "reference_role": "pixel_reference_only_no_brand_code_account_or_authority_copy"
+    "reference_role": "app_owned_pixel_regression_baseline",
+    "external_product_artifact_required": false,
+    "stable_release_dependency": false
   },
   "candidate": {
     "product": "One Person Lab App",

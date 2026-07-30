@@ -23,7 +23,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
 
   assert.match(readme, /codex-app-visual-parity\.md/);
   assert.match(policy, /visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas/);
-  assert.match(policy, /visual_reference=ChatGPT Codex macOS 26\.707\.72221 build 5307/);
+  assert.match(policy, /external_design_reference=latest_verified_official_chatgpt_codex_macos_observation/);
+  assert.match(policy, /pixel_reference=opl_app_owned_approved_visual_baseline/);
+  assert.match(policy, /external_reference_artifact_required_for_release=false/);
   assert.match(policy, /project_owns_session=false/);
   assert.match(policy, /project_context_row=forbidden/);
   assert.match(policy, /new_session_context_bar=required_above_composer/);
@@ -44,7 +46,8 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.match(policy, /candidate_webui_pixels=pending_on_clean_release_cohort/);
   assert.match(policy, /installed_pixel_acceptance=pending/);
   assert.match(policy, /visual_parity_complete=false/);
-  assert.match(visualSystem, /26\.707\.72221 \/ build 5307/);
+  assert.match(visualSystem, /最新可验证的官方 ChatGPT Codex macOS/);
+  assert.match(visualSystem, /OPL App 自有、经人工批准的 16-scene baseline/);
   assert.match(visualSystem, /grouped-row Control Center/);
   assert.doesNotMatch(conformance, /默认 cwd、分组与 context hint/);
   assert.match(delta, /稳定视觉 chrome 逐像素对齐/);

@@ -39,10 +39,12 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 8. **Thread operations stay native and thin。** 用户通过现有 directory/actions 执行 thread
    list/read/start/resume/fork/archive；App Server 拥有 thread truth，Shell 只做一个薄 adapter。
 
-没有明确 OPL delta 的主流程默认采用 OPL contracts 对
-[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 记录的
-ChatGPT `26.707.41301` reference 所做的 composition 翻译。Shell 不能因为已有组件更方便，就把模型移到
-header、隐藏 project rail、默认打开 inspector，或用 Settings/card layout 重新定义 Home。
+没有明确 OPL delta 的主流程采用 OPL contracts 对观察时最新可验证的官方 ChatGPT Codex
+macOS 所做的 composition 翻译；精确版本由每次 observation receipt 记录。
+[`codex-to-opl-app-delta.md`](codex-to-opl-app-delta.md) 中的 `26.707.41301`
+只是一份历史 literal observation，不是持续的外部制品依赖。Shell 不能因为已有组件更方便，
+就把模型移到 header、隐藏 project rail、默认打开 inspector，或用 Settings/card layout
+重新定义 Home。
 
 ## 默认桌面状态
 

@@ -13,18 +13,18 @@ Machine boundary: 机器约束归
 OPL App 同时维持两条独立轨道：
 
 1. AionUI 只跟随正式 stable tag，通过审计和选择性吸收持续升级；
-2. ChatGPT Codex 只通过版本化 reference cohort 推进视觉与交互目标。
+2. ChatGPT Codex 以观察时最新可验证的官方版本提供设计参考；OPL 自有 baseline 承担像素回归。
 
 两条轨道不能互相冒充。看到新 AionUI tag 不等于已经吸收；看到新 Codex 截图不等于
 自动替换产品合同；App 合同、Shell source、像素证据、package、安装与 release 继续分别
 给出结论。
 
-Reference 内部也分轴：`26.707.41301`（2026-07-11）是当前交互/composition
-observation；`26.707.72221` / build `5307`（2026-07-15）是当前视觉像素比较
-baseline。二者分别 promotion、supersede 和取证，不再使用一个
-“visual and interaction reference”字段混称。
+Reference 内部分轴：外部 Codex observation 记录观察时最新官方版本的精确身份，只用于
+composition、placement、density 和 interaction 设计审查；OPL App 自有 baseline 绑定
+16-scene PNG SHA、审批 receipt 和人工 verdict，用于正式像素回归。历史外部 build 不再是
+active baseline，也不是下载、安装、Pixel、Release 或 Stable 前置条件。
 
-“尽可能 1:1”解释为：对已声明 route/state、viewport、theme、locale 和 reference build
+“尽可能 1:1”解释为：对已声明 route/state、viewport、theme、locale 和 App-owned baseline
 做可重复比较，并显式记录 OPL 差异。没有 exact cohort 和比较 manifest 时，不使用无范围的
 “全产品 1:1”结论。
 
@@ -41,14 +41,14 @@ baseline。二者分别 promotion、supersede 和取证，不再使用一个
 
 ## Codex Reference Promotion
 
-当前 interaction reference 由
-`contracts/app-gui-product-contract.json#interaction_baseline.current_reference` 指定；当前
-pixel reference 由 `docs/product/gui/visual-system.md` 与
-`docs/product/gui/codex-app-visual-parity.md` 共同解释，机器合同必须保持独立字段，不能从
-interaction reference 推导视觉 currentness。发现更新的 Codex build 后先按目标轴建立
-candidate observation；只有以下证据齐全才 promotion：
+外部 design reference policy 由
+`contracts/app-gui-product-contract.json#interaction_baseline.external_design_reference` 指定；
+pixel baseline 由
+`contracts/app-gui-product-contract.json#interaction_baseline.pixel_baseline` 和
+`contracts/app-gui-visual-reference-cohort.json` 指定。发现更新的官方 Codex build 后按最新版本
+建立 observation receipt，不自动改变 OPL baseline；只有以下证据齐全才把观察转成产品 delta：
 
-1. 精确 product/build、观察日期和原始 reference screenshots；
+1. 官方来源、精确 product/build 和观察日期；截图按本次设计审查需要选取；
 2. literal observation 与推断/OPL delta 分开记录；
 3. contract delta 按 `accept/adapt/redirect/reject` 分类；
 4. Runtime、Settings、双语、first-run、Agent Packages、用户触发的 canonical thread operations
@@ -56,9 +56,8 @@ candidate observation；只有以下证据齐全才 promotion：
 5. 桌面与窄窗、light/dark、中文/英文比较 manifest 完整；
 6. App GUI validator 通过。
 
-Promotion 后，旧 active reference 进入同一轴的 superseded 记录。Interaction promotion 不会
-自动替换 pixel baseline，pixel promotion 也不会重写 literal interaction observation；两者都不证明
-Shell source、package、安装或 release 已同步。
+新观察不会自动替换 OPL pixel baseline。历史观察保留为 provenance；外部 reference、
+OPL baseline、Shell source、package、安装与 release 各自独立取证。
 
 ## AionUI Stable Intake
 
@@ -105,9 +104,14 @@ focused evidence，不能只把阈值调大让 gate 变绿。
 
 ## Visual Comparison Protocol
 
-比较 manifest 至少绑定：reference build/observation、App contract ref、Shell commit、
+比较 manifest 至少绑定：OPL reference baseline ID、approval receipt SHA、App contract ref、Shell commit、
 package 或 dev build identity、OS、架构、display scale、viewport、theme、locale、route/state、
 reference/candidate screenshot SHA-256。
+
+Approved baseline 的 reference 目录必须包含 `baseline-approval-receipt.json`；cohort 中的
+receipt SHA-256 必须匹配该文件 bytes。Receipt 绑定 reviewer、reviewed-at、
+`human_visual_review`、总 `accepted` verdict，以及全部 16 个 scene 的 canonical PNG 名称、
+SHA-256 和逐场景 verdict。缺失、伪造、scene 不完整或批准后 PNG 漂移均 fail-closed。
 
 每个场景同时做 side-by-side human review 和带显式 mask/threshold 的 pixel diff。允许声明：
 `scene_compared`、`layout_checked`、`visual_delta_reviewed`。不得从中推导：全产品 1:1、

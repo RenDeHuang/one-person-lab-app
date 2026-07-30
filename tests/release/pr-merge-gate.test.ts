@@ -29,7 +29,17 @@ test('PR merge gate is a read-only GitHub-hosted aggregate check', () => {
   assert.match(source, /npm run typecheck/);
   assert.match(source, /npm run validate:active-shell -- --quick/);
   assert.match(source, /npm run format:check/);
-  assert.match(source, /npm run test:release-boundary/);
+  const stableReleaseBoundary = workflow.jobs.quality.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Run release-boundary tests',
+  );
+  assert.equal(stableReleaseBoundary.env.OPL_RELEASE_VALIDATION_PROFILE, 'stable');
+  assert.equal(stableReleaseBoundary.run, 'scripts/verify.sh release-boundary');
+  const windowsPreview = workflow.jobs.quality.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Run Windows Preview release checks (advisory)',
+  );
+  assert.equal(windowsPreview['continue-on-error'], true);
+  assert.equal(windowsPreview.env.OPL_RELEASE_VALIDATION_PROFILE, 'windows-preview');
+  assert.equal(windowsPreview.run, 'scripts/verify.sh release-boundary');
   assert.match(source, /actionlint -color -shellcheck= -pyflakes=/);
   assert.doesNotMatch(source, /pull_request_target/);
   assert.doesNotMatch(source, /workflow_dispatch/);

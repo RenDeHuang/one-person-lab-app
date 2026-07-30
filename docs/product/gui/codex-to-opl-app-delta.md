@@ -22,8 +22,10 @@ surfaces。
 
 ## Literal Observation Boundary
 
-当前人读 baseline 固定为 **ChatGPT macOS 26.707.41301**，本机 bundle build `5103`，
-观察于 `2026-07-11`。`26.707.31428` 与 `26.707.31123` 都降级为历史 observation。
+外部设计参考遵循“观察时最新可验证的官方 ChatGPT Codex macOS”策略，精确身份由每次
+observation receipt 记录。下表是 **ChatGPT macOS 26.707.41301**、本机 bundle build `5103`
+在 `2026-07-11` 的历史 literal observation；它保留为 provenance，不是当前 Pixel、Install、
+Release 或 Stable authority。`26.707.31428` 与 `26.707.31123` 是更早的历史 observations。
 本次观察来自标准宽桌面 conversation 状态，不把未实际展开的菜单、空状态、Settings、
 移动端或隐藏功能写成 literal fact。
 
@@ -56,8 +58,9 @@ direct-control buttons。
 - OPL task progress、evidence、artifact、action confirmation 与 receipt；
 - OPL Settings IA、first-run、双语、runtime 和 release authority。
 
-因此，Codex baseline 定义主 composition、空间关系、交互位置和视觉质量；OPL 只在这些
-位置增加专业能力，不复制 ChatGPT 品牌、账户、服务端产品或 authority。
+因此，最新官方 Codex design observation 可指导主 composition、空间关系、交互位置和视觉
+质量；正式像素回归由 OPL App 自有、经人工批准的 baseline 承担。OPL 只在这些位置增加
+专业能力，不复制 ChatGPT 品牌、账户、服务端产品或 authority。
 
 ## OPL Target Translation
 

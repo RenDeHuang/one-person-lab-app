@@ -86,6 +86,7 @@ function runFullIdentityAdmission(remoteMutation?: (release: Record<string, any>
       tag_name: tag,
       draft: false,
       prerelease: false,
+      immutable: true,
       assets: [
         {
           name: artifactName,
@@ -159,6 +160,7 @@ test("Stable success has one independent Full append successor trigger", () => {
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(Object.keys(workflow.jobs), [
     "admit",
+    "publish-optional-platforms",
     "dispatch",
     "receipt",
   ]);
@@ -175,6 +177,18 @@ test("Stable success has one independent Full append successor trigger", () => {
     contents: "read",
     actions: "write",
   });
+  assert.equal(
+    workflow.jobs["publish-optional-platforms"].if,
+    "${{ needs.admit.outputs.optional_platforms_enabled == 'true' }}",
+  );
+  assert.equal(
+    workflow.jobs["publish-optional-platforms"].uses,
+    "./.github/workflows/build-manual.yml",
+  );
+  assert.equal(
+    workflow.jobs["publish-optional-platforms"].with.platform_policy,
+    "stable_optional",
+  );
   assert.deepEqual(workflow.jobs.receipt.needs, ["admit", "dispatch"]);
   assert.equal(
     workflow.jobs.receipt.if,
@@ -297,6 +311,11 @@ test("successor is idempotent and does not retry an unknown dispatch result", ()
   assert.match(source, /\.head_sha \| type == "string" and test/);
   assert.match(source, /executor_run_head_sha/);
   assert.match(source, /unique \| \.\[\]/);
+  assert.doesNotMatch(source, /--paginate|--slurp/);
+  assert.equal((source.match(/-f page=1/g) ?? []).length, 2);
+  assert.equal((source.match(/-f per_page=100/g) ?? []).length, 2);
+  assert.equal((source.match(/-f branch=main/g) ?? []).length, 2);
+  assert.equal((source.match(/\[\.workflow_runs\[\]\?/g) ?? []).length, 2);
 });
 
 test("successor receipt declares additive and non-blocking boundaries", () => {
