@@ -58,7 +58,7 @@ jobs:
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .path == ".github/workflows/release-nightly.yml"
-            and .event == "schedule"
+            and (.event == "schedule" or .event == "workflow_dispatch")
             and .head_branch == "main"
             and .run_attempt == 1
             and .status == "completed"
@@ -127,7 +127,7 @@ jobs:
             --remote-write-mode inspect_only --summary-path nightly-cask-plan.json >/dev/null
           decision="$(jq -er .cas.decision nightly-cask-plan.json)"
           test "$decision" != version_conflict || {
-            echo "::error::Nightly Cask version exists with different bytes; the next schedule must allocate a revision."
+            echo "::error::Nightly Cask version exists with different bytes; the next Nightly invocation must allocate a revision."
             exit 1
           }
           current_cask="$(jq -er '.targets[0].current_cask_sha256 // "absent"' nightly-cask-plan.json)"

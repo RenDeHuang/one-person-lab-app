@@ -197,7 +197,8 @@ test("qualified Stable defaults Latest while scheduled Nightly needs a separate 
   assert.equal(control.publication.nightly.mutation_available, true);
   assert.equal(control.publication.nightly.historical_readback_allowed, true);
   assert.equal(control.publication.nightly.workflow, ".github/workflows/release-nightly.yml");
-  assert.equal(control.publication.nightly.trigger, "schedule_only");
+  assert.equal(control.publication.nightly.trigger, "schedule_or_owner_workflow_dispatch");
+  assert.equal(control.publication.nightly.owner_dispatch_confirmation, "publish_nonlatest_nightly");
   assert.equal(control.publication.nightly.scheduled_latest_allowed, false);
   assert.equal(control.publication.nightly.explicit_user_override_may_move_latest, true);
   assert.equal(control.publication.nightly.include_full, false);
@@ -210,6 +211,8 @@ test("qualified Stable defaults Latest while scheduled Nightly needs a separate 
   assert.equal(release.nightly_standard.mutation_available, true);
   assert.equal(release.nightly_standard.historical_tag_and_receipt_parsing_allowed, true);
   assert.equal(release.nightly_standard.workflow, ".github/workflows/release-nightly.yml");
+  assert.equal(release.nightly_standard.trigger, "daily_schedule_or_owner_workflow_dispatch");
+  assert.equal(release.nightly_standard.owner_dispatch_confirmation, "publish_nonlatest_nightly");
   assert.equal(release.nightly_standard.include_full, false);
   assert.equal(release.nightly_standard.quality_status, "preview");
   assert.equal(release.nightly_standard.build_trigger, "automated");

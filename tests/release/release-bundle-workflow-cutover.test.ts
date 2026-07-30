@@ -323,8 +323,11 @@ test('Stable and protected Manual Preview are isolated from scheduled Nightly an
     group: 'opl-release-validation-canary-${{ github.ref }}',
     'cancel-in-progress': true,
   });
-  assert.deepEqual(Object.keys(nightly.on), ['schedule']);
+  assert.deepEqual(Object.keys(nightly.on).sort(), ['schedule', 'workflow_dispatch']);
   assert.deepEqual(nightly.on.schedule, [{ cron: '17 19 * * *' }]);
+  assert.deepEqual(Object.keys(nightly.on.workflow_dispatch.inputs), ['operator_confirmation']);
+  assert.equal(nightly.on.workflow_dispatch.inputs.operator_confirmation.required, true);
+  assert.equal(nightly.on.workflow_dispatch.inputs.operator_confirmation.type, 'string');
   assert.deepEqual(nightly.concurrency, {
     group: 'opl-standard-nightly',
     'cancel-in-progress': false,

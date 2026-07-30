@@ -166,11 +166,13 @@ Latest, and both display and machine versions must increase.
 
 `.github/workflows/release-stable.yml` is the only Stable
 `workflow_dispatch`. Lower-level release workflows are reusable
-`workflow_call` implementation details. Nightly has a separate schedule-only
-Standard prerelease workflow that reuses the physical build implementation but
-not the Stable Bundle, Stable mutex, Latest authority, Full density, or WebUI
-carrier mutation. Historical Nightly tags, assets, updater metadata, and
-receipts remain readable. Canary is an independent validation-only schedule.
+`workflow_call` implementation details. Nightly has a separate Standard
+prerelease workflow with one daily schedule and one explicitly confirmed owner
+`workflow_dispatch`. Both triggers reuse the same physical build, concurrency,
+protected environment, immutable publisher, and followers, but not the Stable
+Bundle, Stable mutex, Latest authority, Full density, or WebUI carrier mutation.
+Historical Nightly tags, assets, updater metadata, and receipts remain readable.
+Canary is an independent validation-only schedule.
 
 A new `standard` operation consumes an exact successful
 `.github/workflows/release-source-qualification.yml` run id and receipt digest.

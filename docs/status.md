@@ -413,9 +413,10 @@ owns the active candidate plan. Hermes docs remain prior-candidate reference:
 for explicit AGUI replay or historical audit. Default Stable packaging continues
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell until
 an explicit release-owner decision changes that contract. Public Nightly is the
-implemented schedule-only Standard (not Full) prerelease; the first public
-publication and follower readbacks remain pending, while historical bytes stay
-read-compatible. Its exact boundary is maintained in
+implemented Standard (not Full) prerelease with one daily schedule and an
+explicitly confirmed owner invocation of the same protected path; public
+currentness and follower status require fresh readback, while historical bytes
+stay read-compatible. Its exact boundary is maintained in
 `docs/delivery/distribution-and-install-ssot.md`. Scheduled validation uses the
 separate non-user Canary lane.
 

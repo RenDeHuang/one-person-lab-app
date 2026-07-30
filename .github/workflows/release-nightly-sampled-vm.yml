@@ -47,7 +47,7 @@ jobs:
           jq -e --arg run "$SOURCE_RUN_ID" '
             (.id | tostring) == $run
             and .path == ".github/workflows/release-nightly.yml"
-            and .event == "schedule"
+            and (.event == "schedule" or .event == "workflow_dispatch")
             and .head_branch == "main"
             and .run_attempt == 1
             and .status == "completed"

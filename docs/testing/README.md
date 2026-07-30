@@ -247,7 +247,7 @@ release-boundary tests.
 
 Stable, Canary validation, refresh, Homebrew, Full, WebUI, one-shot installer,
 VM smoke, and promote flows use different release profiles. Public Nightly is a
-schedule-only opt-in Standard prerelease and not an in-App channel selector;
+daily or explicitly owner-invoked Standard prerelease and not an in-App channel selector;
 historical artifacts retain read compatibility. Treat the release guide and contract as the SSOT for
 those profiles; this testing guide should not duplicate their full workflow policy.
 

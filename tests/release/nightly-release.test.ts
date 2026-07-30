@@ -630,7 +630,10 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
   const sampledVm = parseYaml(
     fs.readFileSync('.github/workflows/release-nightly-sampled-vm.yml', 'utf8'),
   ) as any;
-  assert.deepEqual(Object.keys(release.on), ['schedule']);
+  assert.deepEqual(Object.keys(release.on).sort(), ['schedule', 'workflow_dispatch']);
+  assert.deepEqual(Object.keys(release.on.workflow_dispatch.inputs), ['operator_confirmation']);
+  assert.equal(release.on.workflow_dispatch.inputs.operator_confirmation.required, true);
+  assert.equal(release.on.workflow_dispatch.inputs.operator_confirmation.type, 'string');
   assert.equal(release.jobs['standard-build'].uses, './.github/workflows/_build-reusable.yml');
   assert.equal(release.jobs['standard-build'].with.require_macos_gatekeeper, false);
   assert.equal(release.jobs['standard-build'].with.release_validation_profile, 'stable');
@@ -668,6 +671,14 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
   assert.equal(release.jobs['qualify-and-publish'].environment, 'release-nightly');
   assert.deepEqual(homebrew.on.workflow_run.workflows, ['OPL Standard Nightly Release']);
   assert.deepEqual(sampledVm.on.workflow_run.workflows, ['OPL Standard Nightly Release']);
+  assert.match(
+    String(homebrew.jobs['publish-nightly-cask'].steps.find((step: any) => step.id === 'authority')?.run ?? ''),
+    /\.event == "schedule" or \.event == "workflow_dispatch"/,
+  );
+  assert.match(
+    String(sampledVm.jobs['resolve-sample'].steps.find((step: any) => step.id === 'receipt')?.run ?? ''),
+    /\.event == "schedule" or \.event == "workflow_dispatch"/,
+  );
   assert.equal(sampledVm.jobs['sampled-standard-vm'].uses, './.github/workflows/opl-first-run-vm.yml');
   assert.equal(sampledVm.jobs['sampled-standard-vm'].with.require_macos_gatekeeper, false);
   assert.equal(validateNightlyReleaseTopology(process.cwd()), 0);

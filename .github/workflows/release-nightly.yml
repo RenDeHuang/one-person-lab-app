@@ -4,6 +4,12 @@ run-name: OPL Standard Nightly
 on:
   schedule:
     - cron: '17 19 * * *'
+  workflow_dispatch:
+    inputs:
+      operator_confirmation:
+        description: Type publish_nonlatest_nightly to run the protected Nightly publisher now
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -49,13 +55,29 @@ jobs:
         id: request
         env:
           GH_TOKEN: ${{ github.token }}
+          OPERATOR_CONFIRMATION: ${{ inputs.operator_confirmation || '' }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1 || {
-            echo "::error::Nightly is one-shot; reruns require a new scheduled run and version."
+            echo "::error::Nightly is one-shot; reruns require a new invocation and version."
             exit 1
           }
+          case "$GITHUB_EVENT_NAME" in
+            schedule)
+              test -z "$OPERATOR_CONFIRMATION"
+              ;;
+            workflow_dispatch)
+              test "$OPERATOR_CONFIRMATION" = publish_nonlatest_nightly || {
+                echo "::error::Owner-invoked Nightly requires the exact non-Latest confirmation."
+                exit 1
+              }
+              ;;
+            *)
+              echo "::error::Nightly requires schedule or owner workflow_dispatch."
+              exit 1
+              ;;
+          esac
           test "$GITHUB_REF" = refs/heads/main
           app_ref="$(git rev-parse HEAD)"
           remote_app_ref="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
