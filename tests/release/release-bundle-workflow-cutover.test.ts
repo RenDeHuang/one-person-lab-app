@@ -2435,6 +2435,10 @@ test('Stable and Full publication consume one cohort-bound immutable capability 
 
   assert.match(standard, /stable-operation-publication-record\.ts create/);
   assert.match(standard, /publication_record_args=\(--publication-record "\$record"\)/);
+  assert.match(
+    standard,
+    /publication_record_args\+=\(--authority-run-id '\$\{\{ needs\.restore\.outputs\.source_run_id \}\}'\)/,
+  );
   assert.match(standard, /"\$\{publication_record_args\[@\]\}"/);
   assert.match(
     full,
@@ -2448,7 +2452,8 @@ test('Stable and Full publication consume one cohort-bound immutable capability 
   assert.match(adapter, /validateGithubImmutableReleaseCapabilityEvidence/);
   assert.match(adapter, /github_immutable_releases_evidence_invalid/);
   assert.match(adapter, /Canonical Stable publication requires the source-gate-bound immutable Releases capability record/);
-  assert.match(adapter, /Publication record operation does not match the admitted Standard operation/);
+  assert.match(standard, /--authority-run-id '\$\{\{ needs\.restore\.outputs\.source_run_id \}\}'/);
+  assert.match(adapter, /Publication record authority run does not match the admitted Stable source run/);
   assert.match(adapter, /Publication record payload assets do not match the exact Standard publish plan/);
   assert.match(adapter, /published\.release\.immutable !== true/);
 });

@@ -312,6 +312,7 @@ function parseCommon(argv: string[]) {
       'operation-deadline-at': { type: 'string' },
       'additional-upload-actions': { type: 'string' },
       'publication-record': { type: 'string' },
+      'authority-run-id': { type: 'string' },
       'latest-admission': { type: 'string' },
       'pointer-admission': { type: 'string' },
       'component-manifest': { type: 'string' },
@@ -1472,8 +1473,14 @@ function assertImmutableReleasesEnabled(
         throw new Error('Immutable release capability time does not match the bound source gate.');
       }
       if (admission.track === 'standard') {
-        if (authority.operation_id !== admission.operationId) {
-          throw new Error('Publication record operation does not match the admitted Standard operation.');
+        // Stable authority and Framework Bundle publication are distinct operation domains.
+        const authorityRunId = values['authority-run-id'];
+        if (
+          typeof authorityRunId !== 'string'
+          || !/^[1-9][0-9]*$/.test(authorityRunId)
+          || publicationRecord.operation.run_bound_control.run_id !== authorityRunId
+        ) {
+          throw new Error('Publication record authority run does not match the admitted Stable source run.');
         }
         const recordActions = actions.filter(
           (action) => action.name === 'stable-operation-publication-record.json',

@@ -49,6 +49,7 @@ const componentManifestAsset = asset('opl-app-component-manifest.json', 'f');
 const expectedCurrentLatestTag = 'v26.7.20';
 const standardOperationId = 'operation-standard-1';
 const appendFullOperationId = 'operation-append-full-1';
+const stableAuthorityRunId = '30325431854';
 const standardOperationStartedAt = '2026-07-21T00:00:00.000Z';
 const appendFullOperationStartedAt = '2026-07-21T00:05:00.000Z';
 const workflowAttemptId = 'gha-workflow-attempt-1';
@@ -146,7 +147,7 @@ function durablePublicationRecord(root: string, payloadAssets: Asset[]) {
     dispatch_allowed: true,
     operation_id: operationId,
     authority_id: authority.authority_id,
-    run_id: '30325431854',
+    run_id: stableAuthorityRunId,
     owner_run_match_count: 1,
     nonce_consumed: false,
     mutation_invocation_count: 0,
@@ -156,7 +157,7 @@ function durablePublicationRecord(root: string, payloadAssets: Asset[]) {
     authority,
     authorityDigest: authority.authority_digest,
     actor: authority.issuer,
-    runId: '30325431854',
+    runId: stableAuthorityRunId,
     runAttempt: 1,
     sourceGateDigest: sha256Evidence(sourceGateBytes),
     preNonceGuardDigest: sha256Evidence(preNonceGuardBytes),
@@ -1519,9 +1520,7 @@ test('canonical Stable publication consumes the exact durable record and never c
   bundle.sources.app.repo = canonicalRepo;
   fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
   const durable = durablePublicationRecord(files.root, [first]);
-  const plan = JSON.parse(fs.readFileSync(files.planPath, 'utf8'));
-  plan.release_bundle_publish.receipt.operation_control.operation_id = durable.operationId;
-  fs.writeFileSync(files.planPath, `${JSON.stringify(plan)}\n`);
+  assert.notEqual(durable.operationId, standardOperationId);
   const additionalPath = path.join(files.root, 'additional-upload-actions.json');
   fs.writeFileSync(additionalPath, `${JSON.stringify({
     schema: 'opl_app_immutable_release_upload_actions.v1',
@@ -1571,9 +1570,30 @@ test('canonical Stable publication consumes the exact durable record and never c
     },
   };
 
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      'authority-run-id': '30325431855',
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'additional-upload-actions': additionalPath,
+      'publication-record': durable.recordPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    (error: any) => {
+      assert.equal(
+        error.result.failure.validation_error,
+        'Publication record authority run does not match the admitted Stable source run.',
+      );
+      return true;
+    },
+  );
+  assert.equal(exists, false);
+  assert.deepEqual(remoteAssets, []);
+
   const result = applyPublishPlan({
     ...mutationAdmission(),
-    'operation-id': durable.operationId,
+    'authority-run-id': stableAuthorityRunId,
     bundle: files.bundlePath,
     plan: files.planPath,
     'additional-upload-actions': additionalPath,
