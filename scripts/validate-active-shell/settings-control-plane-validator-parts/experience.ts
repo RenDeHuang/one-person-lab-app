@@ -293,6 +293,42 @@ export function validateSettingsExperienceContract(experience) {
       "Settings Overview must keep one persistent Background tasks summary and leave Temporal component detail on Service Status",
     );
   }
+  const temporalMentalModel =
+    pageContracts.maintenance?.temporal_service_management?.user_mental_model;
+  if (
+    temporalMentalModel?.surface_label_zh !== "持久任务运行（Temporal）" ||
+    temporalMentalModel?.surface_label_en !== "Durable tasks (Temporal)" ||
+    temporalMentalModel?.component_labels?.temporal_server?.label_zh !==
+      "Temporal 基础服务" ||
+    temporalMentalModel?.component_labels?.temporal_server?.role !==
+      "single_required_temporal_dependency_substrate" ||
+    temporalMentalModel?.component_labels?.temporal_worker?.label_zh !==
+      "OPL 任务执行器" ||
+    temporalMentalModel?.component_labels?.temporal_scheduler?.label_zh !==
+      "周期计划" ||
+    temporalMentalModel?.component_labels?.temporal_scheduler?.role !==
+      "temporal_schedule_cadence_not_a_second_scheduler_service" ||
+    JSON.stringify(temporalMentalModel?.dependency_topology) !==
+      JSON.stringify([
+        "temporal_server",
+        "temporal_worker",
+        "temporal_scheduler",
+      ]) ||
+    temporalMentalModel?.causal_blocking_policy !==
+      "downstream_unready_due_to_an_upstream_component_must_show_waiting_for_the_named_upstream_not_generic_attention" ||
+    temporalMentalModel?.aggregate_status_policy !==
+      "show_the_root_cause_and_user_impact_once_never_repeat_one_generic_attention_label_for_every_component" ||
+    temporalMentalModel?.primary_action_policy !==
+      "show_exactly_one_safe_action_for_the_first_actionable_root_cause_plus_one_recheck_action" ||
+    temporalMentalModel?.disabled_action_policy !==
+      "hide_blocked_downstream_actions_or_explain_their_named_prerequisite_with_focusable_accessible_help" ||
+    temporalMentalModel?.technical_detail_policy !==
+      "address_namespace_task_queue_supervisor_and_component_timestamps_are_collapsed_by_default"
+  ) {
+    throw new Error(
+      "Settings Temporal service user mental model must preserve one dependency chain, causal waiting states, one root action, and collapsed technical details",
+    );
+  }
   assertDeepEqualJson(
     pageContracts.workspace.surface_rules,
     {

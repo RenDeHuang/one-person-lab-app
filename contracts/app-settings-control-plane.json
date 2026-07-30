@@ -3944,7 +3944,52 @@
             "temporal_worker",
             "temporal_scheduler"
           ],
-          "component_status_policy": "server_worker_and_scheduler_have_independent_status_reason_and_action_rows",
+          "user_mental_model": {
+            "surface_label_zh": "持久任务运行（Temporal）",
+            "surface_label_en": "Durable tasks (Temporal)",
+            "surface_question": "can_opl_durable_tasks_run_now",
+            "component_labels": {
+              "temporal_server": {
+                "label_zh": "Temporal 基础服务",
+                "label_en": "Temporal service",
+                "role": "single_required_temporal_dependency_substrate"
+              },
+              "temporal_worker": {
+                "label_zh": "OPL 任务执行器",
+                "label_en": "OPL task worker",
+                "role": "opl_owned_workflow_and_activity_executor"
+              },
+              "temporal_scheduler": {
+                "label_zh": "周期计划",
+                "label_en": "Scheduled runs",
+                "role": "temporal_schedule_cadence_not_a_second_scheduler_service"
+              }
+            },
+            "dependency_topology": [
+              "temporal_server",
+              "temporal_worker",
+              "temporal_scheduler"
+            ],
+            "causal_blocking_policy": "downstream_unready_due_to_an_upstream_component_must_show_waiting_for_the_named_upstream_not_generic_attention",
+            "aggregate_status_policy": "show_the_root_cause_and_user_impact_once_never_repeat_one_generic_attention_label_for_every_component",
+            "user_visible_statuses": [
+              "ready",
+              "setup_required",
+              "checking",
+              "waiting_for_temporal_service",
+              "waiting_for_task_worker",
+              "paused",
+              "repair_required",
+              "check_failed",
+              "stale"
+            ],
+            "primary_action_policy": "show_exactly_one_safe_action_for_the_first_actionable_root_cause_plus_one_recheck_action",
+            "diagnostic_action_policy": "component_checks_and_secondary_operations_live_inside_technical_details_and_do_not_compete_with_the_primary_action",
+            "disabled_action_policy": "hide_blocked_downstream_actions_or_explain_their_named_prerequisite_with_focusable_accessible_help",
+            "technical_detail_policy": "address_namespace_task_queue_supervisor_and_component_timestamps_are_collapsed_by_default",
+            "plain_codex_impact_policy": "state_that_plain_Codex_chat_remains_available_while_durable_scheduled_and_recoverable_background_tasks_are_unavailable"
+          },
+          "component_status_policy": "server_worker_and_temporal_schedule_keep_independent_readback_but_render_as_one_causal_dependency_chain_with_one_root_action",
           "component_projection_policy": "server_worker_and_scheduler_readiness_require_explicit_component_fields_must_never_be_inferred_from_provider_ready_and_take_precedence_over_aggregate_provider_status",
           "service_supervisor_state_source": "app_state.provider.temporal.details.worker_readiness.temporal_service_lifecycle.supervisor",
           "service_supervisor_policy": "desktop_macos_local_managed_service_requires_login_resident_run_at_load_keep_alive_stable_launcher_persistent_store_and_idempotent_provider_service_start_repair_while_external_container_and_non_macos_foreground_services_report_supervisor_not_applicable",

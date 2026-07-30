@@ -1762,9 +1762,35 @@ test("Settings keeps a compact background-task summary while Service Status owns
   const guiTemporal = guiPages.settings_environment.temporal_maintenance_contract;
   const controlTemporal = experiencePages.maintenance.temporal_service_management;
   const pageTemporal = pageById("environment").temporal_maintenance_contract;
+  const temporalMentalModel = guiTemporal.user_mental_model;
   assert.deepStrictEqual(guiTemporal.visible_components, expectedTemporalComponents);
   assert.deepStrictEqual(controlTemporal.visible_components, expectedTemporalComponents);
   assert.deepStrictEqual(pageTemporal.visible_components, expectedTemporalComponents);
+  assert.deepStrictEqual(controlTemporal.user_mental_model, temporalMentalModel);
+  assert.equal(
+    pageById("environment").temporal_service_user_mental_model_ref,
+    "contracts/app-gui-product-contract.json#pages.settings_environment.temporal_maintenance_contract.user_mental_model",
+  );
+  assert.equal(
+    temporalMentalModel.component_labels.temporal_server.label_zh,
+    "Temporal 基础服务",
+  );
+  assert.equal(
+    temporalMentalModel.component_labels.temporal_worker.label_zh,
+    "OPL 任务执行器",
+  );
+  assert.equal(
+    temporalMentalModel.component_labels.temporal_scheduler.label_zh,
+    "周期计划",
+  );
+  assert.match(
+    temporalMentalModel.component_labels.temporal_scheduler.role,
+    /not_a_second_scheduler_service/,
+  );
+  assert.match(
+    temporalMentalModel.causal_blocking_policy,
+    /waiting_for_the_named_upstream_not_generic_attention/,
+  );
   assert.deepStrictEqual(guiTemporal.post_action_readback.success_requires, [
     "service_ready_true",
     "service_supervisor_ready_true_when_required",
@@ -1871,6 +1897,13 @@ test("Settings keeps a compact background-task summary while Service Status owns
       "switch_to_managed_runtime",
       "explicitly_enable_authorized_developer_maintenance",
     ],
+  );
+  const genericAttention = contracts();
+  genericAttention.controlPlane.experience_contract.page_contracts.maintenance.temporal_service_management.user_mental_model.causal_blocking_policy =
+    "repeat_generic_attention_for_every_component";
+  assert.throws(
+    () => validate(genericAttention),
+    /Temporal service user mental model/,
   );
   assert.ok(
     experiencePages.maintenance.destination_dom.runtime_services.includes(
