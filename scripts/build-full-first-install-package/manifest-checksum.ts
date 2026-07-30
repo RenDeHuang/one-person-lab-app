@@ -1,8 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { buildFullPackageManifest } from '../full-first-install-package.ts';
-import { FULL_RUNTIME_CACHE_LAYER_TAXONOMY } from '../full-first-install-package.ts';
+import {
+  buildFullPackageManifest,
+  FULL_RUNTIME_CACHE_LAYER_TAXONOMY,
+  FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS,
+} from '../full-first-install-package.ts';
 import { directorySizeBytes } from './filesystem.ts';
 import { readGitHead, readGitOriginUrl } from './git.ts';
 import { existingFileSha256, packageJsonVersion } from './hashing.ts';
@@ -484,6 +487,21 @@ function assertOfflineRequiredPayloadsPresent(runtimeAssertions) {
   }
 }
 
+function assertDeclaredPrunedPathsAbsent(runtimeAssertions) {
+  const declarations = runtimeAssertions.declared_pruned_paths ?? [];
+  const declarationByPath = new Map(declarations.map((entry) => [entry.path, entry]));
+  const invalidPaths = FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS.filter((relativePath) => {
+    const declaration = declarationByPath.get(relativePath);
+    return !declaration || declaration.expected !== 'absent' || declaration.present !== false;
+  });
+  if (invalidPaths.length > 0) {
+    throw new Error([
+      'Full runtime package contains or failed to prove absence of Framework-managed Codex payload path(s):',
+      ...invalidPaths.map((relativePath) => `  - ${relativePath}`),
+    ].join('\n'));
+  }
+}
+
 export function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, components, resolvedRefs, optionalComponents = {}, nativeTrust = undefined) {
   const manifestDir = path.join(runtimeRoot, 'manifest');
   const manifestPath = path.join(manifestDir, 'full-package-manifest.json');
@@ -491,6 +509,7 @@ export function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, compo
 
   const runtimeAssertions = collectRuntimeAssertions(runtimeRoot);
   assertOfflineRequiredPayloadsPresent(runtimeAssertions);
+  assertDeclaredPrunedPathsAbsent(runtimeAssertions);
   let manifest = buildFullPackageManifest({
     version: options.version,
     generatedAt: packagedAt,
@@ -506,6 +525,7 @@ export function writeFullRuntimeManifest(runtimeRoot, options, packagedAt, compo
     const sizeBreakdown = collectFullRuntimeSizeBreakdown(runtimeRoot);
     const nextRuntimeAssertions = collectRuntimeAssertions(runtimeRoot);
     assertOfflineRequiredPayloadsPresent(nextRuntimeAssertions);
+    assertDeclaredPrunedPathsAbsent(nextRuntimeAssertions);
     const nextManifest = buildFullPackageManifest({
       version: options.version,
       generatedAt: packagedAt,

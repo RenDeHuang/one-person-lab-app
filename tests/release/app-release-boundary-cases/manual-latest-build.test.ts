@@ -21,8 +21,7 @@ import {
   readAppVersionIdentity,
 } from '../../../scripts/manual-latest-build/install-app.ts';
 import {
-  assertFullDmgCodexBinding,
-  buildAioncoreManagedCodexArgs,
+  assertFullDmgCodexCarrierBoundary,
   buildManualRuntimeDependencyLock,
   resolveAioncoreManagedCodexBinding,
 } from '../../../scripts/manual-latest-build.ts';
@@ -423,7 +422,7 @@ test('MinerU latest selection ignores drafts, prereleases, and unrelated tags', 
   assert.equal(selected.tag_name, 'cli/v0.2.1');
 });
 
-test('manual source-lock and build arguments bind Codex to the selected AionCore resources', (context) => {
+test('manual source-lock binds Codex to AionCore while the Full runtime stays payload-free', (context) => {
   const fixture = createAioncoreManagedCodexFixture();
   context.after(() =>
     fs.rmSync(fixture.root, { recursive: true, force: true }),
@@ -448,37 +447,53 @@ test('manual source-lock and build arguments bind Codex to the selected AionCore
   assert.match(binding.codex_cli.required_files[0].sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.required_directories[0].tree_sha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(dependencyLock.aioncore_managed_codex, binding);
-  assert.deepEqual(buildAioncoreManagedCodexArgs(binding), [
-    '--codex-root',
-    fs.realpathSync(fixture.codexRoot),
-  ]);
   assert.doesNotThrow(() =>
-    assertFullDmgCodexBinding(
-      {
+    assertFullDmgCodexCarrierBoundary({
+      components: {},
+      package_optimization: {
+        package_boundary_audit: {
+          aioncore_codex_carrier_present: true,
+          framework_codex_payload_absent: true,
+          forbidden_framework_codex_paths: [
+            { path: 'bin/codex', exists: false },
+            { path: 'bin/rg', exists: false },
+            { path: 'vendor/codex', exists: false },
+            { path: '.runtime-cache/codex-cli', exists: false },
+          ],
+        },
+      },
+    }),
+  );
+  assert.throws(
+    () =>
+      assertFullDmgCodexCarrierBoundary({
         components: {
           codex: {
             source_path: fixture.codexRoot,
             version: 'codex-cli 0.144.6',
           },
         },
-      },
-      binding,
-    ),
+      }),
+    /must not contain components\.codex/,
   );
   assert.throws(
     () =>
-      assertFullDmgCodexBinding(
-        {
-          components: {
-            codex: {
-              source_path: fixture.codexRoot,
-              version: 'codex-cli 0.143.0',
-            },
+      assertFullDmgCodexCarrierBoundary({
+        components: {},
+        package_optimization: {
+          package_boundary_audit: {
+            aioncore_codex_carrier_present: true,
+            framework_codex_payload_absent: false,
+            forbidden_framework_codex_paths: [
+              { path: 'bin/codex', exists: true },
+              { path: 'bin/rg', exists: false },
+              { path: 'vendor/codex', exists: false },
+              { path: '.runtime-cache/codex-cli', exists: false },
+            ],
           },
         },
-        binding,
-      ),
-    /Full manifest Codex version mismatch/,
+      }),
+    /Framework Codex payload is absent/,
   );
 });
 

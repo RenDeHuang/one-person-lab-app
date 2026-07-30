@@ -247,7 +247,6 @@ jobs:
         run: |
           set -euo pipefail
           third_party="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-full-third-party-source-manifest.json"
-          qualification_inputs="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-release-qualification-input-manifest.json"
           for output in officecli mineru ui_ux_pro_max; do
             ref="$(jq -er --arg id "$output" '.sources[$id].ref' "$third_party")"
             [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Third-party $output ref is missing or invalid."; exit 1; }
@@ -261,19 +260,6 @@ jobs:
             output="${selector%%:*}"; query="${selector#*:}"; value="$(jq -er "$query" "$third_party")"
             echo "${output}=$value" >> "$GITHUB_OUTPUT"
           done
-          for selector in \
-            codex_version:.runtime_payloads.codex_cli.version \
-            codex_integrity:.runtime_payloads.codex_cli.npm_integrity \
-            codex_tarball_url:.runtime_payloads.codex_cli.tarball_url \
-            codex_tarball_sha256:.runtime_payloads.codex_cli.tarball_sha256 \
-            codex_platform_version:.runtime_payloads.codex_cli.platform.version \
-            codex_platform_integrity:.runtime_payloads.codex_cli.platform.npm_integrity \
-            codex_platform_tarball_url:.runtime_payloads.codex_cli.platform.tarball_url \
-            codex_platform_tarball_sha256:.runtime_payloads.codex_cli.platform.tarball_sha256; do
-            output="${selector%%:*}"; query="${selector#*:}"; value="$(jq -er "$query" "$qualification_inputs")"
-            echo "${output}=$value" >> "$GITHUB_OUTPUT"
-          done
-
       - name: Checkout MAS
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
@@ -496,25 +482,11 @@ jobs:
           cache: true
           cache-dependency-path: MinerU-Ecosystem/cli/mineru-open-api/go.sum
 
-      - name: Install zstd, Temporal CLI, Codex CLI, OfficeCLI, and MinerU
+      - name: Install zstd, Temporal CLI, OfficeCLI, and MinerU
         shell: bash
         run: |
           set -euo pipefail
           brew install zstd
-          codex_version_frozen='${{ steps.full-build-inputs.outputs.codex_version }}'
-          codex_tarball="$RUNNER_TEMP/openai-codex-${codex_version_frozen}.tgz"
-          codex_platform_tarball="$RUNNER_TEMP/openai-codex-${{ steps.full-build-inputs.outputs.codex_platform_version }}.tgz"
-          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.full-build-inputs.outputs.codex_tarball_url }}' -o "$codex_tarball"
-          curl -fL --retry 5 --retry-all-errors --retry-delay 5 '${{ steps.full-build-inputs.outputs.codex_platform_tarball_url }}' -o "$codex_platform_tarball"
-          echo '${{ steps.full-build-inputs.outputs.codex_tarball_sha256 }}  '"$codex_tarball" | shasum -a 256 -c -
-          echo '${{ steps.full-build-inputs.outputs.codex_platform_tarball_sha256 }}  '"$codex_platform_tarball" | shasum -a 256 -c -
-          test "$(npm view "@openai/codex@${codex_version_frozen}" dist.integrity)" = '${{ steps.full-build-inputs.outputs.codex_integrity }}'
-          test "$(npm view "@openai/codex@${{ steps.full-build-inputs.outputs.codex_platform_version }}" dist.integrity)" = '${{ steps.full-build-inputs.outputs.codex_platform_integrity }}'
-          npm cache add "$codex_platform_tarball"
-          npm install -g "$codex_tarball" --fetch-retries=3 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=20000 --fetch-timeout=60000
-          codex_version="$(codex --version)"
-          [[ "$codex_version" == "codex-cli $codex_version_frozen" ]]
-          echo "OPL_FULL_CODEX_VERSION=$codex_version_frozen" >> "$GITHUB_ENV"
           mineru_root="$GITHUB_WORKSPACE/MinerU-Ecosystem/cli/mineru-open-api"
           mineru_version="$(cat "$mineru_root/VERSION")"
           mineru_commit="$(git -C "$GITHUB_WORKSPACE/MinerU-Ecosystem" rev-parse --short HEAD)"
@@ -533,7 +505,6 @@ jobs:
           echo "$HOME/go/bin" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
-          echo "$codex_version"
           officecli --version
           mineru-open-api version
           temporal_version='${{ steps.full-build-inputs.outputs.temporal_version }}'
@@ -720,7 +691,6 @@ jobs:
           set -euo pipefail
           cache_dir="$GITHUB_WORKSPACE/.opl-full-runtime-cache"
           export OPL_FRAMEWORK_ROOT="$GITHUB_WORKSPACE/one-person-lab"
-          export OPL_FULL_CODEX_ROOT="$(npm root -g)/@openai/codex"
           export OPL_FULL_BUN_BIN="${OPL_FULL_BUN_BIN:-$(command -v bun)}"
           export OPL_FULL_INCLUDE_BUN_RUNTIME="${OPL_FULL_INCLUDE_BUN_RUNTIME:-0}"
           export OPL_FULL_UV_BIN="$(command -v uv)"
@@ -931,7 +901,6 @@ jobs:
           set -euo pipefail
           ulimit -n 65536 || true
           export OPL_FRAMEWORK_ROOT="$GITHUB_WORKSPACE/one-person-lab"
-          export OPL_FULL_CODEX_ROOT="$(npm root -g)/@openai/codex"
           export OPL_FULL_BUN_BIN="${OPL_FULL_BUN_BIN:-$(command -v bun)}"
           export OPL_FULL_INCLUDE_BUN_RUNTIME="${OPL_FULL_INCLUDE_BUN_RUNTIME:-0}"
           export OPL_FULL_UV_BIN="$(command -v uv)"

@@ -246,6 +246,12 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
 
 export function writeFullRemoteAssets(outDir, version) {
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const forbiddenFrameworkCodexPaths = [
+    "bin/codex",
+    "bin/rg",
+    "vendor/codex",
+    ".runtime-cache/codex-cli",
+  ];
   const protectedPayloads = [
     "Contents/Resources/opl-full-runtime",
     "Contents/Resources/bundled-aioncore",
@@ -274,7 +280,13 @@ export function writeFullRemoteAssets(outDir, version) {
     full_package_boundary: {
       contains_opl_full_runtime: true,
       contains_shell_runtime: true,
-      dedupe_policy: "audit_only_without_same_cohort_full_clean_vm_evidence",
+      aioncore_codex_carrier_present: true,
+      framework_codex_payload_absent: true,
+      forbidden_framework_codex_paths: forbiddenFrameworkCodexPaths.map((relativePath) => ({
+        path: relativePath,
+        exists: false,
+      })),
+      dedupe_policy: "aioncore_is_the_only_codex_carrier_in_the_aionui_app_bundle",
     },
     entries: {
       opl_full_runtime: {
@@ -321,6 +333,11 @@ export function writeFullRemoteAssets(outDir, version) {
       runtimeAssertions: {
         temporal_core_bridge_releases: ["aarch64-apple-darwin"],
         excluded_module_venv_count: 0,
+        declared_pruned_paths: forbiddenFrameworkCodexPaths.map((relativePath) => ({
+          path: relativePath,
+          expected: "absent",
+          present: false,
+        })),
       },
       nativeTrust,
       sizeBreakdown: {
@@ -333,16 +350,6 @@ export function writeFullRemoteAssets(outDir, version) {
         },
       },
       components: {
-        codex: {
-          source_path: "/tmp/codex",
-          version: "codex-cli 0.137.0",
-          size_bytes: 801,
-          role: "default_agent_cli_offline_archive_wrapper",
-          required: true,
-          binary_path: null,
-          archive_path: "runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz",
-          archive_size_bytes: 83978603,
-        },
         temporal_cli: {
           source_path: "/tmp/temporal",
           version: "temporal version 1.7.0",

@@ -2,7 +2,10 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { FULL_RUNTIME_RESOURCE_DIR } from '../full-first-install-package.ts';
+import {
+  FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS,
+  FULL_RUNTIME_RESOURCE_DIR,
+} from '../full-first-install-package.ts';
 
 const PRECOMPRESSION_GATE_SCHEMA = 'opl_full_precompression_gate.v1';
 const FULL_GIT_SHA_PATTERN = /^[0-9a-f]{40}$/i;
@@ -59,6 +62,11 @@ type PackagedManifest = {
       path: string;
       exists: boolean;
       executable: boolean;
+    }>>;
+    declared_pruned_paths?: Array<Partial<{
+      path: string;
+      expected: string;
+      present: boolean;
     }>>;
   };
   native_trust?: {
@@ -391,6 +399,44 @@ function collectRuntimeEvidenceIssues(
   };
 }
 
+function collectFrameworkCodexAbsenceIssues(
+  builtAppPath: string,
+  manifest: PackagedManifest | null,
+) {
+  const issues: GateIssue[] = [];
+  const declarations = manifest?.runtime_assertions?.declared_pruned_paths ?? [];
+  const declarationByPath = new Map(declarations.map((entry) => [entry.path, entry]));
+  const runtimeRoot = path.join(
+    builtAppPath,
+    'Contents',
+    'Resources',
+    FULL_RUNTIME_RESOURCE_DIR,
+    'runtime',
+    'current',
+  );
+
+  for (const relativePath of FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS) {
+    const declaration = declarationByPath.get(relativePath);
+    if (!declaration || declaration.expected !== 'absent' || declaration.present !== false) {
+      issues.push({
+        code: 'framework_codex_absence_evidence_invalid',
+        failure_class: 'artifact_invalid',
+        relative_path: relativePath,
+        message: `Full manifest must declare Framework Codex path ${relativePath} absent.`,
+      });
+    }
+    if (fs.existsSync(path.join(runtimeRoot, ...relativePath.split('/')))) {
+      issues.push({
+        code: 'framework_codex_payload_present',
+        failure_class: 'artifact_invalid',
+        relative_path: relativePath,
+        message: `Built App contains forbidden Framework-managed Codex payload path ${relativePath}.`,
+      });
+    }
+  }
+  return issues;
+}
+
 function collectMachOPortabilityIssues(builtAppPath: string) {
   const issues: GateIssue[] = [];
   const files = listMachOFiles(builtAppPath);
@@ -490,6 +536,10 @@ export function runFullPackagePrecompressionGate(input: GateInput) {
   const refGate = collectResolvedRefIssues(packagedRefs);
   const refParityIssues = collectResolvedRefParityIssues(input.resolvedRefs, packagedRefs);
   const runtimeGate = collectRuntimeEvidenceIssues(manifest, input.runtimeCurrentness);
+  const frameworkCodexAbsenceIssues = collectFrameworkCodexAbsenceIssues(
+    input.builtAppPath,
+    manifest,
+  );
   let machoGate;
   try {
     machoGate = collectMachOPortabilityIssues(input.builtAppPath);
@@ -516,6 +566,7 @@ export function runFullPackagePrecompressionGate(input: GateInput) {
     ...refGate.issues,
     ...refParityIssues,
     ...runtimeGate.issues,
+    ...frameworkCodexAbsenceIssues,
     ...machoGate.issues,
   ];
   const durationSeconds = Number(
@@ -547,6 +598,10 @@ export function runFullPackagePrecompressionGate(input: GateInput) {
         currentness_status: input.runtimeCurrentness.status ?? null,
         offline_required_payload_count: runtimeGate.offlinePayloadCount,
         native_trust_status: runtimeGate.nativeTrustStatus,
+      },
+      framework_codex_payload_absence: {
+        status: frameworkCodexAbsenceIssues.length === 0 ? 'passed' : 'failed',
+        forbidden_paths: FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS,
       },
       macho_portability: {
         status: machoGate.issues.length === 0 ? 'passed' : 'failed',

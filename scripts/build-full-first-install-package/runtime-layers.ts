@@ -12,7 +12,6 @@ import {
 } from '../full-first-install-package.ts';
 import { writeRuntimeWrappers } from '../full-first-install-runtime-wrappers.ts';
 import {
-  CODEX_MACOS_ARM64_TARGET,
   MACOS_ARM64_TEMPORAL_CORE_BRIDGE_TARGET,
 } from './paths.ts';
 import {
@@ -22,7 +21,7 @@ import {
   copyTreeFiltered,
 } from './filesystem.ts';
 import { readGitHead } from './git.ts';
-import { commandOutput, run } from './process.ts';
+import { commandOutput } from './process.ts';
 import {
   materializeResolvedSelectedBundleDescriptor,
   readMaterializedResolvedSelectedBundleDescriptor,
@@ -115,62 +114,6 @@ fi
 exec "$TEMPORAL_BIN" "$@"
 `, 'utf8');
   fs.chmodSync(targetPath, 0o755);
-}
-
-export function writeCodexCliWrapper(targetPath, versionOutput) {
-  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  fs.writeFileSync(targetPath, `#!/bin/bash
-set -euo pipefail
-CODEX_VERSION_OUTPUT=${shellSingleQuote(versionOutput)}
-if [[ "\${1:-}" == "--version" ]]; then
-  printf '%s\\n' "$CODEX_VERSION_OUTPUT"
-  exit 0
-fi
-RUNTIME_HOME="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-ARCHIVE="$RUNTIME_HOME/vendor/codex/codex_cli_darwin_arm64.tar.gz"
-EXTRACT_ROOT="$RUNTIME_HOME/.runtime-cache/codex-cli"
-CODEX_TARGET="${CODEX_MACOS_ARM64_TARGET}"
-CODEX_BIN="$EXTRACT_ROOT/$CODEX_TARGET/bin/codex"
-CODEX_PATH_DIR="$EXTRACT_ROOT/$CODEX_TARGET/codex-path"
-if [[ ! -x "$CODEX_BIN" ]]; then
-  if [[ ! -f "$ARCHIVE" ]]; then
-    printf 'Packaged Codex CLI archive is missing: %s\\n' "$ARCHIVE" >&2
-    exit 1
-  fi
-  rm -rf "$EXTRACT_ROOT"
-  mkdir -p "$EXTRACT_ROOT"
-  tar -xzf "$ARCHIVE" -C "$EXTRACT_ROOT"
-  if [[ ! -x "$CODEX_BIN" ]]; then
-    candidates=()
-    while IFS= read -r candidate; do candidates+=("$candidate"); done < <(
-      find "$EXTRACT_ROOT" -type f -path '*/bin/codex' -perm -111 -print | LC_ALL=C sort
-    )
-    if [[ "\${#candidates[@]}" -gt 1 ]]; then
-      printf 'Packaged Codex CLI archive contains multiple executable codex binaries: %s\n' "\${#candidates[@]}" >&2
-      exit 1
-    fi
-    if [[ "\${#candidates[@]}" -eq 1 ]]; then
-      CODEX_BIN="\${candidates[0]}"
-      CODEX_PATH_DIR="$(cd "$(dirname "\${candidates[0]}")/.." && pwd)/codex-path"
-    fi
-  fi
-fi
-if [[ ! -x "$CODEX_BIN" ]]; then
-  printf 'Packaged Codex CLI archive did not contain an executable codex binary: %s\\n' "$ARCHIVE" >&2
-  exit 1
-fi
-if [[ -d "$CODEX_PATH_DIR" ]]; then
-  export PATH="$CODEX_PATH_DIR:$PATH"
-fi
-exec "$CODEX_BIN" "$@"
-`, 'utf8');
-  fs.chmodSync(targetPath, 0o755);
-}
-
-export function createCodexCliArchive(archivePath, vendorRoot) {
-  fs.mkdirSync(path.dirname(archivePath), { recursive: true });
-  fs.rmSync(archivePath, { force: true });
-  run('tar', ['-czf', archivePath, '-C', path.dirname(vendorRoot), path.basename(vendorRoot)]);
 }
 
 function temporalCoreBridgeReleasesRoot(nodeModulesRoot) {
@@ -488,8 +431,6 @@ export function collectRuntimeAssertions(runtimeRoot) {
       ? fs.readdirSync(path.join(runtimeRoot, 'node', 'lib', 'node_modules')).sort()
       : [],
     offline_required_payloads: [
-      runtimePayloadStatus(runtimeRoot, 'bin/codex', { executable: true }),
-      runtimePayloadStatus(runtimeRoot, 'vendor/codex/codex_cli_darwin_arm64.tar.gz'),
       runtimePayloadStatus(runtimeRoot, 'bin/temporal', { executable: true }),
       runtimePayloadStatus(runtimeRoot, 'vendor/temporal/temporal_cli_darwin_arm64.tar.gz'),
       runtimePayloadStatus(runtimeRoot, 'opl/node_modules/@swc/core-darwin-arm64/swc.darwin-arm64.node'),
@@ -520,12 +461,6 @@ function writePackagedModuleMarker(moduleRoot, marker) {
 }
 
 export function buildToolchainLayer(layerRoot, sources) {
-  createCodexCliArchive(
-    path.join(layerRoot, 'vendor', 'codex', 'codex_cli_darwin_arm64.tar.gz'),
-    sources.codexBinaries.vendorRoot,
-  );
-  writeCodexCliWrapper(path.join(layerRoot, 'bin', 'codex'), commandOutput(sources.codexBinaries.codex, ['--version']));
-  copySingleFile(sources.codexBinaries.rg, path.join(layerRoot, 'bin', 'rg'));
   if (sources.bunBin) {
     copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
   }
@@ -624,8 +559,6 @@ export function buildRuntimeLayerImplementationHash(layerId: FullRuntimeCacheLay
     toolchain: [
       shellSingleQuote,
       writeTemporalCliWrapper,
-      writeCodexCliWrapper,
-      createCodexCliArchive,
       copySingleFile,
       copyNodeRuntimePayload,
       copyTreeFiltered,

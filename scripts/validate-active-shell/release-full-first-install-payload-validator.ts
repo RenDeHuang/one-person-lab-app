@@ -12,22 +12,26 @@ export function validateReleaseFullFirstInstallPayloads(releaseChannel) {
 
 function validateReleaseFullCodexCliPayload(codexCli) {
   if (
-    codexCli?.compatibility_mode !== 'minimum_version_plus_capability_smoke' ||
-    codexCli?.minimum_version_source !== 'distribution cohort manifest components.codex_cli.minimum_version' ||
-    codexCli?.fallback_version_source !== 'distribution cohort manifest components.codex_cli.fallback_version' ||
-    codexCli?.fallback_runtime_path !== 'runtime/current/bin/codex' ||
-    codexCli?.fallback_payload_path !== 'runtime/current/vendor/codex/codex_cli_darwin_arm64.tar.gz' ||
-    codexCli?.must_prefer_valid_newer_user_version !== false ||
-    codexCli?.system_sources_visible_as_diagnostics !== true ||
-    codexCli?.system_sources_require_expert_opt_in !== true ||
-    !/offline from the packaged archive wrapper/.test(codexCli?.verification ?? '')
+    codexCli?.compatibility_mode !== 'shell_carrier_exact_manifest_binary' ||
+    codexCli?.carrier_contract_ref !== 'contracts/app-shell-adapter.json#codex_executable_contract' ||
+    codexCli?.resolver_env !== 'OPL_CODEX_BIN' ||
+    codexCli?.version_source !== 'AionCore managed resource manifest' ||
+    codexCli?.aioncore_required !== true ||
+    codexCli?.framework_managed_payload_in_full_runtime_allowed !== false ||
+    !/bundled-aioncore managed-resources/.test(codexCli?.verification ?? '') ||
+    !/forbidden duplicate paths absent/.test(codexCli?.verification ?? '')
   ) {
-    throw new Error('Release channel Full Codex CLI payload must default to the App-owned offline archive-wrapper runtime');
+    throw new Error('Release channel Full Codex CLI must use the Shell-bundled AionCore carrier without a Framework duplicate');
   }
   assertDeepEqualJson(
     codexCli.preferred_sources,
-    ['app_owned_archive_wrapper'],
+    ['shell_aioncore_managed_resources_manifest'],
     'Release channel Codex CLI preferred sources',
+  );
+  assertDeepEqualJson(
+    codexCli.forbidden_framework_runtime_paths,
+    ['bin/codex', 'bin/rg', 'vendor/codex', '.runtime-cache/codex-cli'],
+    'Release channel forbidden Framework Codex paths',
   );
 }
 

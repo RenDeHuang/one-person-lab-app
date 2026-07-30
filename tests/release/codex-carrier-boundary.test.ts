@@ -36,6 +36,31 @@ test('AionUI cannot restore the duplicate Framework Codex payload', () => {
   );
 });
 
+test('Full App contract delegates Codex to AionCore and omits the Framework manifest component', async () => {
+  const releaseChannel = JSON.parse(
+    fs.readFileSync('contracts/app-release-channel.json', 'utf8'),
+  );
+  const codex = releaseChannel.full_first_install.required_payloads.codex_cli;
+  assert.equal(codex.compatibility_mode, 'shell_carrier_exact_manifest_binary');
+  assert.equal(codex.resolver_env, 'OPL_CODEX_BIN');
+  assert.equal(codex.aioncore_required, true);
+  assert.equal(codex.framework_managed_payload_in_full_runtime_allowed, false);
+  assert.deepEqual(codex.forbidden_framework_runtime_paths, [
+    'bin/codex',
+    'bin/rg',
+    'vendor/codex',
+    '.runtime-cache/codex-cli',
+  ]);
+
+  const { buildFullPackageManifest } = await import('../../scripts/full-first-install-package.ts');
+  const manifest = buildFullPackageManifest();
+  assert.equal(Object.prototype.hasOwnProperty.call(manifest.components, 'codex'), false);
+  assert.deepEqual(
+    manifest.opl_runtime_bundle_consumer.runtime_fabric_bundle_taxonomy['execution-core.bundle'].components,
+    ['temporal_cli', 'opl'],
+  );
+});
+
 test('Native adoption cannot inherit the AionCore carrier', () => {
   const native = structuredClone(readAdapter('contracts/shell-adapters/opl-native-workbench.json'));
   assert.ok(native.codex_executable_contract);
