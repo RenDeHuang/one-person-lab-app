@@ -6,6 +6,7 @@ import {
   evaluateReleaseBrokerAuthorityReadiness,
   validateReleaseAccelerationPolicy,
 } from '../../scripts/validate-release-boundary/release-contract-policy.ts';
+import { validateAppGuiProductContract } from '../../scripts/validate-active-shell/gui-product-contract-validator.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 
@@ -51,6 +52,8 @@ test('Framework checkpoint plus the App executor is the only live release mutati
 
 test('release platform contract keeps Stable required platforms separate from optional capability', () => {
   const release = readJson('contracts/app-release-channel.json');
+  const gui = readJson('contracts/app-gui-product-contract.json');
+  const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const matrix = release.release_platform_matrix;
   assert.deepEqual(matrix.policies.stable_required.platforms, ['macos-arm64', 'linux-x64']);
   assert.equal(matrix.policies.stable_required.blocks_base_terminal, true);
@@ -70,6 +73,17 @@ test('release platform contract keeps Stable required platforms separate from op
     release.release_validation_profiles.nightly_standard.required_lanes.includes(
       'standard_linux_x64_build',
     ),
+  );
+  assert.doesNotThrow(() => validateAppGuiProductContract(gui, release, installExposure));
+
+  const missingLinux = structuredClone(release);
+  missingLinux.release_validation_profiles.stable.required_lanes =
+    missingLinux.release_validation_profiles.stable.required_lanes.filter(
+      (lane: string) => lane !== 'standard_linux_x64_build',
+    );
+  assert.throws(
+    () => validateAppGuiProductContract(gui, missingLinux, installExposure),
+    /App GUI stable release required lanes/,
   );
 });
 
