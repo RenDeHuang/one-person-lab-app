@@ -247,6 +247,12 @@ immutable，Full DMG 及其 manifest 发布到由基础 tag 与 Bundle digest �
 adjunct Release，而不是回写基础 tag。optional 平台同样使用内容寻址的独立 immutable adjunct
 Release。两类 receipt 都必须给出基础 tag、adjunct tag、Release/下载 URL、三仓 cohort、
 Bundle/manifest/资产 digest；用户从该 adjunct Release 下载附加 DMG 或平台安装包。
+版本冻结的 `opl-install.sh --full` 先从基础 Release 的 component manifest 读取并校验
+App/Shell/Framework cohort，再通过有界分页查找唯一
+`<base-tag>-full-<bundle-digest-prefix>` Release。该 adjunct 必须非 draft、非 prerelease、
+immutable，且 `target_commitish` 等于基础 cohort 的 App SHA；随后 exact-tag 回读并校验
+Full manifest、DMG 名称、URL 和 digest。显式 Full 对缺失、歧义或身份不符全部失败关闭；
+未显式选择密度时，只有完整列表明确不存在 matching adjunct 才可回退基础 Standard DMG。
 任一 follower 的失败或延迟不得撤销、阻塞或改写基础 Stable publication、Latest activation
 或 Standard 同制品安装终态；恢复必须使用绑定同 cohort 的 distinct operation。
 
@@ -281,7 +287,7 @@ receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` 
 | WebUI Standard | Browser workbench + 在线收敛 | 产品单元支持；具体安装可用性需 fresh readback | 平台选择 Native 或 Container internal carrier |
 | WebUI Full | Browser workbench + offline seeds | 产品单元支持；具体安装可用性需 fresh readback | 同一 WebUI 表面，额外离线 seed |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | carrier contract 已定义；exact Tap/install currentness 需 fresh readback | macOS 终端用户入口 |
-| Release `opl-install.sh` | 选择 Desktop/WebUI 和 Standard/Full 两个独立轴；macOS 显式密度解析到 exact DMG，Linux 仅支持 Standard，显式 Full 在任何 Release 资产查询前失败关闭；headless 仍是独立 Framework 边界 | 入口模型已定义；exact Release 可用性需 readback | 固定 App/Shell/Framework SHA、Release tag 和资产 digest |
+| Release `opl-install.sh` | 选择 Desktop/WebUI 和 Standard/Full 两个独立轴；macOS Standard 消费基础 Release，Full 发现唯一 immutable same-cohort adjunct 后消费其 exact manifest/DMG；Linux 仅支持 Standard，显式 Full 在任何 Release 资产查询前失败关闭；headless 仍是独立 Framework 边界 | 入口模型已定义；exact Release 可用性需 readback | 固定 App/Shell/Framework SHA、基础 Release tag、adjunct tag 和资产 digest |
 | Source `install.sh` | 与公共入口共享路由逻辑；显式 `--standard`/`--full` 使用相同平台密度约束，无显式密度时保留 Framework `--with-app` compatibility | Developer compatibility | 仅供 reviewed checkout；不得从可变 `main` 直接管道执行 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | WebUI 的 Container internal carrier + 挂载的数据/项目目录 | carrier 路径；具体公开/安装状态需 fresh readback | 适合 server/isolation，不是第三产品表面 |
