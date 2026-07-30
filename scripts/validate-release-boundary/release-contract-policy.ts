@@ -465,6 +465,7 @@ function validateLocalInstallReleaseProfile(releaseContract: Record<string, any>
 function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<string, any>): number {
   const acceleration = releaseContract.release_acceleration;
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  const hostedLinux = acceleration?.hosted_linux_certification;
   let failures = 0;
   if (
     JSON.stringify(vmGates.map((gate) => gate?.id)) !== JSON.stringify([
@@ -509,6 +510,37 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
     console.error('FAIL release_vm_legacy_mirror: legacy Full VM policy must mirror the optional certification gate');
     failures += 1;
   }
+  if (
+    hostedLinux?.id !== 'linux_x64_same_artifact_install_smoke' ||
+    hostedLinux?.workflow !== '.github/workflows/release-post-publication-certification.yml' ||
+    hostedLinux?.runner !== 'ubuntu-latest' ||
+    hostedLinux?.platform !== 'linux-x64' ||
+    hostedLinux?.artifact !== 'One-Person-Lab-<version>-linux-x64.deb' ||
+    hostedLinux?.installer !== 'opl-app-installer.sh' ||
+    !sameStringSet(hostedLinux?.installer_arguments, [
+      '--desktop',
+      '--release-tag',
+      '<exact-tag>',
+      '--no-open',
+    ]) ||
+    hostedLinux?.component_manifest_binding_required !== true ||
+    hostedLinux?.same_app_shell_framework_cohort_required !== true ||
+    hostedLinux?.typed_admission_schema !== 'opl_app_optional_certification_hosted_admission.v1' ||
+    hostedLinux?.typed_execution_evidence_schema !== 'opl_app_linux_same_artifact_install_evidence.v1' ||
+    hostedLinux?.clean_machine_preinstall_absence_required !== true ||
+    hostedLinux?.installed_executable_byte_parity_required !== true ||
+    hostedLinux?.failed_download_evidence_truthful_required !== true ||
+    JSON.stringify(hostedLinux?.terminal_statuses) !== JSON.stringify(['passed', 'failed']) ||
+    hostedLinux?.unavailable_allowed !== false ||
+    hostedLinux?.downloaded_from_published_release_required !== true ||
+    hostedLinux?.rebuilt_allowed !== false ||
+    hostedLinux?.failure_receipt_uploaded_before_job_failure !== true ||
+    hostedLinux?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+    hostedLinux?.required_for_publication_or_latest !== false
+  ) {
+    console.error('FAIL release_hosted_linux_certification: Linux certification must consume exact public installer and DEB bytes without blocking Stable or Latest');
+    failures += 1;
+  }
   const stableValidation = releaseContract.release_validation_profiles?.stable;
   if (
     stableValidation?.addon_gate_blocking_standard_terminal !== false ||
@@ -519,6 +551,9 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
       'homebrew_standard_cask_clean_vm_smoke',
       'one_shot_app_installer_fresh_install_smoke',
       'full_dmg_clean_vm_smoke',
+    ]) ||
+    !sameStringSet(stableValidation?.hosted_post_publication_optional_certification_surfaces, [
+      'linux_x64_same_artifact_install_smoke',
     ])
   ) {
     console.error('FAIL release_stable_optional_certification: physical VM coverage must remain outside the Stable publication terminal');

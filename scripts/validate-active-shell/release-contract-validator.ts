@@ -965,6 +965,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   }
 
   const vmGates = Array.isArray(acceleration?.vm_gates) ? acceleration.vm_gates : [];
+  const hostedLinux = acceleration?.hosted_linux_certification;
   assertDeepEqualJson(
     vmGates.map((gate) => gate?.id),
     [
@@ -1009,6 +1010,33 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
   if ('release_blocking_readiness' in (legacyVmGate ?? {})) {
     throw new Error('Legacy Full VM mirror must not expose release-blocking readiness');
   }
+  assertDeepEqualJson(
+    hostedLinux,
+    {
+      id: 'linux_x64_same_artifact_install_smoke',
+      workflow: '.github/workflows/release-post-publication-certification.yml',
+      runner: 'ubuntu-latest',
+      platform: 'linux-x64',
+      artifact: 'One-Person-Lab-<version>-linux-x64.deb',
+      installer: 'opl-app-installer.sh',
+      installer_arguments: ['--desktop', '--release-tag', '<exact-tag>', '--no-open'],
+      component_manifest_binding_required: true,
+      same_app_shell_framework_cohort_required: true,
+      typed_admission_schema: 'opl_app_optional_certification_hosted_admission.v1',
+      typed_execution_evidence_schema: 'opl_app_linux_same_artifact_install_evidence.v1',
+      clean_machine_preinstall_absence_required: true,
+      installed_executable_byte_parity_required: true,
+      failed_download_evidence_truthful_required: true,
+      terminal_statuses: ['passed', 'failed'],
+      unavailable_allowed: false,
+      downloaded_from_published_release_required: true,
+      rebuilt_allowed: false,
+      failure_receipt_uploaded_before_job_failure: true,
+      gate_policy: 'optional_non_blocking_same_published_artifact',
+      required_for_publication_or_latest: false,
+    },
+    'GitHub-hosted Linux x64 same-artifact optional certification',
+  );
 
   const stableValidation = releaseChannel?.release_validation_profiles?.stable;
   const nightlyValidation = releaseChannel?.release_validation_profiles?.nightly_standard;
@@ -1021,6 +1049,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths) {
       'full_dmg_clean_vm_smoke',
     ],
     'Stable post-publication optional certification surfaces',
+  );
+  assertDeepEqualJson(
+    stableValidation?.hosted_post_publication_optional_certification_surfaces,
+    ['linux_x64_same_artifact_install_smoke'],
+    'Stable hosted post-publication optional certification surfaces',
   );
   if (
     stableValidation?.addon_gate_blocking_standard_terminal !== false ||

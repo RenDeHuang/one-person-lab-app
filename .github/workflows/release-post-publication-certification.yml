@@ -32,6 +32,10 @@ jobs:
       tag: ${{ steps.identity.outputs.tag }}
       artifact_name: ${{ steps.identity.outputs.artifact_name }}
       artifact_digest: ${{ steps.identity.outputs.artifact_digest }}
+      linux_artifact_name: ${{ steps.identity.outputs.linux_artifact_name }}
+      linux_artifact_digest: ${{ steps.identity.outputs.linux_artifact_digest }}
+      installer_name: ${{ steps.identity.outputs.installer_name }}
+      installer_digest: ${{ steps.identity.outputs.installer_digest }}
       component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
       app_sha: ${{ steps.identity.outputs.app_sha }}
       shell_sha: ${{ steps.identity.outputs.shell_sha }}
@@ -170,6 +174,38 @@ jobs:
           artifact_name="$(jq -er .primary_artifact.name public-component-manifest.json)"
           artifact_digest="$(jq -er .primary_artifact.digest public-component-manifest.json)"
           artifact_size="$(jq -er .primary_artifact.size public-component-manifest.json)"
+          linux_artifact_name="One-Person-Lab-${version}-linux-x64.deb"
+          installer_name="opl-app-installer.sh"
+          linux_artifact_digest="$(
+            jq -er --arg name "$linux_artifact_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
+              public-component-manifest.json
+          )"
+          linux_artifact_size="$(
+            jq -er --arg name "$linux_artifact_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].size' \
+              public-component-manifest.json
+          )"
+          linux_artifact_ref="$(
+            jq -er --arg name "$linux_artifact_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].ref' \
+              public-component-manifest.json
+          )"
+          installer_digest="$(
+            jq -er --arg name "$installer_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
+              public-component-manifest.json
+          )"
+          installer_size="$(
+            jq -er --arg name "$installer_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].size' \
+              public-component-manifest.json
+          )"
+          installer_ref="$(
+            jq -er --arg name "$installer_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].ref' \
+              public-component-manifest.json
+          )"
           jq -e \
             --arg app_sha "$app_sha" \
             --arg shell_sha "$shell_sha" \
@@ -182,20 +218,408 @@ jobs:
           test "$artifact_name" = "One-Person-Lab-${version}-mac-arm64.dmg"
           [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$artifact_size" =~ ^[1-9][0-9]*$ ]]
+          [[ "$linux_artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$linux_artifact_size" =~ ^[1-9][0-9]*$ ]]
+          [[ "$installer_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$installer_size" =~ ^[1-9][0-9]*$ ]]
+          test "$linux_artifact_ref" = "$release_base/$linux_artifact_name"
+          test "$installer_ref" = "$release_base/$installer_name"
           jq -e --arg name "$artifact_name" --argjson size "$artifact_size" '
             [.assets[] | select(.name == $name and .size == $size)] | length == 1
           ' public-release.json >/dev/null
+          jq -e \
+            --arg linux_name "$linux_artifact_name" \
+            --arg linux_digest "$linux_artifact_digest" \
+            --argjson linux_size "$linux_artifact_size" \
+            --arg installer_name "$installer_name" \
+            --arg installer_digest "$installer_digest" \
+            --argjson installer_size "$installer_size" '
+            ([.assets[] | select(
+              .name == $linux_name
+              and .digest == $linux_digest
+              and .size == $linux_size
+            )] | length == 1)
+            and ([.assets[] | select(
+              .name == $installer_name
+              and .digest == $installer_digest
+              and .size == $installer_size
+            )] | length == 1)
+          ' public-release.json >/dev/null
+          curl --fail --location --retry 0 \
+            "$linux_artifact_ref" \
+            --output public-linux-artifact.deb
+          test "sha256:$(sha256sum public-linux-artifact.deb | awk '{print $1}')" = "$linux_artifact_digest"
+          curl --fail --location --retry 0 \
+            "$installer_ref" \
+            --output public-opl-app-installer.sh
+          test "sha256:$(sha256sum public-opl-app-installer.sh | awk '{print $1}')" = "$installer_digest"
+          bash -n public-opl-app-installer.sh
           component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
           {
             echo "eligible=true"
             echo "tag=$tag"
             echo "artifact_name=$artifact_name"
             echo "artifact_digest=$artifact_digest"
+            echo "linux_artifact_name=$linux_artifact_name"
+            echo "linux_artifact_digest=$linux_artifact_digest"
+            echo "installer_name=$installer_name"
+            echo "installer_digest=$installer_digest"
             echo "component_manifest_digest=$component_manifest_digest"
             echo "app_sha=$app_sha"
             echo "shell_sha=$shell_sha"
             echo "framework_sha=$framework_sha"
           } >> "$GITHUB_OUTPUT"
+
+  certify-linux-x64:
+    if: ${{ needs.resolve-standard.outputs.eligible == 'true' }}
+    needs: [resolve-standard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout exact Stable source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Run exact published Linux Desktop installer
+        id: certification
+        continue-on-error: true
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
+          LINUX_ARTIFACT_NAME: ${{ needs.resolve-standard.outputs.linux_artifact_name }}
+          LINUX_ARTIFACT_DIGEST: ${{ needs.resolve-standard.outputs.linux_artifact_digest }}
+          INSTALLER_NAME: ${{ needs.resolve-standard.outputs.installer_name }}
+          INSTALLER_DIGEST: ${{ needs.resolve-standard.outputs.installer_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-standard.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          evidence_dir=linux-certification-evidence
+          download_dir="$evidence_dir/downloads"
+          admission="$evidence_dir/hosted-admission.json"
+          summary="$evidence_dir/linux-install-summary.json"
+          installer_log="$evidence_dir/installer.log"
+          installer_path="$download_dir/$INSTALLER_NAME"
+          linux_artifact_path="$download_dir/$LINUX_ARTIFACT_NAME"
+          component_manifest="$download_dir/opl-app-component-manifest.json"
+          mkdir -p "$download_dir"
+          printf '%s\n' 'OPL GitHub-hosted Linux same-artifact installer output' > "$installer_log"
+
+          jq -n \
+            --arg run "$SOURCE_RUN_ID" \
+            --arg tag "$RELEASE_TAG" \
+            --arg artifact_name "$LINUX_ARTIFACT_NAME" \
+            --arg artifact_digest "$LINUX_ARTIFACT_DIGEST" \
+            --arg installer_name "$INSTALLER_NAME" \
+            --arg installer_digest "$INSTALLER_DIGEST" \
+            --arg component_manifest_digest "$COMPONENT_MANIFEST_DIGEST" \
+            --arg app_sha "$APP_SHA" \
+            --arg shell_sha "$SHELL_SHA" \
+            --arg framework_sha "$FRAMEWORK_SHA" \
+            '{
+              schema:"opl_app_optional_certification_hosted_admission.v1",
+              status:"passed",
+              reason_code:null,
+              runner_environment:"github-hosted-ubuntu",
+              platform:"linux",
+              architecture:"x64",
+              source_run_id:$run,
+              release_tag:$tag,
+              artifact:{name:$artifact_name,digest:$artifact_digest},
+              installer:{name:$installer_name,digest:$installer_digest},
+              component_manifest_digest:$component_manifest_digest,
+              cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}
+            }' > "$admission"
+
+          status=failed
+          failure_stage=download_component_manifest
+          installer_invoked=false
+          installer_exit_code=null
+          package_name=''
+          expected_package_version=''
+          expected_package_architecture=''
+          package_version=''
+          package_architecture=''
+          installed_status=''
+          preinstall_package_absent=false
+          linux_artifact_downloaded=false
+          installer_downloaded=false
+          installed_executable=''
+          expected_executable_digest=''
+          installed_executable_digest=''
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}"
+
+          run_certification() {
+            curl --fail --location --retry 0 \
+              "$release_base/opl-app-component-manifest.json" \
+              --output "$component_manifest" || return 10
+
+            failure_stage=verify_component_manifest
+            node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+              --manifest "$component_manifest" \
+              --expected-tag "$RELEASE_TAG" \
+              --release-prerelease false \
+              --expected-source-commit "$APP_SHA" \
+              > "$evidence_dir/component-manifest-identity.json" || return 11
+            jq -e \
+              --arg component_manifest_digest "$COMPONENT_MANIFEST_DIGEST" \
+              --arg linux_name "$LINUX_ARTIFACT_NAME" \
+              --arg linux_digest "$LINUX_ARTIFACT_DIGEST" \
+              --arg installer_name "$INSTALLER_NAME" \
+              --arg installer_digest "$INSTALLER_DIGEST" \
+              --arg app_sha "$APP_SHA" \
+              --arg shell_sha "$SHELL_SHA" \
+              --arg framework_sha "$FRAMEWORK_SHA" \
+              --arg release_base "$release_base" '
+              .component_manifest_digest == $component_manifest_digest
+              and .source_cohort == {
+                app_sha:$app_sha,
+                shell_sha:$shell_sha,
+                framework_sha:$framework_sha
+              }
+              and ([.artifacts[] | select(
+                .name == $linux_name
+                and .digest == $linux_digest
+                and .ref == ($release_base + "/" + $linux_name)
+              )] | length == 1)
+              and ([.artifacts[] | select(
+                .name == $installer_name
+                and .digest == $installer_digest
+                and .ref == ($release_base + "/" + $installer_name)
+              )] | length == 1)
+            ' "$component_manifest" >/dev/null || return 12
+
+            failure_stage=download_linux_artifact
+            curl --fail --location --retry 0 \
+              "$release_base/$LINUX_ARTIFACT_NAME" \
+              --output "$linux_artifact_path" || return 13
+            linux_artifact_downloaded=true
+            test "sha256:$(sha256sum "$linux_artifact_path" | awk '{print $1}')" = "$LINUX_ARTIFACT_DIGEST" || return 14
+            package_name="$(dpkg-deb -f "$linux_artifact_path" Package 2>/dev/null)" || return 15
+            test -n "$package_name" || return 16
+            expected_package_version="$(dpkg-deb -f "$linux_artifact_path" Version 2>/dev/null)" || return 17
+            expected_package_architecture="$(dpkg-deb -f "$linux_artifact_path" Architecture 2>/dev/null)" || return 18
+            test -n "$expected_package_version" || return 19
+            test "$expected_package_architecture" = amd64 || return 20
+
+            failure_stage=preinstall_package_state
+            if dpkg-query -W -f='${db:Status-Abbrev}\n' "$package_name" >/dev/null 2>&1; then
+              return 31
+            fi
+            preinstall_package_absent=true
+
+            failure_stage=download_installer
+            curl --fail --location --retry 0 \
+              "$release_base/$INSTALLER_NAME" \
+              --output "$installer_path" || return 21
+            installer_downloaded=true
+            test "sha256:$(sha256sum "$installer_path" | awk '{print $1}')" = "$INSTALLER_DIGEST" || return 22
+            bash -n "$installer_path" || return 23
+            chmod 0755 "$installer_path"
+
+            failure_stage=invoke_installer
+            installer_invoked=true
+            bash "$installer_path" --desktop --release-tag "$RELEASE_TAG" --no-open \
+              >> "$installer_log" 2>&1
+            installer_exit_code=$?
+            test "$installer_exit_code" -eq 0 || return 24
+
+            failure_stage=installed_package_readback
+            installed_readback="$(
+              dpkg-query -W -f='${db:Status-Abbrev}\t${Version}\t${Architecture}\n' "$package_name" 2>/dev/null
+            )" || return 25
+            installed_status="${installed_readback%%	*}"
+            installed_status="${installed_status//[[:space:]]/}"
+            readback_tail="${installed_readback#*	}"
+            package_version="${readback_tail%%	*}"
+            package_architecture="${readback_tail#*	}"
+            test "$installed_status" = ii || return 26
+            test "$package_version" = "$expected_package_version" || return 27
+            test "$package_architecture" = "$expected_package_architecture" || return 28
+            while IFS= read -r candidate; do
+              case "$(basename "$candidate")" in
+                'One Person Lab'|one-person-lab|aionui)
+                  if [ -f "$candidate" ] && [ -x "$candidate" ]; then
+                    installed_executable="$candidate"
+                    break
+                  fi
+                  ;;
+              esac
+            done < <(dpkg -L "$package_name" 2>/dev/null | LC_ALL=C sort)
+            test -n "$installed_executable" || return 29
+            installed_executable_digest="sha256:$(sha256sum "$installed_executable" | awk '{print $1}')"
+            [[ "$installed_executable_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || return 30
+
+            failure_stage=installed_executable_byte_parity
+            extracted_package="$evidence_dir/extracted-package"
+            mkdir -p "$extracted_package"
+            dpkg-deb -x "$linux_artifact_path" "$extracted_package" || return 32
+            expected_executable="$extracted_package$installed_executable"
+            test -f "$expected_executable" || return 33
+            expected_executable_digest="sha256:$(sha256sum "$expected_executable" | awk '{print $1}')"
+            test "$installed_executable_digest" = "$expected_executable_digest" || return 34
+            status=passed
+            failure_stage=complete
+            return 0
+          }
+
+          run_certification
+          certification_exit_code=$?
+          if [ "$status" != passed ]; then
+            status=failed
+            if [ "$installer_invoked" = true ] && [ "$installer_exit_code" = null ]; then
+              installer_exit_code="$certification_exit_code"
+            fi
+          fi
+
+          jq -n \
+            --arg status "$status" \
+            --arg failure_stage "$failure_stage" \
+            --argjson certification_exit_code "$certification_exit_code" \
+            --argjson installer_invoked "$installer_invoked" \
+            --argjson installer_exit_code "$installer_exit_code" \
+            --arg release_tag "$RELEASE_TAG" \
+            --arg artifact_name "$LINUX_ARTIFACT_NAME" \
+            --arg artifact_digest "$LINUX_ARTIFACT_DIGEST" \
+            --arg installer_name "$INSTALLER_NAME" \
+            --arg installer_digest "$INSTALLER_DIGEST" \
+            --arg component_manifest_digest "$COMPONENT_MANIFEST_DIGEST" \
+            --arg package_name "$package_name" \
+            --arg expected_package_version "$expected_package_version" \
+            --arg expected_package_architecture "$expected_package_architecture" \
+            --arg package_version "$package_version" \
+            --arg package_architecture "$package_architecture" \
+            --arg installed_status "$installed_status" \
+            --arg installed_executable "$installed_executable" \
+            --arg expected_executable_digest "$expected_executable_digest" \
+            --arg installed_executable_digest "$installed_executable_digest" \
+            --arg app_sha "$APP_SHA" \
+            --arg shell_sha "$SHELL_SHA" \
+            --arg framework_sha "$FRAMEWORK_SHA" \
+            --argjson preinstall_package_absent "$preinstall_package_absent" \
+            --argjson linux_artifact_downloaded "$linux_artifact_downloaded" \
+            --argjson installer_downloaded "$installer_downloaded" \
+            '{
+              schema:"opl_app_linux_same_artifact_install_evidence.v1",
+              status:$status,
+              failure_stage:$failure_stage,
+              certification_exit_code:$certification_exit_code,
+              platform:"linux",
+              architecture:"x64",
+              runner_environment:"github-hosted-ubuntu",
+              release_tag:$release_tag,
+              artifact:{
+                name:$artifact_name,
+                digest:$artifact_digest,
+                downloaded_from_published_release:$linux_artifact_downloaded
+              },
+              installer:{
+                name:$installer_name,
+                digest:$installer_digest,
+                downloaded_from_published_release:$installer_downloaded,
+                invoked:$installer_invoked,
+                exit_code:$installer_exit_code
+              },
+              component_manifest_digest:$component_manifest_digest,
+              cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha},
+              rebuilt:false,
+              preinstall_package_absent:$preinstall_package_absent,
+              installed_package:{
+                name:(if $package_name == "" then null else $package_name end),
+                expected_version:(if $expected_package_version == "" then null else $expected_package_version end),
+                expected_architecture:(if $expected_package_architecture == "" then null else $expected_package_architecture end),
+                version:(if $package_version == "" then null else $package_version end),
+                architecture:(if $package_architecture == "" then null else $package_architecture end),
+                dpkg_status:(if $installed_status == "" then null else $installed_status end),
+                executable_path:(if $installed_executable == "" then null else $installed_executable end),
+                expected_executable_digest:(if $expected_executable_digest == "" then null else $expected_executable_digest end),
+                executable_digest:(if $installed_executable_digest == "" then null else $installed_executable_digest end)
+              }
+            }' > "$summary"
+          {
+            echo "status=$status"
+            echo "certification_exit_code=$certification_exit_code"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Write exact Linux same-artifact certification receipt
+        if: ${{ always() }}
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
+          LINUX_ARTIFACT_NAME: ${{ needs.resolve-standard.outputs.linux_artifact_name }}
+          LINUX_ARTIFACT_DIGEST: ${{ needs.resolve-standard.outputs.linux_artifact_digest }}
+          INSTALLER_NAME: ${{ needs.resolve-standard.outputs.installer_name }}
+          INSTALLER_DIGEST: ${{ needs.resolve-standard.outputs.installer_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-standard.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+          CERTIFICATION_STATUS: ${{ steps.certification.outputs.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$CERTIFICATION_STATUS" in
+            passed|failed) ;;
+            *) echo "::error::Linux certification did not return one executed terminal status."; exit 1 ;;
+          esac
+          node --experimental-strip-types scripts/write-optional-certification-receipt.ts \
+            --release-tag "$RELEASE_TAG" \
+            --artifact-name "$LINUX_ARTIFACT_NAME" \
+            --artifact-digest "$LINUX_ARTIFACT_DIGEST" \
+            --installer-name "$INSTALLER_NAME" \
+            --installer-digest "$INSTALLER_DIGEST" \
+            --component-manifest-digest "$COMPONENT_MANIFEST_DIGEST" \
+            --app-sha "$APP_SHA" \
+            --shell-sha "$SHELL_SHA" \
+            --framework-sha "$FRAMEWORK_SHA" \
+            --source-run-id "$SOURCE_RUN_ID" \
+            --status "$CERTIFICATION_STATUS" \
+            --certification-kind clean_machine_install \
+            --platform linux \
+            --capability github-hosted-ubuntu-x64 \
+            --admission-evidence-file linux-certification-evidence/hosted-admission.json \
+            --certification-run-id "$GITHUB_RUN_ID" \
+            --evidence-file linux-certification-evidence/linux-install-summary.json \
+            --output linux-x64-same-artifact-install.json
+          node --experimental-strip-types scripts/validate-optional-certification-receipt.ts \
+            --receipt linux-x64-same-artifact-install.json \
+            --release-tag "$RELEASE_TAG" \
+            --artifact-name "$LINUX_ARTIFACT_NAME" \
+            --artifact-digest "$LINUX_ARTIFACT_DIGEST" \
+            --installer-name "$INSTALLER_NAME" \
+            --installer-digest "$INSTALLER_DIGEST" \
+            --component-manifest-digest "$COMPONENT_MANIFEST_DIGEST" \
+            --app-sha "$APP_SHA" \
+            --shell-sha "$SHELL_SHA" \
+            --framework-sha "$FRAMEWORK_SHA" \
+            --source-run-id "$SOURCE_RUN_ID"
+
+      - name: Upload recoverable Linux certification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-post-publication-linux-x64-certification-${{ github.event.workflow_run.id }}
+          path: |
+            linux-x64-same-artifact-install.json
+            linux-certification-evidence
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail after preserving Linux certification evidence
+        if: ${{ always() && steps.certification.outputs.status == 'failed' }}
+        shell: bash
+        run: |
+          echo "::error::Linux x64 same-artifact post-publication installation failed; receipt and evidence were uploaded."
+          exit 1
 
   admit-standard-vm:
     if: ${{ needs.resolve-standard.outputs.eligible == 'true' }}
