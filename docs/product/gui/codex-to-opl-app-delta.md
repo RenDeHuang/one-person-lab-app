@@ -121,9 +121,10 @@ Workspace/managed target 同样只看 exact owner-projected action 的 `required
 不得自行解析 manifest 后增加启动条件。
 
 目标审计证据归实际执行 owner：activation result 的 `use_receipt_ref` 或 launch/route
-ref 都是可选 owner projection，缺失不构成普通启动前提。当前 App-owned Package
-invocation receipt 是迁移兼容面；Phase 2 在 consumer-zero 后删除它。无论迁移前后，
-receipt 都不证明 binding、closure、domain readiness 或 release readiness。
+ref 都是可选 owner projection，缺失不构成普通启动前提。App 产品合同不拥有 Package
+invocation receipt，first-run expectation 明确不要求 successful invocation receipt，
+active-shell validator 也禁止恢复私有 Agent route receipt policy。owner 投影的可选 receipt
+仍不证明 binding、closure、domain readiness 或 release readiness。
 
 ### OPL Feature Preservation Gate
 

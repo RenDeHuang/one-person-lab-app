@@ -48,8 +48,8 @@ jobs:
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .path == ".github/workflows/release-stable.yml"
             and .event == "workflow_dispatch"
-            and (.head_branch | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
-            and (.display_title | test("^OPL Stable append_full [1-9][0-9]*$"))
+            and .head_branch == "main"
+            and (.display_title | test("^OPL Stable append_full source:[1-9][0-9]* run:[1-9][0-9]*$"))
             and .run_attempt == 1
             and .status == "completed"
             and .conclusion == "success"
@@ -110,6 +110,8 @@ jobs:
             and .source.completed_stage == "full_qualified"
             and (.source.qualification_receipt_sha256 | test("^sha256:[0-9a-f]{64}$"))
             and (.release.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.release.base_tag | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+            and (.release.adjunct_tag | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?-full-[0-9a-f]{12}$"))
             and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
             and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
             and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
@@ -119,8 +121,17 @@ jobs:
             and .homebrew_modified == false
             and .latest_modified == false
           ' "$handoff" >/dev/null
-          test "$(jq -er .release.tag "$handoff")" = "$head_branch"
-          test "$(jq -er .release.cohort.app_sha "$handoff")" = "$head_sha"
+          test "$head_branch" = main
+          base_tag="$(jq -er .release.base_tag "$handoff")"
+          adjunct_tag="$(jq -er .release.adjunct_tag "$handoff")"
+          case "$adjunct_tag" in
+            "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+              ;;
+            *)
+              echo "::error::Full adjunct tag is not derived from the admitted Standard base tag."
+              exit 1
+              ;;
+          esac
           handoff_sha="sha256:$(shasum -a 256 "$handoff" | awk '{print $1}')"
           handoff_base64="$(base64 < "$handoff" | tr -d '\n')"
           {

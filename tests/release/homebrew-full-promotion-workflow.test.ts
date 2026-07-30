@@ -20,6 +20,8 @@ test('append_full exports exact qualification-bound handoff without mutating Hom
     'transport_run_id',
     'completed_stage:"full_qualified"',
     'qualification_receipt_sha256',
+    'base_tag:$base_tag',
+    'adjunct_tag:$adjunct_tag',
     'homebrew_modified:false',
     'latest_modified:false',
     'homebrew-full-handoff.json',
@@ -45,10 +47,13 @@ test('Full Homebrew follower has no manual or direct mutation entry', () => {
   assert.match(source, /\.source\.completed_stage == "full_qualified"/);
   assert.match(source, /\.source\.checkpoint_transport_executor == "github_actions"/);
   assert.match(source, /\.source\.transport_run_id/);
-  assert.match(source, /\.head_branch \| test\("\^v/);
-  assert.match(source, /\^OPL Stable append_full/);
-  assert.match(source, /test "\$\(jq -er \.release\.tag "\$handoff"\)" = "\$head_branch"/);
-  assert.match(source, /test "\$\(jq -er \.release\.cohort\.app_sha "\$handoff"\)" = "\$head_sha"/);
+  assert.match(source, /\.head_branch == "main"/);
+  assert.match(source, /\^OPL Stable append_full source:/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.base_tag "\$handoff"\)"/);
+  assert.match(source, /adjunct_tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
+  assert.match(source, /"\$base_tag"-full-/);
+  assert.doesNotMatch(source, /\.release\.tag/);
+  assert.doesNotMatch(source, /test "\$\(jq -er \.release\.cohort\.app_sha "\$handoff"\)" = "\$head_sha"/);
   assert.doesNotMatch(source, /workflow_dispatch:|OPL_HOMEBREW_TAP_TOKEN|git\b[^\n]*\bpush\b/);
 });
 
@@ -99,6 +104,15 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
   );
   assert.match(source, /qualification_receipt_sha256:\$qualification_sha/);
   assert.match(source, /cohort:\{app_sha:\$app_sha,shell_sha:\$shell_sha,framework_sha:\$framework_sha\}/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.base_tag handoff\.json\)"/);
+  assert.match(source, /adjunct_tag="\$\(jq -er \.release\.adjunct_tag handoff\.json\)"/);
+  assert.match(source, /releases\/tags\/\$adjunct_tag/);
+  assert.match(source, /\.tag_name == \$tag/);
+  assert.match(source, /\.target_commitish == \$app/);
+  assert.match(source, /\.browser_download_url == \$dmg_url/);
+  assert.match(source, /\.browser_download_url == \$manifest_url/);
+  assert.match(source, /needs\.prepare-candidate\.outputs\.adjunct_tag/);
+  assert.doesNotMatch(source, /jq -er \.release\.tag handoff\.json/);
   assert.doesNotMatch(source, /depends_on formula: "opl"|github-activate-latest|make_latest/);
 });
 

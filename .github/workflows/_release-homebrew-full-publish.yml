@@ -50,7 +50,8 @@ jobs:
       bundle_digest: ${{ steps.identity.outputs.bundle_digest }}
       version: ${{ steps.identity.outputs.version }}
       updater_version: ${{ steps.identity.outputs.updater_version }}
-      tag: ${{ steps.identity.outputs.tag }}
+      base_tag: ${{ steps.identity.outputs.base_tag }}
+      adjunct_tag: ${{ steps.identity.outputs.adjunct_tag }}
       app_sha: ${{ steps.identity.outputs.app_sha }}
       shell_sha: ${{ steps.identity.outputs.shell_sha }}
       framework_sha: ${{ steps.identity.outputs.framework_sha }}
@@ -102,7 +103,16 @@ jobs:
           bundle_digest="$(jq -er .release.bundle_digest handoff.json)"
           version="$(jq -er .release.version handoff.json)"
           updater_version="$(jq -er .release.updater_version handoff.json)"
-          tag="$(jq -er .release.tag handoff.json)"
+          base_tag="$(jq -er .release.base_tag handoff.json)"
+          adjunct_tag="$(jq -er .release.adjunct_tag handoff.json)"
+          case "$adjunct_tag" in
+            "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+              ;;
+            *)
+              echo "::error::Full adjunct tag is not derived from the admitted Standard base tag."
+              exit 1
+              ;;
+          esac
           app_sha="$(jq -er .release.cohort.app_sha handoff.json)"
           shell_sha="$(jq -er .release.cohort.shell_sha handoff.json)"
           framework_sha="$(jq -er .release.cohort.framework_sha handoff.json)"
@@ -120,15 +130,31 @@ jobs:
           manifest_sha="$(jq -er .manifest.sha256 handoff.json)"
           dmg_name="$(jq -er .artifact.name handoff.json)"
           dmg_size="$(jq -er .artifact.size_bytes handoff.json)"
+          dmg_url="$(jq -er .artifact.url handoff.json)"
           manifest_name="$(jq -er .manifest.name handoff.json)"
           manifest_size="$(jq -er .manifest.size_bytes handoff.json)"
+          manifest_url="$(jq -er .manifest.url handoff.json)"
           qualification_sha="$(jq -er .source.qualification_receipt_sha256 handoff.json)"
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > release.json
-          jq -e --arg dmg "$(jq -er .artifact.name handoff.json)" --arg dmg_sha "$dmg_sha" \
-            --arg manifest "$(jq -er .manifest.name handoff.json)" --arg manifest_sha "$manifest_sha" '
-            .draft == false and .prerelease == false
-            and ([.assets[] | select(.name == $dmg and .digest == $dmg_sha)] | length == 1)
-            and ([.assets[] | select(.name == $manifest and .digest == $manifest_sha)] | length == 1)
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$adjunct_tag" > release.json
+          jq -e --arg tag "$adjunct_tag" --arg app "$app_sha" \
+            --arg dmg "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" --arg dmg_url "$dmg_url" \
+            --arg manifest "$manifest_name" --arg manifest_sha "$manifest_sha" \
+            --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
+            .tag_name == $tag
+            and .draft == false and .prerelease == false
+            and .target_commitish == $app
+            and ([.assets[] | select(
+              .name == $dmg
+              and .digest == $dmg_sha
+              and .size == $dmg_size
+              and .browser_download_url == $dmg_url
+            )] | length == 1)
+            and ([.assets[] | select(
+              .name == $manifest
+              and .digest == $manifest_sha
+              and .size == $manifest_size
+              and .browser_download_url == $manifest_url
+            )] | length == 1)
           ' release.json >/dev/null
           git clone --depth=1 https://github.com/gaofeng21cn/homebrew-one-person-lab.git tap-source
           tap_base_commit="$(git -C tap-source rev-parse HEAD)"
@@ -136,8 +162,8 @@ jobs:
             --channel stable --package-kind app_full_first_install \
             --version "$version" --updater-version "$updater_version" \
             --tap-root tap-source --cask Casks/one-person-lab-full.rb \
-            --manifest-url "$(jq -er .manifest.url handoff.json)" \
-            --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$(jq -er .artifact.url handoff.json)" \
+            --manifest-url "$manifest_url" \
+            --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$dmg_url" \
             --remote-write-mode inspect_only --summary-path homebrew-full-plan.json >/dev/null
           test "$(jq -r .schema homebrew-full-plan.json)" = opl_homebrew_tap_cas_plan.v1
           test "$(jq -r .policy.formula_dependency_required homebrew-full-plan.json)" = false
@@ -156,8 +182,8 @@ jobs:
               --channel stable --package-kind app_full_first_install \
               --version "$version" --updater-version "$updater_version" \
               --tap-root tap-source --cask Casks/one-person-lab-full.rb \
-              --manifest-url "$(jq -er .manifest.url handoff.json)" \
-              --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$(jq -er .artifact.url handoff.json)" \
+              --manifest-url "$manifest_url" \
+              --checksum-sha256 "${dmg_sha#sha256:}" --download-url "$dmg_url" \
               --remote-write-mode direct_commit --expected-current-cask-sha256 "$current_cask_sha" \
               --summary-path homebrew-full-candidate.json --write >/dev/null
           fi
@@ -171,7 +197,8 @@ jobs:
             echo "bundle_digest=$bundle_digest"
             echo "version=$version"
             echo "updater_version=$updater_version"
-            echo "tag=$tag"
+            echo "base_tag=$base_tag"
+            echo "adjunct_tag=$adjunct_tag"
             echo "app_sha=$app_sha"
             echo "shell_sha=$shell_sha"
             echo "framework_sha=$framework_sha"
@@ -290,9 +317,9 @@ jobs:
           framework-executor/bin/opl release operation admit \
             --bundle "$bundle_digest" "${operation_args[@]}" \
             --store "$store" --json > homebrew-full-operation-admit.json
-          github_remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.prepare-candidate.outputs.tag }}"
+          github_remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.prepare-candidate.outputs.adjunct_tag }}"
           node --experimental-strip-types scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.prepare-candidate.outputs.tag }}' \
+            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.prepare-candidate.outputs.adjunct_tag }}' \
             --output homebrew-full-github-assets.json
           node --experimental-strip-types scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-homebrew-full-github-assets" \
@@ -519,7 +546,7 @@ jobs:
           test "$remote_commit" = "$result_commit"
           remote_cask="$(curl -fsSL "https://raw.githubusercontent.com/gaofeng21cn/homebrew-one-person-lab/${result_commit}/Casks/one-person-lab-full.rb")"
           test "sha256:$(printf '%s\n' "$remote_cask" | shasum -a 256 | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.prepare-candidate.outputs.tag }}" > release.json
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.prepare-candidate.outputs.adjunct_tag }}" > release.json
           jq -e --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' '
             ([.assets[] | select(.digest == $dmg)] | length == 1)
             and ([.assets[] | select(.digest == $manifest)] | length == 1)

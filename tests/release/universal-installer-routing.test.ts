@@ -30,6 +30,20 @@ test('personal hosts install one platform Desktop payload by default', () => {
   assert.equal(route('Linux', 'x86_64').stdout.trim(), 'linux-desktop');
 });
 
+test('explicit Desktop density reaches the platform carrier and unsupported Linux Full fails closed', () => {
+  assert.equal(route('Darwin', 'arm64', ['--standard']).stdout.trim(), 'desktop-standard');
+  assert.equal(route('Darwin', 'arm64', ['--full']).stdout.trim(), 'desktop-full');
+  assert.equal(route('Linux', 'x86_64', ['--standard']).stdout.trim(), 'linux-desktop-standard');
+
+  const linuxFull = route('Linux', 'x86_64', ['--full']);
+  assert.notEqual(linuxFull.status, 0);
+  assert.equal(linuxFull.stdout, '');
+  assert.match(
+    linuxFull.stderr,
+    /Full Desktop density is not published for Linux x86_64; use --standard/,
+  );
+});
+
 test('WebUI mode reuses packaged Desktop bytes and native-webui is only its deprecated alias', () => {
   const webui = route('Linux', 'x86_64', ['--webui']);
   const alias = route('Linux', 'x86_64', ['--native-webui']);
@@ -57,5 +71,8 @@ test('the universal installer has no Native tarball discovery or verifier fallba
   const source = fs.readFileSync(installerPath, 'utf8');
   assert.match(source, /One-Person-Lab-\$\{version\}-linux-x64\.deb/);
   assert.match(source, /Component manifest does not bind the exact Linux Desktop package/);
+  assert.match(source, /desktop_release_asset_selection_requested/);
+  assert.match(source, /validate_install_density_for_route "\$SELECTED_INSTALL_ROUTE"/);
+  assert.match(source, /if desktop_release_asset_selection_requested; then\s+stable_macos_install/);
   assert.doesNotMatch(source, /OPL_NATIVE_WEBUI_|install-web\.sh|native-webui-qualified/);
 });

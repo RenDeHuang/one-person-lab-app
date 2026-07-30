@@ -25,6 +25,13 @@ const expected: OptionalCertificationExpectation = {
   frameworkSha: '3'.repeat(40),
   sourceRunId: '30260000001',
 };
+const linuxExpected: OptionalCertificationExpectation = {
+  ...expected,
+  artifactName: 'One-Person-Lab-26.7.27-r1-linux-x64.deb',
+  artifactDigest: digest('e'),
+  installerName: 'opl-app-installer.sh',
+  installerDigest: digest('f'),
+};
 
 function seal(receipt: Record<string, any>): Record<string, any> {
   const core = Object.fromEntries(Object.entries(receipt).filter(([key]) => key !== 'receipt_digest'));
@@ -121,6 +128,85 @@ function unavailableCapabilityAdmission(
   };
 }
 
+function hostedLinuxAdmission(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    schema: 'opl_app_optional_certification_hosted_admission.v1',
+    status: 'passed',
+    reason_code: null,
+    runner_environment: 'github-hosted-ubuntu',
+    platform: 'linux',
+    architecture: 'x64',
+    source_run_id: linuxExpected.sourceRunId,
+    release_tag: linuxExpected.releaseTag,
+    artifact: {
+      name: linuxExpected.artifactName,
+      digest: linuxExpected.artifactDigest,
+    },
+    installer: {
+      name: linuxExpected.installerName,
+      digest: linuxExpected.installerDigest,
+    },
+    component_manifest_digest: linuxExpected.componentManifestDigest,
+    cohort: {
+      app_sha: linuxExpected.appSha,
+      shell_sha: linuxExpected.shellSha,
+      framework_sha: linuxExpected.frameworkSha,
+    },
+    ...overrides,
+  };
+}
+
+function hostedLinuxExecution(
+  status: 'passed' | 'failed',
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const passed = status === 'passed';
+  return {
+    schema: 'opl_app_linux_same_artifact_install_evidence.v1',
+    status,
+    failure_stage: passed ? 'complete' : 'download_installer',
+    certification_exit_code: passed ? 0 : 21,
+    platform: 'linux',
+    architecture: 'x64',
+    runner_environment: 'github-hosted-ubuntu',
+    release_tag: linuxExpected.releaseTag,
+    artifact: {
+      name: linuxExpected.artifactName,
+      digest: linuxExpected.artifactDigest,
+      downloaded_from_published_release: true,
+    },
+    installer: {
+      name: linuxExpected.installerName,
+      digest: linuxExpected.installerDigest,
+      downloaded_from_published_release: passed,
+      invoked: passed,
+      exit_code: passed ? 0 : null,
+    },
+    component_manifest_digest: linuxExpected.componentManifestDigest,
+    cohort: {
+      app_sha: linuxExpected.appSha,
+      shell_sha: linuxExpected.shellSha,
+      framework_sha: linuxExpected.frameworkSha,
+    },
+    rebuilt: false,
+    preinstall_package_absent: true,
+    installed_package: {
+      name: 'one-person-lab',
+      expected_version: '26.7.27-r1',
+      expected_architecture: 'amd64',
+      version: passed ? '26.7.27-r1' : null,
+      architecture: passed ? 'amd64' : null,
+      dpkg_status: passed ? 'ii' : null,
+      executable_path: passed ? '/opt/One Person Lab/One Person Lab' : null,
+      expected_executable_digest: passed ? digest('9') : null,
+      executable_digest: passed ? digest('9') : null,
+    },
+    ...overrides,
+  };
+}
+
 function vmAdmissionFailureSummary(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
@@ -141,12 +227,188 @@ test('optional certification contract exposes exactly four distinct canonical st
     fs.readFileSync(path.join(appRoot, 'contracts/app-optional-certification-receipt.schema.json'), 'utf8'),
   );
   assert.deepEqual(schema.properties.status.enum, ['passed', 'failed', 'not_run', 'unavailable']);
+  assert.deepEqual(schema.properties.certification.properties.platform.enum, ['macos', 'linux', 'windows']);
   for (const status of ['passed', 'failed', 'not_run', 'unavailable'] as const) {
     const value = receipt(status);
     assert.deepEqual(validateOptionalCertificationReceipt(value, expected), []);
     assert.equal(projectOptionalCertificationStatus(value, expected), status);
   }
   assert.equal(projectOptionalCertificationStatus(null, expected), 'not_run');
+});
+
+test('hosted Linux receipt binds exact public DEB, installer, manifest, and cohort for passed or failed execution', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const admission = writeJson(root, 'hosted-admission.json', hostedLinuxAdmission());
+  for (const status of ['passed', 'failed'] as const) {
+    const execution = writeJson(
+      root,
+      `linux-install-summary-${status}.json`,
+      hostedLinuxExecution(status),
+    );
+    const value = writeOptionalCertificationReceipt({
+      expected: linuxExpected,
+      status,
+      certification: {
+        kind: 'clean_machine_install',
+        platform: 'linux',
+        capability: 'github-hosted-ubuntu-x64',
+      },
+      admissionEvidencePath: admission,
+      reasonCode: null,
+      certificationRunId: '30260000002',
+      evidencePaths: [execution],
+      createdAt: '2026-07-30T01:00:00.000Z',
+    });
+    assert.deepEqual(validateOptionalCertificationReceipt(value, linuxExpected), []);
+    assert.equal(value.status, status);
+    assert.equal(value.artifact_handling.downloaded_from_published_release, true);
+    assert.equal(value.artifact_handling.rebuilt, false);
+    assert.equal(value.artifact_handling.installer.downloaded_from_published_release, status === 'passed');
+    assert.equal(value.admission.status, 'passed');
+    assert.equal(value.admission.reason_code, null);
+    const missingInstallerExpectation = {
+      ...linuxExpected,
+      installerName: undefined,
+      installerDigest: undefined,
+    };
+    assert.ok(
+      validateOptionalCertificationReceipt(value, missingInstallerExpectation)
+        .includes('hosted Linux certification requires a passed typed admission and an executed passed or failed install'),
+    );
+  }
+});
+
+test('hosted Linux receipt rejects unavailable and non-exact admission identity', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const execution = writeJson(
+    root,
+    'linux-install-summary.json',
+    hostedLinuxExecution('failed'),
+  );
+  const admission = writeJson(root, 'hosted-admission.json', hostedLinuxAdmission());
+  assert.throws(
+    () => writeOptionalCertificationReceipt({
+      expected: linuxExpected,
+      status: 'unavailable',
+      certification: {
+        kind: 'clean_machine_install',
+        platform: 'linux',
+        capability: 'github-hosted-ubuntu-x64',
+      },
+      admissionEvidencePath: admission,
+      reasonCode: 'capability_admission_failed',
+      certificationRunId: '30260000002',
+      evidencePaths: [],
+      createdAt: '2026-07-30T01:00:00.000Z',
+    }),
+    /Hosted Linux certification supports only passed or failed/,
+  );
+
+  const invalidAdmission = writeJson(root, 'invalid-hosted-admission.json', hostedLinuxAdmission({
+    installer: {
+      name: 'opl-app-installer.sh',
+      digest: digest('0'),
+    },
+  }));
+  assert.throws(
+    () => writeOptionalCertificationReceipt({
+      expected: linuxExpected,
+      status: 'failed',
+      certification: {
+        kind: 'clean_machine_install',
+        platform: 'linux',
+        capability: 'github-hosted-ubuntu-x64',
+      },
+      admissionEvidencePath: invalidAdmission,
+      reasonCode: null,
+      certificationRunId: '30260000002',
+      evidencePaths: [execution],
+      createdAt: '2026-07-30T01:00:00.000Z',
+    }),
+    /exact typed GitHub-hosted Linux artifact admission/,
+  );
+});
+
+test('hosted Linux failed receipt preserves truthful pre-download handling', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const admission = writeJson(root, 'hosted-admission.json', hostedLinuxAdmission());
+  const execution = writeJson(
+    root,
+    'pre-download-failure.json',
+    hostedLinuxExecution('failed', {
+      failure_stage: 'download_linux_artifact',
+      certification_exit_code: 13,
+      artifact: {
+        name: linuxExpected.artifactName,
+        digest: linuxExpected.artifactDigest,
+        downloaded_from_published_release: false,
+      },
+    }),
+  );
+  const value = writeOptionalCertificationReceipt({
+    expected: linuxExpected,
+    status: 'failed',
+    certification: {
+      kind: 'clean_machine_install',
+      platform: 'linux',
+      capability: 'github-hosted-ubuntu-x64',
+    },
+    admissionEvidencePath: admission,
+    reasonCode: null,
+    certificationRunId: '30260000002',
+    evidencePaths: [execution],
+    createdAt: '2026-07-30T01:00:00.000Z',
+  });
+  assert.deepEqual(validateOptionalCertificationReceipt(value, linuxExpected), []);
+  assert.equal(value.artifact_handling.downloaded_from_published_release, false);
+  assert.equal(value.artifact_handling.installer.downloaded_from_published_release, false);
+});
+
+test('hosted Linux passed receipt rejects a non-clean prestate or installed executable byte drift', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-certification-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const admission = writeJson(root, 'hosted-admission.json', hostedLinuxAdmission());
+  const input = (executionPath: string) => ({
+    expected: linuxExpected,
+    status: 'passed' as const,
+    certification: {
+      kind: 'clean_machine_install' as const,
+      platform: 'linux' as const,
+      capability: 'github-hosted-ubuntu-x64',
+    },
+    admissionEvidencePath: admission,
+    reasonCode: null,
+    certificationRunId: '30260000002',
+    evidencePaths: [executionPath],
+    createdAt: '2026-07-30T01:00:00.000Z',
+  });
+  const dirtyPrestate = writeJson(
+    root,
+    'dirty-prestate.json',
+    hostedLinuxExecution('passed', { preinstall_package_absent: false }),
+  );
+  assert.throws(
+    () => writeOptionalCertificationReceipt(input(dirtyPrestate)),
+    /clean install with exact executable byte parity/,
+  );
+
+  const byteDrift = writeJson(
+    root,
+    'byte-drift.json',
+    hostedLinuxExecution('passed', {
+      installed_package: {
+        ...(hostedLinuxExecution('passed').installed_package as Record<string, unknown>),
+        executable_digest: digest('8'),
+      },
+    }),
+  );
+  assert.throws(
+    () => writeOptionalCertificationReceipt(input(byteDrift)),
+    /clean install with exact executable byte parity/,
+  );
 });
 
 test('not_run remains explicit non-execution and cannot masquerade as unavailable', () => {
@@ -157,6 +419,16 @@ test('not_run remains explicit non-execution and cannot masquerade as unavailabl
   assert.ok(
     validateOptionalCertificationReceipt(value, expected)
       .includes('not_run requires a typed non-execution reason'),
+  );
+});
+
+test('non-Linux executed certification still requires downloaded public artifact bytes', () => {
+  const value = receipt('failed');
+  value.artifact_handling.downloaded_from_published_release = false;
+  seal(value);
+  assert.ok(
+    validateOptionalCertificationReceipt(value, expected)
+      .includes('passed certification and non-Linux execution must download the published artifact'),
   );
 });
 
