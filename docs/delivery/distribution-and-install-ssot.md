@@ -209,6 +209,29 @@ qualification、Latest activation 或同制品 Standard install/readback 的 req
 optional ID 数组必须由 pre-issued authority 绑定并随 operation control/checkpoint 原样传递，
 不能由 follower 自行扩选。
 
+Linux x64 的发布后安装认证由同一只读 `workflow_run` follower 在 GitHub-hosted
+`ubuntu-latest` 上执行。它只在成功的 Standard operation 已公开 immutable Release、
+Latest admission 和 exact `opl-app-component-manifest.json` 后启动，并同时绑定：
+
+- `One-Person-Lab-<version>-linux-x64.deb` 的公开 SHA256；
+- 公开 `opl-app-installer.sh` 的 SHA256；
+- component manifest digest、Release tag 与 App/Shell/Framework cohort。
+
+执行路径必须是下载并校验该公开 installer 后运行
+`--desktop --release-tag <exact-tag> --no-open`，不得从 checkout 重建 `.deb` 或 installer。
+执行前必须证明目标 Debian package 不存在；执行后必须把公开 `.deb` 解包得到的
+executable digest 与 `dpkg` 已安装路径的 executable digest 精确比较，version/architecture
+相同本身不能替代安装字节一致性。
+GitHub-hosted admission 使用
+`opl_app_optional_certification_hosted_admission.v1` exact typed evidence；认证只产生
+`passed` 或 `failed`。网络、队列或 hosted runner 故障一律按执行失败处理，绝不能伪装成 `unavailable`。
+失败 receipt 必须分别记录 `.deb` 与 installer 是否已从公开 Release 下载，不能把下载前失败
+写成已下载。
+失败路径也必须先上传 receipt、installer 输出与安装
+readback evidence，再让这个独立 follower job 失败。该 follower 永不进入 Stable/Latest
+DAG，不能撤销、阻塞或改写已完成的 publication。源码实现不等于首次 public/install
+终态；仍须由未来 exact Stable cohort 的公开资产和安装 receipt fresh readback 晋升。
+
 Full macOS DMG 是同一 Stable cohort 的受保护自动 post-success additive follower：
 它必须绑定相同 App/Shell/Framework refs、version 与 Standard identity，并用独立
 `append_full` operation 生成 durable receipt。因为基础 Stable GitHub Release 在终态是

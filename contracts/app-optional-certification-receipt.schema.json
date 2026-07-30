@@ -58,7 +58,7 @@
           "enum": ["clean_machine_install", "updater_upgrade", "homebrew_install"]
         },
         "platform": {
-          "enum": ["macos", "windows"]
+          "enum": ["macos", "linux", "windows"]
         },
         "capability": { "type": "string", "minLength": 1 }
       }
@@ -104,7 +104,17 @@
         "downloaded_from_published_release": { "type": "boolean" },
         "rebuilt": { "const": false },
         "component_manifest_mutated": { "const": false },
-        "component_manifest_resigned": { "const": false }
+        "component_manifest_resigned": { "const": false },
+        "installer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "digest", "downloaded_from_published_release"],
+          "properties": {
+            "name": { "const": "opl-app-installer.sh" },
+            "digest": { "$ref": "#/$defs/digest" },
+            "downloaded_from_published_release": { "type": "boolean" }
+          }
+        }
       }
     },
     "admission": {
@@ -194,10 +204,105 @@
               "certification_run_attempt": { "const": 1 },
               "job_started": { "const": true }
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "certification": {
+            "properties": {
+              "platform": { "const": "linux" }
+            },
+            "required": ["platform"]
+          }
+        },
+        "required": ["certification"]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "enum": ["passed", "failed"]
           },
+          "certification": {
+            "properties": {
+              "kind": { "const": "clean_machine_install" },
+              "capability": { "const": "github-hosted-ubuntu-x64" }
+            }
+          },
+          "admission": {
+            "properties": {
+              "status": { "const": "passed" },
+              "reason_code": { "type": "null" }
+            }
+          },
+          "artifact_handling": {
+            "required": ["installer"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "passed" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
           "artifact_handling": {
             "properties": {
               "downloaded_from_published_release": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["failed", "unavailable"] },
+          "certification": {
+            "properties": {
+              "platform": { "enum": ["macos", "windows"] }
+            },
+            "required": ["platform"]
+          }
+        },
+        "required": ["status", "certification"]
+      },
+      "then": {
+        "properties": {
+          "artifact_handling": {
+            "properties": {
+              "downloaded_from_published_release": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "passed" },
+          "certification": {
+            "properties": {
+              "platform": { "const": "linux" }
+            },
+            "required": ["platform"]
+          }
+        },
+        "required": ["status", "certification"]
+      },
+      "then": {
+        "properties": {
+          "artifact_handling": {
+            "properties": {
+              "installer": {
+                "properties": {
+                  "downloaded_from_published_release": { "const": true }
+                }
+              }
             }
           }
         }

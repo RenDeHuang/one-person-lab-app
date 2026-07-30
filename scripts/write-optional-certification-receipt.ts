@@ -19,9 +19,10 @@ type JsonRecord = Record<string, unknown>;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const runIdPattern = /^[1-9][0-9]*$/;
 const certificationKinds = new Set(['clean_machine_install', 'updater_upgrade', 'homebrew_install']);
-const platforms = new Set(['macos', 'windows']);
+const platforms = new Set(['macos', 'linux', 'windows']);
 const vmAdmissionSchema = 'opl_app_optional_certification_vm_admission.v1';
 const dispatchAdmissionSchema = 'opl_app_optional_certification_dispatch_admission.v1';
+const hostedAdmissionSchema = 'opl_app_optional_certification_hosted_admission.v1';
 const tartSmokeSurface = 'opl_tart_gui_first_run_smoke';
 const vmAdmissionKeys = ['reason_code', 'schema', 'source_vm', 'status'];
 const dispatchAdmissionKeys = [
@@ -31,6 +32,48 @@ const dispatchAdmissionKeys = [
   'schema',
   'source_run_id',
   'status',
+];
+const hostedAdmissionKeys = [
+  'architecture',
+  'artifact',
+  'cohort',
+  'component_manifest_digest',
+  'installer',
+  'platform',
+  'reason_code',
+  'release_tag',
+  'runner_environment',
+  'schema',
+  'source_run_id',
+  'status',
+];
+const hostedLinuxExecutionKeys = [
+  'architecture',
+  'artifact',
+  'certification_exit_code',
+  'cohort',
+  'component_manifest_digest',
+  'failure_stage',
+  'installed_package',
+  'installer',
+  'platform',
+  'preinstall_package_absent',
+  'rebuilt',
+  'release_tag',
+  'runner_environment',
+  'schema',
+  'status',
+];
+const hostedLinuxInstalledPackageKeys = [
+  'architecture',
+  'dpkg_status',
+  'executable_digest',
+  'executable_path',
+  'expected_architecture',
+  'expected_executable_digest',
+  'expected_version',
+  'name',
+  'version',
 ];
 const vmAdmissionFailureStages = new Set([
   'clone_vm',
@@ -94,6 +137,13 @@ function nonEmptyText(value: unknown, label: string): string {
   return value.trim();
 }
 
+function requireRecord(value: unknown, label: string): JsonRecord {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be one JSON object.`);
+  }
+  return value as JsonRecord;
+}
+
 function assertVmAdmission(
   evidence: JsonRecord,
   expected: { status: 'passed' | 'failed'; reasonCode: string | null },
@@ -123,6 +173,151 @@ function assertNotRunDispatchAdmission(
   ) {
     throw new Error('Admission evidence must be the exact typed non-execution dispatch admission.');
   }
+}
+
+function assertHostedAdmission(
+  evidence: JsonRecord,
+  input: WriteOptionalCertificationReceiptInput,
+): void {
+  exactKeys(evidence, hostedAdmissionKeys, 'Admission evidence');
+  const artifact = evidence.artifact as JsonRecord | undefined;
+  const installer = evidence.installer as JsonRecord | undefined;
+  const cohort = evidence.cohort as JsonRecord | undefined;
+  if (artifact) exactKeys(artifact, ['digest', 'name'], 'Admission evidence artifact');
+  if (installer) exactKeys(installer, ['digest', 'name'], 'Admission evidence installer');
+  if (cohort) exactKeys(cohort, ['app_sha', 'framework_sha', 'shell_sha'], 'Admission evidence cohort');
+  if (
+    evidence.schema !== hostedAdmissionSchema
+    || evidence.status !== 'passed'
+    || evidence.reason_code !== null
+    || evidence.runner_environment !== 'github-hosted-ubuntu'
+    || evidence.platform !== 'linux'
+    || evidence.architecture !== 'x64'
+    || evidence.source_run_id !== input.expected.sourceRunId
+    || evidence.release_tag !== input.expected.releaseTag
+    || evidence.component_manifest_digest !== input.expected.componentManifestDigest
+    || artifact?.name !== input.expected.artifactName
+    || artifact?.digest !== input.expected.artifactDigest
+    || installer?.name !== input.expected.installerName
+    || installer?.digest !== input.expected.installerDigest
+    || cohort?.app_sha !== input.expected.appSha
+    || cohort?.shell_sha !== input.expected.shellSha
+    || cohort?.framework_sha !== input.expected.frameworkSha
+  ) {
+    throw new Error('Admission evidence must be the exact typed GitHub-hosted Linux artifact admission.');
+  }
+}
+
+function assertHostedLinuxExecutionEvidence(
+  input: WriteOptionalCertificationReceiptInput,
+): { artifactDownloaded: boolean; installerDownloaded: boolean } {
+  if (input.evidencePaths.length !== 1) {
+    throw new Error('Hosted Linux certification requires exactly one typed execution evidence file.');
+  }
+  const evidence = readRegularJson(input.evidencePaths[0], 'Hosted Linux execution evidence');
+  exactKeys(evidence, hostedLinuxExecutionKeys, 'Hosted Linux execution evidence');
+  const artifact = requireRecord(evidence.artifact, 'Hosted Linux execution artifact');
+  const installer = requireRecord(evidence.installer, 'Hosted Linux execution installer');
+  const cohort = requireRecord(evidence.cohort, 'Hosted Linux execution cohort');
+  const installedPackage = requireRecord(
+    evidence.installed_package,
+    'Hosted Linux installed package',
+  );
+  exactKeys(
+    artifact,
+    ['digest', 'downloaded_from_published_release', 'name'],
+    'Hosted Linux execution artifact',
+  );
+  exactKeys(
+    installer,
+    ['digest', 'downloaded_from_published_release', 'exit_code', 'invoked', 'name'],
+    'Hosted Linux execution installer',
+  );
+  exactKeys(
+    cohort,
+    ['app_sha', 'framework_sha', 'shell_sha'],
+    'Hosted Linux execution cohort',
+  );
+  exactKeys(
+    installedPackage,
+    hostedLinuxInstalledPackageKeys,
+    'Hosted Linux installed package',
+  );
+  const exitCode = evidence.certification_exit_code;
+  const installerInvoked = installer.invoked;
+  const installerExitCode = installer.exit_code;
+  const artifactDownloaded = artifact.downloaded_from_published_release;
+  const installerDownloaded = installer.downloaded_from_published_release;
+  if (
+    evidence.schema !== 'opl_app_linux_same_artifact_install_evidence.v1'
+    || evidence.status !== input.status
+    || evidence.runner_environment !== 'github-hosted-ubuntu'
+    || evidence.platform !== 'linux'
+    || evidence.architecture !== 'x64'
+    || evidence.release_tag !== input.expected.releaseTag
+    || evidence.component_manifest_digest !== input.expected.componentManifestDigest
+    || evidence.rebuilt !== false
+    || artifact.name !== input.expected.artifactName
+    || artifact.digest !== input.expected.artifactDigest
+    || installer.name !== input.expected.installerName
+    || installer.digest !== input.expected.installerDigest
+    || typeof artifactDownloaded !== 'boolean'
+    || typeof installerDownloaded !== 'boolean'
+    || cohort.app_sha !== input.expected.appSha
+    || cohort.shell_sha !== input.expected.shellSha
+    || cohort.framework_sha !== input.expected.frameworkSha
+    || typeof installerInvoked !== 'boolean'
+    || (
+      installerInvoked
+        ? !Number.isInteger(installerExitCode) || Number(installerExitCode) < 0
+        : installerExitCode !== null
+    )
+    || !Number.isInteger(exitCode)
+    || Number(exitCode) < 0
+    || typeof evidence.preinstall_package_absent !== 'boolean'
+  ) {
+    throw new Error('Hosted Linux execution evidence does not bind the exact published cohort and install attempt.');
+  }
+  if (input.status === 'passed') {
+    const expectedExecutableDigest = nonEmptyText(
+      installedPackage.expected_executable_digest,
+      'Hosted Linux expected executable digest',
+    );
+    const executableDigest = nonEmptyText(
+      installedPackage.executable_digest,
+      'Hosted Linux installed executable digest',
+    );
+    if (
+      evidence.failure_stage !== 'complete'
+      || exitCode !== 0
+      || evidence.preinstall_package_absent !== true
+      || artifactDownloaded !== true
+      || installerDownloaded !== true
+      || installerInvoked !== true
+      || installerExitCode !== 0
+      || !nonEmptyText(installedPackage.name, 'Hosted Linux package name')
+      || !nonEmptyText(installedPackage.version, 'Hosted Linux package version')
+      || installedPackage.version !== installedPackage.expected_version
+      || installedPackage.architecture !== 'amd64'
+      || installedPackage.expected_architecture !== 'amd64'
+      || installedPackage.dpkg_status !== 'ii'
+      || !nonEmptyText(installedPackage.executable_path, 'Hosted Linux executable path').startsWith('/')
+      || !digestPattern.test(expectedExecutableDigest)
+      || executableDigest !== expectedExecutableDigest
+    ) {
+      throw new Error('Passed hosted Linux evidence must prove a clean install with exact executable byte parity.');
+    }
+    return { artifactDownloaded, installerDownloaded };
+  }
+  if (
+    input.status !== 'failed'
+    || evidence.failure_stage === 'complete'
+    || !nonEmptyText(evidence.failure_stage, 'Hosted Linux failure stage')
+    || Number(exitCode) < 1
+  ) {
+    throw new Error('Failed hosted Linux evidence must preserve one nonzero terminal failure stage.');
+  }
+  return { artifactDownloaded, installerDownloaded };
 }
 
 function assertVmAdmissionFailureEvidence(
@@ -156,6 +351,18 @@ function assertVmAdmissionFailureEvidence(
 
 function assertTypedAdmissionEvidence(input: WriteOptionalCertificationReceiptInput): void {
   const evidence = readRegularJson(input.admissionEvidencePath, 'Admission evidence');
+  if (input.certification.platform === 'linux') {
+    if (
+      !['passed', 'failed'].includes(input.status)
+      || input.certification.kind !== 'clean_machine_install'
+      || input.certification.capability !== 'github-hosted-ubuntu-x64'
+      || input.reasonCode !== null
+    ) {
+      throw new Error('Hosted Linux certification supports only passed or failed clean-machine execution.');
+    }
+    assertHostedAdmission(evidence, input);
+    return;
+  }
   if (input.status === 'not_run') {
     assertNotRunDispatchAdmission(evidence, input);
     return;
@@ -191,7 +398,7 @@ export type WriteOptionalCertificationReceiptInput = {
   status: OptionalCertificationStatus;
   certification: {
     kind: 'clean_machine_install' | 'updater_upgrade' | 'homebrew_install';
-    platform: 'macos' | 'windows';
+    platform: 'macos' | 'linux' | 'windows';
     capability: string;
   };
   admissionEvidencePath: string;
@@ -209,6 +416,16 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
   }
   if (!certification.capability.trim()) throw new Error('Certification capability is required.');
   if (!Number.isFinite(Date.parse(input.createdAt))) throw new Error('created_at is invalid.');
+  if (
+    certification.platform === 'linux'
+    && (
+      input.expected.installerName !== 'opl-app-installer.sh'
+      || !input.expected.installerDigest
+      || !digestPattern.test(input.expected.installerDigest)
+    )
+  ) {
+    throw new Error('Hosted Linux certification requires the exact public installer identity.');
+  }
 
   const isNotRun = status === 'not_run';
   const isUnavailable = status === 'unavailable';
@@ -241,6 +458,9 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
     }
   }
   assertTypedAdmissionEvidence(input);
+  const hostedLinuxHandling = certification.platform === 'linux'
+    ? assertHostedLinuxExecutionEvidence(input)
+    : null;
 
   const receipt = sealReceipt({
     schema: 'opl_app_optional_certification_receipt.v1',
@@ -268,10 +488,21 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
       job_started: !isNotRun,
     },
     artifact_handling: {
-      downloaded_from_published_release: !isNotRun,
+      downloaded_from_published_release: hostedLinuxHandling
+        ? hostedLinuxHandling.artifactDownloaded
+        : !isNotRun,
       rebuilt: false,
       component_manifest_mutated: false,
       component_manifest_resigned: false,
+      ...(certification.platform === 'linux'
+        ? {
+            installer: {
+              name: input.expected.installerName,
+              digest: input.expected.installerDigest,
+              downloaded_from_published_release: hostedLinuxHandling?.installerDownloaded,
+            },
+          }
+        : {}),
     },
     admission: {
       status: isNotRun ? 'not_started' : isUnavailable ? 'failed' : 'passed',
@@ -304,6 +535,8 @@ function main(argv: string[]): void {
       'shell-sha': { type: 'string' },
       'framework-sha': { type: 'string' },
       'source-run-id': { type: 'string' },
+      'installer-name': { type: 'string' },
+      'installer-digest': { type: 'string' },
       status: { type: 'string' },
       'certification-kind': { type: 'string' },
       platform: { type: 'string' },
@@ -326,6 +559,8 @@ function main(argv: string[]): void {
     shellSha: required(values['shell-sha'], 'shell-sha'),
     frameworkSha: required(values['framework-sha'], 'framework-sha'),
     sourceRunId: required(values['source-run-id'], 'source-run-id'),
+    installerName: values['installer-name']?.trim() || undefined,
+    installerDigest: values['installer-digest']?.trim() || undefined,
   };
   for (const digest of [expected.artifactDigest, expected.componentManifestDigest]) {
     if (!digestPattern.test(digest)) throw new Error('Release digests must be sha256 identities.');
