@@ -320,6 +320,7 @@ export function publishNightlyRelease(input: {
     qualification.schema !== 'opl_standard_nightly_qualification.v1' ||
     qualification.status !== 'passed' ||
     qualification.request_digest !== request.request_digest ||
+    JSON.stringify(qualification.invocation) !== JSON.stringify(request.invocation) ||
     qualification.include_full !== false ||
     qualification.stable_qualified !== false ||
     qualification.heavy_vm_required !== false ||
@@ -411,6 +412,7 @@ export function publishNightlyRelease(input: {
       tag: request.tag,
       cohort: request.source,
       actions: request.actions,
+      invocation: request.invocation,
       include_full: false,
       github_release: {
         id: release.id,

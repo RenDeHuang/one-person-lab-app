@@ -1957,6 +1957,9 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     required: [
       "schedule:",
       "cron: '17 19 * * *'",
+      "workflow_dispatch:",
+      "operator_confirmation:",
+      "publish_nonlatest_nightly",
       "group: opl-standard-nightly",
       "uses: ./.github/workflows/_build-reusable.yml",
       "require_macos_gatekeeper: false",
@@ -1966,7 +1969,6 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "environment: release-nightly",
     ],
     forbidden: [
-      "workflow_dispatch:",
       "opl-release-bundle-global",
       "uses: ./.github/workflows/_release-bundle.yml",
       "uses: ./.github/workflows/opl-first-run-vm.yml",

@@ -47,7 +47,7 @@ jobs:
           jq -e --arg run "$SOURCE_RUN_ID" '
             (.id | tostring) == $run
             and .path == ".github/workflows/release-nightly.yml"
-            and .event == "schedule"
+            and (.event == "schedule" or .event == "workflow_dispatch")
             and .head_branch == "main"
             and .run_attempt == 1
             and .status == "completed"
@@ -58,9 +58,31 @@ jobs:
           test "$(jq -r --arg name "$artifact" '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' artifacts.json)" = 1
           gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir nightly-publication
           receipt=nightly-publication/nightly-publication.json
-          jq -e '
+          source_event="$(jq -er .event source-run.json)"
+          source_head_sha="$(jq -er .head_sha source-run.json)"
+          jq -e --arg run "$SOURCE_RUN_ID" --arg event "$source_event" --arg head "$source_head_sha" '
             .schema == "opl_standard_nightly_publication_receipt.v1"
             and (.status == "published" or .status == "already_complete")
+            and .actions.run_id == $run
+            and .actions.run_attempt == "1"
+            and .invocation.event == $event
+            and (
+              (.invocation == {
+                mode: "scheduled_production",
+                event: "schedule",
+                authority_source: "daily_schedule",
+                confirmation: null,
+                execution_path: "scheduled_nightly"
+              })
+              or
+              (.invocation == {
+                mode: "development_validation",
+                event: "workflow_dispatch",
+                authority_source: "user_explicit",
+                confirmation: "publish_nonlatest_nightly",
+                execution_path: "same_as_scheduled_nightly"
+              })
+            )
             and .github_release.prerelease == true
             and .github_release.make_latest == false
             and .include_full == false
@@ -68,6 +90,7 @@ jobs:
             and (.cohort.app_sha | test("^[0-9a-f]{40}$"))
             and (.cohort.shell_sha | test("^[0-9a-f]{40}$"))
             and (.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and .cohort.app_sha == $head
           ' "$receipt" >/dev/null
           test "$(jq -r .cohort.app_sha "$receipt")" = "$(jq -r .head_sha source-run.json)"
           sampled=false
