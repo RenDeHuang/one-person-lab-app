@@ -425,12 +425,14 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   const guide = fs.readFileSync(path.join(appRoot, 'docs/guides/windows-app-install/guide.qmd'), 'utf8');
 
   assert.equal(manifest.state, 'active_preview');
-  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.28-rc.5-win-x64.exe');
+  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.30-rc.1-win-x64.exe');
   assert.equal(
     manifest.download.installer_sha256,
-    '287b2847118fb14106d85c8c6d07d37e7ae6841e16f167f7a5aa0e57aa9191ce',
+    'abc9913706e029d1d3f6aa257c4d59441bafd49c771f1abfb2aa96324e5e85af',
   );
-  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.28-rc\.5$/);
+  assert.equal(manifest.download.installer_size_bytes, '328030592');
+  assert.equal(manifest.download.installer_size_label, '约 328 MB');
+  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.30-rc\.1$/);
   for (const term of manifest.required_terms) assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
   assert.match(guide, /密码、token 和 API Key 不应进入 PowerShell/);
