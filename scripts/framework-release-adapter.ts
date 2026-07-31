@@ -1145,6 +1145,7 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
 
 const githubReadTimeoutMs = 30_000;
 const githubMutationTimeoutMs = 10 * 60_000;
+const acceptedTagReadbackDelaysMs = [0, 500, 1_500] as const;
 
 export interface GitHubCommandResult {
   status: number | null;
@@ -1163,6 +1164,7 @@ export interface GitHubCommandOptions {
 export interface GitHubAdapterRuntime {
   run(command: string, args: string[], options: GitHubCommandOptions): GitHubCommandResult;
   now(): number;
+  wait?(milliseconds: number): void;
   readTimeoutMs?: number;
   mutationTimeoutMs?: number;
 }
@@ -1186,6 +1188,9 @@ const defaultGitHubRuntime: GitHubAdapterRuntime = {
     };
   },
   now: () => Date.now(),
+  wait(milliseconds) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+  },
 };
 
 function commandEvidence(
@@ -1777,6 +1782,40 @@ function inspectReleaseTagRefForReconcile(
   }
 }
 
+function reconcileAcceptedTagReservation(input: {
+  repo: string;
+  tag: string;
+  operationDeadlineAt: string;
+  runtime: GitHubAdapterRuntime;
+}): JsonRecord {
+  let reconciliation: JsonRecord = {
+    status: 'inspect_failed',
+    failure: { error_message: 'Tag reservation readback did not run.' },
+  };
+  for (const delayMs of acceptedTagReadbackDelaysMs) {
+    if (delayMs > 0) {
+      const remainingMs = remainingReleaseOperationMilliseconds({
+        deadlineAt: input.operationDeadlineAt,
+        nowMs: input.runtime.now(),
+      });
+      if (remainingMs <= delayMs) break;
+      input.runtime.wait?.(delayMs);
+    }
+    reconciliation = inspectReleaseTagRefForReconcile(
+      input.repo,
+      input.tag,
+      input.runtime,
+    );
+    if (
+      reconciliation.status === 'complete'
+      && reconciliation.observation.exists === true
+    ) {
+      return reconciliation;
+    }
+  }
+  return reconciliation;
+}
+
 function inspectReleaseByIdForReconcile(
   repo: string,
   tag: string,
@@ -2158,11 +2197,12 @@ function ensureRelease(options: {
         reconciliation: inspectReleaseTagRefForReconcile(options.repo, options.tag, options.runtime),
       });
     }
-    const tagReconciliation = inspectReleaseTagRefForReconcile(
-      options.repo,
-      options.tag,
-      options.runtime,
-    );
+    const tagReconciliation = reconcileAcceptedTagReservation({
+      repo: options.repo,
+      tag: options.tag,
+      operationDeadlineAt: options.operationDeadlineAt,
+      runtime: options.runtime,
+    });
     if (
       tagReconciliation.status !== 'complete'
       || tagReconciliation.observation.exists !== true
