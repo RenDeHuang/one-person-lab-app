@@ -281,6 +281,20 @@ test('GUI design-system validator rejects visual evidence ownership drifting int
   );
 });
 
+test('GUI design-system validator rejects the superseded same-cohort evidence role', () => {
+  const root = createFixture();
+  const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
+  const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8'));
+  cohort.evidence_boundary.final_evidence_owner_role =
+    'same_cohort_installed_evidence_only_no_source_ownership';
+  writeJson(root, 'contracts/app-gui-visual-reference-cohort.json', cohort);
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /must keep source, pixel, installed, release, and final-evidence ownership separate/,
+  );
+});
+
 test('GUI design-system validator rejects explicit candidate detail in default convergence', () => {
   const root = createFixture();
   const packagePath = path.join(root, 'package.json');
