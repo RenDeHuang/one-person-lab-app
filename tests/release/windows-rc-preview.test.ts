@@ -57,12 +57,28 @@ function fixture(t: test.TestContext) {
   fs.writeFileSync(
     managedManifest,
     JSON.stringify({
-      schemaVersion: 2,
+      schema: 'opl_aioncore_managed_resources_projection.v1',
       runtimeKey: 'linux-x64',
+      source: {
+        schemaVersion: 2,
+        manifestSha256: 'f'.repeat(64),
+        cliNames: ['claude', 'codex'],
+      },
       node: {
         version: '24.11.0',
         root: 'node/node-v24.11.0-linux-x64',
         executable: 'bin/node',
+      },
+      projection: {
+        includedCliNames: ['codex'],
+        excludedCliNames: ['claude'],
+        requiredAbsentPaths: [
+          'cli/claude',
+          'acp',
+          'node_modules/@anthropic-ai/claude-code',
+          'node_modules/claude-code',
+          'claude',
+        ],
       },
       clis: [
         {
@@ -147,14 +163,14 @@ test('Windows RC cohort rejects retired or malformed managed resource manifests'
   });
   assert.throws(
     () => buildCohort(retired),
-    /retired acpTools are not accepted/,
+    /must not retain retired acpTools/,
   );
 
   const oldSchema = fixture(t);
   const oldSchemaManifest = readManagedManifest(oldSchema);
-  oldSchemaManifest.schemaVersion = 1;
+  oldSchemaManifest.schema = 'opl_aioncore_managed_resources_projection.v0';
   writeManagedManifest(oldSchema, oldSchemaManifest);
-  assert.throws(() => buildCohort(oldSchema), /must use schemaVersion 2/);
+  assert.throws(() => buildCohort(oldSchema), /must use the OPL Codex-only projection schema v1/);
 
   const wrongRuntime = fixture(t);
   const wrongRuntimeManifest = readManagedManifest(wrongRuntime);
@@ -167,6 +183,50 @@ test('Windows RC cohort rejects retired or malformed managed resource manifests'
   unsafePathManifest.node.root = '../node';
   writeManagedManifest(unsafePath, unsafePathManifest);
   assert.throws(() => buildCohort(unsafePath), /normalized portable relative path/);
+
+  const rawProducer = fixture(t);
+  const rawProducerManifest = readManagedManifest(rawProducer);
+  delete rawProducerManifest.schema;
+  rawProducerManifest.schemaVersion = 2;
+  writeManagedManifest(rawProducer, rawProducerManifest);
+  assert.throws(
+    () => buildCohort(rawProducer),
+    /must use the OPL Codex-only projection schema v1/,
+  );
+
+  const claudeMetadata = fixture(t);
+  const claudeMetadataManifest = readManagedManifest(claudeMetadata);
+  claudeMetadataManifest.projection.excludedCliNames = [];
+  writeManagedManifest(claudeMetadata, claudeMetadataManifest);
+  assert.throws(
+    () => buildCohort(claudeMetadata),
+    /must include only Codex and exclude Claude/,
+  );
+});
+
+test('Windows RC cohort rejects every forbidden managed resource path', (t) => {
+  const forbiddenPaths = [
+    'cli/claude',
+    'acp',
+    'node_modules/@anthropic-ai/claude-code',
+    'node_modules/claude-code',
+    'claude',
+  ];
+
+  for (const relativePath of forbiddenPaths) {
+    const input = fixture(t);
+    const forbiddenPath = path.join(
+      path.dirname(input.managedManifest),
+      ...relativePath.split('/'),
+    );
+    fs.mkdirSync(path.dirname(forbiddenPath), { recursive: true });
+    fs.writeFileSync(forbiddenPath, 'forbidden');
+
+    assert.throws(
+      () => buildCohort(input),
+      new RegExp(`physically exclude Claude: ${relativePath.replaceAll('/', '\\/')}`),
+    );
+  }
 });
 
 test('Windows RC cohort rejects missing Node or missing and duplicate Codex executables', (t) => {

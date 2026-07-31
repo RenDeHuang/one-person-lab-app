@@ -52,6 +52,35 @@ function writeJson(filePath: string, value: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function codexOnlyProjectionAudit() {
+  return {
+    schema: 'opl_aioncore_codex_only_projection_audit.v1',
+    runtime_count: 1,
+    runtimes: [{
+      runtime_key: 'darwin-arm64',
+      manifest_path:
+        'Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json',
+      projection_valid: true,
+      cli_names: ['codex'],
+      producer_manifest_sha256: 'a'.repeat(64),
+    }],
+    required_absence_checks: [
+      'managed_claude_subtree',
+      'claude_executable_or_symlink',
+      'anthropic_package_or_archive',
+      'claude_distribution_cache_entry',
+      'raw_producer_manifest',
+    ].map((id) => ({
+      id,
+      matches: [],
+      expected_match_count: 0,
+      match_count: 0,
+    })),
+    projection_present: true,
+    claude_payload_absent: true,
+  };
+}
+
 function createAioncoreManagedCodexFixture() {
   const root = fs.mkdtempSync(
     path.join(os.tmpdir(), 'opl-manual-aioncore-binding-'),
@@ -70,14 +99,6 @@ function createAioncoreManagedCodexFixture() {
     'node-v24.11.0-darwin-arm64',
   );
   const nodeExecutable = path.join(nodeRoot, 'bin', 'node');
-  const claudeRoot = path.join(
-    managedRoot,
-    'cli',
-    'claude',
-    '2.1.215',
-    'darwin-arm64',
-  );
-  const claudeExecutable = path.join(claudeRoot, 'claude');
   const codexRoot = path.join(
     managedRoot,
     'cli',
@@ -112,7 +133,6 @@ function createAioncoreManagedCodexFixture() {
     'zsh',
   );
   fs.mkdirSync(path.dirname(nodeExecutable), { recursive: true });
-  fs.mkdirSync(path.dirname(claudeExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(codexExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(codexRequiredFile), { recursive: true });
   fs.mkdirSync(path.dirname(codexRequiredDirectoryFile), { recursive: true });
@@ -122,7 +142,6 @@ function createAioncoreManagedCodexFixture() {
     'utf8',
   );
   fs.writeFileSync(nodeExecutable, 'node fixture\n', 'utf8');
-  fs.writeFileSync(claudeExecutable, 'claude fixture\n', 'utf8');
   fs.writeFileSync(codexExecutable, 'codex fixture\n', 'utf8');
   fs.writeFileSync(codexRequiredFile, 'rg fixture\n', 'utf8');
   fs.writeFileSync(codexRequiredDirectoryFile, 'zsh fixture\n', 'utf8');
@@ -136,23 +155,30 @@ function createAioncoreManagedCodexFixture() {
     },
   });
   writeJson(path.join(managedRoot, 'manifest.json'), {
-    schemaVersion: 2,
+    schema: 'opl_aioncore_managed_resources_projection.v1',
     runtimeKey: 'darwin-arm64',
+    source: {
+      schemaVersion: 2,
+      manifestSha256: 'a'.repeat(64),
+      cliNames: ['claude', 'codex'],
+    },
     node: {
       version: '24.11.0',
       root: 'node/node-v24.11.0-darwin-arm64',
       executable: 'bin/node',
     },
+    projection: {
+      includedCliNames: ['codex'],
+      excludedCliNames: ['claude'],
+      requiredAbsentPaths: [
+        'cli/claude',
+        'acp',
+        'node_modules/@anthropic-ai/claude-code',
+        'node_modules/claude-code',
+        'claude',
+      ],
+    },
     clis: [
-      {
-        name: 'claude',
-        version: '2.1.215',
-        root: 'cli/claude/2.1.215/darwin-arm64',
-        platformDirectory: 'darwin-arm64',
-        executable: 'claude',
-        requiredFiles: [],
-        requiredDirectories: [],
-      },
       {
         name: 'codex',
         version: '0.144.6',
@@ -171,8 +197,6 @@ function createAioncoreManagedCodexFixture() {
     managedManifest: path.join(managedRoot, 'manifest.json'),
     nodeRoot,
     nodeExecutable,
-    claudeRoot,
-    claudeExecutable,
     codexRoot,
     codexExecutable,
     codexRequiredFile,
@@ -430,19 +454,23 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
   const binding = resolveAioncoreManagedCodexBinding(fixture.shellRoot);
   const dependencyLock = buildManualRuntimeDependencyLock(binding);
 
-  assert.equal(binding.schema, 'opl_manual_aioncore_managed_direct_clis_binding.v2');
+  assert.equal(binding.schema, 'opl_manual_aioncore_codex_only_projection_binding.v1');
   assert.equal(binding.aioncore.version, 'v0.1.49');
-  assert.equal(binding.managed_resources.schema_version, 2);
+  assert.equal(
+    binding.managed_resources.projection_schema,
+    'opl_aioncore_managed_resources_projection.v1',
+  );
+  assert.equal(binding.managed_resources.producer_schema_version, 2);
+  assert.equal(binding.managed_resources.producer_manifest_sha256, 'a'.repeat(64));
+  assert.deepEqual(binding.managed_resources.included_cli_names, ['codex']);
+  assert.deepEqual(binding.managed_resources.excluded_cli_names, ['claude']);
   assert.equal(binding.node_runtime.version, '24.11.0');
   assert.equal(binding.node_runtime.root, fs.realpathSync(fixture.nodeRoot));
-  assert.equal(binding.claude_cli.version, '2.1.215');
-  assert.equal(binding.claude_cli.root, fs.realpathSync(fixture.claudeRoot));
   assert.equal(binding.codex_cli.version, '0.144.6');
   assert.equal(binding.codex_cli.root, fs.realpathSync(fixture.codexRoot));
   assert.match(binding.aioncore.root_manifest_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.managed_resources.manifest_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.node_runtime.executable_sha256, /^[a-f0-9]{64}$/);
-  assert.match(binding.claude_cli.executable_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.executable_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.required_files[0].sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.required_directories[0].tree_sha256, /^[a-f0-9]{64}$/);
@@ -453,6 +481,9 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
       package_optimization: {
         package_boundary_audit: {
           aioncore_codex_carrier_present: true,
+          aioncore_codex_only_projection_present: true,
+          aioncore_claude_payload_absent: true,
+          aioncore_codex_only_projection_audit: codexOnlyProjectionAudit(),
           framework_codex_payload_absent: true,
           forbidden_framework_codex_paths: [
             { path: 'bin/codex', exists: false },
@@ -483,6 +514,9 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
         package_optimization: {
           package_boundary_audit: {
             aioncore_codex_carrier_present: true,
+            aioncore_codex_only_projection_present: true,
+            aioncore_claude_payload_absent: true,
+            aioncore_codex_only_projection_audit: codexOnlyProjectionAudit(),
             framework_codex_payload_absent: false,
             forbidden_framework_codex_paths: [
               { path: 'bin/codex', exists: true },
@@ -493,7 +527,34 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
           },
         },
       }),
-    /Framework Codex payload is absent/,
+    /both Claude and Framework Codex payloads are absent/,
+  );
+  const incompleteProjectionAudit = codexOnlyProjectionAudit();
+  incompleteProjectionAudit.required_absence_checks[0].match_count = 1;
+  incompleteProjectionAudit.required_absence_checks[0].matches = [
+    'darwin-arm64/managed-resources/cli/claude',
+  ];
+  assert.throws(
+    () =>
+      assertFullDmgCodexCarrierBoundary({
+        components: {},
+        package_optimization: {
+          package_boundary_audit: {
+            aioncore_codex_carrier_present: true,
+            aioncore_codex_only_projection_present: true,
+            aioncore_claude_payload_absent: true,
+            aioncore_codex_only_projection_audit: incompleteProjectionAudit,
+            framework_codex_payload_absent: true,
+            forbidden_framework_codex_paths: [
+              { path: 'bin/codex', exists: false },
+              { path: 'bin/rg', exists: false },
+              { path: 'vendor/codex', exists: false },
+              { path: '.runtime-cache/codex-cli', exists: false },
+            ],
+          },
+        },
+      }),
+    /Codex-only projection evidence is incomplete/,
   );
 });
 
@@ -538,7 +599,63 @@ test('manual AionCore Codex binding rejects incomplete, ambiguous, escaped, or d
       writeJson(fixture.managedManifest, manifest);
       assert.throws(
         () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
-        /must contain exactly Claude and Codex direct CLIs/,
+        /must contain exactly one Codex direct CLI/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('raw producer manifest is not a distributed projection', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      const manifest = JSON.parse(
+        fs.readFileSync(fixture.managedManifest, 'utf8'),
+      );
+      delete manifest.schema;
+      manifest.schemaVersion = 2;
+      writeJson(fixture.managedManifest, manifest);
+      assert.throws(
+        () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
+        /must use the OPL Codex-only projection schema v1/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('Claude projection metadata drift', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      const manifest = JSON.parse(
+        fs.readFileSync(fixture.managedManifest, 'utf8'),
+      );
+      manifest.projection.excludedCliNames = [];
+      writeJson(fixture.managedManifest, manifest);
+      assert.throws(
+        () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
+        /must include only Codex and exclude Claude/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('Claude subtree is physically present', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      fs.mkdirSync(
+        path.join(
+          fixture.runtimeRoot,
+          'managed-resources',
+          'cli',
+          'claude',
+        ),
+        { recursive: true },
+      );
+      assert.throws(
+        () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
+        /required absent path is present/,
       );
     } finally {
       fs.rmSync(fixture.root, { recursive: true, force: true });
