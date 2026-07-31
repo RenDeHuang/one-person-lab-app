@@ -54,7 +54,7 @@ on:
         default: ''
         type: string
       framework_ref:
-        description: Legacy raw Standard input; optional expected Bundle binding only for resume/append
+        description: Legacy raw Standard input; exact Framework executor SHA for resume/append
         required: false
         default: ''
         type: string
@@ -363,7 +363,8 @@ jobs:
           app_sha="$(git -C app-source rev-parse HEAD)"
           VERSION="$REQUESTED_VERSION"
           SHELL_REF="$REQUESTED_SHELL_REF"
-          FRAMEWORK_REF="$REQUESTED_FRAMEWORK_REF"
+          FRAMEWORK_SOURCE_REF=''
+          FRAMEWORK_EXECUTOR_REF=''
           case "$OPERATION" in
             standard)
               test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
@@ -376,7 +377,8 @@ jobs:
               }
               test "$app_sha" = '${{ needs.protected-operation-admission.outputs.app_ref }}'
               SHELL_REF='${{ needs.protected-operation-admission.outputs.shell_ref }}'
-              FRAMEWORK_REF='${{ needs.protected-operation-admission.outputs.framework_ref }}'
+              FRAMEWORK_SOURCE_REF='${{ needs.protected-operation-admission.outputs.framework_ref }}'
+              FRAMEWORK_EXECUTOR_REF="$FRAMEWORK_SOURCE_REF"
               ;;
             resume_standard|append_full)
               [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
@@ -387,12 +389,11 @@ jobs:
                 echo "::error::$OPERATION requires one exact Framework checkpoint artifact name."
                 exit 1
               }
-              if [ -n "$REQUESTED_FRAMEWORK_REF" ]; then
-                [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || {
-                  echo "::error::$OPERATION optional Framework expectation must be an exact lowercase SHA."
-                  exit 1
-                }
-              fi
+              FRAMEWORK_EXECUTOR_REF="$REQUESTED_FRAMEWORK_REF"
+              [[ "$FRAMEWORK_EXECUTOR_REF" =~ ^[0-9a-f]{40}$ ]] || {
+                echo "::error::$OPERATION requires an exact Framework executor SHA."
+                exit 1
+              }
               ;;
             *) exit 1 ;;
           esac
@@ -412,8 +413,8 @@ jobs:
             echo "include_full=$INCLUDE_FULL"
             echo "app_ref=$app_sha"
             echo "shell_ref=$SHELL_REF"
-            echo "framework_ref=$FRAMEWORK_REF"
-            echo "framework_executor_ref=$FRAMEWORK_REF"
+            echo "framework_ref=$FRAMEWORK_SOURCE_REF"
+            echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF"
             echo "source_run_id=$SOURCE_RUN_ID"
             echo "source_artifact=$SOURCE_ARTIFACT"
             echo "operation_started_at=$operation_started_at"

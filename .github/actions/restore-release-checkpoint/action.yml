@@ -3,7 +3,7 @@ description: Import one Framework-owned portable checkpoint and expose its immut
 
 inputs:
   framework-executor-ref:
-    description: Exact Framework SHA already bound by the caller to the frozen Bundle
+    description: Exact Framework executor SHA used to verify and import the checkpoint; independent from the frozen Bundle source SHA
     required: true
   source-run-id:
     description: Exact Actions run containing the checkpoint artifact
@@ -42,6 +42,8 @@ outputs:
     value: ${{ steps.restore.outputs.shell_ref }}
   framework_source_ref:
     value: ${{ steps.restore.outputs.framework_source_ref }}
+  framework_executor_ref:
+    value: ${{ steps.restore.outputs.framework_executor_ref }}
   checkpoint_import_json:
     value: ${{ steps.restore.outputs.checkpoint_import_json }}
   completed_stage:
@@ -105,7 +107,7 @@ runs:
       shell: bash
       env:
         EVIDENCE_DIR: ${{ steps.evidence.outputs.evidence_dir }}
-        EXPECTED_FRAMEWORK_REF: ${{ inputs.framework-executor-ref }}
+        FRAMEWORK_EXECUTOR_REF: ${{ inputs.framework-executor-ref }}
         SOURCE_ARTIFACT: ${{ inputs.source-artifact }}
       run: |
         set -euo pipefail
@@ -121,8 +123,8 @@ runs:
         }
         checkpoint="${checkpoints[0]}"
         checkpoint_dir="$(dirname "$checkpoint")"
-        [[ "$EXPECTED_FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]] || {
-          echo "::error::Framework checkpoint authority must be an exact lowercase SHA."
+        [[ "$FRAMEWORK_EXECUTOR_REF" =~ ^[0-9a-f]{40}$ ]] || {
+          echo "::error::Framework checkpoint executor must be an exact lowercase SHA."
           exit 1
         }
 
@@ -139,22 +141,22 @@ runs:
         jq -n \
           --slurpfile request "$EVIDENCE_DIR/input.json" \
           --slurpfile downloaded "$EVIDENCE_DIR/downloaded-inputs.json" \
-          --arg framework_source_ref "$EXPECTED_FRAMEWORK_REF" \
-          '{request:$request[0],framework_source_ref:$framework_source_ref,downloaded_inputs:$downloaded[0]}' \
+          --arg framework_executor_ref "$FRAMEWORK_EXECUTOR_REF" \
+          '{request:$request[0],framework_executor_ref:$framework_executor_ref,downloaded_inputs:$downloaded[0]}' \
           > "$EVIDENCE_DIR/bound-input.json"
         shasum -a 256 "$EVIDENCE_DIR/bound-input.json" \
           | awk '{print "sha256:"$1}' > "$EVIDENCE_DIR/input.sha256"
         {
           echo "checkpoint=$checkpoint"
           echo "checkpoint_dir=$checkpoint_dir"
-          echo "framework_source_ref=$EXPECTED_FRAMEWORK_REF"
+          echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF"
         } >> "$GITHUB_OUTPUT"
 
-    - name: Checkout exact Framework checkpoint authority
+    - name: Checkout exact Framework checkpoint executor
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
       with:
         repository: gaofeng21cn/one-person-lab
-        ref: ${{ steps.binding.outputs.framework_source_ref }}
+        ref: ${{ steps.binding.outputs.framework_executor_ref }}
         path: framework-executor
 
     - name: Setup Framework runtime
@@ -181,14 +183,14 @@ runs:
         EVIDENCE_DIR: ${{ steps.evidence.outputs.evidence_dir }}
         CHECKPOINT: ${{ steps.binding.outputs.checkpoint }}
         CHECKPOINT_DIR: ${{ steps.binding.outputs.checkpoint_dir }}
-        FRAMEWORK_SOURCE_REF: ${{ steps.binding.outputs.framework_source_ref }}
+        FRAMEWORK_EXECUTOR_REF: ${{ steps.binding.outputs.framework_executor_ref }}
         ALLOW_RECONCILE_REQUIRED: ${{ inputs.allow-reconcile-required }}
       run: |
         set -euo pipefail
         exec > >(tee -a "$EVIDENCE_DIR/restore.stdout.log") \
           2> >(tee -a "$EVIDENCE_DIR/restore.stderr.log" >&2)
-        [ "$(git -C framework-executor rev-parse HEAD)" = "$FRAMEWORK_SOURCE_REF" ] || {
-          echo "::error::Framework checkout differs from the Bundle-bound exact SHA."
+        [ "$(git -C framework-executor rev-parse HEAD)" = "$FRAMEWORK_EXECUTOR_REF" ] || {
+          echo "::error::Framework checkout differs from the exact executor SHA."
           exit 1
         }
 
@@ -228,7 +230,6 @@ runs:
         bundle_path="$(jq -er '.bundle_path | strings | select(length > 0)' <<<"$status")"
         test -f "$bundle_path"
         framework_source_ref="$(jq -er '.bundle.sources.framework.source_commit | select(test("^[0-9a-f]{40}$"))' <<<"$status")"
-        test "$framework_source_ref" = "$FRAMEWORK_SOURCE_REF"
         {
           echo "checkpoint_dir=$CHECKPOINT_DIR"
           echo "store_dir=$store_dir"
@@ -241,6 +242,7 @@ runs:
           echo "app_ref=$(jq -r .bundle.sources.app.source_commit <<<"$status")"
           echo "shell_ref=$(jq -r .bundle.sources.shell.source_commit <<<"$status")"
           echo "framework_source_ref=$framework_source_ref"
+          echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF"
           echo "checkpoint_import_json=$checkpoint_import"
           echo "completed_stage=$completed_stage"
           echo "checkpoint_transport_executor=github_actions"
