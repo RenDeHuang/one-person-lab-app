@@ -1,9 +1,10 @@
 import crypto from 'node:crypto';
 
+import { readAppProductProfile } from '../app-product-profile/profile-contract.ts';
 import { readGitHead } from './git.ts';
 import { directoryFingerprint } from './hashing.ts';
 
-export const FULL_RUNTIME_STARTER_PACKAGE_IDS = [
+export const FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE = [
   'mas',
   'mag',
   'rca',
@@ -19,11 +20,21 @@ export type FullRuntimePackageProfile = {
   dependency_closure: readonly string[];
 };
 
-export const FULL_RUNTIME_STARTER_PROFILE: FullRuntimePackageProfile = {
-  profile_id: 'starter',
-  package_ids: FULL_RUNTIME_STARTER_PACKAGE_IDS,
-  dependency_closure: FULL_RUNTIME_STARTER_PACKAGE_IDS,
-};
+export function buildFullRuntimeStarterProfile(productProfile: {
+  official_profile: {
+    desired_root_package_ids: readonly string[];
+  };
+}): FullRuntimePackageProfile {
+  return {
+    profile_id: 'starter',
+    package_ids: [...productProfile.official_profile.desired_root_package_ids],
+    dependency_closure: FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE,
+  };
+}
+
+export const FULL_RUNTIME_STARTER_PROFILE = buildFullRuntimeStarterProfile(
+  readAppProductProfile(),
+);
 
 type JsonRecord = Record<string, any>;
 
