@@ -13,6 +13,10 @@ function digest(filePath: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
+function readJsonFile(filePath: string): Record<string, any> {
+  return JSON.parse(fs.readFileSync(filePath, "utf8")) as Record<string, any>;
+}
+
 function writeJson(filePath: string, value: unknown): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
@@ -21,6 +25,12 @@ function writeJson(filePath: string, value: unknown): void {
 function appContractBytes(filePath: string): string {
   return fs.readFileSync(path.join(appRoot, filePath), "utf8");
 }
+
+const installExposurePolicy = JSON.parse(
+  appContractBytes("contracts/app-install-exposure-policy.json"),
+) as Record<string, any>;
+const compatibilityRequirements = installExposurePolicy.component_interoperability
+  .compatibility_profiles.gui_installed_acceptance.requirements as Array<Record<string, unknown>>;
 
 function fixture(
   t: { after(callback: () => void): void },
@@ -32,6 +42,10 @@ function fixture(
   const executablePath = path.join(appPath, "Contents/MacOS/One Person Lab");
   const appAsar = path.join(appPath, "Contents/Resources/app.asar");
   const infoPlist = path.join(appPath, "Contents/Info.plist");
+  const frameworkExecutable = path.join(
+    appPath,
+    "Contents/Resources/opl-framework/bin/opl",
+  );
   const aioncoreBinary = path.join(appPath, "Contents/Resources/opl-full-runtime/aioncore");
   const aioncoreManifest = path.join(
     appPath,
@@ -45,11 +59,28 @@ function fixture(
     [executablePath, "app executable"],
     [appAsar, "app asar bytes"],
     [infoPlist, "plist fixture"],
+    [frameworkExecutable, "framework executable fixture"],
     [aioncoreBinary, "aioncore binary"],
   ]) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, content);
   }
+  fs.chmodSync(frameworkExecutable, 0o755);
+  const frameworkExecutableRealpath = fs.realpathSync(frameworkExecutable);
+  const frameworkBindingReceiptPath = path.join(
+    root,
+    "app-launcher-framework-runtime-binding.json",
+  );
+  writeJson(frameworkBindingReceiptPath, {
+    schema: "opl_app_launcher_framework_runtime_binding.v1",
+    owner: "one-person-lab-app",
+    status: "bound",
+    installed_app_path: fs.realpathSync(appPath),
+    executable_path: frameworkExecutableRealpath,
+    executable_sha256: `sha256:${digest(frameworkExecutableRealpath)}`,
+    framework_version: "0.3.5",
+    package_ref: "one-person-lab@0.3.5",
+  });
   writeJson(aioncoreManifest, { version: "v0.1.54" });
   writeJson(aioncoreResources, { schemaVersion: 2, codex: "0.145.0" });
 
@@ -150,16 +181,31 @@ function fixture(
   const profileRoot = path.join(root, "isolated-profile");
   fs.mkdirSync(profileRoot);
   const input: Record<string, unknown> = {
-    schema: "opl_app_installed_gui_cohort_authority.v1",
+    schema: "opl_app_installed_gui_artifact_authority.v2",
     classification: "immutable_stable",
-    cohort,
+    compatibility: {
+      profile_id: "gui_installed_acceptance",
+      receipt_output: path.join(root, "framework-compatibility-receipt.json"),
+      framework_runtime: {
+        authority_source: "app_launcher_bound_framework_runtime_readback",
+        executable_path: frameworkExecutableRealpath,
+        executable_sha256: digest(frameworkExecutableRealpath),
+        framework_version: "0.3.5",
+        package_ref: "one-person-lab@0.3.5",
+        binding_receipt: frameworkBindingReceiptPath,
+        binding_receipt_sha256: digest(frameworkBindingReceiptPath),
+      },
+    },
     artifact: {
       path: artifactPath,
       sha256: artifactSha256,
+      owner_authority: "gaofeng21cn/one-person-lab-app",
       immutable: true,
       public: true,
       release_id: 730,
       release_tag: "v26.7.30",
+      asset_url:
+        "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.30/One-Person-Lab.dmg",
       asset_name: "One-Person-Lab.dmg",
       size_bytes: fs.statSync(artifactPath).size,
       public_release_receipt: publicReleaseReceiptPath,
@@ -216,13 +262,177 @@ function fixture(
       sourceLockSha256,
       aioncoreBinary,
       profileRoot,
+      artifactSha256,
+      appAsarSha256: digest(appAsar),
+      buildReceiptSha256,
+      cohort,
+      frameworkExecutable: frameworkExecutableRealpath,
+      frameworkExecutableSha256: digest(frameworkExecutableRealpath),
+      frameworkBindingReceiptPath,
     },
   };
 }
 
-function successfulDependencies(value: ReturnType<typeof fixture>["values"]) {
+function frameworkCompatibilityReceipt(
+  value: ReturnType<typeof fixture>["values"],
+  args: string[],
+  mutate?: (receipt: Record<string, any>) => void,
+): { receipt: Record<string, any>; envelope: Record<string, any> } {
+  const argument = (name: string) => {
+    const index = args.indexOf(name);
+    assert.notEqual(index, -1, `missing ${name}`);
+    return String(args[index + 1]);
+  };
+  const requirementsFile = argument("--requirements-file");
+  const subjectFile = argument("--subject-file");
+  const outputFile = argument("--output");
+  const requirementsDocument = readJsonFile(requirementsFile);
+  const subjectDocument = readJsonFile(subjectFile);
+  const producerIdentity = {
+    command_surface: "opl app compatibility receipt",
+    executable_path: value.frameworkExecutable,
+    executable_sha256: `sha256:${value.frameworkExecutableSha256}`,
+    framework_version: "0.3.5",
+    package_ref: "one-person-lab@0.3.5",
+  };
+  const generatedAt = "2026-07-30T00:00:00.000Z";
+  const expiresAt = "2026-07-30T00:05:00.000Z";
+  const observationRef =
+    "contracts/opl-framework/app-component-compatibility-receipt-contract.json#producer_observation@2026-07-30T00:00:00.000Z";
+  const receipt: Record<string, any> = {
+    schema: "opl_component_compatibility_receipt.v1",
+    owner: "one-person-lab",
+    producer_role: "opl_framework",
+    contract_ref:
+      "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
+    producer_contract_ref:
+      "contracts/opl-framework/app-component-compatibility-receipt-contract.json",
+    producer_identity: producerIdentity,
+    receipt_ref: `file://${path.resolve(outputFile)}`,
+    generated_at: generatedAt,
+    issued_at: generatedAt,
+    expires_at: expiresAt,
+    freshness: {
+      status: "fresh",
+      generated_at: generatedAt,
+      max_age_seconds: 300,
+    },
+    status: "compatible",
+    sources: {
+      requirements: {
+        path: fs.realpathSync(requirementsFile),
+        sha256: `sha256:${digest(requirementsFile)}`,
+        owner: "one-person-lab-app",
+        schema: "opl_component_compatibility_requirements.v1",
+      },
+      subject: {
+        path: fs.realpathSync(subjectFile),
+        sha256: `sha256:${digest(subjectFile)}`,
+        owner: "one-person-lab-app",
+        schema: "opl_app_compatibility_subject.v1",
+      },
+    },
+    subject: {
+      selected_app_artifact: {
+        ...subjectDocument.selected_app_artifact,
+        sha256: `sha256:${String(subjectDocument.selected_app_artifact.sha256).replace(
+          /^sha256:/,
+          "",
+        )}`,
+      },
+      installed_app_asar: {
+        path: fs.realpathSync(subjectDocument.installed_app_asar.path),
+        sha256: `sha256:${String(subjectDocument.installed_app_asar.sha256).replace(
+          /^sha256:/,
+          "",
+        )}`,
+      },
+      build_receipt: {
+        path: fs.realpathSync(subjectDocument.build_receipt.path),
+        sha256: `sha256:${String(subjectDocument.build_receipt.sha256).replace(
+          /^sha256:/,
+          "",
+        )}`,
+      },
+    },
+    requirements: structuredClone(requirementsDocument.requirements),
+    observed_components: [
+      {
+        component_id: "opl_framework",
+        owner_authority: "one-person-lab",
+        version: "0.3.5",
+        observation_ref: observationRef,
+        capabilities: [
+          {
+            capability_id: "opl_component_compatibility_receipt",
+            schema_version: "1.0.0",
+          },
+        ],
+      },
+    ],
+    coverage: requirementsDocument.requirements.map((requirement: Record<string, unknown>) => ({
+      requirement_id: requirement.requirement_id,
+      component_id: requirement.component_id,
+      kind: requirement.kind,
+      status: "satisfied",
+      observation_ref: observationRef,
+      failure_code: null,
+    })),
+    failures: [],
+    authority_boundary: {
+      compatibility_only: true,
+      selected_artifact_binding_is_subject_evidence_only: true,
+      may_require_exact_cross_component_version_or_sha: false,
+      may_require_same_cohort: false,
+      may_define_package_currentness: false,
+      may_claim_release_ready: false,
+      may_claim_install_ready: false,
+    },
+  };
+  mutate?.(receipt);
+  writeJson(outputFile, receipt);
+  const receiptSha256 = digest(outputFile);
+  fs.writeFileSync(
+    `${outputFile}.sha256`,
+    `${receiptSha256}  ${path.basename(outputFile)}\n`,
+  );
+  return {
+    receipt,
+    envelope: {
+      app_component_compatibility_receipt: {
+        receipt_file: path.resolve(outputFile),
+        receipt_sha256: `sha256:${receiptSha256}`,
+        sha256_file: path.resolve(`${outputFile}.sha256`),
+        producer_identity: receipt.producer_identity,
+        status: receipt.status,
+        issued_at: receipt.issued_at,
+        expires_at: receipt.expires_at,
+        requirement_count: receipt.requirements.length,
+        failure_count: receipt.failures.length,
+      },
+    },
+  };
+}
+
+function successfulDependencies(
+  value: ReturnType<typeof fixture>["values"],
+  mutateCompatibilityReceipt?: (receipt: Record<string, any>) => void,
+) {
   return {
     run: (command: string, args: string[]) => {
+      if (command === value.frameworkExecutable) {
+        const produced = frameworkCompatibilityReceipt(
+          value,
+          args,
+          mutateCompatibilityReceipt,
+        );
+        return {
+          status: 0,
+          stdout: `${JSON.stringify(produced.envelope)}\n`,
+          stderr: "",
+          error: null,
+        };
+      }
       if (command === "/usr/bin/git" && args[2] === "show") {
         const [, filePath = ""] = args[3].split(":", 2);
         return {
@@ -318,9 +528,6 @@ function convertToDiagnostic(value: ReturnType<typeof fixture>): void {
   delete artifact.immutable;
   delete artifact.public;
   delete artifact.release_id;
-  delete artifact.release_tag;
-  delete artifact.asset_name;
-  delete artifact.size_bytes;
   delete artifact.public_release_receipt;
   delete artifact.public_release_receipt_sha256;
 
@@ -363,6 +570,7 @@ function convertToDiagnostic(value: ReturnType<typeof fixture>): void {
     },
   });
   artifact.build_receipt_sha256 = digest(buildReceiptPath);
+  value.values.buildReceiptSha256 = String(artifact.build_receipt_sha256);
 
   const installReceiptPath = path.join(value.root, "manual-local-app-installation.json");
   writeJson(installReceiptPath, {
@@ -398,13 +606,26 @@ test("installed preflight binds immutable artifact, installed bytes, PID/CDP, is
   const claims = receipt.claims as Record<string, unknown>;
   assert.equal(claims.artifact_digest_bound, true);
   assert.equal(claims.public_release_bound, true);
-  assert.equal(claims.same_cohort_installed, true);
+  assert.equal(claims.component_compatibility_verified, true);
   assert.equal(claims.pid_executable_bound, true);
   assert.equal(claims.cdp_pid_bound, true);
   assert.equal(claims.aioncore_runtime_bound, true);
   assert.equal(claims.isolated_profile_bound, true);
   assert.equal(claims.installed_pixel_acceptance, false);
   assert.equal(claims.release_ready, false);
+  const provenance = receipt.component_provenance as Record<string, any>;
+  assert.notEqual(provenance.app.commit, provenance.shell.commit);
+  assert.notEqual(provenance.shell.commit, provenance.framework.commit);
+  const compatibility = receipt.compatibility as Record<string, any>;
+  assert.equal(
+    compatibility.framework_receipt.producer_identity.executable_path,
+    value.values.frameworkExecutable,
+  );
+  assert.equal(
+    compatibility.framework_receipt.producer_identity.executable_sha256,
+    `sha256:${value.values.frameworkExecutableSha256}`,
+  );
+  assert.equal(value.values.frameworkExecutable.startsWith("/opt/homebrew"), false);
 });
 
 test("installed preflight accepts the real manual build and installation receipt schemas as diagnostic only", async (t) => {
@@ -417,7 +638,7 @@ test("installed preflight accepts the real manual build and installation receipt
   );
 
   assert.equal(receipt.status, "passed", JSON.stringify(receipt.violations));
-  assert.equal((receipt.claims as Record<string, unknown>).same_cohort_installed, true);
+  assert.equal((receipt.claims as Record<string, unknown>).component_compatibility_verified, true);
   assert.equal((receipt.claims as Record<string, unknown>).public_release_bound, false);
   assert.equal((receipt.claims as Record<string, unknown>).release_ready, false);
 });
@@ -451,7 +672,7 @@ test("installed preflight binds Stable contract digests to the declared App coho
 test("installed preflight rejects a manual source lock for immutable Stable", async (t) => {
   const value = fixture(t);
   const artifact = value.input.artifact as Record<string, unknown>;
-  const cohort = value.input.cohort as Record<string, unknown>;
+  const cohort = value.values.cohort;
   writeJson(String(artifact.source_lock), {
     schema: "opl_manual_latest_build_source_lock.v1",
     repositories: {
@@ -507,7 +728,7 @@ test("installed preflight fails closed when artifact bytes drift", async (t) => 
 
   assert.equal(receipt.status, "failed");
   assert.equal((receipt.first_failed as Record<string, unknown>).code, "file_sha256_mismatch");
-  assert.equal((receipt.claims as Record<string, unknown>).same_cohort_installed, false);
+  assert.equal((receipt.claims as Record<string, unknown>).component_compatibility_verified, false);
 });
 
 test("installed preflight rejects real user profiles before live inspection", async (t) => {
@@ -532,7 +753,7 @@ test("installed preflight rejects receipt values that appear only in unrelated n
   const sourceLockPath = String((value.input.artifact as Record<string, unknown>).source_lock);
   const sourceLock = JSON.parse(fs.readFileSync(sourceLockPath, "utf8")) as Record<string, unknown>;
   sourceLock.app = {};
-  sourceLock.notes = value.input.cohort;
+  sourceLock.notes = value.values.cohort;
   writeJson(sourceLockPath, sourceLock);
   (value.input.artifact as Record<string, unknown>).source_lock_sha256 = digest(sourceLockPath);
 
@@ -545,7 +766,7 @@ test("installed preflight rejects receipt values that appear only in unrelated n
   assert.equal(receipt.status, "failed");
   assert.ok(
     (receipt.violations as Array<Record<string, unknown>>).some(
-      (violation) => violation.code === "source_lock_cohort_mismatch",
+      (violation) => violation.code === "source_provenance_invalid",
     ),
   );
 });
@@ -686,5 +907,277 @@ test("installed preflight rejects conflicting AionCore manifest aliases", async 
     (receipt.violations as Array<Record<string, unknown>>).some(
       (violation) => violation.code === "aioncore_manifest_version_mismatch",
     ),
+  );
+});
+
+test("installed preflight fails closed when the Framework producer command is unavailable", async (t) => {
+  const value = fixture(t);
+  const dependencies = successfulDependencies(value.values);
+  const receipt = await preflightInstalledGuiCohort(value.input, value.root, {
+    ...dependencies,
+    run: (command, args) =>
+      command === value.values.frameworkExecutable
+        ? { status: 127, stdout: "", stderr: "command unavailable", error: null }
+        : dependencies.run(command, args),
+  });
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "framework_compatibility_receipt_unavailable",
+    ),
+  );
+  assert.equal(
+    (receipt.claims as Record<string, unknown>).component_compatibility_verified,
+    false,
+  );
+});
+
+test("installed preflight rejects a Framework receipt with invalid owner authority", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.owner = "one-person-lab-app";
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "framework_compatibility_receipt_invalid",
+    ),
+  );
+});
+
+test("installed preflight rejects an expired Framework receipt", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.generated_at = "2026-07-29T23:50:00.000Z";
+      compatibilityReceipt.issued_at = "2026-07-29T23:50:00.000Z";
+      compatibilityReceipt.expires_at = "2026-07-29T23:55:00.000Z";
+      compatibilityReceipt.freshness.generated_at = compatibilityReceipt.generated_at;
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.match(
+    String((receipt.first_failed as Record<string, unknown>).message),
+    /expired|freshness/i,
+  );
+});
+
+test("installed preflight rejects Framework subject drift", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.subject.selected_app_artifact.sha256 = `sha256:${"0".repeat(64)}`;
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.match(
+    String((receipt.first_failed as Record<string, unknown>).message),
+    /subject drifted/i,
+  );
+});
+
+test("installed preflight rejects incomplete requirement coverage", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.coverage = [];
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.match(
+    String((receipt.first_failed as Record<string, unknown>).message),
+    /one coverage entry per requirement/i,
+  );
+});
+
+test("installed preflight reports a Framework-owned missing-capability verdict", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.observed_components[0].capabilities = [];
+      compatibilityReceipt.coverage[0].status = "unsatisfied";
+      compatibilityReceipt.coverage[0].observation_ref = null;
+      compatibilityReceipt.coverage[0].failure_code = "incompatible_missing_capability";
+      compatibilityReceipt.failures = [
+        {
+          requirement_id: compatibilityReceipt.coverage[0].requirement_id,
+          component_id: compatibilityReceipt.coverage[0].component_id,
+          code: "incompatible_missing_capability",
+        },
+      ];
+      compatibilityReceipt.status = "incompatible";
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "incompatible_missing_capability",
+    ),
+  );
+});
+
+test("installed preflight reports a Framework-owned capability-schema verdict", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.observed_components[0].capabilities[0].schema_version = "2.0.0";
+      compatibilityReceipt.coverage[0].status = "unsatisfied";
+      compatibilityReceipt.coverage[0].failure_code = "incompatible_capability_schema";
+      compatibilityReceipt.failures = [
+        {
+          requirement_id: compatibilityReceipt.coverage[0].requirement_id,
+          component_id: compatibilityReceipt.coverage[0].component_id,
+          code: "incompatible_capability_schema",
+        },
+      ];
+      compatibilityReceipt.status = "incompatible";
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.ok(
+    (receipt.violations as Array<Record<string, unknown>>).some(
+      (violation) => violation.code === "incompatible_capability_schema",
+    ),
+  );
+});
+
+test("installed preflight rejects a compatible receipt with empty observations", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.observed_components = [];
+      compatibilityReceipt.coverage[0].observation_ref = null;
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.match(
+    String((receipt.first_failed as Record<string, unknown>).message),
+    /observation|without failures/i,
+  );
+});
+
+test("installed preflight rejects producer identity that differs from the executed Framework", async (t) => {
+  const value = fixture(t);
+  const receipt = await preflightInstalledGuiCohort(
+    value.input,
+    value.root,
+    successfulDependencies(value.values, (compatibilityReceipt) => {
+      compatibilityReceipt.producer_identity.package_ref = "one-person-lab@0.3.4";
+    }),
+  );
+
+  assert.equal(receipt.status, "failed");
+  assert.match(
+    String((receipt.first_failed as Record<string, unknown>).message),
+    /producer identity/i,
+  );
+});
+
+test("installed preflight rejects a drifted Framework receipt sidecar", async (t) => {
+  const value = fixture(t);
+  const dependencies = successfulDependencies(value.values);
+  const receipt = await preflightInstalledGuiCohort(value.input, value.root, {
+    ...dependencies,
+    run: (command, args) => {
+      const result = dependencies.run(command, args);
+      if (command === value.values.frameworkExecutable) {
+        const outputIndex = args.indexOf("--output");
+        fs.appendFileSync(`${args[outputIndex + 1]}.sha256`, "drift");
+      }
+      return result;
+    },
+  });
+
+  assert.equal(receipt.status, "failed");
+  assert.match(
+    String((receipt.first_failed as Record<string, unknown>).message),
+    /sidecar/i,
+  );
+});
+
+test("installed preflight rejects an executable symlink before invoking Framework", async (t) => {
+  const value = fixture(t);
+  const symlinkPath = path.join(value.root, "framework-opl-link");
+  fs.symlinkSync(value.values.frameworkExecutable, symlinkPath);
+  const runtime = (value.input.compatibility as Record<string, any>).framework_runtime;
+  runtime.executable_path = symlinkPath;
+
+  await assert.rejects(
+    preflightInstalledGuiCohort(
+      value.input,
+      value.root,
+      successfulDependencies(value.values),
+    ),
+    /non-symlink/,
+  );
+});
+
+test("installed preflight rejects executable-byte drift before invoking Framework", async (t) => {
+  const value = fixture(t);
+  const runtime = (value.input.compatibility as Record<string, any>).framework_runtime;
+  runtime.executable_sha256 = "0".repeat(64);
+
+  await assert.rejects(
+    preflightInstalledGuiCohort(
+      value.input,
+      value.root,
+      successfulDependencies(value.values),
+    ),
+    /launcher-bound SHA-256/,
+  );
+});
+
+test("installed preflight rejects a wrong global Framework path not present in launcher readback", async (t) => {
+  const value = fixture(t);
+  const wrongGlobalPath = fs.realpathSync("/usr/bin/true");
+  const runtime = (value.input.compatibility as Record<string, any>).framework_runtime;
+  runtime.executable_path = wrongGlobalPath;
+  runtime.executable_sha256 = digest(wrongGlobalPath);
+
+  await assert.rejects(
+    preflightInstalledGuiCohort(
+      value.input,
+      value.root,
+      successfulDependencies(value.values),
+    ),
+    /launcher binding receipt/,
+  );
+});
+
+test("installed preflight rejects launcher binding receipt byte drift", async (t) => {
+  const value = fixture(t);
+  fs.appendFileSync(value.values.frameworkBindingReceiptPath, "drift");
+
+  await assert.rejects(
+    preflightInstalledGuiCohort(
+      value.input,
+      value.root,
+      successfulDependencies(value.values),
+    ),
+    /binding receipt SHA-256 drifted/,
   );
 });

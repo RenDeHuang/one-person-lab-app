@@ -7,6 +7,7 @@
     "schema": "opl_app_distribution_install_model.v1",
     "human_ssot": "docs/delivery/distribution-and-install-ssot.md",
     "release_semantics_ref": "contracts/app-release-channel.json#distribution_semantics",
+    "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
     "topology_counts": {
       "counting_rule": "Install entrypoint families, runtime forms, and payload densities are different axes and must be counted separately.",
       "current_ordinary_install_entrypoint_families": 4,
@@ -141,17 +142,22 @@
       "entrypoint": "opl-install.sh",
       "release_asset_status": "generated_per_exact_release_starting_next_publication",
       "source_checkout_compatibility_entrypoint": "install.sh",
-      "frozen_identity": {
+      "installer_artifact_identity": {
+        "asset_name": "opl-install.sh",
+        "asset_url": "exact_release_asset_url",
+        "asset_size": "exact_release_asset_size",
+        "asset_sha256": "exact_release_asset_sha256",
         "app_source_ref": "OPL_APP_SOURCE_REF",
         "shell_source_ref": "OPL_SHELL_SOURCE_REF",
         "framework_source_ref": "OPL_FRAMEWORK_SOURCE_REF",
         "release_version": "OPL_RELEASE_VERSION",
         "release_repository": "OPL_RELEASE_REPO",
-        "release_tag": "OPL_FROZEN_RELEASE_TAG"
+        "release_tag": "OPL_FROZEN_RELEASE_TAG",
+        "source_ref_role": "recorded_build_provenance_only_never_dependency_selection_or_compatibility_gate"
       },
       "container_webui": {
         "image_repository": "ghcr.io/gaofeng21cn/one-person-lab-webui",
-        "tag": "same_display_version",
+        "tag": "selected_container_carrier_exact_version",
         "mutable_latest_fallback_allowed": false,
         "missing_exact_tag": "typed_blocker"
       },
@@ -179,15 +185,15 @@
           "exact_tag_download_url_required": true,
           "native_artifact_discovery_allowed": false,
           "full_adjunct_resolution": {
-            "base_identity_source": "exact_base_release_component_manifest",
+            "identity_source": "exact_full_release_record_and_full_manifest",
             "discovery_route": "bounded_paginated_github_releases_api",
-            "tag_pattern": "base_tag-full-bundle_digest_hex_prefix_12",
+            "tag_pattern": "full_app_carrier_version-full-full_manifest_sha256_prefix_12",
             "eligible_release": {
               "matching_release_count": 1,
               "draft": false,
               "prerelease": false,
               "immutable": true,
-              "target_commitish": "base_component_manifest.source_cohort.app_sha"
+              "owner_authority_verified": true
             },
             "exact_tag_readback_required": true,
             "required_assets": [
@@ -195,14 +201,12 @@
               "opl-release-manifest.json"
             ],
             "asset_url_and_digest_must_match_exact_adjunct_release": true,
-            "full_manifest_must_match_base_version_and_full_dmg_digest": true,
+            "full_manifest_must_match_its_release_version_and_full_dmg_identity": true,
+            "compatibility_selector_ref": "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
             "explicit_full_missing_ambiguous_or_invalid": "fail_closed",
-            "implicit_full_fallback": "standard_only_when_no_matching_adjunct_tag_exists",
-            "frozen_installer_base_cohort_binding": [
-              "app_source_ref",
-              "shell_source_ref",
-              "framework_source_ref"
-            ]
+            "implicit_full_fallback": "standard_only_when_no_self_verified_compatible_full_release_matches_capability_minimum_or_semver_range",
+            "standard_release_identity_or_bundle_digest_binding_allowed": false,
+            "cross_component_source_cohort_binding_allowed": false
           },
           "target_selection": "host_platform_and_architecture"
         }
@@ -277,7 +281,235 @@
         "temporary_local_authorization_must_be_explicit_and_read_back": true
       }
     },
-    "rule": "Every supported App carrier converges through Framework-owned Base reconciliation, configured Package carriers, and the same Official Profile intent. Full changes seed density; Desktop and Container WebUI change runtime form; neither creates a second product or lifecycle authority."
+    "rule": "Every supported App carrier converges through Framework-owned Base reconciliation and configured Package carriers by capability, minimum-version, or SemVer-range compatibility. App, Shell, Framework, Base, and Package release lines remain independent. Full changes seed density; Desktop and Container WebUI change runtime form; neither creates a second product or lifecycle authority."
+  },
+  "component_interoperability": {
+    "schema": "opl_component_interoperability.v1",
+    "authority": "one-person-lab-app",
+    "model": "independently_versioned_open_composition",
+    "components": [
+      "opl_app",
+      "opl_shell",
+      "opl_framework",
+      "opl_base",
+      "opl_package"
+    ],
+    "combination_policy": {
+      "default": "any_component_versions_may_compose_when_compatibility_requirements_are_satisfied",
+      "full_and_standard_may_publish_and_install_independently": true,
+      "exact_cross_component_version_or_commit_lockstep_required": false,
+      "carrier_choice_may_define_package_currentness": false
+    },
+    "artifact_self_integrity": {
+      "scope": "one_selected_downloaded_or_executed_artifact",
+      "required_identity_fields": [
+        "owner_authority",
+        "immutable_release_tag",
+        "asset_url",
+        "asset_name",
+        "byte_size",
+        "sha256"
+      ],
+      "platform_attestations_when_applicable": [
+        "signature",
+        "notarization"
+      ],
+      "same_release_asset_anonymous_authenticated_byte_parity_required": true,
+      "installed_bytes_must_match_selected_carrier_artifact": true,
+      "reject_on_self_identity_drift": [
+        "owner_authority",
+        "immutable_release_tag",
+        "asset_url",
+        "asset_name",
+        "byte_size",
+        "sha256",
+        "signature",
+        "notarization"
+      ]
+    },
+    "compatibility_admission": {
+      "authority_model": "app_requirements_framework_owner_evaluation_app_fail_closed_validation",
+      "requirements_owner": "one-person-lab-app",
+      "observation_owner": "one-person-lab",
+      "observation_producer_role": "opl_framework",
+      "observation_command": "opl app compatibility receipt --requirements-file <path> --subject-file <path> --output <path> --ttl-seconds 300 --json",
+      "receipt_schema": "opl_component_compatibility_receipt.v1",
+      "requirements_schema": "opl_component_compatibility_requirements.v1",
+      "subject_schema": "opl_app_compatibility_subject.v1",
+      "receipt_transport": "cli_envelope_with_independent_json_file_and_sha256_sidecar",
+      "consumer_preflight_receipt_schema": "opl_app_installed_gui_artifact_preflight_receipt.v2",
+      "current_framework_producer_status": "owner_lane_active_not_canonical_fail_closed",
+      "inline_compatible_claim_allowed": false,
+      "app_may_generate_compatible_receipt": false,
+      "requirements_must_be_nonempty": true,
+      "compatible_receipt_observed_components_must_be_nonempty": true,
+      "observation_max_age_seconds": 300,
+      "required_receipt_coverage": {
+        "requirement_ids": "exactly_once",
+        "component_ids": "exactly_the_components_targeted_by_requirements",
+        "satisfied_requirements_require_framework_owner_observation": true,
+        "package_inventory_complete": "required_only_when_requirements_target_packages"
+      },
+      "subject_binding_fields": [
+        "selected_app_artifact.owner_authority",
+        "selected_app_artifact.immutable_release_tag",
+        "selected_app_artifact.asset_url",
+        "selected_app_artifact.asset_name",
+        "selected_app_artifact.byte_size",
+        "selected_app_artifact.sha256",
+        "installed_app_asar.path",
+        "installed_app_asar.sha256",
+        "build_receipt.path",
+        "build_receipt.sha256"
+      ],
+      "receipt_identity_fields": [
+        "owner",
+        "producer_role",
+        "contract_ref",
+        "producer_contract_ref",
+        "producer_identity.command_surface",
+        "producer_identity.executable_path",
+        "producer_identity.executable_sha256",
+        "producer_identity.framework_version",
+        "producer_identity.package_ref",
+        "receipt_ref",
+        "generated_at",
+        "issued_at",
+        "expires_at",
+        "freshness.max_age_seconds",
+        "sources.requirements.path",
+        "sources.requirements.sha256",
+        "sources.subject.path",
+        "sources.subject.sha256"
+      ],
+      "coverage_fields": [
+        "requirement_id",
+        "component_id",
+        "kind",
+        "status",
+        "observation_ref",
+        "failure_code"
+      ],
+      "requirement_evaluation_policy": "exactly_one_framework_evaluation_per_app_requirement",
+      "allowed_requirement_kinds": [
+        "capability_id_with_versioned_schema",
+        "minimum_version",
+        "semver_range"
+      ],
+      "success_code": "compatible",
+      "failure_codes": [
+        "incompatible_missing_capability",
+        "incompatible_capability_schema",
+        "incompatible_minimum_version",
+        "incompatible_semver_range"
+      ],
+      "forbidden_failure_codes": [
+        "cross_component_sha_mismatch",
+        "cross_component_version_mismatch",
+        "same_cohort_mismatch",
+        "bundle_digest_mismatch",
+        "bom_mismatch"
+      ]
+    },
+    "compatibility_profiles": {
+      "gui_installed_acceptance": {
+        "profile_id": "gui_installed_acceptance",
+        "scope": "installed_gui_artifact_acceptance_only",
+        "requirements": [
+        {
+          "requirement_id": "framework_compatibility_receipt_schema",
+          "kind": "capability_id_with_versioned_schema",
+          "component_id": "opl_framework",
+          "capability_id": "opl_component_compatibility_receipt",
+          "schema_range": ">=1.0.0 <2.0.0"
+        }
+      ],
+      "shell_acceptance_boundary": "app_build_contract_active_shell_gate_and_installed_browser_first_dom_pixel_a11y_behavior",
+      "package_policy": "package_requirements_are_owner_declared_dynamic_capabilities_or_ranges_not_a_fixed_app_bom"
+      }
+    },
+    "provenance": {
+      "exact_component_versions_commits_and_digests_may_be_recorded": true,
+      "role": "observational_build_or_installed_state_only",
+      "may_gate_install_or_runtime": false,
+      "may_define_package_currentness": false,
+      "full_offline_seed_versions_are_payload_provenance_only": true,
+      "resolver_receipts_may_record_selected_versions": true,
+      "resolver_receipts_may_create_future_combination_lock": false
+    },
+    "forbidden_install_or_runtime_gates": [
+      "exact_cross_component_version_equality",
+      "exact_cross_component_sha_equality",
+      "same_app_shell_framework_base_package_cohort",
+      "bundle_or_bom_digest_equality_across_components",
+      "app_owned_package_bom_or_lock",
+      "carrier_projection_defines_package_currentness"
+    ],
+    "receipt_classes": {
+      "r1_standard_release": {
+        "artifact_scope": "standard_app_release_assets_manifest_and_installer",
+        "requires_self_identity_and_owner_authority": true,
+        "latest_points_to_same_standard_app_release": true,
+        "may_bind_exact_shell_framework_base_or_package": false
+      },
+      "r2_standard_homebrew": {
+        "artifact_scope": "standard_cask_and_standard_dmg",
+        "cask_url_and_sha256_must_match_same_standard_dmg": true,
+        "tap_owner_commit_and_installed_app_readback_required": true,
+        "may_validate_exact_dependency_commits": false
+      },
+      "r3_full_release": {
+        "artifact_scope": "full_dmg_and_full_manifest",
+        "requires_self_identity_signature_notarization_and_owner_authority": true,
+        "app_carrier_version_may_be_recorded": true,
+        "may_bind_standard_bundle_digest_or_standard_source_cohort": false
+      },
+      "r4_full_homebrew": {
+        "artifact_scope": "full_cask_and_full_dmg",
+        "cask_url_and_sha256_must_match_same_full_dmg": true,
+        "tap_owner_and_installed_app_readback_required": true,
+        "may_bind_exact_base_or_adjunct_cohort": false
+      },
+      "r5_linux_deb": {
+        "artifact_scope": "one_public_deb_and_its_installer",
+        "requires_deb_digest_signature_architecture_and_version": true,
+        "installed_executable_must_match_bytes_extracted_from_same_deb": true,
+        "same_artifact_never_means_cross_component_cohort": true
+      },
+      "r6_anonymous_authenticated_parity": {
+        "artifact_scope": "one_release_asset",
+        "anonymous_and_authenticated_bytes_and_digest_must_match": true,
+        "may_compare_different_components": false
+      },
+      "r7_unified_installer_managed_state": {
+        "artifact_scope": "selected_desktop_or_webui_standard_or_full_app_carrier",
+        "selected_carrier_version_digest_and_managed_state_must_match_installed_bytes": true,
+        "dependency_admission": "capability_minimum_or_semver_range_only",
+        "may_pin_exact_base_shell_framework_or_package_sha": false
+      }
+    },
+    "negative_matrix": {
+      "must_reject": [
+        "selected_artifact_url_name_size_digest_signature_or_owner_drift",
+        "same_release_asset_anonymous_authenticated_bytes_mismatch",
+        "installed_bytes_do_not_match_selected_carrier_artifact",
+        "missing_required_capability",
+        "minimum_or_semver_range_unsatisfied",
+      "missing_stale_or_incomplete_framework_compatibility_observation",
+      "invalid_framework_compatibility_producer_authority",
+      "framework_compatibility_subject_digest_drift",
+      "framework_compatibility_requirement_or_coverage_mismatch",
+      "empty_compatibility_requirements_or_observations"
+    ],
+      "must_accept": [
+        "compatible_components_with_different_versions_and_commits",
+        "standard_and_full_independent_publication_and_installation_with_self_identity_and_compatibility"
+      ],
+      "must_not_reject": [
+        "app_shell_framework_base_or_package_sha_differs",
+        "standard_and_full_versions_or_bundle_digests_differ"
+      ]
+    }
   },
   "machine_boundary": "App-owned installation and Codex-visible exposure policy. Configured carriers own Package install, update, and remove; OPL Framework owns discovery, presence/callability aggregation, projected actions, and read models. Domain agents own skill semantics, domain handlers, action/stage truth, quality verdicts, and artifact authority.",
   "producer_owner": "one-person-lab",

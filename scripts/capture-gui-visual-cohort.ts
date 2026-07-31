@@ -7,7 +7,7 @@ import { resolveIsolatedProfileRealpath } from "./preflight-installed-gui-cohort
 
 const INPUT_SCHEMA = "opl_app_gui_visual_capture_input.v1";
 const RECEIPT_SCHEMA = "opl_app_gui_visual_capture_receipt.v1";
-const PREFLIGHT_SCHEMA = "opl_app_installed_gui_cohort_preflight_receipt.v1";
+const PREFLIGHT_SCHEMA = "opl_app_installed_gui_artifact_preflight_receipt.v2";
 const COMPARATOR_INPUT_SCHEMA = "opl_app_gui_visual_comparison_input.v1";
 const EXPECTED_SCENE_COUNT = 16;
 const PREFLIGHT_MAX_AGE_MS = 5 * 60 * 1_000;
@@ -153,6 +153,10 @@ function exactCommit(value: unknown, label: string): string {
     throw new Error(`${label} must be a lowercase 40-character Git commit`);
   }
   return commit;
+}
+
+function sha256WithoutPrefix(value: unknown, label: string): string {
+  return exactSha256(requiredString(value, label).replace(/^sha256:/, ""), label);
 }
 
 function positiveInteger(value: unknown, label: string): number {
@@ -309,12 +313,92 @@ function readCaptureAuthority(contractRoot: string): {
   };
 }
 
+function validateFrameworkCompatibility(compatibility: JsonRecord): JsonRecord {
+  if (
+    compatibility.authority !== "framework_owner_receipt_only" ||
+    compatibility.app_generated_compatible_claim !== false
+  ) {
+    throw new Error(
+      "preflight compatibility must be backed only by a Framework-owner receipt",
+    );
+  }
+  requiredString(compatibility.profile_id, "preflight compatibility.profile_id");
+  const receiptPathValue = requiredString(
+    compatibility.framework_receipt_path,
+    "preflight compatibility.framework_receipt_path",
+  );
+  if (!path.isAbsolute(receiptPathValue)) {
+    throw new Error("preflight compatibility Framework receipt path must be absolute");
+  }
+  const receiptPath = path.resolve(receiptPathValue);
+  const receiptStat = fs.lstatSync(receiptPath);
+  if (!receiptStat.isFile() || receiptStat.isSymbolicLink()) {
+    throw new Error("preflight compatibility Framework receipt must be a regular non-symlink file");
+  }
+  const expectedDigest = exactSha256(
+    compatibility.framework_receipt_output_sha256,
+    "preflight compatibility.framework_receipt_output_sha256",
+  );
+  const receiptBytes = fs.readFileSync(receiptPath);
+  if (sha256(receiptBytes) !== expectedDigest) {
+    throw new Error("preflight compatibility Framework receipt SHA-256 does not match its bytes");
+  }
+  const embeddedReceipt = record(
+    compatibility.framework_receipt,
+    "preflight compatibility.framework_receipt",
+  );
+  const receipt = record(
+    JSON.parse(receiptBytes.toString("utf8")),
+    "Framework compatibility receipt",
+  );
+  if (JSON.stringify(receipt) !== JSON.stringify(embeddedReceipt)) {
+    throw new Error(
+      "preflight embedded Framework compatibility receipt does not match the bound receipt bytes",
+    );
+  }
+  if (
+    receipt.schema !== "opl_component_compatibility_receipt.v1" ||
+    receipt.owner !== "one-person-lab" ||
+    receipt.producer_role !== "opl_framework" ||
+    receipt.status !== "compatible"
+  ) {
+    throw new Error(
+      "preflight requires a compatible opl_framework owner-authoritative compatibility receipt",
+    );
+  }
+  const producerIdentity = record(
+    receipt.producer_identity,
+    "Framework compatibility receipt producer_identity",
+  );
+  if (producerIdentity.command_surface !== "opl app compatibility receipt") {
+    throw new Error("Framework compatibility receipt producer command surface is invalid");
+  }
+  requiredString(
+    producerIdentity.executable_path,
+    "Framework compatibility receipt producer executable_path",
+  );
+  sha256WithoutPrefix(
+    producerIdentity.executable_sha256,
+    "Framework compatibility receipt producer executable_sha256",
+  );
+  requiredString(
+    producerIdentity.framework_version,
+    "Framework compatibility receipt producer framework_version",
+  );
+  requiredString(
+    producerIdentity.package_ref,
+    "Framework compatibility receipt producer package_ref",
+  );
+  return compatibility;
+}
+
 function parsePreflight(
   input: CaptureInput,
   now: Date,
 ): {
   receipt: JsonRecord;
-  cohort: JsonRecord;
+  componentProvenance: JsonRecord;
+  compatibility: JsonRecord;
   runtime: JsonRecord;
   profile: JsonRecord;
   installedBound: boolean;
@@ -334,10 +418,32 @@ function parsePreflight(
       `preflight receipt must be no older than ${PREFLIGHT_MAX_AGE_MS / 1_000} seconds`,
     );
   }
-  const cohort = record(receipt.cohort, "preflight cohort");
-  for (const field of ["app_sha", "shell_sha", "framework_sha"] as const) {
-    exactCommit(cohort[field], `preflight cohort.${field}`);
+  const componentProvenance = record(
+    receipt.component_provenance,
+    "preflight component provenance",
+  );
+  const shellProvenance = record(
+    componentProvenance.shell,
+    "preflight component provenance.shell",
+  );
+  exactCommit(shellProvenance.commit, "preflight component provenance.shell.commit");
+  for (const component of ["app", "framework"] as const) {
+    const provenance = componentProvenance[component];
+    if (provenance === undefined || provenance === null) continue;
+    const componentRecord = record(
+      provenance,
+      `preflight component provenance.${component}`,
+    );
+    if (componentRecord.commit !== undefined && componentRecord.commit !== null) {
+      exactCommit(
+        componentRecord.commit,
+        `preflight component provenance.${component}.commit`,
+      );
+    }
   }
+  const compatibility = validateFrameworkCompatibility(
+    record(receipt.compatibility, "preflight compatibility"),
+  );
   const runtime = record(receipt.runtime, "preflight runtime");
   positiveInteger(runtime.pid, "preflight runtime.pid");
   requiredString(runtime.executable_path, "preflight runtime.executable_path");
@@ -352,15 +458,16 @@ function parsePreflight(
   requiredString(profile.realpath, "preflight profile.realpath");
   const claims = record(receipt.claims, "preflight claims");
   const installedBound =
-    claims.same_cohort_installed === true &&
+    claims.artifact_identity_verified === true &&
+    claims.component_compatibility_verified === true &&
     claims.pid_executable_bound === true &&
     claims.cdp_pid_bound === true;
   if (input.classification === "installed_acceptance_candidate" && !installedBound) {
     throw new Error(
-      "installed_acceptance_candidate requires same-cohort installed, PID, and CDP bindings",
+      "installed_acceptance_candidate requires artifact identity, component compatibility, PID, and CDP bindings",
     );
   }
-  return { receipt, cohort, runtime, profile, installedBound };
+  return { receipt, componentProvenance, compatibility, runtime, profile, installedBound };
 }
 
 function routeForScene(scene: CaptureScene, conversationId: string): string {
@@ -582,7 +689,7 @@ function bindingFor(
     reference_baseline_id: reference.baseline_id ?? "",
     reference_approval_receipt_sha256: reference.approval_receipt_sha256 ?? "",
     app_contract_ref: candidate.app_contract_ref ?? "",
-    shell_commit: preflight.cohort.shell_sha,
+    shell_commit: (preflight.componentProvenance.shell as JsonRecord).commit,
     package_or_dev_build_identity: identity.package_or_build_identity ?? "unbound",
     os_version: input.display.os_version,
     architecture: input.display.architecture,
@@ -756,7 +863,8 @@ export async function captureGuiVisualCohort(
       app_contract_sha256: authority.appContractSha256,
       scene_count: EXPECTED_SCENE_COUNT,
     },
-    cohort: preflight.cohort,
+    component_provenance: preflight.componentProvenance,
+    compatibility: preflight.compatibility,
     runtime: preflight.runtime,
     profile: preflight.profile,
     reference_validation: referenceValidation,

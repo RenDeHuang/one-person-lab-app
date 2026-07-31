@@ -8,9 +8,11 @@ import {
   compareUpdaterMachineVersions,
   derivePreviewKind,
   encodeStableMachineVersion,
+  resolveNightlyReleaseVersion,
   resolvePreviewReleaseVersion,
   resolveReleaseVersionIdentity,
   resolveStableReleaseVersion,
+  selectAppUpdaterCandidate,
 } from '../../scripts/release-version.ts';
 import {
   assertPromotionTargetIsNewerThanPublishedStable,
@@ -136,6 +138,78 @@ test('new-scheme next-day Stable and Nightly remain monotonic after same-day rev
   assert.equal(nightly.updaterVersion, '26.7.2190-nightly.0');
   assert.ok(compareUpdaterMachineVersions('26.7.2009', stable.updaterVersion) < 0);
   assert.ok(compareUpdaterMachineVersions(stable.updaterVersion, nightly.updaterVersion) < 0);
+});
+
+test('shared post-cutover revisions let same-day Stable supersede Nightly by SemVer precedence', () => {
+  const nightly = resolveReleaseVersionIdentity('nightly', '26.7.31-nightly');
+  const stable = resolveStableReleaseVersion('26.7.31', ['v26.7.31-nightly']);
+  assert.equal(nightly.updaterVersion, '26.7.3190-nightly.0');
+  assert.equal(stable.version, '26.7.31');
+  assert.equal(stable.updaterVersion, '26.7.3190');
+  assert.ok(compareUpdaterMachineVersions(nightly.updaterVersion, stable.updaterVersion) < 0);
+});
+
+test('all post-cutover App channels allocate from one published same-day revision lane', () => {
+  const preview = resolvePreviewReleaseVersion('26.7.31', [
+    'v26.7.31-nightly',
+    'v26.7.31',
+  ]);
+  assert.equal(preview.version, '26.7.31-preview.r1');
+  assert.equal(preview.updaterVersion, '26.7.3191-preview.1');
+  const nightly = resolveNightlyReleaseVersion('26.7.31-nightly', [
+    'v26.7.31-nightly',
+    'v26.7.31',
+    'v26.7.31-preview.r1',
+  ]);
+  assert.equal(nightly.version, '26.7.31-nightly.r2');
+  assert.deepEqual(nightly.observedSameDayVersions, [
+    '26.7.31',
+    '26.7.31-nightly',
+    '26.7.31-preview.r1',
+  ]);
+});
+
+test('Stable updater is Stable-only while Preview selects the highest Stable or Preview kind', () => {
+  const candidates = [
+    {
+      releaseTag: 'v26.8.1-nightly',
+      updaterVersion: '26.8.190-nightly.0',
+      qualityStatus: 'preview' as const,
+      previewKind: 'nightly' as const,
+    },
+    {
+      releaseTag: 'v26.8.1',
+      updaterVersion: '26.8.190',
+      qualityStatus: 'stable' as const,
+      previewKind: null,
+    },
+  ];
+  assert.deepEqual(
+    selectAppUpdaterCandidate('stable', '26.7.3190', candidates),
+    { status: 'update', candidate: candidates[1] },
+  );
+  assert.deepEqual(
+    selectAppUpdaterCandidate('preview', '26.8.190-nightly.0', candidates),
+    { status: 'update', candidate: candidates[1] },
+  );
+});
+
+test('updater monotonicity rejects downgrade, treats equality as no-op, and rejects invalid SemVer', () => {
+  const stable = {
+    releaseTag: 'v26.8.1',
+    updaterVersion: '26.8.190',
+    qualityStatus: 'stable' as const,
+    previewKind: null,
+  };
+  assert.equal(
+    selectAppUpdaterCandidate('preview', '26.8.191-preview.1', [stable]).status,
+    'rejected_downgrade',
+  );
+  assert.equal(selectAppUpdaterCandidate('stable', stable.updaterVersion, [stable]).status, 'no_op');
+  assert.throws(
+    () => selectAppUpdaterCandidate('preview', 'not-semver', [stable]),
+    /valid SemVer/,
+  );
 });
 
 test('revision overflow, future dates, and display to updater collisions fail closed', () => {

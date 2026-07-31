@@ -9,6 +9,19 @@ export type AppReleaseChannel = 'stable' | 'nightly' | 'preview';
 export type ReleaseQualityStatus = 'stable' | 'preview';
 export type ReleaseBuildTrigger = 'manual' | 'automated';
 export type ReleasePreviewKind = 'dev' | 'nightly' | null;
+export type AppUpdaterAudience = 'stable' | 'preview';
+
+export type AppUpdaterCandidate = {
+  releaseTag: string;
+  updaterVersion: string;
+  qualityStatus: ReleaseQualityStatus;
+  previewKind: ReleasePreviewKind;
+};
+
+export type AppUpdaterSelection = {
+  status: 'update' | 'no_op' | 'rejected_downgrade' | 'no_candidate';
+  candidate: AppUpdaterCandidate | null;
+};
 
 export function derivePreviewKind(
   qualityStatus: ReleaseQualityStatus,
@@ -79,6 +92,34 @@ export function compareUpdaterMachineVersions(left: string, right: string): numb
   return comparePrereleaseIdentifiers(leftMatch[4] ?? '', rightMatch[4] ?? '');
 }
 
+export function selectAppUpdaterCandidate(
+  audience: AppUpdaterAudience,
+  installedUpdaterVersion: string,
+  candidates: AppUpdaterCandidate[],
+): AppUpdaterSelection {
+  compareUpdaterMachineVersions(installedUpdaterVersion, installedUpdaterVersion);
+  const eligible = candidates.filter((candidate) => {
+    compareUpdaterMachineVersions(candidate.updaterVersion, candidate.updaterVersion);
+    assertReleaseSemanticsAxes({
+      qualityStatus: candidate.qualityStatus,
+      buildTrigger: candidate.previewKind === 'nightly' ? 'automated' : 'manual',
+      previewKind: candidate.previewKind,
+    });
+    if (audience === 'stable') return candidate.qualityStatus === 'stable';
+    return candidate.qualityStatus === 'stable'
+      || (candidate.qualityStatus === 'preview'
+        && (candidate.previewKind === 'dev' || candidate.previewKind === 'nightly'));
+  });
+  if (eligible.length === 0) return { status: 'no_candidate', candidate: null };
+  eligible.sort((left, right) =>
+    compareUpdaterMachineVersions(right.updaterVersion, left.updaterVersion));
+  const candidate = eligible[0]!;
+  const comparison = compareUpdaterMachineVersions(candidate.updaterVersion, installedUpdaterVersion);
+  if (comparison < 0) return { status: 'rejected_downgrade', candidate };
+  if (comparison === 0) return { status: 'no_op', candidate };
+  return { status: 'update', candidate };
+}
+
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releaseContract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -130,6 +171,17 @@ function contractLegacyStableMachineVersionLastDisplay(): string {
   return value;
 }
 
+function contractSharedPreviewLaneCutoverDisplayVersion(): string {
+  const value = releaseContract?.github_release_name?.machine_version
+    ?.shared_preview_lane_cutover_display_version;
+  if (typeof value !== 'string' || !/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(value)) {
+    throw new Error(
+      'App release contract must set github_release_name.machine_version.shared_preview_lane_cutover_display_version.',
+    );
+  }
+  return value;
+}
+
 function contractNightlyPatchOffset(): number {
   const value = releaseContract?.github_release_name?.machine_version?.nightly_patch_offset;
   if (!Number.isInteger(value) || value < 10 || value > 90) {
@@ -140,6 +192,8 @@ function contractNightlyPatchOffset(): number {
 
 export const stableMaximumRevision = contractStableMaximumRevision();
 export const legacyStableMachineVersionLastDisplay = contractLegacyStableMachineVersionLastDisplay();
+export const sharedPreviewLaneCutoverDisplayVersion =
+  contractSharedPreviewLaneCutoverDisplayVersion();
 export const nightlyMachinePatchOffset = contractNightlyPatchOffset();
 
 if (nightlyMachinePatchOffset <= stableMaximumRevision
@@ -223,7 +277,14 @@ export function encodeStableMachineVersion(displayVersion: string): string {
   if (revision > stableMaximumRevision) {
     throw new Error(`Stable revision r${revision} exceeds r${stableMaximumRevision}.`);
   }
-  return `${calendar.year - 2000}.${calendar.month}.${calendar.day * 100 + revision}`;
+  const baseDisplayVersion = `${calendar.year - 2000}.${calendar.month}.${calendar.day}`;
+  const patchOffset = compareCalendarVersions(
+    baseDisplayVersion,
+    sharedPreviewLaneCutoverDisplayVersion,
+  ) >= 0
+    ? nightlyMachinePatchOffset
+    : 0;
+  return `${calendar.year - 2000}.${calendar.month}.${calendar.day * 100 + patchOffset + revision}`;
 }
 
 export function resolveReleaseVersionIdentity(
@@ -261,10 +322,17 @@ export function resolveReleaseVersionIdentity(
     if (revision < 1 || revision > stableMaximumRevision) {
       throw new Error(`Preview revision r${revision} must be between r1 and r${stableMaximumRevision}.`);
     }
+    const sharedPreviewLane = compareCalendarVersions(
+      baseDisplayVersion,
+      sharedPreviewLaneCutoverDisplayVersion,
+    ) >= 0;
+    const core = `${year}.${calendar.month}.${calendar.day * 100 + (
+      sharedPreviewLane ? nightlyMachinePatchOffset : 0
+    ) + revision}`;
     return {
       channel,
       displayVersion,
-      updaterVersion: `${year}.${calendar.month}.${calendar.day * 100 + revision}`,
+      updaterVersion: sharedPreviewLane ? `${core}-preview.${revision}` : core,
       tag: `v${displayVersion}`,
       revision,
       legacyMachineVersion: false,
@@ -402,21 +470,40 @@ export function resolveNightlyReleaseVersion(
   const escapedBase = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const canonicalPattern = new RegExp(`^${escapedBase}(?:\\.r([1-9][0-9]*))?$`);
   const legacyRunIdentityPattern = new RegExp(`^${escapedBase}\\.[1-9][0-9]*\\.[1-9][0-9]*$`);
+  const stableBase = baseVersion.slice(0, -'-nightly'.length);
+  const sharedPreviewLane = compareCalendarVersions(
+    stableBase,
+    sharedPreviewLaneCutoverDisplayVersion,
+  ) >= 0;
+  const escapedStableBase = stableBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const stablePattern = new RegExp(`^${escapedStableBase}(?:-r([1-9][0-9]*))?$`);
+  const previewPattern = new RegExp(`^${escapedStableBase}-preview\\.r([1-9][0-9]*)$`);
   const observed = new Set<string>();
-  let highestRevision = 0;
+  let highestRevision = -1;
 
   for (const rawRef of existingRefs) {
     const version = normalizeReleaseRef(rawRef);
     const canonicalMatch = canonicalPattern.exec(version);
     if (canonicalMatch) {
       observed.add(version);
-      if (canonicalMatch[1]) {
-        highestRevision = Math.max(highestRevision, Number(canonicalMatch[1]));
-      }
+      highestRevision = Math.max(highestRevision, canonicalMatch[1] ? Number(canonicalMatch[1]) : 0);
       continue;
     }
     if (legacyRunIdentityPattern.test(version)) {
       observed.add(version);
+      highestRevision = Math.max(highestRevision, 0);
+      continue;
+    }
+    if (sharedPreviewLane) {
+      const stableMatch = stablePattern.exec(version);
+      const previewMatch = previewPattern.exec(version);
+      if (stableMatch || previewMatch) {
+        observed.add(version);
+        highestRevision = Math.max(
+          highestRevision,
+          previewMatch ? Number(previewMatch[1]) : stableMatch?.[1] ? Number(stableMatch[1]) : 0,
+        );
+      }
     }
   }
 
@@ -457,21 +544,40 @@ export function resolveStableReleaseVersion(
   const escapedBase = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const canonicalPattern = new RegExp(`^${escapedBase}(?:-r([1-9][0-9]*))?$`);
   const previewPattern = new RegExp(`^${escapedBase}-preview\\.r([1-9][0-9]*)$`);
+  const nightlyPattern = new RegExp(`^${escapedBase}-nightly(?:\\.r([1-9][0-9]*))?$`);
+  const sharedPreviewLane = compareCalendarVersions(
+    baseVersion,
+    sharedPreviewLaneCutoverDisplayVersion,
+  ) >= 0;
   const observed = new Set<string>();
-  let highestRevision = -1;
+  let highestStableRevision = -1;
+  let highestPrereleaseRevision = -1;
   for (const rawRef of existingRefs) {
     const version = normalizeReleaseRef(rawRef);
     const match = canonicalPattern.exec(version);
     const previewMatch = previewPattern.exec(version);
-    if (!match && !previewMatch) continue;
+    const nightlyMatch = sharedPreviewLane ? nightlyPattern.exec(version) : null;
+    if (!match && !previewMatch && !nightlyMatch) continue;
     observed.add(version);
-    highestRevision = Math.max(
-      highestRevision,
-      previewMatch ? Number(previewMatch[1]) : match?.[1] ? Number(match[1]) : 0,
-    );
+    if (match) {
+      highestStableRevision = Math.max(
+        highestStableRevision,
+        match[1] ? Number(match[1]) : 0,
+      );
+    } else {
+      highestPrereleaseRevision = Math.max(
+        highestPrereleaseRevision,
+        previewMatch ? Number(previewMatch[1]) : nightlyMatch?.[1] ? Number(nightlyMatch[1]) : 0,
+      );
+    }
   }
 
-  const revision = highestRevision < 0 ? 0 : highestRevision + 1;
+  const highestRevision = Math.max(highestStableRevision, highestPrereleaseRevision);
+  const revision = sharedPreviewLane && highestPrereleaseRevision > highestStableRevision
+    ? highestPrereleaseRevision
+    : highestRevision < 0
+      ? 0
+      : highestRevision + 1;
   if (revision > stableMaximumRevision) {
     throw new Error(
       `Stable ${baseVersion} already reached r${highestRevision}; revisions stop at r${stableMaximumRevision}.`,
@@ -499,17 +605,29 @@ export function resolvePreviewReleaseVersion(
   const escapedBase = baseVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const stablePattern = new RegExp(`^${escapedBase}(?:-r([1-9][0-9]*))?$`);
   const previewPattern = new RegExp(`^${escapedBase}-preview\\.r([1-9][0-9]*)$`);
+  const nightlyPattern = new RegExp(`^${escapedBase}-nightly(?:\\.r([1-9][0-9]*))?$`);
+  const sharedPreviewLane = compareCalendarVersions(
+    baseVersion,
+    sharedPreviewLaneCutoverDisplayVersion,
+  ) >= 0;
   const observed = new Set<string>();
   let highestRevision = 0;
   for (const rawRef of existingRefs) {
     const version = normalizeReleaseRef(rawRef);
     const stableMatch = stablePattern.exec(version);
     const previewMatch = previewPattern.exec(version);
-    if (!stableMatch && !previewMatch) continue;
+    const nightlyMatch = sharedPreviewLane ? nightlyPattern.exec(version) : null;
+    if (!stableMatch && !previewMatch && !nightlyMatch) continue;
     observed.add(version);
     highestRevision = Math.max(
       highestRevision,
-      previewMatch ? Number(previewMatch[1]) : stableMatch?.[1] ? Number(stableMatch[1]) : 0,
+      previewMatch
+        ? Number(previewMatch[1])
+        : nightlyMatch?.[1]
+          ? Number(nightlyMatch[1])
+          : stableMatch?.[1]
+            ? Number(stableMatch[1])
+            : 0,
     );
   }
 
