@@ -1458,7 +1458,6 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "runs-on: windows-2022",
       "Build updater-capable Windows x64 package",
       "config.nsis.differentialPackage=true",
-      "config.publish.provider=generic",
       "validate-windows-updater-assets.ts",
       "One-Person-Lab-${{ inputs.release_version }}-win-x64.exe.blockmap",
       "latest.yml",
@@ -1480,6 +1479,8 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "Get-AuthenticodeSignature",
       "opl-windows-authenticode-receipt.json",
       "npm run release:publish",
+      "config.publish.provider=generic",
+      "config.publish.url=",
     ],
   },
   {
@@ -1719,7 +1720,6 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "require_windows_updater_assets:",
       "require_windows_authenticode:",
       "config.nsis.differentialPackage=true",
-      "config.publish.provider=generic",
       "validate-windows-updater-assets.ts",
       "opl-windows-updater-assets.json",
       "Get-AuthenticodeSignature",
@@ -1727,7 +1727,10 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "opl-windows-authenticode-receipt.json",
       "-win-x64.exe.blockmap",
     ],
-    forbidden: [],
+    forbidden: [
+      "config.publish.provider=generic",
+      "config.publish.url=",
+    ],
   },
   {
     id: "automatic_optional_platform_follower",

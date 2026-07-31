@@ -756,7 +756,7 @@ jobs:
             if ('${{ matrix.platform }}' -ne 'windows-x64') {
               throw 'Windows updater assets are supported only for windows-x64.'
             }
-            $Command += ' --config.nsis.differentialPackage=true --config.publish.provider=generic --config.publish.url=https://onepersonlab.dev/updates/windows'
+            $Command += ' --config.nsis.differentialPackage=true'
           }
           iex $Command
         env:
