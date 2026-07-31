@@ -260,66 +260,6 @@ export function validateTaskAwarenessProjectionContract(projection, label) {
   );
 }
 
-export function validateRuntimeScopeProjectionContract(projection, label) {
-  if (!projection || typeof projection !== "object") {
-    throw new Error(`${label} must be declared`);
-  }
-  for (const [field, expected] of Object.entries({
-    source: "app_state.operator.workbench.runtime_scope",
-    authority: "opl_framework_runtime_scope_projection",
-    display_policy:
-      "two_level_agent_then_project_cascade_work_items_stay_in_list",
-    default_scope_identity_policy:
-      "project_scope_uses_canonical_project_registry_for_selected_agent",
-    user_facing_state_policy:
-      "primary_state_is_framework_projected_from_work_item_v2_axes_shell_never_derives_it",
-  })) {
-    if (projection[field] !== expected) {
-      throw new Error(`${label} ${field} must be ${expected}`);
-    }
-  }
-  assertDeepEqualJson(
-    projection.required_fields,
-    runtimeScopeRequiredFields,
-    `${label} required_fields`,
-  );
-  assertDeepEqualJson(
-    projection.default_scope_levels,
-    ["agent", "project"],
-    `${label} default_scope_levels`,
-  );
-  if (
-    projection.agent_scope?.all_option !== "all_agents" ||
-    projection.agent_scope?.full_display_names_required !== true ||
-    projection.agent_scope?.membership_source !== "work_item_projection_v2.agent_catalog" ||
-    projection.agent_scope?.inclusion_policy !== "installed_present_kind_agent_with_task_provider" ||
-    projection.agent_scope?.app_hardcoded_agent_ids_allowed !== false ||
-    projection.project_scope?.all_option !== "all_projects" ||
-    projection.project_scope?.source !== "canonical_project_registry_for_selected_agent" ||
-    projection.project_scope?.display_name_source !== "canonical_workspace_path_basename" ||
-    projection.project_scope?.display_name_must_equal_workspace_path_basename !== true ||
-    projection.project_scope?.work_item_options_allowed !== false ||
-    projection.work_item_scope_allowed !== false ||
-    projection.visibility_axis_outside_scope !== true ||
-    projection.archived_library_reuses_agent_project_scope !== true
-  ) {
-    throw new Error(`${label} must use Agent -> Project basename scope and keep work items and visibility out of scope`);
-  }
-  if (
-    projection.saved_views?.dimension !== "primary_state_only" ||
-    projection.saved_views?.agent_or_project_views_allowed !== false ||
-    projection.saved_views?.visibility_views_allowed !== false ||
-    projection.saved_views?.package_or_agent_specific_ids_allowed !== false
-  ) {
-    throw new Error(`${label} saved views must be status-only and cannot hardcode Package or Agent ids`);
-  }
-  assertDeepEqualJson(
-    projection.scope_source_values,
-    ["default_global", "user_selected", "inferred"],
-    `${label} scope_source_values`,
-  );
-}
-
 export function validateWorkItemRowIdentityFixture(
   items,
   label,

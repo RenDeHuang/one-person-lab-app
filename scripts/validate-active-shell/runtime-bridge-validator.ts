@@ -20,7 +20,6 @@ import {
   validateProgressDeltaDisplayContract,
   validateProjectProgressDisplayContract,
   validateRefLevelFollowUpProjectionContract,
-  validateRuntimeScopeProjectionContract,
   validateStageRunCockpitFixture,
   validateStageRunCockpitProjectionContract,
   validateStateIndexSidecarFixture,
@@ -1465,10 +1464,6 @@ function validateRuntimeBridgeProjectionContracts(runtimeBridge) {
   validateWorkflowSkillCandidateProjectionContract(
     runtimeBridge.workflow_skill_candidate_projection,
     'Runtime bridge workflow/skill candidate projection',
-  );
-  validateRuntimeScopeProjectionContract(
-    runtimeBridge.runtime_scope_projection,
-    'Runtime bridge runtime scope projection',
   );
   validateOpenScienceConsoleProjectionContract(
     runtimeBridge.openscience_console_projection,

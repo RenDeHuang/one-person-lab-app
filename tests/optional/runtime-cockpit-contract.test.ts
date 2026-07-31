@@ -5,7 +5,6 @@ import { validateRuntimeProgressPageDisplayPolicy } from '../../scripts/validate
 import { validateOptionalRuntimeRoute } from '../../scripts/validate-active-shell/runtime-route-validator.ts';
 import {
   validateAgentAvailabilityProjectionContract,
-  validateRuntimeScopeProjectionContract,
   validateUserTaskStatusProjectionContract,
   validateWorkItemRowIdentityFixture,
   validateWorkItemProjectionContract,
@@ -33,13 +32,12 @@ const validatePageState = (matrix: any, guiContract = readJson('contracts/app-gu
 const runtimeContract = () => readJson('contracts/app-gui-product-contract.json');
 const runtimeBridge = () => readJson('contracts/app-runtime-bridge.json');
 
-test('Runtime V2 product, projection, scope, availability, and page-state contracts are active', () => {
+test('Runtime V2 product, projection, availability, and page-state contracts are active', () => {
   const bridge = runtimeBridge();
   assert.doesNotThrow(() => validateGuiContract(runtimeContract()));
   assert.doesNotThrow(() => validatePageState(readJson('contracts/app-page-state-matrix.json')));
   assert.doesNotThrow(() => validateWorkItemProjectionContract(bridge.work_item_projection, 'test projection'));
   assert.doesNotThrow(() => validateRuntimeProgressPageDisplayPolicy(bridge));
-  assert.doesNotThrow(() => validateRuntimeScopeProjectionContract(bridge.runtime_scope_projection, 'test scope'));
   assert.doesNotThrow(() => validateAgentAvailabilityProjectionContract(bridge.agent_availability_projection, 'test agents'));
 });
 
@@ -291,21 +289,6 @@ test('Manual archive is Framework visibility with generation concurrency and pre
     const projection = structuredClone(runtimeBridge().work_item_projection);
     mutate(projection);
     assert.throws(() => validateWorkItemProjectionContract(projection, 'mutated visibility projection'));
-  }
-});
-
-test('Runtime scope is Agent then Project and membership is descriptor-driven', () => {
-  for (const mutate of [
-    (scope: any) => { scope.agent_scope.membership_source = 'app_hardcoded_agents'; },
-    (scope: any) => { scope.default_scope_levels.push('work_item'); },
-    (scope: any) => { scope.project_scope.work_item_options_allowed = true; },
-    (scope: any) => { scope.work_item_scope_allowed = true; },
-    (scope: any) => { scope.saved_views.dimension = 'agent_and_status'; },
-    (scope: any) => { scope.saved_views.package_or_agent_specific_ids_allowed = true; },
-  ]) {
-    const scope = structuredClone(runtimeBridge().runtime_scope_projection);
-    mutate(scope);
-    assert.throws(() => validateRuntimeScopeProjectionContract(scope, 'mutated scope'));
   }
 });
 

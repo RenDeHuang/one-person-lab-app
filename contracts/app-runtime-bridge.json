@@ -1154,62 +1154,6 @@
     ],
     "doc_ref": "docs/product/gui/runtime-overview-redesign.md"
   },
-  "runtime_scope_projection": {
-    "source": "app_state.operator.workbench.runtime_scope",
-    "authority": "opl_framework_runtime_scope_projection",
-    "display_policy": "two_level_agent_then_project_cascade_work_items_stay_in_list",
-    "default_scope_identity_policy": "project_scope_uses_canonical_project_registry_for_selected_agent",
-    "user_facing_state_policy": "primary_state_is_framework_projected_from_work_item_v2_axes_shell_never_derives_it",
-    "default_scope_levels": ["agent", "project"],
-    "required_fields": [
-      "agent_scope_options",
-      "selected_agent_scope",
-      "project_scope_options",
-      "selected_project_scope",
-      "scope_source",
-      "inferred_scope_hint"
-    ],
-    "agent_scope": {
-      "all_option": "all_agents",
-      "full_display_names_required": true,
-      "membership_source": "work_item_projection_v2.agent_catalog",
-      "inclusion_policy": "installed_present_kind_agent_with_task_provider",
-      "identity_fields": ["agent_id", "agent_display_name"],
-      "app_hardcoded_agent_ids_allowed": false
-    },
-    "project_scope": {
-      "all_option": "all_projects",
-      "source": "canonical_project_registry_for_selected_agent",
-      "display_name_source": "canonical_workspace_path_basename",
-      "display_name_must_equal_workspace_path_basename": true,
-      "work_item_options_allowed": false
-    },
-    "work_item_scope_allowed": false,
-    "visibility_axis_outside_scope": true,
-    "archived_library_reuses_agent_project_scope": true,
-    "saved_views": {
-      "dimension": "primary_state_only",
-      "required_ids": [
-        "all",
-        "automatically_advancing",
-        "awaiting_user_decision",
-        "system_attention",
-        "delivered_or_paused",
-        "stopped",
-        "sync_pending"
-      ],
-      "agent_or_project_views_allowed": false,
-      "visibility_views_allowed": false,
-      "package_or_agent_specific_ids_allowed": false
-    },
-    "scope_source_values": ["default_global", "user_selected", "inferred"],
-    "forbidden_claims": [
-      "current_workspace_only_truth",
-      "shell_private_scope_state",
-      "domain_truth_override"
-    ],
-    "app_role": "display_only_scope_projection_consumer"
-  },
   "work_item_projection": {
     "surface_kind": "opl_work_item_projection",
     "schema_version": "work-item-projection.v2",
