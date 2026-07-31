@@ -32,19 +32,16 @@ cleanup、publication、install、标题和 archive 决策都必须先回总账�
 省略 `model` 和 `thinking` 参数，保持原对话配置；总账不得把 `gpt-5.6-sol` 改成
 `gpt-5.6-terra`，也不得以任何理由替换已有模型。
 
-本轮按用户交付终态去重为 6 条线、29 个任务：桌面体验 4、Windows 与 WebUI 6、Stable
-与分发 5、Package 与 Framework 4、Runner 与 CI 3、总账与收口 7。其中 27 个仍为
-`ACTIVE`，2 个仅可标记 `SAFE_TO_ARCHIVE`；实际归档仍需用户对具体 thread 的 fresh 验收。
-数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
+任务数量、状态、owner、write set、checkpoint、next action 和 integration overlap 不在本文
+冻结。它们必须从 fresh lifecycle/thread readback 获取；任何历史快照都不得用于准入、吸收、
+cleanup 或 archive。数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
 
 每次执行、吸收或清理前都必须重新读取 canonical/wire、worktree lifecycle、thread owner
 和 exact write set；历史 commit/tree/count 只作当时证据，不在本文冻结，也不限制独立任务
 并发或把已启动的 read-only evidence 工作变成等待。
 
-恢复规则：仍有未完成义务的误中止任务，沿原 owner、原 receipt、原 worktree 和原 next action
-恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。Framework payload
-exact2 已由 PR #14 吸收到 Framework canonical，原 receipt owner 也已完成 official guarded close；
-Framework PR #13 同样已完成吸收与 owner-close。这两条都不得复活，后续只保留终态证据。
+恢复规则：仍有未完成义务的误中止任务，沿 fresh readback 证明仍有效的原 owner、receipt、
+worktree 和 next action 恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。
 
 每个 ACTIVE task 必须同时具备唯一 controller、可验证 execution owner、精确或有界 write
 set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonical absorption plan。

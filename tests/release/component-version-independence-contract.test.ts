@@ -92,3 +92,45 @@ test('updater contract makes Stable reclaim a published Nightly only with a high
     lower_or_equal_superseding_stable: 'reject',
   });
 });
+
+test('security remediation projection preserves self-artifact integrity without reintroducing component lockstep', () => {
+  const correction = readJson(
+    'docs/security/audits/2026-07-30-codex-security-app/remediation-correction.json',
+  );
+  const dispositions = correction.dispositions as Array<Record<string, any>>;
+
+  assert.deepEqual(correction.sealed_scan, {
+    scan_id: '22ac28a3-c239-4497-a440-4f4437adb4df',
+    revision: '329f84f7163323936166f03765eca2f6622d3096',
+    scan_manifest_sha256: '3d40e6d124343042f0393d4307a6e90a9d36a2c179253e8cb32733d9eef450ef',
+    findings_sha256: '4a3f2d0ea53e46d9ac369e40f1a23e6be51a30469592bb891786591a43225991',
+    report_sha256: '1f834325c1295b9704bebab3818fd11ea99156f417440bc78557763c8f88a1a2',
+    sealed_scan_modified: false,
+    finding_count: 11,
+  });
+  assert.equal(dispositions.length, 11);
+  assert.equal(
+    dispositions.filter(({ disposition }) => disposition === 'retain_self_artifact_integrity').length,
+    8,
+  );
+  assert.equal(
+    dispositions.filter(({ disposition }) => disposition === 'retain_independent_security_finding').length,
+    3,
+  );
+  assert.equal(
+    correction.product_contract.cross_component_exact_version_sha_or_cohort_lock_allowed,
+    false,
+  );
+  assert.equal(correction.product_contract.component_refs_may_gate_install_or_runtime, false);
+  assert.equal(
+    correction.acceptance_boundary
+      .capability_minimum_or_semver_range_is_the_only_cross_component_compatibility_language,
+    true,
+  );
+  for (const disposition of dispositions.filter(
+    ({ disposition }) => disposition === 'retain_self_artifact_integrity',
+  )) {
+    assert.equal(disposition.independent_component_versions_must_remain_acceptable, true);
+    assert.match(disposition.forbidden_remediation, /Do not/);
+  }
+});
