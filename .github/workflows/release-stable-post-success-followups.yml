@@ -36,6 +36,7 @@ jobs:
       app_ref: ${{ steps.bind.outputs.app_ref }}
       shell_ref: ${{ steps.bind.outputs.shell_ref }}
       version: ${{ steps.bind.outputs.version }}
+      updater_version: ${{ steps.bind.outputs.updater_version }}
       source_bundle_digest: ${{ steps.bind.outputs.source_bundle_digest }}
       existing_run_id: ${{ steps.bind.outputs.existing_run_id }}
       optional_platforms_enabled: ${{ steps.optional.outputs.optional_platforms_enabled }}
@@ -132,12 +133,14 @@ jobs:
             and (.sources.shell.source_commit | test("^[0-9a-f]{40}$"))
             and (.sources.framework.source_commit | test("^[0-9a-f]{40}$"))
             and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$"))
+            and (.release.updater_version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"))
             and (.release.tag == ("v" + .release.version))
             and (.release.prerelease == false)
           ' "$bundle" >/dev/null
           jq -e \
             --arg head "$SOURCE_HEAD_SHA" \
             --arg version "$(jq -er .release.version "$bundle")" \
+            --arg updater "$(jq -er .release.updater_version "$bundle")" \
             --arg tag "$(jq -er .release.tag "$bundle")" \
             --arg shell "$(jq -er .sources.shell.source_commit "$bundle")" \
             --arg framework "$(jq -er .sources.framework.source_commit "$bundle")" '
@@ -146,6 +149,7 @@ jobs:
             and .source_commit == $head
             and .source_cohort == {app_sha:$head,shell_sha:$shell,framework_sha:$framework}
             and .version == $version
+            and .updater_version == $updater
             and .release_tag == $tag
             and (.artifacts | type == "array" and length >= 6)
             and ([.artifacts[].name] | length == (unique | length))
@@ -156,6 +160,7 @@ jobs:
           ' "$manifest" >/dev/null
 
           version="$(jq -er .release.version "$bundle")"
+          updater_version="$(jq -er .release.updater_version "$bundle")"
           framework_ref="$(jq -er .sources.framework.source_commit "$bundle")"
           app_ref="$(jq -er .sources.app.source_commit "$bundle")"
           shell_ref="$(jq -er .sources.shell.source_commit "$bundle")"
@@ -192,6 +197,7 @@ jobs:
               echo "app_ref=$app_ref"
               echo "shell_ref=$shell_ref"
               echo "version=$version"
+              echo "updater_version=$updater_version"
               echo "source_bundle_digest=$bundle_digest"
               echo "optional_platforms=$optional_platforms"
               echo "existing_run_id=$existing_run_id"
@@ -208,6 +214,7 @@ jobs:
             echo "app_ref=$app_ref"
             echo "shell_ref=$shell_ref"
             echo "version=$version"
+            echo "updater_version=$updater_version"
             echo "source_bundle_digest=$bundle_digest"
             echo "optional_platforms=$optional_platforms"
             echo 'existing_run_id='
@@ -220,6 +227,7 @@ jobs:
             --arg shell_ref "$shell_ref" \
             --arg framework_ref "$framework_ref" \
             --arg version "$version" \
+            --arg updater_version "$updater_version" \
             --arg bundle_digest "$bundle_digest" \
             --argjson optional_platforms "$optional_platforms" \
             '{
@@ -228,7 +236,7 @@ jobs:
               operation:"append_full",
               source:{run_id:$source_run_id,artifact:$source_artifact,bundle_digest:$bundle_digest},
               cohort:{app_sha:$app_ref,shell_sha:$shell_ref,framework_sha:$framework_ref},
-              release:{version:$version,optional_platforms:$optional_platforms,standard_assets_modified:false,latest_modified:false},
+              release:{version:$version,updater_version:$updater_version,optional_platforms:$optional_platforms,standard_assets_modified:false,latest_modified:false},
               idempotency:{one_successor_per_standard_run:true,existing_run_id:null}
             }' > successor-intent.json
 
@@ -282,6 +290,7 @@ jobs:
       shell_ref: ${{ needs.admit.outputs.shell_ref }}
       framework_ref: ${{ needs.admit.outputs.framework_ref }}
       opl_release_version: ${{ needs.admit.outputs.version }}
+      opl_updater_version: ${{ needs.admit.outputs.updater_version }}
       source_run_id: ${{ needs.admit.outputs.source_run_id }}
       source_bundle_digest: ${{ needs.admit.outputs.source_bundle_digest }}
       platform_ids: ${{ needs.admit.outputs.optional_platforms }}

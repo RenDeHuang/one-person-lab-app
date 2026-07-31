@@ -515,20 +515,22 @@
       "windows-x64": {
         "default_enabled": false,
         "quality_channels": [
+          "stable_optional",
           "preview_rc",
           "development_validation"
         ],
-        "stable_allowed": false,
+        "stable_allowed": true,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "preview_rc_only",
-        "publication_route": ".github/workflows/build-manual.yml#protected_windows_preview_rc",
+        "publication_status": "stable_optional_follower_and_preview_rc_supported_default_off",
+        "publication_route": ".github/workflows/build-manual.yml#protected_selected_platform_publication",
         "build": {
           "os": "windows-2022",
           "command": "node scripts/build-with-builder.js x64 --win --x64",
           "arch": "x64",
           "artifact_names": {
+            "stable_optional": "optional-windows-x64",
             "windows_preview": "windows-preview-x64",
             "manual": "windows-build-x64"
           }
@@ -585,7 +587,8 @@
         "platforms": [
           "macos-x64",
           "macos-universal",
-          "linux-arm64"
+          "linux-arm64",
+          "windows-x64"
         ],
         "default_enabled": false,
         "required": false,
@@ -646,6 +649,28 @@
       "base_release_mutation_allowed": false,
       "blocks_stable_base_terminal": false,
       "blocks_latest_activation": false,
+      "windows_x64_updater_assets": {
+        "enabled_only_when_selected": true,
+        "display_version_source": "exact_standard_release_version",
+        "updater_version_source": "exact_standard_bundle_release_updater_version",
+        "build_validator": "scripts/validate-windows-updater-assets.ts",
+        "receipt": "opl-windows-updater-assets.json",
+        "authenticode_required_for_publication": true,
+        "authenticode_receipt": "opl-windows-authenticode-receipt.json",
+        "authenticode_gate": "Get-AuthenticodeSignature_status_valid_with_timestamp_countersignature_and_exact_installer_digest",
+        "preview_authenticode_requirement_changed": false,
+        "required_assets": [
+          "One-Person-Lab-<display-version>-win-x64.exe",
+          "One-Person-Lab-<display-version>-win-x64.exe.blockmap",
+          "latest.yml",
+          "opl-windows-updater-assets.json",
+          "opl-windows-authenticode-receipt.json"
+        ],
+        "metadata_binding": "latest_yml_version_name_size_and_sha512_match_exact_installer_bytes",
+        "runtime_feed_authority": "active_shell_resolves_one_digest_bound_immutable_adjunct_for_the_selected_base_stable_and_points_electron_updater_to_that_exact_release_download_base",
+        "runtime_resolver": "opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts",
+        "base_stable_or_latest_mutation_allowed": false
+      },
       "receipt_must_include": [
         "base_tag",
         "adjunct_tag",
@@ -653,6 +678,7 @@
         "download_base_url",
         "bundle_digest",
         "cohort",
+        "updater_version",
         "platforms",
         "asset_digests",
         "manifest_digest"

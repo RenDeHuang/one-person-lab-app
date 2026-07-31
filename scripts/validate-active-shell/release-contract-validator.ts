@@ -1162,7 +1162,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   );
   assertDeepEqualJson(
     policies?.stable_optional?.platforms,
-    ['macos-x64', 'macos-universal', 'linux-arm64'],
+    ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64'],
     'Stable optional platform policy',
   );
   if (validationProfile !== 'stable') {
@@ -1194,8 +1194,9 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || capabilities?.['linux-x64']?.default_enabled !== true
     || capabilities?.['linux-x64']?.blocks_stable !== true
     || capabilities?.['windows-x64']?.default_enabled !== false
-    || capabilities?.['windows-x64']?.stable_allowed !== false
+    || capabilities?.['windows-x64']?.stable_allowed !== true
     || capabilities?.['windows-x64']?.blocks_stable !== false
+    || !capabilities?.['windows-x64']?.quality_channels?.includes('stable_optional')
     || capabilities?.['windows-arm64']?.default_enabled !== false
     || capabilities?.['windows-arm64']?.stable_allowed !== false
     || capabilities?.['windows-arm64']?.blocks_stable !== false
@@ -1214,6 +1215,16 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       'independent_immutable_adjunct_release'
     || platformMatrix?.optional_platform_additive_follower?.base_release_must_be_published_immutable !== true
     || platformMatrix?.optional_platform_additive_follower?.make_latest !== false
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
+      'scripts/validate-windows-updater-assets.ts'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.updater_version_source !==
+      'exact_standard_bundle_release_updater_version'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== true
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_receipt !==
+      'opl-windows-authenticode-receipt.json'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
+      'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false
     || platformMatrix?.full_macos_additive_follower?.trigger !==
       'protected_automatic_post_success_or_explicit_independent_full_publication'
     || platformMatrix?.full_macos_additive_follower?.source_policy !==
@@ -1228,7 +1239,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.full_macos_additive_follower?.blocks_stable_base_terminal !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_latest_activation !== false
   ) {
-    throw new Error('Release platform matrix must keep macOS ARM64 plus Linux x64 required, Windows Preview-only, and Full non-blocking');
+    throw new Error('Release platform matrix must keep macOS ARM64 plus Linux x64 required, Windows x64 Stable-optional, Windows arm64 Preview-only, and Full non-blocking');
   }
 }
 

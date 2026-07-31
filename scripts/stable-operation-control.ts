@@ -20,6 +20,7 @@ const stableOptionalPlatformIds = [
   'macos-x64',
   'macos-universal',
   'linux-arm64',
+  'windows-x64',
 ] as const;
 const requiredCriticalBlobPaths = [
   '.github/workflows/release-stable.yml',
