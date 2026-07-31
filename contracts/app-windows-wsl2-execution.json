@@ -83,6 +83,19 @@
     "same_name_foreign_identity": "fail_closed",
     "partial_result": "reconcile_before_retry",
     "automatic_repair_required": true,
+    "long_running_progress": {
+      "heartbeat_interval_seconds": 15,
+      "heartbeat_required_states": [
+        "installing_owned_distribution",
+        "initializing_guest",
+        "activating_owner_artifacts"
+      ],
+      "elapsed_time_required": true,
+      "localized_activity_required": true,
+      "stage_percent_is_exact_completion_percent": false,
+      "same_operation_continues_while_heartbeat_advances": true,
+      "user_reinstall_guidance_allowed_while_operation_is_active": false
+    },
     "guest_network_recovery": {
       "ubuntu_software_source_dns_preflight_required": true,
       "transient_apt_retry_required": true,
