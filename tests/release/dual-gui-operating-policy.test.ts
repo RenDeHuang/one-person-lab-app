@@ -77,6 +77,35 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
   assert.equal('same_cohort_runtime_identity_required_for_parity' in policy, false);
   assert.equal(policy.parity_admission_basis, 'compatible_runtime_capability_and_versioned_schema_range');
   assert.equal(policy.exact_runtime_identity_equality_may_gate_install_or_runtime, false);
+  assert.equal(policy.runtime_identity_owner, 'gaofeng21cn/opl-aion-shell');
+  assert.equal(policy.same_physical_runtime_currently_claimed, false);
+  assert.equal(
+    policy.implementation_status,
+    'source_identity_binding_implemented_full_standard_finder_evidence_pending',
+  );
+  assert.deepEqual(
+    policy.runtime_identity_contract.required_fields,
+    [
+      'path',
+      'realpath',
+      'version',
+      'sha256',
+      'codex_home',
+      'runtime_key',
+      'runtime_cohort_ref',
+      'carrier.producer_manifest_sha256',
+      'carrier.projection_manifest_sha256',
+    ],
+  );
+  assert.deepEqual(
+    policy.packaged_evidence_contract.required_run_ids,
+    ['full_clean_install_finder', 'standard_update_after_full_finder'],
+  );
+  assert.equal(policy.runtime_identity_contract.aioncore_modification_required, false);
+  assert.equal(policy.runtime_identity_contract.aioncore_native_readback_required, false);
+  assert.equal(policy.runtime_identity_contract.aioncore_native_readback_claim_allowed, false);
+  assert.equal(policy.packaged_evidence_contract.referenced_file_sha256_required, true);
+  assert.equal(policy.packaged_evidence_contract.artifact_trigger_status, 'pending');
   assert.deepEqual(
     target.compatibility_requirements.map(({ component_id, capability_id, schema_range }: any) => ({
       component_id,
@@ -131,6 +160,23 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
   assert.throws(
     () => validateRuntimeBridgeContract(provenanceGate, activeAdapter),
     /observational build provenance may_gate_install_or_runtime must be false/,
+  );
+
+  const inventedAionCoreReadback = structuredClone(runtimeBridge);
+  inventedAionCoreReadback.shared_gui_runtime_resolution_policy.runtime_identity_contract
+    .aioncore_native_readback_claim_allowed = true;
+  assert.throws(
+    () => validateRuntimeBridgeContract(inventedAionCoreReadback, activeAdapter),
+    /aioncore_native_readback_claim_allowed must be false/,
+  );
+
+  const missingArtifactRun = structuredClone(runtimeBridge);
+  missingArtifactRun.shared_gui_runtime_resolution_policy.packaged_evidence_contract.required_run_ids = [
+    'full_clean_install_finder',
+  ];
+  assert.throws(
+    () => validateRuntimeBridgeContract(missingArtifactRun, activeAdapter),
+    /packaged evidence runs/,
   );
 });
 

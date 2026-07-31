@@ -50,6 +50,7 @@
     "validate:opl-package": "node --experimental-strip-types scripts/run-active-shell-command.ts bun run validate:opl-package",
     "validate:app-root-boundary": "node --experimental-strip-types scripts/app-root-boundary.ts",
     "validate:active-shell": "node --experimental-strip-types scripts/validate-active-shell.ts",
+    "validate:codex-runtime-identity-evidence": "node --experimental-strip-types scripts/codex-runtime-identity-evidence.ts",
     "validate:agent-installation": "node --experimental-strip-types scripts/validate-agent-installation-contract.ts",
     "validate:shell-candidates": "node --experimental-strip-types scripts/validate-shell-candidates.ts",
     "validate:gui-design-system": "node --experimental-strip-types scripts/validate-gui-design-system.ts",
