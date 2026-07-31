@@ -122,7 +122,7 @@ test('release boundary admits the three-operation control plane and real no-secr
   assert.equal(canary.stable_mutation_allowed, false);
   assert.equal(canary.publication_allowed, false);
   assert.equal(canary.uses_stable_mutation_mutex, false);
-  assert.ok(canary.triggers.includes('daily_schedule'));
+  assert.deepEqual(canary.triggers, ['daily_schedule', 'workflow_dispatch']);
   assert.equal(fs.existsSync(path.join(process.cwd(), workflowDirectory, 'release-nightly.yml')), true);
   assert.equal(validateStableReleaseControlPlane(process.cwd()), 0);
   assert.equal(validateReleaseBundleTopology(process.cwd()), 0);

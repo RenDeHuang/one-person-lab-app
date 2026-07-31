@@ -7,9 +7,6 @@ on:
       - OPL Non-Release Validation
     types:
       - completed
-  schedule:
-    # Hosted re-admission only: it never starts offline capacity or publishes.
-    - cron: '17 */2 * * *'
   workflow_dispatch:
     inputs:
       source_run_id:
@@ -54,7 +51,6 @@ jobs:
     name: Admit advisory runner pools
     if: >-
       ${{
-        github.event_name == 'schedule' ||
         (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
         (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
       }}
