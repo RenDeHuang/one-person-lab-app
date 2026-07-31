@@ -18,7 +18,50 @@
       "source_ref": "manual_qualification_contract.runtime_dependencies.aioncore.resource_authority",
       "manifest_parser_owner": "gaofeng21cn/opl-aion-shell",
       "aioncore_required": true,
-      "framework_managed_payload_in_app_bundle_allowed": false
+      "framework_managed_payload_in_app_bundle_allowed": false,
+      "target_packaging_policy": {
+        "schema": "opl_aioncore_codex_only_packaging_policy.v1",
+        "implementation_status": "pending_shell_projection_and_packaged_smoke",
+        "aioncore_modification_policy": "consume_upstream_release_without_fork_or_patch",
+        "producer_export": {
+          "owner": "AionCore",
+          "role": "build_intermediate_only",
+          "schema_version": 2,
+          "required_cli_names": [
+            "claude",
+            "codex"
+          ],
+          "distributed_manifest_allowed": false
+        },
+        "packaged_projection": {
+          "owner": "gaofeng21cn/opl-aion-shell",
+          "schema": "opl_aioncore_managed_resources_projection.v1",
+          "authority_path": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json",
+          "included_cli_names": [
+            "codex"
+          ],
+          "excluded_cli_names": [
+            "claude"
+          ],
+          "version_and_digest_source": "aioncore_producer_export"
+        },
+        "distributed_bundle": {
+          "applies_to": [
+            "standard",
+            "full"
+          ],
+          "packaged_components_exact": [
+            "aioncore",
+            "node_runtime",
+            "codex_cli"
+          ],
+          "required_absent_paths": [
+            "bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude"
+          ],
+          "claude_executable_package_archive_or_cache_allowed": false
+        },
+        "independent_codex_downloader_or_version_authority_allowed": false
+      }
     },
     "framework_headless_carrier_policy": "preserved_outside_app_bundle"
   },
