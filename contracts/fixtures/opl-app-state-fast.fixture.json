@@ -430,7 +430,6 @@
                   "available_export_ids": ["medical-research"],
                   "exports_satisfied": true,
                   "content_lock_digest": "sha256:mas-scholar-skills",
-                  "physical_surface_status": "materialized",
                   "ready": true,
                   "failure_reasons": []
                 }
