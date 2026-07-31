@@ -51,6 +51,9 @@ const packageIds = [
 const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
+const stableStandardSupplementalRemoteAssetNames = [
+  'stable-operation-publication-record.json',
+] as const;
 const appStandardIdentityMode = 'app_standard_compatibility';
 const packageCompatibility = {
   abi: 'opl_packages.v1',
@@ -966,12 +969,18 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       }
     } else if (inspection.release?.exists === true) {
       const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
-      const requiredNameSet = new Set(requiredNames);
+      const supplementalNames = track === 'standard' && bundle.release?.channel === 'stable'
+        ? stableStandardSupplementalRemoteAssetNames
+        : [];
+      const allowedNameSet = new Set([
+        ...requiredNames,
+        ...supplementalNames,
+      ]);
       const remoteAssets = new Map<string, JsonRecord>();
       for (const inspectedAsset of inspectedAssets) {
         const asset = inspectedAsset as JsonRecord;
         const name = typeof asset?.name === 'string' ? asset.name : '';
-        if (!requiredNameSet.has(name)) {
+        if (!allowedNameSet.has(name)) {
           throw new Error(`Remote ${track} inspection contains unknown asset ${name || '<missing>'}.`);
         }
         if (remoteAssets.has(name)) {
@@ -983,10 +992,12 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
         }
         remoteAssets.set(name, asset);
       }
-      assets = requiredNames.filter((name: string) => remoteAssets.has(name)).map((name: string) => {
-        const asset = remoteAssets.get(name) as JsonRecord;
-        return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
-      });
+      assets = [...requiredNames, ...supplementalNames]
+        .filter((name: string) => remoteAssets.has(name))
+        .map((name: string) => {
+          const asset = remoteAssets.get(name) as JsonRecord;
+          return { name, size_bytes: asset.size_bytes, sha256: asset.sha256 };
+        });
     } else {
       throw new Error(`Remote ${track} inspection has no definitive Release existence state.`);
     }

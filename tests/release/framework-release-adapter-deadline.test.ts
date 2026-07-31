@@ -756,7 +756,7 @@ test('absent GitHub Release remote inspection rejects missing, non-empty, or dup
   }
 });
 
-test('existing GitHub Release remote inspection accepts a unique required subset only', () => {
+test('existing GitHub Release remote inspection accepts required assets and known Standard evidence only', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-partial-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
@@ -787,6 +787,7 @@ test('existing GitHub Release remote inspection accepts a unique required subset
     fs.writeFileSync(bundlePath, `${JSON.stringify({
       surface_kind: 'opl_release_bundle.v1',
       bundle_digest: bundleDigest,
+      release: { channel: 'stable' },
       tracks: { standard: { required_asset_names: requiredNames } },
     })}\n`);
 
@@ -797,14 +798,41 @@ test('existing GitHub Release remote inspection accepts a unique required subset
       size_bytes: second.size_bytes,
       sha256: second.sha256,
     }]);
+    const publicationRecord = asset('stable-operation-publication-record.json', '4');
+    assert.deepEqual(execute([publicationRecord, second]).assets, [
+      {
+        name: second.name,
+        size_bytes: second.size_bytes,
+        sha256: second.sha256,
+      },
+      {
+        name: publicationRecord.name,
+        size_bytes: publicationRecord.size_bytes,
+        sha256: publicationRecord.sha256,
+      },
+    ]);
     assert.throws(
       () => execute([asset('unknown.bin', '3')]),
       /contains unknown asset unknown\.bin/,
     );
     assert.throws(() => execute([second, second]), /contains duplicate asset second\.dmg/);
     assert.throws(
+      () => execute([publicationRecord, publicationRecord]),
+      /contains duplicate asset stable-operation-publication-record\.json/,
+    );
+    assert.throws(
       () => execute([{ ...second, sha256: 'sha256:not-a-digest' }]),
       /has no exact digest and positive size/,
+    );
+    fs.writeFileSync(bundlePath, `${JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      release: { channel: 'preview' },
+      tracks: { standard: { required_asset_names: requiredNames } },
+    })}\n`);
+    assert.throws(
+      () => execute([publicationRecord]),
+      /contains unknown asset stable-operation-publication-record\.json/,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
