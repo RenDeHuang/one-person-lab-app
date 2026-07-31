@@ -35,8 +35,10 @@ export type NightlyRemoteRelease = {
 
 export interface NightlyRemote {
   inspectRelease(tag: string, releaseId?: number): NightlyRemoteRelease | null;
+  inspectTagTarget(tag: string): string | null;
   inspectLatestTag(): string | null;
   waitForReconcileVisibility?(attempt: number): void;
+  createTag(tag: string, targetCommitish: string): string | null;
   createDraft(input: {
     tag: string;
     targetCommitish: string;
@@ -46,10 +48,12 @@ export interface NightlyRemote {
   uploadAsset(releaseId: number, filePath: string, name: string): void;
   publishRelease(releaseId: number, name: string, body: string): void;
   deleteDraft(releaseId: number): void;
+  deleteTag(tag: string): void;
 }
 
 const releaseRepo = 'gaofeng21cn/one-person-lab-app';
 const digestPattern = /^[0-9a-f]{64}$/;
+const commitShaPattern = /^[0-9a-f]{40}$/;
 
 function runGh(args: string[], allow404 = false): string {
   const result = spawnSync('gh', args, {
@@ -143,6 +147,25 @@ export class GhNightlyRemote implements NightlyRemote {
     return matches.length === 1 ? normalizeRelease(matches[0]) : null;
   }
 
+  inspectTagTarget(tag: string): string | null {
+    const output = this.executeGh([
+      'api',
+      `repos/${this.repo}/git/ref/tags/${encodeURIComponent(tag)}`,
+    ], true);
+    if (!output) return null;
+    const value = JSON.parse(output);
+    const expectedRef = `refs/tags/${tag}`;
+    const target = String(value?.object?.sha ?? '');
+    if (
+      String(value?.ref ?? '') !== expectedRef
+      || String(value?.object?.type ?? '') !== 'commit'
+      || !commitShaPattern.test(target)
+    ) {
+      throw new Error(`GitHub tag ${tag} is not an exact lightweight commit ref.`);
+    }
+    return target;
+  }
+
   inspectLatestTag(): string | null {
     const output = this.executeGh(['api', `repos/${this.repo}/releases/latest`], true);
     return output ? String(JSON.parse(output).tag_name ?? '') || null : null;
@@ -152,6 +175,30 @@ export class GhNightlyRemote implements NightlyRemote {
     const delayMs = [2_000, 8_000, 20_000][attempt - 1];
     if (delayMs === undefined) throw new Error('Nightly reconcile attempt is outside the bounded policy.');
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+  }
+
+  createTag(tag: string, targetCommitish: string): string | null {
+    if (!commitShaPattern.test(targetCommitish)) {
+      throw new Error('Nightly tag target must be an exact commit SHA.');
+    }
+    return withJsonInput({
+      ref: `refs/tags/${tag}`,
+      sha: targetCommitish,
+    }, (inputPath) => {
+      const output = this.executeGh([
+        'api',
+        '--method', 'POST',
+        `repos/${this.repo}/git/refs`,
+        '--input', inputPath,
+      ]);
+      try {
+        const value = JSON.parse(output);
+        const observed = String(value?.object?.sha ?? '');
+        return observed === targetCommitish ? observed : null;
+      } catch {
+        return null;
+      }
+    });
   }
 
   createDraft(input: {
@@ -212,6 +259,14 @@ export class GhNightlyRemote implements NightlyRemote {
       throw new Error('Nightly draft release id must be a positive safe integer.');
     }
     this.executeGh(['api', '--method', 'DELETE', `repos/${this.repo}/releases/${releaseId}`]);
+  }
+
+  deleteTag(tag: string): void {
+    this.executeGh([
+      'api',
+      '--method', 'DELETE',
+      `repos/${this.repo}/git/refs/tags/${encodeURIComponent(tag)}`,
+    ]);
   }
 }
 
@@ -323,6 +378,21 @@ function inspectUpToThree<T>(
   return { matched: false };
 }
 
+function confirmAbsentThreeTimes(
+  inspect: () => unknown | null,
+  waitBeforeInspect?: (attempt: number) => void,
+): boolean {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      waitBeforeInspect?.(attempt);
+      if (inspect() !== null) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 function mutateOnceThenRead<T>(input: {
   label: string;
   mutate: () => T | void;
@@ -380,11 +450,31 @@ export function publishNightlyRelease(input: {
   const latestBefore = remote.inspectLatestTag();
   let release = remote.inspectRelease(request.tag);
   const initiallyComplete = Boolean(release && !release.draft);
+  let tagReservationAttempted = false;
+  let tagCreatedByInvocation = false;
   let creationAttempted = false;
   let createdReleaseId: number | null = null;
 
   try {
     if (!release) {
+      const existingTagTarget = remote.inspectTagTarget(request.tag);
+      if (existingTagTarget !== null) {
+        const disposition = existingTagTarget === request.source.app_sha
+          ? 'already points to the frozen App SHA but has no Release'
+          : `points to conflicting commit ${existingTagTarget}`;
+        throw new Error(`Nightly tag ${request.tag} ${disposition}; this invocation will not reuse or delete it.`);
+      }
+      mutateOnceThenRead({
+        label: `Reserve exact Nightly tag ${request.tag}`,
+        mutate: () => {
+          tagReservationAttempted = true;
+          return remote.createTag(request.tag, request.source.app_sha);
+        },
+        inspect: () => remote.inspectTagTarget(request.tag),
+        matches: (value) => value === request.source.app_sha,
+        waitBeforeInspect: remote.waitForReconcileVisibility?.bind(remote),
+      });
+      tagCreatedByInvocation = true;
       release = mutateOnceThenRead({
         label: `Create Nightly draft ${request.tag}`,
         mutate: () => {
@@ -494,6 +584,7 @@ export function publishNightlyRelease(input: {
       webui_modified: false,
     };
   } catch (error) {
+    const cleanupErrors: unknown[] = [];
     if (creationAttempted) {
       let candidate: NightlyRemoteRelease | null = null;
       for (let attempt = 1; attempt <= 3; attempt += 1) {
@@ -530,12 +621,47 @@ export function publishNightlyRelease(input: {
             throw new Error(`Deleted Nightly draft ${request.tag} reappeared after cleanup.`);
           }
         } catch (cleanupError) {
-          throw new AggregateError(
-            [error, cleanupError],
-            `Nightly publication failed and invocation-created draft cleanup did not reach exact absence.`,
-          );
+          cleanupErrors.push(cleanupError);
         }
       }
+    }
+    if (tagReservationAttempted) {
+      try {
+        const releaseAbsent = confirmAbsentThreeTimes(
+          () => remote.inspectRelease(request.tag),
+          remote.waitForReconcileVisibility?.bind(remote),
+        );
+        const tagTarget = remote.inspectTagTarget(request.tag);
+        if (releaseAbsent && tagTarget === request.source.app_sha) {
+          tagCreatedByInvocation = true;
+        }
+        if (tagCreatedByInvocation) {
+          if (!releaseAbsent) {
+            throw new Error(`Nightly tag ${request.tag} is retained because Release absence is not proven.`);
+          }
+          if (tagTarget !== request.source.app_sha) {
+            throw new Error(`Nightly tag ${request.tag} changed before invocation cleanup.`);
+          }
+          mutateOnceThenRead({
+            label: `Delete failed Nightly tag ${request.tag}`,
+            mutate: () => remote.deleteTag(request.tag),
+            inspect: () => remote.inspectTagTarget(request.tag),
+            matches: (value) => value === null,
+            waitBeforeInspect: remote.waitForReconcileVisibility?.bind(remote),
+          });
+          if (remote.inspectTagTarget(request.tag) !== null) {
+            throw new Error(`Deleted Nightly tag ${request.tag} reappeared after cleanup.`);
+          }
+        }
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+    }
+    if (cleanupErrors.length > 0) {
+      throw new AggregateError(
+        [error, ...cleanupErrors],
+        `Nightly publication failed and invocation-created public state cleanup did not reach exact absence.`,
+      );
     }
     throw error;
   }
