@@ -783,10 +783,6 @@ jobs:
           GYP_MSVS_VERSION: 2022
           WindowsTargetPlatformVersion: 10.0.19041.0
           _WIN32_WINNT: 0x0A00
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -1014,10 +1010,6 @@ jobs:
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
           npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           OPL_REQUIRE_MACOS_GATEKEEPER: ${{ inputs.require_macos_gatekeeper }}
@@ -1219,10 +1211,6 @@ jobs:
           npm_config_disturl: https://electronjs.org/headers
           npm_config_runtime: electron
           npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 

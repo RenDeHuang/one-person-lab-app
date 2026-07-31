@@ -183,6 +183,16 @@ qualification 和安装 readback。macOS Desktop 首次启动图文教程以
 
 日常更新由 Homebrew 或应用内更新通道完成，取决于安装方式。release asset、updater metadata 和 Full first-install 边界由 App release guide 与 contracts 维护。
 
+### 隐私与代码签名
+
+[隐私政策](docs/security/privacy-policy.md)明确本地数据、外部服务、更新、支持和崩溃
+报告的真实边界；[代码签名政策](docs/security/code-signing-policy.md)定义构建来源、
+审批人、签名范围、验证和 fail-closed 发布规则。Windows 开源签名由
+[SignPath.io](https://about.signpath.io/) 免费提供服务、
+[SignPath Foundation](https://signpath.org/) 提供证书；签名本身不授权发布，也不会
+移动 Stable 或 Latest。SignPath 项目审核仍在等待中；在逐产物 Authenticode 验证
+通过之前，不得把现有产物描述为已签名。
+
 ### 安装与更新对象
 
 Full 密度包是在 Desktop 或 WebUI 上供干净机器或离线使用的预置载荷，不是长期
