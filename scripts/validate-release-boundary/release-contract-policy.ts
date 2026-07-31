@@ -178,7 +178,7 @@ const requiredStableFailureFingerprintFields = [
 const requiredValidationCanary = {
   workflow: '.github/workflows/release-bundle-canary.yml',
   mode: 'validation_only',
-  triggers: ['push_main', 'pull_request', 'daily_schedule'],
+  triggers: ['daily_schedule', 'workflow_dispatch'],
   starts_reusable_topology: [
     '_release-bundle.yml',
     '_release-standard-publish.yml',

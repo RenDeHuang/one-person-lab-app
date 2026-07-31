@@ -374,8 +374,9 @@ test('Stable and protected Manual Preview are isolated from daily-default Nightl
     'append_full',
   ]);
   assert.deepEqual(stable.concurrency, { group: 'opl-release-bundle-global', 'cancel-in-progress': false });
-  assert.deepEqual(Object.keys(canary.on).sort(), ['pull_request', 'push', 'schedule']);
+  assert.deepEqual(Object.keys(canary.on).sort(), ['schedule', 'workflow_dispatch']);
   assert.deepEqual(canary.on.schedule, [{ cron: '0 13 * * *' }]);
+  assert.equal(canary.on.workflow_dispatch, null);
   assert.deepEqual(canary.concurrency, {
     group: 'opl-release-validation-canary-${{ github.ref }}',
     'cancel-in-progress': true,
@@ -1527,10 +1528,10 @@ test('every real release build, VM, and mutation job rejects a partial rerun loc
 
 test('the remote Canary starts all three reusable workflows with one synthetic checkpoint handle', () => {
   const canary = parseWorkflow('release-bundle-canary.yml');
-  assert.ok(canary.on.push);
-  assert.ok(canary.on.pull_request !== undefined);
+  assert.equal(canary.on.push, undefined);
+  assert.equal(canary.on.pull_request, undefined);
   assert.deepEqual(canary.on.schedule, [{ cron: '0 13 * * *' }]);
-  assert.equal(canary.on.workflow_dispatch, undefined);
+  assert.equal(canary.on.workflow_dispatch, null);
   assert.deepEqual(canary.permissions, { contents: 'read', actions: 'read' });
   assert.equal(canary.jobs.standard.uses, './.github/workflows/_release-bundle.yml');
   assert.equal(canary.jobs['resume-standard'].uses, './.github/workflows/_release-standard-publish.yml');

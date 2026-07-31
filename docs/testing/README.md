@@ -39,11 +39,10 @@ development. Non-fast-forward pushes still fail through Git's normal compare-and
 swap behavior.
 
 External contributions and an explicitly chosen pull-request workflow remain
-supported. `PR / validation` provides optional hosted evidence on GitHub Ubuntu,
-but it is not a required branch-protection context and does not dispatch a
-release, mutate publication state, or require a self-hosted runner. The
-maintainer still evaluates the diff, local evidence, and any remaining risk
-before merging.
+supported. They are evaluated from the diff, recorded local evidence, and
+maintainer judgment. Generic hosted pull-request validation is intentionally
+not duplicated; release, publication, hosted-platform, and installed-byte
+qualification remain separate explicit operations.
 
 Tart, clean VM, Hyper-V, and WSL2 checks are optional post-publication
 certification lanes. They report `passed`, `failed`, `not_run`, or `unavailable`

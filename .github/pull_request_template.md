@@ -4,9 +4,9 @@
 - [ ] Relevant local checks and their results are recorded below.
 - [ ] This PR does not dispatch a release, mutate publication state, or require a self-hosted runner or VM.
 
-`PR / validation` is optional hosted evidence for the rare pull-request path.
-It is not a required branch-protection check and does not replace maintainer
-judgment or the separate release, publication, and installed-byte gates.
+Pull requests are evaluated from the diff and recorded local evidence. Hosted
+release, publication, and installed-byte qualification remain separate,
+explicit operations.
 
 ## Validation performed
 

@@ -451,7 +451,7 @@ test('legacy broker, session, and operator contracts are historical receipt read
   assert.deepEqual(release.release_bundle_control_plane.validation_canary, {
     workflow: '.github/workflows/release-bundle-canary.yml',
     mode: 'validation_only',
-    triggers: ['push_main', 'pull_request', 'daily_schedule'],
+    triggers: ['daily_schedule', 'workflow_dispatch'],
     starts_reusable_topology: [
       '_release-bundle.yml',
       '_release-standard-publish.yml',
