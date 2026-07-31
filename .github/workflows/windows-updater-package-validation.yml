@@ -246,8 +246,6 @@ jobs:
         run: >-
           node scripts/build-with-builder.js x64 --win --x64
           --config.nsis.differentialPackage=true
-          --config.publish.provider=generic
-          --config.publish.url=https://onepersonlab.dev/updates/windows
 
       - name: Validate exact latest.yml and EXE blockmap bindings
         shell: bash

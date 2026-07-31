@@ -184,7 +184,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
     (step: any) => step.name === 'Build with electron-builder (Windows)',
   );
   assert.match(String(windowsBuild?.run), /config\.nsis\.differentialPackage=true/);
-  assert.match(String(windowsBuild?.run), /config\.publish\.provider=generic/);
+  assert.doesNotMatch(String(windowsBuild?.run), /config\.publish\.(?:provider|url)=/);
   const updaterValidation = reusable.jobs.build.steps.find(
     (step: any) => step.name === 'Validate exact Windows updater asset set',
   );
@@ -218,7 +218,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
     (step: any) => step.name === 'Build updater-capable Windows x64 package',
   );
   assert.match(String(validationBuild?.run), /config\.nsis\.differentialPackage=true/);
-  assert.match(String(validationBuild?.run), /config\.publish\.provider=generic/);
+  assert.doesNotMatch(String(validationBuild?.run), /config\.publish\.(?:provider|url)=/);
   const validationUpload = packageValidation.jobs['build-windows-updater-package'].steps.find(
     (step: any) => step.name === 'Upload non-published updater validation assets',
   );
