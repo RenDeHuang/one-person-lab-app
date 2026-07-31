@@ -310,9 +310,19 @@ function boundaryBlock(options: ResolvedOptions): string {
   return lines.join('\n');
 }
 
+function renderHomebrewVersion(options: ResolvedOptions): string {
+  return options.updaterVersion === options.version
+    ? options.updaterVersion
+    : `${options.updaterVersion},${options.version}`;
+}
+
 function renderHomebrewDownloadUrl(targetPath: string, options: ResolvedOptions): string {
   void targetPath;
-  return options.downloadUrl;
+  if (options.updaterVersion === options.version) return options.downloadUrl;
+  if (!options.downloadUrl.includes(options.version)) {
+    throw new Error('Homebrew download URL must include display_version when updater_version differs.');
+  }
+  return options.downloadUrl.replaceAll(options.version, '#{version.csv.second}');
 }
 
 function skeletonContent(targetPath: string, options: ResolvedOptions): string {
@@ -324,7 +334,7 @@ function skeletonContent(targetPath: string, options: ResolvedOptions): string {
   }
   return [
     `cask "${token}" do`,
-    `  version "${options.updaterVersion}"`,
+    `  version "${renderHomebrewVersion(options)}"`,
     `  sha256 "${options.checksumSha256}"`,
     '',
     `  url "${renderHomebrewDownloadUrl(targetPath, options)}"`,
@@ -385,7 +395,7 @@ function reconcileFormulaDependency(content: string, options: ResolvedOptions): 
 function updateContent(content: string, targetPath: string, options: ResolvedOptions): string {
   void content;
   let next = skeletonContent(targetPath, options);
-  next = next.replace(/(version\s+)["'][^"']+["']/, `$1"${options.updaterVersion}"`);
+  next = next.replace(/(version\s+)["'][^"']+["']/, `$1"${renderHomebrewVersion(options)}"`);
   next = next.replace(/(sha256\s+)["'][^"']+["']/, `$1"${options.checksumSha256}"`);
   next = next.replace(/(url\s+)["'][^"']+["']/, `$1"${renderHomebrewDownloadUrl(targetPath, options)}"`);
   next = reconcileFormulaDependency(next, options);
@@ -394,8 +404,9 @@ function updateContent(content: string, targetPath: string, options: ResolvedOpt
 }
 
 function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOptions): void {
-  if (!target.content.includes(`version "${options.updaterVersion}"`)) {
-    throw new Error(`${target.path} must use updater_version for Homebrew ordering.`);
+  const homebrewVersion = renderHomebrewVersion(options);
+  if (!target.content.includes(`version "${homebrewVersion}"`)) {
+    throw new Error(`${target.path} must use updater_version first for Homebrew ordering.`);
   }
   for (const identityLine of [
     `display_version: ${options.version}`,
@@ -424,7 +435,7 @@ function validateUpdatedContent(target: TapUpdateTarget, options: ResolvedOption
     throw new Error(`${target.path} must reference the release manifest URL.`);
   }
   const expectedDownloadUrl = renderHomebrewDownloadUrl(target.path, options);
-  if (!target.content.includes(expectedDownloadUrl) && !target.content.includes(options.downloadUrl)) {
+  if (!target.content.includes(expectedDownloadUrl)) {
     throw new Error(`${target.path} must reference the release download URL.`);
   }
   if (!target.content.includes(options.checksumSha256)) {
