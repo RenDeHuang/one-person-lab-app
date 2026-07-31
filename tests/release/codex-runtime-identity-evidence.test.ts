@@ -90,6 +90,9 @@ function run(id: (typeof REQUIRED_CODEX_RUNTIME_EVIDENCE_RUNS)[number], evidence
       profile: full ? 'full' : 'standard',
       app_version: full ? '1.0.0' : '1.0.1',
       ...artifact,
+      evidence_refs: [
+        evidenceRef('artifact_tree', `${id}-installed-artifact-tree`, evidenceRoot),
+      ],
     },
     managed_candidate: managedCandidate,
     direct_app_server: {
@@ -153,6 +156,18 @@ test('Codex runtime identity evidence schema freezes the honest AionCore boundar
   );
   assert.equal(schema.properties.runs.minItems, 2);
   assert.equal(schema.properties.runs.maxItems, 2);
+  assert.equal(
+    schema.properties.runs.prefixItems[0].allOf[1].properties.id.const,
+    'full_clean_install_finder',
+  );
+  assert.equal(
+    schema.properties.runs.prefixItems[1].allOf[1].properties.id.const,
+    'standard_update_after_full_finder',
+  );
+  assert.equal(
+    schema.$defs.run.properties.artifact.properties.evidence_refs.contains.properties.kind.const,
+    'artifact_tree',
+  );
   assert.deepEqual(
     schema.$defs.run.properties.identity_comparison.properties.fields.const,
     CODEX_RUNTIME_IDENTITY_FIELDS,
@@ -212,6 +227,22 @@ test('validator rejects identity drift, PATH fallback, invented readback, and in
   assert.throws(
     () => validateCodexRuntimeIdentityEvidence(wrongDirectRefs),
     /direct_app_server\.evidence_refs must include a process_inspection reference/,
+  );
+
+  const missingArtifactTree = evidence();
+  missingArtifactTree.runs[0].artifact.evidence_refs = [
+    evidenceRef('environment_capture', 'missing-artifact-tree'),
+  ];
+  assert.throws(
+    () => validateCodexRuntimeIdentityEvidence(missingArtifactTree),
+    /artifact\.evidence_refs must include a artifact_tree reference/,
+  );
+
+  const reversedRuns = evidence();
+  reversedRuns.runs.reverse();
+  assert.throws(
+    () => validateCodexRuntimeIdentityEvidence(reversedRuns),
+    /evidence\.runs ordered ids/,
   );
 });
 

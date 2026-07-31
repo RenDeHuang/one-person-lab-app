@@ -149,8 +149,9 @@ Owner: `gaofeng21cn/opl-aion-shell`，App 只消费最终证据。
    direct initialize 与 ACP ordinary conversation real response 均通过。
 2. `standard_update_after_full_finder`：先安装 Full，再应用 Standard update，完全退出并从
    Finder 重启；同样两条 handshake 通过。
-3. 两个 run 都比较 path、realpath、version、SHA-256、`CODEX_HOME` 和 cohort ref，并附
-   artifact tree、environment、process inspection 与 handshake log digest。
+3. 两个 run 必须按 Full clean install -> Standard update 的顺序记录，都比较 path、
+   realpath、version、SHA-256、`CODEX_HOME` 和 cohort ref，并附 artifact tree、
+   environment、process inspection 与 handshake log digest。
 4. 两个 run 都执行五类 typed-error negative probes。
 5. `validate:codex-runtime-identity-evidence` 只有在 artifact 与全部 evidence ref 文件真实
    存在且 SHA-256 匹配时才报告 `artifact_evidence_complete=true`；仅通过 JSON shape

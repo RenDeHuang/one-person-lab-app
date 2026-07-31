@@ -303,10 +303,17 @@ function validateRun(value: unknown, index: number, context: EvidenceValidationC
   exactValue(launch.restarted, true, `${label}.launch.restarted`);
 
   const artifact = record(run.artifact, `${label}.artifact`);
-  exactKeys(artifact, ['profile', 'app_version', 'path', 'sha256'], `${label}.artifact`);
+  exactKeys(artifact, ['profile', 'app_version', 'path', 'sha256', 'evidence_refs'], `${label}.artifact`);
   exactValue(artifact.profile, expectedProfile, `${label}.artifact.profile`);
   string(artifact.app_version, `${label}.artifact.app_version`);
   verifyFileReference(artifact.path, artifact.sha256, `${label}.artifact`, context);
+  validateEvidenceRefs(
+    artifact.evidence_refs,
+    `${label}.artifact.evidence_refs`,
+    1,
+    context,
+    ['artifact_tree'],
+  );
 
   const managedCandidate = validateIdentity(run.managed_candidate, `${label}.managed_candidate`);
   const direct = record(run.direct_app_server, `${label}.direct_app_server`);
@@ -430,7 +437,7 @@ export function validateCodexRuntimeIdentityEvidence(
     throw new Error(`evidence.runs must contain exactly ${REQUIRED_CODEX_RUNTIME_EVIDENCE_RUNS.length} runs`);
   }
   const runIds = runs.map((run, index) => validateRun(run, index, context));
-  exactValue(runIds.toSorted(), [...REQUIRED_CODEX_RUNTIME_EVIDENCE_RUNS].toSorted(), 'evidence.runs id set');
+  exactValue(runIds, REQUIRED_CODEX_RUNTIME_EVIDENCE_RUNS, 'evidence.runs ordered ids');
   const createdAt = Date.parse(string(evidence.created_at, 'evidence.created_at'));
   if (!Number.isFinite(createdAt)) {
     throw new Error('evidence.created_at must be an ISO date-time');
