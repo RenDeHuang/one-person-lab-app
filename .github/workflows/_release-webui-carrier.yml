@@ -455,6 +455,7 @@ jobs:
         run: rm -rf shells/aionui/.opl-frozen-inputs
 
       - name: Qualify exact local runtime before any registry tag is written
+        id: qualify
         shell: bash
         run: |
           set -euo pipefail
@@ -472,12 +473,19 @@ jobs:
           data_dir="$RUNNER_TEMP/webui-data"
           projects_dir="$RUNNER_TEMP/webui-projects"
           mkdir -p "$data_dir" "$projects_dir"
+          capture_runtime_diagnostics() {
+            docker inspect "$container_name" > webui-carrier/container-inspect.json \
+              2> webui-carrier/container-inspect.stderr || true
+            docker logs "$container_name" > webui-carrier/container.log 2>&1 || true
+            docker ps -a --filter "name=^/${container_name}$" --no-trunc \
+              > webui-carrier/container-status.txt 2>&1 || true
+          }
           docker run -d --name "$container_name" \
             -p 127.0.0.1::3000 \
             -v "$data_dir:/data" \
             -v "$projects_dir:/projects" \
             "$local_image" > webui-carrier/container-id.txt
-          trap 'docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
+          trap 'capture_runtime_diagnostics; docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
           port="$(docker port "$container_name" 3000/tcp | sed -n 's/.*://p' | tail -1)"
           test -n "$port"
           for attempt in $(seq 1 90); do
@@ -485,8 +493,10 @@ jobs:
               printf '%s\n' passed > webui-carrier/http-health.txt
               break
             fi
+            if [ "$(docker inspect --format '{{.State.Running}}' "$container_name" 2>/dev/null || true)" != true ]; then
+              exit 1
+            fi
             if [ "$attempt" -eq 90 ]; then
-              docker logs "$container_name" > webui-carrier/container.log 2>&1 || true
               exit 1
             fi
             sleep 2
@@ -500,6 +510,24 @@ jobs:
           NODE
           docker rm -f "$container_name" >/dev/null
           trap - EXIT
+
+      - name: Upload WebUI runtime qualification failure evidence
+        if: ${{ failure() && steps.qualify.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: webui-runtime-failure-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            webui-carrier/container-id.txt
+            webui-carrier/container-inspect.json
+            webui-carrier/container-inspect.stderr
+            webui-carrier/container.log
+            webui-carrier/container-status.txt
+            webui-carrier/image-inspect.json
+            webui-carrier/image-manifest.json
+            webui-carrier/runtime-summary.json
+            webui-carrier/seed-metadata.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Package qualified image and evidence for protected immutable publication
         id: identity

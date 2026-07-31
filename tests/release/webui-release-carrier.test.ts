@@ -689,13 +689,42 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const qualificationIndex = build.steps.findIndex(
     (step: { name?: string }) => step.name === 'Qualify exact local runtime before any registry tag is written',
   );
+  const qualification = build.steps[qualificationIndex];
+  const failureEvidenceIndex = build.steps.findIndex(
+    (step: { name?: string }) => step.name === 'Upload WebUI runtime qualification failure evidence',
+  );
+  const failureEvidence = build.steps[failureEvidenceIndex];
   const packageIndex = build.steps.findIndex(
     (step: { name?: string }) => step.name === 'Package qualified image and evidence for protected immutable publication',
   );
   assert.ok(
-    imageBuildIndex >= 0 && imageBuildIndex < qualificationIndex && qualificationIndex < packageIndex,
+    imageBuildIndex >= 0
+      && imageBuildIndex < qualificationIndex
+      && qualificationIndex < failureEvidenceIndex
+      && failureEvidenceIndex < packageIndex,
     'runtime qualification and packaging must follow the one image build in order',
   );
+  assert.equal(qualification.id, 'qualify');
+  assert.match(qualification.run, /capture_runtime_diagnostics/);
+  assert.match(qualification.run, /docker inspect "\$container_name" > webui-carrier\/container-inspect\.json/);
+  assert.match(qualification.run, /docker logs "\$container_name" > webui-carrier\/container\.log/);
+  assert.match(qualification.run, /docker inspect --format '\{\{\.State\.Running\}\}'/);
+  assert.equal(failureEvidence.if, "${{ failure() && steps.qualify.outcome == 'failure' }}");
+  assert.equal(failureEvidence.uses, 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a');
+  assert.equal(
+    failureEvidence.with.name,
+    'webui-runtime-failure-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}',
+  );
+  for (const path of [
+    'webui-carrier/container-inspect.json',
+    'webui-carrier/container.log',
+    'webui-carrier/container-status.txt',
+    'webui-carrier/runtime-summary.json',
+  ]) {
+    assert.match(failureEvidence.with.path, new RegExp(path.replaceAll('.', '\\.')));
+  }
+  assert.equal(failureEvidence.with['if-no-files-found'], 'error');
+  assert.equal(failureEvidence.with['retention-days'], 7);
   const packageRun = build.steps[packageIndex].run;
   assert.ok(
     packageRun.indexOf('docker builder prune --all --force') < packageRun.indexOf('docker save "$local_image"'),
