@@ -1,4 +1,4 @@
-name: Pull Request
+name: Pull Request Validation
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr-merge-gate-${{ github.event.pull_request.number }}
+  group: pull-request-validation-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 env:
@@ -18,7 +18,7 @@ env:
 
 jobs:
   quality:
-    name: PR / quality checks
+    name: PR / validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -83,25 +83,3 @@ jobs:
         env:
           OPL_RELEASE_VALIDATION_PROFILE: windows-preview
         run: scripts/verify.sh release-boundary
-
-  merge-gate:
-    name: PR / merge gate
-    if: always()
-    needs: [quality]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require quality checks for non-draft pull requests
-        env:
-          PR_DRAFT: ${{ github.event.pull_request.draft }}
-          QUALITY_RESULT: ${{ needs.quality.result }}
-        run: |
-          set -euo pipefail
-          if [[ "$PR_DRAFT" == "true" ]]; then
-            echo "Draft pull request: merge gate is not applicable."
-            exit 0
-          fi
-          if [[ "$QUALITY_RESULT" != "success" ]]; then
-            echo "PR quality checks finished with: $QUALITY_RESULT"
-            exit 1
-          fi
-          echo "PR quality checks passed for the current head."

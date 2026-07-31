@@ -8,17 +8,16 @@ const workflowPath = path.join(process.cwd(), '.github', 'workflows', 'pr-merge-
 const templatePath = path.join(process.cwd(), '.github', 'pull_request_template.md');
 const testingGuidePath = path.join(process.cwd(), 'docs', 'testing', 'README.md');
 
-test('PR merge gate is a read-only GitHub-hosted aggregate check', () => {
+test('pull request validation is a read-only optional hosted check', () => {
   const source = fs.readFileSync(workflowPath, 'utf8');
   const workflow = parseYaml(source) as Record<string, any>;
 
+  assert.equal(workflow.name, 'Pull Request Validation');
   assert.deepEqual(Object.keys(workflow.on), ['pull_request']);
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(Object.keys(workflow.permissions).length, 1);
-  assert.equal(workflow.jobs.quality.name, 'PR / quality checks');
-  assert.equal(workflow.jobs['merge-gate'].name, 'PR / merge gate');
-  assert.equal(workflow.jobs['merge-gate'].if, 'always()');
-  assert.deepEqual(workflow.jobs['merge-gate'].needs, ['quality']);
+  assert.equal(workflow.jobs.quality.name, 'PR / validation');
+  assert.deepEqual(Object.keys(workflow.jobs), ['quality']);
   const shellSetup = workflow.jobs.quality.steps.find(
     (step: Record<string, unknown>) => step.uses === './.github/actions/setup-active-shell-deps',
   );
@@ -46,17 +45,27 @@ test('PR merge gate is a read-only GitHub-hosted aggregate check', () => {
   assert.doesNotMatch(source, /contents:\s*write/);
   assert.doesNotMatch(source, /packages:\s*write/);
   assert.doesNotMatch(source, /gh\s+(release|run\s+(rerun|cancel))/);
+  assert.doesNotMatch(source, /PR \/ merge gate/);
 });
 
-test('PR guidance keeps Codex review advisory and separates publication validation', () => {
+test('PR guidance keeps local-first direct push separate from optional hosted validation', () => {
   const template = fs.readFileSync(templatePath, 'utf8');
   const testingGuide = fs.readFileSync(testingGuidePath, 'utf8');
 
-  assert.match(template, /PR \/ merge gate/);
-  assert.match(template, /advisory/i);
-  assert.doesNotMatch(template, /Codex review gate.*must|不得合并|must not merge/i);
-  assert.match(testingGuide, /PR \/ merge gate/);
-  assert.match(testingGuide, /Codex.*advisory/i);
+  assert.match(template, /PR \/ validation/);
+  assert.match(template, /not a required branch-protection check/);
+  assert.doesNotMatch(template, /Codex review/i);
+  assert.match(testingGuide, /ordinary non-force push/);
+  assert.match(testingGuide, /optional hosted evidence/);
+  assert.doesNotMatch(testingGuide, /Codex review/i);
   assert.match(testingGuide, /Tart, clean VM, Hyper-V, and WSL2/);
   assert.match(testingGuide, /optional|异步/i);
+
+  for (const retiredPath of [
+    path.join(process.cwd(), '.github', 'workflows', 'codex-review-gate.yml'),
+    path.join(process.cwd(), 'scripts', 'codex-review-gate.ts'),
+    path.join(process.cwd(), 'tests', 'release', 'codex-review-gate.test.ts'),
+  ]) {
+    assert.equal(fs.existsSync(retiredPath), false);
+  }
 });

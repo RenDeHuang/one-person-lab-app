@@ -18,29 +18,37 @@ historical provenance:
 | [`../delivery/`](../delivery/) | Release, artifact/package/export, user-guide generation source, screenshots, and verification | Release truth stays in assets, updater metadata, evidence manifests, workflows, validators, CI/logs, and release-boundary tests |
 | [`../history/`](../history/) | Retired routes, candidate replay provenance, and process history | Historical only |
 
-## Pull Request Flow
+## Development And Pull Request Flow
 
-Use the shortest feedback loop that still leaves a reproducible remote record:
+Internal development is local-first and does not require a pull request:
 
 ```text
 fresh origin/main
-  -> local preflight and focused tests
-  -> PR / merge gate (GitHub-hosted, required)
-  -> optional Codex advisory review
-  -> administrator merges the PR
-  -> fetch origin/main and read back the canonical commit
+  -> task worktree and focused tests
+  -> affected aggregate validation
+  -> fresh-main semantic replay
+  -> ordinary non-force push to main
+  -> fetch origin/main and read back commit/tree/blob parity
   -> run release workflows separately
 ```
 
-`PR / merge gate` is the single required branch-protection context for this
-single-maintainer repository. It runs read-only quality checks on GitHub-hosted
-Ubuntu and does not dispatch releases, mutate publication state, or require a
-self-hosted runner. Codex review remains useful for finding issues, but its
-pending or unavailable state does not block a merge.
+The default branch keeps low-friction protection against force-push and deletion,
+including for administrators. It does not require a pull request, approval,
+status check, or conversation resolution for ordinary single-maintainer
+development. Non-fast-forward pushes still fail through Git's normal compare-and-
+swap behavior.
+
+External contributions and an explicitly chosen pull-request workflow remain
+supported. `PR / validation` provides optional hosted evidence on GitHub Ubuntu,
+but it is not a required branch-protection context and does not dispatch a
+release, mutate publication state, or require a self-hosted runner. The
+maintainer still evaluates the diff, local evidence, and any remaining risk
+before merging.
 
 Tart, clean VM, Hyper-V, and WSL2 checks are optional post-publication
 certification lanes. They report `passed`, `failed`, `not_run`, or `unavailable`
-against the published bytes and must not be added to this PR merge gate.
+against the published bytes and must not be added to ordinary development or
+pull-request validation.
 
 ## Active Shell Checks
 
