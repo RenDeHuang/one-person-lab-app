@@ -207,6 +207,85 @@ function workflowStep(workflowName: string, jobName: string, stepName: string): 
   return step;
 }
 
+function runExpectedImmutableReleaseAssetsBuilder() {
+  const step = workflowStep(
+    '_release-standard-publish.yml',
+    'remote-digest-verify',
+    'Read back exact remote Standard digests',
+  );
+  const run = String(step.run ?? '');
+  const start = run.indexOf('record_size=');
+  const end = run.indexOf(
+    'node --experimental-strip-types app-source/scripts/stable-operation-publication-record.ts verify-published',
+    start,
+  );
+  assert.notEqual(start, -1, 'remote digest step must size the durable publication record');
+  assert.notEqual(end, -1, 'remote digest step must verify the published carrier binding');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-expected-release-assets-'));
+  const record = path.join(root, 'stable-operation-publication-record.json');
+  const plan = path.join(root, 'publish-plan.json');
+  const recordBytes = `${JSON.stringify({ schema: 'opl_app_stable_operation_publication_record.v1' })}\n`;
+  const uploaded = {
+    name: 'One-Person-Lab-26.7.31-r2-mac-arm64.dmg',
+    digest: `sha256:${'a'.repeat(64)}`,
+    size_bytes: 123,
+  };
+  fs.writeFileSync(record, recordBytes);
+  fs.writeFileSync(plan, `${JSON.stringify({
+    release_bundle_publish: {
+      receipt: {
+        details: {
+          upload_actions: [{
+            name: uploaded.name,
+            sha256: uploaded.digest,
+            size_bytes: uploaded.size_bytes,
+          }],
+        },
+      },
+    },
+  })}\n`);
+
+  try {
+    const result = spawnSync(
+      'bash',
+      ['-e', '-u', '-o', 'pipefail', '-c', [
+        `record=${JSON.stringify(record)}`,
+        `plans=(${JSON.stringify(plan)})`,
+        run.slice(start, end),
+        'test -s expected-immutable-release-assets.json',
+      ].join('\n')],
+      { cwd: root, encoding: 'utf8' },
+    );
+    const outputPath = path.join(root, 'expected-immutable-release-assets.json');
+    const output = result.status === 0
+      ? JSON.parse(fs.readFileSync(outputPath, 'utf8'))
+      : null;
+    return {
+      result,
+      output,
+      expected: {
+        assets: [
+          uploaded,
+          {
+            name: 'stable-operation-publication-record.json',
+            digest: `sha256:${crypto.createHash('sha256').update(recordBytes).digest('hex')}`,
+            size_bytes: Buffer.byteLength(recordBytes),
+          },
+        ],
+      },
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('Standard remote digest builder materializes expected immutable assets without stdin', () => {
+  const { result, output, expected } = runExpectedImmutableReleaseAssetsBuilder();
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(output, expected);
+});
+
 test('active shell ancestry checks receive full history without broadening routine checkouts', () => {
   const setupAction = parseYaml(fs.readFileSync(
     path.join(process.cwd(), '.github', 'actions', 'setup-active-shell-deps', 'action.yml'),

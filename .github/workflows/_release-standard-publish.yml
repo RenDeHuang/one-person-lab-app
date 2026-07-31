@@ -1202,6 +1202,7 @@ jobs:
             record_size="$(wc -c < "$record" | tr -d ' ')"
             record_sha="sha256:$(shasum -a 256 "$record" | awk '{print $1}')"
             jq \
+              --null-input \
               --slurpfile plan "${plans[0]}" \
               --arg name stable-operation-publication-record.json \
               --arg sha "$record_sha" \
