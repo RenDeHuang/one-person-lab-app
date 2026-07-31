@@ -33,7 +33,11 @@ function writeJson(filePath: string, value: unknown): void {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-function gitFixture(root: string, name: string, files: Record<string, string>): {
+function gitFixture(
+  root: string,
+  name: string,
+  files: Record<string, string>,
+): {
   root: string;
   sha: string;
 } {
@@ -63,13 +67,16 @@ function standardAssets(root: string): string {
   const payloadRoot = path.join(root, 'zip-payload');
   const plistPath = path.join(payloadRoot, 'One Person Lab.app', 'Contents', 'Info.plist');
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
-  fs.writeFileSync(plistPath, `<?xml version="1.0" encoding="UTF-8"?>
+  fs.writeFileSync(
+    plistPath,
+    `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleShortVersionString</key><string>${updaterVersion}</string>
 <key>CFBundleVersion</key><string>${updaterVersion}</string>
 </dict></plist>
-`);
+`,
+  );
   const zip = spawnSync('zip', ['-qry', path.join(root, zipName), 'One Person Lab.app'], {
     cwd: payloadRoot,
     encoding: 'utf8',
@@ -147,22 +154,26 @@ test('Standard identity v2 binds the exact Bundle cohort and first source run', 
   });
   assert.match(identity.component_manifest.sha256, /^sha256:[0-9a-f]{64}$/);
 
-  assert.throws(() => bindStandardReleaseTrack({
-    assetsDir: root,
-    version,
-    updaterVersion,
-    appSha,
-    shellSha,
-    frameworkSha,
-    bundleDigest,
-    channel: 'stable',
-    repository: 'gaofeng21cn/one-person-lab-app',
-    sourceRunId: '123456789',
-    sourceRunAttempt: 2,
-    componentManifestScript: path.join(appRoot, 'scripts', 'write-opl-app-component-manifest.ts'),
-    componentManifestOutput: componentOutput,
-    identityReceiptOutput: identityOutput,
-  }), /exact first-attempt source run identity/);
+  assert.throws(
+    () =>
+      bindStandardReleaseTrack({
+        assetsDir: root,
+        version,
+        updaterVersion,
+        appSha,
+        shellSha,
+        frameworkSha,
+        bundleDigest,
+        channel: 'stable',
+        repository: 'gaofeng21cn/one-person-lab-app',
+        sourceRunId: '123456789',
+        sourceRunAttempt: 2,
+        componentManifestScript: path.join(appRoot, 'scripts', 'write-opl-app-component-manifest.ts'),
+        componentManifestOutput: componentOutput,
+        identityReceiptOutput: identityOutput,
+      }),
+    /exact first-attempt source run identity/,
+  );
 });
 
 function bridgeFixture() {
@@ -179,11 +190,13 @@ function bridgeFixture() {
   const framework = gitFixture(root, 'framework', { 'fixture.txt': 'framework\n' });
   const baseImageIndex = path.join(root, 'base-image-index.json');
   writeJson(baseImageIndex, {
-    manifests: [{
-      digest: `sha256:${'b'.repeat(64)}`,
-      size: 1234,
-      platform: { os: 'linux', architecture: 'amd64' },
-    }],
+    manifests: [
+      {
+        digest: `sha256:${'b'.repeat(64)}`,
+        size: 1234,
+        platform: { os: 'linux', architecture: 'amd64' },
+      },
+    ],
   });
   const codexSource = path.join(root, 'codex-source', 'package');
   fs.mkdirSync(codexSource, { recursive: true });
@@ -245,8 +258,14 @@ function bridgeFixture() {
       framework_sha: framework.sha,
     },
     updater_metadata: { name: 'latest-arm64-mac.yml', sha256: `sha256:${'4'.repeat(64)}` },
-    updater_zip: { name: `One-Person-Lab-${version}-mac-arm64.zip`, sha256: `sha256:${'5'.repeat(64)}` },
-    component_manifest: { name: 'opl-app-component-manifest.json', sha256: `sha256:${'6'.repeat(64)}` },
+    updater_zip: {
+      name: `One-Person-Lab-${version}-mac-arm64.zip`,
+      sha256: `sha256:${'5'.repeat(64)}`,
+    },
+    component_manifest: {
+      name: 'opl-app-component-manifest.json',
+      sha256: `sha256:${'6'.repeat(64)}`,
+    },
   });
   return {
     root,
@@ -280,18 +299,30 @@ test('Standard freeze request contains only Desktop Standard and optional Full t
   });
   const result = runAdapter([
     'freeze-request',
-    '--channel', 'stable',
-    '--version', version,
-    '--updater-version', updaterVersion,
-    '--app-root', fixture.app.root,
-    '--shell-root', fixture.shell.root,
-    '--framework-root', fixture.framework.root,
-    '--notes', notesPath,
-    '--notes-evidence', evidencePath,
-    '--include-full-package', 'false',
-    '--package-compatibility-abi', 'opl_packages.v1',
-    '--package-compatibility-version-range', '>=0.1.0 <1.0.0',
-    '--output', output,
+    '--channel',
+    'stable',
+    '--version',
+    version,
+    '--updater-version',
+    updaterVersion,
+    '--app-root',
+    fixture.app.root,
+    '--shell-root',
+    fixture.shell.root,
+    '--framework-root',
+    fixture.framework.root,
+    '--notes',
+    notesPath,
+    '--notes-evidence',
+    evidencePath,
+    '--include-full-package',
+    'false',
+    '--package-compatibility-abi',
+    'opl_packages.v1',
+    '--package-compatibility-version-range',
+    '>=0.1.0 <1.0.0',
+    '--output',
+    output,
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const request = JSON.parse(fs.readFileSync(output, 'utf8'));
@@ -311,15 +342,24 @@ test('WebUI build input derives from Standard identity without entering the Stan
   const output = path.join(fixture.root, 'webui-build-input-draft.json');
   const result = runAdapter([
     'webui-build-input',
-    '--standard-identity', fixture.identityPath,
-    '--bundle', fixture.bundlePath,
-    '--app-root', fixture.app.root,
-    '--shell-root', fixture.shell.root,
-    '--framework-root', fixture.framework.root,
-    '--source-cutoff-observed-at', '2026-07-24T00:00:00.000Z',
-    '--base-image-index', fixture.baseImageIndex,
-    '--frozen-codex-tarball', fixture.codexTarball,
-    '--output', output,
+    '--standard-identity',
+    fixture.identityPath,
+    '--bundle',
+    fixture.bundlePath,
+    '--app-root',
+    fixture.app.root,
+    '--shell-root',
+    fixture.shell.root,
+    '--framework-root',
+    fixture.framework.root,
+    '--source-cutoff-observed-at',
+    '2026-07-24T00:00:00.000Z',
+    '--base-image-index',
+    fixture.baseImageIndex,
+    '--frozen-codex-tarball',
+    fixture.codexTarball,
+    '--output',
+    output,
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
@@ -335,17 +375,26 @@ test('WebUI build input derives from Standard identity without entering the Stan
     framework_sha: fixture.framework.sha,
   });
   assert.equal(buildInput.source_cutoff.frozen_base_release_set, null);
-  assert.deepEqual(buildInput.inputs.map((input: { id: string }) => input.id), [
-    'app_source',
-    'base_image',
-    'codex_cli',
-    'dockerfile',
-    'framework_seed',
-    'qualification_harness',
-    'shell_webui_source',
-  ]);
-  assert.equal(buildInput.inputs.some((input: { id: string }) => input.id === 'first_party_packages'), false);
-  assert.equal(buildInput.inputs.some((input: { id: string }) => input.id === 'opl_flow'), false);
+  assert.deepEqual(
+    buildInput.inputs.map((input: { id: string }) => input.id),
+    [
+      'app_source',
+      'base_image',
+      'codex_cli',
+      'dockerfile',
+      'framework_seed',
+      'qualification_harness',
+      'shell_webui_source',
+    ],
+  );
+  assert.equal(
+    buildInput.inputs.some((input: { id: string }) => input.id === 'first_party_packages'),
+    false,
+  );
+  assert.equal(
+    buildInput.inputs.some((input: { id: string }) => input.id === 'opl_flow'),
+    false,
+  );
 
   const bundle = JSON.parse(fs.readFileSync(fixture.bundlePath, 'utf8'));
   assert.equal(bundle.tracks.webui, undefined);
@@ -363,38 +412,51 @@ test('WebUI bridge rejects tampered Bundle bytes and Framework WebUI track recei
   writeJson(tamperedPath, tampered);
   const rejected = runAdapter([
     'webui-build-input',
-    '--standard-identity', fixture.identityPath,
-    '--bundle', tamperedPath,
-    '--app-root', fixture.app.root,
-    '--shell-root', fixture.shell.root,
-    '--framework-root', fixture.framework.root,
-    '--source-cutoff-observed-at', '2026-07-24T00:00:00.000Z',
-    '--base-image-index', fixture.baseImageIndex,
-    '--frozen-codex-tarball', fixture.codexTarball,
+    '--standard-identity',
+    fixture.identityPath,
+    '--bundle',
+    tamperedPath,
+    '--app-root',
+    fixture.app.root,
+    '--shell-root',
+    fixture.shell.root,
+    '--framework-root',
+    fixture.framework.root,
+    '--source-cutoff-observed-at',
+    '2026-07-24T00:00:00.000Z',
+    '--base-image-index',
+    fixture.baseImageIndex,
+    '--frozen-codex-tarball',
+    fixture.codexTarball,
   ]);
   assert.notEqual(rejected.status, 0);
   assert.match(rejected.stderr, /Bundle digest does not match/);
 
   const executor = runAdapter([
     'executor-receipt',
-    '--operation', 'build',
-    '--release-operation', 'standard',
-    '--operation-id', 'standard',
-    '--executor', 'remote',
-    '--attempt-id', 'webui',
-    '--remote-target', 'github-actions:fixture',
-    '--bundle', fixture.bundlePath,
-    '--track', 'webui',
-    '--outcome', 'complete',
+    '--operation',
+    'build',
+    '--release-operation',
+    'standard',
+    '--operation-id',
+    'standard',
+    '--executor',
+    'remote',
+    '--attempt-id',
+    'webui',
+    '--remote-target',
+    'github-actions:fixture',
+    '--bundle',
+    fixture.bundlePath,
+    '--track',
+    'webui',
+    '--outcome',
+    'complete',
   ]);
   assert.notEqual(executor.status, 0);
   assert.match(executor.stderr, /Invalid track/);
 
-  const qualification = runAdapter([
-    'qualification-receipt',
-    '--bundle', fixture.bundlePath,
-    '--track', 'webui',
-  ]);
+  const qualification = runAdapter(['qualification-receipt', '--bundle', fixture.bundlePath, '--track', 'webui']);
   assert.notEqual(qualification.status, 0);
   assert.match(qualification.stderr, /track must be standard or full/);
 });

@@ -11,7 +11,7 @@ const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
 const version = '26.7.29';
 
-test('frozen universal installer binds one exact release cohort and remains executable', () => {
+test('frozen universal installer binds one exact App carrier and remains executable', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-frozen-installer-'));
   const output = path.join(root, 'opl-install.sh');
   try {
@@ -42,8 +42,10 @@ test('frozen universal installer binds one exact release cohort and remains exec
     assert.match(script, /resolve_full_adjunct_release_record/);
     assert.match(script, /releases\?per_page=100&page=\$page/);
     assert.match(script, /download_release_record "\$candidate_tag"/);
-    assert.match(script, /STABLE_MACOS_SOURCE_APP_SHA/);
+    assert.match(script, /full_release_record_binds_tagged_assets/);
+    assert.match(script, /opl-release-manifest\.json/);
     assert.match(script, /STABLE_MACOS_FULL_ADJUNCT_TAG/);
+    assert.doesNotMatch(script, /STABLE_MACOS_SOURCE_(?:APP|SHELL|FRAMEWORK)_SHA/);
     assert.match(
       script,
       new RegExp(`one-person-lab/archive/${frameworkSha}\\.tar\\.gz`),

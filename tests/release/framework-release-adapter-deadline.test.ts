@@ -439,6 +439,9 @@ function fixture(
   releaseOperation: 'standard' | 'append_full' = 'standard',
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-github-deadline-'));
+  const uploadActions = releaseOperation === 'append_full'
+    ? writeFullUploadActions(root)
+    : actions;
   const bundlePath = path.join(root, 'bundle.json');
   const planPath = path.join(root, 'plan.json');
   const statusPath = path.join(root, 'status.json');
@@ -474,7 +477,7 @@ function fixture(
         release_operation: releaseOperation,
         operation_control: operationControl,
         details: {
-          upload_actions: actions.map((asset) => ({
+          upload_actions: uploadActions.map((asset) => ({
             action: 'upload',
             name: asset.name,
             source_path: asset.source_path,
@@ -565,7 +568,7 @@ function fixture(
   };
   sealAdmission(admission);
   fs.writeFileSync(admissionPath, `${JSON.stringify(admission)}\n`);
-  return { root, bundlePath, planPath, statusPath, admissionPath };
+  return { root, bundlePath, planPath, statusPath, admissionPath, uploadActions };
 }
 
 function asset(name: string, byte: string): Asset {
@@ -575,6 +578,44 @@ function asset(name: string, byte: string): Asset {
     sha256: `sha256:${byte.repeat(64)}`,
     source_path: `/immutable/${name}`,
   };
+}
+
+function writeFullUploadActions(root: string): Asset[] {
+  const dmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const dmgPath = path.join(root, dmgName);
+  const dmgBytes = Buffer.from('exact independently versioned Full DMG bytes\n');
+  fs.writeFileSync(dmgPath, dmgBytes);
+  const dmgAction: Asset = {
+    name: dmgName,
+    size_bytes: dmgBytes.length,
+    sha256: sha256Evidence(dmgBytes),
+    source_path: dmgPath,
+  };
+  const manifestPath = path.join(root, 'opl-release-manifest.json');
+  const manifestBytes = Buffer.from(`${JSON.stringify({
+    schema: 'opl_public_release_manifest.v1',
+    package_kind: 'opl_full_first_install_macos_arm64',
+    owner_authority: 'one-person-lab-app',
+    version,
+    release_version: version,
+    primary_install_asset: dmgName,
+    assets: [{
+      name: dmgName,
+      role: 'full_first_install_carrier',
+      size_bytes: dmgBytes.length,
+      sha256: dmgAction.sha256,
+    }],
+  })}\n`);
+  fs.writeFileSync(manifestPath, manifestBytes);
+  return [
+    dmgAction,
+    {
+      name: 'opl-release-manifest.json',
+      size_bytes: manifestBytes.length,
+      sha256: sha256Evidence(manifestBytes),
+      source_path: manifestPath,
+    },
+  ];
 }
 
 function isReleaseInspect(args: string[]): boolean {
@@ -1443,7 +1484,7 @@ test('raw GitHub mutation commands reject reruns and operation-track mismatches 
 test('github-apply admits append_full only for a Framework Full publish plan', () => {
   const files = fixture([], 'append_full');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle);
+  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
   let calls = 0;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
@@ -1453,7 +1494,8 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
       if (isReleaseInspect(args)) return success(releaseResponse([]));
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
         return success({
-          ...releaseResponse([]),
+          ...releaseResponse(files.uploadActions),
+          tag_name: adjunct.tag,
           name: adjunct.name,
           body: adjunct.notes,
         });
@@ -1469,43 +1511,33 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
   }, runtime);
   assert.equal(result.status, 'complete');
   assert.equal(result.tag, adjunct.tag);
-  assert.equal(calls, 2);
-});
-
-test('append_full fails closed when the exact base Stable Release is not immutable', () => {
-  const files = fixture([], 'append_full');
-  let calls = 0;
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 60_000,
-    run(_command, args) {
-      calls += 1;
-      if (isReleaseInspect(args)) {
-        return success(releaseResponse([], { immutable: false }));
-      }
-      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
-    },
-  };
-  assert.throws(
-    () => applyPublishPlan({
-      ...mutationAdmission('append_full', 'full'),
-      bundle: files.bundlePath,
-      plan: files.planPath,
-      'operation-deadline-at': deadlineAt,
-    }, runtime),
-    (error: any) => {
-      assert.equal(error.result.status, 'failed');
-      assert.equal(error.result.failure.failure_taxonomy, 'github_full_adjunct_base_not_terminal');
-      return true;
-    },
-  );
   assert.equal(calls, 1);
 });
 
+test('append_full identity fails closed without its own manifest and never inspects a Standard Release', () => {
+  const bundle = {
+    release: { version, tag },
+    sources: { app: { repo, source_commit: sourceCommit } },
+  };
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      throw new Error('No GitHub read is allowed before Full self-identity validation.');
+    },
+  };
+  assert.throws(
+    () => fullAdjunctReleaseIdentity(bundle, []),
+    /exactly one opl-release-manifest\.json upload action/,
+  );
+  assert.equal(calls, 0);
+});
+
 test('an exact published Full adjunct remains idempotent with complete discovery metadata', () => {
-  const fullDmg = asset(`One-Person-Lab-Full-${version}-mac-arm64.dmg`, '4');
-  const files = fixture([fullDmg], 'append_full');
+  const files = fixture([], 'append_full');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle);
+  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
   const calls: string[][] = [];
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
@@ -1516,7 +1548,8 @@ test('an exact published Full adjunct remains idempotent with complete discovery
       }
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
         return success({
-          ...releaseResponse([fullDmg], { immutable: true }),
+          ...releaseResponse(files.uploadActions, { immutable: true }),
+          tag_name: adjunct.tag,
           name: adjunct.name,
           body: adjunct.notes,
         });
@@ -1531,8 +1564,9 @@ test('an exact published Full adjunct remains idempotent with complete discovery
     'operation-deadline-at': deadlineAt,
   }, runtime);
   assert.equal(result.status, 'complete');
-  assert.equal(result.adjunct.base_tag, tag);
   assert.equal(result.adjunct.tag, adjunct.tag);
+  assert.deepEqual(result.adjunct.manifest, adjunct.manifest);
+  assert.deepEqual(result.adjunct.artifact, adjunct.artifact);
   assert.equal(result.adjunct.release_url, `https://github.com/${repo}/releases/tag/${adjunct.tag}`);
   assert.equal(
     result.adjunct.asset_download_base_url,

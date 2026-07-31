@@ -77,13 +77,16 @@ test('the universal installer has no Native tarball discovery or verifier fallba
   assert.doesNotMatch(source, /OPL_NATIVE_WEBUI_|install-web\.sh|native-webui-qualified/);
 });
 
-test('macOS Full resolves one immutable same-cohort adjunct and never assumes it is on the base tag', () => {
+test('macOS Full resolves one self-addressed immutable carrier without assuming the Standard tag', () => {
   const source = fs.readFileSync(installerPath, 'utf8');
   assert.match(source, /resolve_full_adjunct_release_record/);
   assert.match(source, /releases\?per_page=100&page=\$page/);
   assert.match(source, /download_release_record "\$candidate_tag"/);
-  assert.match(source, /target_commitish/);
-  assert.match(source, /Full adjunct exact-tag readback/);
-  assert.match(source, /No immutable same-cohort Full adjunct is published/);
+  assert.match(source, /full_release_record_binds_tagged_assets/);
+  assert.match(source, /Full carrier exact-tag readback/);
+  assert.match(source, /exactly one self-addressed immutable Release/);
+  assert.match(source, /Full adjunct public manifest does not bind the exact Full DMG digest and size/);
+  assert.match(source, /Full adjunct DMG identity changed while validating its public manifest/);
+  assert.match(source, /No immutable Full carrier is published/);
   assert.match(source, /continuing with the Standard DMG/);
 });

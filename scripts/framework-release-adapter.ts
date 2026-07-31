@@ -179,51 +179,98 @@ function digestRef(digest: string): string {
   return digest.startsWith('sha256:') ? digest : `sha256:${digest}`;
 }
 
-export function fullAdjunctReleaseIdentity(bundle: JsonRecord): JsonRecord {
-  const baseTag = String(bundle.release?.tag ?? '');
-  const version = String(bundle.release?.version ?? '');
-  const bundleDigest = String(bundle.bundle_digest ?? '');
-  const repository = String(bundle.sources?.app?.repo ?? '');
-  const appSha = String(bundle.sources?.app?.source_commit ?? '');
-  const shellSha = String(bundle.sources?.shell?.source_commit ?? '');
-  const frameworkSha = String(bundle.sources?.framework?.source_commit ?? '');
-  if (
-    !/^v[0-9A-Za-z][0-9A-Za-z.-]*$/.test(baseTag)
-    || !version
-    || !digestPattern.test(bundleDigest)
-    || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
-    || ![appSha, shellSha, frameworkSha].every((value) => /^[0-9a-f]{40}$/.test(value))
-  ) {
-    throw new Error('Full adjunct identity requires one exact Stable Bundle and source cohort.');
+function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
+  const manifestActions = uploadActions.filter((action) => action.name === 'opl-release-manifest.json');
+  if (manifestActions.length !== 1) {
+    throw new Error('Full publication requires exactly one opl-release-manifest.json upload action.');
   }
-  const tag = `${baseTag}-full-${bundleDigest.slice('sha256:'.length, 'sha256:'.length + 12)}`;
-  const baseUrl = `https://github.com/${repository}/releases/tag/${baseTag}`;
+  const manifestAction = manifestActions[0];
+  const manifestPath = path.resolve(String(manifestAction.source_path ?? ''));
+  const manifestBytes = regularFileBytes(manifestPath, 'Full public manifest');
+  const manifestSha256 = digestRef(sha256Bytes(manifestBytes));
+  if (
+    manifestAction.sha256 !== manifestSha256
+    || manifestAction.size_bytes !== manifestBytes.byteLength
+  ) {
+    throw new Error('Full public manifest upload action does not match its exact bytes.');
+  }
+  const manifest = JSON.parse(manifestBytes.toString('utf8')) as JsonRecord;
+  const version = String(manifest.release_version ?? '');
+  const dmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const manifestAssets = Array.isArray(manifest.assets) ? manifest.assets : [];
+  const manifestDmgAssets = manifestAssets.filter((asset: JsonRecord) => asset?.name === dmgName);
+  const uploadDmgActions = uploadActions.filter((action) => action.name === dmgName);
+  if (
+    manifest.schema !== 'opl_public_release_manifest.v1'
+    || manifest.package_kind !== 'opl_full_first_install_macos_arm64'
+    || manifest.owner_authority !== 'one-person-lab-app'
+    || manifest.version !== version
+    || !/^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$/.test(version)
+    || manifest.primary_install_asset !== dmgName
+    || manifestDmgAssets.length !== 1
+    || uploadDmgActions.length !== 1
+  ) {
+    throw new Error('Full public manifest does not define one canonical self-owned Full carrier identity.');
+  }
+  const manifestDmg = manifestDmgAssets[0] as JsonRecord;
+  const uploadDmg = uploadDmgActions[0];
+  if (
+    manifestDmg.sha256 !== uploadDmg.sha256
+    || manifestDmg.size_bytes !== uploadDmg.size_bytes
+    || !digestPattern.test(String(uploadDmg.sha256 ?? ''))
+    || !Number.isSafeInteger(uploadDmg.size_bytes)
+    || Number(uploadDmg.size_bytes) <= 0
+  ) {
+    throw new Error('Full public manifest does not bind the exact uploaded Full DMG bytes.');
+  }
+  return {
+    version,
+    manifest: {
+      name: 'opl-release-manifest.json',
+      sha256: manifestSha256,
+      size_bytes: manifestBytes.byteLength,
+    },
+    artifact: {
+      name: dmgName,
+      sha256: uploadDmg.sha256,
+      size_bytes: uploadDmg.size_bytes,
+    },
+  };
+}
+
+export function fullAdjunctReleaseIdentity(
+  bundle: JsonRecord,
+  uploadActions: JsonRecord[],
+): JsonRecord {
+  const releaseIdentity = fullManifestReleaseIdentity(uploadActions);
+  const repository = String(bundle.sources?.app?.repo ?? '');
+  if (
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
+  ) {
+    throw new Error('Full adjunct identity requires one canonical App release repository.');
+  }
+  const manifestSha256 = String(releaseIdentity.manifest.sha256);
+  const version = String(releaseIdentity.version);
+  const tag = `v${version}-full-${manifestSha256.slice('sha256:'.length, 'sha256:'.length + 12)}`;
   const notes = [
-    `# One Person Lab v${version} Full macOS adjunct`,
+    `# One Person Lab Full ${version} macOS carrier`,
     '',
-    'This immutable adjunct carries the optional Full macOS first-install package for the exact Stable cohort below.',
-    `Base Stable Release: ${baseUrl}`,
-    `Bundle digest: ${bundleDigest}`,
-    `App source: ${appSha}`,
-    `Shell source: ${shellSha}`,
-    `Framework source: ${frameworkSha}`,
+    'This immutable Release carries one independently versioned Full macOS first-install artifact.',
+    `Full manifest digest: ${manifestSha256}`,
+    `Full DMG digest: ${releaseIdentity.artifact.sha256}`,
     '',
-    'Download the Full DMG and its manifest from the assets attached to this adjunct Release. The base Stable Release and GitHub Latest pointer are not modified.',
+    'Download the Full DMG and its manifest from this Release. Standard assets and the GitHub Latest pointer are not modified.',
   ].join('\n');
   return {
     schema: 'opl_app_immutable_release_adjunct_identity.v1',
     kind: 'full_macos',
-    base_tag: baseTag,
     tag,
-    name: `One Person Lab v${version} Full macOS adjunct`,
+    name: `One Person Lab Full ${version} macOS carrier`,
     notes,
     make_latest: false,
-    bundle_digest: bundleDigest,
-    cohort: {
-      app_sha: appSha,
-      shell_sha: shellSha,
-      framework_sha: frameworkSha,
-    },
+    release_version: version,
+    manifest: releaseIdentity.manifest,
+    artifact: releaseIdentity.artifact,
   };
 }
 
@@ -973,7 +1020,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
     const sizeBytes = Number(hosted.subject?.size_bytes);
     const artifactSha256 = String(hosted.subject?.sha256 ?? '');
     const requiredNames = bundle.tracks?.full?.required_asset_names;
-    const cohort = hosted.cohort ?? {};
     const verification = hosted.verification ?? {};
     if (
       hosted.schema !== 'opl_app_hosted_full_core_qualification.v1'
@@ -982,7 +1028,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       || hosted.execution?.runner !== 'macos-14'
       || hosted.execution?.run_attempt !== 1
       || !/^[1-9][0-9]*$/.test(String(hosted.execution?.run_id ?? ''))
-      || hosted.release?.bundle_digest !== bundle.bundle_digest
       || hosted.release?.version !== bundle.release.version
       || !Array.isArray(requiredNames)
       || !requiredNames.includes(subjectName)
@@ -991,9 +1036,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       || !digestPattern.test(artifactSha256)
       || hosted.manifest?.asset_name !== 'opl-release-manifest.json'
       || !digestPattern.test(String(hosted.manifest?.sha256 ?? ''))
-      || cohort.app_sha !== bundle.sources.app.source_commit
-      || cohort.shell_sha !== bundle.sources.shell.source_commit
-      || cohort.framework_sha !== bundle.sources.framework.source_commit
       || verification.dmg_verified !== true
       || verification.read_only_mount !== true
       || verification.exact_single_app !== true
@@ -1005,7 +1047,7 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       || typeof hosted.evidence_ref !== 'string'
       || hosted.evidence_ref.trim() === ''
     ) {
-      throw new Error('Hosted Full core qualification does not bind the exact Bundle, artifact, cohort, and macOS trust evidence.');
+      throw new Error('Hosted Full core qualification does not bind the exact Full artifact and macOS trust evidence.');
     }
     return {
       surface_kind: 'opl_release_bundle_qualification_receipt.v1',
@@ -2222,19 +2264,6 @@ export function applyPublishPlan(
     String(bundle.release?.updater_version ?? ''),
   );
   const repo = bundle.sources.app.repo;
-  const fullAdjunct = admission.track === 'full'
-    ? fullAdjunctReleaseIdentity(bundle)
-    : null;
-  const tag = fullAdjunct?.tag ?? bundle.release.tag;
-  const name = fullAdjunct?.name ?? `One Person Lab v${bundle.release.version}`;
-  const notes = fullAdjunct?.notes ?? bundle.prepared_notes.markdown;
-  const adjunct = fullAdjunct
-    ? {
-        ...fullAdjunct,
-        release_url: `https://github.com/${repo}/releases/tag/${tag}`,
-        asset_download_base_url: `https://github.com/${repo}/releases/download/${tag}`,
-      }
-    : null;
   const plan = readJson(path.resolve(requireOption(values, 'plan')));
   const publication = plan.release_bundle_publish;
   if (publication?.bundle_digest !== bundle.bundle_digest) {
@@ -2281,29 +2310,19 @@ export function applyPublishPlan(
     ...plannedUploadActions(actions),
     ...supplementalUploadActions(values),
   ]);
-  if (fullAdjunct) {
-    const baseInspection = inspectRelease(repo, String(fullAdjunct.base_tag), runtime);
-    if (
-      baseInspection.release.exists !== true
-      || baseInspection.release.draft !== false
-      || baseInspection.release.prerelease !== false
-      || baseInspection.release.immutable !== true
-      || baseInspection.release.target_commitish !== bundle.sources.app.source_commit
-    ) {
-      rejectGitHubMutation(
-        'github-apply',
-        values,
-        'github_full_adjunct_base_not_terminal',
-        'Full adjunct publication requires the exact base Stable Release to be published and immutable.',
-        {
-          base_tag: fullAdjunct.base_tag,
-          bundle_digest: bundle.bundle_digest,
-          observed_release: baseInspection.release,
-        },
-        'inspect_only_require_exact_immutable_base',
-      );
-    }
-  }
+  const fullAdjunct = admission.track === 'full'
+    ? fullAdjunctReleaseIdentity(bundle, uploadActions)
+    : null;
+  const tag = fullAdjunct?.tag ?? bundle.release.tag;
+  const name = fullAdjunct?.name ?? `One Person Lab v${bundle.release.version}`;
+  const notes = fullAdjunct?.notes ?? bundle.prepared_notes.markdown;
+  const adjunct = fullAdjunct
+    ? {
+        ...fullAdjunct,
+        release_url: `https://github.com/${repo}/releases/tag/${tag}`,
+        asset_download_base_url: `https://github.com/${repo}/releases/download/${tag}`,
+      }
+    : null;
   const preexisting = inspectReleaseForReconcile(repo, tag, runtime);
   const exactPublishedCarrier = preexisting.status === 'complete'
     && preexisting.observation.release.exists === true

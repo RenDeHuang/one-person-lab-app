@@ -1100,7 +1100,9 @@ jobs:
           const releaseManifest = {
             schema: 'opl_public_release_manifest.v1',
             package_kind: 'opl_full_first_install_macos_arm64',
+            owner_authority: 'one-person-lab-app',
             version,
+            release_version: version,
             primary_install_asset: fullDmgName,
             assets: [
               {

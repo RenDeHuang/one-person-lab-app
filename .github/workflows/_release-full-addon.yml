@@ -133,7 +133,6 @@ jobs:
       version: ${{ steps.identity.outputs.version }}
       updater_version: ${{ steps.identity.outputs.updater_version }}
       tag: ${{ steps.identity.outputs.tag }}
-      adjunct_tag: ${{ steps.identity.outputs.adjunct_tag }}
       bundle_digest: ${{ steps.identity.outputs.bundle_digest }}
       app_ref: ${{ steps.identity.outputs.app_ref }}
       shell_ref: ${{ steps.identity.outputs.shell_ref }}
@@ -205,14 +204,6 @@ jobs:
           github-token: ${{ github.token }}
           allow-reconcile-required: 'true'
 
-      - name: Download exact Standard activation evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: opl-release-activation-${{ inputs.source_run_id }}
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          path: standard-activation
-
       - name: Require a verified Standard checkpoint and fresh Full eligibility
         env:
           CHECKPOINT_IMPORT: ${{ steps.checkpoint.outputs.checkpoint_import_json }}
@@ -265,14 +256,31 @@ jobs:
             prior_attempt="$(jq -er .prior_mutation_attempt_id <<<"$marker")"
             publication_scope="$(jq -er .publication_scope <<<"$marker")"
             repo="$(jq -er .sources.app.repo "$bundle")"
-            base_tag="$(jq -er .release.tag "$bundle")"
-            bundle_digest_hex="${BUNDLE_DIGEST#sha256:}"
-            adjunct_tag="${base_tag}-full-${bundle_digest_hex:0:12}"
             reconcile_attempt="gha-${GITHUB_RUN_ID}-full-resume-reconcile"
             outcome=unknown
             case "$target" in
               github-release:*)
                 test "$publication_scope" = track_assets
+                full_manifests=()
+                while IFS= read -r manifest; do full_manifests+=("$manifest"); done < <(
+                  find checkpoint-identity-bootstrap -type f \
+                    -path '*/tracks/full/assets/opl-release-manifest.json' -print | LC_ALL=C sort
+                )
+                test "${#full_manifests[@]}" -eq 1
+                full_manifest="${full_manifests[0]}"
+                test -f "$full_manifest" && test ! -L "$full_manifest"
+                full_version="$(jq -er '
+                  select(
+                    .schema == "opl_public_release_manifest.v1"
+                    and .package_kind == "opl_full_first_install_macos_arm64"
+                    and .owner_authority == "one-person-lab-app"
+                    and .version == .release_version
+                  )
+                  | .release_version
+                  | select(type == "string" and test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+                ' "$full_manifest")"
+                full_manifest_sha="$(shasum -a 256 "$full_manifest" | awk '{print $1}')"
+                adjunct_tag="v${full_version}-full-${full_manifest_sha:0:12}"
                 test "$target" = "github-release:${repo}@${adjunct_tag}"
                 if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
                   --repo "$repo" --tag "$adjunct_tag" --output full-resume-observation.json; then
@@ -398,10 +406,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Require exact Stable Standard identity and Full eligibility
+      - name: Bind checkpoint build provenance without requiring a published Standard Release
         id: identity
-        env:
-          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -416,81 +422,11 @@ jobs:
           esac
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           test "$(jq -r .release.channel "$bundle")" = stable
-          bundle_tag="$(jq -r .release.tag "$bundle")"
-          standard_identity_files=()
-          while IFS= read -r identity_file; do
-            standard_identity_files+=("$identity_file")
-          done < <(find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort)
-          if [ "${#standard_identity_files[@]}" -ne 1 ]; then
-            echo "::error::Full append requires exactly one Standard release identity receipt."
-            exit 1
-          fi
-          standard_identity="${standard_identity_files[0]}"
-          test -s "$standard_identity" && test ! -L "$standard_identity"
-          activation_manifests=()
-          while IFS= read -r activation_manifest; do
-            activation_manifests+=("$activation_manifest")
-          done < <(find standard-activation -type f -name latest-component-manifest.json -print | LC_ALL=C sort)
-          if [ "${#activation_manifests[@]}" -ne 1 ]; then
-            echo "::error::Full append requires exactly one Standard activation component manifest."
-            exit 1
-          fi
-          activation_manifest="${activation_manifests[0]}"
-          test -s "$activation_manifest" && test ! -L "$activation_manifest"
-          component_manifest_sha="sha256:$(shasum -a 256 "$activation_manifest" | awk '{print $1}')"
-          component_manifest_size="$(wc -c < "$activation_manifest" | tr -d ' ')"
-          jq -e \
-            --arg bundle_digest '${{ steps.checkpoint.outputs.bundle_digest }}' \
-            --arg version "$(jq -r .release.version "$bundle")" \
-            --arg tag "$bundle_tag" \
-            --arg app "$(jq -r .sources.app.source_commit "$bundle")" \
-            --arg shell "$(jq -r .sources.shell.source_commit "$bundle")" \
-            --arg framework "$(jq -r .sources.framework.source_commit "$bundle")" \
-            --arg component_manifest_sha "$component_manifest_sha" '
-              .schema == "opl_standard_release_identity_receipt.v2"
-              and .status == "passed"
-              and .release.channel == "stable"
-              and .release.bundle_digest == $bundle_digest
-              and .release.version == $version
-              and .release.tag == $tag
-              and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
-              and .component_manifest == {
-                name:"opl-app-component-manifest.json",
-                sha256:$component_manifest_sha
-              }
-            ' "$standard_identity" >/dev/null
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$bundle_tag" > standard-release.json
-          expected_assets="$(jq -c \
-            --arg manifest_sha "$component_manifest_sha" \
-            --argjson manifest_size "$component_manifest_size" \
-            '.artifacts + [{name:"opl-app-component-manifest.json",digest:$manifest_sha,size:$manifest_size}] | map({name,digest,size})' \
-            "$activation_manifest")"
-          required_assets="$(jq -c \
-            '([.artifacts[]?.name] + ["opl-app-component-manifest.json"]) | unique' \
-            "$activation_manifest")"
-          jq -e \
-            --arg tag "$bundle_tag" \
-            --argjson required "$required_assets" \
-            --argjson expected "$expected_assets" '
-            . as $release
-            | .tag_name == $tag
-            and .draft == false
-            and .prerelease == false
-            and .immutable == true
-            and ([.assets[]?.name] | unique | contains($required))
-            and all($expected[]; . as $asset
-              | ([$release.assets[]? | select(.name == $asset.name and (.digest // "") == $asset.digest and (.size == $asset.size))] | length) == 1)
-            ' standard-release.json >/dev/null || {
-            echo "::error::Exact Standard release asset digests are not present remotely; Full append remains deferred."
-            exit 1
-          }
           {
             bundle_digest="$(jq -r .bundle_digest "$bundle")"
             echo "version=$(jq -r .release.version "$bundle")"
             echo "updater_version=$(jq -r .release.updater_version "$bundle")"
-            echo "tag=$bundle_tag"
-            bundle_digest_hex="${bundle_digest#sha256:}"
-            echo "adjunct_tag=${bundle_tag}-full-${bundle_digest_hex:0:12}"
+            echo "tag=$(jq -r .release.tag "$bundle")"
             echo "bundle_digest=$bundle_digest"
             echo "app_ref=$(jq -r .sources.app.source_commit "$bundle")"
             echo "shell_ref=$(jq -r .sources.shell.source_commit "$bundle")"
@@ -506,7 +442,7 @@ jobs:
         run: |
           mkdir -p checkpoint-restore-failure
           printf '%s\n' 'checkpoint restore did not complete; see immutable Actions step log' > checkpoint-restore-failure/stdout.txt
-          printf '%s\n' 'restore, digest, ABI, stage, or Standard release identity validation failed' > checkpoint-restore-failure/stderr.txt
+          printf '%s\n' 'restore, digest, ABI, stage, or Full build-provenance validation failed' > checkpoint-restore-failure/stderr.txt
           input_digest="$(printf '%s\0' '${{ inputs.source_run_id }}' '${{ inputs.source_artifact }}' '${{ inputs.framework_executor_ref }}' '${{ inputs.operation }}' '${{ inputs.operation_deadline_at }}' | shasum -a 256 | awk '{print $1}')"
           jq -n --arg digest "sha256:$input_digest" --arg run '${{ inputs.source_run_id }}' --arg artifact '${{ inputs.source_artifact }}' \
             '{schema:"opl_release_checkpoint_restore_failure_receipt.v1",status:"failed",input_digest:$digest,source:{run_id:$run,artifact:$artifact},retry_disposition:"correct_checkpoint_or_freeze_new_bundle"}' \
@@ -608,11 +544,7 @@ jobs:
 
       - name: Verify exact hosted Full core qualification
         env:
-          BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
           VERSION: ${{ needs.restore-standard.outputs.version }}
-          APP_SHA: ${{ needs.restore-standard.outputs.app_ref }}
-          SHELL_SHA: ${{ needs.restore-standard.outputs.shell_ref }}
-          FRAMEWORK_SHA: ${{ needs.restore-standard.outputs.framework_source_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -622,10 +554,14 @@ jobs:
           test -f "$manifest_path" && test ! -L "$manifest_path"
           dmg_sha="sha256:$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
           dmg_size="$(wc -c < "$dmg_path" | tr -d ' ')"
-          jq -e --arg name "$(basename "$dmg_path")" --arg sha "$dmg_sha" --argjson size "$dmg_size" '
+          jq -e \
+            --arg name "$(basename "$dmg_path")" \
+            --arg sha "$dmg_sha" \
+            --argjson size "$dmg_size" '
             .schema == "opl_public_release_manifest.v1"
             and .package_kind == "opl_full_first_install_macos_arm64"
             and .version == env.VERSION
+            and .release_version == env.VERSION
             and .primary_install_asset == $name
             and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
             and .evidence.gatekeeper_launch_policy.schema == "opl_gatekeeper_launch_policy.v1"
@@ -659,10 +595,10 @@ jobs:
           xcrun stapler validate "$dmg_path"
           spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg_path"
           spctl --assess --type execute --verbose=4 "$app_path"
-          node - "$BUNDLE_DIGEST" "$VERSION" "$APP_SHA" "$SHELL_SHA" "$FRAMEWORK_SHA" "$dmg_path" "$manifest_path" <<'NODE' > hosted-full-core-qualification.json
+          node - "$VERSION" "$dmg_path" "$manifest_path" <<'NODE' > hosted-full-core-qualification.json
           const crypto = require('node:crypto');
           const fs = require('node:fs');
-          const [bundleDigest, version, appSha, shellSha, frameworkSha, dmgPath, manifestPath] = process.argv.slice(2);
+          const [version, dmgPath, manifestPath] = process.argv.slice(2);
           const sha256 = (value) => `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;
           const stat = fs.statSync(dmgPath);
           process.stdout.write(`${JSON.stringify({
@@ -674,7 +610,7 @@ jobs:
               run_id: process.env.GITHUB_RUN_ID,
               run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
             },
-            release: { bundle_digest: bundleDigest, version },
+            release: { version },
             subject: {
               asset_name: require('node:path').basename(dmgPath),
               size_bytes: stat.size,
@@ -684,7 +620,6 @@ jobs:
               asset_name: 'opl-release-manifest.json',
               sha256: sha256(fs.readFileSync(manifestPath)),
             },
-            cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
             verification: {
               dmg_verified: true,
               read_only_mount: true,
@@ -938,12 +873,28 @@ jobs:
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}'
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
           )
-          remote_target="github-release:${GITHUB_REPOSITORY}@${{ needs.restore-standard.outputs.adjunct_tag }}"
+          checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+          full_manifest="$checkpoint/tracks/full/assets/opl-release-manifest.json"
+          test -f "$full_manifest" && test ! -L "$full_manifest"
+          full_version="$(jq -er '
+            select(
+              .schema == "opl_public_release_manifest.v1"
+              and .package_kind == "opl_full_first_install_macos_arm64"
+              and .owner_authority == "one-person-lab-app"
+              and .version == .release_version
+            )
+            | .release_version
+            | select(type == "string" and test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+          ' "$full_manifest")"
+          full_manifest_sha_hex="$(shasum -a 256 "$full_manifest" | awk '{print $1}')"
+          full_manifest_sha="sha256:$full_manifest_sha_hex"
+          adjunct_tag="v${full_version}-full-${full_manifest_sha_hex:0:12}"
+          remote_target="github-release:${GITHUB_REPOSITORY}@${adjunct_tag}"
           framework-executor/bin/opl release operation admit \
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
             --store "$store" --json > publish-operation-admit.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.adjunct_tag }}' --output remote-before.json
+            --repo "$GITHUB_REPOSITORY" --tag "$adjunct_tag" --output remote-before.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-before" \
             --release-operation append_full --operation-id "$operation_id" \
@@ -1024,7 +975,7 @@ jobs:
             unknown_target="$(jq -er .remote_target <<<"$marker")"
             test "$unknown_target" = "$remote_target"
             node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-              --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.adjunct_tag }}' \
+              --repo "$GITHUB_REPOSITORY" --tag "$adjunct_tag" \
               --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' --output reconcile-observation.json
             node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
               --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" \
@@ -1043,7 +994,7 @@ jobs:
             }
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore-standard.outputs.adjunct_tag }}' --output remote-after.json
+            --repo "$GITHUB_REPOSITORY" --tag "$adjunct_tag" --output remote-after.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-after" \
             --release-operation append_full --operation-id "$operation_id" \
@@ -1055,7 +1006,6 @@ jobs:
             "${operation_args[@]}" \
             --store "$store" --json > full-published.json
           test "$(jq -r .release_bundle_publish.status full-published.json)" = complete
-          checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
           full_assets="$checkpoint/tracks/full/assets.json"
           full_qualification="$checkpoint/tracks/full/qualification.json"
           test -f "$full_assets"
@@ -1081,17 +1031,15 @@ jobs:
           test "$(jq -r .qualification.result "$full_qualification")" = passed
           test "$(jq -r .bundle_digest "$full_qualification")" = "$BUNDLE_DIGEST"
           published_sha="sha256:$(shasum -a 256 full-published.json | awk '{print $1}')"
-          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${{ needs.restore-standard.outputs.adjunct_tag }}"
+          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${adjunct_tag}"
           jq -n \
             --arg authority_run_id "$GITHUB_RUN_ID" --arg authority_head_sha "$GITHUB_SHA" \
             --arg source_run_id '${{ needs.provenance.outputs.source_run_id }}' \
             --arg source_artifact '${{ needs.provenance.outputs.source_artifact }}' \
             --arg checkpoint_transport_executor '${{ needs.provenance.outputs.checkpoint_transport_executor }}' \
             --arg transport_run_id '${{ needs.provenance.outputs.transport_run_id }}' \
-            --arg bundle_digest "$BUNDLE_DIGEST" --arg version '${{ needs.restore-standard.outputs.version }}' \
-            --arg updater_version '${{ needs.restore-standard.outputs.updater_version }}' \
-            --arg base_tag '${{ needs.restore-standard.outputs.tag }}' \
-            --arg adjunct_tag '${{ needs.restore-standard.outputs.adjunct_tag }}' \
+            --arg bundle_digest "$BUNDLE_DIGEST" --arg version "$full_version" \
+            --arg manifest_sha "$full_manifest_sha" --arg adjunct_tag "$adjunct_tag" \
             --arg app_sha '${{ needs.restore-standard.outputs.app_ref }}' \
             --arg shell_sha '${{ needs.restore-standard.outputs.shell_ref }}' \
             --arg framework_sha '${{ needs.restore-standard.outputs.framework_source_ref }}' \
@@ -1108,15 +1056,26 @@ jobs:
               authority:{repository:"gaofeng21cn/one-person-lab-app",workflow:".github/workflows/release-stable.yml",run_id:$authority_run_id,run_attempt:1,executor_head_sha:$authority_head_sha},
               operation_control:{operation_id:$operation_id,operation_started_at:$operation_started_at,operation_deadline_at:$operation_deadline_at},
               source:{run_id:$source_run_id,checkpoint_artifact:$source_artifact,checkpoint_transport_executor:$checkpoint_transport_executor,transport_run_id:$transport_run_id,completed_stage:"full_qualified",qualification_receipt_sha256:$qualification_sha},
-              release:{bundle_digest:$bundle_digest,version:$version,updater_version:$updater_version,base_tag:$base_tag,adjunct_tag:$adjunct_tag,cohort:{app_sha:$app_sha,shell_sha:$shell_sha,framework_sha:$framework_sha}},
+              release:{
+                version:$version,
+                adjunct_tag:$adjunct_tag,
+                manifest:{name:$manifest_name,sha256:$manifest_sha,size_bytes:$manifest_size},
+                artifact:{name:$dmg_name,sha256:$dmg_sha,size_bytes:$dmg_size}
+              },
+              build_provenance:{
+                admission_role:"observational_only",
+                may_gate_install_or_runtime:false,
+                bundle_digest:$bundle_digest,
+                app_sha:$app_sha,
+                shell_sha:$shell_sha,
+                framework_sha:$framework_sha
+              },
               artifact:{name:$dmg_name,size_bytes:$dmg_size,sha256:$dmg_sha,url:$dmg_url},
               manifest:{name:$manifest_name,size_bytes:$manifest_size,sha256:$manifest_sha,url:$manifest_url},
               github_full_publication:{status:"complete",receipt_sha256:$published_sha},homebrew_modified:false,latest_modified:false
             }' > homebrew-full-handoff.json
-          jq -n --arg bundle "$BUNDLE_DIGEST" \
-            --arg base_tag '${{ needs.restore-standard.outputs.tag }}' \
-            --arg adjunct_tag '${{ needs.restore-standard.outputs.adjunct_tag }}' \
-            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",bundle_digest:$bundle,carrier:{kind:"immutable_adjunct_release",base_tag:$base_tag,adjunct_tag:$adjunct_tag},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
+          jq -n --arg adjunct_tag "$adjunct_tag" --arg manifest_sha "$full_manifest_sha" \
+            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",carrier:{kind:"immutable_adjunct_release",versioning:"independent",adjunct_tag:$adjunct_tag,manifest_sha256:$manifest_sha},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
             > append-full-boundary.json
 
       - name: Persist typed Full publication failure

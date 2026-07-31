@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -22,11 +21,13 @@ const fullAddonSource = fs.readFileSync(
 );
 const fullAddon = parseYaml(fullAddonSource) as Record<string, any>;
 
-function sha256(bytes: string): string {
-  return `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`;
-}
-
-function runFullIdentityAdmission(remoteMutation?: (release: Record<string, any>) => void) {
+function runFullBuildProvenanceAdmission({
+  completedStage = "standard_built",
+  mutateBundle,
+}: {
+  completedStage?: string;
+  mutateBundle?: (bundle: Record<string, any>) => void;
+} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-followup-identity-"));
   try {
     const app = "a".repeat(40);
@@ -35,20 +36,6 @@ function runFullIdentityAdmission(remoteMutation?: (release: Record<string, any>
     const bundleDigest = `sha256:${"d".repeat(64)}`;
     const version = "26.7.28-r4";
     const tag = `v${version}`;
-    const artifactBytes = "exact-standard-dmg";
-    const artifactName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-    const manifest = {
-      surface_kind: "opl_app_component_manifest.v1",
-      version,
-      release_tag: tag,
-      artifacts: [{
-        name: artifactName,
-        digest: sha256(artifactBytes),
-        size: Buffer.byteLength(artifactBytes),
-      }],
-    };
-    const manifestBytes = `${JSON.stringify(manifest)}\n`;
-    const manifestDigest = sha256(manifestBytes);
     const bundle = {
       bundle_digest: bundleDigest,
       release: {
@@ -63,84 +50,33 @@ function runFullIdentityAdmission(remoteMutation?: (release: Record<string, any>
         framework: { source_commit: framework },
       },
     };
-    const identity = {
-      schema: "opl_standard_release_identity_receipt.v2",
-      status: "passed",
-      release: {
-        channel: "stable",
-        version,
-        tag,
-        bundle_digest: bundleDigest,
-      },
-      cohort: {
-        app_sha: app,
-        shell_sha: shell,
-        framework_sha: framework,
-      },
-      component_manifest: {
-        name: "opl-app-component-manifest.json",
-        sha256: manifestDigest,
-      },
-    };
-    const release = {
-      tag_name: tag,
-      draft: false,
-      prerelease: false,
-      immutable: true,
-      assets: [
-        {
-          name: artifactName,
-          digest: sha256(artifactBytes),
-          size: Buffer.byteLength(artifactBytes),
-        },
-        {
-          name: "opl-app-component-manifest.json",
-          digest: manifestDigest,
-          size: Buffer.byteLength(manifestBytes),
-        },
-      ],
-    };
-    remoteMutation?.(release);
-
-    fs.mkdirSync(path.join(root, "checkpoint-identity-bootstrap"));
-    fs.mkdirSync(path.join(root, "standard-activation"));
-    fs.mkdirSync(path.join(root, "bin"));
+    mutateBundle?.(bundle);
     fs.writeFileSync(path.join(root, "bundle.json"), `${JSON.stringify(bundle)}\n`);
-    fs.writeFileSync(
-      path.join(root, "checkpoint-identity-bootstrap", "standard-identity-receipt.json"),
-      `${JSON.stringify(identity)}\n`,
-    );
-    fs.writeFileSync(
-      path.join(root, "standard-activation", "latest-component-manifest.json"),
-      manifestBytes,
-    );
-    fs.writeFileSync(path.join(root, "remote-release.json"), `${JSON.stringify(release)}\n`);
-    const ghPath = path.join(root, "bin", "gh");
-    fs.writeFileSync(ghPath, "#!/bin/sh\ncat \"$OPL_TEST_REMOTE_RELEASE\"\n");
-    fs.chmodSync(ghPath, 0o755);
+    const outputPath = path.join(root, "github-output.txt");
 
     const identityStep = fullAddon.jobs["restore-standard"].steps.find(
       (candidate: Record<string, any>) =>
-        candidate.name === "Require exact Stable Standard identity and Full eligibility",
+        candidate.name === "Bind checkpoint build provenance without requiring a published Standard Release",
     );
     assert.ok(identityStep);
     const script = String(identityStep.run)
       .replaceAll("${{ inputs.source_format }}", "checkpoint_v1")
-      .replaceAll("${{ steps.checkpoint.outputs.completed_stage }}", "standard_built")
+      .replaceAll("${{ steps.checkpoint.outputs.completed_stage }}", completedStage)
       .replaceAll("${{ steps.checkpoint.outputs.bundle_path }}", "bundle.json")
       .replaceAll("${{ steps.checkpoint.outputs.bundle_digest }}", bundleDigest);
-    return spawnSync("/bin/bash", ["-euo", "pipefail", "-c", script], {
+    const result = spawnSync("/bin/bash", ["-euo", "pipefail", "-c", script], {
       cwd: root,
       encoding: "utf8",
       env: {
         ...process.env,
-        PATH: `${path.join(root, "bin")}:${process.env.PATH}`,
-        GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
         GITHUB_RUN_ID: "123456789",
-        GITHUB_OUTPUT: path.join(root, "github-output.txt"),
-        OPL_TEST_REMOTE_RELEASE: path.join(root, "remote-release.json"),
+        GITHUB_OUTPUT: outputPath,
       },
     });
+    return {
+      result,
+      output: fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8") : "",
+    };
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -204,7 +140,7 @@ test("Stable success has one independent Full append successor trigger", () => {
   });
 });
 
-test("admission binds Standard run, exact checkpoint, cohort, and stable publication", () => {
+test("admission binds the Standard source run and exact checkpoint without making it a Full release identity", () => {
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.display_title \| test\("\^OPL Stable standard/);
   assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
@@ -227,8 +163,14 @@ test("admission binds Standard run, exact checkpoint, cohort, and stable publica
   assert.match(source, /updater_version="\$\(jq -er \.release\.updater_version/);
   assert.match(source, /\.release_tag == \$tag/);
   assert.match(source, /all\(\.artifacts\[\];/);
-  assert.match(fullAddonSource, /\[\.artifacts\[\]\?\.name\]/);
-  assert.match(fullAddonSource, /required_assets=/);
+  assert.match(
+    fullAddonSource,
+    /Bind checkpoint build provenance without requiring a published Standard Release/,
+  );
+  assert.doesNotMatch(fullAddonSource, /\[\.artifacts\[\]\?\.name\]/);
+  assert.doesNotMatch(fullAddonSource, /required_assets=/);
+  assert.doesNotMatch(fullAddonSource, /standard-identity-receipt\.json|standard-activation/);
+  assert.doesNotMatch(fullAddonSource, /Exact Standard release asset digests are not present remotely/);
   assert.doesNotMatch(fullAddonSource, /tracks\.standard\.required_asset_names/);
   assert.match(source, /source_bundle_digest/);
   assert.match(source, /\.bundle_digest "\$bundle"/);
@@ -336,25 +278,43 @@ test("successor receipt declares additive and non-blocking boundaries", () => {
   assert.match(source, /executor_run_head_sha/);
 });
 
-test("Full admission accepts exact Standard bytes and rejects remote digest or size drift", () => {
-  const exact = runFullIdentityAdmission();
-  assert.equal(exact.status, 0, exact.stderr || exact.stdout);
+test("Full admission consumes checkpoint build provenance without a published Standard identity", () => {
+  const exact = runFullBuildProvenanceAdmission();
+  assert.equal(exact.result.status, 0, exact.result.stderr || exact.result.stdout);
+  assert.match(exact.output, /bundle_digest=sha256:d{64}/);
+  assert.match(exact.output, /app_ref=a{40}/);
+  assert.match(exact.output, /shell_ref=b{40}/);
+  assert.match(exact.output, /framework_source_ref=c{40}/);
 
-  const digestDrift = runFullIdentityAdmission((release) => {
-    release.assets[0].digest = `sha256:${"e".repeat(64)}`;
+  const independentSources = runFullBuildProvenanceAdmission({
+    mutateBundle(bundle) {
+      bundle.sources.app.source_commit = "1".repeat(40);
+      bundle.sources.shell.source_commit = "2".repeat(40);
+      bundle.sources.framework.source_commit = "3".repeat(40);
+    },
   });
-  assert.notEqual(digestDrift.status, 0);
-  assert.match(
-    `${digestDrift.stdout}${digestDrift.stderr}`,
-    /Exact Standard release asset digests are not present remotely/,
+  assert.equal(
+    independentSources.result.status,
+    0,
+    independentSources.result.stderr || independentSources.result.stdout,
   );
+  assert.match(independentSources.output, /app_ref=1{40}/);
+  assert.match(independentSources.output, /shell_ref=2{40}/);
+  assert.match(independentSources.output, /framework_source_ref=3{40}/);
 
-  const sizeDrift = runFullIdentityAdmission((release) => {
-    release.assets[0].size += 1;
+  const channelDrift = runFullBuildProvenanceAdmission({
+    mutateBundle(bundle) {
+      bundle.release.channel = "preview";
+    },
   });
-  assert.notEqual(sizeDrift.status, 0);
+  assert.notEqual(channelDrift.result.status, 0);
+
+  const stageDrift = runFullBuildProvenanceAdmission({
+    completedStage: "standard_started",
+  });
+  assert.notEqual(stageDrift.result.status, 0);
   assert.match(
-    `${sizeDrift.stdout}${sizeDrift.stderr}`,
-    /Exact Standard release asset digests are not present remotely/,
+    `${stageDrift.result.stdout}${stageDrift.result.stderr}`,
+    /requires standard_built, standard_qualified, full_built, or full_qualified/,
   );
 });
