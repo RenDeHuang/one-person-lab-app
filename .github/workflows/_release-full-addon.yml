@@ -1075,7 +1075,7 @@ jobs:
               github_full_publication:{status:"complete",receipt_sha256:$published_sha},homebrew_modified:false,latest_modified:false
             }' > homebrew-full-handoff.json
           jq -n --arg adjunct_tag "$adjunct_tag" --arg manifest_sha "$full_manifest_sha" \
-            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",carrier:{kind:"independent_immutable_adjunct_release",adjunct_tag:$adjunct_tag,manifest_sha256:$manifest_sha},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
+            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",carrier:{kind:"immutable_adjunct_release",versioning:"independent",adjunct_tag:$adjunct_tag,manifest_sha256:$manifest_sha},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
             > append-full-boundary.json
 
       - name: Persist typed Full publication failure

@@ -223,7 +223,7 @@ test('Full add-on workflow cannot overwrite release state or existing assets', (
   assert.match(full, /adjunct_tag="v\$\{full_version\}-full-\$\{full_manifest_sha_hex:0:12\}"/);
   assert.match(
     full,
-    /carrier:\{kind:"independent_immutable_adjunct_release",adjunct_tag:\$adjunct_tag,manifest_sha256:\$manifest_sha\}/,
+    /carrier:\{kind:"immutable_adjunct_release",versioning:"independent",adjunct_tag:\$adjunct_tag,manifest_sha256:\$manifest_sha\}/,
   );
   assert.doesNotMatch(workflow, /Download exact Standard activation evidence/);
   assert.doesNotMatch(workflow, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/tags\/\$bundle_tag"/);
