@@ -70,14 +70,6 @@ function createAioncoreManagedCodexFixture() {
     'node-v24.11.0-darwin-arm64',
   );
   const nodeExecutable = path.join(nodeRoot, 'bin', 'node');
-  const claudeRoot = path.join(
-    managedRoot,
-    'cli',
-    'claude',
-    '2.1.215',
-    'darwin-arm64',
-  );
-  const claudeExecutable = path.join(claudeRoot, 'claude');
   const codexRoot = path.join(
     managedRoot,
     'cli',
@@ -112,7 +104,6 @@ function createAioncoreManagedCodexFixture() {
     'zsh',
   );
   fs.mkdirSync(path.dirname(nodeExecutable), { recursive: true });
-  fs.mkdirSync(path.dirname(claudeExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(codexExecutable), { recursive: true });
   fs.mkdirSync(path.dirname(codexRequiredFile), { recursive: true });
   fs.mkdirSync(path.dirname(codexRequiredDirectoryFile), { recursive: true });
@@ -122,7 +113,6 @@ function createAioncoreManagedCodexFixture() {
     'utf8',
   );
   fs.writeFileSync(nodeExecutable, 'node fixture\n', 'utf8');
-  fs.writeFileSync(claudeExecutable, 'claude fixture\n', 'utf8');
   fs.writeFileSync(codexExecutable, 'codex fixture\n', 'utf8');
   fs.writeFileSync(codexRequiredFile, 'rg fixture\n', 'utf8');
   fs.writeFileSync(codexRequiredDirectoryFile, 'zsh fixture\n', 'utf8');
@@ -136,23 +126,24 @@ function createAioncoreManagedCodexFixture() {
     },
   });
   writeJson(path.join(managedRoot, 'manifest.json'), {
-    schemaVersion: 2,
+    schema: 'opl_aioncore_managed_resources_projection.v1',
     runtimeKey: 'darwin-arm64',
+    source: {
+      schemaVersion: 2,
+      manifestSha256: 'a'.repeat(64),
+      cliNames: ['claude', 'codex'],
+    },
     node: {
       version: '24.11.0',
       root: 'node/node-v24.11.0-darwin-arm64',
       executable: 'bin/node',
     },
+    projection: {
+      includedCliNames: ['codex'],
+      excludedCliNames: ['claude'],
+      requiredAbsentPaths: ['cli/claude'],
+    },
     clis: [
-      {
-        name: 'claude',
-        version: '2.1.215',
-        root: 'cli/claude/2.1.215/darwin-arm64',
-        platformDirectory: 'darwin-arm64',
-        executable: 'claude',
-        requiredFiles: [],
-        requiredDirectories: [],
-      },
       {
         name: 'codex',
         version: '0.144.6',
@@ -171,8 +162,6 @@ function createAioncoreManagedCodexFixture() {
     managedManifest: path.join(managedRoot, 'manifest.json'),
     nodeRoot,
     nodeExecutable,
-    claudeRoot,
-    claudeExecutable,
     codexRoot,
     codexExecutable,
     codexRequiredFile,
@@ -430,19 +419,23 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
   const binding = resolveAioncoreManagedCodexBinding(fixture.shellRoot);
   const dependencyLock = buildManualRuntimeDependencyLock(binding);
 
-  assert.equal(binding.schema, 'opl_manual_aioncore_managed_direct_clis_binding.v2');
+  assert.equal(binding.schema, 'opl_manual_aioncore_codex_only_projection_binding.v1');
   assert.equal(binding.aioncore.version, 'v0.1.49');
-  assert.equal(binding.managed_resources.schema_version, 2);
+  assert.equal(
+    binding.managed_resources.projection_schema,
+    'opl_aioncore_managed_resources_projection.v1',
+  );
+  assert.equal(binding.managed_resources.producer_schema_version, 2);
+  assert.equal(binding.managed_resources.producer_manifest_sha256, 'a'.repeat(64));
+  assert.deepEqual(binding.managed_resources.included_cli_names, ['codex']);
+  assert.deepEqual(binding.managed_resources.excluded_cli_names, ['claude']);
   assert.equal(binding.node_runtime.version, '24.11.0');
   assert.equal(binding.node_runtime.root, fs.realpathSync(fixture.nodeRoot));
-  assert.equal(binding.claude_cli.version, '2.1.215');
-  assert.equal(binding.claude_cli.root, fs.realpathSync(fixture.claudeRoot));
   assert.equal(binding.codex_cli.version, '0.144.6');
   assert.equal(binding.codex_cli.root, fs.realpathSync(fixture.codexRoot));
   assert.match(binding.aioncore.root_manifest_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.managed_resources.manifest_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.node_runtime.executable_sha256, /^[a-f0-9]{64}$/);
-  assert.match(binding.claude_cli.executable_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.executable_sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.required_files[0].sha256, /^[a-f0-9]{64}$/);
   assert.match(binding.codex_cli.required_directories[0].tree_sha256, /^[a-f0-9]{64}$/);
@@ -538,7 +531,42 @@ test('manual AionCore Codex binding rejects incomplete, ambiguous, escaped, or d
       writeJson(fixture.managedManifest, manifest);
       assert.throws(
         () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
-        /must contain exactly Claude and Codex direct CLIs/,
+        /must contain exactly one Codex direct CLI/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('raw producer manifest is not a distributed projection', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      const manifest = JSON.parse(
+        fs.readFileSync(fixture.managedManifest, 'utf8'),
+      );
+      delete manifest.schema;
+      manifest.schemaVersion = 2;
+      writeJson(fixture.managedManifest, manifest);
+      assert.throws(
+        () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
+        /must use the OPL Codex-only projection schema v1/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('Claude projection metadata drift', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      const manifest = JSON.parse(
+        fs.readFileSync(fixture.managedManifest, 'utf8'),
+      );
+      manifest.projection.excludedCliNames = [];
+      writeJson(fixture.managedManifest, manifest);
+      assert.throws(
+        () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
+        /must include only Codex and exclude Claude/,
       );
     } finally {
       fs.rmSync(fixture.root, { recursive: true, force: true });

@@ -293,10 +293,37 @@ export function buildWindowsRcBuildCohort(input: {
   }
   if (Object.prototype.hasOwnProperty.call(managedManifest, "acpTools"))
     throw new Error(
-      "Managed resources must use schema v2; retired acpTools are not accepted.",
+      "Managed resources projection must not retain retired acpTools.",
     );
-  if (managedManifest.schemaVersion !== 2)
-    throw new Error("Managed resources manifest must use schemaVersion 2.");
+  if (
+    managedManifest.schema !==
+    "opl_aioncore_managed_resources_projection.v1"
+  )
+    throw new Error(
+      "Managed resources manifest must use the OPL Codex-only projection schema v1.",
+    );
+  if (
+    managedManifest.source?.schemaVersion !== 2 ||
+    !/^[a-f0-9]{64}$/.test(
+      String(managedManifest.source?.manifestSha256 ?? ""),
+    ) ||
+    JSON.stringify(managedManifest.source?.cliNames) !==
+      JSON.stringify(["claude", "codex"])
+  )
+    throw new Error(
+      "Managed resources projection must bind the exact producer schema v2 provenance.",
+    );
+  if (
+    JSON.stringify(managedManifest.projection?.includedCliNames) !==
+      JSON.stringify(["codex"]) ||
+    JSON.stringify(managedManifest.projection?.excludedCliNames) !==
+      JSON.stringify(["claude"]) ||
+    JSON.stringify(managedManifest.projection?.requiredAbsentPaths) !==
+      JSON.stringify(["cli/claude"])
+  )
+    throw new Error(
+      "Managed resources projection must include only Codex and exclude Claude.",
+    );
   if (managedManifest.runtimeKey !== runtimeKey)
     throw new Error(`Managed resources runtimeKey must be ${runtimeKey}.`);
   const managedResourcesRoot = path.dirname(managedManifestPath);
@@ -313,6 +340,16 @@ export function buildWindowsRcBuildCohort(input: {
   if (codexClis.length !== 1)
     throw new Error(
       `Managed resources must contain exactly one Codex CLI, found ${codexClis.length}.`,
+    );
+  if (
+    (Array.isArray(managedManifest.clis) &&
+      managedManifest.clis.some(
+        (cli: { name?: string }) => cli?.name !== "codex",
+      )) ||
+    fs.existsSync(path.join(managedResourcesRoot, "cli", "claude"))
+  )
+    throw new Error(
+      "Managed resources projection must physically exclude Claude.",
     );
   const codexPath = managedResourceExecutable(
     managedResourcesRoot,
