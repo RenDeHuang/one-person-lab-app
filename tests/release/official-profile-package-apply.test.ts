@@ -358,7 +358,6 @@ test('unresolved duplicate carriers fail closed until W3 projects one opaque act
             {
               package_id: 'opl-flow',
               installed: false,
-              physical_surface_status: 'ambiguous',
               carrier_precedence: 'unresolved',
               carrier_candidates: [
                 {
