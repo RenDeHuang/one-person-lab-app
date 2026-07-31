@@ -67,16 +67,70 @@ test('Hermes builds require an explicit manual technical-verification replay', (
   );
 });
 
-test('dual GUI runtime parity rejects host PATH-only resolution as shared physical runtime proof', () => {
+test('dual GUI runtime parity admits compatible capabilities and treats exact source identity as provenance', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
-  assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
+  const target = runtimeBridge.command_resolution_policy.shared_gui_target;
+  const policy = runtimeBridge.shared_gui_runtime_resolution_policy;
 
-  const invalid = structuredClone(runtimeBridge);
-  invalid.shared_gui_runtime_resolution_policy.host_path_only_resolution_can_prove_parity = true;
+  assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
+  assert.equal('same_cohort_runtime_identity_required_for_parity' in policy, false);
+  assert.equal(policy.parity_admission_basis, 'compatible_runtime_capability_and_versioned_schema_range');
+  assert.equal(policy.exact_runtime_identity_equality_may_gate_install_or_runtime, false);
+  assert.deepEqual(
+    target.compatibility_requirements.map(({ component_id, capability_id, schema_range }: any) => ({
+      component_id,
+      capability_id,
+      schema_range,
+    })),
+    [
+      { component_id: 'opl_framework', capability_id: 'opl_app_state_fast', schema_range: '>=1 <2' },
+      { component_id: 'opl_framework', capability_id: 'opl_app_action_execute', schema_range: '>=1 <2' },
+      { component_id: 'codex_cli', capability_id: 'codex_app_server', schema_range: '>=1 <2' },
+    ],
+  );
+  assert.deepEqual(
+    target.observational_build_provenance.fields,
+    ['opl_path', 'opl_version', 'codex_path', 'codex_version', 'runtime_cohort_ref'],
+  );
+  assert.equal(target.observational_build_provenance.may_gate_install_or_runtime, false);
+
+  const hostPathOnly = structuredClone(runtimeBridge);
+  hostPathOnly.shared_gui_runtime_resolution_policy.host_path_only_resolution_can_prove_parity = true;
   assert.throws(
-    () => validateRuntimeBridgeContract(invalid, activeAdapter),
+    () => validateRuntimeBridgeContract(hostPathOnly, activeAdapter),
     /host_path_only_resolution_can_prove_parity must be false/,
+  );
+
+  const sameCohortGate = structuredClone(runtimeBridge);
+  sameCohortGate.shared_gui_runtime_resolution_policy.same_cohort_runtime_identity_required_for_parity = true;
+  assert.throws(
+    () => validateRuntimeBridgeContract(sameCohortGate, activeAdapter),
+    /must not retain the same_cohort_runtime_identity_required_for_parity gate/,
+  );
+
+  const exactIdentityGate = structuredClone(runtimeBridge);
+  exactIdentityGate.shared_gui_runtime_resolution_policy.exact_runtime_identity_equality_may_gate_install_or_runtime =
+    true;
+  assert.throws(
+    () => validateRuntimeBridgeContract(exactIdentityGate, activeAdapter),
+    /exact_runtime_identity_equality_may_gate_install_or_runtime must be false/,
+  );
+
+  const unknownRequirement = structuredClone(runtimeBridge);
+  unknownRequirement.command_resolution_policy.shared_gui_target.compatibility_requirements[0].kind =
+    'exact_component_identity';
+  assert.throws(
+    () => validateRuntimeBridgeContract(unknownRequirement, activeAdapter),
+    /compatibility requirement kind exact_component_identity is unsupported/,
+  );
+
+  const provenanceGate = structuredClone(runtimeBridge);
+  provenanceGate.command_resolution_policy.shared_gui_target.observational_build_provenance.may_gate_install_or_runtime =
+    true;
+  assert.throws(
+    () => validateRuntimeBridgeContract(provenanceGate, activeAdapter),
+    /observational build provenance may_gate_install_or_runtime must be false/,
   );
 });
 

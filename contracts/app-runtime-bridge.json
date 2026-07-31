@@ -400,19 +400,43 @@
     ],
     "regression": "packaged first-run must expose the /guid ready entry when opl system initialize --json reports ready_to_launch=true even if a stale managed opl shim exists",
     "shared_gui_target": {
-      "implementation_status": "candidate_launcher_runtime_identity_implemented_active_shell_parity_not_proven",
+      "implementation_status": "candidate_launcher_runtime_provenance_readback_implemented_compatibility_parity_not_proven",
       "required_executables": [
         "opl",
         "codex"
       ],
-      "identity_readback_schema": "app_runtime_executable_identity.v1",
-      "required_readback_fields": [
-        "opl_path",
-        "opl_version",
-        "codex_path",
-        "codex_version",
-        "runtime_cohort_ref"
+      "compatibility_requirements": [
+        {
+          "kind": "capability_id_with_versioned_schema",
+          "component_id": "opl_framework",
+          "capability_id": "opl_app_state_fast",
+          "schema_range": ">=1 <2"
+        },
+        {
+          "kind": "capability_id_with_versioned_schema",
+          "component_id": "opl_framework",
+          "capability_id": "opl_app_action_execute",
+          "schema_range": ">=1 <2"
+        },
+        {
+          "kind": "capability_id_with_versioned_schema",
+          "component_id": "codex_cli",
+          "capability_id": "codex_app_server",
+          "schema_range": ">=1 <2"
+        }
       ],
+      "observational_build_provenance": {
+        "schema": "app_runtime_executable_identity.v1",
+        "fields": [
+          "opl_path",
+          "opl_version",
+          "codex_path",
+          "codex_version",
+          "runtime_cohort_ref"
+        ],
+        "role": "per_gui_artifact_source_observation_only",
+        "may_gate_install_or_runtime": false
+      },
       "producer": "app_host_runtime_resolver",
       "producer_status": "implemented_for_local_gui_launcher"
     }
@@ -423,7 +447,8 @@
     "runtime_identity_owner": "one-person-lab",
     "resolver_source": "contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target",
     "logical_control_plane_shared": true,
-    "same_cohort_runtime_identity_required_for_parity": true,
+    "parity_admission_basis": "compatible_runtime_capability_and_versioned_schema_range",
+    "exact_runtime_identity_equality_may_gate_install_or_runtime": false,
     "host_path_only_resolution_can_prove_parity": false,
     "active_aionui_status": "managed_or_packaged_runtime_resolution",
     "opl_native_workbench_status": "launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains",
