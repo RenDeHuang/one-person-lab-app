@@ -1176,6 +1176,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
         'tests/release/windows-platform-factory-contract.test.ts',
         'tests/release/windows-preview-bits-powershell.test.ts',
         'tests/release/windows-rc-preview.test.ts',
+        'tests/release/windows-updater-upgrade-vm.test.ts',
         'tests/release/windows-wsl2-validation-fixtures.test.ts',
       ],
       'Windows Preview validation ownership',
@@ -1225,6 +1226,24 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
       'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.workflow !==
+      '.github/workflows/windows-updater-upgrade-vm-preflight.yml'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.admission_validator !==
+      'scripts/validate-windows-updater-upgrade-vm-admission.ts'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.host_dry_run_harness !==
+      'scripts/Test-OPLWindowsUpdaterUpgradeVM.ps1'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.cross_component_exact_cohort_required !== false
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.compatibility_receipt_schema !==
+      'opl_component_compatibility_receipt.v1'
+    || JSON.stringify(platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.compatibility_requirement_kinds) !==
+      JSON.stringify(['capability_id_with_versioned_schema', 'minimum_version', 'semver_range'])
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.runner_offline_or_busy !==
+      'typed_not_ready_without_queue'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.factory_authority !==
+      'existing_opl_windows_vm_lease_v2_and_clean_vm_attestation_v2_only'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.current_execute_available !== false
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.publication_or_install_authority_granted_by_preflight !== false
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.blocks_stable_or_latest !== false
     || platformMatrix?.full_macos_additive_follower?.trigger !==
       'protected_automatic_post_success_or_explicit_independent_full_publication'
     || platformMatrix?.full_macos_additive_follower?.source_policy !==

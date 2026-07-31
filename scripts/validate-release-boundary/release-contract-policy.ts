@@ -1948,6 +1948,7 @@ export function validateReleasePlatformMatrix(
           'tests/release/windows-platform-factory-contract.test.ts',
           'tests/release/windows-preview-bits-powershell.test.ts',
           'tests/release/windows-rc-preview.test.ts',
+          'tests/release/windows-updater-upgrade-vm.test.ts',
           'tests/release/windows-wsl2-validation-fixtures.test.ts',
         ],
       )
