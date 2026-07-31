@@ -133,17 +133,12 @@
         "resource_authority": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json"
       },
       "node_runtime": {
-        "version_source": "AionCore managed resource manifest",
-        "target_platform_binary_required": true
-      },
-      "claude_cli": {
-        "package": "@anthropic-ai/claude-code",
-        "version_source": "AionCore managed resource manifest",
+        "version_source": "OPL Codex-only projection derived from AionCore producer manifest",
         "target_platform_binary_required": true
       },
       "codex_cli": {
         "package": "@openai/codex",
-        "version_source": "AionCore managed resource manifest",
+        "version_source": "OPL Codex-only projection derived from AionCore producer manifest",
         "target_platform_binary_required": true
       }
     },

@@ -58,6 +58,13 @@ test('AionUI target keeps the AionCore export as staging and distributes only No
     'producer_manifest_digest_provenance',
   ]);
   assert.deepEqual(target?.distributed_bundle.cli_names_exact, ['codex']);
+  assert.equal(
+    Object.hasOwn(
+      (aionui as any).manual_qualification_contract.runtime_dependencies,
+      'claude_cli',
+    ),
+    false,
+  );
   assert.deepEqual(
     target?.distributed_bundle.required_absence_checks.map((check) => check.id),
     [

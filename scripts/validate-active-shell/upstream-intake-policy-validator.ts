@@ -552,26 +552,23 @@ function validateManagedRuntimeQualification(contract) {
   }
   const nodeRuntime = assertObject(runtimeDependencies.node_runtime, 'Manual qualification Node runtime dependency');
   if (
-    nodeRuntime.version_source !== 'AionCore managed resource manifest' ||
+    nodeRuntime.version_source !==
+      'OPL Codex-only projection derived from AionCore producer manifest' ||
     nodeRuntime.target_platform_binary_required !== true
   ) {
-    throw new Error('Active shell Node runtime qualification must bind managed manifest and target binary');
+    throw new Error('Active shell Node runtime qualification must bind the Codex-only projection and target binary');
   }
-  const claudeCli = assertObject(runtimeDependencies.claude_cli, 'Manual qualification Claude CLI dependency');
-  if (
-    claudeCli.package !== '@anthropic-ai/claude-code' ||
-    claudeCli.version_source !== 'AionCore managed resource manifest' ||
-    claudeCli.target_platform_binary_required !== true
-  ) {
-    throw new Error('Active shell Claude CLI qualification must bind official package and target binary');
+  if (Object.hasOwn(runtimeDependencies, 'claude_cli')) {
+    throw new Error('Active shell packaged runtime qualification must not retain Claude CLI');
   }
   const codexCli = assertObject(runtimeDependencies.codex_cli, 'Manual qualification Codex CLI dependency');
   if (
     codexCli.package !== '@openai/codex' ||
-    codexCli.version_source !== 'AionCore managed resource manifest' ||
+    codexCli.version_source !==
+      'OPL Codex-only projection derived from AionCore producer manifest' ||
     codexCli.target_platform_binary_required !== true
   ) {
-    throw new Error('Active shell Codex CLI qualification must bind managed manifest and target binary');
+    throw new Error('Active shell Codex CLI qualification must bind the Codex-only projection and target binary');
   }
 }
 

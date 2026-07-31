@@ -305,10 +305,12 @@ export function buildReleaseNotesFullPayloadAuthority(
   }
   const codexVersion = requiredString(aioncoreBinding.codex_cli.version, 'AionCore managed Codex CLI version');
   if (
-    aioncoreBinding.schema !== 'opl_manual_aioncore_managed_direct_clis_binding.v2'
-    || aioncoreBinding.managed_resources.schema_version !== 2
+    aioncoreBinding.schema !== 'opl_manual_aioncore_codex_only_projection_binding.v1'
+    || aioncoreBinding.managed_resources.projection_schema
+      !== 'opl_aioncore_managed_resources_projection.v1'
+    || aioncoreBinding.managed_resources.producer_schema_version !== 2
   ) {
-    throw new Error('AionCore managed resources must resolve to the direct-CLI schema v2 binding.');
+    throw new Error('AionCore managed resources must resolve to the OPL Codex-only projection binding.');
   }
   const nodeRuntime = {
     version: aioncoreBinding.node_runtime.version,
@@ -316,13 +318,12 @@ export function buildReleaseNotesFullPayloadAuthority(
     executable_ref: shellRelativePath(shellRoot, aioncoreBinding.node_runtime.executable, 'managed Node executable'),
     executable_sha256: `sha256:${aioncoreBinding.node_runtime.executable_sha256}`,
   };
-  const claudeCli = directCliAuthority(shellRoot, aioncoreBinding.claude_cli);
   const codexCli = directCliAuthority(shellRoot, aioncoreBinding.codex_cli);
   components.codex = { version: `codex-cli ${codexVersion}` };
   resolvedRefs.codex_cli = {
     label: 'Codex CLI',
     repository: 'iOfficeAI/AionCore',
-    authority: 'aioncore_managed_resources_v2_direct_cli',
+    authority: 'opl_aioncore_managed_resources_projection_v1_codex_cli',
     resolved_version: codexVersion,
     aioncore_version: aioncoreBinding.aioncore.version,
     node_runtime: nodeRuntime,
@@ -367,7 +368,7 @@ export function buildReleaseNotesFullPayloadAuthority(
     },
     runtime_authority: {
       codex_cli: {
-        source: 'shell_aioncore_managed_resources_v2_direct_clis',
+        source: 'shell_opl_aioncore_managed_resources_projection_v1',
         shell_source_commit: shellRef,
         runtime_key: aioncoreBinding.runtime_key,
         aioncore_version: aioncoreBinding.aioncore.version,
@@ -376,12 +377,18 @@ export function buildReleaseNotesFullPayloadAuthority(
         aioncore_root_manifest_sha256: `sha256:${aioncoreBinding.aioncore.root_manifest_sha256}`,
         managed_resources_manifest_ref: path.relative(shellRoot, aioncoreBinding.managed_resources.manifest).split(path.sep).join('/'),
         managed_resources_manifest_sha256: `sha256:${aioncoreBinding.managed_resources.manifest_sha256}`,
-        managed_resources_schema_version: 2,
+        managed_resources_projection_schema: aioncoreBinding.managed_resources.projection_schema,
+        producer_managed_resources_schema_version:
+          aioncoreBinding.managed_resources.producer_schema_version,
+        producer_managed_resources_manifest_sha256:
+          `sha256:${aioncoreBinding.managed_resources.producer_manifest_sha256}`,
+        included_cli_names: aioncoreBinding.managed_resources.included_cli_names,
+        excluded_cli_names: aioncoreBinding.managed_resources.excluded_cli_names,
+        required_absent_paths: aioncoreBinding.managed_resources.required_absent_paths,
         node_runtime: nodeRuntime,
-        claude_cli: claudeCli,
         direct_cli: codexCli,
         version: codexVersion,
-        postbuild_managed_resources_v2_content_bytes_required: true,
+        postbuild_codex_only_projection_content_bytes_required: true,
       },
       officecli: { source_commit: officeRef, version: officeVersion },
       mineru: { source_commit: mineruRef },

@@ -100,7 +100,6 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
   const codexVersion = '0.144.6';
   const staleAppCodexProjection = '0.144.5';
   const nodeVersion = '24.11.0';
-  const claudeVersion = '2.1.215';
   const officeRef = 'a'.repeat(40);
   const mineruRef = 'b'.repeat(40);
   const app = gitFixture(root, 'app', (directory) => {
@@ -135,10 +134,6 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     const nodeRoot = path.join(managedRoot, nodeRootRelative);
     const nodeExecutableRelative = 'bin/node';
     const nodeExecutable = path.join(nodeRoot, nodeExecutableRelative);
-    const claudeRootRelative = `cli/claude/${claudeVersion}/${runtimeKey}`;
-    const claudeRoot = path.join(managedRoot, claudeRootRelative);
-    const claudeExecutableRelative = 'claude';
-    const claudeExecutable = path.join(claudeRoot, claudeExecutableRelative);
     const codexRootRelative = `cli/codex/${codexVersion}/${runtimeKey}`;
     const codexRoot = path.join(managedRoot, codexRootRelative);
     const codexExecutableRelative = 'vendor/aarch64-apple-darwin/bin/codex';
@@ -160,22 +155,24 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     fs.mkdirSync(runtimeRoot, { recursive: true });
     fs.writeFileSync(path.join(runtimeRoot, 'aioncore'), 'aioncore fixture\n');
     jsonFile(path.join(managedRoot, 'manifest.json'), {
-      schemaVersion: 2,
+      schema: 'opl_aioncore_managed_resources_projection.v1',
       runtimeKey,
+      source: {
+        schemaVersion: 2,
+        manifestSha256: 'd'.repeat(64),
+        cliNames: ['claude', 'codex'],
+      },
       node: {
         version: nodeVersion,
         root: nodeRootRelative,
         executable: nodeExecutableRelative,
       },
+      projection: {
+        includedCliNames: ['codex'],
+        excludedCliNames: ['claude'],
+        requiredAbsentPaths: ['cli/claude'],
+      },
       clis: [{
-        name: 'claude',
-        version: claudeVersion,
-        root: claudeRootRelative,
-        platformDirectory: runtimeKey,
-        executable: claudeExecutableRelative,
-        requiredFiles: [],
-        requiredDirectories: [],
-      }, {
         name: 'codex',
         version: codexVersion,
         root: codexRootRelative,
@@ -186,12 +183,10 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
       }],
     });
     fs.mkdirSync(path.dirname(nodeExecutable), { recursive: true });
-    fs.mkdirSync(path.dirname(claudeExecutable), { recursive: true });
     fs.mkdirSync(path.dirname(codexExecutable), { recursive: true });
     fs.mkdirSync(path.dirname(codexRequiredFile), { recursive: true });
     fs.mkdirSync(path.dirname(codexRequiredDirectoryFile), { recursive: true });
     fs.writeFileSync(nodeExecutable, 'node fixture\n');
-    fs.writeFileSync(claudeExecutable, 'claude fixture\n');
     fs.writeFileSync(codexExecutable, 'codex fixture\n');
     fs.writeFileSync(codexRequiredFile, 'rg fixture\n');
     fs.writeFileSync(codexRequiredDirectoryFile, 'zsh fixture\n');
@@ -248,7 +243,6 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
     codexVersion,
     staleAppCodexProjection,
     nodeVersion,
-    claudeVersion,
     officeRef,
     mineruRef,
   };
@@ -662,11 +656,17 @@ test('Full notes derive only selected prebuild input refs from exact App, Shell,
   });
   assert.deepEqual(authority.components.codex, { version: `codex-cli ${fixture.codexVersion}` });
   assert.equal(authority.runtime_authority.codex_cli.shell_source_commit, fixture.shell.ref);
-  assert.equal(authority.runtime_authority.codex_cli.source, 'shell_aioncore_managed_resources_v2_direct_clis');
-  assert.equal(authority.runtime_authority.codex_cli.managed_resources_schema_version, 2);
+  assert.equal(authority.runtime_authority.codex_cli.source, 'shell_opl_aioncore_managed_resources_projection_v1');
+  assert.equal(
+    authority.runtime_authority.codex_cli.managed_resources_projection_schema,
+    'opl_aioncore_managed_resources_projection.v1',
+  );
+  assert.equal(authority.runtime_authority.codex_cli.producer_managed_resources_schema_version, 2);
   assert.equal(authority.runtime_authority.codex_cli.node_runtime.version, fixture.nodeVersion);
-  assert.equal(authority.runtime_authority.codex_cli.claude_cli.name, 'claude');
-  assert.equal(authority.runtime_authority.codex_cli.claude_cli.version, fixture.claudeVersion);
+  assert.deepEqual(authority.runtime_authority.codex_cli.included_cli_names, ['codex']);
+  assert.deepEqual(authority.runtime_authority.codex_cli.excluded_cli_names, ['claude']);
+  assert.deepEqual(authority.runtime_authority.codex_cli.required_absent_paths, ['cli/claude']);
+  assert.equal(Object.hasOwn(authority.runtime_authority.codex_cli, 'claude_cli'), false);
   assert.equal(authority.runtime_authority.codex_cli.direct_cli.name, 'codex');
   assert.equal(authority.runtime_authority.codex_cli.version, fixture.codexVersion);
   assert.match(authority.runtime_authority.codex_cli.managed_resources_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
@@ -941,7 +941,7 @@ test('prebuild Full notes authority rejects Shell direct CLI materialization dri
     'manifest.json',
   );
   const managedManifest = JSON.parse(fs.readFileSync(managedManifestPath, 'utf8'));
-  managedManifest.clis[1].root = 'cli/codex/0.143.0/darwin-arm64';
+  managedManifest.clis[0].root = 'cli/codex/0.143.0/darwin-arm64';
   jsonFile(managedManifestPath, managedManifest);
   fixture.shell.ref = commitFixtureChange(fixture.shell.root, 'drift direct Codex CLI root');
   const authorityPath = path.join(fixture.root, 'drifted-codex-authority.json');
