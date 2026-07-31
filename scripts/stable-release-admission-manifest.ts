@@ -27,6 +27,7 @@ const frameworkRepository = 'gaofeng21cn/one-person-lab';
 const homebrewRepository = 'gaofeng21cn/homebrew-one-person-lab';
 const homebrewCaskPath = 'Casks/one-person-lab.rb';
 const webuiRepository = 'ghcr.io/gaofeng21cn/one-person-lab-webui';
+const stableAuthorityWorkflowPath = '.github/workflows/release-stable.yml';
 const shaPattern = /^[0-9a-f]{40}$/;
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const requiredSecretNames = [
@@ -485,7 +486,7 @@ export function buildStableReleaseAdmissionManifest(
   const credentialReceipt = validateCredentialReceipt(observation.credentialReceipt, input);
   if (observation.activeReleaseRuns.length > 0) {
     throw new Error(
-      `Stable admission requires zero other active release runs; found ${observation.activeReleaseRuns
+      `Stable admission requires zero other active Stable authority runs; found ${observation.activeReleaseRuns
         .map((entry) => `${entry.id}:${entry.status}:${entry.path}`)
         .join(', ')}.`,
     );
@@ -855,9 +856,9 @@ function homebrewCaskObservation(): StableAdmissionObservation['homebrewCask'] {
   };
 }
 
-function isReleaseWorkflowPath(value: string): boolean {
+function isStableAuthorityWorkflowPath(value: string): boolean {
   const workflowPath = value.split('@')[0] ?? '';
-  return /^\.github\/workflows\/release-[^/]+\.ya?ml$/.test(workflowPath);
+  return workflowPath === stableAuthorityWorkflowPath;
 }
 
 export function parseActiveReleaseRunLookups(
@@ -899,7 +900,7 @@ export function parseActiveReleaseRunLookups(
           `GitHub ${lookup.status} runs lookup returned mismatched status ${status}.`,
         );
       }
-      if (String(id) === excludedRunId || !isReleaseWorkflowPath(runPath)) continue;
+      if (String(id) === excludedRunId || !isStableAuthorityWorkflowPath(runPath)) continue;
       if (runs.has(id)) throw new Error(`GitHub active release run ${id} appeared in multiple status pages.`);
       runs.set(id, {
         id,

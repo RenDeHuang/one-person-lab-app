@@ -239,6 +239,28 @@ test('pre-nonce guard consumes the frozen-reachability source gate and one owner
   assert.equal(report.nonce_consumed, false);
 });
 
+test('pre-nonce guard rejects another active Stable authority before nonce issuance', () => {
+  const activeOtherOperation = ownerRun(41, {
+    display_title: 'OPL Stable standard operation:stable-other authority:authority-other run:41',
+  });
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+    authorityId: 'authority-new',
+    operationId,
+  }, { runner: successfulRunner([activeOtherOperation]) });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.owner_run_match_count, 1);
+  assert.match(report.reason, /other active Stable authority run/);
+  assert.equal(report.nonce_consumed, false);
+  assert.equal(report.mutation_invocation_count, 0);
+  assert.equal(report.dispatch_allowed, false);
+});
+
 test('pre-nonce guard uses one bounded owner-run page without pagination or slurp', () => {
   let observedArgs: string[] = [];
   const prior = ownerRun(41, { status: 'completed', conclusion: 'success' });

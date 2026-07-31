@@ -755,19 +755,26 @@ export function buildPreNonceDispatchGuard(
   const authorityMatches = input.authorityId === undefined
     ? operationMatches
     : operationMatches.filter((run) => run.display_title.includes(input.authorityId));
-  const activeMatches = operationMatches.filter((run) => activeRunStatuses.has(run.status));
+  const activeStableMatches = ownerWorkflowMatches.filter((run) => activeRunStatuses.has(run.status));
   const ownRunMatches = input.currentRunId === undefined
     ? []
     : authorityMatches.filter((run) => String(run.id) === input.currentRunId);
   const priorOperationMatches = input.currentRunId === undefined
     ? []
     : operationMatches.filter((run) => String(run.id) !== input.currentRunId);
-  const priorAuthorityMatches = input.currentRunId === undefined && input.authorityId !== undefined
-    ? operationMatches
-    : activeMatches;
+  const otherActiveStableMatches = input.currentRunId === undefined
+    ? activeStableMatches
+    : activeStableMatches.filter((run) => String(run.id) !== input.currentRunId);
+  const uniqueRuns = (runs: OwnerWorkflowRun[]) => [...new Map(runs.map((run) => [run.id, run])).values()];
+  const preNonceObservedMatches = input.operationId === undefined
+    ? activeStableMatches
+    : uniqueRuns([...operationMatches, ...activeStableMatches]);
+  const runBoundObservedMatches = uniqueRuns([...operationMatches, ...otherActiveStableMatches]);
   const passed = input.currentRunId === undefined
-    ? priorAuthorityMatches.length === 0
-    : ownRunMatches.length === 1 && priorOperationMatches.length === 0;
+    ? preNonceObservedMatches.length === 0
+    : ownRunMatches.length === 1
+      && priorOperationMatches.length === 0
+      && otherActiveStableMatches.length === 0;
   return {
     schema: 'opl_release_dispatch_guard.v1',
     phase,
@@ -778,14 +785,16 @@ export function buildPreNonceDispatchGuard(
     reason: passed
       ? input.currentRunId === undefined
         ? input.authorityId === undefined
-          ? 'The source gate proves the frozen cohort remains reachable and the single owner workflow-runs query found no active exact attempt.'
-          : 'The source gate proves the frozen cohort remains reachable and the single owner workflow-runs query found no prior matching frozen operation.'
-        : 'The source gate proves the frozen cohort remains reachable and exactly one current run owns the pre-issued authority with no prior frozen-operation consumer.'
+          ? 'The source gate proves the frozen cohort remains reachable and the single owner workflow-runs query found no active Stable authority run.'
+          : 'The source gate proves the frozen cohort remains reachable and the single owner workflow-runs query found no prior matching frozen operation or other active Stable authority run.'
+        : 'The source gate proves the frozen cohort remains reachable and exactly one current run owns the pre-issued authority with no prior frozen-operation consumer or other active Stable authority run.'
       : input.currentRunId === undefined
         ? input.authorityId === undefined
-          ? `Found ${activeMatches.length} active exact owner run(s); a new dispatch is forbidden.`
-          : `Found ${operationMatches.length} prior exact frozen-operation run(s); authority replacement is forbidden.`
-        : `Authority reconciliation requires exactly the current authority run and no prior frozen-operation consumer; observed current=${ownRunMatches.length} prior=${priorOperationMatches.length}.`,
+          ? `Found ${activeStableMatches.length} active Stable authority run(s); a new dispatch is forbidden.`
+          : operationMatches.length > 0
+            ? `Found ${operationMatches.length} prior exact frozen-operation run(s); authority replacement is forbidden.`
+            : `Found ${otherActiveStableMatches.length} other active Stable authority run(s); a parallel Stable authority is forbidden.`
+        : `Authority reconciliation requires exactly the current authority run, no prior frozen-operation consumer, and no other active Stable authority run; observed current=${ownRunMatches.length} prior=${priorOperationMatches.length} other_active=${otherActiveStableMatches.length}.`,
     source_gate: sourceGate,
     failure_fingerprint_guard: failureFingerprintGuard,
     wire_identities: identities,
@@ -795,7 +804,9 @@ export function buildPreNonceDispatchGuard(
       logical_query_count: ownerRuns.logical_query_count,
       parser: ownerRuns.parser,
     },
-    owner_run_match_count: input.currentRunId === undefined ? priorAuthorityMatches.length : operationMatches.length,
+    owner_run_match_count: input.currentRunId === undefined
+      ? preNonceObservedMatches.length
+      : runBoundObservedMatches.length,
     authority_id: authorityId,
     operation_id: operationId,
     run_id: runId,
