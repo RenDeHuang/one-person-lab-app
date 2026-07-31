@@ -14,7 +14,9 @@ import {
   buildFullRuntimePrunePolicyCacheHash,
 } from '../../../scripts/full-first-install-package.ts';
 import {
-  FULL_RUNTIME_STARTER_PACKAGE_IDS,
+  FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE,
+  FULL_RUNTIME_STARTER_PROFILE,
+  buildFullRuntimeStarterProfile,
   resolveSelectedPackageSetInput,
   validateSelectedPackageSetInput,
 } from '../../../scripts/build-full-first-install-package/runtime-cache-package-set.ts';
@@ -71,12 +73,12 @@ test('Full runtime prune policy changes invalidate only affected cache layers', 
   }
 });
 
-test('selected package set records actual source commits and fingerprints', () => {
+test('selected package set uses Official Profile roots and records the offline dependency closure', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-runtime-package-set-'));
   const sourceRoots: Record<string, string> = {};
   const sourceCommits: Record<string, string> = {};
   try {
-    for (const packageId of FULL_RUNTIME_STARTER_PACKAGE_IDS) {
+    for (const packageId of FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE) {
       const sourceRoot = path.join(tempRoot, packageId);
       initializeRepo(sourceRoot);
       writeFile(path.join(sourceRoot, 'payload.txt'), `${packageId}\n`);
@@ -95,9 +97,12 @@ test('selected package set records actual source commits and fingerprints', () =
     };
 
     const packageSet = resolveSelectedPackageSetInput(options);
+    assert.deepEqual(packageSet.package_ids, FULL_RUNTIME_STARTER_PROFILE.package_ids);
+    assert.equal(packageSet.package_ids.includes('mas-scholar-skills'), false);
+    assert.equal(packageSet.dependency_closure.includes('mas-scholar-skills'), true);
     assert.deepEqual(
       packageSet.packages.map((entry) => entry.package_id),
-      FULL_RUNTIME_STARTER_PACKAGE_IDS,
+      FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE,
     );
     assert.deepEqual(Object.keys(packageSet), [
       'schema',
@@ -124,6 +129,19 @@ test('selected package set records actual source commits and fingerprints', () =
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
+});
+
+test('Full runtime starter profile follows the supplied Official Profile roots', () => {
+  const packageProfile = buildFullRuntimeStarterProfile({
+    official_profile: {
+      desired_root_package_ids: ['opl-flow', 'mas'],
+    },
+  });
+  assert.deepEqual(packageProfile.package_ids, ['opl-flow', 'mas']);
+  assert.deepEqual(
+    packageProfile.dependency_closure,
+    FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE,
+  );
 });
 
 test('Framework package profile resolves a custom dependency closure without changing the helper', () => {
