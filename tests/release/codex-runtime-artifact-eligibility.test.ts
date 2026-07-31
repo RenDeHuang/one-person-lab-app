@@ -13,6 +13,14 @@ import {
   digestCodexRuntimeArtifactEligibilityPacket,
   validateCodexRuntimeArtifactEligibility,
 } from '../../scripts/codex-runtime-artifact-eligibility.ts';
+import {
+  bindStableOperationAuthority,
+  consumeStableOperationControl,
+  createGithubImmutableReleaseCapabilityEvidence,
+  createStableOperationAuthority,
+  stableOperationIdForFrozenCohort,
+} from '../../scripts/stable-operation-control.ts';
+import { createStableOperationPublicationRecord } from '../../scripts/stable-operation-publication-record.ts';
 
 const version = '26.7.31';
 const updaterVersion = '26.7.3190';
@@ -21,6 +29,26 @@ const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
 const stableSessionId = `sha256:${'e'.repeat(64)}`;
 const repository = 'gaofeng21cn/one-person-lab-app';
+const publicationRecordName = 'stable-operation-publication-record.json';
+const stableObjectiveFingerprint = 'issue-122-artifact-eligibility-fixture';
+const stableCriticalBlobPaths = [
+  '.github/workflows/release-stable.yml',
+  '.github/workflows/_release-bundle.yml',
+  '.github/workflows/_release-standard-publish.yml',
+  'contracts/app-release-channel.json',
+  'scripts/framework-release-adapter.ts',
+  'scripts/release-dispatch-guard.ts',
+  'scripts/stable-operation-control.ts',
+  'scripts/stable-operation-publication-record.ts',
+  'scripts/stable-release-admission-manifest.ts',
+  'scripts/validate-release-source-gate.ts',
+] as const;
+const stableCriticalBlobs = Object.fromEntries(
+  stableCriticalBlobPaths.map((file, index) => [
+    file,
+    `sha256:${'0123456789abcdef'[(index + 5) % 16]!.repeat(64)}`,
+  ]),
+);
 
 type JsonRecord = Record<string, any>;
 type FileRef = { path: string; sha256: string };
@@ -52,6 +80,9 @@ type FixtureOptions = {
   mutateAppendFullRunInspection?: (inspection: JsonRecord) => void;
   mutateStandardInspection?: (inspection: JsonRecord) => void;
   mutateFullInspection?: (inspection: JsonRecord) => void;
+  publicationRecordRunId?: string;
+  publicationRecordAppSha?: string;
+  omitPublicationPayloadAsset?: string;
 };
 
 function sha256(value: string | Buffer): string {
@@ -268,6 +299,132 @@ function fullAssetNames(): string[] {
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'opl-release-manifest.json',
   ];
+}
+
+function stablePublicationRecord(
+  payloadAssets: Map<string, Asset>,
+  options: Pick<
+    FixtureOptions,
+    'publicationRecordRunId' | 'publicationRecordAppSha' | 'omitPublicationPayloadAsset'
+  >,
+) {
+  const publicationAppSha = options.publicationRecordAppSha ?? appSha;
+  const generatedAt = '2026-07-31T00:10:00.000Z';
+  const sourceGate = {
+    schema: 'opl_app_release_source_gate.v1',
+    generated_at: generatedAt,
+    status: 'passed',
+    operation_fingerprint: stableObjectiveFingerprint,
+    typed_blocker: null,
+    immutable_release_capability: createGithubImmutableReleaseCapabilityEvidence({
+      repository,
+      checkedAt: generatedAt,
+      enabled: true,
+      enforcedByOwner: false,
+    }),
+    admission: {
+      status: 'passed',
+      immutable_cohort: {
+        app_sha: publicationAppSha,
+        shell_sha: shellSha,
+        framework_sha: frameworkSha,
+      },
+    },
+    checks: [{ id: 'app_frozen_commit_reachable', status: 'passed' }],
+  };
+  const operationId = stableOperationIdForFrozenCohort({
+    objectiveFingerprint: stableObjectiveFingerprint,
+    appSha: publicationAppSha,
+    shellSha,
+    frameworkSha,
+    criticalBlobs: stableCriticalBlobs,
+  });
+  const preNonceGuard = {
+    schema: 'opl_release_dispatch_guard.v1',
+    phase: 'pre_nonce',
+    status: 'passed',
+    dispatch_allowed: true,
+    operation_id: operationId,
+    owner_run_match_count: 0,
+    nonce_consumed: false,
+    mutation_invocation_count: 0,
+    source_gate: {
+      schema: 'opl_app_release_source_gate.v1',
+      status: 'passed',
+      exact_cohort_bound: true,
+    },
+  };
+  const sourceGateBytes = Buffer.from(canonicalJson(sourceGate), 'utf8');
+  const preNonceGuardBytes = Buffer.from(canonicalJson(preNonceGuard), 'utf8');
+  const authority = createStableOperationAuthority({
+    authorityId: 'authority-issue-122-artifact-eligibility',
+    operationId,
+    issuer: 'gaofeng21cn',
+    issuedAt: '2026-07-31T00:15:00.000Z',
+    expiresAt: '2026-07-31T01:15:00.000Z',
+    objectiveFingerprint: stableObjectiveFingerprint,
+    nonce: 'a'.repeat(32),
+    appSha: publicationAppSha,
+    shellSha,
+    frameworkSha,
+    criticalBlobs: stableCriticalBlobs,
+    sourceGate,
+    preNonceGuard,
+  });
+  const runId = options.publicationRecordRunId ?? '1001';
+  const runAuthorityReconcile = {
+    schema: 'opl_release_dispatch_guard.v1',
+    phase: 'run_bound',
+    status: 'passed',
+    dispatch_allowed: true,
+    operation_id: operationId,
+    authority_id: authority.authority_id,
+    run_id: runId,
+    owner_run_match_count: 1,
+    nonce_consumed: false,
+    mutation_invocation_count: 0,
+  };
+  const runAuthorityReconcileBytes = Buffer.from(
+    canonicalJson(runAuthorityReconcile),
+    'utf8',
+  );
+  const control = bindStableOperationAuthority({
+    authority,
+    authorityDigest: authority.authority_digest,
+    actor: authority.issuer,
+    runId,
+    runAttempt: 1,
+    sourceGateDigest: sha256(sourceGateBytes),
+    preNonceGuardDigest: sha256(preNonceGuardBytes),
+    runAuthorityReconcileDigest: sha256(runAuthorityReconcileBytes),
+    now: '2026-07-31T00:20:00.000Z',
+  });
+  const consumption = consumeStableOperationControl({
+    control,
+    operationId,
+    runId,
+    runAttempt: 1,
+    nonce: 'a'.repeat(32),
+  });
+  return createStableOperationPublicationRecord({
+    authority,
+    control,
+    consumption,
+    sourceGateBytes,
+    preNonceGuardBytes,
+    runAuthorityReconcileBytes,
+    repository,
+    tag: `v${version}`,
+    plannedAssets: {
+      assets: [...payloadAssets.values()]
+        .filter((asset) => asset.name !== options.omitPublicationPayloadAsset)
+        .map((asset) => ({
+          name: asset.name,
+          digest: asset.digest,
+          size_bytes: asset.sizeBytes,
+        })),
+    },
+  });
 }
 
 function addAsset(
@@ -936,6 +1093,15 @@ function writeEligibilityFixture(root: string, options: FixtureOptions = {}) {
     `${JSON.stringify(componentManifest)}\n`,
     'application/json',
   );
+  const standardPayloadAssets = new Map(standardAssets);
+  const publicationRecord = stablePublicationRecord(standardPayloadAssets, options);
+  const publicationRecordAsset = addAsset(
+    root,
+    standardAssets,
+    publicationRecordName,
+    canonicalJson(publicationRecord),
+    'application/json',
+  );
 
   const fullDmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const fullDmg = addAsset(
@@ -1024,7 +1190,7 @@ function writeEligibilityFixture(root: string, options: FixtureOptions = {}) {
     notes,
     standardControl,
     appendControl,
-    standardAssets,
+    standardAssets: standardPayloadAssets,
     fullAssets,
     standardQualificationRef,
     standardQualificationSize: fileSize(root, standardQualificationRef),
@@ -1158,6 +1324,7 @@ function writeEligibilityFixture(root: string, options: FixtureOptions = {}) {
         release_inspection: standardInspectionRef,
         build_cohort: standardBuildRef,
         qualification_receipt: standardQualificationRef,
+        publication_record: publicationRecordAsset.ref,
       },
     },
     full: {
@@ -1263,7 +1430,7 @@ test('validator accepts one canonical Standard checkpoint plus distinct append_f
     assert.equal(standardCheckpoint.tracks.standard.verified, false);
     assert.equal(fullCheckpoint.tracks.standard.verified, false);
     assert.equal(result.artifacts.standard.name, `One-Person-Lab-${version}-mac-arm64.zip`);
-    assert.equal(result.verified_file_count, 21);
+    assert.equal(result.verified_file_count, 22);
     assert.equal(result.authority.source_pins_role, 'build_provenance_only');
     assert.equal(result.authority.may_gate_install_or_runtime, false);
     assert.equal(result.authority.exact_cross_component_compatibility_gate, false);
@@ -1281,6 +1448,36 @@ test('validator accepts one canonical Standard checkpoint plus distinct append_f
       ['framework', frameworkSha],
     ]);
   });
+});
+
+test('validator binds the durable Stable publication record to payload, source cohort, and Standard run', () => {
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Stable publication record Standard Actions run/,
+      );
+    },
+    { publicationRecordRunId: '9999' },
+  );
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Stable publication record source cohort/,
+      );
+    },
+    { publicationRecordAppSha: 'f'.repeat(40) },
+  );
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Published carrier assets do not match the exact expected asset count/,
+      );
+    },
+    { omitPublicationPayloadAsset: 'opl-install.sh' },
+  );
 });
 
 test('validator rejects Bundle digest drift and source pins outside accepted remote-main history', () => {
@@ -1414,6 +1611,23 @@ test('validator rejects incomplete immutable release asset sets', () => {
     {
       mutateStandardInspection(inspection) {
         inspection.assets.pop();
+      },
+    },
+  );
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Standard release inspection\.assets closed immutable set/,
+      );
+    },
+    {
+      mutateStandardInspection(inspection) {
+        inspection.assets.push({
+          name: 'unexpected-standard-sidecar.json',
+          size_bytes: 1,
+          sha256: `sha256:${'0'.repeat(64)}`,
+        });
       },
     },
   );

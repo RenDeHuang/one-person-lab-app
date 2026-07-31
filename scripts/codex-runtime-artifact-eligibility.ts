@@ -18,6 +18,10 @@ import {
 } from './build-artifact-cohort.ts';
 import { inspectRelease as inspectCanonicalGitHubRelease } from './framework-release-adapter.ts';
 import { readAppComponentManifestIdentity } from './read-opl-app-component-manifest-identity.ts';
+import {
+  createStableOperationPublishedCarrierBinding,
+  validateStableOperationPublicationRecord,
+} from './stable-operation-publication-record.ts';
 
 export const ISSUE_122_APP_PROVENANCE_FLOOR =
   '87e002e38341435df45b17e9ad6ec8fbe300c238';
@@ -27,6 +31,8 @@ export const ISSUE_122_SHELL_PROVENANCE_FLOOR =
 const APP_REPOSITORY = 'gaofeng21cn/one-person-lab-app';
 const SHELL_REPOSITORY = 'gaofeng21cn/opl-aion-shell';
 const FRAMEWORK_REPOSITORY = 'gaofeng21cn/one-person-lab';
+const STABLE_OPERATION_PUBLICATION_RECORD_NAME =
+  'stable-operation-publication-record.json';
 const BUFFER_SIZE = 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
 const MAX_YAML_BYTES = 1024 * 1024;
@@ -53,6 +59,7 @@ type StandardEligibilityTrack = {
     release_inspection: ArtifactEligibilityFileRef;
     build_cohort: ArtifactEligibilityFileRef;
     qualification_receipt: ArtifactEligibilityFileRef;
+    publication_record: ArtifactEligibilityFileRef;
   };
 };
 
@@ -1793,7 +1800,7 @@ export function validateCodexRuntimeArtifactEligibility(
       file_path: string;
     };
   };
-  verified_file_count: 21;
+  verified_file_count: 22;
   authority: {
     source_pins_role: 'build_provenance_only';
     may_gate_install_or_runtime: false;
@@ -2039,6 +2046,7 @@ export function validateCodexRuntimeArtifactEligibility(
       'release_inspection',
       'build_cohort',
       'qualification_receipt',
+      'publication_record',
     ],
     'packet.standard.files',
   );
@@ -2109,6 +2117,23 @@ export function validateCodexRuntimeArtifactEligibility(
     'packet.standard.files.qualification_receipt',
     evidenceRoot,
   );
+  const standardPublicationRecordFile = verifiedJsonFile(
+    standardFiles.publication_record,
+    'packet.standard.files.publication_record',
+    evidenceRoot,
+  );
+  const standardPublicationRecord = validateStableOperationPublicationRecord(
+    standardPublicationRecordFile.value,
+  );
+  exact(
+    standardPublicationRecord.operation.authority.cohort,
+    {
+      app_sha: source.appSha,
+      shell_sha: source.shellSha,
+      framework_sha: source.frameworkSha,
+    },
+    'Stable publication record source cohort',
+  );
   const fullPrimaryFile = verifiedFile(
     fullFiles.primary_artifact,
     'packet.full.files.primary_artifact',
@@ -2149,7 +2174,10 @@ export function validateCodexRuntimeArtifactEligibility(
     {
       tag: `v${version}`,
       appSha: source.appSha,
-      names: bundleIdentity.standardNames,
+      names: [
+        ...bundleIdentity.standardNames,
+        STABLE_OPERATION_PUBLICATION_RECORD_NAME,
+      ],
     },
   );
   validateReleaseInspection(
@@ -2162,7 +2190,10 @@ export function validateCodexRuntimeArtifactEligibility(
     {
       tag: `v${version}`,
       appSha: source.appSha,
-      names: bundleIdentity.standardNames,
+      names: [
+        ...bundleIdentity.standardNames,
+        STABLE_OPERATION_PUBLICATION_RECORD_NAME,
+      ],
     },
   );
   const fullInspection = validateReleaseInspection(
@@ -2190,11 +2221,32 @@ export function validateCodexRuntimeArtifactEligibility(
   if (standardInspection.id === fullInspection.id) {
     throw new Error('Standard and Full inspections must bind distinct immutable releases');
   }
+  const standardPayloadInspectionAssets = new Map(standardInspection.assets);
+  assertAssetMatchesFile(
+    standardPayloadInspectionAssets.get(STABLE_OPERATION_PUBLICATION_RECORD_NAME),
+    standardPublicationRecordFile,
+    'Stable publication record asset',
+  );
+  standardPayloadInspectionAssets.delete(STABLE_OPERATION_PUBLICATION_RECORD_NAME);
   assertAssetMapsEqual(
-    standardInspection.assets,
+    standardPayloadInspectionAssets,
     fullCheckpoint.standardAssets,
     'Standard inspection/final checkpoint',
   );
+  createStableOperationPublishedCarrierBinding({
+    record: standardPublicationRecord,
+    githubInspection: standardInspectionFile.value,
+    expectedAssets: {
+      assets: [
+        ...standardPublicationRecord.publication_intent.payload_assets,
+        {
+          name: STABLE_OPERATION_PUBLICATION_RECORD_NAME,
+          digest: standardPublicationRecordFile.declaredDigest,
+          size_bytes: standardPublicationRecordFile.sizeBytes,
+        },
+      ],
+    },
+  });
   assertAssetMapsEqual(
     fullInspection.assets,
     fullCheckpoint.fullAssets,
@@ -2264,6 +2316,11 @@ export function validateCodexRuntimeArtifactEligibility(
       releaseCohortRef,
       primaryAsset: standardManifestIdentity.primary,
     },
+  );
+  exact(
+    standardPublicationRecord.operation.run_bound_control.run_id,
+    standardValidated.runId,
+    'Stable publication record Standard Actions run',
   );
   const fullValidated = validateBuildAndQualification(
     'full',
@@ -2353,6 +2410,7 @@ export function validateCodexRuntimeArtifactEligibility(
     standardInspectionFile,
     standardBuildFile,
     standardQualificationFile,
+    standardPublicationRecordFile,
     fullPrimaryFile,
     fullManifestFile,
     fullInspectionFile,
@@ -2360,7 +2418,7 @@ export function validateCodexRuntimeArtifactEligibility(
     fullQualificationFile,
   ];
   if (new Set(allFiles.map((file) => file.path)).size !== allFiles.length) {
-    throw new Error('Eligibility evidence roles must reference 21 distinct regular files');
+    throw new Error('Eligibility evidence roles must reference 22 distinct regular files');
   }
 
   return {
@@ -2411,7 +2469,7 @@ export function validateCodexRuntimeArtifactEligibility(
         ),
       },
     },
-    verified_file_count: 21,
+    verified_file_count: 22,
     authority: {
       source_pins_role: 'build_provenance_only',
       may_gate_install_or_runtime: false,

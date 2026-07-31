@@ -121,7 +121,7 @@ function eligibility(root: string) {
         file_path: full.path,
       },
     },
-    verified_file_count: 21 as const,
+    verified_file_count: 22 as const,
     authority: {
       source_pins_role: 'build_provenance_only' as const,
       may_gate_install_or_runtime: false as const,
@@ -906,6 +906,7 @@ test('eligibility output protection covers all custody, checkpoint, receipt, and
           'release_inspection',
           'build_cohort',
           'qualification_receipt',
+          'publication_record',
         ]),
       },
       full: {
@@ -920,7 +921,7 @@ test('eligibility output protection covers all custody, checkpoint, receipt, and
     };
 
     const protectedPaths = collectEligibilityProtectedPaths(packet, root);
-    assert.equal(protectedPaths.size, 21);
+    assert.equal(protectedPaths.size, 22);
     for (const reference of [
       ...Object.values(packet.evidence),
       ...Object.values(packet.standard.files),
