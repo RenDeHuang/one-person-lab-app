@@ -337,9 +337,7 @@ jobs:
                 shell_ref:"",
                 framework_ref:$framework_ref,
                 source_run_id:$source_run_id,
-                source_artifact:$source_artifact,
-                source_qualification_run_id:"",
-                source_qualification_receipt_digest:""
+                source_artifact:$source_artifact
               }'
           )"
           jq -e '
@@ -350,8 +348,6 @@ jobs:
             and (.framework_ref | test("^[0-9a-f]{40}$"))
             and (.source_run_id | test("^[1-9][0-9]*$"))
             and (.source_artifact | test("^opl-release-standard-checkpoint-[1-9][0-9]*$"))
-            and .source_qualification_run_id == ""
-            and .source_qualification_receipt_digest == ""
           ' <<<"$inputs_json" >/dev/null
           dispatch_ref="main"
           append_full_run_name_regex="^OPL Stable append_full source:${SOURCE_RUN_ID} run:[1-9][0-9]*$"
