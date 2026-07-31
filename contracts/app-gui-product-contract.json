@@ -4278,7 +4278,7 @@
               "hover_focus_disabled_loading_and_error_states_do_not_shift_geometry"
             ],
             "source_dom_or_single_screenshot_only_is_sufficient": false,
-            "acceptance": "fresh_same_cohort_source_DOM_and_installed_pixel_review"
+            "acceptance": "fresh_app_artifact_identity_framework_compatibility_receipt_active_shell_contract_and_installed_16_scene_DOM_pixel_accessibility_review"
           },
           "capture_preflight": {
             "required_fields": [

@@ -81,11 +81,15 @@ test("Framework owns the live immutable Release Bundle and App remains a product
   assert.ok(control.app_authority.does_not_own.includes("generic_publisher_ledger"));
 });
 
-test("new App Standard identity binds exact source refs and typed Package compatibility only", () => {
-  assert.deepEqual(control.identity.minimum_source_refs, ["app_sha", "shell_sha", "framework_sha"]);
+test("new App Standard identity records source refs as provenance and admits typed Package compatibility", () => {
+  assert.deepEqual(control.identity.recorded_build_provenance_refs, ["app_sha", "shell_sha", "framework_sha"]);
+  assert.equal(
+    control.identity.build_provenance_role,
+    "reproduce_the_selected_app_artifact_only_never_install_or_runtime_compatibility",
+  );
   assert.deepEqual(control.identity.new_standard, {
-    identity_mode: "app_standard_compatibility",
-    three_repo_sha_tuple_is_sufficient_with_typed_package_compatibility: true,
+    identity_mode: "app_standard_artifact_build_provenance",
+    source_ref_equality_may_gate_external_component_install_or_runtime: false,
     package_compatibility: {
       abi: "opl_packages.v1",
       version_range: ">=0.1.0 <1.0.0",
@@ -99,7 +103,18 @@ test("new App Standard identity binds exact source refs and typed Package compat
       "opl_flow",
     ],
   });
-  assert.match(control.identity.prebuild_rule, /must not gate or enter the new Standard identity/);
+  assert.match(
+    control.identity.prebuild_rule,
+    /records exact App, Shell, and Framework source refs only as reproducible build provenance/,
+  );
+  assert.match(
+    control.identity.prebuild_rule,
+    /never gate installation or runtime composition with external Base or Packages/,
+  );
+  assert.match(
+    control.identity.prebuild_rule,
+    /Compatibility is admitted only by capability, minimum version, or SemVer range/,
+  );
   assert.ok(control.identity.canonical_digest_covers.includes("typed_package_compatibility"));
   assert.equal(control.identity.canonical_digest_covers.includes("package_binding"), false);
 });
@@ -360,8 +375,10 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.operation, "append_full");
   assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
   assert.equal(full.checkpoint_minimum_stage, "standard_built");
-  assert.equal(full.standard_identity_required, true);
-  assert.equal(full.standard_release_readback, "exact_tag_required_asset_set_digests_and_immutable_true");
+  assert.equal(full.standard_identity_required, false);
+  assert.equal(full.standard_release_readback, "optional_provenance_only_no_compatibility_gate");
+  assert.equal(full.standard_release_prerequisite_required, false);
+  assert.equal(full.mode, "independent_immutable_adjunct_release");
   assert.equal(full.successor_trigger.workflow, ".github/workflows/release-stable-post-success-followups.yml");
   assert.equal(full.successor_trigger.one_successor_per_standard_run, true);
   assert.equal(full.successor_trigger.workflow_dispatch_ref, "canonical_main");

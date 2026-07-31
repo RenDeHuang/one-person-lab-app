@@ -269,6 +269,41 @@ export type ShellAdapterContract = {
       manifest_parser_owner: string | null;
       aioncore_required: boolean;
       framework_managed_payload_in_app_bundle_allowed: boolean;
+      target_packaging_policy?: {
+        schema: string;
+        implementation_status: string;
+        aioncore_modification_policy: string;
+        producer_export: {
+          owner: string;
+          role: string;
+          schema_version: number;
+          required_cli_names: string[];
+          distributed_manifest_allowed: boolean;
+        };
+        packaged_projection: {
+          owner: string;
+          schema: string;
+          authority_path: string;
+          included_cli_names: string[];
+          excluded_cli_names: string[];
+          version_and_digest_source: string;
+        };
+        distributed_bundle: {
+          applies_to: string[];
+          required_runtime_components: string[];
+          required_metadata: string[];
+          cli_names_exact: string[];
+          required_absence_checks: Array<{
+            id: string;
+            scope: string;
+            matcher: string;
+            patterns: string[];
+            values?: string[];
+            expected_match_count: number;
+          }>;
+        };
+        independent_codex_downloader_or_version_authority_allowed: boolean;
+      };
     };
     framework_headless_carrier_policy: string;
   };
@@ -480,6 +515,7 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
   }
 
   if (contract.active_shell === 'aionui') {
+    const target = executable.carrier.target_packaging_policy;
     if (
       executable.carrier.kind !== 'aioncore_managed_resources_manifest' ||
       executable.carrier.source_ref !==
@@ -488,6 +524,79 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
       executable.carrier.aioncore_required !== true
     ) {
       throw new Error('active AionUI must resolve its Codex executable only from the bundled AionCore manifest');
+    }
+    if (
+      target?.schema !== 'opl_aioncore_codex_only_packaging_policy.v1' ||
+      target?.implementation_status !== 'pending_shell_projection_and_packaged_smoke' ||
+      target?.aioncore_modification_policy !== 'consume_upstream_release_without_fork_or_patch' ||
+      target?.producer_export?.owner !== 'AionCore' ||
+      target?.producer_export?.role !== 'build_intermediate_only' ||
+      target?.producer_export?.schema_version !== 2 ||
+      JSON.stringify(target?.producer_export?.required_cli_names) !== JSON.stringify(['claude', 'codex']) ||
+      target?.producer_export?.distributed_manifest_allowed !== false ||
+      target?.packaged_projection?.owner !== 'gaofeng21cn/opl-aion-shell' ||
+      target?.packaged_projection?.schema !== 'opl_aioncore_managed_resources_projection.v1' ||
+      target?.packaged_projection?.authority_path !==
+        'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json' ||
+      JSON.stringify(target?.packaged_projection?.included_cli_names) !== JSON.stringify(['codex']) ||
+      JSON.stringify(target?.packaged_projection?.excluded_cli_names) !== JSON.stringify(['claude']) ||
+      target?.packaged_projection?.version_and_digest_source !== 'aioncore_producer_export' ||
+      JSON.stringify(target?.distributed_bundle?.applies_to) !== JSON.stringify(['standard', 'full']) ||
+      JSON.stringify(target?.distributed_bundle?.required_runtime_components) !==
+        JSON.stringify(['aioncore', 'node_runtime', 'codex_cli']) ||
+      JSON.stringify(target?.distributed_bundle?.required_metadata) !==
+        JSON.stringify(['projection_manifest', 'producer_manifest_digest_provenance']) ||
+      JSON.stringify(target?.distributed_bundle?.cli_names_exact) !== JSON.stringify(['codex']) ||
+      JSON.stringify(target?.distributed_bundle?.required_absence_checks) !== JSON.stringify([
+        {
+          id: 'managed_claude_subtree',
+          scope: 'distributed_bundle_root',
+          matcher: 'path_glob',
+          patterns: [
+            'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude',
+            'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude/**',
+          ],
+          expected_match_count: 0,
+        },
+        {
+          id: 'claude_executable_or_symlink',
+          scope: 'distributed_bundle_root',
+          matcher: 'executable_or_symlink_basename',
+          patterns: ['claude', 'claude.exe'],
+          expected_match_count: 0,
+        },
+        {
+          id: 'anthropic_package_or_archive',
+          scope: 'distributed_bundle_root',
+          matcher: 'path_glob',
+          patterns: [
+            '**/node_modules/@anthropic-ai/claude-code/**',
+            '**/claude-code*.tgz',
+            '**/claude-code*.tar.gz',
+          ],
+          expected_match_count: 0,
+        },
+        {
+          id: 'claude_distribution_cache_entry',
+          scope: 'distributed_bundle_root',
+          matcher: 'path_glob',
+          patterns: ['**/.cache/**/claude*', '**/cache/**/claude*'],
+          expected_match_count: 0,
+        },
+        {
+          id: 'raw_producer_manifest',
+          scope: 'distributed_bundle_root',
+          matcher: 'root_manifest_schema_version_equals',
+          patterns: ['**/managed-resources/manifest.json'],
+          values: ['2'],
+          expected_match_count: 0,
+        },
+      ]) ||
+      target?.independent_codex_downloader_or_version_authority_allowed !== false
+    ) {
+      throw new Error(
+        'active AionUI must target an OPL-owned Codex-only projection without modifying AionCore or adding a second Codex authority',
+      );
     }
     return;
   }

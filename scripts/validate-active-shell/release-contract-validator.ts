@@ -43,9 +43,6 @@ const standardLatestAdmissionContract = {
   publication_ancestor_counts: { self_hosted: 0, vm: 0, tart: 0 },
   required_exact_identity_fields: [
     'bundle_digest',
-    'candidate.app_sha',
-    'candidate.shell_sha',
-    'candidate.framework_sha',
     'candidate.zip.sha256',
     'candidate.zip.size_bytes',
     'candidate.dmg.sha256',
@@ -183,7 +180,7 @@ const stableFailureFingerprintFields = [
 const validationCanaryContract = {
   workflow: '.github/workflows/release-bundle-canary.yml',
   mode: 'validation_only',
-  triggers: ['push_main', 'pull_request', 'daily_schedule'],
+  triggers: ['daily_schedule', 'workflow_dispatch'],
   starts_reusable_topology: [
     '_release-bundle.yml',
     '_release-standard-publish.yml',
@@ -427,6 +424,7 @@ function validateReleaseCalendarGuard(releaseName) {
 }
 
 function validateStandardUpdater(updater) {
+  const candidateSelection = updater?.candidate_selection;
   if (
     updater?.scope !== 'desktop_app_assets_only' ||
     updater?.module_package_update_allowed !== false ||
@@ -435,6 +433,58 @@ function validateStandardUpdater(updater) {
   ) {
     throw new Error('Standard updater must remain App-binary-only and join the carrier-neutral Framework reconciliation path');
   }
+  if (
+    candidateSelection?.schema !== 'opl_app_updater_candidate_selection.v1' ||
+    candidateSelection?.updater_version_field !== 'updaterVersion' ||
+    candidateSelection?.sort_authority !== 'valid_updater_version_semver' ||
+    candidateSelection?.latest_pointer_is_not_candidate_sort_authority !== true ||
+    candidateSelection?.nightly_is_not_an_independent_user_channel !== true
+  ) {
+    throw new Error('Standard updater must select candidates by valid updaterVersion SemVer, independently of Latest');
+  }
+  assertDeepEqualJson(
+    candidateSelection?.stable?.allowed_quality_statuses,
+    ['stable'],
+    'Stable updater candidate quality statuses',
+  );
+  if (candidateSelection?.stable?.candidate_union !== 'stable_only') {
+    throw new Error('Stable updater must only consider Stable candidates');
+  }
+  assertDeepEqualJson(
+    candidateSelection?.preview?.allowed_quality_statuses,
+    ['stable', 'preview'],
+    'Preview updater candidate quality statuses',
+  );
+  assertDeepEqualJson(
+    candidateSelection?.preview?.allowed_preview_kinds,
+    ['dev', 'nightly'],
+    'Preview updater candidate preview kinds',
+  );
+  if (
+    candidateSelection?.preview?.candidate_union !== 'stable_plus_preview_and_nightly' ||
+    candidateSelection?.preview?.higher_stable_may_supersede_preview_or_nightly !== true
+  ) {
+    throw new Error('Preview updater must consider Stable plus Preview/Nightly and allow a higher Stable to supersede it');
+  }
+  assertDeepEqualJson(
+    candidateSelection?.monotonicity,
+    {
+      comparison: 'semver',
+      machine_version_contract_ref: 'github_release_name.machine_version',
+      candidate_lower_than_installed: 'reject',
+      candidate_equal_to_installed: 'no_op',
+      candidate_higher_than_installed: 'update',
+      invalid_or_missing_updater_version: 'reject',
+      superseding_stable_must_exceed_published_nightly: true,
+      published_nightly_baseline_sources: [
+        'durable_publication_record',
+        'candidate_metadata',
+      ],
+      superseding_comparison: 'strictly_greater_updater_version_semver',
+      lower_or_equal_superseding_stable: 'reject',
+    },
+    'Updater monotonicity policy',
+  );
 }
 
 function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationProfile) {
@@ -1034,8 +1084,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       artifact: 'One-Person-Lab-<version>-linux-x64.deb',
       installer: 'opl-app-installer.sh',
       installer_arguments: ['--desktop', '--release-tag', '<exact-tag>', '--no-open'],
-      component_manifest_binding_required: true,
-      same_app_shell_framework_cohort_required: true,
+      same_release_deb_and_installer_manifest_binding_required: true,
+      same_deb_artifact_identity_required: true,
+      cross_component_version_sha_or_cohort_equality_required: false,
+      dependency_compatibility_contract_ref:
+        'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
       typed_admission_schema: 'opl_app_optional_certification_hosted_admission.v1',
       typed_execution_evidence_schema: 'opl_app_linux_same_artifact_install_evidence.v1',
       clean_machine_preinstall_absence_required: true,
@@ -1162,10 +1215,16 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.optional_platform_additive_follower?.base_release_must_be_published_immutable !== true
     || platformMatrix?.optional_platform_additive_follower?.make_latest !== false
     || platformMatrix?.full_macos_additive_follower?.trigger !==
-      'protected_automatic_post_success'
+      'protected_automatic_post_success_or_explicit_independent_full_publication'
+    || platformMatrix?.full_macos_additive_follower?.source_policy !==
+      'full_artifact_self_identity_plus_component_compatibility'
+    || platformMatrix?.full_macos_additive_follower?.standard_release_prerequisite_required !== false
+    || platformMatrix?.full_macos_additive_follower?.cross_component_exact_version_sha_or_cohort_binding_allowed !== false
+    || platformMatrix?.full_macos_additive_follower?.compatibility_contract_ref !==
+      'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission'
     || platformMatrix?.full_macos_additive_follower?.carrier !==
       'independent_immutable_adjunct_release'
-    || platformMatrix?.full_macos_additive_follower?.base_release_must_be_published_immutable !== true
+    || platformMatrix?.full_macos_additive_follower?.full_release_must_be_published_immutable !== true
     || platformMatrix?.full_macos_additive_follower?.blocks_stable_base_terminal !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_latest_activation !== false
   ) {

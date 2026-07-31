@@ -36,6 +36,77 @@ test('AionUI cannot restore the duplicate Framework Codex payload', () => {
   );
 });
 
+test('AionUI target keeps the AionCore export as staging and distributes only Node plus Codex', () => {
+  const aionui = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
+  const target = aionui.codex_executable_contract?.carrier.target_packaging_policy;
+
+  assert.equal(target?.implementation_status, 'pending_shell_projection_and_packaged_smoke');
+  assert.equal(target?.aioncore_modification_policy, 'consume_upstream_release_without_fork_or_patch');
+  assert.deepEqual(target?.producer_export.required_cli_names, ['claude', 'codex']);
+  assert.equal(target?.producer_export.role, 'build_intermediate_only');
+  assert.equal(target?.producer_export.distributed_manifest_allowed, false);
+  assert.equal(target?.packaged_projection.schema, 'opl_aioncore_managed_resources_projection.v1');
+  assert.deepEqual(target?.packaged_projection.included_cli_names, ['codex']);
+  assert.deepEqual(target?.packaged_projection.excluded_cli_names, ['claude']);
+  assert.deepEqual(target?.distributed_bundle.required_runtime_components, [
+    'aioncore',
+    'node_runtime',
+    'codex_cli',
+  ]);
+  assert.deepEqual(target?.distributed_bundle.required_metadata, [
+    'projection_manifest',
+    'producer_manifest_digest_provenance',
+  ]);
+  assert.deepEqual(target?.distributed_bundle.cli_names_exact, ['codex']);
+  assert.deepEqual(
+    target?.distributed_bundle.required_absence_checks.map((check) => check.id),
+    [
+      'managed_claude_subtree',
+      'claude_executable_or_symlink',
+      'anthropic_package_or_archive',
+      'claude_distribution_cache_entry',
+      'raw_producer_manifest',
+    ],
+  );
+  assert.equal(target?.independent_codex_downloader_or_version_authority_allowed, false);
+  assert.doesNotThrow(() => validateCodexExecutableContract(aionui));
+});
+
+test('AionUI target cannot package Claude or introduce a second Codex authority', () => {
+  const withClaude = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
+  assert.ok(withClaude.codex_executable_contract?.carrier.target_packaging_policy);
+  withClaude.codex_executable_contract.carrier.target_packaging_policy
+    .distributed_bundle.cli_names_exact.push('claude');
+
+  assert.throws(
+    () => validateCodexExecutableContract(withClaude),
+    /Codex-only projection/,
+  );
+
+  const withoutArchiveGate = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
+  assert.ok(withoutArchiveGate.codex_executable_contract?.carrier.target_packaging_policy);
+  withoutArchiveGate.codex_executable_contract.carrier.target_packaging_policy
+    .distributed_bundle.required_absence_checks =
+      withoutArchiveGate.codex_executable_contract.carrier.target_packaging_policy
+        .distributed_bundle.required_absence_checks
+        .filter((check) => check.id !== 'anthropic_package_or_archive');
+
+  assert.throws(
+    () => validateCodexExecutableContract(withoutArchiveGate),
+    /Codex-only projection/,
+  );
+
+  const withDownloader = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
+  assert.ok(withDownloader.codex_executable_contract?.carrier.target_packaging_policy);
+  withDownloader.codex_executable_contract.carrier.target_packaging_policy
+    .independent_codex_downloader_or_version_authority_allowed = true;
+
+  assert.throws(
+    () => validateCodexExecutableContract(withDownloader),
+    /second Codex authority/,
+  );
+});
+
 test('Full App contract delegates Codex to AionCore and omits the Framework manifest component', async () => {
   const releaseChannel = JSON.parse(
     fs.readFileSync('contracts/app-release-channel.json', 'utf8'),

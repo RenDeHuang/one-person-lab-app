@@ -447,6 +447,62 @@ test('Windows Docker/WebUI ordinary mode starts Docker Desktop when the CLI exis
   );
 });
 
+test('Windows Docker/WebUI exposes an explicit fail-closed AF_UNIX endpoint repair without touching Docker data', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const repairFunction = extractPowerShellFunction(installer, 'Repair-DockerDesktopRuntimeEndpoints');
+
+  assert.match(installer, /\[switch\]\$RepairDockerDesktopStart/);
+  assert.match(repairFunction, /Get-Process -Name "Docker Desktop", "com\.docker\.backend", "com\.docker\.build", "com\.docker\.proxy"/);
+  assert.match(repairFunction, /Docker Desktop processes are still running/);
+  assert.match(repairFunction, /docker-secrets-engine/);
+  assert.match(repairFunction, /"Docker\\run"/);
+  assert.match(repairFunction, /\[System\.IO\.FileAttributes\]::ReparsePoint/);
+  assert.match(repairFunction, /Refusing to repair/);
+  assert.match(repairFunction, /\$repairPlans \+= \[ordered\]@\{/);
+  assert.match(repairFunction, /foreach \(\$repairPlan in \$repairPlans\)/);
+  assert.match(repairFunction, /Move-Item -LiteralPath \$repairPlan\.Path -Destination \$repairPlan\.Backup/);
+  assert.match(repairFunction, /New-Item -ItemType Directory -Path \$repairPlan\.Path/);
+  assert.match(repairFunction, /Wait-DockerDaemon -DockerCliPath \$DockerCliPath/);
+  assert.doesNotMatch(repairFunction, /Stop-Process|Remove-Item|docker_data|\.vhdx|docker\s+(?:system|volume|image|container)\s+prune/i);
+  assert.match(installer, /Use -RepairDockerDesktopStart by itself/);
+  assert.match(installer, /dockerInference AF_UNIX error/);
+});
+
+test('Windows Docker/WebUI AF_UNIX repair preflights every runtime directory before moving either one', {
+  skip: process.platform === 'win32' && pwshPath
+    ? false
+    : 'requires native Windows PowerShell',
+}, () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-docker-endpoint-repair-'));
+  const secretsDir = path.join(tempRoot, 'docker-secrets-engine');
+  const runDir = path.join(tempRoot, 'Docker', 'run');
+  fs.mkdirSync(secretsDir, { recursive: true });
+  fs.mkdirSync(runDir, { recursive: true });
+  fs.writeFileSync(path.join(secretsDir, 'engine.sock'), 'ordinary-file');
+  fs.writeFileSync(path.join(runDir, 'dockerInference'), 'ordinary-file');
+
+  const harness = [
+    '$ErrorActionPreference = "Stop"',
+    `$env:LOCALAPPDATA = ${powerShellSingleQuoted(tempRoot)}`,
+    'function Write-Step { param([string]$Message) }',
+    'function Resolve-DockerDesktopApplicationPath { return $PSHOME + "\\powershell.exe" }',
+    'function Get-Process { return @() }',
+    'function Wait-DockerDaemon { param([string]$DockerCliPath) throw "must not start" }',
+    extractPowerShellFunction(installer, 'Repair-DockerDesktopRuntimeEndpoints'),
+    'try { Repair-DockerDesktopRuntimeEndpoints -DockerCliPath "docker.exe"; exit 10 } catch {',
+    '  if ($_.Exception.Message -notmatch "contains non-runtime files") { throw }',
+    '}',
+    'if (-not (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA "docker-secrets-engine\\engine.sock"))) { exit 11 }',
+    'if (-not (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA "Docker\\run\\dockerInference"))) { exit 12 }',
+    'if (@(Get-ChildItem -LiteralPath $env:LOCALAPPDATA -Directory -Filter "*.stale-*").Count -gt 0) { exit 13 }',
+    'if (@(Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA "Docker") -Directory -Filter "*.stale-*").Count -gt 0) { exit 14 }',
+  ].join('\n');
+  const result = runPwshHarness(harness);
+  assert.ok(result, 'pwsh should be available for this test');
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
 test('Windows Docker/WebUI reads WSL status from a process exit code, not an unset LASTEXITCODE', () => {
   const installer = fs.readFileSync(installerPath, 'utf8');
   const wslStatus = extractPowerShellFunction(installer, 'Invoke-WslStatus');

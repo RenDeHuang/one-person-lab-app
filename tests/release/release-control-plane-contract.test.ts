@@ -292,9 +292,6 @@ test('Standard Latest admission consumes hosted publication and Homebrew readbac
   assert.deepEqual(admission.publication_ancestor_counts, { self_hosted: 0, vm: 0, tart: 0 });
   assert.deepEqual(admission.required_exact_identity_fields, [
     'bundle_digest',
-    'candidate.app_sha',
-    'candidate.shell_sha',
-    'candidate.framework_sha',
     'candidate.zip.sha256',
     'candidate.zip.size_bytes',
     'candidate.dmg.sha256',
@@ -451,7 +448,7 @@ test('legacy broker, session, and operator contracts are historical receipt read
   assert.deepEqual(release.release_bundle_control_plane.validation_canary, {
     workflow: '.github/workflows/release-bundle-canary.yml',
     mode: 'validation_only',
-    triggers: ['push_main', 'pull_request', 'daily_schedule'],
+    triggers: ['daily_schedule', 'workflow_dispatch'],
     starts_reusable_topology: [
       '_release-bundle.yml',
       '_release-standard-publish.yml',

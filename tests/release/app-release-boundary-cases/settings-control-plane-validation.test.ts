@@ -2142,6 +2142,6 @@ test("Settings keeps a compact background-task summary while Service Status owns
   assert.ok(componentAudit.required_checks.includes("no_nested_card_or_border_wall"));
   assert.equal(
     componentAudit.acceptance,
-    "fresh_same_cohort_source_DOM_and_installed_pixel_review",
+    "fresh_app_artifact_identity_framework_compatibility_receipt_active_shell_contract_and_installed_16_scene_DOM_pixel_accessibility_review",
   );
 });

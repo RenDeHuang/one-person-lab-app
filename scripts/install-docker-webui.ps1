@@ -25,6 +25,7 @@ param(
   [string]$EvidenceDir,
   [string]$EvidenceArchive,
   [switch]$InstallPrerequisites,
+  [switch]$RepairDockerDesktopStart,
   [switch]$Update,
   [switch]$EnableAutoUpdate,
   [switch]$DisableAutoUpdate,
@@ -274,6 +275,80 @@ function Start-DockerDesktopIfPresent {
   }
   Write-Step "Docker Desktop CLI start was unavailable; starting the installed app."
   Start-Process -FilePath $dockerDesktop | Out-Null
+}
+
+function Repair-DockerDesktopRuntimeEndpoints {
+  param([Parameter(Mandatory = $true)][string]$DockerCliPath)
+
+  if ($DryRun) {
+    Write-Step "Dry run: would repair stale Docker Desktop AF_UNIX runtime endpoints and start Docker Desktop."
+    return
+  }
+
+  $dockerDesktop = Resolve-DockerDesktopApplicationPath
+  if ($null -eq $dockerDesktop) {
+    throw "Docker Desktop is not installed. Install Docker Desktop before using -RepairDockerDesktopStart."
+  }
+
+  $dockerProcesses = @(
+    Get-Process -Name "Docker Desktop", "com.docker.backend", "com.docker.build", "com.docker.proxy" `
+      -ErrorAction SilentlyContinue
+  )
+  if ($dockerProcesses.Count -gt 0) {
+    throw "Docker Desktop processes are still running. Quit Docker Desktop completely, then rerun -RepairDockerDesktopStart."
+  }
+
+  $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+  $runtimeDirectories = @(
+    [ordered]@{
+      Path = Join-Path $env:LOCALAPPDATA "docker-secrets-engine"
+      Parent = $env:LOCALAPPDATA
+      Name = "docker-secrets-engine"
+    },
+    [ordered]@{
+      Path = Join-Path $env:LOCALAPPDATA "Docker\run"
+      Parent = Join-Path $env:LOCALAPPDATA "Docker"
+      Name = "run"
+    }
+  )
+
+  $repairPlans = @()
+  foreach ($runtimeDirectory in $runtimeDirectories) {
+    if (-not (Test-Path -LiteralPath $runtimeDirectory.Path -PathType Container)) {
+      continue
+    }
+    $children = @(Get-ChildItem -LiteralPath $runtimeDirectory.Path -Force -ErrorAction Stop)
+    if ($children.Count -eq 0) {
+      continue
+    }
+    $unsafe = @(
+      $children | Where-Object { -not ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) }
+    )
+    if ($unsafe.Count -gt 0) {
+      $unsafeNames = ($unsafe | ForEach-Object { $_.Name }) -join ", "
+      throw "Refusing to repair $($runtimeDirectory.Path): it contains non-runtime files: $unsafeNames"
+    }
+
+    $backup = Join-Path $runtimeDirectory.Parent "$($runtimeDirectory.Name).stale-$stamp"
+    if (Test-Path -LiteralPath $backup) {
+      throw "Refusing to overwrite an existing Docker runtime endpoint backup: $backup"
+    }
+    $repairPlans += [ordered]@{
+      Path = $runtimeDirectory.Path
+      Backup = $backup
+    }
+  }
+
+  foreach ($repairPlan in $repairPlans) {
+    Move-Item -LiteralPath $repairPlan.Path -Destination $repairPlan.Backup
+    New-Item -ItemType Directory -Path $repairPlan.Path | Out-Null
+    Write-Step "Moved stale Docker runtime endpoints to $($repairPlan.Backup)"
+  }
+
+  Write-Step "Starting Docker Desktop after the runtime endpoint repair."
+  Start-Process -FilePath $dockerDesktop | Out-Null
+  Wait-DockerDaemon -DockerCliPath $DockerCliPath
+  Write-Step "Docker Desktop is ready. Rerun the One Person Lab installer or desktop shortcut."
 }
 
 function Convert-ToWindowsProcessArgument {
@@ -612,7 +687,7 @@ function Wait-DockerDaemon {
     }
     Start-Sleep -Seconds 2
   }
-  throw "Docker Desktop did not become ready within 180 seconds. Open Docker Desktop, finish any setup prompts, then rerun this script."
+  throw "Docker Desktop did not become ready within 180 seconds. Open Docker Desktop and finish any setup prompts. If Docker reports a dockerInference AF_UNIX error, quit Docker Desktop completely and rerun this installer with -RepairDockerDesktopStart."
 }
 
 function Test-WindowsHost {
@@ -2163,6 +2238,12 @@ $autoUpdateActionCount = @($EnableAutoUpdate, $DisableAutoUpdate, $AutoUpdateSta
 if ($autoUpdateActionCount -gt 1) {
   throw "Choose only one of -EnableAutoUpdate, -DisableAutoUpdate, or -AutoUpdateStatus."
 }
+if (
+  $RepairDockerDesktopStart -and
+  @($InstallPrerequisites, $Update, $EnableAutoUpdate, $DisableAutoUpdate, $AutoUpdateStatus).Where({ $_ }).Count -gt 0
+) {
+  throw "Use -RepairDockerDesktopStart by itself; rerun the requested install, update, or auto-update action after Docker Desktop is ready."
+}
 $resolvedEvidenceDir = ""
 if (-not [string]::IsNullOrWhiteSpace($EvidenceDir)) {
   $resolvedEvidenceDir = Resolve-FullPath $EvidenceDir
@@ -2188,6 +2269,15 @@ $url = $HealthUrl
 
 Assert-WindowsHost
 Assert-PowerShellVersion
+if ($RepairDockerDesktopStart) {
+  Refresh-ProcessPathFromEnvironment
+  $dockerCliPath = Resolve-DockerCliPath
+  if ($null -eq $dockerCliPath) {
+    throw "docker.exe was not found. Install or repair Docker Desktop before using -RepairDockerDesktopStart."
+  }
+  Repair-DockerDesktopRuntimeEndpoints -DockerCliPath $dockerCliPath
+  exit 0
+}
 if ($DisableAutoUpdate) {
   Disable-WebUiAutoUpdate -UpdaterPath $autoUpdaterPath
   exit 0

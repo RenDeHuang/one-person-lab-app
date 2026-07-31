@@ -20,6 +20,28 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
     'contracts/app-release-channel.json#distribution_semantics',
     'Distribution install release semantics ref',
   );
+  requireEqual(
+    install?.component_interoperability_ref,
+    'contracts/app-install-exposure-policy.json#component_interoperability',
+    'Distribution install component interoperability ref',
+  );
+  requireEqual(
+    installExposurePolicy?.component_interoperability?.model,
+    'independently_versioned_open_composition',
+    'Distribution install component interoperability model',
+  );
+  requireEqual(
+    installExposurePolicy?.component_interoperability?.combination_policy
+      ?.exact_cross_component_version_or_commit_lockstep_required,
+    false,
+    'Distribution install cross-component lockstep policy',
+  );
+  requireEqual(
+    installExposurePolicy?.component_interoperability?.compatibility_admission
+      ?.receipt_schema,
+    'opl_component_compatibility_receipt.v1',
+    'Distribution install Framework compatibility receipt schema',
+  );
 
   const releaseTopology = release.topology_counts;
   requireEqual(releaseTopology?.current_publication_carrier_families, 3, 'Publication carrier family count');
@@ -347,8 +369,26 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   );
   requireEqual(currentCohort?.independent_version_and_cadence_allowed, true, 'Development dual-track version policy');
   requireEqual(currentCohort?.same_production_cohort_claim_allowed, false, 'Development production-cohort claim');
-  requireEqual(targetCohort?.model, 'one_app_version_multiple_runtime_forms', 'Production cohort target');
-  requireEqual(targetCohort?.same_app_version_and_official_profile_required, true, 'Production version convergence');
+  requireEqual(
+    targetCohort?.model,
+    'one_app_product_multiple_independently_versioned_carriers',
+    'Production carrier target',
+  );
+  requireEqual(
+    targetCohort?.same_app_version_required_across_runtime_forms,
+    false,
+    'Production cross-carrier version independence',
+  );
+  requireEqual(
+    targetCohort?.compatibility_admission_ref,
+    'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
+    'Production compatibility admission',
+  );
+  requireEqual(
+    targetCohort?.same_official_profile_intent_required,
+    true,
+    'Production Official Profile convergence',
+  );
   requireEqual(targetCohort?.physical_artifact_bytes_must_match, false, 'Cross-carrier byte identity');
   requireEqual(
     targetCohort?.framework_reconciliation_and_product_behavior_must_converge,
@@ -565,22 +605,28 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(installer?.approved_universal_target?.headless_explicit, 'opl_base_only', 'Universal headless target');
   requireEqual(installer?.approved_universal_target?.result, 'official_profile_converged', 'Universal result');
   assertDeepEqualJson(
-    installer?.approved_universal_target?.frozen_identity,
+    installer?.approved_universal_target?.installer_artifact_identity,
     {
+      asset_name: 'opl-install.sh',
+      asset_url: 'exact_release_asset_url',
+      asset_size: 'exact_release_asset_size',
+      asset_sha256: 'exact_release_asset_sha256',
       app_source_ref: 'OPL_APP_SOURCE_REF',
       shell_source_ref: 'OPL_SHELL_SOURCE_REF',
       framework_source_ref: 'OPL_FRAMEWORK_SOURCE_REF',
       release_version: 'OPL_RELEASE_VERSION',
       release_repository: 'OPL_RELEASE_REPO',
       release_tag: 'OPL_FROZEN_RELEASE_TAG',
+      source_ref_role:
+        'recorded_build_provenance_only_never_dependency_selection_or_compatibility_gate',
     },
-    'Universal frozen identity',
+    'Universal installer artifact identity',
   );
   assertDeepEqualJson(
     installer?.approved_universal_target?.container_webui,
     {
       image_repository: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-      tag: 'same_display_version',
+      tag: 'selected_container_carrier_exact_version',
       mutable_latest_fallback_allowed: false,
       missing_exact_tag: 'typed_blocker',
     },
@@ -601,15 +647,15 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
       exact_tag_download_url_required: true,
       native_artifact_discovery_allowed: false,
       full_adjunct_resolution: {
-        base_identity_source: 'exact_base_release_component_manifest',
+        identity_source: 'exact_full_release_record_and_full_manifest',
         discovery_route: 'bounded_paginated_github_releases_api',
-        tag_pattern: 'base_tag-full-bundle_digest_hex_prefix_12',
+        tag_pattern: 'full_app_carrier_version-full-full_manifest_sha256_prefix_12',
         eligible_release: {
           matching_release_count: 1,
           draft: false,
           prerelease: false,
           immutable: true,
-          target_commitish: 'base_component_manifest.source_cohort.app_sha',
+          owner_authority_verified: true,
         },
         exact_tag_readback_required: true,
         required_assets: [
@@ -617,14 +663,14 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
           'opl-release-manifest.json',
         ],
         asset_url_and_digest_must_match_exact_adjunct_release: true,
-        full_manifest_must_match_base_version_and_full_dmg_digest: true,
+        full_manifest_must_match_its_release_version_and_full_dmg_identity: true,
+        compatibility_selector_ref:
+          'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
         explicit_full_missing_ambiguous_or_invalid: 'fail_closed',
-        implicit_full_fallback: 'standard_only_when_no_matching_adjunct_tag_exists',
-        frozen_installer_base_cohort_binding: [
-          'app_source_ref',
-          'shell_source_ref',
-          'framework_source_ref',
-        ],
+        implicit_full_fallback:
+          'standard_only_when_no_self_verified_compatible_full_release_matches_capability_minimum_or_semver_range',
+        standard_release_identity_or_bundle_digest_binding_allowed: false,
+        cross_component_source_cohort_binding_allowed: false,
       },
       target_selection: 'host_platform_and_architecture',
     },

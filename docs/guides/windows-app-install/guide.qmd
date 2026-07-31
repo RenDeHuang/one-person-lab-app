@@ -29,8 +29,8 @@ Windows 原生模块、AionCore 和 managed Codex ACP 资产。这个 RC 复用�
 
 WSL 2 是桌面 RC 的运行前提。首次启动时 App 会检查系统并创建或修复
 `OPL-Linux`。只有 Windows 缺少必要功能时，系统才可能显示 UAC 并要求重启；
-重启后再次打开 App 会继续配置。Docker Desktop 只用于可选 WebUI 路径，桌面
-RC 不会安装、修改或接管 Docker。
+重启后再次打开 App 会继续配置。Windows Desktop App 不要求 Docker Desktop；
+Docker Desktop 只用于可选 WebUI 路径，桌面 RC 不会安装、修改或接管 Docker。
 
 ## 准备清单
 
@@ -62,25 +62,33 @@ RC 不会安装、修改或接管 Docker。
 
 - `{{download.installer_asset}}`
 - `{{download.checksum_asset}}`
-- 如果 Release 提供：`{{download.download_helper_asset}}`
+- `{{download.download_helper_asset}}`
 
 不要把 Source code ZIP/TAR 当成安装包。文件名中的 `win-x64` 表示 Windows x64，
-`rc.1` 表示当前公开候选预览，不是稳定更新频道。
+`{{download.release_tag}}` 表示当前公开候选预览，不是稳定更新频道。
 
-建议在“下载”目录新建 `OPL-RC` 文件夹，把两个文件放在一起。
+建议在“下载”目录新建 `OPL-RC` 文件夹，把三个文件放在一起。
 
 Windows 安装包包含首次配置所需的 Linux 运行时，当前安装包
-{{download.installer_size_label}}。当前 `{{download.release_tag}}` 尚未携带下载助手，
-因此浏览器直接下载仍是这份 RC 的可用路径。点击后浏览器可能先把页面导航替换为后台
-下载；即使页面看起来没有变化，也先打开浏览器下载列表，确认是否出现 `.crdownload`
-或正在下载的任务，不要重复点击多个下载。
+{{download.installer_size_label}}。网络稳定时可以直接点击 EXE；浏览器可能先把页面导航
+替换为后台下载，即使页面看起来没有变化，也先打开浏览器下载列表，确认是否出现
+`.crdownload` 或正在下载的任务，不要重复点击多个下载。
 
-从下一份包含 `{{download.download_helper_asset}}` 的 Windows RC 开始，弱网用户优先把
-这个名为 `download-windows-preview.ps1` 的小脚本和 `{{download.checksum_asset}}` 下载到
-`OPL-RC`，先按下一节校验脚本自身，再在普通 PowerShell 运行：
+弱网或经常断线时，优先只下载较小的 `{{download.download_helper_asset}}` 和
+`{{download.checksum_asset}}`。这个下载助手的文件名是
+`download-windows-preview.ps1`；先在普通 PowerShell 验证助手本身：
 
 ```powershell
 cd "$HOME\Downloads\OPL-RC"
+Get-FileHash -Algorithm SHA256 ".\{{download.download_helper_asset}}"
+Select-String -Path ".\{{download.checksum_asset}}" `
+  -Pattern "{{download.download_helper_asset}}"
+```
+
+两处都应显示
+`{{download.download_helper_sha256}}`。完全一致后运行：
+
+```powershell
 powershell -ExecutionPolicy Bypass -File ".\{{download.download_helper_asset}}" `
   -ReleaseTag "{{download.release_tag}}" `
   -AssetName "{{download.installer_asset}}"
@@ -89,7 +97,7 @@ powershell -ExecutionPolicy Bypass -File ".\{{download.download_helper_asset}}" 
 助手使用 Windows BITS 持久任务，显示已下载字节、总字节、百分比和任务状态。网络短暂
 断开或关闭 PowerShell 后，再运行同一条命令会重新附着到同一个精确 Release、URL 和目标
 路径，不会从零开始；helper 已在构建时绑定该 RC 的 tag、EXE 文件名、size 和 SHA-256，
-不需要调用未认证 GitHub API。完成后先交叉核对内嵌摘要、`SHA256SUMS.txt` 和本地
+不需要调用未认证 GitHub API。完成后会交叉核对内嵌摘要、`SHA256SUMS.txt` 和本地
 SHA-256，完全一致才把临时文件原子改为最终 EXE 文件名。
 
 浏览器直接下载会一直保留作为备用入口。项目不会自动切换到聊天群、网盘或任意第三方
@@ -109,12 +117,12 @@ Get-Content ".\{{download.checksum_asset}}"
 
 比较 `Get-FileHash` 输出和 `SHA256SUMS.txt` 中同名 EXE 的 64 位十六进制值：
 
-- 当前 rc.1 EXE 的精确 SHA-256：`{{download.installer_sha256}}`。
+- 当前 RC4 EXE 的精确 SHA-256：`{{download.installer_sha256}}`。
 - 完全一致：继续安装。
 - 任意一位不同：删除 EXE，重新从同一个 RC Release 下载。
 - 文件名不同：不要猜测或改名，回到 Release 重新选择。
 
-如果 Release 包含下载助手，在运行脚本前也检查同一 `SHA256SUMS.txt` 中
+如果使用下载助手，也可以在下载完成后再次检查同一 `SHA256SUMS.txt` 中
 `{{download.download_helper_asset}}` 的条目：
 
 ```powershell
@@ -265,6 +273,11 @@ docker.exe context show
 首次登录仍只在浏览器界面输入 Gateway 账户。桌面 App 和 Docker WebUI 是两个
 载体；不要假设它们自动共享所有本机数据目录。
 
+如果 Docker Desktop 报错包含 `dockerInference`、`AF_UNIX` 或 “The file cannot be
+accessed by the system”，请使用上面的独立 Docker WebUI 教程。这个宿主 Docker 故障
+与 Windows Desktop App 的内置运行时无关，不要为修复桌面 App 执行 Docker Factory
+Reset。
+
 从本 RC 起，Windows Docker helper 在安装 Docker Desktop 后会重新读取持久化
 Machine/User PATH，并优先使用绝对 `docker.exe`。这修复了同一 PowerShell 进程
 PATH 仍旧、`PATHEXT` 缺少 `.EXE` 时错误报告“docker CLI was not found”的问题。
@@ -348,11 +361,32 @@ WebUI volume。
 等待 20 秒并查看任务管理器。如果进程立即退出，记录日志路径和退出时间。不要
 连续启动多个实例。
 
+```{=latex}
+\newpage
+```
+
 ### 提示找不到 AionCore 或 Codex
 
-确认安装包 SHA-256 正确，并重新运行同一个 RC 安装器执行覆盖修复。正式打包
-路径会物化 `linux-x64` AionCore、managed Codex ACP 和 `OPL-Linux` bootstrap；
-安装包中不应出现 `win32-x64` executor。开发目录缺少这些字节不等于安装包也缺失。
+RC4 每次启动都会检查 `OPL-Linux` 的 managed Node、运行入口和 Framework 身份。
+如果只是上一次激活未完成或入口来自旧版本，App 会自动重新 bootstrap，然后再次
+验证，不需要用户删除或注销 `OPL-Linux`。
+
+如果界面显示“当前安装缺少必要的内置运行组件”或“托管 Node 运行环境无法启动”：
+
+1. 先点击“重启并重新检测”，只执行一次完整检查。
+2. 如果仍失败，记录界面列出的缺失组件，点击“打开日志目录”和“复制诊断”；复制的
+   诊断不应包含项目内容、凭据或任意用户文件。
+3. 检查 Windows 安全中心或杀毒软件的隔离记录。只有确认条目来自已经校验 SHA-256
+   的本 RC 安装目录时才恢复；不要关闭 Defender、添加整个磁盘排除项或修改全局
+   SmartScreen 策略。
+4. 如果安装目录中的内置文件已经被删除，正常退出 App，重新校验同一
+   `{{download.release_tag}}` EXE，然后运行该安装器执行覆盖修复。不要删除用户数据、
+   Docker volume 或注销 WSL 发行版。
+5. 覆盖修复后再次打开 App；仍失败时使用界面的支持入口提交最小日志和复制诊断。
+
+正式打包路径会物化 `linux-x64` AionCore、managed Node、managed Codex ACP 和
+`OPL-Linux` bootstrap；安装包中不应出现 `win32-x64` executor。开发目录缺少这些
+字节不等于安装包也缺失。
 
 ### Docker 已安装但 PowerShell 找不到 docker
 

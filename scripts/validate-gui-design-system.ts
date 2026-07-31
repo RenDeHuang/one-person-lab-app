@@ -1028,7 +1028,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     cohortEvidenceBoundary.product_wide_one_to_one !== false ||
     cohortEvidenceBoundary.required_final_evidence_owner !== '019fa0ef-9514-7293-ba5b-15cb8a509522' ||
     cohortEvidenceBoundary.final_evidence_owner_role !==
-      'same_cohort_installed_evidence_only_no_source_ownership'
+      'artifact_bound_compatible_installed_evidence_only_no_source_ownership'
   ) {
     issues.add('visual reference cohort must keep source, pixel, installed, release, and final-evidence ownership separate');
   }

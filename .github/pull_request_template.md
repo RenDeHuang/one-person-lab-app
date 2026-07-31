@@ -1,10 +1,13 @@
 ## Pull request preflight
 
-- [ ] Local preflight has been run against a fresh `origin/main`.
-- [ ] `PR / merge gate` is green for the current head.
+- [ ] The change is based on a fresh `origin/main`.
+- [ ] Relevant local checks and their results are recorded below.
 - [ ] This PR does not dispatch a release, mutate publication state, or require a self-hosted runner or VM.
 
-Codex review is advisory. Request `@codex review` when useful, resolve or explicitly
-disposition every review thread (including outdated feedback), and record any remaining
-risk here. A pending Codex review is not a merge blocker; the stable merge decision is
-the `PR / merge gate` plus maintainer judgment.
+Pull requests are evaluated from the diff and recorded local evidence. Hosted
+release, publication, and installed-byte qualification remain separate,
+explicit operations.
+
+## Validation performed
+
+<!-- List commands, relevant results, and any checks that were not run. -->
