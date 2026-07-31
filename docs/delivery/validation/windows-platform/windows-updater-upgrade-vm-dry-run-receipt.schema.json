@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://one-person-lab.dev/schemas/windows-updater-upgrade-vm-dry-run-receipt.schema.json",
+  "title": "OPL Windows updater upgrade VM preflight and dry-run receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "mode",
+    "observed_at",
+    "mutation_attempt_count",
+    "publication_mutation_allowed",
+    "install_mutation_allowed",
+    "release_blocking",
+    "fixture_mode",
+    "candidate",
+    "factory",
+    "ordered_upgrade_sequence",
+    "execute_available",
+    "execute_blockers",
+    "next_action"
+  ],
+  "properties": {
+    "schema": { "const": "opl_windows_updater_upgrade_vm_dry_run_receipt.v1" },
+    "status": { "enum": ["preflight_passed", "dry_run_passed"] },
+    "mode": { "enum": ["preflight", "dryrun"] },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "mutation_attempt_count": { "const": 0 },
+    "publication_mutation_allowed": { "const": false },
+    "install_mutation_allowed": { "const": false },
+    "release_blocking": { "const": false },
+    "fixture_mode": { "type": "boolean" },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "display_version",
+        "updater_version",
+        "installer_name",
+        "installer_size_bytes",
+        "installer_sha256",
+        "updater_assets_receipt_sha256",
+        "authenticode_receipt_sha256",
+        "compatibility_receipt_sha256",
+        "timestamp_verified"
+      ],
+      "properties": {
+        "display_version": { "type": "string", "minLength": 1 },
+        "updater_version": { "type": "string", "minLength": 1 },
+        "installer_name": { "type": "string", "pattern": "^One-Person-Lab-.+-win-x64\\.exe$" },
+        "installer_size_bytes": { "type": "integer", "minimum": 1 },
+        "installer_sha256": { "$ref": "#/$defs/sha256" },
+        "updater_assets_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "authenticode_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "compatibility_receipt_sha256": { "$ref": "#/$defs/sha256" },
+        "timestamp_verified": { "const": true }
+      }
+    },
+    "factory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "vm_name",
+        "execution_owner_thread",
+        "vm_uuid",
+        "checkpoint_id",
+        "checkpoint_name",
+        "lease_sha256",
+        "clean_attestation_sha256",
+        "live_readback"
+      ],
+      "properties": {
+        "root": { "const": "C:\\OPL-VMs" },
+        "vm_name": { "const": "OPL-V6-WSL2-01" },
+        "execution_owner_thread": { "$ref": "#/$defs/uuid" },
+        "vm_uuid": { "$ref": "#/$defs/uuid" },
+        "checkpoint_id": { "$ref": "#/$defs/uuid" },
+        "checkpoint_name": { "type": "string", "pattern": "^OPL-Clean-Windows-zh-CN-" },
+        "lease_sha256": { "$ref": "#/$defs/sha256" },
+        "clean_attestation_sha256": { "$ref": "#/$defs/sha256" },
+        "live_readback": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["state", "vm_id", "checkpoint_id", "checkpoint_name", "active_vhdx_path"],
+              "properties": {
+                "state": { "const": "Off" },
+                "vm_id": { "$ref": "#/$defs/uuid" },
+                "checkpoint_id": { "$ref": "#/$defs/uuid" },
+                "checkpoint_name": { "type": "string", "pattern": "^OPL-Clean-Windows-zh-CN-" },
+                "active_vhdx_path": { "type": "string", "pattern": "^C:\\\\OPL-VMs\\\\" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ordered_upgrade_sequence": {
+      "type": "array",
+      "prefixItems": [
+        { "const": "validate_exact_signed_candidate" },
+        { "const": "validate_framework_compatibility_receipt" },
+        { "const": "validate_active_factory_lease_and_clean_attestation" },
+        { "const": "restore_exact_clean_checkpoint" },
+        { "const": "install_exact_predecessor" },
+        { "const": "write_persistent_data_sentinel" },
+        { "const": "start_predecessor_with_exact_candidate_feed" },
+        { "const": "download_candidate_with_electron_updater" },
+        { "const": "fully_exit_and_apply_update" },
+        { "const": "restart_updated_app" },
+        { "const": "verify_version_runtime_and_data_preservation" },
+        { "const": "repeat_update_check_expect_no_update" },
+        { "const": "write_terminal_receipt" },
+        { "const": "graceful_shutdown_and_owner_readback" }
+      ],
+      "items": false,
+      "minItems": 14,
+      "maxItems": 14
+    },
+    "execute_available": { "const": false },
+    "execute_blockers": {
+      "const": [
+        "separate_protected_execute_authority",
+        "dpapi_protected_guest_credential_bound_to_runner_identity",
+        "fixed_windows_electron_updater_guest_driver",
+        "fresh_clean_checkpoint_restore_operation"
+      ]
+    },
+    "next_action": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+  }
+}
