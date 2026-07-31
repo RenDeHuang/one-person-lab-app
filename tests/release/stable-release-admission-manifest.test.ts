@@ -533,7 +533,7 @@ test('admission fails closed when a release writer is already active', () => {
   });
   assert.throws(
     () => buildStableReleaseAdmissionManifest(input(), active),
-    /zero other active release runs/,
+    /zero other active Stable authority runs/,
   );
 });
 
@@ -607,23 +607,29 @@ test('GitHub lookup failures and non-JSON responses fail closed', () => {
   );
 });
 
-test('active release lookup is bounded by exact status pages and excludes the current run', () => {
+test('active release lookup is bounded and retains only other Stable authority runs', () => {
   const emptyPage = { total_count: 0, workflow_runs: [] };
   const lookups = [
     { status: 'requested' as const, payload: emptyPage },
     {
       status: 'queued' as const,
       payload: {
-        total_count: 2,
+        total_count: 3,
         workflow_runs: [
           {
             id: 30150000002,
-            path: '.github/workflows/release-preview.yml@refs/heads/main',
+            path: '.github/workflows/release-nightly.yml@refs/heads/main',
             status: 'queued',
             head_sha: appRef,
           },
           {
             id: Number(admissionRunId),
+            path: '.github/workflows/release-stable.yml@refs/heads/main',
+            status: 'queued',
+            head_sha: appRef,
+          },
+          {
+            id: 30150000003,
             path: '.github/workflows/release-stable.yml@refs/heads/main',
             status: 'queued',
             head_sha: appRef,
@@ -636,8 +642,8 @@ test('active release lookup is bounded by exact status pages and excludes the cu
     { status: 'pending' as const, payload: emptyPage },
   ];
   assert.deepEqual(parseActiveReleaseRunLookups(lookups, admissionRunId), [{
-    id: 30150000002,
-    path: '.github/workflows/release-preview.yml',
+    id: 30150000003,
+    path: '.github/workflows/release-stable.yml',
     status: 'queued',
     head_sha: appRef,
   }]);

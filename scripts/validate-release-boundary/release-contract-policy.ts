@@ -856,7 +856,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'stable_admission_manifest_digest',
     'apple_credentials_runtime_receipt',
     'cross_namespace_version_allocator',
-    'zero_other_active_release_runs',
+    'zero_other_active_stable_authority_runs',
     'current_app_profile_exact_shell_consumer',
   ]) {
     if (!preflight?.required_fast_checks?.includes(checkId)) {
@@ -887,6 +887,10 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || standardAdmission?.fresh_verify_before_expensive_work !== true
     || standardAdmission?.full_source_gate_rerun_in_workflow !== false
     || standardAdmission?.unknown_dispatch_result_policy !== 'read_only_reconcile_without_rerun_redispatch_or_cancel'
+    || standardAdmission?.active_run_scope?.blocking_workflow !== '.github/workflows/release-stable.yml'
+    || standardAdmission?.active_run_scope?.independent_release_workflows_block_stable_admission !== false
+    || standardAdmission?.active_run_scope?.nightly_active_run_blocks_stable_admission !== false
+    || standardAdmission?.active_run_scope?.same_stable_authority_parallel_run_allowed !== false
   ) {
     console.error('FAIL release_preflight_contract: Standard dispatch must consume one protected digest-bound admission manifest');
     failures += 1;
@@ -905,7 +909,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     'github_release_and_tag_namespace',
     'anonymous_webui_namespace',
     'homebrew_standard_cask_and_policy',
-    'zero_other_active_release_runs',
+    'zero_other_active_stable_authority_runs',
     'git_wire_main_refs_and_single_owner_run_query',
   ]) {
     if (!standardAdmission?.required_bindings?.includes(binding)) {
@@ -926,7 +930,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
         'release:source-gate_pre_dispatch_once',
         'current_app_profile_exact_shell_consumer_pre_dispatch_once',
         'frozen_app_shell_framework_commit_reachability_and_critical_blob_binding',
-        'single_operation_owner_workflow_runs_query',
+        'single_operation_owner_workflow_runs_query_and_zero_other_active_stable_authority_runs',
       ],
     )
     || dispatchGuard?.cross_repository_ref_identity?.transport !== 'git_ls_remote_wire'
