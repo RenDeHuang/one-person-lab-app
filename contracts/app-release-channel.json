@@ -1265,7 +1265,7 @@
         "append_full": {
           "source": "portable_framework_checkpoint_at_or_after_standard_built",
           "control": "new_independent_append_full_control",
-          "deadline_minutes": 50,
+          "deadline_minutes": 120,
           "standard_built_required": true,
           "standard_rebuild_allowed": false,
           "standard_operation_id_reuse_allowed": false,

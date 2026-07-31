@@ -12,7 +12,7 @@ export type ReleaseOperation =
 const operationBudgetMinutes: Record<ReleaseOperation, number> = {
   standard: 90,
   resume_standard: 30,
-  append_full: 50,
+  append_full: 120,
   move_latest_pointer: 30,
 };
 

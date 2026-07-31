@@ -26,7 +26,7 @@ test('release operations have bounded independent clocks', () => {
   );
   assert.equal(
     releaseOperationDeadline({ operation: 'append_full', startedAt }),
-    '2026-07-21T00:50:00.000Z',
+    '2026-07-21T02:00:00.000Z',
   );
   assert.equal(
     releaseOperationDeadline({ operation: 'move_latest_pointer', startedAt }),
@@ -117,7 +117,7 @@ test('append_full receives a new operation clock after the Standard clock has ex
 
   const appendStartedAt = '2026-07-21T02:00:00.000Z';
   const appendDeadline = releaseOperationDeadline({ operation: 'append_full', startedAt: appendStartedAt });
-  assert.equal(appendDeadline, '2026-07-21T02:50:00.000Z');
+  assert.equal(appendDeadline, '2026-07-21T04:00:00.000Z');
   assert.doesNotThrow(() => assertReleaseOperationDeadline({
     operation: 'append_full',
     startedAt: appendStartedAt,
@@ -129,5 +129,5 @@ test('append_full receives a new operation clock after the Standard clock has ex
     startedAt: appendStartedAt,
     deadlineAt: expiredStandardDeadline,
     now: '2026-07-21T02:00:00.001Z',
-  }), /exactly 50 minutes/);
+  }), /exactly 120 minutes/);
 });
