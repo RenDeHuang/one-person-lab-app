@@ -92,6 +92,20 @@ export function compareUpdaterMachineVersions(left: string, right: string): numb
   return comparePrereleaseIdentifiers(leftMatch[4] ?? '', rightMatch[4] ?? '');
 }
 
+export function assertStableUpdaterVersionSupersedesPublishedNightly(
+  stableUpdaterVersion: string,
+  publishedNightlyUpdaterVersions: Iterable<string>,
+): void {
+  for (const nightlyUpdaterVersion of publishedNightlyUpdaterVersions) {
+    if (compareUpdaterMachineVersions(stableUpdaterVersion, nightlyUpdaterVersion) <= 0) {
+      throw new Error(
+        `Stable updaterVersion ${stableUpdaterVersion} must be strictly greater than `
+        + `the published Nightly updaterVersion ${nightlyUpdaterVersion} when superseding it.`,
+      );
+    }
+  }
+}
+
 export function selectAppUpdaterCandidate(
   audience: AppUpdaterAudience,
   installedUpdaterVersion: string,
@@ -535,6 +549,7 @@ export function resolveNightlyReleaseVersion(
 export function resolveStableReleaseVersion(
   baseVersion: string,
   existingRefs: Iterable<string>,
+  publishedNightlyUpdaterVersions: Iterable<string> = [],
 ): StableVersionResolution {
   assertReleaseVersionNotFuture('stable', baseVersion);
   if (stableReleaseRevision(baseVersion) !== 0) {
@@ -550,6 +565,7 @@ export function resolveStableReleaseVersion(
     sharedPreviewLaneCutoverDisplayVersion,
   ) >= 0;
   const observed = new Set<string>();
+  const observedNightlyDisplayVersions = new Set<string>();
   let highestStableRevision = -1;
   let highestPrereleaseRevision = -1;
   for (const rawRef of existingRefs) {
@@ -565,6 +581,7 @@ export function resolveStableReleaseVersion(
         match[1] ? Number(match[1]) : 0,
       );
     } else {
+      if (nightlyMatch) observedNightlyDisplayVersions.add(version);
       highestPrereleaseRevision = Math.max(
         highestPrereleaseRevision,
         previewMatch ? Number(previewMatch[1]) : nightlyMatch?.[1] ? Number(nightlyMatch[1]) : 0,
@@ -584,11 +601,19 @@ export function resolveStableReleaseVersion(
     );
   }
   const version = revision === 0 ? baseVersion : `${baseVersion}-r${revision}`;
+  const identity = resolveReleaseVersionIdentity('stable', version);
+  const nightlyBaseline = [
+    ...publishedNightlyUpdaterVersions,
+    ...[...observedNightlyDisplayVersions].map(
+      (nightlyVersion) => resolveReleaseVersionIdentity('nightly', nightlyVersion).updaterVersion,
+    ),
+  ];
+  assertStableUpdaterVersionSupersedesPublishedNightly(identity.updaterVersion, nightlyBaseline);
   return {
     baseVersion,
     version,
     revision,
-    updaterVersion: resolveReleaseVersionIdentity('stable', version).updaterVersion,
+    updaterVersion: identity.updaterVersion,
     observedSameDayVersions: [...observed].sort(),
   };
 }

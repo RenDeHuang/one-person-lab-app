@@ -13,9 +13,8 @@ Machine owners:
 
 跨目标并发、objective owner和开发清洁规则统一消费
 [`../active/parallel-delivery-and-clean-development-ssot.md`](../active/parallel-delivery-and-clean-development-ssot.md)
-及其机器快照
-[`../active/active-objective-ledger.json`](../active/active-objective-ledger.json)，本文不复制
-易漂移的 thread heartbeat、run id或worktree清单。
+以及每次操作 fresh lifecycle/thread readback；本文不复制易漂移的 thread heartbeat、
+run id或worktree清单。
 
 ## 执行协调与开发清洁
 
@@ -110,7 +109,7 @@ Machine owners:
 
 | 载体 | 用户何时选择 |
 | --- | --- |
-| `opl-install.sh` | Unix-like shell 的默认统一入口；同一份按 Release 冻结的脚本按平台和显式模式路由，并固定 App/Shell/Framework cohort、Release tag 与版本化 Container tag |
+| `opl-install.sh` | Unix-like shell 的默认统一入口；同一份按 Release 冻结的脚本按平台和显式模式路由，并绑定所选 App carrier 自身 identity、兼容性 receipt、Release tag 与版本化 Container tag；源码 refs 仅作 build provenance |
 | Homebrew | 已使用 Homebrew，希望由包管理器安装和更新 |
 | 直接 Release 资产 | 离线、固定版本或人工安装 |
 | Docker/Compose | 隔离、服务器、NAS 或跨平台浏览器部署 |
@@ -170,7 +169,7 @@ Framework Base/CLI，是 Framework 边界，不是第五个 App 产品单元。
 | --- | --- | --- |
 | 新合格 Stable | 该载体推进自己的 `latest`；Container WebUI 同时推进 `stable` 兼容 alias | 可以不改 `latest`，或随后按 exact CAS 指到另一个已验证版本 |
 | 手工 Dev/Nightly Preview | 只发布 immutable version，不自动改 `latest` 或 `stable` | 单独 dispatch 一次 protected pointer operation，把该载体 `latest` 指向该 exact Preview |
-| Docker/WebUI 紧急修复 | 不等待 Desktop Stable 或 Desktop Latest | 用 exact App/Shell/Framework refs 发布 immutable Preview，再显式只改 Docker `latest`；Docker `stable`、Desktop Latest 均保持不变 |
+| Docker/WebUI 紧急修复 | 不等待 Desktop Stable 或 Desktop Latest | 用所选 App artifact 自身 identity 及 capability/minimum/SemVer-range receipt 发布 immutable Preview，再显式只改 Docker `latest`；Docker `stable`、Desktop Latest 均保持不变 |
 
 “自由”指选择目标版本的业务权限，不是放弃身份校验：目标必须是已经公开、不可变、
 已验证并且可由 carrier receipt/source authority 反向绑定的版本。选择资格只在该
@@ -184,8 +183,8 @@ Framework Base/CLI，是 Framework 边界，不是第五个 App 产品单元。
 | 发布路径 | 当前状态 | 产物或指针 | 维护规则 |
 | --- | --- | --- | --- |
 | Desktop Standard | 产品单元已定义；远端 currentness 由 fresh readback 决定 | Desktop Standard assets、updater metadata、prepared notes、carrier-local Latest | qualified Stable 默认接管该 carrier 的 Latest；不证明其他三格 |
-| Desktop Full | 产品单元已定义；远端 currentness 由 fresh readback 决定 | 与 Desktop Standard 同 cohort 的 Full assets/manifest | 只增加离线 seed，不改 Standard updater |
-| WebUI Standard | 产品单元已定义；远端 currentness 由 fresh readback 决定 | host-native 或 Container Standard carrier、carrier-local pointer | carrier 必须绑定 exact cohort/digest；不证明 WebUI Full |
+| Desktop Full | 产品单元已定义；远端 currentness 由 fresh readback 决定 | 独立 Full assets/manifest、自己的 Release identity 与 compatibility receipt | 只增加离线 seed，不改 Standard updater；不要求 Standard cohort |
+| WebUI Standard | 产品单元已定义；远端 currentness 由 fresh readback 决定 | host-native 或 Container Standard carrier、carrier-local pointer | carrier 必须绑定自身 exact identity/digest 与兼容性 receipt；不证明 WebUI Full |
 | WebUI Full | 产品单元已定义；远端 currentness 由 fresh readback 决定 | 同一 WebUI 表面的 Full payload/manifest | 只增加离线 seed；不得变成第二产品或暗改质量 |
 | Standard Homebrew Cask | Active managed | `one-person-lab` 指向 Standard DMG | Formula `opl` 承载 Base；Cask 承载 App |
 | Container WebUI GHCR | Active separate carrier | immutable OCI version、`:latest`，`:stable` 为兼容 alias | Production follower 默认把合格 Stable 同时推进 `stable`/`latest`；手工 independent Preview 可独立发布，只有用户显式 promotion 才从 durable publication record 选择并改 Docker `latest`，且不得改 `stable` 或 Desktop 指针 |
@@ -223,7 +222,8 @@ Latest admission 和 exact `opl-app-component-manifest.json` 后启动，并同�
 
 - `One-Person-Lab-<version>-linux-x64.deb` 的公开 SHA256；
 - 公开 `opl-app-installer.sh` 的 SHA256；
-- component manifest digest、Release tag 与 App/Shell/Framework cohort。
+- component manifest digest、Release tag 与所选 carrier 自身 identity；组件 refs 只能作为
+  observational build provenance。
 
 执行路径必须是下载并校验该公开 installer 后运行
 `--desktop --release-tag <exact-tag> --no-open`，不得从 checkout 重建 `.deb` 或 installer。
@@ -238,37 +238,38 @@ GitHub-hosted admission 使用
 失败路径也必须先上传 receipt、installer 输出与安装
 readback evidence，再让这个独立 follower job 失败。该 follower 永不进入 Stable/Latest
 DAG，不能撤销、阻塞或改写已完成的 publication。源码实现不等于首次 public/install
-终态；仍须由未来 exact Stable cohort 的公开资产和安装 receipt fresh readback 晋升。
+终态；仍须由未来 exact Stable carrier 的公开资产和安装 receipt fresh readback 晋升。
 
-Full macOS DMG 是同一 Stable cohort 的受保护自动 post-success additive follower：
-它必须绑定相同 App/Shell/Framework refs、version 与 Standard identity，并用独立
-`append_full` operation 生成 durable receipt。因为基础 Stable GitHub Release 在终态是
-immutable，Full DMG 及其 manifest 发布到由基础 tag 与 Bundle digest 派生的独立 immutable
-adjunct Release，而不是回写基础 tag。optional 平台同样使用内容寻址的独立 immutable adjunct
-Release。两类 receipt 都必须给出基础 tag、adjunct tag、Release/下载 URL、三仓 cohort、
-Bundle/manifest/资产 digest；用户从该 adjunct Release 下载附加 DMG 或平台安装包。
-版本冻结的 `opl-install.sh --full` 先从基础 Release 的 component manifest 读取并校验
-App/Shell/Framework cohort，再通过有界分页查找唯一
-`<base-tag>-full-<bundle-digest-prefix>` Release。该 adjunct 必须非 draft、非 prerelease、
-immutable，且 `target_commitish` 等于基础 cohort 的 App SHA；随后 exact-tag 回读并校验
-Full manifest、DMG 名称、URL 和 digest。显式 Full 对缺失、歧义或身份不符全部失败关闭；
-未显式选择密度时，只有完整列表明确不存在 matching adjunct 才可回退基础 Standard DMG。
+Full macOS DMG 是独立 Full carrier 的受保护自动 post-success additive follower：
+它绑定 Full DMG、Full manifest 和 Release 自身的 immutable tag、URL、name、size、digest、
+签名/公证与 owner authority，并用独立 `append_full` operation 生成 durable receipt。Full
+Release 可以记录所承载的 App carrier version，但不得要求 Standard bundle、App/Shell/
+Framework cohort 或跨组件 Bundle digest 相等。Full DMG 及其 manifest 发布到独立 immutable
+adjunct Release，而不是回写任何既有 Standard tag。
+版本冻结的 `opl-install.sh --full` 通过有界分页查找唯一
+`<full-app-carrier-version>-full-<full-manifest-sha256-prefix>` Release，随后 exact-tag
+回读并校验 Full 自身 manifest、DMG 名称、URL、size、digest 和 Framework-owner
+capability/minimum/SemVer-range compatibility receipt。显式 Full 对缺失、歧义或身份不符
+全部失败关闭；未显式选择密度时，只有完整列表明确不存在 self-verified compatible Full
+Release 才可回退 Standard DMG。
 任一 follower 的失败或延迟不得撤销、阻塞或改写基础 Stable publication、Latest activation
-或 Standard 同制品安装终态；恢复必须使用绑定同 cohort 的 distinct operation。
+或 Standard 安装终态；恢复必须使用新的、self-verified Full operation。
 
 ### Container WebUI 紧急路径
 
 Docker 紧急修复使用两次明确且可独立验收的操作：
 
 ```text
-exact App/Shell/Framework refs
-  -> source authority
+selected App carrier artifact identity
+  -> App-owned capability/minimum/SemVer-range requirements
+  -> Framework-owner compatibility receipt
   -> immutable <YY.M.D-preview.rN> OCI publication and qualification
   -> explicit user-confirmed Latest-only promotion
   -> public Stable-unchanged + Latest-exact-digest readback
 ```
 
-第一步由 `release-webui-development.yml` 执行，输入是版本和三条 exact SHA；它只
+第一步由 `release-webui-development.yml` 执行，输入是版本和所选 App artifact identity；
+它只
 发布不可变 version tag，不能写 `:latest` 或 `:stable`。第二步由
 `release-webui-development-promote.yml` 执行，输入是同一 immutable carrier 的
 receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` prestate 做
@@ -287,7 +288,7 @@ receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` 
 | WebUI Standard | Browser workbench + 在线收敛 | 产品单元支持；具体安装可用性需 fresh readback | 平台选择 Native 或 Container internal carrier |
 | WebUI Full | Browser workbench + offline seeds | 产品单元支持；具体安装可用性需 fresh readback | 同一 WebUI 表面，额外离线 seed |
 | Standard Homebrew Cask | Formula `opl` Base + Standard DMG App | carrier contract 已定义；exact Tap/install currentness 需 fresh readback | macOS 终端用户入口 |
-| Release `opl-install.sh` | 选择 Desktop/WebUI 和 Standard/Full 两个独立轴；macOS Standard 消费基础 Release，Full 发现唯一 immutable same-cohort adjunct 后消费其 exact manifest/DMG；Linux 仅支持 Standard，显式 Full 在任何 Release 资产查询前失败关闭；headless 仍是独立 Framework 边界 | 入口模型已定义；exact Release 可用性需 readback | 固定 App/Shell/Framework SHA、基础 Release tag、adjunct tag 和资产 digest |
+| Release `opl-install.sh` | 选择 Desktop/WebUI 和 Standard/Full 两个独立轴；macOS Standard 消费自身 Release，Full 发现唯一 immutable Full adjunct 后消费其 exact manifest/DMG 与 compatibility receipt；Linux 仅支持 Standard，显式 Full 在任何 Release 资产查询前失败关闭；headless 仍是独立 Framework 边界 | 入口模型已定义；exact Release 可用性需 readback | 固定所选 carrier 的 Release tag、资产 identity/digest 和兼容性 receipt；组件 refs 仅作 provenance |
 | Source `install.sh` | 与公共入口共享路由逻辑；显式 `--standard`/`--full` 使用相同平台密度约束，无显式密度时保留 Framework `--with-app` compatibility | Developer compatibility | 仅供 reviewed checkout；不得从可变 `main` 直接管道执行 |
 | Stable macOS helper/wrapper | 下载 DMG、复制、显式清 quarantine、打开 App | Compatibility | 保留兼容，不再作为新用户首选 |
 | Docker/WebUI 一键安装 | WebUI 的 Container internal carrier + 挂载的数据/项目目录 | carrier 路径；具体公开/安装状态需 fresh readback | 适合 server/isolation，不是第三产品表面 |
@@ -298,10 +299,10 @@ receipt/run identity；它只能写 `:latest`，并以预先冻结的 `:stable` 
 | Native WebUI | WebUI 的 host-native internal carrier | carrier 路径；具体公开/安装状态需 fresh readback | 不作为独立产品表面或独立密度 |
 | Framework headless installer | Base-only，无 App runtime form | Framework source boundary | 不是 OPL App 产品单元；exact 可安装性仍需 owner readback |
 
-Full follower 只消费 `append_full` handoff 中的 `release.base_tag` 与
-`release.adjunct_tag`：前者绑定同 cohort Standard identity，后者绑定实际 Full
-Release、下载 URL、Homebrew Cask 与 same-artifact certification。GitHub Actions
-executor 固定运行在 canonical `main`，因此不得再把 workflow run `head_branch`
+Full follower 只消费 `append_full` handoff 中的 `release.adjunct_tag` 与 Full 自身
+identity：它绑定实际 Full Release、下载 URL、Homebrew Cask 与 same-artifact certification。
+若记录 `release.base_tag`，它只是可选的关联 provenance，不是 Full 安装或发布的拒绝条件。
+GitHub Actions executor 固定运行在 canonical `main`，因此不得再把 workflow run `head_branch`
 误当 Release tag，也不得回退读取已退役的 `release.tag`。
 
 ## 平台默认目标

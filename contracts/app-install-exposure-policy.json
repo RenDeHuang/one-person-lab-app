@@ -338,7 +338,22 @@
       "subject_schema": "opl_app_compatibility_subject.v1",
       "receipt_transport": "cli_envelope_with_independent_json_file_and_sha256_sidecar",
       "consumer_preflight_receipt_schema": "opl_app_installed_gui_artifact_preflight_receipt.v2",
-      "current_framework_producer_status": "owner_lane_active_not_canonical_fail_closed",
+      "current_framework_producer_status": "canonical_owner_cli_and_receipt_producer",
+      "producer_contract_ref": "contracts/opl-framework/app-component-compatibility-receipt-contract.json",
+      "producer_receipt_output": {
+        "transport": "independent_json_file_with_sha256_sidecar",
+        "cli_envelope_fields": [
+          "receipt_file",
+          "receipt_sha256",
+          "sha256_file",
+          "producer_identity",
+          "status",
+          "issued_at",
+          "expires_at"
+        ],
+        "receipt_ref": "absolute_file_url_bound_to_cli_selected_output",
+        "existing_output_policy": "reject_without_overwrite"
+      },
       "inline_compatible_claim_allowed": false,
       "app_may_generate_compatible_receipt": false,
       "requirements_must_be_nonempty": true,

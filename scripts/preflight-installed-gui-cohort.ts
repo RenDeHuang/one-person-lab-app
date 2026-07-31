@@ -139,6 +139,10 @@ function loadCompatibilityProfile(
       admission.subject_schema !== "opl_app_compatibility_subject.v1" ||
       admission.receipt_transport !==
         "cli_envelope_with_independent_json_file_and_sha256_sidecar" ||
+      admission.current_framework_producer_status !==
+        "canonical_owner_cli_and_receipt_producer" ||
+      admission.producer_contract_ref !==
+        "contracts/opl-framework/app-component-compatibility-receipt-contract.json" ||
       admission.inline_compatible_claim_allowed !== false ||
       admission.app_may_generate_compatible_receipt !== false
     ) {

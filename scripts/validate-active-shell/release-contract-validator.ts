@@ -475,6 +475,13 @@ function validateStandardUpdater(updater) {
       candidate_equal_to_installed: 'no_op',
       candidate_higher_than_installed: 'update',
       invalid_or_missing_updater_version: 'reject',
+      superseding_stable_must_exceed_published_nightly: true,
+      published_nightly_baseline_sources: [
+        'durable_publication_record',
+        'candidate_metadata',
+      ],
+      superseding_comparison: 'strictly_greater_updater_version_semver',
+      lower_or_equal_superseding_stable: 'reject',
     },
     'Updater monotonicity policy',
   );

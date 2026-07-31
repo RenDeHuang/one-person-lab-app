@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.ts';
 import {
   forbiddenAuthorityOwners,
@@ -25,6 +27,8 @@ assertFirstRunProgressModelShape(expectedFirstRunProgressModel, 'Product profile
 
 export const componentInteroperabilityRef =
   'contracts/app-install-exposure-policy.json#component_interoperability';
+const frameworkCompatibilityProducerContractRef =
+  'contracts/opl-framework/app-component-compatibility-receipt-contract.json';
 const compatibilityRequirementKinds = [
   'capability_id_with_versioned_schema',
   'minimum_version',
@@ -158,7 +162,9 @@ export function validateComponentCompatibilityReceipt(receipt, context = {}) {
   if (record.owner !== 'one-person-lab' || record.producer_role !== 'opl_framework') {
     throw new Error('Framework compatibility receipt must bind owner one-person-lab and producer role opl_framework');
   }
-  nonEmptyString(record.producer_contract_ref, 'Framework compatibility receipt producer_contract_ref');
+  if (record.producer_contract_ref !== frameworkCompatibilityProducerContractRef) {
+    throw new Error('Framework compatibility receipt must bind the canonical Framework producer contract');
+  }
   const producerIdentity = objectRecord(
     record.producer_identity,
     'Framework compatibility receipt producer_identity',
@@ -188,14 +194,23 @@ export function validateComponentCompatibilityReceipt(receipt, context = {}) {
   if (normalizedProducerIdentity.command_surface !== 'opl app compatibility receipt') {
     throw new Error('Framework compatibility receipt producer command surface is invalid');
   }
+  if (context.expected_producer_identity === undefined) {
+    throw new Error('Framework compatibility receipt requires an executed producer identity binding');
+  }
   if (
-    context.expected_producer_identity !== undefined &&
     JSON.stringify(normalizedProducerIdentity) !==
-      JSON.stringify(context.expected_producer_identity)
+    JSON.stringify(context.expected_producer_identity)
   ) {
     throw new Error('Framework compatibility receipt producer identity does not match the executed Framework');
   }
   const receiptRef = nonEmptyString(record.receipt_ref, 'Framework compatibility receipt_ref');
+  if (context.expected_receipt_path === undefined) {
+    throw new Error('Framework compatibility receipt requires an executed output path binding');
+  }
+  const expectedReceiptRef = pathToFileURL(path.resolve(context.expected_receipt_path)).href;
+  if (receiptRef !== expectedReceiptRef) {
+    throw new Error('Framework compatibility receipt_ref does not bind the CLI-selected output path');
+  }
   if (!['compatible', 'incompatible'].includes(record.status)) {
     throw new Error('Component compatibility receipt status must be compatible or incompatible');
   }
@@ -225,12 +240,6 @@ export function validateComponentCompatibilityReceipt(receipt, context = {}) {
     freshness.max_age_seconds !== Math.round((expiresAt - issuedAt) / 1_000)
   ) {
     throw new Error('Framework compatibility receipt freshness metadata is inconsistent');
-  }
-  if (context.expected_receipt_path !== undefined) {
-    const expectedReceiptRef = `file://${context.expected_receipt_path}`;
-    if (receiptRef !== expectedReceiptRef) {
-      throw new Error('Framework compatibility receipt_ref does not bind the CLI-selected output path');
-    }
   }
   const sources = objectRecord(record.sources, 'Framework compatibility receipt sources');
   const requirementSource = objectRecord(sources.requirements, 'Framework compatibility requirements source');
@@ -418,6 +427,21 @@ export function validateComponentCompatibilityReceipt(receipt, context = {}) {
   ) {
     throw new Error('Incompatible component receipt must bind every unsatisfied requirement to one allowed failure');
   }
+  const authorityBoundary = objectRecord(
+    record.authority_boundary,
+    'Framework compatibility receipt authority_boundary',
+  );
+  if (
+    authorityBoundary.compatibility_only !== true ||
+    authorityBoundary.selected_artifact_binding_is_subject_evidence_only !== true ||
+    authorityBoundary.may_require_exact_cross_component_version_or_sha !== false ||
+    authorityBoundary.may_require_same_cohort !== false ||
+    authorityBoundary.may_define_package_currentness !== false ||
+    authorityBoundary.may_claim_release_ready !== false ||
+    authorityBoundary.may_claim_install_ready !== false
+  ) {
+    throw new Error('Framework compatibility receipt authority boundary permits a forbidden cross-component claim');
+  }
   if (
     context.expected_requirements !== undefined &&
     JSON.stringify(record.requirements) !== JSON.stringify(context.expected_requirements)
@@ -497,7 +521,9 @@ function validateComponentInteroperability(interoperability) {
     compatibility?.consumer_preflight_receipt_schema !==
       'opl_app_installed_gui_artifact_preflight_receipt.v2' ||
     compatibility?.current_framework_producer_status !==
-      'owner_lane_active_not_canonical_fail_closed' ||
+      'canonical_owner_cli_and_receipt_producer' ||
+    compatibility?.producer_contract_ref !==
+      'contracts/opl-framework/app-component-compatibility-receipt-contract.json' ||
     compatibility?.inline_compatible_claim_allowed !== false ||
     compatibility?.app_may_generate_compatible_receipt !== false ||
     compatibility?.requirements_must_be_nonempty !== true ||
@@ -509,6 +535,24 @@ function validateComponentInteroperability(interoperability) {
   ) {
     throw new Error('Component compatibility admission must bind App requirements to one fresh Framework-owned receipt');
   }
+  assertDeepEqualJson(
+    compatibility.producer_receipt_output,
+    {
+      transport: 'independent_json_file_with_sha256_sidecar',
+      cli_envelope_fields: [
+        'receipt_file',
+        'receipt_sha256',
+        'sha256_file',
+        'producer_identity',
+        'status',
+        'issued_at',
+        'expires_at',
+      ],
+      receipt_ref: 'absolute_file_url_bound_to_cli_selected_output',
+      existing_output_policy: 'reject_without_overwrite',
+    },
+    'Framework compatibility producer output binding',
+  );
   assertDeepEqualJson(
     compatibility.required_receipt_coverage,
     {

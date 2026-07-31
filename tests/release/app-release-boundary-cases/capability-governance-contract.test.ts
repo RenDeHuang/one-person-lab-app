@@ -153,8 +153,12 @@ function compatibilityReceiptFixture() {
     failures: [],
     authority_boundary: {
       compatibility_only: true,
+      selected_artifact_binding_is_subject_evidence_only: true,
       may_require_exact_cross_component_version_or_sha: false,
       may_require_same_cohort: false,
+      may_define_package_currentness: false,
+      may_claim_release_ready: false,
+      may_claim_install_ready: false,
     },
   } as any;
 }
@@ -303,6 +307,22 @@ test('Framework compatibility receipt validation rejects empty, unbound, expired
   assert.throws(
     () => validateComponentCompatibilityReceipt(forbiddenIdentityFailure, compatibilityContext),
     /failure code inconsistent|Cross-component identity/,
+  );
+
+  const missingExecutedProducerBinding = compatibilityReceiptFixture();
+  assert.throws(
+    () => validateComponentCompatibilityReceipt(missingExecutedProducerBinding, {
+      ...compatibilityContext,
+      expected_producer_identity: undefined,
+    }),
+    /executed producer identity binding/,
+  );
+
+  const forbiddenAuthorityBoundary = compatibilityReceiptFixture();
+  forbiddenAuthorityBoundary.authority_boundary.may_require_same_cohort = true;
+  assert.throws(
+    () => validateComponentCompatibilityReceipt(forbiddenAuthorityBoundary, compatibilityContext),
+    /authority boundary/,
   );
 });
 

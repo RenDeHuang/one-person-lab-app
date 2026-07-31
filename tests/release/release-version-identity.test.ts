@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   assertReleaseSemanticsAxes,
   assertReleaseVersionNotFuture,
+  assertStableUpdaterVersionSupersedesPublishedNightly,
   assertUpdaterVersionMatchesDisplay,
   compareUpdaterMachineVersions,
   derivePreviewKind,
@@ -147,6 +148,27 @@ test('shared post-cutover revisions let same-day Stable supersede Nightly by Sem
   assert.equal(stable.version, '26.7.31');
   assert.equal(stable.updaterVersion, '26.7.3190');
   assert.ok(compareUpdaterMachineVersions(nightly.updaterVersion, stable.updaterVersion) < 0);
+});
+
+test('a Stable selected to supersede a published Nightly must have a strictly higher updaterVersion', () => {
+  assert.doesNotThrow(() =>
+    assertStableUpdaterVersionSupersedesPublishedNightly(
+      '26.7.3190',
+      ['26.7.3190-nightly.0'],
+    ),
+  );
+  assert.throws(
+    () =>
+      assertStableUpdaterVersionSupersedesPublishedNightly(
+        '26.7.3100',
+        ['26.7.3190-nightly.0'],
+      ),
+    /strictly greater/,
+  );
+  assert.throws(
+    () => resolveStableReleaseVersion('26.7.30', [], ['26.7.3190-nightly.0']),
+    /strictly greater/,
+  );
 });
 
 test('all post-cutover App channels allocate from one published same-day revision lane', () => {
