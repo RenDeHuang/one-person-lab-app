@@ -18,7 +18,108 @@
       "source_ref": "manual_qualification_contract.runtime_dependencies.aioncore.resource_authority",
       "manifest_parser_owner": "gaofeng21cn/opl-aion-shell",
       "aioncore_required": true,
-      "framework_managed_payload_in_app_bundle_allowed": false
+      "framework_managed_payload_in_app_bundle_allowed": false,
+      "target_packaging_policy": {
+        "schema": "opl_aioncore_codex_only_packaging_policy.v1",
+        "implementation_status": "pending_shell_projection_and_packaged_smoke",
+        "aioncore_modification_policy": "consume_upstream_release_without_fork_or_patch",
+        "producer_export": {
+          "owner": "AionCore",
+          "role": "build_intermediate_only",
+          "schema_version": 2,
+          "required_cli_names": [
+            "claude",
+            "codex"
+          ],
+          "distributed_manifest_allowed": false
+        },
+        "packaged_projection": {
+          "owner": "gaofeng21cn/opl-aion-shell",
+          "schema": "opl_aioncore_managed_resources_projection.v1",
+          "authority_path": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json",
+          "included_cli_names": [
+            "codex"
+          ],
+          "excluded_cli_names": [
+            "claude"
+          ],
+          "version_and_digest_source": "aioncore_producer_export"
+        },
+        "distributed_bundle": {
+          "applies_to": [
+            "standard",
+            "full"
+          ],
+          "required_runtime_components": [
+            "aioncore",
+            "node_runtime",
+            "codex_cli"
+          ],
+          "required_metadata": [
+            "projection_manifest",
+            "producer_manifest_digest_provenance"
+          ],
+          "cli_names_exact": [
+            "codex"
+          ],
+          "required_absence_checks": [
+            {
+              "id": "managed_claude_subtree",
+              "scope": "distributed_bundle_root",
+              "matcher": "path_glob",
+              "patterns": [
+                "bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude",
+                "bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude/**"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "claude_executable_or_symlink",
+              "scope": "distributed_bundle_root",
+              "matcher": "executable_or_symlink_basename",
+              "patterns": [
+                "claude",
+                "claude.exe"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "anthropic_package_or_archive",
+              "scope": "distributed_bundle_root",
+              "matcher": "path_glob",
+              "patterns": [
+                "**/node_modules/@anthropic-ai/claude-code/**",
+                "**/claude-code*.tgz",
+                "**/claude-code*.tar.gz"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "claude_distribution_cache_entry",
+              "scope": "distributed_bundle_root",
+              "matcher": "path_glob",
+              "patterns": [
+                "**/.cache/**/claude*",
+                "**/cache/**/claude*"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "raw_producer_manifest",
+              "scope": "distributed_bundle_root",
+              "matcher": "root_manifest_schema_version_equals",
+              "patterns": [
+                "**/managed-resources/manifest.json"
+              ],
+              "values": [
+                "2"
+              ],
+              "expected_match_count": 0
+            }
+          ]
+        },
+        "independent_codex_downloader_or_version_authority_allowed": false
+      }
     },
     "framework_headless_carrier_policy": "preserved_outside_app_bundle"
   },

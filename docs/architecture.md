@@ -340,6 +340,20 @@ result, domain readiness, release readiness, or owner acceptance claim.
 
 The home executor boundary is intentionally narrower than upstream AionUI. The App currently fixes Codex CLI as its ordinary executor and shows shortcuts for installed Agent Packages; it is not a general multi-backend agent launcher and does not own a built-in assistant inventory. Active shells may retain upstream AionUI agent/backend settings for development or diagnostics, but the App home path and ordinary Codex conversation path must not surface Aion CLI, Claude Code, backend switching, provider lists, or permission-mode choices as normal user controls. The visible model selector is App-owned and bounded by the product profile.
 
+The packaged carrier follows the same narrow boundary. AionCore remains an
+unmodified upstream dependency: its complete Node + Claude + Codex export is
+accepted only as a temporary producer input. The active Shell must derive an
+OPL-owned `opl_aioncore_managed_resources_projection.v1` manifest, copy only
+Node and Codex into `bundled-aioncore`, and preserve the AionCore-provided
+Codex version and digest as the sole byte authority. Standard and Full share
+that same slim `bundled-aioncore`; their final trees must contain AionCore,
+Node, and Codex and physically omit Claude. Framework's headless carrier stays
+outside App bundles, and a future Native shell may replace the executable
+source without inheriting AionCore. The current Shell still packages the raw
+AionCore export, so this is a target policy until packaged smoke proves the
+projection. The exact transition, gates, work split, and estimate live in
+[`architecture/aioncore-codex-only-carrier.md`](architecture/aioncore-codex-only-carrier.md).
+
 That fixed-executor product policy does not bind the OPL Package ecosystem to
 Codex. Package identity, installed state, Home preference, business Work Item,
 required-capability presence, and typed views remain stable across executor
