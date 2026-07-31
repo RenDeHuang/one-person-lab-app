@@ -1943,7 +1943,14 @@ test('release helpers reject duplicate mounted Apps, promotion receipts, and pac
   assert.match(runtimeLayers, /multiple executable temporal binaries/);
   assert.match(runtimeWrappers, /multiple Python bin roots/);
   assert.match(codexCarrierValidator, /resolver_env !== 'OPL_CODEX_BIN'/);
-  assert.match(codexCarrierValidator, /version_source !== 'AionCore managed resource manifest'/);
+  assert.match(
+    codexCarrierValidator,
+    /version_source !== 'OPL Codex-only projection derived from AionCore producer manifest'/,
+  );
+  assert.match(
+    codexCarrierValidator,
+    /projection_schema !== 'opl_aioncore_managed_resources_projection\.v1'/,
+  );
   assert.match(
     codexCarrierValidator,
     /\['bin\/codex', 'bin\/rg', 'vendor\/codex', '\.runtime-cache\/codex-cli'\]/,

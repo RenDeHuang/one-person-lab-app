@@ -9,8 +9,15 @@ import {
 import { directorySizeBytes } from './filesystem.ts';
 
 const APP_BUNDLE_TRIM_REPORT_SCHEMA = 'opl_full_app_bundle_trim_report.v1';
-const PACKAGE_BOUNDARY_AUDIT_SCHEMA = 'opl_full_package_boundary_audit.v1';
+const PACKAGE_BOUNDARY_AUDIT_SCHEMA = 'opl_full_package_boundary_audit.v2';
 const PACKAGE_OPTIMIZATION_SCHEMA = 'opl_full_package_optimization.v1';
+const MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS = [
+  'cli/claude',
+  'acp',
+  'node_modules/@anthropic-ai/claude-code',
+  'node_modules/claude-code',
+  'claude',
+];
 
 const STAGED_APP_TRIM_DIRECTORY_BASENAMES =
   FULL_RUNTIME_PRUNE_POLICY.app_bundle_staging.trim_directory_basenames as string[];
@@ -137,6 +144,180 @@ function bundleEntry(appPath: string, relativePath: string, owner: string, role:
   };
 }
 
+function collectBundlePaths(root: string) {
+  const entries: Array<{ path: string; basename: string; symlink: boolean }> = [];
+  if (!fs.existsSync(root)) return entries;
+  const walk = (current: string) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const absolutePath = path.join(current, entry.name);
+      const relativePath = normalizeBundleRelativePath(path.relative(root, absolutePath));
+      entries.push({
+        path: relativePath,
+        basename: entry.name,
+        symlink: entry.isSymbolicLink(),
+      });
+      if (entry.isDirectory() && !entry.isSymbolicLink()) walk(absolutePath);
+    }
+  };
+  walk(root);
+  return entries;
+}
+
+function safeManagedRelativePath(value: unknown) {
+  return typeof value === 'string'
+    && value.length > 0
+    && !value.includes('\\')
+    && !path.posix.isAbsolute(value)
+    && path.posix.normalize(value) === value
+    && value.split('/').every((segment) => segment && segment !== '.' && segment !== '..');
+}
+
+function managedEntryPresent(
+  managedRoot: string,
+  relativePath: unknown,
+  kind: 'file' | 'directory',
+) {
+  if (!safeManagedRelativePath(relativePath)) return false;
+  const candidate = path.join(managedRoot, ...String(relativePath).split('/'));
+  const stat = fs.lstatSync(candidate, { throwIfNoEntry: false });
+  return Boolean(
+    stat
+    && !stat.isSymbolicLink()
+    && (kind === 'file' ? stat.isFile() : stat.isDirectory()),
+  );
+}
+
+function managedDescriptorValid(
+  managedRoot: string,
+  descriptor: Record<string, any> | null,
+) {
+  if (!descriptor) return false;
+  if (
+    !safeManagedRelativePath(descriptor.root)
+    || !safeManagedRelativePath(descriptor.executable)
+  ) return false;
+  const root = path.join(managedRoot, ...descriptor.root.split('/'));
+  if (!managedEntryPresent(managedRoot, descriptor.root, 'directory')) return false;
+  if (!managedEntryPresent(root, descriptor.executable, 'file')) return false;
+  if (
+    descriptor.requiredFiles !== undefined
+    && (
+      !Array.isArray(descriptor.requiredFiles)
+      || descriptor.requiredFiles.some((entry: unknown) =>
+        !managedEntryPresent(root, entry, 'file'))
+    )
+  ) return false;
+  if (
+    descriptor.requiredDirectories !== undefined
+    && (
+      !Array.isArray(descriptor.requiredDirectories)
+      || descriptor.requiredDirectories.some((entry: unknown) =>
+        !managedEntryPresent(root, entry, 'directory'))
+    )
+  ) return false;
+  return true;
+}
+
+function auditAioncoreCodexOnlyProjection(appPath: string) {
+  const bundledRoot = path.join(appPath, 'Contents', 'Resources', 'bundled-aioncore');
+  const paths = collectBundlePaths(bundledRoot);
+  const runtimeKeys = fs.existsSync(bundledRoot)
+    ? fs.readdirSync(bundledRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+      .map((entry) => entry.name)
+      .sort()
+    : [];
+  const runtimes = runtimeKeys.map((runtimeKey) => {
+    const managedRoot = path.join(bundledRoot, runtimeKey, 'managed-resources');
+    const manifestPath = path.join(managedRoot, 'manifest.json');
+    let manifest: Record<string, any> | null = null;
+    try {
+      const candidate = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+        manifest = candidate;
+      }
+    } catch {}
+    const cliNames = Array.isArray(manifest?.clis)
+      ? manifest.clis.map((entry: any) => entry?.name)
+      : [];
+    const codex = cliNames.length === 1 && cliNames[0] === 'codex'
+      ? manifest?.clis?.[0]
+      : null;
+    const valid = (
+      manifest?.schema === 'opl_aioncore_managed_resources_projection.v1'
+      && manifest?.runtimeKey === runtimeKey
+      && manifest?.source?.schemaVersion === 2
+      && /^[a-f0-9]{64}$/.test(String(manifest?.source?.manifestSha256 ?? ''))
+      && JSON.stringify(manifest?.source?.cliNames) === JSON.stringify(['claude', 'codex'])
+      && JSON.stringify(manifest?.projection?.includedCliNames) === JSON.stringify(['codex'])
+      && JSON.stringify(manifest?.projection?.excludedCliNames) === JSON.stringify(['claude'])
+      && JSON.stringify(manifest?.projection?.requiredAbsentPaths)
+        === JSON.stringify(MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS)
+      && JSON.stringify(cliNames) === JSON.stringify(['codex'])
+      && typeof manifest?.node === 'object'
+      && manifest.node !== null
+      && managedDescriptorValid(managedRoot, manifest.node)
+      && managedDescriptorValid(managedRoot, codex)
+    );
+    return {
+      runtime_key: runtimeKey,
+      manifest_path: normalizeBundleRelativePath(path.relative(appPath, manifestPath)),
+      projection_valid: valid,
+      cli_names: cliNames,
+      producer_manifest_sha256: manifest?.source?.manifestSha256 ?? null,
+    };
+  });
+  const matchPaths = (predicate: (entry: { path: string; basename: string; symlink: boolean }) => boolean) =>
+    paths.filter(predicate).map((entry) => entry.path).sort();
+  const absenceChecks = [
+    {
+      id: 'managed_claude_subtree',
+      matches: matchPaths((entry) =>
+        /(^|\/)managed-resources\/cli\/claude(\/|$)/.test(entry.path)),
+    },
+    {
+      id: 'claude_executable_or_symlink',
+      matches: matchPaths((entry) =>
+        entry.basename === 'claude' || entry.basename === 'claude.exe'),
+    },
+    {
+      id: 'anthropic_package_or_archive',
+      matches: matchPaths((entry) =>
+        /(^|\/)node_modules\/@anthropic-ai\/claude-code(\/|$)/.test(entry.path)
+        || /^claude-code.*\.(?:tgz|tar\.gz)$/.test(entry.basename)),
+    },
+    {
+      id: 'claude_distribution_cache_entry',
+      matches: matchPaths((entry) => {
+        const segments = entry.path.split('/');
+        const cacheIndex = segments.findIndex((segment) =>
+          segment === '.cache' || segment === 'cache');
+        return cacheIndex >= 0
+          && segments.slice(cacheIndex + 1).some((segment) => segment.startsWith('claude'));
+      }),
+    },
+    {
+      id: 'raw_producer_manifest',
+      matches: runtimes
+        .filter((runtime) => runtime.projection_valid !== true)
+        .map((runtime) => runtime.manifest_path),
+    },
+  ].map((check) => ({
+    ...check,
+    expected_match_count: 0,
+    match_count: check.matches.length,
+  }));
+  return {
+    schema: 'opl_aioncore_codex_only_projection_audit.v1',
+    runtime_count: runtimes.length,
+    runtimes,
+    required_absence_checks: absenceChecks,
+    projection_present: runtimes.length > 0
+      && runtimes.every((runtime) => runtime.projection_valid),
+    claude_payload_absent: absenceChecks.every((check) => check.match_count === 0),
+  };
+}
+
 export function auditFullPackageBundleBoundaries(appPath: string, manifest: Record<string, any> | null = null) {
   const fullRuntimeRoot = path.join(
     appPath,
@@ -152,6 +333,7 @@ export function auditFullPackageBundleBoundaries(appPath: string, manifest: Reco
       exists: fs.existsSync(path.join(fullRuntimeRoot, ...relativePath.split('/'))),
     }),
   );
+  const aioncoreCodexOnlyProjection = auditAioncoreCodexOnlyProjection(appPath);
   const entries = {
     opl_full_runtime: bundleEntry(
       appPath,
@@ -197,6 +379,9 @@ export function auditFullPackageBundleBoundaries(appPath: string, manifest: Reco
       contains_opl_full_runtime: entries.opl_full_runtime.exists,
       contains_shell_runtime: entries.aionui_bundled_runtime.exists,
       aioncore_codex_carrier_present: entries.aionui_bundled_runtime.exists,
+      aioncore_codex_only_projection_present: aioncoreCodexOnlyProjection.projection_present,
+      aioncore_claude_payload_absent: aioncoreCodexOnlyProjection.claude_payload_absent,
+      aioncore_codex_only_projection_audit: aioncoreCodexOnlyProjection,
       framework_codex_payload_absent: forbiddenFrameworkCodexPaths.every((entry) => !entry.exists),
       forbidden_framework_codex_paths: forbiddenFrameworkCodexPaths,
       dedupe_policy: 'aioncore_is_the_only_codex_carrier_in_the_aionui_app_bundle',
@@ -215,6 +400,8 @@ function offlineFirstInstallCompletenessPreserved(args: {
     && args.boundaryAudit.full_package_boundary?.contains_opl_full_runtime === true
     && args.boundaryAudit.full_package_boundary?.contains_shell_runtime === true
     && args.boundaryAudit.full_package_boundary?.aioncore_codex_carrier_present === true
+    && args.boundaryAudit.full_package_boundary?.aioncore_codex_only_projection_present === true
+    && args.boundaryAudit.full_package_boundary?.aioncore_claude_payload_absent === true
     && args.boundaryAudit.full_package_boundary?.framework_codex_payload_absent === true
     && entries.app_asar?.exists === true
     && entries.electron_framework?.exists === true;
@@ -257,6 +444,12 @@ function buildFullPackageOptimizationSection(args: {
       contains_shell_runtime: args.boundaryAudit.full_package_boundary?.contains_shell_runtime,
       aioncore_codex_carrier_present:
         args.boundaryAudit.full_package_boundary?.aioncore_codex_carrier_present,
+      aioncore_codex_only_projection_present:
+        args.boundaryAudit.full_package_boundary?.aioncore_codex_only_projection_present,
+      aioncore_claude_payload_absent:
+        args.boundaryAudit.full_package_boundary?.aioncore_claude_payload_absent,
+      aioncore_codex_only_projection_audit:
+        args.boundaryAudit.full_package_boundary?.aioncore_codex_only_projection_audit,
       framework_codex_payload_absent:
         args.boundaryAudit.full_package_boundary?.framework_codex_payload_absent,
       forbidden_framework_codex_paths:

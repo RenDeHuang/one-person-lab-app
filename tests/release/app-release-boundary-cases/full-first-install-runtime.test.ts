@@ -1421,6 +1421,67 @@ test("Full App bundle staging trim removes non-runtime artifacts while preservin
     path.join(appPath, "Contents", "Resources", "bundled-aioncore", "node"),
     "shell-runtime",
   );
+  const managedResourcesRoot = path.join(
+    appPath,
+    "Contents",
+    "Resources",
+    "bundled-aioncore",
+    "darwin-arm64",
+    "managed-resources",
+  );
+  writeFile(
+    path.join(managedResourcesRoot, "node", "node-v24.11.0-darwin-arm64", "bin", "node"),
+    "node-runtime",
+  );
+  const codexExecutablePath = path.join(
+    managedResourcesRoot,
+    "cli",
+    "codex",
+    "0.144.6",
+    "darwin-arm64",
+    "vendor",
+    "aarch64-apple-darwin",
+    "bin",
+    "codex",
+  );
+  writeFile(codexExecutablePath, "codex-runtime");
+  writeFile(
+    path.join(managedResourcesRoot, "manifest.json"),
+    JSON.stringify({
+      schema: "opl_aioncore_managed_resources_projection.v1",
+      runtimeKey: "darwin-arm64",
+      source: {
+        schemaVersion: 2,
+        manifestSha256: "a".repeat(64),
+        cliNames: ["claude", "codex"],
+      },
+      node: {
+        version: "24.11.0",
+        root: "node/node-v24.11.0-darwin-arm64",
+        executable: "bin/node",
+      },
+      clis: [{
+        name: "codex",
+        version: "0.144.6",
+        root: "cli/codex/0.144.6/darwin-arm64",
+        platformDirectory: "darwin-arm64",
+        executable: "vendor/aarch64-apple-darwin/bin/codex",
+        requiredFiles: [],
+        requiredDirectories: [],
+      }],
+      projection: {
+        includedCliNames: ["codex"],
+        excludedCliNames: ["claude"],
+        requiredAbsentPaths: [
+          "cli/claude",
+          "acp",
+          "node_modules/@anthropic-ai/claude-code",
+          "node_modules/claude-code",
+          "claude",
+        ],
+      },
+    }),
+  );
   writeFile(
     path.join(
       appPath,
@@ -1492,6 +1553,14 @@ test("Full App bundle staging trim removes non-runtime artifacts while preservin
   );
   assert.equal(boundaryAudit.full_package_boundary.contains_opl_full_runtime, true);
   assert.equal(boundaryAudit.full_package_boundary.contains_shell_runtime, true);
+  assert.equal(
+    boundaryAudit.full_package_boundary.aioncore_codex_only_projection_present,
+    true,
+  );
+  assert.equal(
+    boundaryAudit.full_package_boundary.aioncore_claude_payload_absent,
+    true,
+  );
   const manifest = withFullPackageOptimization(
     { manifest_version: 2, package_kind: "opl_full_first_install_macos_arm64" },
     { trimReport, boundaryAudit },
@@ -1512,6 +1581,38 @@ test("Full App bundle staging trim removes non-runtime artifacts while preservin
   assert.equal(
     manifest.package_optimization.app_bundle_trim.bytes_removed,
     trimReport.bytes_removed,
+  );
+
+  fs.rmSync(codexExecutablePath);
+  const missingCodexAudit = auditFullPackageBundleBoundaries(appPath, {
+    package_kind: "opl_full_first_install_macos_arm64",
+    version: "26.6.21-size-opt",
+  });
+  assert.equal(
+    missingCodexAudit.full_package_boundary.aioncore_codex_only_projection_present,
+    false,
+  );
+  writeFile(codexExecutablePath, "codex-runtime");
+
+  writeFile(
+    path.join(managedResourcesRoot, "cli", "claude", "2.1.215", "darwin-arm64", "claude"),
+    "claude-runtime",
+  );
+  const claudeAudit = auditFullPackageBundleBoundaries(appPath, {
+    package_kind: "opl_full_first_install_macos_arm64",
+    version: "26.6.21-size-opt",
+  });
+  assert.equal(
+    claudeAudit.full_package_boundary.aioncore_claude_payload_absent,
+    false,
+  );
+  assert.throws(
+    () =>
+      withFullPackageOptimization(
+        { manifest_version: 2, package_kind: "opl_full_first_install_macos_arm64" },
+        { trimReport, boundaryAudit: claudeAudit },
+      ),
+    /did not preserve the declared offline first-install App bundle boundary/,
   );
 
   const incompleteAudit = auditFullPackageBundleBoundaries(path.join(tempRoot, "Incomplete.app"), {

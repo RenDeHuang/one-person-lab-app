@@ -49,6 +49,13 @@ const OWNER_REPOS = {
 type Mode = 'local-app' | 'full-dmg';
 
 const MANUAL_RUNTIME_KEY = 'darwin-arm64';
+const MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS = [
+  'cli/claude',
+  'acp',
+  'node_modules/@anthropic-ai/claude-code',
+  'node_modules/claude-code',
+  'claude',
+];
 
 function requiredString(value: unknown, label: string) {
   if (typeof value !== 'string' || !value.trim()) {
@@ -186,10 +193,56 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
       `AionCore root manifest target mismatch: expected ${MANUAL_RUNTIME_KEY}`,
     );
   }
-  if (managedManifest.schemaVersion !== 2) {
+  if (managedManifest.schema !== 'opl_aioncore_managed_resources_projection.v1') {
     throw new Error(
-      'AionCore managed-resources manifest must use producer schemaVersion 2',
+      'AionCore managed-resources manifest must use the OPL Codex-only projection schema v1',
     );
+  }
+  const producer = requiredObject(managedManifest.source, 'producer provenance');
+  if (producer.schemaVersion !== 2) {
+    throw new Error(
+      'AionCore managed-resources projection must bind producer schemaVersion 2',
+    );
+  }
+  const producerManifestSha256 = requiredString(
+    producer.manifestSha256,
+    'producer manifest SHA-256',
+  );
+  if (!/^[a-f0-9]{64}$/.test(producerManifestSha256)) {
+    throw new Error(
+      'AionCore managed-resources projection producer manifest SHA-256 must be a lowercase 64-character digest',
+    );
+  }
+  const producerCliNames = producer.cliNames;
+  if (
+    !Array.isArray(producerCliNames)
+    || JSON.stringify([...producerCliNames].sort()) !== JSON.stringify(['claude', 'codex'])
+  ) {
+    throw new Error(
+      'AionCore managed-resources projection must bind producer CLI names Claude and Codex',
+    );
+  }
+  const projection = requiredObject(managedManifest.projection, 'projection metadata');
+  if (
+    JSON.stringify(projection.includedCliNames) !== JSON.stringify(['codex'])
+    || JSON.stringify(projection.excludedCliNames) !== JSON.stringify(['claude'])
+    || JSON.stringify(projection.requiredAbsentPaths)
+      !== JSON.stringify(MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS)
+  ) {
+    throw new Error(
+      'AionCore managed-resources projection must include only Codex and exclude Claude',
+    );
+  }
+  for (const relativePath of projection.requiredAbsentPaths) {
+    const absentPath = path.join(
+      managedRoot,
+      ...requiredRelativePath(relativePath, 'required absent path').split('/'),
+    );
+    if (fs.lstatSync(absentPath, { throwIfNoEntry: false })) {
+      throw new Error(
+        `AionCore managed-resources projection required absent path is present: ${absentPath}`,
+      );
+    }
   }
   if (Object.hasOwn(managedManifest, 'acpTools')) {
     throw new Error(
@@ -233,14 +286,14 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
     .map((entry) => entry?.name)
     .sort((left, right) => comparePathNames(String(left), String(right)));
   if (
-    clis.length !== 2
-    || JSON.stringify(cliNames) !== JSON.stringify(['claude', 'codex'])
+    clis.length !== 1
+    || JSON.stringify(cliNames) !== JSON.stringify(['codex'])
   ) {
     throw new Error(
-      'AionCore managed-resources manifest must contain exactly Claude and Codex direct CLIs',
+      'AionCore managed-resources projection must contain exactly one Codex direct CLI',
     );
   }
-  const resolveCli = (name: 'claude' | 'codex') => {
+  const resolveCli = (name: 'codex') => {
     const entry = requiredObject(
       clis.find((candidate) => candidate?.name === name),
       `managed ${name} CLI`,
@@ -341,7 +394,6 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
       required_directories: requiredDirectories,
     };
   };
-  const claudeCli = resolveCli('claude');
   const codexCli = resolveCli('codex');
   const aioncoreBinary = requireFile(
     path.join(runtimeRoot, 'aioncore'),
@@ -349,7 +401,7 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
   );
 
   return {
-    schema: 'opl_manual_aioncore_managed_direct_clis_binding.v2',
+    schema: 'opl_manual_aioncore_codex_only_projection_binding.v1',
     runtime_key: MANUAL_RUNTIME_KEY,
     aioncore: {
       version: aioncoreVersion,
@@ -365,7 +417,12 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
       binary_sha256: fileSha256(aioncoreBinary),
     },
     managed_resources: {
-      schema_version: 2,
+      projection_schema: managedManifest.schema,
+      producer_schema_version: producer.schemaVersion,
+      producer_manifest_sha256: producerManifestSha256,
+      included_cli_names: projection.includedCliNames,
+      excluded_cli_names: projection.excludedCliNames,
+      required_absent_paths: projection.requiredAbsentPaths,
       root: managedRoot,
       manifest: managedManifestPath,
       manifest_sha256: fileSha256(managedManifestPath),
@@ -378,7 +435,6 @@ export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
       executable: nodeExecutable,
       executable_sha256: fileSha256(nodeExecutable),
     },
-    claude_cli: claudeCli,
     codex_cli: codexCli,
   };
 }
@@ -409,11 +465,39 @@ export function assertFullDmgCodexCarrierBoundary(manifest: any) {
   const boundary = manifest?.package_optimization?.package_boundary_audit;
   if (
     boundary?.aioncore_codex_carrier_present !== true
+    || boundary?.aioncore_codex_only_projection_present !== true
+    || boundary?.aioncore_claude_payload_absent !== true
     || boundary?.framework_codex_payload_absent !== true
   ) {
     throw new Error(
-      'Full manifest must prove the AionCore Codex carrier is present and Framework Codex payload is absent.',
+      'Full manifest must prove the AionCore Codex-only projection is present and both Claude and Framework Codex payloads are absent.',
     );
+  }
+  const projectionAudit = boundary.aioncore_codex_only_projection_audit;
+  const expectedAbsenceChecks = [
+    'managed_claude_subtree',
+    'claude_executable_or_symlink',
+    'anthropic_package_or_archive',
+    'claude_distribution_cache_entry',
+    'raw_producer_manifest',
+  ];
+  if (
+    projectionAudit?.schema !== 'opl_aioncore_codex_only_projection_audit.v1'
+    || !Number.isSafeInteger(projectionAudit?.runtime_count)
+    || projectionAudit.runtime_count < 1
+    || !Array.isArray(projectionAudit?.runtimes)
+    || projectionAudit.runtimes.length !== projectionAudit.runtime_count
+    || projectionAudit.runtimes.some((runtime) => runtime?.projection_valid !== true)
+    || !Array.isArray(projectionAudit?.required_absence_checks)
+    || JSON.stringify(projectionAudit.required_absence_checks.map((check) => check?.id))
+      !== JSON.stringify(expectedAbsenceChecks)
+    || projectionAudit.required_absence_checks.some((check) =>
+      check?.expected_match_count !== 0
+      || check?.match_count !== 0
+      || !Array.isArray(check?.matches)
+      || check.matches.length !== 0)
+  ) {
+    throw new Error('Full manifest AionCore Codex-only projection evidence is incomplete.');
   }
   const forbidden = boundary.forbidden_framework_codex_paths;
   const expected = ['bin/codex', 'bin/rg', 'vendor/codex', '.runtime-cache/codex-cli'];

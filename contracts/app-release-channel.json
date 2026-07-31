@@ -3172,10 +3172,15 @@
         "compatibility_mode": "shell_carrier_exact_manifest_binary",
         "carrier_contract_ref": "contracts/app-shell-adapter.json#codex_executable_contract",
         "preferred_sources": [
-          "shell_aioncore_managed_resources_manifest"
+          "shell_opl_aioncore_managed_resources_projection_v1"
         ],
         "resolver_env": "OPL_CODEX_BIN",
-        "version_source": "AionCore managed resource manifest",
+        "version_source": "OPL Codex-only projection derived from AionCore producer manifest",
+        "projection_schema": "opl_aioncore_managed_resources_projection.v1",
+        "producer_schema_version": 2,
+        "forbidden_cli_names": [
+          "claude"
+        ],
         "aioncore_required": true,
         "framework_managed_payload_in_full_runtime_allowed": false,
         "forbidden_framework_runtime_paths": [
@@ -3184,7 +3189,7 @@
           "vendor/codex",
           ".runtime-cache/codex-cli"
         ],
-        "verification": "The active AionUI shell must resolve one exact Codex executable from bundled-aioncore managed-resources and pass it through OPL_CODEX_BIN; the Full Framework runtime must prove all forbidden duplicate paths absent."
+        "verification": "The active AionUI shell must resolve one exact Codex executable from the bundled-aioncore managed-resources Codex-only projection and pass it through OPL_CODEX_BIN; the final App tree must prove Claude absent and the Full Framework runtime must prove all forbidden duplicate paths absent."
       },
       "temporal_cli": {
         "compatibility_mode": "minimum_version_plus_capability_smoke",
@@ -3292,7 +3297,7 @@
         "trim_report": "opl-release-manifest.json#evidence.app_bundle_trim_report",
         "trim_report_schema": "opl_full_app_bundle_trim_report.v1",
         "boundary_audit": "opl-release-manifest.json#evidence.package_boundary_audit",
-        "boundary_audit_schema": "opl_full_package_boundary_audit.v1",
+        "boundary_audit_schema": "opl_full_package_boundary_audit.v2",
         "size_summary": "full-package-size-summary.json",
         "mode": "explicit_non_runtime_prune_only",
         "required_manifest_flags": {

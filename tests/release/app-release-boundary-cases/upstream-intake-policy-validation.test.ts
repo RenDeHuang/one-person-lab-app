@@ -376,7 +376,6 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   assert.equal(adapter.exact_source_lock_required, true);
   const aionCore = adapter.runtime_dependencies.aioncore;
   const nodeRuntime = adapter.runtime_dependencies.node_runtime;
-  const claudeCli = adapter.runtime_dependencies.claude_cli;
   const codexCli = adapter.runtime_dependencies.codex_cli;
   assert.equal(Object.hasOwn(aionCore, 'version'), false);
   assert.deepEqual(aionCore, {
@@ -384,18 +383,14 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
     resource_authority: 'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json',
   });
   assert.deepEqual(nodeRuntime, {
-    version_source: 'AionCore managed resource manifest',
+    version_source: 'OPL Codex-only projection derived from AionCore producer manifest',
     target_platform_binary_required: true,
   });
-  assert.deepEqual(claudeCli, {
-    package: '@anthropic-ai/claude-code',
-    version_source: 'AionCore managed resource manifest',
-    target_platform_binary_required: true,
-  });
+  assert.equal(Object.hasOwn(adapter.runtime_dependencies, 'claude_cli'), false);
   assert.equal(Object.hasOwn(codexCli, 'version'), false);
   assert.deepEqual(codexCli, {
     package: '@openai/codex',
-    version_source: 'AionCore managed resource manifest',
+    version_source: 'OPL Codex-only projection derived from AionCore producer manifest',
     target_platform_binary_required: true,
   });
   assert.equal(Object.hasOwn(adapter.runtime_dependencies, 'managed_codex_acp'), false);
@@ -425,13 +420,12 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   const fullDmgScenario = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
   assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('without requiring a fixed count')));
   const managedRuntimeExpectation = fullDmgScenario.expects.find((entry: string) =>
-    entry.includes('Bundled AionCore v0.1.53')
+    entry.includes('opl_aioncore_managed_resources_projection.v1')
   );
   assert.match(
     managedRuntimeExpectation,
-    /schema v2 managed resource manifest.*Node 24\.11\.0.*Claude CLI 2\.1\.215.*Codex CLI 0\.144\.6/,
+    /producer intake supplies schema v2 Node and Codex identities.*carries exactly Node plus Codex.*physically excludes Claude/,
   );
-  assert.doesNotMatch(managedRuntimeExpectation, /Codex CLI 0\.145|Codex 0\.145\.0/);
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 });
 
