@@ -20,12 +20,17 @@ test('append_full exports exact qualification-bound handoff without mutating Hom
     'transport_run_id',
     'completed_stage:"full_qualified"',
     'qualification_receipt_sha256',
-    'base_tag:$base_tag',
+    'version:$version',
     'adjunct_tag:$adjunct_tag',
+    'manifest:{name:$manifest_name,sha256:$manifest_sha,size_bytes:$manifest_size}',
+    'artifact:{name:$dmg_name,sha256:$dmg_sha,size_bytes:$dmg_size}',
+    'admission_role:"observational_only"',
+    'may_gate_install_or_runtime:false',
     'homebrew_modified:false',
     'latest_modified:false',
     'homebrew-full-handoff.json',
   ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(source, /base_tag:\$base_tag|cohort:\{app_sha/);
   assert.doesNotMatch(source, /OPL_HOMEBREW_TAP_TOKEN|update-homebrew-tap|git\b[^\n]*\bpush\b/);
 });
 

@@ -113,7 +113,8 @@ export function generateFrozenUniversalInstaller(input: FrozenUniversalInstaller
     'resolve_full_adjunct_release_record',
     'releases?per_page=100&page=$page',
     'download_release_record "$candidate_tag"',
-    'STABLE_MACOS_SOURCE_APP_SHA',
+    'full_release_record_binds_tagged_assets',
+    'opl-release-manifest.json',
     'STABLE_MACOS_FULL_ADJUNCT_TAG',
   ]) {
     if (!generated.includes(fragment)) {
