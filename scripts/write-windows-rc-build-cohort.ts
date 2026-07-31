@@ -348,15 +348,28 @@ export function buildWindowsRcBuildCohort(input: {
     throw new Error(
       `Managed resources must contain exactly one Codex CLI, found ${codexClis.length}.`,
     );
+  const presentForbiddenPaths = managedResourcesRequiredAbsentPaths.filter(
+    (relativePath) =>
+      Boolean(
+        fs.lstatSync(
+          path.join(managedResourcesRoot, ...relativePath.split("/")),
+          { throwIfNoEntry: false },
+        ),
+      ),
+  );
   if (
     (Array.isArray(managedManifest.clis) &&
       managedManifest.clis.some(
         (cli: { name?: string }) => cli?.name !== "codex",
       )) ||
-    fs.existsSync(path.join(managedResourcesRoot, "cli", "claude"))
+    presentForbiddenPaths.length > 0
   )
     throw new Error(
-      "Managed resources projection must physically exclude Claude.",
+      `Managed resources projection must physically exclude Claude${
+        presentForbiddenPaths.length > 0
+          ? `: ${presentForbiddenPaths.join(", ")}`
+          : "."
+      }`,
     );
   const codexPath = managedResourceExecutable(
     managedResourcesRoot,

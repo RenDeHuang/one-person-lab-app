@@ -204,6 +204,31 @@ test('Windows RC cohort rejects retired or malformed managed resource manifests'
   );
 });
 
+test('Windows RC cohort rejects every forbidden managed resource path', (t) => {
+  const forbiddenPaths = [
+    'cli/claude',
+    'acp',
+    'node_modules/@anthropic-ai/claude-code',
+    'node_modules/claude-code',
+    'claude',
+  ];
+
+  for (const relativePath of forbiddenPaths) {
+    const input = fixture(t);
+    const forbiddenPath = path.join(
+      path.dirname(input.managedManifest),
+      ...relativePath.split('/'),
+    );
+    fs.mkdirSync(path.dirname(forbiddenPath), { recursive: true });
+    fs.writeFileSync(forbiddenPath, 'forbidden');
+
+    assert.throws(
+      () => buildCohort(input),
+      new RegExp(`physically exclude Claude: ${relativePath.replaceAll('/', '\\/')}`),
+    );
+  }
+});
+
 test('Windows RC cohort rejects missing Node or missing and duplicate Codex executables', (t) => {
   const missingNode = fixture(t);
   fs.rmSync(missingNode.node);
