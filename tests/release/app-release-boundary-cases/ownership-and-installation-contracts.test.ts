@@ -277,8 +277,11 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   });
   assert.equal(revisionResult.status, 0, revisionResult.stderr || revisionResult.stdout);
   const revisionCask = fs.readFileSync(path.join(tapRoot, 'Casks', 'one-person-lab.rb'), 'utf8');
-  assert.match(revisionCask, /version "26\.7\.2001"/);
-  assert.match(revisionCask, /releases\/download\/v26\.7\.20-r1\/One-Person-Lab-26\.7\.20-r1-mac-arm64\.dmg/);
+  assert.match(revisionCask, /version "26\.7\.2001,26\.7\.20-r1"/);
+  assert.match(
+    revisionCask,
+    /releases\/download\/v#\{version\.csv\.second\}\/One-Person-Lab-#\{version\.csv\.second\}-mac-arm64\.dmg/,
+  );
   assert.match(revisionCask, /display_version: 26\.7\.20-r1/);
   assert.match(revisionCask, /updater_version: 26\.7\.2001/);
 
@@ -295,10 +298,11 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
 
   const nightlyResult = runTap({
     channel: 'nightly',
-    version: '26.6.4-nightly.r1',
+    version: '26.7.31-nightly.r1',
+    updaterVersion: '26.7.3191-nightly.1',
     target: 'Casks/one-person-lab-nightly.rb',
     manifest: 'latest-arm64-mac.yml',
-    download: standardDmg('26.6.4-nightly.r1'),
+    download: standardDmg('26.7.31-nightly.r1'),
     write: true,
   });
   assert.equal(nightlyResult.status, 0, nightlyResult.stderr || nightlyResult.stdout);
@@ -322,6 +326,11 @@ test('Homebrew tap updater is a local cohort-bound manifest and checksum planner
   assert.match(nightlyCask, /# full_first_install_allowed: false/);
   assert.match(nightlyCask, /# publishes_or_pushes_remote: false/);
   assert.match(nightlyCask, /depends_on formula: "opl"/);
+  assert.match(nightlyCask, /version "26\.7\.3191-nightly\.1,26\.7\.31-nightly\.r1"/);
+  assert.match(
+    nightlyCask,
+    /releases\/download\/v#\{version\.csv\.second\}\/One-Person-Lab-#\{version\.csv\.second\}-mac-arm64\.dmg/,
+  );
   assert.doesNotMatch(nightlyCask, /One-Person-Lab-Full-/);
 
   const nightlyToStable = runTap({
