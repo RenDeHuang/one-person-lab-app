@@ -4,8 +4,9 @@ Instruction revision: `user-2026-07-29-central-ledger-only-clean-baseline-v3`
 
 Owner: `one-person-lab-app` delivery coordination
 
-Machine-readable operational snapshot:
-[`active-objective-ledger.json`](active-objective-ledger.json)
+Machine-readable operational state is read from fresh lifecycle and thread
+readback at operation time; this document intentionally does not freeze a
+volatile JSON snapshot.
 
 本文只拥有跨目标的执行编排、并发吸收规则和开发清洁终态。产品语义、发布权限、
 远端状态和 installed truth 仍由对应合同、owner、受保护操作和 fresh readback 拥有。
@@ -31,21 +32,16 @@ cleanup、publication、install、标题和 archive 决策都必须先回总账�
 省略 `model` 和 `thinking` 参数，保持原对话配置；总账不得把 `gpt-5.6-sol` 改成
 `gpt-5.6-terra`，也不得以任何理由替换已有模型。
 
-本轮按用户交付终态去重为 6 条线、29 个任务：桌面体验 4、Windows 与 WebUI 6、Stable
-与分发 5、Package 与 Framework 4、Runner 与 CI 3、总账与收口 7。其中 27 个仍为
-`ACTIVE`，2 个仅可标记 `SAFE_TO_ARCHIVE`；实际归档仍需用户对具体 thread 的 fresh 验收。
-数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
+任务数量、状态、owner、write set、checkpoint、next action 和 integration overlap 不在本文
+冻结。它们必须从 fresh lifecycle/thread readback 获取；任何历史快照都不得用于准入、吸收、
+cleanup 或 archive。数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
 
-Fresh lifecycle 快照生成基线：App canonical 为 `98b9d55e/tree 6d52c3fe`，根 clean/aligned，9 个
-registered non-root worktree；Framework wire 为 `afdc19b1/tree ee550bb8`，3 个 registered
-worktree，本地根仍 behind6/dirty2。该基线描述本快照生成时的 source/hygiene 表面，不自引用
-后续文档 merge commit，也不限制独立任务
-并发，也不把已启动的 read-only evidence 工作变成等待。
+每次执行、吸收或清理前都必须重新读取 canonical/wire、worktree lifecycle、thread owner
+和 exact write set；历史 commit/tree/count 只作当时证据，不在本文冻结，也不限制独立任务
+并发或把已启动的 read-only evidence 工作变成等待。
 
-恢复规则：仍有未完成义务的误中止任务，沿原 owner、原 receipt、原 worktree 和原 next action
-恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。Framework payload
-exact2 已由 PR #14 吸收到 Framework canonical，原 receipt owner 也已完成 official guarded close；
-Framework PR #13 同样已完成吸收与 owner-close。这两条都不得复活，后续只保留终态证据。
+恢复规则：仍有未完成义务的误中止任务，沿 fresh readback 证明仍有效的原 owner、receipt、
+worktree 和 next action 恢复；已 canonical/owner-close 的任务不复活，不创建 replacement writer。
 
 每个 ACTIVE task 必须同时具备唯一 controller、可验证 execution owner、精确或有界 write
 set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonical absorption plan。
@@ -95,17 +91,15 @@ parallel_work_serialized_integration
 
 ## Objective 与 owner 规则
 
-每个未完成 objective 必须在
-[`active-objective-ledger.json`](active-objective-ledger.json) 中有且只有一个 controller。
-没有真实外部 blocker 时，`execution_owner_threads` 必须至少包含一个可立即执行 next action
-的 execution owner。只有所需外部权限或输入确实不可获得时，`ACTIVE` objective 才可以暂时
+每个未完成 objective 必须在 fresh lifecycle/thread readback 中有且只有一个 controller
+和 execution owner。没有真实外部 blocker 时，必须存在一个可立即执行 next action 的
+execution owner。只有所需外部权限或输入确实不可获得时，`ACTIVE` objective 才可以暂时
 没有可运行的 execution owner：controller 必须记录缺失的精确权限或输入、外部 authority、
 fresh evidence 和恢复条件；不得虚构 mutation、checkpoint、owner 或可执行 next action。
 controller 仍负责在恢复条件满足后重新准入唯一 execution owner；它不能用 `blocked` 或
 `waiting` 把 objective 伪装成终态。一个 controller 可以管理多个互不冲突的 execution lane；
-多个 owner 不得同时声称同一 canonical mutation 权限。Ledger 可以canonical保存为某时点的
-审计快照，但不得把其中的owner heartbeat、ETA或 current evidence当作长期产品SSOT；snapshot
-过时后由controller重生成，而不是由consumer猜测延长有效期。
+多个 owner 不得同时声称同一 canonical mutation 权限。历史 lifecycle/thread readback 只作
+当时审计证据，不得由 consumer 猜测延长有效期。
 
 任务状态只使用：
 
@@ -127,7 +121,7 @@ objective 终态。外部权限或不可获得输入是唯一可暂停执行的 
 1. **Public pointers**：WebUI GHCR `stable/latest` 与 Desktop Stable/Latest 独立推进；
    两者不互相等待。
 2. **Source and release repair**：Stable 首断点、安装统一和 GUI artifact consumer 并行；
-   GUI 只消费 fresh immutable published+installed cohort。
+   GUI 只消费 fresh immutable published+installed carrier artifact 及其 Framework compatibility receipt。
 3. **Hygiene and convergence**：活跃分支 semantic convergence、历史 exact-merged detached
    lane proof-backed cleanup、跨仓 stale receipt reconcile 并行。
 4. **Package retirement**：Framework producer、App/Shell consumer、carrier-native lifecycle

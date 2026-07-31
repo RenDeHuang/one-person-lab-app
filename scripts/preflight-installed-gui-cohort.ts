@@ -4,9 +4,12 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  validateComponentCompatibilityReceipt,
+} from "./validate-active-shell/install-exposure-policy-validator.ts";
 
-const AUTHORITY_SCHEMA = "opl_app_installed_gui_cohort_authority.v1";
-const RECEIPT_SCHEMA = "opl_app_installed_gui_cohort_preflight_receipt.v1";
+const AUTHORITY_SCHEMA = "opl_app_installed_gui_artifact_authority.v2";
+const RECEIPT_SCHEMA = "opl_app_installed_gui_artifact_preflight_receipt.v2";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const COMMIT_PATTERN = /^[a-f0-9]{40}$/;
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -83,11 +86,287 @@ function gitBlobSha256(
     addViolation(
       violations,
       "app_contract_blob_unavailable",
-      `cannot read ${filePath} from App cohort ${commit}`,
+      `cannot read ${filePath} from App build provenance ${commit}`,
     );
     return null;
   }
   return crypto.createHash("sha256").update(result.stdout, "utf8").digest("hex");
+}
+
+type CompatibilityProfileBinding = {
+  profileId: string;
+  requirements: JsonRecord[];
+  maxAgeSeconds: number;
+};
+
+function loadCompatibilityProfile(
+  run: NonNullable<PreflightDependencies["run"]>,
+  appCommit: string,
+  profileId: string,
+  violations: Violation[],
+): CompatibilityProfileBinding | null {
+  const contractPath = "contracts/app-install-exposure-policy.json";
+  const result = run("/usr/bin/git", ["-C", APP_ROOT, "show", `${appCommit}:${contractPath}`]);
+  if (!commandPassed(result)) {
+    addViolation(
+      violations,
+      "app_compatibility_contract_unavailable",
+      `cannot read ${contractPath} from selected App artifact provenance ${appCommit}`,
+    );
+    return null;
+  }
+  try {
+    const contract = record(JSON.parse(result.stdout), "App compatibility contract");
+    const interoperability = record(
+      contract.component_interoperability,
+      "App component interoperability contract",
+    );
+    const admission = record(
+      interoperability.compatibility_admission,
+      "App compatibility admission",
+    );
+    const profiles = record(
+      interoperability.compatibility_profiles,
+      "App compatibility profiles",
+    );
+    const profile = record(profiles[profileId], `App compatibility profile ${profileId}`);
+    if (
+      profile.profile_id !== profileId ||
+      !Array.isArray(profile.requirements) ||
+      profile.requirements.length === 0 ||
+      admission.receipt_schema !== "opl_component_compatibility_receipt.v1" ||
+      admission.requirements_schema !== "opl_component_compatibility_requirements.v1" ||
+      admission.subject_schema !== "opl_app_compatibility_subject.v1" ||
+      admission.receipt_transport !==
+        "cli_envelope_with_independent_json_file_and_sha256_sidecar" ||
+      admission.current_framework_producer_status !==
+        "canonical_owner_cli_and_receipt_producer" ||
+      admission.producer_contract_ref !==
+        "contracts/opl-framework/app-component-compatibility-receipt-contract.json" ||
+      admission.inline_compatible_claim_allowed !== false ||
+      admission.app_may_generate_compatible_receipt !== false
+    ) {
+      throw new Error("profile or Framework receipt authority fields are incomplete");
+    }
+    const maxAgeSeconds = positiveInteger(
+      admission.observation_max_age_seconds,
+      "compatibility observation_max_age_seconds",
+    );
+    const requirements = profile.requirements.map((item) =>
+      record(item, `App compatibility requirement for ${profileId}`),
+    );
+    return {
+      profileId,
+      requirements,
+      maxAgeSeconds,
+    };
+  } catch (error) {
+    addViolation(
+      violations,
+      "app_compatibility_contract_invalid",
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
+}
+
+function requestFrameworkCompatibilityReceipt(
+  run: NonNullable<PreflightDependencies["run"]>,
+  profile: CompatibilityProfileBinding,
+  producerIdentity: JsonRecord,
+  subject: JsonRecord,
+  outputFile: string,
+  now: Date,
+  violations: Violation[],
+): {
+  receipt: JsonRecord | null;
+  outputSha256: string | null;
+  command: JsonRecord;
+  sources: JsonRecord | null;
+} {
+  const requirementsFile = `${outputFile}.requirements.json`;
+  const subjectFile = `${outputFile}.subject.json`;
+  try {
+    writeNewJson(requirementsFile, {
+      schema: "opl_component_compatibility_requirements.v1",
+      owner: "one-person-lab-app",
+      contract_ref:
+        "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
+      profile_id: profile.profileId,
+      requirements: profile.requirements,
+    });
+    writeNewJson(subjectFile, {
+      schema: "opl_app_compatibility_subject.v1",
+      owner: "one-person-lab-app",
+      ...subject,
+    });
+  } catch (error) {
+    addViolation(
+      violations,
+      "framework_compatibility_input_write_failed",
+      error instanceof Error ? error.message : String(error),
+    );
+    return { receipt: null, outputSha256: null, command: {}, sources: null };
+  }
+  const expectedSources = {
+    requirements: {
+      path: fs.realpathSync(requirementsFile),
+      sha256: sha256File(requirementsFile),
+    },
+    subject: {
+      path: fs.realpathSync(subjectFile),
+      sha256: sha256File(subjectFile),
+    },
+  };
+  const args = [
+    "app",
+    "compatibility",
+    "receipt",
+    "--requirements-file",
+    requirementsFile,
+    "--subject-file",
+    subjectFile,
+    "--output",
+    outputFile,
+    "--ttl-seconds",
+    String(profile.maxAgeSeconds),
+    "--json",
+  ];
+  const frameworkExecutable = String(producerIdentity.executable_path);
+  const result = run(frameworkExecutable, args);
+  const command = {
+    executable: frameworkExecutable,
+    executable_sha256: producerIdentity.executable_sha256,
+    framework_version: producerIdentity.framework_version,
+    package_ref: producerIdentity.package_ref,
+    argv: args,
+    ...commandDiagnostic(result),
+  };
+  if (!commandPassed(result)) {
+    addViolation(
+      violations,
+      "framework_compatibility_receipt_unavailable",
+      "Framework compatibility producer is unavailable or returned a non-zero exit status",
+    );
+    return { receipt: null, outputSha256: null, command, sources: expectedSources };
+  }
+  try {
+    const envelope = record(JSON.parse(result.stdout), "Framework compatibility CLI envelope");
+    const projection = record(
+      envelope.app_component_compatibility_receipt,
+      "Framework compatibility CLI receipt projection",
+    );
+    const projectionProducerIdentity = record(
+      projection.producer_identity,
+      "Framework compatibility CLI producer_identity",
+    );
+    if (
+      projectionProducerIdentity.command_surface !== producerIdentity.command_surface ||
+      path.resolve(String(projectionProducerIdentity.executable_path)) !==
+        producerIdentity.executable_path ||
+      sha256WithoutPrefix(projectionProducerIdentity.executable_sha256) !==
+        producerIdentity.executable_sha256 ||
+      projectionProducerIdentity.framework_version !== producerIdentity.framework_version ||
+      projectionProducerIdentity.package_ref !== producerIdentity.package_ref
+    ) {
+      throw new Error(
+        "Framework compatibility CLI producer identity does not match the executed Framework",
+      );
+    }
+    const projectedReceiptPath = path.resolve(
+      requiredString(projection.receipt_file, "Framework compatibility CLI receipt_file"),
+    );
+    const projectedSidecarPath = path.resolve(
+      requiredString(projection.sha256_file, "Framework compatibility CLI sha256_file"),
+    );
+    if (
+      projectedReceiptPath !== path.resolve(outputFile) ||
+      projectedSidecarPath !== path.resolve(`${outputFile}.sha256`)
+    ) {
+      throw new Error("Framework compatibility CLI envelope drifted from the requested output paths");
+    }
+    for (const [filePath, label] of [
+      [projectedReceiptPath, "Framework compatibility receipt"],
+      [projectedSidecarPath, "Framework compatibility SHA-256 sidecar"],
+    ] as const) {
+      const stat = fs.lstatSync(filePath);
+      if (!stat.isFile() || stat.isSymbolicLink()) {
+        throw new Error(`${label} must be a regular non-symlink file`);
+      }
+    }
+    const outputSha256 = sha256File(projectedReceiptPath);
+    if (sha256WithoutPrefix(projection.receipt_sha256) !== outputSha256) {
+      throw new Error("Framework compatibility CLI receipt SHA-256 does not match receipt bytes");
+    }
+    const expectedSidecar = `${outputSha256}  ${path.basename(projectedReceiptPath)}\n`;
+    if (fs.readFileSync(projectedSidecarPath, "utf8") !== expectedSidecar) {
+      throw new Error("Framework compatibility SHA-256 sidecar does not match receipt bytes");
+    }
+    const expectedSubject = {
+      selected_app_artifact: subject.selected_app_artifact,
+      installed_app_asar: {
+        path: fs.realpathSync(
+          String((subject.installed_app_asar as JsonRecord).path),
+        ),
+        sha256: String((subject.installed_app_asar as JsonRecord).sha256).replace(
+          /^sha256:/,
+          "",
+        ),
+      },
+      build_receipt: {
+        path: fs.realpathSync(String((subject.build_receipt as JsonRecord).path)),
+        sha256: String((subject.build_receipt as JsonRecord).sha256).replace(/^sha256:/, ""),
+      },
+    };
+    const receipt = validateComponentCompatibilityReceipt(
+      readJson(projectedReceiptPath, "Framework compatibility receipt"),
+      {
+      expected_producer_identity: producerIdentity,
+      expected_receipt_path: projectedReceiptPath,
+      expected_requirements: profile.requirements,
+      expected_sources: expectedSources,
+      expected_subject: expectedSubject,
+      max_age_seconds: profile.maxAgeSeconds,
+      now,
+      },
+    ) as JsonRecord;
+    if (
+      projection.status !== receipt.status ||
+      projection.requirement_count !== profile.requirements.length ||
+      projection.failure_count !== (receipt.failures as unknown[]).length ||
+      projection.issued_at !== receipt.issued_at ||
+      projection.expires_at !== receipt.expires_at
+    ) {
+      throw new Error("Framework compatibility CLI envelope does not match receipt contents");
+    }
+    if (receipt.status === "incompatible") {
+      for (const failure of receipt.failures as JsonRecord[]) {
+        addViolation(
+          violations,
+          String(failure.code),
+          typeof failure.message === "string"
+            ? failure.message
+            : `Framework compatibility failed: ${String(failure.code)}`,
+        );
+      }
+    }
+    return { receipt, outputSha256, command, sources: expectedSources };
+  } catch (error) {
+    addViolation(
+      violations,
+      "framework_compatibility_receipt_invalid",
+      error instanceof Error ? error.message : String(error),
+    );
+    return {
+      receipt: null,
+      outputSha256:
+        fs.statSync(outputFile, { throwIfNoEntry: false })?.isFile()
+          ? sha256File(outputFile)
+          : null,
+      command,
+      sources: expectedSources,
+    };
+  }
 }
 
 function collectTreeEntries(root: string, relative = ""): string[] {
@@ -265,6 +544,115 @@ function isPathWithin(root: string, candidate: string): boolean {
   return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
 }
 
+function resolveFrameworkRuntimeIdentity(
+  rawIdentity: JsonRecord,
+  installedAppPath: string,
+): JsonRecord {
+  if (
+    rawIdentity.authority_source !== "app_launcher_bound_framework_runtime_readback"
+  ) {
+    throw new Error(
+      "compatibility.framework_runtime must come from the App launcher-bound Framework runtime readback",
+    );
+  }
+  const executablePath = path.resolve(
+    requiredString(rawIdentity.executable_path, "compatibility.framework_runtime.executable_path"),
+  );
+  const stat = fs.lstatSync(executablePath);
+  if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o111) === 0) {
+    throw new Error(
+      "compatibility Framework executable must be one executable regular non-symlink file",
+    );
+  }
+  const realpath = fs.realpathSync(executablePath);
+  if (realpath !== executablePath) {
+    throw new Error("compatibility Framework executable path must already be its exact realpath");
+  }
+  const appBound = isPathWithin(fs.realpathSync(installedAppPath), realpath);
+  if (
+    !appBound &&
+    (isPathWithin(os.homedir(), realpath) || isPathWithin(os.tmpdir(), realpath))
+  ) {
+    throw new Error(
+      "compatibility Framework executable outside the installed App cannot come from a user or temporary directory",
+    );
+  }
+  if (!appBound) {
+    let current = realpath;
+    while (current !== path.dirname(current)) {
+      if ((fs.lstatSync(current).mode & 0o022) !== 0) {
+        throw new Error(
+          "compatibility Framework executable path cannot be group- or world-writable",
+        );
+      }
+      current = path.dirname(current);
+    }
+  }
+  const expectedSha256 = exactSha256(
+    rawIdentity.executable_sha256,
+    "compatibility.framework_runtime.executable_sha256",
+  );
+  if (sha256File(realpath) !== expectedSha256) {
+    throw new Error(
+      "compatibility Framework executable bytes do not match launcher-bound SHA-256",
+    );
+  }
+  const bindingReceiptPath = path.resolve(
+    requiredString(
+      rawIdentity.binding_receipt,
+      "compatibility.framework_runtime.binding_receipt",
+    ),
+  );
+  const bindingStat = fs.lstatSync(bindingReceiptPath);
+  if (!bindingStat.isFile() || bindingStat.isSymbolicLink()) {
+    throw new Error(
+      "compatibility Framework runtime binding receipt must be a regular non-symlink file",
+    );
+  }
+  const bindingReceiptSha256 = exactSha256(
+    rawIdentity.binding_receipt_sha256,
+    "compatibility.framework_runtime.binding_receipt_sha256",
+  );
+  if (sha256File(bindingReceiptPath) !== bindingReceiptSha256) {
+    throw new Error("compatibility Framework runtime binding receipt SHA-256 drifted");
+  }
+  const bindingReceipt = readJson(
+    bindingReceiptPath,
+    "App launcher Framework runtime binding receipt",
+  );
+  const frameworkVersion = requiredString(
+    rawIdentity.framework_version,
+    "compatibility.framework_runtime.framework_version",
+  );
+  const packageRef = requiredString(
+    rawIdentity.package_ref,
+    "compatibility.framework_runtime.package_ref",
+  );
+  if (
+    bindingReceipt.schema !== "opl_app_launcher_framework_runtime_binding.v1" ||
+    bindingReceipt.owner !== "one-person-lab-app" ||
+    bindingReceipt.status !== "bound" ||
+    path.resolve(String(bindingReceipt.installed_app_path)) !==
+      fs.realpathSync(installedAppPath) ||
+    path.resolve(String(bindingReceipt.executable_path)) !== realpath ||
+    String(bindingReceipt.executable_sha256).replace(/^sha256:/, "") !==
+      expectedSha256 ||
+    bindingReceipt.framework_version !== frameworkVersion ||
+    bindingReceipt.package_ref !== packageRef
+  ) {
+    throw new Error(
+      "compatibility Framework runtime identity does not match the App launcher binding receipt",
+    );
+  }
+  return {
+    command_surface: "opl app compatibility receipt",
+    executable_path: realpath,
+    executable_sha256: expectedSha256,
+    framework_version: frameworkVersion,
+    package_ref: packageRef,
+  };
+}
+
 export function resolveIsolatedProfileRealpath(profileRoot: string): string | null {
   try {
     const lstat = fs.lstatSync(profileRoot);
@@ -308,10 +696,9 @@ function sha256WithoutPrefix(value: unknown): string {
 
 function validateSourceLockReceipt(
   receipt: JsonRecord,
-  cohort: JsonRecord,
   classification: "diagnostic" | "immutable_stable",
   violations: Violation[],
-): void {
+): JsonRecord | null {
   const schema = receipt.schema;
   const expectedSchema =
     classification === "immutable_stable"
@@ -323,7 +710,7 @@ function validateSourceLockReceipt(
       "source_lock_schema_mismatch",
       `${classification} acceptance requires ${expectedSchema}`,
     );
-    return;
+    return null;
   }
   const paths =
     schema === "opl_app_release_cohort_lock.v1"
@@ -345,18 +732,42 @@ function validateSourceLockReceipt(
       "source_lock_schema_unsupported",
       `unsupported source-lock schema: ${String(schema)}`,
     );
-    return;
+    return null;
   }
+  const provenance: JsonRecord = {
+    source: "source_lock_receipt",
+    role: "observational_build_provenance_only",
+    may_gate_install_or_runtime: false,
+  };
   for (const [field, fieldPath] of Object.entries(paths)) {
-    requireExactPath(
-      receipt,
-      [fieldPath],
-      cohort[field],
-      violations,
-      "source_lock_cohort_mismatch",
-      `source-lock ${field}`,
-    );
+    const component = field.replace("_sha", "");
+    const rawCommit = valueAtPath(receipt, fieldPath);
+    if (component === "app") {
+      try {
+        provenance[component] = {
+          commit: exactCommit(rawCommit, `source-lock ${field}`),
+        };
+      } catch (error) {
+        addViolation(
+          violations,
+          "source_provenance_invalid",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    } else if (typeof rawCommit === "string" && COMMIT_PATTERN.test(rawCommit)) {
+      provenance[component] = { commit: rawCommit, observational: true };
+    } else {
+      provenance[component] = { commit: null, observational: true };
+    }
   }
+  if (!(provenance.app as JsonRecord | undefined)?.commit) {
+      addViolation(
+        violations,
+        "source_provenance_invalid",
+        "source-lock receipt must identify the App build provenance commit",
+      );
+  }
+  return provenance;
 }
 
 function validatePublishedCarrierReceipt(
@@ -417,13 +828,13 @@ type BuildReceiptBinding = {
   kind: "standard" | "full" | "diagnostic";
   packagedTreeSha256: string | null;
   fullManifestSha256: string | null;
+  componentProvenance: JsonRecord | null;
 };
 
 function validateBuildReceipt(
   receipt: JsonRecord,
   authority: {
     classification: "diagnostic" | "immutable_stable";
-    cohort: JsonRecord;
     artifact: JsonRecord;
     installed: JsonRecord;
     identity: JsonRecord;
@@ -438,25 +849,38 @@ function validateBuildReceipt(
         "build_receipt_schema_mismatch",
         "immutable Stable requires opl_app_build_artifact_cohort.v2",
       );
-      return { kind: "standard", packagedTreeSha256: null, fullManifestSha256: null };
+      return {
+        kind: "standard",
+        packagedTreeSha256: null,
+        fullManifestSha256: null,
+        componentProvenance: null,
+      };
     }
     const build = record(receipt.build, "build receipt build");
     const artifact = record(receipt.artifact, "build receipt artifact");
     const digests = record(receipt.digests, "build receipt digests");
+    const buildProvenance = record(receipt.cohort, "build receipt provenance");
     const kind = build.kind === "full" ? "full" : "standard";
     if (build.kind !== "standard" && build.kind !== "full") {
       addViolation(violations, "build_receipt_binding_mismatch", "build kind is invalid");
     }
-    for (const field of ["app_sha", "shell_sha", "framework_sha"] as const) {
-      requireExactPath(
-        receipt,
-        [`cohort.${field}`],
-        authority.cohort[field],
-        violations,
-        "build_receipt_binding_mismatch",
-        `build receipt cohort.${field}`,
-      );
-    }
+    const appCommit = exactCommit(buildProvenance.app_sha, "build receipt provenance.app_sha");
+    const optionalBuildCommit = (value: unknown): string | null =>
+      typeof value === "string" && COMMIT_PATTERN.test(value) ? value : null;
+    const componentProvenance: JsonRecord = {
+      source: "artifact_build_receipt",
+      role: "observational_build_provenance_only",
+      may_gate_install_or_runtime: false,
+      app: { commit: appCommit },
+      shell: {
+        commit: optionalBuildCommit(buildProvenance.shell_sha),
+        observational: true,
+      },
+      framework: {
+        commit: optionalBuildCommit(buildProvenance.framework_sha),
+        observational: true,
+      },
+    };
     if (
       build.version !== authority.identity.display_version ||
       artifact.name !== authority.artifact.asset_name ||
@@ -475,7 +899,7 @@ function validateBuildReceipt(
     ] as const) {
       const cohortDigest = gitBlobSha256(
         run,
-        String(authority.cohort.app_sha),
+        String((componentProvenance.app as JsonRecord).commit),
         filePath,
         violations,
       );
@@ -483,7 +907,7 @@ function validateBuildReceipt(
         addViolation(
           violations,
           "build_receipt_contract_digest_mismatch",
-          `build receipt ${field} does not match App cohort ${String(authority.cohort.app_sha)}`,
+          `build receipt ${field} does not match its App build provenance`,
         );
       }
     }
@@ -498,7 +922,7 @@ function validateBuildReceipt(
             "build receipt full_package_manifest_sha256",
           )
         : null;
-    return { kind, packagedTreeSha256, fullManifestSha256 };
+    return { kind, packagedTreeSha256, fullManifestSha256, componentProvenance };
   }
 
   if (
@@ -511,7 +935,12 @@ function validateBuildReceipt(
       "build_receipt_schema_mismatch",
       "diagnostic acceptance requires one completed manual local-app build receipt",
     );
-    return { kind: "diagnostic", packagedTreeSha256: null, fullManifestSha256: null };
+    return {
+      kind: "diagnostic",
+      packagedTreeSha256: null,
+      fullManifestSha256: null,
+      componentProvenance: null,
+    };
   }
   requireExactPath(
     receipt,
@@ -521,7 +950,12 @@ function validateBuildReceipt(
     "build_receipt_binding_mismatch",
     "manual build source_lock_sha256",
   );
-  return { kind: "diagnostic", packagedTreeSha256: null, fullManifestSha256: null };
+  return {
+    kind: "diagnostic",
+    packagedTreeSha256: null,
+    fullManifestSha256: null,
+    componentProvenance: null,
+  };
 }
 
 function validateManualInstallReceipt(
@@ -580,14 +1014,16 @@ function parseAuthority(
   baseDirectory: string,
 ): {
   classification: "diagnostic" | "immutable_stable";
-  cohort: JsonRecord;
+  compatibilityProfileId: string;
+  compatibilityReceiptOutput: string;
+  compatibilityFrameworkRuntime: JsonRecord;
   artifact: JsonRecord;
   installed: JsonRecord;
   runtime: JsonRecord;
   profile: JsonRecord;
   identity: JsonRecord;
 } {
-  const input = record(rawInput, "installed GUI cohort authority");
+  const input = record(rawInput, "installed GUI artifact authority");
   if (input.schema !== AUTHORITY_SCHEMA) {
     throw new Error(`authority schema must be ${AUTHORITY_SCHEMA}`);
   }
@@ -595,20 +1031,44 @@ function parseAuthority(
   if (!["diagnostic", "immutable_stable"].includes(classification)) {
     throw new Error("classification must be diagnostic or immutable_stable");
   }
-  const cohort = record(input.cohort, "cohort");
-  for (const field of ["app_sha", "shell_sha", "framework_sha"] as const) {
-    cohort[field] = exactCommit(cohort[field], `cohort.${field}`);
-  }
-  for (const field of ["app_tree", "shell_tree", "framework_tree"] as const) {
-    if (cohort[field] !== undefined) {
-      cohort[field] = exactCommit(cohort[field], `cohort.${field}`);
-    }
-  }
   const normalizePath = (value: unknown, label: string) =>
     path.resolve(baseDirectory, requiredString(value, label));
+  const compatibility = record(input.compatibility, "compatibility selector");
+  if (
+    Object.keys(compatibility).sort().join(",") !==
+      "framework_runtime,profile_id,receipt_output" ||
+    Object.hasOwn(compatibility, "status") ||
+    Object.hasOwn(compatibility, "requirements") ||
+    Object.hasOwn(compatibility, "observed_components") ||
+    Object.hasOwn(compatibility, "failures")
+  ) {
+    throw new Error(
+      "compatibility selector may contain only profile_id, receipt_output, and launcher-bound framework_runtime; inline compatibility claims are forbidden",
+    );
+  }
+  const compatibilityProfileId = requiredString(
+    compatibility.profile_id,
+    "compatibility.profile_id",
+  );
+  const compatibilityReceiptOutput = normalizePath(
+    compatibility.receipt_output,
+    "compatibility.receipt_output",
+  );
+  const rawCompatibilityFrameworkRuntime = record(
+    compatibility.framework_runtime,
+    "compatibility.framework_runtime",
+  );
   const artifact = record(input.artifact, "artifact");
   artifact.path = normalizePath(artifact.path, "artifact.path");
   artifact.sha256 = exactSha256(artifact.sha256, "artifact.sha256");
+  artifact.owner_authority = requiredString(
+    artifact.owner_authority,
+    "artifact.owner_authority",
+  );
+  artifact.release_tag = requiredString(artifact.release_tag, "artifact.release_tag");
+  artifact.asset_url = requiredString(artifact.asset_url, "artifact.asset_url");
+  artifact.asset_name = requiredString(artifact.asset_name, "artifact.asset_name");
+  artifact.size_bytes = positiveInteger(artifact.size_bytes, "artifact.size_bytes");
   artifact.source_lock = normalizePath(artifact.source_lock, "artifact.source_lock");
   artifact.source_lock_sha256 = exactSha256(
     artifact.source_lock_sha256,
@@ -631,9 +1091,6 @@ function parseAuthority(
       throw new Error("immutable_stable requires immutable=true and public=true");
     }
     artifact.release_id = positiveInteger(artifact.release_id, "artifact.release_id");
-    requiredString(artifact.release_tag, "artifact.release_tag");
-    requiredString(artifact.asset_name, "artifact.asset_name");
-    artifact.size_bytes = positiveInteger(artifact.size_bytes, "artifact.size_bytes");
     artifact.public_release_receipt = normalizePath(
       artifact.public_release_receipt,
       "artifact.public_release_receipt",
@@ -649,6 +1106,10 @@ function parseAuthority(
   installed.executable_path = normalizePath(installed.executable_path, "installed.executable_path");
   installed.app_asar = normalizePath(installed.app_asar, "installed.app_asar");
   installed.app_asar_sha256 = exactSha256(installed.app_asar_sha256, "installed.app_asar_sha256");
+  const compatibilityFrameworkRuntime = resolveFrameworkRuntimeIdentity(
+    rawCompatibilityFrameworkRuntime,
+    String(installed.app_path),
+  );
   if (installed.full_manifest !== undefined || installed.full_manifest_sha256 !== undefined) {
     installed.full_manifest = normalizePath(installed.full_manifest, "installed.full_manifest");
     installed.full_manifest_sha256 = exactSha256(
@@ -728,7 +1189,9 @@ function parseAuthority(
   }
   return {
     classification: classification as "diagnostic" | "immutable_stable",
-    cohort,
+    compatibilityProfileId,
+    compatibilityReceiptOutput,
+    compatibilityFrameworkRuntime,
     artifact,
     installed,
     runtime,
@@ -747,6 +1210,7 @@ export async function preflightInstalledGuiCohort(
   const violations: Violation[] = [];
   const authority = parseAuthority(rawInput, baseDirectory);
   const checks: JsonRecord = {};
+  const inspectedAt = (dependencies.now ?? (() => new Date()))();
 
   const artifactActual = assertFileDigest(
     String(authority.artifact.path),
@@ -866,9 +1330,10 @@ export async function preflightInstalledGuiCohort(
     );
   }
 
+  let sourceProvenance: JsonRecord | null = null;
   if (sourceLockActual) {
     const sourceLock = readJson(String(authority.artifact.source_lock), "source-lock receipt");
-    validateSourceLockReceipt(sourceLock, authority.cohort, authority.classification, violations);
+    sourceProvenance = validateSourceLockReceipt(sourceLock, authority.classification, violations);
   }
   if (publicReleaseReceiptActual) {
     const publicReleaseReceipt = readJson(
@@ -881,11 +1346,97 @@ export async function preflightInstalledGuiCohort(
     kind: authority.classification === "immutable_stable" ? "standard" : "diagnostic",
     packagedTreeSha256: null,
     fullManifestSha256: null,
+    componentProvenance: null,
   };
   if (buildReceiptActual) {
     const buildReceipt = readJson(String(authority.artifact.build_receipt), "build receipt");
     buildBinding = validateBuildReceipt(buildReceipt, authority, violations, run);
   }
+  const sourceAndBuildProvenanceConsistent = !(
+    sourceProvenance &&
+    buildBinding.componentProvenance &&
+    ["app", "shell", "framework"].some(
+      (component) =>
+        (sourceProvenance![component] as JsonRecord | undefined)?.commit !==
+        (buildBinding.componentProvenance![component] as JsonRecord | undefined)?.commit,
+    )
+  );
+  checks.build_provenance = {
+    source_lock: sourceProvenance,
+    build_receipt: buildBinding.componentProvenance,
+    consistent: sourceAndBuildProvenanceConsistent,
+    role: "observational_build_provenance_only",
+    may_gate_install_or_runtime: false,
+  };
+  const componentProvenance = buildBinding.componentProvenance ?? sourceProvenance;
+  let compatibilityReceipt: JsonRecord | null = null;
+  let compatibilityOutputSha256: string | null = null;
+  let compatibilityCommand: JsonRecord | null = null;
+  let compatibilitySources: JsonRecord | null = null;
+  const appCommit = (componentProvenance?.app as JsonRecord | undefined)?.commit;
+  if (typeof appCommit !== "string" || !COMMIT_PATTERN.test(appCommit)) {
+    addViolation(
+      violations,
+      "app_compatibility_contract_provenance_missing",
+      "selected App artifact provenance does not identify the App contract commit",
+    );
+  } else {
+    const compatibilityProfile = loadCompatibilityProfile(
+      run,
+      appCommit,
+      authority.compatibilityProfileId,
+      violations,
+    );
+    if (compatibilityProfile) {
+      const selectedAppArtifact: JsonRecord = {
+        owner_authority: authority.artifact.owner_authority,
+        immutable_release_tag: authority.artifact.release_tag,
+        asset_url: authority.artifact.asset_url,
+        asset_name: authority.artifact.asset_name,
+        byte_size: authority.artifact.size_bytes,
+        sha256: authority.artifact.sha256,
+      };
+      if (authority.artifact.signature) {
+        selectedAppArtifact.signature = authority.artifact.signature;
+      }
+      if (authority.artifact.notarization) {
+        selectedAppArtifact.notarization = authority.artifact.notarization;
+      }
+      const frameworkCompatibility = requestFrameworkCompatibilityReceipt(
+        run,
+        compatibilityProfile,
+        authority.compatibilityFrameworkRuntime,
+        {
+          selected_app_artifact: selectedAppArtifact,
+          installed_app_asar: {
+            path: authority.installed.app_asar,
+            sha256: authority.installed.app_asar_sha256,
+          },
+          build_receipt: {
+            path: authority.artifact.build_receipt,
+            sha256: authority.artifact.build_receipt_sha256,
+          },
+        },
+        authority.compatibilityReceiptOutput,
+        inspectedAt,
+        violations,
+      );
+      compatibilityReceipt = frameworkCompatibility.receipt;
+      compatibilityOutputSha256 = frameworkCompatibility.outputSha256;
+      compatibilityCommand = frameworkCompatibility.command;
+      compatibilitySources = frameworkCompatibility.sources;
+    }
+  }
+  checks.framework_compatibility = {
+    profile_id: authority.compatibilityProfileId,
+    producer_identity: authority.compatibilityFrameworkRuntime,
+    command: compatibilityCommand,
+    output_sha256: compatibilityOutputSha256,
+    receipt_path: authority.compatibilityReceiptOutput,
+    sources: compatibilitySources,
+    receipt: compatibilityReceipt,
+    source_and_build_provenance_consistent: sourceAndBuildProvenanceConsistent,
+  };
   if (installReceiptActual) {
     const installReceipt = readJson(String(authority.artifact.install_receipt), "install receipt");
     if (authority.classification !== "diagnostic") {
@@ -1227,9 +1778,18 @@ export async function preflightInstalledGuiCohort(
   const receipt: JsonRecord = {
     schema: RECEIPT_SCHEMA,
     status,
-    inspected_at: (dependencies.now ?? (() => new Date()))().toISOString(),
+    inspected_at: inspectedAt.toISOString(),
     classification: authority.classification,
-    cohort: authority.cohort,
+    compatibility: {
+      profile_id: authority.compatibilityProfileId,
+      framework_receipt: compatibilityReceipt,
+      framework_receipt_path: authority.compatibilityReceiptOutput,
+      framework_receipt_output_sha256: compatibilityOutputSha256,
+      framework_receipt_sources: compatibilitySources,
+      authority: "framework_owner_receipt_only",
+      app_generated_compatible_claim: false,
+    },
+    component_provenance: componentProvenance,
     artifact: authority.artifact,
     installed: authority.installed,
     runtime: {
@@ -1257,7 +1817,11 @@ export async function preflightInstalledGuiCohort(
       source_lock_bound: sourceLockActual === authority.artifact.source_lock_sha256,
       build_receipt_bound: buildReceiptActual === authority.artifact.build_receipt_sha256,
       installed_bytes_bound: appAsarActual === authority.installed.app_asar_sha256,
-      same_cohort_installed: status === "passed",
+      artifact_identity_verified: status === "passed",
+      component_compatibility_verified:
+        status === "passed" &&
+        compatibilityReceipt?.status === "compatible" &&
+        compatibilityOutputSha256 !== null,
       pid_executable_bound: status === "passed" && commandPassed(process),
       cdp_pid_bound: status === "passed" && commandPassed(cdpListener),
       aioncore_runtime_bound:
@@ -1327,7 +1891,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
             artifact_digest_bound: false,
             source_lock_bound: false,
             installed_bytes_bound: false,
-            same_cohort_installed: false,
+            artifact_identity_verified: false,
+            component_compatibility_verified: false,
             pid_executable_bound: false,
             cdp_pid_bound: false,
             aioncore_runtime_bound: false,

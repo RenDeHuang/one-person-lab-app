@@ -3,6 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "release_channel_contract",
   "state": "active",
+  "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
   "distribution_semantics": {
     "schema": "opl_app_distribution_semantics.v1",
     "human_ssot": "docs/delivery/distribution-and-install-ssot.md",
@@ -238,12 +239,14 @@
         "behavior_contract_convergence_required": true
       },
       "approved_production_target": {
-        "model": "one_app_version_multiple_runtime_forms",
+        "model": "one_app_product_multiple_independently_versioned_carriers",
         "runtime_forms": [
           "desktop",
           "container_webui"
         ],
-        "same_app_version_and_official_profile_required": true,
+        "same_app_version_required_across_runtime_forms": false,
+        "compatibility_admission_ref": "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
+        "same_official_profile_intent_required": true,
         "physical_artifact_bytes_must_match": false,
         "carrier_specific_build_and_failure_isolation_required": true,
         "framework_reconciliation_and_product_behavior_must_converge": true
@@ -682,14 +685,15 @@
     },
     "full_macos_additive_follower": {
       "workflow": ".github/workflows/release-stable-post-success-followups.yml",
-      "trigger": "protected_automatic_post_success",
-      "source_policy": "stable_required",
-      "same_app_shell_framework_cohort_required": true,
-      "same_standard_identity_and_version_required": true,
+      "trigger": "protected_automatic_post_success_or_explicit_independent_full_publication",
+      "source_policy": "full_artifact_self_identity_plus_component_compatibility",
+      "standard_release_prerequisite_required": false,
+      "cross_component_exact_version_sha_or_cohort_binding_allowed": false,
+      "compatibility_contract_ref": "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
       "operation": "append_full",
       "carrier": "independent_immutable_adjunct_release",
-      "tag_derivation": "<base-tag>-full-<first12-bundle-digest>",
-      "base_release_must_be_published_immutable": true,
+      "tag_derivation": "<full-app-carrier-version>-full-<first12-full-manifest-sha256>",
+      "full_release_must_be_published_immutable": true,
       "draft_asset_set_must_be_exact_before_publication": true,
       "manifest": "opl-release-manifest.json",
       "user_download_surface": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/<adjunct-tag>",
@@ -697,7 +701,7 @@
       "blocks_stable_base_terminal": false,
       "blocks_latest_activation": false,
       "failure_receipt_required": true,
-      "recovery": "distinct_append_full_operation_bound_to_the_same_cohort"
+      "recovery": "distinct_full_operation_bound_to_the_same_full_artifact_identity"
     }
   },
   "release_repo": "gaofeng21cn/one-person-lab-app",
@@ -760,10 +764,18 @@
     "machine_version": {
       "legacy_stable_last_display_version": "26.7.20",
       "legacy_versions_keep_recorded_machine_identity": true,
-      "stable_patch_formula": "day_times_100_plus_revision",
+      "shared_preview_lane_cutover_display_version": "26.7.31",
+      "stable_patch_formula_before_cutover": "day_times_100_plus_revision",
+      "shared_channel_patch_formula_after_cutover": "day_times_100_plus_90_plus_revision",
       "stable_base_revision": 0,
       "nightly_patch_offset": 90,
-      "comparison": "semver_core_decimal_integer_segments",
+      "shared_revision_sources_after_cutover": [
+        "stable",
+        "preview",
+        "nightly"
+      ],
+      "same_revision_stable_outranks_nightly": "semver_release_outranks_prerelease_with_equal_core",
+      "comparison": "semver_core_decimal_integer_segments_then_prerelease_precedence",
       "zero_padding_or_string_comparison_allowed": false,
       "display_identity_surfaces": [
         "github_release_tag",
@@ -941,14 +953,15 @@
       ]
     },
     "identity": {
-      "minimum_source_refs": [
+      "recorded_build_provenance_refs": [
         "app_sha",
         "shell_sha",
         "framework_sha"
       ],
+      "build_provenance_role": "reproduce_the_selected_app_artifact_only_never_install_or_runtime_compatibility",
       "new_standard": {
-        "identity_mode": "app_standard_compatibility",
-        "three_repo_sha_tuple_is_sufficient_with_typed_package_compatibility": true,
+        "identity_mode": "app_standard_artifact_build_provenance",
+        "source_ref_equality_may_gate_external_component_install_or_runtime": false,
         "package_compatibility": {
           "abi": "opl_packages.v1",
           "version_range": ">=0.1.0 <1.0.0"
@@ -991,7 +1004,7 @@
         "optional_full_assets_and_qualification",
         "product_policy_inputs"
       ],
-      "prebuild_rule": "A new App Standard Bundle freezes exact App, Shell, and Framework Base refs plus the typed Package compatibility ABI and range before any expensive build. Package Release Set generations, Package owner refs, manifests, and payload digests are independent authorities and must not gate or enter the new Standard identity; historical Bundles remain read-compatible."
+      "prebuild_rule": "A new App Standard artifact records exact App, Shell, and Framework source refs only as reproducible build provenance. Those refs and the resulting Bundle digest never gate installation or runtime composition with external Base or Packages. Compatibility is admitted only by capability, minimum version, or SemVer range; historical Bundles remain read-compatible."
     },
     "source_freeze_currentness_policy": {
       "schema": "opl_release_source_freeze_currentness_policy.v1",
@@ -1341,9 +1354,6 @@
           },
           "required_exact_identity_fields": [
             "bundle_digest",
-            "candidate.app_sha",
-            "candidate.shell_sha",
-            "candidate.framework_sha",
             "candidate.zip.sha256",
             "candidate.zip.size_bytes",
             "candidate.dmg.sha256",
@@ -1494,8 +1504,9 @@
           "required_m2_status": "standard_qualified",
           "required_stable_readback_schema": "opl_manual_preview_stable_append_full_readback.v1",
           "required_stable_readback_status": "verified",
-          "same_source_lock_and_full_asset_digests_required": true,
-          "same_bundle_digest_required": true,
+          "same_source_lock_and_full_asset_digests_required": false,
+          "same_bundle_digest_required": false,
+          "full_artifact_identity_required": true,
           "m2_exact_asset_bindings": [
             "One-Person-Lab-Full-<version>-mac-arm64.dmg",
             "opl-release-manifest.json"
@@ -1548,7 +1559,7 @@
         "sampled_vm_follower": ".github/workflows/release-nightly-sampled-vm.yml"
       },
       "full": {
-        "mode": "same_bundle_cohort_additive_only",
+        "mode": "independent_immutable_adjunct_release",
         "may_follow_latest": true,
         "required_assets": [
           "One-Person-Lab-Full-<version>-mac-arm64.dmg",
@@ -1784,7 +1795,8 @@
     },
     "artifact_parity": {
       "canonical_public_asset_set_per_version": 1,
-      "same_frozen_cohort_required": true,
+      "same_selected_app_artifact_identity_required": true,
+      "cross_component_version_sha_or_cohort_equality_may_gate_install_or_runtime": false,
       "track_handoff_requires_exact_asset_digests": true,
       "same_public_names_roles_and_install_behavior_required": true,
       "same_standard_updater_metadata_contract_required": true,
@@ -1910,6 +1922,46 @@
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
   "standard_updater": {
+    "candidate_selection": {
+      "schema": "opl_app_updater_candidate_selection.v1",
+      "updater_version_field": "updaterVersion",
+      "sort_authority": "valid_updater_version_semver",
+      "latest_pointer_is_not_candidate_sort_authority": true,
+      "stable": {
+        "allowed_quality_statuses": [
+          "stable"
+        ],
+        "candidate_union": "stable_only"
+      },
+      "preview": {
+        "allowed_quality_statuses": [
+          "stable",
+          "preview"
+        ],
+        "allowed_preview_kinds": [
+          "dev",
+          "nightly"
+        ],
+        "candidate_union": "stable_plus_preview_and_nightly",
+        "higher_stable_may_supersede_preview_or_nightly": true
+      },
+      "nightly_is_not_an_independent_user_channel": true,
+      "monotonicity": {
+        "comparison": "semver",
+        "machine_version_contract_ref": "github_release_name.machine_version",
+        "candidate_lower_than_installed": "reject",
+        "candidate_equal_to_installed": "no_op",
+        "candidate_higher_than_installed": "update",
+        "invalid_or_missing_updater_version": "reject",
+        "superseding_stable_must_exceed_published_nightly": true,
+        "published_nightly_baseline_sources": [
+          "durable_publication_record",
+          "candidate_metadata"
+        ],
+        "superseding_comparison": "strictly_greater_updater_version_semver",
+        "lower_or_equal_superseding_stable": "reject"
+      }
+    },
     "allowed_metadata": [
       "latest-arm64-mac.yml"
     ],
@@ -3049,7 +3101,7 @@
         "release_set_manifest_digest"
       ]
     },
-    "full_first_install_policy": "the independent immutable Full adjunct GitHub Release is the Full DMG authority and binds the exact immutable base Stable tag, Bundle digest, and App/Shell/Framework cohort; its durable receipt exposes the adjunct Release and asset URLs; the protected post-publication Homebrew Full follower consumes that exact hosted-qualified adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged",
+    "full_first_install_policy": "the independent immutable Full adjunct GitHub Release is the Full DMG and manifest self-identity authority; its durable receipt exposes the adjunct Release and asset URLs, and its compatibility admission uses capability, minimum-version, or SemVer-range requirements through the Framework-owner receipt. The protected Homebrew Full follower consumes that exact adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged",
     "codex_temporal_policy": {
       "compatibility_mode": "minimum_version_plus_capability_smoke",
       "prefer_valid_newer_system_tool": true,
@@ -3443,8 +3495,8 @@
       "operation": "append_full",
       "workflow": ".github/workflows/_release-full-addon.yml",
       "checkpoint_minimum_stage": "standard_built",
-      "standard_identity_required": true,
-      "standard_release_readback": "exact_tag_required_asset_set_digests_and_immutable_true",
+      "standard_identity_required": false,
+      "standard_release_readback": "optional_provenance_only_no_compatibility_gate",
       "successor_trigger": {
         "workflow": ".github/workflows/release-stable-post-success-followups.yml",
         "trigger": "successful_standard_workflow_run",
@@ -3453,10 +3505,11 @@
         "executor_head_sha": "workflow_run_head_sha"
       },
       "framework_operation_receipt_schema": "opl_release_bundle_operation_receipt.v1",
-      "mode": "same_cohort_independent_immutable_adjunct_release",
+      "mode": "independent_immutable_adjunct_release",
+      "standard_release_prerequisite_required": false,
       "carrier_identity": {
-        "base_release_tag": "v<version>",
-        "adjunct_release_tag": "v<version>-full-<first12-bundle-digest>",
+        "base_release_tag": "optional_standard_reference_only",
+        "adjunct_release_tag": "v<full-app-carrier-version>-full-<first12-full-manifest-sha256>",
         "base_release_mutation_allowed": false,
         "adjunct_make_latest": false,
         "adjunct_prerelease": false,
@@ -3908,7 +3961,7 @@
     ],
     "required_fast_checks": [
       "channel_display_and_updater_version_identity",
-      "exact_app_shell_framework_git_shas",
+      "app_artifact_identity_and_framework_compatibility_receipt",
       "app_standard_identity_mode",
       "typed_package_compatibility_abi_and_range",
       "package_release_set_and_exact_package_fields_absent",
@@ -3945,9 +3998,9 @@
         "post_publication_optional_certification"
       ],
       "failure_next_action": "repair_source_gate",
-      "rule": "The App release source gate runs once before dispatch and is embedded in the operator-issued authority. protected-operation-admission materializes and verifies the exact frozen bytes before dependency installation or expensive hosted build, Full, WebUI, or post-publication optional certification work; it never reruns the full source gate, and unrelated live main advancement does not invalidate the frozen cohort when critical blobs remain exact."
+      "rule": "The App release source gate runs once before dispatch and is embedded in the operator-issued authority. It records the exact App/Shell/Framework source and build provenance used to produce the selected App artifact, then verifies the frozen bytes before dependency installation or expensive hosted build, Full, WebUI, or post-publication optional certification work. These refs are observational build provenance only and never an install/runtime compatibility gate."
     },
-    "rule": "The App freeze-request adapter validates product identity, exact App/Shell/Framework refs, prepared Standard notes, and typed Package compatibility, then hands one app_standard_compatibility request to Framework freeze without Package Release Set or exact Package authority fields. It cannot create release state or replace Framework checkpoint admission; append_full remains independent from the Standard terminal and historical Bundle identity remains read-compatible.",
+    "rule": "The App freeze-request adapter validates product identity, selected App artifact identity, Framework compatibility requirements, prepared Standard notes, and typed Package compatibility, then hands one app_standard_compatibility request to Framework freeze without Package Release Set or exact Package authority fields. It cannot create release state or replace Framework checkpoint admission; App/Shell/Framework source refs remain provenance only, and append_full remains independently admissible with historical Bundle identity read-compatible.",
     "stable_operations": [
       "standard",
       "resume_standard",
@@ -4850,8 +4903,10 @@
         "<exact-tag>",
         "--no-open"
       ],
-      "component_manifest_binding_required": true,
-      "same_app_shell_framework_cohort_required": true,
+      "same_release_deb_and_installer_manifest_binding_required": true,
+      "same_deb_artifact_identity_required": true,
+      "cross_component_version_sha_or_cohort_equality_required": false,
+      "dependency_compatibility_contract_ref": "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
       "typed_admission_schema": "opl_app_optional_certification_hosted_admission.v1",
       "typed_execution_evidence_schema": "opl_app_linux_same_artifact_install_evidence.v1",
       "clean_machine_preinstall_absence_required": true,
@@ -5029,6 +5084,7 @@
     },
     "release_cohort": {
       "schema": "opl_app_release_evidence_cohort_contract.v1",
+      "scope": "selected_app_release_artifact_set_only_not_cross_component_compatibility",
       "required_manifest_fields": [
         "version",
         "tag",
@@ -5039,6 +5095,7 @@
       "same_cohort_checks": [
         "remote_release_verification.version_tag_match"
       ],
+      "cross_component_version_sha_or_cohort_equality_required": false,
       "packaged_app_evidence_requires_current_cohort": true,
       "unknown_allowed_only_for_incomplete_or_blocked_readout": true,
       "rule": "A release evidence bundle can support packaged App evidence only when every artifact belongs to the same App release cohort. Partial readouts may preserve an unknown cohort, but passed bundles must declare release_cohort and the remote verification artifact must match its version/tag."

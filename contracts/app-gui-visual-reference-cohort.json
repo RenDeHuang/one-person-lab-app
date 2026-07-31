@@ -302,6 +302,6 @@
     "release_ready": false,
     "product_wide_one_to_one": false,
     "required_final_evidence_owner": "019fa0ef-9514-7293-ba5b-15cb8a509522",
-    "final_evidence_owner_role": "same_cohort_installed_evidence_only_no_source_ownership"
+    "final_evidence_owner_role": "artifact_bound_compatible_installed_evidence_only_no_source_ownership"
   }
 }
