@@ -27,7 +27,17 @@ function validSources() {
     autoUpdaterBootstrap: `
       autoUpdater.initialize(statusBroadcast);
       deps.schedule(() => {
-        void autoUpdater.checkForUpdatesAndNotify();
+        const channel = await deps.loadUpdateChannel();
+        const decision = await deps.resolveUpdateCheck(channel);
+        const target =
+          decision.updateAvailable && decision.latest
+            ? {
+                repo: 'gaofeng21cn/one-person-lab-app',
+                tagName: decision.latest.tagName,
+                updaterVersion: decision.latest.updaterVersion,
+              }
+            : null;
+        await autoUpdater.checkForUpdatesAndNotify(target);
       });
     `,
     managedUpdateMaintenance: `
@@ -78,6 +88,18 @@ test('standard updater gate rejects a bootstrap that skips initialization', () =
   assert.throws(
     () => validateCarrierNeutralManagedUpdateSources(sources),
     /App binary updater bootstrap must include autoUpdater\.initialize\(statusBroadcast\);/,
+  );
+});
+
+test('standard updater gate rejects a bootstrap without the channel-bound immutable target', () => {
+  const sources = validSources();
+  sources.autoUpdaterBootstrap = sources.autoUpdaterBootstrap.replace(
+    'tagName: decision.latest.tagName,',
+    '',
+  );
+  assert.throws(
+    () => validateCarrierNeutralManagedUpdateSources(sources),
+    /App binary updater bootstrap must include tagName: decision\.latest\.tagName,/,
   );
 });
 

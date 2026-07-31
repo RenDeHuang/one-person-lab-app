@@ -59,7 +59,13 @@ export function validateCarrierNeutralManagedUpdateSources(sources) {
     [
       'autoUpdater.initialize(statusBroadcast);',
       'deps.schedule(() => {',
-      'checkForUpdatesAndNotify()',
+      'const channel = await deps.loadUpdateChannel();',
+      'const decision = await deps.resolveUpdateCheck(channel);',
+      'decision.updateAvailable && decision.latest',
+      "repo: 'gaofeng21cn/one-person-lab-app',",
+      'tagName: decision.latest.tagName,',
+      'updaterVersion: decision.latest.updaterVersion,',
+      'await autoUpdater.checkForUpdatesAndNotify(target);',
     ],
     'Active shell App binary updater bootstrap',
   );

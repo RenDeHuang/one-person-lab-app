@@ -116,7 +116,7 @@ export function validateActiveShellImplementation(shellPaths) {
     'useOplAppState',
     'guiVersion',
     'frameworkRevision',
-    'resolveUpdaterChannel',
+    'resolveUpdaterReleaseChannel',
     "useOplAppState('fast', { autoLoad: false })",
   ]) {
     if (!about.includes(expected)) {
