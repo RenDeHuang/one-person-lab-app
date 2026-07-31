@@ -18,7 +18,7 @@ function step(name: string): Record<string, any> {
   return found;
 }
 
-test('restore action checks out the caller-bound exact Framework SHA and exposes Framework lineage', () => {
+test('restore action executes with the caller-bound Framework SHA while preserving checkpoint source lineage', () => {
   assert.equal(
     action.inputs['framework-executor-ref'].required,
     true,
@@ -38,6 +38,7 @@ test('restore action checks out the caller-bound exact Framework SHA and exposes
     'checkpoint_import_json',
     'checkpoint_transport_executor',
     'completed_stage',
+    'framework_executor_ref',
     'framework_source_ref',
     'live_mutation_allowed',
     'shell_ref',
@@ -52,17 +53,17 @@ test('restore action checks out the caller-bound exact Framework SHA and exposes
   ]);
   const downloadIndex = steps.findIndex((candidate) => candidate.name === 'Download exact portable checkpoint');
   const bindingIndex = steps.findIndex((candidate) => candidate.name === 'Resolve the opaque checkpoint transport');
-  const checkoutIndex = steps.findIndex((candidate) => candidate.name === 'Checkout exact Framework checkpoint authority');
+  const checkoutIndex = steps.findIndex((candidate) => candidate.name === 'Checkout exact Framework checkpoint executor');
   const importIndex = steps.findIndex((candidate) => candidate.name === 'Verify and import portable checkpoint');
   assert.ok(downloadIndex < bindingIndex && bindingIndex < checkoutIndex && checkoutIndex < importIndex);
 
   const binding = String(step('Resolve the opaque checkpoint transport').run);
   assert.doesNotMatch(binding, /\.sources\.framework\.source_commit/);
-  assert.match(binding, /framework_source_ref.*EXPECTED_FRAMEWORK_REF/);
-  assert.match(binding, /EXPECTED_FRAMEWORK_REF.*\^\[0-9a-f\]\{40\}\$/);
+  assert.match(binding, /framework_executor_ref.*FRAMEWORK_EXECUTOR_REF/);
+  assert.match(binding, /FRAMEWORK_EXECUTOR_REF.*\^\[0-9a-f\]\{40\}\$/);
   assert.equal(
-    step('Checkout exact Framework checkpoint authority').with.ref,
-    '${{ steps.binding.outputs.framework_source_ref }}',
+    step('Checkout exact Framework checkpoint executor').with.ref,
+    '${{ steps.binding.outputs.framework_executor_ref }}',
   );
   assert.doesNotMatch(source, /expected_framework_abi=/);
 
@@ -84,6 +85,9 @@ test('restore action checks out the caller-bound exact Framework SHA and exposes
   assert.match(restore, /operation_controls\.append_full\.operation_id/);
   assert.match(restore, /completed_stage=.*checkpoint_stage/);
   assert.match(restore, /\.bundle\.sources\.framework\.source_commit/);
+  assert.match(restore, /framework_source_ref=\$framework_source_ref/);
+  assert.match(restore, /framework_executor_ref=\$FRAMEWORK_EXECUTOR_REF/);
+  assert.doesNotMatch(restore, /test "\$framework_source_ref" = "\$FRAMEWORK_EXECUTOR_REF"/);
   assert.doesNotMatch(source, /inspect-handoff/);
   assert.doesNotMatch(restore, /jq[^\n]*active_unknown_markers[^\n]*"\$CHECKPOINT"/);
 });
@@ -120,7 +124,7 @@ test('restore action persists typed failure evidence before returning failure', 
   assert.equal(upload.with['if-no-files-found'], 'error');
 });
 
-test('checkpoint bootstrap accepts only an exact caller binding and digests opaque downloaded bytes', () => {
+test('checkpoint bootstrap binds only the executor while source identity remains opaque until verified import', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-restore-binding-'));
   try {
     const expected = 'c'.repeat(40);
@@ -138,13 +142,14 @@ test('checkpoint bootstrap accepts only an exact caller binding and digests opaq
     const env = {
       ...process.env,
       EVIDENCE_DIR: evidenceDir,
-      EXPECTED_FRAMEWORK_REF: expected,
+      FRAMEWORK_EXECUTOR_REF: expected,
       SOURCE_ARTIFACT: 'fixture-checkpoint',
       GITHUB_OUTPUT: output,
     };
     const accepted = spawnSync('bash', ['-c', binding], { cwd: directory, env, encoding: 'utf8' });
     assert.equal(accepted.status, 0, accepted.stderr);
-    assert.match(fs.readFileSync(output, 'utf8'), new RegExp(`framework_source_ref=${expected}`));
+    assert.match(fs.readFileSync(output, 'utf8'), new RegExp(`framework_executor_ref=${expected}`));
+    assert.doesNotMatch(fs.readFileSync(output, 'utf8'), /framework_source_ref=/);
     assert.match(fs.readFileSync(path.join(evidenceDir, 'input.sha256'), 'utf8'), /^sha256:[0-9a-f]{64}\n$/);
     const downloaded = JSON.parse(fs.readFileSync(path.join(evidenceDir, 'downloaded-inputs.json'), 'utf8'));
     assert.deepEqual(downloaded.map((entry: Record<string, unknown>) => entry.path), [
@@ -154,7 +159,7 @@ test('checkpoint bootstrap accepts only an exact caller binding and digests opaq
 
     const rejected = spawnSync('bash', ['-c', binding], {
       cwd: directory,
-      env: { ...env, EXPECTED_FRAMEWORK_REF: 'not-an-exact-sha', GITHUB_OUTPUT: `${output}.rejected` },
+      env: { ...env, FRAMEWORK_EXECUTOR_REF: 'not-an-exact-sha', GITHUB_OUTPUT: `${output}.rejected` },
       encoding: 'utf8',
     });
     assert.notEqual(rejected.status, 0);

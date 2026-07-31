@@ -549,13 +549,15 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   );
   assert.match(
     stableAdmission,
-    /FRAMEWORK_REF='\$\{\{ needs\.protected-operation-admission\.outputs\.framework_ref \}\}'/,
+    /FRAMEWORK_SOURCE_REF='\$\{\{ needs\.protected-operation-admission\.outputs\.framework_ref \}\}'/,
   );
+  assert.match(stableAdmission, /FRAMEWORK_EXECUTOR_REF="\$FRAMEWORK_SOURCE_REF"/);
   assert.doesNotMatch(stableAdmission, /canonical_(?:app|shell|framework)_sha/);
   assert.doesNotMatch(stableAdmission, /ls-remote/);
   assert.doesNotMatch(stableAdmission, /OPL_FRAMEWORK_(?:RELEASE|CHECKPOINT)_ABI_REF/);
-  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*if \[ -n "\$REQUESTED_FRAMEWORK_REF" \]/);
-  assert.match(stableAdmission, /framework_executor_ref=\$FRAMEWORK_REF/);
+  assert.match(stableAdmission, /resume_standard\|append_full\)[\s\S]*FRAMEWORK_EXECUTOR_REF="\$REQUESTED_FRAMEWORK_REF"/);
+  assert.match(stableAdmission, /framework_ref=\$FRAMEWORK_SOURCE_REF/);
+  assert.match(stableAdmission, /framework_executor_ref=\$FRAMEWORK_EXECUTOR_REF/);
   assert.doesNotMatch(
     stableAdmission.slice(stableAdmission.indexOf('resume_standard|append_full)')),
     /canonical_framework_sha|OPL_FRAMEWORK_RELEASE_ABI_REF/,
@@ -663,19 +665,25 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
     '${{ needs.stable-admission-manifest.outputs.manifest_digest }}',
   );
 
-  for (const name of ['_release-standard-publish.yml', '_release-full-addon.yml']) {
-    const workflow = parseWorkflow(name);
-    const input = workflow.on.workflow_call.inputs.framework_executor_ref;
-    assert.equal(input.required, false);
-    assert.equal(input.default, '');
-    assert.equal(workflow.env.OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF, minimumCompatibleFrameworkAbiRef);
-    const source = readWorkflow(name);
-    assert.match(source, /Download checkpoint identity bootstrap/);
-    assert.match(source, /Resolve Bundle-bound Framework identity/);
-    assert.match(source, /framework_source_ref=.*sources\.framework\.source_commit/);
-    assert.match(source, /Checkpoint Framework source differs from the optional caller expectation/);
-    assert.doesNotMatch(source, /OPL_FRAMEWORK_CHECKPOINT_ABI/);
-  }
+  const standard = parseWorkflow('_release-standard-publish.yml');
+  assert.equal(standard.on.workflow_call.inputs.framework_executor_ref.required, false);
+  assert.equal(standard.on.workflow_call.inputs.framework_executor_ref.default, '');
+  assert.equal(standard.env.OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF, minimumCompatibleFrameworkAbiRef);
+  const standardSource = readWorkflow('_release-standard-publish.yml');
+  assert.match(standardSource, /Download checkpoint identity bootstrap/);
+  assert.match(standardSource, /Resolve Bundle-bound Framework identity/);
+  assert.match(standardSource, /Checkpoint Framework source differs from the optional caller expectation/);
+
+  const full = parseWorkflow('_release-full-addon.yml');
+  assert.equal(full.on.workflow_call.inputs.framework_executor_ref.required, true);
+  assert.equal(full.on.workflow_call.inputs.framework_executor_ref.default, undefined);
+  assert.equal(full.env.OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF, minimumCompatibleFrameworkAbiRef);
+  const fullSource = readWorkflow('_release-full-addon.yml');
+  assert.match(fullSource, /Download checkpoint identity bootstrap/);
+  assert.match(fullSource, /Resolve Bundle-bound Framework identity/);
+  assert.match(fullSource, /framework_source_ref=.*sources\.framework\.source_commit/);
+  assert.doesNotMatch(fullSource, /Checkpoint Framework source differs from the optional caller expectation/);
+  assert.doesNotMatch(fullSource, /OPL_FRAMEWORK_CHECKPOINT_ABI/);
 
   const standardRestore = workflowStep(
     '_release-standard-publish.yml',
@@ -693,8 +701,23 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   );
   assert.equal(
     fullRestore.with['framework-executor-ref'],
-    '${{ steps.framework-binding.outputs.framework_source_ref }}',
+    '${{ inputs.framework_executor_ref }}',
   );
+  const fullRestoreSteps = Object.values(full.jobs)
+    .flatMap((job: any) => job.steps ?? [])
+    .filter((candidate: any) => candidate.uses === './app-source/.github/actions/restore-release-checkpoint');
+  assert.equal(fullRestoreSteps.length, 4);
+  assert.deepEqual(
+    fullRestoreSteps.map((candidate: any) => candidate.with['framework-executor-ref']),
+    [
+      '${{ inputs.framework_executor_ref }}',
+      '${{ needs.restore-standard.outputs.framework_executor_ref }}',
+      '${{ needs.restore-standard.outputs.framework_executor_ref }}',
+      '${{ needs.restore-standard.outputs.framework_executor_ref }}',
+    ],
+  );
+  assert.match(fullSource, /framework_source_ref: \$\{\{ steps\.identity\.outputs\.framework_source_ref \}\}/);
+  assert.match(fullSource, /framework_executor_ref: \$\{\{ steps\.checkpoint\.outputs\.framework_executor_ref \}\}/);
 });
 
 test('one signed Standard build is sealed once and every final consumer binds its identity digest', () => {

@@ -27,9 +27,8 @@ on:
         default: checkpoint_v1
         type: string
       framework_executor_ref:
-        description: Optional exact Framework SHA expectation; the checkpoint Bundle selects the executor checkout
-        required: false
-        default: ''
+        description: Exact Framework executor SHA used to verify and import the checkpoint; independent from the frozen Bundle source SHA
+        required: true
         type: string
       operation_started_at:
         description: Full append operation start
@@ -89,12 +88,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n '${{ inputs.framework_executor_ref }}' ]; then
-            [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
-              echo "::error::Optional Framework expectation must be an exact lowercase SHA."
-              exit 1
-            }
-          fi
+          [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Framework executor must be an exact lowercase SHA."
+            exit 1
+          }
           test '${{ inputs.source_format }}' = checkpoint_v1
           mkdir -p release-failure-evidence
           status=passed
@@ -137,6 +134,7 @@ jobs:
       app_ref: ${{ steps.identity.outputs.app_ref }}
       shell_ref: ${{ steps.identity.outputs.shell_ref }}
       framework_source_ref: ${{ steps.identity.outputs.framework_source_ref }}
+      framework_executor_ref: ${{ steps.checkpoint.outputs.framework_executor_ref }}
       completed_stage: ${{ steps.identity.outputs.completed_stage }}
       checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
       transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
@@ -170,8 +168,6 @@ jobs:
 
       - name: Resolve Bundle-bound Framework identity
         id: framework-binding
-        env:
-          EXPECTED_FRAMEWORK_REF: ${{ inputs.framework_executor_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -186,19 +182,13 @@ jobs:
           bundle="$(dirname "${checkpoints[0]}")/bundle.json"
           test -f "$bundle" || { echo "::error::Portable checkpoint contains no bundle.json."; exit 1; }
           framework_source_ref="$(jq -er '.sources.framework.source_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$bundle")"
-          if [ -n "$EXPECTED_FRAMEWORK_REF" ]; then
-            [ "$EXPECTED_FRAMEWORK_REF" = "$framework_source_ref" ] || {
-              echo "::error::Checkpoint Framework source differs from the optional caller expectation."
-              exit 1
-            }
-          fi
           echo "framework_source_ref=$framework_source_ref" >> "$GITHUB_OUTPUT"
 
       - name: Restore verified Standard checkpoint
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ steps.framework-binding.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ inputs.framework_executor_ref }}
           source-run-id: ${{ inputs.source_run_id }}
           source-artifact: ${{ inputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -216,6 +206,7 @@ jobs:
           test "$(jq -r .publish_state_imported <<<"$CHECKPOINT_IMPORT")" = false
           test "$BUNDLE_DIGEST" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
+          test '${{ steps.checkpoint.outputs.framework_executor_ref }}' = '${{ inputs.framework_executor_ref }}'
 
       - name: Reconcile imported outcome and admit independent Full control
         id: operation
@@ -496,7 +487,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore-standard.outputs.source_run_id }}
           source-artifact: ${{ needs.restore-standard.outputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -662,7 +653,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore-standard.outputs.source_run_id }}
           source-artifact: ${{ needs.restore-standard.outputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -845,7 +836,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.provenance.outputs.source_run_id }}
           source-artifact: ${{ needs.provenance.outputs.source_artifact }}
           github-token: ${{ github.token }}
