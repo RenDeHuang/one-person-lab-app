@@ -530,3 +530,23 @@ test('Docker WebUI guide exposes the shared host auto-update lifecycle without c
   assert.match(manifest.download.linux_macos_auto_update_status_command, /--auto-update-status/);
   assert.match(manifest.download.linux_macos_disable_auto_update_command, /--disable-auto-update/);
 });
+
+test('Docker WebUI guide scopes Docker Desktop and publishes the guarded Windows AF_UNIX recovery', () => {
+  const guide = fs.readFileSync(
+    path.join(appRoot, 'docs/guides/docker-webui-install/guide.qmd'),
+    'utf8',
+  );
+  const manifest = readJson(
+    'docs/delivery/user-guides/docker-webui-install/source/docker-webui-install.guide.json',
+  );
+
+  assert.match(guide, /Docker Desktop 只对本教程的 \*\*Container WebUI 路径\*\* 必需/);
+  assert.match(guide, /Windows Desktop App 不要求 Docker Desktop/);
+  assert.match(guide, /dockerInference/);
+  assert.match(guide, /普通启动正常时不要运行恢复命令/);
+  assert.match(guide, /不会停止进程/);
+  assert.match(guide, /不会执行 Docker \*\*Factory Reset\*\*/);
+  assert.match(guide, /不会删除 image、container、volume、`docker_data\.vhdx`/);
+  assert.match(guide, /\{\{download\.windows_docker_start_repair_command\}\}/);
+  assert.match(manifest.download.windows_docker_start_repair_command, /-RepairDockerDesktopStart/);
+});
