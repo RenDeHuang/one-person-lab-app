@@ -219,8 +219,14 @@ test('Full add-on workflow cannot overwrite release state or existing assets', (
   assert.match(workflow, /--hosted-core-qualification "\$hosted_receipt"/);
   assert.doesNotMatch(workflow, /--legacy-qualification/);
   assert.match(full, /Publish exact Full bytes as an immutable adjunct/);
-  assert.match(full, /needs\.restore-standard\.outputs\.adjunct_tag/);
-  assert.match(full, /carrier:\{kind:"immutable_adjunct_release",base_tag:\$base_tag,adjunct_tag:\$adjunct_tag\}/);
+  assert.match(full, /full_manifest_sha_hex=.*shasum -a 256/);
+  assert.match(full, /adjunct_tag="v\$\{full_version\}-full-\$\{full_manifest_sha_hex:0:12\}"/);
+  assert.match(
+    full,
+    /carrier:\{kind:"independent_immutable_adjunct_release",adjunct_tag:\$adjunct_tag,manifest_sha256:\$manifest_sha\}/,
+  );
+  assert.doesNotMatch(workflow, /Download exact Standard activation evidence/);
+  assert.doesNotMatch(workflow, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/tags\/\$bundle_tag"/);
   assert.match(full, /framework-executor\/bin\/opl release publish/);
   assert.match(full, /framework-executor\/bin\/opl release reconcile/);
   assert.doesNotMatch(source, /--clobber/);

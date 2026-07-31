@@ -82,7 +82,7 @@ test('macOS Full resolves one self-addressed immutable carrier without assuming 
   assert.match(source, /resolve_full_adjunct_release_record/);
   assert.match(source, /releases\?per_page=100&page=\$page/);
   assert.match(source, /download_release_record "\$candidate_tag"/);
-  assert.match(source, /full_release_record_binds_tagged_dmg/);
+  assert.match(source, /full_release_record_binds_tagged_assets/);
   assert.match(source, /Full carrier exact-tag readback/);
   assert.match(source, /exactly one self-addressed immutable Release/);
   assert.match(source, /Full adjunct public manifest does not bind the exact Full DMG digest and size/);

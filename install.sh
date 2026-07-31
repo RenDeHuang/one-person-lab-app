@@ -39,9 +39,6 @@ STABLE_MACOS_RELEASE_RECORD_PATH=''
 STABLE_MACOS_RELEASE_PRERELEASE=''
 STABLE_MACOS_COMPONENT_MANIFEST_PATH=''
 STABLE_MACOS_COMPONENT_MANIFEST_SHA256=''
-STABLE_MACOS_SOURCE_APP_SHA=''
-STABLE_MACOS_SOURCE_SHELL_SHA=''
-STABLE_MACOS_SOURCE_FRAMEWORK_SHA=''
 STABLE_MACOS_FULL_ADJUNCT_TAG=''
 STABLE_MACOS_FULL_RELEASE_RECORD_PATH=''
 STABLE_MACOS_FULL_MANIFEST_PATH=''
@@ -912,7 +909,7 @@ resolve_release_asset() {
       matches=$((matches + 1))
       digest=$(release_record_value "$record_path" "assets.$index.digest") || return 1
       url=$(release_record_value "$record_path" "assets.$index.browser_download_url") || return 1
-      size=$(release_record_value "$record_path" "assets.$index.size" 2>/dev/null || true)
+      size=$(release_record_value "$record_path" "assets.$index.size") || return 1
       case "$digest" in
         sha256:*)
           digest="${digest#sha256:}"
@@ -922,9 +919,7 @@ resolve_release_asset() {
           ;;
       esac
       validate_sha256_value "$digest" || return 1
-      if [ -n "$size" ]; then
-        validate_positive_integer "$size" || return 1
-      fi
+      validate_positive_integer "$size" || return 1
       RELEASE_ASSET_SHA256="$digest"
       RELEASE_ASSET_URL="$url"
       RELEASE_ASSET_SIZE_BYTES="$size"
@@ -997,17 +992,19 @@ validate_full_adjunct_tag() {
   full_release_version_from_tag "$1" >/dev/null
 }
 
-full_release_record_binds_tagged_dmg() {
+full_release_record_binds_tagged_assets() {
   local record_path="$1"
   local release_prefix="$2"
   local tag="$3"
-  local version asset_name asset_prefix index=0 name digest size url matches=0 suffix
+  local version dmg_name manifest_name asset_prefix index=0 name digest size url
+  local dmg_matches=0 manifest_matches=0 suffix
   version=$(full_release_version_from_tag "$tag") || return 1
-  asset_name="One-Person-Lab-Full-${version}-mac-arm64.dmg"
+  dmg_name="One-Person-Lab-Full-${version}-mac-arm64.dmg"
+  manifest_name='opl-release-manifest.json'
   asset_prefix="${release_prefix:+$release_prefix.}assets"
   suffix="${tag##*-full-}"
   while name=$(release_record_value "$record_path" "$asset_prefix.$index.name" 2>/dev/null); do
-    if [ "$name" = "$asset_name" ]; then
+    if [ "$name" = "$dmg_name" ] || [ "$name" = "$manifest_name" ]; then
       digest=$(release_record_value "$record_path" "$asset_prefix.$index.digest" 2>/dev/null || true)
       size=$(release_record_value "$record_path" "$asset_prefix.$index.size" 2>/dev/null || true)
       url=$(release_record_value "$record_path" "$asset_prefix.$index.browser_download_url" 2>/dev/null || true)
@@ -1021,14 +1018,17 @@ full_release_record_binds_tagged_dmg() {
       esac
       if validate_sha256_value "$digest" \
         && validate_positive_integer "$size" \
-        && [ "$suffix" = "$(printf '%s' "$digest" | cut -c1-12)" ] \
-        && [ "$url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name" ]; then
-        matches=$((matches + 1))
+        && [ "$url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$name" ]; then
+        if [ "$name" = "$dmg_name" ]; then
+          dmg_matches=$((dmg_matches + 1))
+        elif [ "$suffix" = "$(printf '%s' "$digest" | cut -c1-12)" ]; then
+          manifest_matches=$((manifest_matches + 1))
+        fi
       fi
     fi
     index=$((index + 1))
   done
-  [ "$matches" -eq 1 ]
+  [ "$dmg_matches" -eq 1 ] && [ "$manifest_matches" -eq 1 ]
 }
 
 resolve_full_adjunct_release_record() {
@@ -1047,11 +1047,11 @@ resolve_full_adjunct_release_record() {
         draft=$(release_record_value "$page_path" "$index.draft" 2>/dev/null || true)
         prerelease=$(release_record_value "$page_path" "$index.prerelease" 2>/dev/null || true)
         immutable=$(release_record_value "$page_path" "$index.immutable" 2>/dev/null || true)
-        if full_release_record_binds_tagged_dmg "$page_path" "$index" "$tag"; then
+        if full_release_record_binds_tagged_assets "$page_path" "$index" "$tag"; then
           identity_tags=$((identity_tags + 1))
         fi
         if [ "$identity_tags" -gt 0 ] \
-          && full_release_record_binds_tagged_dmg "$page_path" "$index" "$tag" \
+          && full_release_record_binds_tagged_assets "$page_path" "$index" "$tag" \
           && [ "$draft" = false ] \
           && [ "$prerelease" = false ] \
           && [ "$immutable" = true ]; then
@@ -1085,7 +1085,7 @@ resolve_full_adjunct_release_record() {
     && [ "$(release_record_value "$record_path" draft)" = false ] \
     && [ "$(release_record_value "$record_path" prerelease)" = false ] \
     && [ "$(release_record_value "$record_path" immutable)" = true ] \
-    && full_release_record_binds_tagged_dmg "$record_path" '' "$candidate_tag" || {
+    && full_release_record_binds_tagged_assets "$record_path" '' "$candidate_tag" || {
       printf 'Full carrier exact-tag readback does not match the discovered self-addressed immutable Release.\n' >&2
       return 1
     }
@@ -1255,8 +1255,7 @@ download_and_validate_component_manifest() {
   local standard_asset_sha256="$5"
   local manifest_path expected_url quality build_trigger preview_kind stable_qualified non_stable_notice
   local release_version version release_tag primary_name primary_digest manifest_ref release_url manifest_digest
-  local skipped_gates failed_gates manifest_asset_sha256
-  local source_app_sha source_shell_sha source_framework_sha
+  local skipped_gates failed_gates manifest_asset_sha256 manifest_asset_size
 
   if ! resolve_release_asset "$record_path" 'opl-app-component-manifest.json'; then
     printf 'GitHub Release record has no unique digest-bound App component manifest asset.\n' >&2
@@ -1267,9 +1266,11 @@ download_and_validate_component_manifest() {
     printf 'GitHub Release component manifest URL mismatch.\n' >&2
     return 1
   fi
+  manifest_asset_size="$RELEASE_ASSET_SIZE_BYTES"
   manifest_path="$work_dir/opl-app-component-manifest.json"
   download_release_file "$RELEASE_ASSET_URL" "$manifest_path" 'component manifest' || return 1
   verify_file_sha256 "$manifest_path" "$RELEASE_ASSET_SHA256" 'Component manifest' || return 1
+  verify_file_size "$manifest_path" "$manifest_asset_size" 'Component manifest' || return 1
   manifest_asset_sha256="$RELEASE_ASSET_SHA256"
 
   [ "$(component_manifest_value "$manifest_path" surface_kind)" = 'opl_app_component_manifest.v1' ] || {
@@ -1387,22 +1388,8 @@ download_and_validate_component_manifest() {
   printf 'Latest pointer selects this exact release but does not change its declared quality.\n'
   verify_release_installer_bootstrap "$record_path" "$manifest_path" "$tag" || return 1
 
-  source_app_sha=$(component_manifest_value "$manifest_path" source_cohort.app_sha 2>/dev/null || true)
-  source_shell_sha=$(component_manifest_value "$manifest_path" source_cohort.shell_sha 2>/dev/null || true)
-  source_framework_sha=$(component_manifest_value "$manifest_path" source_cohort.framework_sha 2>/dev/null || true)
-  if [ -n "$source_app_sha$source_shell_sha$source_framework_sha" ]; then
-    validate_git_sha "$source_app_sha" \
-      && validate_git_sha "$source_shell_sha" \
-      && validate_git_sha "$source_framework_sha" || {
-        printf 'Component manifest source cohort is incomplete or invalid.\n' >&2
-        return 1
-      }
-  fi
   STABLE_MACOS_COMPONENT_MANIFEST_PATH="$manifest_path"
   STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$manifest_asset_sha256"
-  STABLE_MACOS_SOURCE_APP_SHA="$source_app_sha"
-  STABLE_MACOS_SOURCE_SHELL_SHA="$source_shell_sha"
-  STABLE_MACOS_SOURCE_FRAMEWORK_SHA="$source_framework_sha"
   STABLE_MACOS_RELEASE_QUALITY_ASSERTED=1
 }
 
@@ -1413,7 +1400,7 @@ download_and_validate_full_manifest() {
   local asset_name="$4"
   local asset_sha256="$5"
   local asset_size="$6"
-  local manifest_path expected_url schema package_kind version release_version primary_name expected_version
+  local manifest_path expected_url schema package_kind owner_authority version release_version primary_name expected_version
   local manifest_asset_size
   local index=0 name sha256 size_bytes normalized_sha256 matches=0
   resolve_release_asset "$record_path" 'opl-release-manifest.json' || {
@@ -1433,12 +1420,14 @@ download_and_validate_full_manifest() {
 
   schema=$(component_manifest_value "$manifest_path" schema 2>/dev/null || true)
   package_kind=$(component_manifest_value "$manifest_path" package_kind 2>/dev/null || true)
+  owner_authority=$(component_manifest_value "$manifest_path" owner_authority 2>/dev/null || true)
   version=$(component_manifest_value "$manifest_path" version 2>/dev/null || true)
   release_version=$(component_manifest_value "$manifest_path" release_version 2>/dev/null || true)
   primary_name=$(component_manifest_value "$manifest_path" primary_install_asset 2>/dev/null || true)
   expected_version=$(full_release_version_from_tag "$adjunct_tag") || return 1
   [ "$schema" = opl_public_release_manifest.v1 ] \
     && [ "$package_kind" = opl_full_first_install_macos_arm64 ] \
+    && [ "$owner_authority" = one-person-lab-app ] \
     && [ "$version" = "$expected_version" ] \
     && [ "$release_version" = "$expected_version" ] \
     && [ "$primary_name" = "$asset_name" ] || {

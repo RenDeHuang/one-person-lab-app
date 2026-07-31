@@ -706,7 +706,6 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   const fullBytes = "full-dmg-bytes\n";
   const standardBytes = "standard-dmg-bytes\n";
   const digest = (bytes: string) => createHash("sha256").update(bytes).digest("hex");
-  const adjunctTag = `v${fullVersion}-full-${digest(fullBytes).slice(0, 12)}`;
   const asset = (
     releaseTag: string,
     name: string,
@@ -798,6 +797,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     JSON.stringify({
       schema: "opl_public_release_manifest.v1",
       package_kind: "opl_full_first_install_macos_arm64",
+      owner_authority: "one-person-lab-app",
       version: fullVersion,
       ...(releaseVersion === null ? {} : { release_version: releaseVersion }),
       primary_install_asset: primaryName,
@@ -810,6 +810,14 @@ test("Stable macOS installer binds exact release assets before mount and preserv
         },
       ],
     });
+  const fullTagForManifest = (
+    options?: Parameters<typeof fullManifest>[0],
+  ) => {
+    const manifestBytes = fullManifest(options);
+    const parsedManifest = JSON.parse(manifestBytes);
+    return `v${parsedManifest.version}-full-${digest(manifestBytes).slice(0, 12)}`;
+  };
+  const adjunctTag = fullTagForManifest();
   const writeRelease = ({
     fullPresent = true,
     standardDigest,
@@ -823,7 +831,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     fullTargetAppSha = appSha,
     fullManifestOptions,
     fullManifestAssetDigest,
-    fullTag = adjunctTag,
+    fullTag,
     extraFullTags = [] as string[],
     fullAssetSize,
   }: {
@@ -848,15 +856,16 @@ test("Stable macOS installer binds exact release assets before mount and preserv
       primaryDigest: manifest?.primaryDigest ?? standardDigest ?? digest(standardBytes),
     });
     const fullManifestBytes = fullManifest(fullManifestOptions);
+    const resolvedFullTag = fullTag ?? fullTagForManifest(fullManifestOptions);
     const fullRelease = {
-      tag_name: fullTag,
+      tag_name: resolvedFullTag,
       draft: fullDraft,
       prerelease: fullPrerelease,
       immutable: fullImmutable,
       target_commitish: fullTargetAppSha,
       assets: [
-        asset(fullTag, fullName, fullBytes, undefined, fullAssetSize),
-        asset(fullTag, fullManifestName, fullManifestBytes, fullManifestAssetDigest),
+        asset(resolvedFullTag, fullName, fullBytes, undefined, fullAssetSize),
+        asset(resolvedFullTag, fullManifestName, fullManifestBytes, fullManifestAssetDigest),
       ],
     };
     fs.writeFileSync(
@@ -884,7 +893,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
                 ? [
                     {
                       ...fullRelease,
-                      tag_name: `${tag}-full-${"e".repeat(12)}`,
+                      tag_name: `v${fullVersion}-full-${"e".repeat(12)}`,
                     },
                   ]
                 : []),
@@ -895,6 +904,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     );
     fs.writeFileSync(path.join(tempRoot, componentManifestName), manifestBytes);
     fs.writeFileSync(path.join(tempRoot, fullManifestName), fullManifestBytes);
+    return resolvedFullTag;
   };
   fs.mkdirSync(fakeBin, { recursive: true });
   fs.writeFileSync(customDmgPath, standardBytes);
@@ -1065,7 +1075,7 @@ exit 1
         fullTargetAppSha = appSha,
         fullManifestOptions,
         fullManifestAssetDigest,
-        fullTag = adjunctTag,
+        fullTag,
         extraFullTags = [] as string[],
         fullAssetSize,
       }: {
@@ -1091,7 +1101,7 @@ exit 1
         fullAssetSize?: number;
       } = {},
     ) => {
-      writeRelease({
+      const resolvedFullTag = writeRelease({
         fullPresent,
         standardDigest,
         manifest,
@@ -1132,7 +1142,7 @@ exit 1
             OPL_FAKE_RELEASE_JSON: releaseJsonPath,
             OPL_FAKE_RELEASE_LIST_JSON: releaseListJsonPath,
             OPL_FAKE_FULL_RELEASE_JSON: fullReleaseJsonPath,
-            OPL_FAKE_FULL_TAG: fullTag,
+            OPL_FAKE_FULL_TAG: resolvedFullTag,
             OPL_FAKE_COMPONENT_MANIFEST: path.join(tempRoot, componentManifestName),
             OPL_FAKE_FULL_MANIFEST: path.join(tempRoot, fullManifestName),
             OPL_FAKE_FULL_HTTP: fullHttp,
@@ -1151,9 +1161,10 @@ exit 1
       "fake hdiutil should stop after the Full download",
     );
     const availableFullCurlArgs = fs.readFileSync(curlArgsPath, "utf8");
-    assert.match(
-      availableFullCurlArgs,
-      /releases\/download\/v26\.8\.3-full-c35d09043dc0\/One-Person-Lab-Full-26\.8\.3-mac-arm64\.dmg/,
+    assert.ok(
+      availableFullCurlArgs.includes(
+        `/releases/download/${adjunctTag}/One-Person-Lab-Full-26.8.3-mac-arm64.dmg`,
+      ),
     );
     assert.doesNotMatch(
       availableFullCurlArgs,
@@ -1171,9 +1182,10 @@ exit 1
       0,
       "fake hdiutil should stop after the universal Desktop route selects Full",
     );
-    assert.match(
-      fs.readFileSync(curlArgsPath, "utf8"),
-      /releases\/download\/v26\.8\.3-full-c35d09043dc0\/One-Person-Lab-Full-26\.8\.3-mac-arm64\.dmg/,
+    assert.ok(
+      fs
+        .readFileSync(curlArgsPath, "utf8")
+        .includes(`/releases/download/${adjunctTag}/One-Person-Lab-Full-26.8.3-mac-arm64.dmg`),
     );
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
 
@@ -1446,7 +1458,14 @@ exit 1
       fullManifestAssetDigest: "0".repeat(64),
     });
     assert.notEqual(fullManifestDigestMismatchResult.status, 0);
-    assert.match(fullManifestDigestMismatchResult.stderr, /Full release manifest SHA256 mismatch/);
+    assert.match(
+      fullManifestDigestMismatchResult.stderr,
+      /found 1 Full tag\(s\), 0 self-addressed tag\(s\), 0 eligible/,
+    );
+    assert.doesNotMatch(
+      fs.readFileSync(curlArgsPath, "utf8"),
+      /releases\/download\/[^/]+\/opl-release-manifest\.json/,
+    );
     assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
 
     const mismatchResult = runInstaller(["--standard"], { standardDigest: "0".repeat(64) });
