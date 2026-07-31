@@ -111,6 +111,42 @@ test("Full domain dependency sync uses the frozen carrier Python", () => {
   assert.doesNotMatch(workflow, /uv sync --project med-auto(?:science|grant) --no-dev/);
 });
 
+test("Full Shell build skips the redundant inner App notarization without weakening signing", async () => {
+  const { shellBuildEnvironmentWithoutRedundantNotarization } = await import(
+    "../../../scripts/build-full-first-install-package.ts"
+  );
+  const sourceEnv: Record<string, string> = {
+    identity: "Developer ID Application: Test (TESTTEAMID)",
+    CSC_NAME: "Developer ID Application: Test (TESTTEAMID)",
+    OPL_RUNTIME_CODESIGN_IDENTITY: "Developer ID Application: Test (TESTTEAMID)",
+    appleId: "release@example.com",
+    appleIdPassword: "app-password",
+    teamId: "TESTTEAMID",
+    OPL_NOTARYTOOL_KEYCHAIN_PROFILE: "release-notary",
+    OPL_MAC_STRICT_SIGNING_CHECKS: "true",
+    OPL_REQUIRE_MACOS_GATEKEEPER: "true",
+    CI: "true",
+  };
+
+  const shellEnv = shellBuildEnvironmentWithoutRedundantNotarization(sourceEnv);
+
+  assert.equal(shellEnv.identity, sourceEnv.identity);
+  assert.equal(shellEnv.CSC_NAME, sourceEnv.CSC_NAME);
+  assert.equal(shellEnv.OPL_RUNTIME_CODESIGN_IDENTITY, sourceEnv.OPL_RUNTIME_CODESIGN_IDENTITY);
+  assert.equal(shellEnv.CI, "true");
+  for (const name of [
+    "appleId",
+    "appleIdPassword",
+    "teamId",
+    "OPL_NOTARYTOOL_KEYCHAIN_PROFILE",
+    "OPL_MAC_STRICT_SIGNING_CHECKS",
+    "OPL_REQUIRE_MACOS_GATEKEEPER",
+  ]) {
+    assert.equal(shellEnv[name], undefined, name);
+    assert.ok(name in sourceEnv, name);
+  }
+});
+
 test("Full workflow delegates Codex to the Shell AionCore carrier without a Framework install", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/full-first-install-release.yml"),
