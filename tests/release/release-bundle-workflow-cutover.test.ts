@@ -1842,6 +1842,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(cleanupSigning.if, "startsWith(matrix.platform, 'macos') && always()");
   assert.match(String(cleanupSigning.run), /security delete-keychain build\.keychain/);
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
+  assert.equal(fullBuild.jobs['full-first-install'].environment, 'release-stable');
 
   const credentialGate = fullBuild.jobs['full-first-install'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Verify Full signing and notarization credentials',

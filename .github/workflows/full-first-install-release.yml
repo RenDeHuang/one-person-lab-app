@@ -109,6 +109,7 @@ jobs:
     name: Build App-owned Full first-install DMG
     runs-on: macos-latest
     timeout-minutes: ${{ inputs.operation == 'append_full' && 50 || 90 }}
+    environment: release-stable
     permissions:
       contents: read
 
