@@ -222,7 +222,7 @@ function mutationAdmission(
 }
 
 function expectedMutationAttemptId(
-  mutation: 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch',
+  mutation: 'tag_reserve' | 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch',
   remoteTarget: string,
   subject: string,
 ): string {
@@ -641,6 +641,31 @@ function isReleaseViewFor(args: string[], releaseTag: string, releaseRepo: strin
   );
 }
 
+function isTagRefReadFor(args: string[], releaseTag: string, releaseRepo: string): boolean {
+  return args[0] === 'api' && args[1] === `repos/${releaseRepo}/git/ref/tags/${releaseTag}`;
+}
+
+function isTagRefCreateFor(args: string[], releaseRepo: string): boolean {
+  return (
+    args[0] === 'api'
+    && args[1] === '--method'
+    && args[2] === 'POST'
+    && args[3] === `repos/${releaseRepo}/git/refs`
+    && args[4] === '--input'
+    && args[5] === '-'
+  );
+}
+
+function tagRefResponse(releaseTag: string, targetCommitish = sourceCommit): GitHubCommandResult {
+  return success({
+    ref: `refs/tags/${releaseTag}`,
+    object: {
+      type: 'commit',
+      sha: targetCommitish,
+    },
+  });
+}
+
 function isImmutableCapabilityRead(args: string[]): boolean {
   return args[0] === 'api' && args[1] === `repos/${repo}/immutable-releases`;
 }
@@ -895,9 +920,59 @@ test('a timed out asset upload stops all mutation and performs only fresh read-o
   assert.ok(calls.filter(({ args }) => isReleaseInspect(args)).every(({ options }) => options.timeout === 2_345));
 });
 
-test('a timed out Release create performs one mutation and then read-only reconciliation only', () => {
+test('a timed out tag reservation performs one mutation and never creates a Release', () => {
   const files = fixture([asset('first.zip', '5')]);
   const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    readTimeoutMs: 2_111,
+    run(_command, args, options) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (isTagRefReadFor(args, tag, repo)) {
+        assert.equal(options.timeout, 2_111);
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        return {
+          status: null,
+          signal: 'SIGTERM',
+          stdout: 'possibly reserved',
+          stderr: 'timed out',
+          error: Object.assign(new Error('spawnSync gh ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+        };
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'outcome_unknown');
+  assert.equal(result.failure.mutation, 'tag_reserve');
+  assert.equal(result.failure.failure_taxonomy, 'github_mutation_timeout');
+  assert.equal(result.mutation_attempt_id, expectedMutationAttemptId(
+    'tag_reserve',
+    `github-ref:${repo}@refs/tags/${tag}`,
+    sourceCommit,
+  ));
+  assert.equal(result.remote_target, `github-ref:${repo}@refs/tags/${tag}`);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
+  assert.equal(calls.filter((args) => isTagRefReadFor(args, tag, repo)).length, 2);
+  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 0);
+});
+
+test('a timed out Release create performs one Release mutation and then read-only reconciliation only', () => {
+  const files = fixture([asset('first.zip', '5')]);
+  const calls: string[][] = [];
+  let tagReserved = false;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 90_000,
     readTimeoutMs: 2_222,
@@ -909,7 +984,17 @@ test('a timed out Release create performs one mutation and then read-only reconc
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, tag, repo)) {
+        assert.equal(options.timeout, 2_222);
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         return {
           status: null,
           signal: 'SIGTERM',
@@ -938,7 +1023,8 @@ test('a timed out Release create performs one mutation and then read-only reconc
   assert.equal(result.remote_target, `github-release:${repo}@${tag}`);
   assert.equal(result.failure.mutation_attempt_id, result.mutation_attempt_id);
   assert.equal(result.failure.remote_target, result.remote_target);
-  assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
+  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
   assert.equal(calls.filter(isReleaseInspect).length, 2, 'one pre-create read and one bounded reconcile read');
 });
@@ -948,6 +1034,7 @@ test('accepted Release create uses its exact id while the draft remains absent b
   const files = fixture([first]);
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
+  let tagReserved = false;
   let created = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -970,7 +1057,16 @@ test('accepted Release create uses its exact id while the draft remains absent b
         }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, tag, repo)) {
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         created = true;
         return success(releaseResponse([], { draft: true, immutable: false }));
       }
@@ -997,7 +1093,20 @@ test('accepted Release create uses its exact id while the draft remains absent b
   assert.deepEqual(result.uploaded, [first.name]);
   assert.equal(result.inspection.release.id, 12345);
   assert.equal(result.inspection.release.immutable, true);
-  assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
+  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
+  const tagReadIndexes = calls.flatMap((args, index) => (
+    isTagRefReadFor(args, tag, repo) ? [index] : []
+  ));
+  const tagCreateIndex = calls.findIndex((args) => isTagRefCreateFor(args, repo));
+  const releaseCreateIndex = calls.findIndex((args) => args[3] === `repos/${repo}/releases`);
+  assert.equal(tagReadIndexes.length, 2);
+  assert.ok(
+    tagReadIndexes[0]! < tagCreateIndex
+      && tagCreateIndex < tagReadIndexes[1]!
+      && tagReadIndexes[1]! < releaseCreateIndex,
+    '404 read, tag reservation, exact readback, and Release creation stay strictly ordered',
+  );
   assert.equal(
     calls.filter((args) => args[1] === `repos/${repo}/releases/tags/${tag}`).length,
     1,
@@ -1007,6 +1116,37 @@ test('accepted Release create uses its exact id while the draft remains absent b
     calls.filter((args) => args[1] === `repos/${repo}/releases/12345`).length >= 4,
     'create, upload, and publish readback stay bound to the exact release id',
   );
+});
+
+test('a conflicting reserved tag fails closed before Release creation', () => {
+  const files = fixture([asset('first.zip', '6')]);
+  const calls: string[][] = [];
+  const conflictingCommit = 'e'.repeat(40);
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (isTagRefReadFor(args, tag, repo)) return tagRefResponse(tag, conflictingCommit);
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission(),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    new RegExp(`Existing refs/tags/${tag} points to ${conflictingCommit}, expected ${sourceCommit}`),
+  );
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 0);
+  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 0);
+  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
 });
 
 test('an existing draft hidden from the by-tag endpoint is bound by id before any create', () => {
@@ -1066,6 +1206,7 @@ test('an existing draft hidden from the by-tag endpoint is bound by id before an
 test('accepted Release create with a mismatched response identity fails closed without follow-up mutation', () => {
   const files = fixture([asset('first.zip', '7')]);
   const calls: string[][] = [];
+  let tagReserved = false;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 90_000,
     run(_command, args) {
@@ -1073,7 +1214,16 @@ test('accepted Release create with a mismatched response identity fails closed w
       if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, tag, repo)) {
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         return success({
           ...releaseResponse([], { draft: true, immutable: false }),
           tag_name: `${tag}-other`,
@@ -1097,7 +1247,8 @@ test('accepted Release create with a mismatched response identity fails closed w
   assert.match(result.reconciliation.failure.error_message, /conflicts with the exact draft identity/);
   assert.equal(result.reconciliation.fallback.status, 'complete');
   assert.equal(result.reconciliation.fallback.observation.release.exists, false);
-  assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
+  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
   assert.equal(calls.filter(isReleaseInspect).length, 2);
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
   assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
@@ -1588,6 +1739,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
   };
   fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
   const calls: Array<{ args: string[]; stdin?: string }> = [];
+  let tagReserved = false;
   let exists = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -1625,7 +1777,16 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
       if (isReleaseViewFor(args, `v${nightlyVersion}`, repo)) {
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, `v${nightlyVersion}`, repo)) {
+        return tagReserved
+          ? tagRefResponse(`v${nightlyVersion}`)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(`v${nightlyVersion}`);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         exists = true;
         return success({
           id: 12345,
@@ -1654,7 +1815,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
     'publication-channel': 'nightly',
   }, runtime);
   assert.equal(result.status, 'complete');
-  const create = calls.find(({ args }) => args.includes('POST'));
+  const create = calls.find(({ args }) => args[3] === `repos/${repo}/releases`);
   assert.ok(create?.stdin);
   const payload = JSON.parse(create.stdin);
   assert.equal(payload.prerelease, true);
@@ -1665,6 +1826,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
 test('github-apply publishes a qualified Preview as a non-prerelease without implicitly changing Latest', () => {
   const files = previewFixture();
   const calls: Array<{ args: string[]; stdin?: string }> = [];
+  let tagReserved = false;
   let exists = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -1702,7 +1864,16 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
       if (isReleaseViewFor(args, files.previewTag, repo)) {
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, files.previewTag, repo)) {
+        return tagReserved
+          ? tagRefResponse(files.previewTag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(files.previewTag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         exists = true;
         return success({
           id: 12345,
@@ -1731,7 +1902,7 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
     'publication-channel': 'preview',
   }, runtime);
   assert.equal(result.status, 'complete');
-  const create = calls.find(({ args }) => args.includes('POST'));
+  const create = calls.find(({ args }) => args[3] === `repos/${repo}/releases`);
   assert.ok(create?.stdin);
   const payload = JSON.parse(create.stdin);
   assert.equal(payload.prerelease, false);
@@ -1798,6 +1969,7 @@ test('canonical Stable publication consumes the exact durable record and never c
 
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
+  let tagReserved = false;
   let exists = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -1823,7 +1995,16 @@ test('canonical Stable publication consumes the exact durable record and never c
       if (isReleaseViewFor(args, tag, canonicalRepo)) {
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, tag, canonicalRepo)) {
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, canonicalRepo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${canonicalRepo}/releases`) {
         exists = true;
         return success(releaseResponse([], { draft: true, immutable: false }));
       }
@@ -2018,6 +2199,7 @@ test('supplemental immutable carrier receipt joins the exact draft asset set onc
   })}\n`);
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
+  let tagReserved = false;
   let exists = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -2030,7 +2212,16 @@ test('supplemental immutable carrier receipt joins the exact draft asset set onc
         return success(releaseResponse(remoteAssets, { draft: !published, immutable: published }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, tag, repo)) {
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         exists = true;
         return success(releaseResponse([], { draft: true, immutable: false }));
       }
@@ -2154,6 +2345,7 @@ test('immutable=false after accepted draft publication returns typed terminal ev
   const files = fixture([first]);
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
+  let tagReserved = false;
   let exists = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -2169,7 +2361,16 @@ test('immutable=false after accepted draft publication returns typed terminal ev
         }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (args.includes('POST')) {
+      if (isTagRefReadFor(args, tag, repo)) {
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
         exists = true;
         return success(releaseResponse([], { draft: true, immutable: false }));
       }

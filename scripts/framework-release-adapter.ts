@@ -32,6 +32,12 @@ type GitHubMutationCommand =
   | 'github-apply'
   | 'github-activate-latest'
   | 'github-move-latest-pointer';
+type GitHubMutation =
+  | 'tag_reserve'
+  | 'release_create'
+  | 'asset_upload'
+  | 'release_publish'
+  | 'latest_patch';
 
 const packageIds = [
   'mas',
@@ -1708,6 +1714,58 @@ function inspectReleaseForReconcile(repo: string, tag: string, runtime: GitHubAd
   }
 }
 
+function inspectReleaseTagRef(repo: string, tag: string, runtime: GitHubAdapterRuntime): JsonRecord {
+  const expectedRef = `refs/tags/${tag}`;
+  const observed = ghRead(
+    ['api', `repos/${repo}/git/ref/tags/${tag}`],
+    runtime,
+    { allow404: true },
+  ) as JsonRecord | null;
+  if (!observed) {
+    return {
+      surface_kind: 'opl_app_github_release_tag_reservation.v1',
+      repository: repo,
+      tag,
+      ref: expectedRef,
+      exists: false,
+      target_commitish: null,
+    };
+  }
+  if (
+    observed.ref !== expectedRef
+    || observed.object?.type !== 'commit'
+    || typeof observed.object?.sha !== 'string'
+    || !/^[0-9a-f]{40}$/.test(observed.object.sha)
+  ) {
+    throw new Error(`GitHub tag reservation identity conflicts with ${expectedRef}.`);
+  }
+  return {
+    surface_kind: 'opl_app_github_release_tag_reservation.v1',
+    repository: repo,
+    tag,
+    ref: expectedRef,
+    exists: true,
+    target_commitish: observed.object.sha,
+  };
+}
+
+function inspectReleaseTagRefForReconcile(
+  repo: string,
+  tag: string,
+  runtime: GitHubAdapterRuntime,
+): JsonRecord {
+  try {
+    return { status: 'complete', observation: inspectReleaseTagRef(repo, tag, runtime) };
+  } catch (error) {
+    return {
+      status: 'inspect_failed',
+      failure: error instanceof GitHubReadError
+        ? error.evidence
+        : { error_message: error instanceof Error ? error.message : String(error) },
+    };
+  }
+}
+
 function inspectReleaseByIdForReconcile(
   repo: string,
   tag: string,
@@ -1746,7 +1804,7 @@ type GitHubMutationAttempt =
 
 function mutationAttemptId(
   baseAttemptId: string,
-  mutation: 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch',
+  mutation: GitHubMutation,
   remoteTarget: string,
   subject: string,
 ): string {
@@ -1759,7 +1817,7 @@ function mutationAttemptId(
 }
 
 function runGitHubMutation(input: {
-  mutation: 'release_create' | 'asset_upload' | 'release_publish' | 'latest_patch';
+  mutation: GitHubMutation;
   attemptId: string;
   remoteTarget: string;
   args: string[];
@@ -2050,6 +2108,65 @@ function ensureRelease(options: {
   const remoteTarget = `github-release:${options.repo}@${options.tag}`;
   let inspection = options.initialInspection ?? inspectRelease(options.repo, options.tag, options.runtime);
   if (!inspection.release.exists) {
+    const expectedRef = `refs/tags/${options.tag}`;
+    const tagRemoteTarget = `github-ref:${options.repo}@${expectedRef}`;
+    const existingTagRef = inspectReleaseTagRef(options.repo, options.tag, options.runtime);
+    if (existingTagRef.exists) {
+      if (existingTagRef.target_commitish !== options.targetCommitish) {
+        throw new Error(
+          `Existing ${expectedRef} points to ${existingTagRef.target_commitish}, expected ${options.targetCommitish}.`,
+        );
+      }
+      throw new Error(
+        `Existing ${expectedRef} already reserves this Release identity without an exact Release; allocate a new tag.`,
+      );
+    }
+    const tagPayload = JSON.stringify({
+      ref: expectedRef,
+      sha: options.targetCommitish,
+    });
+    const tagAttempt = runGitHubMutation({
+      mutation: 'tag_reserve',
+      attemptId: mutationAttemptId(
+        options.baseAttemptId,
+        'tag_reserve',
+        tagRemoteTarget,
+        options.targetCommitish,
+      ),
+      remoteTarget: tagRemoteTarget,
+      args: ['api', '--method', 'POST', `repos/${options.repo}/git/refs`, '--input', '-'],
+      body: tagPayload,
+      operationDeadlineAt: options.operationDeadlineAt,
+      runtime: options.runtime,
+    });
+    if (tagAttempt.status !== 'accepted') {
+      return stoppedMutation({
+        attempt: tagAttempt,
+        repo: options.repo,
+        tag: options.tag,
+        reconciliation: inspectReleaseTagRefForReconcile(options.repo, options.tag, options.runtime),
+      });
+    }
+    const tagReconciliation = inspectReleaseTagRefForReconcile(
+      options.repo,
+      options.tag,
+      options.runtime,
+    );
+    if (
+      tagReconciliation.status !== 'complete'
+      || tagReconciliation.observation.exists !== true
+      || tagReconciliation.observation.target_commitish !== options.targetCommitish
+    ) {
+      return unknownAfterAcceptedMutation({
+        mutation: 'tag_reserve',
+        operationDeadlineAt: options.operationDeadlineAt,
+        attemptEvidence: tagAttempt.evidence,
+        repo: options.repo,
+        tag: options.tag,
+        reconciliation: tagReconciliation,
+        reason: 'GitHub accepted tag reservation but exact frozen App SHA readback did not complete.',
+      });
+    }
     const payload = JSON.stringify({
       tag_name: options.tag,
       target_commitish: options.targetCommitish,
