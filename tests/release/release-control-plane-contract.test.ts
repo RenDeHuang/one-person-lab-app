@@ -292,9 +292,6 @@ test('Standard Latest admission consumes hosted publication and Homebrew readbac
   assert.deepEqual(admission.publication_ancestor_counts, { self_hosted: 0, vm: 0, tart: 0 });
   assert.deepEqual(admission.required_exact_identity_fields, [
     'bundle_digest',
-    'candidate.app_sha',
-    'candidate.shell_sha',
-    'candidate.framework_sha',
     'candidate.zip.sha256',
     'candidate.zip.size_bytes',
     'candidate.dmg.sha256',

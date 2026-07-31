@@ -239,19 +239,28 @@ test('Windows-only Docker/WebUI cases live only in the Preview-owned test file',
   assert.doesNotMatch(sharedInstallerTests, /test\(['"`][^\n]*Windows/);
 });
 
-test('Full macOS post-success follower is automatic, same-cohort, recoverable, and non-blocking', () => {
+test('Full macOS publication is self-identified, independently admissible, recoverable, and non-blocking', () => {
   const follower = contract.release_platform_matrix.full_macos_additive_follower;
-  assert.equal(follower.trigger, 'protected_automatic_post_success');
-  assert.equal(follower.same_app_shell_framework_cohort_required, true);
-  assert.equal(follower.same_standard_identity_and_version_required, true);
+  assert.equal(
+    follower.trigger,
+    'protected_automatic_post_success_or_explicit_independent_full_publication',
+  );
+  assert.equal(follower.source_policy, 'full_artifact_self_identity_plus_component_compatibility');
+  assert.equal(follower.standard_release_prerequisite_required, false);
+  assert.equal(follower.cross_component_exact_version_sha_or_cohort_binding_allowed, false);
+  assert.equal(
+    follower.compatibility_contract_ref,
+    'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
+  );
   assert.equal(follower.operation, 'append_full');
   assert.equal(follower.carrier, 'independent_immutable_adjunct_release');
-  assert.match(follower.tag_derivation, /bundle-digest/);
+  assert.match(follower.tag_derivation, /full-manifest-sha256/);
+  assert.equal(follower.full_release_must_be_published_immutable, true);
   assert.equal(follower.standard_asset_or_latest_mutation_allowed, false);
   assert.equal(follower.blocks_stable_base_terminal, false);
   assert.equal(follower.blocks_latest_activation, false);
   assert.equal(follower.failure_receipt_required, true);
-  assert.match(follower.recovery, /distinct_append_full_operation/);
+  assert.match(follower.recovery, /same_full_artifact_identity/);
 });
 
 test('optional platform publication is an independent protected post-success operation', () => {

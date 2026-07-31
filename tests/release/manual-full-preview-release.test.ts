@@ -667,7 +667,9 @@ test('workflow and release contract expose only the protected preview exception'
   assert.deepEqual(preview.operations, ['publish', 'cleanup']);
   assert.equal(preview.publication.make_latest, false);
   assert.equal(preview.unknown_outcome.read_only_inspection_maximum, 3);
-  assert.equal(preview.cleanup.same_bundle_digest_required, true);
+  assert.equal(preview.cleanup.same_source_lock_and_full_asset_digests_required, false);
+  assert.equal(preview.cleanup.same_bundle_digest_required, false);
+  assert.equal(preview.cleanup.full_artifact_identity_required, true);
   assert.equal(preview.cleanup.required_formal_stable_assets.length, 10);
   assert.equal(preview.cleanup.required_formal_stable_assets.includes('opl-install.sh'), true);
   assert.equal(preview.cleanup.release_and_tag_double_absence_readback_required, true);

@@ -34,14 +34,74 @@ function fixture(
   const diffDirectory = path.join(root, "diff");
   fs.mkdirSync(referenceDirectory);
   fs.mkdirSync(diffDirectory);
+  const frameworkReceipt = {
+    schema: "opl_component_compatibility_receipt.v1",
+    owner: "one-person-lab",
+    producer_role: "opl_framework",
+    producer_identity: {
+      command_surface: "opl app compatibility receipt",
+      executable_path: "/Applications/One Person Lab.app/Contents/Resources/opl",
+      executable_sha256: `sha256:${"d".repeat(64)}`,
+      framework_version: "0.3.5",
+      package_ref: "one-person-lab@0.3.5",
+    },
+    status: "compatible",
+    issued_at: "2026-07-30T00:00:00.000Z",
+    expires_at: "2026-07-30T00:05:00.000Z",
+    observations: [
+      {
+        component_id: "opl_framework",
+        owner_authority: "one-person-lab",
+        version: "0.3.5",
+        capabilities: [
+          {
+            capability_id: "opl_component_compatibility_receipt",
+            schema_version: "1.0.0",
+          },
+        ],
+      },
+    ],
+    coverage: [
+      {
+        requirement_id: "framework_compatibility_receipt_schema",
+        component_id: "opl_framework",
+        status: "satisfied",
+        observation_component_id: "opl_framework",
+      },
+    ],
+    failures: [],
+  };
+  const frameworkReceiptBytes = Buffer.from(`${JSON.stringify(frameworkReceipt, null, 2)}\n`);
+  const frameworkReceiptPath = path.join(root, "framework-compatibility-receipt.json");
+  fs.writeFileSync(frameworkReceiptPath, frameworkReceiptBytes);
   const preflight = {
-    schema: "opl_app_installed_gui_cohort_preflight_receipt.v1",
+    schema: "opl_app_installed_gui_artifact_preflight_receipt.v2",
     status: "passed",
     inspected_at: "2026-07-30T00:00:00.000Z",
-    cohort: {
-      app_sha: "a".repeat(40),
-      shell_sha: "b".repeat(40),
-      framework_sha: "c".repeat(40),
+    compatibility: {
+      profile_id: "gui_installed_acceptance",
+      framework_receipt: frameworkReceipt,
+      framework_receipt_path: frameworkReceiptPath,
+      framework_receipt_output_sha256: digest(frameworkReceiptBytes),
+      framework_receipt_sources: {
+        requirements: {
+          path: path.join(root, "compatibility-requirements.json"),
+          sha256: "e".repeat(64),
+        },
+        subject: {
+          path: path.join(root, "compatibility-subject.json"),
+          sha256: "f".repeat(64),
+        },
+      },
+      authority: "framework_owner_receipt_only",
+      app_generated_compatible_claim: false,
+    },
+    component_provenance: {
+      role: "observational_build_provenance_only",
+      may_gate_install_or_runtime: false,
+      app: { commit: "a".repeat(40) },
+      shell: { commit: "b".repeat(40), observational: true },
+      framework: { commit: "c".repeat(40), observational: true },
     },
     runtime: {
       cdp_endpoint: "http://127.0.0.1:9230",
@@ -63,7 +123,8 @@ function fixture(
       package_or_build_identity: "fixture:immutable",
     },
     claims: {
-      same_cohort_installed: true,
+      artifact_identity_verified: true,
+      component_compatibility_verified: true,
       pid_executable_bound: true,
       cdp_pid_bound: true,
     },
@@ -223,9 +284,70 @@ test("capture harness executes the canonical 16 scenes and emits comparator inpu
   };
   assert.equal(comparatorInput.bindings.length, 16);
   assert.equal(new Set(comparatorInput.bindings.map((binding) => binding.scene_id)).size, 16);
+  assert.equal(comparatorInput.bindings[0].shell_commit, "b".repeat(40));
   assert.equal(fs.readdirSync(path.join(value.root, "output", "candidates")).length, 16);
   assert.ok(fs.existsSync(path.join(value.root, "output", "capture-receipt.json")));
   assert.ok(fs.existsSync(path.join(value.root, "output", "comparator-input.json")));
+});
+
+test("capture harness accepts independently versioned provenance with only Shell commit required", async (t) => {
+  const value = fixture(t, (preflight) => {
+    const provenance = preflight.component_provenance as Record<string, unknown>;
+    delete provenance.app;
+    delete provenance.framework;
+  });
+  const receipt = await captureGuiVisualCohort(value.input, value.root, {
+    createDriver: async () => fakeDriver(),
+    now: fixtureNow,
+  });
+
+  assert.equal(receipt.status, "passed");
+  assert.equal((receipt.claims as Record<string, unknown>).installed_identity_bound, true);
+});
+
+test("capture harness rejects an unbound Framework compatibility receipt before opening CDP", async (t) => {
+  const value = fixture(t, (preflight) => {
+    const compatibility = preflight.compatibility as Record<string, unknown>;
+    compatibility.framework_receipt_output_sha256 = "0".repeat(64);
+  });
+  let driverCreated = false;
+
+  await assert.rejects(
+    captureGuiVisualCohort(value.input, value.root, {
+      createDriver: async () => {
+        driverCreated = true;
+        return fakeDriver();
+      },
+      now: fixtureNow,
+    }),
+    /Framework receipt SHA-256 does not match its bytes/,
+  );
+  assert.equal(driverCreated, false);
+});
+
+test("capture harness rejects a non-Framework compatibility authority before opening CDP", async (t) => {
+  const value = fixture(t, (preflight) => {
+    const compatibility = preflight.compatibility as Record<string, any>;
+    compatibility.framework_receipt.owner = "one-person-lab-app";
+    const bytes = Buffer.from(
+      `${JSON.stringify(compatibility.framework_receipt, null, 2)}\n`,
+    );
+    fs.writeFileSync(compatibility.framework_receipt_path, bytes);
+    compatibility.framework_receipt_output_sha256 = digest(bytes);
+  });
+  let driverCreated = false;
+
+  await assert.rejects(
+    captureGuiVisualCohort(value.input, value.root, {
+      createDriver: async () => {
+        driverCreated = true;
+        return fakeDriver();
+      },
+      now: fixtureNow,
+    }),
+    /owner-authoritative compatibility receipt/,
+  );
+  assert.equal(driverCreated, false);
 });
 
 test("capture harness rejects a non-isolated profile before opening CDP", async (t) => {

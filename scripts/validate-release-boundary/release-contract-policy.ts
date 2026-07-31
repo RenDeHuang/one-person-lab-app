@@ -58,9 +58,6 @@ const requiredStandardLatestAdmission = {
   publication_ancestor_counts: { self_hosted: 0, vm: 0, tart: 0 },
   required_exact_identity_fields: [
     'bundle_digest',
-    'candidate.app_sha',
-    'candidate.shell_sha',
-    'candidate.framework_sha',
     'candidate.zip.sha256',
     'candidate.zip.size_bytes',
     'candidate.dmg.sha256',
@@ -271,9 +268,20 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
     releaseName?.stable_revision?.maximum_revision !== 9 ||
     releaseName?.stable_revision?.allocation !== 'explicit_base_plus_highest_existing_remote_revision_plus_one' ||
     releaseName?.machine_version?.legacy_stable_last_display_version !== '26.7.20' ||
-    releaseName?.machine_version?.stable_patch_formula !== 'day_times_100_plus_revision' ||
+    releaseName?.machine_version?.shared_preview_lane_cutover_display_version !== '26.7.31' ||
+    releaseName?.machine_version?.stable_patch_formula_before_cutover !== 'day_times_100_plus_revision' ||
+    releaseName?.machine_version?.shared_channel_patch_formula_after_cutover !==
+      'day_times_100_plus_90_plus_revision' ||
     releaseName?.machine_version?.nightly_patch_offset !== 90 ||
-    releaseName?.machine_version?.comparison !== 'semver_core_decimal_integer_segments' ||
+    !sameStringSet(releaseName?.machine_version?.shared_revision_sources_after_cutover, [
+      'stable',
+      'preview',
+      'nightly',
+    ]) ||
+    releaseName?.machine_version?.same_revision_stable_outranks_nightly !==
+      'semver_release_outranks_prerelease_with_equal_core' ||
+    releaseName?.machine_version?.comparison !==
+      'semver_core_decimal_integer_segments_then_prerelease_precedence' ||
     releaseName?.machine_version?.bundle_must_bind_both_identities !== true ||
     calendarGuard?.time_zone !== 'Asia/Shanghai' ||
     calendarGuard?.future_dated_versions_allowed !== false ||
@@ -310,16 +318,17 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.operation !== 'append_full' ||
     fullAddon?.workflow !== '.github/workflows/_release-full-addon.yml' ||
     fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
-    fullAddon?.standard_identity_required !== true ||
+    fullAddon?.standard_identity_required !== false ||
     fullAddon?.standard_release_readback !==
-      'exact_tag_required_asset_set_digests_and_immutable_true' ||
+      'optional_provenance_only_no_compatibility_gate' ||
     fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
     fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
     fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
     fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'canonical_main' ||
     fullAddon?.successor_trigger?.executor_head_sha !== 'workflow_run_head_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
-    fullAddon?.mode !== 'same_cohort_independent_immutable_adjunct_release' ||
+    fullAddon?.mode !== 'independent_immutable_adjunct_release' ||
+    fullAddon?.standard_release_prerequisite_required !== false ||
     fullAddon?.carrier_identity?.base_release_mutation_allowed !== false ||
     fullAddon?.carrier_identity?.adjunct_make_latest !== false ||
     fullAddon?.carrier_identity?.adjunct_prerelease !== false ||
@@ -530,8 +539,11 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
       '<exact-tag>',
       '--no-open',
     ]) ||
-    hostedLinux?.component_manifest_binding_required !== true ||
-    hostedLinux?.same_app_shell_framework_cohort_required !== true ||
+    hostedLinux?.same_release_deb_and_installer_manifest_binding_required !== true ||
+    hostedLinux?.same_deb_artifact_identity_required !== true ||
+    hostedLinux?.cross_component_version_sha_or_cohort_equality_required !== false ||
+    hostedLinux?.dependency_compatibility_contract_ref !==
+      'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission' ||
     hostedLinux?.typed_admission_schema !== 'opl_app_optional_certification_hosted_admission.v1' ||
     hostedLinux?.typed_execution_evidence_schema !== 'opl_app_linux_same_artifact_install_evidence.v1' ||
     hostedLinux?.clean_machine_preinstall_absence_required !== true ||
@@ -620,7 +632,8 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
 
   if (
     parity?.canonical_public_asset_set_per_version !== 1 ||
-    parity?.same_frozen_cohort_required !== true ||
+    parity?.same_selected_app_artifact_identity_required !== true ||
+    parity?.cross_component_version_sha_or_cohort_equality_may_gate_install_or_runtime !== false ||
     parity?.track_handoff_requires_exact_asset_digests !== true ||
     parity?.same_public_names_roles_and_install_behavior_required !== true ||
     parity?.same_standard_updater_metadata_contract_required !== true ||
@@ -743,6 +756,44 @@ function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContra
   return failures;
 }
 
+function validateStandardUpdaterCandidateSelection(releaseContract: Record<string, any>): number {
+  const selection = releaseContract.standard_updater?.candidate_selection;
+  if (
+    selection?.schema !== 'opl_app_updater_candidate_selection.v1'
+    || selection?.updater_version_field !== 'updaterVersion'
+    || selection?.sort_authority !== 'valid_updater_version_semver'
+    || selection?.latest_pointer_is_not_candidate_sort_authority !== true
+    || selection?.nightly_is_not_an_independent_user_channel !== true
+    || !sameStringSet(selection?.stable?.allowed_quality_statuses, ['stable'])
+    || selection?.stable?.candidate_union !== 'stable_only'
+    || !sameStringSet(selection?.preview?.allowed_quality_statuses, ['stable', 'preview'])
+    || !sameStringSet(selection?.preview?.allowed_preview_kinds, ['dev', 'nightly'])
+    || selection?.preview?.candidate_union !== 'stable_plus_preview_and_nightly'
+    || selection?.preview?.higher_stable_may_supersede_preview_or_nightly !== true
+    || JSON.stringify(selection?.monotonicity) !== JSON.stringify({
+      comparison: 'semver',
+      machine_version_contract_ref: 'github_release_name.machine_version',
+      candidate_lower_than_installed: 'reject',
+      candidate_equal_to_installed: 'no_op',
+      candidate_higher_than_installed: 'update',
+      invalid_or_missing_updater_version: 'reject',
+      superseding_stable_must_exceed_published_nightly: true,
+      published_nightly_baseline_sources: [
+        'durable_publication_record',
+        'candidate_metadata',
+      ],
+      superseding_comparison: 'strictly_greater_updater_version_semver',
+      lower_or_equal_superseding_stable: 'reject',
+    })
+  ) {
+    console.error(
+      'FAIL standard_updater_candidate_selection: Stable must remain Stable-only while Preview selects the highest valid Stable or Preview/Nightly updaterVersion independently of Latest',
+    );
+    return 1;
+  }
+  return 0;
+}
+
 function validateReleasePreflightContract(releaseContract: Record<string, any>): number {
   let failures = 0;
   const preflight = releaseContract.release_preflight;
@@ -794,7 +845,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   }
   for (const checkId of [
     'channel_display_and_updater_version_identity',
-    'exact_app_shell_framework_git_shas',
+    'app_artifact_identity_and_framework_compatibility_receipt',
     'app_standard_identity_mode',
     'typed_package_compatibility_abi_and_range',
     'package_release_set_and_exact_package_fields_absent',
@@ -1001,9 +1052,9 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     !sourceGate?.scope?.includes('current App profile against exact Shell consumer in a temporary archive') ||
     typeof sourceGate?.rule !== 'string' ||
     !sourceGate.rule.includes('runs once before dispatch') ||
-    !sourceGate.rule.includes('materializes and verifies the exact frozen bytes') ||
-    !sourceGate.rule.includes('never reruns the full source gate') ||
-    !sourceGate.rule.includes('unrelated live main advancement does not invalidate the frozen cohort')
+    !sourceGate.rule.includes('records the exact App/Shell/Framework source and build provenance') ||
+    !sourceGate.rule.includes('observational build provenance only') ||
+    !sourceGate.rule.includes('never an install/runtime compatibility gate')
   ) {
     console.error('FAIL release_source_gate_contract: source gate must run once before dispatch and be verified from frozen evidence without workflow rerun');
     failures += 1;
@@ -1019,9 +1070,12 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
   if (
     typeof preflight?.rule !== 'string' ||
     !preflight.rule.includes('app_standard_compatibility') ||
+    !preflight.rule.includes('selected App artifact identity') ||
+    !preflight.rule.includes('Framework compatibility requirements') ||
     !preflight.rule.includes('without Package Release Set or exact Package authority fields') ||
     !preflight.rule.includes('cannot create release state or replace Framework checkpoint admission') ||
-    !preflight.rule.includes('append_full remains independent from the Standard terminal') ||
+    !preflight.rule.includes('App/Shell/Framework source refs remain provenance only') ||
+    !preflight.rule.includes('append_full remains independently admissible') ||
     preflight?.full_addon_preflight?.operation !== 'append_full' ||
     preflight?.full_addon_preflight?.required_before_append_full_operation !== true
   ) {
@@ -1602,7 +1656,7 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
     homebrew?.tap_update_policy?.full?.promotion_status !== 'approved_pending_first_protected_follower_readback' ||
     homebrew?.tap_update_policy?.full?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
-    homebrew?.full_first_install_policy !== 'the independent immutable Full adjunct GitHub Release is the Full DMG authority and binds the exact immutable base Stable tag, Bundle digest, and App/Shell/Framework cohort; its durable receipt exposes the adjunct Release and asset URLs; the protected post-publication Homebrew Full follower consumes that exact hosted-qualified adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged' ||
+    homebrew?.full_first_install_policy !== 'the independent immutable Full adjunct GitHub Release is the Full DMG and manifest self-identity authority; its durable receipt exposes the adjunct Release and asset URLs, and its compatibility admission uses capability, minimum-version, or SemVer-range requirements through the Framework-owner receipt. The protected Homebrew Full follower consumes that exact adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
@@ -1883,19 +1937,22 @@ export function validateReleasePlatformMatrix(
   const follower = matrix.full_macos_additive_follower;
   if (
     follower?.workflow !== '.github/workflows/release-stable-post-success-followups.yml'
-    || follower?.trigger !== 'protected_automatic_post_success'
-    || follower?.same_app_shell_framework_cohort_required !== true
-    || follower?.same_standard_identity_and_version_required !== true
+    || follower?.trigger !== 'protected_automatic_post_success_or_explicit_independent_full_publication'
+    || follower?.source_policy !== 'full_artifact_self_identity_plus_component_compatibility'
+    || follower?.standard_release_prerequisite_required !== false
+    || follower?.cross_component_exact_version_sha_or_cohort_binding_allowed !== false
+    || follower?.compatibility_contract_ref !==
+      'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission'
     || follower?.operation !== 'append_full'
     || follower?.carrier !== 'independent_immutable_adjunct_release'
-    || follower?.base_release_must_be_published_immutable !== true
+    || follower?.full_release_must_be_published_immutable !== true
     || follower?.draft_asset_set_must_be_exact_before_publication !== true
     || follower?.standard_asset_or_latest_mutation_allowed !== false
     || follower?.blocks_stable_base_terminal !== false
     || follower?.blocks_latest_activation !== false
     || follower?.failure_receipt_required !== true
   ) {
-    console.error('FAIL release_platform_matrix: Full macOS follower must remain automatic, same-cohort, durable, and non-blocking');
+    console.error('FAIL release_platform_matrix: Full macOS follower must remain independently self-identified, compatibility-bound, durable, and non-blocking');
     failures += 1;
   }
   const optionalSelection = matrix.stable_optional_selection;
@@ -1941,6 +1998,7 @@ export function validateReleaseContractPolicies(
   failures += validateReleaseExecutionTracks(releaseContract);
   failures += validatePreparedNotesTransportPolicy(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
+  failures += validateStandardUpdaterCandidateSelection(releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateOptionalCertificationPolicy(releaseContract);
   failures += validatePhysicalVmOptionalCertificationPolicy(releaseContract);

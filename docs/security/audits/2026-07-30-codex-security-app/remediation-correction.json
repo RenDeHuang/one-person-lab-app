@@ -1,0 +1,138 @@
+{
+  "schema": "opl_codex_security_remediation_correction.v1",
+  "owner": "one-person-lab-app",
+  "state": "ssot_projection_of_sealed_scan",
+  "sealed_scan": {
+    "scan_id": "22ac28a3-c239-4497-a440-4f4437adb4df",
+    "revision": "329f84f7163323936166f03765eca2f6622d3096",
+    "scan_manifest_sha256": "3d40e6d124343042f0393d4307a6e90a9d36a2c179253e8cb32733d9eef450ef",
+    "findings_sha256": "4a3f2d0ea53e46d9ac369e40f1a23e6be51a30469592bb891786591a43225991",
+    "report_sha256": "1f834325c1295b9704bebab3818fd11ea99156f417440bc78557763c8f88a1a2",
+    "sealed_scan_modified": false,
+    "finding_count": 11
+  },
+  "product_contract": {
+    "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
+    "artifact_self_integrity_scope": "one_selected_downloaded_or_executed_artifact",
+    "required_identity_fields": [
+      "owner_authority",
+      "immutable_release_tag",
+      "asset_url",
+      "asset_name",
+      "byte_size",
+      "sha256"
+    ],
+    "platform_attestations_when_applicable": [
+      "signature",
+      "notarization"
+    ],
+    "installed_bytes_must_match_selected_carrier_artifact": true,
+    "cross_component_exact_version_sha_or_cohort_lock_allowed": false,
+    "component_refs_role": "observational_build_provenance_only",
+    "component_refs_may_gate_install_or_runtime": false
+  },
+  "dispositions": [
+    {
+      "finding_id": "csf_a139a080ef77d2e206961d94",
+      "anchor": "app-container-webui-bootstrap",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "install.sh App container bootstrap",
+      "required_remediation": "Select an immutable App release asset, bind the exact owner, tag, URL, name, size, SHA-256 and applicable signature/notarization, then verify downloaded bytes before execution.",
+      "forbidden_remediation": "Do not bind the App script to an exact Base, Shell, Framework, or Package version, commit, SHA, Bundle, BOM, or same cohort.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_32d04f29014d1cb0e19d99e8",
+      "anchor": "framework-desktop-bootstrap",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "install.sh Framework desktop bootstrap",
+      "required_remediation": "Select and verify the Framework bootstrap artifact by its own immutable release identity and digest before execution.",
+      "forbidden_remediation": "Do not turn the Framework artifact check into an App/Shell/Base/Package exact-version or cohort gate.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_bc602d1b659afca6df00f8d3",
+      "anchor": "framework-headless-bootstrap",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "install.sh Framework headless bootstrap",
+      "required_remediation": "Select and verify the Framework bootstrap artifact by its own immutable release identity and digest before execution.",
+      "forbidden_remediation": "Do not require an exact App/Shell/Base/Package version, commit, SHA, Bundle, BOM, or same cohort.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_e0e64790e0fe02ef693e7fa8",
+      "anchor": "public-unix-docker-webui-command",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "public Unix Docker/WebUI command",
+      "required_remediation": "Resolve the selected immutable App installer artifact and verify its exact identity and bytes before execution.",
+      "forbidden_remediation": "Do not use cross-component exact version or cohort equality as the download gate.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_563e30ee4eed58f832df9293",
+      "anchor": "windows-admin-prerequisite-command",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "Windows administrator prerequisite command",
+      "required_remediation": "Resolve and verify the selected immutable App installer artifact, including exact digest and applicable platform attestation, before PowerShell execution.",
+      "forbidden_remediation": "Do not bind the script to an exact App/Shell/Framework/Base/Package cohort.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_3e6c24867a64c7b196a07deb",
+      "anchor": "windows-port-troubleshooting-command",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "Windows port troubleshooting command",
+      "required_remediation": "Resolve the selected immutable PowerShell installer artifact and verify the same-artifact manifest digest before execution.",
+      "forbidden_remediation": "Do not make a cross-component SHA or same-cohort comparison part of the troubleshooting command.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_9d5c856d80d15802ef62256f",
+      "anchor": "windows-diagnostics-troubleshooting-command",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "Windows diagnostics troubleshooting command",
+      "required_remediation": "Resolve the selected immutable PowerShell installer artifact and verify the same-artifact manifest digest before execution.",
+      "forbidden_remediation": "Do not require an exact App/Shell/Framework/Base/Package version or cohort.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_9dff6218e5c46d6654fcc1b6",
+      "anchor": "windows-primary-one-click-command",
+      "disposition": "retain_self_artifact_integrity",
+      "entrypoint_scope": "official Windows one-click command",
+      "required_remediation": "Resolve the selected immutable PowerShell installer artifact and verify owner, tag, URL, name, size, SHA-256 and applicable attestation before execution.",
+      "forbidden_remediation": "Do not convert the installer check into cross-component exact version, commit, SHA, Bundle, BOM, or same-cohort lockstep.",
+      "independent_component_versions_must_remain_acceptable": true
+    },
+    {
+      "finding_id": "csf_2fbbb441cb9d9f3aae753163",
+      "anchor": "elevated-installer-accepts-user-path-docker",
+      "disposition": "retain_independent_security_finding",
+      "entrypoint_scope": "elevated Windows docker.exe PATH resolution",
+      "required_remediation": "Keep the finding on its own trust-boundary path: resolve Docker by an owner-authorized absolute path and reject user-controlled PATH hijacking before elevation.",
+      "forbidden_remediation": "Do not merge this finding into component-version compatibility or use component equality as its authority."
+    },
+    {
+      "finding_id": "csf_ae86ccfcc56b80335d60c74d",
+      "anchor": "mineru-default-remote-document-extraction",
+      "disposition": "retain_independent_security_finding",
+      "entrypoint_scope": "MinerU local-document upload",
+      "required_remediation": "Require an explicit per-transfer remote destination and privacy decision immediately before uploading local content; preserve a local or user-selected alternative.",
+      "forbidden_remediation": "Do not treat artifact version identity as a substitute for transfer consent."
+    },
+    {
+      "finding_id": "csf_c71b6a2c51f4a254567285a3",
+      "anchor": "secret-marker-retains-matched-bytes",
+      "disposition": "retain_independent_security_finding",
+      "entrypoint_scope": "Windows evidence secret scanner and CI artifacts",
+      "required_remediation": "Replace matched credential bytes with redacted typed markers before result JSON, stdout, summaries, or uploaded artifacts.",
+      "forbidden_remediation": "Do not classify secret redaction as a component compatibility or release-version lock."
+    }
+  ],
+  "acceptance_boundary": {
+    "self_artifact_identity_is_the_only_download_execution_identity": true,
+    "capability_minimum_or_semver_range_is_the_only_cross_component_compatibility_language": true,
+    "same_component_build_provenance_may_be_recorded_but_may_not_gate_install_or_runtime": true,
+    "report_does_not_claim_any_remediation_is_published_or_installed": true
+  }
+}
