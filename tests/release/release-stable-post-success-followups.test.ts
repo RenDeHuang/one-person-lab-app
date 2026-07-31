@@ -21,6 +21,94 @@ const fullAddonSource = fs.readFileSync(
 );
 const fullAddon = parseYaml(fullAddonSource) as Record<string, any>;
 
+function runSuccessorDispatchStep() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-successor-dispatch-"));
+  try {
+    const bin = path.join(root, "bin");
+    const payloadPath = path.join(root, "dispatch-payload.json");
+    const statePath = path.join(root, "state");
+    const outputPath = path.join(root, "github-output.txt");
+    fs.mkdirSync(bin);
+    const fakeGh = path.join(bin, "gh");
+    fs.writeFileSync(
+      fakeGh,
+      String.raw`#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const payloadPath = process.env.OPL_TEST_DISPATCH_PAYLOAD;
+const statePath = process.env.OPL_TEST_DISPATCH_STATE;
+const runId = "40100000003";
+const sourceRunId = process.env.SOURCE_RUN_ID;
+if (args.includes("--method") && args.includes("POST")) {
+  fs.writeFileSync(payloadPath, fs.readFileSync(0, "utf8"));
+  fs.writeFileSync(statePath, "posted\n");
+  process.exit(0);
+}
+if (args.some((arg) => arg.endsWith("/actions/runs/" + runId))) {
+  process.stdout.write(JSON.stringify({
+    id: Number(runId),
+    repository: { full_name: "gaofeng21cn/one-person-lab-app" },
+    head_repository: { full_name: "gaofeng21cn/one-person-lab-app" },
+    path: ".github/workflows/release-stable.yml",
+    event: "workflow_dispatch",
+    head_branch: "main",
+    head_sha: "a".repeat(40),
+    run_attempt: 1,
+    display_title: "OPL Stable append_full source:" + sourceRunId + " run:" + runId,
+  }));
+  process.exit(0);
+}
+const posted = fs.existsSync(statePath);
+process.stdout.write(JSON.stringify({
+  total_count: posted ? 1 : 0,
+  workflow_runs: posted ? [{
+    id: Number(runId),
+    path: ".github/workflows/release-stable.yml",
+    head_branch: "main",
+    head_sha: "a".repeat(40),
+    run_attempt: 1,
+    created_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    display_title: "OPL Stable append_full source:" + sourceRunId + " run:" + runId,
+  }] : [],
+}));
+`,
+    );
+    fs.chmodSync(fakeGh, 0o755);
+    const dispatchStep = workflow.jobs.dispatch.steps.find(
+      (candidate: Record<string, any>) =>
+        candidate.name === "Dispatch exactly one independent Full append operation",
+    );
+    assert.ok(dispatchStep);
+    const result = spawnSync("/bin/bash", ["-euo", "pipefail", "-c", String(dispatchStep.run)], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
+        GITHUB_OUTPUT: outputPath,
+        SOURCE_RUN_ID: "30123456789",
+        SOURCE_ARTIFACT: "opl-release-standard-checkpoint-30123456789",
+        FRAMEWORK_REF: "c".repeat(40),
+        APP_REF: "a".repeat(40),
+        SHELL_REF: "b".repeat(40),
+        VERSION: "26.7.31-r3",
+        OPL_TEST_DISPATCH_PAYLOAD: payloadPath,
+        OPL_TEST_DISPATCH_STATE: statePath,
+      },
+    });
+    return {
+      result,
+      payload: fs.existsSync(payloadPath)
+        ? JSON.parse(fs.readFileSync(payloadPath, "utf8")) as Record<string, any>
+        : null,
+      output: fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8") : "",
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function runFullBuildProvenanceAdmission({
   completedStage = "standard_built",
   mutateBundle,
@@ -229,6 +317,9 @@ test("append_full dispatch binds candidates and final readback to one exact Stan
 });
 
 test("successor dispatch is exactly one append_full JSON input set with no legacy qualification input", () => {
+  const stableWorkflow = parseYaml(
+    fs.readFileSync(path.join(process.cwd(), ".github", "workflows", "release-stable.yml"), "utf8"),
+  ) as Record<string, any>;
   const dispatches =
     source.match(
       /gh api --method POST "repos\/\$GITHUB_REPOSITORY\/actions\/workflows\/release-stable\.yml\/dispatches"/g,
@@ -237,13 +328,38 @@ test("successor dispatch is exactly one append_full JSON input set with no legac
   assert.match(source, /inputs_json=/);
   assert.match(source, /operation:"append_full"/);
   assert.match(source, /include_full:"false"/);
-  assert.match(source, /source_qualification_run_id:""/);
-  assert.match(source, /source_qualification_receipt_digest:""/);
   assert.doesNotMatch(source, /-f "inputs=\$inputs_json"/);
   assert.doesNotMatch(
     source,
     /gh workflow run|gh run rerun|gh run cancel|gh release (?:create|edit|upload|delete)|git tag|make_latest/,
   );
+
+  const execution = runSuccessorDispatchStep();
+  assert.equal(execution.result.status, 0, execution.result.stderr || execution.result.stdout);
+  assert.match(execution.output, /status=dispatched/);
+  assert.equal(execution.payload?.ref, "main");
+  assert.deepEqual(Object.keys(execution.payload?.inputs ?? {}).sort(), [
+    "framework_ref",
+    "include_full",
+    "operation",
+    "shell_ref",
+    "source_artifact",
+    "source_run_id",
+    "version",
+  ]);
+  const canonicalInputKeys = new Set(Object.keys(stableWorkflow.on.workflow_dispatch.inputs));
+  assert.ok(
+    Object.keys(execution.payload.inputs).every((input) => canonicalInputKeys.has(input)),
+    "successor POST payload must contain only canonical release-stable workflow inputs",
+  );
+  assert.equal(execution.payload.inputs.operation, "append_full");
+  assert.equal(execution.payload.inputs.source_run_id, "30123456789");
+  assert.equal(
+    execution.payload.inputs.source_artifact,
+    "opl-release-standard-checkpoint-30123456789",
+  );
+  assert.equal("source_qualification_run_id" in execution.payload.inputs, false);
+  assert.equal("source_qualification_receipt_digest" in execution.payload.inputs, false);
 });
 
 test("successor is idempotent and does not retry an unknown dispatch result", () => {
