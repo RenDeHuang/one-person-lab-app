@@ -146,12 +146,16 @@ function fixture(t: test.TestContext) {
 class FakeRemote implements NightlyRemote {
   latest = 'v26.7.25';
   release: NightlyRemoteRelease | null = null;
+  tagTarget: string | null = null;
   calls: string[] = [];
   visibilityMissesAfterCreate = 0;
   visibilityMissesAfterUpload = 0;
+  tagCreateThrows = false;
   createThrows = false;
+  createRejected = false;
   createReturnsNull = false;
   deleteThrows = false;
+  tagDeleteThrows = false;
   reconcileWaitAttempts: number[] = [];
   private releaseVisibilityMisses = 0;
 
@@ -165,6 +169,11 @@ class FakeRemote implements NightlyRemote {
     return this.release ? structuredClone(this.release) : null;
   }
 
+  inspectTagTarget(): string | null {
+    this.calls.push('inspect-tag');
+    return this.tagTarget;
+  }
+
   inspectLatestTag(): string | null {
     this.calls.push('inspect-latest');
     return this.latest;
@@ -174,6 +183,13 @@ class FakeRemote implements NightlyRemote {
     this.reconcileWaitAttempts.push(attempt);
   }
 
+  createTag(_tag: string, targetCommitish: string): string | null {
+    this.calls.push('create-tag');
+    this.tagTarget = targetCommitish;
+    if (this.tagCreateThrows) throw new Error('simulated tag create timeout');
+    return this.tagTarget;
+  }
+
   createDraft(input: {
     tag: string;
     targetCommitish: string;
@@ -181,6 +197,7 @@ class FakeRemote implements NightlyRemote {
     body: string;
   }): NightlyRemoteRelease | null {
     this.calls.push('create');
+    if (this.createRejected) throw new Error('simulated create rejection');
     this.release = {
       id: 101,
       tag_name: input.tag,
@@ -218,6 +235,12 @@ class FakeRemote implements NightlyRemote {
     this.calls.push('delete-draft');
     if (this.deleteThrows) throw new Error('simulated delete timeout');
     this.release = null;
+  }
+
+  deleteTag(): void {
+    this.calls.push('delete-tag');
+    if (this.tagDeleteThrows) throw new Error('simulated tag delete timeout');
+    this.tagTarget = null;
   }
 }
 
@@ -372,6 +395,8 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
     input.qualification.assets.length,
   );
   assert.equal(remote.calls.filter((call) => call === 'publish').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'create-tag').length, 1);
+  assert.equal(remote.tagTarget, input.request.source.app_sha);
 
   remote.calls = [];
   const second = publishNightlyRelease({
@@ -384,6 +409,86 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(second.status, 'already_complete');
   assert.equal(remote.calls.some((call) => call.startsWith('upload:')), false);
   assert.equal(remote.calls.includes('publish'), false);
+  assert.equal(remote.calls.includes('create-tag'), false);
+});
+
+test('Nightly publisher reserves the frozen tag before creating a Release', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+
+  publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+
+  assert.ok(remote.calls.indexOf('create-tag') < remote.calls.indexOf('create'));
+  assert.equal(remote.calls.filter((call) => call === 'create-tag').length, 1);
+  assert.equal(remote.calls.includes('delete-tag'), false);
+});
+
+test('Nightly publisher reconciles an unknown exact tag reservation without retrying it', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.tagCreateThrows = true;
+
+  const receipt = publishNightlyRelease({
+    request: input.request,
+    qualification: input.qualification,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  });
+
+  assert.equal(receipt.status, 'published');
+  assert.equal(remote.calls.filter((call) => call === 'create-tag').length, 1);
+  assert.equal(remote.calls.includes('delete-tag'), false);
+});
+
+test('Nightly publisher removes its exact tag when Release creation fails with no public Release', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createRejected = true;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    /outcome is unknown after three read-only inspections/,
+  );
+
+  assert.equal(remote.calls.filter((call) => call === 'create-tag').length, 1);
+  assert.equal(remote.calls.filter((call) => call === 'delete-tag').length, 1);
+  assert.equal(remote.tagTarget, null);
+});
+
+test('Nightly publisher never reuses or deletes a pre-existing orphan tag', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.tagTarget = input.request.source.app_sha;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    /has no Release; this invocation will not reuse or delete it/,
+  );
+
+  assert.equal(remote.calls.includes('create-tag'), false);
+  assert.equal(remote.calls.includes('delete-tag'), false);
+  assert.equal(remote.tagTarget, input.request.source.app_sha);
 });
 
 test('Nightly publisher tolerates eventual-consistency misses after draft creation without retrying creation', (t) => {
@@ -507,6 +612,34 @@ test('Nightly publisher safely deletes its exact draft when creation visibility 
   assert.equal(remote.release, null);
 });
 
+test('Nightly publisher retains its exact tag while delayed Release absence is not proven', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  remote.createThrows = true;
+  remote.visibilityMissesAfterCreate = 7;
+
+  assert.throws(
+    () =>
+      publishNightlyRelease({
+        request: input.request,
+        qualification: input.qualification,
+        assetsDir: input.assetsDir,
+        notes: 'Automated Standard preview.\n',
+        remote,
+      }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.match(error.message, /public state cleanup did not reach exact absence/);
+      assert.match(String(error.errors[1]), /Release absence is not proven/);
+      return true;
+    },
+  );
+
+  assert.equal(remote.calls.includes('delete-tag'), false);
+  assert.equal(remote.tagTarget, input.request.source.app_sha);
+  assert.notEqual(remote.release, null);
+});
+
 test('Nightly publisher deletes its acknowledged draft when asset upload readback fails', (t) => {
   const input = fixture(t);
   const remote = new FakeRemote();
@@ -546,15 +679,17 @@ test('Nightly publisher preserves both publication and cleanup failures when rol
       }),
     (error) => {
       assert.ok(error instanceof AggregateError);
-      assert.match(error.message, /draft cleanup did not reach exact absence/);
-      assert.equal(error.errors.length, 2);
+      assert.match(error.message, /public state cleanup did not reach exact absence/);
+      assert.equal(error.errors.length, 3);
       assert.match(String(error.errors[0]), /Upload Nightly asset/);
       assert.match(String(error.errors[1]), /Delete failed Nightly draft/);
+      assert.match(String(error.errors[2]), /Release absence is not proven/);
       return true;
     },
   );
 
   assert.equal(remote.calls.filter((call) => call === 'delete-draft').length, 1);
+  assert.equal(remote.calls.includes('delete-tag'), false);
   assert.notEqual(remote.release, null);
 });
 
@@ -655,6 +790,41 @@ test('GitHub Nightly remote returns the created draft and reads it back by exact
   assert.deepEqual(remote.inspectRelease(frozen.tag, draft.id), draft);
   assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
   assert.deepEqual(calls.at(-1), ['api', 'repos/gaofeng21cn/one-person-lab-app/releases/101']);
+});
+
+test('GitHub Nightly remote reserves and deletes one exact lightweight tag ref', () => {
+  const frozen = request();
+  const calls: string[][] = [];
+  const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', (args) => {
+    calls.push(args);
+    if (args.includes('POST')) {
+      return JSON.stringify({
+        ref: `refs/tags/${frozen.tag}`,
+        object: { type: 'commit', sha: frozen.source.app_sha },
+      });
+    }
+    return '';
+  });
+
+  assert.equal(remote.createTag(frozen.tag, frozen.source.app_sha), frozen.source.app_sha);
+  remote.deleteTag(frozen.tag);
+
+  assert.equal(calls.filter((args) => args.includes('POST')).length, 1);
+  assert.deepEqual(calls.at(-1), [
+    'api',
+    '--method', 'DELETE',
+    `repos/gaofeng21cn/one-person-lab-app/git/refs/tags/${frozen.tag}`,
+  ]);
+});
+
+test('GitHub Nightly remote reads only an exact lightweight commit tag', () => {
+  const frozen = request();
+  const remote = new GhNightlyRemote('gaofeng21cn/one-person-lab-app', () => JSON.stringify({
+    ref: `refs/tags/${frozen.tag}`,
+    object: { type: 'commit', sha: frozen.source.app_sha },
+  }));
+
+  assert.equal(remote.inspectTagTarget(frozen.tag), frozen.source.app_sha);
 });
 
 test('GitHub Nightly remote returns null for a successful empty create response', () => {
