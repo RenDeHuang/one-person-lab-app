@@ -1171,23 +1171,109 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     throw new Error('Runtime parity must not retain the same_cohort_runtime_identity_required_for_parity gate');
   }
   for (const [field, expected] of Object.entries({
-    state: 'target_with_native_candidate_deviation',
+    state: 'source_binding_implemented_artifact_evidence_pending',
     policy_owner: 'one-person-lab-app',
-    runtime_identity_owner: 'one-person-lab',
+    runtime_identity_owner: 'gaofeng21cn/opl-aion-shell',
     resolver_source: 'contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target',
     logical_control_plane_shared: true,
     parity_admission_basis: 'compatible_runtime_capability_and_versioned_schema_range',
     exact_runtime_identity_equality_may_gate_install_or_runtime: false,
     host_path_only_resolution_can_prove_parity: false,
-    active_aionui_status: 'managed_or_packaged_runtime_resolution',
+    active_aionui_status: 'aioncore_managed_identity_binding_source_implemented_packaged_replay_pending',
     opl_native_workbench_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
     same_physical_runtime_currently_claimed: false,
-    implementation_status: 'candidate_launcher_only_active_shell_parity_not_proven',
+    implementation_status: 'source_identity_binding_implemented_full_standard_finder_evidence_pending',
   })) {
     if (policy?.[field] !== expected) {
       throw new Error(`Runtime bridge shared GUI runtime resolution policy ${field} must be ${expected}`);
     }
   }
+
+  const identityContract = policy?.runtime_identity_contract;
+  for (const [field, expected] of Object.entries({
+    schema: 'opl_codex_runtime_identity.v1',
+    contract_owner: 'one-person-lab-app',
+    producer_owner: 'gaofeng21cn/opl-aion-shell',
+    carrier: 'aioncore_managed_resources_projection',
+    direct_app_server_binding: 'identity_verified_before_exact_codex_app_server_spawn',
+    aioncore_acp_binding:
+      'unique_managed_candidate_plus_inherited_environment_plus_successful_conversation_handshake',
+    aioncore_modification_required: false,
+    aioncore_native_readback_required: false,
+    aioncore_native_readback_currently_available: false,
+    aioncore_native_readback_claim_allowed: false,
+  })) {
+    if (identityContract?.[field] !== expected) {
+      throw new Error(`Runtime bridge Codex identity contract ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    identityContract?.required_fields,
+    [
+      'path',
+      'realpath',
+      'version',
+      'sha256',
+      'codex_home',
+      'runtime_key',
+      'runtime_cohort_ref',
+      'carrier.producer_manifest_sha256',
+      'carrier.projection_manifest_sha256',
+    ],
+    'Runtime bridge Codex identity fields',
+  );
+  assertDeepEqualJson(
+    identityContract?.environment_binding_fields,
+    [
+      'OPL_CODEX_BIN',
+      'CODEX_HOME',
+      'OPL_CODEX_RUNTIME_IDENTITY_JSON',
+      'OPL_CODEX_RUNTIME_COHORT_REF',
+      'PATH',
+    ],
+    'Runtime bridge Codex identity environment binding',
+  );
+  assertDeepEqualJson(
+    identityContract?.typed_error_codes,
+    [
+      'USER_AGENT_NOT_INSTALLED',
+      'USER_AGENT_COMMAND_NOT_FOUND',
+      'MANAGED_RUNTIME_UNAVAILABLE',
+      'RUNTIME_ACTIVATION_REQUIRED',
+      'RUNTIME_IDENTITY_MISMATCH',
+    ],
+    'Runtime bridge Codex identity typed errors',
+  );
+
+  const evidenceContract = policy?.packaged_evidence_contract;
+  for (const [field, expected] of Object.entries({
+    schema_ref: 'contracts/opl-codex-runtime-identity-evidence.schema.json',
+    launch_entrypoint: 'finder',
+    minimal_path: '/usr/bin:/bin',
+    global_codex_required: false,
+    referenced_file_sha256_required: true,
+    claim_scope: 'opl_controlled_input_and_successful_handshake_without_aioncore_native_readback',
+    artifact_trigger_status: 'pending',
+  })) {
+    if (evidenceContract?.[field] !== expected) {
+      throw new Error(`Runtime bridge Codex packaged evidence ${field} must be ${expected}`);
+    }
+  }
+  assertDeepEqualJson(
+    evidenceContract?.required_run_ids,
+    ['full_clean_install_finder', 'standard_update_after_full_finder'],
+    'Runtime bridge Codex packaged evidence runs',
+  );
+  assertDeepEqualJson(
+    evidenceContract?.identity_comparison_fields,
+    ['path', 'realpath', 'version', 'sha256', 'codex_home', 'runtime_cohort_ref'],
+    'Runtime bridge Codex packaged identity comparison fields',
+  );
+  assertDeepEqualJson(
+    evidenceContract?.required_handshakes,
+    ['direct_app_server_initialize', 'aioncore_acp_ordinary_conversation_real_response'],
+    'Runtime bridge Codex packaged handshakes',
+  );
 }
 
 function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
