@@ -432,6 +432,26 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const publishRun = String(publish.steps.find(
     (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.run);
+  const publishEnv = publish.steps.find(
+    (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
+  )?.env;
+  assert.equal(publishEnv?.GH_TOKEN, '${{ github.token }}');
+  assert.equal(
+    publishEnv?.WINDOWS_PREVIEW_RELEASE_TOKEN,
+    '${{ secrets.OPL_WINDOWS_PREVIEW_RELEASE_TOKEN }}',
+  );
+  assert.match(
+    publishRun,
+    /windows_preview_rc\)[\s\S]*test -n "\$WINDOWS_PREVIEW_RELEASE_TOKEN"[\s\S]*export GH_TOKEN="\$WINDOWS_PREVIEW_RELEASE_TOKEN"/,
+  );
+  assert.match(
+    publishRun,
+    /stable_optional_follower\)[\s\S]*test -z "\$WINDOWS_PREVIEW_RELEASE_TOKEN"/,
+  );
+  assert.ok(
+    publishRun.indexOf('export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"')
+      < publishRun.indexOf('latest_before="$(gh api'),
+  );
   assert.match(
     publishRun,
     /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/,
