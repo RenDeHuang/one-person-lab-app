@@ -48,12 +48,26 @@ test('AionUI target keeps the AionCore export as staging and distributes only No
   assert.equal(target?.packaged_projection.schema, 'opl_aioncore_managed_resources_projection.v1');
   assert.deepEqual(target?.packaged_projection.included_cli_names, ['codex']);
   assert.deepEqual(target?.packaged_projection.excluded_cli_names, ['claude']);
-  assert.deepEqual(target?.distributed_bundle.packaged_components_exact, [
+  assert.deepEqual(target?.distributed_bundle.required_runtime_components, [
     'aioncore',
     'node_runtime',
     'codex_cli',
   ]);
-  assert.equal(target?.distributed_bundle.claude_executable_package_archive_or_cache_allowed, false);
+  assert.deepEqual(target?.distributed_bundle.required_metadata, [
+    'projection_manifest',
+    'producer_manifest_digest_provenance',
+  ]);
+  assert.deepEqual(target?.distributed_bundle.cli_names_exact, ['codex']);
+  assert.deepEqual(
+    target?.distributed_bundle.required_absence_checks.map((check) => check.id),
+    [
+      'managed_claude_subtree',
+      'claude_executable_or_symlink',
+      'anthropic_package_or_archive',
+      'claude_distribution_cache_entry',
+      'raw_producer_manifest',
+    ],
+  );
   assert.equal(target?.independent_codex_downloader_or_version_authority_allowed, false);
   assert.doesNotThrow(() => validateCodexExecutableContract(aionui));
 });
@@ -62,10 +76,23 @@ test('AionUI target cannot package Claude or introduce a second Codex authority'
   const withClaude = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
   assert.ok(withClaude.codex_executable_contract?.carrier.target_packaging_policy);
   withClaude.codex_executable_contract.carrier.target_packaging_policy
-    .distributed_bundle.packaged_components_exact.push('claude_cli');
+    .distributed_bundle.cli_names_exact.push('claude');
 
   assert.throws(
     () => validateCodexExecutableContract(withClaude),
+    /Codex-only projection/,
+  );
+
+  const withoutArchiveGate = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
+  assert.ok(withoutArchiveGate.codex_executable_contract?.carrier.target_packaging_policy);
+  withoutArchiveGate.codex_executable_contract.carrier.target_packaging_policy
+    .distributed_bundle.required_absence_checks =
+      withoutArchiveGate.codex_executable_contract.carrier.target_packaging_policy
+        .distributed_bundle.required_absence_checks
+        .filter((check) => check.id !== 'anthropic_package_or_archive');
+
+  assert.throws(
+    () => validateCodexExecutableContract(withoutArchiveGate),
     /Codex-only projection/,
   );
 

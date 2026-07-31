@@ -29,7 +29,7 @@ staging。Shell 从上游 manifest 选择 Node 和 Codex，生成 OPL-owned proj
 | --- | --- | --- | --- |
 | Producer export | AionCore | schema v2；Node + Claude + Codex；版本和 digest 来源 | 否，只作临时 staging |
 | Packaged projection | `opl-aion-shell` | `opl_aioncore_managed_resources_projection.v1`；Node + Codex；引用 producer manifest digest | 是 |
-| Distributed bundle | `one-person-lab-app` release | AionCore + Node + Codex；Standard/Full 共用 | 是；Claude 必须物理不存在 |
+| Distributed bundle | `one-person-lab-app` release | 必需 AionCore、Node、Codex，并带 projection manifest 和 producer digest provenance；CLI set 恰为 Codex；Standard/Full 共用 | 是；Claude 必须物理不存在 |
 
 Projection 不是第二个版本源。它只能复制 producer export 已声明并校验的 Node/Codex entry，
 记录 producer manifest digest，并证明 Claude 被排除。禁止把 `clis=["codex"]` 冒充
@@ -82,7 +82,7 @@ diff 为准，不能把单平台估算写成所有平台的完成证据。
 Owner: `one-person-lab-app`
 
 - 固定三层 owner 和不 fork AionCore 的边界。
-- 固定 Standard/Full exact packaged components 和 Claude physical-absence policy。
+- 固定 Standard/Full required components、CLI exact set 和 Claude physical-absence policy。
 - 区分 current raw manifest 与 target projection，禁止提前声明 implemented。
 - 保留 Framework headless carrier 和未来 Native carrier independence。
 
@@ -101,28 +101,33 @@ Owner: `gaofeng21cn/opl-aion-shell`
 
 Owner: `gaofeng21cn/opl-aion-shell`，App 只消费最终证据。
 
-- macOS/Linux desktop、Windows WSL2 和 Web CLI 接受同一 projection schema。
+- 目标 Standard/Full Desktop 必须接受同一 projection schema。
 - Standard/Full package verifier证明 AionCore、Node、Codex 存在且 digest 对齐 producer。
 - 最终树证明 `managed-resources/cli/claude`、Claude executable、Anthropic
   package/archive 和 distribution cache entry 均不存在。
 - 原始 producer manifest 不得进入 final distributed root。
-- 保留可选 system Claude discovery；“OPL 不随包提供 Claude”不等于禁止用户自行安装。
+- OPL 不发现、不验证、不支持 Claude route；同时不删除用户自行安装的文件。
+- Windows WSL2 与 Web CLI 若消费同一 `bundled-aioncore`，必须在各自下一次 publication
+  前通过 compatibility gate，但不阻塞本 App SSOT lane。
 
 ## Issue 122 Runtime Identity 边界
 
-本次 carrier 裁剪是 Issue 122 的必要基线，但不等于完整 runtime identity closure。
-OPL 必须在自己控制的边界完成以下工作，且不要求修改 AionCore：
+本次 carrier 裁剪与 Issue 122 的 runtime identity closure 正交。它减少重复 payload，
+但 Claude 是否存在不影响单一 Codex identity 能否成立。本 lane 不改变
+`same_physical_runtime_currently_claimed=false`，不能据此回复“已解决”或关闭 #122。
 
-- Shell 从 projection 解析 Codex，向 direct App Server 和 AionCore ACP 注入同一
-  `OPL_CODEX_BIN` / managed-resource directory。
+Issue #122 后续必须在 OPL 自己控制的边界完成以下工作，且不要求修改 AionCore：
+
+- Shell 把同一 Codex byte 放入 AionCore 预期 managed-resource directory；只对
+  OPL-controlled direct App Server/Framework consumer 注入 `OPL_CODEX_BIN`。
 - App/Shell 记录 path、realpath、version、sha256、`CODEX_HOME` 和 release cohort。
 - Standard update + restart、packaged Finder launch、Full 和 Windows WSL2 分别 replay。
 - OPL adapter 将本地缺失、不可执行、digest 不匹配和启动失败映射为 typed local errors。
 
 AionCore 内部增加 identity readback 或更细 typed errors 仅是 upstream enhancement，
 不是 OPL 的 blocker，也不应成为计划前提。若没有 AionCore 内部 readback，OPL 用受控输入、
-启动结果和实际 child-process/artifact inspection 证明边界；不能声称看到了 AionCore
-未暴露的内部状态。
+启动结果和实际 child-process/artifact inspection 证明 ACP 使用的物理 byte；不能声称
+看到了 AionCore 未暴露的内部 readback。
 
 ## 问题清单与验收
 
@@ -131,14 +136,15 @@ AionCore 内部增加 identity readback 或更细 typed errors 仅是 upstream e
 | C1 | App 仍把 raw manifest/Claude 当 packaged dependency | App exact9 contract/docs/test | canonical main + remote blob parity；状态仍为 pending | 0.5-1 日 |
 | S1 | Shell prepare 直接把完整 export 放入 final root | Shell producer/projection/verifier/cache | focused tests；cold-cache prepare；final manifest exactly Codex | 1-1.5 日 |
 | S2 | Desktop resolver 只认识 AionCore schema v2 | Shell resolver/tests | macOS/Linux resolver从 projection返回 exact Codex | 含在 S1 |
-| X1 | Windows/Web/CI fixtures 固化 raw manifest | Shell consumers/fixtures/workflow | Windows WSL2、Web CLI、reusable build gates通过 | 0.5-1 日 |
-| Q1 | 尚无真实 packaged absence evidence | Shell package smoke + App release consumption | Standard/Full final tree四类 Claude absence evidence | 0.5 日，可与 X1 重叠 |
-| R1 | Issue 122 runtime identity 尚未闭合 | App/Shell runtime contract/tests | 同一 identity 六字段跨 direct/ACP/update/restart/Finder readback | 1-2 日，可在 S1 schema冻结后并行 |
+| X1 | Windows/Web/CI fixtures可能固化 raw manifest | Shell consumers/fixtures/workflow，兼容性 follow-up | 各 carrier 下一次 publication 前通过 projection gate | 0.5-1 日，非本 lane blocker |
+| Q1 | 尚无真实 packaged absence evidence | Shell package smoke + App release consumption | Standard/Full final tree五类 absence evidence | 0.5 日，可与 X1 重叠 |
+| R1 | Issue 122 runtime identity 尚未闭合 | 独立 later App/Shell runtime contract/tests | 同一 identity 六字段跨 direct/ACP/update/restart/Finder readback | 1-2 日，独立非阻塞 |
 | U1 | AionCore native identity/typed-error API 不存在 | upstream optional | 仅在上游自然提供时消费；不 fork、不阻塞 OPL | 不纳入关键路径 |
 
-总工程量约 `2-3.5` 工程日；schema 冻结后并行推进，预计 `1.5-2.5` 个工作日，
-另加 hosted CI 排队和跨平台 runner 可用时间。真实 ETA 以第一个 cold-cache/package
-smoke 断点为准。
+Carrier objective 总工程量约 `18-25` 工程小时；App 与 Shell 两个 writer 并行后，
+预计 `1.5-2.5` 个工作日，另加 hosted CI 排队。`R1` 的 `1-2` 日和 Windows/Web
+compatibility publication gate不计入该 critical-path ETA。真实 ETA 以第一个
+cold-cache/package smoke 断点为准。
 
 ## 并行执行图
 
@@ -146,15 +152,18 @@ smoke 断点为准。
 App contract/docs/test (C1)
   -> canonical App SSOT
        -> Shell producer + projection + verifier (S1/S2)
-       -> Windows/Web fixtures and CI gates (X1)
-       -> runtime identity instrumentation/tests (R1)
+            -> Standard/Full packaged smoke (Q1)
             -> serialized fresh-main integration
-            -> macOS/Linux/Windows/Web packaged smoke (Q1)
             -> App cross-repo gate and status update
+
+Independent after schema freeze:
+  -> Windows/Web compatibility before their next publication (X1)
+  -> Issue 122 runtime identity closure (R1)
 ```
 
-`S1/S2` 冻结 projection schema 后，`X1` 与 `R1` 可以独立 worktree 并行。共享 Shell
-`main` 吸收、真实 package build、App contract状态从 pending 改为 implemented，必须串行。
+`S1/S2` 冻结 projection schema 后，`X1` 与 `R1` 可以独立 worktree 并行，但都不是
+carrier critical path。共享 Shell `main` 吸收、真实 package build、App contract状态从
+pending 改为 implemented，必须串行。
 
 ## 精确门禁
 
@@ -162,9 +171,8 @@ App contract/docs/test (C1)
 2. Shell producer/resolver/verifier focused tests、typecheck、lint、full unit aggregate。
 3. macOS cold-cache `prepareAioncore`，证明 staging 清理和 slim cache currentness。
 4. macOS packaged `afterPack` 与 Standard/Full tree inspection。
-5. Linux Web CLI smoke。
-6. Windows WSL2 reusable build/guest bootstrap 和 projection readback。
-7. fresh App/Shell main replay、cross-repo active-shell gate、remote tree/blob parity。
+5. fresh App/Shell main replay、cross-repo active-shell gate、remote tree/blob parity。
+6. Windows WSL2、Linux Web CLI 在各自下一次 publication 前执行 compatibility smoke。
 
 测试通过、task branch、PR 或 candidate package都不是终态。只有 canonical source、
 packaged artifact readback 和 task-owned lifecycle cleanup 完成，才能把

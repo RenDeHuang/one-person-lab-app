@@ -50,15 +50,73 @@
             "standard",
             "full"
           ],
-          "packaged_components_exact": [
+          "required_runtime_components": [
             "aioncore",
             "node_runtime",
             "codex_cli"
           ],
-          "required_absent_paths": [
-            "bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude"
+          "required_metadata": [
+            "projection_manifest",
+            "producer_manifest_digest_provenance"
           ],
-          "claude_executable_package_archive_or_cache_allowed": false
+          "cli_names_exact": [
+            "codex"
+          ],
+          "required_absence_checks": [
+            {
+              "id": "managed_claude_subtree",
+              "scope": "distributed_bundle_root",
+              "matcher": "path_glob",
+              "patterns": [
+                "bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude",
+                "bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude/**"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "claude_executable_or_symlink",
+              "scope": "distributed_bundle_root",
+              "matcher": "executable_or_symlink_basename",
+              "patterns": [
+                "claude",
+                "claude.exe"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "anthropic_package_or_archive",
+              "scope": "distributed_bundle_root",
+              "matcher": "path_glob",
+              "patterns": [
+                "**/node_modules/@anthropic-ai/claude-code/**",
+                "**/claude-code*.tgz",
+                "**/claude-code*.tar.gz"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "claude_distribution_cache_entry",
+              "scope": "distributed_bundle_root",
+              "matcher": "path_glob",
+              "patterns": [
+                "**/.cache/**/claude*",
+                "**/cache/**/claude*"
+              ],
+              "expected_match_count": 0
+            },
+            {
+              "id": "raw_producer_manifest",
+              "scope": "distributed_bundle_root",
+              "matcher": "root_manifest_schema_version_equals",
+              "patterns": [
+                "**/managed-resources/manifest.json"
+              ],
+              "values": [
+                "2"
+              ],
+              "expected_match_count": 0
+            }
+          ]
         },
         "independent_codex_downloader_or_version_authority_allowed": false
       }

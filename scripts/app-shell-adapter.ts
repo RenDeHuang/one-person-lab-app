@@ -290,9 +290,17 @@ export type ShellAdapterContract = {
         };
         distributed_bundle: {
           applies_to: string[];
-          packaged_components_exact: string[];
-          required_absent_paths: string[];
-          claude_executable_package_archive_or_cache_allowed: boolean;
+          required_runtime_components: string[];
+          required_metadata: string[];
+          cli_names_exact: string[];
+          required_absence_checks: Array<{
+            id: string;
+            scope: string;
+            matcher: string;
+            patterns: string[];
+            values?: string[];
+            expected_match_count: number;
+          }>;
         };
         independent_codex_downloader_or_version_authority_allowed: boolean;
       };
@@ -534,12 +542,56 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
       JSON.stringify(target?.packaged_projection?.excluded_cli_names) !== JSON.stringify(['claude']) ||
       target?.packaged_projection?.version_and_digest_source !== 'aioncore_producer_export' ||
       JSON.stringify(target?.distributed_bundle?.applies_to) !== JSON.stringify(['standard', 'full']) ||
-      JSON.stringify(target?.distributed_bundle?.packaged_components_exact) !==
+      JSON.stringify(target?.distributed_bundle?.required_runtime_components) !==
         JSON.stringify(['aioncore', 'node_runtime', 'codex_cli']) ||
-      JSON.stringify(target?.distributed_bundle?.required_absent_paths) !== JSON.stringify([
-        'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude',
+      JSON.stringify(target?.distributed_bundle?.required_metadata) !==
+        JSON.stringify(['projection_manifest', 'producer_manifest_digest_provenance']) ||
+      JSON.stringify(target?.distributed_bundle?.cli_names_exact) !== JSON.stringify(['codex']) ||
+      JSON.stringify(target?.distributed_bundle?.required_absence_checks) !== JSON.stringify([
+        {
+          id: 'managed_claude_subtree',
+          scope: 'distributed_bundle_root',
+          matcher: 'path_glob',
+          patterns: [
+            'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude',
+            'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude/**',
+          ],
+          expected_match_count: 0,
+        },
+        {
+          id: 'claude_executable_or_symlink',
+          scope: 'distributed_bundle_root',
+          matcher: 'executable_or_symlink_basename',
+          patterns: ['claude', 'claude.exe'],
+          expected_match_count: 0,
+        },
+        {
+          id: 'anthropic_package_or_archive',
+          scope: 'distributed_bundle_root',
+          matcher: 'path_glob',
+          patterns: [
+            '**/node_modules/@anthropic-ai/claude-code/**',
+            '**/claude-code*.tgz',
+            '**/claude-code*.tar.gz',
+          ],
+          expected_match_count: 0,
+        },
+        {
+          id: 'claude_distribution_cache_entry',
+          scope: 'distributed_bundle_root',
+          matcher: 'path_glob',
+          patterns: ['**/.cache/**/claude*', '**/cache/**/claude*'],
+          expected_match_count: 0,
+        },
+        {
+          id: 'raw_producer_manifest',
+          scope: 'distributed_bundle_root',
+          matcher: 'root_manifest_schema_version_equals',
+          patterns: ['**/managed-resources/manifest.json'],
+          values: ['2'],
+          expected_match_count: 0,
+        },
       ]) ||
-      target?.distributed_bundle?.claude_executable_package_archive_or_cache_allowed !== false ||
       target?.independent_codex_downloader_or_version_authority_allowed !== false
     ) {
       throw new Error(
