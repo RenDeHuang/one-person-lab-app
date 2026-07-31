@@ -78,8 +78,10 @@ test('all seven declared capabilities remain explicitly buildable without enteri
     assert.equal(matrix.capabilities[id].default_enabled, false);
     assert.equal(matrix.capabilities[id].blocks_stable, false);
   }
+  assert.equal(matrix.capabilities['windows-x64'].stable_allowed, true);
+  assert.ok(matrix.capabilities['windows-x64'].quality_channels.includes('stable_optional'));
+  assert.equal(matrix.capabilities['windows-arm64'].stable_allowed, false);
   for (const id of ['windows-x64', 'windows-arm64']) {
-    assert.equal(matrix.capabilities[id].stable_allowed, false);
     assert.ok(matrix.capabilities[id].quality_channels.includes('preview_rc'));
   }
   for (const id of capabilityIds) {
@@ -120,16 +122,22 @@ test('resolver accepts only audited policy and platform IDs', () => {
   assert.deepEqual(
     resolveReleasePlatformMatrix({
       policy: 'stable_optional',
-      platforms: ['macos-x64', 'linux-arm64'],
+      platforms: ['windows-x64', 'macos-x64', 'linux-arm64'],
     }).include.map((entry) => entry.platform),
-    ['macos-x64', 'linux-arm64'],
+    ['windows-x64', 'macos-x64', 'linux-arm64'],
   );
-  assert.throws(
-    () => resolveReleasePlatformMatrix({
+  assert.deepEqual(
+    resolveReleasePlatformMatrix({
       policy: 'stable_optional',
       platforms: ['windows-x64'],
-    }),
-    /outside audited policy/,
+    }).include,
+    [{
+      platform: 'windows-x64',
+      os: 'windows-2022',
+      command: 'node scripts/build-with-builder.js x64 --win --x64',
+      'artifact-name': 'optional-windows-x64',
+      arch: 'x64',
+    }],
   );
 });
 
@@ -145,6 +153,9 @@ test('workflow callers consume resolver output while reusable build keeps generi
   ) as any;
   const reusable = parseYaml(
     fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8'),
+  ) as any;
+  const packageValidation = parseYaml(
+    fs.readFileSync(path.join(appRoot, '.github/workflows/windows-updater-package-validation.yml'), 'utf8'),
   ) as any;
 
   assert.equal(bundle.jobs['standard-build'].with.matrix, '${{ needs.resolve-platform-matrix.outputs.matrix }}');
@@ -167,6 +178,54 @@ test('workflow callers consume resolver output while reusable build keeps generi
   assert.equal(reusable.on.workflow_call.inputs.matrix.type, 'string');
   assert.equal(reusable.on.workflow_call.inputs.matrix.required, true);
   assert.equal(reusable.on.workflow_call.inputs.release_validation_profile.default, 'aggregate');
+  assert.equal(reusable.on.workflow_call.inputs.require_windows_updater_assets.default, false);
+  assert.equal(reusable.on.workflow_call.inputs.require_windows_authenticode.default, false);
+  const windowsBuild = reusable.jobs.build.steps.find(
+    (step: any) => step.name === 'Build with electron-builder (Windows)',
+  );
+  assert.match(String(windowsBuild?.run), /config\.nsis\.differentialPackage=true/);
+  assert.match(String(windowsBuild?.run), /config\.publish\.provider=generic/);
+  const updaterValidation = reusable.jobs.build.steps.find(
+    (step: any) => step.name === 'Validate exact Windows updater asset set',
+  );
+  assert.equal(
+    updaterValidation?.if,
+    "matrix.platform == 'windows-x64' && inputs.require_windows_updater_assets",
+  );
+  assert.match(String(updaterValidation?.run), /validate-windows-updater-assets\.ts/);
+  const authenticodeValidation = reusable.jobs.build.steps.find(
+    (step: any) => step.name === 'Verify timestamped Windows Authenticode signature',
+  );
+  assert.equal(
+    authenticodeValidation?.if,
+    "matrix.platform == 'windows-x64' && inputs.require_windows_authenticode",
+  );
+  assert.match(String(authenticodeValidation?.run), /Get-AuthenticodeSignature/);
+  assert.match(String(authenticodeValidation?.run), /TimeStamperCertificate/);
+  const artifactCleanup = reusable.jobs.build.steps.find(
+    (step: any) => step.name === 'Clean up non-installer artifacts',
+  );
+  assert.match(String(artifactCleanup?.run), /! -name 'latest\.yml'/);
+  assert.match(String(artifactCleanup?.run), /\.exe\.blockmap/);
+  const artifactUpload = reusable.jobs.build.steps.find(
+    (step: any) => step.name === 'Upload build artifacts',
+  );
+  assert.match(String(artifactUpload?.with?.path), /opl-windows-updater-assets\.json/);
+  assert.match(String(artifactUpload?.with?.path), /opl-windows-authenticode-receipt\.json/);
+  assert.deepEqual(packageValidation.permissions, { contents: 'read' });
+  assert.equal(packageValidation.jobs['build-windows-updater-package']['runs-on'], 'windows-2022');
+  const validationBuild = packageValidation.jobs['build-windows-updater-package'].steps.find(
+    (step: any) => step.name === 'Build updater-capable Windows x64 package',
+  );
+  assert.match(String(validationBuild?.run), /config\.nsis\.differentialPackage=true/);
+  assert.match(String(validationBuild?.run), /config\.publish\.provider=generic/);
+  const validationUpload = packageValidation.jobs['build-windows-updater-package'].steps.find(
+    (step: any) => step.name === 'Upload non-published updater validation assets',
+  );
+  assert.match(String(validationUpload?.with?.path), /latest\.yml/);
+  assert.match(String(validationUpload?.with?.path), /\.exe\.blockmap/);
+  assert.match(String(validationUpload?.with?.path), /opl-windows-updater-assets\.json/);
+  assert.equal(packageValidation.jobs['build-windows-updater-package'].permissions, undefined);
   const releaseBoundary = reusable.jobs['release-boundary'];
   assert.equal(
     releaseBoundary.steps.find((step: any) => step.name === 'Run audited release-boundary profile')
@@ -279,6 +338,15 @@ test('optional platform publication is an independent protected post-success ope
   assert.equal(optional.with.invocation_mode, 'stable_optional_follower');
   assert.equal(optional.with.platform_policy, 'stable_optional');
   assert.equal(optional.with.platform_ids, '${{ needs.admit.outputs.optional_platforms }}');
+  assert.equal(optional.with.opl_updater_version, '${{ needs.admit.outputs.updater_version }}');
+  assert.equal(
+    manual.jobs['build-pipeline'].with.require_windows_updater_assets,
+    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+  );
+  assert.equal(
+    manual.jobs['build-pipeline'].with.require_windows_authenticode,
+    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+  );
   const publish = manual.jobs['publish-selected-platforms'];
   assert.equal(
     publish.environment,
@@ -292,6 +360,11 @@ test('optional platform publication is an independent protected post-success ope
   assert.match(publishRun, /validateGithubImmutableReleaseCapabilityEvidence/);
   assert.doesNotMatch(publishRun, /"repos\/\$GITHUB_REPOSITORY\/immutable-releases"/);
   assert.match(publishRun, /jq -S -n/);
+  assert.match(publishRun, /validate-windows-updater-assets\.ts/);
+  assert.match(publishRun, /opl-windows-updater-assets\.json/);
+  assert.match(publishRun, /opl-windows-authenticode-receipt\.json/);
+  assert.match(publishRun, /\.exe\.blockmap/);
+  assert.match(publishRun, /release_identity:\{display_version:\$display_version,updater_version:\$updater_version\}/);
   assert.match(publishRun, /test -s "\$manifest_path"/);
   assert.match(publishRun, /draft:true/);
   assert.match(publishRun, /draft:false,make_latest:"false"/);

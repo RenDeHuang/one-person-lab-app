@@ -39,6 +39,14 @@ on:
         description: 'Only upload primary installers (dmg/exe/msi/deb), skip zip/yml/blockmap'
         type: boolean
         default: false
+      require_windows_updater_assets:
+        description: 'Require exact Windows x64 latest.yml and EXE blockmap assets for Stable optional publication'
+        type: boolean
+        default: false
+      require_windows_authenticode:
+        description: 'Fail Windows x64 Stable optional builds unless the exact EXE has a valid timestamped Authenticode signature'
+        type: boolean
+        default: false
       opl_release_version:
         description: 'Display release version used by tags, asset names, and renderer copy'
         type: string
@@ -743,9 +751,17 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          iex $env:WINDOWS_BUILD_COMMAND
+          $Command = $env:WINDOWS_BUILD_COMMAND
+          if ($env:OPL_REQUIRE_WINDOWS_UPDATER_ASSETS -eq 'true') {
+            if ('${{ matrix.platform }}' -ne 'windows-x64') {
+              throw 'Windows updater assets are supported only for windows-x64.'
+            }
+            $Command += ' --config.nsis.differentialPackage=true --config.publish.provider=generic --config.publish.url=https://onepersonlab.dev/updates/windows'
+          }
+          iex $Command
         env:
           WINDOWS_BUILD_COMMAND: ${{ matrix.command }}
+          OPL_REQUIRE_WINDOWS_UPDATER_ASSETS: ${{ inputs.require_windows_updater_assets }}
           AIONUI_PREPARED_AIONCORE_RUNTIME_DIR: ${{ runner.temp }}/opl-windows-linux-runtime
           NODE_OPTIONS: '--max-old-space-size=8192'
           npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
@@ -773,6 +789,67 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           CI: true
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Validate exact Windows updater asset set
+        if: matrix.platform == 'windows-x64' && inputs.require_windows_updater_assets
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/validate-windows-updater-assets.ts \
+            --artifact-dir shells/aionui/out \
+            --release-version "$OPL_RELEASE_VERSION" \
+            --updater-version "$OPL_UPDATER_VERSION" \
+            --output shells/aionui/out/opl-windows-updater-assets.json
+
+      - name: Verify timestamped Windows Authenticode signature
+        if: matrix.platform == 'windows-x64' && inputs.require_windows_authenticode
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ('${{ inputs.require_windows_updater_assets }}' -ne 'true') {
+            throw 'Windows Authenticode verification requires the exact updater asset gate.'
+          }
+          $installerName = "One-Person-Lab-$env:OPL_RELEASE_VERSION-win-x64.exe"
+          $installers = @(Get-ChildItem -LiteralPath 'shells/aionui/out' -Filter $installerName -File)
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one Windows x64 installer named $installerName."
+          }
+          $installer = $installers[0]
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          if ($signature.Status -ne 'Valid' -or $null -eq $signature.SignerCertificate) {
+            throw "Stable optional Windows installer must have a valid Authenticode signature; observed $($signature.Status)."
+          }
+          if ($null -eq $signature.TimeStamperCertificate) {
+            throw 'Stable optional Windows installer must have a trusted timestamp countersignature.'
+          }
+          $sha256 = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          $receipt = [ordered]@{
+            schema = 'opl_windows_authenticode_receipt.v1'
+            status = 'passed'
+            platform = 'windows-x64'
+            installer = [ordered]@{
+              name = $installer.Name
+              size_bytes = $installer.Length
+              sha256 = "sha256:$sha256"
+            }
+            signature = [ordered]@{
+              status = [string]$signature.Status
+              signature_type = [string]$signature.SignatureType
+              signer_subject = $signature.SignerCertificate.Subject
+              signer_thumbprint = $signature.SignerCertificate.Thumbprint.ToLowerInvariant()
+              signer_not_before = $signature.SignerCertificate.NotBefore.ToUniversalTime().ToString('o')
+              signer_not_after = $signature.SignerCertificate.NotAfter.ToUniversalTime().ToString('o')
+              timestamp_verified = $true
+              timestamper_subject = $signature.TimeStamperCertificate.Subject
+              timestamper_thumbprint = $signature.TimeStamperCertificate.Thumbprint.ToLowerInvariant()
+            }
+            verification_tool = 'Get-AuthenticodeSignature'
+          }
+          $json = ($receipt | ConvertTo-Json -Depth 6) + "`n"
+          $output = Join-Path $installer.DirectoryName 'opl-windows-authenticode-receipt.json'
+          [System.IO.File]::WriteAllText($output, $json, [System.Text.UTF8Encoding]::new($false))
 
       - name: Bind packaged Windows RC Framework manifest
         if: startsWith(matrix.platform, 'windows')
@@ -1222,7 +1299,13 @@ jobs:
         shell: bash
         run: |
           echo "Removing non-installer files from out/ ..."
-          rm -f out/*.blockmap out/*.zip out/*.yml out/builder-debug.yml 2>/dev/null || true
+          if [ '${{ matrix.platform }}' = windows-x64 ] && [ '${{ inputs.require_windows_updater_assets }}' = true ]; then
+            rm -f out/*.zip out/builder-debug.yml 2>/dev/null || true
+            find out -maxdepth 1 -type f -name '*.yml' ! -name 'latest.yml' -delete
+            find out -maxdepth 1 -type f -name '*.blockmap' ! -name "One-Person-Lab-${OPL_RELEASE_VERSION}-win-x64.exe.blockmap" -delete
+          else
+            rm -f out/*.blockmap out/*.zip out/*.yml out/builder-debug.yml 2>/dev/null || true
+          fi
           echo "Remaining artifacts:"
           ls -lh out/ || true
 
@@ -1342,6 +1425,8 @@ jobs:
             shells/aionui/out/*.ps1
             shells/aionui/out/SHA256SUMS.txt
             shells/aionui/out/opl-windows-rc-build-cohort.json
+            shells/aionui/out/opl-windows-updater-assets.json
+            shells/aionui/out/opl-windows-authenticode-receipt.json
             shells/aionui/out/standard-local-authorization-policy.json
             shells/aionui/out/standard-gatekeeper-launch-policy.json
             shells/aionui/out/standard-apple-notarization-receipt.json

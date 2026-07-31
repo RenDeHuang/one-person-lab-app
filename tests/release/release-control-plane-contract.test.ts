@@ -59,15 +59,37 @@ test('release platform contract keeps Stable required platforms separate from op
   assert.equal(matrix.policies.stable_required.blocks_base_terminal, true);
   assert.deepEqual(
     matrix.policies.stable_optional.platforms,
-    ['macos-x64', 'macos-universal', 'linux-arm64'],
+    ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64'],
   );
   assert.equal(matrix.policies.stable_optional.default_enabled, false);
   assert.equal(matrix.policies.stable_optional.blocks_base_terminal, false);
   assert.deepEqual(matrix.policies.windows_preview.platforms, ['windows-x64', 'windows-arm64']);
   assert.equal(matrix.policies.windows_preview.default_enabled, false);
   assert.equal(matrix.policies.windows_preview.blocks_base_terminal, false);
-  assert.equal(matrix.capabilities['windows-x64'].stable_allowed, false);
+  assert.equal(matrix.capabilities['windows-x64'].stable_allowed, true);
   assert.equal(matrix.capabilities['windows-arm64'].stable_allowed, false);
+  assert.equal(
+    matrix.optional_platform_additive_follower.windows_x64_updater_assets.build_validator,
+    'scripts/validate-windows-updater-assets.ts',
+  );
+  assert.deepEqual(
+    matrix.optional_platform_additive_follower.windows_x64_updater_assets.required_assets,
+    [
+      'One-Person-Lab-<display-version>-win-x64.exe',
+      'One-Person-Lab-<display-version>-win-x64.exe.blockmap',
+      'latest.yml',
+      'opl-windows-updater-assets.json',
+      'opl-windows-authenticode-receipt.json',
+    ],
+  );
+  assert.equal(
+    matrix.optional_platform_additive_follower.windows_x64_updater_assets.authenticode_required_for_publication,
+    true,
+  );
+  assert.equal(
+    matrix.optional_platform_additive_follower.windows_x64_updater_assets.runtime_resolver,
+    'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts',
+  );
   assert.ok(release.release_validation_profiles.stable.required_lanes.includes('standard_linux_x64_build'));
   assert.ok(
     release.release_validation_profiles.nightly_standard.required_lanes.includes(
