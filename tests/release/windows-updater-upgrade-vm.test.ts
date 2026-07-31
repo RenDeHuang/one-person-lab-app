@@ -438,6 +438,8 @@ test('PowerShell 5.1 dry-run harness defines the full sequence without executabl
   assert.match(source, /assets\.blockmap\.sha256/);
   assert.match(source, /selected_app_artifact/);
   assert.match(source, /may_define_package_currentness/);
+  assert.match(source, /Security\.Cryptography\.SHA256/);
+  assert.doesNotMatch(source, /Get-FileHash/);
   assert.doesNotMatch(source, /Restore-VMSnapshot|Start-VM|Stop-VM|Invoke-Command|Start-Process/);
   assert.doesNotMatch(source, /\.Kill\(\$true\)|\.Kill\(true\)/);
 });

@@ -42,7 +42,17 @@ $vmName = 'OPL-V6-WSL2-01'
 
 function Get-LowerSha256 {
     param([Parameter(Mandatory)][string]$LiteralPath)
-    return (Get-FileHash -Algorithm SHA256 -LiteralPath $LiteralPath).Hash.ToLowerInvariant()
+    $stream = [IO.File]::OpenRead($LiteralPath)
+    try {
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try {
+            return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+        } finally {
+            $sha256.Dispose()
+        }
+    } finally {
+        $stream.Dispose()
+    }
 }
 
 function Read-JsonFile {
