@@ -8,6 +8,13 @@ import { parseArgs } from "node:util";
 
 const gitShaPattern = /^[0-9a-f]{40}$/;
 const versionPattern = /^\d+\.\d+\.\d+-rc\.[1-9]\d*$/;
+const managedResourcesRequiredAbsentPaths = [
+  "cli/claude",
+  "acp",
+  "node_modules/@anthropic-ai/claude-code",
+  "node_modules/claude-code",
+  "claude",
+];
 
 type FileIdentity = {
   path: string;
@@ -319,7 +326,7 @@ export function buildWindowsRcBuildCohort(input: {
     JSON.stringify(managedManifest.projection?.excludedCliNames) !==
       JSON.stringify(["claude"]) ||
     JSON.stringify(managedManifest.projection?.requiredAbsentPaths) !==
-      JSON.stringify(["cli/claude"])
+      JSON.stringify(managedResourcesRequiredAbsentPaths)
   )
     throw new Error(
       "Managed resources projection must include only Codex and exclude Claude.",

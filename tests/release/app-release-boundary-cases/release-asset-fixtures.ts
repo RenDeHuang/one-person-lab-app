@@ -273,7 +273,7 @@ export function writeFullRemoteAssets(outDir, version) {
     },
   };
   const boundaryAudit = {
-    schema: "opl_full_package_boundary_audit.v1",
+    schema: "opl_full_package_boundary_audit.v2",
     package_kind: "opl_full_first_install_macos_arm64",
     version,
     standard_app_boundary: { standard_package_allowed_to_contain_full_runtime: false },
@@ -281,6 +281,34 @@ export function writeFullRemoteAssets(outDir, version) {
       contains_opl_full_runtime: true,
       contains_shell_runtime: true,
       aioncore_codex_carrier_present: true,
+      aioncore_codex_only_projection_present: true,
+      aioncore_claude_payload_absent: true,
+      aioncore_codex_only_projection_audit: {
+        schema: "opl_aioncore_codex_only_projection_audit.v1",
+        runtime_count: 1,
+        runtimes: [{
+          runtime_key: "darwin-arm64",
+          manifest_path:
+            "Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json",
+          projection_valid: true,
+          cli_names: ["codex"],
+          producer_manifest_sha256: "a".repeat(64),
+        }],
+        required_absence_checks: [
+          "managed_claude_subtree",
+          "claude_executable_or_symlink",
+          "anthropic_package_or_archive",
+          "claude_distribution_cache_entry",
+          "raw_producer_manifest",
+        ].map((id) => ({
+          id,
+          matches: [],
+          expected_match_count: 0,
+          match_count: 0,
+        })),
+        projection_present: true,
+        claude_payload_absent: true,
+      },
       framework_codex_payload_absent: true,
       forbidden_framework_codex_paths: forbiddenFrameworkCodexPaths.map((relativePath) => ({
         path: relativePath,

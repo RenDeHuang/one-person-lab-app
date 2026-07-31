@@ -170,7 +170,13 @@ function fullPayloadAuthorityFixture(options: { nestedFramework?: boolean } = {}
       projection: {
         includedCliNames: ['codex'],
         excludedCliNames: ['claude'],
-        requiredAbsentPaths: ['cli/claude'],
+        requiredAbsentPaths: [
+          'cli/claude',
+          'acp',
+          'node_modules/@anthropic-ai/claude-code',
+          'node_modules/claude-code',
+          'claude',
+        ],
       },
       clis: [{
         name: 'codex',
@@ -665,7 +671,13 @@ test('Full notes derive only selected prebuild input refs from exact App, Shell,
   assert.equal(authority.runtime_authority.codex_cli.node_runtime.version, fixture.nodeVersion);
   assert.deepEqual(authority.runtime_authority.codex_cli.included_cli_names, ['codex']);
   assert.deepEqual(authority.runtime_authority.codex_cli.excluded_cli_names, ['claude']);
-  assert.deepEqual(authority.runtime_authority.codex_cli.required_absent_paths, ['cli/claude']);
+  assert.deepEqual(authority.runtime_authority.codex_cli.required_absent_paths, [
+    'cli/claude',
+    'acp',
+    'node_modules/@anthropic-ai/claude-code',
+    'node_modules/claude-code',
+    'claude',
+  ]);
   assert.equal(Object.hasOwn(authority.runtime_authority.codex_cli, 'claude_cli'), false);
   assert.equal(authority.runtime_authority.codex_cli.direct_cli.name, 'codex');
   assert.equal(authority.runtime_authority.codex_cli.version, fixture.codexVersion);

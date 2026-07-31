@@ -635,7 +635,7 @@ function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
   if (Number(trimReport.after_bytes) > Number(trimReport.before_bytes)) {
     throw new Error("Full app bundle trim report after_bytes must not exceed before_bytes.");
   }
-  if (boundaryAudit.schema !== "opl_full_package_boundary_audit.v1") {
+  if (boundaryAudit.schema !== "opl_full_package_boundary_audit.v2") {
     throw new Error(`Full package boundary audit schema is unexpected: ${boundaryAudit.schema}`);
   }
   if (
@@ -716,11 +716,39 @@ function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
 function assertFrameworkCodexCarrierBoundary(boundary, label) {
   if (
     boundary?.aioncore_codex_carrier_present !== true
+    || boundary?.aioncore_codex_only_projection_present !== true
+    || boundary?.aioncore_claude_payload_absent !== true
     || boundary?.framework_codex_payload_absent !== true
   ) {
     throw new Error(
-      `${label} must prove the AionCore Codex carrier is present and the Framework Codex payload is absent.`,
+      `${label} must prove the AionCore Codex-only projection is present and both Claude and Framework Codex payloads are absent.`,
     );
+  }
+  const projectionAudit = boundary.aioncore_codex_only_projection_audit;
+  const expectedAbsenceChecks = [
+    "managed_claude_subtree",
+    "claude_executable_or_symlink",
+    "anthropic_package_or_archive",
+    "claude_distribution_cache_entry",
+    "raw_producer_manifest",
+  ];
+  if (
+    projectionAudit?.schema !== "opl_aioncore_codex_only_projection_audit.v1"
+    || !Number.isSafeInteger(projectionAudit?.runtime_count)
+    || projectionAudit.runtime_count < 1
+    || !Array.isArray(projectionAudit?.runtimes)
+    || projectionAudit.runtimes.length !== projectionAudit.runtime_count
+    || projectionAudit.runtimes.some((runtime) => runtime?.projection_valid !== true)
+    || !Array.isArray(projectionAudit?.required_absence_checks)
+    || JSON.stringify(projectionAudit.required_absence_checks.map((check) => check?.id))
+      !== JSON.stringify(expectedAbsenceChecks)
+    || projectionAudit.required_absence_checks.some((check) =>
+      check?.expected_match_count !== 0
+      || check?.match_count !== 0
+      || !Array.isArray(check?.matches)
+      || check.matches.length !== 0)
+  ) {
+    throw new Error(`${label} AionCore Codex-only projection evidence is incomplete.`);
   }
   const forbiddenPaths = boundary.forbidden_framework_codex_paths;
   if (

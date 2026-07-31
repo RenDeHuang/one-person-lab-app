@@ -72,7 +72,13 @@ function fixture(t: test.TestContext) {
       projection: {
         includedCliNames: ['codex'],
         excludedCliNames: ['claude'],
-        requiredAbsentPaths: ['cli/claude'],
+        requiredAbsentPaths: [
+          'cli/claude',
+          'acp',
+          'node_modules/@anthropic-ai/claude-code',
+          'node_modules/claude-code',
+          'claude',
+        ],
       },
       clis: [
         {

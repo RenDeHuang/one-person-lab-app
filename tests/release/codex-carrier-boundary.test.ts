@@ -122,6 +122,15 @@ test('Full App contract delegates Codex to AionCore and omits the Framework mani
   assert.equal(codex.compatibility_mode, 'shell_carrier_exact_manifest_binary');
   assert.equal(codex.resolver_env, 'OPL_CODEX_BIN');
   assert.equal(codex.aioncore_required, true);
+  assert.deepEqual(codex.preferred_sources, [
+    'shell_opl_aioncore_managed_resources_projection_v1',
+  ]);
+  assert.equal(
+    codex.projection_schema,
+    'opl_aioncore_managed_resources_projection.v1',
+  );
+  assert.equal(codex.producer_schema_version, 2);
+  assert.deepEqual(codex.forbidden_cli_names, ['claude']);
   assert.equal(codex.framework_managed_payload_in_full_runtime_allowed, false);
   assert.deepEqual(codex.forbidden_framework_runtime_paths, [
     'bin/codex',

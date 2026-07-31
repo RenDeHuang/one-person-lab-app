@@ -52,6 +52,35 @@ function writeJson(filePath: string, value: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function codexOnlyProjectionAudit() {
+  return {
+    schema: 'opl_aioncore_codex_only_projection_audit.v1',
+    runtime_count: 1,
+    runtimes: [{
+      runtime_key: 'darwin-arm64',
+      manifest_path:
+        'Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json',
+      projection_valid: true,
+      cli_names: ['codex'],
+      producer_manifest_sha256: 'a'.repeat(64),
+    }],
+    required_absence_checks: [
+      'managed_claude_subtree',
+      'claude_executable_or_symlink',
+      'anthropic_package_or_archive',
+      'claude_distribution_cache_entry',
+      'raw_producer_manifest',
+    ].map((id) => ({
+      id,
+      matches: [],
+      expected_match_count: 0,
+      match_count: 0,
+    })),
+    projection_present: true,
+    claude_payload_absent: true,
+  };
+}
+
 function createAioncoreManagedCodexFixture() {
   const root = fs.mkdtempSync(
     path.join(os.tmpdir(), 'opl-manual-aioncore-binding-'),
@@ -141,7 +170,13 @@ function createAioncoreManagedCodexFixture() {
     projection: {
       includedCliNames: ['codex'],
       excludedCliNames: ['claude'],
-      requiredAbsentPaths: ['cli/claude'],
+      requiredAbsentPaths: [
+        'cli/claude',
+        'acp',
+        'node_modules/@anthropic-ai/claude-code',
+        'node_modules/claude-code',
+        'claude',
+      ],
     },
     clis: [
       {
@@ -446,6 +481,9 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
       package_optimization: {
         package_boundary_audit: {
           aioncore_codex_carrier_present: true,
+          aioncore_codex_only_projection_present: true,
+          aioncore_claude_payload_absent: true,
+          aioncore_codex_only_projection_audit: codexOnlyProjectionAudit(),
           framework_codex_payload_absent: true,
           forbidden_framework_codex_paths: [
             { path: 'bin/codex', exists: false },
@@ -476,6 +514,9 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
         package_optimization: {
           package_boundary_audit: {
             aioncore_codex_carrier_present: true,
+            aioncore_codex_only_projection_present: true,
+            aioncore_claude_payload_absent: true,
+            aioncore_codex_only_projection_audit: codexOnlyProjectionAudit(),
             framework_codex_payload_absent: false,
             forbidden_framework_codex_paths: [
               { path: 'bin/codex', exists: true },
@@ -486,7 +527,34 @@ test('manual source-lock binds Codex to AionCore while the Full runtime stays pa
           },
         },
       }),
-    /Framework Codex payload is absent/,
+    /both Claude and Framework Codex payloads are absent/,
+  );
+  const incompleteProjectionAudit = codexOnlyProjectionAudit();
+  incompleteProjectionAudit.required_absence_checks[0].match_count = 1;
+  incompleteProjectionAudit.required_absence_checks[0].matches = [
+    'darwin-arm64/managed-resources/cli/claude',
+  ];
+  assert.throws(
+    () =>
+      assertFullDmgCodexCarrierBoundary({
+        components: {},
+        package_optimization: {
+          package_boundary_audit: {
+            aioncore_codex_carrier_present: true,
+            aioncore_codex_only_projection_present: true,
+            aioncore_claude_payload_absent: true,
+            aioncore_codex_only_projection_audit: incompleteProjectionAudit,
+            framework_codex_payload_absent: true,
+            forbidden_framework_codex_paths: [
+              { path: 'bin/codex', exists: false },
+              { path: 'bin/rg', exists: false },
+              { path: 'vendor/codex', exists: false },
+              { path: '.runtime-cache/codex-cli', exists: false },
+            ],
+          },
+        },
+      }),
+    /Codex-only projection evidence is incomplete/,
   );
 });
 
@@ -567,6 +635,27 @@ test('manual AionCore Codex binding rejects incomplete, ambiguous, escaped, or d
       assert.throws(
         () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
         /must include only Codex and exclude Claude/,
+      );
+    } finally {
+      fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  await context.test('Claude subtree is physically present', () => {
+    const fixture = createAioncoreManagedCodexFixture();
+    try {
+      fs.mkdirSync(
+        path.join(
+          fixture.runtimeRoot,
+          'managed-resources',
+          'cli',
+          'claude',
+        ),
+        { recursive: true },
+      );
+      assert.throws(
+        () => resolveAioncoreManagedCodexBinding(fixture.shellRoot),
+        /required absent path is present/,
       );
     } finally {
       fs.rmSync(fixture.root, { recursive: true, force: true });
