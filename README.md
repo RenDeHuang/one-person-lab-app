@@ -242,6 +242,19 @@ This path is separate from the desktop App GUI shell, does not put API keys in
 CLI commands, and keeps manual `docker run` / Compose commands as advanced
 troubleshooting references.
 
+### Security And Code Signing
+
+Read the [privacy policy](docs/security/privacy-policy.md) for the exact local
+data, external-service, update, support, and crash-reporting boundaries. The
+[code signing policy](docs/security/code-signing-policy.md) defines build
+provenance, approvers, signature scope, verification, and fail-closed release
+rules. Free code signing provided by
+[SignPath.io](https://about.signpath.io/), certificate by
+[SignPath Foundation](https://signpath.org/). A signature never authorizes
+publication or moves Stable/Latest by itself. SignPath project approval is
+pending, and existing artifacts must not be represented as signed without
+per-artifact Authenticode verification.
+
 ## What The App Does
 
 One Person Lab App is the daily chat-first desktop entry point for users:
