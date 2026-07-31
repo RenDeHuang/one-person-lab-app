@@ -117,7 +117,7 @@ Get-Content ".\{{download.checksum_asset}}"
 
 比较 `Get-FileHash` 输出和 `SHA256SUMS.txt` 中同名 EXE 的 64 位十六进制值：
 
-- 当前 RC4 EXE 的精确 SHA-256：`{{download.installer_sha256}}`。
+- 当前 RC EXE 的精确 SHA-256：`{{download.installer_sha256}}`。
 - 完全一致：继续安装。
 - 任意一位不同：删除 EXE，重新从同一个 RC Release 下载。
 - 文件名不同：不要猜测或改名，回到 Release 重新选择。
@@ -380,7 +380,7 @@ WebUI volume。
 
 ### 提示找不到 AionCore 或 Codex
 
-RC4 每次启动都会检查 `OPL-Linux` 的 managed Node、运行入口和 Framework 身份。
+当前 RC 每次启动都会检查 `OPL-Linux` 的 managed Node、运行入口和 Framework 身份。
 如果只是上一次激活未完成或入口来自旧版本，App 会自动重新 bootstrap，然后再次
 验证，不需要用户删除或注销 `OPL-Linux`。
 

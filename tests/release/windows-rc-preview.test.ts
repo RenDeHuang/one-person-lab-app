@@ -581,9 +581,9 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   const guide = fs.readFileSync(path.join(appRoot, 'docs/guides/windows-app-install/guide.qmd'), 'utf8');
 
   assert.equal(manifest.state, 'active_preview');
-  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.30-rc.4-win-x64.exe');
-  assert.equal(manifest.download.installer_sha256, '40a356d70f488e1687c4786e8c41346f6fbb41333a8265c91eedaf975cbeaead');
-  assert.equal(manifest.download.installer_size_bytes, '329575845');
+  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.31-rc.3-win-x64.exe');
+  assert.equal(manifest.download.installer_sha256, '65f5c7a9bf7b0d12f2dbde981524d81a1d59de1eed28ab3fa3937c05d9b42db7');
+  assert.equal(manifest.download.installer_size_bytes, '274243485');
   assert.match(guide, /首次配置显示 \*\*65%\*\*/);
   assert.match(guide, /每 15 秒/);
   assert.match(guide, /已用时/);
@@ -595,16 +595,16 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   assert.match(guide, /security\.ubuntu\.com/);
   assert.match(guide, /不会自动改 Windows 全局代理/);
   assert.match(guide, /不会静默切换到未经项目验证的第三方镜像/);
-  assert.equal(manifest.download.installer_size_label, '约 330 MB');
-  assert.equal(manifest.download.release_tag, 'windows-rc-26.7.30-rc.4');
+  assert.equal(manifest.download.installer_size_label, '约 274 MB');
+  assert.equal(manifest.download.release_tag, 'windows-rc-26.7.31-rc.3');
   assert.equal(manifest.download.download_helper_asset, 'download-windows-preview.ps1');
   assert.equal(
     manifest.download.download_helper_sha256,
-    'ace814a06553acce4c85c26697de8415b15ef8d4127def1063db8752ed80449e',
+    'e68d07b3e2b0a79299c17bf50ca076f13065cf7a19829abcbe9bafdfed20a3da',
   );
   assert.equal(manifest.download.download_helper_size_bytes, '10875');
   assert.equal(manifest.download.download_helper_publication_status, 'published_in_exact_windows_preview_rc');
-  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.30-rc\.4$/);
+  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.31-rc\.3$/);
   for (const term of manifest.required_terms)
     assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
