@@ -16,6 +16,7 @@ lang: zh-CN
 
 - 本机安装只允许当前电脑访问 `http://localhost:3000/`，不需要注册 WebUI 账号或输入 WebUI 登录密码。
 - OPL Gateway 账户邮箱/密码和 API Key 都只在浏览器 WebUI 中填写。不要把凭据放进 PowerShell、环境变量、`compose.yaml`、聊天或截图。
+- Docker Desktop 只对本教程的 **Container WebUI 路径** 必需。Windows Desktop App 不要求 Docker Desktop；只安装桌面版的用户不需要执行本文的 Docker 安装或恢复步骤。
 
 :::
 
@@ -74,6 +75,24 @@ wsl --status
 docker version
 docker compose version
 ```
+
+::: {.callout-warning title="Windows 上 Docker Desktop 启动很久后报 dockerInference 错误"}
+
+只有 Docker Desktop 明确显示 Unexpected error，且错误包含 `dockerInference`、`AF_UNIX` 或 “The file cannot be accessed by the system” 时，才使用本段。普通启动正常时不要运行恢复命令。
+
+1. 在 Docker Desktop 错误窗口选择 **Quit**，并从系统托盘退出 Docker Desktop。
+2. 打开任务管理器，确认 `Docker Desktop`、`com.docker.backend`、`com.docker.build` 和 `com.docker.proxy` 均已退出；脚本发现任何一个仍在运行时会拒绝操作。
+3. 在普通 PowerShell 中运行：
+
+```powershell
+{{download.windows_docker_start_repair_command}}
+```
+
+该模式只迁移 `%LOCALAPPDATA%\docker-secrets-engine` 和 `%LOCALAPPDATA%\Docker\run` 中的 AF_UNIX ReparsePoint 运行端点，并保留带时间戳的 `.stale-*` 备份。目录中只要出现普通文件就会 fail closed；它不会停止进程，不会执行 Docker **Factory Reset**，也不会删除 image、container、volume、`docker_data.vhdx`、`OnePersonLab/data` 或 `OnePersonLab/projects`。
+
+脚本报告 Docker Desktop ready 后，重新运行一键安装命令。若仍失败，保留错误和 `.stale-*` 备份用于诊断，不要反复运行恢复命令。
+
+:::
 
 ```{=latex}
 \newpage

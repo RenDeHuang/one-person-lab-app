@@ -569,17 +569,22 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   const guide = fs.readFileSync(path.join(appRoot, 'docs/guides/windows-app-install/guide.qmd'), 'utf8');
 
   assert.equal(manifest.state, 'active_preview');
-  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.30-rc.1-win-x64.exe');
+  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.30-rc.4-win-x64.exe');
   assert.equal(
     manifest.download.installer_sha256,
-    'abc9913706e029d1d3f6aa257c4d59441bafd49c771f1abfb2aa96324e5e85af',
+    '40a356d70f488e1687c4786e8c41346f6fbb41333a8265c91eedaf975cbeaead',
   );
-  assert.equal(manifest.download.installer_size_bytes, '328030592');
-  assert.equal(manifest.download.installer_size_label, '约 328 MB');
-  assert.equal(manifest.download.release_tag, 'windows-rc-26.7.30-rc.1');
+  assert.equal(manifest.download.installer_size_bytes, '329575845');
+  assert.equal(manifest.download.installer_size_label, '约 330 MB');
+  assert.equal(manifest.download.release_tag, 'windows-rc-26.7.30-rc.4');
   assert.equal(manifest.download.download_helper_asset, 'download-windows-preview.ps1');
-  assert.equal(manifest.download.download_helper_publication_status, 'starting_next_windows_preview_rc');
-  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.30-rc\.1$/);
+  assert.equal(
+    manifest.download.download_helper_sha256,
+    'ace814a06553acce4c85c26697de8415b15ef8d4127def1063db8752ed80449e',
+  );
+  assert.equal(manifest.download.download_helper_size_bytes, '10875');
+  assert.equal(manifest.download.download_helper_publication_status, 'published_in_exact_windows_preview_rc');
+  assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.30-rc\.4$/);
   for (const term of manifest.required_terms) assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
   assert.match(guide, /密码、token 和 API Key 不应进入 PowerShell/);
@@ -587,10 +592,15 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   assert.match(guide, /点击单独出现的“设为模型访问方式”/);
   assert.match(guide, /不要关闭\s+Microsoft Defender/);
   assert.match(guide, /BITS 持久任务/);
-  assert.match(guide, /当前 `\{\{download\.release_tag\}\}` 尚未携带下载助手/);
+  assert.doesNotMatch(guide, /尚未携带下载助手|从下一份包含/);
   assert.match(guide, /不会调用 `Unblock-File`/);
   assert.match(guide, /不会自动切换到聊天群、网盘或任意第三方\s*镜像/);
   assert.match(guide, /这个 RC 的所有 Codex-backed 执行都进入 App 专用的 `OPL-Linux`/);
+  assert.match(guide, /Windows Desktop App 不要求 Docker Desktop/);
+  assert.match(guide, /当前安装缺少必要的内置运行组件/);
+  assert.match(guide, /先点击“重启并重新检测”/);
+  assert.match(guide, /点击“打开日志目录”和“复制诊断”/);
+  assert.match(guide, /杀毒软件的隔离记录/);
   assert.doesNotMatch(guide, /当前 RC 的桌面会话仍使用随包的原生 Windows/);
 });
 

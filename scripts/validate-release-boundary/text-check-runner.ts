@@ -1865,17 +1865,13 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
   if (!parsed) return 1;
   const { workflow, text } = parsed;
   let failures = 0;
-  if (Object.prototype.hasOwnProperty.call(workflow.on ?? {}, 'workflow_dispatch')) {
-    failures += reportFailure(id, 'Canary must not expose workflow_dispatch');
-  }
   const triggers = workflow.on ?? {};
   const schedule = triggers.schedule;
   if (JSON.stringify(Object.keys(triggers).sort()) !==
-      JSON.stringify(['pull_request', 'push', 'schedule']) ||
-      JSON.stringify(triggers.push?.branches) !== JSON.stringify(['main']) ||
+      JSON.stringify(['schedule', 'workflow_dispatch']) ||
       !Array.isArray(schedule) || schedule.length !== 1 ||
       schedule[0]?.cron !== '0 13 * * *') {
-    failures += reportFailure(id, 'Canary must run on main push, pull request, and the one daily schedule');
+    failures += reportFailure(id, 'Canary must expose only explicit manual dispatch and the one daily schedule');
   }
   if (!exactObject(workflow.concurrency, {
     group: 'opl-release-validation-canary-${{ github.ref }}',
@@ -2210,6 +2206,19 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       const writes = Object.entries(permissions).filter(([, value]) => value === 'write').map(([key]) => key);
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
+      const canarySpec = workflowPath === '.github/workflows/release-bundle-canary.yml'
+        ? canaryReusableCalls[jobId]
+        : undefined;
+      if (
+        canarySpec
+        && job.uses === canarySpec.workflow
+        && exactObject(job.permissions, canarySpec.permissions)
+        && job.with?.mode === 'canary'
+        && job.secrets === undefined
+        && steps.length === 0
+      ) {
+        continue;
+      }
       if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
