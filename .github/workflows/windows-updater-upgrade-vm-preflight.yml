@@ -1,0 +1,191 @@
+name: Windows Updater Upgrade VM Preflight
+run-name: Windows updater VM preflight for ${{ inputs.candidate_identity }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_artifact_run_id:
+        description: Exact successful first-attempt Actions run that owns the signed candidate artifact.
+        required: true
+        type: string
+      candidate_source_sha:
+        description: Exact 40-character App source SHA of candidate_artifact_run_id.
+        required: true
+        type: string
+      candidate_artifact_name:
+        description: Exact Actions artifact containing EXE, blockmap, latest.yml, and three bound receipts.
+        required: true
+        type: string
+      candidate_identity:
+        description: Immutable candidate identity carried by the Framework compatibility receipt.
+        required: true
+        type: string
+      candidate_asset_url:
+        description: Immutable candidate asset URL carried by the Framework compatibility receipt.
+        required: true
+        type: string
+      candidate_display_version:
+        description: Display version in the Windows installer name.
+        required: true
+        type: string
+      candidate_updater_version:
+        description: Strictly newer electron-updater machine SemVer.
+        required: true
+        type: string
+      updater_assets_receipt_sha256:
+        description: SHA-256 of opl-windows-updater-assets.json.
+        required: true
+        type: string
+      authenticode_receipt_sha256:
+        description: SHA-256 of the timestamped Authenticode receipt.
+        required: true
+        type: string
+      compatibility_receipt_sha256:
+        description: SHA-256 of the fresh Framework-owner compatibility receipt.
+        required: true
+        type: string
+      windows_runner_labels_json:
+        description: Exact trusted Windows qualification runner labels.
+        required: false
+        default: '["self-hosted","Windows","X64","opl-cert-windows-wsl"]'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: opl-windows-updater-upgrade-vm-preflight-${{ inputs.candidate_artifact_run_id }}-${{ inputs.candidate_identity }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  preflight:
+    name: Read-only signed candidate and Windows runner admission
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      status: ${{ steps.project.outputs.status }}
+      reason_code: ${{ steps.project.outputs.reason_code }}
+      execute_job_queued: ${{ steps.project.outputs.execute_job_queued }}
+    steps:
+      - name: Checkout canonical App admission source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install exact admission dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Read exact candidate run identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_artifact_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p windows-upgrade-preflight
+          if ! gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID" \
+            > windows-upgrade-preflight/candidate-run.json; then
+            jq -n --arg id "$CANDIDATE_RUN_ID" \
+              '{id:$id,status:"unreadable",conclusion:null,run_attempt:null,repository:null,head_repository:null,head_sha:null}' \
+              > windows-upgrade-preflight/candidate-run.json
+          fi
+
+      - name: Download exact signed candidate artifact without publication
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          run-id: ${{ inputs.candidate_artifact_run_id }}
+          github-token: ${{ github.token }}
+          path: windows-upgrade-preflight/candidate
+
+      - name: Inspect Windows runner inventory without queueing it
+        env:
+          GH_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
+          RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          output=windows-upgrade-preflight/runner-inventory.json
+          if [ -z "${RUNNER_INVENTORY_TOKEN:-}" ]; then
+            jq -n '{inventory_status:"not_authorized",runners:[]}' > "$output"
+          elif ! gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runners?per_page=100" \
+            | jq -s '{inventory_status:"readable",runners:[.[].runners[]]}' > "$output"; then
+            jq -n '{inventory_status:"unreadable",runners:[]}' > "$output"
+          fi
+
+      - name: Validate signed candidate, compatibility receipt, and runner eligibility
+        id: validate
+        env:
+          CANDIDATE_ARTIFACT_NAME: ${{ inputs.candidate_artifact_name }}
+          CANDIDATE_ARTIFACT_RUN_ID: ${{ inputs.candidate_artifact_run_id }}
+          CANDIDATE_ASSET_URL: ${{ inputs.candidate_asset_url }}
+          CANDIDATE_DISPLAY_VERSION: ${{ inputs.candidate_display_version }}
+          CANDIDATE_IDENTITY: ${{ inputs.candidate_identity }}
+          CANDIDATE_SOURCE_SHA: ${{ inputs.candidate_source_sha }}
+          CANDIDATE_UPDATER_VERSION: ${{ inputs.candidate_updater_version }}
+          UPDATER_ASSETS_RECEIPT_SHA256: ${{ inputs.updater_assets_receipt_sha256 }}
+          AUTHENTICODE_RECEIPT_SHA256: ${{ inputs.authenticode_receipt_sha256 }}
+          COMPATIBILITY_RECEIPT_SHA256: ${{ inputs.compatibility_receipt_sha256 }}
+          WINDOWS_RUNNER_LABELS_JSON: ${{ inputs.windows_runner_labels_json }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/validate-windows-updater-upgrade-vm-admission.ts \
+            --artifact-dir windows-upgrade-preflight/candidate \
+            --repository "$GITHUB_REPOSITORY" \
+            --release-version "$CANDIDATE_DISPLAY_VERSION" \
+            --updater-version "$CANDIDATE_UPDATER_VERSION" \
+            --candidate-run-id "$CANDIDATE_ARTIFACT_RUN_ID" \
+            --candidate-source-sha "$CANDIDATE_SOURCE_SHA" \
+            --candidate-artifact-name "$CANDIDATE_ARTIFACT_NAME" \
+            --candidate-identity "$CANDIDATE_IDENTITY" \
+            --candidate-asset-url "$CANDIDATE_ASSET_URL" \
+            --updater-assets-receipt-sha256 "$UPDATER_ASSETS_RECEIPT_SHA256" \
+            --authenticode-receipt-sha256 "$AUTHENTICODE_RECEIPT_SHA256" \
+            --compatibility-receipt-sha256 "$COMPATIBILITY_RECEIPT_SHA256" \
+            --candidate-run-json windows-upgrade-preflight/candidate-run.json \
+            --runner-inventory-json windows-upgrade-preflight/runner-inventory.json \
+            --runner-labels-json "$WINDOWS_RUNNER_LABELS_JSON" \
+            --mode preflight \
+            --output windows-upgrade-preflight/admission.json
+
+      - name: Project typed nonblocking result
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipt=windows-upgrade-preflight/admission.json
+          test "$(jq -r .schema "$receipt")" = opl_windows_updater_upgrade_vm_admission.v1
+          test "$(jq -r .mutation_attempt_count "$receipt")" = 0
+          test "$(jq -r .publication_mutation_allowed "$receipt")" = false
+          test "$(jq -r .install_mutation_allowed "$receipt")" = false
+          test "$(jq -r .release_blocking "$receipt")" = false
+          {
+            echo "status=$(jq -r .status "$receipt")"
+            echo "reason_code=$(jq -r .reason_code "$receipt")"
+            echo 'execute_job_queued=false'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload exact read-only preflight receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-windows-updater-upgrade-vm-preflight-${{ inputs.candidate_artifact_run_id }}-${{ github.run_id }}
+          path: |
+            windows-upgrade-preflight/candidate-run.json
+            windows-upgrade-preflight/runner-inventory.json
+            windows-upgrade-preflight/admission.json
+          if-no-files-found: error
+          retention-days: 30

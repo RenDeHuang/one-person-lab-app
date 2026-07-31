@@ -669,7 +669,65 @@
         "metadata_binding": "latest_yml_version_name_size_and_sha512_match_exact_installer_bytes",
         "runtime_feed_authority": "active_shell_resolves_one_digest_bound_immutable_adjunct_for_the_selected_base_stable_and_points_electron_updater_to_that_exact_release_download_base",
         "runtime_resolver": "opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts",
-        "base_stable_or_latest_mutation_allowed": false
+        "base_stable_or_latest_mutation_allowed": false,
+        "upgrade_vm_qualification": {
+          "status": "source_preflight_and_dry_run_implemented_signed_execute_pending_external_triggers",
+          "workflow": ".github/workflows/windows-updater-upgrade-vm-preflight.yml",
+          "admission_validator": "scripts/validate-windows-updater-upgrade-vm-admission.ts",
+          "host_dry_run_harness": "scripts/Test-OPLWindowsUpdaterUpgradeVM.ps1",
+          "dry_run_receipt_schema": "docs/delivery/validation/windows-platform/windows-updater-upgrade-vm-dry-run-receipt.schema.json",
+          "candidate_identity_policy": "selected_artifact_immutable_identity_digest_signature_owner_authority_plus_framework_compatibility_receipt",
+          "cross_component_exact_cohort_required": false,
+          "compatibility_receipt_schema": "opl_component_compatibility_receipt.v1",
+          "compatibility_requirement_kinds": [
+            "capability_id_with_versioned_schema",
+            "minimum_version",
+            "semver_range"
+          ],
+          "runner_labels": [
+            "self-hosted",
+            "Windows",
+            "X64",
+            "opl-cert-windows-wsl"
+          ],
+          "prequeue_admission": [
+            "candidate_actions_run_first_attempt_success",
+            "exact_exe_blockmap_latest_yml_receipt_digests",
+            "timestamped_authenticode_exact_installer_binding",
+            "fresh_complete_framework_compatibility_receipt",
+            "runner_inventory_authorized_readable_online_idle"
+          ],
+          "runner_offline_or_busy": "typed_not_ready_without_queue",
+          "factory_authority": "existing_opl_windows_vm_lease_v2_and_clean_vm_attestation_v2_only",
+          "target_vm": "OPL-V6-WSL2-01",
+          "ordered_execute_sequence": [
+            "validate_exact_signed_candidate",
+            "validate_framework_compatibility_receipt",
+            "validate_active_factory_lease_and_clean_attestation",
+            "restore_exact_clean_checkpoint",
+            "install_exact_predecessor",
+            "write_persistent_data_sentinel",
+            "start_predecessor_with_exact_candidate_feed",
+            "download_candidate_with_electron_updater",
+            "fully_exit_and_apply_update",
+            "restart_updated_app",
+            "verify_version_runtime_and_data_preservation",
+            "repeat_update_check_expect_no_update",
+            "write_terminal_receipt",
+            "graceful_shutdown_and_owner_readback"
+          ],
+          "current_execute_available": false,
+          "current_execute_triggers": [
+            "timestamped_authenticode_candidate_from_fresh_canonical_source",
+            "online_idle_windows_qualification_runner",
+            "active_execution_owner_bound_factory_lease",
+            "dpapi_protected_guest_credential_bound_to_runner_identity",
+            "fixed_windows_electron_updater_guest_driver",
+            "separate_protected_execute_authority"
+          ],
+          "publication_or_install_authority_granted_by_preflight": false,
+          "blocks_stable_or_latest": false
+        }
       },
       "receipt_must_include": [
         "base_tag",
@@ -699,6 +757,7 @@
           "tests/release/windows-platform-factory-contract.test.ts",
           "tests/release/windows-preview-bits-powershell.test.ts",
           "tests/release/windows-rc-preview.test.ts",
+          "tests/release/windows-updater-upgrade-vm.test.ts",
           "tests/release/windows-wsl2-validation-fixtures.test.ts"
         ]
       },
