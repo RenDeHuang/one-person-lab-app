@@ -1248,7 +1248,7 @@ function validate(packet: unknown, root: string, check = checks()) {
 }
 
 test('validator accepts one canonical Standard checkpoint plus distinct append_full successor', () => {
-  withFixture(({ packet }, root) => {
+  withFixture(({ packet, standardCheckpoint, fullCheckpoint }, root) => {
     const ancestryCalls: Array<[SourceRepository, string, string]> = [];
     const remoteCalls: Array<[SourceRepository, string]> = [];
     const result = validate(packet, root, checks({ ancestryCalls, remoteCalls }));
@@ -1259,8 +1259,11 @@ test('validator accepts one canonical Standard checkpoint plus distinct append_f
     assert.equal(result.operations.append_full_operation_id, 'append-full-operation-1002');
     assert.equal(result.operations.standard_run_id, '1001');
     assert.equal(result.operations.append_full_run_id, '1002');
+    assert.equal(standardCheckpoint.checkpoint_stage, 'standard_built');
+    assert.equal(standardCheckpoint.tracks.standard.verified, false);
+    assert.equal(fullCheckpoint.tracks.standard.verified, false);
     assert.equal(result.artifacts.standard.name, `One-Person-Lab-${version}-mac-arm64.zip`);
-    assert.equal(result.verified_file_count, 18);
+    assert.equal(result.verified_file_count, 21);
     assert.equal(result.authority.source_pins_role, 'build_provenance_only');
     assert.equal(result.authority.may_gate_install_or_runtime, false);
     assert.equal(result.authority.exact_cross_component_compatibility_gate, false);
@@ -1305,6 +1308,12 @@ test('validator rejects Bundle digest drift and source pins outside accepted rem
         validateCodexRuntimeArtifactEligibility(packet, {
           evidenceRoot: root,
           isAncestor: checks().isAncestor,
+          inspectRelease() {
+            throw new Error('unexpected release inspection');
+          },
+          inspectWorkflowRun() {
+            throw new Error('unexpected workflow run inspection');
+          },
         }),
       /Remote-main reachability verifier is required/,
     );
@@ -1346,6 +1355,49 @@ test('validator rejects checkpoint/control/operation-receipt successor drift', (
     {
       mutateStandardReceipt(receipt) {
         receipt.attempt_id = 'different-standard-operation';
+      },
+    },
+  );
+});
+
+test('validator binds the canonical successor receipt and fresh GitHub run/release readbacks', () => {
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Stable Full successor receipt\.source\.run_id/,
+      );
+    },
+    {
+      mutateSuccessorReceipt(receipt) {
+        receipt.source.run_id = '9999';
+      },
+    },
+  );
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Standard source run inspection\.run\.status/,
+      );
+    },
+    {
+      mutateStandardRunInspection(inspection) {
+        inspection.run.status = 'in_progress';
+        inspection.run.conclusion = null;
+      },
+    },
+  );
+  withFixture(
+    ({ packet }, root) => {
+      assert.throws(
+        () => validate(packet, root),
+        /Standard release inspection does not match the fresh canonical GitHub readback/,
+      );
+    },
+    {
+      mutateStandardInspection(inspection) {
+        inspection.release.name = 'Locally reconstructed release';
       },
     },
   );

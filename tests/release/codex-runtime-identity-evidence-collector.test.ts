@@ -121,7 +121,7 @@ function eligibility(root: string) {
         file_path: full.path,
       },
     },
-    verified_file_count: 10 as const,
+    verified_file_count: 21 as const,
     authority: {
       source_pins_role: 'build_provenance_only' as const,
       may_gate_install_or_runtime: false as const,
@@ -892,6 +892,9 @@ test('eligibility output protection covers all custody, checkpoint, receipt, and
         'full_checkpoint',
         'standard_operation_receipt',
         'append_full_operation_receipt',
+        'stable_full_successor_receipt',
+        'standard_run_inspection',
+        'append_full_run_inspection',
       ]),
       standard: {
         files: makeReferences('standard', [
@@ -917,7 +920,7 @@ test('eligibility output protection covers all custody, checkpoint, receipt, and
     };
 
     const protectedPaths = collectEligibilityProtectedPaths(packet, root);
-    assert.equal(protectedPaths.size, 18);
+    assert.equal(protectedPaths.size, 21);
     for (const reference of [
       ...Object.values(packet.evidence),
       ...Object.values(packet.standard.files),
