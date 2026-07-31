@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { syncAppProductProfileToShell } from './app-product-profile.ts';
 import {
@@ -123,6 +124,21 @@ function resolveManualLocalAppIdentity(options) {
   };
 }
 
+export function shellBuildEnvironmentWithoutRedundantNotarization(env = process.env) {
+  const shellBuildEnv = { ...env };
+  for (const name of [
+    'appleId',
+    'appleIdPassword',
+    'teamId',
+    'OPL_NOTARYTOOL_KEYCHAIN_PROFILE',
+    'OPL_MAC_STRICT_SIGNING_CHECKS',
+    'OPL_REQUIRE_MACOS_GATEKEEPER',
+  ]) {
+    delete shellBuildEnv[name];
+  }
+  return shellBuildEnv;
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   assertReleaseVersionNotFuture('stable', options.version);
@@ -205,7 +221,7 @@ function main() {
     run('npm', shellBuildArgs, {
       cwd: options.guiRoot,
       env: {
-        ...process.env,
+        ...shellBuildEnvironmentWithoutRedundantNotarization(process.env),
         OPL_RELEASE_VERSION: options.version,
         OPL_UPDATER_VERSION: options.updaterVersion,
         OPL_REQUIRE_FULL_RUNTIME: '1',
@@ -379,9 +395,11 @@ function main() {
   }, null, 2));
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
