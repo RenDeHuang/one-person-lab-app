@@ -10,14 +10,43 @@ import { parseArgs } from 'node:util';
 
 type CommandResult = ReturnType<typeof spawnSync>;
 
+type NotarizationState = {
+  id: string | null;
+  status: string | null;
+  submitted_at: string | null;
+  last_observed_at: string | null;
+  wait_timeout_seconds: number | null;
+};
+
+type FailureEvidence = {
+  code: string;
+  stage: string;
+  message: string;
+  retry_disposition: string;
+};
+
+const defaultCommandTimeoutMs = 45 * 60_000;
+const postNotarizationReserveMs = 20 * 60_000;
+const minimumNotarizationWaitMs = 60_000;
+
+function testMode(): boolean {
+  return process.env.NODE_ENV === 'test' && process.env.OPL_NOTARIZATION_TEST_MODE === 'true';
+}
+
+function commandPath(command: string): string {
+  if (!testMode()) return command;
+  const root = requiredEnv('OPL_NOTARIZATION_TEST_COMMAND_ROOT');
+  return path.join(root, command);
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim() || '';
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
 
-function runCapture(command: string, args: string[], timeout = 45 * 60_000): CommandResult {
-  return spawnSync(command, args, {
+function runCapture(command: string, args: string[], timeout = defaultCommandTimeoutMs): CommandResult {
+  return spawnSync(commandPath(command), args, {
     encoding: 'utf8',
     stdio: 'pipe',
     timeout,
@@ -30,11 +59,49 @@ function run(command: string, args: string[], timeout?: number, redactedArgs: st
   if (result.status !== 0) {
     throw new Error([
       `Command failed: ${command} ${redactedArgs.map((arg) => JSON.stringify(arg)).join(' ')}`,
+      result.error?.message ? `error: ${result.error.message}` : '',
       result.stdout?.trim() ? `stdout:\n${result.stdout.trim()}` : '',
       result.stderr?.trim() ? `stderr:\n${result.stderr.trim()}` : '',
     ].filter(Boolean).join('\n'));
   }
   return result;
+}
+
+function parseJsonResult(result: CommandResult): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(String(result.stdout || '{}'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJsonAtomic(filePath: string, value: unknown): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  fs.renameSync(temporaryPath, filePath);
+}
+
+export function notarizationWaitTimeoutSeconds(input: {
+  operationDeadlineAt?: string;
+  nowMs?: number;
+  reserveMs?: number;
+}): number {
+  if (!input.operationDeadlineAt) return defaultCommandTimeoutMs / 1_000;
+  const deadlineMs = Date.parse(input.operationDeadlineAt);
+  const nowMs = input.nowMs ?? Date.now();
+  const reserveMs = input.reserveMs ?? postNotarizationReserveMs;
+  if (!Number.isFinite(deadlineMs)) {
+    throw new Error('Operation deadline must be an exact ISO-8601 timestamp.');
+  }
+  const waitMs = deadlineMs - nowMs - reserveMs;
+  if (waitMs < minimumNotarizationWaitMs) {
+    throw new Error('Notarization cannot start without one minute of wait budget and twenty minutes of operation reserve.');
+  }
+  return Math.floor(waitMs / 1_000);
 }
 
 function sha256(filePath: string): string {
@@ -74,7 +141,7 @@ function submitForNotarization(target: string, credentials: {
   password: string;
   teamId: string;
   keychainProfile: string;
-}) {
+}, operationDeadlineAt: string, persist: (state: NotarizationState) => void) {
   const credentialArgs = credentials.keychainProfile
     ? ['--keychain-profile', credentials.keychainProfile]
     : [
@@ -85,29 +152,87 @@ function submitForNotarization(target: string, credentials: {
         '--team-id',
         credentials.teamId,
       ];
-  const args = [
+  const redactedCredentialArgs = credentialArgs.map((argument) => {
+    if (argument === credentials.appleId) return '<redacted-apple-id>';
+    if (argument === credentials.password) return '<redacted-password>';
+    return argument;
+  });
+  const submitArgs = [
     'notarytool',
     'submit',
     target,
     ...credentialArgs,
-    '--wait',
     '--output-format',
     'json',
   ];
-  const redactedArgs = credentials.keychainProfile
-    ? args
-    : args.map((arg, index) => args[index - 1] === '--password' ? '<redacted>' : arg);
-  const result = run('xcrun', args, undefined, redactedArgs);
-  let receipt: Record<string, unknown>;
-  try {
-    receipt = JSON.parse(String(result.stdout || '{}'));
-  } catch {
-    throw new Error('notarytool did not return a JSON receipt.');
+  const redactedSubmitArgs = [
+    'notarytool',
+    'submit',
+    target,
+    ...redactedCredentialArgs,
+    '--output-format',
+    'json',
+  ];
+  const submitBudgetSeconds = notarizationWaitTimeoutSeconds({ operationDeadlineAt });
+  const submitted = parseJsonResult(run(
+    'xcrun',
+    submitArgs,
+    Math.min(defaultCommandTimeoutMs, submitBudgetSeconds * 1_000),
+    redactedSubmitArgs,
+  ));
+  const id = typeof submitted?.id === 'string' && submitted.id ? submitted.id : null;
+  const submittedStatus = typeof submitted?.status === 'string' && submitted.status
+    ? submitted.status
+    : null;
+  if (!id) throw new Error('notarytool submit did not return a submission id.');
+
+  const state: NotarizationState = {
+    id,
+    status: submittedStatus,
+    submitted_at: new Date().toISOString(),
+    last_observed_at: new Date().toISOString(),
+    wait_timeout_seconds: null,
+  };
+  persist(state);
+
+  const waitTimeoutSeconds = notarizationWaitTimeoutSeconds({ operationDeadlineAt });
+  state.wait_timeout_seconds = waitTimeoutSeconds;
+  persist(state);
+  const waitArgs = [
+    'notarytool',
+    'wait',
+    id,
+    ...credentialArgs,
+    '--timeout',
+    `${waitTimeoutSeconds}s`,
+    '--output-format',
+    'json',
+  ];
+  const waitResult = runCapture('xcrun', waitArgs, (waitTimeoutSeconds + 30) * 1_000);
+  let observed = parseJsonResult(waitResult);
+  if (observed?.status !== 'Accepted') {
+    const infoArgs = [
+      'notarytool',
+      'info',
+      id,
+      ...credentialArgs,
+      '--output-format',
+      'json',
+    ];
+    const infoResult = runCapture('xcrun', infoArgs, 30_000);
+    observed = parseJsonResult(infoResult) ?? observed;
   }
-  if (receipt.status !== 'Accepted' || typeof receipt.id !== 'string' || !receipt.id) {
-    throw new Error(`Apple notarization was not accepted: status=${String(receipt.status || 'missing')}.`);
+  state.status = typeof observed?.status === 'string' && observed.status
+    ? observed.status
+    : state.status;
+  state.last_observed_at = new Date().toISOString();
+  persist(state);
+  if (state.status !== 'Accepted') {
+    throw new Error(
+      `Apple notarization submission ${id} did not reach Accepted within the bounded wait: status=${state.status || 'unknown'}.`,
+    );
   }
-  return { id: receipt.id, status: receipt.status };
+  return { id, status: state.status };
 }
 
 function parseOptions() {
@@ -116,6 +241,7 @@ function parseOptions() {
     options: {
       dmg: { type: 'string' },
       output: { type: 'string' },
+      'operation-deadline-at': { type: 'string' },
     },
     allowPositionals: false,
     strict: true,
@@ -124,21 +250,13 @@ function parseOptions() {
   return {
     dmgPath: path.resolve(values.dmg),
     outputPath: path.resolve(values.output),
+    operationDeadlineAt: values['operation-deadline-at']?.trim() || '',
   };
 }
 
 export function finalizeNotarizedDmg() {
-  if (process.platform !== 'darwin') throw new Error('macOS DMG notarization requires a macOS runner.');
+  if (process.platform !== 'darwin' && !testMode()) throw new Error('macOS DMG notarization requires a macOS runner.');
   const options = parseOptions();
-  if (!fs.existsSync(options.dmgPath)) throw new Error(`DMG not found: ${options.dmgPath}`);
-  const identity = requiredEnv('OPL_RUNTIME_CODESIGN_IDENTITY');
-  const teamId = requiredEnv('teamId');
-  const keychainProfile = process.env.OPL_NOTARYTOOL_KEYCHAIN_PROFILE?.trim() || '';
-  const appleId = process.env.appleId?.trim() || '';
-  const appleIdPassword = process.env.appleIdPassword?.trim() || '';
-  if (!keychainProfile && (!appleId || !appleIdPassword)) {
-    throw new Error('Missing Apple notarization credentials: configure OPL_NOTARYTOOL_KEYCHAIN_PROFILE or Apple ID credentials.');
-  }
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-notarize-dmg-'));
   const mountPoint = path.join(tempRoot, 'mount');
   const candidateDmg = path.join(
@@ -146,7 +264,40 @@ export function finalizeNotarizedDmg() {
     `.${path.basename(options.dmgPath, '.dmg')}.${process.pid}.notarizing.dmg`,
   );
   let mounted = false;
+  let stage = 'preflight';
+  const evidence: Record<string, any> = {
+    schema: 'opl_apple_notarized_dmg_receipt.v1',
+    status: 'failed',
+    artifact: path.basename(options.dmgPath),
+    operation_deadline_at: options.operationDeadlineAt || null,
+    team_identifier: null,
+    signing_identity: null,
+    credential_mode: null,
+    notarization: {
+      id: null,
+      status: null,
+      submitted_at: null,
+      last_observed_at: null,
+      wait_timeout_seconds: null,
+    } satisfies NotarizationState,
+    failure: null,
+  };
+  const persist = () => writeJsonAtomic(options.outputPath, evidence);
   try {
+    if (!fs.existsSync(options.dmgPath)) throw new Error(`DMG not found: ${options.dmgPath}`);
+    const identity = requiredEnv('OPL_RUNTIME_CODESIGN_IDENTITY');
+    const teamId = requiredEnv('teamId');
+    const keychainProfile = process.env.OPL_NOTARYTOOL_KEYCHAIN_PROFILE?.trim() || '';
+    const appleId = process.env.appleId?.trim() || '';
+    const appleIdPassword = process.env.appleIdPassword?.trim() || '';
+    if (!keychainProfile && (!appleId || !appleIdPassword)) {
+      throw new Error('Missing Apple notarization credentials: configure OPL_NOTARYTOOL_KEYCHAIN_PROFILE or Apple ID credentials.');
+    }
+    evidence.team_identifier = teamId;
+    evidence.signing_identity = identity;
+    evidence.credential_mode = keychainProfile ? 'keychain_profile' : 'apple_id';
+
+    stage = 'verify_embedded_app';
     fs.mkdirSync(mountPoint);
     run('hdiutil', ['attach', options.dmgPath, '-nobrowse', '-readonly', '-mountpoint', mountPoint]);
     mounted = true;
@@ -156,18 +307,24 @@ export function finalizeNotarizedDmg() {
     run('hdiutil', ['detach', mountPoint]);
     mounted = false;
 
+    stage = 'sign_dmg';
     fs.rmSync(candidateDmg, { force: true });
     fs.copyFileSync(options.dmgPath, candidateDmg);
     run('codesign', ['--force', '--timestamp', '--sign', identity, candidateDmg]);
     run('codesign', ['--verify', '--strict', '--verbose=2', candidateDmg]);
     const signedDmgSha256 = sha256(candidateDmg);
     const dmgSignature = signatureFacts(candidateDmg, teamId);
+    stage = 'submit_and_wait';
     const notarization = submitForNotarization(candidateDmg, {
       appleId,
       password: appleIdPassword,
       teamId,
       keychainProfile,
+    }, options.operationDeadlineAt, (notarizationState) => {
+      evidence.notarization = { ...notarizationState };
+      persist();
     });
+    stage = 'staple_and_verify';
     run('xcrun', ['stapler', 'staple', candidateDmg]);
     run('xcrun', ['stapler', 'validate', candidateDmg]);
     run('hdiutil', ['verify', candidateDmg]);
@@ -183,27 +340,41 @@ export function finalizeNotarizedDmg() {
     mounted = false;
 
     fs.renameSync(candidateDmg, options.dmgPath);
-    const evidence = {
-      schema: 'opl_apple_notarized_dmg_receipt.v1',
+    Object.assign(evidence, {
       status: 'passed',
-      artifact: path.basename(options.dmgPath),
-      team_identifier: teamId,
-      signing_identity: identity,
-      credential_mode: keychainProfile ? 'keychain_profile' : 'apple_id',
       app_signature: appSignature,
       mounted_app_signature: mountedAppSignature,
       dmg_signature: dmgSignature,
-      notarization,
+      notarization: { ...evidence.notarization, ...notarization },
       stapler_validate_status: 'passed',
       dmg_spctl_status: 'passed',
       app_spctl_status: 'passed',
       signed_dmg_sha256_before_staple: signedDmgSha256,
       final_stapled_dmg_sha256: sha256(options.dmgPath),
       final_stapled_dmg_size_bytes: fs.statSync(options.dmgPath).size,
-    };
-    fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
-    fs.writeFileSync(options.outputPath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+      failure: null,
+    });
+    persist();
     return evidence;
+  } catch (error) {
+    const hasSubmissionId = typeof evidence.notarization.id === 'string' && evidence.notarization.id.length > 0;
+    evidence.status = 'failed';
+    evidence.failure = {
+      code: hasSubmissionId
+        ? 'notarization_submission_incomplete'
+        : stage === 'submit_and_wait'
+          ? 'notarization_submission_outcome_unknown'
+          : 'notarization_finalization_failed',
+      stage,
+      message: error instanceof Error ? error.message : String(error),
+      retry_disposition: hasSubmissionId
+        ? 'read_only_reconcile_submission_no_retry'
+        : stage === 'submit_and_wait'
+          ? 'read_only_history_reconcile_before_new_operation'
+          : 'new_operation_required_no_retry',
+    } satisfies FailureEvidence;
+    persist();
+    throw error;
   } finally {
     if (mounted) runCapture('hdiutil', ['detach', mountPoint]);
     fs.rmSync(candidateDmg, { force: true });

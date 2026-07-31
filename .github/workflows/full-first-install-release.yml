@@ -108,7 +108,7 @@ jobs:
     if: ${{ inputs.mode != 'canary' }}
     name: Build App-owned Full first-install DMG
     runs-on: macos-latest
-    timeout-minutes: ${{ inputs.operation == 'append_full' && 50 || 90 }}
+    timeout-minutes: ${{ inputs.operation == 'append_full' && 130 || 90 }}
     environment: release-stable
     permissions:
       contents: read
@@ -1003,7 +1003,17 @@ jobs:
           fi
           node --experimental-strip-types scripts/notarize-macos-dmg.ts \
             --dmg "dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg" \
-            --output dist/opl-full-release/full-apple-notarization-receipt.json
+            --output dist/opl-full-release/full-apple-notarization-receipt.json \
+            --operation-deadline-at '${{ inputs.operation_deadline_at }}'
+
+      - name: Upload Full notarization terminal evidence
+        if: ${{ always() && !inputs.cache_only }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-notarization-evidence-${{ env.OPL_RELEASE_VERSION }}-${{ github.run_id }}
+          path: one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Verify cache-only warmup emitted no release assets
         if: ${{ inputs.cache_only }}

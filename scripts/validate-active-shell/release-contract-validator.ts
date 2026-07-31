@@ -639,7 +639,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     resumeStandardOperation?.rebuild_allowed !== false ||
     appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_built' ||
     appendFullOperation?.control !== 'new_independent_append_full_control' ||
-    appendFullOperation?.deadline_minutes !== 50 ||
+    appendFullOperation?.deadline_minutes !== 120 ||
     appendFullOperation?.standard_built_required !== true ||
     appendFullOperation?.standard_rebuild_allowed !== false ||
     appendFullOperation?.standard_operation_id_reuse_allowed !== false ||

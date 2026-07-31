@@ -1858,11 +1858,20 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const finalizer = fullBuild.jobs['full-first-install'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization',
   );
+  assert.equal(fullBuild.jobs['full-first-install']['timeout-minutes'], "${{ inputs.operation == 'append_full' && 130 || 90 }}");
   assert.equal(finalizer.if, '${{ !inputs.cache_only }}');
   assert.match(String(finalizer.run), /Production Full notarization cannot run without strict Developer ID signing/);
   assert.match(String(finalizer.run), /Skipping notarization for development-only non-distributable Full output/);
   assert.match(String(finalizer.run), /notarize-macos-dmg\.ts/);
   assert.match(String(finalizer.run), /full-apple-notarization-receipt\.json/);
+  assert.match(String(finalizer.run), /--operation-deadline-at/);
+
+  const notarizationEvidence = fullBuild.jobs['full-first-install'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload Full notarization terminal evidence',
+  );
+  assert.equal(notarizationEvidence.if, '${{ always() && !inputs.cache_only }}');
+  assert.match(String(notarizationEvidence.with.name), /opl-full-notarization-evidence/);
+  assert.equal(notarizationEvidence.with['if-no-files-found'], 'warn');
 
   for (const name of [
     'Upload Full package workflow artifact',
