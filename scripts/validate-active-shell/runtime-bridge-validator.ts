@@ -1107,8 +1107,8 @@ function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
   }
   const sharedGuiTarget = commandResolutionPolicy?.shared_gui_target;
   for (const [field, expected] of Object.entries({
-    implementation_status: 'candidate_launcher_runtime_identity_implemented_active_shell_parity_not_proven',
-    identity_readback_schema: 'app_runtime_executable_identity.v1',
+    implementation_status:
+      'candidate_launcher_runtime_provenance_readback_implemented_compatibility_parity_not_proven',
     producer: 'app_host_runtime_resolver',
     producer_status: 'implemented_for_local_gui_launcher',
   })) {
@@ -1117,22 +1117,67 @@ function validateRuntimeBridgeCommandResolutionPolicy(runtimeBridge) {
     }
   }
   assertIncludesAll(sharedGuiTarget?.required_executables, ['opl', 'codex'], 'Shared GUI runtime executables');
-  assertIncludesAll(
-    sharedGuiTarget?.required_readback_fields,
-    ['opl_path', 'opl_version', 'codex_path', 'codex_version', 'runtime_cohort_ref'],
-    'Shared GUI runtime identity readback',
+  const compatibilityRequirements = sharedGuiTarget?.compatibility_requirements;
+  if (!Array.isArray(compatibilityRequirements)) {
+    throw new Error('Shared GUI runtime compatibility requirements must be an array');
+  }
+  for (const requirement of compatibilityRequirements) {
+    if (requirement?.kind !== 'capability_id_with_versioned_schema') {
+      throw new Error(`Shared GUI runtime compatibility requirement kind ${requirement?.kind ?? '(missing)'} is unsupported`);
+    }
+  }
+  assertDeepEqualJson(
+    compatibilityRequirements,
+    [
+      {
+        kind: 'capability_id_with_versioned_schema',
+        component_id: 'opl_framework',
+        capability_id: 'opl_app_state_fast',
+        schema_range: '>=1 <2',
+      },
+      {
+        kind: 'capability_id_with_versioned_schema',
+        component_id: 'opl_framework',
+        capability_id: 'opl_app_action_execute',
+        schema_range: '>=1 <2',
+      },
+      {
+        kind: 'capability_id_with_versioned_schema',
+        component_id: 'codex_cli',
+        capability_id: 'codex_app_server',
+        schema_range: '>=1 <2',
+      },
+    ],
+    'Shared GUI runtime compatibility requirements',
+  );
+  if (sharedGuiTarget?.observational_build_provenance?.may_gate_install_or_runtime !== false) {
+    throw new Error('Shared GUI runtime observational build provenance may_gate_install_or_runtime must be false');
+  }
+  assertDeepEqualJson(
+    sharedGuiTarget?.observational_build_provenance,
+    {
+      schema: 'app_runtime_executable_identity.v1',
+      fields: ['opl_path', 'opl_version', 'codex_path', 'codex_version', 'runtime_cohort_ref'],
+      role: 'per_gui_artifact_source_observation_only',
+      may_gate_install_or_runtime: false,
+    },
+    'Shared GUI runtime observational build provenance',
   );
 }
 
 function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
   const policy = runtimeBridge.shared_gui_runtime_resolution_policy;
+  if ('same_cohort_runtime_identity_required_for_parity' in (policy ?? {})) {
+    throw new Error('Runtime parity must not retain the same_cohort_runtime_identity_required_for_parity gate');
+  }
   for (const [field, expected] of Object.entries({
     state: 'target_with_native_candidate_deviation',
     policy_owner: 'one-person-lab-app',
     runtime_identity_owner: 'one-person-lab',
     resolver_source: 'contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target',
     logical_control_plane_shared: true,
-    same_cohort_runtime_identity_required_for_parity: true,
+    parity_admission_basis: 'compatible_runtime_capability_and_versioned_schema_range',
+    exact_runtime_identity_equality_may_gate_install_or_runtime: false,
     host_path_only_resolution_can_prove_parity: false,
     active_aionui_status: 'managed_or_packaged_runtime_resolution',
     opl_native_workbench_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
