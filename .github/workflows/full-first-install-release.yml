@@ -469,8 +469,11 @@ jobs:
           uv pip install --python "$toolchain_root/bin/python" --no-deps "uv==$EXPECTED_UV_VERSION"
           "$toolchain_root/bin/uv" --version | grep -F "uv $EXPECTED_UV_VERSION"
           echo "$toolchain_root/bin" >> "$GITHUB_PATH"
-          echo "OPL_FULL_PYTHON_ROOT=$python_root" >> "$GITHUB_ENV"
-          echo "OPL_FULL_UV_BIN=$toolchain_root/bin/uv" >> "$GITHUB_ENV"
+          {
+            echo "OPL_FULL_PYTHON_ROOT=$python_root"
+            echo "OPL_FULL_PYTHON_BIN=$python_executable"
+            echo "OPL_FULL_UV_BIN=$toolchain_root/bin/uv"
+          } >> "$GITHUB_ENV"
           export PATH="$toolchain_root/bin:$PATH"
           python --version | grep -Fx "Python $EXPECTED_PYTHON_VERSION"
           uv --version | grep -F "uv $EXPECTED_UV_VERSION"
@@ -677,8 +680,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          uv sync --project med-autoscience --no-dev
-          uv sync --project med-autogrant --no-dev
+          domain_python="$OPL_FULL_PYTHON_BIN"
+          test -x "$domain_python"
+          uv sync --project med-autoscience --python "$domain_python" --no-dev
+          uv sync --project med-autogrant --python "$domain_python" --no-dev
           npm ci --prefix redcube-ai
           npm install --prefix redcube-ai --no-save --package-lock=false "$GITHUB_WORKSPACE/one-person-lab"
           npm run --prefix redcube-ai build
