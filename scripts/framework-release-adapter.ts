@@ -973,7 +973,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
     const sizeBytes = Number(hosted.subject?.size_bytes);
     const artifactSha256 = String(hosted.subject?.sha256 ?? '');
     const requiredNames = bundle.tracks?.full?.required_asset_names;
-    const cohort = hosted.cohort ?? {};
     const verification = hosted.verification ?? {};
     if (
       hosted.schema !== 'opl_app_hosted_full_core_qualification.v1'
@@ -982,7 +981,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       || hosted.execution?.runner !== 'macos-14'
       || hosted.execution?.run_attempt !== 1
       || !/^[1-9][0-9]*$/.test(String(hosted.execution?.run_id ?? ''))
-      || hosted.release?.bundle_digest !== bundle.bundle_digest
       || hosted.release?.version !== bundle.release.version
       || !Array.isArray(requiredNames)
       || !requiredNames.includes(subjectName)
@@ -991,9 +989,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       || !digestPattern.test(artifactSha256)
       || hosted.manifest?.asset_name !== 'opl-release-manifest.json'
       || !digestPattern.test(String(hosted.manifest?.sha256 ?? ''))
-      || cohort.app_sha !== bundle.sources.app.source_commit
-      || cohort.shell_sha !== bundle.sources.shell.source_commit
-      || cohort.framework_sha !== bundle.sources.framework.source_commit
       || verification.dmg_verified !== true
       || verification.read_only_mount !== true
       || verification.exact_single_app !== true
@@ -1005,7 +1000,7 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       || typeof hosted.evidence_ref !== 'string'
       || hosted.evidence_ref.trim() === ''
     ) {
-      throw new Error('Hosted Full core qualification does not bind the exact Bundle, artifact, cohort, and macOS trust evidence.');
+      throw new Error('Hosted Full core qualification does not bind the exact Full artifact and macOS trust evidence.');
     }
     return {
       surface_kind: 'opl_release_bundle_qualification_receipt.v1',

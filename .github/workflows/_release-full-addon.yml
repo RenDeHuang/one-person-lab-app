@@ -608,11 +608,7 @@ jobs:
 
       - name: Verify exact hosted Full core qualification
         env:
-          BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
           VERSION: ${{ needs.restore-standard.outputs.version }}
-          APP_SHA: ${{ needs.restore-standard.outputs.app_ref }}
-          SHELL_SHA: ${{ needs.restore-standard.outputs.shell_ref }}
-          FRAMEWORK_SHA: ${{ needs.restore-standard.outputs.framework_source_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -622,10 +618,14 @@ jobs:
           test -f "$manifest_path" && test ! -L "$manifest_path"
           dmg_sha="sha256:$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
           dmg_size="$(wc -c < "$dmg_path" | tr -d ' ')"
-          jq -e --arg name "$(basename "$dmg_path")" --arg sha "$dmg_sha" --argjson size "$dmg_size" '
+          jq -e \
+            --arg name "$(basename "$dmg_path")" \
+            --arg sha "$dmg_sha" \
+            --argjson size "$dmg_size" '
             .schema == "opl_public_release_manifest.v1"
             and .package_kind == "opl_full_first_install_macos_arm64"
             and .version == env.VERSION
+            and .release_version == env.VERSION
             and .primary_install_asset == $name
             and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
             and .evidence.gatekeeper_launch_policy.schema == "opl_gatekeeper_launch_policy.v1"
@@ -659,10 +659,10 @@ jobs:
           xcrun stapler validate "$dmg_path"
           spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg_path"
           spctl --assess --type execute --verbose=4 "$app_path"
-          node - "$BUNDLE_DIGEST" "$VERSION" "$APP_SHA" "$SHELL_SHA" "$FRAMEWORK_SHA" "$dmg_path" "$manifest_path" <<'NODE' > hosted-full-core-qualification.json
+          node - "$VERSION" "$dmg_path" "$manifest_path" <<'NODE' > hosted-full-core-qualification.json
           const crypto = require('node:crypto');
           const fs = require('node:fs');
-          const [bundleDigest, version, appSha, shellSha, frameworkSha, dmgPath, manifestPath] = process.argv.slice(2);
+          const [version, dmgPath, manifestPath] = process.argv.slice(2);
           const sha256 = (value) => `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;
           const stat = fs.statSync(dmgPath);
           process.stdout.write(`${JSON.stringify({
@@ -674,7 +674,7 @@ jobs:
               run_id: process.env.GITHUB_RUN_ID,
               run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
             },
-            release: { bundle_digest: bundleDigest, version },
+            release: { version },
             subject: {
               asset_name: require('node:path').basename(dmgPath),
               size_bytes: stat.size,
@@ -684,7 +684,6 @@ jobs:
               asset_name: 'opl-release-manifest.json',
               sha256: sha256(fs.readFileSync(manifestPath)),
             },
-            cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
             verification: {
               dmg_verified: true,
               read_only_mount: true,

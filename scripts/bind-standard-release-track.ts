@@ -176,7 +176,7 @@ export function bindStandardReleaseTrack(input: {
   if (component.status !== 0) {
     throw new Error(component.stderr.trim() || component.stdout.trim() || 'Component manifest binding failed.');
   }
-  const componentManifest = JSON.parse(
+  const boundComponentManifest = JSON.parse(
     fs.readFileSync(path.resolve(input.componentManifestOutput), 'utf8'),
   );
 
@@ -196,9 +196,9 @@ export function bindStandardReleaseTrack(input: {
       bundle_digest: input.bundleDigest,
     },
     product_semantics: {
-      quality_status: componentManifest.quality_status,
-      build_trigger: componentManifest.build_trigger,
-      preview_kind: componentManifest.preview_kind,
+      quality_status: boundComponentManifest.quality_status,
+      build_trigger: boundComponentManifest.build_trigger,
+      preview_kind: boundComponentManifest.preview_kind,
       distribution_pointer: {
         pointer: 'latest',
         latest_override_requested: input.latestOverrideRequested === true,
@@ -210,7 +210,7 @@ export function bindStandardReleaseTrack(input: {
         quality_unchanged: true,
         stable_reclaim: 'next_qualified_stable',
       },
-      qualification_disclosure: componentManifest.qualification_disclosure,
+      qualification_disclosure: boundComponentManifest.qualification_disclosure,
     },
     cohort: {
       app_sha: input.appSha,

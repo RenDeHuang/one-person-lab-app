@@ -41,7 +41,6 @@ function hostedFullQualification(overrides: Record<string, unknown> = {}) {
       run_attempt: 1,
     },
     release: {
-      bundle_digest: hostedFullBundle.bundle_digest,
       version: hostedFullBundle.release.version,
     },
     subject: {
@@ -52,11 +51,6 @@ function hostedFullQualification(overrides: Record<string, unknown> = {}) {
     manifest: {
       asset_name: 'opl-release-manifest.json',
       sha256: `sha256:${'f'.repeat(64)}`,
-    },
-    cohort: {
-      app_sha: hostedFullBundle.sources.app.source_commit,
-      shell_sha: hostedFullBundle.sources.shell.source_commit,
-      framework_sha: hostedFullBundle.sources.framework.source_commit,
     },
     verification: {
       dmg_verified: true,
@@ -80,15 +74,23 @@ function runHostedFullQualification(bundle: unknown, qualification: unknown) {
   const outputPath = path.join(root, 'output.json');
   fs.writeFileSync(bundlePath, `${JSON.stringify(bundle)}\n`);
   fs.writeFileSync(qualificationPath, `${JSON.stringify(qualification)}\n`);
-  const result = spawnSync(process.execPath, [
-    '--experimental-strip-types',
-    'scripts/framework-release-adapter.ts',
-    'qualification-receipt',
-    '--bundle', bundlePath,
-    '--track', 'full',
-    '--hosted-core-qualification', qualificationPath,
-    '--output', outputPath,
-  ], { cwd: process.cwd(), encoding: 'utf8' });
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      'scripts/framework-release-adapter.ts',
+      'qualification-receipt',
+      '--bundle',
+      bundlePath,
+      '--track',
+      'full',
+      '--hosted-core-qualification',
+      qualificationPath,
+      '--output',
+      outputPath,
+    ],
+    { cwd: process.cwd(), encoding: 'utf8' },
+  );
   return {
     result,
     output: result.status === 0 ? JSON.parse(fs.readFileSync(outputPath, 'utf8')) : null,
@@ -101,11 +103,19 @@ test('missing Full add-on asset is scheduled for additive upload', () => {
 });
 
 test('same Full add-on name and digest is reused idempotently', () => {
-  assert.deepEqual(planFullAddonUpload([local], [{
-    name: local.name,
-    size: local.size,
-    digest: `sha256:${local.sha256}`,
-  }]), [{ ...local, action: 'reuse' }]);
+  assert.deepEqual(
+    planFullAddonUpload(
+      [local],
+      [
+        {
+          name: local.name,
+          size: local.size,
+          digest: `sha256:${local.sha256}`,
+        },
+      ],
+    ),
+    [{ ...local, action: 'reuse' }],
+  );
 });
 
 test('same Full add-on name with different bytes requires a new version', () => {
@@ -116,12 +126,11 @@ test('same Full add-on name with different bytes requires a new version', () => 
 });
 
 test('retired direct Full add-on publisher fails closed before parsing caller inputs', () => {
-  const result = spawnSync(process.execPath, [
-    '--experimental-strip-types',
-    'scripts/publish-full-addon.ts',
-    '--version',
-    '26.7.21',
-  ], { cwd: process.cwd(), encoding: 'utf8' });
+  const result = spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', 'scripts/publish-full-addon.ts', '--version', '26.7.21'],
+    { cwd: process.cwd(), encoding: 'utf8' },
+  );
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
   const receipt = JSON.parse(result.stdout);
@@ -131,7 +140,7 @@ test('retired direct Full add-on publisher fails closed before parsing caller in
   assert.equal(receipt.mutation_authorized, false);
 });
 
-test('hosted Full qualification binds the exact Bundle and fails closed on digest or cohort drift', (t) => {
+test('hosted Full qualification binds the Full artifact without requiring cross-component identity', (t) => {
   const valid = runHostedFullQualification(hostedFullBundle, hostedFullQualification());
   t.after(() => fs.rmSync(valid.root, { recursive: true, force: true }));
   assert.equal(valid.result.status, 0, valid.result.stderr || valid.result.stdout);
@@ -148,15 +157,32 @@ test('hosted Full qualification binds the exact Bundle and fails closed on diges
     package_compatibility: { abi: 'opl_packages.v1', version_range: '>=0.1.0 <1.0.0' },
   });
 
-  const mismatches = [
+  const independentProvenance = runHostedFullQualification(
+    hostedFullBundle,
     hostedFullQualification({
-      release: { bundle_digest: `sha256:${'0'.repeat(64)}`, version: hostedFullBundle.release.version },
-    }),
-    hostedFullQualification({
+      release: { version: hostedFullBundle.release.version },
       cohort: {
         app_sha: '0'.repeat(40),
-        shell_sha: hostedFullBundle.sources.shell.source_commit,
-        framework_sha: hostedFullBundle.sources.framework.source_commit,
+        shell_sha: '1'.repeat(40),
+        framework_sha: '2'.repeat(40),
+      },
+    }),
+  );
+  t.after(() => fs.rmSync(independentProvenance.root, { recursive: true, force: true }));
+  assert.equal(
+    independentProvenance.result.status,
+    0,
+    independentProvenance.result.stderr || independentProvenance.result.stdout,
+  );
+
+  const mismatches = [
+    hostedFullQualification({
+      release: { version: '26.7.19' },
+    }),
+    hostedFullQualification({
+      verification: {
+        ...hostedFullQualification().verification,
+        gatekeeper: false,
       },
     }),
   ];
@@ -166,7 +192,7 @@ test('hosted Full qualification binds the exact Bundle and fails closed on diges
     assert.notEqual(rejected.result.status, 0);
     assert.match(
       rejected.result.stderr,
-      /Hosted Full core qualification does not bind the exact Bundle, artifact, cohort, and macOS trust evidence/,
+      /Hosted Full core qualification does not bind the exact Full artifact and macOS trust evidence/,
     );
   }
 });
