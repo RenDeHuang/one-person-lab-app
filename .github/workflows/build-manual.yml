@@ -241,6 +241,7 @@ jobs:
         id: publish
         env:
           GH_TOKEN: ${{ github.token }}
+          WINDOWS_PREVIEW_RELEASE_TOKEN: ${{ secrets.OPL_WINDOWS_PREVIEW_RELEASE_TOKEN }}
           PUBLICATION_MODE: ${{ needs.prepare-matrix.outputs.publication_mode }}
           APP_REF: ${{ needs.prepare-matrix.outputs.app_ref }}
           SHELL_REF: ${{ inputs.shell_ref }}
@@ -261,6 +262,18 @@ jobs:
           [[ "$SHELL_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          case "$PUBLICATION_MODE" in
+            windows_preview_rc)
+              test -n "$WINDOWS_PREVIEW_RELEASE_TOKEN" || {
+                echo '::error::Windows Preview publication requires the release-preview owner token with contents and workflows write permission.'
+                exit 1
+              }
+              export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"
+              ;;
+            stable_optional_follower)
+              test -z "$WINDOWS_PREVIEW_RELEASE_TOKEN"
+              ;;
+          esac
           mkdir -p optional-publication-evidence
           printf '0\n' > optional-publication-evidence/mutation-attempt-count.txt
           printf 'publication_admission\n' > optional-publication-evidence/failure-stage.txt
