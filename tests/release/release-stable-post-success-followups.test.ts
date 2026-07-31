@@ -125,6 +125,10 @@ test("Stable success has one independent Full append successor trigger", () => {
     workflow.jobs["publish-optional-platforms"].with.platform_policy,
     "stable_optional",
   );
+  assert.equal(
+    workflow.jobs["publish-optional-platforms"].with.opl_updater_version,
+    "${{ needs.admit.outputs.updater_version }}",
+  );
   assert.deepEqual(workflow.jobs.receipt.needs, ["admit", "dispatch"]);
   assert.equal(
     workflow.jobs.receipt.if,
@@ -155,6 +159,8 @@ test("admission binds the Standard source run and exact checkpoint without makin
   assert.match(source, /\.sources\.app\.source_commit == \$head/);
   assert.match(source, /\.source_cohort == \{app_sha:\$head,shell_sha:\$shell,framework_sha:\$framework\}/);
   assert.match(source, /\.version == \$version/);
+  assert.match(source, /\.updater_version == \$updater/);
+  assert.match(source, /updater_version="\$\(jq -er \.release\.updater_version/);
   assert.match(source, /\.release_tag == \$tag/);
   assert.match(source, /all\(\.artifacts\[\];/);
   assert.match(

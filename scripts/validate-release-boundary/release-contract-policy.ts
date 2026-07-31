@@ -1870,15 +1870,20 @@ export function validateReleasePlatformMatrix(
       failures += 1;
     }
   }
+  if (
+    capabilities['windows-x64'].stable_allowed !== true
+    || !capabilities['windows-x64'].quality_channels.includes('stable_optional')
+    || capabilities['windows-arm64'].stable_allowed !== false
+  ) {
+    console.error('FAIL release_platform_matrix: Windows x64 must be Stable-optional while Windows arm64 remains Preview/RC-only');
+    failures += 1;
+  }
   for (const id of windowsCapabilityIds) {
     if (
-      capabilities[id].stable_allowed !== false
-      || (
-        profile !== 'stable'
-        && !capabilities[id].quality_channels.includes('preview_rc')
-      )
+      profile !== 'stable'
+      && !capabilities[id].quality_channels.includes('preview_rc')
     ) {
-      console.error(`FAIL release_platform_matrix: ${id} must remain Preview/RC-only`);
+      console.error(`FAIL release_platform_matrix: ${id} must retain Preview/RC capability`);
       failures += 1;
     }
   }
@@ -1886,7 +1891,7 @@ export function validateReleasePlatformMatrix(
   const policyAssertions: Array<[string, string[], boolean, boolean]> = [
     ['stable_required', ['macos-arm64', 'linux-x64'], true, true],
     ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
-    ['stable_optional', ['macos-x64', 'macos-universal', 'linux-arm64'], false, false],
+    ['stable_optional', ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64'], false, false],
     ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
   ].filter(([name]) => (
     profile === 'aggregate'
@@ -1910,6 +1915,24 @@ export function validateReleasePlatformMatrix(
   }
   if (
     policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
+      'scripts/validate-windows-updater-assets.ts'
+    || !sameStringSet(
+      matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.required_assets,
+      [
+        'One-Person-Lab-<display-version>-win-x64.exe',
+        'One-Person-Lab-<display-version>-win-x64.exe.blockmap',
+        'latest.yml',
+        'opl-windows-updater-assets.json',
+        'opl-windows-authenticode-receipt.json',
+      ],
+    )
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== true
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_gate !==
+      'Get-AuthenticodeSignature_status_valid_with_timestamp_countersignature_and_exact_installer_digest'
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
+      'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false
     || releaseContract.release_platform_matrix?.validation_ownership?.stable?.excluded_profile !==
       'windows-preview'
     || (

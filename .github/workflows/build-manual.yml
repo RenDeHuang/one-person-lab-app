@@ -35,6 +35,10 @@ on:
         description: Exact completed Standard display version.
         required: true
         type: string
+      opl_updater_version:
+        description: Exact completed Standard machine updater SemVer.
+        required: true
+        type: string
       source_run_id:
         description: Exact completed Standard source run.
         required: true
@@ -140,6 +144,7 @@ jobs:
             [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]
             [[ '${{ inputs.source_run_id }}' =~ ^[1-9][0-9]*$ ]]
             [[ '${{ inputs.source_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ '${{ inputs.opl_updater_version }}' =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
             jq -e 'type == "array"' <<< '${{ inputs.platform_ids }}' >/dev/null
             node --experimental-strip-types scripts/resolve-release-platform-matrix.ts \
               --policy stable_optional \
@@ -202,6 +207,9 @@ jobs:
       append_commit_hash: true
       upload_installers_only: true
       opl_release_version: ${{ inputs.opl_release_version }}
+      opl_updater_version: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
+      require_windows_updater_assets: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
+      require_windows_authenticode: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
     secrets: inherit
@@ -238,6 +246,7 @@ jobs:
           SHELL_REF: ${{ inputs.shell_ref }}
           FRAMEWORK_REF: ${{ inputs.framework_ref }}
           VERSION: ${{ inputs.opl_release_version }}
+          UPDATER_VERSION: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           SOURCE_BUNDLE_DIGEST: ${{ inputs.source_bundle_digest }}
           PLATFORM_IDS: ${{ needs.prepare-matrix.outputs.platform_ids }}
@@ -326,6 +335,24 @@ jobs:
           latest_before="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
 
           printf 'asset_inventory\n' > optional-publication-evidence/failure-stage.txt
+          windows_updater_selected="$(jq -r 'index("windows-x64") != null' <<<"$PLATFORM_IDS")"
+          if [ "$PUBLICATION_MODE" = stable_optional_follower ] && [ "$windows_updater_selected" = true ]; then
+            node --experimental-strip-types scripts/validate-windows-updater-assets.ts \
+              --artifact-dir selected-platform-assets \
+              --release-version "$VERSION" \
+              --updater-version "$UPDATER_VERSION" \
+              --authenticode-receipt selected-platform-assets/opl-windows-authenticode-receipt.json \
+              --output selected-platform-assets/opl-windows-updater-assets.json \
+              > optional-publication-evidence/windows-updater-validation.json
+          else
+            test -z "$(find selected-platform-assets -maxdepth 1 -type f \
+              \( -name 'latest.yml' -o -name '*.exe.blockmap' -o -name 'opl-windows-updater-assets.json' \
+                 -o -name 'opl-windows-authenticode-receipt.json' \) \
+              -print -quit)" || {
+                echo '::error::Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build.'
+                exit 1
+              }
+          fi
           asset_paths=()
           while IFS= read -r file_path; do asset_paths+=("$file_path"); done < <(
             find selected-platform-assets -type f \
@@ -333,6 +360,22 @@ jobs:
                  -o -name 'download-windows-preview.ps1' -o -name 'SHA256SUMS.txt' \) \
               -print | LC_ALL=C sort
           )
+          if [ "$PUBLICATION_MODE" = stable_optional_follower ] && [ "$windows_updater_selected" = true ]; then
+            for updater_name in latest.yml opl-windows-updater-assets.json opl-windows-authenticode-receipt.json; do
+              updater_paths=()
+              while IFS= read -r file_path; do updater_paths+=("$file_path"); done < <(
+                find selected-platform-assets -maxdepth 1 -type f -name "$updater_name" -print
+              )
+              test "${#updater_paths[@]}" = 1
+              asset_paths+=("${updater_paths[0]}")
+            done
+            blockmap_paths=()
+            while IFS= read -r file_path; do blockmap_paths+=("$file_path"); done < <(
+              find selected-platform-assets -maxdepth 1 -type f -name '*.exe.blockmap' -print
+            )
+            test "${#blockmap_paths[@]}" = 1
+            asset_paths+=("${blockmap_paths[0]}")
+          fi
           test "${#asset_paths[@]}" -gt 0
           jq -n '[]' > optional-publication-evidence/assets.json
           for asset_path in "${asset_paths[@]}"; do
@@ -357,6 +400,7 @@ jobs:
             --arg base_tag "$base_tag" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
+            --arg display_version "$VERSION" --arg updater_version "$UPDATER_VERSION" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
             --argjson platforms "$PLATFORM_IDS" \
             --argjson assets "$(jq 'map(del(.source_path))' optional-publication-evidence/assets.json)" '
@@ -365,6 +409,7 @@ jobs:
                 kind:$kind,
                 source:{run_id:$source_run_id,bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)},
                 base_release_tag:(if $base_tag == "" then null else $base_tag end),
+                release_identity:{display_version:$display_version,updater_version:$updater_version},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
                 platforms:$platforms,
                 assets:$assets,
@@ -385,6 +430,7 @@ jobs:
             --arg base_tag "$base_tag" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
+            --arg display_version "$VERSION" --arg updater_version "$UPDATER_VERSION" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
             --argjson platforms "$PLATFORM_IDS" '
               .schema == "opl_app_immutable_platform_adjunct_manifest.v1"
@@ -392,6 +438,7 @@ jobs:
               and .source.run_id == $source_run_id
               and .source.bundle_digest == (if $bundle_digest == "" then null else $bundle_digest end)
               and .base_release_tag == (if $base_tag == "" then null else $base_tag end)
+              and .release_identity == {display_version:$display_version,updater_version:$updater_version}
               and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
               and .platforms == $platforms
               and (.assets | type == "array" and length > 0)
@@ -660,6 +707,7 @@ jobs:
             --arg base_tag "$base_tag" --arg tag "$tag" --arg release_url "$release_url" \
             --arg download_base "$download_base" --arg manifest_name "$manifest_name" \
             --arg manifest_digest "$manifest_digest" \
+            --arg display_version "$VERSION" --arg updater_version "$UPDATER_VERSION" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
             --arg latest_before "$latest_before" --arg latest_after "$latest_after" \
@@ -672,6 +720,7 @@ jobs:
                 operation_id:$operation_id,
                 mode:$mode,
                 source:{run_id:$source_run_id,bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)},
+                release_identity:{display_version:$display_version,updater_version:$updater_version},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
                 publication_control:{
                   immutable_release_capability_evidence_digest:(

@@ -391,6 +391,14 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.on.workflow_dispatch.inputs.immutable_release_capability_evidence.type, 'string');
   assert.equal(manual.jobs['build-pipeline'].with.shell_ref, '${{ inputs.shell_ref }}');
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
+  assert.equal(
+    manual.jobs['build-pipeline'].with.require_windows_updater_assets,
+    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+  );
+  assert.equal(
+    manual.jobs['build-pipeline'].with.require_windows_authenticode,
+    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+  );
   assert.match(manualText, /resolve-release-platform-matrix\.ts/);
   const windows = resolveReleasePlatformMatrix({ policy: 'windows_preview' }).include;
   assert.deepEqual(windows.map((row) => row.platform), ['windows-x64', 'windows-arm64']);
@@ -428,6 +436,11 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
     publishRun,
     /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/,
   );
+  assert.match(
+    publishRun,
+    /Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build/,
+  );
+  assert.match(publishRun, /opl-windows-authenticode-receipt\.json/);
   assert.equal(
     publish.steps.find(
       (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
