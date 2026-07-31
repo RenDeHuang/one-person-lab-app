@@ -7,10 +7,7 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
 import { appRoot } from './app-release-boundary-cases/helpers.ts';
-import {
-  bindWindowsRcFrameworkManifest,
-  isMainModule,
-} from '../../scripts/bind-windows-rc-framework-manifest.ts';
+import { bindWindowsRcFrameworkManifest, isMainModule } from '../../scripts/bind-windows-rc-framework-manifest.ts';
 import { resolveReleasePlatformMatrix } from '../../scripts/resolve-release-platform-matrix.ts';
 import { writeSha256Sums } from '../../scripts/write-sha256-sums.ts';
 import { buildWindowsRcBuildCohort } from '../../scripts/write-windows-rc-build-cohort.ts';
@@ -28,12 +25,7 @@ function fixture(t: test.TestContext) {
   const packagedTree = path.join(out, 'win-unpacked');
   const runtimeRoot = path.join(packagedTree, 'resources', 'bundled-aioncore', 'linux-x64');
   const managedResourcesRoot = path.join(runtimeRoot, 'managed-resources');
-  const nodeRoot = path.join(
-    managedResourcesRoot,
-    'node',
-    'node-v24.11.0-linux-x64',
-    'bin',
-  );
+  const nodeRoot = path.join(managedResourcesRoot, 'node', 'node-v24.11.0-linux-x64', 'bin');
   const codexRoot = path.join(
     managedResourcesRoot,
     'cli',
@@ -161,10 +153,7 @@ test('Windows RC cohort rejects retired or malformed managed resource manifests'
   writeManagedManifest(retired, {
     acpTools: [{ slug: 'codex-acp', version: '1.1.2' }],
   });
-  assert.throws(
-    () => buildCohort(retired),
-    /must not retain retired acpTools/,
-  );
+  assert.throws(() => buildCohort(retired), /must not retain retired acpTools/);
 
   const oldSchema = fixture(t);
   const oldSchemaManifest = readManagedManifest(oldSchema);
@@ -189,19 +178,13 @@ test('Windows RC cohort rejects retired or malformed managed resource manifests'
   delete rawProducerManifest.schema;
   rawProducerManifest.schemaVersion = 2;
   writeManagedManifest(rawProducer, rawProducerManifest);
-  assert.throws(
-    () => buildCohort(rawProducer),
-    /must use the OPL Codex-only projection schema v1/,
-  );
+  assert.throws(() => buildCohort(rawProducer), /must use the OPL Codex-only projection schema v1/);
 
   const claudeMetadata = fixture(t);
   const claudeMetadataManifest = readManagedManifest(claudeMetadata);
   claudeMetadataManifest.projection.excludedCliNames = [];
   writeManagedManifest(claudeMetadata, claudeMetadataManifest);
-  assert.throws(
-    () => buildCohort(claudeMetadata),
-    /must include only Codex and exclude Claude/,
-  );
+  assert.throws(() => buildCohort(claudeMetadata), /must include only Codex and exclude Claude/);
 });
 
 test('Windows RC cohort rejects every forbidden managed resource path', (t) => {
@@ -215,10 +198,7 @@ test('Windows RC cohort rejects every forbidden managed resource path', (t) => {
 
   for (const relativePath of forbiddenPaths) {
     const input = fixture(t);
-    const forbiddenPath = path.join(
-      path.dirname(input.managedManifest),
-      ...relativePath.split('/'),
-    );
+    const forbiddenPath = path.join(path.dirname(input.managedManifest), ...relativePath.split('/'));
     fs.mkdirSync(path.dirname(forbiddenPath), { recursive: true });
     fs.writeFileSync(forbiddenPath, 'forbidden');
 
@@ -242,10 +222,7 @@ test('Windows RC cohort rejects missing Node or missing and duplicate Codex exec
   const duplicateManifest = readManagedManifest(duplicateCodex);
   duplicateManifest.clis.push({ ...duplicateManifest.clis[0] });
   writeManagedManifest(duplicateCodex, duplicateManifest);
-  assert.throws(
-    () => buildCohort(duplicateCodex),
-    /exactly one Codex CLI, found 2/,
-  );
+  assert.throws(() => buildCohort(duplicateCodex), /exactly one Codex CLI, found 2/);
 });
 
 function buildCohort(input: ReturnType<typeof fixture>) {
@@ -292,29 +269,25 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const manualText = fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8');
   const reusable = parseYaml(reusableText) as any;
   const manual = parseYaml(manualText) as any;
-  const steps = reusable.jobs.build.steps as Array<{ name?: string; if?: string; run?: string; with?: any; env?: any }>;
+  const steps = reusable.jobs.build.steps as Array<{
+    name?: string;
+    if?: string;
+    run?: string;
+    with?: any;
+    env?: any;
+  }>;
   const macCohort = steps.find((step) => step.name === 'Write build artifact cohort manifest');
   const windowsCohort = steps.find((step) => step.name === 'Write Windows RC build artifact cohort manifest');
-  const windowsNativeRebuild = steps.find(
-    (step) => step.name === 'Rebuild native modules for Electron (Windows)',
-  );
+  const windowsNativeRebuild = steps.find((step) => step.name === 'Rebuild native modules for Electron (Windows)');
   const windowsRuntime = reusable.jobs['prepare-windows-linux-runtime'];
   const shellResolver = reusable.jobs['resolve-active-shell-ref'];
-  const windowsRuntimeDownload = steps.find(
-    (step) => step.name === 'Download target-executed Linux runtime',
-  );
+  const windowsRuntimeDownload = steps.find((step) => step.name === 'Download target-executed Linux runtime');
   const preparedRuntimeBinder = windowsRuntime.steps.find(
     (step: { name?: string }) => step.name === 'Bind Windows RC Framework manifest for prepared runtime',
   );
-  const windowsBuilder = steps.find(
-    (step) => step.name === 'Build with electron-builder (Windows)',
-  );
-  const frameworkBinder = steps.find(
-    (step) => step.name === 'Bind Windows RC Framework manifest',
-  );
-  const packagedManifestBinder = steps.find(
-    (step) => step.name === 'Bind packaged Windows RC Framework manifest',
-  );
+  const windowsBuilder = steps.find((step) => step.name === 'Build with electron-builder (Windows)');
+  const frameworkBinder = steps.find((step) => step.name === 'Bind Windows RC Framework manifest');
+  const packagedManifestBinder = steps.find((step) => step.name === 'Bind packaged Windows RC Framework manifest');
   const upload = steps.find((step) => step.name === 'Upload build artifacts');
 
   assert.match(String(macCohort?.if), /startsWith\(matrix\.platform, 'macos'\)/);
@@ -344,7 +317,10 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(windowsNativeRebuild?.run), /Start-Process[\s\S]+prebuild-install/);
   assert.match(String(windowsNativeRebuild?.run), /\$prebuild\.ExitCode -ne 0/);
   assert.match(String(windowsNativeRebuild?.run), /falling back to electron-rebuild/);
-  assert.match(String(windowsNativeRebuild?.run), /\$needsElectronRebuild = \$prebuildFailed -or -not \(Test-Path \$sqliteNode\)/);
+  assert.match(
+    String(windowsNativeRebuild?.run),
+    /\$needsElectronRebuild = \$prebuildFailed -or -not \(Test-Path \$sqliteNode\)/,
+  );
   assert.match(
     String(windowsNativeRebuild?.run),
     /if \(\$needsElectronRebuild\) \{[\s\S]+Remove-Item \$sqliteNode[\s\S]+bunx --yes @electron\/rebuild@4\.2\.0 -f -w better-sqlite3/,
@@ -357,7 +333,10 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
     (step: { name?: string }) => step.name === 'Checkout requested active shell ref',
   );
   assert.equal(resolverCheckout?.with?.ref, "${{ inputs.shell_ref || 'main' }}");
-  assert.match(String(shellResolver.steps.find((step: { id?: string }) => step.id === 'resolve')?.run), /git rev-parse HEAD/);
+  assert.match(
+    String(shellResolver.steps.find((step: { id?: string }) => step.id === 'resolve')?.run),
+    /git rev-parse HEAD/,
+  );
   assert.deepEqual(windowsRuntime.needs, ['resolve-active-shell-ref']);
   assert.equal(
     windowsRuntime.steps.find((step: { name?: string }) => step.name === 'Checkout active shell')?.with?.ref,
@@ -373,14 +352,13 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(String(preparedRuntimeBinder?.run), /--manifest shells\/aionui\/resources\/opl-linux\/product\.json/);
   assert.match(String(preparedRuntimeBinder?.run), /--framework-ref/);
   assert.match(
-    String(windowsRuntime?.steps?.find((step: { name?: string }) =>
-      step.name === 'Prepare target-executed Linux runtime')?.run),
+    String(
+      windowsRuntime?.steps?.find((step: { name?: string }) => step.name === 'Prepare target-executed Linux runtime')
+        ?.run,
+    ),
     /platform: 'linux'[\s\S]+materializeInternalSymlinksForWindows: true/,
   );
-  assert.equal(
-    windowsRuntimeDownload?.with?.name,
-    'opl-windows-linux-runtime-${{ github.run_id }}',
-  );
+  assert.equal(windowsRuntimeDownload?.with?.name, 'opl-windows-linux-runtime-${{ github.run_id }}');
   assert.equal(
     windowsBuilder?.env?.AIONUI_PREPARED_AIONCORE_RUNTIME_DIR,
     '${{ runner.temp }}/opl-windows-linux-runtime',
@@ -400,27 +378,22 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
     "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
   );
   assert.match(manualText, /resolve-release-platform-matrix\.ts/);
-  const windows = resolveReleasePlatformMatrix({ policy: 'windows_preview' }).include;
-  assert.deepEqual(windows.map((row) => row.platform), ['windows-x64', 'windows-arm64']);
+  const windows = resolveReleasePlatformMatrix({
+    policy: 'windows_preview',
+  }).include;
+  assert.deepEqual(
+    windows.map((row) => row.platform),
+    ['windows-x64', 'windows-arm64'],
+  );
   assert.ok(windows.every((row) => row.os === 'windows-2022'));
   assert.deepEqual(
-    resolveReleasePlatformMatrix({ policy: 'manual_all', platform: 'all' }).include.map(
-      (row) => row.platform,
-    ),
-    [
-      'macos-arm64',
-      'macos-x64',
-      'macos-universal',
-      'linux-x64',
-      'linux-arm64',
-      'windows-x64',
-      'windows-arm64',
-    ],
+    resolveReleasePlatformMatrix({
+      policy: 'manual_all',
+      platform: 'all',
+    }).include.map((row) => row.platform),
+    ['macos-arm64', 'macos-x64', 'macos-universal', 'linux-x64', 'linux-arm64', 'windows-x64', 'windows-arm64'],
   );
-  assert.deepEqual(
-    manual.on.workflow_dispatch.inputs.publication_mode.options,
-    ['build_only', 'windows_preview_rc'],
-  );
+  assert.deepEqual(manual.on.workflow_dispatch.inputs.publication_mode.options, ['build_only', 'windows_preview_rc']);
   const publish = manual.jobs['publish-selected-platforms'];
   assert.equal(publish.permissions.contents, 'write');
   assert.equal(publish.permissions.actions, 'read');
@@ -429,33 +402,26 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   );
   assert.equal(publisherCheckout?.with?.ref, '${{ needs.prepare-matrix.outputs.app_ref }}');
   assert.equal(publisherCheckout?.with?.['persist-credentials'], false);
-  const publishRun = String(publish.steps.find(
-    (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
-  )?.run);
+  const publishRun = String(
+    publish.steps.find(
+      (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
+    )?.run,
+  );
   const publishEnv = publish.steps.find(
     (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.env;
   assert.equal(publishEnv?.GH_TOKEN, '${{ github.token }}');
-  assert.equal(
-    publishEnv?.WINDOWS_PREVIEW_RELEASE_TOKEN,
-    '${{ secrets.OPL_WINDOWS_PREVIEW_RELEASE_TOKEN }}',
-  );
+  assert.equal(publishEnv?.WINDOWS_PREVIEW_RELEASE_TOKEN, '${{ secrets.OPL_WINDOWS_PREVIEW_RELEASE_TOKEN }}');
   assert.match(
     publishRun,
     /windows_preview_rc\)[\s\S]*test -n "\$WINDOWS_PREVIEW_RELEASE_TOKEN"[\s\S]*export GH_TOKEN="\$WINDOWS_PREVIEW_RELEASE_TOKEN"/,
   );
-  assert.match(
-    publishRun,
-    /stable_optional_follower\)[\s\S]*test -z "\$WINDOWS_PREVIEW_RELEASE_TOKEN"/,
-  );
+  assert.match(publishRun, /stable_optional_follower\)[\s\S]*test -z "\$WINDOWS_PREVIEW_RELEASE_TOKEN"/);
   assert.ok(
-    publishRun.indexOf('export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"')
-      < publishRun.indexOf('latest_before="$(gh api'),
+    publishRun.indexOf('export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"') <
+      publishRun.indexOf('latest_before="$(gh api'),
   );
-  assert.match(
-    publishRun,
-    /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/,
-  );
+  assert.match(publishRun, /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/);
   assert.match(
     publishRun,
     /Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build/,
@@ -477,25 +443,19 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(publishRun, /opl_app_immutable_platform_adjunct_manifest\.v1/);
   assert.match(publishRun, /immutable_release_capability_evidence_digest/);
   assert.match(publishRun, /fetch_release_including_drafts/);
-  assert.match(
-    publishRun,
-    /gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"[\s\S]*--slurp/,
-  );
+  assert.match(publishRun, /gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"[\s\S]*--slurp/);
   assert.match(publishRun, /\[.\[\]\[\] \| select\(.tag_name == \$tag\)\] \| length/);
   assert.match(publishRun, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/\$release_id"/);
   assert.match(publishRun, /if \[ "\$create_status" -eq 0 \]; then[\s\S]*exit 1/);
   assert.match(publishRun, /if \[ "\$upload_status" -eq 0 \]; then[\s\S]*exit 1/);
   assert.match(publishRun, /if \[ "\$publish_status" -eq 0 \]; then[\s\S]*exit 1/);
-  const failureRun = String(publish.steps.find(
-    (step: { name?: string }) => step.name === 'Persist typed optional publication failure',
-  )?.run);
+  const failureRun = String(
+    publish.steps.find((step: { name?: string }) => step.name === 'Persist typed optional publication failure')?.run,
+  );
   assert.match(failureRun, /failure_stage:\$failure_stage/);
   assert.match(failureRun, /mutation_attempt_count:\$attempts/);
   assert.match(failureRun, /immutable_release_capability_evidence_digest/);
-  assert.ok(
-    publishRun.indexOf('test -s "$manifest_path"')
-      < publishRun.indexOf('printf \'draft_release_creation\\n\''),
-  );
+  assert.ok(publishRun.indexOf('test -s "$manifest_path"') < publishRun.indexOf("printf 'draft_release_creation\\n'"));
   assert.match(publishRun, /prerelease:\$prerelease,make_latest:"false"/);
   assert.match(publishRun, /and \.prerelease == \$prerelease[\s\S]*and \.immutable == true/);
   assert.match(publishRun, /test "\$latest_after" = "\$latest_before"/);
@@ -515,7 +475,10 @@ test('Windows RC Framework binder writes the exact ref and URLs into the package
   const manifestPath = path.join(root, 'product.json');
   fs.writeFileSync(
     manifestPath,
-    JSON.stringify({ logical_distribution: 'OPL-Linux', framework_ref: 'f'.repeat(40) }),
+    JSON.stringify({
+      logical_distribution: 'OPL-Linux',
+      framework_ref: 'f'.repeat(40),
+    }),
   );
 
   const bound = bindWindowsRcFrameworkManifest(manifestPath, frameworkSha);
@@ -529,10 +492,7 @@ test('Windows RC Framework binder writes the exact ref and URLs into the package
     `https://github.com/gaofeng21cn/one-person-lab/archive/${frameworkSha}.tar.gz`,
   );
   assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')), bound);
-  assert.throws(
-    () => bindWindowsRcFrameworkManifest(manifestPath, 'main'),
-    /exact 40-character Git SHA/,
-  );
+  assert.throws(() => bindWindowsRcFrameworkManifest(manifestPath, 'main'), /exact 40-character Git SHA/);
 });
 
 test('Windows RC Framework binder recognizes a Windows file URL entrypoint', () => {
@@ -541,10 +501,7 @@ test('Windows RC Framework binder recognizes a Windows file URL entrypoint', () 
   );
   assert.equal(isMainModule(entry.href, entry), true);
   assert.equal(
-    isMainModule(
-      'file:///D:/a/one-person-lab-app/one-person-lab-app/scripts/another-script.ts',
-      entry,
-    ),
+    isMainModule('file:///D:/a/one-person-lab-app/one-person-lab-app/scripts/another-script.ts', entry),
     false,
   );
 });
@@ -554,9 +511,7 @@ test('Windows RC Preview records exact WSL2-only public release-byte acceptance'
   const execution = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts/app-windows-wsl2-execution.json'), 'utf8'),
   );
-  const install = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'),
-  );
+  const install = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'));
   const target = release.distribution_semantics.approved_targets.windows_x64_rc_preview;
   const routing = install.distribution_install_model.platform_routing.windows_personal;
 
@@ -575,15 +530,29 @@ test('Windows RC Preview records exact WSL2-only public release-byte acceptance'
   assert.equal(target.homebrew_allowed, false);
   assert.equal(target.runtime_execution_substrate, 'dedicated_opl_linux_wsl2');
   assert.equal(target.current_wsl2_only_terminal_claim, true);
-  assert.ok(target.blocking_publication_gates.includes(
-    'wsl2_only_runtime_for_every_codex_backed_path_without_native_fallback',
-  ));
+  assert.ok(
+    target.blocking_publication_gates.includes('wsl2_only_runtime_for_every_codex_backed_path_without_native_fallback'),
+  );
   assert.equal(routing.current_default_runtime_form, 'container_webui');
   assert.equal(routing.desktop_preview_changes_default_route, false);
   assert.equal(routing.wsl2_only_supported_desktop_target_requires_exact_release_acceptance, true);
   assert.equal(execution.release_boundary.mainline_source_absorption_allowed, true);
   assert.equal(execution.release_boundary.existing_stable_latest_dependency_allowed, false);
   assert.equal(execution.release_boundary.existing_stable_latest_gate_allowed, false);
+  assert.equal(execution.provisioning.long_running_progress.heartbeat_interval_seconds, 15);
+  assert.deepEqual(execution.provisioning.long_running_progress.heartbeat_required_states, [
+    'installing_owned_distribution',
+    'initializing_guest',
+    'activating_owner_artifacts',
+  ]);
+  assert.equal(execution.provisioning.long_running_progress.elapsed_time_required, true);
+  assert.equal(execution.provisioning.long_running_progress.localized_activity_required, true);
+  assert.equal(execution.provisioning.long_running_progress.stage_percent_is_exact_completion_percent, false);
+  assert.equal(execution.provisioning.long_running_progress.same_operation_continues_while_heartbeat_advances, true);
+  assert.equal(
+    execution.provisioning.long_running_progress.user_reinstall_guidance_allowed_while_operation_is_active,
+    false,
+  );
   assert.equal(execution.provisioning.guest_network_recovery.ubuntu_software_source_dns_preflight_required, true);
   assert.equal(execution.provisioning.guest_network_recovery.transient_apt_retry_required, true);
   assert.deepEqual(execution.provisioning.guest_network_recovery.persistent_failure_classification_required, [
@@ -603,23 +572,22 @@ test('Windows RC Preview records exact WSL2-only public release-byte acceptance'
 });
 
 test('Windows install guide binds the exact RC assets and preserves credential and SmartScreen boundaries', () => {
-  const manifest = JSON.parse(fs.readFileSync(
-    path.join(
-      appRoot,
-      'docs/delivery/user-guides/windows-app-install/source/windows-app-install.quarto.json',
+  const manifest = JSON.parse(
+    fs.readFileSync(
+      path.join(appRoot, 'docs/delivery/user-guides/windows-app-install/source/windows-app-install.quarto.json'),
+      'utf8',
     ),
-    'utf8',
-  ));
+  );
   const guide = fs.readFileSync(path.join(appRoot, 'docs/guides/windows-app-install/guide.qmd'), 'utf8');
 
   assert.equal(manifest.state, 'active_preview');
   assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.7.30-rc.4-win-x64.exe');
-  assert.equal(
-    manifest.download.installer_sha256,
-    '40a356d70f488e1687c4786e8c41346f6fbb41333a8265c91eedaf975cbeaead',
-  );
+  assert.equal(manifest.download.installer_sha256, '40a356d70f488e1687c4786e8c41346f6fbb41333a8265c91eedaf975cbeaead');
   assert.equal(manifest.download.installer_size_bytes, '329575845');
   assert.match(guide, /首次配置显示 \*\*65%\*\*/);
+  assert.match(guide, /每 15 秒/);
+  assert.match(guide, /已用时/);
+  assert.match(guide, /阶段位置，不是精确的字节完成比例/);
   assert.match(guide, /guest_dns_unavailable/);
   assert.match(guide, /guest_network_unavailable/);
   assert.match(guide, /guest_proxy_unavailable/);
@@ -637,7 +605,8 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   assert.equal(manifest.download.download_helper_size_bytes, '10875');
   assert.equal(manifest.download.download_helper_publication_status, 'published_in_exact_windows_preview_rc');
   assert.match(manifest.download.preview_release_url, /windows-rc-26\.7\.30-rc\.4$/);
-  for (const term of manifest.required_terms) assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const term of manifest.required_terms)
+    assert.match(guide, new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const phrase of manifest.forbidden_phrases) assert.doesNotMatch(guide, new RegExp(phrase));
   assert.match(guide, /密码、token 和 API Key 不应进入 PowerShell/);
   assert.match(guide, /登录只建立 Gateway 账户会话，不会代替第 6 步的模型访问确认/);
@@ -687,9 +656,7 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   const downloader = fs.readFileSync(path.join(appRoot, 'scripts/download-windows-preview.ps1'), 'utf8');
   const build = fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8');
   const publish = fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8');
-  const install = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'),
-  );
+  const install = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'));
   const policy = install.distribution_install_model.platform_routing.windows_personal.preview_download_resilience;
 
   assert.equal(policy.transport, 'windows_bits_persistent_background_transfer');
@@ -718,7 +685,10 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.match(downloader, /\$ReleaseTag -cne \$embeddedReleaseTag/);
   assert.match(downloader, /\$AssetName -cne \$embeddedInstallerAsset/);
   assert.match(downloader, /\$expectedSha256 -cne \$embeddedInstallerSha256/);
-  assert.match(downloader, /\$releaseAssetBaseUrl = "https:\/\/github\.com\/\$repository\/releases\/download\/\$ReleaseTag"/);
+  assert.match(
+    downloader,
+    /\$releaseAssetBaseUrl = "https:\/\/github\.com\/\$repository\/releases\/download\/\$ReleaseTag"/,
+  );
   assert.doesNotMatch(downloader, /api\.github\.com|Invoke-RestMethod|Invoke-WebRequest/);
   assert.match(downloader, /Get-FileHash -LiteralPath \$PathValue -Algorithm SHA256/);
   assert.match(downloader, /Test-InstallerIdentity/);
