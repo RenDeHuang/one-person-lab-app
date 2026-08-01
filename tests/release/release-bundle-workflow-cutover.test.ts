@@ -1017,6 +1017,7 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
 test('every release-bound low-level admission rejects missing, invalid, or permanently rejected identity', () => {
   const digest = `sha256:${'a'.repeat(64)}`;
   const baseInputs = {
+    opl_version: '26.8.1-r5',
     operation_started_at: '2026-07-21T00:00:00.000Z',
     operation_deadline_at: '2099-07-21T00:00:00.000Z',
     release_bundle_digest: digest,
@@ -1028,6 +1029,9 @@ test('every release-bound low-level admission rejects missing, invalid, or perma
     framework_ref: '3'.repeat(40),
     baseline_dmg_sha256: '4'.repeat(64),
     standard_identity_sha256: `sha256:${'5'.repeat(64)}`,
+    target_standard_release_id: '363488678',
+    target_standard_release_tag: 'v26.8.1-r5',
+    target_standard_target_commitish: '6'.repeat(40),
   };
   const gates = [
     {
@@ -1056,7 +1060,15 @@ test('every release-bound low-level admission rejects missing, invalid, or perma
       job: 'full-first-install',
       step: 'Admit one-shot release-bound Full build',
       operation: 'append_full',
-      fields: ['release_bundle_digest', 'artifact_app_sha', 'shell_ref', 'framework_ref'],
+      fields: [
+        'release_bundle_digest',
+        'artifact_app_sha',
+        'shell_ref',
+        'framework_ref',
+        'target_standard_release_id',
+        'target_standard_release_tag',
+        'target_standard_target_commitish',
+      ],
     },
   ] as const;
 
@@ -1858,11 +1870,17 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const finalizer = fullBuild.jobs['full-first-install'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization',
   );
+  const executorCheckout = fullBuild.jobs['full-first-install'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Checkout canonical Full release executor',
+  );
   assert.equal(fullBuild.jobs['full-first-install']['timeout-minutes'], "${{ inputs.operation == 'append_full' && 130 || 90 }}");
+  assert.equal(executorCheckout.if, "${{ inputs.operation == 'append_full' }}");
+  assert.equal(executorCheckout.with.path, 'release-executor');
+  assert.equal(executorCheckout.with.ref, '${{ github.sha }}');
   assert.equal(finalizer.if, '${{ !inputs.cache_only }}');
   assert.match(String(finalizer.run), /Production Full notarization cannot run without strict Developer ID signing/);
   assert.match(String(finalizer.run), /Skipping notarization for development-only non-distributable Full output/);
-  assert.match(String(finalizer.run), /notarize-macos-dmg\.ts/);
+  assert.match(String(finalizer.run), /\$GITHUB_WORKSPACE\/release-executor\/scripts\/notarize-macos-dmg\.ts/);
   assert.match(String(finalizer.run), /full-apple-notarization-receipt\.json/);
   assert.match(String(finalizer.run), /--operation-deadline-at/);
 

@@ -59,6 +59,21 @@ on:
         required: false
         default: ''
         type: string
+      target_standard_release_id:
+        description: Exact immutable Standard Release database ID referenced by this Full adjunct.
+        required: false
+        default: ''
+        type: string
+      target_standard_release_tag:
+        description: Exact immutable Standard Release tag referenced by this Full adjunct.
+        required: false
+        default: ''
+        type: string
+      target_standard_target_commitish:
+        description: Exact immutable Standard Release target commit referenced by this Full adjunct.
+        required: false
+        default: ''
+        type: string
       artifact_app_sha: { description: Frozen artifact App SHA, required: false, default: '', type: string }
       operation: { description: Release operation inherited from the Bundle controller, required: false, default: '', type: string }
       operation_started_at: { description: Immutable outer operation start timestamp, required: false, default: '', type: string }
@@ -124,6 +139,7 @@ jobs:
           exec > >(tee -a "$RUNNER_TEMP/opl-full-admission/stdout.txt") 2> >(tee -a "$RUNNER_TEMP/opl-full-admission/stderr.txt" >&2)
           printf '%s\0' '${{ inputs.operation }}' '${{ inputs.operation_started_at }}' '${{ inputs.operation_deadline_at }}' \
             '${{ inputs.release_bundle_digest }}' '${{ inputs.artifact_app_sha }}' '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' \
+            '${{ inputs.target_standard_release_id }}' '${{ inputs.target_standard_release_tag }}' '${{ inputs.target_standard_target_commitish }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > "$RUNNER_TEMP/opl-full-admission/input-digest.txt"
           input_digest="$(cat "$RUNNER_TEMP/opl-full-admission/input-digest.txt")"
           status=passed
@@ -140,6 +156,9 @@ jobs:
           if [ "$status" = passed ] && ! [[ '${{ inputs.artifact_app_sha }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=app_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=shell_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=framework_sha_invalid; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.target_standard_release_id }}' =~ ^[1-9][0-9]*$ ]]; then status=failed; reason=standard_release_id_invalid; fi
+          if [ "$status" = passed ] && [ '${{ inputs.target_standard_release_tag }}' != "v${{ inputs.opl_version }}" ]; then status=failed; reason=standard_release_tag_invalid; fi
+          if [ "$status" = passed ] && ! [[ '${{ inputs.target_standard_target_commitish }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=standard_release_target_invalid; fi
           jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' --arg input_digest "$input_digest" \
             '{schema:"opl_release_nested_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,input_digest:$input_digest,evidence:{stdout:"stdout.txt",stderr:"stderr.txt"},run_id:env.GITHUB_RUN_ID,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
             > "$RUNNER_TEMP/opl-full-admission/admission.json"
@@ -195,6 +214,13 @@ jobs:
           path: one-person-lab-app
           ref: ${{ inputs.artifact_app_sha || github.sha }}
 
+      - name: Checkout canonical Full release executor
+        if: ${{ inputs.operation == 'append_full' }}
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: release-executor
+          ref: ${{ github.sha }}
+
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
@@ -219,6 +245,12 @@ jobs:
           [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
           [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
           test '${{ inputs.release_cohort_ref }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::release_cohort_ref must equal the Bundle digest."; exit 1; }
+          [[ '${{ inputs.target_standard_release_id }}' =~ ^[1-9][0-9]*$ ]] || { echo "::error::target_standard_release_id must be an exact positive GitHub Release ID."; exit 1; }
+          test '${{ inputs.target_standard_release_tag }}' = "v${{ inputs.opl_version }}" || { echo "::error::target_standard_release_tag must bind the Full carrier version."; exit 1; }
+          [[ '${{ inputs.target_standard_target_commitish }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::target_standard_target_commitish must be an exact lowercase SHA."; exit 1; }
+          test "$(git -C "$GITHUB_WORKSPACE/release-executor" rev-parse HEAD)" = "$GITHUB_SHA" || { echo "::error::Full release executor checkout is not the active canonical workflow SHA."; exit 1; }
+          test -f "$GITHUB_WORKSPACE/release-executor/scripts/notarize-macos-dmg.ts"
+          test ! -L "$GITHUB_WORKSPACE/release-executor/scripts/notarize-macos-dmg.ts"
 
       - name: Enforce cache-only warmup boundary
         if: ${{ inputs.cache_only }}
@@ -1001,7 +1033,7 @@ jobs:
             echo "::notice::Skipping notarization for development-only non-distributable Full output."
             exit 0
           fi
-          node --experimental-strip-types scripts/notarize-macos-dmg.ts \
+          node --experimental-strip-types "$GITHUB_WORKSPACE/release-executor/scripts/notarize-macos-dmg.ts" \
             --dmg "dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg" \
             --output dist/opl-full-release/full-apple-notarization-receipt.json \
             --operation-deadline-at '${{ inputs.operation_deadline_at }}'
@@ -1104,13 +1136,23 @@ jobs:
               --runtime-native-trust one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json \
               --output one-person-lab-app/dist/opl-full-release/full-local-authorization-policy.json
           fi
-          node - "$OPL_RELEASE_VERSION" "$dmg_path" one-person-lab-app/dist/opl-full-release <<'NODE'
+          node - "$OPL_RELEASE_VERSION" "$dmg_path" one-person-lab-app/dist/opl-full-release \
+            '${{ inputs.target_standard_release_id }}' '${{ inputs.target_standard_release_tag }}' \
+            '${{ inputs.target_standard_target_commitish }}' '${{ github.sha }}' \
+            '${{ inputs.artifact_app_sha }}' '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' <<'NODE'
           const fs = require('node:fs');
           const path = require('node:path');
           const crypto = require('node:crypto');
           const version = process.argv[2];
           const dmgPath = process.argv[3];
           const outDir = process.argv[4];
+          const targetStandardReleaseId = Number(process.argv[5]);
+          const targetStandardReleaseTag = process.argv[6];
+          const targetStandardTargetCommitish = process.argv[7];
+          const releaseExecutorAppSha = process.argv[8];
+          const fullContentAppSha = process.argv[9];
+          const fullContentShellSha = process.argv[10];
+          const fullContentFrameworkSha = process.argv[11];
           const readJson = (name) => JSON.parse(fs.readFileSync(path.join(outDir, name), 'utf8'));
           const fullDmgName = path.basename(dmgPath);
           const releaseManifest = {
@@ -1120,6 +1162,31 @@ jobs:
             version,
             release_version: version,
             primary_install_asset: fullDmgName,
+            carrier_context: {
+              publication_model: 'independent_immutable_adjunct_linked_to_existing_standard',
+              target_standard_release: {
+                repository: 'gaofeng21cn/one-person-lab-app',
+                release_id: targetStandardReleaseId,
+                tag: targetStandardReleaseTag,
+                target_commitish: targetStandardTargetCommitish,
+                mutation_allowed: false,
+              },
+              release_executor: {
+                app_sha: releaseExecutorAppSha,
+                notarizer_path: 'scripts/notarize-macos-dmg.ts',
+              },
+              full_content_sources: {
+                role: 'observational_build_provenance_only',
+                may_gate_install_or_runtime: false,
+                app_sha: fullContentAppSha,
+                shell_sha: fullContentShellSha,
+                framework_sha: fullContentFrameworkSha,
+              },
+              differences: {
+                executor_app_differs_from_full_content_app: releaseExecutorAppSha !== fullContentAppSha,
+                full_content_app_differs_from_target_standard: fullContentAppSha !== targetStandardTargetCommitish,
+              },
+            },
             assets: [
               {
                 name: fullDmgName,

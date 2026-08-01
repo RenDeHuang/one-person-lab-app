@@ -206,6 +206,11 @@ function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
   const manifest = JSON.parse(manifestBytes.toString('utf8')) as JsonRecord;
   const version = String(manifest.release_version ?? '');
   const dmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
+  const carrierContext = manifest.carrier_context as JsonRecord | undefined;
+  const targetStandard = carrierContext?.target_standard_release as JsonRecord | undefined;
+  const releaseExecutor = carrierContext?.release_executor as JsonRecord | undefined;
+  const fullContentSources = carrierContext?.full_content_sources as JsonRecord | undefined;
+  const differences = carrierContext?.differences as JsonRecord | undefined;
   const manifestAssets = Array.isArray(manifest.assets) ? manifest.assets : [];
   const manifestDmgAssets = manifestAssets.filter((asset: JsonRecord) => asset?.name === dmgName);
   const uploadDmgActions = uploadActions.filter((action) => action.name === dmgName);
@@ -216,6 +221,23 @@ function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
     || manifest.version !== version
     || !/^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$/.test(version)
     || manifest.primary_install_asset !== dmgName
+    || carrierContext?.publication_model !== 'independent_immutable_adjunct_linked_to_existing_standard'
+    || !Number.isSafeInteger(targetStandard?.release_id)
+    || Number(targetStandard?.release_id) <= 0
+    || targetStandard?.tag !== `v${version}`
+    || !/^[0-9a-f]{40}$/.test(String(targetStandard?.target_commitish ?? ''))
+    || targetStandard?.mutation_allowed !== false
+    || !/^[0-9a-f]{40}$/.test(String(releaseExecutor?.app_sha ?? ''))
+    || releaseExecutor?.notarizer_path !== 'scripts/notarize-macos-dmg.ts'
+    || fullContentSources?.role !== 'observational_build_provenance_only'
+    || fullContentSources?.may_gate_install_or_runtime !== false
+    || !/^[0-9a-f]{40}$/.test(String(fullContentSources?.app_sha ?? ''))
+    || !/^[0-9a-f]{40}$/.test(String(fullContentSources?.shell_sha ?? ''))
+    || !/^[0-9a-f]{40}$/.test(String(fullContentSources?.framework_sha ?? ''))
+    || differences?.executor_app_differs_from_full_content_app
+      !== (releaseExecutor?.app_sha !== fullContentSources?.app_sha)
+    || differences?.full_content_app_differs_from_target_standard
+      !== (fullContentSources?.app_sha !== targetStandard?.target_commitish)
     || manifestDmgAssets.length !== 1
     || uploadDmgActions.length !== 1
   ) {
@@ -234,6 +256,7 @@ function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
   }
   return {
     version,
+    carrier_context: carrierContext,
     manifest: {
       name: 'opl-release-manifest.json',
       sha256: manifestSha256,
@@ -260,6 +283,17 @@ export function fullAdjunctReleaseIdentity(
   }
   const manifestSha256 = String(releaseIdentity.manifest.sha256);
   const version = String(releaseIdentity.version);
+  const carrierContext = releaseIdentity.carrier_context as JsonRecord;
+  const targetStandard = carrierContext.target_standard_release as JsonRecord;
+  const releaseExecutor = carrierContext.release_executor as JsonRecord;
+  const fullContentSources = carrierContext.full_content_sources as JsonRecord;
+  const differences = carrierContext.differences as JsonRecord;
+  if (
+    targetStandard.repository !== repository
+    || targetStandard.tag !== bundle.release?.tag
+  ) {
+    throw new Error('Full adjunct target Standard reference does not match the exact App repository and Bundle tag.');
+  }
   const tag = `v${version}-full-${manifestSha256.slice('sha256:'.length, 'sha256:'.length + 12)}`;
   const notes = [
     `# One Person Lab Full ${version} macOS carrier`,
@@ -267,6 +301,10 @@ export function fullAdjunctReleaseIdentity(
     'This immutable Release carries one independently versioned Full macOS first-install artifact.',
     `Full manifest digest: ${manifestSha256}`,
     `Full DMG digest: ${releaseIdentity.artifact.sha256}`,
+    `Target Standard reference: ${targetStandard.tag} (Release ID ${targetStandard.release_id}, target ${targetStandard.target_commitish}; assets not modified)`,
+    `Full content sources: App ${fullContentSources.app_sha}, Shell ${fullContentSources.shell_sha}, Framework ${fullContentSources.framework_sha}`,
+    `Release executor App source: ${releaseExecutor.app_sha}`,
+    `Source differences: executor_vs_content_app=${differences.executor_app_differs_from_full_content_app}; content_app_vs_target_standard=${differences.full_content_app_differs_from_target_standard}`,
     '',
     'Download the Full DMG and its manifest from this Release. Standard assets and the GitHub Latest pointer are not modified.',
   ].join('\n');
@@ -280,6 +318,10 @@ export function fullAdjunctReleaseIdentity(
     release_version: version,
     manifest: releaseIdentity.manifest,
     artifact: releaseIdentity.artifact,
+    target_standard_release: targetStandard,
+    release_executor: releaseExecutor,
+    full_content_sources: fullContentSources,
+    source_differences: differences,
   };
 }
 

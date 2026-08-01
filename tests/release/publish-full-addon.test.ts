@@ -197,7 +197,7 @@ test('hosted Full qualification binds the Full artifact without requiring cross-
   }
 });
 
-test('Full add-on workflow cannot overwrite release state or existing assets', () => {
+test('Full add-on links an exact immutable Standard reference without overwriting its assets', () => {
   const stableWorkflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/release-stable.yml'), 'utf8');
   const workflow = fs.readFileSync(path.join(process.cwd(), '.github/workflows/_release-full-addon.yml'), 'utf8');
   const publisher = fs.readFileSync(path.join(process.cwd(), 'scripts/publish-full-addon.ts'), 'utf8');
@@ -221,12 +221,15 @@ test('Full add-on workflow cannot overwrite release state or existing assets', (
   assert.match(full, /Publish exact Full bytes as an immutable adjunct/);
   assert.match(full, /full_manifest_sha_hex=.*shasum -a 256/);
   assert.match(full, /adjunct_tag="v\$\{full_version\}-full-\$\{full_manifest_sha_hex:0:12\}"/);
+  assert.match(workflow, /Bind checkpoint build provenance and exact Standard reference/);
+  assert.match(workflow, /target_standard_release_id=\$\(jq -r \.id target-standard-release\.json\)/);
+  assert.match(full, /target-standard-release-before-publish\.json/);
+  assert.match(full, /\.carrier_context\.target_standard_release\.release_id == \$release_id/);
   assert.match(
     full,
-    /carrier:\{kind:"immutable_adjunct_release",versioning:"independent",adjunct_tag:\$adjunct_tag,manifest_sha256:\$manifest_sha\}/,
+    /carrier:\{kind:"immutable_adjunct_release",versioning:"independent",adjunct_tag:\$adjunct_tag,manifest_sha256:\$manifest_sha,target_standard:/,
   );
   assert.doesNotMatch(workflow, /Download exact Standard activation evidence/);
-  assert.doesNotMatch(workflow, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/tags\/\$bundle_tag"/);
   assert.match(full, /framework-executor\/bin\/opl release publish/);
   assert.match(full, /framework-executor\/bin\/opl release reconcile/);
   assert.doesNotMatch(source, /--clobber/);

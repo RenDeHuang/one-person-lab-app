@@ -123,6 +123,8 @@ function runFullBuildProvenanceAdmission({
     const framework = "c".repeat(40);
     const bundleDigest = `sha256:${"d".repeat(64)}`;
     const version = "26.7.28-r4";
+    const repository = "gaofeng21cn/one-person-lab-app";
+    const targetStandardCommit = "e".repeat(40);
     const tag = `v${version}`;
     const bundle = {
       bundle_digest: bundleDigest,
@@ -133,7 +135,7 @@ function runFullBuildProvenanceAdmission({
         tag,
       },
       sources: {
-        app: { source_commit: app },
+        app: { repo: repository, source_commit: app },
         shell: { source_commit: shell },
         framework: { source_commit: framework },
       },
@@ -141,10 +143,35 @@ function runFullBuildProvenanceAdmission({
     mutateBundle?.(bundle);
     fs.writeFileSync(path.join(root, "bundle.json"), `${JSON.stringify(bundle)}\n`);
     const outputPath = path.join(root, "github-output.txt");
+    const bin = path.join(root, "bin");
+    fs.mkdirSync(bin);
+    const fakeGh = path.join(bin, "gh");
+    fs.writeFileSync(fakeGh, [
+      "#!/usr/bin/env node",
+      "const args = process.argv.slice(2);",
+      "const tag = process.env.OPL_TEST_STANDARD_TAG;",
+      "if (args[0] !== 'api' || !args[1]?.endsWith('/releases/tags/' + tag)) process.exit(2);",
+      "process.stdout.write(JSON.stringify({",
+      "  id: 363488678,",
+      "  tag_name: tag,",
+      "  target_commitish: process.env.OPL_TEST_STANDARD_TARGET,",
+      "  draft: false,",
+      "  prerelease: false,",
+      "  immutable: true,",
+      "  published_at: '2026-08-01T09:50:34Z',",
+      "  assets: [{",
+      "    name: 'stable-operation-publication-record.json',",
+      "    size: 51720,",
+      "    digest: 'sha256:' + 'f'.repeat(64),",
+      "  }],",
+      "}) + '\\n');",
+      "",
+    ].join("\n"));
+    fs.chmodSync(fakeGh, 0o755);
 
     const identityStep = fullAddon.jobs["restore-standard"].steps.find(
       (candidate: Record<string, any>) =>
-        candidate.name === "Bind checkpoint build provenance without requiring a published Standard Release",
+        candidate.name === "Bind checkpoint build provenance and exact Standard reference",
     );
     assert.ok(identityStep);
     const script = String(identityStep.run)
@@ -157,8 +184,11 @@ function runFullBuildProvenanceAdmission({
       encoding: "utf8",
       env: {
         ...process.env,
+        PATH: [bin, process.env.PATH].join(path.delimiter),
         GITHUB_RUN_ID: "123456789",
         GITHUB_OUTPUT: outputPath,
+        OPL_TEST_STANDARD_TAG: tag,
+        OPL_TEST_STANDARD_TARGET: targetStandardCommit,
       },
     });
     return {
@@ -228,7 +258,7 @@ test("Stable success has one independent Full append successor trigger", () => {
   });
 });
 
-test("admission binds the Standard source run and exact checkpoint without making it a Full release identity", () => {
+test("admission binds the Standard source run and exact checkpoint without making it a Full content identity", () => {
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.display_title \| test\("\^OPL Stable standard/);
   assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
@@ -253,8 +283,10 @@ test("admission binds the Standard source run and exact checkpoint without makin
   assert.match(source, /all\(\.artifacts\[\];/);
   assert.match(
     fullAddonSource,
-    /Bind checkpoint build provenance without requiring a published Standard Release/,
+    /Bind checkpoint build provenance and exact Standard reference/,
   );
+  assert.match(fullAddonSource, /target-standard-release\.json/);
+  assert.match(fullAddonSource, /\.target_commitish == \$target/);
   assert.doesNotMatch(fullAddonSource, /\[\.artifacts\[\]\?\.name\]/);
   assert.doesNotMatch(fullAddonSource, /required_assets=/);
   assert.doesNotMatch(fullAddonSource, /standard-identity-receipt\.json|standard-activation/);
@@ -394,13 +426,16 @@ test("successor receipt declares additive and non-blocking boundaries", () => {
   assert.match(source, /executor_run_head_sha/);
 });
 
-test("Full admission consumes checkpoint build provenance without a published Standard identity", () => {
+test("Full admission CAS-binds a published Standard reference without locking Full content sources", () => {
   const exact = runFullBuildProvenanceAdmission();
   assert.equal(exact.result.status, 0, exact.result.stderr || exact.result.stdout);
   assert.match(exact.output, /bundle_digest=sha256:d{64}/);
   assert.match(exact.output, /app_ref=a{40}/);
   assert.match(exact.output, /shell_ref=b{40}/);
   assert.match(exact.output, /framework_source_ref=c{40}/);
+  assert.match(exact.output, /target_standard_release_id=363488678/);
+  assert.match(exact.output, /target_standard_release_tag=v26\.7\.28-r4/);
+  assert.match(exact.output, /target_standard_target_commitish=e{40}/);
 
   const independentSources = runFullBuildProvenanceAdmission({
     mutateBundle(bundle) {
@@ -417,6 +452,7 @@ test("Full admission consumes checkpoint build provenance without a published St
   assert.match(independentSources.output, /app_ref=1{40}/);
   assert.match(independentSources.output, /shell_ref=2{40}/);
   assert.match(independentSources.output, /framework_source_ref=3{40}/);
+  assert.match(independentSources.output, /target_standard_target_commitish=e{40}/);
 
   const channelDrift = runFullBuildProvenanceAdmission({
     mutateBundle(bundle) {

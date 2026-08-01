@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { emitJsonSummary, parseJsonLines, runCleanupScript, runGh } from './release-cleanup-helpers.ts';
 
@@ -23,6 +24,8 @@ type ReleaseView = {
   publishedAt?: string | null;
   published_at?: string | null;
   created_at?: string;
+  updated_at?: string;
+  target_commitish?: string;
   html_url?: string;
   assets?: ReleaseAsset[];
 };
@@ -35,6 +38,13 @@ type Options = {
   releaseAttemptId: string;
   brokerAcceptanceReceiptPath: string;
   summaryPath: string;
+  exactOrphanMode: boolean;
+  exactOrphanDeleteRequested: boolean;
+  expectedReleaseId: number | null;
+  expectedTag: string;
+  expectedTargetCommitish: string;
+  expectedUpdatedAt: string;
+  operationId: string;
 };
 
 type BrokerAcceptanceReceiptTrace = {
@@ -64,6 +74,13 @@ function parseArgs(argv: string[]): Options {
       ? path.resolve(process.env.OPL_DRAFT_CLEANUP_BROKER_ACCEPTANCE_RECEIPT_PATH)
       : '',
     summaryPath: process.env.OPL_DRAFT_CLEANUP_SUMMARY_PATH || '',
+    exactOrphanMode: false,
+    exactOrphanDeleteRequested: false,
+    expectedReleaseId: null,
+    expectedTag: '',
+    expectedTargetCommitish: '',
+    expectedUpdatedAt: '',
+    operationId: '',
   };
 
   const { values, tokens } = parseNodeArgs({
@@ -77,6 +94,13 @@ function parseArgs(argv: string[]): Options {
       execute: { type: 'boolean' },
       'request-brokered-execute': { type: 'boolean' },
       'dry-run': { type: 'boolean' },
+      'inspect-exact-orphan': { type: 'boolean' },
+      'request-exact-orphan-delete': { type: 'boolean' },
+      'expected-release-id': { type: 'string' },
+      'expected-tag': { type: 'string' },
+      'expected-target-commitish': { type: 'string' },
+      'expected-updated-at': { type: 'string' },
+      'operation-id': { type: 'string' },
     },
     tokens: true,
   });
@@ -87,6 +111,13 @@ function parseArgs(argv: string[]): Options {
   parsed.brokerAcceptanceReceiptPath = values['broker-acceptance-receipt']
     ? path.resolve(values['broker-acceptance-receipt'])
     : parsed.brokerAcceptanceReceiptPath;
+  parsed.expectedReleaseId = values['expected-release-id'] && /^[1-9][0-9]*$/.test(values['expected-release-id'])
+    ? Number(values['expected-release-id'])
+    : null;
+  parsed.expectedTag = values['expected-tag'] ?? '';
+  parsed.expectedTargetCommitish = values['expected-target-commitish'] ?? '';
+  parsed.expectedUpdatedAt = values['expected-updated-at'] ?? '';
+  parsed.operationId = values['operation-id'] ?? '';
   for (const token of tokens) {
     if (token.kind !== 'option') continue;
     if (token.name === 'execute') {
@@ -101,12 +132,173 @@ function parseArgs(argv: string[]): Options {
       parsed.executeRequested = false;
       parsed.executeRequestSource = 'dry_run';
     }
+    if (token.name === 'inspect-exact-orphan') {
+      parsed.exactOrphanMode = true;
+      parsed.exactOrphanDeleteRequested = false;
+    }
+    if (token.name === 'request-exact-orphan-delete') {
+      parsed.exactOrphanMode = true;
+      parsed.exactOrphanDeleteRequested = true;
+    }
   }
 
   if (!/^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$/.test(parsed.version)) {
     throw new Error(`Invalid OPL release version: ${parsed.version}`);
   }
   return parsed;
+}
+
+const canonicalReleaseRepository = 'gaofeng21cn/one-person-lab-app';
+
+function exactOrphanOperationId(options: Options): string {
+  return `sha256:${crypto.createHash('sha256').update(JSON.stringify({
+    schema: 'opl_exact_orphan_draft_cleanup_operation.v1',
+    repository: options.repo,
+    release_id: options.expectedReleaseId,
+    tag: options.expectedTag,
+    target_commitish: options.expectedTargetCommitish,
+    updated_at: options.expectedUpdatedAt,
+  })).digest('hex')}`;
+}
+
+function ghJsonAllowMissing(args: string[]): { found: boolean; value: any; failure: Record<string, unknown> | null } {
+  const result = spawnSync('gh', args, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env: process.env,
+    timeout: 120_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (result.status !== 0 || result.error) {
+    const text = `${result.stdout || ''}\n${result.stderr || ''}`;
+    const missing = /HTTP 404|Not Found/i.test(text) || (result.status === 1 && !text.trim());
+    if (missing) return { found: false, value: null, failure: null };
+    return {
+      found: false,
+      value: null,
+      failure: {
+        exit_status: result.status,
+        error_code: result.error?.code ?? null,
+        error_message: result.error?.message ?? null,
+        stdout: result.stdout || '',
+        stderr: result.stderr || '',
+      },
+    };
+  }
+  try {
+    return { found: true, value: JSON.parse(result.stdout), failure: null };
+  } catch (error) {
+    return { found: false, value: null, failure: { parse_error: error instanceof Error ? error.message : String(error) } };
+  }
+}
+
+function inspectExactOrphan(options: Options, allowMissingRelease = false) {
+  if (options.repo !== canonicalReleaseRepository) {
+    throw new Error(`Exact orphan cleanup is restricted to ${canonicalReleaseRepository}.`);
+  }
+  if (!options.expectedReleaseId) throw new Error('--expected-release-id must be a positive integer.');
+  if (options.expectedTag !== `v${options.version}`) throw new Error('--expected-tag must equal the exact final version tag.');
+  if (!/^[0-9a-f]{40}$/.test(options.expectedTargetCommitish)) {
+    throw new Error('--expected-target-commitish must be an exact lowercase Git SHA.');
+  }
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(options.expectedUpdatedAt)) {
+    throw new Error('--expected-updated-at must be an exact UTC GitHub timestamp.');
+  }
+  const releaseRead = ghJsonAllowMissing([
+    'api',
+    `repos/${options.repo}/releases/${options.expectedReleaseId}`,
+  ]);
+  if (releaseRead.failure) throw new Error(`Exact orphan Release read failed: ${JSON.stringify(releaseRead.failure)}`);
+  const refsRead = ghJsonAllowMissing([
+    'api',
+    `repos/${options.repo}/git/matching-refs/tags/${encodeURIComponent(options.expectedTag)}`,
+  ]);
+  if (refsRead.failure) throw new Error(`Exact orphan tag read failed: ${JSON.stringify(refsRead.failure)}`);
+  const matchingRefs = refsRead.found && Array.isArray(refsRead.value) ? refsRead.value : [];
+  const exactRefName = `refs/tags/${options.expectedTag}`;
+  const refs = matchingRefs.filter((ref: any) => ref?.ref === exactRefName);
+  if (refs.length !== 0) throw new Error(`Exact orphan cleanup requires absent Git tag ${options.expectedTag}.`);
+  if (!releaseRead.found) {
+    if (!allowMissingRelease) throw new Error(`Exact orphan Release ${options.expectedReleaseId} is absent before mutation.`);
+    return { release: null, tag_refs: refs };
+  }
+  const release = releaseRead.value as ReleaseView;
+  const assets = Array.isArray(release.assets) ? release.assets : [];
+  if (
+    release.id !== options.expectedReleaseId
+    || releaseTag(release) !== options.expectedTag
+    || release.target_commitish !== options.expectedTargetCommitish
+    || release.updated_at !== options.expectedUpdatedAt
+    || releaseDraft(release) !== true
+    || releasePrerelease(release) !== false
+    || (release.published_at ?? release.publishedAt ?? null) !== null
+    || assets.length !== 0
+  ) {
+    throw new Error('Exact orphan Release identity changed or is no longer an empty unpublished draft.');
+  }
+  return { release, tag_refs: refs };
+}
+
+function cleanupExactOrphan(options: Options) {
+  const before = inspectExactOrphan(options);
+  const operationId = exactOrphanOperationId(options);
+  if (!options.exactOrphanDeleteRequested) {
+    emitJsonSummary(options.summaryPath, {
+      schema: 'opl_exact_orphan_draft_cleanup_receipt.v1',
+      status: 'dry_run',
+      deletion_performed: false,
+      operation_id: operationId,
+      expected: before,
+    });
+    return;
+  }
+  if (options.operationId !== operationId) {
+    throw new Error(`--operation-id must equal the exact cleanup digest ${operationId}.`);
+  }
+  const mutationArgs = [
+    'api',
+    '--method',
+    'DELETE',
+    `repos/${options.repo}/releases/${options.expectedReleaseId}`,
+  ];
+  const mutation = spawnSync('gh', mutationArgs, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env: process.env,
+    timeout: 120_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const accepted = mutation.status === 0 && !mutation.error;
+  let after;
+  try {
+    after = inspectExactOrphan(options, true);
+  } catch (error) {
+    emitJsonSummary(options.summaryPath, {
+      schema: 'opl_exact_orphan_draft_cleanup_receipt.v1',
+      status: 'mutation_outcome_unknown',
+      deletion_performed: false,
+      operation_id: operationId,
+      mutation_accepted: accepted,
+      mutation: { exit_status: mutation.status, error_code: mutation.error?.code ?? null },
+      reconciliation_error: error instanceof Error ? error.message : String(error),
+      retry_disposition: 'read_only_reconcile_no_retry',
+    });
+    throw new Error('Exact orphan deletion outcome is unknown; do not retry before owner-authoritative readback.');
+  }
+  const deleted = after.release === null && after.tag_refs.length === 0;
+  const summary = {
+    schema: 'opl_exact_orphan_draft_cleanup_receipt.v1',
+    status: deleted ? (accepted ? 'deleted' : 'deleted_after_unknown_reconcile') : 'mutation_outcome_unknown',
+    deletion_performed: deleted,
+    operation_id: operationId,
+    mutation_accepted: accepted,
+    mutation: { exit_status: mutation.status, error_code: mutation.error?.code ?? null },
+    before,
+    after,
+    retry_disposition: deleted ? 'terminal_no_retry' : 'read_only_reconcile_no_retry',
+  };
+  emitJsonSummary(options.summaryPath, summary);
+  if (!deleted) throw new Error('Exact orphan deletion was not observed; do not retry before owner-authoritative readback.');
 }
 
 function inspectBrokerAuthorization(options: Options) {
@@ -346,5 +538,7 @@ function cleanup(options: Options) {
 }
 
 runCleanupScript((argv) => {
-  cleanup(parseArgs(argv));
+  const options = parseArgs(argv);
+  if (options.exactOrphanMode) cleanupExactOrphan(options);
+  else cleanup(options);
 });

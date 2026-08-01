@@ -304,8 +304,8 @@ test('Full macOS publication is self-identified, independently admissible, recov
     follower.trigger,
     'protected_automatic_post_success_or_explicit_independent_full_publication',
   );
-  assert.equal(follower.source_policy, 'full_artifact_self_identity_plus_component_compatibility');
-  assert.equal(follower.standard_release_prerequisite_required, false);
+  assert.equal(follower.source_policy, 'full_artifact_self_identity_plus_component_compatibility_plus_exact_standard_reference_cas');
+  assert.equal(follower.standard_release_prerequisite_required, true);
   assert.equal(follower.cross_component_exact_version_sha_or_cohort_binding_allowed, false);
   assert.equal(
     follower.compatibility_contract_ref,
@@ -316,6 +316,15 @@ test('Full macOS publication is self-identified, independently admissible, recov
   assert.match(follower.tag_derivation, /full-manifest-sha256/);
   assert.equal(follower.full_release_must_be_published_immutable, true);
   assert.equal(follower.standard_asset_or_latest_mutation_allowed, false);
+  assert.deepEqual(follower.target_standard_reference.required_fields, [
+    'repository',
+    'release_id',
+    'tag',
+    'target_commitish',
+    'immutable',
+  ]);
+  assert.equal(follower.target_standard_reference.purpose, 'reference_and_release_notes_only');
+  assert.equal(follower.target_standard_reference.cross_component_compatibility_gate_allowed, false);
   assert.equal(follower.blocks_stable_base_terminal, false);
   assert.equal(follower.blocks_latest_activation, false);
   assert.equal(follower.failure_receipt_required, true);
