@@ -104,6 +104,27 @@ export function notarizationWaitTimeoutSeconds(input: {
   return Math.floor(waitMs / 1_000);
 }
 
+export function preNotarizationCommandTimeoutMs(input: {
+  operationDeadlineAt?: string;
+  nowMs?: number;
+  reserveMs?: number;
+  minimumWaitMs?: number;
+}): number {
+  if (!input.operationDeadlineAt) return defaultCommandTimeoutMs;
+  const deadlineMs = Date.parse(input.operationDeadlineAt);
+  const nowMs = input.nowMs ?? Date.now();
+  const reserveMs = input.reserveMs ?? postNotarizationReserveMs;
+  const minimumWaitMs = input.minimumWaitMs ?? minimumNotarizationWaitMs;
+  if (!Number.isFinite(deadlineMs)) {
+    throw new Error('Operation deadline must be an exact ISO-8601 timestamp.');
+  }
+  const timeoutMs = deadlineMs - nowMs - reserveMs - minimumWaitMs;
+  if (timeoutMs < 1_000) {
+    throw new Error('Pre-notarization command cannot start without one minute of notarization wait budget and twenty minutes of operation reserve.');
+  }
+  return Math.floor(timeoutMs);
+}
+
 function sha256(filePath: string): string {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
@@ -118,8 +139,13 @@ function findSingleApp(root: string): string {
   return apps[0];
 }
 
-function signatureFacts(target: string, expectedTeamId: string, requireHardenedRuntime = false) {
-  const result = run('codesign', ['-dv', '--verbose=4', target]);
+function signatureFacts(
+  target: string,
+  expectedTeamId: string,
+  requireHardenedRuntime = false,
+  timeout?: number,
+) {
+  const result = run('codesign', ['-dv', '--verbose=4', target], timeout);
   const output = `${result.stdout || ''}${result.stderr || ''}`;
   const teamIdentifier = output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || '';
   const authorities = [...output.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1].trim());
@@ -310,10 +336,21 @@ export function finalizeNotarizedDmg() {
     stage = 'sign_dmg';
     fs.rmSync(candidateDmg, { force: true });
     fs.copyFileSync(options.dmgPath, candidateDmg);
-    run('codesign', ['--force', '--timestamp', '--sign', identity, candidateDmg]);
-    run('codesign', ['--verify', '--strict', '--verbose=2', candidateDmg]);
+    const preNotarizationTimeoutMs = () => preNotarizationCommandTimeoutMs({
+      operationDeadlineAt: options.operationDeadlineAt,
+    });
+    run(
+      'codesign',
+      ['--force', '--timestamp', '--sign', identity, candidateDmg],
+      preNotarizationTimeoutMs(),
+    );
+    run(
+      'codesign',
+      ['--verify', '--strict', '--verbose=2', candidateDmg],
+      preNotarizationTimeoutMs(),
+    );
     const signedDmgSha256 = sha256(candidateDmg);
-    const dmgSignature = signatureFacts(candidateDmg, teamId);
+    const dmgSignature = signatureFacts(candidateDmg, teamId, false, preNotarizationTimeoutMs());
     stage = 'submit_and_wait';
     const notarization = submitForNotarization(candidateDmg, {
       appleId,
