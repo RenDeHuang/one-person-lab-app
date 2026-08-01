@@ -45,9 +45,19 @@ test("Full workflow checks out MAS Scholar Skills and binds both runtime assembl
     workflow,
     /name: Checkout MAS Scholar Skills[\s\S]*repository: gaofeng21cn\/mas-scholar-skills[\s\S]*ref: main[\s\S]*path: mas-scholar-skills/,
   );
+  assert.equal(
+    workflow.match(
+      /mas_scholar_skills_ref="\$\(git -C mas-scholar-skills rev-parse HEAD\)"/g,
+    )?.length,
+    1,
+  );
   assert.match(
     workflow,
-    /OPL_FULL_MAS_SCHOLAR_SKILLS_REF=\$\(git -C mas-scholar-skills rev-parse HEAD\)/,
+    /echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=\$mas_scholar_skills_ref" >> "\$GITHUB_ENV"/,
+  );
+  assert.match(
+    workflow,
+    /echo "mas_scholar_skills_ref=\$mas_scholar_skills_ref" >> "\$GITHUB_OUTPUT"/,
   );
   assert.match(
     workflow,

@@ -429,6 +429,11 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "One-Person-Lab-Full-${{ env.OPL_RELEASE_VERSION }}-mac-arm64.dmg",
       "Write Full build artifact cohort manifest",
       "write-build-artifact-cohort.ts",
+      "full-intel-finalizer:",
+      "runs-on: macos-15-intel",
+      "opl-full-intel-finalizer-input-",
+      "opl_full_intel_finalizer_handoff_receipt.v1",
+      'and .timestamp_signing.authority_endpoint == "system_default"',
       "--kind full",
       '--actions-run-id "$GITHUB_RUN_ID"',
       "Upload Full build artifact cohort manifest",
@@ -449,6 +454,19 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "npm view @openai/codex version",
       "bundled-full-runtime-package-catalog.json",
       "--framework-bundled-catalog",
+    ],
+  },
+  {
+    id: "full_dmg_notarizer_uses_system_default_timestamp",
+    file: "scripts/notarize-macos-dmg.ts",
+    required: [
+      "const timestampAuthoritySelection = 'system_default'",
+      "['--force', '--timestamp', '--sign', identity, probePath]",
+      "['--force', '--timestamp', '--sign', identity, candidateDmg]",
+    ],
+    forbidden: [
+      "timestamp.apple.com",
+      "--timestamp=",
     ],
   },
   {

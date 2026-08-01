@@ -28,7 +28,7 @@ type FailureEvidence = {
 const defaultCommandTimeoutMs = 45 * 60_000;
 const timestampSigningAttemptLimitMs = 5 * 60_000;
 const timestampServiceProbeTimeoutMs = 60_000;
-const appleTimestampAuthorityUrl = 'http://timestamp.apple.com/ts01';
+const timestampAuthoritySelection = 'system_default';
 const maximumTimestampServiceProbeAttempts = 2;
 const maximumTimestampSigningAttempts = 4;
 const largeDmgThresholdBytes = 512 * 1024 * 1024;
@@ -249,7 +249,7 @@ function verifyTimestampServiceProbe(
   fs.writeFileSync(probePath, crypto.randomBytes(32));
   run(
     'codesign',
-    ['--force', `--timestamp=${appleTimestampAuthorityUrl}`, '--sign', identity, probePath],
+    ['--force', '--timestamp', '--sign', identity, probePath],
     timeoutMs,
   );
   run('codesign', ['--verify', '--strict', '--verbose=2', probePath], timeoutMs);
@@ -414,7 +414,7 @@ export function finalizeNotarizedDmg() {
       wait_timeout_seconds: null,
     } satisfies NotarizationState,
     timestamp_signing: {
-      authority_endpoint: appleTimestampAuthorityUrl,
+      authority_endpoint: timestampAuthoritySelection,
       probe_status: 'pending',
       probe_timeout_seconds: null,
       probe_attempts: 0,
@@ -496,7 +496,7 @@ export function finalizeNotarizedDmg() {
     evidence.timestamp_signing.artifact_size_bytes = artifactSizeBytes;
     evidence.timestamp_signing.maximum_attempts = maximumAttempts;
     evidence.timestamp_signing.strategy = artifactSizeBytes >= largeDmgThresholdBytes
-      ? 'large_dmg_tsa_probed_bounded_attempts'
+      ? 'large_dmg_system_default_timestamp_bounded_attempts'
       : 'small_dmg_bounded_attempts';
     const preNotarizationTimeoutMs = () => preNotarizationCommandTimeoutMs({
       operationDeadlineAt: options.operationDeadlineAt,
@@ -518,7 +518,7 @@ export function finalizeNotarizedDmg() {
       try {
         run(
           'codesign',
-          ['--force', `--timestamp=${appleTimestampAuthorityUrl}`, '--sign', identity, candidateDmg],
+          ['--force', '--timestamp', '--sign', identity, candidateDmg],
           attemptTimeoutMs,
         );
         break;
