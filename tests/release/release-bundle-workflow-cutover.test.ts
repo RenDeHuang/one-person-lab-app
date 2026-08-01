@@ -1804,10 +1804,25 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.deepEqual(Object.keys(credentialPreflight.on), ['workflow_dispatch']);
   assert.deepEqual(credentialPreflight.permissions, { contents: 'read', actions: 'read' });
-  assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-14');
+  assert.deepEqual(credentialPreflight.on.workflow_dispatch.inputs.large_dmg_canary, {
+    description: 'Sign a synthetic Full-sized ULMO DMG without submitting it for notarization.',
+    required: true,
+    default: false,
+    type: 'boolean',
+  });
+  assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-15-intel');
   assert.equal(credentialPreflight.jobs.validate.environment, 'release-stable');
-  assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 15);
+  assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 45);
   assert.equal(credentialPreflight.concurrency['cancel-in-progress'], false);
+  const credentialDiagnostic = credentialPreflight.jobs.validate.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Import Developer ID identity and authenticate notarization',
+  );
+  const credentialReceiptUpload = credentialPreflight.jobs.validate.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload sanitized Apple credential preflight receipt',
+  );
+  assert.match(String(credentialDiagnostic.run), /--large-dmg-canary/);
+  assert.equal(credentialReceiptUpload.if, '${{ always() }}');
+  assert.equal(credentialReceiptUpload.with['if-no-files-found'], 'warn');
   assert.equal(
     credentialPreflight.jobs.validate.steps.some(
       (step: Record<string, unknown>) => String(step.run ?? '').includes('verify-apple-release-credentials.ts'),
