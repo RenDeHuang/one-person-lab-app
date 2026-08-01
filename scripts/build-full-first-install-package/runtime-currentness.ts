@@ -295,6 +295,7 @@ export function assertFullRuntimeCurrentness(
   runtimeRoot: string,
   options: {
     frameworkRoot: string;
+    masRoot: string;
     masScholarSkillsRoot: string;
     masScholarSkillsRef: string;
     resolvedSelectedBundleDescriptor?: unknown;
