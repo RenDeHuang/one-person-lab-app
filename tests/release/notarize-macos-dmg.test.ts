@@ -9,6 +9,7 @@ import test from 'node:test';
 import {
   notarizationWaitTimeoutSeconds,
   preNotarizationCommandTimeoutMs,
+  timestampSigningMaximumAttempts,
   timestampSigningTimeoutMs,
 } from '../../scripts/notarize-macos-dmg.ts';
 
@@ -201,6 +202,34 @@ test('timestamp signing caps each attempt while preserving the notary and post-n
   }), /twenty minutes of operation reserve/);
 });
 
+test('large DMG signing receives one contiguous deadline budget plus one bounded retry', () => {
+  const largeDmgBytes = 512 * 1024 * 1024;
+  const nowMs = Date.parse('2026-08-01T01:00:00.000Z');
+  const operationDeadlineAt = '2026-08-01T02:40:00.000Z';
+
+  assert.equal(timestampSigningMaximumAttempts(largeDmgBytes - 1), 4);
+  assert.equal(timestampSigningMaximumAttempts(largeDmgBytes), 2);
+  assert.equal(timestampSigningTimeoutMs({
+    operationDeadlineAt,
+    nowMs,
+    artifactSizeBytes: largeDmgBytes,
+    attemptNumber: 1,
+  }), 50 * 60_000);
+  assert.equal(timestampSigningTimeoutMs({
+    operationDeadlineAt,
+    nowMs: nowMs + 50 * 60_000,
+    artifactSizeBytes: largeDmgBytes,
+    attemptNumber: 2,
+  }), 10 * 60_000);
+  assert.equal(timestampSigningTimeoutMs({
+    operationDeadlineAt,
+    nowMs,
+    artifactSizeBytes: largeDmgBytes,
+    attemptNumber: 1,
+    attemptLimitMs: 500,
+  }), 500);
+});
+
 test('timestamp signing retries one timeout from a fresh original DMG copy', () => {
   const value = fixture('Accepted', 'timeout-once');
   try {
@@ -208,6 +237,8 @@ test('timestamp signing retries one timeout from a fresh original DMG copy', () 
     assert.equal(value.timestampSigningAttempts, 2);
     assert.equal(value.receipt.timestamp_signing.attempts, 2);
     assert.equal(value.receipt.timestamp_signing.retry_count, 1);
+    assert.deepEqual(value.receipt.timestamp_signing.attempt_timeouts_seconds, [0, 0]);
+    assert.equal(value.receipt.timestamp_signing.strategy, 'small_dmg_bounded_attempts');
     assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 2);
     assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
   } finally {
