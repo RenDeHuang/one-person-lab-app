@@ -14,14 +14,14 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "The current shared Chinese guide template uses the verified xelatex path for deterministic HTML/PDF publication.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 12,
+  "pdf_pages": 13,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 12,
+  "rendered_pages": 13,
   "rendered_dir": "tmp/quarto-guides/windows-app-install/rendered",
-  "html_bytes": 2216011,
+  "html_bytes": 2227645,
   "html_pdf_download": {
     "href": "windows-app-install-detailed-guide.pdf",
     "status": "present"

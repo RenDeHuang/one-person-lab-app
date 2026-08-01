@@ -6,7 +6,7 @@ param(
   [string]$ReleaseTag = "__OPL_WINDOWS_PREVIEW_RELEASE_TAG__",
   [ValidatePattern("^One-Person-Lab-[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*-win-x64\.exe$")]
   [string]$AssetName = "__OPL_WINDOWS_PREVIEW_INSTALLER_ASSET__",
-  [string]$OutputDirectory = (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads\OPL-RC"),
+  [string]$OutputDirectory = (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads\OPL-RC\__OPL_WINDOWS_PREVIEW_RELEASE_TAG__"),
   [ValidateRange(5, 1440)]
   [int]$MaxWaitMinutes = 120
 )
@@ -225,14 +225,13 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
   throw "This helper runs only on Windows."
 }
 
-Import-Module BitsTransfer -ErrorAction Stop
-New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
-$resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 if ($ReleaseTag -cne $embeddedReleaseTag) {
-  throw "This helper is bound to $embeddedReleaseTag and cannot download $ReleaseTag."
+  $requestedReleaseUrl = "https://github.com/$repository/releases/tag/$ReleaseTag"
+  throw "This downloader belongs to $embeddedReleaseTag, not $ReleaseTag. Do not rename or reuse it for another RC. Download the helper for $ReleaseTag from $requestedReleaseUrl and run it from Downloads\OPL-RC\$ReleaseTag."
 }
 if ($AssetName -cne $embeddedInstallerAsset) {
-  throw "This helper is bound to $embeddedInstallerAsset and cannot download $AssetName."
+  $embeddedReleaseUrl = "https://github.com/$repository/releases/tag/$embeddedReleaseTag"
+  throw "This downloader belongs to $embeddedInstallerAsset, not $AssetName. Do not rename or reuse it. Download the matching helper and installer from $embeddedReleaseUrl."
 }
 if ($embeddedInstallerSha256 -notmatch "^[0-9a-f]{64}$") {
   throw "This helper does not contain a valid release-bound installer SHA-256."
@@ -240,6 +239,9 @@ if ($embeddedInstallerSha256 -notmatch "^[0-9a-f]{64}$") {
 if ($embeddedInstallerSizeBytes -le 0) {
   throw "This helper does not contain a valid release-bound installer size."
 }
+Import-Module BitsTransfer -ErrorAction Stop
+New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+$resolvedOutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $releaseAssetBaseUrl = "https://github.com/$repository/releases/download/$ReleaseTag"
 $checksumAssetUrl = "$releaseAssetBaseUrl/$checksumAssetName"
 $installerAssetUrl = "$releaseAssetBaseUrl/$AssetName"

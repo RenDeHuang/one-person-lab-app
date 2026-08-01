@@ -36,6 +36,10 @@ test("Windows Preview downloader renderer binds exact public bytes without GitHu
   assert.match(rendered, /\[string\]\$AssetName = "One-Person-Lab-26\.7\.30-rc\.3-win-x64\.exe"/);
   assert.match(rendered, new RegExp(`\\$embeddedInstallerSha256 = "${expectedSha256}"`));
   assert.match(rendered, new RegExp(`\\$embeddedInstallerSizeBytes = ${fs.statSync(installer).size}`));
+  assert.match(rendered, /Downloads\\OPL-RC\\windows-rc-26\.7\.30-rc\.3/);
+  assert.match(rendered, /This downloader belongs to \$embeddedReleaseTag, not \$ReleaseTag/);
+  assert.match(rendered, /releases\/tag\/\$ReleaseTag/);
+  assert.match(rendered, /Do not rename or reuse it for another RC/);
   assert.match(rendered, /https:\/\/github\.com\/\$repository\/releases\/download\/\$ReleaseTag/);
   assert.doesNotMatch(rendered, /__OPL_WINDOWS_PREVIEW_[A-Z0-9_]+__/);
   assert.doesNotMatch(rendered, /api\.github\.com|Invoke-RestMethod|Invoke-WebRequest/);

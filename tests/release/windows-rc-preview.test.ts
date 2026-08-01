@@ -613,6 +613,20 @@ test('Windows install guide binds the exact RC assets and preserves credential a
   assert.match(guide, /点击单独出现的“设为模型访问方式”/);
   assert.match(guide, /不要关闭\s+Microsoft Defender/);
   assert.match(guide, /BITS 持久任务/);
+  assert.match(guide, /Downloads\\OPL-RC\\\{\{download\.release_tag\}\}/);
+  assert.match(guide, /Invoke-WebRequest[\s\S]+download_helper_asset/);
+  assert.match(guide, /actualHelperSha256 -cne \$expectedHelperSha256/);
+  assert.match(guide, /actualInstallerSize -ne \$expectedInstallerSize/);
+  assert.match(guide, /actualInstallerSha256 -cne \$expectedInstallerSha256/);
+  assert.match(guide, /Start-Process -FilePath \$installerPath/);
+  assert.match(guide, /belongs to windows-rc-26\.7\.30-rc\.4/);
+  assert.match(guide, /不要改名、不要修改参数继续运行/);
+  const bootstrap = /^```powershell\r?\n([\s\S]*?)^```/m.exec(guide)?.[1];
+  assert.ok(bootstrap, 'Windows guide must contain one copy-paste PowerShell bootstrap');
+  assert.ok(
+    bootstrap.split(/\r?\n/).every((line) => line.length <= 94),
+    'Windows guide PowerShell bootstrap must fit the verified PDF code width',
+  );
   assert.doesNotMatch(guide, /尚未携带下载助手|从下一份包含/);
   assert.match(guide, /不会调用 `Unblock-File`/);
   assert.match(guide, /不会自动切换到聊天群、网盘或任意第三方\s*镜像/);
@@ -684,6 +698,9 @@ test('Windows Preview resilient downloader is exact-release, resumable, verified
   assert.match(downloader, /BytesTotal/);
   assert.match(downloader, /\$ReleaseTag -cne \$embeddedReleaseTag/);
   assert.match(downloader, /\$AssetName -cne \$embeddedInstallerAsset/);
+  assert.match(downloader, /Downloads\\OPL-RC\\__OPL_WINDOWS_PREVIEW_RELEASE_TAG__/);
+  assert.match(downloader, /This downloader belongs to \$embeddedReleaseTag, not \$ReleaseTag/);
+  assert.match(downloader, /Do not rename or reuse it for another RC/);
   assert.match(downloader, /\$expectedSha256 -cne \$embeddedInstallerSha256/);
   assert.match(
     downloader,

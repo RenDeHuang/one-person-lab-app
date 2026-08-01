@@ -7,6 +7,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { createGuideScriptHelpers } from "../../scripts/guide-script-helpers.ts";
+
 const isWindows = process.platform === "win32";
 const appRoot = process.env.OPL_APP_ROOT
   ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -75,6 +77,77 @@ function runPowerShell(
     child.once("close", (code) => resolve({ code, stdout, stderr }));
   });
 }
+
+test(
+  "Windows PowerShell 5.1 parses the exact install-guide bootstrap",
+  {
+    skip: !isWindows,
+    timeout: 30_000,
+  },
+  async (t) => {
+    const powershell =
+      process.env.PWSH ??
+      "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+    const manifest = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          appRoot,
+          "docs",
+          "delivery",
+          "user-guides",
+          "windows-app-install",
+          "source",
+          "windows-app-install.quarto.json",
+        ),
+        "utf8",
+      ),
+    ) as { download: Record<string, string> };
+    const source = fs.readFileSync(
+      path.join(appRoot, "docs", "guides", "windows-app-install", "guide.qmd"),
+      "utf8",
+    );
+    const expanded = createGuideScriptHelpers(appRoot).expandTemplate(
+      source,
+      {},
+      manifest.download,
+    );
+    const bootstrap = /^```powershell\r?\n([\s\S]*?)^```/m.exec(expanded)?.[1];
+    assert.ok(bootstrap, "install guide must contain a PowerShell bootstrap");
+
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), "opl-windows-guide-powershell51-"),
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const bootstrapPath = path.join(root, "windows-install-bootstrap.ps1");
+    const parserPath = path.join(root, "parse-windows-install-bootstrap.ps1");
+    fs.writeFileSync(bootstrapPath, bootstrap, "utf8");
+    fs.writeFileSync(
+      parserPath,
+      `$tokens = $null
+$errors = $null
+[void][System.Management.Automation.Language.Parser]::ParseFile(
+  ${powershellLiteral(bootstrapPath)},
+  [ref]$tokens,
+  [ref]$errors
+)
+if ($errors.Count -ne 0) {
+  $errors | ForEach-Object { Write-Error $_.Message }
+  exit 1
+}
+Write-Output "OPL_WINDOWS_GUIDE_POWERSHELL51_PARSE_PASS"
+`,
+      "utf8",
+    );
+
+    const result = await runPowerShell(powershell, parserPath);
+    assert.equal(
+      result.code,
+      0,
+      `PowerShell parser failed:\n${result.stdout}\n${result.stderr}`,
+    );
+    assert.match(result.stdout, /OPL_WINDOWS_GUIDE_POWERSHELL51_PARSE_PASS/);
+  },
+);
 
 test(
   "Windows PowerShell 5.1 follows the real BITS JobId contract",

@@ -67,32 +67,96 @@ Docker Desktop 只用于可选 WebUI 路径，桌面 RC 不会安装、修改或
 不要把 Source code ZIP/TAR 当成安装包。文件名中的 `win-x64` 表示 Windows x64，
 `{{download.release_tag}}` 表示当前公开候选预览，不是稳定更新频道。
 
-建议在“下载”目录新建 `OPL-RC` 文件夹，把三个文件放在一起。
+每个 RC 必须使用独立目录。本版目录是
+`$HOME\Downloads\OPL-RC\{{download.release_tag}}`；不要把上一个 RC 的同名
+`download-windows-preview.ps1` 或 `SHA256SUMS.txt` 复制进来。
 
 Windows 安装包包含首次配置所需的 Linux 运行时，当前安装包
 {{download.installer_size_label}}。网络稳定时可以直接点击 EXE；浏览器可能先把页面导航
 替换为后台下载，即使页面看起来没有变化，也先打开浏览器下载列表，确认是否出现
 `.crdownload` 或正在下载的任务，不要重复点击多个下载。
 
-弱网或经常断线时，优先只下载较小的 `{{download.download_helper_asset}}` 和
-`{{download.checksum_asset}}`。这个下载助手的文件名是
-`download-windows-preview.ps1`；先在普通 PowerShell 验证助手本身：
+最不容易拿错版本的方式，是打开普通 PowerShell，把下面整段一次性粘贴并运行。它会把
+当前 RC 的下载助手放进版本独立目录，自动核对助手 SHA-256，再通过 Windows BITS
+断点续传 EXE；最后自动核对 EXE 的文件大小和 SHA-256，通过后才启动安装器：
 
 ```powershell
-cd "$HOME\Downloads\OPL-RC"
-Get-FileHash -Algorithm SHA256 ".\{{download.download_helper_asset}}"
-Select-String -Path ".\{{download.checksum_asset}}" `
-  -Pattern "{{download.download_helper_asset}}"
+$ErrorActionPreference = "Stop"
+$releaseTag = "{{download.release_tag}}"
+$githubBase = "https://github.com"
+$repository = "gaofeng21cn/one-person-lab-app"
+$releaseUrl = "$githubBase/$repository/releases/tag/$releaseTag"
+$releaseAssetBase = "$githubBase/$repository/releases/download/$releaseTag"
+$targetDirectory = Join-Path `
+  -Path $HOME `
+  -ChildPath "Downloads\OPL-RC\$releaseTag"
+$helperPath = Join-Path `
+  -Path $targetDirectory `
+  -ChildPath "{{download.download_helper_asset}}"
+$helperDownloadPath = "$helperPath.download"
+$installerPath = Join-Path `
+  -Path $targetDirectory `
+  -ChildPath "{{download.installer_asset}}"
+$expectedHelperSha256 = "{{download.download_helper_sha256}}"
+$expectedInstallerSha256 = "{{download.installer_sha256}}"
+$expectedInstallerSize = [int64]{{download.installer_size_bytes}}
+
+New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "$releaseAssetBase/{{download.download_helper_asset}}" `
+  -OutFile $helperDownloadPath
+$actualHelperSha256 = (
+  Get-FileHash `
+    -LiteralPath $helperDownloadPath `
+    -Algorithm SHA256
+).Hash.ToLowerInvariant()
+if ($actualHelperSha256 -cne $expectedHelperSha256) {
+  throw "下载助手校验失败。不要运行该文件；请只从 $releaseUrl 重新下载。"
+}
+Move-Item `
+  -LiteralPath $helperDownloadPath `
+  -Destination $helperPath `
+  -Force
+
+& powershell.exe `
+  -NoProfile `
+  -ExecutionPolicy Bypass `
+  -File $helperPath `
+  -ReleaseTag $releaseTag `
+  -AssetName "{{download.installer_asset}}" `
+  -OutputDirectory $targetDirectory
+if ($LASTEXITCODE -ne 0) {
+  throw "下载助手执行失败，退出码为 $LASTEXITCODE。请保留完整红色错误信息。"
+}
+
+if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+  throw "没有得到安装器：$installerPath"
+}
+$actualInstallerSize = (
+  Get-Item -LiteralPath $installerPath
+).Length
+if ($actualInstallerSize -ne $expectedInstallerSize) {
+  throw ("安装器大小不匹配：实际 {0} 字节，预期 {1} 字节。不要运行。" -f `
+    $actualInstallerSize, $expectedInstallerSize)
+}
+$actualInstallerSha256 = (
+  Get-FileHash `
+    -LiteralPath $installerPath `
+    -Algorithm SHA256
+).Hash.ToLowerInvariant()
+if ($actualInstallerSha256 -cne $expectedInstallerSha256) {
+  throw "安装器 SHA-256 不匹配。不要运行；请从 $releaseUrl 重新下载。"
+}
+Write-Host `
+  "校验通过，正在启动：$installerPath" `
+  -ForegroundColor Green
+Start-Process -FilePath $installerPath
 ```
 
-两处都应显示
-`{{download.download_helper_sha256}}`。完全一致后运行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\{{download.download_helper_asset}}" `
-  -ReleaseTag "{{download.release_tag}}" `
-  -AssetName "{{download.installer_asset}}"
-```
+如果红色错误包含 `belongs to windows-rc-26.7.30-rc.4` 或
+`bound to windows-rc-26.7.30-rc.4`，说明当前文件夹里是旧 RC.4 的 helper，并不是
+RC.3 安装器报错。不要改名、不要修改参数继续运行；重新执行上面的完整代码块，它会在
+`$HOME\Downloads\OPL-RC\{{download.release_tag}}` 中下载并校验正确 helper。
 
 助手使用 Windows BITS 持久任务，显示已下载字节、总字节、百分比和任务状态。网络短暂
 断开或关闭 PowerShell 后，再运行同一条命令会重新附着到同一个精确 Release、URL 和目标
@@ -106,11 +170,11 @@ SHA-256，完全一致才把临时文件原子改为最终 EXE 文件名。
 
 ## 2. 校验 SHA-256
 
-校验可以确认下载字节与 Release 公布的安装包一致。打开普通 PowerShell，不需要
-管理员权限：
+上面的完整代码块已经在启动前自动校验。需要再次手工查看时，打开普通 PowerShell，
+不需要管理员权限：
 
 ```powershell
-cd "$HOME\Downloads\OPL-RC"
+cd "$HOME\Downloads\OPL-RC\{{download.release_tag}}"
 Get-FileHash -Algorithm SHA256 ".\{{download.installer_asset}}"
 Get-Content ".\{{download.checksum_asset}}"
 ```
