@@ -18,7 +18,7 @@ const scriptPath = path.join(appRoot, 'scripts', 'notarize-macos-dmg.ts');
 const teamId = 'SVVC4TA784';
 const identity = `Developer ID Application: FENG GAO (${teamId})`;
 const submissionId = '00000000-0000-0000-0000-000000000001';
-const timestampAuthorityUrl = 'http://timestamp.apple.com/ts01';
+const timestampAuthoritySelection = 'system_default';
 
 function writeExecutable(filePath: string, source: string): void {
   fs.writeFileSync(filePath, source, 'utf8');
@@ -88,7 +88,7 @@ if [ "$1" = --force ]; then
 fi
 if [ "$1" = --force ]; then
   case "$2" in
-    --timestamp=*) ;;
+    --timestamp) ;;
     *) exit 0 ;;
   esac
   attempt=0
@@ -209,7 +209,7 @@ exit 0
 
 function fullTimestampSigningCommandCount(commands: string): number {
   return commands.split('\n').filter((line) => (
-    line.startsWith(`codesign --force --timestamp=${timestampAuthorityUrl}`)
+    line.startsWith('codesign --force --timestamp --sign ')
     && line.endsWith('.notarizing.dmg')
   )).length;
 }
@@ -291,7 +291,7 @@ test('timestamp service probe fails before the Full DMG or notary is invoked', (
     assert.notEqual(value.result.status, 0);
     assert.equal(value.timestampSigningAttempts, 0);
     assert.equal(value.timestampProbeAttempts, 2);
-    assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthorityUrl);
+    assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthoritySelection);
     assert.equal(value.receipt.timestamp_signing.probe_status, 'failed');
     assert.equal(value.receipt.timestamp_signing.probe_attempts, 2);
     assert.equal(value.receipt.timestamp_signing.probe_retry_count, 1);
@@ -343,7 +343,7 @@ test('timestamp signing retries one timeout from a fresh original DMG copy', () 
     assert.equal(value.result.status, 0, value.result.stderr);
     assert.equal(value.timestampSigningAttempts, 2);
     assert.equal(value.receipt.timestamp_signing.probe_status, 'passed');
-    assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthorityUrl);
+    assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthoritySelection);
     assert.equal(value.receipt.timestamp_signing.attempts, 2);
     assert.equal(value.receipt.timestamp_signing.retry_count, 1);
     assert.deepEqual(value.receipt.timestamp_signing.attempt_timeouts_seconds, [0, 0]);

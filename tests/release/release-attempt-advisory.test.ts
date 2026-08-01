@@ -25,12 +25,12 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
   );
   assert.match(
     fullWorkflow,
-    /name: Upload Full package workflow artifact\n\s+if: \$\{\{ success\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only && inputs\.upload_full_package_artifact \}\}/,
+    /full-intel-finalizer:[\s\S]*name: Upload Full package workflow artifact\n\s+if: \$\{\{ success\(\) \}\}/,
   );
   assert.match(fullWorkflow, /name: Write Full build artifact cohort manifest/);
   assert.match(
     fullWorkflow,
-    /name: Write Full build artifact cohort manifest\n\s+if: \$\{\{ success\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only \}\}/,
+    /full-intel-finalizer:[\s\S]*name: Write Intel-finalized Full build artifact cohort manifest/,
   );
   assert.match(fullWorkflow, /write-build-artifact-cohort\.ts/);
   assert.match(fullWorkflow, /--kind full/);
@@ -42,11 +42,11 @@ test("Full DMG artifacts carry the cohort manifest required by the VM gate", () 
   assert.match(fullWorkflow, /path: \$\{\{ runner\.temp \}\}\/opl-build-cohort\.json/);
   assert.match(
     fullWorkflow,
-    /name: Upload Full build artifact cohort manifest\n\s+if: \$\{\{ success\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only \}\}/,
+    /full-intel-finalizer:[\s\S]*name: Upload Full build artifact cohort manifest\n\s+if: \$\{\{ success\(\) \}\}/,
   );
   assert.match(
     fullWorkflow,
-    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ success\(\) && steps\.full_package_build\.outcome == 'success' && !inputs\.cache_only \}\}/,
+    /full-intel-finalizer:[\s\S]*name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ success\(\) \}\}/,
   );
 });
 

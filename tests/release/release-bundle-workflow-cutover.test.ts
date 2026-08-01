@@ -1871,6 +1871,14 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
   assert.equal(fullBuild.jobs['full-first-install']['runs-on'], 'macos-14');
   assert.equal(fullBuild.jobs['full-first-install'].environment, 'release-stable');
+  assert.equal(fullBuild.jobs['full-intel-finalizer']['runs-on'], 'macos-15-intel');
+  assert.equal(fullBuild.jobs['full-intel-finalizer'].needs, 'full-first-install');
+  assert.equal(fullBuild.jobs['full-intel-finalizer'].environment, 'release-stable');
+  assert.equal(fullBuild.jobs['full-intel-finalizer']['timeout-minutes'], 60);
+  assert.deepEqual(fullBuild.jobs['full-intel-finalizer'].permissions, {
+    contents: 'read',
+    actions: 'read',
+  });
 
   const credentialGate = fullBuild.jobs['full-first-install'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Verify Full signing and notarization credentials',
@@ -1883,27 +1891,45 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(credentialGate.run), /Development-only Full build has no Apple credentials/);
   assert.match(String(credentialGate.run), /exit 1/);
 
-  const finalizer = fullBuild.jobs['full-first-install'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization',
+  const armBuilder = fullBuild.jobs['full-first-install'];
+  const intelFinalizer = fullBuild.jobs['full-intel-finalizer'];
+  const handoffUpload = armBuilder.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload immutable Intel finalizer input',
   );
-  const executorCheckout = fullBuild.jobs['full-first-install'].steps.find(
+  const handoffPrepare = armBuilder.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Prepare immutable Intel finalizer input',
+  );
+  const finalizer = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization on Intel',
+  );
+  const executorCheckout = intelFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Checkout canonical Full release executor',
   );
   assert.equal(fullBuild.jobs['full-first-install']['timeout-minutes'], "${{ inputs.operation == 'append_full' && 130 || 90 }}");
-  assert.equal(executorCheckout.if, "${{ inputs.operation == 'append_full' }}");
+  assert.equal(executorCheckout.if, undefined);
+  assert.match(String(intelFinalizer.if), /inputs\.operation == 'append_full'/);
   assert.equal(executorCheckout.with.path, 'release-executor');
   assert.equal(executorCheckout.with.ref, '${{ github.sha }}');
-  assert.equal(finalizer.if, '${{ !inputs.cache_only }}');
-  assert.match(String(finalizer.run), /Production Full notarization cannot run without strict Developer ID signing/);
-  assert.match(String(finalizer.run), /Skipping notarization for development-only non-distributable Full output/);
+  assert.equal(handoffUpload.with['compression-level'], 0);
+  assert.ok(
+    armBuilder.steps.findIndex((step: Record<string, unknown>) => step.name === 'Upload Actions cache plan and receipt')
+      < armBuilder.steps.indexOf(handoffPrepare),
+  );
+  assert.match(String(handoffPrepare.run), /opl_full_intel_finalizer_input\.v1/);
+  assert.match(String(handoffPrepare.run), /source_runner: \{ label: 'macos-14', arch: process\.arch \}/);
+  assert.equal(
+    fullBuild.jobs['full-first-install'].outputs.finalizer_input_digest,
+    '${{ steps.upload_full_finalizer_input.outputs.artifact-digest }}',
+  );
+  assert.equal(finalizer.if, undefined);
   assert.match(String(finalizer.run), /\$GITHUB_WORKSPACE\/release-executor\/scripts\/notarize-macos-dmg\.ts/);
   assert.match(String(finalizer.run), /full-apple-notarization-receipt\.json/);
   assert.match(String(finalizer.run), /--operation-deadline-at/);
 
-  const notarizationEvidence = fullBuild.jobs['full-first-install'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Upload Full notarization terminal evidence',
+  const notarizationEvidence = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload Intel Full notarization terminal evidence',
   );
-  assert.equal(notarizationEvidence.if, '${{ always() && !inputs.cache_only }}');
+  assert.equal(notarizationEvidence.if, '${{ always() }}');
   assert.match(String(notarizationEvidence.with.name), /opl-full-notarization-evidence/);
   assert.equal(notarizationEvidence.with['if-no-files-found'], 'warn');
 
@@ -1912,11 +1938,17 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     'Upload Full build artifact cohort manifest',
     'Upload Full DMG-only workflow artifact',
   ]) {
-    const upload = fullBuild.jobs['full-first-install'].steps.find(
+    const upload = intelFinalizer.steps.find(
       (step: Record<string, unknown>) => step.name === name,
     );
-    assert.match(String(upload.if), /success\(\)/, `${name} must not upload after notarization or trust failure`);
+    assert.equal(upload.if, '${{ success() }}', `${name} must not upload after notarization or trust failure`);
+    if (name !== 'Upload Full build artifact cohort manifest') assert.equal(upload.with['compression-level'], 0);
   }
+  const finalTrust = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Verify Intel-finalized Full distribution trust and bind manifest',
+  );
+  assert.match(String(finalTrust.run), /timestamp_signing\.authority_endpoint == "system_default"/);
+  assert.match(String(finalTrust.run), /full-intel-finalizer-handoff-receipt\.json/);
 });
 
 test('real build and qualification calls recalculate and consume the same remaining operation budget', () => {
