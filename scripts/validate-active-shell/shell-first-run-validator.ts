@@ -239,11 +239,12 @@ export function validateFirstRunImplementation(shellPaths) {
   ) {
     throw new Error('Active shell FirstRun must keep a pure, always-enabled /guid entry before readiness');
   }
-  const officialProfileCompletionGatePresent = [
-    'officialProfileFirstInstallCompleted',
-    'officialProfileFirstInstallRequired',
-    'completionReady',
-    "setOfficialProfileFirstInstallCompleted(true)",
+  const officialProfileBackgroundPolicyPresent = [
+    "type OfficialProfileFirstInstallState = 'idle' | 'running' | 'completed' | 'failed';",
+    "const completionReady = readyToLaunch;",
+    "setOfficialProfileFirstInstallState('running')",
+    "setOfficialProfileFirstInstallState('failed')",
+    "data-testid='opl-first-run-official-profile-background'",
     "data-testid='opl-first-run-official-profile-retry'",
   ].every((expected) => firstRunPage.includes(expected));
   for (const expected of ['readCoreLaunchPrerequisiteState', "useOplAppState('fast'"]) {
@@ -371,22 +372,17 @@ export function validateFirstRunImplementation(shellPaths) {
     }
   }
   const readyEntryButton = firstRunPage.match(/<Button\s+ref=\{readyEntryRef\}[\s\S]*?<\/Button>/)?.[0] ?? '';
-  const readyEntryRequestGuard = "actionLoading === 'official_profile_first_install'";
   if (
     !readyEntryButton.includes("navigate('/guid', { state: POST_INSTALL_SELF_CHECK_STATE })") ||
-    !readyEntryButton.includes(`loading={${readyEntryRequestGuard}}`) ||
-    !readyEntryButton.includes(`disabled={${readyEntryRequestGuard}}`) ||
-    (readyEntryButton.match(/\bdisabled=/g)?.length ?? 0) !== 1
+    readyEntryButton.includes('loading=') ||
+    readyEntryButton.includes('disabled=')
   ) {
     throw new Error(
-      'Active shell ready entry must preserve post-install self-check state and only disable while its profile-install action is running',
+      'Active shell ready entry must preserve post-install self-check state and remain enabled during Official Profile background work',
     );
   }
-  if (officialProfileCompletionGatePresent && firstRunPage.includes("data-testid='opl-first-run-ready-entry'")) {
-    const completionBranch = firstRunPage.match(/officialProfileFirstInstallPending \? \([\s\S]*?\) : completionReady \? \([\s\S]*?data-testid='opl-first-run-ready-entry'/)?.[0] ?? '';
-    if (!completionBranch) {
-      throw new Error('Active shell first-install completion must stay blocked until Official Profile apply succeeds');
-    }
+  if (!officialProfileBackgroundPolicyPresent || firstRunPage.includes('officialProfileFirstInstallPending ? (')) {
+    throw new Error('Active shell first-install Official Profile apply must remain visible background work without gating completion');
   }
   for (const expected of [
     "setAttribute('inert', '')",

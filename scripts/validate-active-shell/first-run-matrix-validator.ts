@@ -361,6 +361,8 @@ export function validateFirstRunMatrix(matrix, contract) {
     'model access offers functional Gateway account and API Key compatibility paths without competing primary actions',
     'model access method switching and alternate actions remain disabled until the current request settles',
     'ready state replaces the current task in place and keeps one primary entry action',
+    'macOS first-install Official Profile apply starts after Core readiness and never blocks or disables the ready /guid entry',
+    'Official Profile pending, timeout, and failure remain background Package-local status with technical diagnostics and explicit retry',
     'FirstRun never navigates automatically after initialize and explicit user entry can open /guid before or after readiness',
     'technical details stay inside FirstRun and do not expose ordinary Settings navigation',
     'all initialize, model access, and maintenance actions share one in-flight interaction lock',
