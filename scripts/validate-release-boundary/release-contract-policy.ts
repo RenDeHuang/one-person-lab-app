@@ -324,7 +324,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
     fullAddon?.standard_identity_required !== false ||
     fullAddon?.standard_release_readback !==
-      'optional_provenance_only_no_compatibility_gate' ||
+      'required_exact_reference_cas_only_no_cross_component_compatibility_gate' ||
     fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
     fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
     fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
@@ -332,7 +332,8 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.successor_trigger?.executor_head_sha !== 'workflow_run_head_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
     fullAddon?.mode !== 'independent_immutable_adjunct_release' ||
-    fullAddon?.standard_release_prerequisite_required !== false ||
+    fullAddon?.standard_release_prerequisite_required !== true ||
+    fullAddon?.carrier_identity?.base_release_tag !== 'exact_existing_immutable_standard_reference' ||
     fullAddon?.carrier_identity?.base_release_mutation_allowed !== false ||
     fullAddon?.carrier_identity?.adjunct_make_latest !== false ||
     fullAddon?.carrier_identity?.adjunct_prerelease !== false ||
@@ -346,7 +347,20 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.same_name_different_digest !== 'fail_closed_require_new_bundle_or_version' ||
     fullAddon?.standard_assets_modified !== false ||
     fullAddon?.updater_metadata_modified !== false ||
-    fullAddon?.release_notes_modified !== false ||
+    fullAddon?.release_notes_modified !== 'owner_cas_after_full_terminal_only' ||
+    !sameStringSet(fullAddon?.target_standard_reference?.required_fields, [
+      'repository',
+      'release_id',
+      'tag',
+      'target_commitish',
+      'immutable',
+    ]) ||
+    !sameStringSet(fullAddon?.target_standard_reference?.cas_timing, [
+      'before_full_build',
+      'immediately_before_adjunct_publication',
+    ]) ||
+    fullAddon?.target_standard_reference?.cross_component_compatibility_gate_allowed !== false ||
+    fullAddon?.target_standard_reference?.base_assets_mutation_allowed !== false ||
     fullAddon?.latest_modified !== false ||
     fullAddon?.source_or_bom_change_requires_new_version !== true ||
     nightly?.status !== 'implemented_pending_first_publication_readback' ||
@@ -2000,8 +2014,8 @@ export function validateReleasePlatformMatrix(
   if (
     follower?.workflow !== '.github/workflows/release-stable-post-success-followups.yml'
     || follower?.trigger !== 'protected_automatic_post_success_or_explicit_independent_full_publication'
-    || follower?.source_policy !== 'full_artifact_self_identity_plus_component_compatibility'
-    || follower?.standard_release_prerequisite_required !== false
+    || follower?.source_policy !== 'full_artifact_self_identity_plus_component_compatibility_plus_exact_standard_reference_cas'
+    || follower?.standard_release_prerequisite_required !== true
     || follower?.cross_component_exact_version_sha_or_cohort_binding_allowed !== false
     || follower?.compatibility_contract_ref !==
       'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission'
@@ -2010,6 +2024,16 @@ export function validateReleasePlatformMatrix(
     || follower?.full_release_must_be_published_immutable !== true
     || follower?.draft_asset_set_must_be_exact_before_publication !== true
     || follower?.standard_asset_or_latest_mutation_allowed !== false
+    || !sameStringSet(follower?.target_standard_reference?.required_fields, [
+      'repository',
+      'release_id',
+      'tag',
+      'target_commitish',
+      'immutable',
+    ])
+    || follower?.target_standard_reference?.purpose !== 'reference_and_release_notes_only'
+    || follower?.target_standard_reference?.cross_component_compatibility_gate_allowed !== false
+    || follower?.target_standard_reference?.base_assets_mutation_allowed !== false
     || follower?.blocks_stable_base_terminal !== false
     || follower?.blocks_latest_activation !== false
     || follower?.failure_receipt_required !== true

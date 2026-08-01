@@ -599,6 +599,31 @@ function writeFullUploadActions(root: string): Asset[] {
     version,
     release_version: version,
     primary_install_asset: dmgName,
+    carrier_context: {
+      publication_model: 'independent_immutable_adjunct_linked_to_existing_standard',
+      target_standard_release: {
+        repository: repo,
+        release_id: 12345,
+        tag,
+        target_commitish: sourceCommit,
+        mutation_allowed: false,
+      },
+      release_executor: {
+        app_sha: 'e'.repeat(40),
+        notarizer_path: 'scripts/notarize-macos-dmg.ts',
+      },
+      full_content_sources: {
+        role: 'observational_build_provenance_only',
+        may_gate_install_or_runtime: false,
+        app_sha: sourceCommit,
+        shell_sha: shellCommit,
+        framework_sha: frameworkCommit,
+      },
+      differences: {
+        executor_app_differs_from_full_content_app: true,
+        full_content_app_differs_from_target_standard: false,
+      },
+    },
     assets: [{
       name: dmgName,
       role: 'full_first_install_carrier',
@@ -1796,6 +1821,10 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
   }, runtime);
   assert.equal(result.status, 'complete');
   assert.equal(result.tag, adjunct.tag);
+  assert.equal(result.adjunct.target_standard_release.release_id, 12345);
+  assert.equal(result.adjunct.target_standard_release.tag, tag);
+  assert.match(result.adjunct.notes, /Full content sources: App a{40}, Shell c{40}, Framework d{40}/);
+  assert.match(result.adjunct.notes, /Release executor App source: e{40}/);
   assert.equal(calls, 1);
 });
 
@@ -1852,6 +1881,9 @@ test('an exact published Full adjunct remains idempotent with complete discovery
   assert.equal(result.adjunct.tag, adjunct.tag);
   assert.deepEqual(result.adjunct.manifest, adjunct.manifest);
   assert.deepEqual(result.adjunct.artifact, adjunct.artifact);
+  assert.deepEqual(result.adjunct.target_standard_release, adjunct.target_standard_release);
+  assert.deepEqual(result.adjunct.release_executor, adjunct.release_executor);
+  assert.deepEqual(result.adjunct.full_content_sources, adjunct.full_content_sources);
   assert.equal(result.adjunct.release_url, `https://github.com/${repo}/releases/tag/${adjunct.tag}`);
   assert.equal(
     result.adjunct.asset_download_base_url,

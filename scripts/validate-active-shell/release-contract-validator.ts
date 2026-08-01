@@ -1253,14 +1253,20 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.full_macos_additive_follower?.trigger !==
       'protected_automatic_post_success_or_explicit_independent_full_publication'
     || platformMatrix?.full_macos_additive_follower?.source_policy !==
-      'full_artifact_self_identity_plus_component_compatibility'
-    || platformMatrix?.full_macos_additive_follower?.standard_release_prerequisite_required !== false
+      'full_artifact_self_identity_plus_component_compatibility_plus_exact_standard_reference_cas'
+    || platformMatrix?.full_macos_additive_follower?.standard_release_prerequisite_required !== true
     || platformMatrix?.full_macos_additive_follower?.cross_component_exact_version_sha_or_cohort_binding_allowed !== false
     || platformMatrix?.full_macos_additive_follower?.compatibility_contract_ref !==
       'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission'
     || platformMatrix?.full_macos_additive_follower?.carrier !==
       'independent_immutable_adjunct_release'
     || platformMatrix?.full_macos_additive_follower?.full_release_must_be_published_immutable !== true
+    || JSON.stringify(platformMatrix?.full_macos_additive_follower?.target_standard_reference?.required_fields) !==
+      JSON.stringify(['repository', 'release_id', 'tag', 'target_commitish', 'immutable'])
+    || platformMatrix?.full_macos_additive_follower?.target_standard_reference?.purpose !==
+      'reference_and_release_notes_only'
+    || platformMatrix?.full_macos_additive_follower?.target_standard_reference?.cross_component_compatibility_gate_allowed !== false
+    || platformMatrix?.full_macos_additive_follower?.target_standard_reference?.base_assets_mutation_allowed !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_stable_base_terminal !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_latest_activation !== false
   ) {

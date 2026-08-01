@@ -26,7 +26,7 @@ type FailureEvidence = {
 };
 
 const defaultCommandTimeoutMs = 45 * 60_000;
-const timestampSigningAttemptLimitMs = 15 * 60_000;
+const timestampSigningAttemptLimitMs = 5 * 60_000;
 const maximumTimestampSigningAttempts = 4;
 const postNotarizationReserveMs = 20 * 60_000;
 const minimumNotarizationWaitMs = 60_000;

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -50,6 +51,38 @@ const releases = [
 ];
 
 const cleanupAttemptId = `sha256:${'a'.repeat(64)}`;
+const canonicalRepo = 'gaofeng21cn/one-person-lab-app';
+const orphanRelease = release(362629121, 'v26.7.31', {
+  target_commitish: '3'.repeat(40),
+  updated_at: '2026-07-30T18:19:53Z',
+  published_at: null,
+  assets: [],
+});
+
+function orphanArgs(summaryPath: string, execute = false) {
+  const args = [
+    '--version', '26.7.31',
+    '--repo', canonicalRepo,
+    '--summary-path', summaryPath,
+    execute ? '--request-exact-orphan-delete' : '--inspect-exact-orphan',
+    '--expected-release-id', String(orphanRelease.id),
+    '--expected-tag', orphanRelease.tag_name,
+    '--expected-target-commitish', String(orphanRelease.target_commitish),
+    '--expected-updated-at', String(orphanRelease.updated_at),
+  ];
+  if (execute) {
+    const operationId = `sha256:${crypto.createHash('sha256').update(JSON.stringify({
+      schema: 'opl_exact_orphan_draft_cleanup_operation.v1',
+      repository: canonicalRepo,
+      release_id: orphanRelease.id,
+      tag: orphanRelease.tag_name,
+      target_commitish: orphanRelease.target_commitish,
+      updated_at: orphanRelease.updated_at,
+    })).digest('hex')}`;
+    args.push('--operation-id', operationId);
+  }
+  return args;
+}
 
 function writeBrokerAcceptanceTrace(filePath: string, attemptId = cleanupAttemptId) {
   fs.writeFileSync(filePath, `${JSON.stringify({
@@ -96,6 +129,82 @@ test('draft cleanup dry-run lists only matching draft/readiness candidates', () 
     ['v26.5.99-draft.20260528103712', 'v26.5.99-readiness.20260528040857'],
   );
   assert.deepEqual(summary.deleted_tags, []);
+});
+
+test('exact final-tag orphan cleanup deletes only the CAS-bound empty unpublished draft', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-exact-orphan-cleanup-'));
+  const binDir = writeFakeGh(tempRoot);
+  const summaryPath = path.join(tempRoot, 'summary.json');
+  const logPath = path.join(tempRoot, 'gh.log');
+  const statePath = path.join(tempRoot, 'remote-state');
+  fs.writeFileSync(statePath, 'present');
+  const env = fakeGhEnv(binDir, logPath, {
+    FAKE_EXACT_RELEASE_JSON: JSON.stringify(orphanRelease),
+    FAKE_MATCHING_TAG_REFS_JSON: JSON.stringify([
+      { ref: 'refs/tags/v26.7.31-r4', object: { sha: '4'.repeat(40) } },
+      { ref: 'refs/tags/v26.7.31-nightly', object: { sha: '5'.repeat(40) } },
+    ]),
+    FAKE_GH_STATE_FILE: statePath,
+  });
+
+  const inspect = runCleanup(orphanArgs(summaryPath), env);
+  assert.equal(inspect.status, 0, inspect.stderr || inspect.stdout);
+  const dryRun = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(dryRun.status, 'dry_run');
+  assert.equal(dryRun.deletion_performed, false);
+  assert.match(dryRun.operation_id, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(fs.existsSync(logPath), false);
+
+  const execute = runCleanup(orphanArgs(summaryPath, true), env);
+  assert.equal(execute.status, 0, execute.stderr || execute.stdout);
+  const receipt = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(receipt.status, 'deleted');
+  assert.equal(receipt.deletion_performed, true);
+  assert.equal(receipt.after.release, null);
+  assert.equal(receipt.retry_disposition, 'terminal_no_retry');
+  const mutations = fs.readFileSync(logPath, 'utf8').trim().split('\n');
+  assert.equal(mutations.length, 1);
+  assert.match(mutations[0], /repos\/gaofeng21cn\/one-person-lab-app\/releases\/362629121/);
+});
+
+test('exact orphan cleanup reconciles an unknown accepted deletion without retrying', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-exact-orphan-unknown-'));
+  const binDir = writeFakeGh(tempRoot);
+  const summaryPath = path.join(tempRoot, 'summary.json');
+  const logPath = path.join(tempRoot, 'gh.log');
+  const statePath = path.join(tempRoot, 'remote-state');
+  fs.writeFileSync(statePath, 'present');
+  const result = runCleanup(orphanArgs(summaryPath, true), fakeGhEnv(binDir, logPath, {
+    FAKE_EXACT_RELEASE_JSON: JSON.stringify(orphanRelease),
+    FAKE_MATCHING_TAG_REFS_JSON: '[]',
+    FAKE_GH_STATE_FILE: statePath,
+    FAKE_DELETE_OUTCOME: 'unknown_deleted',
+  }));
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const receipt = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  assert.equal(receipt.status, 'deleted_after_unknown_reconcile');
+  assert.equal(receipt.mutation_accepted, false);
+  assert.equal(receipt.deletion_performed, true);
+  assert.equal(fs.readFileSync(logPath, 'utf8').trim().split('\n').length, 1);
+});
+
+test('exact orphan cleanup rejects asset or tag drift before any mutation', () => {
+  for (const fixture of [
+    { release: { ...orphanRelease, assets: [{ name: 'unexpected.dmg', size: 1 }] }, refs: [] },
+    { release: orphanRelease, refs: [{ ref: 'refs/tags/v26.7.31', object: { sha: '3'.repeat(40) } }] },
+  ]) {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-exact-orphan-drift-'));
+    const binDir = writeFakeGh(tempRoot);
+    const summaryPath = path.join(tempRoot, 'summary.json');
+    const logPath = path.join(tempRoot, 'gh.log');
+    const result = runCleanup(orphanArgs(summaryPath, true), fakeGhEnv(binDir, logPath, {
+      FAKE_EXACT_RELEASE_JSON: JSON.stringify(fixture.release),
+      FAKE_MATCHING_TAG_REFS_JSON: JSON.stringify(fixture.refs),
+    }));
+    assert.notEqual(result.status, 0);
+    assert.equal(fs.existsSync(logPath), false);
+  }
 });
 
 test('draft cleanup execution request requires an independent attempt and acceptance receipt', () => {
