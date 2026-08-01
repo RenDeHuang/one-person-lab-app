@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -284,6 +285,55 @@ test('active-shell quick validation defaults to Stable while full validation rem
     () => activeShellReleaseValidationProfile(true, 'unsupported'),
     /Unsupported OPL_RELEASE_VALIDATION_PROFILE/,
   );
+});
+
+test('verify release-boundary selector executes aggregate as the complete release test set', () => {
+  const verify = fs.readFileSync(path.join(appRoot, 'scripts/verify.sh'), 'utf8');
+  const selector = verify.match(
+    /node --experimental-strip-types --input-type=module - "\$profile" <<'NODE'\n([\s\S]*?)\nNODE/,
+  )?.[1];
+  assert.ok(selector, 'release-boundary test selector must remain executable from verify.sh');
+
+  const releaseTests = fs.readdirSync(path.join(appRoot, 'tests/release'), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
+    .map((entry) => path.posix.join('tests/release', entry.name));
+  const boundaryTests = fs.readdirSync(
+    path.join(appRoot, 'tests/release/app-release-boundary-cases'),
+    { withFileTypes: true },
+  )
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
+    .map((entry) => path.posix.join('tests/release/app-release-boundary-cases', entry.name));
+  const allTests = [...releaseTests, ...boundaryTests].sort();
+  const windowsOwned = contract.release_platform_matrix.validation_ownership['windows-preview']
+    .owned_test_paths as string[];
+
+  const select = (profile: string) => {
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', '--input-type=module', '-', profile],
+      { cwd: appRoot, encoding: 'utf8', input: selector },
+    );
+    return {
+      ...result,
+      files: result.stdout.trim().split('\n').filter(Boolean),
+    };
+  };
+
+  const aggregate = select('aggregate');
+  assert.equal(aggregate.status, 0, aggregate.stderr);
+  assert.deepEqual(aggregate.files, allTests);
+
+  const stable = select('stable');
+  assert.equal(stable.status, 0, stable.stderr);
+  assert.deepEqual(stable.files, allTests.filter((file) => !windowsOwned.includes(file)));
+
+  const windowsPreview = select('windows-preview');
+  assert.equal(windowsPreview.status, 0, windowsPreview.stderr);
+  assert.deepEqual(windowsPreview.files, [...windowsOwned].sort());
+
+  const unsupported = select('unsupported');
+  assert.notEqual(unsupported.status, 0);
+  assert.match(unsupported.stderr, /Unsupported release validation profile: unsupported/);
 });
 
 test('Windows-only Docker/WebUI cases live only in the Preview-owned test file', () => {

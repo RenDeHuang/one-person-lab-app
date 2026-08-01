@@ -98,11 +98,13 @@ run_release_boundary_profile() {
   for (const file of owned) {
     if (!allTests.includes(file)) throw new Error(`Owned release test does not exist: ${file}.`);
   }
-  const selected = profile === 'stable'
-    ? allTests.filter((file) => !owned.has(file))
-    : profile === 'windows-preview'
-      ? allTests.filter((file) => owned.has(file))
-      : null;
+  const selected = profile === 'aggregate'
+    ? allTests
+    : profile === 'stable'
+      ? allTests.filter((file) => !owned.has(file))
+      : profile === 'windows-preview'
+        ? allTests.filter((file) => owned.has(file))
+        : null;
   if (!selected) throw new Error(`Unsupported release validation profile: ${profile}.`);
   process.stdout.write(`${selected.join('\n')}\n`);
 NODE
