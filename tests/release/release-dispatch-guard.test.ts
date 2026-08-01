@@ -50,6 +50,15 @@ function ownerRun(id: number, overrides: Record<string, unknown> = {}) {
   };
 }
 
+function paginatedRuns(runs: unknown[], pageSize = 100) {
+  if (runs.length === 0) return [{ total_count: 0, workflow_runs: [] }];
+  const pages = [];
+  for (let index = 0; index < runs.length; index += pageSize) {
+    pages.push({ total_count: runs.length, workflow_runs: runs.slice(index, index + pageSize) });
+  }
+  return pages;
+}
+
 function successfulRunner(runs: unknown[] = []): CommandRunner {
   return (command, args) => {
     if (command === 'git') {
@@ -68,7 +77,7 @@ function successfulRunner(runs: unknown[] = []): CommandRunner {
     if (command === 'gh') {
       return {
         status: 0,
-        stdout: JSON.stringify({ total_count: runs.length, workflow_runs: runs }),
+        stdout: JSON.stringify(paginatedRuns(runs)),
         stderr: '',
       };
     }
@@ -261,7 +270,7 @@ test('pre-nonce guard rejects another active Stable authority before nonce issua
   assert.equal(report.dispatch_allowed, false);
 });
 
-test('pre-nonce guard uses one bounded owner-run page without pagination or slurp', () => {
+test('pre-nonce guard uses one bounded paginated structured owner-run query', () => {
   let observedArgs: string[] = [];
   const prior = ownerRun(41, { status: 'completed', conclusion: 'success' });
   const current = ownerRun(42);
@@ -280,44 +289,52 @@ test('pre-nonce guard uses one bounded owner-run page without pagination or slur
       observedArgs = args;
       return {
         status: 0,
-        stdout: JSON.stringify({ total_count: 2, workflow_runs: [prior, current] }),
+        stdout: JSON.stringify(paginatedRuns([prior, current])),
         stderr: '',
       };
     },
   });
 
-  assert.equal(observedArgs.includes('--paginate'), false);
-  assert.equal(observedArgs.includes('--slurp'), false);
-  assert.ok(observedArgs.includes('page=1'));
+  assert.equal(observedArgs.filter((arg) => arg === '--paginate').length, 1);
+  assert.equal(observedArgs.filter((arg) => arg === '--slurp').length, 1);
+  assert.equal(observedArgs.includes('page=1'), false);
   assert.ok(observedArgs.includes('per_page=100'));
   assert.equal(report.status, 'blocked');
   assert.match(report.reason, /no prior frozen-operation consumer/);
 });
 
-test('pre-nonce guard rejects a paginated slurp array instead of silently flattening it', () => {
+test('run-bound guard accepts a complete second page containing the 101st owner run', () => {
+  const historical = Array.from({ length: 100 }, (_, index) => ownerRun(index + 1000, {
+    status: 'completed',
+    conclusion: 'success',
+    display_title: `unrelated historical operation ${index}`,
+  }));
+  const current = ownerRun(42);
   const report = buildPreNonceDispatchGuard({
     workflow,
     expectedAppSha: appSha,
     expectedShellSha: shellSha,
     expectedFrameworkSha: frameworkSha,
     sourceGateReport: sourceGateReport(),
+    currentRunId: '42',
+    authorityId: 'authority-42',
+    operationId,
   }, {
     runner: () => ({
       status: 0,
-      stdout: JSON.stringify([{ total_count: 0, workflow_runs: [] }]),
+      stdout: JSON.stringify(paginatedRuns([...historical, current])),
       stderr: '',
     }),
   });
 
-  assert.equal(report.status, 'blocked');
-  assert.equal(report.failure_class, 'protocol');
-  assert.equal(report.failure_code, 'invalid_response');
-  assert.match(report.reason, /one bounded workflow_runs\[\] page/);
+  assert.equal(report.status, 'passed');
+  assert.equal(report.owner_run_query?.logical_query_count, 1);
+  assert.equal(report.owner_run_match_count, 1);
   assert.equal(report.nonce_consumed, false);
-  assert.equal(report.dispatch_allowed, false);
+  assert.equal(report.dispatch_allowed, true);
 });
 
-test('pre-nonce guard rejects a truncated bounded page before proving operation absence', () => {
+test('pre-nonce guard rejects a missing owner-run page before proving operation absence', () => {
   const unrelatedRuns = Array.from(
     { length: 100 },
     (_, index) => ownerRun(index + 1000, { head_sha: 'f'.repeat(40) }),
@@ -331,7 +348,7 @@ test('pre-nonce guard rejects a truncated bounded page before proving operation 
   }, {
     runner: () => ({
       status: 0,
-      stdout: JSON.stringify({ total_count: 102, workflow_runs: unrelatedRuns }),
+      stdout: JSON.stringify([{ total_count: 101, workflow_runs: unrelatedRuns }]),
       stderr: '',
     }),
   });
@@ -339,9 +356,79 @@ test('pre-nonce guard rejects a truncated bounded page before proving operation 
   assert.equal(report.status, 'blocked');
   assert.equal(report.failure_class, 'protocol');
   assert.equal(report.failure_code, 'truncated_response');
-  assert.match(report.reason, /100 of 102 runs/);
+  assert.match(report.reason, /1 of 2 expected pages/);
   assert.equal(report.nonce_consumed, false);
   assert.equal(report.dispatch_allowed, false);
+});
+
+test('pre-nonce guard rejects total_count drift across owner-run pages', () => {
+  const pages = paginatedRuns(Array.from({ length: 101 }, (_, index) => ownerRun(index + 1000)));
+  pages[1]!.total_count = 102;
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+  }, { runner: () => ({ status: 0, stdout: JSON.stringify(pages), stderr: '' }) });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_code, 'invalid_response');
+  assert.match(report.reason, /total_count drifted/);
+});
+
+test('pre-nonce guard rejects a duplicate run id across owner-run pages', () => {
+  const runs = Array.from({ length: 101 }, (_, index) => ownerRun(index + 1000));
+  runs[100] = ownerRun(1000);
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+  }, { runner: () => ({ status: 0, stdout: JSON.stringify(paginatedRuns(runs)), stderr: '' }) });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_code, 'invalid_response');
+  assert.match(report.reason, /duplicate run id 1000/);
+});
+
+test('pre-nonce guard rejects a malformed owner-run page', () => {
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+  }, {
+    runner: () => ({
+      status: 0,
+      stdout: JSON.stringify([{ total_count: 101, workflow_runs: Array(100).fill({}) }, []]),
+      stderr: '',
+    }),
+  });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_code, 'invalid_response');
+  assert.match(report.reason, /page 2 did not return workflow_runs/);
+});
+
+test('pre-nonce guard rejects owner-run history beyond the bounded page limit', () => {
+  const pages = Array.from({ length: 11 }, (_, index) => ({
+    total_count: 1001,
+    workflow_runs: Array(index === 10 ? 1 : 100).fill({}),
+  }));
+  const report = buildPreNonceDispatchGuard({
+    workflow,
+    expectedAppSha: appSha,
+    expectedShellSha: shellSha,
+    expectedFrameworkSha: frameworkSha,
+    sourceGateReport: sourceGateReport(),
+  }, { runner: () => ({ status: 0, stdout: JSON.stringify(pages), stderr: '' }) });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.failure_code, 'truncated_response');
+  assert.match(report.reason, /exceeding the bounded 10-page query limit/);
 });
 
 test('pre-nonce guard permits only its own authority-bound run and rejects any second matching run', () => {
