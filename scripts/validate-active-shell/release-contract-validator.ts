@@ -114,7 +114,7 @@ const publisherReconcileAdmissionContract = {
   deadline_elapsed_reconcile_may_advance_stage: false,
   create_upload_latest_or_homebrew_retry_allowed: false,
 };
-const frameworkReleaseAbiSha = '9860dc64b56ed9cccb9984cd14e138d9ccacced7';
+const frameworkReleaseAbiSha = 'bee837d46a3695710c93c3acc69c10eb1d900167';
 const frameworkReleaseCommands = [
   'freeze',
   'operation admit',
@@ -125,6 +125,8 @@ const frameworkReleaseCommands = [
   'publish',
   'reconcile',
   'status',
+  'events',
+  'consumer envelope',
 ];
 const frameworkReleaseCommandForms = [
   'opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]',
@@ -136,6 +138,8 @@ const frameworkReleaseCommandForms = [
   'opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
   'opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
   'opl release status --bundle <sha256:digest> [--store <directory>]',
+  'opl release events --bundle <sha256:digest> [--after-event <sha256:event>] [--store <directory>]',
+  'opl release consumer envelope --bundle <sha256:digest> --track <standard|full> [--source-checkpoint-run-id <run-id>] [--store <directory>]',
 ];
 const immutableOperationControlFields = [
   'control_digest',
@@ -521,6 +525,8 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     framework?.bundle_schema !== 'opl_release_bundle.v1' ||
     framework?.checkpoint_schema !== 'opl_release_bundle_checkpoint.v1' ||
     framework?.operation_control_schema !== 'opl_release_bundle_operation_control.v1' ||
+    framework?.operation_event_schema !== 'opl_release_bundle_operation_event.v1' ||
+    framework?.consumer_envelope_schema !== 'opl_release_bundle_consumer_envelope.v1' ||
     framework?.unknown_outcome_schema !== 'opl_release_bundle_unknown_outcome.v1' ||
     framework?.portable_checkpoint_authority_first_landed_sha !== 'f785cda96' ||
     framework?.consumed_abi_sha !== frameworkReleaseAbiSha ||
