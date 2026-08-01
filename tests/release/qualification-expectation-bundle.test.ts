@@ -48,7 +48,7 @@ test('compiled first-run expectations exactly match all App contract projections
   assert.equal(compiled.profiles.full.semantics.artifact_kind, 'full');
   assert.equal(compiled.profiles.standard.semantics.target_fixture_role, 'release_qualification_probe_input_only');
   assert.deepEqual(compiled.profiles.standard.semantics.target_projection, {
-    membership_source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    membership_source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
     shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
     preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
     runtime_catalog_authority: false,

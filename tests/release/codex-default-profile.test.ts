@@ -418,11 +418,11 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
     },
     {
       home_membership_source_ref:
-        'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+        'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
       home_preference_source_ref:
         'app_state.agent_packages.status_index.home_shortcut_preferences[]',
       home_visibility_policy:
-        'standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state',
+        'installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts',
       home_order_policy: 'home_shortcut_preferences_sort_order_then_localized_display_name',
       source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
       status_source_ref: 'app_state.agent_packages.status_index.packages[]',

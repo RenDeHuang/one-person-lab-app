@@ -25,7 +25,7 @@ function validateDynamicHomeComposerStateContract(value, label) {
     },
     {
       shortcut_package_membership_source_ref:
-        'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+        'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
       shortcut_preference_source_ref:
         'app_state.agent_packages.status_index.home_shortcut_preferences[]',
       shortcut_availability_source_ref:
@@ -151,9 +151,9 @@ function validateGuidHomeAgentPackageAuthority(homeViewModel) {
     homeViewModel.professional_agent_package_membership_source_ref !==
       'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
     homeViewModel.home_agent_package_membership_source_ref !==
-      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+      'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]' ||
     homeViewModel.unknown_standard_agent_policy !==
-      'include_in_palette_and_home_without_app_package_id_branch' ||
+      'include_in_palette_and_home_when_installed_without_app_package_id_branch' ||
     'professional_agent_packages' in homeViewModel ||
     'default_home_agent_packages' in homeViewModel ||
     'default_assistants' in homeViewModel ||

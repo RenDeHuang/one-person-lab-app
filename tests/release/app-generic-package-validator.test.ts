@@ -121,11 +121,11 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
   );
   assert.equal(
     guiContract.home_layout.unknown_standard_agent_policy,
-    'render_when_default_or_user_preference_visible_without_app_package_id_branch_and_independent_of_installed_state',
+    'render_when_installed_and_default_or_user_preference_visible_without_app_package_id_branch',
   );
   assert.equal(
     guiContract.home_layout.starter_visibility_policy,
-    'standard_agent_directory_membership_with_default_or_user_visible_shortcuts_independent_of_installed_state',
+    'installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts',
   );
   assert.equal(
     shortcutPolicy.shortcut_source_ref,

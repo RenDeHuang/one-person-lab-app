@@ -50,7 +50,7 @@
         ],
         "target_fixture_role": "release_qualification_probe_input_only",
         "target_projection": {
-          "membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+          "membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
           "shortcut_source_ref": "app_state.agent_packages.directory.entries[].home_shortcuts[]",
           "preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
           "runtime_catalog_authority": false,
@@ -71,7 +71,7 @@
         },
         "successful_invocation_receipt_expected": false
       },
-      "semantic_digest": "c9fad9c08e2c90dea3203eec411072b1b7f3844cea7a1f57ceab93d29ee34f58",
+      "semantic_digest": "fabe91c904e705dc192edcdf785b8afb583efd873884d94400e7e7bbee0aaca5",
       "probes": {
         "home_control_testid_templates": [
           "home-starter-<package_id>",
