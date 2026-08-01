@@ -27,9 +27,10 @@ type FailureEvidence = {
 
 const defaultCommandTimeoutMs = 45 * 60_000;
 const timestampSigningAttemptLimitMs = 15 * 60_000;
-const maximumTimestampSigningAttempts = 2;
+const maximumTimestampSigningAttempts = 4;
 const postNotarizationReserveMs = 20 * 60_000;
 const minimumNotarizationWaitMs = 60_000;
+const minimumTimestampSigningNotarizationWindowMs = 20 * 60_000;
 
 function testMode(): boolean {
   return process.env.NODE_ENV === 'test' && process.env.OPL_NOTARIZATION_TEST_MODE === 'true';
@@ -140,7 +141,11 @@ export function timestampSigningTimeoutMs(input: {
   if (!Number.isInteger(attemptLimitMs) || attemptLimitMs < 1) {
     throw new Error('Timestamp-signing attempt limit must be a positive integer number of milliseconds.');
   }
-  return Math.min(attemptLimitMs, preNotarizationCommandTimeoutMs(input));
+  return Math.min(attemptLimitMs, preNotarizationCommandTimeoutMs({
+    operationDeadlineAt: input.operationDeadlineAt,
+    nowMs: input.nowMs,
+    minimumWaitMs: minimumTimestampSigningNotarizationWindowMs,
+  }));
 }
 
 function configuredTimestampSigningAttemptLimitMs(): number {
