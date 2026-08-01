@@ -27,10 +27,11 @@ type FailureEvidence = {
 
 const defaultCommandTimeoutMs = 45 * 60_000;
 const timestampSigningAttemptLimitMs = 5 * 60_000;
+const timestampServiceProbeTimeoutMs = 60_000;
+const appleTimestampAuthorityUrl = 'http://timestamp.apple.com/ts01';
 const maximumTimestampSigningAttempts = 4;
 const largeDmgThresholdBytes = 512 * 1024 * 1024;
 const maximumLargeDmgTimestampSigningAttempts = 2;
-const largeDmgTimestampSigningRetryReserveMs = 10 * 60_000;
 const postNotarizationReserveMs = 20 * 60_000;
 const minimumNotarizationWaitMs = 60_000;
 const minimumTimestampSigningNotarizationWindowMs = 20 * 60_000;
@@ -155,19 +156,12 @@ export function timestampSigningTimeoutMs(input: {
     throw new Error('Timestamp-signing attempt number must be a positive integer.');
   }
 
-  let safeBudgetMs = preNotarizationCommandTimeoutMs({
+  const safeBudgetMs = preNotarizationCommandTimeoutMs({
     operationDeadlineAt: input.operationDeadlineAt,
     nowMs: input.nowMs,
     minimumWaitMs: minimumTimestampSigningNotarizationWindowMs,
   });
-  const isLargeDmg = artifactSizeBytes >= largeDmgThresholdBytes;
-  if (isLargeDmg
-    && attemptNumber === 1
-    && safeBudgetMs > largeDmgTimestampSigningRetryReserveMs + 1_000) {
-    safeBudgetMs -= largeDmgTimestampSigningRetryReserveMs;
-  }
-  const attemptLimitMs = input.attemptLimitMs
-    ?? (isLargeDmg ? safeBudgetMs : timestampSigningAttemptLimitMs);
+  const attemptLimitMs = input.attemptLimitMs ?? timestampSigningAttemptLimitMs;
   return Math.min(attemptLimitMs, safeBudgetMs);
 }
 
@@ -188,6 +182,18 @@ function configuredTimestampSigningAttemptLimitMs(): number | undefined {
   const parsed = Number(testOverride);
   if (!Number.isInteger(parsed) || parsed < 1) {
     throw new Error('OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS must be a positive integer.');
+  }
+  return parsed;
+}
+
+function configuredTimestampServiceProbeTimeoutMs(): number {
+  const testOverride = testMode()
+    ? process.env.OPL_NOTARIZATION_TEST_TIMESTAMP_PROBE_TIMEOUT_MS?.trim()
+    : '';
+  if (!testOverride) return timestampServiceProbeTimeoutMs;
+  const parsed = Number(testOverride);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error('OPL_NOTARIZATION_TEST_TIMESTAMP_PROBE_TIMEOUT_MS must be a positive integer.');
   }
   return parsed;
 }
@@ -231,6 +237,35 @@ function signatureFacts(
     throw new Error(`Hardened Runtime is missing for ${target}.`);
   }
   return { team_identifier: teamIdentifier, authorities, hardened_runtime: Boolean(runtime), runtime_version: runtime };
+}
+
+function verifyTimestampServiceProbe(
+  probePath: string,
+  identity: string,
+  expectedTeamId: string,
+  timeoutMs: number,
+) {
+  fs.writeFileSync(probePath, crypto.randomBytes(32));
+  run(
+    'codesign',
+    ['--force', `--timestamp=${appleTimestampAuthorityUrl}`, '--sign', identity, probePath],
+    timeoutMs,
+  );
+  run('codesign', ['--verify', '--strict', '--verbose=2', probePath], timeoutMs);
+  const result = run('codesign', ['-dv', '--verbose=4', probePath], timeoutMs);
+  const output = `${result.stdout || ''}${result.stderr || ''}`;
+  const teamIdentifier = output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || '';
+  const timestamp = output.match(/^Timestamp=(.+)$/m)?.[1]?.trim() || '';
+  const authorities = [...output.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1].trim());
+  if (teamIdentifier !== expectedTeamId) {
+    throw new Error(`Timestamp probe returned unexpected TeamIdentifier: ${teamIdentifier || 'missing'}.`);
+  }
+  if (!authorities.some((authority) => authority.startsWith('Developer ID Application:'))) {
+    throw new Error('Timestamp probe is missing the Developer ID Application authority.');
+  }
+  if (!timestamp) {
+    throw new Error('Timestamp probe did not receive a trusted timestamp.');
+  }
 }
 
 function submitForNotarization(target: string, credentials: {
@@ -378,6 +413,9 @@ export function finalizeNotarizedDmg() {
       wait_timeout_seconds: null,
     } satisfies NotarizationState,
     timestamp_signing: {
+      authority_endpoint: appleTimestampAuthorityUrl,
+      probe_status: 'pending',
+      probe_timeout_seconds: null,
       attempts: 0,
       retry_count: 0,
       attempt_timeout_seconds: null,
@@ -413,13 +451,33 @@ export function finalizeNotarizedDmg() {
     run('hdiutil', ['detach', mountPoint]);
     mounted = false;
 
+    stage = 'probe_timestamp_service';
+    const probePath = path.join(tempRoot, 'timestamp-service-probe');
+    const probeSafeBudgetMs = preNotarizationCommandTimeoutMs({
+      operationDeadlineAt: options.operationDeadlineAt,
+      minimumWaitMs: minimumTimestampSigningNotarizationWindowMs,
+    });
+    const probeTimeoutMs = Math.min(configuredTimestampServiceProbeTimeoutMs(), probeSafeBudgetMs);
+    evidence.timestamp_signing.probe_status = 'running';
+    evidence.timestamp_signing.probe_timeout_seconds = Math.floor(probeTimeoutMs / 1_000);
+    persist();
+    try {
+      verifyTimestampServiceProbe(probePath, identity, teamId, probeTimeoutMs);
+      evidence.timestamp_signing.probe_status = 'passed';
+      persist();
+    } catch (error) {
+      evidence.timestamp_signing.probe_status = 'failed';
+      persist();
+      throw error;
+    }
+
     stage = 'sign_dmg';
     const artifactSizeBytes = fs.statSync(options.dmgPath).size;
     const maximumAttempts = timestampSigningMaximumAttempts(artifactSizeBytes);
     evidence.timestamp_signing.artifact_size_bytes = artifactSizeBytes;
     evidence.timestamp_signing.maximum_attempts = maximumAttempts;
     evidence.timestamp_signing.strategy = artifactSizeBytes >= largeDmgThresholdBytes
-      ? 'large_dmg_contiguous_budget_with_single_retry'
+      ? 'large_dmg_tsa_probed_bounded_attempts'
       : 'small_dmg_bounded_attempts';
     const preNotarizationTimeoutMs = () => preNotarizationCommandTimeoutMs({
       operationDeadlineAt: options.operationDeadlineAt,
@@ -441,7 +499,7 @@ export function finalizeNotarizedDmg() {
       try {
         run(
           'codesign',
-          ['--force', '--timestamp', '--sign', identity, candidateDmg],
+          ['--force', `--timestamp=${appleTimestampAuthorityUrl}`, '--sign', identity, candidateDmg],
           attemptTimeoutMs,
         );
         break;
@@ -506,6 +564,8 @@ export function finalizeNotarizedDmg() {
     evidence.failure = {
       code: hasSubmissionId
         ? 'notarization_submission_incomplete'
+        : stage === 'probe_timestamp_service'
+          ? 'timestamp_service_probe_failed'
         : stage === 'submit_and_wait'
           ? 'notarization_submission_outcome_unknown'
           : 'notarization_finalization_failed',
