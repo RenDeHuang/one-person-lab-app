@@ -24,6 +24,8 @@ const defaultMaxReadAttempts = 3;
 const defaultReadTimeoutMs = 30_000;
 const defaultIdentityWindowMs = 5 * 60_000;
 const createdAtClockSkewMs = 30_000;
+const ownerRunPageSize = 100;
+const ownerRunMaxPages = 10;
 export const ownerRunParser = 'node_structured_json_without_jq' as const;
 
 export type ReadFailureKind = 'transport' | 'credential' | 'not_found' | 'protocol' | 'deterministic';
@@ -329,6 +331,24 @@ function workflowEndpoint(workflow?: string): string {
   return `repos/${appRepository}/actions/workflows/${workflowName}/runs`;
 }
 
+function ownerRunsProtocolFailure(options: {
+  endpoint: string;
+  attempts: number;
+  failureCode: 'invalid_response' | 'truncated_response';
+  detail: string;
+}): Extract<OwnerRunsResult, { status: 'failed' }> {
+  return {
+    status: 'failed',
+    endpoint: options.endpoint,
+    attempts: options.attempts,
+    logical_query_count: 1,
+    parser: ownerRunParser,
+    failure_kind: 'protocol',
+    failure_code: options.failureCode,
+    detail: options.detail,
+  };
+}
+
 export function readOwnerWorkflowRuns(options: {
   workflow?: string;
   maxAttempts?: number;
@@ -344,9 +364,9 @@ export function readOwnerWorkflowRuns(options: {
     '-f',
     'branch=main',
     '-f',
-    'per_page=100',
-    '-f',
-    'page=1',
+    `per_page=${ownerRunPageSize}`,
+    '--paginate',
+    '--slurp',
   ];
   if (options.workflow) args.push('-f', 'event=workflow_dispatch');
   const read = runBoundedReadOnly(
@@ -385,46 +405,111 @@ export function readOwnerWorkflowRuns(options: {
       detail: 'Owner workflow-runs API did not return JSON.',
     };
   }
-  const response = payload && typeof payload === 'object' && !Array.isArray(payload)
-    ? payload as Record<string, unknown>
-    : null;
-  const workflowRuns = response?.workflow_runs;
-  if (!Array.isArray(workflowRuns)) {
-    return {
-      status: 'failed',
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return ownerRunsProtocolFailure({
       endpoint,
       attempts: read.attempts,
-      logical_query_count: 1,
-      parser: ownerRunParser,
-      failure_kind: 'protocol',
-      failure_code: 'invalid_response',
-      detail: 'Owner workflow-runs API did not return one bounded workflow_runs[] page.',
-    };
+      failureCode: 'invalid_response',
+      detail: 'Owner workflow-runs API did not return a nonempty paginated page array.',
+    });
   }
-  const totalCount = response?.total_count;
-  if (typeof totalCount !== 'number' || !Number.isSafeInteger(totalCount) || totalCount < 0) {
-    return {
-      status: 'failed',
+  if (payload.length > ownerRunMaxPages) {
+    return ownerRunsProtocolFailure({
       endpoint,
       attempts: read.attempts,
-      logical_query_count: 1,
-      parser: ownerRunParser,
-      failure_kind: 'protocol',
-      failure_code: 'invalid_response',
-      detail: 'Owner workflow-runs API did not return a nonnegative safe integer total_count.',
-    };
+      failureCode: 'truncated_response',
+      detail: `Owner workflow-runs API returned ${payload.length} pages, exceeding the bounded ${ownerRunMaxPages}-page query limit.`,
+    });
   }
-  if (totalCount !== workflowRuns.length) {
-    return {
-      status: 'failed',
+
+  let totalCount = -1;
+  const pages: unknown[][] = [];
+  for (const [index, page] of payload.entries()) {
+    const response = page && typeof page === 'object' && !Array.isArray(page)
+      ? page as Record<string, unknown>
+      : null;
+    if (!response || !Array.isArray(response.workflow_runs)) {
+      return ownerRunsProtocolFailure({
+        endpoint,
+        attempts: read.attempts,
+        failureCode: 'invalid_response',
+        detail: `Owner workflow-runs API page ${index + 1} did not return workflow_runs[].`,
+      });
+    }
+    const pageTotalCount = response.total_count;
+    if (
+      typeof pageTotalCount !== 'number'
+      || !Number.isSafeInteger(pageTotalCount)
+      || pageTotalCount < 0
+    ) {
+      return ownerRunsProtocolFailure({
+        endpoint,
+        attempts: read.attempts,
+        failureCode: 'invalid_response',
+        detail: `Owner workflow-runs API page ${index + 1} did not return a nonnegative safe integer total_count.`,
+      });
+    }
+    if (index > 0 && pageTotalCount !== totalCount) {
+      return ownerRunsProtocolFailure({
+        endpoint,
+        attempts: read.attempts,
+        failureCode: 'invalid_response',
+        detail: `Owner workflow-runs API total_count drifted from ${totalCount} to ${pageTotalCount} on page ${index + 1}.`,
+      });
+    }
+    totalCount = pageTotalCount;
+    pages.push(response.workflow_runs);
+  }
+
+  const expectedPageCount = totalCount === 0 ? 1 : Math.ceil(totalCount / ownerRunPageSize);
+  if (expectedPageCount > ownerRunMaxPages) {
+    return ownerRunsProtocolFailure({
       endpoint,
       attempts: read.attempts,
-      logical_query_count: 1,
-      parser: ownerRunParser,
-      failure_kind: 'protocol',
-      failure_code: 'truncated_response',
-      detail: `Owner workflow-runs API returned ${workflowRuns.length} of ${totalCount} runs; one bounded page cannot prove operation absence.`,
-    };
+      failureCode: 'truncated_response',
+      detail: `Owner workflow-runs API declared ${totalCount} runs, exceeding the bounded ${ownerRunMaxPages}-page query limit.`,
+    });
+  }
+  if (pages.length !== expectedPageCount) {
+    return ownerRunsProtocolFailure({
+      endpoint,
+      attempts: read.attempts,
+      failureCode: pages.length < expectedPageCount ? 'truncated_response' : 'invalid_response',
+      detail: `Owner workflow-runs API returned ${pages.length} of ${expectedPageCount} expected pages for ${totalCount} runs.`,
+    });
+  }
+
+  const workflowRuns: unknown[] = [];
+  const runIds = new Set<number>();
+  for (const [index, page] of pages.entries()) {
+    const expectedPageLength = index < expectedPageCount - 1
+      ? ownerRunPageSize
+      : totalCount - ownerRunPageSize * (expectedPageCount - 1);
+    if (page.length !== expectedPageLength) {
+      return ownerRunsProtocolFailure({
+        endpoint,
+        attempts: read.attempts,
+        failureCode: page.length < expectedPageLength ? 'truncated_response' : 'invalid_response',
+        detail: `Owner workflow-runs API page ${index + 1} returned ${page.length} of ${expectedPageLength} expected runs.`,
+      });
+    }
+    for (const run of page) {
+      if (run && typeof run === 'object' && !Array.isArray(run)) {
+        const runId = Number((run as Record<string, unknown>).id);
+        if (Number.isSafeInteger(runId) && runId > 0) {
+          if (runIds.has(runId)) {
+            return ownerRunsProtocolFailure({
+              endpoint,
+              attempts: read.attempts,
+              failureCode: 'invalid_response',
+              detail: `Owner workflow-runs API returned duplicate run id ${runId} across paginated pages.`,
+            });
+          }
+          runIds.add(runId);
+        }
+      }
+      workflowRuns.push(run);
+    }
   }
   return {
     status: 'ok',
