@@ -626,9 +626,23 @@ function validateFullFirstInstallCoreReadyPolicy(profile) {
     'Product profile first-run model access setup policy',
   );
   validateReadyToLaunchGate(profile, firstRunCoreItems);
+  validateOfficialProfileFirstInstallPolicy(profile);
   validateFirstConversationPolicy(profile);
   validateFullFirstInstallBackgroundPolicy(profile);
   validateFirstRunProgressModel(profile);
+}
+
+function validateOfficialProfileFirstInstallPolicy(profile) {
+  const execution = profile.official_profile?.first_install_execution;
+  if (
+    execution?.mode !== 'background_after_core_ready'
+    || execution?.guid_navigation_blocking !== false
+    || execution?.failure_scope !== 'package_local_nonblocking'
+    || execution?.unknown_or_timeout_policy !== 'keep_guid_entry_available_and_report_background_attention'
+    || execution?.retry_policy !== 'explicit_first_run_retry_or_settings_agents'
+  ) {
+    throw new Error('Product profile Official Profile first-install execution must remain background and non-blocking after Core ready');
+  }
 }
 
 function validateReadyToLaunchGate(profile, firstRunCoreItems) {
