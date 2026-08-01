@@ -28,6 +28,9 @@ type FailureEvidence = {
 const defaultCommandTimeoutMs = 45 * 60_000;
 const timestampSigningAttemptLimitMs = 5 * 60_000;
 const maximumTimestampSigningAttempts = 4;
+const largeDmgThresholdBytes = 512 * 1024 * 1024;
+const maximumLargeDmgTimestampSigningAttempts = 2;
+const largeDmgTimestampSigningRetryReserveMs = 10 * 60_000;
 const postNotarizationReserveMs = 20 * 60_000;
 const minimumNotarizationWaitMs = 60_000;
 const minimumTimestampSigningNotarizationWindowMs = 20 * 60_000;
@@ -136,23 +139,52 @@ export function timestampSigningTimeoutMs(input: {
   operationDeadlineAt?: string;
   nowMs?: number;
   attemptLimitMs?: number;
+  artifactSizeBytes?: number;
+  attemptNumber?: number;
 }): number {
-  const attemptLimitMs = input.attemptLimitMs ?? timestampSigningAttemptLimitMs;
-  if (!Number.isInteger(attemptLimitMs) || attemptLimitMs < 1) {
+  if (input.attemptLimitMs !== undefined
+    && (!Number.isInteger(input.attemptLimitMs) || input.attemptLimitMs < 1)) {
     throw new Error('Timestamp-signing attempt limit must be a positive integer number of milliseconds.');
   }
-  return Math.min(attemptLimitMs, preNotarizationCommandTimeoutMs({
+  const artifactSizeBytes = input.artifactSizeBytes ?? 0;
+  if (!Number.isInteger(artifactSizeBytes) || artifactSizeBytes < 0) {
+    throw new Error('Timestamp-signing artifact size must be a non-negative integer number of bytes.');
+  }
+  const attemptNumber = input.attemptNumber ?? 1;
+  if (!Number.isInteger(attemptNumber) || attemptNumber < 1) {
+    throw new Error('Timestamp-signing attempt number must be a positive integer.');
+  }
+
+  let safeBudgetMs = preNotarizationCommandTimeoutMs({
     operationDeadlineAt: input.operationDeadlineAt,
     nowMs: input.nowMs,
     minimumWaitMs: minimumTimestampSigningNotarizationWindowMs,
-  }));
+  });
+  const isLargeDmg = artifactSizeBytes >= largeDmgThresholdBytes;
+  if (isLargeDmg
+    && attemptNumber === 1
+    && safeBudgetMs > largeDmgTimestampSigningRetryReserveMs + 1_000) {
+    safeBudgetMs -= largeDmgTimestampSigningRetryReserveMs;
+  }
+  const attemptLimitMs = input.attemptLimitMs
+    ?? (isLargeDmg ? safeBudgetMs : timestampSigningAttemptLimitMs);
+  return Math.min(attemptLimitMs, safeBudgetMs);
 }
 
-function configuredTimestampSigningAttemptLimitMs(): number {
+export function timestampSigningMaximumAttempts(artifactSizeBytes: number): number {
+  if (!Number.isInteger(artifactSizeBytes) || artifactSizeBytes < 0) {
+    throw new Error('Timestamp-signing artifact size must be a non-negative integer number of bytes.');
+  }
+  return artifactSizeBytes >= largeDmgThresholdBytes
+    ? maximumLargeDmgTimestampSigningAttempts
+    : maximumTimestampSigningAttempts;
+}
+
+function configuredTimestampSigningAttemptLimitMs(): number | undefined {
   const testOverride = testMode()
     ? process.env.OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS?.trim()
     : '';
-  if (!testOverride) return timestampSigningAttemptLimitMs;
+  if (!testOverride) return undefined;
   const parsed = Number(testOverride);
   if (!Number.isInteger(parsed) || parsed < 1) {
     throw new Error('OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS must be a positive integer.');
@@ -349,6 +381,10 @@ export function finalizeNotarizedDmg() {
       attempts: 0,
       retry_count: 0,
       attempt_timeout_seconds: null,
+      attempt_timeouts_seconds: [],
+      artifact_size_bytes: null,
+      maximum_attempts: null,
+      strategy: null,
     },
     failure: null,
   };
@@ -378,19 +414,29 @@ export function finalizeNotarizedDmg() {
     mounted = false;
 
     stage = 'sign_dmg';
+    const artifactSizeBytes = fs.statSync(options.dmgPath).size;
+    const maximumAttempts = timestampSigningMaximumAttempts(artifactSizeBytes);
+    evidence.timestamp_signing.artifact_size_bytes = artifactSizeBytes;
+    evidence.timestamp_signing.maximum_attempts = maximumAttempts;
+    evidence.timestamp_signing.strategy = artifactSizeBytes >= largeDmgThresholdBytes
+      ? 'large_dmg_contiguous_budget_with_single_retry'
+      : 'small_dmg_bounded_attempts';
     const preNotarizationTimeoutMs = () => preNotarizationCommandTimeoutMs({
       operationDeadlineAt: options.operationDeadlineAt,
     });
-    for (let attempt = 1; attempt <= maximumTimestampSigningAttempts; attempt += 1) {
+    for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
       fs.rmSync(candidateDmg, { force: true });
       fs.copyFileSync(options.dmgPath, candidateDmg);
       const attemptTimeoutMs = timestampSigningTimeoutMs({
         operationDeadlineAt: options.operationDeadlineAt,
         attemptLimitMs: configuredTimestampSigningAttemptLimitMs(),
+        artifactSizeBytes,
+        attemptNumber: attempt,
       });
       evidence.timestamp_signing.attempts = attempt;
       evidence.timestamp_signing.retry_count = attempt - 1;
       evidence.timestamp_signing.attempt_timeout_seconds = Math.floor(attemptTimeoutMs / 1_000);
+      evidence.timestamp_signing.attempt_timeouts_seconds.push(Math.floor(attemptTimeoutMs / 1_000));
       persist();
       try {
         run(
@@ -400,7 +446,7 @@ export function finalizeNotarizedDmg() {
         );
         break;
       } catch (error) {
-        if (!commandTimedOut(error) || attempt === maximumTimestampSigningAttempts) {
+        if (!commandTimedOut(error) || attempt === maximumAttempts) {
           throw error;
         }
       }
