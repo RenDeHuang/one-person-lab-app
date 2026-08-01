@@ -147,7 +147,10 @@ function validateProductProfileCodexDefaults(profile) {
   if (
     profile.codex.auto_model_policy?.recommendation_authority !== 'opl-flow' ||
     profile.codex.auto_model_policy.policy_source_ref !==
-      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy' ||
+      'app_state.agent_packages.status_index.packages.opl-flow.model_projection' ||
+    profile.codex.auto_model_policy.projection_surface_kind !== 'opl_codex_model_policy_projection.v1' ||
+    profile.codex.auto_model_policy.projection_presence_rule !==
+      'consume_only_when_fresh_opl_flow_presence_installed_true_and_projection_is_valid' ||
     JSON.stringify(profile.codex.auto_model_policy.resolution_precedence) !== JSON.stringify([
       'explicit_user_selection',
       'installed_opl_flow_recommendation',
@@ -155,7 +158,9 @@ function validateProductProfileCodexDefaults(profile) {
       'app_fallback_when_flow_unavailable',
     ]) ||
     profile.codex.auto_model_policy.app_fallback_role !==
-      'availability_only_when_installed_opl_flow_recommendation_is_unavailable'
+      'configured_default_is_used_only_when_flow_projection_is_absent_invalid_or_unavailable_and_catalog_cannot_resolve' ||
+    profile.codex.auto_model_policy.configured_default_role !==
+      'app_fallback_not_flow_recommendation_authority'
   ) {
     throw new Error('Product profile model policy must use user, installed Flow, live Codex, then App fallback precedence');
   }

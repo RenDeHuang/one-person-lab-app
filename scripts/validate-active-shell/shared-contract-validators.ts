@@ -2631,19 +2631,27 @@ export function validateOplFlowContext(context, label) {
   }
   for (const [field, expected] of Object.entries({
     flow_id: "opl-flow",
-    source: "opl-flow-package-policy",
-    policy_source_ref: "gaofeng21cn/opl-flow:contracts/workflow-policy.json",
-    delivery: "package_installed_user_profile_only",
+    source: "framework-agent-package-projection",
+    presence_source_ref: "app_state.agent_packages.status_index.packages.opl-flow.presence",
+    presence_rule: "inject_only_when_fresh_presence_installed_true",
+    delivery: "installed_package_metadata_only",
+    absence_policy: "omit_opl_flow_context",
+    status_source_ref: "app_state.agent_packages.status_index.packages.opl-flow",
     user_agents_policy: "respect_user_agents_no_overwrite_detect_conflicts",
     language_policy: "follow_ui_locale_zh_only_when_ui_zh",
-    app_role: "display_framework_projection_and_execute_projected_actions_only",
-    dependency_policy: "framework_resolves_declared_dependencies_without_app_lock_or_payload_prerequisite",
-    migration_policy: "framework_executes_conflict_retirement_with_backup_receipt_and_rollback",
+    app_role: "consume_generic_framework_projection_and_execute_projected_actions_only",
+    flow_policy_parsing: "forbidden",
+    companion_inventory_storage: "forbidden",
   })) {
     if (context[field] !== expected) {
       throw new Error(`${label}.${field} must be ${expected}`);
     }
   }
+  assertDeepEqualJson(
+    context.status_planes,
+    ["package_operational", "experience_baseline", "specialized_capabilities"],
+    `${label}.status_planes`,
+  );
   for (const retiredField of ["ponytail_mode_routing", "optional_user_modes"]) {
     if (retiredField in context) throw new Error(`${label} must not retain ${retiredField}`);
   }

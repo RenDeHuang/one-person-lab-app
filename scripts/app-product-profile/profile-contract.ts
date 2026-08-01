@@ -513,8 +513,12 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
     profile.codex.auto_model_policy.authority !== 'one-person-lab-app' ||
     profile.codex.auto_model_policy.recommendation_authority !== 'opl-flow' ||
     profile.codex.auto_model_policy.policy_source_ref !==
-      'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy' ||
-    profile.codex.auto_model_policy.app_role !== 'display_live_catalog_and_submit_user_override' ||
+      'app_state.agent_packages.status_index.packages.opl-flow.model_projection' ||
+    profile.codex.auto_model_policy.projection_surface_kind !== 'opl_codex_model_policy_projection.v1' ||
+    profile.codex.auto_model_policy.projection_presence_rule !==
+      'consume_only_when_fresh_opl_flow_presence_installed_true_and_projection_is_valid' ||
+    profile.codex.auto_model_policy.app_role !==
+      'resolve_auto_from_fresh_catalog_and_projected_recommendation_then_persist_user_override' ||
     JSON.stringify(profile.codex.auto_model_policy.resolution_precedence) !== JSON.stringify([
       'explicit_user_selection',
       'installed_opl_flow_recommendation',
@@ -522,23 +526,35 @@ function assertCodexOplFlowContext(profile: AppProductProfile): void {
       'app_fallback_when_flow_unavailable',
     ]) ||
     profile.codex.auto_model_policy.app_fallback_role !==
-      'availability_only_when_installed_opl_flow_recommendation_is_unavailable'
+      'configured_default_is_used_only_when_flow_projection_is_absent_invalid_or_unavailable_and_catalog_cannot_resolve' ||
+    profile.codex.auto_model_policy.configured_default_role !==
+      'app_fallback_not_flow_recommendation_authority'
   ) {
     throw new Error('App product profile must consume the OPL Flow model policy projection');
   }
   if (
     profile.codex.opl_flow_context?.flow_id !== 'opl-flow' ||
-    profile.codex.opl_flow_context.source !== 'opl-flow-package-policy' ||
-    profile.codex.opl_flow_context.policy_source_ref !== 'gaofeng21cn/opl-flow:contracts/workflow-policy.json' ||
-    profile.codex.opl_flow_context.delivery !== 'package_installed_user_profile_only' ||
+    profile.codex.opl_flow_context.source !== 'framework-agent-package-projection' ||
+    profile.codex.opl_flow_context.presence_source_ref !==
+      'app_state.agent_packages.status_index.packages.opl-flow.presence' ||
+    profile.codex.opl_flow_context.presence_rule !== 'inject_only_when_fresh_presence_installed_true' ||
+    profile.codex.opl_flow_context.delivery !== 'installed_package_metadata_only' ||
+    profile.codex.opl_flow_context.absence_policy !== 'omit_opl_flow_context' ||
+    profile.codex.opl_flow_context.status_source_ref !==
+      'app_state.agent_packages.status_index.packages.opl-flow' ||
+    JSON.stringify(profile.codex.opl_flow_context.status_planes) !== JSON.stringify([
+      'package_operational',
+      'experience_baseline',
+      'specialized_capabilities',
+    ]) ||
     profile.codex.opl_flow_context.user_agents_policy !== 'respect_user_agents_no_overwrite_detect_conflicts' ||
     profile.codex.opl_flow_context.language_policy !== 'follow_ui_locale_zh_only_when_ui_zh' ||
     profile.codex.opl_flow_context.app_role !==
-      'display_framework_projection_and_execute_projected_actions_only' ||
-    profile.codex.opl_flow_context.dependency_policy !==
-      'framework_resolves_declared_dependencies_without_app_lock_or_payload_prerequisite'
+      'consume_generic_framework_projection_and_execute_projected_actions_only' ||
+    profile.codex.opl_flow_context.flow_policy_parsing !== 'forbidden' ||
+    profile.codex.opl_flow_context.companion_inventory_storage !== 'forbidden'
   ) {
-    throw new Error('App product profile must consume the OPL Flow package context policy');
+    throw new Error('App product profile must consume the generic Framework OPL Flow projection');
   }
   const additionalInstructions = profile.codex.new_conversation_additional_instructions;
   if (

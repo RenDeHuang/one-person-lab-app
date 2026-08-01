@@ -6,29 +6,12 @@ import {
   type CodexModelPolicyContractBundle,
 } from './app-product-profile/codex-model-policy-projection.ts';
 import { appRoot } from './app-product-profile/paths.ts';
-import { readOplFlowCapabilityPolicy } from './opl-flow-capability-policy.ts';
 
 const contractPaths = {
   productProfile: 'contracts/app-product-profile.json',
   guiProductContract: 'contracts/app-gui-product-contract.json',
   pageStateMatrix: 'contracts/app-page-state-matrix.json',
 } as const;
-
-function readOplFlowConfiguredDefault(): { model: string; reasoning_effort: string } {
-  const policyPath = process.env.OPL_FLOW_WORKFLOW_POLICY?.trim()
-    || path.resolve(appRoot, '..', 'opl-flow', 'contracts', 'workflow-policy.json');
-  const policy = readOplFlowCapabilityPolicy(policyPath);
-  if (policy.codex_model_policy?.authority !== 'opl-flow') {
-    throw new Error(`Invalid OPL Flow model policy: ${policyPath}`);
-  }
-  return policy.codex_model_policy.configured_default;
-}
-
-function applyOplFlowSource(bundle: CodexModelPolicyContractBundle): CodexModelPolicyContractBundle {
-  const next = structuredClone(bundle);
-  next.productProfile.codex.auto_model_policy.configured_default = readOplFlowConfiguredDefault();
-  return next;
-}
 
 function readBundle(): CodexModelPolicyContractBundle {
   return Object.fromEntries(Object.entries(contractPaths).map(([key, relativePath]) => [
@@ -54,7 +37,7 @@ function writeBundle(bundle: CodexModelPolicyContractBundle): string[] {
 
 function main(): void {
   const current = readBundle();
-  const projected = projectCodexModelPolicyContracts(applyOplFlowSource(current));
+  const projected = projectCodexModelPolicyContracts(current);
   const checkOnly = process.argv.includes('--check');
   if (checkOnly) {
     if (JSON.stringify(current) !== JSON.stringify(projected)) {
@@ -62,14 +45,16 @@ function main(): void {
     }
     console.log(JSON.stringify({
       status: 'current',
-      authority: 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy.configured_default',
+      authority: 'contracts/app-product-profile.json#codex.auto_model_policy.configured_default',
+      role: 'app_fallback_projection_only',
       projection: contractPaths.productProfile,
     }, null, 2));
     return;
   }
   console.log(JSON.stringify({
     status: 'synced',
-    authority: 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy.configured_default',
+    authority: 'contracts/app-product-profile.json#codex.auto_model_policy.configured_default',
+    role: 'app_fallback_projection_only',
     changed: writeBundle(projected),
   }, null, 2));
 }

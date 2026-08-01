@@ -337,7 +337,15 @@ test('model precedence makes App defaults a Flow-unavailable fallback only', () 
   ]);
   assert.equal(
     productProfile.codex.auto_model_policy.app_fallback_role,
-    'availability_only_when_installed_opl_flow_recommendation_is_unavailable',
+    'configured_default_is_used_only_when_flow_projection_is_absent_invalid_or_unavailable_and_catalog_cannot_resolve',
+  );
+  assert.equal(
+    productProfile.codex.auto_model_policy.policy_source_ref,
+    'app_state.agent_packages.status_index.packages.opl-flow.model_projection',
+  );
+  assert.equal(
+    productProfile.codex.auto_model_policy.configured_default_role,
+    'app_fallback_not_flow_recommendation_authority',
   );
 
   const competingAppDefault = structuredClone(productProfile);

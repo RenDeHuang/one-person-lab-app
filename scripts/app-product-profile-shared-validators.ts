@@ -628,8 +628,17 @@ function assertCodexAutoModelPolicy(
     [
       { actual: policy?.authority, expected: 'one-person-lab-app' },
       { actual: policy?.recommendation_authority, expected: 'opl-flow' },
-      { actual: policy?.policy_source_ref, expected: 'gaofeng21cn/opl-flow:contracts/workflow-policy.json#codex_model_policy' },
-      { actual: policy?.app_role, expected: 'display_live_catalog_and_submit_user_override' },
+      { actual: policy?.policy_source_ref, expected: 'app_state.agent_packages.status_index.packages.opl-flow.model_projection' },
+      { actual: policy?.projection_surface_kind, expected: 'opl_codex_model_policy_projection.v1' },
+      {
+        actual: policy?.projection_presence_rule,
+        expected: 'consume_only_when_fresh_opl_flow_presence_installed_true_and_projection_is_valid',
+      },
+      {
+        actual: policy?.app_role,
+        expected: 'resolve_auto_from_fresh_catalog_and_projected_recommendation_then_persist_user_override',
+      },
+      { actual: policy?.configured_default_role, expected: 'app_fallback_not_flow_recommendation_authority' },
       { actual: policy?.mode_default, expected: 'auto' },
       { actual: policy?.model_catalog_source, expected: 'codex_cli_model_list' },
       { actual: policy?.catalog_response_models_field, expected: 'data' },

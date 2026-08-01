@@ -1285,6 +1285,10 @@
   },
   "model_reasoning_policy_source": {
     "owner": "one-person-lab-app",
+    "recommendation_owner": "opl-flow",
+    "recommendation_projection_ref": "app_state.agent_packages.status_index.packages.opl-flow.model_projection",
+    "recommendation_projection_surface_kind": "opl_codex_model_policy_projection.v1",
+    "flow_policy_file_parsing": "forbidden",
     "source_refs": [
       "contracts/app-product-profile.json#codex",
       "contracts/app-product-profile.json#codex.auto_model_policy",
@@ -1294,6 +1298,7 @@
     "default_model_ref": "contracts/app-product-profile.json#codex.default_model",
     "default_reasoning_effort_ref": "contracts/app-product-profile.json#codex.default_reasoning_effort",
     "auto_model_policy_ref": "contracts/app-product-profile.json#codex.auto_model_policy",
+    "configured_default_role": "App fallback used only when no valid installed Flow projection and no usable live catalog resolution exists",
     "ordinary_surface": "home_and_conversation_shared_session_configuration_menu_with_model_reasoning_and_reset_rows",
     "settings_surface": "settings_access.model_access",
     "adapter_policy": "Aion/Hermes/shell render App-derived model and reasoning policy only",
@@ -2031,7 +2036,7 @@
           "secondary_route": "environment"
         },
         "required_evidence": [
-          "model and reasoning policy source stays App-owned",
+          "Auto resolution, UI, persistence, and fallback stay App-owned while installed Flow recommendation is consumed from Framework App state",
           "provider implementation and model access readiness truth stay outside shell-owned ordinary UI"
         ],
         "decision_owner": "one-person-lab-app",

@@ -3,25 +3,31 @@
 Owner: `one-person-lab-app`
 Purpose: `codex_auto_model_product_policy`
 State: `active`
-Machine boundary: 本文解释 App-owned Codex Auto 产品策略。机器真相只在
-`contracts/app-product-profile.json#codex.auto_model_policy`；Shell、安装器、候选 GUI
-和本文都不得复制或改写选择逻辑。Codex CLI 的模型目录是运行时输入，不是 App
-产品 authority。
+Machine boundary: 本文解释 App-owned Codex Auto 产品策略。Auto 算法、UI、持久化与
+fallback 的机器真相在 `contracts/app-product-profile.json#codex.auto_model_policy`；已安装
+OPL Flow 的推荐值只从 Framework
+`app_state.agent_packages.status_index.packages.opl-flow.model_projection` 消费。App、Shell、
+安装器和候选 GUI 都不得直接读取 Flow policy 文件或复制选择逻辑。Codex CLI 模型目录是
+运行时输入，不是 App 或 Flow 的可用性证明。
 
 ## 结论
 
 One Person Lab App 默认保存的是 `Auto` 模式，不是某次解析得到的具体模型。每次需要
-解析 Auto 时，消费者读取 Codex CLI `model/list`，用 `cursor` 继续翻页，直到响应
-`nextCursor=null` 后才把 `data` 视为完整目录：
+解析 Auto 时，消费者 fresh 读取 Framework App state 与 Codex CLI `model/list`，用
+`cursor` 继续翻页，直到响应 `nextCursor=null` 后才把 `data` 视为完整目录：
 
-1. CLI 用 `isDefault` 标记的模型是 App 当前自动模型候选。
-2. 已知模型可使用 App 明确覆盖；当前 `gpt-5.6-sol` 固定使用 `max`。
-3. 未知新默认模型不得因为不在已知列表中被过滤；它使用 CLI
+1. 用户明确固定的模型和推理档优先，且不受 Flow 推荐影响。
+2. fresh App state 表明 Flow 已安装、且 `model_projection` 结构有效并推荐了目录中实际
+   存在的模型时，优先使用该推荐。
+3. 推荐模型不存在时，CLI 用 `isDefault` 标记的模型是 App 当前自动模型候选。
+4. 已知模型可使用 App 明确覆盖；Flow 推荐推理档只有在该模型声明支持时才使用。
+5. 未知新默认模型不得因为不在已知列表中被过滤；它使用 CLI
    `supportedReasoningEfforts` 对象数组最后一项的 `reasoningEffort`。
-4. CLI 目录不可用时回退到 `gpt-5.6-sol + max`。
-5. 用户选择固定模型后持久化模型与推理档；在 Auto 下手动修改推理档时，固定当前
+6. Flow projection 缺失、伪造或不可用，且 CLI 目录也不可解析时，才回退到 App
+   `configured_default`。
+7. 用户选择固定模型后持久化模型与推理档；在 Auto 下手动修改推理档时，固定当前
    已解析模型并退出 Auto。用户恢复 Auto 后不保留模型快照，下次重新读取完整目录。
-6. 已固定模型从目录消失时保留为“不可用的固定选择”，直到用户恢复 Auto 或选择
+8. 已固定模型从目录消失时保留为“不可用的固定选择”，直到用户恢复 Auto 或选择
    可用模型；不得静默改回另一个模型。
 
 因此，如果未来 Codex CLI 将 GPT-6 标记为 `isDefault`，即使它位于后续分页、App 尚未
@@ -46,7 +52,9 @@ catalog unavailable 处理，不能把首屏结果冒充完整目录。
 
 | Surface | 职责 | 不得拥有 |
 | --- | --- | --- |
-| App product profile | 定义 Auto 算法、已知覆盖、fallback 和持久化语义。 | CLI 实时目录、provider readiness、用户凭证。 |
+| OPL Flow | 定义推荐模型与推理档。 | live catalog 可用性、App UI、Auto 持久化与 fallback。 |
+| OPL Framework | 从已安装 Flow policy 产生严格 `model_projection` 并放入 App state。 | App Auto 算法、用户固定选择。 |
+| App product profile | 定义 Auto 算法、已知覆盖、fallback 和持久化语义。 | Flow policy 文件、CLI 实时目录、provider readiness、用户凭证。 |
 | Codex CLI | 通过 `model/list` 提供 `isDefault` 和 `supportedReasoningEfforts`。 | App fallback、用户选择持久化、GUI 文案。 |
 | AionUI / Native / 其它 Shell | 读取 product profile 和 CLI 目录，解析并展示 Auto，保存 mode 或 fixed override。 | 私有 allowlist、私有模型排序、私有 fallback。 |
 | OPL Framework 安装器 | 从同一 product profile 生成首次安装默认配置。 | 另一份默认模型/推理策略。 |
@@ -57,15 +65,16 @@ catalog unavailable 处理，不能把首屏结果冒充完整目录。
 
 ## 维护默认模型
 
-人工调整默认模型或推理档时，只修改：
+人工调整 Flow 缺席时的 App fallback 模型或推理档时，只修改：
 
 ```text
 contracts/app-product-profile.json#codex.auto_model_policy.configured_default
 ```
 
-不要同时修改 `codex.default_*`、`default_session_profile`、GUI contract、page-state
-matrix、Shell generated profile 或 Framework install profile；这些都是生成投影。标准维护
-顺序是：
+这个值不是 Flow 推荐 authority。不要同时修改 `codex.default_*`、
+`default_session_profile`、GUI contract、page-state matrix、Shell generated profile 或
+Framework install profile；这些都是 App fallback 的生成投影。Flow 推荐应在 OPL Flow
+policy 修改并由 Framework installed projection 传入。App fallback 的标准维护顺序是：
 
 ```bash
 # one-person-lab-app
