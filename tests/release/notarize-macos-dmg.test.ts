@@ -30,6 +30,8 @@ function fixture(
   timestampSigningBehavior:
     | 'success'
     | 'probe-timeout'
+    | 'probe-timeout-once'
+    | 'probe-timeout-all'
     | 'probe-fail'
     | 'timeout-once'
     | 'timeout-three'
@@ -42,6 +44,7 @@ function fixture(
   const dmgPath = path.join(root, 'One-Person-Lab-Full.dmg');
   const outputPath = path.join(root, 'receipt.json');
   const timestampSigningAttemptFile = path.join(root, 'timestamp-signing-attempts');
+  const timestampProbeAttemptFile = path.join(root, 'timestamp-probe-attempts');
   fs.mkdirSync(binaryRoot);
   fs.writeFileSync(dmgPath, 'full-dmg-fixture', 'utf8');
 
@@ -65,7 +68,13 @@ if [ "$1" = --force ]; then
   for argument in "$@"; do target="$argument"; done
   case "$target" in
     *timestamp-service-probe)
-      if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = probe-timeout ]; then
+      probe_attempt=0
+      if [ -f "$OPL_TEST_TIMESTAMP_PROBE_ATTEMPT_FILE" ]; then
+        probe_attempt=$(cat "$OPL_TEST_TIMESTAMP_PROBE_ATTEMPT_FILE")
+      fi
+      probe_attempt=$((probe_attempt + 1))
+      printf '%s' "$probe_attempt" > "$OPL_TEST_TIMESTAMP_PROBE_ATTEMPT_FILE"
+      if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = probe-timeout ] || [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = probe-timeout-all ] || { [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = probe-timeout-once ] && [ "$probe_attempt" -eq 1 ]; }; then
         sleep 2
         exit 0
       fi
@@ -165,6 +174,7 @@ exit 0
       OPL_NOTARIZATION_TEST_COMMAND_ROOT: binaryRoot,
       OPL_TEST_COMMAND_LOG: commandLog,
       OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE: timestampSigningAttemptFile,
+      OPL_TEST_TIMESTAMP_PROBE_ATTEMPT_FILE: timestampProbeAttemptFile,
       OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR: timestampSigningBehavior,
       ...(timestampSigningBehavior === 'timeout-once'
         || timestampSigningBehavior === 'timeout-three'
@@ -172,6 +182,8 @@ exit 0
         ? { OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS: '500' }
         : {}),
       ...(timestampSigningBehavior === 'probe-timeout'
+        || timestampSigningBehavior === 'probe-timeout-once'
+        || timestampSigningBehavior === 'probe-timeout-all'
         ? { OPL_NOTARIZATION_TEST_TIMESTAMP_PROBE_TIMEOUT_MS: '500' }
         : {}),
       OPL_RUNTIME_CODESIGN_IDENTITY: identity,
@@ -188,6 +200,9 @@ exit 0
     commands: fs.readFileSync(commandLog, 'utf8'),
     timestampSigningAttempts: fs.existsSync(timestampSigningAttemptFile)
       ? Number(fs.readFileSync(timestampSigningAttemptFile, 'utf8'))
+      : 0,
+    timestampProbeAttempts: fs.existsSync(timestampProbeAttemptFile)
+      ? Number(fs.readFileSync(timestampProbeAttemptFile, 'utf8'))
       : 0,
   };
 }
@@ -275,10 +290,46 @@ test('timestamp service probe fails before the Full DMG or notary is invoked', (
   try {
     assert.notEqual(value.result.status, 0);
     assert.equal(value.timestampSigningAttempts, 0);
+    assert.equal(value.timestampProbeAttempts, 2);
     assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthorityUrl);
     assert.equal(value.receipt.timestamp_signing.probe_status, 'failed');
+    assert.equal(value.receipt.timestamp_signing.probe_attempts, 2);
+    assert.equal(value.receipt.timestamp_signing.probe_retry_count, 1);
+    assert.deepEqual(value.receipt.timestamp_signing.probe_attempt_timeouts_seconds, [0, 0]);
     assert.equal(value.receipt.failure.code, 'timestamp_service_probe_failed');
     assert.equal(value.receipt.failure.stage, 'probe_timestamp_service');
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 0);
+    assert.doesNotMatch(value.commands, /notarytool submit/);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
+test('timestamp service probe retries one timeout from a fresh probe copy', () => {
+  const value = fixture('Accepted', 'probe-timeout-once');
+  try {
+    assert.equal(value.result.status, 0, value.result.stderr);
+    assert.equal(value.timestampProbeAttempts, 2);
+    assert.equal(value.receipt.timestamp_signing.probe_status, 'passed');
+    assert.equal(value.receipt.timestamp_signing.probe_attempts, 2);
+    assert.equal(value.receipt.timestamp_signing.probe_retry_count, 1);
+    assert.deepEqual(value.receipt.timestamp_signing.probe_attempt_timeouts_seconds, [0, 0]);
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 1);
+    assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
+test('timestamp service probe does not retry a non-timeout failure', () => {
+  const value = fixture('Accepted', 'probe-fail');
+  try {
+    assert.notEqual(value.result.status, 0);
+    assert.equal(value.timestampProbeAttempts, 1);
+    assert.equal(value.receipt.timestamp_signing.probe_attempts, 1);
+    assert.equal(value.receipt.timestamp_signing.probe_retry_count, 0);
+    assert.equal(value.receipt.failure.code, 'timestamp_service_probe_failed');
+    assert.equal(value.receipt.failure.retry_disposition, 'new_operation_required_no_retry');
     assert.equal(fullTimestampSigningCommandCount(value.commands), 0);
     assert.doesNotMatch(value.commands, /notarytool submit/);
   } finally {

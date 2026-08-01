@@ -29,6 +29,7 @@ const defaultCommandTimeoutMs = 45 * 60_000;
 const timestampSigningAttemptLimitMs = 5 * 60_000;
 const timestampServiceProbeTimeoutMs = 60_000;
 const appleTimestampAuthorityUrl = 'http://timestamp.apple.com/ts01';
+const maximumTimestampServiceProbeAttempts = 2;
 const maximumTimestampSigningAttempts = 4;
 const largeDmgThresholdBytes = 512 * 1024 * 1024;
 const maximumLargeDmgTimestampSigningAttempts = 2;
@@ -416,6 +417,12 @@ export function finalizeNotarizedDmg() {
       authority_endpoint: appleTimestampAuthorityUrl,
       probe_status: 'pending',
       probe_timeout_seconds: null,
+      probe_attempts: 0,
+      probe_retry_count: 0,
+      probe_attempt_timeout_seconds: null,
+      probe_attempt_timeouts_seconds: [],
+      probe_maximum_attempts: maximumTimestampServiceProbeAttempts,
+      probe_strategy: 'bounded_fresh_probe_attempts',
       attempts: 0,
       retry_count: 0,
       attempt_timeout_seconds: null,
@@ -453,22 +460,34 @@ export function finalizeNotarizedDmg() {
 
     stage = 'probe_timestamp_service';
     const probePath = path.join(tempRoot, 'timestamp-service-probe');
-    const probeSafeBudgetMs = preNotarizationCommandTimeoutMs({
-      operationDeadlineAt: options.operationDeadlineAt,
-      minimumWaitMs: minimumTimestampSigningNotarizationWindowMs,
-    });
-    const probeTimeoutMs = Math.min(configuredTimestampServiceProbeTimeoutMs(), probeSafeBudgetMs);
+    const configuredProbeTimeoutMs = configuredTimestampServiceProbeTimeoutMs();
     evidence.timestamp_signing.probe_status = 'running';
-    evidence.timestamp_signing.probe_timeout_seconds = Math.floor(probeTimeoutMs / 1_000);
-    persist();
-    try {
-      verifyTimestampServiceProbe(probePath, identity, teamId, probeTimeoutMs);
-      evidence.timestamp_signing.probe_status = 'passed';
+    for (let attempt = 1; attempt <= maximumTimestampServiceProbeAttempts; attempt += 1) {
+      const probeTimeoutMs = Math.min(
+        configuredProbeTimeoutMs,
+        preNotarizationCommandTimeoutMs({
+          operationDeadlineAt: options.operationDeadlineAt,
+          minimumWaitMs: minimumTimestampSigningNotarizationWindowMs,
+        }),
+      );
+      evidence.timestamp_signing.probe_timeout_seconds = Math.floor(probeTimeoutMs / 1_000);
+      evidence.timestamp_signing.probe_attempts = attempt;
+      evidence.timestamp_signing.probe_retry_count = attempt - 1;
+      evidence.timestamp_signing.probe_attempt_timeout_seconds = Math.floor(probeTimeoutMs / 1_000);
+      evidence.timestamp_signing.probe_attempt_timeouts_seconds.push(Math.floor(probeTimeoutMs / 1_000));
       persist();
-    } catch (error) {
-      evidence.timestamp_signing.probe_status = 'failed';
-      persist();
-      throw error;
+      try {
+        verifyTimestampServiceProbe(probePath, identity, teamId, probeTimeoutMs);
+        evidence.timestamp_signing.probe_status = 'passed';
+        persist();
+        break;
+      } catch (error) {
+        evidence.timestamp_signing.probe_status = 'failed';
+        persist();
+        if (!commandTimedOut(error) || attempt === maximumTimestampServiceProbeAttempts) {
+          throw error;
+        }
+      }
     }
 
     stage = 'sign_dmg';
