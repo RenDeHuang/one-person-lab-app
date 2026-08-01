@@ -115,9 +115,11 @@ test('App contract matches the current Framework release checkpoint ABI', () => 
   const checkpoint = release.release_bundle_control_plane.checkpoint_transport;
 
   assert.equal(framework.portable_checkpoint_authority_first_landed_sha, 'f785cda96');
-  assert.equal(framework.consumed_abi_sha, '9860dc64b56ed9cccb9984cd14e138d9ccacced7');
+  assert.equal(framework.consumed_abi_sha, 'bee837d46a3695710c93c3acc69c10eb1d900167');
   assert.equal(framework.checkpoint_schema, 'opl_release_bundle_checkpoint.v1');
   assert.equal(framework.operation_control_schema, 'opl_release_bundle_operation_control.v1');
+  assert.equal(framework.operation_event_schema, 'opl_release_bundle_operation_event.v1');
+  assert.equal(framework.consumer_envelope_schema, 'opl_release_bundle_consumer_envelope.v1');
   assert.equal(framework.unknown_outcome_schema, 'opl_release_bundle_unknown_outcome.v1');
   assert.deepEqual(framework.receipt_schemas, [
     'opl_release_bundle_executor_receipt.v1',
@@ -135,6 +137,8 @@ test('App contract matches the current Framework release checkpoint ABI', () => 
     'publish',
     'reconcile',
     'status',
+    'events',
+    'consumer envelope',
   ]);
   assert.deepEqual(framework.command_forms, [
     'opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]',
@@ -146,6 +150,8 @@ test('App contract matches the current Framework release checkpoint ABI', () => 
     'opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
     'opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
     'opl release status --bundle <sha256:digest> [--store <directory>]',
+    'opl release events --bundle <sha256:digest> [--after-event <sha256:event>] [--store <directory>]',
+    'opl release consumer envelope --bundle <sha256:digest> --track <standard|full> [--source-checkpoint-run-id <run-id>] [--store <directory>]',
   ]);
   assert.deepEqual(checkpoint.stages, [
     'frozen',
