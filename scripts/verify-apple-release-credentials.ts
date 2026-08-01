@@ -17,6 +17,12 @@ const requiredSecretNames = [
   'IDENTITY',
 ] as const;
 
+const fullDmgReferenceSizeBytes = 578_632_392;
+const largeDmgCanaryPayloadBytes = 550 * 1024 * 1024;
+const largeDmgCanaryMinimumBytes = 520 * 1024 * 1024;
+const largeDmgCanaryMaximumBytes = 620 * 1024 * 1024;
+const largeDmgCommandTimeoutMs = 20 * 60_000;
+
 type RequiredSecretName = (typeof requiredSecretNames)[number];
 
 type CommandResult = {
@@ -29,6 +35,7 @@ type CommandResult = {
 type CommandOptions = {
   redactedArgs?: string[];
   sensitiveValues?: string[];
+  timeoutMs?: number;
 };
 
 export type CommandRunner = (
@@ -39,6 +46,10 @@ export type CommandRunner = (
 
 type VerifyOptions = {
   outputPath: string;
+  largeDmgCanary?: boolean;
+  largeDmgCanaryPayloadBytes?: number;
+  largeDmgCanaryMinimumBytes?: number;
+  largeDmgCanaryMaximumBytes?: number;
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
   runner?: CommandRunner;
@@ -69,11 +80,11 @@ type GithubExecution = {
   head_sha: string | null;
 };
 
-function defaultRunner(command: string, args: string[]): CommandResult {
+function defaultRunner(command: string, args: string[], options: CommandOptions = {}): CommandResult {
   const result = spawnSync(command, args, {
     encoding: 'utf8',
     stdio: 'pipe',
-    timeout: 120_000,
+    timeout: options.timeoutMs ?? 120_000,
     maxBuffer: 16 * 1024 * 1024,
   });
   return {
@@ -81,6 +92,202 @@ function defaultRunner(command: string, args: string[]): CommandResult {
     stdout: result.stdout || '',
     stderr: result.stderr || '',
     error: result.error,
+  };
+}
+
+function sha256File(filePath: string): string {
+  const digest = crypto.createHash('sha256');
+  const buffer = Buffer.allocUnsafe(8 * 1024 * 1024);
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    let bytesRead = 0;
+    do {
+      bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null);
+      if (bytesRead > 0) digest.update(buffer.subarray(0, bytesRead));
+    } while (bytesRead > 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  return digest.digest('hex');
+}
+
+function writeIncompressiblePayload(filePath: string, sizeBytes: number) {
+  if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1) {
+    throw new Error('Large DMG canary payload size must be a positive safe integer.');
+  }
+  const buffer = Buffer.allocUnsafe(Math.min(8 * 1024 * 1024, sizeBytes));
+  const fd = fs.openSync(filePath, 'wx', 0o600);
+  try {
+    let written = 0;
+    while (written < sizeBytes) {
+      const chunkSize = Math.min(buffer.length, sizeBytes - written);
+      const chunk = buffer.subarray(0, chunkSize);
+      crypto.randomFillSync(chunk);
+      let chunkOffset = 0;
+      while (chunkOffset < chunk.length) {
+        const bytesWritten = fs.writeSync(fd, chunk, chunkOffset, chunk.length - chunkOffset);
+        if (bytesWritten < 1) throw new Error('Large DMG canary payload write made no progress.');
+        chunkOffset += bytesWritten;
+      }
+      written += chunkSize;
+    }
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function largeDmgFailureType(stage: string, error: unknown): string {
+  const timedOut = /ETIMEDOUT|timed out/i.test(error instanceof Error ? error.message : String(error));
+  const prefix = stage === 'validate_runner'
+    ? 'large_dmg_runner_identity'
+    : stage === 'codesign_large_dmg'
+    ? 'large_dmg_codesign'
+    : stage === 'create_ulmo_dmg'
+      ? 'large_dmg_creation'
+      : stage === 'prepare_payload'
+        ? 'large_dmg_payload'
+        : 'large_dmg_signature_verification';
+  return `${prefix}_${timedOut ? 'timeout' : 'failed'}`;
+}
+
+function writeReceipt(outputPath: string, receipt: Record<string, unknown>) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, `${JSON.stringify(receipt, null, 2)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+}
+
+function runLargeDmgCanary(input: {
+  runner: CommandRunner;
+  tempRoot: string;
+  keychainPath: string;
+  identity: ImportedDeveloperIdIdentity;
+  teamId: string;
+  sensitiveValues: string[];
+  payloadBytes: number;
+  minimumBytes: number;
+  maximumBytes: number;
+  env: NodeJS.ProcessEnv;
+  onStage: (stage: string) => void;
+}) {
+  input.onStage('validate_runner');
+  const runnerArchitecture = input.env.RUNNER_ARCH?.trim() || process.arch;
+  if (runnerArchitecture !== 'X64' && runnerArchitecture !== 'x64') {
+    throw new Error('Large DMG canary requires the Intel x64 GitHub runner.');
+  }
+  const payloadDirectory = path.join(input.tempRoot, 'large-dmg-canary-payload');
+  const payloadPath = path.join(payloadDirectory, 'incompressible-payload.bin');
+  const dmgPath = path.join(input.tempRoot, 'large-dmg-timestamp-canary.dmg');
+  input.onStage('prepare_payload');
+  fs.mkdirSync(payloadDirectory);
+  writeIncompressiblePayload(payloadPath, input.payloadBytes);
+
+  input.onStage('create_ulmo_dmg');
+  runRequired(
+    input.runner,
+    'hdiutil',
+    [
+      'create',
+      '-srcfolder',
+      payloadDirectory,
+      '-fs',
+      'HFS+',
+      '-format',
+      'ULMO',
+      '-volname',
+      'OPL Timestamp Canary',
+      '-ov',
+      dmgPath,
+    ],
+    { timeoutMs: largeDmgCommandTimeoutMs },
+  );
+  const unsignedDmgSizeBytes = fs.statSync(dmgPath).size;
+  if (unsignedDmgSizeBytes < input.minimumBytes || unsignedDmgSizeBytes > input.maximumBytes) {
+    throw new Error(
+      `Synthetic ULMO DMG size ${unsignedDmgSizeBytes} is outside the required canary range.`,
+    );
+  }
+  const unsignedDmgSha256 = sha256File(dmgPath);
+
+  input.onStage('codesign_large_dmg');
+  const signingStartedAt = process.hrtime.bigint();
+  runRequired(
+    input.runner,
+    'codesign',
+    [
+      '--force',
+      '--timestamp',
+      '--keychain',
+      input.keychainPath,
+      '--sign',
+      input.identity.sha1,
+      dmgPath,
+    ],
+    {
+      redactedArgs: [
+        '--force',
+        '--timestamp',
+        '--keychain',
+        input.keychainPath,
+        '--sign',
+        '<resolved-imported-developer-id>',
+        dmgPath,
+      ],
+      sensitiveValues: input.sensitiveValues,
+      timeoutMs: largeDmgCommandTimeoutMs,
+    },
+  );
+  const signingDurationMs = Number((process.hrtime.bigint() - signingStartedAt) / 1_000_000n);
+
+  input.onStage('verify_large_dmg_signature');
+  runRequired(
+    input.runner,
+    'codesign',
+    ['--verify', '--strict', '--verbose=2', dmgPath],
+    { sensitiveValues: input.sensitiveValues, timeoutMs: largeDmgCommandTimeoutMs },
+  );
+  const details = runRequired(
+    input.runner,
+    'codesign',
+    ['-dv', '--verbose=4', dmgPath],
+    { sensitiveValues: input.sensitiveValues, timeoutMs: largeDmgCommandTimeoutMs },
+  );
+  const facts = parseSigningFacts(`${details.stdout}\n${details.stderr}`);
+  if (!facts.authorities.includes(input.identity.fullName)) {
+    throw new Error('Large DMG canary authority does not match the resolved Developer ID identity.');
+  }
+  if (facts.teamIdentifier !== input.teamId) {
+    throw new Error('Large DMG canary TeamIdentifier mismatch.');
+  }
+  if (!facts.timestamp) {
+    throw new Error('Large DMG canary does not contain a trusted timestamp.');
+  }
+
+  return {
+    requested: true,
+    status: 'passed',
+    format: 'ULMO',
+    timestamp_mode: 'system_default',
+    reference_full_dmg_size_bytes: fullDmgReferenceSizeBytes,
+    payload_size_bytes: input.payloadBytes,
+    unsigned_dmg_size_bytes: unsignedDmgSizeBytes,
+    unsigned_dmg_sha256: unsignedDmgSha256,
+    signed_dmg_size_bytes: fs.statSync(dmgPath).size,
+    signed_dmg_sha256: sha256File(dmgPath),
+    signing_duration_ms: signingDurationMs,
+    developer_id_application: true,
+    trusted_timestamp: true,
+    codesign_strict: 'passed',
+    runner: {
+      label: 'macos-15-intel',
+      architecture: runnerArchitecture,
+      image_os: input.env.ImageOS?.trim() || null,
+      image_version: input.env.ImageVersion?.trim() || null,
+    },
+    retained_artifact: false,
+    notarization_submission_performed: false,
   };
 }
 
@@ -433,6 +640,80 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
     if (!signingFacts.timestamp) {
       throw new Error('Signed probe does not contain a trusted timestamp.');
     }
+    let largeDmgCanary: Record<string, unknown> = {
+      requested: options.largeDmgCanary === true,
+      status: options.largeDmgCanary === true ? 'pending' : 'not_requested',
+      timestamp_mode: 'system_default',
+      reference_full_dmg_size_bytes: fullDmgReferenceSizeBytes,
+      runner: {
+        label: 'macos-15-intel',
+        architecture: env.RUNNER_ARCH?.trim() || process.arch,
+        image_os: env.ImageOS?.trim() || null,
+        image_version: env.ImageVersion?.trim() || null,
+      },
+      retained_artifact: false,
+      notarization_submission_performed: false,
+    };
+    if (options.largeDmgCanary === true) {
+      let largeDmgStage = 'prepare_payload';
+      try {
+        largeDmgCanary = runLargeDmgCanary({
+          runner,
+          tempRoot,
+          keychainPath,
+          identity: resolvedIdentity,
+          teamId: secrets.TEAM_ID,
+          sensitiveValues: identitySensitiveValues,
+          payloadBytes: options.largeDmgCanaryPayloadBytes ?? largeDmgCanaryPayloadBytes,
+          minimumBytes: options.largeDmgCanaryMinimumBytes ?? largeDmgCanaryMinimumBytes,
+          maximumBytes: options.largeDmgCanaryMaximumBytes ?? largeDmgCanaryMaximumBytes,
+          env,
+          onStage: (stage) => { largeDmgStage = stage; },
+        });
+      } catch (error) {
+        largeDmgCanary = {
+          ...largeDmgCanary,
+          status: 'failed',
+          failure: {
+            type: largeDmgFailureType(largeDmgStage, error),
+            stage: largeDmgStage,
+            retry_disposition: 'diagnose_before_new_canary_run_no_rerun',
+          },
+        };
+        writeReceipt(options.outputPath, {
+          schema: 'opl_apple_release_credentials_preflight.v1',
+          status: 'failed',
+          checked_at: now().toISOString(),
+          platform: 'darwin',
+          protected_environment: 'release-stable',
+          execution,
+          required_secret_names: [...requiredSecretNames],
+          required_secret_count: requiredSecretNames.length,
+          signing: {
+            configured_identity_selector_resolved: true,
+            configured_team_id_match: true,
+            developer_id_application: true,
+            hardened_runtime: true,
+            trusted_timestamp: true,
+            probe_codesign_strict: 'passed',
+            large_dmg_canary: largeDmgCanary,
+          },
+          notarization: {
+            authentication: 'not_checked_after_large_dmg_failure',
+            command: 'xcrun notarytool history',
+            history_count: null,
+            submission_performed: false,
+          },
+          mutation: {
+            release_dispatch_performed: false,
+            notarization_submission_performed: false,
+            public_asset_write_performed: false,
+          },
+          truth_boundary: 'protected_large_dmg_signing_canary_not_release_or_artifact_qualification',
+        });
+        throw error;
+      }
+    }
     runRequired(
       runner,
       'security',
@@ -493,6 +774,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
         hardened_runtime: true,
         trusted_timestamp: true,
         probe_codesign_strict: 'passed',
+        large_dmg_canary: largeDmgCanary,
       },
       notarization: {
         authentication: 'passed',
@@ -509,11 +791,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
         ? 'canonical_main_credential_runtime_preflight_not_release_or_artifact_qualification'
         : 'local_credential_runtime_diagnostic_not_dispatch_admission',
     };
-    fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
-    fs.writeFileSync(options.outputPath, `${JSON.stringify(receipt, null, 2)}\n`, {
-      encoding: 'utf8',
-      mode: 0o600,
-    });
+    writeReceipt(options.outputPath, receipt);
     return receipt;
   } finally {
     if (originalUserKeychains && originalDefaultKeychain && !keychainStateRestored) {
@@ -532,12 +810,16 @@ function cliOptions() {
     args: process.argv.slice(2),
     options: {
       output: { type: 'string' },
+      'large-dmg-canary': { type: 'boolean', default: false },
     },
     strict: true,
     allowPositionals: false,
   });
   if (!values.output) throw new Error('Pass --output <receipt.json>.');
-  return { outputPath: path.resolve(values.output) };
+  return {
+    outputPath: path.resolve(values.output),
+    largeDmgCanary: values['large-dmg-canary'],
+  };
 }
 
 const isMain = process.argv[1]

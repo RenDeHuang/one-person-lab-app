@@ -39,10 +39,22 @@ function successfulRunner(overrides: {
   failImport?: boolean;
   identityOutput?: string;
   notaryStdout?: string;
+  largeDmgOutputBytes?: number;
+  failLargeDmgCodesign?: boolean;
 } = {}) {
-  const calls: Array<{ command: string; args: string[]; redactedArgs?: string[] }> = [];
+  const calls: Array<{
+    command: string;
+    args: string[];
+    redactedArgs?: string[];
+    timeoutMs?: number;
+  }> = [];
   const runner: CommandRunner = (command, args, options) => {
-    calls.push({ command, args, redactedArgs: options?.redactedArgs });
+    calls.push({
+      command,
+      args,
+      redactedArgs: options?.redactedArgs,
+      timeoutMs: options?.timeoutMs,
+    });
     if (overrides.failImport && command === 'security' && args[0] === 'import') {
       return {
         status: 1,
@@ -62,6 +74,23 @@ function successfulRunner(overrides: {
     }
     if (command === 'security' && args.join(' ') === 'default-keychain -d user') {
       return { status: 0, stdout: `    "${originalKeychain}"\n`, stderr: '' };
+    }
+    if (command === 'hdiutil' && args[0] === 'create') {
+      fs.writeFileSync(args.at(-1)!, Buffer.alloc(overrides.largeDmgOutputBytes ?? 2_048, 0xa5));
+      return { status: 0, stdout: '', stderr: '' };
+    }
+    if (
+      overrides.failLargeDmgCodesign
+      && command === 'codesign'
+      && args.includes('--sign')
+      && args.at(-1)?.endsWith('.dmg')
+    ) {
+      return {
+        status: null,
+        stdout: '',
+        stderr: '',
+        error: new Error('spawnSync codesign ETIMEDOUT'),
+      };
     }
     if (
       overrides.failCodesignArgs
@@ -102,6 +131,112 @@ test('strict base64 decoding rejects malformed or non-canonical certificate byte
   assert.equal(decodeBase64Strict(Buffer.from('certificate').toString('base64')).toString(), 'certificate');
   assert.throws(() => decodeBase64Strict('not base64'), /not valid base64/);
   assert.throws(() => decodeBase64Strict('YQ==='), /not valid base64/);
+});
+
+test('large DMG canary signs a Full-sized ULMO shape with the system-default timestamp path', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-large-dmg-canary-'));
+  const outputPath = path.join(root, 'receipt.json');
+  const fixture = successfulRunner({ largeDmgOutputBytes: 2_048 });
+  const receipt = verifyAppleReleaseCredentials({
+    outputPath,
+    largeDmgCanary: true,
+    largeDmgCanaryPayloadBytes: 1_024,
+    largeDmgCanaryMinimumBytes: 1_024,
+    largeDmgCanaryMaximumBytes: 4_096,
+    env: { ...credentialEnv, RUNNER_ARCH: 'X64', ImageOS: 'macos15' },
+    platform: 'darwin',
+    runner: fixture.runner,
+  });
+
+  assert.equal(receipt.signing.large_dmg_canary.status, 'passed');
+  assert.equal(receipt.signing.large_dmg_canary.format, 'ULMO');
+  assert.equal(receipt.signing.large_dmg_canary.timestamp_mode, 'system_default');
+  assert.equal((receipt.signing.large_dmg_canary.runner as Record<string, unknown>).label, 'macos-15-intel');
+  assert.equal((receipt.signing.large_dmg_canary.runner as Record<string, unknown>).architecture, 'X64');
+  assert.equal(receipt.signing.large_dmg_canary.notarization_submission_performed, false);
+  const create = fixture.calls.find((call) => call.command === 'hdiutil' && call.args[0] === 'create');
+  assert.ok(create);
+  assert.equal(create.args[create.args.indexOf('-format') + 1], 'ULMO');
+  const largeSign = fixture.calls.find((call) => (
+    call.command === 'codesign'
+    && call.args.includes('--sign')
+    && call.args.at(-1)?.endsWith('.dmg')
+  ));
+  assert.ok(largeSign);
+  assert.equal(largeSign.args.includes('--timestamp'), true);
+  assert.equal(largeSign.args.some((arg) => arg.startsWith('--timestamp=')), false);
+  assert.equal(largeSign.timeoutMs, 20 * 60_000);
+  assert.equal(
+    fixture.calls.some((call) => call.command === 'xcrun' && call.args.includes('submit')),
+    false,
+  );
+});
+
+test('large DMG canary persists a sanitized typed timeout receipt without a notary submission', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-large-dmg-timeout-'));
+  const outputPath = path.join(root, 'receipt.json');
+  const fixture = successfulRunner({
+    largeDmgOutputBytes: 2_048,
+    failLargeDmgCodesign: true,
+  });
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
+      outputPath,
+      largeDmgCanary: true,
+      largeDmgCanaryPayloadBytes: 1_024,
+      largeDmgCanaryMinimumBytes: 1_024,
+      largeDmgCanaryMaximumBytes: 4_096,
+      env: { ...credentialEnv, RUNNER_ARCH: 'X64' },
+      platform: 'darwin',
+      runner: fixture.runner,
+    }),
+    /ETIMEDOUT/,
+  );
+  const receiptText = fs.readFileSync(outputPath, 'utf8');
+  const receipt = JSON.parse(receiptText);
+  assert.equal(receipt.status, 'failed');
+  assert.equal(receipt.signing.large_dmg_canary.failure.type, 'large_dmg_codesign_timeout');
+  assert.equal(receipt.signing.large_dmg_canary.failure.stage, 'codesign_large_dmg');
+  assert.equal(receipt.notarization.submission_performed, false);
+  assert.equal(receipt.mutation.public_asset_write_performed, false);
+  for (const sensitiveValue of [
+    credentialEnv.IDENTITY,
+    identity,
+    identitySha,
+    identitySha.toLowerCase(),
+    credentialEnv.BUILD_CERTIFICATE_BASE64,
+    credentialEnv.P12_PASSWORD,
+    credentialEnv.APPLE_ID,
+    credentialEnv.APPLE_ID_PASSWORD,
+  ]) {
+    assert.equal(receiptText.includes(sensitiveValue), false);
+  }
+});
+
+test('large DMG canary rejects a non-Intel runner before allocating its payload', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-large-dmg-runner-'));
+  const outputPath = path.join(root, 'receipt.json');
+  const fixture = successfulRunner();
+  assert.throws(
+    () => verifyAppleReleaseCredentials({
+      outputPath,
+      largeDmgCanary: true,
+      largeDmgCanaryPayloadBytes: 1_024,
+      largeDmgCanaryMinimumBytes: 1_024,
+      largeDmgCanaryMaximumBytes: 4_096,
+      env: { ...credentialEnv, RUNNER_ARCH: 'ARM64' },
+      platform: 'darwin',
+      runner: fixture.runner,
+    }),
+    /requires the Intel x64 GitHub runner/,
+  );
+  const receipt = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.equal(receipt.signing.large_dmg_canary.failure.type, 'large_dmg_runner_identity_failed');
+  assert.equal(receipt.signing.large_dmg_canary.failure.stage, 'validate_runner');
+  assert.equal(
+    fixture.calls.some((call) => call.command === 'hdiutil'),
+    false,
+  );
 });
 
 test('Apple credential preflight imports the P12, signs a probe, and authenticates notarization read-only', () => {
