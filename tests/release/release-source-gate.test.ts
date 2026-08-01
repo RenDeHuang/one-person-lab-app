@@ -1,10 +1,10 @@
-import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import test from "node:test";
-import { runShellProductProfileConsumerGate } from "../../scripts/validate-shell-product-profile-consumer.ts";
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { runShellProductProfileConsumerGate } from '../../scripts/validate-shell-product-profile-consumer.ts';
 import {
   buildReleaseSourceGateReport,
   createGithubOwnerReleaseNamespaceEvidence,
@@ -14,268 +14,189 @@ import {
   writeReleaseSourceGateReport,
   type CommandRunner,
   type ReleaseSourceGateOptions,
-} from "../../scripts/validate-release-source-gate.ts";
+} from '../../scripts/validate-release-source-gate.ts';
 
-const repoRoot = "/tmp/opl-app";
-const shellRoot = path.join(repoRoot, "shells", "aionui");
-const frameworkRoot = "/tmp/one-person-lab";
-const repoLocalFrameworkRoot = path.join(repoRoot, "one-person-lab");
-const appHead = "0123456789abcdef0123456789abcdef01234567";
-const shellHead = "abcdef0123456789abcdef0123456789abcdef01";
-const frameworkHead = "789abcdef0123456789abcdef0123456789abcde";
+const repoRoot = '/tmp/opl-app';
+const shellRoot = path.join(repoRoot, 'shells', 'aionui');
+const frameworkRoot = '/tmp/one-person-lab';
+const repoLocalFrameworkRoot = path.join(repoRoot, 'one-person-lab');
+const appHead = '0123456789abcdef0123456789abcdef01234567';
+const shellHead = 'abcdef0123456789abcdef0123456789abcdef01';
+const frameworkHead = '789abcdef0123456789abcdef0123456789abcde';
 const preservedDraftId = 362629121;
-const preservedDraftTag = "v26.7.31";
-const preservedDraftTarget = "3032898363e843cd6773c82e2e77b4f41b00afd2";
+const preservedDraftTag = 'v26.7.31';
+const preservedDraftTarget = '3032898363e843cd6773c82e2e77b4f41b00afd2';
 const managedUpdateProviders = {
-  opl_base: "runtime_substrate",
-  opl_app: "installation_carrier",
-  opl_packages: "capability_packages",
+  opl_base: 'runtime_substrate',
+  opl_app: 'installation_carrier',
+  opl_packages: 'capability_packages',
 };
 
-function readSourceJson(
-  candidatePath: string,
-  shellName = "one-person-lab-aion-shell",
-): any {
-  if (candidatePath.endsWith("package.json")) return { name: shellName };
-  if (candidatePath.endsWith("app-release-channel.json")) {
+function readSourceJson(candidatePath: string, shellName = 'one-person-lab-aion-shell'): any {
+  if (candidatePath.endsWith('package.json')) return { name: shellName };
+  if (candidatePath.endsWith('app-release-channel.json')) {
     return {
       managed_update_plane: {
         software_lifecycle: {
           public_component_keys: Object.keys(managedUpdateProviders),
-          objects: Object.fromEntries(
-            Object.entries(managedUpdateProviders).map(([id, provider_id]) => [
-              id,
-              { provider_id },
-            ]),
-          ),
+          objects: Object.fromEntries(Object.entries(managedUpdateProviders).map(([id, provider_id]) => [id, { provider_id }])),
         },
       },
     };
   }
-  if (candidatePath.endsWith("managed-update-kernel-contract.json")) {
+  if (candidatePath.endsWith('managed-update-kernel-contract.json')) {
     return {
-      providers: Object.entries(managedUpdateProviders).map(
-        ([lifecycle_owner, provider_id]) => ({
-          lifecycle_owner,
-          provider_id,
-        }),
-      ),
+      providers: Object.entries(managedUpdateProviders).map(([lifecycle_owner, provider_id]) => ({
+        lifecycle_owner,
+        provider_id,
+      })),
     };
   }
   throw new Error(`unexpected JSON path: ${candidatePath}`);
 }
 
-function options(
-  overrides: Partial<ReleaseSourceGateOptions> = {},
-): ReleaseSourceGateOptions {
+function options(overrides: Partial<ReleaseSourceGateOptions> = {}): ReleaseSourceGateOptions {
   return {
-    version: "26.6.30",
+    version: '26.6.30',
     operationFingerprint: null,
     expectedAppHead: appHead,
-    shellRef: "main",
-    frameworkRef: "main",
+    shellRef: 'main',
+    frameworkRef: 'main',
     requireShellFormat: true,
     runShellTests: true,
     repoRoot,
     shellRoot,
     frameworkRoot,
-    output: "",
+    output: '',
     json: true,
     ...overrides,
   };
 }
 
-test("release source gate accepts explicit isolated source checkout roots", () => {
+test('release source gate accepts explicit isolated source checkout roots', () => {
   const parsed = parseReleaseSourceGateArgs([
-    "--version",
-    "26.6.30",
-    "--app-ref",
+    '--version',
+    '26.6.30',
+    '--app-ref',
     appHead,
-    "--shell-root",
-    "/private/tmp/release-shell",
-    "--framework-root",
-    "/private/tmp/release-framework",
+    '--shell-root',
+    '/private/tmp/release-shell',
+    '--framework-root',
+    '/private/tmp/release-framework',
   ]);
 
-  assert.equal(parsed.shellRoot, "/private/tmp/release-shell");
-  assert.equal(parsed.frameworkRoot, "/private/tmp/release-framework");
+  assert.equal(parsed.shellRoot, '/private/tmp/release-shell');
+  assert.equal(parsed.frameworkRoot, '/private/tmp/release-framework');
 });
 
-test("Shell product-profile consumer uses the frozen local vitest executable without bunx discovery", () => {
-  const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), "opl-shell-consumer-command-"),
-  );
-  const shellRoot = path.join(root, "shell");
-  const markerPath = path.join(root, "vitest-invocation.txt");
-  const fakeBin = path.join(root, "fake-bin");
+test('Shell product-profile consumer uses the frozen local vitest executable without bunx discovery', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-shell-consumer-command-'));
+  const shellRoot = path.join(root, 'shell');
+  const markerPath = path.join(root, 'vitest-invocation.txt');
+  const fakeBin = path.join(root, 'fake-bin');
   const previousPath = process.env.PATH;
-  fs.mkdirSync(path.join(shellRoot, "node_modules", ".bin"), {
-    recursive: true,
-  });
-  fs.mkdirSync(path.join(shellRoot, "tests", "unit", "common-config"), {
-    recursive: true,
-  });
+  fs.mkdirSync(path.join(shellRoot, 'node_modules', '.bin'), { recursive: true });
+  fs.mkdirSync(path.join(shellRoot, 'tests', 'unit', 'common-config'), { recursive: true });
   fs.mkdirSync(fakeBin, { recursive: true });
+  fs.writeFileSync(path.join(shellRoot, '.gitignore'), 'node_modules/\n', 'utf8');
+  fs.writeFileSync(path.join(shellRoot, 'package.json'), '{"name":"one-person-lab-aion-shell"}\n', 'utf8');
   fs.writeFileSync(
-    path.join(shellRoot, ".gitignore"),
-    "node_modules/\n",
-    "utf8",
+    path.join(shellRoot, 'tests', 'unit', 'common-config', 'oplProductProfile.test.ts'),
+    'export {};\n',
+    'utf8',
   );
-  fs.writeFileSync(
-    path.join(shellRoot, "package.json"),
-    '{"name":"one-person-lab-aion-shell"}\n',
-    "utf8",
-  );
-  fs.writeFileSync(
-    path.join(
-      shellRoot,
-      "tests",
-      "unit",
-      "common-config",
-      "oplProductProfile.test.ts",
-    ),
-    "export {};\n",
-    "utf8",
-  );
-  const vitest = path.join(shellRoot, "node_modules", ".bin", "vitest");
+  const vitest = path.join(shellRoot, 'node_modules', '.bin', 'vitest');
   fs.writeFileSync(
     vitest,
     `#!/bin/sh\nset -eu\ntest "$1" = run\ntest "$2" = tests/unit/common-config/oplProductProfile.test.ts\nprintf '%s\\n' "$PWD" > ${JSON.stringify(markerPath)}\n`,
-    { encoding: "utf8", mode: 0o755 },
+    { encoding: 'utf8', mode: 0o755 },
   );
-  fs.writeFileSync(path.join(fakeBin, "bunx"), "#!/bin/sh\nexit 97\n", {
-    encoding: "utf8",
-    mode: 0o755,
-  });
+  fs.writeFileSync(path.join(fakeBin, 'bunx'), '#!/bin/sh\nexit 97\n', { encoding: 'utf8', mode: 0o755 });
 
   const git = (...args: string[]): string => {
-    const result = spawnSync("git", args, { cwd: shellRoot, encoding: "utf8" });
-    assert.equal(
-      result.status,
-      0,
-      [result.stderr, result.stdout].filter(Boolean).join("\n"),
-    );
+    const result = spawnSync('git', args, { cwd: shellRoot, encoding: 'utf8' });
+    assert.equal(result.status, 0, [result.stderr, result.stdout].filter(Boolean).join('\n'));
     return result.stdout.trim();
   };
 
   try {
-    git("init", "-q");
-    git("config", "user.name", "OPL Release Test");
-    git("config", "user.email", "release-test@example.invalid");
-    git(
-      "add",
-      ".gitignore",
-      "package.json",
-      "tests/unit/common-config/oplProductProfile.test.ts",
-    );
-    git("commit", "-qm", "fixture");
-    process.env.PATH = `${fakeBin}:${previousPath ?? ""}`;
+    git('init', '-q');
+    git('config', 'user.name', 'OPL Release Test');
+    git('config', 'user.email', 'release-test@example.invalid');
+    git('add', '.gitignore', 'package.json', 'tests/unit/common-config/oplProductProfile.test.ts');
+    git('commit', '-qm', 'fixture');
+    process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
 
     const report = runShellProductProfileConsumerGate({
       shellRoot,
-      expectedShellSha: git("rev-parse", "HEAD"),
+      expectedShellSha: git('rev-parse', 'HEAD'),
     });
 
-    assert.equal(report.status, "passed");
-    assert.match(
-      fs.readFileSync(markerPath, "utf8"),
-      /opl-shell-profile-consumer-/,
-    );
-    assert.equal(git("status", "--porcelain", "--untracked-files=normal"), "");
+    assert.equal(report.status, 'passed');
+    assert.match(fs.readFileSync(markerPath, 'utf8'), /opl-shell-profile-consumer-/);
+    assert.equal(git('status', '--porcelain', '--untracked-files=normal'), '');
   } finally {
     process.env.PATH = previousPath;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-function runner(
-  overrides: Record<
-    string,
-    { status: number; stdout?: string; stderr?: string }
-  > = {},
-): CommandRunner {
+function runner(overrides: Record<string, { status: number; stdout?: string; stderr?: string }> = {}): CommandRunner {
   return (command, args, commandOptions) => {
-    const key = `${commandOptions.cwd} $ ${command} ${args.join(" ")}`;
+    const key = `${commandOptions.cwd} $ ${command} ${args.join(' ')}`;
     const result = overrides[key];
     if (result) {
       return {
         status: result.status,
-        stdout: result.stdout ?? "",
-        stderr: result.stderr ?? "",
+        stdout: result.stdout ?? '',
+        stderr: result.stderr ?? '',
       };
     }
-    if (
-      command === "git" &&
-      args.join(" ") === "rev-parse HEAD" &&
-      commandOptions.cwd === repoRoot
-    ) {
-      return { status: 0, stdout: `${appHead}\n`, stderr: "" };
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: `${appHead}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse --show-toplevel' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: `${repoRoot}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse --show-toplevel' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: `${shellRoot}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'remote get-url origin' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: 'https://github.com/gaofeng21cn/one-person-lab-app.git\n', stderr: '' };
     }
     if (
-      command === "git" &&
-      args.join(" ") === "rev-parse --show-toplevel" &&
-      commandOptions.cwd === repoRoot
-    ) {
-      return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
-    }
-    if (
-      command === "git" &&
-      args.join(" ") === "rev-parse --show-toplevel" &&
-      commandOptions.cwd === shellRoot
-    ) {
-      return { status: 0, stdout: `${shellRoot}\n`, stderr: "" };
-    }
-    if (
-      command === "git" &&
-      args.join(" ") === "remote get-url origin" &&
-      commandOptions.cwd === repoRoot
-    ) {
-      return {
-        status: 0,
-        stdout: "https://github.com/gaofeng21cn/one-person-lab-app.git\n",
-        stderr: "",
-      };
-    }
-    if (
-      command === "gh" &&
-      args.join(" ") ===
-        "api repos/gaofeng21cn/one-person-lab-app/immutable-releases -H X-GitHub-Api-Version: 2026-03-10" &&
-      commandOptions.cwd === repoRoot
+      command === 'gh'
+      && args.join(' ') === 'api repos/gaofeng21cn/one-person-lab-app/immutable-releases -H X-GitHub-Api-Version: 2026-03-10'
+      && commandOptions.cwd === repoRoot
     ) {
       return {
         status: 0,
         stdout: '{"enabled":true,"enforced_by_owner":false}\n',
-        stderr: "",
+        stderr: '',
       };
     }
-    if (
-      command === "gh" &&
-      args.join(" ") === "api user" &&
-      commandOptions.cwd === repoRoot
-    ) {
+    if (command === 'gh' && args.join(' ') === 'api user' && commandOptions.cwd === repoRoot) {
       return {
         status: 0,
         stdout: '{"login":"gaofeng21cn"}\n',
-        stderr: "",
+        stderr: '',
       };
     }
     if (
-      command === "gh" &&
-      args.join(" ") === "api repos/gaofeng21cn/one-person-lab-app" &&
-      commandOptions.cwd === repoRoot
+      command === 'gh'
+      && args.join(' ') === 'api repos/gaofeng21cn/one-person-lab-app'
+      && commandOptions.cwd === repoRoot
     ) {
       return {
         status: 0,
-        stdout:
-          '{"full_name":"gaofeng21cn/one-person-lab-app","owner":{"login":"gaofeng21cn"},"permissions":{"push":true}}\n',
-        stderr: "",
+        stdout: '{"full_name":"gaofeng21cn/one-person-lab-app","owner":{"login":"gaofeng21cn"},"permissions":{"push":true}}\n',
+        stderr: '',
       };
     }
     if (
-      command === "gh" &&
-      args.join(" ") ===
-        "api -X GET repos/gaofeng21cn/one-person-lab-app/releases -f per_page=100 -f page=1" &&
-      commandOptions.cwd === repoRoot
+      command === 'gh'
+      && args.join(' ') === 'api -X GET repos/gaofeng21cn/one-person-lab-app/releases -f per_page=100 -f page=1'
+      && commandOptions.cwd === repoRoot
     ) {
       return {
         status: 0,
@@ -290,125 +211,93 @@ function runner(
           },
           {
             id: 360830749,
-            tag_name: "v26.7.28-r3",
-            target_commitish: "d105adc1b5b01a387d7ea0c69bcfb3590a525364",
+            tag_name: 'v26.7.28-r3',
+            target_commitish: 'd105adc1b5b01a387d7ea0c69bcfb3590a525364',
             draft: false,
             prerelease: false,
-            assets: [
-              {
-                id: 1,
-                name: "One-Person-Lab.dmg",
-                size: 1024,
-                digest: `sha256:${"a".repeat(64)}`,
-                browser_download_url:
-                  "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.28-r3/One-Person-Lab.dmg",
-              },
-            ],
+            assets: [{
+              id: 1,
+              name: 'One-Person-Lab.dmg',
+              size: 1024,
+              digest: `sha256:${'a'.repeat(64)}`,
+              browser_download_url: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.28-r3/One-Person-Lab.dmg',
+            }],
           },
         ])}\n`,
-        stderr: "",
+        stderr: '',
       };
     }
     if (
-      command === "git" &&
-      args.join(" ") === "ls-remote --heads origin refs/heads/main" &&
-      commandOptions.cwd === repoRoot
+      command === 'git'
+      && args.join(' ') === 'ls-remote --heads origin refs/heads/main'
+      && commandOptions.cwd === repoRoot
     ) {
-      return { status: 0, stdout: `${appHead}\trefs/heads/main\n`, stderr: "" };
+      return { status: 0, stdout: `${appHead}\trefs/heads/main\n`, stderr: '' };
     }
     if (
-      command === "git" &&
-      args[0] === "merge-base" &&
-      args[1] === "--is-ancestor" &&
-      args[2] === appHead &&
-      commandOptions.cwd === repoRoot
+      command === 'git'
+      && args[0] === 'merge-base'
+      && args[1] === '--is-ancestor'
+      && args[2] === appHead
+      && commandOptions.cwd === repoRoot
     ) {
-      return { status: 0, stdout: "", stderr: "" };
+      return { status: 0, stdout: '', stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'status --porcelain --untracked-files=normal' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: '', stderr: '' };
+    }
+    if (command === 'npm' && args.join(' ') === 'run validate:release-boundary' && commandOptions.cwd === repoRoot) {
+      return { status: 0, stdout: 'release boundary ok\n', stderr: '' };
     }
     if (
-      command === "git" &&
-      args.join(" ") === "status --porcelain --untracked-files=normal" &&
-      commandOptions.cwd === repoRoot
+      command === process.execPath
+      && args.join(' ') === `--experimental-strip-types scripts/validate-shell-product-profile-consumer.ts --shell-root ${shellRoot} --expected-shell-sha ${shellHead}`
+      && commandOptions.cwd === repoRoot
     ) {
-      return { status: 0, stdout: "", stderr: "" };
+      return { status: 0, stdout: 'profile consumer ok\n', stderr: '' };
     }
     if (
-      command === "npm" &&
-      args.join(" ") === "run validate:release-boundary" &&
-      commandOptions.cwd === repoRoot
+      command === 'git'
+      && args[0] === 'rev-parse'
+      && args[1] === '--verify'
+      && args[2] === '--quiet'
+      && commandOptions.cwd === shellRoot
     ) {
-      return { status: 0, stdout: "release boundary ok\n", stderr: "" };
+      return { status: 0, stdout: `${shellHead}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: `${shellHead}\n`, stderr: '' };
     }
     if (
-      command === process.execPath &&
-      args.join(" ") ===
-        `--experimental-strip-types scripts/validate-shell-product-profile-consumer.ts --shell-root ${shellRoot} --expected-shell-sha ${shellHead}` &&
-      commandOptions.cwd === repoRoot
+      command === 'git'
+      && args[0] === 'rev-parse'
+      && args[1] === '--verify'
+      && args[2] === '--quiet'
+      && commandOptions.cwd === frameworkRoot
     ) {
-      return { status: 0, stdout: "profile consumer ok\n", stderr: "" };
+      return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === frameworkRoot) {
+      return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
+    }
+    if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === repoLocalFrameworkRoot) {
+      return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
+    }
+    if (command === 'bun' && args.join(' ') === 'run format:check' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: 'format ok\n', stderr: '' };
     }
     if (
-      command === "git" &&
-      args[0] === "rev-parse" &&
-      args[1] === "--verify" &&
-      args[2] === "--quiet" &&
-      commandOptions.cwd === shellRoot
+      command === process.execPath
+      && args.join(' ') === '--experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2'
+      && commandOptions.cwd === repoRoot
     ) {
-      return { status: 0, stdout: `${shellHead}\n`, stderr: "" };
+      return { status: 0, stdout: 'active shell tests ok\n', stderr: '' };
     }
-    if (
-      command === "git" &&
-      args.join(" ") === "rev-parse HEAD" &&
-      commandOptions.cwd === shellRoot
-    ) {
-      return { status: 0, stdout: `${shellHead}\n`, stderr: "" };
-    }
-    if (
-      command === "git" &&
-      args[0] === "rev-parse" &&
-      args[1] === "--verify" &&
-      args[2] === "--quiet" &&
-      commandOptions.cwd === frameworkRoot
-    ) {
-      return { status: 0, stdout: `${frameworkHead}\n`, stderr: "" };
-    }
-    if (
-      command === "git" &&
-      args.join(" ") === "rev-parse HEAD" &&
-      commandOptions.cwd === frameworkRoot
-    ) {
-      return { status: 0, stdout: `${frameworkHead}\n`, stderr: "" };
-    }
-    if (
-      command === "git" &&
-      args.join(" ") === "rev-parse HEAD" &&
-      commandOptions.cwd === repoLocalFrameworkRoot
-    ) {
-      return { status: 0, stdout: `${frameworkHead}\n`, stderr: "" };
-    }
-    if (
-      command === "bun" &&
-      args.join(" ") === "run format:check" &&
-      commandOptions.cwd === shellRoot
-    ) {
-      return { status: 0, stdout: "format ok\n", stderr: "" };
-    }
-    if (
-      command === process.execPath &&
-      args.join(" ") ===
-        "--experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2" &&
-      commandOptions.cwd === repoRoot
-    ) {
-      return { status: 0, stdout: "active shell tests ok\n", stderr: "" };
-    }
-    return { status: 1, stdout: "", stderr: `unexpected command: ${key}` };
+    return { status: 1, stdout: '', stderr: `unexpected command: ${key}` };
   };
 }
 
-function checkStatus(
-  report: ReturnType<typeof buildReleaseSourceGateReport>,
-  id: string,
-) {
+function checkStatus(report: ReturnType<typeof buildReleaseSourceGateReport>, id: string) {
   const check = report.checks.find((candidate) => candidate.id === id);
   assert.ok(check, `missing check ${id}`);
   return check.status;
@@ -418,130 +307,101 @@ function reportFor(overrides: Partial<ReleaseSourceGateOptions> = {}) {
   return buildReleaseSourceGateReport(
     options(overrides),
     runner(),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 }
 
-test("release source gate fails stale expected App HEAD before expensive release work", () => {
+test('release source gate fails stale expected App HEAD before expensive release work', () => {
   const calls: string[] = [];
   const baseRunner = runner();
   const report = buildReleaseSourceGateReport(
-    options({ expectedAppHead: "fedcba9876543210fedcba9876543210fedcba98" }),
+    options({ expectedAppHead: 'fedcba9876543210fedcba9876543210fedcba98' }),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "blocked");
-  assert.equal(report.typed_blocker?.next_action, "repair_pre_admission");
-  assert.equal(checkStatus(report, "expected_app_head"), "failed");
-  assert.equal(checkStatus(report, "app_worktree_clean"), "passed");
-  assert.equal(checkStatus(report, "active_shell_ref_resolved"), "passed");
-  assert.equal(checkStatus(report, "framework_ref_resolved"), "passed");
-  assert.equal(
-    calls.some((call) => call === "npm run validate:release-boundary"),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call === "bun run format:check"),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call.includes("run-active-shell-tests.ts")),
-    false,
-  );
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(report.typed_blocker?.next_action, 'repair_pre_admission');
+  assert.equal(checkStatus(report, 'expected_app_head'), 'failed');
+  assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
+  assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
-test("release source gate fails closed when an Actions integration token cannot read immutable capability", () => {
+test('release source gate fails closed when an Actions integration token cannot read immutable capability', () => {
   const calls: string[] = [];
   const capabilityKey = `${repoRoot} $ gh api repos/gaofeng21cn/one-person-lab-app/immutable-releases -H X-GitHub-Api-Version: 2026-03-10`;
   const baseRunner = runner({
     [capabilityKey]: {
       status: 1,
-      stderr: "gh: Resource not accessible by integration (HTTP 403)",
+      stderr: 'gh: Resource not accessible by integration (HTTP 403)',
     },
   });
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "blocked");
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
   assert.equal(report.immutable_release_capability, null);
-  assert.equal(
-    checkStatus(report, "github_immutable_release_capability"),
-    "failed",
-  );
+  assert.equal(checkStatus(report, 'github_immutable_release_capability'), 'failed');
   assert.match(
-    report.checks.find(
-      (check) => check.id === "github_immutable_release_capability",
-    )?.actual ?? "",
+    report.checks.find((check) => check.id === 'github_immutable_release_capability')?.actual ?? '',
     /Resource not accessible by integration/,
   );
-  assert.equal(
-    calls.some((call) => call === "npm run validate:release-boundary"),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call === "bun run format:check"),
-    false,
-  );
+  assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
 });
 
-test("release source gate binds complete owner-visible draft reservations before required gates", () => {
+test('release source gate binds complete owner-visible draft reservations before required gates', () => {
   const report = reportFor();
 
-  assert.equal(checkStatus(report, "github_owner_release_namespace"), "passed");
-  assert.equal(
-    report.owner_release_namespace?.owner.authenticated_login,
-    "gaofeng21cn",
-  );
+  assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'passed');
+  assert.equal(report.owner_release_namespace?.owner.authenticated_login, 'gaofeng21cn');
   assert.equal(report.owner_release_namespace?.pagination.complete, true);
   assert.equal(report.owner_release_namespace?.pagination.release_count, 2);
-  assert.deepEqual(report.owner_release_namespace?.draft_reservations, [
-    {
-      id: preservedDraftId,
-      tag: preservedDraftTag,
-      target: preservedDraftTarget,
-      draft: true,
-      prerelease: false,
-      assets: [],
-    },
-  ]);
+  assert.deepEqual(report.owner_release_namespace?.draft_reservations, [{
+    id: preservedDraftId,
+    tag: preservedDraftTag,
+    target: preservedDraftTarget,
+    draft: true,
+    prerelease: false,
+    assets: [],
+  }]);
   assert.equal(
-    validateGithubOwnerReleaseNamespaceEvidence(report.owner_release_namespace)
-      .evidence_digest,
+    validateGithubOwnerReleaseNamespaceEvidence(report.owner_release_namespace).evidence_digest,
     report.owner_release_namespace?.evidence_digest,
   );
 });
 
-test("release source gate fails closed when the controller identity is not the repository owner", () => {
+test('release source gate fails closed when the controller identity is not the repository owner', () => {
   const ownerIdentityKey = `${repoRoot} $ gh api user`;
   const calls: string[] = [];
   const baseRunner = runner({
@@ -553,29 +413,25 @@ test("release source gate fails closed when the controller identity is not the r
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "blocked");
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
   assert.equal(report.owner_release_namespace, null);
-  assert.equal(checkStatus(report, "github_owner_release_namespace"), "failed");
-  assert.equal(
-    calls.some((call) => call === "npm run validate:release-boundary"),
-    false,
-  );
+  assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'failed');
+  assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
 });
 
-test("owner release namespace evidence rejects incomplete pagination and digest tampering", () => {
+test('owner release namespace evidence rejects incomplete pagination and digest tampering', () => {
   const release = {
     id: preservedDraftId,
     tag_name: preservedDraftTag,
@@ -584,51 +440,50 @@ test("owner release namespace evidence rejects incomplete pagination and digest 
     prerelease: false,
     assets: [],
   };
-  const identity = { login: "gaofeng21cn" };
+  const identity = { login: 'gaofeng21cn' };
   const repository = {
-    full_name: "gaofeng21cn/one-person-lab-app",
-    owner: { login: "gaofeng21cn" },
+    full_name: 'gaofeng21cn/one-person-lab-app',
+    owner: { login: 'gaofeng21cn' },
     permissions: { push: true },
   };
   assert.throws(
-    () =>
-      createGithubOwnerReleaseNamespaceEvidence({
-        repository: "gaofeng21cn/one-person-lab-app",
-        checkedAt: "2026-07-31T00:00:00.000Z",
-        authenticatedUser: identity,
-        repositoryObservation: repository,
-        releasePages: [[release], []],
-      }),
+    () => createGithubOwnerReleaseNamespaceEvidence({
+      repository: 'gaofeng21cn/one-person-lab-app',
+      checkedAt: '2026-07-31T00:00:00.000Z',
+      authenticatedUser: identity,
+      repositoryObservation: repository,
+      releasePages: [[release], []],
+    }),
     /pages are incomplete/,
   );
 
   const evidence = createGithubOwnerReleaseNamespaceEvidence({
-    repository: "gaofeng21cn/one-person-lab-app",
-    checkedAt: "2026-07-31T00:00:00.000Z",
+    repository: 'gaofeng21cn/one-person-lab-app',
+    checkedAt: '2026-07-31T00:00:00.000Z',
     authenticatedUser: identity,
     repositoryObservation: repository,
     releasePages: [[release]],
   });
   const tampered = structuredClone(evidence);
-  tampered.draft_reservations[0]!.target = "f".repeat(40);
+  tampered.draft_reservations[0]!.target = 'f'.repeat(40);
   assert.throws(
     () => validateGithubOwnerReleaseNamespaceEvidence(tampered),
     /exact digest-bound proof/,
   );
 });
 
-test("release source gate rejects an abbreviated expected App SHA", () => {
+test('release source gate rejects an abbreviated expected App SHA', () => {
   const report = reportFor({ expectedAppHead: appHead.slice(0, 12) });
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "blocked");
-  assert.equal(checkStatus(report, "expected_app_head"), "failed");
-  assert.equal(checkStatus(report, "immutable_cohort_identity"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'expected_app_head'), 'failed');
+  assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'failed');
   assert.equal(report.admission.immutable_cohort, null);
 });
 
-test("release source gate keeps a frozen cohort valid when live origin/main advances but retains it", () => {
-  const remoteMain = "f".repeat(40);
+test('release source gate keeps a frozen cohort valid when live origin/main advances but retains it', () => {
+  const remoteMain = 'f'.repeat(40);
   const calls: string[] = [];
   const baseRunner = runner({
     [`${repoRoot} $ git ls-remote --heads origin refs/heads/main`]: {
@@ -642,146 +497,131 @@ test("release source gate keeps a frozen cohort valid when live origin/main adva
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "passed");
-  assert.equal(report.admission.status, "passed");
-  assert.equal(checkStatus(report, "app_remote_main_resolved"), "passed");
-  assert.equal(checkStatus(report, "app_frozen_commit_reachable"), "passed");
+  assert.equal(report.status, 'passed');
+  assert.equal(report.admission.status, 'passed');
+  assert.equal(checkStatus(report, 'app_remote_main_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'app_frozen_commit_reachable'), 'passed');
   assert.equal(report.typed_blocker, null);
 });
 
-test("release source gate rejects a shell checkout that differs from its resolved cohort ref", () => {
+test('release source gate rejects a shell checkout that differs from its resolved cohort ref', () => {
   const report = buildReleaseSourceGateReport(
     options(),
     runner({
       [`${shellRoot} $ git rev-parse HEAD`]: {
         status: 0,
-        stdout: `${"e".repeat(40)}\n`,
+        stdout: `${'e'.repeat(40)}\n`,
       },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "blocked");
-  assert.equal(checkStatus(report, "active_shell_ref_resolved"), "passed");
-  assert.equal(checkStatus(report, "active_shell_checkout_identity"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_checkout_identity'), 'failed');
   assert.equal(report.admission.immutable_cohort, null);
 });
 
-test("release source gate rejects an archive directory as the active shell checkout", () => {
+test('release source gate rejects an archive directory as the active shell checkout', () => {
   const report = buildReleaseSourceGateReport(
     options(),
     runner({
       [`${shellRoot} $ git rev-parse --show-toplevel`]: {
         status: 128,
-        stderr:
-          "fatal: not a git repository (or any of the parent directories): .git\n",
+        stderr: 'fatal: not a git repository (or any of the parent directories): .git\n',
       },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "blocked");
-  assert.equal(checkStatus(report, "active_shell_checkout"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_checkout'), 'failed');
   assert.match(
-    report.checks.find((check) => check.id === "active_shell_checkout")
-      ?.message ?? "",
+    report.checks.find((check) => check.id === 'active_shell_checkout')?.message ?? '',
     /archive snapshots are valid only for isolated consumer projections/,
   );
-  assert.equal(checkStatus(report, "active_shell_ref_resolved"), "failed");
+  assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'failed');
   assert.equal(report.admission.immutable_cohort, null);
 });
 
-test("release source gate preserves an archive root for typed rejection", () => {
-  const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), "opl-source-gate-archive-"),
-  );
+test('release source gate preserves an archive root for typed rejection', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-archive-'));
   try {
-    const archiveRoot = path.join(root, "aionui");
-    const marker = path.join(archiveRoot, "archive-marker.txt");
+    const archiveRoot = path.join(root, 'aionui');
+    const marker = path.join(archiveRoot, 'archive-marker.txt');
     fs.mkdirSync(archiveRoot, { recursive: true });
-    fs.writeFileSync(marker, "preserve-me\n");
+    fs.writeFileSync(marker, 'preserve-me\n');
 
     prepareReleaseSourceShell(options({ shellRoot: archiveRoot }));
 
-    assert.equal(fs.readFileSync(marker, "utf8"), "preserve-me\n");
-    assert.equal(fs.existsSync(path.join(archiveRoot, ".git")), false);
+    assert.equal(fs.readFileSync(marker, 'utf8'), 'preserve-me\n');
+    assert.equal(fs.existsSync(path.join(archiveRoot, '.git')), false);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("release source gate rejects environment injection before boundary execution", () => {
+test('release source gate rejects environment injection before boundary execution', () => {
   const calls: string[] = [];
   const baseRunner = runner();
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
-      variables: { NODE_OPTIONS: "--require /tmp/injected.js" },
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      variables: { NODE_OPTIONS: '--require /tmp/injected.js' },
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(checkStatus(report, "release_environment_whitelist"), "failed");
-  assert.match(
-    report.checks.find((check) => check.id === "release_environment_whitelist")
-      ?.message ?? "",
-    /NODE_OPTIONS/,
-  );
-  assert.equal(report.typed_blocker?.next_action, "repair_pre_admission");
-  assert.equal(
-    calls.some((call) => call.startsWith("npm ") || call.startsWith("bun ")),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call.includes("run-active-shell-tests.ts")),
-    false,
-  );
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'release_environment_whitelist'), 'failed');
+  assert.match(report.checks.find((check) => check.id === 'release_environment_whitelist')?.message ?? '', /NODE_OPTIONS/);
+  assert.equal(report.typed_blocker?.next_action, 'repair_pre_admission');
+  assert.equal(calls.some((call) => call.startsWith('npm ') || call.startsWith('bun ')), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
-test("release source preparation refuses Git environment injection before checkout mutation", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-source-gate-env-"));
+test('release source preparation refuses Git environment injection before checkout mutation', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-env-'));
   try {
-    const shellPath = path.join(root, "shells", "aionui");
-    const injectedGitDir = path.join(root, "injected-git");
+    const shellPath = path.join(root, 'shells', 'aionui');
+    const injectedGitDir = path.join(root, 'injected-git');
 
-    prepareReleaseSourceShell(options({ shellRoot: shellPath }), {
-      GIT_DIR: injectedGitDir,
-      PATH: process.env.PATH,
-    });
+    prepareReleaseSourceShell(
+      options({ shellRoot: shellPath }),
+      {
+        GIT_DIR: injectedGitDir,
+        PATH: process.env.PATH,
+      },
+    );
 
     assert.equal(fs.existsSync(shellPath), false);
     assert.equal(fs.existsSync(injectedGitDir), false);
@@ -790,45 +630,36 @@ test("release source preparation refuses Git environment injection before checko
   }
 });
 
-test("release source CLI path still writes a typed JSON failure after preparation is skipped", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-source-gate-json-"));
+test('release source CLI path still writes a typed JSON failure after preparation is skipped', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-json-'));
   try {
-    const shellPath = path.join(root, "shells", "aionui");
-    const output = path.join(root, "source-gate.json");
-    const injectedGitDir = path.join(root, "injected-git");
+    const shellPath = path.join(root, 'shells', 'aionui');
+    const output = path.join(root, 'source-gate.json');
+    const injectedGitDir = path.join(root, 'injected-git');
     const gateOptions = options({ shellRoot: shellPath, output });
-    const injectedEnvironment = {
-      GIT_DIR: injectedGitDir,
-      PATH: process.env.PATH,
-    };
+    const injectedEnvironment = { GIT_DIR: injectedGitDir, PATH: process.env.PATH };
 
     prepareReleaseSourceShell(gateOptions, injectedEnvironment);
     const report = buildReleaseSourceGateReport(
       gateOptions,
-      (command, args, commandOptions) =>
-        runner()(command, args, commandOptions),
-      "2026-06-30T00:00:00.000Z",
+      (command, args, commandOptions) => runner()(
+        command,
+        args,
+        commandOptions,
+      ),
+      '2026-06-30T00:00:00.000Z',
       {
         variables: injectedEnvironment,
-        pathExists: (candidatePath) =>
-          candidatePath === shellPath || candidatePath === frameworkRoot,
+        pathExists: (candidatePath) => candidatePath === shellPath || candidatePath === frameworkRoot,
         readJson: (candidatePath) => readSourceJson(candidatePath),
       },
     );
     writeReleaseSourceGateReport(gateOptions, report);
 
-    const written = JSON.parse(fs.readFileSync(output, "utf8"));
-    assert.equal(written.status, "failed");
-    assert.equal(
-      written.typed_blocker.schema,
-      "opl_app_release_source_gate_blocker.v1",
-    );
-    assert.equal(
-      written.typed_blocker.failed_check_ids.includes(
-        "release_environment_whitelist",
-      ),
-      true,
-    );
+    const written = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.equal(written.status, 'failed');
+    assert.equal(written.typed_blocker.schema, 'opl_app_release_source_gate_blocker.v1');
+    assert.equal(written.typed_blocker.failed_check_ids.includes('release_environment_whitelist'), true);
     assert.equal(fs.existsSync(shellPath), false);
     assert.equal(fs.existsSync(injectedGitDir), false);
   } finally {
@@ -836,142 +667,104 @@ test("release source CLI path still writes a typed JSON failure after preparatio
   }
 });
 
-test("release source gate writes a typed JSON blocker when shell materialization fails", () => {
-  const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), "opl-source-gate-preparation-failure-"),
-  );
+test('release source gate writes a typed JSON blocker when shell materialization fails', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-source-gate-preparation-failure-'));
   try {
-    const output = path.join(root, "source-gate.json");
-    const preparationFailure =
-      "Command failed: git clone --no-tags git@github.com:example.invalid/shell.git /tmp/shell\nnetwork unavailable";
+    const output = path.join(root, 'source-gate.json');
+    const preparationFailure = 'Command failed: git clone --no-tags git@github.com:example.invalid/shell.git /tmp/shell\nnetwork unavailable';
     const gateOptions = options({ output });
     const report = buildReleaseSourceGateReport(
       gateOptions,
       runner(),
-      "2026-06-30T00:00:00.000Z",
+      '2026-06-30T00:00:00.000Z',
       {
         variables: {},
         preparationFailure,
-        pathExists: (candidatePath) =>
-          candidatePath === shellRoot || candidatePath === frameworkRoot,
+        pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
         readJson: (candidatePath) => readSourceJson(candidatePath),
       },
     );
     writeReleaseSourceGateReport(gateOptions, report);
 
-    const written = JSON.parse(fs.readFileSync(output, "utf8"));
-    assert.equal(written.schema, "opl_app_release_source_gate.v1");
-    assert.equal(written.status, "failed");
-    assert.equal(written.admission.status, "blocked");
-    assert.equal(
-      written.typed_blocker?.schema,
-      "opl_app_release_source_gate_blocker.v1",
-    );
-    assert.equal(written.typed_blocker?.phase, "pre_admission");
-    assert.equal(written.typed_blocker?.next_action, "repair_pre_admission");
-    assert.equal(
-      written.typed_blocker?.failed_check_ids.includes(
-        "active_shell_checkout_preparation",
-      ),
-      true,
-    );
+    const written = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.equal(written.schema, 'opl_app_release_source_gate.v1');
+    assert.equal(written.status, 'failed');
+    assert.equal(written.admission.status, 'blocked');
+    assert.equal(written.typed_blocker?.schema, 'opl_app_release_source_gate_blocker.v1');
+    assert.equal(written.typed_blocker?.phase, 'pre_admission');
+    assert.equal(written.typed_blocker?.next_action, 'repair_pre_admission');
+    assert.equal(written.typed_blocker?.failed_check_ids.includes('active_shell_checkout_preparation'), true);
     assert.match(
-      written.checks.find(
-        (check: { id: string }) =>
-          check.id === "active_shell_checkout_preparation",
-      )?.message ?? "",
+      written.checks.find((check: { id: string }) => check.id === 'active_shell_checkout_preparation')?.message ?? '',
       /network unavailable/,
     );
-    assert.equal(
-      written.required_gates.every(
-        (gate: { executed: boolean }) => gate.executed === false,
-      ),
-      true,
-    );
+    assert.equal(written.required_gates.every((gate: { executed: boolean }) => gate.executed === false), true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("release source gate strips ambient controller SHA from required gate commands", () => {
+test('release source gate strips ambient controller SHA from required gate commands', () => {
   let requiredGateEnvironment: NodeJS.ProcessEnv | undefined;
   const baseRunner = runner();
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      if (
-        command === "npm" &&
-        args.join(" ") === "run validate:release-boundary"
-      ) {
+      if (command === 'npm' && args.join(' ') === 'run validate:release-boundary') {
         requiredGateEnvironment = commandOptions.env;
       }
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {
-        GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
-        GITHUB_SHA: "c".repeat(40),
-        PATH: "/usr/bin:/bin",
+        GITHUB_REPOSITORY: 'gaofeng21cn/one-person-lab-app',
+        GITHUB_SHA: 'c'.repeat(40),
+        PATH: '/usr/bin:/bin',
       },
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "passed");
-  assert.equal(checkStatus(report, "release_environment_whitelist"), "passed");
+  assert.equal(report.status, 'passed');
+  assert.equal(checkStatus(report, 'release_environment_whitelist'), 'passed');
   assert.equal(requiredGateEnvironment?.GITHUB_SHA, undefined);
   assert.equal(requiredGateEnvironment?.OPL_EXPECTED_APP_HEAD, appHead);
   assert.equal(requiredGateEnvironment?.OPL_SHELL_REF, shellHead);
   assert.equal(requiredGateEnvironment?.OPL_FRAMEWORK_REF, frameworkHead);
+  assert.equal(requiredGateEnvironment?.OPL_RELEASE_VALIDATION_PROFILE, 'stable');
   assert.equal(
-    requiredGateEnvironment?.OPL_RELEASE_VALIDATION_PROFILE,
-    "stable",
-  );
-  assert.equal(
-    report.required_gates.find(
-      (gate) => gate.id === "app_release_boundary_contract",
-    )?.command,
-    "OPL_RELEASE_VALIDATION_PROFILE=stable npm run validate:release-boundary",
+    report.required_gates.find((gate) => gate.id === 'app_release_boundary_contract')?.command,
+    'OPL_RELEASE_VALIDATION_PROFILE=stable npm run validate:release-boundary',
   );
 });
 
-test("release source gate passes for clean canonical main and an immutable source cohort", () => {
-  const report = reportFor({ expectedAppHead: appHead, shellRef: "main" });
+test('release source gate passes for clean canonical main and an immutable source cohort', () => {
+  const report = reportFor({ expectedAppHead: appHead, shellRef: 'main' });
 
-  assert.equal(report.status, "passed");
-  assert.equal(report.version, "26.6.30");
+  assert.equal(report.status, 'passed');
+  assert.equal(report.version, '26.6.30');
   assert.equal(report.app_head, appHead);
   assert.equal(report.shell_sha, shellHead);
   assert.equal(report.framework_sha, frameworkHead);
-  assert.equal(checkStatus(report, "expected_app_head"), "passed");
-  assert.equal(checkStatus(report, "app_worktree_clean"), "passed");
-  assert.equal(checkStatus(report, "app_frozen_commit_reachable"), "passed");
-  assert.equal(checkStatus(report, "immutable_cohort_identity"), "passed");
-  assert.equal(
-    checkStatus(report, "github_immutable_release_capability"),
-    "passed",
-  );
+  assert.equal(checkStatus(report, 'expected_app_head'), 'passed');
+  assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
+  assert.equal(checkStatus(report, 'app_frozen_commit_reachable'), 'passed');
+  assert.equal(checkStatus(report, 'immutable_cohort_identity'), 'passed');
+  assert.equal(checkStatus(report, 'github_immutable_release_capability'), 'passed');
   assert.equal(report.immutable_release_capability?.capability.enabled, true);
-  assert.equal(checkStatus(report, "github_owner_release_namespace"), "passed");
-  assert.equal(
-    report.owner_release_namespace?.draft_reservations[0]?.id,
-    preservedDraftId,
-  );
-  assert.equal(checkStatus(report, "app_release_boundary_contract"), "passed");
-  assert.equal(checkStatus(report, "shell_product_profile_consumer"), "passed");
-  assert.equal(checkStatus(report, "active_shell_ref_resolved"), "passed");
-  assert.equal(checkStatus(report, "active_shell_type"), "passed");
-  assert.equal(checkStatus(report, "framework_ref_resolved"), "passed");
-  assert.equal(
-    checkStatus(report, "managed_update_provider_contract_aligned"),
-    "passed",
-  );
-  assert.equal(report.admission.status, "passed");
+  assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'passed');
+  assert.equal(report.owner_release_namespace?.draft_reservations[0]?.id, preservedDraftId);
+  assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
+  assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
+  assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'passed');
+  assert.equal(report.admission.status, 'passed');
   assert.deepEqual(report.admission.immutable_cohort, {
-    version: "26.6.30",
+    version: '26.6.30',
     operation_fingerprint: null,
     app_sha: appHead,
     shell_sha: shellHead,
@@ -980,354 +773,282 @@ test("release source gate passes for clean canonical main and an immutable sourc
   assert.equal(report.typed_blocker, null);
 });
 
-test("release source gate rejects managed update provider contract drift before packaging", () => {
+test('release source gate rejects managed update provider contract drift before packaging', () => {
   const report = buildReleaseSourceGateReport(
     options(),
     runner(),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => {
         const value = readSourceJson(candidatePath);
-        if (candidatePath.endsWith("managed-update-kernel-contract.json")) {
-          value.providers[0].provider_id = "drifted-provider";
+        if (candidatePath.endsWith('managed-update-kernel-contract.json')) {
+          value.providers[0].provider_id = 'drifted-provider';
         }
         return value;
       },
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(
-    checkStatus(report, "managed_update_provider_contract_aligned"),
-    "failed",
-  );
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'failed');
 });
 
-test("release source gate blocks pre-admission when required shell format is not enabled", () => {
+test('release source gate blocks pre-admission when required shell format is not enabled', () => {
   const policyOnly = reportFor({ requireShellFormat: false });
-  const requiredGate = policyOnly.required_gates.find(
-    (gate) => gate.id === "active_shell_format_check",
-  );
-  assert.equal(policyOnly.status, "failed");
-  assert.equal(policyOnly.admission.status, "blocked");
-  assert.equal(policyOnly.admission.next_action, "repair_pre_admission");
-  assert.equal(policyOnly.typed_blocker?.phase, "pre_admission");
-  assert.equal(policyOnly.typed_blocker?.next_action, "repair_pre_admission");
+  const requiredGate = policyOnly.required_gates.find((gate) => gate.id === 'active_shell_format_check');
+  assert.equal(policyOnly.status, 'failed');
+  assert.equal(policyOnly.admission.status, 'blocked');
+  assert.equal(policyOnly.admission.next_action, 'repair_pre_admission');
+  assert.equal(policyOnly.typed_blocker?.phase, 'pre_admission');
+  assert.equal(policyOnly.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(requiredGate?.required, true);
-  assert.equal(requiredGate?.command, "bun run format:check");
+  assert.equal(requiredGate?.command, 'bun run format:check');
   assert.equal(requiredGate?.cwd, shellRoot);
   assert.equal(requiredGate?.executed, false);
-  assert.equal(
-    checkStatus(policyOnly, "active_shell_format_pre_admission"),
-    "blocked",
-  );
-  assert.equal(checkStatus(policyOnly, "active_shell_format_check"), "blocked");
+  assert.equal(checkStatus(policyOnly, 'active_shell_format_pre_admission'), 'blocked');
+  assert.equal(checkStatus(policyOnly, 'active_shell_format_check'), 'blocked');
 
   const executed = reportFor({ requireShellFormat: true });
-  assert.equal(executed.status, "passed");
-  assert.equal(
-    executed.required_gates.find(
-      (gate) => gate.id === "active_shell_format_check",
-    )?.executed,
-    true,
-  );
-  assert.equal(checkStatus(executed, "active_shell_format_check"), "passed");
+  assert.equal(executed.status, 'passed');
+  assert.equal(executed.required_gates.find((gate) => gate.id === 'active_shell_format_check')?.executed, true);
+  assert.equal(checkStatus(executed, 'active_shell_format_check'), 'passed');
 });
 
-test("release source gate blocks pre-admission when required shell node/dom tests are not enabled", () => {
+test('release source gate blocks pre-admission when required shell node/dom tests are not enabled', () => {
   const policyOnly = reportFor({ runShellTests: false });
-  const requiredGate = policyOnly.required_gates.find(
-    (gate) => gate.id === "active_shell_node_dom_tests",
-  );
-  assert.equal(policyOnly.status, "failed");
-  assert.equal(policyOnly.admission.status, "blocked");
-  assert.equal(policyOnly.typed_blocker?.next_action, "repair_pre_admission");
+  const requiredGate = policyOnly.required_gates.find((gate) => gate.id === 'active_shell_node_dom_tests');
+  assert.equal(policyOnly.status, 'failed');
+  assert.equal(policyOnly.admission.status, 'blocked');
+  assert.equal(policyOnly.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(requiredGate?.required, true);
   assert.equal(
     requiredGate?.command,
-    "node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2",
+    'node --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2',
   );
   assert.equal(requiredGate?.cwd, repoRoot);
   assert.equal(requiredGate?.executed, false);
-  assert.equal(
-    checkStatus(policyOnly, "active_shell_node_dom_pre_admission"),
-    "blocked",
-  );
-  assert.equal(
-    checkStatus(policyOnly, "active_shell_node_dom_tests"),
-    "blocked",
-  );
+  assert.equal(checkStatus(policyOnly, 'active_shell_node_dom_pre_admission'), 'blocked');
+  assert.equal(checkStatus(policyOnly, 'active_shell_node_dom_tests'), 'blocked');
 
   const executed = reportFor({ runShellTests: true });
-  assert.equal(executed.status, "passed");
-  assert.equal(
-    executed.required_gates.find(
-      (gate) => gate.id === "active_shell_node_dom_tests",
-    )?.executed,
-    true,
-  );
-  assert.equal(checkStatus(executed, "active_shell_node_dom_tests"), "passed");
+  assert.equal(executed.status, 'passed');
+  assert.equal(executed.required_gates.find((gate) => gate.id === 'active_shell_node_dom_tests')?.executed, true);
+  assert.equal(checkStatus(executed, 'active_shell_node_dom_tests'), 'passed');
 });
 
-test("release source gate stops at the first required gate failure", () => {
+test('release source gate stops at the first required gate failure', () => {
   const calls: string[] = [];
   const baseRunner = runner({
     [`${repoRoot} $ npm run validate:release-boundary`]: {
       status: 1,
-      stderr: "release contract drift\n",
+      stderr: 'release contract drift\n',
     },
   });
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(report.admission.status, "passed");
-  assert.equal(checkStatus(report, "app_release_boundary_contract"), "failed");
-  assert.equal(checkStatus(report, "active_shell_format_check"), "blocked");
-  assert.equal(checkStatus(report, "active_shell_node_dom_tests"), "blocked");
-  assert.equal(
-    checkStatus(report, "shell_product_profile_consumer"),
-    "blocked",
-  );
-  assert.equal(report.typed_blocker?.phase, "required_gate_execution");
-  assert.equal(report.typed_blocker?.next_action, "repair_source_gate");
-  assert.equal(
-    calls.some((call) => call === "bun run format:check"),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call.includes("run-active-shell-tests.ts")),
-    false,
-  );
+  assert.equal(report.status, 'failed');
+  assert.equal(report.admission.status, 'passed');
+  assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'failed');
+  assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'blocked');
+  assert.equal(report.typed_blocker?.phase, 'required_gate_execution');
+  assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
-test("release source gate stops before Shell-wide gates when current App profile fails the exact consumer", () => {
+test('release source gate stops before Shell-wide gates when current App profile fails the exact consumer', () => {
   const calls: string[] = [];
   const consumerCommand = `${repoRoot} $ ${process.execPath} --experimental-strip-types scripts/validate-shell-product-profile-consumer.ts --shell-root ${shellRoot} --expected-shell-sha ${shellHead}`;
   const baseRunner = runner({
     [consumerCommand]: {
       status: 1,
-      stderr: "gui.home.home_agent_shortcuts must be a non-empty array\n",
+      stderr: 'gui.home.home_agent_shortcuts must be a non-empty array\n',
     },
   });
   const report = buildReleaseSourceGateReport(
     options(),
     (command, args, commandOptions) => {
-      calls.push(`${command} ${args.join(" ")}`);
+      calls.push(`${command} ${args.join(' ')}`);
       return baseRunner(command, args, commandOptions);
     },
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(checkStatus(report, "shell_product_profile_consumer"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'failed');
   assert.match(
-    report.checks.find((check) => check.id === "shell_product_profile_consumer")
-      ?.message ?? "",
+    report.checks.find((check) => check.id === 'shell_product_profile_consumer')?.message ?? '',
     /home_agent_shortcuts/,
   );
-  assert.equal(checkStatus(report, "active_shell_format_check"), "blocked");
-  assert.equal(checkStatus(report, "active_shell_node_dom_tests"), "blocked");
-  assert.equal(
-    calls.some((call) => call === "bun run format:check"),
-    false,
-  );
-  assert.equal(
-    calls.some((call) => call.includes("run-active-shell-tests.ts")),
-    false,
-  );
-  assert.equal(report.typed_blocker?.next_action, "repair_source_gate");
+  assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+  assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
 });
 
-test("release source gate fails active shell node/dom regressions before expensive release work", () => {
+test('release source gate fails active shell node/dom regressions before expensive release work', () => {
   const report = buildReleaseSourceGateReport(
     options({ runShellTests: true }),
     runner({
-      [`${repoRoot} $ ${process.execPath} --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2`]:
-        {
-          status: 1,
-          stdout: "dom chunk 10/12 failed\n",
-          stderr:
-            "TypeError: Cannot read properties of undefined (reading 'configureCodexInvoke')\n",
-        },
+      [`${repoRoot} $ ${process.execPath} --experimental-strip-types scripts/run-active-shell-tests.ts --project all --chunk-size 8 --max-workers 2`]: {
+        status: 1,
+        stdout: 'dom chunk 10/12 failed\n',
+        stderr: "TypeError: Cannot read properties of undefined (reading 'configureCodexInvoke')\n",
+      },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(checkStatus(report, "active_shell_node_dom_tests"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'failed');
   assert.match(
-    report.checks.find((check) => check.id === "active_shell_node_dom_tests")
-      ?.message ?? "",
+    report.checks.find((check) => check.id === 'active_shell_node_dom_tests')?.message ?? '',
     /configureCodexInvoke/,
   );
 });
 
-test("release source gate fails dirty App worktree before expensive release work", () => {
+test('release source gate fails dirty App worktree before expensive release work', () => {
   const report = buildReleaseSourceGateReport(
     options(),
     runner({
       [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
         status: 0,
-        stdout: " M .github/workflows/desktop-release.yml\n?? tmp.txt\n",
+        stdout: ' M .github/workflows/desktop-release.yml\n?? tmp.txt\n',
       },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(checkStatus(report, "app_worktree_clean"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'app_worktree_clean'), 'failed');
 });
 
-test("release source gate ignores declared framework checkout inside App workspace only", () => {
+test('release source gate ignores declared framework checkout inside App workspace only', () => {
   const report = buildReleaseSourceGateReport(
     options({ frameworkRoot: repoLocalFrameworkRoot }),
     runner({
       [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
         status: 0,
-        stdout: "?? one-person-lab/\n",
+        stdout: '?? one-person-lab/\n',
       },
-      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]:
-        {
-          status: 0,
-          stdout: `${frameworkHead}\n`,
-        },
+      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]: {
+        status: 0,
+        stdout: `${frameworkHead}\n`,
+      },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(report.status, "passed");
-  assert.equal(checkStatus(report, "app_worktree_clean"), "passed");
+  assert.equal(report.status, 'passed');
+  assert.equal(checkStatus(report, 'app_worktree_clean'), 'passed');
 
   const stillDirty = buildReleaseSourceGateReport(
     options({ frameworkRoot: repoLocalFrameworkRoot }),
     runner({
       [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
         status: 0,
-        stdout:
-          "?? one-person-lab/\n M .github/workflows/desktop-release.yml\n",
+        stdout: '?? one-person-lab/\n M .github/workflows/desktop-release.yml\n',
       },
-      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]:
-        {
-          status: 0,
-          stdout: `${frameworkHead}\n`,
-        },
+      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]: {
+        status: 0,
+        stdout: `${frameworkHead}\n`,
+      },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(stillDirty.status, "failed");
-  assert.equal(checkStatus(stillDirty, "app_worktree_clean"), "failed");
-  assert.match(
-    stillDirty.checks.find((check) => check.id === "app_worktree_clean")
-      ?.actual ?? "",
-    /desktop-release/,
-  );
+  assert.equal(stillDirty.status, 'failed');
+  assert.equal(checkStatus(stillDirty, 'app_worktree_clean'), 'failed');
+  assert.match(stillDirty.checks.find((check) => check.id === 'app_worktree_clean')?.actual ?? '', /desktop-release/);
 
   const similarlyNamedUntracked = buildReleaseSourceGateReport(
     options({ frameworkRoot: repoLocalFrameworkRoot }),
     runner({
       [`${repoRoot} $ git status --porcelain --untracked-files=normal`]: {
         status: 0,
-        stdout: "?? one-person-lab/\n?? one-person-lab-extra/\n",
+        stdout: '?? one-person-lab/\n?? one-person-lab-extra/\n',
       },
-      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]:
-        {
-          status: 0,
-          stdout: `${frameworkHead}\n`,
-        },
+      [`${repoLocalFrameworkRoot} $ git rev-parse --verify --quiet main^{commit}`]: {
+        status: 0,
+        stdout: `${frameworkHead}\n`,
+      },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === repoLocalFrameworkRoot,
       readJson: (candidatePath) => readSourceJson(candidatePath),
     },
   );
 
-  assert.equal(similarlyNamedUntracked.status, "failed");
-  assert.equal(
-    checkStatus(similarlyNamedUntracked, "app_worktree_clean"),
-    "failed",
-  );
+  assert.equal(similarlyNamedUntracked.status, 'failed');
+  assert.equal(checkStatus(similarlyNamedUntracked, 'app_worktree_clean'), 'failed');
   assert.match(
-    similarlyNamedUntracked.checks.find(
-      (check) => check.id === "app_worktree_clean",
-    )?.actual ?? "",
+    similarlyNamedUntracked.checks.find((check) => check.id === 'app_worktree_clean')?.actual ?? '',
     /one-person-lab-extra/,
   );
 });
 
-test("release source gate fails unresolved framework ref and wrong shell type", () => {
+test('release source gate fails unresolved framework ref and wrong shell type', () => {
   const report = buildReleaseSourceGateReport(
-    options({ frameworkRef: "missing-framework-ref" }),
+    options({ frameworkRef: 'missing-framework-ref' }),
     runner({
-      [`${frameworkRoot} $ git rev-parse --verify --quiet missing-framework-ref^{commit}`]:
-        { status: 1 },
-      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/heads/missing-framework-ref^{commit}`]:
-        { status: 1 },
-      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/remotes/origin/missing-framework-ref^{commit}`]:
-        { status: 1 },
-      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/tags/missing-framework-ref^{commit}`]:
-        { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet missing-framework-ref^{commit}`]: { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/heads/missing-framework-ref^{commit}`]: { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/remotes/origin/missing-framework-ref^{commit}`]: { status: 1 },
+      [`${frameworkRoot} $ git rev-parse --verify --quiet refs/tags/missing-framework-ref^{commit}`]: { status: 1 },
     }),
-    "2026-06-30T00:00:00.000Z",
+    '2026-06-30T00:00:00.000Z',
     {
       variables: {},
-      pathExists: (candidatePath) =>
-        candidatePath === shellRoot || candidatePath === frameworkRoot,
-      readJson: (candidatePath) =>
-        readSourceJson(candidatePath, "unexpected-shell"),
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath, 'unexpected-shell'),
     },
   );
 
-  assert.equal(report.status, "failed");
-  assert.equal(checkStatus(report, "active_shell_type"), "failed");
-  assert.equal(checkStatus(report, "framework_ref_resolved"), "failed");
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'active_shell_type'), 'failed');
+  assert.equal(checkStatus(report, 'framework_ref_resolved'), 'failed');
 });
