@@ -125,8 +125,12 @@ test(
       parserPath,
       `$tokens = $null
 $errors = $null
-[void][System.Management.Automation.Language.Parser]::ParseFile(
+$source = [System.IO.File]::ReadAllText(
   ${powershellLiteral(bootstrapPath)},
+  [System.Text.Encoding]::UTF8
+)
+[void][System.Management.Automation.Language.Parser]::ParseInput(
+  $source,
   [ref]$tokens,
   [ref]$errors
 )
