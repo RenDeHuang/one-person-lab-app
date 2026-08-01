@@ -1899,6 +1899,9 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const handoffPrepare = armBuilder.steps.find(
     (step: Record<string, unknown>) => step.name === 'Prepare immutable Intel finalizer input',
   );
+  const preFinalizerRuntimeVerification = armBuilder.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Verify Full runtime payload before Intel finalization',
+  );
   const finalizer = intelFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization on Intel',
   );
@@ -1910,6 +1913,18 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(intelFinalizer.if), /inputs\.operation == 'append_full'/);
   assert.equal(executorCheckout.with.path, 'release-executor');
   assert.equal(executorCheckout.with.ref, '${{ github.sha }}');
+  assert.match(
+    String(preFinalizerRuntimeVerification.run),
+    /\$GITHUB_WORKSPACE\/release-executor\/scripts\/assert-full-runtime-currentness\.ts/,
+  );
+  assert.match(
+    String(preFinalizerRuntimeVerification.run),
+    /\$GITHUB_WORKSPACE\/release-executor\/scripts\/verify-full-runtime-native-trust\.ts/,
+  );
+  assert.doesNotMatch(
+    String(preFinalizerRuntimeVerification.run),
+    /one-person-lab-app\/scripts\/(?:assert-full-runtime-currentness|verify-full-runtime-native-trust)\.ts/,
+  );
   assert.equal(handoffUpload.with['compression-level'], 0);
   assert.ok(
     armBuilder.steps.findIndex((step: Record<string, unknown>) => step.name === 'Upload Actions cache plan and receipt')
