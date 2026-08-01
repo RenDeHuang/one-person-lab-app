@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app` for product policy
 Generic authority: OPL Framework
-Status: Bundle authority active; first terminal Stable proof pending
+Status: Bundle authority and event projection active; runtime terminal state is read fresh
 
 ## Decision
 
@@ -29,6 +29,8 @@ opl release verify --bundle <sha256:digest> --qualification-receipt <receipt.jso
 opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> [--store <directory>]
 opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> [--store <directory>]
 opl release status --bundle <sha256:digest> [--store <directory>]
+opl release events --bundle <sha256:digest> [--after-event <sha256:event>] [--store <directory>]
+opl release consumer envelope --bundle <sha256:digest> --track <standard|full> [--source-checkpoint-run-id <run-id>] [--store <directory>]
 ```
 
 Framework receipts use `opl_release_bundle_executor_receipt.v1` and
@@ -68,6 +70,40 @@ a fresh remote inspection, uploads only missing names, treats matching names and
 digests as complete, and fails closed on a same-name digest mismatch. An unknown
 build or publish outcome blocks export and executor switching until inspect and
 Framework reconcile resolve it.
+
+## Events, Envelopes, And Short-Lived Tasks
+
+Framework operation receipts are also the append-only event source. `opl release
+events` deterministically projects `opl_release_bundle_operation_event.v1`
+records from those receipts. Each event binds the Bundle digest, operation id and
+kind, track, checkpoint stage, current status, exact deadline, next action, and
+receipt evidence. The event id and idempotency key are the same canonical
+SHA-256. A consumer stores only its last acknowledged event id and asks for later
+events; replay never authorizes a second operation.
+
+`opl release consumer envelope` projects one
+`opl_release_bundle_consumer_envelope.v1` for Standard or Full. It binds the
+release tag and version, App/Shell/Framework source pins, Bundle digest, distinct
+operation control, checkpoint stage, exact asset digests, qualification and
+publication state, receipt refs, and the latest event id. A Full envelope also
+requires the exact source checkpoint run id. The envelope is
+`consumer_trigger_only=true` and `consumer_may_dispatch=false`: downstream
+Architecture, Distribution, Desktop, or other consumers may start their own
+short task from it, but may not redispatch, guess an asset, extend a deadline, or
+reuse the Standard operation identity for Full.
+
+A release conversation is an observer and router, not durable release state.
+Every `ACTIVE` task must have a real owner, an executable next action, and a
+recoverable Framework checkpoint or event cursor. Waiting without a new decision
+is `EVENT_IDLE`, not active work: close the execution task and let the next
+Framework event wake a new bounded task. When one owned operation is terminal,
+close that task; downstream consumers start from the immutable envelope instead
+of keeping the original conversation alive as a permanent controller.
+
+Push transport may be unavailable, so bounded `opl release status` readback is
+the only polling fallback. Unknown outcomes always recover through `opl release
+status` followed by exact `opl release reconcile`; a session, dashboard, callback,
+or stale event cannot invent another recovery path.
 
 ## Bundle Identity
 
