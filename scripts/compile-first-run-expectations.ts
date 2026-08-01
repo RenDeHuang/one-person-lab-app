@@ -67,7 +67,8 @@ export function buildFirstRunCompiledExpectations(input: {
     shortcutProjection,
   );
   const composerProjection = {
-    membership_source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    membership_source_ref:
+      'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
     preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
     availability_source_ref:
       'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',

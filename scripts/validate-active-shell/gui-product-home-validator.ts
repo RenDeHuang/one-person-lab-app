@@ -403,7 +403,7 @@ function validateNoFixedAgentHomePresentation(guiContract) {
   }
   if (
     guiContract.home_layout?.home_presentation_source_ref !==
-    'app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]'
+    'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]'
   ) {
     throw new Error('App GUI Home presentation must come from the dynamic Agent directory and preferences');
   }
