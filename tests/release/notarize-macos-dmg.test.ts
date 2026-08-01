@@ -6,7 +6,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import { notarizationWaitTimeoutSeconds } from '../../scripts/notarize-macos-dmg.ts';
+import {
+  notarizationWaitTimeoutSeconds,
+  preNotarizationCommandTimeoutMs,
+} from '../../scripts/notarize-macos-dmg.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const scriptPath = path.join(appRoot, 'scripts', 'notarize-macos-dmg.ts');
@@ -115,6 +118,22 @@ test('notarization wait budget preserves the exact post-notarization reserve', (
     nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
   }), 40 * 60);
   assert.throws(() => notarizationWaitTimeoutSeconds({
+    operationDeadlineAt: '2026-08-01T01:20:59.000Z',
+    nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
+  }), /twenty minutes of operation reserve/);
+});
+
+test('pre-notarization commands use the remaining operation budget without consuming notarization reserve', () => {
+  assert.equal(preNotarizationCommandTimeoutMs({}), 45 * 60_000);
+  assert.equal(preNotarizationCommandTimeoutMs({
+    operationDeadlineAt: '2026-08-01T02:00:00.000Z',
+    nowMs: Date.parse('2026-08-01T00:23:00.000Z'),
+  }), 76 * 60_000);
+  assert.equal(preNotarizationCommandTimeoutMs({
+    operationDeadlineAt: '2026-08-01T01:30:00.000Z',
+    nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
+  }), 9 * 60_000);
+  assert.throws(() => preNotarizationCommandTimeoutMs({
     operationDeadlineAt: '2026-08-01T01:20:59.000Z',
     nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
   }), /twenty minutes of operation reserve/);
