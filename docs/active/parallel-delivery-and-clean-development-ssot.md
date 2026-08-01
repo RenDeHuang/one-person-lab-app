@@ -22,11 +22,19 @@ Active ledger 中的 thread、ETA、current evidence和next action会快速漂�
 
 ## 中央总账治理边界
 
-当前唯一协调入口是总账线程
-`019f8f6a-718b-78f1-801f-48d5eae617e7`。所有跨对话的 scope、owner、handoff、merge、
-cleanup、publication、install、标题和 archive 决策都必须先回总账；peer-to-peer 私下改
-任务边界不构成有效接管。每条开发线只有一个 line lead 负责路由，实际源码、canonical
-`main`、外部运行和生命周期清理仍由登记的 execution owner 负责。
+唯一持久协调真相是 OPL Ledger/Bead；Dashboard thread
+`019f8f6a-718b-78f1-801f-48d5eae617e7` 只是当前人读投影和操作入口，不是永久 controller、
+release state、checkpoint 或 mutation authority。所有跨对话的 scope、owner、handoff、merge、
+cleanup、publication、install 和 archive 决策必须写回总账；对话、callback 与 peer-to-peer
+消息只携带当前 instruction revision、objective fingerprint、event cursor 和 next action，不能
+私下延长 owner、operation、deadline 或 authority。每条开发线只有一个 line lead 负责路由，
+实际源码、canonical `main`、外部运行和生命周期清理仍由登记的 execution owner 负责。
+
+长等待默认使用 owner event + immutable envelope：执行任务达到自己的 terminal 后立即关闭，
+下游 consumer 在匹配事件到达时从 envelope 新建短生命周期任务。没有新增决策、没有可执行
+next action 的 watcher 进入 `EVENT_IDLE`，不得靠持续 wait/poll 保持 `ACTIVE`。push transport
+不可用时，只允许有界 owner-authoritative status readback；相同状态不得重复生成 callback、
+delegation 或总结。
 
 模型与 reasoning 是对话自己的配置事实。任何唤醒、续派、handoff 或 reassignment 都必须
 省略 `model` 和 `thinking` 参数，保持原对话配置；总账不得把 `gpt-5.6-sol` 改成
@@ -106,6 +114,10 @@ controller 仍负责在恢复条件满足后重新准入唯一 execution owner�
 - `ACTIVE`：仍有缺口；存在可运行 execution owner 时必须继续推进、修复首个真实断点或完成
   终态 readback。仅在已记录的外部权限或输入 blocker 存在时，允许 controller 暂无可运行
   execution owner，直至恢复条件满足。
+- `EVENT_IDLE`：当前没有可独立执行切片；Ledger 记录精确 trigger event/schema、Bundle 或
+  artifact digest、consumer cursor、恢复条件和下一 owner route。它不持有运行中的 controller，
+  不轮询、不占用 active conversation；事件到达后 fresh readback，再创建或恢复一个 bounded
+  execution task。Ledger 实现可映射为 `deferred`，但必须保留 typed trigger。
 - `SAFE_TO_ARCHIVE`：用户终态、canonical/wire/installed/public proof 和 owner-native
   cleanup 均已完成，且该 objective 的 `terminal_gaps=[]`。
 
@@ -116,7 +128,7 @@ objective 终态。外部权限或不可获得输入是唯一可暂停执行的 
 ## 并行组与吸收优先级
 
 保持所有具备实际执行动作的 lane；没有可执行切片的只读 watcher 不应伪装成 `ACTIVE`，
-而应转为 `SAFE_TO_ARCHIVE` 或被重新分配到独立缺口。当前并行组如下：
+而应转为 `EVENT_IDLE`、`SAFE_TO_ARCHIVE` 或被重新分配到独立缺口。当前并行组如下：
 
 1. **Public pointers**：WebUI GHCR `stable/latest` 与 Desktop Stable/Latest 独立推进；
    两者不互相等待。

@@ -19,7 +19,7 @@ test("Framework owns the live immutable Release Bundle and App remains a product
   assert.equal(control.contract_status, "active");
   assert.equal(
     control.implementation_status,
-    "bundle_authority_active_first_stable_terminal_proof_pending",
+    "framework_bundle_authority_active_event_projection_available",
   );
   assert.deepEqual(control.framework_authority, {
     owner: "gaofeng21cn/one-person-lab",
@@ -39,6 +39,8 @@ test("Framework owns the live immutable Release Bundle and App remains a product
       "publish",
       "reconcile",
       "status",
+      "events",
+      "consumer envelope",
     ],
     command_forms: [
       "opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]",
@@ -50,6 +52,8 @@ test("Framework owns the live immutable Release Bundle and App remains a product
       "opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]",
       "opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]",
       "opl release status --bundle <sha256:digest> [--store <directory>]",
+      "opl release events --bundle <sha256:digest> [--after-event <sha256:event>] [--store <directory>]",
+      "opl release consumer envelope --bundle <sha256:digest> --track <standard|full> [--source-checkpoint-run-id <run-id>] [--store <directory>]",
     ],
     receipt_schemas: [
       "opl_release_bundle_executor_receipt.v1",
@@ -58,6 +62,8 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     ],
     checkpoint_schema: "opl_release_bundle_checkpoint.v1",
     operation_control_schema: "opl_release_bundle_operation_control.v1",
+    operation_event_schema: "opl_release_bundle_operation_event.v1",
+    consumer_envelope_schema: "opl_release_bundle_consumer_envelope.v1",
     unknown_outcome_schema: "opl_release_bundle_unknown_outcome.v1",
     live_mutation_authority: "framework_release_bundle_executor",
     checkpoint_and_receipt_state_authority_exclusive: true,
@@ -65,7 +71,7 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     app_may_derive_or_project_release_stage_state: false,
     rule: control.framework_authority.rule,
     portable_checkpoint_authority_first_landed_sha: "f785cda96",
-    consumed_abi_sha: "9860dc64b56ed9cccb9984cd14e138d9ccacced7",
+    consumed_abi_sha: "bee837d46a3695710c93c3acc69c10eb1d900167",
   });
   assert.deepEqual(control.app_authority.owns, [
     "product_release_adapter",
@@ -79,6 +85,32 @@ test("Framework owns the live immutable Release Bundle and App remains a product
   ]);
   assert.ok(control.app_authority.does_not_own.includes("generic_release_bundle_schema"));
   assert.ok(control.app_authority.does_not_own.includes("generic_publisher_ledger"));
+});
+
+test("release progress is event-driven and conversations never become durable controllers", () => {
+  const delivery = control.event_delivery;
+  assert.equal(delivery.framework_event_schema, "opl_release_bundle_operation_event.v1");
+  assert.equal(
+    delivery.framework_consumer_envelope_schema,
+    "opl_release_bundle_consumer_envelope.v1",
+  );
+  assert.equal(delivery.event_idempotency_key_equals_event_id, true);
+  assert.equal(delivery.consumer_ack_is_read_only, true);
+  assert.equal(delivery.duplicate_event_may_trigger_second_operation, false);
+  assert.equal(delivery.stale_event_may_replace_newer_bundle_or_operation_state, false);
+  assert.equal(delivery.long_wait_mode, "event_driven_wakeup_with_status_readback");
+  assert.equal(delivery.standard_and_full_operation_identity_must_be_distinct, true);
+  assert.equal(delivery.full_envelope_requires_source_checkpoint_run_id, true);
+  assert.equal(delivery.consumer_trigger_only, true);
+  assert.equal(delivery.consumer_may_dispatch, false);
+  assert.ok(delivery.conversation_or_session_forbidden_roles.includes("durable_operation_controller"));
+  assert.equal(delivery.active_task_invariant.real_owner_required, true);
+  assert.equal(delivery.active_task_invariant.executable_next_action_required, true);
+  assert.equal(delivery.active_task_invariant.wait_without_new_decision_is_not_active_work, true);
+  assert.equal(delivery.terminal_task_policy.close_thread_after_owned_operation_terminal, true);
+  assert.equal(delivery.terminal_task_policy.downstream_consumers_start_from_framework_envelope, true);
+  assert.equal(delivery.terminal_task_policy.reuse_terminal_thread_as_permanent_controller, false);
+  assert.equal(delivery.recovery_entry, "opl release status then exact opl release reconcile");
 });
 
 test("new App Standard identity records source refs as provenance and admits typed Package compatibility", () => {
