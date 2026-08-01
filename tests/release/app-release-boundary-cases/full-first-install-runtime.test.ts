@@ -704,6 +704,24 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
       fixture.sources,
       selectedBundle ? { resolvedSelectedBundleDescriptor: selectedBundle.descriptor } : {},
     );
+    const currentnessCli = runNode([
+      "scripts/assert-full-runtime-currentness.ts",
+      "--runtime-root",
+      prepared.runtimeRoot,
+      "--framework-root",
+      fixture.options.frameworkRoot,
+      "--mas-root",
+      fixture.options.masRoot,
+      "--mas-scholar-skills-root",
+      fixture.options.masScholarSkillsRoot,
+      "--mas-scholar-skills-ref",
+      fixture.options.masScholarSkillsRef,
+    ]);
+    assert.equal(currentnessCli.status, 0, currentnessCli.stderr);
+    const currentnessCliReport = JSON.parse(currentnessCli.stdout);
+    assert.equal(currentnessCliReport.status, "passed");
+    assert.equal(currentnessCliReport.framework_commit, fixture.frameworkCommit);
+    assert.equal(currentnessCliReport.mas_scholar_skills_commit, fixture.sourceCommit);
     assert.equal(Object.prototype.hasOwnProperty.call(prepared.manifest.components, "codex"), false);
     for (const relativePath of ["bin/codex", "bin/rg", "vendor/codex", ".runtime-cache/codex-cli"]) {
       assert.equal(fs.existsSync(path.join(prepared.runtimeRoot, relativePath)), false, relativePath);

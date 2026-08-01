@@ -1051,6 +1051,7 @@ jobs:
           node --experimental-strip-types one-person-lab-app/scripts/assert-full-runtime-currentness.ts \
             --runtime-root "$mounted_runtime_root" \
             --framework-root "$GITHUB_WORKSPACE/one-person-lab" \
+            --mas-root "$GITHUB_WORKSPACE/med-autoscience" \
             --mas-scholar-skills-root "$GITHUB_WORKSPACE/mas-scholar-skills" \
             > one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
           node --experimental-strip-types one-person-lab-app/scripts/verify-full-runtime-native-trust.ts \
@@ -1140,6 +1141,7 @@ jobs:
           node --experimental-strip-types one-person-lab-app/scripts/assert-full-runtime-currentness.ts \
             --runtime-root "$mounted_runtime_root" \
             --framework-root "$GITHUB_WORKSPACE/one-person-lab" \
+            --mas-root "$GITHUB_WORKSPACE/med-autoscience" \
             --mas-scholar-skills-root "$GITHUB_WORKSPACE/mas-scholar-skills" \
             > one-person-lab-app/dist/opl-full-release/full-runtime-currentness-probe.json
           if [ "${OPL_MAC_STRICT_SIGNING_CHECKS:-false}" = "true" ]; then
