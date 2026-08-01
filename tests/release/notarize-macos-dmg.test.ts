@@ -18,6 +18,7 @@ const scriptPath = path.join(appRoot, 'scripts', 'notarize-macos-dmg.ts');
 const teamId = 'SVVC4TA784';
 const identity = `Developer ID Application: FENG GAO (${teamId})`;
 const submissionId = '00000000-0000-0000-0000-000000000001';
+const timestampAuthorityUrl = 'http://timestamp.apple.com/ts01';
 
 function writeExecutable(filePath: string, source: string): void {
   fs.writeFileSync(filePath, source, 'utf8');
@@ -26,7 +27,14 @@ function writeExecutable(filePath: string, source: string): void {
 
 function fixture(
   waitStatus: 'Accepted' | 'In Progress',
-  timestampSigningBehavior: 'success' | 'timeout-once' | 'timeout-three' | 'timeout-all' | 'fail' = 'success',
+  timestampSigningBehavior:
+    | 'success'
+    | 'probe-timeout'
+    | 'probe-fail'
+    | 'timeout-once'
+    | 'timeout-three'
+    | 'timeout-all'
+    | 'fail' = 'success',
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-notarize-dmg-test-'));
   const binaryRoot = path.join(root, 'bin');
@@ -52,15 +60,34 @@ exit 0
 `);
   writeExecutable(path.join(binaryRoot, 'codesign'), `#!/bin/sh
 printf 'codesign %s\n' "$*" >> "$OPL_TEST_COMMAND_LOG"
-if [ "$1" = --force ] && [ "$2" = --timestamp ]; then
+if [ "$1" = --force ]; then
+  target=''
+  for argument in "$@"; do target="$argument"; done
+  case "$target" in
+    *timestamp-service-probe)
+      if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = probe-timeout ]; then
+        sleep 2
+        exit 0
+      fi
+      if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = probe-fail ]; then
+        echo 'timestamp service probe failed' >&2
+        exit 42
+      fi
+      exit 0
+      ;;
+  esac
+fi
+if [ "$1" = --force ]; then
+  case "$2" in
+    --timestamp=*) ;;
+    *) exit 0 ;;
+  esac
   attempt=0
   if [ -f "$OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE" ]; then
     attempt=$(cat "$OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE")
   fi
   attempt=$((attempt + 1))
   printf '%s' "$attempt" > "$OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE"
-  target=''
-  for argument in "$@"; do target="$argument"; done
   if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = timeout-once ] && [ "$attempt" -eq 1 ]; then
     printf '%s' '-partial-signature' >> "$target"
     sleep 2
@@ -90,6 +117,7 @@ case "$*" in
     echo 'Authority=${identity}' >&2
     echo 'Authority=Developer ID Certification Authority' >&2
     echo 'Authority=Apple Root CA' >&2
+    echo 'Timestamp=Aug 2, 2026 at 00:00:00' >&2
     echo 'TeamIdentifier=${teamId}' >&2
     echo 'Runtime Version=26.0.0' >&2
     ;;
@@ -143,6 +171,9 @@ exit 0
         || timestampSigningBehavior === 'timeout-all'
         ? { OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS: '500' }
         : {}),
+      ...(timestampSigningBehavior === 'probe-timeout'
+        ? { OPL_NOTARIZATION_TEST_TIMESTAMP_PROBE_TIMEOUT_MS: '500' }
+        : {}),
       OPL_RUNTIME_CODESIGN_IDENTITY: identity,
       appleId: 'release-owner@example.invalid',
       appleIdPassword: 'test-app-password',
@@ -155,8 +186,17 @@ exit 0
     result,
     receipt: JSON.parse(fs.readFileSync(outputPath, 'utf8')) as Record<string, any>,
     commands: fs.readFileSync(commandLog, 'utf8'),
-    timestampSigningAttempts: Number(fs.readFileSync(timestampSigningAttemptFile, 'utf8')),
+    timestampSigningAttempts: fs.existsSync(timestampSigningAttemptFile)
+      ? Number(fs.readFileSync(timestampSigningAttemptFile, 'utf8'))
+      : 0,
   };
+}
+
+function fullTimestampSigningCommandCount(commands: string): number {
+  return commands.split('\n').filter((line) => (
+    line.startsWith(`codesign --force --timestamp=${timestampAuthorityUrl}`)
+    && line.endsWith('.notarizing.dmg')
+  )).length;
 }
 
 test('notarization wait budget preserves the exact post-notarization reserve', () => {
@@ -202,7 +242,7 @@ test('timestamp signing caps each attempt while preserving the notary and post-n
   }), /twenty minutes of operation reserve/);
 });
 
-test('large DMG signing receives one contiguous deadline budget plus one bounded retry', () => {
+test('large DMG signing uses two bounded attempts after the timestamp service probe', () => {
   const largeDmgBytes = 512 * 1024 * 1024;
   const nowMs = Date.parse('2026-08-01T01:00:00.000Z');
   const operationDeadlineAt = '2026-08-01T02:40:00.000Z';
@@ -214,13 +254,13 @@ test('large DMG signing receives one contiguous deadline budget plus one bounded
     nowMs,
     artifactSizeBytes: largeDmgBytes,
     attemptNumber: 1,
-  }), 50 * 60_000);
+  }), 5 * 60_000);
   assert.equal(timestampSigningTimeoutMs({
     operationDeadlineAt,
     nowMs: nowMs + 50 * 60_000,
     artifactSizeBytes: largeDmgBytes,
     attemptNumber: 2,
-  }), 10 * 60_000);
+  }), 5 * 60_000);
   assert.equal(timestampSigningTimeoutMs({
     operationDeadlineAt,
     nowMs,
@@ -230,16 +270,34 @@ test('large DMG signing receives one contiguous deadline budget plus one bounded
   }), 500);
 });
 
+test('timestamp service probe fails before the Full DMG or notary is invoked', () => {
+  const value = fixture('Accepted', 'probe-timeout');
+  try {
+    assert.notEqual(value.result.status, 0);
+    assert.equal(value.timestampSigningAttempts, 0);
+    assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthorityUrl);
+    assert.equal(value.receipt.timestamp_signing.probe_status, 'failed');
+    assert.equal(value.receipt.failure.code, 'timestamp_service_probe_failed');
+    assert.equal(value.receipt.failure.stage, 'probe_timestamp_service');
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 0);
+    assert.doesNotMatch(value.commands, /notarytool submit/);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
 test('timestamp signing retries one timeout from a fresh original DMG copy', () => {
   const value = fixture('Accepted', 'timeout-once');
   try {
     assert.equal(value.result.status, 0, value.result.stderr);
     assert.equal(value.timestampSigningAttempts, 2);
+    assert.equal(value.receipt.timestamp_signing.probe_status, 'passed');
+    assert.equal(value.receipt.timestamp_signing.authority_endpoint, timestampAuthorityUrl);
     assert.equal(value.receipt.timestamp_signing.attempts, 2);
     assert.equal(value.receipt.timestamp_signing.retry_count, 1);
     assert.deepEqual(value.receipt.timestamp_signing.attempt_timeouts_seconds, [0, 0]);
     assert.equal(value.receipt.timestamp_signing.strategy, 'small_dmg_bounded_attempts');
-    assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 2);
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 2);
     assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
   } finally {
     fs.rmSync(value.root, { recursive: true, force: true });
@@ -253,7 +311,7 @@ test('timestamp signing consumes the bounded retry budget after consecutive time
     assert.equal(value.timestampSigningAttempts, 4);
     assert.equal(value.receipt.timestamp_signing.attempts, 4);
     assert.equal(value.receipt.timestamp_signing.retry_count, 3);
-    assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 4);
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 4);
     assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
   } finally {
     fs.rmSync(value.root, { recursive: true, force: true });
@@ -270,7 +328,7 @@ test('timestamp signing fails after four bounded timeouts without submitting to 
     assert.equal(value.receipt.timestamp_signing.attempt_timeout_seconds, 0);
     assert.equal(value.receipt.failure.stage, 'sign_dmg');
     assert.equal(value.receipt.failure.retry_disposition, 'new_operation_required_no_retry');
-    assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 4);
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 4);
     assert.doesNotMatch(value.commands, /notarytool submit/);
   } finally {
     fs.rmSync(value.root, { recursive: true, force: true });
@@ -284,7 +342,7 @@ test('timestamp signing never retries a non-timeout failure', () => {
     assert.equal(value.timestampSigningAttempts, 1);
     assert.equal(value.receipt.failure.stage, 'sign_dmg');
     assert.equal(value.receipt.failure.retry_disposition, 'new_operation_required_no_retry');
-    assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 1);
+    assert.equal(fullTimestampSigningCommandCount(value.commands), 1);
     assert.doesNotMatch(value.commands, /notarytool submit/);
   } finally {
     fs.rmSync(value.root, { recursive: true, force: true });
