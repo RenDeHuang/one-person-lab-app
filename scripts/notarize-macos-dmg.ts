@@ -26,6 +26,8 @@ type FailureEvidence = {
 };
 
 const defaultCommandTimeoutMs = 45 * 60_000;
+const timestampSigningAttemptLimitMs = 15 * 60_000;
+const maximumTimestampSigningAttempts = 2;
 const postNotarizationReserveMs = 20 * 60_000;
 const minimumNotarizationWaitMs = 60_000;
 
@@ -57,12 +59,16 @@ function runCapture(command: string, args: string[], timeout = defaultCommandTim
 function run(command: string, args: string[], timeout?: number, redactedArgs: string[] = args): CommandResult {
   const result = runCapture(command, args, timeout);
   if (result.status !== 0) {
-    throw new Error([
+    const error = new Error([
       `Command failed: ${command} ${redactedArgs.map((arg) => JSON.stringify(arg)).join(' ')}`,
       result.error?.message ? `error: ${result.error.message}` : '',
       result.stdout?.trim() ? `stdout:\n${result.stdout.trim()}` : '',
       result.stderr?.trim() ? `stderr:\n${result.stderr.trim()}` : '',
     ].filter(Boolean).join('\n'));
+    if (result.error?.code) {
+      Object.assign(error, { code: result.error.code });
+    }
+    throw error;
   }
   return result;
 }
@@ -123,6 +129,34 @@ export function preNotarizationCommandTimeoutMs(input: {
     throw new Error('Pre-notarization command cannot start without one minute of notarization wait budget and twenty minutes of operation reserve.');
   }
   return Math.floor(timeoutMs);
+}
+
+export function timestampSigningTimeoutMs(input: {
+  operationDeadlineAt?: string;
+  nowMs?: number;
+  attemptLimitMs?: number;
+}): number {
+  const attemptLimitMs = input.attemptLimitMs ?? timestampSigningAttemptLimitMs;
+  if (!Number.isInteger(attemptLimitMs) || attemptLimitMs < 1) {
+    throw new Error('Timestamp-signing attempt limit must be a positive integer number of milliseconds.');
+  }
+  return Math.min(attemptLimitMs, preNotarizationCommandTimeoutMs(input));
+}
+
+function configuredTimestampSigningAttemptLimitMs(): number {
+  const testOverride = testMode()
+    ? process.env.OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS?.trim()
+    : '';
+  if (!testOverride) return timestampSigningAttemptLimitMs;
+  const parsed = Number(testOverride);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error('OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS must be a positive integer.');
+  }
+  return parsed;
+}
+
+function commandTimedOut(error: unknown): boolean {
+  return error instanceof Error && (error as NodeJS.ErrnoException).code === 'ETIMEDOUT';
 }
 
 function sha256(filePath: string): string {
@@ -306,6 +340,11 @@ export function finalizeNotarizedDmg() {
       last_observed_at: null,
       wait_timeout_seconds: null,
     } satisfies NotarizationState,
+    timestamp_signing: {
+      attempts: 0,
+      retry_count: 0,
+      attempt_timeout_seconds: null,
+    },
     failure: null,
   };
   const persist = () => writeJsonAtomic(options.outputPath, evidence);
@@ -334,16 +373,33 @@ export function finalizeNotarizedDmg() {
     mounted = false;
 
     stage = 'sign_dmg';
-    fs.rmSync(candidateDmg, { force: true });
-    fs.copyFileSync(options.dmgPath, candidateDmg);
     const preNotarizationTimeoutMs = () => preNotarizationCommandTimeoutMs({
       operationDeadlineAt: options.operationDeadlineAt,
     });
-    run(
-      'codesign',
-      ['--force', '--timestamp', '--sign', identity, candidateDmg],
-      preNotarizationTimeoutMs(),
-    );
+    for (let attempt = 1; attempt <= maximumTimestampSigningAttempts; attempt += 1) {
+      fs.rmSync(candidateDmg, { force: true });
+      fs.copyFileSync(options.dmgPath, candidateDmg);
+      const attemptTimeoutMs = timestampSigningTimeoutMs({
+        operationDeadlineAt: options.operationDeadlineAt,
+        attemptLimitMs: configuredTimestampSigningAttemptLimitMs(),
+      });
+      evidence.timestamp_signing.attempts = attempt;
+      evidence.timestamp_signing.retry_count = attempt - 1;
+      evidence.timestamp_signing.attempt_timeout_seconds = Math.floor(attemptTimeoutMs / 1_000);
+      persist();
+      try {
+        run(
+          'codesign',
+          ['--force', '--timestamp', '--sign', identity, candidateDmg],
+          attemptTimeoutMs,
+        );
+        break;
+      } catch (error) {
+        if (!commandTimedOut(error) || attempt === maximumTimestampSigningAttempts) {
+          throw error;
+        }
+      }
+    }
     run(
       'codesign',
       ['--verify', '--strict', '--verbose=2', candidateDmg],

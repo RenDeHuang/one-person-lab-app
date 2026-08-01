@@ -9,6 +9,7 @@ import test from 'node:test';
 import {
   notarizationWaitTimeoutSeconds,
   preNotarizationCommandTimeoutMs,
+  timestampSigningTimeoutMs,
 } from '../../scripts/notarize-macos-dmg.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -22,12 +23,16 @@ function writeExecutable(filePath: string, source: string): void {
   fs.chmodSync(filePath, 0o755);
 }
 
-function fixture(waitStatus: 'Accepted' | 'In Progress') {
+function fixture(
+  waitStatus: 'Accepted' | 'In Progress',
+  timestampSigningBehavior: 'success' | 'timeout-once' | 'fail' = 'success',
+) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-notarize-dmg-test-'));
   const binaryRoot = path.join(root, 'bin');
   const commandLog = path.join(root, 'commands.log');
   const dmgPath = path.join(root, 'One-Person-Lab-Full.dmg');
   const outputPath = path.join(root, 'receipt.json');
+  const timestampSigningAttemptFile = path.join(root, 'timestamp-signing-attempts');
   fs.mkdirSync(binaryRoot);
   fs.writeFileSync(dmgPath, 'full-dmg-fixture', 'utf8');
 
@@ -46,6 +51,29 @@ exit 0
 `);
   writeExecutable(path.join(binaryRoot, 'codesign'), `#!/bin/sh
 printf 'codesign %s\n' "$*" >> "$OPL_TEST_COMMAND_LOG"
+if [ "$1" = --force ] && [ "$2" = --timestamp ]; then
+  attempt=0
+  if [ -f "$OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE" ]; then
+    attempt=$(cat "$OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE")
+  fi
+  attempt=$((attempt + 1))
+  printf '%s' "$attempt" > "$OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE"
+  target=''
+  for argument in "$@"; do target="$argument"; done
+  if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = timeout-once ] && [ "$attempt" -eq 1 ]; then
+    printf '%s' '-partial-signature' >> "$target"
+    sleep 2
+    exit 0
+  fi
+  if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = timeout-once ] && [ "$(cat "$target")" != full-dmg-fixture ]; then
+    echo 'retry candidate was not restored from the original DMG' >&2
+    exit 42
+  fi
+  if [ "$OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR" = fail ]; then
+    echo 'timestamp service rejected signing' >&2
+    exit 42
+  fi
+fi
 case "$*" in
   *"-dv --verbose=4"*)
     echo 'Authority=${identity}' >&2
@@ -97,6 +125,11 @@ exit 0
       OPL_NOTARIZATION_TEST_MODE: 'true',
       OPL_NOTARIZATION_TEST_COMMAND_ROOT: binaryRoot,
       OPL_TEST_COMMAND_LOG: commandLog,
+      OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE: timestampSigningAttemptFile,
+      OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR: timestampSigningBehavior,
+      ...(timestampSigningBehavior === 'timeout-once'
+        ? { OPL_NOTARIZATION_TEST_TIMESTAMP_SIGNING_TIMEOUT_MS: '500' }
+        : {}),
       OPL_RUNTIME_CODESIGN_IDENTITY: identity,
       appleId: 'release-owner@example.invalid',
       appleIdPassword: 'test-app-password',
@@ -109,6 +142,7 @@ exit 0
     result,
     receipt: JSON.parse(fs.readFileSync(outputPath, 'utf8')) as Record<string, any>,
     commands: fs.readFileSync(commandLog, 'utf8'),
+    timestampSigningAttempts: Number(fs.readFileSync(timestampSigningAttemptFile, 'utf8')),
   };
 }
 
@@ -137,6 +171,46 @@ test('pre-notarization commands use the remaining operation budget without consu
     operationDeadlineAt: '2026-08-01T01:20:59.000Z',
     nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
   }), /twenty minutes of operation reserve/);
+});
+
+test('timestamp signing caps each attempt while preserving the notary and post-notary reserves', () => {
+  assert.equal(timestampSigningTimeoutMs({}), 15 * 60_000);
+  assert.equal(timestampSigningTimeoutMs({
+    operationDeadlineAt: '2026-08-01T02:00:00.000Z',
+    nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
+  }), 15 * 60_000);
+  assert.equal(timestampSigningTimeoutMs({
+    operationDeadlineAt: '2026-08-01T01:30:00.000Z',
+    nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
+  }), 9 * 60_000);
+});
+
+test('timestamp signing retries one timeout from a fresh original DMG copy', () => {
+  const value = fixture('Accepted', 'timeout-once');
+  try {
+    assert.equal(value.result.status, 0, value.result.stderr);
+    assert.equal(value.timestampSigningAttempts, 2);
+    assert.equal(value.receipt.timestamp_signing.attempts, 2);
+    assert.equal(value.receipt.timestamp_signing.retry_count, 1);
+    assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 2);
+    assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
+test('timestamp signing never retries a non-timeout failure', () => {
+  const value = fixture('Accepted', 'fail');
+  try {
+    assert.notEqual(value.result.status, 0);
+    assert.equal(value.timestampSigningAttempts, 1);
+    assert.equal(value.receipt.failure.stage, 'sign_dmg');
+    assert.equal(value.receipt.failure.retry_disposition, 'new_operation_required_no_retry');
+    assert.equal((value.commands.match(/codesign --force --timestamp/g) ?? []).length, 1);
+    assert.doesNotMatch(value.commands, /notarytool submit/);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
 });
 
 test('notarization persists the submission id before a separate bounded wait', () => {
