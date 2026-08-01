@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { runShellProductProfileConsumerGate } from '../../scripts/validate-shell-product-profile-consumer.ts';
 import {
   buildReleaseSourceGateReport,
   createGithubOwnerReleaseNamespaceEvidence,
@@ -85,6 +87,58 @@ test('release source gate accepts explicit isolated source checkout roots', () =
 
   assert.equal(parsed.shellRoot, '/private/tmp/release-shell');
   assert.equal(parsed.frameworkRoot, '/private/tmp/release-framework');
+});
+
+test('Shell product-profile consumer uses the frozen local vitest executable without bunx discovery', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-shell-consumer-command-'));
+  const shellRoot = path.join(root, 'shell');
+  const markerPath = path.join(root, 'vitest-invocation.txt');
+  const fakeBin = path.join(root, 'fake-bin');
+  const previousPath = process.env.PATH;
+  fs.mkdirSync(path.join(shellRoot, 'node_modules', '.bin'), { recursive: true });
+  fs.mkdirSync(path.join(shellRoot, 'tests', 'unit', 'common-config'), { recursive: true });
+  fs.mkdirSync(fakeBin, { recursive: true });
+  fs.writeFileSync(path.join(shellRoot, '.gitignore'), 'node_modules/\n', 'utf8');
+  fs.writeFileSync(path.join(shellRoot, 'package.json'), '{"name":"one-person-lab-aion-shell"}\n', 'utf8');
+  fs.writeFileSync(
+    path.join(shellRoot, 'tests', 'unit', 'common-config', 'oplProductProfile.test.ts'),
+    'export {};\n',
+    'utf8',
+  );
+  const vitest = path.join(shellRoot, 'node_modules', '.bin', 'vitest');
+  fs.writeFileSync(
+    vitest,
+    `#!/bin/sh\nset -eu\ntest "$1" = run\ntest "$2" = tests/unit/common-config/oplProductProfile.test.ts\nprintf '%s\\n' "$PWD" > ${JSON.stringify(markerPath)}\n`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+  fs.writeFileSync(path.join(fakeBin, 'bunx'), '#!/bin/sh\nexit 97\n', { encoding: 'utf8', mode: 0o755 });
+
+  const git = (...args: string[]): string => {
+    const result = spawnSync('git', args, { cwd: shellRoot, encoding: 'utf8' });
+    assert.equal(result.status, 0, [result.stderr, result.stdout].filter(Boolean).join('\n'));
+    return result.stdout.trim();
+  };
+
+  try {
+    git('init', '-q');
+    git('config', 'user.name', 'OPL Release Test');
+    git('config', 'user.email', 'release-test@example.invalid');
+    git('add', '.gitignore', 'package.json', 'tests/unit/common-config/oplProductProfile.test.ts');
+    git('commit', '-qm', 'fixture');
+    process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
+
+    const report = runShellProductProfileConsumerGate({
+      shellRoot,
+      expectedShellSha: git('rev-parse', 'HEAD'),
+    });
+
+    assert.equal(report.status, 'passed');
+    assert.match(fs.readFileSync(markerPath, 'utf8'), /opl-shell-profile-consumer-/);
+    assert.equal(git('status', '--porcelain', '--untracked-files=normal'), '');
+  } finally {
+    process.env.PATH = previousPath;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 function runner(overrides: Record<string, { status: number; stdout?: string; stderr?: string }> = {}): CommandRunner {

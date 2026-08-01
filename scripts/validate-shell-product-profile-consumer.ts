@@ -101,7 +101,11 @@ export function runShellProductProfileConsumerGate(
     if (!sync.synced || !sync.verified) {
       throw new Error('Current App product profile was not projected into the isolated Shell consumer.');
     }
-    const consumer = run('bunx', ['vitest', 'run', consumerTestPath], temporaryRoot);
+    const consumerBinary = path.join(temporaryRoot, 'node_modules', '.bin', 'vitest');
+    if (!fs.existsSync(consumerBinary)) {
+      throw new Error('Frozen Shell consumer dependencies do not expose node_modules/.bin/vitest.');
+    }
+    const consumer = run(consumerBinary, ['run', consumerTestPath], temporaryRoot);
     if (consumer.status !== 0) {
       const detail = [consumer.stdout, consumer.stderr, consumer.error?.message].filter(Boolean).join('\n').trim();
       throw new Error(`Current App product profile failed the exact Shell consumer test${detail ? `:\n${detail}` : ''}`);
