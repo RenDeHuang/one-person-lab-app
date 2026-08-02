@@ -143,7 +143,11 @@ test('Nightly notes are deterministic, evidence-bound, and useful to Preview upd
   const first = build(input);
   const second = build(input);
   assert.deepEqual(second, first);
-  assert.match(first.notes, /^# One Person Lab v26\.8\.2-nightly/m);
+  const releaseTitle = `One Person Lab ${input.request.tag}`;
+  const firstNonEmptyLine = first.notes.split('\n').find((line) => line.trim().length > 0)?.trim();
+  assert.equal(firstNonEmptyLine, 'Scheduled production Nightly.');
+  assert.notEqual(firstNonEmptyLine, releaseTitle);
+  assert.notEqual(firstNonEmptyLine, `# ${releaseTitle}`);
   assert.match(first.notes, /Preview automatic updates/);
   assert.match(first.notes, /App settings, readiness, provider, or runtime-status surfaces changed/);
   assert.match(first.notes, /Desktop updater, package, or platform behavior changed/);

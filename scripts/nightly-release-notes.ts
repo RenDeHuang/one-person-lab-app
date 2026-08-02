@@ -246,8 +246,6 @@ function renderNotes(input: {
     ? 'Scheduled production Nightly.'
     : 'User-explicit development validation of the Nightly publication path.';
   const lines = [
-    `# One Person Lab ${request.tag}`,
-    '',
     invocation,
     '',
     `This Standard Desktop Preview contains the exact App, Shell, and Framework changes since ${baseline.release.tag}. It is intended for users who already opted into Preview automatic updates.`,
