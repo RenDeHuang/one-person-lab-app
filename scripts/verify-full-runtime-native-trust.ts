@@ -5,6 +5,10 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs as parseNodeArgs } from 'node:util';
 
 import { listFullRuntimeNativeExecutables } from './build-full-first-install-package/runtime-native-trust.ts';
+import {
+  isDeveloperIdApplicationSignature,
+  parseMacosCodeSignatureOutput,
+} from './macos-code-signature.ts';
 
 function parseArgs(argv: string[]) {
   const { values } = parseNodeArgs({
@@ -44,10 +48,7 @@ function hasExtendedAttribute(filePath: string, attributeName: string) {
 function readCodeSignature(filePath: string) {
   const result = runCapture('codesign', ['-dv', '--verbose=4', filePath]);
   const output = `${result.stdout || ''}${result.stderr || ''}`;
-  return {
-    team_identifier: output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || null,
-    signature: output.match(/^Signature=(.+)$/m)?.[1]?.trim() || null,
-  };
+  return parseMacosCodeSignatureOutput(output);
 }
 
 function verifyExecutable(entry: { path: string; relative_path: string; requires_spctl: boolean }, requireSpctl: boolean) {
@@ -66,6 +67,7 @@ function verifyExecutable(entry: { path: string; relative_path: string; requires
     spctl_status: shouldAssessSpctl ? (spctlPassed ? 'passed' : 'failed_allowed_unsigned') : 'not_required',
     team_identifier: signature.team_identifier,
     signature: signature.signature,
+    signature_kind: signature.signature_kind,
     quarantine_status: hasExtendedAttribute(entry.path, 'com.apple.quarantine') ? 'present' : 'absent',
     provenance_status: hasExtendedAttribute(entry.path, 'com.apple.provenance') ? 'present' : 'absent',
   };
@@ -75,9 +77,7 @@ function isTrusted(entry: ReturnType<typeof verifyExecutable>, expectedTeamId: s
   return entry.codesign_status === 'passed'
     && (entry.spctl_status === 'passed' || entry.spctl_status === 'not_required')
     && entry.quarantine_status === 'absent'
-    && Boolean(entry.team_identifier)
-    && (!expectedTeamId || entry.team_identifier === expectedTeamId)
-    && entry.signature !== 'adhoc';
+    && isDeveloperIdApplicationSignature(entry, expectedTeamId);
 }
 
 function main() {

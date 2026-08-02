@@ -10,6 +10,7 @@ import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from "./
 import { fileSha256 } from "./release-file-helpers.ts";
 import { runCommand } from "./release-cleanup-helpers.ts";
 import { assertFullRuntimeNativeTrustObject } from "./full-runtime-native-trust.ts";
+import { parseMacosCodeSignatureOutput } from "./macos-code-signature.ts";
 import { readManagedUpdateLifecycleProviderMap } from "./managed-update-lifecycle-contract.ts";
 import { FULL_RUNTIME_FORBIDDEN_FRAMEWORK_CODEX_PATHS } from "./full-first-install-package.ts";
 
@@ -332,11 +333,7 @@ function assertLocalAuthorizationPolicyObject(policy, packageKind, name) {
 function readCodeSignature(filePath) {
   const result = runCapture("codesign", ["-dv", "--verbose=4", filePath]);
   const output = `${result.stdout || ""}${result.stderr || ""}`;
-  return {
-    signature: output.match(/^Signature=(.+)$/m)?.[1]?.trim() || null,
-    team_identifier: output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || null,
-    authorities: [...output.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1].trim()),
-  };
+  return parseMacosCodeSignatureOutput(output);
 }
 
 function findStandardAppBundle(rootDir) {
@@ -446,6 +443,7 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, update
       bundle_version: bundleVersion || null,
       short_version: shortVersion || null,
       signature: signature.signature,
+      signature_kind: signature.signature_kind,
       team_identifier: signature.team_identifier,
       authorities: signature.authorities,
       codesign_status: "passed",

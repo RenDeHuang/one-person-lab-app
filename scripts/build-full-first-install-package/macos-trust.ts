@@ -3,6 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { run, runCapture } from './process.ts';
+import {
+  isDeveloperIdApplicationSignature,
+  parseMacosCodeSignatureOutput,
+} from '../macos-code-signature.ts';
 
 export function canRunMacosSigningChecks() {
   return process.platform === 'darwin';
@@ -35,12 +39,9 @@ export function ensureAppBundleAdHocCodesign(appPath, label) {
   const initial = runCapture('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appPath]);
   const initialDetails = strict ? runCapture('codesign', ['-dv', '--verbose=4', appPath]) : null;
   const initialSignature = initialDetails
-    ? `${initialDetails.stdout || ''}${initialDetails.stderr || ''}`.match(/^Signature=(.+)$/m)?.[1]?.trim()
+    ? parseMacosCodeSignatureOutput(`${initialDetails.stdout || ''}${initialDetails.stderr || ''}`)
     : null;
-  const initialTeamIdentifier = initialDetails
-    ? `${initialDetails.stdout || ''}${initialDetails.stderr || ''}`.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim()
-    : null;
-  if (initial.status === 0 && (!strict || (initialTeamIdentifier && initialSignature !== 'adhoc'))) {
+  if (initial.status === 0 && (!strict || (initialSignature && isDeveloperIdApplicationSignature(initialSignature)))) {
     return;
   }
   const identity = macosSigningIdentity();
@@ -80,14 +81,14 @@ export function assertAppBundleLocalAuthorization(appPath, label) {
   if (strictMacosRuntimeSigningRequired()) {
     const details = runCapture('codesign', ['-dv', '--verbose=4', appPath]);
     const signatureOutput = `${details.stdout || ''}${details.stderr || ''}`;
-    const teamIdentifier = signatureOutput.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || '';
-    const signature = signatureOutput.match(/^Signature=(.+)$/m)?.[1]?.trim() || '';
-    if (codesign.status !== 0 || !teamIdentifier || signature === 'adhoc') {
+    const signature = parseMacosCodeSignatureOutput(signatureOutput);
+    if (codesign.status !== 0 || !isDeveloperIdApplicationSignature(signature)) {
       throw new Error([
         `${label} failed Developer ID signing verification before notarization: ${appPath}`,
         ...codesignOutputLines(codesign),
-        `team_identifier=${teamIdentifier || 'missing'}`,
-        `signature=${signature || 'missing'}`,
+        `team_identifier=${signature.team_identifier || 'missing'}`,
+        `signature=${signature.signature || 'missing'}`,
+        `signature_kind=${signature.signature_kind}`,
       ].filter(Boolean).join('\n'));
     }
     return;

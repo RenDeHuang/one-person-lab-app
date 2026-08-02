@@ -8,6 +8,19 @@ function requiredFullRuntimeNativeTrustPaths(manifest: any): string[] {
   ];
 }
 
+function productionSignatureKind(entry: any): string {
+  if (typeof entry?.signature_kind === 'string') {
+    return entry.signature_kind;
+  }
+  if (entry?.signature === 'adhoc') {
+    return 'adhoc';
+  }
+  return typeof entry?.signature === 'string'
+    && entry.signature.startsWith('Developer ID Application:')
+    ? 'developer_id_application'
+    : entry?.signature ? 'other' : 'missing';
+}
+
 export function assertFullRuntimeNativeTrustObject(
   trust: any,
   manifest: any,
@@ -55,6 +68,7 @@ export function assertFullRuntimeNativeTrustObject(
         || entry?.team_identifier !== options.expectedTeamIdentifier
         || !entry?.signature
         || entry.signature === 'adhoc'
+        || productionSignatureKind(entry) !== 'developer_id_application'
       ) {
         throw new Error(
           `Production Full runtime native executable does not match Team ID ${options.expectedTeamIdentifier}: `
