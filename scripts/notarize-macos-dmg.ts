@@ -15,7 +15,11 @@ type NotarizationState = {
   status: string | null;
   submitted_at: string | null;
   last_observed_at: string | null;
+  observation_deadline_at: string | null;
+  maximum_observation_seconds: number;
   wait_timeout_seconds: number | null;
+  info_poll_attempts: number;
+  info_poll_interval_seconds: number;
 };
 
 type FailureEvidence = {
@@ -35,6 +39,9 @@ const largeDmgThresholdBytes = 512 * 1024 * 1024;
 const maximumLargeDmgTimestampSigningAttempts = 2;
 const postNotarizationReserveMs = 20 * 60_000;
 const minimumNotarizationWaitMs = 60_000;
+const maximumNotarizationObservationMs = 30 * 60_000;
+const initialNotarizationWaitMs = 5 * 60_000;
+const notarizationInfoPollIntervalMs = 15_000;
 const minimumTimestampSigningNotarizationWindowMs = 20 * 60_000;
 
 function testMode(): boolean {
@@ -116,6 +123,28 @@ export function notarizationWaitTimeoutSeconds(input: {
   return Math.floor(waitMs / 1_000);
 }
 
+export function notarizationObservationDeadlineMs(input: {
+  operationDeadlineAt?: string;
+  nowMs?: number;
+  reserveMs?: number;
+  maximumObservationMs?: number;
+}): number {
+  const nowMs = input.nowMs ?? Date.now();
+  const maximumObservationMs = input.maximumObservationMs ?? maximumNotarizationObservationMs;
+  if (!Number.isInteger(maximumObservationMs) || maximumObservationMs < minimumNotarizationWaitMs) {
+    throw new Error('Maximum notarization observation window must be at least one minute.');
+  }
+  if (!input.operationDeadlineAt) return nowMs + maximumObservationMs;
+  const operationDeadlineMs = Date.parse(input.operationDeadlineAt);
+  if (!Number.isFinite(operationDeadlineMs)) {
+    throw new Error('Operation deadline must be an exact ISO-8601 timestamp.');
+  }
+  return Math.min(
+    operationDeadlineMs - (input.reserveMs ?? postNotarizationReserveMs),
+    nowMs + maximumObservationMs,
+  );
+}
+
 export function preNotarizationCommandTimeoutMs(input: {
   operationDeadlineAt?: string;
   nowMs?: number;
@@ -195,6 +224,34 @@ function configuredTimestampServiceProbeTimeoutMs(): number {
   const parsed = Number(testOverride);
   if (!Number.isInteger(parsed) || parsed < 1) {
     throw new Error('OPL_NOTARIZATION_TEST_TIMESTAMP_PROBE_TIMEOUT_MS must be a positive integer.');
+  }
+  return parsed;
+}
+
+function configuredNotarizationInfoPollIntervalMs(): number {
+  const testOverride = testMode()
+    ? process.env.OPL_NOTARIZATION_TEST_NOTARY_POLL_INTERVAL_MS?.trim()
+    : '';
+  if (!testOverride) return notarizationInfoPollIntervalMs;
+  const parsed = Number(testOverride);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error('OPL_NOTARIZATION_TEST_NOTARY_POLL_INTERVAL_MS must be a positive integer.');
+  }
+  return parsed;
+}
+
+function pollIntervalSeconds(milliseconds: number): number {
+  return Math.max(1, Math.ceil(milliseconds / 1_000));
+}
+
+function configuredNotarizationInfoPollMaxMs(): number | undefined {
+  const testOverride = testMode()
+    ? process.env.OPL_NOTARIZATION_TEST_NOTARY_POLL_MAX_MS?.trim()
+    : '';
+  if (!testOverride) return undefined;
+  const parsed = Number(testOverride);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error('OPL_NOTARIZATION_TEST_NOTARY_POLL_MAX_MS must be a positive integer.');
   }
   return parsed;
 }
@@ -306,7 +363,15 @@ function submitForNotarization(target: string, credentials: {
     '--output-format',
     'json',
   ];
-  const submitBudgetSeconds = notarizationWaitTimeoutSeconds({ operationDeadlineAt });
+  const observationDeadlineMs = notarizationObservationDeadlineMs({ operationDeadlineAt });
+  const remainingObservationSeconds = () => {
+    const remainingSeconds = Math.floor((observationDeadlineMs - Date.now()) / 1_000);
+    if (remainingSeconds < minimumNotarizationWaitMs / 1_000) {
+      throw new Error('Notarization cannot continue without one minute of runner-local observation budget.');
+    }
+    return remainingSeconds;
+  };
+  const submitBudgetSeconds = remainingObservationSeconds();
   const submitted = parseJsonResult(run(
     'xcrun',
     submitArgs,
@@ -324,11 +389,15 @@ function submitForNotarization(target: string, credentials: {
     status: submittedStatus,
     submitted_at: new Date().toISOString(),
     last_observed_at: new Date().toISOString(),
+    observation_deadline_at: new Date(observationDeadlineMs).toISOString(),
+    maximum_observation_seconds: maximumNotarizationObservationMs / 1_000,
     wait_timeout_seconds: null,
+    info_poll_attempts: 0,
+    info_poll_interval_seconds: pollIntervalSeconds(configuredNotarizationInfoPollIntervalMs()),
   };
   persist(state);
 
-  const waitTimeoutSeconds = notarizationWaitTimeoutSeconds({ operationDeadlineAt });
+  const waitTimeoutSeconds = Math.min(remainingObservationSeconds(), initialNotarizationWaitMs / 1_000);
   state.wait_timeout_seconds = waitTimeoutSeconds;
   persist(state);
   const waitArgs = [
@@ -343,7 +412,7 @@ function submitForNotarization(target: string, credentials: {
   ];
   const waitResult = runCapture('xcrun', waitArgs, (waitTimeoutSeconds + 30) * 1_000);
   let observed = parseJsonResult(waitResult);
-  if (observed?.status !== 'Accepted') {
+  const queryStatus = () => {
     const infoArgs = [
       'notarytool',
       'info',
@@ -352,8 +421,32 @@ function submitForNotarization(target: string, credentials: {
       '--output-format',
       'json',
     ];
-    const infoResult = runCapture('xcrun', infoArgs, 30_000);
-    observed = parseJsonResult(infoResult) ?? observed;
+    const remainingMs = observationDeadlineMs - Date.now();
+    if (remainingMs <= 0) return null;
+    const infoResult = runCapture('xcrun', infoArgs, Math.min(30_000, remainingMs));
+    state.info_poll_attempts += 1;
+    const result = parseJsonResult(infoResult);
+    if (typeof result?.status === 'string' && result.status) state.status = result.status;
+    state.last_observed_at = new Date().toISOString();
+    persist(state);
+    return result;
+  };
+  if (observed?.status !== 'Accepted') {
+    observed = queryStatus() ?? observed;
+    const pollIntervalMs = configuredNotarizationInfoPollIntervalMs();
+    const pollMaxMs = configuredNotarizationInfoPollMaxMs();
+    const pollStartedAt = Date.now();
+    while (observed?.status === 'In Progress') {
+      const pollDeadlineMs = pollMaxMs === undefined
+        ? observationDeadlineMs
+        : Math.min(observationDeadlineMs, pollStartedAt + pollMaxMs);
+      const remainingMs = pollDeadlineMs - Date.now();
+      if (remainingMs <= 0) break;
+      const sleeper = new Int32Array(new SharedArrayBuffer(4));
+      Atomics.wait(sleeper, 0, 0, Math.min(pollIntervalMs, remainingMs));
+      if (Date.now() >= pollDeadlineMs) break;
+      observed = queryStatus() ?? observed;
+    }
   }
   state.status = typeof observed?.status === 'string' && observed.status
     ? observed.status
@@ -411,7 +504,11 @@ export function finalizeNotarizedDmg() {
       status: null,
       submitted_at: null,
       last_observed_at: null,
+      observation_deadline_at: null,
+      maximum_observation_seconds: maximumNotarizationObservationMs / 1_000,
       wait_timeout_seconds: null,
+      info_poll_attempts: 0,
+      info_poll_interval_seconds: pollIntervalSeconds(notarizationInfoPollIntervalMs),
     } satisfies NotarizationState,
     timestamp_signing: {
       authority_endpoint: timestampAuthoritySelection,
@@ -579,10 +676,14 @@ export function finalizeNotarizedDmg() {
     return evidence;
   } catch (error) {
     const hasSubmissionId = typeof evidence.notarization.id === 'string' && evidence.notarization.id.length > 0;
+    const permanentSubmissionFailure = evidence.notarization.status === 'Rejected'
+      || evidence.notarization.status === 'Invalid';
     evidence.status = 'failed';
     evidence.failure = {
       code: hasSubmissionId
-        ? 'notarization_submission_incomplete'
+        ? permanentSubmissionFailure
+          ? 'notarization_submission_rejected'
+          : 'notarization_submission_incomplete'
         : stage === 'probe_timestamp_service'
           ? 'timestamp_service_probe_failed'
         : stage === 'submit_and_wait'
@@ -591,7 +692,9 @@ export function finalizeNotarizedDmg() {
       stage,
       message: error instanceof Error ? error.message : String(error),
       retry_disposition: hasSubmissionId
-        ? 'read_only_reconcile_submission_no_retry'
+        ? permanentSubmissionFailure
+          ? 'new_operation_required_no_retry'
+          : 'read_only_reconcile_submission_no_retry'
         : stage === 'submit_and_wait'
           ? 'read_only_history_reconcile_before_new_operation'
           : 'new_operation_required_no_retry',

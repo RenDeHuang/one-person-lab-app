@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
+  notarizationObservationDeadlineMs,
   notarizationWaitTimeoutSeconds,
   preNotarizationCommandTimeoutMs,
   timestampSigningMaximumAttempts,
@@ -37,6 +38,7 @@ function fixture(
     | 'timeout-three'
     | 'timeout-all'
     | 'fail' = 'success',
+  notaryInfoStatuses: Array<'Accepted' | 'In Progress' | 'Rejected' | 'Invalid'> = [waitStatus],
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-notarize-dmg-test-'));
   const binaryRoot = path.join(root, 'bin');
@@ -45,8 +47,11 @@ function fixture(
   const outputPath = path.join(root, 'receipt.json');
   const timestampSigningAttemptFile = path.join(root, 'timestamp-signing-attempts');
   const timestampProbeAttemptFile = path.join(root, 'timestamp-probe-attempts');
+  const notaryInfoAttemptFile = path.join(root, 'notary-info-attempts');
+  const notaryInfoStatusFile = path.join(root, 'notary-info-statuses');
   fs.mkdirSync(binaryRoot);
   fs.writeFileSync(dmgPath, 'full-dmg-fixture', 'utf8');
+  fs.writeFileSync(notaryInfoStatusFile, `${notaryInfoStatuses.join('\n')}\n`, 'utf8');
 
   writeExecutable(path.join(binaryRoot, 'hdiutil'), `#!/bin/sh
 printf 'hdiutil %s\n' "$*" >> "$OPL_TEST_COMMAND_LOG"
@@ -148,7 +153,15 @@ if [ "$1" = notarytool ] && [ "$2" = wait ]; then
   if [ '${waitStatus}' = Accepted ]; then exit 0; else exit 1; fi
 fi
 if [ "$1" = notarytool ] && [ "$2" = info ]; then
-  printf '%s\n' '{"id":"${submissionId}","status":"${waitStatus}"}'
+  attempt=0
+  if [ -f "$OPL_TEST_NOTARY_INFO_ATTEMPT_FILE" ]; then
+    attempt=$(cat "$OPL_TEST_NOTARY_INFO_ATTEMPT_FILE")
+  fi
+  attempt=$((attempt + 1))
+  printf '%s' "$attempt" > "$OPL_TEST_NOTARY_INFO_ATTEMPT_FILE"
+  status=$(sed -n "\${attempt}p" "$OPL_TEST_NOTARY_INFO_STATUS_FILE")
+  if [ -z "$status" ]; then status=$(tail -n 1 "$OPL_TEST_NOTARY_INFO_STATUS_FILE"); fi
+  printf '{"id":"${submissionId}","status":"%s"}\n' "$status"
   exit 0
 fi
 exit 0
@@ -175,6 +188,10 @@ exit 0
       OPL_TEST_COMMAND_LOG: commandLog,
       OPL_TEST_TIMESTAMP_SIGNING_ATTEMPT_FILE: timestampSigningAttemptFile,
       OPL_TEST_TIMESTAMP_PROBE_ATTEMPT_FILE: timestampProbeAttemptFile,
+      OPL_TEST_NOTARY_INFO_ATTEMPT_FILE: notaryInfoAttemptFile,
+      OPL_TEST_NOTARY_INFO_STATUS_FILE: notaryInfoStatusFile,
+      OPL_NOTARIZATION_TEST_NOTARY_POLL_INTERVAL_MS: '1',
+      OPL_NOTARIZATION_TEST_NOTARY_POLL_MAX_MS: '25',
       OPL_TEST_TIMESTAMP_SIGNING_BEHAVIOR: timestampSigningBehavior,
       ...(timestampSigningBehavior === 'timeout-once'
         || timestampSigningBehavior === 'timeout-three'
@@ -204,6 +221,9 @@ exit 0
     timestampProbeAttempts: fs.existsSync(timestampProbeAttemptFile)
       ? Number(fs.readFileSync(timestampProbeAttemptFile, 'utf8'))
       : 0,
+    notaryInfoAttempts: fs.existsSync(notaryInfoAttemptFile)
+      ? Number(fs.readFileSync(notaryInfoAttemptFile, 'utf8'))
+      : 0,
   };
 }
 
@@ -223,6 +243,18 @@ test('notarization wait budget preserves the exact post-notarization reserve', (
     operationDeadlineAt: '2026-08-01T01:20:59.000Z',
     nowMs: Date.parse('2026-08-01T01:00:00.000Z'),
   }), /twenty minutes of operation reserve/);
+});
+
+test('notarization observation is capped below the Intel runner timeout while preserving operation reserve', () => {
+  const nowMs = Date.parse('2026-08-01T01:00:00.000Z');
+  assert.equal(notarizationObservationDeadlineMs({
+    operationDeadlineAt: '2026-08-01T03:00:00.000Z',
+    nowMs,
+  }), nowMs + 30 * 60_000);
+  assert.equal(notarizationObservationDeadlineMs({
+    operationDeadlineAt: '2026-08-01T01:25:00.000Z',
+    nowMs,
+  }), nowMs + 5 * 60_000);
 });
 
 test('pre-notarization commands use the remaining operation budget without consuming notarization reserve', () => {
@@ -413,7 +445,27 @@ test('notarization persists the submission id before a separate bounded wait', (
       /--wait/,
     );
     assert.match(value.commands, new RegExp(`xcrun notarytool wait ${submissionId} .* --timeout [1-9][0-9]*s`));
+    assert.equal(value.receipt.notarization.wait_timeout_seconds, 300);
     assert.doesNotMatch(value.commands, /notarytool info/);
+    assert.equal(value.receipt.notarization.info_poll_attempts, 0);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
+test('an incomplete notary wait polls the existing submission until Apple accepts it', () => {
+  const value = fixture('In Progress', 'success', ['In Progress', 'Accepted']);
+  try {
+    assert.equal(value.result.status, 0, value.result.stderr);
+    assert.equal(value.receipt.status, 'passed');
+    assert.equal(value.receipt.notarization.id, submissionId);
+    assert.equal(value.receipt.notarization.status, 'Accepted');
+    assert.equal(value.receipt.notarization.info_poll_attempts, 2);
+    assert.equal(value.notaryInfoAttempts, 2);
+    assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
+    assert.equal((value.commands.match(/notarytool wait/g) ?? []).length, 1);
+    assert.equal((value.commands.match(/notarytool info/g) ?? []).length, 2);
+    assert.match(value.commands, /stapler staple/);
   } finally {
     fs.rmSync(value.root, { recursive: true, force: true });
   }
@@ -428,6 +480,27 @@ test('an incomplete bounded wait emits durable typed reconcile evidence and neve
     assert.equal(value.receipt.notarization.status, 'In Progress');
     assert.equal(value.receipt.failure.code, 'notarization_submission_incomplete');
     assert.equal(value.receipt.failure.retry_disposition, 'read_only_reconcile_submission_no_retry');
+    assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
+    assert.equal((value.commands.match(/notarytool wait/g) ?? []).length, 1);
+    assert.ok(value.notaryInfoAttempts >= 1);
+    assert.equal(value.receipt.notarization.info_poll_attempts, value.notaryInfoAttempts);
+    assert.equal((value.commands.match(/notarytool info/g) ?? []).length, value.notaryInfoAttempts);
+    assert.doesNotMatch(value.commands, /stapler staple/);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
+test('a permanent notarization rejection fails closed without polling or stapling', () => {
+  const value = fixture('In Progress', 'success', ['Rejected']);
+  try {
+    assert.notEqual(value.result.status, 0);
+    assert.equal(value.receipt.status, 'failed');
+    assert.equal(value.receipt.notarization.id, submissionId);
+    assert.equal(value.receipt.notarization.status, 'Rejected');
+    assert.equal(value.receipt.notarization.info_poll_attempts, 1);
+    assert.equal(value.receipt.failure.code, 'notarization_submission_rejected');
+    assert.equal(value.receipt.failure.retry_disposition, 'new_operation_required_no_retry');
     assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
     assert.equal((value.commands.match(/notarytool wait/g) ?? []).length, 1);
     assert.equal((value.commands.match(/notarytool info/g) ?? []).length, 1);
