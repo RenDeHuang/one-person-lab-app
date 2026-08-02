@@ -287,7 +287,7 @@
         "page_state_ref": "contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance",
         "route_classification": "core_dynamic_agent_runtime",
         "default_product_requirement": true,
-        "default_release_gate": false,
+        "default_release_gate": true,
         "adopted_shell_requirement": true,
         "active_aionui_navigation_requirement": true,
         "active_aionui_navigation_may_remove_or_weaken": false,
@@ -349,7 +349,7 @@
         "archived"
       ],
       "conditional_entries": [],
-      "runtime_entry_role": "active_aionui_primary_navigation_while_route_remains_optional_for_native_and_default_release_gate",
+      "runtime_entry_role": "active_aionui_primary_navigation_and_default_release_requirement_while_native_phase_one_candidate_parity_may_omit_runtime",
       "runtime_entry": {
         "route": "/runtime",
         "label_i18n": {
@@ -363,7 +363,7 @@
         "narrow_drawer_behavior": "icon_and_label",
         "keyboard_reachable": true,
         "home_content_effect": "navigation_only_no_dashboard",
-        "route_gate_boundary": "native_phase_one_and_default_release_gate_remain_optional"
+        "route_gate_boundary": "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime"
       },
       "capabilities_mapping": "capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page",
       "legacy_capabilities_route": "/capabilities redirects to /guid without deleting capability data or Settings management",
@@ -2567,7 +2567,7 @@
         "narrow_drawer_behavior": "icon_and_label",
         "keyboard_reachable": true,
         "home_content_effect": "navigation_only_no_dashboard",
-        "route_gate_boundary": "native_phase_one_and_default_release_gate_remain_optional"
+        "route_gate_boundary": "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime"
       }
     },
     "runtime_notice_policy_ref": "ui_experience_contract.home.runtime_notice",
@@ -5690,7 +5690,7 @@
     "runtime_status": {
       "route_classification": "core_dynamic_agent_runtime",
       "default_product_requirement": true,
-      "default_release_gate": false,
+      "default_release_gate": true,
       "adopted_shell_requirement": true,
       "explicit_validation_command": "npm run validate:runtime-route",
       "state_source": "opl app state --profile fast --json",

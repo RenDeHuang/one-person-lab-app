@@ -398,7 +398,7 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
     throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
   }
   if (Object.hasOwn(candidate.target_product_shape, 'runtime_page_policy')) {
-    throw new Error(`${candidate.id}.target_product_shape must not make the optional Runtime route part of Native phase-one parity`);
+    throw new Error(`${candidate.id}.target_product_shape must omit the core Runtime route from Native phase-one candidate parity`);
   }
   if (
     candidate.target_product_shape.default_visual_basis !== 'codex_app_composer_first' ||
@@ -459,7 +459,7 @@ function validateCandidateFrameworkSurfaces(candidate: ShellCandidate): void {
     }
   }
   if (Object.hasOwn(candidate.framework_surfaces, 'full_drilldown')) {
-    throw new Error(`${candidate.id}.framework_surfaces must not require optional Runtime full drilldown in Native phase one`);
+    throw new Error(`${candidate.id}.framework_surfaces must omit Runtime full drilldown from Native phase-one candidate parity`);
   }
 }
 
@@ -501,7 +501,7 @@ function validateCandidateSeriesDisplayContract(candidate: ShellCandidate): void
 function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.required_capabilities, requiredNativeCapabilities, `${candidate.id}.required_capabilities`);
   if (candidate.required_capabilities.includes('runtime_summary_detail_action_bridge')) {
-    throw new Error(`${candidate.id}.required_capabilities must keep the optional Runtime route outside Native phase one`);
+    throw new Error(`${candidate.id}.required_capabilities must omit the Runtime parity capability from Native phase one`);
   }
   assertStringArrayIncludes(candidate.must_not_own, forbiddenAuthority, `${candidate.id}.must_not_own`);
   assertStringArrayIncludes(candidate.forbidden_home_controls, [
@@ -731,7 +731,7 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
   if (target.capability_inventory.includes(
     'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
   )) {
-    throw new Error(`${candidate.id} target must keep the optional Runtime route outside Native phase-one context tabs`);
+    throw new Error(`${candidate.id} target must omit Runtime from Native phase-one context-tab parity`);
   }
 
   const pilotdeckTarget = candidate.pilotdeck_information_architecture_target;

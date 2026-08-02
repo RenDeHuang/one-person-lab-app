@@ -1374,7 +1374,7 @@ export const appOwnedActiveAionuiPrimaryNavigation = {
     narrow_drawer_behavior: "icon_and_label",
     keyboard_reachable: true,
     home_content_effect: "navigation_only_no_dashboard",
-    route_gate_boundary: "native_phase_one_and_default_release_gate_remain_optional",
+    route_gate_boundary: "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime",
   },
 };
 export const appOwnedHomeLayout = {
