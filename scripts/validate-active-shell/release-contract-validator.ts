@@ -854,7 +854,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     legacy?.historical_receipts_remain_readable !== true ||
     legacy?.new_legacy_dispatch_publish_or_rebuild_allowed !== false ||
     JSON.stringify(legacy?.accepted_read_only_commands) !== JSON.stringify(['verify', 'status']) ||
-    legacy?.retired_scripts_may_parse_historical_receipts !== true ||
+    legacy?.retired_scripts_may_parse_historical_receipts !== false ||
     legacy?.retired_scripts_may_be_package_or_workflow_mutation_entrypoints !== false ||
     legacy?.legacy_contract_role !== 'historical_receipt_verification_only' ||
     acceleration?.scope !== 'product_build_qualification_vm_and_cache_policy_only' ||
@@ -865,7 +865,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     acceleration?.state_authority_ref !== 'release_bundle_control_plane.framework_authority' ||
     acceleration?.github_actions?.live_release_mutation_authority !== false
   ) {
-    throw new Error('Legacy release broker, session, and operator surfaces must remain historical receipt readers only');
+    throw new Error('Legacy release broker, session, and operator implementations must remain absent while retained Bundle status commands read historical evidence');
   }
   assertIncludesAll(
     legacy.parser_forbidden_capabilities,

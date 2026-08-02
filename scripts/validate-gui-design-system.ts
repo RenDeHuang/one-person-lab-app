@@ -850,7 +850,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     visualComparison.schema !== 'opl_app_gui_visual_comparison.v1' ||
     visualComparison.active_reference_cohort_ref !== visualReferenceCohortPath ||
-    visualComparison.shell_comparator_ref !== 'scripts/compare-gui-visual-cohort.ts' ||
+    visualComparison.shell_comparator_ref !== 'opl-aion-shell/scripts/compare-gui-visual-cohort.ts' ||
     !sameStrings(visualComparison.shared_primitive_ids, visualPrimitiveIds) ||
     !sameStrings(visualComparison.required_binding_fields, [
       'reference_baseline_id',
@@ -919,7 +919,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     cohortCandidate.app_contract_ref !==
       'contracts/app-gui-product-contract.json#gui_maintenance_policy.visual_comparison_protocol' ||
     cohortCandidate.shell_source_ref !== 'active_shell_checkout_git_head' ||
-    cohortCandidate.comparison_tool !== 'scripts/compare-gui-visual-cohort.ts'
+    cohortCandidate.comparison_tool !== 'opl-aion-shell/scripts/compare-gui-visual-cohort.ts'
   ) {
     issues.add('visual reference cohort must bind a reachable pending-or-approved App-owned baseline and thin AionUI candidate route');
   }

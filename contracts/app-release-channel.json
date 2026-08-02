@@ -1860,11 +1860,11 @@
       "removed_live_implementation_scripts": [
         "scripts/stable-release-reconcile.ts"
       ],
-      "retired_scripts_may_parse_historical_receipts": true,
+      "retired_scripts_may_parse_historical_receipts": false,
       "retired_scripts_may_be_package_or_workflow_mutation_entrypoints": false,
       "legacy_contract": "contracts/app-release-broker-authority.json",
       "legacy_contract_role": "historical_receipt_verification_only",
-      "rule": "Legacy App Bundle, session, broker, and operator surfaces are uniformly historical_read_only. Their parsers may only read and verify historical receipts; they cannot create state or authorize any live release action."
+      "rule": "Legacy App session, broker, and operator implementations are absent. Historical evidence remains readable through the retained Bundle status commands and JSON contracts; no legacy implementation can create state or authorize a live release action."
     },
     "validation_canary": {
       "workflow": ".github/workflows/release-bundle-canary.yml",

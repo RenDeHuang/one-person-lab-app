@@ -12,7 +12,6 @@
   "files": [
     "scripts/app-root-boundary.ts",
     "scripts/gui-launcher.ts",
-    "scripts/run-stable-release.ts",
     "scripts/sync-codex-model-policy.ts"
   ]
 }
