@@ -57,7 +57,12 @@ function createPublishHandoff(t: test.TestContext, version = '26.7.22') {
     package_kind: 'opl_full_first_install_macos_arm64',
     version,
     primary_install_asset: dmgName,
-    assets: [{ name: dmgName, role: 'full_first_install_carrier', size_bytes: dmg.size_bytes, sha256: dmg.sha256 }],
+    assets: [{
+      name: dmgName,
+      role: 'full_first_install_carrier',
+      size_bytes: dmg.size_bytes,
+      sha256: `sha256:${dmg.sha256}`,
+    }],
     manifest: { version },
   });
   writeJson(path.join(root, 'manual-latest-source-lock.json'), {

@@ -450,7 +450,7 @@ export function writeFullRemoteAssets(outDir, version) {
             name: fullDmgName,
             role: "full_first_install_carrier",
             size_bytes: fs.statSync(path.join(outDir, fullDmgName)).size,
-            sha256: fileSha256(path.join(outDir, fullDmgName)),
+            sha256: `sha256:${fileSha256(path.join(outDir, fullDmgName))}`,
           },
         ],
         manifest,

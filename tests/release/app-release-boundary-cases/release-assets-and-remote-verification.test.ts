@@ -293,6 +293,61 @@ process.exit(0);
   assert.equal(fs.existsSync(stateReadsPath), false);
 });
 
+test('publisher inspection accepts the canonical prefixed Full manifest digest', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-prefixed-digest-'));
+  const fullDir = path.join(tempRoot, 'full');
+  const version = '26.7.13';
+  writeFullRemoteAssets(fullDir, version);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullDir,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_MODE: 'template',
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('publisher inspection rejects a legacy bare Full manifest digest', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-bare-digest-'));
+  const fullDir = path.join(tempRoot, 'full');
+  const version = '26.7.13';
+  writeFullRemoteAssets(fullDir, version);
+  const manifestPath = path.join(fullDir, 'opl-release-manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.assets[0].sha256 = manifest.assets[0].sha256.slice('sha256:'.length);
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+  const result = runNode([
+    'scripts/publish-release.ts',
+    '--no-build',
+    '--dry-run',
+    '--version',
+    version,
+    '--full-package-only',
+    '--include-full-package',
+    '--full-package-dir',
+    fullDir,
+  ], {
+    env: {
+      OPL_RELEASE_NOTES_MODE: 'template',
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Full public release manifest does not bind/);
+});
+
 test('publisher inspection rejects a Full manifest with mixed Developer ID identities', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-full-mixed-identity-'));
   const fullDir = path.join(tempRoot, 'full');

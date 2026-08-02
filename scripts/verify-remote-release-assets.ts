@@ -1174,7 +1174,7 @@ function assertFullAssets(downloadDir, version, verifiedAssets) {
   const fullDmgManifestAsset = releaseManifest?.assets?.find(
     (asset) => asset?.name === fullDmgName,
   );
-  if (releaseManifest && fullDmgManifestAsset?.sha256 !== fullDmgAsset.sha256) {
+  if (releaseManifest && fullDmgManifestAsset?.sha256 !== `sha256:${fullDmgAsset.sha256}`) {
     throw new Error(`Full release manifest sha256 mismatch for ${fullDmgName}.`);
   }
   return {

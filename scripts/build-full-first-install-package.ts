@@ -63,7 +63,7 @@ function readJsonIfExists(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
-function buildFullPublicReleaseManifest(input) {
+export function buildFullPublicReleaseManifest(input) {
   return {
     schema: 'opl_public_release_manifest.v1',
     package_kind: 'opl_full_first_install_macos_arm64',
@@ -76,7 +76,7 @@ function buildFullPublicReleaseManifest(input) {
         name: input.artifactNames.dmg,
         role: 'full_first_install_carrier',
         size_bytes: fs.statSync(input.fullDmgPath).size,
-        sha256: fileSha256(input.fullDmgPath),
+        sha256: `sha256:${fileSha256(input.fullDmgPath)}`,
       },
     ],
     manifest: input.fullPackageManifest,

@@ -362,7 +362,11 @@ function validatePublishReceipts(
   const publicDmg = Array.isArray(publicManifest.assets)
     ? publicManifest.assets.find((entry: unknown) => isRecord(entry) && entry.name === dmg.name)
     : null;
-  if (!publicDmg || publicDmg.size_bytes !== dmg.size_bytes || publicDmg.sha256 !== dmg.sha256) {
+  if (
+    !publicDmg
+    || publicDmg.size_bytes !== dmg.size_bytes
+    || publicDmg.sha256 !== `sha256:${dmg.sha256}`
+  ) {
     throw new Error('Public Full manifest is not bound to the exact DMG.');
   }
   return sourceCommit;
