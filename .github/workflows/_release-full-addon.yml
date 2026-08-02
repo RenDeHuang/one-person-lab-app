@@ -960,6 +960,7 @@ jobs:
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --publication-channel stable \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
