@@ -2146,6 +2146,7 @@ jobs:
             --compiled-expectations one-person-lab-app/contracts/app-first-run-compiled-expectations.json \
             --qualification-input-manifest one-person-lab-app/contracts/app-release-qualification-input-manifest.json \
             --full-input-manifest one-person-lab-app/contracts/app-full-third-party-source-manifest.json \
+            --full-package-manifest one-person-lab-app/dist/opl-full-release/full-package-manifest.json \
             --full-toolchain-observation-receipt one-person-lab-app/dist/opl-full-release/opl-full-toolchain-observation-receipt.json \
             --app-sha '${{ inputs.artifact_app_sha }}' \
             --shell-sha '${{ inputs.shell_ref }}' \
