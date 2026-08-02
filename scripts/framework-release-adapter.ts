@@ -1228,6 +1228,7 @@ export interface GitHubAdapterRuntime {
   run(command: string, args: string[], options: GitHubCommandOptions): GitHubCommandResult;
   now(): number;
   wait?(milliseconds: number): void;
+  onMutationAttempt?(evidence: JsonRecord): void;
   readTimeoutMs?: number;
   mutationTimeoutMs?: number;
 }
@@ -2007,6 +2008,7 @@ function runGitHubMutation(input: {
     remote_target: input.remoteTarget,
     ...commandEvidence(input.args, input.body, result, timeoutMs),
   };
+  input.runtime.onMutationAttempt?.(evidence);
   if (result.status !== 0 || result.error) {
     return {
       status: 'outcome_unknown',
@@ -2512,7 +2514,7 @@ function publishDraftRelease(options: {
   };
 }
 
-export function applyPublishPlan(
+function applyPublishPlanInternal(
   values: AdapterOptionValues,
   runtime: GitHubAdapterRuntime = defaultGitHubRuntime,
 ): JsonRecord {
@@ -2724,7 +2726,7 @@ export function applyPublishPlan(
       tag,
       name,
       notes,
-      targetCommitish: bundle.sources.app.source_commit,
+      targetCommitish,
       prerelease: publicationChannel === 'nightly',
       draft: true,
     });
@@ -2754,7 +2756,7 @@ export function applyPublishPlan(
     tag,
     name,
     notes,
-    targetCommitish: bundle.sources.app.source_commit,
+    targetCommitish,
     prerelease: publicationChannel === 'nightly',
     releaseId,
     actions: uploadActions,
@@ -2770,6 +2772,56 @@ export function applyPublishPlan(
     uploaded,
     adjunct,
   };
+}
+
+export function applyPublishPlan(
+  values: AdapterOptionValues,
+  runtime: GitHubAdapterRuntime = defaultGitHubRuntime,
+): JsonRecord {
+  const mutationAttempts: JsonRecord[] = [];
+  const trackedRuntime: GitHubAdapterRuntime = {
+    ...runtime,
+    run: runtime.run.bind(runtime),
+    now: runtime.now.bind(runtime),
+    ...(runtime.wait ? { wait: runtime.wait.bind(runtime) } : {}),
+    onMutationAttempt(evidence) {
+      mutationAttempts.push(evidence);
+      runtime.onMutationAttempt?.(evidence);
+    },
+  };
+  try {
+    return applyPublishPlanInternal(values, trackedRuntime);
+  } catch (error) {
+    if (mutationAttempts.length === 0) throw error;
+    if (error instanceof GitHubMutationFailure) {
+      throw new GitHubMutationFailure(error.message, {
+        ...error.result,
+        mutation_attempted: true,
+        mutation_attempts: mutationAttempts,
+        retry_disposition: 'read_only_reconcile_only_no_retry',
+        failure: {
+          ...error.result.failure,
+          mutation_attempted: true,
+          mutation_attempts: mutationAttempts,
+        },
+      });
+    }
+    const typed = githubMutationFailure(
+      'github-apply',
+      values,
+      'github_mutation_failed',
+      error instanceof Error ? error.message : String(error),
+      {
+        mutation_attempted: true,
+        mutation_attempts: mutationAttempts,
+      },
+      error instanceof GitHubReadError ? error.evidence : undefined,
+      'read_only_reconcile_only_no_retry',
+    );
+    typed.result.mutation_attempted = true;
+    typed.result.mutation_attempts = mutationAttempts;
+    throw typed;
+  }
 }
 
 function activateLatestCas(input: {

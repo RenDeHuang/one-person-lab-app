@@ -702,6 +702,89 @@ function immutableCapabilityResponse(enabled = true): GitHubCommandResult {
   return success({ enabled, enforced_by_owner: false });
 }
 
+function fullPublicationRuntime(
+  files: ReturnType<typeof fixture>,
+  options: { targetDriftAfterFirstUpload?: string } = {},
+) {
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
+  const calls: string[][] = [];
+  const mutationInputs: string[] = [];
+  const remoteAssets: Asset[] = [];
+  let tagReserved = false;
+  let created = false;
+  let published = false;
+  const response = () => ({
+    id: 12345,
+    tag_name: adjunct.tag,
+    name: adjunct.name,
+    draft: !published,
+    prerelease: false,
+    target_commitish: remoteAssets.length > 0 && options.targetDriftAfterFirstUpload
+      ? options.targetDriftAfterFirstUpload
+      : executorCommit,
+    body: adjunct.notes,
+    immutable: published,
+    assets: remoteAssets.map((asset) => ({
+      name: asset.name,
+      size: asset.size_bytes,
+      digest: asset.sha256,
+    })),
+  });
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    run(_command, args, commandOptions) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
+        return published
+          ? success(response())
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isReleaseViewFor(args, adjunct.tag, repo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
+        assert.equal(created, true);
+        return success(response());
+      }
+      if (isTagRefReadFor(args, adjunct.tag, repo)) {
+        return tagReserved
+          ? tagRefResponse(adjunct.tag, executorCommit)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        mutationInputs.push(String(commandOptions.input));
+        return tagRefResponse(adjunct.tag, executorCommit);
+      }
+      if (
+        args[0] === 'api'
+        && args[1] === '--method'
+        && args[2] === 'POST'
+        && args[3] === `repos/${repo}/releases`
+      ) {
+        created = true;
+        mutationInputs.push(String(commandOptions.input));
+        return success(response());
+      }
+      if (args[0] === 'release' && args[1] === 'upload') {
+        const uploaded = files.uploadActions.find((asset) => asset.source_path === args[3]);
+        assert.ok(uploaded, `unexpected upload ${args[3]}`);
+        remoteAssets.push(uploaded);
+        return success();
+      }
+      if (args.includes('PATCH')) {
+        published = true;
+        mutationInputs.push(String(commandOptions.input));
+        return success(response());
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+  return { adjunct, calls, mutationInputs, remoteAssets, runtime };
+}
+
 test('absent GitHub Release remote inspection yields an empty receipt for the first upload plan', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-absent-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
@@ -1939,6 +2022,65 @@ test('append_full reserves the adjunct tag at the executor head, not the old con
     sha: executorCommit,
   });
   assert.notEqual(executorCommit, sourceCommit);
+});
+
+test('append_full creates, uploads both assets, and publishes against the executor head', () => {
+  const files = fixture([], 'append_full');
+  const simulated = fullPublicationRuntime(files);
+
+  const result = applyPublishPlan({
+    ...mutationAdmission('append_full', 'full'),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, simulated.runtime);
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.tag, simulated.adjunct.tag);
+  assert.equal(result.inspection.release.target_commitish, executorCommit);
+  assert.equal(result.inspection.release.immutable, true);
+  assert.deepEqual(result.uploaded, files.uploadActions.map((asset) => asset.name));
+  assert.deepEqual(simulated.remoteAssets.map((asset) => asset.name), [
+    `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
+    'opl-release-manifest.json',
+  ]);
+  assert.equal(
+    simulated.calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length,
+    2,
+  );
+  assert.equal(simulated.calls.filter((args) => args.includes('PATCH')).length, 1);
+  assert.equal(JSON.parse(simulated.mutationInputs[0]!).sha, executorCommit);
+  assert.equal(JSON.parse(simulated.mutationInputs[1]!).target_commitish, executorCommit);
+  assert.notEqual(executorCommit, sourceCommit);
+});
+
+test('an identity failure after an accepted Full mutation records read-only reconcile disposition', () => {
+  const files = fixture([], 'append_full');
+  const simulated = fullPublicationRuntime(files, {
+    targetDriftAfterFirstUpload: 'f'.repeat(40),
+  });
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission('append_full', 'full'),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, simulated.runtime),
+    (error: any) => {
+      assert.equal(error.result.status, 'failed');
+      assert.equal(error.result.retry_disposition, 'read_only_reconcile_only_no_retry');
+      assert.equal(error.result.failure.mutation_attempted, true);
+      assert.ok(error.result.failure.mutation_attempts.length >= 3);
+      assert.match(error.result.failure.stderr, /Release identity conflicts/);
+      return true;
+    },
+  );
+  assert.equal(
+    simulated.calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length,
+    1,
+  );
+  assert.equal(simulated.calls.filter((args) => args.includes('PATCH')).length, 0);
 });
 
 test('append_full identity fails closed without its own manifest and never inspects a Standard Release', () => {
