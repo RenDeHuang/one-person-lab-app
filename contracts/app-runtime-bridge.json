@@ -558,7 +558,7 @@
     "title_based_deduplication_allowed": false,
     "e2e_fixture_storage_policy": "isolated_storage_root_never_production_user_data",
     "directory_group_policy": {
-      "source": "explicit_project_affinity_projection_joined_by_canonical_thread_id",
+      "source": "explicit_project_affinity_else_non_managed_scratch_canonical_recorded_cwd_joined_by_canonical_thread_id",
       "role": "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",
       "owns_sessions": false,
       "owns_context": false,
@@ -566,8 +566,10 @@
       "group_delete_action_allowed": false,
       "cascade_session_delete_allowed": false,
       "new_session_action_language": "use_this_working_directory_not_create_project_child",
-      "project_directory_cardinality": "one_project_affinity_one_canonical_directory",
-      "recorded_cwd_compatibility_policy": "preserve_runtime_cwd_without_creating_or_blocking_project_affinity",
+      "project_directory_cardinality": "one_explicit_project_affinity_or_one_derived_recorded_cwd_group_per_canonical_thread",
+      "recorded_cwd_compatibility_policy": "non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_creating_or_blocking_project_affinity",
+      "derived_group_registered_workspace_mutation_allowed": false,
+      "managed_scratch_recorded_cwd_grouping_allowed": false,
       "git_origin_url_project_identity_allowed": false,
       "turn_cwd_reclassifies_bound_session": false,
       "project_adoption_policy": {

@@ -97,7 +97,9 @@ capability allowlist，已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
 也不允许已绑定 session 在 Project 之间任意重分组。Recorded cwd 是运行上下文，不等于用户显式 Project affinity；
 `~/Documents/Codex/**` managed scratch 保留真实 recorded cwd，但在侧栏投影为 projectless，不按叶子目录拆成 Project。
-Project 分组只接受显式 `projectId` projection，绝不从 recorded cwd、`custom_workspace`、turn 或 command `pwd` 推断。
+侧栏目录分组优先采用显式 `projectId`；没有 `projectId` 时，canonical App Server thread 的非 managed-scratch
+recorded cwd 自动生成只读目录组和“使用此工作目录新建对话”入口，不写回 `projectId`，也不修改注册目录集合。
+空 cwd 与 managed scratch 仍保持未分组。turn 或 command `pwd` 不参与分组，也不反写 affinity。
 当前 Shell 通过既有单一 App Server adapter 的 typed affinity IPC 分配一次显式 `projectId`，并以 assignment 与
 `thread/read.projectId` exact readback、recorded cwd 不变作为提交门；成功后才提交 rebuildable local projection。
 App Server 继续持有 canonical thread ID、history 和 recorded cwd authority；OPL 不增加第二 client 或私有 adoption service。
@@ -215,7 +217,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - 宽桌面默认显示目录/对话 rail，保持工作目录分组和 conversation history 可见；
   窄窗口改为 drawer，不能为增加工具而压缩主阅读列。
 - Active AionUI Rail 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 的 Native phase-1/default-release gate 仍保持可选。主体按 canonical thread ID 关联的显式
-  Project affinity 分组 App Server threads，底部承载 account/help/Settings；App Server canonical overview 可用时是 Codex
+  Project affinity 分组 App Server threads；没有显式 affinity 时，以非 managed-scratch recorded cwd 自动补出目录组。底部承载 account/help/Settings；App Server canonical overview 可用时是 Codex
   session directory authority，carrier 只保存 affinity、draft、preference 和可重建 cache。Git origin 与 runtime cwd 不作为
   Project identity。Rename/archive/restore/delete 分别映射 `thread/name/set`、
   `thread/archive`、`thread/unarchive`、`thread/delete`；pin 是 Shell UI metadata，本地 reset 不冒充
@@ -226,8 +228,9 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   与 archived bit，不比较固定数量。每个 canonical thread ID 最多一行，不能按标题或 workspace 去重。
 - Session/thread 是主单位，project/workspace/directory 不拥有 session、context 或 artifact。新 session 以所选目录
   初始化 cwd 或以 projectless 状态开始；`~/Documents/Codex/**` managed scratch 即使保留真实 recorded cwd 也保持
-  projectless 展示，不按其叶子目录建 Project。只有显式 `projectId` projection 可将 projectless session 一次性归入
-  一个 canonical directory group，保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
+  projectless 展示，不按其叶子目录建 Project。未注册的普通目录无需先在 OPL App 添加：canonical thread 的 recorded cwd
+  可直接生成目录组，但只承担展示和新对话 cwd 快捷入口，不改变 projectless identity。显式 `projectId` projection 仍可将
+  projectless session 一次性绑定到一个 canonical directory group，保留 thread identity 与 history。已绑定 session 的 Project affinity 不提供 A→B 任意重分组，命令或 turn 的实际
   `pwd` 不反写 affinity。目录组提供
   “使用此工作目录新建对话”的快捷动作，不提供组级删除，更不能级联删除 session。
 - Home/New task 与普通 conversation 共用同一 chat canvas 和 composer，不是
@@ -278,8 +281,8 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   显式选择的合法绝对本地路径；绝对路径不要求属于当前 workspace，也不存在 workspace-scoped project-context ref。
   traversal、非法 scheme、自动静默读取及 unsupported ref 保持可见并 fail closed，App/shell 不复制
   artifact body，也不猜测内容。
-- New session 只通过 composer 上方独立 context bar 的工作目录动作设置初始 cwd；projectless session 可从 rail 通过拖动或
-  键盘可达的等价动作一次性归入一个目录组。失败时保持 projectless 和对话可用。Shell 不创建 managed Worktree、
+- New session 只通过 composer 上方独立 context bar 或目录组快捷动作设置初始 cwd；canonical recorded cwd 可自动生成
+  未注册目录组，projectless session 仍可从 rail 通过拖动或键盘可达的等价动作一次性写入显式 affinity。失败时保持 projectless 和对话可用。Shell 不创建 managed Worktree、
   不保存 `workspace_handoff` metadata，也不提供已绑定 session 的任意目录重绑或 Local↔Worktree handoff。
 - Workspace/cwd 缺失按 fail-open 处理：保留 projectless new task、composer、显式本地输入和普通 Codex
   conversation；单个 Agent Package 的 Workspace/managed-target 前提或 readiness 故障不得升级为全局聊天门禁。

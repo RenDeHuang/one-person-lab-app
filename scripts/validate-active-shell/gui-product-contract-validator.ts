@@ -1101,7 +1101,7 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'exactly one Home root, composer shell, and footer account or Settings entry at every viewport',
       'each canonical thread ID rendered as at most one conversation row regardless of title',
       'canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows',
-      'directory groups derive only from explicit projectId affinity while recorded session cwd remains runtime metadata and a new-session cwd shortcut',
+      'non-managed-scratch canonical recorded cwd auto-loads a directory group and new-session cwd shortcut without creating explicit project affinity or mutating registered workspaces',
       'active AionUI primary navigation shows 运行状态 after New task and before Scheduled tasks in expanded, collapsed, and narrow drawer modes',
     ],
     'App GUI Home session-first identity signals',

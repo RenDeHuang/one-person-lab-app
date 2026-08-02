@@ -1481,12 +1481,12 @@ export const appOwnedSessionWorkspaceModel = {
   projectless_session_semantics:
     "no_user_selected_project_affinity_not_no_runtime_cwd",
   projectless_detection:
-    "explicit_project_id_absent_or_managed_scratch_never_inferred_from_recorded_cwd_or_runtime_pwd",
+    "explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_never_creates_directory_group",
   recorded_cwd_role:
-    "canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity",
+    "canonical_runtime_workspace_and_derived_directory_group_fallback_when_explicit_project_id_absent_and_not_managed_scratch",
   project_affinity_source: "explicit_project_id_projection",
   project_affinity_role:
-    "explicit_project_id_for_sidebar_grouping_and_new_session_project_shortcut_never_inferred_from_recorded_cwd",
+    "explicit_project_id_wins_for_sidebar_grouping_non_managed_scratch_recorded_cwd_only_supplies_derived_directory_group",
   managed_scratch_presentation:
     "user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups",
   workspace_binding_role:
@@ -1509,7 +1509,8 @@ export const appOwnedSessionWorkspaceModel = {
   workspace_group_cascade_session_delete_allowed: false,
 };
 export const appOwnedDirectoryGroupPolicy = {
-  source: "explicit_project_affinity_projection_joined_by_canonical_thread_id",
+  source:
+    "explicit_project_affinity_else_non_managed_scratch_canonical_recorded_cwd_joined_by_canonical_thread_id",
   role: "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",
   owns_sessions: false,
   owns_context: false,
@@ -1517,9 +1518,12 @@ export const appOwnedDirectoryGroupPolicy = {
   group_delete_action_allowed: false,
   cascade_session_delete_allowed: false,
   new_session_action_language: "use_this_working_directory_not_create_project_child",
-  project_directory_cardinality: "one_project_affinity_one_canonical_directory",
+  project_directory_cardinality:
+    "one_explicit_project_affinity_or_one_derived_recorded_cwd_group_per_canonical_thread",
   recorded_cwd_compatibility_policy:
-    "preserve_runtime_cwd_without_creating_or_blocking_project_affinity",
+    "non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_creating_or_blocking_project_affinity",
+  derived_group_registered_workspace_mutation_allowed: false,
+  managed_scratch_recorded_cwd_grouping_allowed: false,
   git_origin_url_project_identity_allowed: false,
   turn_cwd_reclassifies_bound_session: false,
   project_adoption_policy: {

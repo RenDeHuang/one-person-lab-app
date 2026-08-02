@@ -104,7 +104,7 @@ export function assertCanonicalThreadAffinityConvergenceSources({
   assertTextIncludesAll(
     focusedTests,
     [
-      'projects a managed Documents Codex task as a projectless sidebar row',
+      'keeps a managed Documents Codex task projectless and ungrouped',
       'assigns explicit project affinity once without changing the recorded cwd',
       'rejects project affinity reassignment',
       'keeps canonical adoption successful when the rebuildable local projection update fails',
@@ -117,6 +117,50 @@ export function assertCanonicalThreadAffinityConvergenceSources({
       'rejects a malformed cwd returned by canonical thread read',
     ],
     'Active shell project affinity convergence focused regressions',
+  );
+}
+
+export function assertCanonicalThreadDirectoryGroupingSources({
+  focusedTests,
+  groupingHelpers,
+}: {
+  focusedTests: string;
+  groupingHelpers: string;
+}): void {
+  assertTextIncludesAll(
+    groupingHelpers,
+    [
+      'const MANAGED_CODEX_SCRATCH_PATTERNS = [',
+      '/^\\/Users\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+      '/^\\/home\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+      '/^[a-z]:\\/Users\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+      '/^\\/mnt\\/[a-z]\\/Users\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+      "replaceAll('\\\\', '/')",
+      'export const getConversationDirectoryGroup =',
+      "const explicitProjectId = conversation.extra.canonical_project_id?.trim() ?? ''",
+      'if (explicitProjectId) return explicitProjectId',
+      'if (!workspace || isManagedCodexScratchWorkspace(workspace)) return null',
+      'return workspace',
+      'const projectWorkspace = getConversationDirectoryGroup(conv)',
+    ],
+    'Active shell canonical cwd directory grouping fallback',
+  );
+  assertTextExcludesAll(
+    groupingHelpers,
+    ['canonical_project_id: workspace', 'custom_workspace: true', 'assignProjectAffinity'],
+    'Active shell canonical cwd grouping must remain a presentation-only fallback',
+  );
+  assertTextIncludesAll(
+    focusedTests,
+    [
+      'projects a canonical task from explicit project affinity rather than recorded cwd',
+      'auto-loads an unregistered canonical cwd as a directory group',
+      'keeps a managed Documents Codex task projectless and ungrouped',
+      'keeps a canonical task without cwd projectless and ungrouped',
+      'keeps Linux, Windows, and WSL managed Codex scratch paths ungrouped',
+      'groups a canonical recorded cwd without rebuilding project affinity',
+    ],
+    'Active shell canonical cwd directory grouping focused regressions',
   );
 }
 
@@ -1652,6 +1696,10 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
   );
+  const groupingHelpers = readShellText(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/GroupedHistory/utils/groupingHelpers.ts',
+  );
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/ConversationRow.tsx',
@@ -1680,6 +1728,10 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
     conversationListSync,
     focusedTests: projectAffinityTests,
     threadAdapter,
+  });
+  assertCanonicalThreadDirectoryGroupingSources({
+    focusedTests: projectAffinityTests,
+    groupingHelpers,
   });
   assertCanonicalThreadDirectoryTimeoutBoundarySources({
     focusedTests: projectAffinityTests,

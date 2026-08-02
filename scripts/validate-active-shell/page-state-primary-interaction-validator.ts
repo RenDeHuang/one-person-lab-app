@@ -217,7 +217,7 @@ function validateGuidHomeVisibleSignals(guidHomePage) {
     'workspace/session rail visible on wide desktop and drawer on narrow windows',
     'each canonical thread ID rendered as at most one conversation row regardless of title',
     'canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows',
-    'directory groups derive only from explicit projectId affinity while recorded session cwd remains runtime metadata and a new-session cwd shortcut',
+    'non-managed-scratch canonical recorded cwd auto-loads a directory group and new-session cwd shortcut without creating explicit project affinity or mutating registered workspaces',
     'advanced work surfaces closed by default with no third column',
     'runtime/task progress available from Runtime page, not Home activity grid',
   ], 'Guid home page visible signals');

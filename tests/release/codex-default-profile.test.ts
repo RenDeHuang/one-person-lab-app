@@ -5,6 +5,7 @@ import { validateAppGuiProductContract } from '../../scripts/validate-active-she
 import { validatePrimaryInteractionPages } from '../../scripts/validate-active-shell/page-state-primary-interaction-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
 import {
+  assertCanonicalThreadDirectoryGroupingSources,
   assertCanonicalThreadDirectoryTimeoutBoundarySources,
   assertCanonicalThreadAffinityConvergenceSources,
   assertCurrentGuidHomeSelectionSources,
@@ -785,7 +786,7 @@ test('active-shell source gate keeps canonical cwd transport separate from sideb
     'canonical_project_id: canonicalProjectId || undefined',
   ];
   const focusedTestNames = [
-    'projects a managed Documents Codex task as a projectless sidebar row',
+    'keeps a managed Documents Codex task projectless and ungrouped',
     'assigns explicit project affinity once without changing the recorded cwd',
     'rejects project affinity reassignment',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
@@ -893,13 +894,68 @@ test('active-shell source gate keeps canonical cwd transport separate from sideb
   }
 });
 
-test('recorded cwd compatibility does not create sidebar project affinity', () => {
+test('active-shell source gate requires presentation-only canonical cwd directory auto-loading', () => {
+  const groupingMarkers = [
+    'const MANAGED_CODEX_SCRATCH_PATTERNS = [',
+    '/^\\/Users\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+    '/^\\/home\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+    '/^[a-z]:\\/Users\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+    '/^\\/mnt\\/[a-z]\\/Users\\/[^/]+\\/Documents\\/Codex(?:\\/|$)/i',
+    "replaceAll('\\\\', '/')",
+    'export const getConversationDirectoryGroup =',
+    "const explicitProjectId = conversation.extra.canonical_project_id?.trim() ?? ''",
+    'if (explicitProjectId) return explicitProjectId',
+    'if (!workspace || isManagedCodexScratchWorkspace(workspace)) return null',
+    'return workspace',
+    'const projectWorkspace = getConversationDirectoryGroup(conv)',
+  ];
+  const focusedTestNames = [
+    'projects a canonical task from explicit project affinity rather than recorded cwd',
+    'auto-loads an unregistered canonical cwd as a directory group',
+    'keeps a managed Documents Codex task projectless and ungrouped',
+    'keeps a canonical task without cwd projectless and ungrouped',
+    'keeps Linux, Windows, and WSL managed Codex scratch paths ungrouped',
+    'groups a canonical recorded cwd without rebuilding project affinity',
+  ];
+  const groupingHelpers = groupingMarkers.join('\n');
+  const focusedTests = focusedTestNames.join('\n');
+
+  assert.doesNotThrow(() => assertCanonicalThreadDirectoryGroupingSources({ focusedTests, groupingHelpers }));
+  for (const marker of groupingMarkers) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryGroupingSources({
+        focusedTests,
+        groupingHelpers: groupingHelpers.replace(marker, ''),
+      }),
+    );
+  }
+  for (const testName of focusedTestNames) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryGroupingSources({
+        focusedTests: focusedTests.replace(testName, ''),
+        groupingHelpers,
+      }),
+    );
+  }
+  for (const mutation of ['canonical_project_id: workspace', 'custom_workspace: true', 'assignProjectAffinity']) {
+    assert.throws(() =>
+      assertCanonicalThreadDirectoryGroupingSources({
+        focusedTests,
+        groupingHelpers: `${groupingHelpers}\n${mutation}`,
+      }),
+    );
+  }
+});
+
+test('recorded cwd compatibility auto-loads a directory group without creating project affinity', () => {
   const contract = readJson('contracts/app-gui-product-contract.json');
   const threadDirectory = contract.interaction_baseline.navigation_rail.thread_directory_policy;
   assert.equal(
     threadDirectory.directory_group_policy.recorded_cwd_compatibility_policy,
-    'preserve_runtime_cwd_without_creating_or_blocking_project_affinity',
+    'non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_creating_or_blocking_project_affinity',
   );
+  assert.equal(threadDirectory.directory_group_policy.derived_group_registered_workspace_mutation_allowed, false);
+  assert.equal(threadDirectory.directory_group_policy.managed_scratch_recorded_cwd_grouping_allowed, false);
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
   assert.equal(
     runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy.recorded_cwd_compatibility_policy,
@@ -911,20 +967,11 @@ test('recorded cwd compatibility does not create sidebar project affinity', () =
   );
 
   const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
-  assert.doesNotMatch(JSON.stringify(pageStateMatrix), /directory groups derived from canonical session cwd/);
-  assert.match(JSON.stringify(pageStateMatrix), /directory groups derive only from explicit projectId affinity/);
-
-  const sourceGate = fs.readFileSync(
-    'scripts/validate-active-shell/shell-ordinary-experience-validator.ts',
-    'utf8',
+  assert.match(
+    JSON.stringify(pageStateMatrix),
+    /non-managed-scratch canonical recorded cwd auto-loads a directory group/,
   );
-  for (const cwdDerivedAffinityMarker of [
-    'rebuilds a stale projectless cache row from the canonical recorded cwd',
-    'replaces stale bound shell affinity with the canonical recorded cwd',
-    'hydrates a legacy missing affinity marker from the canonical recorded cwd',
-  ]) {
-    assert.doesNotMatch(sourceGate, new RegExp(cwdDerivedAffinityMarker));
-  }
+  assert.match(JSON.stringify(pageStateMatrix), /recorded cwd alone treated as explicit Project affinity/);
 });
 
 test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {
@@ -1117,17 +1164,21 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(surfaces.fixed_count_assertion_allowed, false);
   assert.deepEqual(surfaces.project_affinity_presentation, {
-    recorded_cwd_role: 'canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity',
-    project_affinity_role: 'explicit_project_id_projection_never_inferred_from_recorded_cwd',
+    recorded_cwd_role:
+      'canonical_runtime_workspace_and_unregistered_directory_group_fallback_when_explicit_project_id_absent',
+    project_affinity_role:
+      'explicit_project_id_wins_for_sidebar_grouping_otherwise_non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_identity_writeback',
     managed_projectless_workspace_root: 'user_documents_codex_subtree',
     managed_root_grouping_policy:
       'preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups',
+    unregistered_directory_grouping_policy:
+      'auto_load_one_read_only_directory_group_and_new_session_cwd_shortcut_from_non_managed_scratch_recorded_cwd_without_project_id_assignment_or_registered_workspace_mutation',
     projectless_adoption_eligibility:
       'explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd',
   });
   assert.equal(
     threadDirectoryPolicy.directory_group_policy_authority,
-    'app_owned_explicit_project_affinity_contract_implemented_by_active_shell',
+    'app_owned_explicit_project_affinity_and_recorded_cwd_fallback_contract_implemented_by_active_shell',
   );
   assert.equal(
     threadDirectoryPolicy.project_affinity_presentation_authority_ref,
@@ -1139,16 +1190,16 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(
     guiWorkspaceModel.projectless_detection,
-    'explicit_project_id_absent_or_managed_scratch_never_inferred_from_recorded_cwd_or_runtime_pwd',
+    'explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_never_creates_directory_group',
   );
   assert.equal(
     guiWorkspaceModel.recorded_cwd_role,
-    'canonical_runtime_workspace_preserved_independently_of_sidebar_project_affinity',
+    'canonical_runtime_workspace_and_derived_directory_group_fallback_when_explicit_project_id_absent_and_not_managed_scratch',
   );
   assert.equal(guiWorkspaceModel.project_affinity_source, 'explicit_project_id_projection');
   assert.equal(
     guiWorkspaceModel.project_affinity_role,
-    'explicit_project_id_for_sidebar_grouping_and_new_session_project_shortcut_never_inferred_from_recorded_cwd',
+    'explicit_project_id_wins_for_sidebar_grouping_non_managed_scratch_recorded_cwd_only_supplies_derived_directory_group',
   );
   assert.equal(
     guiWorkspaceModel.managed_scratch_presentation,
@@ -1180,7 +1231,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     archived: 'independent_canonical_archived_thread_directory',
     all_search: 'explicit_canonical_historical_search_never_default_rail',
     project_affinity_presentation:
-      'recorded_cwd_preserved_explicit_project_id_groups_managed_user_documents_codex_unbound',
+      'recorded_cwd_preserved_explicit_project_id_wins_non_managed_scratch_cwd_auto_groups_managed_user_documents_codex_unbound',
     visible_id_consumers: ['default_rail', 'archived', 'pinned', 'workspace_groups', 'timeline'],
     fixed_count_acceptance_allowed: false,
   });
