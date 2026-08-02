@@ -1238,7 +1238,7 @@ jobs:
                 name: fullDmgName,
                 role: 'full_first_install_carrier',
                 size_bytes: fs.statSync(dmgPath).size,
-                sha256: crypto.createHash('sha256').update(fs.readFileSync(dmgPath)).digest('hex'),
+                sha256: `sha256:${crypto.createHash('sha256').update(fs.readFileSync(dmgPath)).digest('hex')}`,
               },
             ],
             manifest: readJson('full-package-manifest.json'),
@@ -2055,7 +2055,7 @@ jobs:
               full_content_sources: { role: 'observational_build_provenance_only', may_gate_install_or_runtime: false, app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
               differences: { executor_app_differs_from_full_content_app: executorSha !== appSha, full_content_app_differs_from_target_standard: appSha !== targetCommitish },
             },
-            assets: [{ name: fullDmgName, role: 'full_first_install_carrier', size_bytes: fs.statSync(dmgPath).size, sha256: crypto.createHash('sha256').update(fs.readFileSync(dmgPath)).digest('hex') }],
+            assets: [{ name: fullDmgName, role: 'full_first_install_carrier', size_bytes: fs.statSync(dmgPath).size, sha256: `sha256:${crypto.createHash('sha256').update(fs.readFileSync(dmgPath)).digest('hex')}` }],
             manifest: readJson('full-package-manifest.json'),
             evidence: {
               runtime_cache_events: readJson('runtime-cache-events.json'),

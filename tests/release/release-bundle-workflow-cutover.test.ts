@@ -2010,6 +2010,18 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.match(finalTrustScript, /full-intel-finalizer-handoff-receipt\.json/);
   assert.match(
+    finalTrustScript,
+    /sha256: `sha256:\$\{crypto\.createHash\('sha256'\)/,
+    'Intel finalizer must bind the public manifest with the canonical prefixed DMG digest',
+  );
+  assert.equal(
+    (readWorkflow('full-first-install-release.yml').match(
+      /sha256: `sha256:\$\{crypto\.createHash\('sha256'\)/g,
+    ) ?? []).length,
+    2,
+    'both Full public manifest producers must use the canonical prefixed digest',
+  );
+  assert.match(
     String(cohortWriter.run),
     /--full-input-manifest one-person-lab-app\/contracts\/app-full-third-party-source-manifest\.json/,
   );

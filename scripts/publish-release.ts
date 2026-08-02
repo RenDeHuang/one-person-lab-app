@@ -236,9 +236,10 @@ function inspectFullArtifacts(options: Options) {
   const asset = Array.isArray(releaseManifest.assets)
     ? releaseManifest.assets.find((entry: any) => entry?.name === dmgName)
     : null;
+  const fullDmgSha256 = fileSha256(dmgPath);
   if (!asset
     || asset.size_bytes !== fs.statSync(dmgPath).size
-    || asset.sha256 !== fileSha256(dmgPath)) {
+    || asset.sha256 !== `sha256:${fullDmgSha256}`) {
     throw new Error(`Full public release manifest does not bind ${dmgName} bytes.`);
   }
   if (releaseManifest.manifest?.distribution?.updater_metadata_allowed !== false) {
@@ -260,7 +261,7 @@ function inspectFullArtifacts(options: Options) {
   if (
     gatekeeperPolicy.team_identifier !== notarizationReceipt.team_identifier
     || gatekeeperPolicy.notarization_receipt_sha256 !== notarizationReceiptSha256
-    || notarizationReceipt.final_stapled_dmg_sha256 !== asset.sha256
+    || notarizationReceipt.final_stapled_dmg_sha256 !== fullDmgSha256
     || notarizationReceipt.final_stapled_dmg_size_bytes !== asset.size_bytes) {
     throw new Error(`Full Apple distribution evidence does not bind ${dmgName} to one Developer ID identity.`);
   }
