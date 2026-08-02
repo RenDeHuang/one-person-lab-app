@@ -1994,7 +1994,6 @@ jobs:
           jq -e '.status == "passed"' "$output_dir/full-runtime-currentness-probe.json" >/dev/null
           node --experimental-strip-types "$GITHUB_WORKSPACE/release-executor/scripts/verify-full-runtime-native-trust.ts" \
             --runtime-root "$mounted_runtime_root" \
-            --require-spctl \
             --expected-team-id "$EXPECTED_TEAM_ID" \
             --output "$output_dir/full-runtime-native-trust.json"
           jq -e '.status == "passed"' "$output_dir/full-runtime-native-trust.json" >/dev/null
@@ -2168,6 +2167,7 @@ jobs:
           path: |
             one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
             one-person-lab-app/dist/opl-full-release/full-intel-finalizer-handoff-receipt.json
+            one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
           if-no-files-found: warn
           retention-days: 30
 

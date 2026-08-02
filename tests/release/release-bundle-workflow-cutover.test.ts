@@ -1957,6 +1957,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.equal(notarizationEvidence.if, '${{ always() }}');
   assert.match(String(notarizationEvidence.with.name), /opl-full-notarization-evidence/);
+  assert.match(String(notarizationEvidence.with.path), /full-runtime-native-trust\.json/);
   assert.equal(notarizationEvidence.with['if-no-files-found'], 'warn');
 
   for (const name of [
@@ -1980,7 +1981,19 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     /\$GITHUB_WORKSPACE\/release-executor\/scripts\/verify-full-runtime-native-trust\.ts/,
   );
   assert.match(finalTrustScript, /--runtime-root "\$mounted_runtime_root"/);
-  assert.match(finalTrustScript, /--require-spctl/);
+  assert.doesNotMatch(
+    finalTrustScript,
+    /--require-spctl/,
+    'nested runtime executables inherit the notarized App carrier Gatekeeper assessment',
+  );
+  assert.match(
+    finalTrustScript,
+    /spctl --assess --type open --context context:primary-signature --verbose=4 "\$dmg_path"/,
+  );
+  assert.match(
+    finalTrustScript,
+    /spctl --assess --type execute --verbose=4 "\$mounted_app_path"/,
+  );
   assert.match(finalTrustScript, /--expected-team-id "\$EXPECTED_TEAM_ID"/);
   assert.match(finalTrustScript, /--output "\$output_dir\/full-runtime-native-trust\.json"/);
   assert.doesNotMatch(
