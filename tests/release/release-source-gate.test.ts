@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { runFrameworkReleaseCliConsumerGate } from '../../scripts/validate-framework-release-cli-consumer.ts';
 import { runShellProductProfileConsumerGate } from '../../scripts/validate-shell-product-profile-consumer.ts';
 import {
   buildReleaseSourceGateReport,
@@ -141,6 +142,74 @@ test('Shell product-profile consumer uses the frozen local vitest executable wit
   }
 });
 
+test('Framework release CLI consumer generates the ignored command surface after an isolated ignore-scripts install', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-framework-release-cli-command-'));
+  const frameworkRoot = path.join(root, 'framework');
+  fs.mkdirSync(path.join(frameworkRoot, 'bin'), { recursive: true });
+  fs.mkdirSync(path.join(frameworkRoot, 'scripts'), { recursive: true });
+  fs.writeFileSync(
+    path.join(frameworkRoot, '.gitignore'),
+    'node_modules/\nprepare-ran\nsrc/entrypoints/cli/command-surface-manifest.ts\n',
+  );
+  fs.writeFileSync(path.join(frameworkRoot, 'package.json'), `${JSON.stringify({
+    name: 'framework-release-cli-fixture',
+    version: '1.0.0',
+    scripts: {
+      prepare: 'node scripts/prepare.mjs',
+      'cli:surface:generate': 'node scripts/generate.mjs',
+    },
+  }, null, 2)}\n`);
+  fs.writeFileSync(path.join(frameworkRoot, 'package-lock.json'), `${JSON.stringify({
+    name: 'framework-release-cli-fixture',
+    version: '1.0.0',
+    lockfileVersion: 3,
+    requires: true,
+    packages: {
+      '': {
+        name: 'framework-release-cli-fixture',
+        version: '1.0.0',
+      },
+    },
+  }, null, 2)}\n`);
+  fs.writeFileSync(path.join(frameworkRoot, 'scripts', 'prepare.mjs'), "import fs from 'node:fs'; fs.writeFileSync('prepare-ran', 'unexpected\\n');\n");
+  fs.writeFileSync(
+    path.join(frameworkRoot, 'scripts', 'generate.mjs'),
+    "import fs from 'node:fs'; fs.mkdirSync('src/entrypoints/cli', { recursive: true }); fs.writeFileSync('src/entrypoints/cli/command-surface-manifest.ts', 'export {};\\n');\n",
+  );
+  fs.writeFileSync(
+    path.join(frameworkRoot, 'bin', 'opl'),
+    '#!/bin/sh\nset -eu\ntest ! -e prepare-ran\ntest -f src/entrypoints/cli/command-surface-manifest.ts\ntest "$1 $2 $3 $4" = "release checkpoint import --help"\nprintf "checkpoint import help\\n"\n',
+    { mode: 0o755 },
+  );
+
+  const git = (...args: string[]): string => {
+    const result = spawnSync('git', args, { cwd: frameworkRoot, encoding: 'utf8' });
+    assert.equal(result.status, 0, [result.stderr, result.stdout].filter(Boolean).join('\n'));
+    return result.stdout.trim();
+  };
+
+  try {
+    git('init', '-q');
+    git('config', 'user.name', 'OPL Release Test');
+    git('config', 'user.email', 'release-test@example.invalid');
+    git('add', '.gitignore', 'package.json', 'package-lock.json', 'bin/opl', 'scripts/prepare.mjs', 'scripts/generate.mjs');
+    git('commit', '-qm', 'fixture');
+
+    const report = runFrameworkReleaseCliConsumerGate({
+      frameworkRoot,
+      expectedFrameworkSha: git('rev-parse', 'HEAD'),
+    });
+
+    assert.equal(report.status, 'passed');
+    assert.equal(report.dependency_install, 'npm ci --ignore-scripts');
+    assert.equal(report.surface_generation, 'npm run cli:surface:generate');
+    assert.equal(report.release_cli_command, 'bin/opl release checkpoint import --help');
+    assert.equal(git('status', '--porcelain', '--untracked-files=normal'), '');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function runner(overrides: Record<string, { status: number; stdout?: string; stderr?: string }> = {}): CommandRunner {
   return (command, args, commandOptions) => {
     const key = `${commandOptions.cwd} $ ${command} ${args.join(' ')}`;
@@ -248,6 +317,20 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     }
     if (command === 'npm' && args.join(' ') === 'run validate:release-boundary' && commandOptions.cwd === repoRoot) {
       return { status: 0, stdout: 'release boundary ok\n', stderr: '' };
+    }
+    if (
+      command === process.execPath
+      && args.join(' ') === `--experimental-strip-types scripts/validate-framework-release-cli-consumer.ts --framework-root ${frameworkRoot} --expected-framework-sha ${frameworkHead}`
+      && commandOptions.cwd === repoRoot
+    ) {
+      return { status: 0, stdout: 'framework release CLI consumer ok\n', stderr: '' };
+    }
+    if (
+      command === process.execPath
+      && args.join(' ') === `--experimental-strip-types scripts/validate-framework-release-cli-consumer.ts --framework-root ${repoLocalFrameworkRoot} --expected-framework-sha ${frameworkHead}`
+      && commandOptions.cwd === repoRoot
+    ) {
+      return { status: 0, stdout: 'framework release CLI consumer ok\n', stderr: '' };
     }
     if (
       command === process.execPath
@@ -757,7 +840,10 @@ test('release source gate passes for clean canonical main and an immutable sourc
   assert.equal(checkStatus(report, 'github_owner_release_namespace'), 'passed');
   assert.equal(report.owner_release_namespace?.draft_reservations[0]?.id, preservedDraftId);
   assert.equal(checkStatus(report, 'app_release_boundary_contract'), 'passed');
+  assert.equal(checkStatus(report, 'framework_release_cli_consumer'), 'passed');
   assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'passed');
+  assert.equal(report.required_gates.find((gate) => gate.id === 'framework_release_cli_consumer')?.executed, true);
+  assert.equal(report.required_gates.find((gate) => gate.id === 'shell_product_profile_consumer')?.executed, true);
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
@@ -866,10 +952,48 @@ test('release source gate stops at the first required gate failure', () => {
   assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
   assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
   assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'blocked');
+  assert.equal(checkStatus(report, 'framework_release_cli_consumer'), 'blocked');
   assert.equal(report.typed_blocker?.phase, 'required_gate_execution');
   assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
   assert.equal(calls.some((call) => call === 'bun run format:check'), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
+});
+
+test('release source gate stops before Shell gates when the exact Framework release CLI consumer fails', () => {
+  const calls: string[] = [];
+  const consumerCommand = `${repoRoot} $ ${process.execPath} --experimental-strip-types scripts/validate-framework-release-cli-consumer.ts --framework-root ${frameworkRoot} --expected-framework-sha ${frameworkHead}`;
+  const baseRunner = runner({
+    [consumerCommand]: {
+      status: 1,
+      stderr: "ERR_MODULE_NOT_FOUND: src/entrypoints/cli/command-surface-manifest.ts\n",
+    },
+  });
+  const report = buildReleaseSourceGateReport(
+    options(),
+    (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      return baseRunner(command, args, commandOptions);
+    },
+    '2026-06-30T00:00:00.000Z',
+    {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: (candidatePath) => readSourceJson(candidatePath),
+    },
+  );
+
+  assert.equal(report.status, 'failed');
+  assert.equal(checkStatus(report, 'framework_release_cli_consumer'), 'failed');
+  assert.match(
+    report.checks.find((check) => check.id === 'framework_release_cli_consumer')?.message ?? '',
+    /command-surface-manifest/,
+  );
+  assert.equal(checkStatus(report, 'shell_product_profile_consumer'), 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
+  assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
+  assert.equal(calls.some((call) => call.includes('validate-shell-product-profile-consumer.ts')), false);
+  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(report.typed_blocker?.failed_check_ids[0], 'framework_release_cli_consumer');
 });
 
 test('release source gate stops before Shell-wide gates when current App profile fails the exact consumer', () => {
