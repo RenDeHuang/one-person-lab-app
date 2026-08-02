@@ -1001,6 +1001,20 @@ jobs:
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
             "${publication_record_args[@]}" \
             "${additional_upload_args[@]}" \
+            --mutation-mode rehearsal \
+            --output publication-contract-rehearsal.json
+          test "$(jq -r .status publication-contract-rehearsal.json)" = rehearsal_complete
+          test "$(jq -r .mutation_attempted publication-contract-rehearsal.json)" = false
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+            --bundle "$bundle" --plan publish-plan.json \
+            --publication-channel '${{ needs.restore.outputs.channel }}' \
+            --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-standard-publish" \
+            --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
+            "${publication_record_args[@]}" \
+            "${additional_upload_args[@]}" \
+            --mutation-mode execute \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"
           if [ "$apply_status" != complete ]; then

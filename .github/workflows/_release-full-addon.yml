@@ -448,6 +448,42 @@ jobs:
             echo "transport_run_id=$GITHUB_RUN_ID"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Admit executor-head Full publication target before build
+        env:
+          TARGET_STANDARD_COMMITISH: ${{ steps.identity.outputs.target_standard_target_commitish }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          executor_sha="$(git -C app-source rev-parse HEAD)"
+          test "$executor_sha" = "$GITHUB_SHA"
+          test "$executor_sha" != "$TARGET_STANDARD_COMMITISH" || {
+            echo "::notice::Full executor and target Standard currently share one App SHA; identities remain independently bound."
+          }
+          contract_target="$(jq -er .full_first_install.published_addon.carrier_identity.adjunct_git_ref_target app-source/contracts/app-release-channel.json)"
+          test "$contract_target" = release_executor.app_sha
+          jq -n \
+            --arg executor_sha "$executor_sha" \
+            --arg standard_target "$TARGET_STANDARD_COMMITISH" \
+            '{
+              schema:"opl_app_full_publication_target_admission.v1",
+              status:"passed",
+              mutation_authorized:false,
+              mutation_attempted:false,
+              adjunct_git_ref_target:{role:"release_executor",app_sha:$executor_sha},
+              target_standard_reference:{role:"reference_and_release_notes_only",target_commitish:$standard_target},
+              full_content_identity:{source:"opl-release-manifest.json",validated_after_build:true},
+              higher_privilege_workflows_token_required:false
+            }' > full-publication-target-admission.json
+
+      - name: Upload pre-build Full publication target admission
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-full-publication-target-admission-${{ github.run_id }}
+          path: full-publication-target-admission.json
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Persist typed checkpoint restore failure
         if: ${{ failure() }}
         shell: bash
@@ -965,6 +1001,22 @@ jobs:
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
             --publication-record "$capability_record" \
+            --executor-app-sha "$GITHUB_SHA" \
+            --mutation-mode rehearsal \
+            --output publication-contract-rehearsal.json
+          test "$(jq -r .status publication-contract-rehearsal.json)" = rehearsal_complete
+          test "$(jq -r .mutation_attempted publication-contract-rehearsal.json)" = false
+          test "$(jq -r .target_commitish publication-contract-rehearsal.json)" = "$GITHUB_SHA"
+          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+            --bundle "$bundle" --plan publish-plan.json \
+            --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --publication-channel stable \
+            --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
+            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
+            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            --publication-record "$capability_record" \
+            --executor-app-sha "$GITHUB_SHA" \
+            --mutation-mode execute \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"
           if [ "$apply_status" != complete ]; then
@@ -1160,6 +1212,7 @@ jobs:
           name: opl-release-full-published-${{ github.run_id }}
           path: |
             publish-plan.json
+            publication-contract-rehearsal.json
             publish-apply.json
             unknown-persisted.json
             unknown-checkpoint-export.json

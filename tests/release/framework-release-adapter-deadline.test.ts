@@ -39,6 +39,7 @@ const deadlineAt = '2026-07-21T01:00:00.000Z';
 const deadlineMs = Date.parse(deadlineAt);
 const notes = 'Prepared release notes\n';
 const sourceCommit = 'a'.repeat(40);
+const executorCommit = 'e'.repeat(40);
 const shellCommit = 'c'.repeat(40);
 const frameworkCommit = 'd'.repeat(40);
 const bundleDigest = `sha256:${'b'.repeat(64)}`;
@@ -212,6 +213,8 @@ function mutationAdmission(
     operation,
     track,
     'publication-channel': 'stable',
+    'mutation-mode': 'execute',
+    ...(track === 'full' ? { 'executor-app-sha': executorCommit } : {}),
     'operation-id': operation === 'append_full' ? appendFullOperationId : standardOperationId,
     'operation-started-at': operation === 'append_full'
       ? appendFullOperationStartedAt
@@ -415,7 +418,7 @@ function success(value: unknown = ''): GitHubCommandResult {
 
 function releaseResponse(
   assets: Asset[],
-  options: { draft?: boolean; immutable?: boolean } = {},
+  options: { draft?: boolean; immutable?: boolean; targetCommitish?: string } = {},
 ): Record<string, unknown> {
   return {
     id: 12345,
@@ -423,7 +426,7 @@ function releaseResponse(
     name: `One Person Lab v${version}`,
     draft: options.draft ?? false,
     prerelease: false,
-    target_commitish: sourceCommit,
+    target_commitish: options.targetCommitish ?? sourceCommit,
     body: notes,
     immutable: options.immutable ?? true,
     assets: assets.map((asset) => ({
@@ -609,7 +612,7 @@ function writeFullUploadActions(root: string): Asset[] {
         mutation_allowed: false,
       },
       release_executor: {
-        app_sha: 'e'.repeat(40),
+        app_sha: executorCommit,
         notarizer_path: 'scripts/notarize-macos-dmg.ts',
       },
       full_content_sources: {
@@ -1804,7 +1807,7 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
       if (isReleaseInspect(args)) return success(releaseResponse([]));
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
         return success({
-          ...releaseResponse(files.uploadActions),
+          ...releaseResponse(files.uploadActions, { targetCommitish: executorCommit }),
           tag_name: adjunct.tag,
           name: adjunct.name,
           body: adjunct.notes,
@@ -1826,6 +1829,116 @@ test('github-apply admits append_full only for a Framework Full publish plan', (
   assert.match(result.adjunct.notes, /Full content sources: App a{40}, Shell c{40}, Framework d{40}/);
   assert.match(result.adjunct.notes, /Release executor App source: e{40}/);
   assert.equal(calls, 1);
+});
+
+test('append_full rehearsal binds the real publication contract to the executor head without mutation', () => {
+  const files = fixture([], 'append_full');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isReleaseViewFor(args, adjunct.tag, repo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission('append_full', 'full'),
+    'mutation-mode': 'rehearsal',
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'rehearsal_complete');
+  assert.equal(result.mutation_authorized, false);
+  assert.equal(result.mutation_attempted, false);
+  assert.equal(result.target_commitish, executorCommit);
+  assert.equal(result.adjunct.target_standard_release.target_commitish, sourceCommit);
+  assert.equal(result.adjunct.release_executor.app_sha, executorCommit);
+  assert.equal(calls.some((args) => isTagRefCreateFor(args, repo)), false);
+  assert.equal(calls.some((args) => args.includes('POST') || args.includes('PATCH')), false);
+});
+
+test('append_full rejects the old content target before GitHub when it differs from the executor head', () => {
+  const files = fixture([], 'append_full');
+  let calls = 0;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run() {
+      calls += 1;
+      return success();
+    },
+  };
+
+  assert.throws(
+    () => applyPublishPlan({
+      ...mutationAdmission('append_full', 'full'),
+      'executor-app-sha': sourceCommit,
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime),
+    /must match the exact release executor/,
+  );
+  assert.equal(calls, 0);
+});
+
+test('append_full reserves the adjunct tag at the executor head, not the old content SHA', () => {
+  const files = fixture([], 'append_full');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
+  const tagBodies: string[] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 90_000,
+    run(_command, args, options) {
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isReleaseViewFor(args, adjunct.tag, repo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefReadFor(args, adjunct.tag, repo)) {
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagBodies.push(String(options.input));
+        return {
+          status: null,
+          signal: 'SIGTERM',
+          stdout: '',
+          stderr: 'timed out',
+          error: Object.assign(new Error('spawnSync gh ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+        };
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission('append_full', 'full'),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'outcome_unknown');
+  assert.equal(result.failure.mutation, 'tag_reserve');
+  assert.deepEqual(JSON.parse(tagBodies[0]!), {
+    ref: `refs/tags/${adjunct.tag}`,
+    sha: executorCommit,
+  });
+  assert.notEqual(executorCommit, sourceCommit);
 });
 
 test('append_full identity fails closed without its own manifest and never inspects a Standard Release', () => {
@@ -1862,7 +1975,10 @@ test('an exact published Full adjunct remains idempotent with complete discovery
       }
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
         return success({
-          ...releaseResponse(files.uploadActions, { immutable: true }),
+          ...releaseResponse(files.uploadActions, {
+            immutable: true,
+            targetCommitish: executorCommit,
+          }),
           tag_name: adjunct.tag,
           name: adjunct.name,
           body: adjunct.notes,

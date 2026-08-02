@@ -9,6 +9,10 @@ const fullWorkflow = fs.readFileSync(
   path.join(appRoot, ".github", "workflows", "full-first-install-release.yml"),
   "utf8",
 );
+const fullAddonWorkflow = fs.readFileSync(
+  path.join(appRoot, ".github", "workflows", "_release-full-addon.yml"),
+  "utf8",
+);
 const dockerCleanLinuxWorkflow = fs.readFileSync(
   path.join(appRoot, ".github", "workflows", "docker-webui-clean-linux-vm.yml"),
   "utf8",
@@ -58,10 +62,18 @@ test("Full VM validation rejects Framework injection into an already-built DMG",
   assert.match(firstRunVmWorkflow, /framework_args=\(--framework-sha/);
 });
 
-test("Full build artifacts use deterministic release-note inputs and survive optional package upload", () => {
+test("Full build artifacts survive optional upload while the real publication caller rehearses", () => {
   assert.match(fullWorkflow, /id: full_package_build/);
-  assert.match(fullWorkflow, /OPL_RELEASE_NOTES_MODE: template/);
+  assert.doesNotMatch(fullWorkflow, /scripts\/publish-release\.ts|OPL_RELEASE_NOTES_MODE: template/);
   assert.doesNotMatch(fullWorkflow, /OPL_RELEASE_NOTES_CODEX_API_KEY:[\s\S]*release:notes:prepare/);
+  assert.match(
+    fullAddonWorkflow,
+    /framework-release-adapter\.ts github-apply[\s\S]*--executor-app-sha "\$GITHUB_SHA"[\s\S]*--mutation-mode rehearsal/,
+  );
+  assert.match(
+    fullAddonWorkflow,
+    /framework-release-adapter\.ts github-apply[\s\S]*--executor-app-sha "\$GITHUB_SHA"[\s\S]*--mutation-mode execute/,
+  );
   assert.match(
     fullWorkflow,
     /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ success\(\) && steps\.full_package_build\.outcome == 'success'/,

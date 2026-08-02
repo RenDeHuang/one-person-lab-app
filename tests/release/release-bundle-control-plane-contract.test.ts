@@ -418,6 +418,13 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.framework_operation_receipt_schema, "opl_release_bundle_operation_receipt.v1");
   assert.equal(full.standard_assets_modified, false);
   assert.equal(full.carrier_identity.base_release_tag, "exact_existing_immutable_standard_reference");
+  assert.equal(full.carrier_identity.adjunct_git_ref_target, "release_executor.app_sha");
+  assert.equal(
+    full.carrier_identity.full_content_identity_source,
+    "opl-release-manifest.json#carrier_context.full_content_sources",
+  );
+  assert.equal(full.carrier_identity.standard_reference_role, "reference_and_release_notes_only");
+  assert.equal(full.carrier_identity.workflows_write_permission_required, false);
   assert.deepEqual(full.target_standard_reference.required_fields, [
     "repository",
     "release_id",

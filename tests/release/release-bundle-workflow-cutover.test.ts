@@ -1518,6 +1518,15 @@ test('mutation unknown states persist evidence and only use bounded read-only re
 });
 
 test('Full publication declares the Stable channel at the guarded GitHub adapter boundary', () => {
+  const fullAddon = parseWorkflow('_release-full-addon.yml');
+  const prebuildAdmission = fullAddon.jobs['restore-standard'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Admit executor-head Full publication target before build',
+  );
+  assert.match(String(prebuildAdmission.run), /git -C app-source rev-parse HEAD/);
+  assert.match(String(prebuildAdmission.run), /adjunct_git_ref_target/);
+  assert.match(String(prebuildAdmission.run), /release_executor\.app_sha/);
+  assert.match(String(prebuildAdmission.run), /mutation_authorized:false/);
+  assert.match(String(prebuildAdmission.run), /higher_privilege_workflows_token_required:false/);
   const publish = workflowStep(
     '_release-full-addon.yml',
     'publish-full',
@@ -1527,6 +1536,14 @@ test('Full publication declares the Stable channel at the guarded GitHub adapter
     String(publish.run),
     /framework-release-adapter\.ts github-apply[\s\S]*--publication-channel stable/,
   );
+  assert.equal(
+    (String(publish.run).match(/framework-release-adapter\.ts github-apply/g) ?? []).length,
+    2,
+  );
+  assert.match(String(publish.run), /--mutation-mode rehearsal/);
+  assert.match(String(publish.run), /--mutation-mode execute/);
+  assert.match(String(publish.run), /--executor-app-sha "\$GITHUB_SHA"/);
+  assert.doesNotMatch(String(publish.run), /scripts\/publish-release\.ts/);
 });
 
 test('Stable recovery scripts avoid Bash 4-only mapfile on macOS runners', () => {
@@ -1974,6 +1991,21 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(notarizationEvidence.with.name), /opl-full-notarization-evidence/);
   assert.match(String(notarizationEvidence.with.path), /full-runtime-native-trust\.json/);
   assert.equal(notarizationEvidence.with['if-no-files-found'], 'warn');
+
+  const buildDiagnostics = fullBuild.jobs['full-first-install'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload Full diagnostics artifact',
+  );
+  assert.equal(buildDiagnostics.if, '${{ always() && !inputs.cache_only }}');
+  assert.equal(buildDiagnostics.with['if-no-files-found'], 'warn');
+  const finalizerDiagnostics = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload Intel-finalized Full diagnostics artifact',
+  );
+  assert.equal(finalizerDiagnostics.if, '${{ always() }}');
+  assert.equal(finalizerDiagnostics.with['if-no-files-found'], 'warn');
+  assert.doesNotMatch(
+    readWorkflow('full-first-install-release.yml'),
+    /Verify (?:Intel-finalized )?Full artifact plan without (?:a )?release mutation/,
+  );
 
   for (const name of [
     'Upload Full package workflow artifact',

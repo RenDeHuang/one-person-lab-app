@@ -1469,7 +1469,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full diagnostics artifact
-        if: ${{ !inputs.cache_only && inputs.operation != 'append_full' }}
+        if: ${{ always() && !inputs.cache_only }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-diagnostics-${{ env.OPL_RELEASE_VERSION }}
@@ -1489,7 +1489,7 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Upload Full local authorization policy
@@ -1694,21 +1694,6 @@ jobs:
             exit 1
           fi
           printf 'artifact_digest=%s\n' "$canonical_digest" >> "$GITHUB_OUTPUT"
-
-      - name: Verify Full artifact plan without a release mutation
-        if: ${{ !inputs.cache_only && inputs.operation != 'append_full' && inputs.upload_full_package_artifact }}
-        working-directory: one-person-lab-app
-        env:
-          OPL_RELEASE_EXISTS: '0'
-          OPL_RELEASE_NOTES_MODE: template
-        run: |
-          node --experimental-strip-types scripts/publish-release.ts \
-            --no-build \
-            --dry-run \
-            --version "$OPL_RELEASE_VERSION" \
-            --repo "$GITHUB_REPOSITORY" \
-            --full-package-only \
-            --include-full-package
 
       - name: Write Full build artifact cohort manifest
         if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
@@ -2102,18 +2087,6 @@ jobs:
             --markdown > dist/opl-full-release/full-package-size-summary.md
           cat dist/opl-full-release/full-package-size-summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Verify Intel-finalized Full artifact plan without release mutation
-        working-directory: release-executor
-        env:
-          OPL_RELEASE_EXISTS: '0'
-          OPL_RELEASE_NOTES_MODE: template
-          OPL_FULL_PACKAGE_DIR: ${{ github.workspace }}/one-person-lab-app/dist/opl-full-release
-          OPL_APP_SHELL_ROOT: ${{ github.workspace }}/one-person-lab-app/shells/aionui
-        run: |
-          node --experimental-strip-types scripts/publish-release.ts \
-            --no-build --dry-run --version '${{ inputs.opl_version }}' \
-            --repo "$GITHUB_REPOSITORY" --full-package-only --include-full-package
-
       - name: Write Intel-finalized Full build artifact cohort manifest
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
@@ -2173,7 +2146,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Intel-finalized Full diagnostics artifact
-        if: ${{ success() }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-diagnostics-${{ inputs.opl_version }}
@@ -2193,7 +2166,7 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-intel-finalizer-handoff-receipt.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Upload Full package workflow artifact

@@ -15,6 +15,7 @@ import {
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
+import { validateGithubApplyCallerParity } from '../../scripts/validate-release-boundary/release-contract-policy.ts';
 import {
   buildPreNonceDispatchGuard,
   type CommandRunner,
@@ -130,6 +131,21 @@ test('release boundary admits the three-operation control plane and real no-secr
   assert.equal(validateNightlyReleaseTopology(process.cwd()), 0);
   assert.equal(validateIndependentWebuiPreviewTopology(process.cwd()), 0);
   assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);
+  assert.equal(validateGithubApplyCallerParity(process.cwd()), 0);
+});
+
+test('production github-apply callers keep rehearsal and execute CLI parity', (t) => {
+  const root = fixture(t);
+  assert.equal(validateGithubApplyCallerParity(root), 0);
+  const full = workflowPath(root, '_release-full-addon.yml');
+  const source = fs.readFileSync(full, 'utf8');
+  const mutated = source.replace(
+    '            --executor-app-sha "$GITHUB_SHA" \\\n            --mutation-mode rehearsal',
+    '            --mutation-mode rehearsal',
+  );
+  assert.notEqual(mutated, source);
+  fs.writeFileSync(full, mutated);
+  assert.ok(withoutExpectedDiagnostics(() => validateGithubApplyCallerParity(root)) > 0);
 });
 
 test('Stable operation set and global concurrency are exact and fail closed on drift', (t) => {
