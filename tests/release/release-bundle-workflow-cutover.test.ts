@@ -1908,6 +1908,9 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const finalizer = intelFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization on Intel',
   );
+  const cohortWriter = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Write Intel-finalized Full build artifact cohort manifest',
+  );
   const executorCheckout = intelFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Checkout canonical Full release executor',
   );
@@ -2006,6 +2009,14 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     'Intel finalizer must regenerate native trust from the final mounted DMG before binding public evidence',
   );
   assert.match(finalTrustScript, /full-intel-finalizer-handoff-receipt\.json/);
+  assert.match(
+    String(cohortWriter.run),
+    /--full-input-manifest one-person-lab-app\/contracts\/app-full-third-party-source-manifest\.json/,
+  );
+  assert.match(
+    String(cohortWriter.run),
+    /--full-package-manifest one-person-lab-app\/dist\/opl-full-release\/full-package-manifest\.json/,
+  );
 });
 
 test('Intel finalizer artifact digest normalization executes fail closed on the pinned action output', () => {
