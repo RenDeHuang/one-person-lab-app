@@ -116,6 +116,7 @@ jobs:
           app_sha="$(jq -er .release.cohort.app_sha handoff.json)"
           shell_sha="$(jq -er .release.cohort.shell_sha handoff.json)"
           framework_sha="$(jq -er .release.cohort.framework_sha handoff.json)"
+          executor_sha="$(jq -er .authority.executor_head_sha handoff.json)"
           operation_id="$(jq -er .operation_control.operation_id handoff.json)"
           operation_started_at="$(jq -er .operation_control.operation_started_at handoff.json)"
           operation_deadline_at="$(jq -er .operation_control.operation_deadline_at handoff.json)"
@@ -136,13 +137,13 @@ jobs:
           manifest_url="$(jq -er .manifest.url handoff.json)"
           qualification_sha="$(jq -er .source.qualification_receipt_sha256 handoff.json)"
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$adjunct_tag" > release.json
-          jq -e --arg tag "$adjunct_tag" --arg app "$app_sha" \
+          jq -e --arg tag "$adjunct_tag" --arg executor "$executor_sha" \
             --arg dmg "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" --arg dmg_url "$dmg_url" \
             --arg manifest "$manifest_name" --arg manifest_sha "$manifest_sha" \
             --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
             .tag_name == $tag
             and .draft == false and .prerelease == false
-            and .target_commitish == $app
+            and .target_commitish == $executor
             and ([.assets[] | select(
               .name == $dmg
               and .digest == $dmg_sha

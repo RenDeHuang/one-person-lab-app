@@ -234,7 +234,33 @@ deadline; dispatching a resume cannot refresh that clock.
 `append_full` imports a checkpoint at or after `standard_built`, builds or
 qualifies only missing Full stages, and appends the Full DMG and manifest without
 changing Standard assets, updater metadata, prepared notes, or Latest. Its
-absolute operation budget is 50 minutes.
+absolute operation budget is 50 minutes. The adjunct Git tag points to the exact
+canonical App executor SHA that performs publication. The referenced Standard
+Release and the actual Full content App/Shell/Framework refs remain separate,
+immutable CAS fields in `opl-release-manifest.json`; neither is inferred from the
+Git tag target. This avoids granting a higher-privilege Workflows token merely to
+tag an older commit that contains superseded workflow files.
+
+Before the execute call, the publisher runs the same `framework-release-adapter
+github-apply` argument surface in `rehearsal` mode. Rehearsal performs only local
+contract validation and bounded GitHub reads, emits typed evidence, and cannot
+reserve a tag, create a Release, upload assets, or publish a draft.
+
+The feedback-cycle regression is deliberately source-local:
+
+| Historical defect class | Earliest deterministic gate now |
+| --- | --- |
+| Intel handoff digest shape | artifact-digest normalization fixture |
+| nested executable signature kind and Team ID | native-trust receipt fixture |
+| internal CLI versus carrier Gatekeeper scope | final mounted-carrier trust fixture |
+| post-sign manifest digest binding | Full manifest producer/consumer fixture |
+| publication adapter required args and old content target | table-driven caller/parser parity plus executor-target rehearsal |
+
+Generation 29 spent 30m12s in build, Apple finalization, qualification, and
+checkpoint work before its tag reservation failed in seconds. On the owner host,
+the focused 118-test source suite covering these contracts completed in 8.30s;
+it performs no build, Apple submission, VM, Release, tag, asset, or Latest
+mutation. The added heavy-runner cost is therefore zero.
 
 Every mutation job rechecks the admitted operation and the absolute deadline
 before each remote write. `github.run_attempt` must be `1`; partial workflow

@@ -3658,6 +3658,10 @@
       "carrier_identity": {
         "base_release_tag": "exact_existing_immutable_standard_reference",
         "adjunct_release_tag": "v<full-app-carrier-version>-full-<first12-full-manifest-sha256>",
+        "adjunct_git_ref_target": "release_executor.app_sha",
+        "full_content_identity_source": "opl-release-manifest.json#carrier_context.full_content_sources",
+        "standard_reference_role": "reference_and_release_notes_only",
+        "workflows_write_permission_required": false,
         "base_release_mutation_allowed": false,
         "adjunct_make_latest": false,
         "adjunct_prerelease": false,

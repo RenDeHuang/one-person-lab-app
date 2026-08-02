@@ -27,6 +27,7 @@ type JsonRecord = Record<string, any>;
 type Track = 'standard' | 'full';
 type StableReleaseOperation = 'standard' | 'resume_standard' | 'append_full';
 type StandardPublicationChannel = 'stable' | 'nightly' | 'preview';
+type GitHubApplyMode = 'rehearsal' | 'execute';
 type AdapterOptionValues = Record<string, string | boolean | string[] | undefined>;
 type GitHubMutationCommand =
   | 'github-apply'
@@ -51,6 +52,24 @@ const packageIds = [
 const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
+export const githubApplyRequiredOptionNames = [
+  'bundle',
+  'plan',
+  'operation',
+  'track',
+  'run-attempt',
+  'publication-channel',
+  'operation-id',
+  'attempt-id',
+  'operation-started-at',
+  'operation-deadline-at',
+  'mutation-mode',
+  'output',
+] as const;
+export const githubApplyFullRequiredOptionNames = [
+  ...githubApplyRequiredOptionNames,
+  'executor-app-sha',
+] as const;
 const stableStandardSupplementalRemoteAssetNames = [
   'stable-operation-publication-record.json',
 ] as const;
@@ -406,6 +425,8 @@ function parseCommon(argv: string[]) {
       plan: { type: 'string' },
       prerelease: { type: 'boolean' },
       'publication-channel': { type: 'string' },
+      'mutation-mode': { type: 'string' },
+      'executor-app-sha': { type: 'string' },
       'operation-started-at': { type: 'string' },
       'operation-deadline-at': { type: 'string' },
       'additional-upload-actions': { type: 'string' },
@@ -1470,6 +1491,47 @@ function standardPublicationChannel(
   return publicationChannel;
 }
 
+function githubApplyMode(values: AdapterOptionValues): GitHubApplyMode {
+  const mode = values['mutation-mode'];
+  if (mode !== 'rehearsal' && mode !== 'execute') {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_mutation_mode_rejected',
+      'Missing --mutation-mode or invalid value; expected rehearsal or execute.',
+    );
+  }
+  return mode as GitHubApplyMode;
+}
+
+function publicationTagTargetCommitish(
+  values: AdapterOptionValues,
+  bundle: JsonRecord,
+  fullAdjunct: JsonRecord | null,
+): string {
+  const bundleAppSource = String(bundle.sources?.app?.source_commit ?? '');
+  if (!/^[0-9a-f]{40}$/.test(bundleAppSource)) {
+    throw new Error('Framework Bundle App source commit is not an exact lowercase SHA.');
+  }
+  if (!fullAdjunct) return bundleAppSource;
+
+  const executorAppSha = requireOption(values, 'executor-app-sha');
+  const manifestExecutorAppSha = String(fullAdjunct.release_executor?.app_sha ?? '');
+  if (!/^[0-9a-f]{40}$/.test(executorAppSha) || executorAppSha !== manifestExecutorAppSha) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_full_executor_identity_rejected',
+      'Full publication executor SHA must match the exact release executor recorded by the Full manifest.',
+      {
+        executor_app_sha: executorAppSha,
+        manifest_executor_app_sha: manifestExecutorAppSha || null,
+      },
+    );
+  }
+  return executorAppSha;
+}
+
 function ghRead(
   args: string[],
   runtime: GitHubAdapterRuntime,
@@ -2455,6 +2517,7 @@ export function applyPublishPlan(
   runtime: GitHubAdapterRuntime = defaultGitHubRuntime,
 ): JsonRecord {
   const admission = assertStableGitHubMutationAdmission('github-apply', values);
+  const mutationMode = githubApplyMode(values);
   const operationDeadlineAt = requireOption(values, 'operation-deadline-at');
   releaseOperationDeadlineTimestamp(operationDeadlineAt);
   const bundle = bundleDocument(requireOption(values, 'bundle'));
@@ -2513,9 +2576,6 @@ export function applyPublishPlan(
     );
   }
   const actions = publication.receipt?.details?.upload_actions;
-  if (publication.status === 'reconcile_only') {
-    return { status: 'reconcile_only', repository: repo, tag, uploaded: [] };
-  }
   const uploadActions = plannedUploadActions([
     ...plannedUploadActions(actions),
     ...supplementalUploadActions(values),
@@ -2523,7 +2583,11 @@ export function applyPublishPlan(
   const fullAdjunct = admission.track === 'full'
     ? fullAdjunctReleaseIdentity(bundle, uploadActions)
     : null;
+  const targetCommitish = publicationTagTargetCommitish(values, bundle, fullAdjunct);
   const tag = fullAdjunct?.tag ?? bundle.release.tag;
+  if (publication.status === 'reconcile_only') {
+    return { status: 'reconcile_only', repository: repo, tag, uploaded: [] };
+  }
   const name = fullAdjunct?.name ?? `One Person Lab v${bundle.release.version}`;
   const notes = fullAdjunct?.notes ?? bundle.prepared_notes.markdown;
   const adjunct = fullAdjunct
@@ -2542,13 +2606,37 @@ export function applyPublishPlan(
     // immutable Releases are enabled. An already immutable carrier is read-only.
     assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, uploadActions);
   }
+  if (mutationMode === 'rehearsal') {
+    return {
+      surface_kind: 'opl_app_github_publication_rehearsal.v1',
+      status: 'rehearsal_complete',
+      mutation_authorized: false,
+      mutation_attempted: false,
+      repository: repo,
+      tag,
+      track: admission.track,
+      operation: admission.operation,
+      operation_id: admission.operationId,
+      publication_channel: publicationChannel,
+      target_commitish: targetCommitish,
+      upload_actions: uploadActions.map((action) => ({
+        name: action.name,
+        size_bytes: action.size_bytes,
+        sha256: action.sha256,
+      })),
+      preexisting_release: preexisting.status === 'complete'
+        ? preexisting.observation.release
+        : null,
+      adjunct,
+    };
+  }
   const releaseResult = ensureRelease({
     baseAttemptId: admission.attemptId,
     repo,
     tag,
     name,
     notes,
-    targetCommitish: bundle.sources.app.source_commit,
+    targetCommitish,
     prerelease: publicationChannel === 'nightly',
     operationDeadlineAt,
     runtime,
@@ -2584,7 +2672,7 @@ export function applyPublishPlan(
       tag,
       name,
       notes,
-      targetCommitish: bundle.sources.app.source_commit,
+      targetCommitish,
       prerelease: publicationChannel === 'nightly',
       draft: true,
     });

@@ -32,7 +32,7 @@ should happen only when AGUI replay is explicitly requested.
 | `write-opl-app-component-manifest.ts` | Writes the App-owned Standard artifact manifest with its actual source commit and asset digests. This is artifact evidence, not a Package composition authority or installation prerequisite. |
 | `read-opl-app-component-manifest-identity.ts` | Reads back the exact published App manifest identity, verifies Stable/Preview, Manual/Automated, derived Dev/Nightly, source/tag/version/digest, and pointer-policy agreement, while retaining a bounded legacy Stable compatibility path. |
 | `release-bundle.ts` | Reads the retired App-owned Bundle projection for historical receipt compatibility. It can assemble, verify, or report those records, but cannot admit, build, publish, promote, dispatch, or claim readiness for a live release. |
-| `framework-release-adapter.ts` | Adapts App product inputs and exact asset/qualification evidence to the Framework `opl release` ABI. Framework checkpoint state remains authoritative; the adapter does not create an App session, broker ledger, or second release state machine. |
+| `framework-release-adapter.ts` | Adapts App product inputs and exact asset/qualification evidence to the Framework `opl release` ABI. Its `github-apply` command requires an explicit `rehearsal` or `execute` mode; rehearsal validates the real production caller surface without mutation. Full adjunct Git refs bind the canonical release executor SHA while Standard references and Full content refs remain separately manifest-bound. Framework checkpoint state remains authoritative; the adapter does not create an App session, broker ledger, or second release state machine. |
 | `verify-remote-release-assets.ts` | Downloads GitHub Release assets and verifies remote size, sha256 digest, updater metadata, Full manifest, Full README language, Full checksums, and Full size budgets. |
 | `generate-release-notes.ts` | Builds Stable release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Stable publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. Nightly uses its own fixed scope-and-risk disclosure. |
 | `resolve-preview-release-request.ts` | Freezes one Manual Standard Dev Preview or exact recovery request, immutable App/Shell/Framework identity, qualification disclosure, and whether a separate protected Latest override must be admitted. |
@@ -503,6 +503,13 @@ and Latest activation. `resume_standard` consumes an existing checkpoint and
 cannot rebuild. `append_full` consumes a checkpoint at or after
 `standard_built` (or a later Full-compatible stage), performs only missing Full stages, and cannot modify the
 Standard terminal.
+
+The Standard and Full publisher workflows exercise the actual `github-apply`
+CLI twice with a table-validated identical option surface: mutation-free
+`rehearsal`, then `execute`. Retired `publish-release.ts --dry-run` calls are not
+publication qualification. Full build, Intel finalizer, and publication
+diagnostics use failure-safe uploads so typed evidence survives the first
+contract breakpoint.
 
 Each operation resolves one absolute deadline at admission: 90 minutes for
 `standard`, 30 for `resume_standard`, and 50 for `append_full`. Every mutating
