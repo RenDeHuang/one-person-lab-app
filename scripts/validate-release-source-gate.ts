@@ -869,6 +869,14 @@ export function buildReleaseSourceGateReport(
       reason: 'Release source gate must prove the App-owned release boundary before expensive release work.',
     },
     {
+      id: 'framework_release_cli_consumer',
+      required: true,
+      command: 'node --experimental-strip-types scripts/validate-framework-release-cli-consumer.ts',
+      cwd: options.repoRoot,
+      executed: false,
+      reason: 'Release source gate must install an isolated exact Framework archive, generate its CLI surface, and run the release checkpoint consumer.',
+    },
+    {
       id: 'shell_product_profile_consumer',
       required: true,
       command: 'node --experimental-strip-types scripts/validate-shell-product-profile-consumer.ts',
@@ -1371,6 +1379,7 @@ export function buildReleaseSourceGateReport(
       : 'Required source gates were not run because pre-admission failed; repair pre-admission and admit a new immutable cohort.';
     blockRequiredGate('app_release_boundary_contract', blockedReason);
     blockRequiredGate('shell_product_profile_consumer', blockedReason);
+    blockRequiredGate('framework_release_cli_consumer', blockedReason);
     blockRequiredGate('active_shell_format_check', blockedReason);
     blockRequiredGate('active_shell_node_dom_tests', blockedReason);
     return finish(admissionFailedCheckIds, {
@@ -1403,6 +1412,7 @@ export function buildReleaseSourceGateReport(
   });
   if (releaseBoundaryResult.status !== 0) {
     blockRequiredGate('shell_product_profile_consumer', 'Blocked because the preceding App release-boundary gate failed.');
+    blockRequiredGate('framework_release_cli_consumer', 'Blocked because the preceding App release-boundary gate failed.');
     blockRequiredGate('active_shell_format_check', 'Blocked because the preceding App release-boundary gate failed.');
     blockRequiredGate('active_shell_node_dom_tests', 'Blocked because the preceding App release-boundary gate failed.');
     return finish([], {
@@ -1415,6 +1425,41 @@ export function buildReleaseSourceGateReport(
     });
   }
 
+  const frameworkReleaseCliConsumerArgs = [
+    '--experimental-strip-types',
+    'scripts/validate-framework-release-cli-consumer.ts',
+    '--framework-root',
+    frameworkRoot,
+    '--expected-framework-sha',
+    frameworkSha!,
+  ];
+  requiredGates[1].executed = true;
+  const frameworkReleaseCliConsumerResult = runner(process.execPath, frameworkReleaseCliConsumerArgs, {
+    cwd: options.repoRoot,
+    env: commandEnvironment,
+  });
+  addCheck(checks, {
+    id: 'framework_release_cli_consumer',
+    status: frameworkReleaseCliConsumerResult.status === 0 ? 'passed' : 'failed',
+    message: frameworkReleaseCliConsumerResult.status === 0
+      ? 'Exact Framework release CLI passed install, generated-surface bootstrap, and checkpoint consumer smoke in an isolated archive.'
+      : `Exact Framework release CLI consumer failed.${commandDetail(frameworkReleaseCliConsumerResult) ? `\n${commandDetail(frameworkReleaseCliConsumerResult)}` : ''}`,
+    command: commandText('node', frameworkReleaseCliConsumerArgs.slice(1)),
+  });
+  if (frameworkReleaseCliConsumerResult.status !== 0) {
+    blockRequiredGate('shell_product_profile_consumer', 'Blocked because the Framework release CLI consumer gate failed.');
+    blockRequiredGate('active_shell_format_check', 'Blocked because the Framework release CLI consumer gate failed.');
+    blockRequiredGate('active_shell_node_dom_tests', 'Blocked because the Framework release CLI consumer gate failed.');
+    return finish([], {
+      schema: 'opl_app_release_source_gate_blocker.v1',
+      phase: 'required_gate_execution',
+      blocker_kind: 'required_gate_failed',
+      failed_check_ids: ['framework_release_cli_consumer'],
+      next_action: 'repair_source_gate',
+      reason: 'Repair the exact Framework generated CLI bootstrap before workflow dispatch.',
+    });
+  }
+
   const productProfileConsumerArgs = [
     '--experimental-strip-types',
     'scripts/validate-shell-product-profile-consumer.ts',
@@ -1423,7 +1468,7 @@ export function buildReleaseSourceGateReport(
     '--expected-shell-sha',
     shellSha!,
   ];
-  requiredGates[1].executed = true;
+  requiredGates[2].executed = true;
   const productProfileConsumerResult = runner(process.execPath, productProfileConsumerArgs, {
     cwd: options.repoRoot,
     env: commandEnvironment,
@@ -1449,7 +1494,7 @@ export function buildReleaseSourceGateReport(
     });
   }
 
-  requiredGates[2].executed = true;
+  requiredGates[3].executed = true;
   const formatResult = runner('bun', ['run', 'format:check'], { cwd: shellRoot, env: commandEnvironment });
   addCheck(checks, {
     id: 'active_shell_format_check',
@@ -1481,7 +1526,7 @@ export function buildReleaseSourceGateReport(
     '--max-workers',
     '2',
   ];
-  requiredGates[3].executed = true;
+  requiredGates[4].executed = true;
   const shellTestsResult = runner(process.execPath, shellTestsArgs, { cwd: options.repoRoot, env: commandEnvironment });
   addCheck(checks, {
     id: 'active_shell_node_dom_tests',
