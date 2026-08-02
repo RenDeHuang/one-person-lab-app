@@ -965,7 +965,7 @@ test('release contract keeps Standard independent behind Framework checkpoint au
   legacyMutation.release_acceleration.new_session_or_dispatch_allowed = true;
   assert.throws(
     () => validateReleaseChannelContract(legacyMutation),
-    /historical receipt readers only/,
+    /implementations must remain absent/,
   );
 
   const blockingVm = structuredClone(release);

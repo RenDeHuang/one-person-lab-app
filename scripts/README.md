@@ -60,7 +60,6 @@ should happen only when AGUI replay is explicitly requested.
 | `plan-release-gate-reuse.ts` | Retired read-only inspector. It always reports zero reuse authority; only Framework checkpoint receipts may decide completed-stage skips. |
 | `release-cohort-lock.ts` | Resolves App, shell, and Framework refs into `opl_app_release_cohort_lock.v1` with immutable SHAs. It is a preparation record only and cannot dispatch, publish, promote, claim readiness, or write runtime truth. |
 | `plan-release-cohort.ts` | Reads and renders the retired App cohort projection for historical diagnostics. It has no package entrypoint and only hands off to read-only Framework status inspection. |
-| `release-operator.ts` | Retained historical session/operator receipt interpreter. It has no package mutation entrypoint and cannot admit, dispatch, rerun, cancel, rebuild, publish, promote, reconcile, or claim readiness for a new Bundle. |
 | `summarize-release-readiness.ts` | Aggregates small Stable gate artifacts and job results into `release-readiness-summary.json` and Markdown without downloading large DMG artifacts. |
 | `validate-release-candidate-record.ts` | Inspects historical `release-candidate-record.json` bytes. It never returns promotion admission; the old promotion flag fails closed. |
 | `analyze-full-package-size.ts` | Reads `full-package-manifest.json` and reports Full runtime component/layer size, budget use, and optional runtime-root top entries. |

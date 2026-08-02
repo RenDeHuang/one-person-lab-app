@@ -367,7 +367,7 @@ test("legacy App Bundle and broker/state-machine surfaces are read-only compatib
   ]);
   assert.ok(legacy.parser_forbidden_capabilities.includes("authorize_mutation"));
   assert.ok(legacy.parser_forbidden_capabilities.includes("reconcile_live_state"));
-  assert.equal(legacy.retired_scripts_may_parse_historical_receipts, true);
+  assert.equal(legacy.retired_scripts_may_parse_historical_receipts, false);
   assert.equal(
     legacy.retired_scripts_may_be_package_or_workflow_mutation_entrypoints,
     false,

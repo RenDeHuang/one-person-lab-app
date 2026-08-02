@@ -1607,7 +1607,7 @@ export function validateReleaseAccelerationPolicy(
       'build', 'qualify', 'publish', 'promote', 'reconcile_live_state',
     ]) ||
     !sameStringSet(legacy?.retired_package_scripts, requiredRetiredReleasePackageScripts) ||
-    legacy?.retired_scripts_may_parse_historical_receipts !== true ||
+    legacy?.retired_scripts_may_parse_historical_receipts !== false ||
     legacy?.retired_scripts_may_be_package_or_workflow_mutation_entrypoints !== false ||
     legacy?.legacy_contract_role !== 'historical_receipt_verification_only' ||
     acceleration?.scope !== 'product_build_qualification_vm_and_cache_policy_only' ||
@@ -1621,7 +1621,7 @@ export function validateReleaseAccelerationPolicy(
     releaseContract.operator_evidence_bundle?.release_owner_verdict?.framework_bundle_state_effect !== 'none' ||
     releaseContract.operator_evidence_bundle?.release_owner_verdict?.may_dispatch_rerun_cancel_publish_or_promote !== false
   ) {
-    console.error('FAIL release_legacy_retirement: broker, session, and operator surfaces must be historical receipt readers only');
+    console.error('FAIL release_legacy_retirement: broker, session, and operator implementations must remain absent while retained Bundle status commands read historical evidence');
     failures += 1;
   }
   if (JSON.stringify(validationCanary) !== JSON.stringify(requiredValidationCanary)) {

@@ -1172,7 +1172,7 @@
     "visual_comparison_protocol": {
       "schema": "opl_app_gui_visual_comparison.v1",
       "active_reference_cohort_ref": "contracts/app-gui-visual-reference-cohort.json",
-      "shell_comparator_ref": "scripts/compare-gui-visual-cohort.ts",
+      "shell_comparator_ref": "opl-aion-shell/scripts/compare-gui-visual-cohort.ts",
       "shared_primitive_ids": [
         "composer",
         "rail_row",

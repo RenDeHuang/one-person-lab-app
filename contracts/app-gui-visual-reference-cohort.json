@@ -25,7 +25,7 @@
     "shell": "opl-aion-shell",
     "app_contract_ref": "contracts/app-gui-product-contract.json#gui_maintenance_policy.visual_comparison_protocol",
     "shell_source_ref": "active_shell_checkout_git_head",
-    "comparison_tool": "scripts/compare-gui-visual-cohort.ts"
+    "comparison_tool": "opl-aion-shell/scripts/compare-gui-visual-cohort.ts"
   },
   "shared_primitive_contract": {
     "authority": "one-person-lab-app",

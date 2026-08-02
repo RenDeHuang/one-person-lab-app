@@ -180,11 +180,11 @@ one Package update -> unchanged Base/App/other Packages remain unchanged
 | Protected Preview Latest pointer entry | `.github/workflows/release-manual-preview.yml#move_latest_pointer` admits one already-published exact Dev/Nightly Preview, then calls `_release-preview-latest-pointer.yml` for the first-attempt expected-current CAS and exact public quality/readback proof |
 | Temporary Manual Full preview entry | `.github/workflows/release-manual-full-preview.yml`, protected non-Stable `publish|cleanup` only |
 | Daily release validation | `.github/workflows/release-bundle-canary.yml`, validation-only schedule |
-| App executor implementation | App reusable Bundle workflows and the thin local executor |
+| App executor implementation | App reusable Bundle workflows and direct local use of Framework `opl release` |
 | Package publication/current stable | Each Package owner and its declared publication store; not the App release controller or shared Release Set |
 | Package installed/callable state | Fresh configured-carrier readback aggregated by OPL Framework; not App release state |
 | Exact Package refs/digests in one App/Full build | The immutable build snapshot for only the inputs actually included; not ordinary Package composition or currentness |
-| Historical broker/session receipt parsing | `contracts/app-release-broker-authority.json` and retained legacy scripts, read-only |
+| Historical broker/session receipt parsing | `contracts/app-release-broker-authority.json` and retained `release:historical-*` Bundle status commands, read-only |
 
 Passing a contract test is not release admission and does not make a Bundle
 publishable. Admission is performed independently by the live App executor

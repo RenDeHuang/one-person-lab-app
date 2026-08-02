@@ -99,7 +99,6 @@ test('restore action treats checkpoint contents as opaque Framework input', () =
     'full-build-receipt.json',
     '--source-build-receipt',
     'app_transport_provenance',
-    'framework-release-local-executor.ts',
     'source_build_executor',
     'standard_source_build_executor',
     'full_source_build_executor',
