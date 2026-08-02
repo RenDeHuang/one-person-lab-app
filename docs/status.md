@@ -203,19 +203,20 @@ start, worker lifecycle, readiness diagnostics, residency proof, and repair
 receipts. Temporal provider readiness remains Full readiness/background
 maintenance for ordinary first launch.
 
-First-run and, when the retained X0-01 route is enabled, Runtime readouts are
-contract-backed App consumers of OPL Framework surfaces. First-run progress
-derives from `opl system initialize --json#system_initialize.setup_flow`. The
-optional Runtime route reads
-`opl app state --profile fast --json` and consumes only the contracted Work Item,
-Stage, Attempt, Token, and visibility projection. Explicit full App state and
-`opl runtime app-operator-drilldown --detail full --json` are owned by
+First-run and the default Runtime readouts are contract-backed App consumers of
+OPL Framework surfaces. Runtime is a core, required default App/Release route;
+Native phase-one candidate parity may omit it without changing that product
+contract. First-run progress derives from
+`opl system initialize --json#system_initialize.setup_flow`. The Runtime route
+reads `opl app state --profile fast --json` and consumes only the contracted
+Work Item, Stage, Attempt, Token, and visibility projection. Explicit full App
+state and `opl runtime app-operator-drilldown --detail full --json` are owned by
 Maintenance diagnostics and release tooling, never by Runtime.
 
-When the retained optional X0-01 Runtime route is enabled, its product rule is a
-minimal project status surface: Agent -> Project scope, one row per canonical Work Item, user-facing status, running and
-elapsed state, current and total Token usage, current/next Stage, current
-Attempt, and read-only next-step/owner semantics. Archive/restore is its only
+The Runtime product rule is a minimal project status surface: Agent -> Project
+scope, one row per canonical Work Item, user-facing status, running and elapsed
+state, current and total Token usage, current/next Stage, current Attempt, and
+read-only next-step/owner semantics. Archive/restore is its only
 mutation. Provider/platform repair, managed dependencies, updates, raw
 diagnostics, State Index, operator drilldown, logs, command refs, and safe-action
 catalogs live in Maintenance; Agent Package lifecycle lives in Agents;
@@ -226,7 +227,7 @@ never owns runtime truth, provider implementation, domain truth, artifact body,
 owner receipts, typed blockers, domain verdicts, App release readiness, or
 family production readiness.
 
-The retained optional X0-01 Runtime V2 route's local installed user path was
+The historical optional X0-01 Runtime V2 cohort's local installed user path was
 accepted on the maintainer Mac on 2026-07-15 against
 `/Applications/One Person Lab.app`: 9 visible work items,
 0 archived after archive/restore readback, complete eight-stage MAS maps,
