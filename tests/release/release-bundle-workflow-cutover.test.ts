@@ -1896,6 +1896,9 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const handoffUpload = armBuilder.steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload immutable Intel finalizer input',
   );
+  const handoffDigestNormalization = armBuilder.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Normalize immutable Intel finalizer artifact digest',
+  );
   const handoffPrepare = armBuilder.steps.find(
     (step: Record<string, unknown>) => step.name === 'Prepare immutable Intel finalizer input',
   );
@@ -1932,9 +1935,17 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.match(String(handoffPrepare.run), /opl_full_intel_finalizer_input\.v1/);
   assert.match(String(handoffPrepare.run), /source_runner: \{ label: 'macos-14', arch: process\.arch \}/);
+  assert.ok(armBuilder.steps.indexOf(handoffUpload) < armBuilder.steps.indexOf(handoffDigestNormalization));
+  assert.equal(
+    handoffDigestNormalization.env.RAW_HANDOFF_ARTIFACT_DIGEST,
+    '${{ steps.upload_full_finalizer_input.outputs.artifact-digest }}',
+  );
+  assert.match(String(handoffDigestNormalization.run), /\^\[0-9a-f\]\{64\}\$/);
+  assert.match(String(handoffDigestNormalization.run), /canonical_digest="sha256:\$raw_digest"/);
+  assert.match(String(handoffDigestNormalization.run), /artifact_digest=%s/);
   assert.equal(
     fullBuild.jobs['full-first-install'].outputs.finalizer_input_digest,
-    '${{ steps.upload_full_finalizer_input.outputs.artifact-digest }}',
+    '${{ steps.normalize_full_finalizer_input_digest.outputs.artifact_digest }}',
   );
   assert.equal(finalizer.if, undefined);
   assert.match(String(finalizer.run), /\$GITHUB_WORKSPACE\/release-executor\/scripts\/notarize-macos-dmg\.ts/);
@@ -1964,6 +1975,47 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.match(String(finalTrust.run), /timestamp_signing\.authority_endpoint == "system_default"/);
   assert.match(String(finalTrust.run), /full-intel-finalizer-handoff-receipt\.json/);
+});
+
+test('Intel finalizer artifact digest normalization executes fail closed on the pinned action output', () => {
+  const workflow = parseWorkflow('full-first-install-release.yml');
+  const normalization = workflow.jobs['full-first-install'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Normalize immutable Intel finalizer artifact digest',
+  );
+  const run = (rawDigest: string) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-finalizer-digest-'));
+    const output = path.join(root, 'github-output');
+    const result = spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', String(normalization.run)], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: output,
+        RAW_HANDOFF_ARTIFACT_DIGEST: rawDigest,
+      },
+    });
+    const written = fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '';
+    fs.rmSync(root, { recursive: true, force: true });
+    return { result, written };
+  };
+
+  const digest = 'a'.repeat(64);
+  const bare = run(digest);
+  assert.equal(bare.result.status, 0, bare.result.stderr);
+  assert.equal(bare.written, `artifact_digest=sha256:${digest}\n`);
+
+  const canonical = run(`sha256:${digest}`);
+  assert.equal(canonical.result.status, 0, canonical.result.stderr);
+  assert.equal(canonical.written, `artifact_digest=sha256:${digest}\n`);
+
+  for (const malformed of ['', 'sha256:not-a-digest', 'A'.repeat(64)]) {
+    const rejected = run(malformed);
+    assert.notEqual(rejected.result.status, 0, `accepted malformed digest: ${malformed}`);
+    assert.equal(rejected.written, '');
+    assert.match(
+      `${rejected.result.stdout}${rejected.result.stderr}`,
+      /Intel finalizer input artifact digest is missing or malformed/,
+    );
+  }
 });
 
 test('real build and qualification calls recalculate and consume the same remaining operation budget', () => {
