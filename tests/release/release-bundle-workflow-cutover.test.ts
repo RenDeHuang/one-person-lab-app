@@ -1973,8 +1973,26 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const finalTrust = intelFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Verify Intel-finalized Full distribution trust and bind manifest',
   );
-  assert.match(String(finalTrust.run), /timestamp_signing\.authority_endpoint == "system_default"/);
-  assert.match(String(finalTrust.run), /full-intel-finalizer-handoff-receipt\.json/);
+  const finalTrustScript = String(finalTrust.run);
+  assert.match(finalTrustScript, /timestamp_signing\.authority_endpoint == "system_default"/);
+  assert.match(
+    finalTrustScript,
+    /\$GITHUB_WORKSPACE\/release-executor\/scripts\/verify-full-runtime-native-trust\.ts/,
+  );
+  assert.match(finalTrustScript, /--runtime-root "\$mounted_runtime_root"/);
+  assert.match(finalTrustScript, /--require-spctl/);
+  assert.match(finalTrustScript, /--expected-team-id "\$EXPECTED_TEAM_ID"/);
+  assert.match(finalTrustScript, /--output "\$output_dir\/full-runtime-native-trust\.json"/);
+  assert.doesNotMatch(
+    finalTrustScript,
+    /one-person-lab-app\/scripts\/verify-full-runtime-native-trust\.ts/,
+  );
+  assert.ok(
+    finalTrustScript.indexOf('verify-full-runtime-native-trust.ts')
+      < finalTrustScript.indexOf("const runtimeTrust = JSON.parse"),
+    'Intel finalizer must regenerate native trust from the final mounted DMG before binding public evidence',
+  );
+  assert.match(finalTrustScript, /full-intel-finalizer-handoff-receipt\.json/);
 });
 
 test('Intel finalizer artifact digest normalization executes fail closed on the pinned action output', () => {
