@@ -203,7 +203,7 @@ test('native candidate evidence validates stable interaction semantics without a
   );
 });
 
-test('native phase one keeps the optional Runtime owner route out of required parity', () => {
+test('native phase one may omit the core Runtime route from candidate parity', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
   const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
@@ -224,7 +224,7 @@ test('native phase one keeps the optional Runtime owner route out of required pa
     'minimal_work_item_list_stage_popover_selected_detail_only';
   assert.throws(
     () => validateCandidate(resurrectedPolicy, policy),
-    /must not make the optional Runtime route part of Native phase-one parity/,
+    /must omit the core Runtime route from Native phase-one candidate parity/,
   );
 
   const resurrectedDrilldown = structuredClone(candidate);
@@ -232,14 +232,14 @@ test('native phase one keeps the optional Runtime owner route out of required pa
     'opl runtime app-operator-drilldown --detail full --json';
   assert.throws(
     () => validateCandidate(resurrectedDrilldown, policy),
-    /must not require optional Runtime full drilldown in Native phase one/,
+    /must omit Runtime full drilldown from Native phase-one candidate parity/,
   );
 
   const resurrectedCapability = structuredClone(candidate);
   resurrectedCapability.required_capabilities.push('runtime_summary_detail_action_bridge');
   assert.throws(
     () => validateCandidate(resurrectedCapability, policy),
-    /must keep the optional Runtime route outside Native phase one/,
+    /must omit the Runtime parity capability from Native phase one/,
   );
 
   const resurrectedTab = structuredClone(candidate);
@@ -249,7 +249,7 @@ test('native phase one keeps the optional Runtime owner route out of required pa
   );
   assert.throws(
     () => validateCandidate(resurrectedTab, policy),
-    /must keep the optional Runtime route outside Native phase-one context tabs/,
+    /must omit Runtime from Native phase-one context-tab parity/,
   );
 });
 

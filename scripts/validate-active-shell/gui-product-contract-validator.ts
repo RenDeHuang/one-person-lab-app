@@ -1801,11 +1801,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     runtimeStatus &&
     (runtimeStatus.route_classification !== 'core_dynamic_agent_runtime' ||
       runtimeStatus.default_product_requirement !== true ||
-      runtimeStatus.default_release_gate !== false ||
+      runtimeStatus.default_release_gate !== true ||
       runtimeStatus.adopted_shell_requirement !== true ||
       runtimeStatus.explicit_validation_command !== 'npm run validate:runtime-route')
   ) {
-    throw new Error('Core Runtime route must remain a product requirement for adopted shells without becoming a Stable release gate');
+    throw new Error('Core Runtime route must remain required by the default release gate and adopted shells');
   }
   validateTaskAwarenessProjectionContract(
     guiContract.framework_surfaces?.task_awareness,
