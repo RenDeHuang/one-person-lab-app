@@ -12,6 +12,10 @@ import {
   strictMacosRuntimeSigningRequired,
 } from './macos-trust.ts';
 import { run, runCapture } from './process.ts';
+import {
+  isDeveloperIdApplicationSignature,
+  parseMacosCodeSignatureOutput,
+} from '../macos-code-signature.ts';
 
 function macosSigningIdentity() {
   return process.env.OPL_RUNTIME_CODESIGN_IDENTITY?.trim()
@@ -84,8 +88,7 @@ function readCodeSignature(filePath) {
   const output = `${result.stdout || ''}${result.stderr || ''}`;
   return {
     status: result.status === 0 ? 'passed' : 'failed',
-    team_identifier: output.match(/^TeamIdentifier=(.+)$/m)?.[1]?.trim() || null,
-    signature: output.match(/^Signature=(.+)$/m)?.[1]?.trim() || null,
+    ...parseMacosCodeSignatureOutput(output),
     raw: output.trim(),
   };
 }
@@ -232,9 +235,10 @@ function verifyMacosRuntimeExecutable(filePath, options) {
     codesign_status: codesignPassed ? 'passed' : options.strict ? 'failed' : 'failed_allowed_unsigned',
     spctl_status: shouldAssessSpctl
       ? (spctlPassed ? 'passed' : options.strict ? 'failed' : 'failed_allowed_unsigned')
-      : options.requiresSpctl ? 'deferred_until_notarized_app' : 'not_required',
+    : options.requiresSpctl ? 'deferred_until_notarized_app' : 'not_required',
     team_identifier: signature.team_identifier,
     signature: signature.signature,
+    signature_kind: signature.signature_kind,
     quarantine_status: quarantinePresent ? 'present' : 'absent',
     provenance_status: provenancePresent ? 'present' : 'absent',
     assessment_kind: options.requiresSpctl ? 'launched_executable' : 'loadable_native_code',
@@ -243,8 +247,7 @@ function verifyMacosRuntimeExecutable(filePath, options) {
   const failed = result.codesign_status !== 'passed'
     || (shouldAssessSpctl && result.spctl_status !== 'passed')
     || result.quarantine_status !== 'absent'
-    || !result.team_identifier
-    || result.signature === 'adhoc';
+    || !isDeveloperIdApplicationSignature(result);
   if (options.strict && failed) {
     const detail = [
       `Full runtime native executable is not trusted by Gatekeeper: ${filePath}`,
@@ -317,8 +320,7 @@ export function ensureFullRuntimeNativeTrust(runtimeRoot) {
   const signed = verified.every((entry) => (
     entry.codesign_status === 'passed'
     && entry.quarantine_status === 'absent'
-    && entry.team_identifier
-    && entry.signature !== 'adhoc'
+    && isDeveloperIdApplicationSignature(entry)
   ));
   const localAuthorizedUnsigned = !strict && verified.every((entry) => entry.quarantine_status === 'absent');
   return {
