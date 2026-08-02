@@ -167,6 +167,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ needs.admission.outputs.app_ref }}
+          fetch-depth: 0
 
       - name: Checkout exact active shell asset adapter
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -174,6 +175,15 @@ jobs:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.admission.outputs.shell_ref }}
           path: shells/aionui
+          fetch-depth: 0
+
+      - name: Checkout exact Framework notes source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: gaofeng21cn/one-person-lab
+          ref: ${{ needs.admission.outputs.framework_ref }}
+          path: framework-source
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
@@ -237,22 +247,51 @@ jobs:
           test "$(jq -r .stable_qualified nightly-qualification.json)" = false
           test "$(jq -r .heavy_vm_required nightly-qualification.json)" = false
 
-      - name: Write deterministic Nightly notes
+      - name: Freeze previous published Nightly notes baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          invocation_mode="$(jq -er .invocation.mode nightly-request/opl-nightly-request.json)"
-          if [ "$invocation_mode" = scheduled_production ]; then
-            invocation_disclosure="Scheduled production Nightly."
-          else
-            test "$invocation_mode" = development_validation
-            invocation_disclosure="User-explicit development validation of the Nightly publication path."
-          fi
-          {
-            echo "$invocation_disclosure"
-            echo
-            echo "This Standard Preview prerelease is built from exact App, Shell, and Framework commits with the same physical Standard build pipeline used by Stable. It is not Stable-qualified, does not include Full or WebUI, does not change GitHub Latest, and does not require the Stable heavy VM gate. A sampled clean-VM follower may run independently after publication."
-          } > nightly-notes.md
+          previous="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.draft == false and .prerelease == true and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-nightly(?:\\.r[1-9][0-9]*)?$"))) | [.published_at, (.id | tostring), .tag_name, .target_commitish] | @tsv' \
+            | sort | tail -n 1)"
+          test -n "$previous"
+          IFS=$'\t' read -r previous_published_at previous_id previous_tag previous_target <<< "$previous"
+          [[ "$previous_id" =~ ^[1-9][0-9]*$ ]]
+          [[ "$previous_target" =~ ^[0-9a-f]{40}$ ]]
+          manifest_asset_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/$previous_id" \
+            --jq '[.assets[] | select(.name == "opl-app-component-manifest.json") | .id] | if length == 1 then .[0] else error("previous Nightly must have one component manifest") end')"
+          gh api "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
+            -H 'Accept: application/octet-stream' > nightly-baseline-component-manifest.json
+          jq -n \
+            --argjson release_id "$previous_id" \
+            --arg tag "$previous_tag" \
+            --arg target "$previous_target" \
+            --arg published_at "$previous_published_at" \
+            --slurpfile manifest nightly-baseline-component-manifest.json \
+            '{schema:"opl_nightly_notes_baseline.v1",release:{id:$release_id,tag:$tag,target_commitish:$target,published_at:$published_at},component_manifest:$manifest[0]}' \
+            > nightly-notes-baseline.json
+          previous_app_ref="$(jq -er .component_manifest.source_cohort.app_sha nightly-notes-baseline.json)"
+          previous_shell_ref="$(jq -er .component_manifest.source_cohort.shell_sha nightly-notes-baseline.json)"
+          previous_framework_ref="$(jq -er .component_manifest.source_cohort.framework_sha nightly-notes-baseline.json)"
+          git fetch --no-tags origin "$previous_app_ref"
+          git -C shells/aionui fetch --no-tags origin "$previous_shell_ref"
+          git -C framework-source fetch --no-tags origin "$previous_framework_ref"
+
+      - name: Write deterministic Nightly changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/nightly-release-notes.ts \
+            --request nightly-request/opl-nightly-request.json \
+            --qualification nightly-qualification.json \
+            --baseline nightly-notes-baseline.json \
+            --app-root . \
+            --shell-root shells/aionui \
+            --framework-root framework-source \
+            --output nightly-notes.md \
+            --evidence-output nightly-notes-evidence.json
 
       - name: Publish one immutable non-Latest prerelease
         env:
@@ -287,6 +326,8 @@ jobs:
           path: |
             nightly-request/opl-nightly-request.json
             nightly-qualification.json
+            nightly-notes-baseline.json
+            nightly-notes-evidence.json
             nightly-publication.json
           if-no-files-found: error
           retention-days: 30
