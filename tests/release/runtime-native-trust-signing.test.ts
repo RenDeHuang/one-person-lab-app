@@ -5,6 +5,11 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
+import { assertFullRuntimeNativeTrustObject } from '../../scripts/full-runtime-native-trust.ts';
+import {
+  isDeveloperIdApplicationSignature,
+  parseMacosCodeSignatureOutput,
+} from '../../scripts/macos-code-signature.ts';
 import {
   assertSignedRuntimeExecutableSmoke,
   macosRuntimeCodesignArgs,
@@ -34,7 +39,7 @@ set -eu
 printf '%s\\n' "$*" >> "$OPL_TEST_CODESIGN_LOG"
 case " $* " in
   *" -dv "*)
-    printf '%s\\n' 'Identifier=io.onepersonlab.temporal' 'Format=Mach-O thin (arm64)' 'Signature=Developer ID Application: Example (TEAMID1234)' 'TeamIdentifier=TEAMID1234' >&2
+    printf '%s\\n' 'Identifier=io.onepersonlab.temporal' 'Format=Mach-O thin (arm64)' 'CodeDirectory v=20500 size=763 flags=0x10000(runtime) hashes=13+7 location=embedded' 'Signature size=8997' 'Authority=Developer ID Application: Example (TEAMID1234)' 'Authority=Developer ID Certification Authority' 'Authority=Apple Root CA' 'TeamIdentifier=TEAMID1234' >&2
     ;;
 esac
 `);
@@ -84,6 +89,58 @@ test('Full runtime re-signing preserves existing executable metadata', () => {
       'Developer ID Application: Example (TEAMID1234)',
       '/tmp/officecli',
     ],
+  );
+});
+
+test('Developer ID codesign metadata uses the leaf Authority when Signature= is absent', () => {
+  const details = parseMacosCodeSignatureOutput([
+    'Executable=/tmp/officecli',
+    'Signature size=8997',
+    'Authority=Developer ID Application: Example (TEAMID1234)',
+    'Authority=Developer ID Certification Authority',
+    'Authority=Apple Root CA',
+    'TeamIdentifier=TEAMID1234',
+  ].join('\n'));
+
+  assert.equal(details.signature, 'Developer ID Application: Example (TEAMID1234)');
+  assert.equal(details.signature_kind, 'developer_id_application');
+  assert.equal(details.team_identifier, 'TEAMID1234');
+  assert.deepEqual(details.authorities, [
+    'Developer ID Application: Example (TEAMID1234)',
+    'Developer ID Certification Authority',
+    'Apple Root CA',
+  ]);
+  assert.equal(isDeveloperIdApplicationSignature(details, 'TEAMID1234'), true);
+});
+
+test('native trust rejects ad hoc and missing signature metadata', () => {
+  const adHoc = parseMacosCodeSignatureOutput('Signature=adhoc\nTeamIdentifier=not set\n');
+  const missing = parseMacosCodeSignatureOutput('TeamIdentifier=TEAMID1234\n');
+  assert.equal(adHoc.signature_kind, 'adhoc');
+  assert.equal(isDeveloperIdApplicationSignature(adHoc), false);
+  assert.equal(missing.signature_kind, 'missing');
+  assert.equal(isDeveloperIdApplicationSignature(missing, 'TEAMID1234'), false);
+
+  assert.throws(
+    () => assertFullRuntimeNativeTrustObject(
+      {
+        schema: 'opl_full_runtime_native_trust.v1',
+        status: 'passed',
+        executable_count: 1,
+        executables: [{
+          relative_path: 'runtime/current/node/bin/node',
+          codesign_status: 'passed',
+          spctl_status: 'not_required',
+          quarantine_status: 'absent',
+          team_identifier: 'TEAMID1234',
+          signature: null,
+          signature_kind: 'missing',
+        }],
+      },
+      {},
+      { requireProductionTrust: true, expectedTeamIdentifier: 'TEAMID1234' },
+    ),
+    /does not match Team ID TEAMID1234/,
   );
 });
 
@@ -150,6 +207,7 @@ test('Full runtime re-signing transforms and verifies the embedded Temporal exec
       assert.equal(result.spctl_status, 'deferred_until_notarized_app');
       assert.equal(result.team_identifier, 'TEAMID1234');
       assert.equal(result.signature, 'Developer ID Application: Example (TEAMID1234)');
+      assert.equal(result.signature_kind, 'developer_id_application');
       run('tar', ['-xzf', archivePath, '-C', extractedRoot]);
       assert.equal(fs.statSync(path.join(extractedRoot, 'temporal')).mode & 0o111, 0o111);
       assert.match(
