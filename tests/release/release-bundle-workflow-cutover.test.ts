@@ -1517,6 +1517,18 @@ test('mutation unknown states persist evidence and only use bounded read-only re
   assert.match(readWorkflow('_release-full-addon.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
 });
 
+test('Full publication declares the Stable channel at the guarded GitHub adapter boundary', () => {
+  const publish = workflowStep(
+    '_release-full-addon.yml',
+    'publish-full',
+    'Publish exact Full bytes as an immutable adjunct',
+  );
+  assert.match(
+    String(publish.run),
+    /framework-release-adapter\.ts github-apply[\s\S]*--publication-channel stable/,
+  );
+});
+
 test('Stable recovery scripts avoid Bash 4-only mapfile on macOS runners', () => {
   for (const relativePath of [
     '.github/workflows/_release-standard-publish.yml',
