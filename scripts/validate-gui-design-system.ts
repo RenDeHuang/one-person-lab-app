@@ -1318,7 +1318,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance' ||
     runtimePreservationGate.route_classification !== 'core_dynamic_agent_runtime' ||
     runtimePreservationGate.default_product_requirement !== true ||
-    runtimePreservationGate.default_release_gate !== false ||
+    runtimePreservationGate.default_release_gate !== true ||
     runtimePreservationGate.adopted_shell_requirement !== true ||
     runtimePreservationGate.active_aionui_navigation_requirement !== true ||
     runtimePreservationGate.active_aionui_navigation_may_remove_or_weaken !== false ||
@@ -1347,7 +1347,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'scheduled_tasks', 'archived']) ||
     !sameStrings(navigationRail.conditional_entries, []) ||
     navigationRail.runtime_entry_role !==
-      'active_aionui_primary_navigation_while_route_remains_optional_for_native_and_default_release_gate' ||
+      'active_aionui_primary_navigation_and_default_release_requirement_while_native_phase_one_candidate_parity_may_omit_runtime' ||
     JSON.stringify(navigationRail.runtime_entry) !==
       JSON.stringify(appOwnedActiveAionuiPrimaryNavigation.runtime_entry) ||
     navigationRail.capabilities_mapping !==
@@ -1897,6 +1897,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
     pageStateBoundary.runtime_route_classification !== 'core_dynamic_agent_runtime' ||
     pageStateBoundary.runtime_default_product_required !== true ||
+    pageStateBoundary.runtime_default_release_gate_required !== true ||
     pageStateBoundary.runtime_adopted_shell_required !== true ||
     pageStateBoundary.runtime_explicit_validation_command !== 'npm run validate:runtime-route' ||
     pageStateBoundary.runtime_acceptance_requires_contract_page_state_validators_tests !== 'when_route_selected_or_changed'
