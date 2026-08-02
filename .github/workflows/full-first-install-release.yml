@@ -129,7 +129,7 @@ jobs:
       contents: read
       actions: read
     outputs:
-      finalizer_input_digest: ${{ steps.upload_full_finalizer_input.outputs.artifact-digest }}
+      finalizer_input_digest: ${{ steps.normalize_full_finalizer_input_digest.outputs.artifact_digest }}
       mas_scholar_skills_ref: ${{ steps.release_version.outputs.mas_scholar_skills_ref }}
 
     steps:
@@ -1675,6 +1675,25 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+
+      - name: Normalize immutable Intel finalizer artifact digest
+        id: normalize_full_finalizer_input_digest
+        if: ${{ !inputs.cache_only && inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}
+        env:
+          RAW_HANDOFF_ARTIFACT_DIGEST: ${{ steps.upload_full_finalizer_input.outputs.artifact-digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw_digest="$RAW_HANDOFF_ARTIFACT_DIGEST"
+          if [[ "$raw_digest" =~ ^[0-9a-f]{64}$ ]]; then
+            canonical_digest="sha256:$raw_digest"
+          elif [[ "$raw_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            canonical_digest="$raw_digest"
+          else
+            echo "::error::Intel finalizer input artifact digest is missing or malformed."
+            exit 1
+          fi
+          printf 'artifact_digest=%s\n' "$canonical_digest" >> "$GITHUB_OUTPUT"
 
       - name: Verify Full artifact plan without a release mutation
         if: ${{ !inputs.cache_only && inputs.operation != 'append_full' && inputs.upload_full_package_artifact }}
