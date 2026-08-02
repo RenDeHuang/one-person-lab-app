@@ -130,15 +130,25 @@ function findPythonRoot(explicitPythonRoot) {
   return found;
 }
 
-export function resolveRuntimeSources(options) {
+export function resolveRuntimeSources(options, selectedFlowCliIds) {
+  if (!Array.isArray(selectedFlowCliIds)) {
+    throw new Error('Full runtime source resolution requires the Framework-generated Flow CLI selection.');
+  }
+  const selected = new Set(selectedFlowCliIds);
+  const unsupported = [...selected].filter((id) => id !== 'officecli' && id !== 'mineru-open-api');
+  if (unsupported.length > 0) {
+    throw new Error(`Full runtime has no source adapter for selected Flow CLI: ${unsupported.join(', ')}.`);
+  }
   const nodeToolchain = findNodeToolchain(options.nodeBin);
   const bunBin = options.includeBunRuntime ? findBunBinary(options.bunBin) : null;
   const pythonRoot = findPythonRoot(options.pythonRoot);
   const uvBin = requirePath(options.uvBin, 'uv binary');
   const temporalCliBin = findTemporalCliBinary(options.temporalCliBin);
   const temporalCliArchive = findTemporalCliArchive(options.temporalCliArchive);
-  const officeCliBin = findOfficeCliBinary(options.officeCliBin);
-  const mineruOpenApiBin = findMineruOpenApiBinary(options.mineruOpenApiBin);
+  const officeCliBin = selected.has('officecli') ? findOfficeCliBinary(options.officeCliBin) : null;
+  const mineruOpenApiBin = selected.has('mineru-open-api')
+    ? findMineruOpenApiBinary(options.mineruOpenApiBin)
+    : null;
 
   return {
     nodeToolchain,

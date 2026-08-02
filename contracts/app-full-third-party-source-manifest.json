@@ -1,7 +1,9 @@
 {
   "schema": "opl_app_full_third_party_source_manifest.v1",
   "projection": {
-    "role": "default_full_build_input_selection",
+    "role": "selected_capability_source_resolution_hints",
+    "selection_authority": "opl-flow_strategy_via_opl-framework_compiler",
+    "materialization_authority": "opl_flow_capability_build_lock.v1",
     "framework_input": {
       "repository": "gaofeng21cn/one-person-lab",
       "selection": "workflow_input_framework_ref",

@@ -60,6 +60,64 @@ function fileSha256Ref(filePath) {
   return `sha256:${crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex")}`;
 }
 
+function fileSha256(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function flowCapabilityBuildLockFixture(sources, capabilityRefs = [
+  'cli:officecli',
+  'cli:mineru-open-api',
+]) {
+  const adapters = {
+    'cli:officecli': {
+      sourcePath: sources.officeCliBin,
+      version: 'officecli 0.0.1',
+    },
+    'cli:mineru-open-api': {
+      sourcePath: sources.mineruOpenApiBin,
+      version: 'mineru-open-api 0.0.1',
+    },
+  };
+  const items = capabilityRefs.map((capabilityRef) => {
+    const adapter = adapters[capabilityRef];
+    assert.ok(adapter, capabilityRef);
+    return {
+      capability_ref: capabilityRef,
+      source_ref: `fixture:${capabilityRef}@${adapter.version}`,
+      source_sha256: fileSha256(adapter.sourcePath),
+      version: adapter.version,
+    };
+  });
+  return {
+    surface_kind: 'opl_flow_capability_build_lock.v1',
+    authority: 'opl-framework',
+    target: 'full_offline_seed',
+    flow_package: {
+      id: 'opl-flow',
+      version: '0.1.30',
+      policy_sha256: '1'.repeat(64),
+      strategy_digest: '2'.repeat(64),
+    },
+    items,
+    lock_digest: crypto.createHash('sha256').update(JSON.stringify(items)).digest('hex'),
+  };
+}
+
+function writeFlowCapabilityBuildLockFixture(runtimeRoot, capabilityRefs = []) {
+  const lock = flowCapabilityBuildLockFixture(
+    {
+      officeCliBin: path.join(runtimeRoot, 'bin', 'officecli'),
+      mineruOpenApiBin: path.join(runtimeRoot, 'bin', 'mineru-open-api'),
+    },
+    capabilityRefs,
+  );
+  writeJson(
+    path.join(runtimeRoot, 'capability-locks', 'opl-flow-capability-build-lock.json'),
+    lock,
+  );
+  return lock;
+}
+
 function runGit(repoRoot, args) {
   const result = spawnSync("git", args, { cwd: repoRoot, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -155,6 +213,79 @@ test("Full companion skill packaging preserves resource closure and normalizes k
     );
     assert.match(packagedDashboard, /at most 1 chart and fewer than 10 rows/);
     assert.doesNotMatch(packagedDashboard.split("---", 3)[1], /[<>]/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('Full capability build lock rejects unsupported selection and payload drift', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-flow-capability-lock-'));
+  const sources = {
+    officeCliBin: path.join(tempRoot, 'sources', 'officecli'),
+    mineruOpenApiBin: path.join(tempRoot, 'sources', 'mineru-open-api'),
+  };
+  writeVersionExecutable(sources.officeCliBin, 'officecli 0.0.1');
+  writeVersionExecutable(sources.mineruOpenApiBin, 'mineru-open-api 0.0.1');
+  const {
+    assertMaterializedFlowCapabilityBuildLock,
+    materializeFlowCapabilityBuildLock,
+    selectedFlowFullCapabilityRefs,
+  } = await import(
+    '../../../scripts/build-full-first-install-package/flow-capability-build-lock.ts'
+  );
+  const strategy = (items) => ({
+    surface_kind: 'opl_flow_capability_strategy_projection.v1',
+    authority: 'opl-flow',
+    policy_schema: 'opl_flow_workflow_policy.v4',
+    strategy_digest: '3'.repeat(64),
+    full_distribution_plan: {
+      target: 'full_offline_seed',
+      items,
+    },
+  });
+
+  try {
+    assert.throws(
+      () => selectedFlowFullCapabilityRefs(strategy([
+        { capability_ref: 'cli:unknown', id: 'unknown' },
+      ])),
+      /no adapter for cli:unknown/,
+    );
+    assert.throws(
+      () => selectedFlowFullCapabilityRefs(strategy([
+        { capability_ref: 'cli:officecli', id: 'officecli' },
+        { capability_ref: 'cli:officecli', id: 'officecli' },
+      ])),
+      /duplicate capability refs/,
+    );
+
+    const lock = flowCapabilityBuildLockFixture(sources, ['cli:officecli']);
+    const runtimeRoot = path.join(tempRoot, 'runtime');
+    materializeFlowCapabilityBuildLock(runtimeRoot, sources, lock);
+    assert.deepEqual(
+      assertMaterializedFlowCapabilityBuildLock(runtimeRoot).items.map(
+        (item) => item.capability_ref,
+      ),
+      ['cli:officecli'],
+    );
+
+    writeExecutable(path.join(runtimeRoot, 'bin', 'mineru-open-api'), '#!/bin/sh\nexit 0\n');
+    assert.throws(
+      () => assertMaterializedFlowCapabilityBuildLock(runtimeRoot),
+      /unselected Flow capability payload/,
+    );
+    fs.rmSync(path.join(runtimeRoot, 'bin', 'mineru-open-api'));
+    fs.rmSync(path.join(runtimeRoot, 'bin', 'officecli'));
+    assert.throws(
+      () => assertMaterializedFlowCapabilityBuildLock(runtimeRoot),
+      /missing selected Flow capability payload/,
+    );
+
+    writeFile(sources.officeCliBin, '#!/bin/sh\nprintf drift\n');
+    assert.throws(
+      () => materializeFlowCapabilityBuildLock(path.join(tempRoot, 'drifted'), sources, lock),
+      /source drifted after build-lock compilation/,
+    );
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -699,10 +830,16 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
 
     const { prepareRuntime } =
       await import("../../../scripts/build-full-first-install-package/staging.ts");
+    const flowCapabilityBuildLock = flowCapabilityBuildLockFixture(fixture.sources);
     prepared = prepareRuntime(
       fixture.options,
       fixture.sources,
-      selectedBundle ? { resolvedSelectedBundleDescriptor: selectedBundle.descriptor } : {},
+      {
+        ...(selectedBundle
+          ? { resolvedSelectedBundleDescriptor: selectedBundle.descriptor }
+          : {}),
+        flowCapabilityBuildLock,
+      },
     );
     const currentnessCli = runNode([
       "scripts/assert-full-runtime-currentness.ts",
@@ -740,11 +877,11 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
       prepared.manifest.components.skills.source_path,
       selectedBundle
         ? 'resolved_selected_bundle_descriptor'
-        : "contracts/app-product-profile.json#companion_payloads",
+        : 'owner_package_plugin_carriers_only',
     );
     assert.equal(
       prepared.manifest.components.skills.role,
-      "packaged_codex_skill_carrier_seeds_declared_by_app_product_profile",
+      'framework_selected_package_skill_carriers_or_empty',
     );
     if (selectedBundle) {
       assert.equal(
@@ -1265,6 +1402,7 @@ test("Full runtime pruning keeps macOS arm64 launch payloads without development
     path.join(auditRuntimeRoot, "opl", "node_modules", "@temporalio", "client", "lib", "index.js"),
     "client",
   );
+  writeFlowCapabilityBuildLockFixture(auditRuntimeRoot);
   const baselinePath = path.join(auditRuntimeRoot, "baseline-audit.json");
   writeFile(
     baselinePath,
@@ -1733,6 +1871,10 @@ test("Full runtime node payload prunes package-only docs while preserving offlin
   writeExecutable(path.join(runtimeRoot, "uv", "bin", "uv"), "#!/bin/sh\nexit 0\n");
   writeExecutable(path.join(runtimeRoot, "bin", "officecli"), "#!/bin/sh\nexit 0\n");
   writeExecutable(path.join(runtimeRoot, "bin", "mineru-open-api"), "#!/bin/sh\nexit 0\n");
+  writeFlowCapabilityBuildLockFixture(runtimeRoot, [
+    'cli:officecli',
+    'cli:mineru-open-api',
+  ]);
   for (const skillId of ["med-autoscience", "med-autogrant", "redcube-ai", "opl-bookforge"]) {
     writeFile(path.join(runtimeRoot, "skills", skillId, "SKILL.md"), "# skill\n");
   }

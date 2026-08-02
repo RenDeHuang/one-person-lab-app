@@ -393,10 +393,10 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
         contract_schema_version: productProfile.schema_version,
         default_model: productProfile.codex.default_model,
         default_reasoning_effort: productProfile.codex.default_reasoning_effort,
-        companion_tools: productProfile.companion_payloads.tools,
+        capability_strategy_source: 'resolved_refs.flow_capability_build_lock',
+        official_profile_id: productProfile.official_profile.profile_id,
+        desired_root_package_ids: productProfile.official_profile.desired_root_package_ids,
         domain_modules: productProfile.companion_payloads.domain_modules,
-        default_packaged_codex_skill_ids: productProfile.companion_payloads.default_packaged_codex_skill_ids,
-        additional_package_skill_ids: productProfile.companion_payloads.additional_package_skill_ids,
       },
       payload_boundary: {
         role: 'declared_payload_assembly_and_validation',
@@ -533,7 +533,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       },
       skills: {
         ...normalizeComponent(components.skills),
-        role: 'packaged_codex_skill_carrier_seeds_declared_by_app_product_profile',
+        role: 'framework_selected_package_skill_carriers_or_empty',
         required: true,
       },
     },

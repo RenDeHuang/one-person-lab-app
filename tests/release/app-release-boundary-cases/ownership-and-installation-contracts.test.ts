@@ -17,15 +17,25 @@ import {
   appOwnedWebuiDataVolumeHostActionCapabilityId,
 } from '../../../scripts/validate-active-shell/app-contract-constants.ts';
 
-test('Full skill carrier seeds do not discover Flow dependencies or managed-home payloads', () => {
+test('Full domain Skill helpers do not own the Flow capability inventory', () => {
   const source = fs.readFileSync(
     path.join(appRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
     'utf8',
   );
   assert.doesNotMatch(source, /opl-flow-capability-policy|workflow-policy\.json/);
   assert.doesNotMatch(source, /\.skills-manager|\.codex['"],\s*['"]skills/);
-  assert.match(source, /readAppProductProfile\(\)/);
-  assert.match(source, /companion_payloads\.default_packaged_codex_skill_ids/);
+  assert.doesNotMatch(source, /readAppProductProfile|default_packaged_codex_skill_ids/);
+  assert.doesNotMatch(source, /copyPackagedSkills/);
+  assert.equal(fs.existsSync(path.join(appRoot, 'scripts', 'opl-flow-capability-policy.ts')), false);
+
+  const fullBuilder = fs.readFileSync(
+    path.join(appRoot, 'scripts', 'build-full-first-install-package.ts'),
+    'utf8',
+  );
+  assert.match(fullBuilder, /compileFlowCapabilityStrategyForFull/);
+  assert.match(fullBuilder, /compileFlowCapabilityBuildLock/);
+  assert.match(fullBuilder, /selectedFlowFullCliIds/);
+  assert.doesNotMatch(fullBuilder, /workflow-policy\.json|default_packaged_codex_skill_ids/);
 });
 
 test('Homebrew tap updater is a local cohort-bound manifest and checksum planner', () => {

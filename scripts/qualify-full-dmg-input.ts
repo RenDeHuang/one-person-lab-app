@@ -34,7 +34,7 @@ export type FullDmgInputQualificationRequest = {
   frameworkRef: string;
   officeCliRoot: string;
   mineruRoot: string;
-  uiUxProMaxRoot: string;
+  uiUxProMaxRoot?: string;
   runtimeCacheKeyReportPath: string;
   toolchainObservationPath: string;
   bundlePath?: string;
@@ -222,10 +222,8 @@ function validateRuntimeCacheReport(
   report: JsonRecord,
   thirdParty: JsonRecord,
   qualification: JsonRecord,
-  appProductProfileSha256: string,
   desiredRootPackageIds: readonly string[],
-  skillsPackagerSha256: string,
-  refs: { framework: string; officeCli: string; uiUxProMax: string },
+  refs: { framework: string },
   issues: FullDmgInputQualification['issues'],
 ) {
   if (report.status !== 'runtime_cache_keys') {
@@ -266,18 +264,60 @@ function validateRuntimeCacheReport(
   const expectedTemporal = thirdParty.runtime_payloads?.temporal_cli;
   const expectedOfficeCli = thirdParty.runtime_payloads?.officecli;
   const expectedPython = thirdParty.toolchain?.python?.version;
+  const flowBuildLock = toolchain.flow_capability_build_lock ?? {};
+  const flowBuildLockItems = Array.isArray(flowBuildLock.items) ? flowBuildLock.items : [];
+  const capabilityRefs = flowBuildLockItems.map((item: JsonRecord) => item?.capability_ref);
+  if (
+    !digestPattern.test(String(flowBuildLock.lock_digest ?? ''))
+    || !digestPattern.test(String(flowBuildLock.flow_package?.policy_sha256 ?? ''))
+    || !digestPattern.test(String(flowBuildLock.flow_package?.strategy_digest ?? ''))
+    || !Array.isArray(flowBuildLock.items)
+  ) {
+    issues.push({
+      code: 'flow_capability_build_lock_invalid',
+      message: 'Runtime cache input does not bind a valid Framework-generated Flow capability build lock.',
+    });
+  }
+  if (new Set(capabilityRefs).size !== capabilityRefs.length) {
+    issues.push({
+      code: 'flow_capability_build_lock_duplicate_ref',
+      message: 'Flow capability build lock contains duplicate capability refs.',
+    });
+  }
+  const supportedFullCapabilityRefs = new Set(['cli:officecli', 'cli:mineru-open-api']);
+  for (const [index, item] of flowBuildLockItems.entries()) {
+    if (
+      !supportedFullCapabilityRefs.has(item?.capability_ref)
+      || typeof item?.source_ref !== 'string'
+      || !item.source_ref.trim()
+      || !digestPattern.test(String(item?.source_sha256 ?? ''))
+      || typeof item?.version !== 'string'
+      || !item.version.trim()
+    ) {
+      issues.push({
+        code: 'flow_capability_build_lock_item_invalid',
+        message: `Flow capability build lock item ${index} is unsupported or incomplete.`,
+      });
+    }
+  }
+  const officeCliLock = flowBuildLockItems.find(
+    (item: JsonRecord) => item.capability_ref === 'cli:officecli',
+  );
+  if (officeCliLock && (
+    officeCliLock.source_sha256 !== expectedOfficeCli?.darwin_arm64_asset_sha256
+    || !String(officeCliLock.version).includes(String(expectedOfficeCli?.version))
+  )) {
+    issues.push({
+      code: 'officecli_build_lock_hint_mismatch',
+      message: 'Selected OfficeCLI build-lock resolution differs from the App Full source hint.',
+    });
+  }
   const checks: Array<[boolean, string, string]> = [
     [toolchain.codex_package_version === expectedCodex, 'codex_payload_version_mismatch', 'Codex payload version differs from qualification authority.'],
     [toolchain.temporal_cli_archive_sha256 === expectedTemporal?.darwin_arm64_archive_sha256, 'temporal_payload_digest_mismatch', 'Temporal archive digest differs from Full authority.'],
     [typeof toolchain.temporal_cli_version === 'string' && toolchain.temporal_cli_version.includes(`temporal version ${expectedTemporal?.version}`), 'temporal_payload_version_mismatch', 'Temporal CLI version differs from Full authority.'],
-    [toolchain.officecli_sha256 === expectedOfficeCli?.darwin_arm64_asset_sha256, 'officecli_payload_digest_mismatch', 'OfficeCLI binary digest differs from Full authority.'],
-    [String(toolchain.officecli_version ?? '').trim() === expectedOfficeCli?.version, 'officecli_payload_version_mismatch', 'OfficeCLI version differs from Full authority.'],
     [toolchain.python_version === `Python ${expectedPython}`, 'python_payload_version_mismatch', `Python payload is ${String(toolchain.python_version)}, expected Python ${String(expectedPython)}.`],
     [report.layer_key_inputs?.['opl-runtime']?.opl_commit === refs.framework, 'framework_runtime_ref_mismatch', 'Runtime cache input does not bind the Framework ref.'],
-    [report.layer_key_inputs?.skills?.app_product_profile_sha256 === appProductProfileSha256, 'product_profile_digest_mismatch', 'Runtime cache input does not bind the App product profile.'],
-    [report.layer_key_inputs?.skills?.skills_packager_sha256 === skillsPackagerSha256, 'skills_packager_digest_mismatch', 'Runtime cache input does not bind the Full skills packager.'],
-    [report.layer_key_inputs?.skills?.officecli_root_commit === refs.officeCli, 'officecli_source_ref_mismatch', 'Runtime cache input does not bind the OfficeCLI source ref.'],
-    [report.layer_key_inputs?.skills?.ui_ux_pro_max_root_commit === refs.uiUxProMax, 'ui_ux_pro_max_source_ref_mismatch', 'Runtime cache input does not bind the UI UX Pro Max source ref.'],
   ];
   for (const [passed, code, message] of checks) {
     if (!passed) issues.push({ code, message });
@@ -315,9 +355,9 @@ export function buildFullDmgInputQualification(
     path.join(appRoot, 'contracts', 'full-runtime-prune-policy.json'),
     'Full runtime prune policy',
   );
-  const skillsPackagerPath = regularFile(
-    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
-    'Full skills packager',
+  const flowCapabilityConsumerPath = regularFile(
+    path.join(appRoot, 'scripts', 'build-full-first-install-package', 'flow-capability-build-lock.ts'),
+    'Flow capability build-lock consumer',
   );
   const thirdParty = readJson(thirdPartyPath, 'Full third-party source manifest');
   const qualification = readJson(qualificationPath, 'Release qualification input manifest');
@@ -333,34 +373,36 @@ export function buildFullDmgInputQualification(
     release_qualification_input: fileSha256(qualificationPath),
     app_product_profile: fileSha256(productProfilePath),
     full_runtime_prune_policy: fileSha256(prunePolicyPath),
-    full_skills_packager: fileSha256(skillsPackagerPath),
+    flow_capability_build_lock_consumer: fileSha256(flowCapabilityConsumerPath),
   };
   const thirdPartyRefs = {
     officeCli: String(thirdParty.sources?.officecli?.ref ?? ''),
     mineru: String(thirdParty.sources?.mineru?.ref ?? ''),
-    uiUxProMax: String(thirdParty.sources?.ui_ux_pro_max?.ref ?? ''),
-  };
-  const thirdPartySources = {
-    officecli: gitIdentity(request.officeCliRoot, thirdPartyRefs.officeCli, 'officecli', issues),
-    mineru: gitIdentity(request.mineruRoot, thirdPartyRefs.mineru, 'mineru', issues),
-    ui_ux_pro_max: gitIdentity(request.uiUxProMaxRoot, thirdPartyRefs.uiUxProMax, 'ui_ux_pro_max', issues),
   };
 
   const runtimeCacheKeyReportPath = regularFile(request.runtimeCacheKeyReportPath, 'Runtime cache key report');
   const toolchainObservationPath = regularFile(request.toolchainObservationPath, 'Toolchain observation');
   const runtimeCacheKeyReport = readJson(runtimeCacheKeyReportPath, 'Runtime cache key report');
   const toolchainObservation = readJson(toolchainObservationPath, 'Toolchain observation');
+  const selectedCapabilityRefs = new Set(
+    (runtimeCacheKeyReport.layer_key_inputs?.toolchain?.flow_capability_build_lock?.items ?? [])
+      .map((item: JsonRecord) => item?.capability_ref),
+  );
+  const thirdPartySources = {
+    ...(selectedCapabilityRefs.has('cli:officecli')
+      ? { officecli: gitIdentity(request.officeCliRoot, thirdPartyRefs.officeCli, 'officecli', issues) }
+      : {}),
+    ...(selectedCapabilityRefs.has('cli:mineru-open-api')
+      ? { mineru: gitIdentity(request.mineruRoot, thirdPartyRefs.mineru, 'mineru', issues) }
+      : {}),
+  };
   validateRuntimeCacheReport(
     runtimeCacheKeyReport,
     thirdParty,
     qualification,
-    manifestDigests.app_product_profile,
     appProductProfile.official_profile.desired_root_package_ids,
-    manifestDigests.full_skills_packager,
     {
       framework: request.frameworkRef,
-      officeCli: thirdPartyRefs.officeCli,
-      uiUxProMax: thirdPartyRefs.uiUxProMax,
     },
     issues,
   );
@@ -477,7 +519,7 @@ function cli(): void {
     frameworkRef: required(stringValues, 'framework-ref'),
     officeCliRoot: required(stringValues, 'officecli-root'),
     mineruRoot: required(stringValues, 'mineru-root'),
-    uiUxProMaxRoot: required(stringValues, 'ui-ux-pro-max-root'),
+    uiUxProMaxRoot: stringValues['ui-ux-pro-max-root'],
     runtimeCacheKeyReportPath: required(stringValues, 'runtime-cache-key-report'),
     toolchainObservationPath: required(stringValues, 'toolchain-observation'),
     bundlePath: stringValues.bundle,

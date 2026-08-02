@@ -23,10 +23,14 @@ import {
 import { readGitHead } from './git.ts';
 import { commandOutput } from './process.ts';
 import {
+  FLOW_CAPABILITY_BUILD_LOCK_RELATIVE_PATH,
+  assertMaterializedFlowCapabilityBuildLock,
+  materializeFlowCapabilityBuildLock,
+} from './flow-capability-build-lock.ts';
+import {
   materializeResolvedSelectedBundleDescriptor,
   readMaterializedResolvedSelectedBundleDescriptor,
 } from './resolved-selected-bundle-descriptor.ts';
-import { copyPackagedSkills } from './skills.ts';
 
 export function assertOplRuntimeProductionDependencies(oplRoot) {
   const packageJsonPath = path.join(oplRoot, 'package.json');
@@ -414,14 +418,7 @@ function declaredAuthorityFunctionPayloadStatuses(runtimeRoot) {
 
 export function collectRuntimeAssertions(runtimeRoot) {
   const resolvedSelectedBundle = readMaterializedResolvedSelectedBundleDescriptor(runtimeRoot);
-  const compatibilitySkillPayloads = resolvedSelectedBundle
-    ? []
-    : [
-        runtimePayloadStatus(runtimeRoot, 'skills/med-autoscience/SKILL.md'),
-        runtimePayloadStatus(runtimeRoot, 'skills/med-autogrant/SKILL.md'),
-        runtimePayloadStatus(runtimeRoot, 'skills/redcube-ai/SKILL.md'),
-        runtimePayloadStatus(runtimeRoot, 'skills/opl-bookforge/SKILL.md'),
-      ];
+  const flowCapabilityAssembly = assertMaterializedFlowCapabilityBuildLock(runtimeRoot);
   return {
     prune_policy_id: FULL_RUNTIME_PRUNE_POLICY.id,
     prune_policy_hash: buildFullRuntimePrunePolicyHash(),
@@ -438,9 +435,10 @@ export function collectRuntimeAssertions(runtimeRoot) {
       runtimePayloadStatus(runtimeRoot, 'node/bin/npm', { executable: true }),
       runtimePayloadStatus(runtimeRoot, 'node/bin/npx', { executable: true }),
       runtimePayloadStatus(runtimeRoot, 'uv/bin/uv', { executable: true }),
-      runtimePayloadStatus(runtimeRoot, 'bin/officecli', { executable: true }),
-      runtimePayloadStatus(runtimeRoot, 'bin/mineru-open-api', { executable: true }),
-      ...compatibilitySkillPayloads,
+      runtimePayloadStatus(runtimeRoot, FLOW_CAPABILITY_BUILD_LOCK_RELATIVE_PATH),
+      ...flowCapabilityAssembly.items.map((item) => (
+        runtimePayloadStatus(runtimeRoot, item.runtime_relative_path, { executable: true })
+      )),
       ...declaredAuthorityFunctionPayloadStatuses(runtimeRoot),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/contracts/workflow-policy.json'),
       runtimePayloadStatus(runtimeRoot, 'modules/opl-flow/templates/AGENTS.md'),
@@ -452,6 +450,7 @@ export function collectRuntimeAssertions(runtimeRoot) {
     resolved_selected_bundle_descriptor: resolvedSelectedBundle?.assertion ?? {
       status: 'not_provided',
     },
+    flow_capability_assembly: flowCapabilityAssembly,
     declared_pruned_paths: declaredPrunedPathAssertions(runtimeRoot),
   };
 }
@@ -460,14 +459,13 @@ function writePackagedModuleMarker(moduleRoot, marker) {
   fs.writeFileSync(path.join(moduleRoot, PACKAGED_MODULE_MARKER_FILE), `${JSON.stringify(marker, null, 2)}\n`, 'utf8');
 }
 
-export function buildToolchainLayer(layerRoot, sources) {
+export function buildToolchainLayer(layerRoot, sources, flowCapabilityBuildLock) {
   if (sources.bunBin) {
     copySingleFile(sources.bunBin, path.join(layerRoot, 'bin', 'bun'));
   }
   copySingleFile(sources.temporalCliArchive, path.join(layerRoot, 'vendor', 'temporal', 'temporal_cli_darwin_arm64.tar.gz'));
   writeTemporalCliWrapper(path.join(layerRoot, 'bin', 'temporal'), commandOutput(sources.temporalCliBin, ['--version']));
-  copySingleFile(sources.officeCliBin, path.join(layerRoot, 'bin', 'officecli'));
-  copySingleFile(sources.mineruOpenApiBin, path.join(layerRoot, 'bin', 'mineru-open-api'));
+  materializeFlowCapabilityBuildLock(layerRoot, sources, flowCapabilityBuildLock);
   copyNodeRuntimePayload(path.dirname(path.dirname(sources.nodeToolchain.nodeBin)), path.join(layerRoot, 'node'));
   copySingleFile(sources.uvBin, path.join(layerRoot, 'uv', 'bin', 'uv'));
   copyTreeFiltered(
@@ -550,7 +548,7 @@ export function buildSkillsLayer(layerRoot, options, resolvedSelectedBundleDescr
     materializeResolvedSelectedBundleDescriptor(layerRoot, resolvedSelectedBundleDescriptor);
     return;
   }
-  copyPackagedSkills(path.join(layerRoot, 'skills'), options);
+  fs.mkdirSync(path.join(layerRoot, 'skills'), { recursive: true });
 }
 
 export function buildRuntimeLayerImplementationHash(layerId: FullRuntimeCacheLayerId) {
@@ -573,7 +571,7 @@ export function buildRuntimeLayerImplementationHash(layerId: FullRuntimeCacheLay
       copyProductionNodeModules,
       buildOplLayer,
     ],
-    skills: [copyPackagedSkills, materializeResolvedSelectedBundleDescriptor, buildSkillsLayer],
+    skills: [materializeResolvedSelectedBundleDescriptor, buildSkillsLayer],
   };
   return crypto.createHash('sha256')
     .update(functions[layerId].map((fn) => fn.toString()).join('\n\n'))

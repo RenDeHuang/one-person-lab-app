@@ -361,11 +361,16 @@ test('model precedence makes App defaults a Flow-unavailable fallback only', () 
   );
 });
 
-test('Full source manifest selects inputs without requiring a family lock or payload inventory', () => {
+test('Full source manifest supplies resolution hints without selecting capabilities', () => {
   const manifest = readJson('contracts/app-full-third-party-source-manifest.json');
   const projection = manifest.projection;
 
-  assert.equal(projection.role, 'default_full_build_input_selection');
+  assert.equal(projection.role, 'selected_capability_source_resolution_hints');
+  assert.equal(
+    projection.selection_authority,
+    'opl-flow_strategy_via_opl-framework_compiler',
+  );
+  assert.equal(projection.materialization_authority, 'opl_flow_capability_build_lock.v1');
   assert.equal('capability_graph' in projection, false);
   assert.equal(projection.framework_input.selection, 'workflow_input_framework_ref');
   assert.equal(projection.generation_contract.preexisting_release_set_required, false);

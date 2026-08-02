@@ -21,6 +21,12 @@ import {
 import { parseArgs } from './build-full-first-install-package/env.ts';
 import { requirePath } from './build-full-first-install-package/filesystem.ts';
 import {
+  compileFlowCapabilityBuildLock,
+  compileFlowCapabilityStrategyForFull,
+  selectedFlowFullCapabilityRefs,
+  selectedFlowFullCliIds,
+} from './build-full-first-install-package/flow-capability-build-lock.ts';
+import {
   assertAppBundleLocalAuthorization,
   ensureAppBundleAdHocCodesign,
 } from './build-full-first-install-package/macos-trust.ts';
@@ -157,18 +163,40 @@ function main() {
     ['OPL Meta Agent root', options.metaAgentRoot],
     ['OPL Book Forge root', options.bookforgeRoot],
     ['OPL Flow root', options.oplFlowRoot],
-    ['OfficeCLI root', options.officeCliRoot],
   ]) {
     requirePath(source, label);
   }
 
-  options.officeCliRelease = resolveOfficeCliReleaseSource(options.officeCliRoot, options.officeCliRef);
+  const flowCapabilityStrategy = compileFlowCapabilityStrategyForFull({
+    frameworkRoot: options.frameworkRoot,
+    flowRoot: options.oplFlowRoot,
+  });
+  const selectedFlowCapabilityRefs = new Set(selectedFlowFullCapabilityRefs(flowCapabilityStrategy));
+  if (selectedFlowCapabilityRefs.has('cli:officecli')) {
+    requirePath(options.officeCliRoot, 'OfficeCLI root');
+  }
+  options.officeCliRelease = selectedFlowCapabilityRefs.has('cli:officecli')
+    ? resolveOfficeCliReleaseSource(options.officeCliRoot, options.officeCliRef)
+    : null;
+  const sources = resolveRuntimeSources(options, selectedFlowFullCliIds(flowCapabilityStrategy));
+  const flowCapabilityBuildLock = compileFlowCapabilityBuildLock({
+    frameworkRoot: options.frameworkRoot,
+    flowRoot: options.oplFlowRoot,
+    strategy: flowCapabilityStrategy,
+    sources,
+  });
   const sourceResolutions = {
     masScholarSkills: resolveMasScholarSkillsFullRuntimeSource(options),
+    flowCapabilityBuildLock,
   };
-  const sources = resolveRuntimeSources(options);
   if (options.printRuntimeCacheKeys) {
-    console.log(JSON.stringify(buildRuntimeCacheKeyReport(options, sources), null, 2));
+    console.log(JSON.stringify(buildRuntimeCacheKeyReport(
+      options,
+      sources,
+      undefined,
+      null,
+      flowCapabilityBuildLock,
+    ), null, 2));
     return;
   }
 

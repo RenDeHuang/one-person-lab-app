@@ -1043,17 +1043,18 @@
       ]
     },
     {
-      "id": "ecosystem_modules_app_cli_managed",
+      "id": "flow_capability_strategy_framework_managed",
       "package_type": "standard_or_full",
-      "modules": [
-        "officecli",
-        "mineru",
-        "opl-meta-agent"
-      ],
+      "strategy_authority": "opl-flow",
+      "compiler_authority": "opl-framework",
+      "app_role": "projection_consumer_only",
+      "runtime_projection_ref": "app_state.agent_packages.status_index.packages.opl-flow.capability_strategy",
+      "full_build_lock_kind": "opl_flow_capability_build_lock.v1",
       "expects": [
-        "officecli is managed by App or CLI maintenance",
-        "mineru is managed by App or CLI maintenance",
-        "opl-meta-agent is managed by App or CLI maintenance"
+        "default Codex capabilities are selected by OPL Flow and compiled by Framework",
+        "App does not maintain a second recommended Skill or tool inventory",
+        "Full payload materialization exactly follows the Framework-generated Flow capability build lock",
+        "install materializes capabilities without running explicit $opl-flow start onboarding"
       ]
     }
   ],

@@ -2,7 +2,6 @@ import { assertDeepEqualJson, assertIncludesAll, readJson } from './assertions.t
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
 import {
   beginnerFirstRunTestIds,
-  firstRunEcosystemModules,
   progressiveFirstRunRecoveryTestIds,
 } from './app-contract-constants.ts';
 import { assertNonEmptyStringArray, assertSharedFirstRunProgressModelMatches } from './shared-contract-validators.ts';
@@ -134,10 +133,25 @@ function validateCommandLineToolsScenario(cltInstaller) {
   }
 }
 
-function validateEcosystemModuleScenario(ecosystem) {
-  for (const moduleId of firstRunEcosystemModules) {
-    if (!ecosystem?.modules?.includes(moduleId)) {
-      throw new Error(`First-run matrix must mark ${moduleId} as App/CLI managed ecosystem module`);
+function validateFlowCapabilityStrategyScenario(strategy) {
+  if (
+    strategy?.strategy_authority !== 'opl-flow'
+    || strategy?.compiler_authority !== 'opl-framework'
+    || strategy?.app_role !== 'projection_consumer_only'
+    || strategy?.runtime_projection_ref !==
+      'app_state.agent_packages.status_index.packages.opl-flow.capability_strategy'
+    || strategy?.full_build_lock_kind !== 'opl_flow_capability_build_lock.v1'
+  ) {
+    throw new Error('First-run matrix must consume the Framework-compiled OPL Flow capability strategy');
+  }
+  for (const expected of [
+    'default Codex capabilities are selected by OPL Flow and compiled by Framework',
+    'App does not maintain a second recommended Skill or tool inventory',
+    'Full payload materialization exactly follows the Framework-generated Flow capability build lock',
+    'install materializes capabilities without running explicit $opl-flow start onboarding',
+  ]) {
+    if (!strategy.expects?.includes(expected)) {
+      throw new Error(`First-run Flow capability strategy scenario must require: ${expected}`);
     }
   }
 }
@@ -404,6 +418,8 @@ export function validateFirstRunMatrix(matrix, contract) {
   }
   validateStandardBootstrapScenario(scenarioById.get('standard_app_managed_bootstrap'));
   validateCommandLineToolsScenario(scenarioById.get('macos_clt_system_installer'));
-  validateEcosystemModuleScenario(scenarioById.get('ecosystem_modules_app_cli_managed'));
+  validateFlowCapabilityStrategyScenario(
+    scenarioById.get('flow_capability_strategy_framework_managed'),
+  );
   validateUpdaterScenario(scenarioById.get('updater_standard_channel'));
 }

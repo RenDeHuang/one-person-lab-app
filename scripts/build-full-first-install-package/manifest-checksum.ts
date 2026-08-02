@@ -280,6 +280,10 @@ export function buildResolvedFullPayloadRefs(options, sources, components, sourc
   const mineruRepoRoot = sources.mineruRepoRoot || options.mineruRoot;
   const masScholarSkills = sourceResolutions.masScholarSkills
     ?? resolveMasScholarSkillsFullRuntimeSource(options);
+  const flowCapabilityBuildLock = sourceResolutions.flowCapabilityBuildLock;
+  if (!flowCapabilityBuildLock) {
+    throw new Error('Full runtime resolved refs require the Framework-generated Flow capability build lock.');
+  }
   return {
     opl_framework: {
       label: 'OPL Framework',
@@ -366,44 +370,47 @@ export function buildResolvedFullPayloadRefs(options, sources, components, sourc
       resolved_commit: components.opl_flow?.git_commit ?? readGitHead(options.oplFlowRoot),
       package_kind: 'workflow_plugin_package',
     },
-    officecli: {
-      label: 'OfficeCLI',
-      source_path: options.officeCliRoot,
-      repository: readGitOriginUrl(options.officeCliRoot) || 'iOfficeAI/OfficeCLI',
-      requested_ref: options.officeCliRelease?.requested_ref ?? options.officeCliRef,
-      resolved_ref: options.officeCliRelease?.resolved_ref ?? options.officeCliRef,
-      resolved_commit: options.officeCliRelease?.resolved_commit ?? readGitHead(options.officeCliRoot),
-      latest_stable_verified: options.officeCliRelease?.latest_stable_verified ?? false,
-      source_policy: options.officeCliRelease?.policy ?? 'unverified',
-      package_unit: 'atomic_upstream_release',
-      owner: 'iOfficeAI/OfficeCLI',
-      bundled_skill_ids: [
-        'officecli',
-        'officecli-docx',
-        'officecli-pptx',
-        'officecli-xlsx',
-        'officecli-academic-paper',
-        'officecli-data-dashboard',
-        'officecli-financial-model',
-        'officecli-pitch-deck',
-      ],
-      version: components.officecli?.version ?? null,
+    flow_capability_build_lock: {
+      label: 'OPL Flow capability build lock',
+      authority: flowCapabilityBuildLock.authority,
+      surface_kind: flowCapabilityBuildLock.surface_kind,
+      target: flowCapabilityBuildLock.target,
+      lock_digest: flowCapabilityBuildLock.lock_digest,
+      flow_package: flowCapabilityBuildLock.flow_package,
+      items: flowCapabilityBuildLock.items.map((item) => ({
+        capability_ref: item.capability_ref,
+        source_ref: item.source_ref,
+        source_sha256: item.source_sha256,
+        version: item.version,
+      })),
     },
-    mineru: {
-      label: 'MinerU',
-      source_path: mineruRepoRoot,
-      repository: 'opendatalab/MinerU-Ecosystem',
-      requested_ref: options.mineruRef,
-      resolved_commit: readGitHead(mineruRepoRoot),
-      version: components.mineru_open_api?.version ?? null,
-    },
-    ui_ux_skill: {
-      label: 'UI UX skill',
-      source_path: options.uiUxProMaxRoot,
-      repository: readGitOriginUrl(options.uiUxProMaxRoot) || 'nextlevelbuilder/ui-ux-pro-max-skill',
-      requested_ref: options.uiUxProMaxRef,
-      resolved_commit: readGitHead(options.uiUxProMaxRoot),
-    },
+    ...(components.officecli
+      ? {
+          officecli: {
+            label: 'OfficeCLI',
+            source_path: options.officeCliRoot,
+            repository: readGitOriginUrl(options.officeCliRoot) || 'iOfficeAI/OfficeCLI',
+            requested_ref: options.officeCliRelease?.requested_ref ?? options.officeCliRef,
+            resolved_ref: options.officeCliRelease?.resolved_ref ?? options.officeCliRef,
+            resolved_commit: options.officeCliRelease?.resolved_commit ?? readGitHead(options.officeCliRoot),
+            latest_stable_verified: options.officeCliRelease?.latest_stable_verified ?? false,
+            source_policy: options.officeCliRelease?.policy ?? 'unverified',
+            version: components.officecli.version,
+          },
+        }
+      : {}),
+    ...(components.mineru_open_api
+      ? {
+          mineru: {
+            label: 'MinerU',
+            source_path: mineruRepoRoot,
+            repository: 'opendatalab/MinerU-Ecosystem',
+            requested_ref: options.mineruRef,
+            resolved_commit: readGitHead(mineruRepoRoot),
+            version: components.mineru_open_api.version,
+          },
+        }
+      : {}),
   };
 }
 

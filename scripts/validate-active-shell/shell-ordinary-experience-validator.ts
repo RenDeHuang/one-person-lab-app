@@ -547,7 +547,10 @@ const productProfileDefaultsExpected = [
   '"label_zh": "5.4"',
   '"label_zh": "5.4 Mini"',
   '"label_zh": "5.2"',
-  '"default_packaged_codex_skill_ids"',
+  '"capability_strategy_consumer"',
+  '"strategy_authority": "opl-flow"',
+  '"compiler_authority": "opl-framework"',
+  '"full_build_lock_kind": "opl_flow_capability_build_lock.v1"',
 ];
 
 const codexSessionConfigurationMenuStructureExpected = {
@@ -852,8 +855,11 @@ function validateProductProfileDefaults(shellPaths) {
       'aioncore_atomic_conversation_owner_rebind_api',
       'explicit_at_mention_owner_rebind_via_core_atomic_api',
       'existing_conversation_rebinding_contract',
+      '"default_packaged_codex_skill_ids"',
+      '"additional_package_skill_ids"',
+      '"official_codex_runtime_capabilities"',
     ],
-    'Active shell product profile private existing-conversation Agent rebind removal',
+    'Active shell product profile retired private Agent and App capability inventories',
   );
   assertProductProfileFrontierModelPreferenceOrder(productProfileJson);
   const menuStructure = productProfileJson?.gui?.home?.codex_model_display_options?.menu_structure;

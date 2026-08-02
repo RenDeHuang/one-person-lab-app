@@ -21,8 +21,8 @@ import {
   packageJsonVersion,
   productionNodeModulesFingerprint,
 } from './hashing.ts';
-import { appRepoRoot } from './paths.ts';
 import { commandOutput, durationSeconds, monotonicSeconds } from './process.ts';
+import { flowCapabilityBuildLockCacheInput } from './flow-capability-build-lock.ts';
 import { resolvedSelectedBundleCacheInput } from './resolved-selected-bundle-descriptor.ts';
 import {
   FULL_RUNTIME_STARTER_PROFILE,
@@ -30,18 +30,6 @@ import {
   type FullRuntimePackageProfile,
 } from './runtime-cache-package-set.ts';
 import { buildRuntimeLayerImplementationHash } from './runtime-layers.ts';
-import {
-  bookforgeSkillSnapshot,
-  magSkillCandidates,
-  masSkillCandidates,
-  metaAgentSkillSnapshot,
-  mineruDocumentExtractorSkillCandidates,
-  officeCliCoreSkillCandidates,
-  officeCliCoreSkillSnapshot,
-  officeCliSkillCandidates,
-  rcaSkillCandidates,
-  skillSourceSnapshot,
-} from './skills.ts';
 
 function buildLayerImplementationInput(layerId: FullRuntimeCacheLayerId) {
   return {
@@ -74,7 +62,11 @@ export function buildRuntimeCacheKeyInputs(
   selectedPackageSet = null,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
   resolvedSelectedBundleDescriptor: unknown = null,
+  flowCapabilityBuildLock: unknown = null,
 ) {
+  if (!flowCapabilityBuildLock) {
+    throw new Error('Full runtime cache identity requires the Framework-generated Flow capability build lock.');
+  }
   const packageSet = selectedPackageSet ?? resolveSelectedPackageSetInput(options, packageProfile);
   const nodeRoot = path.dirname(path.dirname(sources.nodeToolchain.nodeBin));
   const pythonRootName = path.basename(sources.pythonRoot);
@@ -93,10 +85,7 @@ export function buildRuntimeCacheKeyInputs(
         temporal_cli_sha256: existingFileSha256(sources.temporalCliBin),
         temporal_cli_version: commandOutput(sources.temporalCliBin, ['--version']),
         temporal_cli_archive_sha256: existingFileSha256(sources.temporalCliArchive),
-        officecli_sha256: existingFileSha256(sources.officeCliBin),
-        officecli_version: commandOutput(sources.officeCliBin, ['--version']),
-        mineru_open_api_sha256: existingFileSha256(sources.mineruOpenApiBin),
-        mineru_open_api_version: commandOutput(sources.mineruOpenApiBin, ['version']),
+        flow_capability_build_lock: flowCapabilityBuildLockCacheInput(flowCapabilityBuildLock),
         python_root_name: pythonRootName,
         python_version: commandOutput(path.join(sources.pythonRoot, 'bin', 'python3'), ['--version']),
         python_runtime_fingerprint: directoryFingerprint(
@@ -127,30 +116,7 @@ export function buildRuntimeCacheKeyInputs(
             }
           : {
               resolved_selected_bundle: null,
-              app_product_profile_sha256: existingFileSha256(
-                path.join(appRepoRoot, 'contracts', 'app-product-profile.json'),
-              ),
-              med_autoscience_skill_source: skillSourceSnapshot(masSkillCandidates(options), 'skills/med-autoscience'),
-              med_autogrant_skill_source: skillSourceSnapshot(magSkillCandidates(options), 'skills/med-autogrant'),
-              redcube_ai_skill_source: skillSourceSnapshot(rcaSkillCandidates(options), 'skills/redcube-ai'),
-              meta_agent_skill_source: metaAgentSkillSnapshot(options),
-              bookforge_skill_source: bookforgeSkillSnapshot(options),
-              officecli_root_commit: readGitHead(options.officeCliRoot),
-              officecli_core_source: officeCliCoreSkillSnapshot(options),
-              officecli_docx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-docx'), 'skills/officecli-docx'),
-              officecli_pptx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pptx'), 'skills/officecli-pptx'),
-              officecli_xlsx_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-xlsx'), 'skills/officecli-xlsx'),
-              officecli_academic_paper_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-academic-paper'), 'skills/officecli-academic-paper'),
-              officecli_data_dashboard_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-data-dashboard'), 'skills/officecli-data-dashboard'),
-              officecli_financial_model_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-financial-model'), 'skills/officecli-financial-model'),
-              officecli_pitch_deck_source: skillSourceSnapshot(officeCliSkillCandidates(options, 'officecli-pitch-deck'), 'skills/officecli-pitch-deck'),
-              mineru_document_extractor_root_commit: readGitHead(options.mineruDocumentExtractorRoot),
-              mineru_document_extractor_source: skillSourceSnapshot(mineruDocumentExtractorSkillCandidates(options), 'skills/mineru-document-extractor'),
-              ui_ux_pro_max_root_commit: readGitHead(options.uiUxProMaxRoot),
-              ui_ux_pro_max_fingerprint: directoryFingerprint(options.uiUxProMaxRoot, 'skills/ui-ux-pro-max'),
-              skills_packager_sha256: existingFileSha256(
-                path.join(appRepoRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'),
-              ),
+              source: 'owner_package_plugin_carriers_only',
             }),
         implementation: buildLayerImplementationInput('skills'),
     },
@@ -183,6 +149,7 @@ export function buildRuntimeCacheContext(
   sources,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
   resolvedSelectedBundleDescriptor: unknown = null,
+  flowCapabilityBuildLock: unknown = null,
 ) {
   const selectedPackageSet = resolveSelectedPackageSetInput(options, packageProfile);
   const layerKeyInputs = buildRuntimeCacheKeyInputs(
@@ -191,6 +158,7 @@ export function buildRuntimeCacheContext(
     selectedPackageSet,
     packageProfile,
     resolvedSelectedBundleDescriptor,
+    flowCapabilityBuildLock,
   );
   return {
     selectedPackageSet,
@@ -212,12 +180,14 @@ export function buildRuntimeCacheKeyReport(
   sources,
   packageProfile: FullRuntimePackageProfile = FULL_RUNTIME_STARTER_PROFILE,
   resolvedSelectedBundleDescriptor: unknown = null,
+  flowCapabilityBuildLock: unknown = null,
 ) {
   const { selectedPackageSet, layerKeyInputs, layers } = buildRuntimeCacheContext(
     options,
     sources,
     packageProfile,
     resolvedSelectedBundleDescriptor,
+    flowCapabilityBuildLock,
   );
   return {
     status: 'runtime_cache_keys',

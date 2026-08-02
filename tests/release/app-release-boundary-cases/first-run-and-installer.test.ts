@@ -32,6 +32,31 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
   assert.equal(fullDmg.release_gate, false);
   assert.equal(fullDmg.post_publication_optional_certification, true);
+  const capabilityStrategy = matrix.scenarios.find(
+    (entry) => entry.id === 'flow_capability_strategy_framework_managed',
+  );
+  assert.deepEqual(
+    {
+      strategy_authority: capabilityStrategy.strategy_authority,
+      compiler_authority: capabilityStrategy.compiler_authority,
+      app_role: capabilityStrategy.app_role,
+      runtime_projection_ref: capabilityStrategy.runtime_projection_ref,
+      full_build_lock_kind: capabilityStrategy.full_build_lock_kind,
+    },
+    {
+      strategy_authority: 'opl-flow',
+      compiler_authority: 'opl-framework',
+      app_role: 'projection_consumer_only',
+      runtime_projection_ref:
+        'app_state.agent_packages.status_index.packages.opl-flow.capability_strategy',
+      full_build_lock_kind: 'opl_flow_capability_build_lock.v1',
+    },
+  );
+  assert.ok(
+    capabilityStrategy.expects.includes(
+      'install materializes capabilities without running explicit $opl-flow start onboarding',
+    ),
+  );
 
   for (const scenario of matrix.scenarios.filter((entry) => entry.vm)) {
     assert.equal(scenario.release_gate, false, `${scenario.id} physical VM release gate`);

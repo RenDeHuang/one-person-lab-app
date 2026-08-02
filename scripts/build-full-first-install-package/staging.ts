@@ -12,6 +12,9 @@ import {
   writeFullRuntimeManifest,
 } from './manifest-checksum.ts';
 import { commandOutput } from './process.ts';
+import {
+  assertMaterializedFlowCapabilityBuildLock,
+} from './flow-capability-build-lock.ts';
 import { assertOfficeCliBinaryMatchesRelease } from './upstream-release.ts';
 import {
   buildRuntimeCacheContext,
@@ -31,6 +34,10 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
   const masScholarSkillsSource = sourceResolutions.masScholarSkills
     ?? resolveMasScholarSkillsFullRuntimeSource(options);
   const resolvedSelectedBundleDescriptor = sourceResolutions.resolvedSelectedBundleDescriptor ?? null;
+  const flowCapabilityBuildLock = sourceResolutions.flowCapabilityBuildLock;
+  if (!flowCapabilityBuildLock) {
+    throw new Error('Full runtime preparation requires the Framework-generated Flow capability build lock.');
+  }
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-runtime-'));
   const runtimeRoot = path.join(stagingRoot, 'current');
   fs.mkdirSync(path.join(runtimeRoot, 'bin'), { recursive: true });
@@ -45,10 +52,11 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
     sources,
     undefined,
     resolvedSelectedBundleDescriptor,
+    flowCapabilityBuildLock,
   );
   const cacheEvents = [
     runCachedLayer(options, 'toolchain', cacheKeys.toolchain, runtimeRoot, (layerRoot) => {
-      buildToolchainLayer(layerRoot, sources);
+      buildToolchainLayer(layerRoot, sources, flowCapabilityBuildLock);
     }),
     runCachedLayer(options, 'domain-runtime', cacheKeys['domain-runtime'], runtimeRoot, (layerRoot) => {
       buildDomainLayer(layerRoot, options);
@@ -64,9 +72,17 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
   assertTemporalCoreBridgeMacosArm64Only(path.join(runtimeRoot, 'opl', 'node_modules'));
   writeDomainMarkers(runtimeRoot, options, packagedAt);
   const nativeTrust = ensureFullRuntimeNativeTrust(runtimeRoot);
+  const flowCapabilityAssembly = assertMaterializedFlowCapabilityBuildLock(runtimeRoot);
+  const selectedFlowCapabilities = new Set(
+    flowCapabilityBuildLock.items.map((item) => item.capability_ref),
+  );
 
-  const officeCliVersion = commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version']);
-  assertOfficeCliBinaryMatchesRelease(officeCliVersion, options.officeCliRelease);
+  const officeCliVersion = selectedFlowCapabilities.has('cli:officecli')
+    ? commandOutput(path.join(runtimeRoot, 'bin', 'officecli'), ['--version'])
+    : null;
+  if (officeCliVersion) {
+    assertOfficeCliBinaryMatchesRelease(officeCliVersion, options.officeCliRelease);
+  }
   const components = {
     opl: { source_path: options.frameworkRoot, git_commit: readGitHead(options.frameworkRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'opl')) },
     mas: { source_path: options.masRoot, git_commit: readGitHead(options.masRoot), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'modules', 'mas')) },
@@ -90,12 +106,28 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
       archive_path: 'runtime/current/vendor/temporal/temporal_cli_darwin_arm64.tar.gz',
       archive_size_bytes: fs.statSync(sources.temporalCliArchive).size,
     },
-    officecli: { source_path: sources.officeCliBin, version: officeCliVersion, size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')) },
-    mineru_open_api: { source_path: sources.mineruOpenApiBin, version: commandOutput(sources.mineruOpenApiBin, ['version']), size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')) },
+    ...(selectedFlowCapabilities.has('cli:officecli')
+      ? {
+          officecli: {
+            source_path: sources.officeCliBin,
+            version: officeCliVersion,
+            size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'officecli')),
+          },
+        }
+      : {}),
+    ...(selectedFlowCapabilities.has('cli:mineru-open-api')
+      ? {
+          mineru_open_api: {
+            source_path: sources.mineruOpenApiBin,
+            version: commandOutput(sources.mineruOpenApiBin, ['version']),
+            size_bytes: directorySizeBytes(path.join(runtimeRoot, 'bin', 'mineru-open-api')),
+          },
+        }
+      : {}),
     skills: {
       source_path: resolvedSelectedBundleDescriptor
         ? 'resolved_selected_bundle_descriptor'
-        : 'contracts/app-product-profile.json#companion_payloads',
+        : 'owner_package_plugin_carriers_only',
       size_bytes: directorySizeBytes(path.join(runtimeRoot, 'skills')),
     },
   };
@@ -118,6 +150,7 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
   const resolvedRefs = buildResolvedFullPayloadRefs(options, sources, components, {
     masScholarSkills: masScholarSkillsSource,
     resolvedSelectedBundleDescriptor,
+    flowCapabilityBuildLock,
   });
   const manifest = writeFullRuntimeManifest(
     runtimeRoot,
@@ -147,6 +180,8 @@ export function prepareRuntime(options, sources, sourceResolutions = {}) {
       key_inputs: cacheKeyInputs,
       selected_package_set: selectedPackageSet,
       resolved_selected_bundle_descriptor: resolvedSelectedBundleDescriptor,
+      flow_capability_build_lock: flowCapabilityBuildLock,
+      flow_capability_assembly: flowCapabilityAssembly,
       events: cacheEvents,
       currentness,
     },

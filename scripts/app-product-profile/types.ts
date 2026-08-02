@@ -955,24 +955,14 @@ export type AppProductProfile = {
       plugin_must_not_create_second_semantics: boolean;
       cli_and_app_share_skill_semantics: boolean;
     };
-    tools: string[];
     domain_modules: string[];
-    upstream_packages: Record<string, {
-      owner: string;
-      source_policy: string;
-      selected_input_provenance_policy: string;
-      package_unit: string;
-      skill_ids: string[];
-      default_app_visible: boolean;
-      codex_exposure: string;
-      semantic_vendoring_allowed: boolean;
-    }>;
-    official_codex_runtime_capabilities: {
-      owner: string;
-      preferred_capability_ids: string[];
-      distribution_policy: string;
-      fallback_policy: string;
-      default_app_visible: boolean;
+    capability_strategy_consumer: {
+      strategy_authority: string;
+      compiler_authority: string;
+      runtime_projection_ref: string;
+      full_build_lock_kind: string;
+      app_policy_inventory_allowed: boolean;
+      app_direct_workflow_policy_parse_allowed: boolean;
     };
     native_automation: {
       owner: string;
@@ -986,9 +976,6 @@ export type AppProductProfile = {
       executor: string;
       executor_selector_visible: boolean;
     };
-    default_packaged_codex_skill_ids: string[];
-    additional_package_skill_ids: string[];
-    domain_plugin_skill_ids: string[];
     domain_plugin_skills_must_not_be_companion_mirrors: boolean;
   };
   boundary: {

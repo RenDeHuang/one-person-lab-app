@@ -467,21 +467,18 @@ function assertSettingsProfileShape(profile: AppProductProfile): void {
 }
 
 function assertCompanionPayloadProfileShape(profile: AppProductProfile): void {
-  assertStringArray(profile.companion_payloads.tools, 'companion_payloads.tools');
   assertStringArray(profile.companion_payloads.domain_modules, 'companion_payloads.domain_modules');
-  assertStringArray(
-    profile.companion_payloads.default_packaged_codex_skill_ids,
-    'companion_payloads.default_packaged_codex_skill_ids',
-  );
-  assertStringArray(profile.companion_payloads.additional_package_skill_ids, 'companion_payloads.additional_package_skill_ids');
-  assertStringArray(profile.companion_payloads.domain_plugin_skill_ids, 'companion_payloads.domain_plugin_skill_ids');
-  const defaultPackagedSkills = new Set(profile.companion_payloads.default_packaged_codex_skill_ids);
-  const additionalPackageSkills = new Set(profile.companion_payloads.additional_package_skill_ids);
-  if (!additionalPackageSkills.has('opl-meta-agent')) {
-    throw new Error('App product profile must mark opl-meta-agent as an additional packaged skill');
-  }
-  if (defaultPackagedSkills.has('morph-ppt') || additionalPackageSkills.has('morph-ppt')) {
-    throw new Error('App product profile must not include retired morph-ppt skill wiring');
+  const strategy = profile.companion_payloads.capability_strategy_consumer;
+  if (
+    strategy?.strategy_authority !== 'opl-flow'
+    || strategy.compiler_authority !== 'opl-framework'
+    || strategy.runtime_projection_ref !==
+      'app_state.agent_packages.status_index.packages.opl-flow.capability_strategy'
+    || strategy.full_build_lock_kind !== 'opl_flow_capability_build_lock.v1'
+    || strategy.app_policy_inventory_allowed !== false
+    || strategy.app_direct_workflow_policy_parse_allowed !== false
+  ) {
+    throw new Error('App product profile must consume the Framework-compiled OPL Flow capability strategy');
   }
   if (profile.companion_payloads.install_exposure_policy_ref !== 'contracts/app-install-exposure-policy.json') {
     throw new Error('App product profile companion payloads must reference app-install-exposure-policy.json');

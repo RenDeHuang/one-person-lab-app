@@ -150,7 +150,8 @@ function fixture(pythonRuntimeVersion = '3.12.12', expectedPythonVersion = '3.12
     'contracts/app-release-qualification-input-manifest.json': `${JSON.stringify(qualification, null, 2)}\n`,
     'contracts/app-product-profile.json': appProductProfileFixture,
     'contracts/full-runtime-prune-policy.json': '{"schema":"prune"}\n',
-    'scripts/build-full-first-install-package/skills.ts': 'export const skills = true;\n',
+    'scripts/build-full-first-install-package/flow-capability-build-lock.ts':
+      'export const flowCapabilityBuildLockConsumer = true;\n',
   });
   const shellRef = initRepo(shellRoot, { 'package.json': '{"name":"shell"}\n' });
   const frameworkRef = initRepo(frameworkRoot, {
@@ -182,17 +183,35 @@ function fixture(pythonRuntimeVersion = '3.12.12', expectedPythonVersion = '3.12
         codex_package_version: '0.144.5',
         temporal_cli_archive_sha256: 'a'.repeat(64),
         temporal_cli_version: 'temporal version 1.8.0',
-        officecli_sha256: 'b'.repeat(64),
-        officecli_version: '1.0.139',
+        flow_capability_build_lock: {
+          lock_digest: 'd'.repeat(64),
+          flow_package: {
+            id: 'opl-flow',
+            version: '0.1.30',
+            policy_sha256: 'e'.repeat(64),
+            strategy_digest: 'f'.repeat(64),
+          },
+          items: [
+            {
+              capability_ref: 'cli:officecli',
+              source_ref: `iOfficeAI/OfficeCLI@${officeCliRef}`,
+              source_sha256: 'b'.repeat(64),
+              version: 'officecli 1.0.139',
+            },
+            {
+              capability_ref: 'cli:mineru-open-api',
+              source_ref: `opendatalab/MinerU-Ecosystem@${mineruRef}`,
+              source_sha256: 'c'.repeat(64),
+              version: 'mineru-open-api 0.0.1',
+            },
+          ],
+        },
         python_version: `Python ${pythonRuntimeVersion}`,
       },
       'domain-runtime': { selected_package_set: selected },
       'opl-runtime': { opl_commit: frameworkRef },
       skills: {
-        app_product_profile_sha256: sha256(fs.readFileSync(path.join(appRoot, 'contracts', 'app-product-profile.json'))),
-        skills_packager_sha256: sha256(fs.readFileSync(path.join(appRoot, 'scripts', 'build-full-first-install-package', 'skills.ts'))),
-        officecli_root_commit: officeCliRef,
-        ui_ux_pro_max_root_commit: uiUxProMaxRef,
+        source: 'owner_package_plugin_carriers_only',
       },
     },
     layers,
@@ -235,6 +254,15 @@ test('development qualification closes exact Full offline inputs without grantin
     assert.equal(first.input_closure_digest, second.input_closure_digest);
     assert.equal(first.observed_input.sources.app.commit, request.appRef);
     assert.equal(first.observed_input.selected_package_set_identity, selectedPackageSet().identity);
+    assert.deepEqual(Object.keys(first.observed_input.third_party_sources).sort(), [
+      'mineru',
+      'officecli',
+    ]);
+    assert.equal('ui_ux_pro_max' in first.observed_input.third_party_sources, false);
+    assert.match(
+      first.observed_input.authority_manifest_sha256.flow_capability_build_lock_consumer,
+      /^[0-9a-f]{64}$/,
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
