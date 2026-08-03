@@ -247,13 +247,13 @@ troubleshooting references.
 Read the [privacy policy](docs/security/privacy-policy.md) for the exact local
 data, external-service, update, support, and crash-reporting boundaries. The
 [code signing policy](docs/security/code-signing-policy.md) defines build
-provenance, approvers, signature scope, verification, and fail-closed release
-rules. Free code signing provided by
-[SignPath.io](https://about.signpath.io/), certificate by
-[SignPath Foundation](https://signpath.org/). A signature never authorizes
-publication or moves Stable/Latest by itself. SignPath project approval is
-pending, and existing artifacts must not be represented as signed without
-per-artifact Authenticode verification.
+provenance, approvers, signature scope, verification, and fail-closed identity
+rules. Authenticode is an optional trust enhancement and is not a publication
+gate. The project may use [SignPath.io](https://about.signpath.io/) with a
+certificate from [SignPath Foundation](https://signpath.org/), or another
+verifiable HSM-backed provider, after approval. Provider review never blocks a
+release; every artifact must state its actual signing status, and an unsigned
+artifact must not be represented as signed.
 
 ## What The App Does
 

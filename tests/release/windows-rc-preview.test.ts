@@ -375,7 +375,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   );
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_authenticode,
-    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+    false,
   );
   assert.match(manualText, /resolve-release-platform-matrix\.ts/);
   const windows = resolveReleasePlatformMatrix({
@@ -426,7 +426,8 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
     publishRun,
     /Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build/,
   );
-  assert.match(publishRun, /opl-windows-authenticode-receipt\.json/);
+  assert.match(publishRun, /if \[ -f "\$authenticode_receipt" \]/);
+  assert.match(publishRun, /updater_validation_args\+=\(--authenticode-receipt/);
   assert.equal(
     publish.steps.find(
       (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',

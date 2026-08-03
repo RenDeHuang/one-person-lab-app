@@ -209,7 +209,7 @@ jobs:
       opl_release_version: ${{ inputs.opl_release_version }}
       opl_updater_version: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
       require_windows_updater_assets: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
-      require_windows_authenticode: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
+      require_windows_authenticode: false
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
     secrets: inherit
@@ -350,12 +350,18 @@ jobs:
           printf 'asset_inventory\n' > optional-publication-evidence/failure-stage.txt
           windows_updater_selected="$(jq -r 'index("windows-x64") != null' <<<"$PLATFORM_IDS")"
           if [ "$PUBLICATION_MODE" = stable_optional_follower ] && [ "$windows_updater_selected" = true ]; then
+            updater_validation_args=(
+              --artifact-dir selected-platform-assets
+              --release-version "$VERSION"
+              --updater-version "$UPDATER_VERSION"
+              --output selected-platform-assets/opl-windows-updater-assets.json
+            )
+            authenticode_receipt=selected-platform-assets/opl-windows-authenticode-receipt.json
+            if [ -f "$authenticode_receipt" ]; then
+              updater_validation_args+=(--authenticode-receipt "$authenticode_receipt")
+            fi
             node --experimental-strip-types scripts/validate-windows-updater-assets.ts \
-              --artifact-dir selected-platform-assets \
-              --release-version "$VERSION" \
-              --updater-version "$UPDATER_VERSION" \
-              --authenticode-receipt selected-platform-assets/opl-windows-authenticode-receipt.json \
-              --output selected-platform-assets/opl-windows-updater-assets.json \
+              "${updater_validation_args[@]}" \
               > optional-publication-evidence/windows-updater-validation.json
           else
             test -z "$(find selected-platform-assets -maxdepth 1 -type f \
@@ -374,7 +380,7 @@ jobs:
               -print | LC_ALL=C sort
           )
           if [ "$PUBLICATION_MODE" = stable_optional_follower ] && [ "$windows_updater_selected" = true ]; then
-            for updater_name in latest.yml opl-windows-updater-assets.json opl-windows-authenticode-receipt.json; do
+            for updater_name in latest.yml opl-windows-updater-assets.json; do
               updater_paths=()
               while IFS= read -r file_path; do updater_paths+=("$file_path"); done < <(
                 find selected-platform-assets -maxdepth 1 -type f -name "$updater_name" -print
@@ -382,6 +388,9 @@ jobs:
               test "${#updater_paths[@]}" = 1
               asset_paths+=("${updater_paths[0]}")
             done
+            if [ -f selected-platform-assets/opl-windows-authenticode-receipt.json ]; then
+              asset_paths+=(selected-platform-assets/opl-windows-authenticode-receipt.json)
+            fi
             blockmap_paths=()
             while IFS= read -r file_path; do blockmap_paths+=("$file_path"); done < <(
               find selected-platform-assets -maxdepth 1 -type f -name '*.exe.blockmap' -print

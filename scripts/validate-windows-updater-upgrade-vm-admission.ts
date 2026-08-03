@@ -368,9 +368,13 @@ export function validateWindowsUpgradeVmAdmission(
       artifactDir: input.artifactDir,
       releaseVersion: input.releaseVersion,
       updaterVersion: input.updaterVersion,
+      authenticodeReceiptPath: authenticodePath,
     });
     const frozenAssets = readJson(assetsPath, 'Windows updater assets receipt') as WindowsUpdaterAssetReceipt;
     if (JSON.stringify(frozenAssets) !== JSON.stringify(generatedAssets)) {
+      if (JSON.stringify(frozenAssets.code_signing) !== JSON.stringify(generatedAssets.code_signing)) {
+        throw new Error('Windows Authenticode signing status does not bind the exact optional signed certification.');
+      }
       throw new Error('Windows updater assets receipt does not match the exact candidate bytes.');
     }
     const installerPath = path.join(input.artifactDir, generatedAssets.assets.installer.name);

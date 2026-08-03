@@ -55,7 +55,13 @@ function writeJson(filePath: string, value: unknown): void {
 
 function createFixture(
   t: test.TestContext,
-  mutate?: (fixture: { root: string; authenticode: any; compatibility: any; inventory: any }) => void,
+  mutate?: (fixture: {
+    root: string;
+    assetsReceipt: any;
+    authenticode: any;
+    compatibility: any;
+    inventory: any;
+  }) => void,
 ): WindowsUpgradeVmAdmissionInput {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-windows-upgrade-vm-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -102,6 +108,12 @@ function createFixture(
       sha512: `sha512:${installerSha512}`,
     },
     feed_resolution: 'exact_release_download_base_plus_relative_asset_name',
+    code_signing: {
+      policy: 'optional_nonblocking',
+      status: 'valid_timestamped_authenticode',
+      authenticode_receipt: 'opl-windows-authenticode-receipt.json',
+      required_for_publication: false,
+    },
   };
   const authenticode = {
     schema: 'opl_windows_authenticode_receipt.v1',
@@ -234,7 +246,7 @@ function createFixture(
       ],
     }],
   };
-  mutate?.({ root, authenticode, compatibility, inventory });
+  mutate?.({ root, assetsReceipt, authenticode, compatibility, inventory });
   const assetsPath = path.join(root, 'opl-windows-updater-assets.json');
   const authenticodePath = path.join(root, 'opl-windows-authenticode-receipt.json');
   const compatibilityPath = path.join(root, 'opl-component-compatibility-receipt.json');
@@ -292,6 +304,17 @@ test('unsigned or untimestamped candidates fail closed before runner admission',
   assert.equal(receipt.status, 'not_ready');
   assert.equal(receipt.reason_code, 'signed_candidate_unavailable');
   assert.equal(receipt.runner, null);
+  assert.equal(receipt.mutation_attempt_count, 0);
+});
+
+test('signed optional certification rejects updater receipts that do not bind its Authenticode receipt', (t) => {
+  const input = createFixture(t, ({ assetsReceipt }) => {
+    assetsReceipt.code_signing.status = 'unsigned';
+    assetsReceipt.code_signing.authenticode_receipt = null;
+  });
+  const receipt = validateWindowsUpgradeVmAdmission(input);
+  assert.equal(receipt.status, 'not_ready');
+  assert.equal(receipt.reason_code, 'signed_candidate_unavailable');
   assert.equal(receipt.mutation_attempt_count, 0);
 });
 
@@ -436,6 +459,9 @@ test('PowerShell 5.1 dry-run harness defines the full sequence without executabl
   assert.match(source, /execute_available = \$false/);
   assert.match(source, /assets\.metadata\.sha256/);
   assert.match(source, /assets\.blockmap\.sha256/);
+  assert.match(source, /code_signing\.policy/);
+  assert.match(source, /code_signing\.status/);
+  assert.match(source, /code_signing\.authenticode_receipt/);
   assert.match(source, /selected_app_artifact/);
   assert.match(source, /may_define_package_currentness/);
   assert.match(source, /Security\.Cryptography\.SHA256/);

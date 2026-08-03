@@ -79,11 +79,14 @@ test('release platform contract keeps Stable required platforms separate from op
       'One-Person-Lab-<display-version>-win-x64.exe.blockmap',
       'latest.yml',
       'opl-windows-updater-assets.json',
-      'opl-windows-authenticode-receipt.json',
     ],
   );
   assert.equal(
     matrix.optional_platform_additive_follower.windows_x64_updater_assets.authenticode_required_for_publication,
+    false,
+  );
+  assert.equal(
+    matrix.optional_platform_additive_follower.windows_x64_updater_assets.unsigned_publication_allowed,
     true,
   );
   assert.equal(

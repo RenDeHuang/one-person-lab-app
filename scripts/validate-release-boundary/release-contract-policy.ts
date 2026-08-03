@@ -2124,12 +2124,13 @@ export function validateReleasePlatformMatrix(
         'One-Person-Lab-<display-version>-win-x64.exe.blockmap',
         'latest.yml',
         'opl-windows-updater-assets.json',
-        'opl-windows-authenticode-receipt.json',
       ],
     )
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== true
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== false
     || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_gate !==
-      'Get-AuthenticodeSignature_status_valid_with_timestamp_countersignature_and_exact_installer_digest'
+      'optional_when_present_then_Get-AuthenticodeSignature_status_valid_with_timestamp_countersignature_and_exact_installer_digest'
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.unsigned_publication_allowed !== true
+    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.code_signing_status_must_be_explicit !== true
     || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
       'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
     || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false

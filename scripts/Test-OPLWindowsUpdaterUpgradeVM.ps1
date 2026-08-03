@@ -147,9 +147,13 @@ if (
     $assetsReceipt.metadata_binding.path -ne $installerName -or
     $assetsReceipt.metadata_binding.file_url -ne $installerName -or
     [int64]$assetsReceipt.metadata_binding.size_bytes -ne $installerSize -or
-    $assetsReceipt.metadata_binding.sha512 -ne $assetsReceipt.assets.installer.sha512
+    $assetsReceipt.metadata_binding.sha512 -ne $assetsReceipt.assets.installer.sha512 -or
+    $assetsReceipt.code_signing.policy -ne 'optional_nonblocking' -or
+    $assetsReceipt.code_signing.status -ne 'valid_timestamped_authenticode' -or
+    $assetsReceipt.code_signing.authenticode_receipt -ne 'opl-windows-authenticode-receipt.json' -or
+    $assetsReceipt.code_signing.required_for_publication -ne $false
 ) {
-    throw 'Updater assets receipt does not bind the exact Windows candidate EXE, blockmap, and latest.yml.'
+    throw 'Updater assets receipt does not bind the exact Windows candidate EXE, blockmap, latest.yml, and optional signed certification.'
 }
 if (
     $authenticodeReceipt.schema -ne 'opl_windows_authenticode_receipt.v1' -or

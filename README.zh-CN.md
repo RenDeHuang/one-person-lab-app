@@ -187,11 +187,10 @@ qualification 和安装 readback。macOS Desktop 首次启动图文教程以
 
 [隐私政策](docs/security/privacy-policy.md)明确本地数据、外部服务、更新、支持和崩溃
 报告的真实边界；[代码签名政策](docs/security/code-signing-policy.md)定义构建来源、
-审批人、签名范围、验证和 fail-closed 发布规则。Windows 开源签名由
-[SignPath.io](https://about.signpath.io/) 免费提供服务、
-[SignPath Foundation](https://signpath.org/) 提供证书；签名本身不授权发布，也不会
-移动 Stable 或 Latest。SignPath 项目审核仍在等待中；在逐产物 Authenticode 验证
-通过之前，不得把现有产物描述为已签名。
+审批人、签名范围、验证和 fail-closed 身份规则。Windows Authenticode 是可选信誉增强，
+不是发布门禁。项目获批后可使用 [SignPath.io](https://about.signpath.io/) 与
+[SignPath Foundation](https://signpath.org/) 证书，或其他可验证的 HSM 托管服务；
+服务商审核不会阻断发布。每个产物必须如实声明签名状态，未签名产物不得描述为已签名。
 
 ### 安装与更新对象
 
