@@ -87,23 +87,37 @@ jobs:
           printf '%s' "$HANDOFF_BASE64" | base64 --decode > handoff.json
           test "sha256:$(shasum -a 256 handoff.json | awk '{print $1}')" = "$HANDOFF_SHA256"
           jq -e --arg run "$AUTHORITY_RUN_ID" '
+            def opl_fromdateiso8601:
+              if type == "string"
+                and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?Z$")
+              then sub("[.][0-9]+Z$"; "Z") | fromdateiso8601
+              else error("expected UTC ISO-8601 timestamp with optional fractional seconds")
+              end;
             .schema == "opl_homebrew_full_follower_handoff.v1" and .status == "ready" and .operation == "append_full"
             and .authority.run_id == $run and .authority.run_attempt == 1
             and (.operation_control.operation_id | test("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"))
-            and (.operation_control.operation_started_at | fromdateiso8601 > 0)
-            and (.operation_control.operation_deadline_at | fromdateiso8601 > (.operation_control.operation_started_at | fromdateiso8601))
+            and ((.operation_control.operation_started_at | opl_fromdateiso8601) > 0)
+            and ((.operation_control.operation_deadline_at | opl_fromdateiso8601) > (.operation_control.operation_started_at | opl_fromdateiso8601))
             and .source.checkpoint_transport_executor == "github_actions"
             and (.source.transport_run_id | test("^[1-9][0-9]*$"))
             and .source.completed_stage == "full_qualified"
+            and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+            and (.release.target_standard.tag | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+            and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
+            and .release.target_standard.mutation_allowed == false
+            and (.build_provenance.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.build_provenance.app_sha | test("^[0-9a-f]{40}$"))
+            and (.build_provenance.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.build_provenance.framework_sha | test("^[0-9a-f]{40}$"))
             and .github_full_publication.status == "complete"
             and .homebrew_modified == false and .latest_modified == false
           ' handoff.json >/dev/null
           source_run_id="$(jq -er .source.run_id handoff.json)"
           source_artifact="$(jq -er .source.checkpoint_artifact handoff.json)"
-          bundle_digest="$(jq -er .release.bundle_digest handoff.json)"
+          bundle_digest="$(jq -er .build_provenance.bundle_digest handoff.json)"
           version="$(jq -er .release.version handoff.json)"
-          updater_version="$(jq -er .release.updater_version handoff.json)"
-          base_tag="$(jq -er .release.base_tag handoff.json)"
+          updater_version="$(node --experimental-strip-types scripts/release-version.ts --channel stable --version "$version" --json | jq -er .updater_version)"
+          base_tag="$(jq -er .release.target_standard.tag handoff.json)"
           adjunct_tag="$(jq -er .release.adjunct_tag handoff.json)"
           case "$adjunct_tag" in
             "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
@@ -113,9 +127,9 @@ jobs:
               exit 1
               ;;
           esac
-          app_sha="$(jq -er .release.cohort.app_sha handoff.json)"
-          shell_sha="$(jq -er .release.cohort.shell_sha handoff.json)"
-          framework_sha="$(jq -er .release.cohort.framework_sha handoff.json)"
+          app_sha="$(jq -er .build_provenance.app_sha handoff.json)"
+          shell_sha="$(jq -er .build_provenance.shell_sha handoff.json)"
+          framework_sha="$(jq -er .build_provenance.framework_sha handoff.json)"
           executor_sha="$(jq -er .authority.executor_head_sha handoff.json)"
           operation_id="$(jq -er .operation_control.operation_id handoff.json)"
           operation_started_at="$(jq -er .operation_control.operation_started_at handoff.json)"

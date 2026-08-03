@@ -1,12 +1,63 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
+const g32HandoffPath = path.join(process.cwd(), 'tests', 'release', 'fixtures', 'homebrew-full-handoff-g32.json');
 const read = (name: string) => fs.readFileSync(path.join(workflowRoot, name), 'utf8');
 const parse = (name: string) => parseYaml(read(name)) as Record<string, any>;
+
+const g32Predicate = `
+  def opl_fromdateiso8601:
+    if type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?Z$")
+    then sub("[.][0-9]+Z$"; "Z") | fromdateiso8601
+    else error("invalid timestamp") end;
+  .schema == "opl_homebrew_full_follower_handoff.v1"
+  and ((.operation_control.operation_started_at | opl_fromdateiso8601) > 0)
+  and ((.operation_control.operation_deadline_at | opl_fromdateiso8601) > (.operation_control.operation_started_at | opl_fromdateiso8601))
+  and (.release.target_standard.tag | test("^v[0-9]+[.][0-9]+[.][0-9]+(-r[1-9][0-9]*)?$"))
+  and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
+  and .release.target_standard.mutation_allowed == false
+  and ((.release | has("base_tag")) | not)
+  and ((.release | has("bundle_digest")) | not)
+  and ((.release | has("cohort")) | not)
+  and .build_provenance.admission_role == "observational_only"
+  and .build_provenance.may_gate_install_or_runtime == false
+  and (.build_provenance.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+  and (.build_provenance.app_sha | test("^[0-9a-f]{40}$"))
+  and (.build_provenance.shell_sha | test("^[0-9a-f]{40}$"))
+  and (.build_provenance.framework_sha | test("^[0-9a-f]{40}$"))
+  and (.artifact.sha256 | test("^sha256:[0-9a-f]{64}$"))
+  and (.manifest.sha256 | test("^sha256:[0-9a-f]{64}$"))
+`;
+
+function validateG32(handoff: Record<string, any>) {
+  return spawnSync('jq', ['-e', g32Predicate], { input: JSON.stringify(handoff), encoding: 'utf8' });
+}
+
+test('G32 Full handoff accepts fractional UTC timestamps and canonical producer fields', () => {
+  const handoff = JSON.parse(fs.readFileSync(g32HandoffPath, 'utf8')) as Record<string, any>;
+  assert.equal(validateG32(handoff).status, 0);
+  assert.equal(handoff.operation_control.operation_started_at, '2026-08-03T00:08:08.000Z');
+  assert.equal(handoff.release.target_standard.tag, 'v26.8.1-r5');
+  assert.equal(handoff.build_provenance.admission_role, 'observational_only');
+  assert.equal(handoff.build_provenance.may_gate_install_or_runtime, false);
+});
+
+test('Full handoff rejects retired, missing, and hostile producer shapes', () => {
+  const current = JSON.parse(fs.readFileSync(g32HandoffPath, 'utf8')) as Record<string, any>;
+  const retired = structuredClone(current);
+  retired.release.base_tag = retired.release.target_standard.tag;
+  delete retired.release.target_standard;
+  const missing = structuredClone(current);
+  delete missing.build_provenance.bundle_digest;
+  const hostile = structuredClone(current);
+  hostile.operation_control.operation_started_at = '2026-08-03T00:08:08.000Z; touch /tmp/unsafe';
+  for (const candidate of [retired, missing, hostile]) assert.notEqual(validateG32(candidate).status, 0);
+});
 
 test('append_full exports exact qualification-bound handoff without mutating Homebrew', () => {
   const source = read('_release-full-addon.yml');
@@ -34,17 +85,20 @@ test('append_full exports exact qualification-bound handoff without mutating Hom
   assert.doesNotMatch(source, /OPL_HOMEBREW_TAP_TOKEN|update-homebrew-tap|git\b[^\n]*\bpush\b/);
 });
 
-test('Full Homebrew follower has no manual or direct mutation entry', () => {
+test('Full Homebrew follower permits only automatic delivery or exact failed-run recovery', () => {
   const source = read('release-homebrew-full-follower.yml');
   const workflow = parse('release-homebrew-full-follower.yml');
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_run']);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
+    'source_run_id', 'failed_follower_run_id', 'recovery_confirmation',
+  ]);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
+    'recover_exact_failed_homebrew_full_follower',
+  ]);
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs), ['resolve-handoff', 'publish-homebrew-full']);
-  assert.equal(
-    workflow.jobs['resolve-handoff'].if,
-    "${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable append_full ') }}",
-  );
+  assert.match(workflow.jobs['resolve-handoff'].if, /recover_exact_failed_homebrew_full_follower/);
   assert.equal(workflow.jobs['publish-homebrew-full'].uses, './.github/workflows/_release-homebrew-full-publish.yml');
   assert.match(source, /homebrew-full-handoff\.json/);
   assert.match(source, /\.operation_control\.operation_id/);
@@ -52,14 +106,21 @@ test('Full Homebrew follower has no manual or direct mutation entry', () => {
   assert.match(source, /\.source\.completed_stage == "full_qualified"/);
   assert.match(source, /\.source\.checkpoint_transport_executor == "github_actions"/);
   assert.match(source, /\.source\.transport_run_id/);
+  assert.match(source, /def opl_fromdateiso8601/);
+  assert.match(source, /failed-follower-run\.json/);
+  assert.match(source, /\.name == "Bind immutable Homebrew Full handoff" and \.conclusion == "failure"/);
+  assert.match(source, /\.name == "publish-homebrew-full" and \.conclusion == "skipped"/);
+  assert.match(source, /runs\?event=workflow_dispatch&per_page=100/);
+  assert.match(source, /\(\$matches \| length\) == 1/);
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable append_full source:/);
-  assert.match(source, /base_tag="\$\(jq -er \.release\.base_tag "\$handoff"\)"/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag "\$handoff"\)"/);
   assert.match(source, /adjunct_tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
   assert.match(source, /"\$base_tag"-full-/);
   assert.doesNotMatch(source, /\.release\.tag/);
   assert.doesNotMatch(source, /test "\$\(jq -er \.release\.cohort\.app_sha "\$handoff"\)" = "\$head_sha"/);
-  assert.doesNotMatch(source, /workflow_dispatch:|OPL_HOMEBREW_TAP_TOKEN|git\b[^\n]*\bpush\b/);
+  assert.doesNotMatch(source, /\.release\.(?:base_tag|bundle_digest|cohort)/);
+  assert.doesNotMatch(source, /OPL_HOMEBREW_TAP_TOKEN|git\b[^\n]*\bpush\b/);
 });
 
 test('Full Homebrew reusable publishes hosted-qualified bytes before optional physical certification', () => {
@@ -74,6 +135,11 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
   ]);
   assert.deepEqual(workflow.jobs['publish-cask'].needs, ['prepare-candidate']);
   assert.equal(workflow.jobs['publish-cask'].environment, 'release-stable');
+  assert.match(source, /def opl_fromdateiso8601/);
+  assert.match(source, /bundle_digest="\$\(jq -er \.build_provenance\.bundle_digest handoff\.json\)"/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag handoff\.json\)"/);
+  assert.match(source, /app_sha="\$\(jq -er \.build_provenance\.app_sha handoff\.json\)"/);
+  assert.doesNotMatch(source, /\.release\.(?:base_tag|bundle_digest|cohort|updater_version)/);
   assert.match(source, /Restore exact qualified Full checkpoint/);
   assert.match(source, /completed_stage \}\}' = full_qualified/);
   assert.match(source, /Restore qualified Full publication checkpoint/);
@@ -109,7 +175,7 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
   );
   assert.match(source, /qualification_receipt_sha256:\$qualification_sha/);
   assert.match(source, /cohort:\{app_sha:\$app_sha,shell_sha:\$shell_sha,framework_sha:\$framework_sha\}/);
-  assert.match(source, /base_tag="\$\(jq -er \.release\.base_tag handoff\.json\)"/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag handoff\.json\)"/);
   assert.match(source, /adjunct_tag="\$\(jq -er \.release\.adjunct_tag handoff\.json\)"/);
   assert.match(source, /releases\/tags\/\$adjunct_tag/);
   assert.match(source, /\.tag_name == \$tag/);

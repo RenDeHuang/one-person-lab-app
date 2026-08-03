@@ -1,5 +1,8 @@
 name: OPL Post-Publication Optional Certification
-run-name: Optional certification for Stable run ${{ github.event.workflow_run.id }}
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+    && format('Optional certification recovery for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
+    || format('Optional certification for Stable run {0}', github.event.workflow_run.id) }}
 
 on:
   workflow_run:
@@ -7,6 +10,22 @@ on:
       - OPL Stable Release Bundle
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Exact successful append_full Stable authority run
+        required: true
+        type: string
+      failed_follower_run_id:
+        description: Exact failed first-attempt Optional Certification follower run with all executors skipped
+        required: true
+        type: string
+      recovery_confirmation:
+        description: Confirm one-shot recovery of the exact failed Optional Certification follower
+        required: true
+        type: choice
+        options:
+          - recover_exact_failed_optional_certification
 
 permissions:
   contents: read
@@ -16,12 +35,12 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-post-publication-certification-${{ github.event.workflow_run.id }}
+  group: opl-post-publication-certification-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
   resolve-standard:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1002,7 +1021,12 @@ jobs:
           retention-days: 90
 
   resolve-full:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable append_full ') }}
+    if: >-
+      ${{ (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && startsWith(github.event.workflow_run.display_title, 'OPL Stable append_full '))
+        || (github.event_name == 'workflow_dispatch'
+        && inputs.recovery_confirmation == 'recover_exact_failed_optional_certification') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1021,19 +1045,74 @@ jobs:
       - name: Checkout exact Stable source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
       - name: Resolve optional exact Full publication
         id: publication
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
+          FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
+          RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
+            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_optional_certification
+            test "$GITHUB_REF" = refs/heads/main
+            [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            recovery_title="Optional certification recovery for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > recovery-run.json
+            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" --arg sha "$GITHUB_SHA" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-post-publication-certification.yml"
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .head_sha == $sha
+              and .display_title == $title
+              and .run_attempt == 1
+            ' recovery-run.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID" > failed-follower-run.json
+            jq -e --arg run "$FAILED_FOLLOWER_RUN_ID" --arg source "$SOURCE_RUN_ID" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-post-publication-certification.yml"
+              and .event == "workflow_run"
+              and .head_branch == "main"
+              and .display_title == ("Optional certification for Stable run " + $source)
+              and .run_attempt == 1
+              and .status == "completed"
+              and .conclusion == "failure"
+            ' failed-follower-run.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/jobs?per_page=100" > failed-follower-jobs.json
+            jq -e '
+              .total_count == 9
+              and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
+              and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
+            ' failed-follower-jobs.json >/dev/null
+            gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/release-post-publication-certification.yml/runs?event=workflow_dispatch&per_page=100" \
+              > recovery-runs.json
+            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" '
+              [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
+              | ($matches | length) == 1
+              and (($matches[0].id | tostring) == $run)
+              and $matches[0].run_attempt == 1
+            ' recovery-runs.json >/dev/null
+          else
+            test "$TRIGGER_EVENT" = workflow_run
+            test -z "$FAILED_FOLLOWER_RUN_ID$RECOVERY_CONFIRMATION"
+          fi
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > stable-authority-run.json
           jq -e --arg run "$SOURCE_RUN_ID" '
             (.id | tostring) == $run
@@ -1076,7 +1155,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ steps.publication.outputs.publication_artifact }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           github-token: ${{ github.token }}
           path: full-publication
 
@@ -1085,7 +1164,7 @@ jobs:
         if: ${{ always() && steps.publication.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1111,18 +1190,22 @@ jobs:
               run_attempt: 1,
               executor_head_sha: $head
             }
-            and (.release.base_tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
+            and (.release.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
             and (.release.adjunct_tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?-full-[0-9a-f]{12}$"))
-            and (.release.cohort.app_sha | test("^[0-9a-f]{40}$"))
-            and (.release.cohort.shell_sha | test("^[0-9a-f]{40}$"))
-            and (.release.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and (.release.target_standard.tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
+            and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
+            and .release.target_standard.mutation_allowed == false
+            and (.build_provenance.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.build_provenance.app_sha | test("^[0-9a-f]{40}$"))
+            and (.build_provenance.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.build_provenance.framework_sha | test("^[0-9a-f]{40}$"))
             and (.artifact.sha256 | test("^sha256:[0-9a-f]{64}$"))
             and (.manifest.sha256 | test("^sha256:[0-9a-f]{64}$"))
             and .github_full_publication.status == "complete"
             and .homebrew_modified == false
             and .latest_modified == false
           ' "$handoff" >/dev/null
-          base_tag="$(jq -er .release.base_tag "$handoff")"
+          base_tag="$(jq -er .release.target_standard.tag "$handoff")"
           tag="$(jq -er .release.adjunct_tag "$handoff")"
           artifact_name="$(jq -er .artifact.name "$handoff")"
           artifact_digest="$(jq -er .artifact.sha256 "$handoff")"
@@ -1132,9 +1215,9 @@ jobs:
           manifest_digest="$(jq -er .manifest.sha256 "$handoff")"
           manifest_size="$(jq -er .manifest.size_bytes "$handoff")"
           manifest_url="$(jq -er .manifest.url "$handoff")"
-          app_sha="$(jq -er .release.cohort.app_sha "$handoff")"
-          shell_sha="$(jq -er .release.cohort.shell_sha "$handoff")"
-          framework_sha="$(jq -er .release.cohort.framework_sha "$handoff")"
+          app_sha="$(jq -er .build_provenance.app_sha "$handoff")"
+          shell_sha="$(jq -er .build_provenance.shell_sha "$handoff")"
+          framework_sha="$(jq -er .build_provenance.framework_sha "$handoff")"
           case "$tag" in
             "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
               ;;
@@ -1304,7 +1387,7 @@ jobs:
       - name: Checkout exact Stable source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
       - name: Download exact Full VM evidence
@@ -1316,7 +1399,7 @@ jobs:
 
       - name: Write exact Full VM certification receipt
         env:
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           RELEASE_TAG: ${{ needs.resolve-full.outputs.tag }}
           ARTIFACT_NAME: ${{ needs.resolve-full.outputs.artifact_name }}
           ARTIFACT_DIGEST: ${{ needs.resolve-full.outputs.artifact_digest }}
@@ -1542,7 +1625,7 @@ jobs:
       - name: Upload non-blocking Full certification receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: opl-post-publication-full-certification-${{ github.event.workflow_run.id }}
+          name: opl-post-publication-full-certification-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           path: |
             full-dmg-clean-machine.json
             full-dispatch-admission.json

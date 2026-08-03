@@ -982,6 +982,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
 
   const certificationTriggers = optionalCertification.workflow.on ?? {};
+  const certificationRecoveryInputs = certificationTriggers.workflow_dispatch?.inputs ?? {};
   const certificationJobs = workflowJobs(optionalCertification.workflow);
   const expectedCertificationJobs = [
     'resolve-standard',
@@ -995,16 +996,27 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'write-full-receipt',
   ];
   if (
-    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run'])
+    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
       JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || JSON.stringify(Object.keys(certificationRecoveryInputs)) !== JSON.stringify([
+      'source_run_id', 'failed_follower_run_id', 'recovery_confirmation',
+    ])
+    || certificationRecoveryInputs.source_run_id?.required !== true
+    || certificationRecoveryInputs.source_run_id?.type !== 'string'
+    || certificationRecoveryInputs.failed_follower_run_id?.required !== true
+    || certificationRecoveryInputs.failed_follower_run_id?.type !== 'string'
+    || certificationRecoveryInputs.recovery_confirmation?.required !== true
+    || certificationRecoveryInputs.recovery_confirmation?.type !== 'choice'
+    || JSON.stringify(certificationRecoveryInputs.recovery_confirmation?.options) !==
+      JSON.stringify(['recover_exact_failed_optional_certification'])
     || !exactObject(optionalCertification.workflow.permissions, exactReadPermissions)
     || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify(expectedCertificationJobs)
   ) {
     failures += reportFailure(
       id,
-      'post-publication certification must be one read-only automatic Stable workflow_run follower',
+      'post-publication certification must be automatic with only exact failed-run recovery dispatch',
     );
   }
   if (
@@ -1143,13 +1155,22 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'downloaded_from_published_release:$linux_artifact_downloaded',
     'downloaded_from_published_release:$installer_downloaded',
     'rebuilt:false',
+    'recover_exact_failed_optional_certification',
+    'failed-follower-run.json',
+    '.name == "Resolve optional exact Full publication" and .conclusion == "success"',
+    '.name == "Download exact Full publication evidence" and .conclusion == "success"',
+    '.name == "Bind exact public Full identity" and .conclusion == "failure"',
+    '.name != "resolve-full" and .conclusion != "skipped"',
+    'runs?event=workflow_dispatch&per_page=100',
+    '($matches | length) == 1',
+    'test "$GITHUB_REF" = refs/heads/main',
   ]) {
     if (!optionalCertification.text.includes(required)) {
       failures += reportFailure(id, `post-publication certification follower is missing ${required}`);
     }
   }
   if (
-    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/.test(
+    /contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/.test(
       optionalCertification.text,
     )
   ) {
@@ -1423,14 +1444,26 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
   let failures = 0;
   const followerJobs = workflowJobs(follower.workflow);
   const followerTriggers = follower.workflow.on ?? {};
+  const followerRecoveryInputs = followerTriggers.workflow_dispatch?.inputs ?? {};
   if (
-    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run'])
+    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
     || JSON.stringify(followerTriggers.workflow_run?.workflows) !== JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || JSON.stringify(Object.keys(followerRecoveryInputs)) !== JSON.stringify([
+      'source_run_id', 'failed_follower_run_id', 'recovery_confirmation',
+    ])
+    || followerRecoveryInputs.source_run_id?.required !== true
+    || followerRecoveryInputs.source_run_id?.type !== 'string'
+    || followerRecoveryInputs.failed_follower_run_id?.required !== true
+    || followerRecoveryInputs.failed_follower_run_id?.type !== 'string'
+    || followerRecoveryInputs.recovery_confirmation?.required !== true
+    || followerRecoveryInputs.recovery_confirmation?.type !== 'choice'
+    || JSON.stringify(followerRecoveryInputs.recovery_confirmation?.options) !==
+      JSON.stringify(['recover_exact_failed_homebrew_full_follower'])
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
     || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify(['resolve-handoff', 'publish-homebrew-full'])
   ) {
-    failures += reportFailure(id, 'Full Homebrew follower must be one automatic read-default Stable workflow_run lane');
+    failures += reportFailure(id, 'Full Homebrew follower must be automatic with only exact failed-run recovery dispatch');
   }
   const delegated = followerJobs['publish-homebrew-full'];
   if (
@@ -1453,11 +1486,20 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     '.source.checkpoint_transport_executor == "github_actions"',
     '.source.transport_run_id',
     '.homebrew_modified == false',
+    'recover_exact_failed_homebrew_full_follower',
+    'failed-follower-run.json',
+    '.name == "Admit one successful append_full authority run" and .conclusion == "success"',
+    '.name == "Download exact Full publication handoff" and .conclusion == "success"',
+    '.name == "Bind immutable Homebrew Full handoff" and .conclusion == "failure"',
+    '.name == "publish-homebrew-full" and .conclusion == "skipped"',
+    'runs?event=workflow_dispatch&per_page=100',
+    '($matches | length) == 1',
+    'test "$GITHUB_REF" = refs/heads/main',
   ]) {
     if (!follower.text.includes(required)) failures += reportFailure(id, `Full Homebrew follower is missing ${required}`);
   }
-  if (/workflow_dispatch:|continue-on-error|git\b[^\n]*\bpush\b|OPL_HOMEBREW_TAP_TOKEN/.test(follower.text)) {
-    failures += reportFailure(id, 'Full Homebrew follower must not expose manual or direct mutation paths');
+  if (/continue-on-error|git\b[^\n]*\bpush\b|OPL_HOMEBREW_TAP_TOKEN/.test(follower.text)) {
+    failures += reportFailure(id, 'Full Homebrew recovery follower must not expose direct mutation paths');
   }
 
   const publisherJobs = workflowJobs(publisher.workflow);

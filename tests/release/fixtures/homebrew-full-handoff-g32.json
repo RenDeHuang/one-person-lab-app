@@ -1,0 +1,71 @@
+{
+  "schema": "opl_homebrew_full_follower_handoff.v1",
+  "status": "ready",
+  "operation": "append_full",
+  "authority": {
+    "repository": "gaofeng21cn/one-person-lab-app",
+    "workflow": ".github/workflows/release-stable.yml",
+    "run_id": "30773752205",
+    "run_attempt": 1,
+    "executor_head_sha": "fee37f309a076095417055f06ac75290aad2d834"
+  },
+  "operation_control": {
+    "operation_id": "gha-30773752205-append-full",
+    "operation_started_at": "2026-08-03T00:08:08.000Z",
+    "operation_deadline_at": "2026-08-03T02:08:08.000Z"
+  },
+  "source": {
+    "run_id": "30773752205",
+    "checkpoint_artifact": "opl-release-full-checkpoint-30773752205",
+    "checkpoint_transport_executor": "github_actions",
+    "transport_run_id": "30773752205",
+    "completed_stage": "full_qualified",
+    "qualification_receipt_sha256": "sha256:a58da1f4565f6dcb73e69b4305d36d681f8e789d1d4de1137f053cca56b0b086"
+  },
+  "release": {
+    "version": "26.8.1-r5",
+    "adjunct_tag": "v26.8.1-r5-full-17f46a1d04b9",
+    "target_standard": {
+      "release_id": 363488678,
+      "tag": "v26.8.1-r5",
+      "target_commitish": "be731d063d8d761a6f0195cfb9c7bb36f79ce84a",
+      "mutation_allowed": false
+    },
+    "manifest": {
+      "name": "opl-release-manifest.json",
+      "sha256": "sha256:17f46a1d04b964d11e5b2df831ae98a11c3379435f2fd5cf16b8790319a33a2d",
+      "size_bytes": 133104
+    },
+    "artifact": {
+      "name": "One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg",
+      "sha256": "sha256:6a44266d936a031b949b0eac0951ab84d2e540f4a1d39eb92b3b9a0645b889cc",
+      "size_bytes": 578901774
+    }
+  },
+  "build_provenance": {
+    "admission_role": "observational_only",
+    "may_gate_install_or_runtime": false,
+    "bundle_digest": "sha256:0fc536b127efb4344eae7350be33d2f720f39dd1fdcbf1d1efa29efacba1ba97",
+    "app_sha": "be731d063d8d761a6f0195cfb9c7bb36f79ce84a",
+    "shell_sha": "e5760f7fd93d3aefe974a7a30825fdb62091f01e",
+    "framework_sha": "f3a7ea2accf77e33e7f23f9fe8b5d487ce8be39a"
+  },
+  "artifact": {
+    "name": "One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg",
+    "size_bytes": 578901774,
+    "sha256": "sha256:6a44266d936a031b949b0eac0951ab84d2e540f4a1d39eb92b3b9a0645b889cc",
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.8.1-r5-full-17f46a1d04b9/One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg"
+  },
+  "manifest": {
+    "name": "opl-release-manifest.json",
+    "size_bytes": 133104,
+    "sha256": "sha256:17f46a1d04b964d11e5b2df831ae98a11c3379435f2fd5cf16b8790319a33a2d",
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.8.1-r5-full-17f46a1d04b9/opl-release-manifest.json"
+  },
+  "github_full_publication": {
+    "status": "complete",
+    "receipt_sha256": "sha256:c40329f2071c0efb80c1d80ef123aadb338c136e1f42d1fc8cc27ae411480e0c"
+  },
+  "homebrew_modified": false,
+  "latest_modified": false
+}

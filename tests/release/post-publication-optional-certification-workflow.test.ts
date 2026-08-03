@@ -14,6 +14,7 @@ const workflowPath = path.join(
   'release-post-publication-certification.yml',
 );
 const vmWorkflowPath = path.join(appRoot, '.github', 'workflows', 'opl-first-run-vm.yml');
+const g32HandoffPath = path.join(appRoot, 'tests', 'release', 'fixtures', 'homebrew-full-handoff-g32.json');
 
 function readWorkflow(filePath: string): { source: string; workflow: Record<string, any> } {
   const source = fs.readFileSync(filePath, 'utf8');
@@ -218,11 +219,17 @@ function runCapabilityUnavailableReceiptWriter(
   }
 }
 
-test('optional certification is an automatic read-only post-publication executor', () => {
+test('optional certification is automatic or exact failed-run recovery and remains read-only', () => {
   const { source, workflow } = readWorkflow(workflowPath);
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_run']);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
   assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
+    'source_run_id', 'failed_follower_run_id', 'recovery_confirmation',
+  ]);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
+    'recover_exact_failed_optional_certification',
+  ]);
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs), [
     'resolve-standard',
@@ -283,29 +290,38 @@ test('optional certification is an automatic read-only post-publication executor
   assert.equal(workflow.concurrency['cancel-in-progress'], false);
   assert.equal(
     workflow.jobs['resolve-standard'].if,
-    "${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
+    "${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
   );
-  assert.equal(
-    workflow.jobs['resolve-full'].if,
-    "${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable append_full ') }}",
-  );
+  assert.match(workflow.jobs['resolve-full'].if, /recover_exact_failed_optional_certification/);
   assert.match(
     String(workflow.concurrency.group),
-    /opl-post-publication-certification-\$\{\{ github\.event\.workflow_run\.id \}\}/,
+    /inputs\.source_run_id \|\| github\.event\.workflow_run\.id/,
   );
+  assert.match(source, /failed-follower-run\.json/);
+  assert.match(source, /\.name == "Bind exact public Full identity" and \.conclusion == "failure"/);
+  assert.match(source, /\.name != "resolve-full" and \.conclusion != "skipped"/);
+  assert.match(source, /runs\?event=workflow_dispatch&per_page=100/);
+  assert.match(source, /\(\$matches \| length\) == 1/);
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable standard/);
   assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable append_full source:/);
-  assert.match(source, /base_tag="\$\(jq -er \.release\.base_tag "\$handoff"\)"/);
+  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag "\$handoff"\)"/);
   assert.match(source, /tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
   assert.match(source, /"\$base_tag"-full-/);
   assert.doesNotMatch(source, /test "\$tag" = "\$head_branch"/);
   const fullIdentity = String(
     workflowStep(workflow, 'resolve-full', 'Bind exact public Full identity').run,
   );
+  const g32Handoff = JSON.parse(fs.readFileSync(g32HandoffPath, 'utf8')) as Record<string, any>;
+  assert.equal(g32Handoff.release.target_standard.tag, 'v26.8.1-r5');
+  assert.match(g32Handoff.build_provenance.bundle_digest, /^sha256:[0-9a-f]{64}$/);
+  assert.match(fullIdentity, /\.release\.target_standard\.tag/);
+  assert.match(fullIdentity, /\.build_provenance\.bundle_digest/);
+  assert.match(fullIdentity, /\.build_provenance\.app_sha/);
+  assert.doesNotMatch(fullIdentity, /\.release\.(?:base_tag|bundle_digest|cohort)/);
   assert.doesNotMatch(fullIdentity, /test "\$app_sha" = "\$head_sha"/);
   assert.match(fullIdentity, /\.target_commitish == \$executor/);
   assert.match(fullIdentity, /test "\$\(jq -er \.artifact\.url "\$handoff"\)" = "\$release_base\/\$artifact_name"/);
@@ -317,7 +333,7 @@ test('optional certification is an automatic read-only post-publication executor
   assert.match(source, /write-optional-certification-receipt\.ts/);
   assert.doesNotMatch(
     source,
-    /workflow_dispatch:|contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/,
+    /contents: write|packages: write|gh workflow run|gh run (?:rerun|cancel)|gh release (?:create|edit|upload|delete)|opl release (?:build|publish|reconcile)|codesign|notarize/,
   );
 });
 
