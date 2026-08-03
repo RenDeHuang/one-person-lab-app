@@ -76,7 +76,7 @@ App 负责把入口、进度、文件和交付体验做好；医学研究、基�
 用户先选择 Desktop 或 WebUI，再选择 Standard 或 Full，不需要先理解 GitHub、
 Homebrew 或 GHCR。Headless 只安装 Framework Base，不属于 App 产品四格。统一入口、
 平台矩阵、校验、更新和回滚见
-[One Person Lab 安装指南](docs/delivery/install/README.md)；维护侧术语与状态见
+[One Person Lab 安装指南](docs/delivery/install/README.zh-CN.md)；维护侧术语与状态见
 [分发与安装 SSOT](docs/delivery/distribution-and-install-ssot.md)。
 
 ### Homebrew

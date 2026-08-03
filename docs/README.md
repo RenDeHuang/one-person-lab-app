@@ -119,6 +119,9 @@ CI logs.
 
 ## Documentation Language
 
-App internal development docs default to Chinese so GUI, release, contract, and
-runtime-boundary reviews stay direct for maintainers. Public README surfaces may
-remain bilingual or English when product distribution needs it.
+App internal development docs may default to Chinese so GUI, release, contract,
+and runtime-boundary reviews stay direct for maintainers. Public user-facing
+documentation defaults to English and must provide a paired Chinese edition.
+Chinese editions should read as natural Chinese and retain English only for
+product names, commands, protocol fields, and other terms whose translation
+would reduce precision.
