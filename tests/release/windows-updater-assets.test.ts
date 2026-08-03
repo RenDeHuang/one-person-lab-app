@@ -74,7 +74,29 @@ test('validates exact Windows updater metadata, installer bytes, and blockmap re
   assert.equal(receipt.assets.blockmap.name, `${installerName}.blockmap`);
   assert.equal(receipt.assets.metadata.name, 'latest.yml');
   assert.equal(receipt.updater_version, updaterVersion);
+  assert.deepEqual(receipt.code_signing, {
+    policy: 'optional_nonblocking',
+    status: 'unsigned',
+    authenticode_receipt: null,
+    required_for_publication: false,
+  });
   assert.deepEqual(JSON.parse(fs.readFileSync(output, 'utf8')), receipt);
+});
+
+test('records valid timestamped Authenticode as optional exact-byte certification', (t) => {
+  const root = fixture(t);
+  const receipt = validateWindowsUpdaterAssets({
+    artifactDir: root,
+    releaseVersion,
+    updaterVersion,
+    authenticodeReceiptPath: writeAuthenticodeReceipt(root),
+  });
+  assert.deepEqual(receipt.code_signing, {
+    policy: 'optional_nonblocking',
+    status: 'valid_timestamped_authenticode',
+    authenticode_receipt: 'opl-windows-authenticode-receipt.json',
+    required_for_publication: false,
+  });
 });
 
 test('rejects metadata with a different machine updater version', (t) => {

@@ -1226,9 +1226,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       'scripts/validate-windows-updater-assets.ts'
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.updater_version_source !==
       'exact_standard_bundle_release_updater_version'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== true
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== false
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_receipt !==
       'opl-windows-authenticode-receipt.json'
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.unsigned_publication_allowed !== true
+    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.code_signing_status_must_be_explicit !== true
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
       'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false

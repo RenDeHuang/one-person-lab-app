@@ -55,6 +55,12 @@ export type WindowsUpdaterAssetReceipt = {
     sha512: string;
   };
   feed_resolution: 'exact_release_download_base_plus_relative_asset_name';
+  code_signing: {
+    policy: 'optional_nonblocking';
+    status: 'unsigned' | 'valid_timestamped_authenticode';
+    authenticode_receipt: string | null;
+    required_for_publication: false;
+  };
 };
 
 export type WindowsAuthenticodeReceipt = {
@@ -139,6 +145,7 @@ export function validateWindowsUpdaterAssets(input: {
   artifactDir: string;
   releaseVersion: string;
   updaterVersion: string;
+  authenticodeReceiptPath?: string;
   outputPath?: string;
 }): WindowsUpdaterAssetReceipt {
   if (!releaseVersionPattern.test(input.releaseVersion)) {
@@ -189,6 +196,13 @@ export function validateWindowsUpdaterAssets(input: {
     throw new Error('latest.yml files[0] does not match the exact EXE name, size, and SHA-512.');
   }
 
+  const authenticode = input.authenticodeReceiptPath
+    ? validateWindowsAuthenticodeReceipt({
+      receiptPath: input.authenticodeReceiptPath,
+      installerPath,
+    })
+    : null;
+
   const receipt: WindowsUpdaterAssetReceipt = {
     schema: 'opl_windows_updater_assets_receipt.v1',
     status: 'passed',
@@ -220,6 +234,12 @@ export function validateWindowsUpdaterAssets(input: {
       sha512: `sha512:${installerSha512}`,
     },
     feed_resolution: 'exact_release_download_base_plus_relative_asset_name',
+    code_signing: {
+      policy: 'optional_nonblocking',
+      status: authenticode ? 'valid_timestamped_authenticode' : 'unsigned',
+      authenticode_receipt: authenticode ? path.basename(input.authenticodeReceiptPath!) : null,
+      required_for_publication: false,
+    },
   };
 
   if (input.outputPath) {
@@ -252,18 +272,10 @@ function main(argv: string[]): void {
     artifactDir: values['artifact-dir'],
     releaseVersion: values['release-version'],
     updaterVersion: values['updater-version'],
+    authenticodeReceiptPath: values['authenticode-receipt'],
     outputPath: values.output,
   });
-  const authenticode = values['authenticode-receipt']
-    ? validateWindowsAuthenticodeReceipt({
-      receiptPath: values['authenticode-receipt'],
-      installerPath: path.join(
-        path.resolve(values['artifact-dir']),
-        `One-Person-Lab-${values['release-version']}-win-x64.exe`,
-      ),
-    })
-    : null;
-  process.stdout.write(`${JSON.stringify(authenticode ? { updater_assets: receipt, authenticode } : receipt)}\n`);
+  process.stdout.write(`${JSON.stringify(receipt)}\n`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

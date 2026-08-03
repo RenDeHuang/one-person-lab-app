@@ -11,26 +11,25 @@ test('public entry points expose privacy and code-signing policies', () => {
     assert.match(text, /docs\/security\/code-signing-policy\.md/);
     assert.match(text, /SignPath\.io\]\(https:\/\/about\.signpath\.io\/\)/);
     assert.match(text, /SignPath Foundation\]\(https:\/\/signpath\.org\/\)/);
-    assert.match(text, /SignPath project approval is\s+pending|SignPath 项目审核仍在等待中/);
+    assert.match(text, /optional trust enhancement|可选信誉增强/);
+    assert.match(text, /not a publication\s+gate|不是发布门禁/);
+    assert.match(text, /review never blocks a\s+release|审核不会阻断发布/);
   }
 });
 
-test('SignPath policy contains the OSS certificate, role, and approval contract', () => {
+test('code-signing policy keeps provider review optional while verifying every claimed signature', () => {
   const policy = read('docs/security/code-signing-policy.md');
 
-  assert.match(
-    policy,
-    /Free code signing provided by \[SignPath\.io\]\(https:\/\/about\.signpath\.io\/\),\s+certificate by \[SignPath Foundation\]\(https:\/\/signpath\.org\/\)\./,
-  );
+  assert.match(policy, /Authenticode is an optional trust enhancement, not a Windows publication gate/);
+  assert.match(policy, /Provider review timelines do not block[\s\S]*Preview, Stable base, Latest/);
+  assert.match(policy, /must never be represented as signed/);
   assert.match(policy, /Committer and reviewer: \[gaofeng21cn\]/);
   assert.match(policy, /Signing approver: \[gaofeng21cn\]/);
-  assert.match(policy, /SignPath project approval is pending/);
-  assert.match(policy, /does not claim that any\s+existing artifact is signed/);
   assert.match(policy, /Every signing request requires an explicit manual approval/);
   assert.match(policy, /Third-party and upstream[\s\S]*are not re-signed/);
   assert.match(policy, /generated from and verified against the final signed bytes/);
   assert.match(policy, /Signing does\s+not move Stable, Latest, or any release pointer by itself/);
-  assert.match(policy, /Unsigned, self-signed, expired, revoked, digest-mismatched, or unapproved/);
+  assert.match(policy, /honestly declared\s+unsigned artifact is allowed only through the unsigned channel policy/);
 });
 
 test('official workflow cannot silently enable Sentry collection', () => {

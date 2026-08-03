@@ -1,11 +1,12 @@
 # One Person Lab App Code Signing Policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/),
-certificate by [SignPath Foundation](https://signpath.org/).
-
-SignPath project approval is pending. This policy does not claim that any
-existing artifact is signed; signed status is established only by the
-per-artifact verification below.
+Authenticode is an optional trust enhancement, not a Windows publication gate.
+The project may use [SignPath.io](https://about.signpath.io/) with a certificate
+from [SignPath Foundation](https://signpath.org/), or another verifiable
+HSM-backed provider, after approval. Provider review timelines do not block
+Preview, Stable base, Latest, or an explicitly selected Windows optional
+adjunct. Every artifact states its actual signing status; unsigned artifacts
+must never be represented as signed.
 
 This policy covers Windows artifacts built from the public
 [`gaofeng21cn/one-person-lab-app`](https://github.com/gaofeng21cn/one-person-lab-app)
@@ -21,7 +22,7 @@ this project. It does not imply that SignPath Foundation authored the software.
 Changes from contributors who do not have direct commit authority require
 review before merge. Every signing request requires an explicit manual approval
 from the signing approver. Build success alone never authorizes signing or
-publication.
+publication, and signing approval is independent from release authority.
 
 ## Source And Build Integrity
 
@@ -50,7 +51,15 @@ generated from and verified against the final signed bytes.
 
 ## Verification And Publication
 
-A signed candidate is accepted only when all of the following are true:
+A Windows candidate is publishable when immutable source and release authority,
+exact SHA-256/SHA-512 and size bindings, updater metadata, blockmap, manifest,
+and channel qualification pass. Its machine-readable updater receipt must say
+either `unsigned` or `valid_timestamped_authenticode`. An unsigned candidate
+retains the documented SmartScreen warning but is not blocked on a certificate
+provider.
+
+When a signature is present, it is accepted only when all of the following are
+true:
 
 1. Windows reports a valid Authenticode signature and timestamp chain.
 2. The signer identity matches the approved SignPath Foundation certificate.
@@ -61,8 +70,9 @@ A signed candidate is accepted only when all of the following are true:
 5. Publication uses a separately authorized, immutable operation. Signing does
    not move Stable, Latest, or any release pointer by itself.
 
-Unsigned, self-signed, expired, revoked, digest-mismatched, or unapproved
-artifacts fail closed and must not be represented as production-signed.
+Self-signed, expired, revoked, digest-mismatched, or unapproved signatures fail
+closed and must not be represented as production-signed. An honestly declared
+unsigned artifact is allowed only through the unsigned channel policy above.
 
 ## Privacy And User Safety
 
@@ -82,8 +92,8 @@ artifact revocation.
 
 ## 中文摘要
 
-Windows 正式签名由 SignPath.io 免费提供签名服务、SignPath Foundation 提供证书。
-证书显示的发布者是 SignPath Foundation；每次签名都必须由签名审批人手动批准，且输入必须
-来自本仓 GitHub-hosted runner 的可验证构建。项目只签自己的可执行文件和安装器，不把上游
-二进制重新签成 One Person Lab 作品。安装器签名后才生成 blockmap、updater metadata、
-checksum、manifest 和 receipt；签名本身不授权发布，也不会移动 Stable 或 Latest。
+Windows Authenticode 是可选信誉增强，不再是 Preview、Stable 基础发布、Latest 或显式
+Windows optional adjunct 的阻断条件。SignPath Foundation 或其他 HSM 托管服务获批后仍可
+接入；有签名时继续严格校验身份、时间戳和最终字节，无签名时 receipt 必须明确写 `unsigned`，
+并保留 SmartScreen 风险提示。两种路径都必须校验 immutable Release、来源、摘要、size、
+blockmap、updater metadata、manifest 和安装结果；任何未签名产物都不得冒充已签名。

@@ -404,7 +404,7 @@ test('optional platform publication is an independent protected post-success ope
   );
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_authenticode,
-    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+    false,
   );
   const publish = manual.jobs['publish-selected-platforms'];
   assert.equal(
@@ -421,7 +421,7 @@ test('optional platform publication is an independent protected post-success ope
   assert.match(publishRun, /jq -S -n/);
   assert.match(publishRun, /validate-windows-updater-assets\.ts/);
   assert.match(publishRun, /opl-windows-updater-assets\.json/);
-  assert.match(publishRun, /opl-windows-authenticode-receipt\.json/);
+  assert.match(publishRun, /if \[ -f selected-platform-assets\/opl-windows-authenticode-receipt\.json \]/);
   assert.match(publishRun, /\.exe\.blockmap/);
   assert.match(publishRun, /release_identity:\{display_version:\$display_version,updater_version:\$updater_version\}/);
   assert.match(publishRun, /test -s "\$manifest_path"/);

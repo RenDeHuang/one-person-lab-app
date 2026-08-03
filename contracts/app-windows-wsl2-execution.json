@@ -134,6 +134,8 @@
       "exact_installer_packaged_tree_runtime_and_source_cohort"
     ],
     "stable_and_latest_allowed": false,
-    "code_signing_required_for_stable": true
+    "code_signing_required_for_stable": false,
+    "code_signing_status_must_be_explicit": true,
+    "unsigned_artifact_may_claim_production_signed": false
   }
 }
