@@ -194,6 +194,28 @@ test('append Full selection uses the dispatch operation while payload identity s
   assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
 });
 
+test('Standard and resume selection use the dispatch operation after admission succeeds', (t) => {
+  const root = fixture(t);
+  const file = workflowPath(root, 'release-stable.yml');
+  const current = fs.readFileSync(file, 'utf8');
+  const standardRoute =
+    "if: ${{ !cancelled() && inputs.operation == 'standard' && needs.admission.result == 'success' }}";
+  const resumeRoute =
+    "if: ${{ !cancelled() && inputs.operation == 'resume_standard' && needs.admission.result == 'success' }}";
+  assert.match(current, new RegExp(standardRoute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(current, new RegExp(resumeRoute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.equal(validateStableReleaseControlPlane(root), 0);
+
+  fs.writeFileSync(
+    file,
+    current.replace(
+      resumeRoute,
+      "if: ${{ needs.admission.outputs.operation == 'resume_standard' }}",
+    ),
+  );
+  assert.ok(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)) > 0);
+});
+
 test('Stable admission keeps recovery inputs optional but requires their pre-issued carrier values for Standard', (t) => {
   const source = fs.readFileSync(path.join(process.cwd(), workflowDirectory, 'release-stable.yml'), 'utf8');
   const mutations = [
