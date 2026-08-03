@@ -1025,8 +1025,70 @@ jobs:
             test "${#source_gates[@]}" -eq 1
             test "${#pre_nonce_guards[@]}" -eq 1
             test "${#run_reconciles[@]}" -eq 1
-            jq '{assets: (.release_bundle_publish.receipt.details.upload_actions // [])}' \
-              publish-plan.json > planned-payload-assets.json
+            standard_assets_dir='${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets'
+            # The publication record seals the complete frozen payload, while the
+            # Framework plan contains only the delta that still needs uploading.
+            # START complete-standard-payload-materialization
+            jq -e '
+              .assets as $assets
+              | if (($assets | type) != "array" or ($assets | length) == 0) then
+                  error("standard-build-receipt assets must be a non-empty array")
+                elif any($assets[];
+                  ((.name | type) != "string")
+                  or (.name | test("^[A-Za-z0-9][A-Za-z0-9._-]*$") | not)
+                  or ((.size_bytes | type) != "number")
+                  or (.size_bytes <= 0)
+                  or ((.size_bytes | floor) != .size_bytes)
+                  or ((.sha256 | type) != "string")
+                  or (.sha256 | test("^sha256:[0-9a-f]{64}$") | not)
+                ) then
+                  error("standard-build-receipt contains an invalid asset identity")
+                elif (($assets | map(.name) | unique | length) != ($assets | length)) then
+                  error("standard-build-receipt contains duplicate asset names")
+                else
+                  {assets: ($assets | map({name, digest: .sha256, size_bytes}) | sort_by(.name))}
+                end
+              ' standard-build-receipt.json > planned-payload-assets.json
+            jq -e --slurpfile receipt standard-build-receipt.json '
+              .tracks.standard.required_asset_names as $required
+              | (($required | type) == "array")
+                and (($required | length) > 0)
+                and (($required | sort) == ($receipt[0].assets | map(.name) | sort))
+              ' "$bundle" >/dev/null
+            while IFS=$'\t' read -r asset_name expected_size expected_sha; do
+              asset_path="$standard_assets_dir/$asset_name"
+              test -s "$asset_path" && test ! -L "$asset_path"
+              test "$(wc -c < "$asset_path" | tr -d ' ')" = "$expected_size"
+              test "sha256:$(shasum -a 256 "$asset_path" | awk '{print $1}')" = "$expected_sha"
+            done < <(jq -r '.assets[] | [.name, (.size_bytes | tostring), .sha256] | @tsv' standard-build-receipt.json)
+            jq -e \
+              --arg assets_dir "$standard_assets_dir" \
+              --slurpfile plan publish-plan.json '
+                .assets as $assets
+                | ($plan[0].release_bundle_publish.receipt.details.upload_actions // []) as $planned
+                | ($assets | map(.name)) as $expected_names
+                | if (($planned | map(.name) | unique | length) != ($planned | length)) then
+                    error("Framework publish plan contains duplicate asset names")
+                  elif any($planned[]; (.name as $name | ($expected_names | index($name) | not))) then
+                    error("Framework publish plan contains an asset outside the frozen Standard payload")
+                  else
+                    {
+                      schema: "opl_app_standard_recovery_payload_actions.v1",
+                      upload_actions: (
+                        $assets
+                        | map(select(.name as $name | ($planned | map(.name) | index($name) | not)))
+                        | map({
+                            action: "upload",
+                            name,
+                            source_path: ($assets_dir + "/" + .name),
+                            size_bytes,
+                            sha256
+                          })
+                      )
+                    }
+                  end
+              ' standard-build-receipt.json > standard-recovery-payload-actions.json
+            # END complete-standard-payload-materialization
             record=stable-operation-publication-record.json
             node --experimental-strip-types app-executor/scripts/stable-operation-publication-record.ts create \
               --authority "${authorities[0]}" --control "${controls[0]}" --consumption "${consumptions[0]}" \
@@ -1042,23 +1104,51 @@ jobs:
               test -s "$evidence" && test ! -L "$evidence"
             done
             cmp "$component_manifest" "$bound_component_manifest"
-            node --experimental-strip-types app-executor/scripts/write-release-attestation.ts \
-              --publication-record "$record" \
-              --gatekeeper-policy "$gatekeeper_policy" \
-              --notarization-receipt "$notarization_receipt" \
-              --component-manifest "$component_manifest" \
-              --preflight-setting-receipt github-immutability-preflight.json \
-              --disabled-setting-receipt github-immutability-disabled.json \
-              --bundle-digest "$BUNDLE_DIGEST" \
-              --output opl-release-attestation.json
+            remote_attestation_count="$(jq '[.assets[] | select(.name == "opl-release-attestation.json")] | length' remote-before.json)"
+            case "$remote_attestation_count" in
+              0)
+                node --experimental-strip-types app-executor/scripts/write-release-attestation.ts \
+                  --publication-record "$record" \
+                  --gatekeeper-policy "$gatekeeper_policy" \
+                  --notarization-receipt "$notarization_receipt" \
+                  --component-manifest "$component_manifest" \
+                  --preflight-setting-receipt github-immutability-preflight.json \
+                  --disabled-setting-receipt github-immutability-disabled.json \
+                  --bundle-digest "$BUNDLE_DIGEST" \
+                  --output opl-release-attestation.json
+                ;;
+              1)
+                mkdir public-standard-attestation
+                gh release download '${{ needs.restore.outputs.tag }}' \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --pattern opl-release-attestation.json \
+                  --dir public-standard-attestation
+                downloaded_attestation=public-standard-attestation/opl-release-attestation.json
+                test -s "$downloaded_attestation" && test ! -L "$downloaded_attestation"
+                remote_attestation_size="$(jq -er '.assets[] | select(.name == "opl-release-attestation.json") | .size_bytes' remote-before.json)"
+                remote_attestation_sha="$(jq -er '.assets[] | select(.name == "opl-release-attestation.json") | .sha256' remote-before.json)"
+                test "$(wc -c < "$downloaded_attestation" | tr -d ' ')" = "$remote_attestation_size"
+                test "sha256:$(shasum -a 256 "$downloaded_attestation" | awk '{print $1}')" = "$remote_attestation_sha"
+                jq -S . "$record" > expected-publication-record.canonical.json
+                jq -S .publication_record "$downloaded_attestation" > attested-publication-record.canonical.json
+                cmp expected-publication-record.canonical.json attested-publication-record.canonical.json
+                cp "$downloaded_attestation" opl-release-attestation.json
+                cmp "$downloaded_attestation" opl-release-attestation.json
+                ;;
+              *)
+                echo "::error::Remote Standard must contain at most one unified attestation."
+                exit 1
+                ;;
+            esac
             attestation_size="$(wc -c < opl-release-attestation.json | tr -d ' ')"
             attestation_sha="sha256:$(shasum -a 256 opl-release-attestation.json | awk '{print $1}')"
             jq -n \
+              --slurpfile payload standard-recovery-payload-actions.json \
               --arg path "$PWD/opl-release-attestation.json" \
               --argjson size "$attestation_size" --arg sha "$attestation_sha" \
-              '{schema:"opl_app_standard_attestation_upload_actions.v1",upload_actions:[{action:"upload",name:"opl-release-attestation.json",source_path:$path,size_bytes:$size,sha256:$sha}]}' \
-              > standard-attestation-upload-actions.json
-            additional_upload_args=(--additional-upload-actions standard-attestation-upload-actions.json)
+              '{schema:"opl_app_standard_publication_upload_actions.v1",upload_actions:($payload[0].upload_actions + [{action:"upload",name:"opl-release-attestation.json",source_path:$path,size_bytes:$size,sha256:$sha}])}' \
+              > standard-publication-upload-actions.json
+            additional_upload_args=(--additional-upload-actions standard-publication-upload-actions.json)
             publication_record_args=(--publication-record "$record")
             # A resume run transports the frozen checkpoint; the original Standard
             # producer remains the authority bound by the publication record.
@@ -1209,7 +1299,8 @@ jobs:
             publish-apply.json
             planned-payload-assets.json
             stable-operation-publication-record.json
-            standard-attestation-upload-actions.json
+            standard-recovery-payload-actions.json
+            standard-publication-upload-actions.json
             opl-release-attestation.json
             github-immutability-preflight.json
             github-immutability-disabled.json
@@ -1311,6 +1402,9 @@ jobs:
             jq -S . "$record" > expected-publication-record.canonical.json
             jq -S .publication_record "$attestation" > attested-publication-record.canonical.json
             cmp expected-publication-record.canonical.json attested-publication-record.canonical.json
+            # The durable record seals the complete payload. publish-plan.json is
+            # only the upload delta and can legitimately contain zero actions.
+            plans=("$record")
             jq \
               --null-input \
               --slurpfile plan "${plans[0]}" \
@@ -1318,8 +1412,9 @@ jobs:
               --argjson size "$attestation_size" \
               '{
                 assets: (
-                  (($plan[0].release_bundle_publish.receipt.details.upload_actions // [])
-                    | map({name: .name, digest: .sha256, size_bytes: .size_bytes}))
+                  (($plan[0].publication_intent.payload_assets
+                    // ($plan[0].release_bundle_publish.receipt.details.upload_actions // []))
+                    | map({name: .name, digest: (.digest // .sha256), size_bytes: .size_bytes}))
                   + [{name: "opl-release-attestation.json", digest: $sha, size_bytes: $size}]
                 )
               }' > expected-mutable-standard-assets.json

@@ -388,6 +388,22 @@ test('resume admission preserves Standard identity and rotates only an expired e
     );
   }
   assert.doesNotMatch(publicationControl, /app-source\/scripts\//);
+  assert.match(publicationControl, /standard-build-receipt\.json > planned-payload-assets\.json/);
+  assert.match(publicationControl, /\.tracks\.standard\.required_asset_names as \$required/);
+  assert.doesNotMatch(
+    publicationControl,
+    /jq '\{assets: \(\.release_bundle_publish\.receipt\.details\.upload_actions/,
+  );
+  assert.match(publicationControl, /gh release download '[^']+'[^]*--pattern opl-release-attestation\.json/);
+  assert.match(publicationControl, /remote_attestation_sha[^]*shasum -a 256 "\$downloaded_attestation"/);
+  assert.match(
+    publicationControl,
+    /cmp expected-publication-record\.canonical\.json attested-publication-record\.canonical\.json/,
+  );
+  assert.match(
+    publicationControl,
+    /standard-recovery-payload-actions\.json[^]*standard-publication-upload-actions\.json/,
+  );
 
   const restoreSettingCheckout = workflowStep(
     '_release-standard-publish.yml',
@@ -446,6 +462,127 @@ test('resume admission preserves Standard identity and rotates only an expired e
   assert.match(source, /test "\$\(jq -r \.rebuild_performed <<<"\$CHECKPOINT_IMPORT"\)" = false/);
   assert.doesNotMatch(source, /uses:\s*\.\/\.github\/workflows\/_release-bundle\.yml/);
   assert.doesNotMatch(source, /opl release (?:freeze|build|verify)\b/);
+});
+
+test('Standard publication materializes the complete frozen payload when the Framework upload delta is empty or partial', () => {
+  const publicationControl = String(workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Publish only missing Standard bytes',
+  ).run);
+  const startMarker = '# START complete-standard-payload-materialization';
+  const endMarker = '# END complete-standard-payload-materialization';
+  const start = publicationControl.indexOf(startMarker);
+  const end = publicationControl.indexOf(endMarker);
+  assert.notEqual(start, -1);
+  assert.ok(end > start);
+  const materialize = publicationControl.slice(start + startMarker.length, end);
+
+  const runFixture = (options: {
+    plannedNames?: string[];
+    requiredNames?: string[];
+    corruptAsset?: string;
+  } = {}) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-complete-payload-'));
+    const assetsDir = path.join(root, 'standard-assets');
+    fs.mkdirSync(assetsDir);
+    const identities = [
+      { name: 'zeta.bin', bytes: Buffer.from('zeta payload\n') },
+      { name: 'alpha.json', bytes: Buffer.from('{"alpha":true}\n') },
+    ].map(({ name, bytes }) => {
+      fs.writeFileSync(path.join(assetsDir, name), bytes);
+      return {
+        name,
+        size_bytes: bytes.length,
+        sha256: `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`,
+      };
+    });
+    if (options.corruptAsset) {
+      fs.appendFileSync(path.join(assetsDir, options.corruptAsset), 'corrupt');
+    }
+    fs.writeFileSync(
+      path.join(root, 'standard-build-receipt.json'),
+      `${JSON.stringify({ assets: identities })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, 'release-bundle.json'),
+      `${JSON.stringify({
+        tracks: {
+          standard: {
+            required_asset_names: options.requiredNames ?? identities.map(({ name }) => name),
+          },
+        },
+      })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, 'publish-plan.json'),
+      `${JSON.stringify({
+        release_bundle_publish: {
+          receipt: {
+            details: {
+              upload_actions: (options.plannedNames ?? []).map((name) => ({ name })),
+            },
+          },
+        },
+      })}\n`,
+    );
+    const result = spawnSync('bash', ['-e', '-u', '-o', 'pipefail', '-c', [
+      'bundle=release-bundle.json',
+      `standard_assets_dir=${JSON.stringify(assetsDir)}`,
+      materialize,
+    ].join('\n')], { cwd: root, encoding: 'utf8' });
+    const readOutput = (name: string) => {
+      const output = path.join(root, name);
+      return fs.existsSync(output) && fs.statSync(output).size > 0
+        ? JSON.parse(fs.readFileSync(output, 'utf8'))
+        : null;
+    };
+    return {
+      root,
+      result,
+      identities,
+      plannedPayload: readOutput('planned-payload-assets.json'),
+      recoveryActions: readOutput('standard-recovery-payload-actions.json'),
+    };
+  };
+
+  const emptyDelta = runFixture();
+  try {
+    assert.equal(emptyDelta.result.status, 0, emptyDelta.result.stderr);
+    assert.deepEqual(
+      emptyDelta.plannedPayload.assets.map((asset: Record<string, unknown>) => asset.name),
+      ['alpha.json', 'zeta.bin'],
+    );
+    assert.deepEqual(
+      emptyDelta.recoveryActions.upload_actions.map((action: Record<string, unknown>) => action.name),
+      ['zeta.bin', 'alpha.json'],
+    );
+  } finally {
+    fs.rmSync(emptyDelta.root, { recursive: true, force: true });
+  }
+
+  const partialDelta = runFixture({ plannedNames: ['zeta.bin'] });
+  try {
+    assert.equal(partialDelta.result.status, 0, partialDelta.result.stderr);
+    assert.deepEqual(
+      partialDelta.recoveryActions.upload_actions.map((action: Record<string, unknown>) => action.name),
+      ['alpha.json'],
+    );
+  } finally {
+    fs.rmSync(partialDelta.root, { recursive: true, force: true });
+  }
+
+  for (const invalid of [
+    runFixture({ requiredNames: ['zeta.bin'] }),
+    runFixture({ corruptAsset: 'alpha.json' }),
+    runFixture({ plannedNames: ['zeta.bin', 'zeta.bin'] }),
+  ]) {
+    try {
+      assert.notEqual(invalid.result.status, 0, 'invalid frozen payload evidence passed');
+    } finally {
+      fs.rmSync(invalid.root, { recursive: true, force: true });
+    }
+  }
 });
 
 test('checkpoint state lineage remains Framework-owned while App exposes transport provenance only', () => {
