@@ -158,6 +158,23 @@ function assertNoForbiddenPublicAssets(releaseView) {
   }
 }
 
+function assertExactPublicAssetSet(releaseView, requiredNames) {
+  const assets = Array.isArray(releaseView.assets) ? releaseView.assets : [];
+  const actualNames = assets.map((asset) => asset?.name).filter(Boolean);
+  const actualSet = new Set(actualNames);
+  const requiredSet = new Set(requiredNames);
+  if (actualNames.length !== actualSet.size) {
+    throw new Error("GitHub Release public assets contain duplicate names.");
+  }
+  const missing = requiredNames.filter((name) => !actualSet.has(name));
+  const unexpected = actualNames.filter((name) => !requiredSet.has(name));
+  if (missing.length > 0 || unexpected.length > 0) {
+    throw new Error(
+      `GitHub Release public asset set is not exact; missing: ${missing.join(", ") || "none"}; unexpected: ${unexpected.join(", ") || "none"}.`,
+    );
+  }
+}
+
 function assertReleaseNotesBody(releaseView, options) {
   if (
     !options.includeFullPackage ||
@@ -167,25 +184,33 @@ function assertReleaseNotesBody(releaseView, options) {
     return null;
   }
   const body = typeof releaseView.body === "string" ? releaseView.body : "";
+  const releaseName = typeof releaseView.name === "string"
+    ? releaseView.name
+    : `One Person Lab v${options.version}`;
+  const firstVisibleLine = body
+    .split(/\r?\n/)
+    .find((line) => line.trim().length > 0)
+    ?.trim() || "";
+  if (firstVisibleLine === releaseName || firstVisibleLine === `# ${releaseName}`) {
+    throw new Error("Stable GitHub Release body repeats the GitHub Release name as its visible title.");
+  }
   const required = [
-    `One Person Lab v${options.version}`,
     "## Highlights",
     "## What improved",
     "## Compatibility and action required",
     "## Technical details",
     "## OPL agents and runtime payload",
-    "Full first-install package includes",
-    "Packaged component refs:",
-    "Component updates since previous Stable:",
     "## OPL family updates",
     "## Install Stable",
     "## Release scope",
+    "Full DMG",
+    "same Stable release",
     "Full Changelog",
   ];
   const missing = required.filter((marker) => !body.includes(marker));
   if (missing.length > 0) {
     throw new Error(
-      `Stable Full GitHub Release notes are incomplete; missing: ${missing.join(", ")}`,
+      `Stable GitHub Release notes are incomplete; missing: ${missing.join(", ")}`,
     );
   }
   return {
@@ -1291,6 +1316,7 @@ function main() {
     throw new Error(`Release tag mismatch: expected ${options.tag}, got ${releaseView.tagName}`);
   }
   assertNoForbiddenPublicAssets(releaseView);
+  assertExactPublicAssetSet(releaseView, names);
   const releaseNotes = assertReleaseNotesBody(releaseView, options);
 
   downloadAssets(options, names, downloadDir);

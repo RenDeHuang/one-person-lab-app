@@ -13,6 +13,8 @@ import {
   deadlineAt,
   deadlineMs,
   notes,
+  legacyNotes,
+  projectedLegacyNotes,
   sourceCommit,
   executorCommit,
   standardOperationId,
@@ -133,6 +135,40 @@ test('append_full uploads only the two missing same-tag assets without PATCH or 
   assert.equal(simulated.calls.some((args) => args[3] === `repos/${repo}/releases`), false);
   assert.equal(result.standard_assets_modified, false);
   assert.equal(result.latest_modified, false);
+});
+
+test('append_full binds a legacy frozen Bundle to the projected same-tag public body', () => {
+  const files = fixture([], 'append_full');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.prepared_notes.markdown = legacyNotes;
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  const calls: string[][] = [];
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args) {
+      calls.push(args);
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
+        return success(releaseResponse(files.standardAssets, {
+          immutable: false,
+          body: projectedLegacyNotes,
+        }));
+      }
+      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission('append_full', 'full'),
+    'mutation-mode': 'rehearsal',
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'standard-attestation': files.standardAttestationPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'rehearsal_complete');
+  assert.equal(result.preexisting_release.body_sha256, sha256Evidence(projectedLegacyNotes).slice('sha256:'.length));
+  assert.equal(calls.length, 1);
 });
 
 test('an identity failure after an accepted Full mutation returns unknown with no retry', () => {

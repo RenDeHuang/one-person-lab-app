@@ -58,7 +58,7 @@ function compatibilityBullets(evidence: ReleaseNotesEvidence) {
   }
   return [
     'No manual migration is required beyond installing or upgrading this Stable release.',
-    'Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.',
+    'The Full DMG is appended later to this same Stable release for fresh-machine installation with bundled runtime, Office, and document-intake payloads.',
   ];
 }
 

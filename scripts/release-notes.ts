@@ -303,7 +303,7 @@ export function buildReleaseNotesDocument(options: ReleaseNoteOptions) {
       '- No manual migration is required beyond installing or upgrading this qualified Preview.',
     )
     .replace(
-      '- Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.',
+      '- The Full DMG is appended later to this same Stable release for fresh-machine installation with bundled runtime, Office, and document-intake payloads.',
       '- Preview publishes no Full or Homebrew carrier; use the current Stable paths when those carriers are required.',
     );
 }

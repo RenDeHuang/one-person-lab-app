@@ -32,9 +32,7 @@ function fakeMacosTrustEnvironment(binDir, fields = {}) {
 }
 
 function validFullReleaseNotes(version) {
-  return `One Person Lab v${version}
-
-This Stable release is for users installing or upgrading One Person Lab App. It focuses on making research, grant-writing, visual-deliverable, agent-design, Office, and document-intake work ready from one App install.
+  return `This Stable release is for users installing or upgrading One Person Lab App. It focuses on making research, grant-writing, visual-deliverable, agent-design, Office, and document-intake work ready from one App install.
 
 ## Highlights
 - Use one Stable install path for the App plus refreshed research, grant, visual, Office, and document-intake tools.
@@ -47,7 +45,7 @@ This Stable release is for users installing or upgrading One Person Lab App. It 
 
 ## Compatibility and action required
 - No manual migration is required beyond installing or upgrading this Stable release.
-- Use the Full first-install package for a fresh machine that needs the bundled OPL family tools.
+- The Full DMG is appended later to this same Stable release for fresh-machine installation with bundled runtime, Office, and document-intake payloads.
 
 ## Technical details
 These details are included for operators who audit exactly what was packaged. They should not be needed for ordinary install or upgrade decisions.
@@ -672,7 +670,62 @@ test('remote release verifier rejects a Standard release without its frozen inst
   });
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /missing asset opl-install\.sh/);
+  assert.match(result.stderr, /missing: opl-install\.sh/);
+});
+
+test('remote release verifier rejects a duplicate visible title and any tenth public asset', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-surface-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.5.19-surface';
+  const names = [
+    ...writeStandardRemoteAssets(tempRoot, version),
+    ...writeFullRemoteAssets(tempRoot, version),
+  ];
+  writeFakeMacosTrustCommands(binDir);
+
+  for (const [label, releaseView, expected] of [
+    [
+      'duplicate title',
+      buildRemoteReleaseView(
+        tempRoot,
+        names,
+        `v${version}`,
+        `One Person Lab v${version}\n\n${validFullReleaseNotes(version)}`,
+      ),
+      /repeats the GitHub Release name/,
+    ],
+    [
+      'extra asset',
+      (() => {
+        writeFile(path.join(tempRoot, 'unexpected-debug-receipt.json'), '{}\n');
+        return buildRemoteReleaseView(
+          tempRoot,
+          [...names, 'unexpected-debug-receipt.json'],
+          `v${version}`,
+          validFullReleaseNotes(version),
+        );
+      })(),
+      /unexpected: unexpected-debug-receipt\.json/,
+    ],
+  ]) {
+    const result = runNode([
+      'scripts/verify-remote-release-assets.ts',
+      '--version',
+      version,
+      '--repo',
+      'gaofeng21cn/one-person-lab-app',
+      '--include-full-package',
+      '--download-dir',
+      tempRoot,
+      '--no-download',
+    ], {
+      env: fakeMacosTrustEnvironment(binDir, {
+        OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+      }),
+    });
+    assert.notEqual(result.status, 0, label);
+    assert.match(result.stderr, expected, label);
+  }
 });
 
 test('remote release verifier keeps real non-macOS public trust validation fail closed', () => {

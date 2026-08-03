@@ -122,15 +122,22 @@ export function writeStandardDistributionTrust(outDir, version) {
 function defaultReleaseBody(tagName) {
   const version = tagName.startsWith("v") ? tagName.slice(1) : tagName;
   return [
-    `One Person Lab v${version}`,
     "This Stable release is for users installing or upgrading One Person Lab App.",
     "## Highlights",
     "- Use one Stable install path for the App plus refreshed research tools.",
+    "## What improved",
+    "- Refreshed research tools.",
+    "## Compatibility and action required",
+    "- The Full DMG is appended later to this same Stable release for fresh-machine installation with bundled runtime, Office, and document-intake payloads.",
     "## Technical details",
     "## OPL agents and runtime payload",
-    "- Full first-install package includes the OPL Framework runtime, Codex CLI, MAS, MAG, RCA, OPL Meta Agent, OfficeCLI, MinerU, and packaged Codex skills.",
-    "- Packaged component refs: MAS @ 1234567.",
-    "- Component updates since previous Stable: MAS 0000000 -> 1234567.",
+    "- Standard notes remain frozen while the same-tag Full manifest carries Full payload details.",
+    "## OPL family updates",
+    "- Updated OPL family tools.",
+    "## Install Stable",
+    "`brew install --cask gaofeng21cn/one-person-lab/one-person-lab`",
+    "## Release scope",
+    "- Standard macOS arm64 updater package plus same-tag Full DMG add-on.",
     `**Full Changelog**: https://github.com/gaofeng21cn/one-person-lab-app/compare/v26.0.0...v${version}`,
   ].join("\n\n");
 }
@@ -141,8 +148,10 @@ export function buildRemoteReleaseView(
   tagName,
   body = defaultReleaseBody(tagName),
 ) {
+  const version = tagName.startsWith("v") ? tagName.slice(1) : tagName;
   return {
     tagName,
+    name: `One Person Lab v${version}`,
     isDraft: false,
     isPrerelease: false,
     body,
