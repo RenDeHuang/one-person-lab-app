@@ -1284,6 +1284,7 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
 const githubReadTimeoutMs = 30_000;
 const githubMutationTimeoutMs = 10 * 60_000;
 const acceptedTagReadbackDelaysMs = [0, 500, 1_500] as const;
+const immutabilitySettingReadbackDelaysMs = [0, 500, 1_500] as const;
 
 export interface GitHubCommandResult {
   status: number | null;
@@ -1653,6 +1654,44 @@ function ghRead(
   }
 }
 
+function readDisabledImmutabilitySetting(
+  repo: string,
+  operationDeadlineAt: string,
+  runtime: GitHubAdapterRuntime,
+): JsonRecord | string | null {
+  const attempts: JsonRecord[] = [];
+  for (const delayMs of immutabilitySettingReadbackDelaysMs) {
+    if (delayMs > 0) {
+      const remainingMs = remainingReleaseOperationMilliseconds({
+        deadlineAt: operationDeadlineAt,
+        nowMs: runtime.now(),
+      });
+      if (remainingMs <= delayMs) break;
+      runtime.wait?.(delayMs);
+    }
+    try {
+      return ghRead([
+        'api',
+        `repos/${repo}/immutable-releases`,
+        '-H',
+        'X-GitHub-Api-Version: 2026-03-10',
+      ], runtime);
+    } catch (error) {
+      if (!(error instanceof GitHubReadError)) throw error;
+      attempts.push(error.evidence);
+    }
+  }
+  throw new GitHubReadError(
+    'Repository immutability disabled-state readback exhausted its bounded attempts.',
+    {
+      schema: 'opl_app_github_read_failure_evidence.v1',
+      endpoint: `repos/${repo}/immutable-releases`,
+      attempt_count: attempts.length,
+      attempts,
+    },
+  );
+}
+
 export function inspectRelease(
   repo: string,
   tag: string,
@@ -1967,19 +2006,22 @@ function assertCanonicalMutableStandardWindow(
   }
   let setting: JsonRecord | string | null;
   try {
-    setting = ghRead([
-      'api',
-      `repos/${repo}/immutable-releases`,
-      '-H',
-      'X-GitHub-Api-Version: 2026-03-10',
-    ], runtime);
+    setting = readDisabledImmutabilitySetting(
+      repo,
+      requireOption(values, 'operation-deadline-at'),
+      runtime,
+    );
   } catch (error) {
     rejectGitHubMutation(
       'github-apply',
       values,
       'github_immutability_disabled_readback_unavailable',
       'Repository immutability disabled-state readback failed before Standard publication.',
-      { read_failure: error instanceof Error ? error.message : String(error) },
+      {
+        read_failure: error instanceof GitHubReadError
+          ? error.evidence
+          : { error_message: error instanceof Error ? error.message : String(error) },
+      },
     );
   }
   if (
