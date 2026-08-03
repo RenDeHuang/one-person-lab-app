@@ -1442,7 +1442,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "runs-on: ubuntu-latest",
       "actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10",
       "uses: ./.github/actions/setup-active-shell-deps",
-      "install-dependencies: 'false'",
+      "install-dependencies: 'true'",
       "name: Checkout OPL Flow policy source",
       "ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a",
       "OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json",
