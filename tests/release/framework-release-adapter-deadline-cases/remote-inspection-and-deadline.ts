@@ -120,7 +120,7 @@ test('existing GitHub Release remote inspection accepts required assets and know
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-partial-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
-  const requiredNames = ['first.zip', 'second.dmg', 'opl-release-attestation.json'];
+  const requiredNames = ['first.zip', 'second.dmg'];
   const execute = (assets: Array<Record<string, unknown>>) => {
     fs.writeFileSync(inspectionPath, `${JSON.stringify({
       surface_kind: 'opl_app_github_release_inspection.v1',
@@ -159,18 +159,11 @@ test('existing GitHub Release remote inspection accepts required assets and know
       sha256: second.sha256,
     }]);
     const attestation = asset('opl-release-attestation.json', '4');
-    assert.deepEqual(execute([attestation, second]).assets, [
-      {
-        name: second.name,
-        size_bytes: second.size_bytes,
-        sha256: second.sha256,
-      },
-      {
-        name: attestation.name,
-        size_bytes: attestation.size_bytes,
-        sha256: attestation.sha256,
-      },
-    ]);
+    assert.deepEqual(execute([attestation, second]).assets, [{
+      name: second.name,
+      size_bytes: second.size_bytes,
+      sha256: second.sha256,
+    }]);
     assert.throws(
       () => execute([asset('unknown.bin', '3')]),
       /contains unknown asset unknown\.bin/,
@@ -190,6 +183,10 @@ test('existing GitHub Release remote inspection accepts required assets and know
       release: { channel: 'preview' },
       tracks: { standard: { required_asset_names: requiredNames } },
     })}\n`);
+    assert.throws(
+      () => execute([attestation]),
+      /contains unknown asset opl-release-attestation\.json/,
+    );
     assert.throws(
       () => execute([asset('stable-operation-publication-record.json', '5')]),
       /contains unknown asset stable-operation-publication-record\.json/,
