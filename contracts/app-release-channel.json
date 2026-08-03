@@ -417,6 +417,7 @@
           "artifact_names": {
             "stable_required": "macos-build-arm64",
             "nightly_standard": "nightly-macos-arm64",
+            "preview_standard": "macos-build-arm64",
             "manual": "macos-build-arm64"
           }
         }
@@ -469,23 +470,24 @@
       "linux-x64": {
         "default_enabled": true,
         "quality_channels": [
-          "stable",
+          "stable_optional",
           "nightly",
           "development_validation"
         ],
         "stable_allowed": true,
-        "blocks_stable": true,
+        "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "stable_and_nightly",
-        "publication_route": ".github/workflows/_release-bundle.yml",
+        "publication_status": "stable_optional_follower_default_on_and_nightly",
+        "publication_route": ".github/workflows/build-manual.yml",
         "build": {
           "os": "ubuntu-latest",
           "command": "node scripts/build-with-builder.js x64 --linux --x64",
           "arch": "x64",
           "artifact_names": {
-            "stable_required": "linux-build-x64",
+            "stable_optional": "optional-linux-x64",
             "nightly_standard": "nightly-linux-x64",
+            "preview_standard": "linux-build-x64",
             "manual": "linux-build-x64"
           }
         }
@@ -539,20 +541,22 @@
       "windows-arm64": {
         "default_enabled": false,
         "quality_channels": [
+          "stable_optional",
           "preview_rc",
           "development_validation"
         ],
-        "stable_allowed": false,
+        "stable_allowed": true,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "preview_rc_supported_default_off",
-        "publication_route": ".github/workflows/build-manual.yml#protected_windows_preview_rc",
+        "publication_status": "stable_optional_follower_and_preview_rc_supported_default_off",
+        "publication_route": ".github/workflows/build-manual.yml#protected_selected_platform_publication",
         "build": {
           "os": "windows-2022",
           "command": "node scripts/build-with-builder.js arm64 --win --arm64",
           "arch": "arm64",
           "artifact_names": {
+            "stable_optional": "optional-windows-arm64",
             "windows_preview": "windows-preview-arm64",
             "manual": "windows-build-arm64"
           }
@@ -563,8 +567,7 @@
       "stable_required": {
         "quality_channel": "stable",
         "platforms": [
-          "macos-arm64",
-          "linux-x64"
+          "macos-arm64"
         ],
         "default_enabled": true,
         "required": true,
@@ -582,13 +585,26 @@
         "blocks_base_terminal": true,
         "artifact_profile": "nightly_standard"
       },
+      "preview_standard": {
+        "quality_channel": "development_validation",
+        "platforms": [
+          "macos-arm64",
+          "linux-x64"
+        ],
+        "default_enabled": true,
+        "required": true,
+        "blocks_base_terminal": true,
+        "artifact_profile": "preview_standard"
+      },
       "stable_optional": {
         "quality_channel": "stable_optional",
         "platforms": [
           "macos-x64",
           "macos-universal",
+          "linux-x64",
           "linux-arm64",
-          "windows-x64"
+          "windows-x64",
+          "windows-arm64"
         ],
         "default_enabled": false,
         "required": false,
@@ -629,7 +645,9 @@
       "workflow_input": ".github/workflows/release-stable.yml#optional_platforms",
       "encoding": "canonical_json_array_of_audited_platform_ids",
       "allowed_platforms_ref": "release_platform_matrix.policies.stable_optional.platforms",
-      "default": [],
+      "default": [
+        "linux-x64"
+      ],
       "authority_field": "opl_app_stable_operation_authority.v1#optional_platforms",
       "control_field": "opl_app_stable_operation_control.v1#optional_platforms",
       "checkpoint_transport": "stable-operation-control/stable-operation-control.json",
@@ -1547,7 +1565,6 @@
           "One-Person-Lab-<version>-mac-arm64.dmg",
           "One-Person-Lab-<version>-mac-arm64.zip",
           "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
-          "One-Person-Lab-<version>-linux-x64.deb",
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
           "opl-install.sh",
@@ -1977,7 +1994,6 @@
         "One-Person-Lab-<version>-mac-arm64.dmg",
         "One-Person-Lab-<version>-mac-arm64.zip",
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
-        "One-Person-Lab-<version>-linux-x64.deb",
         "latest-arm64-mac.yml",
         "opl-app-component-manifest.json",
         "opl-install.sh",
@@ -5155,7 +5171,9 @@
         "<exact-tag>",
         "--no-open"
       ],
-      "same_release_deb_and_installer_manifest_binding_required": true,
+      "release_set_base_installer_and_adjunct_deb_manifest_binding_required": true,
+      "base_release_tag_and_adjunct_tag_required": true,
+      "base_and_adjunct_cohort_binding_required": true,
       "same_deb_artifact_identity_required": true,
       "cross_component_version_sha_or_cohort_equality_required": false,
       "dependency_compatibility_contract_ref": "contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission",
@@ -5272,7 +5290,6 @@
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
-        "standard_linux_x64_build",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],

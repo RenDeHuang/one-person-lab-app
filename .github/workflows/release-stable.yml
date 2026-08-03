@@ -46,7 +46,7 @@ on:
       optional_platforms:
         description: Canonical JSON array of audited optional Stable platform IDs bound by the authority
         required: false
-        default: '[]'
+        default: '["linux-x64"]'
         type: string
       shell_ref:
         description: Legacy raw Standard input; must be empty because the admission manifest owns the cohort

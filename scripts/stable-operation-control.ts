@@ -19,9 +19,12 @@ const immutableReleaseApiVersion = '2026-03-10';
 const stableOptionalPlatformIds = [
   'macos-x64',
   'macos-universal',
+  'linux-x64',
   'linux-arm64',
   'windows-x64',
+  'windows-arm64',
 ] as const;
+const defaultStableOptionalPlatformIds = ['linux-x64'] as const;
 const requiredCriticalBlobPaths = [
   '.github/workflows/release-stable.yml',
   '.github/workflows/_release-bundle.yml',
@@ -438,7 +441,9 @@ export function createStableOperationControl(input: {
       shell_sha: exactSha(input.shellSha, 'cohort.shell_sha'),
       framework_sha: exactSha(input.frameworkSha, 'cohort.framework_sha'),
     },
-    optional_platforms: normalizedStableOptionalPlatforms(input.optionalPlatforms ?? []),
+    optional_platforms: normalizedStableOptionalPlatforms(
+      input.optionalPlatforms ?? defaultStableOptionalPlatformIds,
+    ),
     critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
     source_gate_digest: digest(input.sourceGateDigest, 'source_gate_digest'),
     pre_nonce_guard_digest: digest(input.preNonceGuardDigest, 'pre_nonce_guard_digest'),
@@ -545,7 +550,9 @@ export function createStableOperationAuthority(input: {
       shell_sha: exactSha(input.shellSha, 'cohort.shell_sha'),
       framework_sha: exactSha(input.frameworkSha, 'cohort.framework_sha'),
     },
-    optional_platforms: normalizedStableOptionalPlatforms(input.optionalPlatforms ?? []),
+    optional_platforms: normalizedStableOptionalPlatforms(
+      input.optionalPlatforms ?? defaultStableOptionalPlatformIds,
+    ),
     critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
     source_gate_digest: objectDigest(evidence.source_gate),
     pre_nonce_guard_digest: objectDigest(evidence.pre_nonce_guard),

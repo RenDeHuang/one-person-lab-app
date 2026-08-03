@@ -222,7 +222,10 @@ function runCapabilityUnavailableReceiptWriter(
 test('optional certification is automatic or exact failed-run recovery and remains read-only', () => {
   const { source, workflow } = readWorkflow(workflowPath);
   assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
-  assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
+  assert.deepEqual(workflow.on.workflow_run.workflows, [
+    'OPL Stable Release Bundle',
+    'OPL Stable Post-Success Full Follow-up',
+  ]);
   assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
     'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'recovery_confirmation',
@@ -233,6 +236,7 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs), [
     'resolve-standard',
+    'resolve-linux-adjunct',
     'certify-linux-x64',
     'admit-standard-vm',
     'certify-standard-vm',
@@ -242,8 +246,11 @@ test('optional certification is automatic or exact failed-run recovery and remai
     'certify-full-vm',
     'write-full-receipt',
   ]);
+  const resolveLinux = workflow.jobs['resolve-linux-adjunct'];
   const linux = workflow.jobs['certify-linux-x64'];
-  assert.deepEqual(linux.needs, ['resolve-standard']);
+  assert.equal(resolveLinux['runs-on'], 'ubuntu-latest');
+  assert.deepEqual(resolveLinux.permissions, { contents: 'read', actions: 'read' });
+  assert.deepEqual(linux.needs, ['resolve-linux-adjunct']);
   assert.equal(linux['runs-on'], 'ubuntu-latest');
   assert.deepEqual(linux.permissions, { contents: 'read', actions: 'read' });
   assert.equal(linux['timeout-minutes'], 20);
@@ -291,6 +298,10 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.equal(
     workflow.jobs['resolve-standard'].if,
     "${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
+  );
+  assert.match(
+    workflow.jobs['resolve-linux-adjunct'].if,
+    /OPL Stable Post-Success Full Follow-up/,
   );
   assert.match(workflow.jobs['resolve-full'].if, /recover_exact_failed_optional_certification_v2/);
   assert.match(
@@ -345,12 +356,22 @@ test('optional certification is automatic or exact failed-run recovery and remai
 
 test('Linux x64 certification consumes the exact public DEB and installer and preserves failure evidence', () => {
   const { source, workflow } = readWorkflow(workflowPath);
-  const resolve = workflow.jobs['resolve-standard'];
+  const resolve = workflow.jobs['resolve-linux-adjunct'];
   const linux = workflow.jobs['certify-linux-x64'];
   assert.equal(resolve.outputs.linux_artifact_name, '${{ steps.identity.outputs.linux_artifact_name }}');
   assert.equal(resolve.outputs.linux_artifact_digest, '${{ steps.identity.outputs.linux_artifact_digest }}');
+  assert.equal(resolve.outputs.adjunct_tag, '${{ steps.identity.outputs.adjunct_tag }}');
+  assert.equal(
+    resolve.outputs.adjunct_manifest_digest,
+    '${{ steps.identity.outputs.adjunct_manifest_digest }}',
+  );
   assert.equal(resolve.outputs.installer_name, '${{ steps.identity.outputs.installer_name }}');
   assert.equal(resolve.outputs.installer_digest, '${{ steps.identity.outputs.installer_digest }}');
+  const identity = workflowStep(
+    workflow,
+    'resolve-linux-adjunct',
+    'Bind exact public Linux adjunct identity',
+  );
 
   const run = workflowStep(workflow, 'certify-linux-x64', 'Run exact published Linux Desktop installer');
   const write = workflowStep(
@@ -375,6 +396,12 @@ test('Linux x64 certification consumes the exact public DEB and installer and pr
   assert.match(run.run, /runner_environment:"github-hosted-ubuntu"/);
   assert.match(run.run, /platform:"linux"/);
   assert.match(run.run, /architecture:"x64"/);
+  assert.match(run.run, /\$adjunct_release_base\/opl-optional-platforms-manifest\.json/);
+  assert.match(run.run, /ADJUNCT_MANIFEST_DIGEST/);
+  assert.match(run.run, /\.kind == "stable_optional_adjunct"/);
+  assert.match(run.run, /\.base_release_tag == \$tag/);
+  assert.match(run.run, /\$adjunct_release_base\/\$LINUX_ARTIFACT_NAME/);
+  assert.match(run.run, /\$release_base\/\$INSTALLER_NAME/);
   assert.match(run.run, /bash "\$installer_path" --desktop --release-tag "\$RELEASE_TAG" --no-open/);
   assert.match(run.run, /dpkg-deb -f "\$linux_artifact_path" Package/);
   assert.match(run.run, /dpkg-deb -f "\$linux_artifact_path" Version/);
@@ -395,6 +422,21 @@ test('Linux x64 certification consumes the exact public DEB and installer and pr
   assert.match(run.run, /rebuilt:false/);
   assert.doesNotMatch(run.run, /status=unavailable|runner_offline|queued_workflow|network_failure/);
 
+  assert.match(identity.run, /opl_app_optional_platform_publication_receipt\.v1/);
+  assert.match(identity.run, /opl_app_immutable_platform_adjunct_manifest\.v1/);
+  assert.match(identity.run, /\$\{tag\}-optional-\$\{manifest_hex:0:12\}/);
+  assert.match(identity.run, /\.target_commitish == \$target/);
+  assert.match(identity.run, /\.cohort == \{app_sha:\$app,shell_sha:\$shell,framework_sha:\$framework\}/);
+  assert.match(identity.run, /base_download=.*releases\/download\/\$\{tag\}/);
+  assert.match(identity.run, /adjunct_download=.*releases\/download\/\$\{adjunct_tag\}/);
+  assert.match(
+    identity.run,
+    /\.tag_name == \$tag[\s\S]*\.prerelease == false[\s\S]*\.immutable == false[\s\S]*base-release\.json/,
+  );
+  assert.match(identity.run, /sha256sum public-optional-platforms-manifest\.json/);
+  assert.match(identity.run, /sha256sum public-linux-artifact\.deb/);
+  assert.match(identity.run, /sha256sum public-opl-install\.sh/);
+
   assert.match(write.run, /--platform linux/);
   assert.match(write.run, /--capability github-hosted-ubuntu-x64/);
   assert.match(write.run, /--status "\$CERTIFICATION_STATUS"/);
@@ -414,6 +456,10 @@ test('Linux x64 certification consumes the exact public DEB and installer and pr
   assert.match(source, /sha256sum public-linux-artifact\.deb/);
   assert.match(source, /sha256sum public-opl-install\.sh/);
   assert.doesNotMatch(source, /opl-app-installer\.sh/);
+  const standardIdentity = String(
+    workflowStep(workflow, 'resolve-standard', 'Bind exact public Standard identity').run,
+  );
+  assert.doesNotMatch(standardIdentity, /linux-x64\.deb|linux_artifact/);
 });
 
 test('Standard and Full VM certification consume the exact published DMG without rebuilding it', () => {

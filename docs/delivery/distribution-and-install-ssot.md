@@ -238,24 +238,26 @@ Windows Preview 的弱网下载从下一份 RC 起把 `download-windows-preview.
 任何自动镜像回退都必须由 App owner 预先登记 HTTPS 来源并绑定同一 exact digest；任意
 第三方镜像、网盘或用户侧 `registry-mirrors` 不构成产品自动选择 authority。
 
-Stable 的默认 required/blocking 平台精确为 `macos-arm64` 与 `linux-x64`。`macos-x64`、
-`macos-universal` 和 `linux-arm64` 保留为默认关闭的 optional/nonblocking capability；
-Windows x64/ARM64
-保留构建能力，但只属于默认关闭、非阻塞的 Preview/RC policy，不能进入 Stable admission、
-qualification、Latest activation 或同制品 Standard install/readback 的 required 集合。
+Stable 的 required/blocking 平台精确且仅为 `macos-arm64`。`linux-x64` 默认进入同版本
+Release Set 的 optional/nonblocking adjunct follower；`macos-x64`、`macos-universal`、
+`linux-arm64` 与 Windows x64/ARM64 也都属于默认关闭、由 authority 显式选择的 adjunct
+capability。Windows 两种架构同时保留独立 Preview/RC policy。任何 adjunct 都不能进入
+Stable admission、qualification、Latest activation 或 Standard install/readback 的 required 集合，
+也不能回写或回滚已经成功的 base Stable Release。
 所有入口只选择机器合同登记的 policy 或 platform ID，由
 `scripts/resolve-release-platform-matrix.ts` 生成 reusable build matrix。单次 Stable 的
 optional ID 数组必须由 pre-issued authority 绑定并随 operation control/checkpoint 原样传递，
 不能由 follower 自行扩选。
 
 Linux x64 的发布后安装认证由同一只读 `workflow_run` follower 在 GitHub-hosted
-`ubuntu-latest` 上执行。它只在成功的 Standard operation 已公开 immutable Release、
-Latest admission 和 exact `opl-app-component-manifest.json` 后启动，并同时绑定：
+`ubuntu-latest` 上执行。它只在 optional-platform Follow-up 成功并产出 exact publication
+receipt 后启动；该 receipt 必须回指已经成功的 immutable base Stable Release、Latest
+admission 和同版本 Linux adjunct Release，并同时绑定：
 
-- `One-Person-Lab-<version>-linux-x64.deb` 的公开 SHA256；
-- 公开 `opl-app-installer.sh` 的 SHA256；
-- component manifest digest、Release tag 与所选 carrier 自身 identity；组件 refs 只能作为
-  observational build provenance。
+- adjunct Release 中 `One-Person-Lab-<version>-linux-x64.deb` 的公开 SHA256；
+- base Release 中公开 `opl-install.sh` 的 SHA256；
+- base component manifest、adjunct manifest 的 digest、两个精确 Release tag，以及共同的版本和
+  cohort identity；组件 refs 只能作为 observational build provenance。
 
 执行路径必须是下载并校验该公开 installer 后运行
 `--desktop --release-tag <exact-tag> --no-open`，不得从 checkout 重建 `.deb` 或 installer。

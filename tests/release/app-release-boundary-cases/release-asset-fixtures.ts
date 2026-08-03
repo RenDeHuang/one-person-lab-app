@@ -162,7 +162,6 @@ export function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    `One-Person-Lab-${version}-linux-x64.deb`,
     "latest-arm64-mac.yml",
     "opl-install.sh",
     "opl-app-component-manifest.json",
@@ -221,7 +220,6 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, dmgName), "standard-dmg");
   writeStandardUpdaterZip(path.join(outDir, zipName), updaterVersion);
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
-  writeFile(path.join(outDir, `One-Person-Lab-${version}-linux-x64.deb`), "standard-linux-desktop");
   writeExecutable(path.join(outDir, "opl-install.sh"), "#!/usr/bin/env bash\nexit 0\n");
   const componentManifestPath = path.join(outDir, "opl-app-component-manifest.json");
   writeFile(componentManifestPath, `${JSON.stringify({ surface_kind: "opl_app_component_manifest.v1" })}\n`);

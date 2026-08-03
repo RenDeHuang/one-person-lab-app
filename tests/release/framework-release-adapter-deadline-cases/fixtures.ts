@@ -103,9 +103,6 @@ export const latestZip = asset(`One-Person-Lab-${version}-mac-arm64.zip`, '9');
 export const latestDmg = asset(`One-Person-Lab-${version}-mac-arm64.dmg`, '8');
 
 
-export const latestDeb = asset(`One-Person-Lab-${version}-linux-x64.deb`, '7');
-
-
 export const componentManifestAsset = asset('opl-app-component-manifest.json', 'f');
 
 
@@ -595,7 +592,7 @@ export function fixture(
       bundle_digest: bundleDigest,
       latest_eligible: true,
       bundle,
-      tracks: { standard: { assets: [latestZip, latestDmg, latestDeb, componentManifestAsset] } },
+      tracks: { standard: { assets: [latestZip, latestDmg, componentManifestAsset] } },
       operation_controls: { standard: operationControl, append_full: null },
     },
   })}\n`);
@@ -647,7 +644,6 @@ export function fixture(
         latestDmg.name,
         latestZip.name,
         `${latestZip.name}.blockmap`,
-        latestDeb.name,
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',
@@ -694,7 +690,7 @@ export function asset(name: string, byte: string): Asset {
 
 
 export function writeStandardAttestation(root: string) {
-  const payloadAssets = [latestDmg, latestZip, latestDeb, componentManifestAsset];
+  const payloadAssets = [latestDmg, latestZip, componentManifestAsset];
   const attestationPath = path.join(root, 'opl-release-attestation.json');
   const bytes = Buffer.from(`${JSON.stringify({
     schema: 'opl_app_release_attestation.v1',

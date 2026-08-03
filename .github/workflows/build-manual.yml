@@ -293,9 +293,9 @@ jobs:
                 and .target_commitish == $target
                 and .draft == false
                 and .prerelease == false
-                and .immutable == true
+                and .immutable == false
               ' base-release.json >/dev/null || {
-                echo "::error::Optional Stable publication requires the exact immutable base Stable Release."
+                echo "::error::Optional Stable publication requires the exact mutable base Stable Release used for same-tag Full append."
                 exit 1
               }
               ;;

@@ -8,6 +8,7 @@ import { parseArgs } from 'node:util';
 type ArtifactProfile =
   | 'stable_required'
   | 'nightly_standard'
+  | 'preview_standard'
   | 'stable_optional'
   | 'windows_preview'
   | 'manual';
@@ -147,7 +148,7 @@ export function resolveReleasePlatformMatrix(input: {
           `Platform ${platform} does not allow quality channel ${policy.quality_channel}.`,
         );
       }
-      if (policy.required && policy.blocks_base_terminal && !capability.blocks_stable) {
+      if (input.policy === 'stable_required' && !capability.blocks_stable) {
         throw new Error(`Required policy ${input.policy} selected non-blocking platform ${platform}.`);
       }
       if (input.policy === 'stable_optional' && capability.blocks_stable) {

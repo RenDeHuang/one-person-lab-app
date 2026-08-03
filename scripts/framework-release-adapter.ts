@@ -405,13 +405,13 @@ function gitSha(root: string): string {
   return result.stdout.trim();
 }
 
-function requiredAssetNames(version: string, track: Track): string[] {
+function requiredAssetNames(version: string, track: Track, channel = 'stable'): string[] {
   if (track === 'standard') {
     return [
         `One-Person-Lab-${version}-mac-arm64.dmg`,
         `One-Person-Lab-${version}-mac-arm64.zip`,
         `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-        `One-Person-Lab-${version}-linux-x64.deb`,
+        ...(channel === 'stable' ? [] : [`One-Person-Lab-${version}-linux-x64.deb`]),
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',
@@ -676,7 +676,7 @@ function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
     },
     tracks: {
       standard: {
-        required_asset_names: requiredAssetNames(version, 'standard'),
+        required_asset_names: requiredAssetNames(version, 'standard', channel),
         required_for_latest: true,
         additive_only: false,
         updater_metadata_allowed: true,

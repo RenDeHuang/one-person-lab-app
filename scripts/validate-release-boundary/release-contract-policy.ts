@@ -738,7 +738,9 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
       '<exact-tag>',
       '--no-open',
     ]) ||
-    hostedLinux?.same_release_deb_and_installer_manifest_binding_required !== true ||
+    hostedLinux?.release_set_base_installer_and_adjunct_deb_manifest_binding_required !== true ||
+    hostedLinux?.base_release_tag_and_adjunct_tag_required !== true ||
+    hostedLinux?.base_and_adjunct_cohort_binding_required !== true ||
     hostedLinux?.same_deb_artifact_identity_required !== true ||
     hostedLinux?.cross_component_version_sha_or_cohort_equality_required !== false ||
     hostedLinux?.dependency_compatibility_contract_ref !==
@@ -790,7 +792,6 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'One-Person-Lab-<version>-mac-arm64.dmg',
     'One-Person-Lab-<version>-mac-arm64.zip',
     'One-Person-Lab-<version>-mac-arm64.zip.blockmap',
-    'One-Person-Lab-<version>-linux-x64.deb',
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
@@ -1937,7 +1938,7 @@ export function validateReleaseAccelerationPolicy(
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
   ) {
-    console.error('FAIL release_homebrew_distribution: Nightly and Full must use isolated digest-bound followers; Full must use its immutable adjunct without changing base Stable, Latest, or updater state');
+    console.error('FAIL release_homebrew_distribution: Nightly and Full must use digest-bound followers; Full must consume the same-tag mutable Standard append without changing Standard assets, Latest, or updater state');
     failures += 1;
   }
   const readiness = evaluateReleaseBrokerAuthorityReadiness(brokerAuthority);
@@ -2076,7 +2077,7 @@ export function validateReleasePlatformMatrix(
   const capabilities = matrix?.capabilities;
   const policies = matrix?.policies;
   let failures = 0;
-  const requiredCapabilityIds = ['macos-arm64', 'linux-x64'];
+  const requiredCapabilityIds = ['macos-arm64'];
   const windowsCapabilityIds = ['windows-x64', 'windows-arm64'];
   const capabilityIds = [
     'macos-arm64',
@@ -2147,11 +2148,17 @@ export function validateReleasePlatformMatrix(
     }
   }
   if (
-    capabilities['windows-x64'].stable_allowed !== true
-    || !capabilities['windows-x64'].quality_channels.includes('stable_optional')
-    || capabilities['windows-arm64'].stable_allowed !== false
+    capabilities['linux-x64'].default_enabled !== true
+    || capabilities['linux-x64'].stable_allowed !== true
+    || capabilities['linux-x64'].blocks_stable !== false
+    || !capabilities['linux-x64'].quality_channels.includes('stable_optional')
+    || windowsCapabilityIds.some((id) =>
+      capabilities[id].stable_allowed !== true
+      || capabilities[id].blocks_stable !== false
+      || !capabilities[id].quality_channels.includes('stable_optional')
+    )
   ) {
-    console.error('FAIL release_platform_matrix: Windows x64 must be Stable-optional while Windows arm64 remains Preview/RC-only');
+    console.error('FAIL release_platform_matrix: Linux x64 and both Windows architectures must be non-blocking Stable adjunct capabilities');
     failures += 1;
   }
   for (const id of windowsCapabilityIds) {
@@ -2165,9 +2172,10 @@ export function validateReleasePlatformMatrix(
   }
 
   const policyAssertions: Array<[string, string[], boolean, boolean]> = [
-    ['stable_required', ['macos-arm64', 'linux-x64'], true, true],
+    ['stable_required', ['macos-arm64'], true, true],
     ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
-    ['stable_optional', ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64'], false, false],
+    ['preview_standard', ['macos-arm64', 'linux-x64'], true, true],
+    ['stable_optional', ['macos-x64', 'macos-universal', 'linux-x64', 'linux-arm64', 'windows-x64', 'windows-arm64'], false, false],
     ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
   ].filter(([name]) => (
     profile === 'aggregate'
@@ -2191,6 +2199,7 @@ export function validateReleasePlatformMatrix(
   }
   if (
     policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
+    || !sameStringSet(matrix?.stable_optional_selection?.default, ['linux-x64'])
     || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
       'scripts/validate-windows-updater-assets.ts'
     || !sameStringSet(
@@ -2286,15 +2295,21 @@ export function validateReleasePlatformMatrix(
     failures += 1;
   }
 
-  for (const profileName of ['stable', 'nightly_standard']) {
-    const requiredLanes = releaseContract.release_validation_profiles?.[profileName]?.required_lanes;
-    if (
-      !requiredLanes?.includes('standard_macos_arm64_build')
-      || !requiredLanes?.includes('standard_linux_x64_build')
-    ) {
-      console.error(`FAIL release_platform_matrix: ${profileName} validation must require macOS ARM64 and Linux x64`);
-      failures += 1;
-    }
+  const stableRequiredLanes = releaseContract.release_validation_profiles?.stable?.required_lanes;
+  if (
+    !stableRequiredLanes?.includes('standard_macos_arm64_build')
+    || stableRequiredLanes?.includes('standard_linux_x64_build')
+  ) {
+    console.error('FAIL release_platform_matrix: Stable validation must require only the macOS ARM64 platform build');
+    failures += 1;
+  }
+  const nightlyRequiredLanes = releaseContract.release_validation_profiles?.nightly_standard?.required_lanes;
+  if (
+    !nightlyRequiredLanes?.includes('standard_macos_arm64_build')
+    || !nightlyRequiredLanes?.includes('standard_linux_x64_build')
+  ) {
+    console.error('FAIL release_platform_matrix: Nightly validation must still require macOS ARM64 and Linux x64');
+    failures += 1;
   }
   return failures;
 }

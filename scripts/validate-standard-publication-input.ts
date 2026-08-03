@@ -32,11 +32,14 @@ export type StandardPublicationInput = {
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 
-export const stagedStandardAssetNames = (version: string): string[] => [
+export const stagedStandardAssetNames = (
+  version: string,
+  channel: StandardPublicationChannel,
+): string[] => [
   `One-Person-Lab-${version}-mac-arm64.dmg`,
   `One-Person-Lab-${version}-mac-arm64.zip`,
   `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-  `One-Person-Lab-${version}-linux-x64.deb`,
+  ...(channel === 'stable' ? [] : [`One-Person-Lab-${version}-linux-x64.deb`]),
   'latest-arm64-mac.yml',
   'opl-app-component-manifest.json',
   'opl-install.sh',
@@ -46,7 +49,7 @@ export const hostedStandardAssetNames = (
   version: string,
   channel: StandardPublicationChannel,
 ): string[] => [
-  ...stagedStandardAssetNames(version),
+  ...stagedStandardAssetNames(version, channel),
   ...(channel === 'stable' ? ['opl-release-attestation.json'] : []),
 ];
 
@@ -154,7 +157,10 @@ export function validateComponentManifest(
   );
   requireDigest(manifest.primary_artifact?.digest, 'Component manifest primary artifact digest');
   requirePositiveInteger(manifest.primary_artifact?.size, 'Component manifest primary artifact size');
-  const expectedNames = stagedStandardAssetNames(input.candidateDisplayVersion);
+  const expectedNames = stagedStandardAssetNames(
+    input.candidateDisplayVersion,
+    input.publicationChannel,
+  );
   const artifactNames = Array.isArray(manifest.artifacts)
     ? manifest.artifacts.map((asset: JsonRecord) => asset?.name).sort()
     : [];
@@ -208,7 +214,10 @@ function validateStagedAssets(
     throw new Error('Standard assets must contain an assets array.');
   }
 
-  const expectedNames = stagedStandardAssetNames(input.candidateDisplayVersion);
+  const expectedNames = stagedStandardAssetNames(
+    input.candidateDisplayVersion,
+    input.publicationChannel,
+  );
   const actualNames = standardAssets.assets.map((asset: JsonRecord) => asset?.name).sort();
   if (JSON.stringify(actualNames) !== JSON.stringify([...expectedNames].sort())) {
     throw new Error('Staged Standard assets must match the exact hosted asset set.');
@@ -286,7 +295,10 @@ export function validateStandardPublicationInput(input: StandardPublicationInput
   return {
     componentManifest,
     standardAssets,
-    expectedAssetNames: stagedStandardAssetNames(input.candidateDisplayVersion),
+    expectedAssetNames: stagedStandardAssetNames(
+      input.candidateDisplayVersion,
+      input.publicationChannel,
+    ),
   };
 }
 
