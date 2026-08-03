@@ -70,8 +70,9 @@ function validateEnglishReleaseNotesMarkdown(markdown: string, evidence: Release
   if (/[\u3400-\u9fff]/.test(markdown)) {
     failures.push('contains Chinese text');
   }
-  if (!new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(markdown)) {
-    failures.push('missing release title');
+  const firstLine = markdown.trimStart().split('\n', 1)[0]?.trim() || '';
+  if (new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}\\s*$`).test(firstLine)) {
+    failures.push('repeats the GitHub Release name as the body title');
   }
   for (const required of ['## Highlights', '## What improved', '## Compatibility and action required', '## OPL agents and runtime payload', '## Release scope']) {
     if (!markdown.includes(required)) {

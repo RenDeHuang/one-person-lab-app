@@ -21,7 +21,9 @@ import {
   resolveShellRef,
 } from './release-notes/tags.ts';
 import {
+  escapeRegExp,
   extractLocalizedReleaseNotes,
+  stripVisibleReleaseTitle,
   stripLocalizedReleaseNotes,
 } from './release-notes-ai-writer-parts/markdown-normalization.ts';
 import { renderReleaseNotesDocument } from './release-notes/document.ts';
@@ -86,6 +88,9 @@ function prependPreviewHighlight(markdown: string) {
 
 function normalizeEnglishPreviewNotes(markdown: string, evidence: ReleaseNotesEvidence) {
   let normalized = markdown.replaceAll(onlineAiReleaseNotesMarker, '').trimEnd();
+  if (!new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(normalized)) {
+    normalized = `${evidence.release_title}\n\n${normalized}`;
+  }
   normalized = removeTopLevelSection(normalized, '## Install Stable');
   normalized = normalized.replaceAll(stableInstallCommand, '');
   normalized = normalized
@@ -106,7 +111,7 @@ function normalizeEnglishPreviewNotes(markdown: string, evidence: ReleaseNotesEv
     '## Release scope',
     `- ${evidence.release_scope}`,
   ].join('\n'));
-  return normalized.trimEnd();
+  return stripVisibleReleaseTitle(normalized, evidence).trimEnd();
 }
 
 function normalizeChinesePreviewNotes(markdown: string, evidence: ReleaseNotesEvidence) {
@@ -143,8 +148,9 @@ export function finalizePreviewReleaseNotesDocument(markdown: string, evidence: 
     throw new Error('Preview release notes are not bound to the online AI writer.');
   }
   const visible = normalizeEnglishPreviewNotes(stripLocalizedReleaseNotes(markdown), evidence);
+  const enUS = `${evidence.release_title}\n\n${visible}`;
   const zhCN = normalizeChinesePreviewNotes(extractLocalizedReleaseNotes(markdown, 'zh-CN'), evidence);
-  const finalized = `${visible}\n\n<!-- OPL_RELEASE_NOTES:en-US\n${visible}\n-->\n<!-- OPL_RELEASE_NOTES:zh-CN\n${zhCN}\n-->\n\n${onlineAiReleaseNotesMarker}\n`;
+  const finalized = `${visible}\n\n<!-- OPL_RELEASE_NOTES:en-US\n${enUS}\n-->\n<!-- OPL_RELEASE_NOTES:zh-CN\n${zhCN}\n-->\n\n${onlineAiReleaseNotesMarker}\n`;
   const publicMarkdown = stripLocalizedReleaseNotes(finalized);
   for (const required of [
     'qualified manual Preview',

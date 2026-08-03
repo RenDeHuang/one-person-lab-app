@@ -940,6 +940,7 @@ jobs:
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
+          OPL_GITHUB_RELEASE_ADMIN_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
           BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
         shell: bash
         run: |

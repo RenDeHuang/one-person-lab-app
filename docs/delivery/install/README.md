@@ -1,25 +1,33 @@
-# One Person Lab 安装指南
+<p align="center">
+  <strong>English</strong> | <a href="./README.zh-CN.md">中文</a>
+</p>
 
-先选择产品表面和载荷密度，不需要先理解发布渠道：
+# One Person Lab Installation Guide
 
-| 我想要 | 选择 |
+Choose the product surface and payload density first. You do not need to
+understand the release channels before getting started.
+
+| I want | Choose |
 | --- | --- |
-| 独立应用窗口、系统菜单和桌面集成 | Desktop |
-| 在浏览器使用工作台 | WebUI |
-| 服务器、NAS、隔离部署 | WebUI；内部通常选择 Container carrier |
-| 较小交付、联网后收敛 | Standard |
-| 预置离线 Base/Package seed | Full |
-| 只要命令行和运行基础 | Headless |
+| A standalone window, system menu, and desktop integration | Desktop |
+| The workbench in a browser | WebUI |
+| A server, NAS, or isolated deployment | WebUI, usually with the Container carrier |
+| A smaller initial download that converges online | Standard |
+| Offline Base and Package seeds included | Full |
+| Only the command line and runtime foundation | Headless |
 
-Desktop/WebUI 与 Standard/Full 是两条正交轴，形成 Desktop Standard、Desktop
-Full、WebUI Standard、WebUI Full 四个受支持产品单元。Native/Container 只是 WebUI
-内部 carrier。矩阵不证明任何 exact 版本已经公开或安装成功；这仍需 Release 和安装
-readback。
+Desktop/WebUI and Standard/Full are independent choices. Together they form
+four supported product cells: Desktop Standard, Desktop Full, WebUI Standard,
+and WebUI Full. Native and Container are internal WebUI carriers, not separate
+products. The matrix does not prove that a specific platform build is publicly
+available or installed; confirm that from the selected Release and installation
+readback.
 
-## 统一入口
+## Unified Release Installer
 
-从包含 `opl-install.sh` 的 GitHub Release 开始，macOS 和 Linux 使用同一个、
-按版本冻结的入口。不要把可变 `main` 分支脚本直接管道执行。
+Start from a GitHub Release that contains `opl-install.sh`. macOS and Linux use
+the same version-frozen entry point. Do not pipe a mutable script from `main`
+directly into a shell.
 
 ```bash
 VERSION=<release-version>
@@ -43,17 +51,17 @@ chmod 0755 opl-install.sh
 ./opl-install.sh
 ```
 
-产品路由：
+Product routing:
 
 ```text
 personal             -> Desktop or WebUI + Standard (default) or Full (explicit)
-server / isolated   -> WebUI + Standard (default) or Full (explicit)
-payload density      -> selected only when the exact platform manifest exposes it
-WebUI carrier        -> Native or Container, selected by exact platform manifest
+server / isolated    -> WebUI + Standard (default) or Full (explicit)
+payload density      -> available only when the exact platform manifest exposes it
+WebUI carrier        -> Native or Container, selected from the exact platform manifest
 --headless           -> OPL Base only
 ```
 
-当前公共入口的产品表面选择使用：
+The current public entry points select the product surface with:
 
 ```bash
 ./opl-install.sh --desktop
@@ -61,65 +69,74 @@ WebUI carrier        -> Native or Container, selected by exact platform manifest
 ./opl-install.sh --headless
 ```
 
-`--desktop` / `--webui` 选择表面。当前 macOS Stable carrier 通过
-`--stable-macos-install --standard|--full` 选择密度；其他平台只有在 exact Release
-manifest 暴露对应格子时才能选择，缺失必须 fail closed。需要固定 WebUI 内部 carrier
-时，现有 Native/Container compatibility flags 只属于高级部署；它们不能建立额外产品
-表面。入口必须从 exact Release manifest 解析平台资产和 digest，不得用可变 `latest`
-或文档中的历史版本代替。
+`--desktop` and `--webui` select the surface. The current macOS Stable carrier
+selects density through `--stable-macos-install --standard|--full`. Other
+platforms may select a cell only when that exact Release manifest exposes it;
+otherwise the installer must fail closed. Native/Container compatibility flags
+are advanced WebUI deployment controls and do not create additional product
+surfaces. The installer resolves platform assets and digests from the exact
+Release manifest, never from a mutable `latest` reference or a historical
+version copied from documentation.
 
-macOS 的直接 Release 安装会先匿名读取 GitHub Release API。若该请求失败（包括
-API 限流返回 HTTP 403），安装器只会在本机已有 `gh` 且 `gh auth` 已登录
-`github.com` 时，使用 `gh api` 读取同一个 `latest` 或精确 tag 的 Release
-记录；它不会切换版本或跳过 digest 校验。没有 GitHub CLI 或有效登录时会在下载和
-目标 App 修改前失败关闭。
+Direct macOS Release installation first reads the GitHub Release API
+anonymously. If that request fails, including an HTTP 403 rate-limit response,
+the installer may use `gh api` only when the local `gh` command exists and
+`gh auth` already has an authenticated `github.com` session. The fallback reads
+the same requested `latest` or exact tag; it never changes versions or skips
+digest verification. Without the GitHub CLI or valid authentication, the
+installer fails closed before any download or target App change.
 
-## 产品支持矩阵
+## Supported Product Matrix
 
-| 产品表面 | Standard | Full |
+| Product surface | Standard | Full |
 | --- | --- | --- |
-| Desktop | 同一 Desktop 行为，在线收敛 Official Profile | 同一 Desktop 行为，额外携带离线 seed |
-| WebUI | 同一 WebUI 行为，在线收敛 Official Profile | 同一 WebUI 行为，额外携带离线 seed |
+| Desktop | The shared Desktop experience; converges to the Official Profile online | The same Desktop experience with additional offline seeds |
+| WebUI | The shared WebUI experience; converges to the Official Profile online | The same WebUI experience with additional offline seeds |
 
-四格是支持的产品合同，不是当前公开资产目录。安装前必须从目标 Release 的 component
-manifest 和 owner readback 确认所选平台是否有对应 exact carrier、qualification 和
-digest；缺失时应明确报告不可用，不能借另一表面、另一密度或历史 carrier 的成功兜底
-成“已安装”。
+These four cells are the supported product contract, not a catalog of currently
+published assets. Before installation, confirm that the target Release's
+component manifest and owner readback expose the exact platform carrier,
+qualification, and digest for the selected cell. A missing cell must be reported
+as unavailable; success from another surface, density, or historical carrier is
+not evidence that the requested installation completed.
 
-## WebUI 内部 carrier
+## WebUI Carriers
 
-Native 在宿主直接运行 WebUI，Container 通过 OCI 隔离运行 WebUI。两者共享 WebUI
-表面、产品行为和 Official Profile，但可以使用不同目录、service manager、mount 和
-更新 adapter。carrier 选择不会改变 Standard/Full，也不会把 WebUI 变成两套产品。
+Native runs WebUI directly on the host. Container runs WebUI in OCI isolation.
+Both expose the same WebUI product behavior and Official Profile, while using
+different directories, service managers, mounts, and update adapters. Carrier
+selection does not change Standard/Full and does not turn WebUI into two
+products.
 
 ## Homebrew
 
-当前 Homebrew 入口：
+Current Homebrew entry points:
 
 ```bash
 # macOS Desktop
 brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 
-# macOS / Linux 的 OPL Base/CLI
+# OPL Base/CLI on macOS or Linux
 brew install gaofeng21cn/one-person-lab/opl
 ```
 
-Homebrew 支持 Linux，但 Cask 是 macOS App bundle 载体，所以现有 Desktop Cask
-不能在 Linux 上安装。技术上可以新增普通 Formula `one-person-lab-webui`，让
-macOS/Linux 用同一命令安装 Browser WebUI；它应消费同一 GitHub Release 的
-frozen Native payload，而不是重新构建一套字节。该 Formula 是已批准的可行目标，
-当前尚未实现。
+Homebrew also runs on Linux, but a Cask carries a macOS App bundle, so the
+current Desktop Cask cannot be installed on Linux. A future
+`one-person-lab-webui` Formula could consume the same frozen Native payload from
+the GitHub Release; it is an approved direction, not a currently implemented
+installation path.
 
-## 更新归属
+## Update Ownership
 
-| 安装方式 | 谁负责更新 |
+| Installation | Update owner |
 | --- | --- |
-| Desktop Standard / Full | 对应 Desktop carrier；Full 不进入 Standard updater metadata |
-| WebUI Standard / Full | 对应 WebUI carrier；Native/Container 只负责其自身 installed readback |
+| Desktop Standard / Full | The selected Desktop carrier; Full does not enter Standard updater metadata |
+| WebUI Standard / Full | The selected WebUI carrier; Native/Container report only their own installed state |
 | OPL Base / Packages | Framework managed update |
 
-Standard 和 Full 在 Desktop/WebUI 两个表面都只表示载荷密度，不是两套更新频道。
-Native 和 Container 只表示 WebUI 的内部 carrier，不是两套产品。
+Standard and Full describe payload density on both Desktop and WebUI; they are
+not separate update channels. Native and Container are WebUI carriers, not
+separate products.
 
-产品与维护边界见
-[`../distribution-and-install-ssot.md`](../distribution-and-install-ssot.md)。
+For product and maintenance boundaries, see the
+[`distribution-and-install-ssot.md`](../distribution-and-install-ssot.md).
