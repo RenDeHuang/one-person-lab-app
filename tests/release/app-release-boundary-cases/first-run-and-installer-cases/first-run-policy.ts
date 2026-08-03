@@ -1,0 +1,413 @@
+import {
+  assert,
+  fs,
+  os,
+  path,
+  test,
+  appRoot,
+  runNode,
+  writeExecutable,
+  writeFile,
+  spawnSync,
+  createHash,
+  validateFirstRunMatrix,
+  validateReleaseChannelContract,
+  syncAppProductProfileToShell,
+  releaseBoundaryChecks,
+  readJson,
+  requireReleaseBoundaryCheck,
+} from "./fixtures.ts";
+
+test("first-run matrix delegates policy shape to the active-shell validator", () => {
+  const matrix = readJson("contracts/app-first-run-test-matrix.json");
+  const adapter = readJson("contracts/app-shell-adapter.json");
+  assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
+  const fullDmg = matrix.scenarios.find((entry) => entry.id === "full_dmg_clean_vm_smoke");
+  assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
+  assert.equal(fullDmg.release_gate, false);
+  assert.equal(fullDmg.post_publication_optional_certification, true);
+  const capabilityStrategy = matrix.scenarios.find(
+    (entry) => entry.id === 'flow_capability_strategy_framework_managed',
+  );
+  assert.deepEqual(
+    {
+      strategy_authority: capabilityStrategy.strategy_authority,
+      compiler_authority: capabilityStrategy.compiler_authority,
+      app_role: capabilityStrategy.app_role,
+      runtime_projection_ref: capabilityStrategy.runtime_projection_ref,
+      full_build_lock_kind: capabilityStrategy.full_build_lock_kind,
+    },
+    {
+      strategy_authority: 'opl-flow',
+      compiler_authority: 'opl-framework',
+      app_role: 'projection_consumer_only',
+      runtime_projection_ref:
+        'app_state.agent_packages.status_index.packages.opl-flow.capability_strategy',
+      full_build_lock_kind: 'opl_flow_capability_build_lock.v1',
+    },
+  );
+  assert.ok(
+    capabilityStrategy.expects.includes(
+      'install materializes capabilities without running explicit $opl-flow start onboarding',
+    ),
+  );
+
+  for (const scenario of matrix.scenarios.filter((entry) => entry.vm)) {
+    assert.equal(scenario.release_gate, false, `${scenario.id} physical VM release gate`);
+    assert.equal(
+      scenario.post_publication_optional_certification,
+      true,
+      `${scenario.id} post-publication optional certification`,
+    );
+    assert.equal(
+      scenario.vm.diagnostic_scope,
+      "post_publication_optional_certification",
+      `${scenario.id} diagnostic scope`,
+    );
+  }
+
+  for (const id of [
+    "standard_dmg_clean_vm_smoke",
+    "homebrew_standard_cask_clean_vm_smoke",
+    "one_shot_app_installer_fresh_install_smoke",
+  ]) {
+    const scenario = matrix.scenarios.find((entry) => entry.id === id);
+    assert.ok(scenario, id);
+    assert.equal(scenario.release_gate, false, id);
+    assert.equal(scenario.post_publication_optional_certification, true, id);
+  }
+  const routeSmokeExpectations = matrix.scenarios
+    .flatMap((scenario) => scenario.expects ?? [])
+    .filter((expectation) =>
+      expectation.includes("Packaged GUI route smoke resolves every release qualification target"),
+    );
+  assert.equal(routeSmokeExpectations.length, 2);
+  for (const expectation of routeSmokeExpectations) {
+    assert.match(expectation, /hides ordinary backend\/provider selectors/);
+    assert.match(
+      expectation,
+      /shows the App-owned model\/reasoning and permission\/access controls/,
+    );
+    assert.doesNotMatch(expectation, /hides ordinary backend\/model\/permission selectors/);
+  }
+  assert.deepEqual(fullDmg.diagnostics_contract.home_composer_probe.required_summary_fields, [
+    "missing_controls",
+    "composer_state",
+    "instance_counts",
+  ]);
+  const launchGateExpectations = matrix.scenarios
+    .flatMap((scenario) => scenario.expects ?? [])
+    .filter((expectation) =>
+      expectation.includes(
+        "Packaged GUI launch-gate smoke keeps every release qualification target",
+      ),
+    );
+  assert.equal(launchGateExpectations.length, 2);
+  for (const expectation of launchGateExpectations) {
+    assert.match(expectation, /visible and selectable before selection/);
+    assert.match(expectation, /blocks only that send with typed repair guidance/);
+    assert.doesNotMatch(expectation, /visible but disabled/);
+    assert.match(expectation, /does not claim a Full route receipt/);
+  }
+  assert.deepEqual(
+    {
+      role: matrix.release_qualification_agent_target_fixture.role,
+      runtime_authority: matrix.release_qualification_agent_target_fixture.runtime_authority,
+      catalog_membership_authority:
+        matrix.release_qualification_agent_target_fixture.catalog_membership_authority,
+      visibility_authority: matrix.release_qualification_agent_target_fixture.visibility_authority,
+      action_authority: matrix.release_qualification_agent_target_fixture.action_authority,
+    },
+    {
+      role: "release_qualification_probe_input_only",
+      runtime_authority: false,
+      catalog_membership_authority: false,
+      visibility_authority: false,
+      action_authority: false,
+    },
+  );
+  assert.equal(
+    matrix.scenarios.find((scenario) => scenario.id === "standard_dmg_clean_vm_smoke")
+      .compiled_expectation_ref,
+    "contracts/app-first-run-compiled-expectations.json#profiles.standard",
+  );
+  assert.equal(
+    matrix.scenarios.find((scenario) => scenario.id === "homebrew_standard_cask_clean_vm_smoke")
+      .compiled_expectation_ref,
+    "contracts/app-first-run-compiled-expectations.json#profiles.standard",
+  );
+  assert.equal(
+    fullDmg.compiled_expectation_ref,
+    "contracts/app-first-run-compiled-expectations.json#profiles.full",
+  );
+  assert.equal(
+    matrix.scenarios.find((scenario) => scenario.id === "full_first_install_clean_machine")
+      .compiled_expectation_ref,
+    "contracts/app-first-run-compiled-expectations.json#profiles.full",
+  );
+
+  const invalid = structuredClone(matrix);
+  invalid.scenarios[0].aliases = ["legacy"];
+  assert.throws(
+    () => validateFirstRunMatrix(invalid, adapter),
+    /must not declare compatibility aliases/,
+  );
+
+  const missingComposerProbe = structuredClone(matrix);
+  const missingComposerProbeFullDmg = missingComposerProbe.scenarios.find(
+    (scenario) => scenario.id === "full_dmg_clean_vm_smoke",
+  );
+  missingComposerProbeFullDmg.diagnostics_contract.home_composer_probe.required_summary_fields = [];
+  assert.throws(
+    () => validateFirstRunMatrix(missingComposerProbe, adapter),
+    /must consume the App-owned Home composer state contract and fail within 60 seconds/,
+  );
+});
+
+test("release qualification reuses host Codex credentials only for requested connected VM diagnostics", () => {
+  const matrix = readJson("contracts/app-first-run-test-matrix.json");
+  const release = readJson("contracts/app-release-channel.json");
+  const adapter = readJson("contracts/app-shell-adapter.json");
+  const qualification = matrix.provider_configuration_qualification;
+  const boundary = release.provider_configuration_boundary;
+
+  assert.equal(qualification.default_user_authentication, "opl_gateway_account_password");
+  assert.equal(qualification.api_key_role, "explicit_compatibility_only");
+  assert.equal(qualification.release_vm_default.provider_configuration_status, "not_requested");
+  assert.equal(qualification.release_vm_default.synthetic_api_key_generation_allowed, false);
+  assert.equal(
+    qualification.connected_provider_diagnostic.credential_source,
+    "developer_host_codex_selected_provider",
+  );
+  assert.equal(qualification.connected_provider_diagnostic.base_url_must_match_opl_gateway, true);
+  assert.equal(qualification.connected_provider_diagnostic.manual_user_input_required, false);
+  assert.equal(
+    boundary.release_vm_smoke.explicit_api_key_file_role,
+    "optional_manual_override_only",
+  );
+  assert.equal(
+    boundary.artifact_and_package_independence.dmg_build_requires_provider_credential,
+    false,
+  );
+  assert.equal(
+    boundary.artifact_and_package_independence.manual_full_m1_requires_provider_credential,
+    false,
+  );
+  assert.equal(
+    boundary.artifact_and_package_independence
+      .manual_full_preview_publication_requires_provider_credential,
+    false,
+  );
+  assert.equal(
+    boundary.artifact_and_package_independence
+      .managed_package_currentness_requires_provider_credential,
+    false,
+  );
+
+  const syntheticCredentialMatrix = structuredClone(matrix);
+  syntheticCredentialMatrix.provider_configuration_qualification.release_vm_default.synthetic_api_key_generation_allowed = true;
+  assert.throws(
+    () => validateFirstRunMatrix(syntheticCredentialMatrix, adapter),
+    /must default to not_requested without synthetic credentials/,
+  );
+
+  const userPromptingMatrix = structuredClone(matrix);
+  userPromptingMatrix.provider_configuration_qualification.connected_provider_diagnostic.manual_user_input_required = true;
+  assert.throws(
+    () => validateFirstRunMatrix(userPromptingMatrix, adapter),
+    /must default to not_requested without synthetic credentials/,
+  );
+
+  const providerBoundRelease = structuredClone(release);
+  providerBoundRelease.provider_configuration_boundary.artifact_and_package_independence.dmg_build_requires_provider_credential = true;
+  assert.throws(
+    () => validateReleaseChannelContract(providerBoundRelease),
+    /must remain optional and credential-independent/,
+  );
+});
+
+test("one-shot App installer boundary is enforced by release-boundary checks", () => {
+  const oneShot = requireReleaseBoundaryCheck("one_shot_unsigned_local_authorization");
+  const install = readJson("contracts/app-install-exposure-policy.json");
+
+  assert.equal(oneShot.file, "install.sh");
+  assert.ok(oneShot.required.includes("--stable-macos-install"));
+  assert.ok(oneShot.required.includes("--authorize-local-app-only"));
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.stable_macos_helper.artifact_integrity,
+    {
+      official_release_asset_authority: "exact_github_release_record_asset_digest",
+      component_manifest_authority: "exact_github_release_record_component_manifest_asset_digest",
+      custom_url_or_path_authority: "caller_supplied_sha256_quality_not_asserted",
+      verification_order: "dmg_and_component_manifest_before_mount_copy_or_target_replacement",
+      latest_pointer_does_not_imply_stable_qualification: true,
+      non_stable_disclosure_before_target_mutation: true,
+      legacy_component_manifest_policy:
+        "allow_only_published_non_prerelease_pre_v3_manifest_with_quality_unasserted_disclosure",
+    },
+  );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.stable_macos_helper
+      .release_record_recovery,
+    {
+      primary_route: "anonymous_github_release_api",
+      authenticated_fallback_dependency: "github_cli_gh",
+      authenticated_fallback_prerequisite: "existing_authenticated_github.com_session",
+      authenticated_fallback_trigger: "anonymous_release_api_request_failure_including_http_403",
+      authenticated_fallback_behavior:
+        "read_same_requested_latest_or_exact_tag_release_record_via_gh_api",
+      missing_cli_or_authentication: "fail_closed_before_download_or_target_mutation",
+    },
+  );
+  const installGuide = fs.readFileSync(
+    path.join(appRoot, "docs/delivery/install/README.md"),
+    "utf8",
+  );
+  assert.match(installGuide, /HTTP 403/);
+  assert.match(installGuide, /gh auth/);
+  assert.match(installGuide, /gh api/);
+  assert.match(installGuide, /目标 App 修改前失败关闭/);
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.stable_macos_helper
+      .compatibility_entrypoints,
+    [],
+  );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.current_default_app_script
+      .explicit_density_override,
+    {
+      macos_standard_or_full: "direct_exact_release_component_manifest_asset_selection",
+      linux_standard: "exact_release_linux_x64_deb",
+      linux_full: "fail_closed_before_release_asset_lookup",
+    },
+  );
+  assert.deepEqual(
+    install.distribution_install_model.installer_convergence.approved_universal_target
+      .payload_density_routing,
+    {
+      macos: "explicit_standard_or_full_selects_the_matching_exact_release_asset",
+      linux_x86_64: "standard_only_and_explicit_full_fails_closed_before_release_asset_lookup",
+      frozen_macos_default:
+        "prefer_full_and_fallback_to_standard_only_when_full_is_confirmed_absent",
+      source_checkout_default_without_explicit_density: "framework_with_app_compatibility",
+    },
+  );
+  assert.equal(
+    install.distribution_install_model.installer_convergence.stable_macos_helper
+      .compatibility_wrapper_status,
+    "retired",
+  );
+  assert.equal(fs.existsSync(path.join(appRoot, "install-stable.sh")), false);
+  assert.equal(fs.existsSync(path.join(appRoot, "install-free.sh")), false);
+});
+
+test("release boundary requires profile-aware Standard launch gates and Full route receipts", () => {
+  const assistantSmoke = requireReleaseBoundaryCheck("first_run_vm_profile_aware_assistant_smoke");
+  const release = readJson("contracts/app-release-channel.json");
+  const fullPolicy = release.release_acceleration.assistant_route_smoke_policy.full;
+
+  assert.ok(assistantSmoke.required.includes("homeAssistantStandardLaunchGateExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantWorkspaceContextExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantRouteSendWithoutActivationExpression"));
+  assert.ok(assistantSmoke.required.includes("frameworkStageRuntimeActivationExpression"));
+  assert.ok(assistantSmoke.required.includes("activeConversationRouteReceiptExpression"));
+  assert.ok(
+    assistantSmoke.required.includes(
+      "workspace_guid_ui_send_without_shell_activation_then_conversation_get",
+    ),
+  );
+  assert.ok(assistantSmoke.required.includes("data-opl-workspace-path"));
+  assert.ok(assistantSmoke.required.includes("options.runtimeProfile !== 'full'"));
+  assert.ok(assistantSmoke.required.includes("verification_mode: 'launch_gate'"));
+  assert.ok(assistantSmoke.required.includes("verification_mode: 'route_receipt'"));
+  assert.ok(assistantSmoke.required.includes("assistant_launch_gates_checked"));
+  assert.ok(assistantSmoke.required.includes("not_applicable_standard"));
+  assert.ok(assistantSmoke.forbidden.includes("createAssistantRouteReceiptConversationExpression"));
+  assert.ok(assistantSmoke.forbidden.includes("POST /api/conversations"));
+  assert.equal(
+    release.release_acceleration.assistant_route_smoke_policy.target_fixture_ref,
+    "contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture",
+  );
+  assert.equal(
+    release.release_acceleration.assistant_route_smoke_policy.target_fixture_boundary,
+    "release_qualification_probe_input_only_without_runtime_catalog_visibility_action_or_install_authority",
+  );
+  assert.ok(
+    fullPolicy.required.includes(
+      "real_guid_composer_send_without_shell_package_activation_per_target",
+    ),
+  );
+  assert.ok(
+    fullPolicy.required.includes(
+      "Framework_stage_runtime_activation_uses_Stage_workspace_locator_per_target",
+    ),
+  );
+  assert.ok(fullPolicy.required.includes("Framework_stage_runtime_activation_evidence_per_target"));
+  assert.ok(fullPolicy.required.includes("conversation_get_readback_per_target"));
+  assert.ok(fullPolicy.forbidden.includes("direct_conversation_post"));
+
+  const syntheticReceiptAllowed = structuredClone(release);
+  syntheticReceiptAllowed.release_acceleration.assistant_route_smoke_policy.full.forbidden = [];
+  assert.throws(
+    () => validateReleaseChannelContract(syntheticReceiptAllowed),
+    /Full assistant synthetic launch-path prohibitions/,
+  );
+});
+
+test("release boundary requires production Runtime refresh evidence for both routes", () => {
+  const policy = requireReleaseBoundaryCheck("first_run_vm_runtime_refresh_production_evidence");
+
+  for (const token of [
+    "function buildRuntimeRefreshProbePlan(requestedHash, timeoutMs = DEFAULT_RUNTIME_REFRESH_TIMEOUT_MS)",
+    "requestedHash === '#/settings/runtime'",
+    "mode: 'settings-maintenance-updates'",
+    "aliasResolvedHash: '#/settings/environment'",
+    "refreshHash: '#/settings/environment?section=updates'",
+    "function settingsRuntimeAliasResolutionExpression(requestedHash, aliasResolvedHash)",
+    "function settingsMaintenanceUpdatesReadinessExpression(refreshHash)",
+    "function settingsUpdatesRefreshButtonIdleExpression()",
+    "function settingsUpdatesRefreshClickExpression()",
+    "const selector = '[data-testid=\"opl-managed-update-refresh\"]'",
+    "requestedHash === '#/runtime'",
+    "mode: 'runtime-v2'",
+    "resolvedHashPrefixes: ['#/runtime']",
+    "requested_hash: targetHash",
+    "alias_resolved_hash: aliasResolution.aliasResolvedHash ?? aliasResolution.hash",
+    "resolved_hash: resolvedHash",
+    "const runtimeRefreshTimeoutMs = Math.min(",
+    "options.codexReadinessPhaseTimeoutMs ?? options.timeoutMs",
+    "settingsRuntimeAliasResolutionExpression(probePlan.requestedHash, probePlan.aliasResolvedHash)",
+    "settingsMaintenanceUpdatesReadinessExpression(probePlan.refreshHash)",
+    "settingsUpdatesRefreshClickExpression()",
+    "const settingsRuntimeRefresh = await (hooks.exerciseRuntimeRefresh ?? exerciseRuntimeRefresh)(",
+    "const standaloneRuntimeRefresh = await (hooks.exerciseRuntimeRefresh ?? exerciseRuntimeRefresh)(",
+  ]) {
+    assert.ok(policy.required.includes(token), `missing Runtime evidence source gate: ${token}`);
+  }
+  assert.deepEqual(policy.forbidden, []);
+});
+
+test("release boundary keeps production Gatekeeper policy profile-aware", () => {
+  const policy = requireReleaseBoundaryCheck("first_run_vm_local_authorization_policy");
+
+  assert.ok(policy.required.includes("gatekeeper_required: gatekeeperRequired"));
+  assert.ok(policy.required.includes("quarantine_removal_required: !gatekeeperRequired"));
+  assert.ok(
+    policy.required.includes(
+      "const gatekeeperRequired = hooks.requireGatekeeper === true || homebrewFullCask",
+    ),
+  );
+  assert.ok(
+    policy.required.includes(
+      "(hooks.countQuarantineAttributes ?? countQuarantineAttributes)(appPath)",
+    ),
+  );
+  assert.ok(policy.required.includes("if (!gatekeeperRequired && quarantineAttributeCount !== 0)"));
+  assert.ok(policy.required.includes("if (gatekeeperRequired && spctl.status !== 0)"));
+  assert.ok(policy.required.includes("if (!options.requireGatekeeper)"));
+  assert.ok(policy.required.includes("local_authorization_status: localAuthorizationStatus"));
+  assert.ok(policy.required.includes("quarantine_attribute_count: quarantineAttributeCount"));
+  assert.ok(policy.required.includes("xattr', ['-dr', 'com.apple.quarantine', targetApp]"));
+  assert.equal(policy.required.includes("gatekeeper_required: false"), false);
+  assert.equal(policy.required.includes("quarantine_removal_required: true"), false);
+});
