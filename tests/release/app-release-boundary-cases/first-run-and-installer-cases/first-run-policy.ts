@@ -259,14 +259,28 @@ test("one-shot App installer boundary is enforced by release-boundary checks", (
       missing_cli_or_authentication: "fail_closed_before_download_or_target_mutation",
     },
   );
-  const installGuide = fs.readFileSync(
+  const installGuideEnglish = fs.readFileSync(
     path.join(appRoot, "docs/delivery/install/README.md"),
     "utf8",
   );
-  assert.match(installGuide, /HTTP 403/);
-  assert.match(installGuide, /gh auth/);
-  assert.match(installGuide, /gh api/);
-  assert.match(installGuide, /目标 App 修改前失败关闭/);
+  const installGuideChinese = fs.readFileSync(
+    path.join(appRoot, "docs/delivery/install/README.zh-CN.md"),
+    "utf8",
+  );
+  assert.match(installGuideEnglish, /README\.zh-CN\.md/);
+  assert.match(installGuideEnglish, /HTTP 403/);
+  assert.match(installGuideEnglish, /gh auth/);
+  assert.match(installGuideEnglish, /gh api/);
+  assert.match(installGuideEnglish, /before any download or target App change/);
+  const installGuideEnglishBody = installGuideEnglish.slice(
+    installGuideEnglish.indexOf("# One Person Lab Installation Guide"),
+  );
+  assert.doesNotMatch(installGuideEnglishBody, /[\u3400-\u9fff]/);
+  assert.match(installGuideChinese, /README\.md/);
+  assert.match(installGuideChinese, /HTTP 403/);
+  assert.match(installGuideChinese, /gh auth/);
+  assert.match(installGuideChinese, /gh api/);
+  assert.match(installGuideChinese, /修改目标 App 之前明确停止/);
   assert.deepEqual(
     install.distribution_install_model.installer_convergence.stable_macos_helper
       .compatibility_entrypoints,
