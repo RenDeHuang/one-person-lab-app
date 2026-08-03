@@ -1343,6 +1343,9 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
   const carrierInputs = carrier.workflow.on?.workflow_call?.inputs ?? {};
   const build = carrierJobs['build-and-qualify'];
   const publish = carrierJobs['publish-native-assets'];
+  const nativeBuildStep = (build?.steps ?? []).find(
+    (step) => step.name === 'Build target Native WebUI artifact',
+  );
   if (
     JSON.stringify(Object.keys(carrier.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
     || !exactObject(carrier.workflow.permissions, { contents: 'read' })
@@ -1354,6 +1357,8 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     || !needsExactly(publish, ['build-and-qualify'])
     || publish?.environment !== 'release-stable'
     || !exactObject(publish?.permissions, exactStableEntryPermissions)
+    || nativeBuildStep?.env?.NODE_OPTIONS !== '--max-old-space-size=8192'
+    || (carrier.text.match(/--max-old-space-size=8192/g) ?? []).length !== 1
   ) {
     failures += reportFailure(
       id,
@@ -1387,6 +1392,11 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'source-run-id: ${{ inputs.source_run_id }}',
     'source-artifact: ${{ inputs.source_artifact }}',
     'standard_identity_sha256',
+    'native_webui_follower',
+    'native-follower-operation.json',
+    'infer-standard',
+    'opl release operation admit',
+    'steps.append.outputs.release_operation',
     'release-native-webui-carrier.ts publish',
     'release-native-webui-carrier.ts readback',
     'publication-scope external_target',
@@ -1401,13 +1411,13 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     }
   }
   if (
-    /packages:\s*write|ghcr\.io|docker (?:build|push)|make_latest|github-activate-latest|--clobber|--max-old-space-size/.test(
+    /packages:\s*write|ghcr\.io|docker (?:build|push)|make_latest|github-activate-latest|--clobber|--release-operation standard|--operation standard/.test(
       carrier.text,
     )
   ) {
     failures += reportFailure(
       id,
-      'Native WebUI carrier must not mutate Latest, containers, Homebrew, or use the retired heap override',
+      'Native WebUI carrier must not mutate Latest, containers, Homebrew, or hard-code the inherited Standard operation',
     );
   }
   for (const stablePath of [

@@ -191,6 +191,7 @@ jobs:
           PACK_PLATFORM: ${{ inputs.target_platform }}
           PACK_ARCH: ${{ inputs.target_architecture == 'x86_64' && 'x64' || 'arm64' }}
           OPL_WEBUI_IMAGE_PROFILE: webui-full
+          NODE_OPTIONS: '--max-old-space-size=8192'
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -454,6 +455,32 @@ jobs:
             | test("^github-native-webui:gaofeng21cn/one-person-lab-app@v[0-9]+\\.[0-9]+\\.[0-9]+(-r[1-9][0-9]*)?/sha256:[0-9a-f]{64}$")
           ' native-release/prepublication-readback.json >/dev/null
 
+      - name: Start bounded Native follower publication operation
+        id: follower-operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          operation_id="native-${GITHUB_RUN_ID}-${{ inputs.target_platform }}-${{ inputs.target_architecture }}"
+          operation_started_at="$(node -p 'new Date().toISOString()')"
+          node --experimental-strip-types executor-source/scripts/release-operation-deadline.ts resolve \
+            --operation native_webui_follower \
+            --started-at "$operation_started_at" \
+            --output native-release/native-follower-window.json >/dev/null
+          jq --arg operation_id "$operation_id" \
+            '{schema:"opl_app_native_webui_follower_operation.v1",operation_id:$operation_id} + .' \
+            native-release/native-follower-window.json > native-release/native-follower-operation.json
+          rm native-release/native-follower-window.json
+          jq -e '
+            .schema == "opl_app_native_webui_follower_operation.v1"
+            and .operation == "native_webui_follower"
+            and (.operation_id | test("^native-[1-9][0-9]*-(linux-x86_64|darwin-arm64)$"))
+          ' native-release/native-follower-operation.json >/dev/null
+          {
+            echo "operation_id=$operation_id"
+            echo "operation_started_at=$(jq -r .started_at native-release/native-follower-operation.json)"
+            echo "operation_deadline_at=$(jq -r .deadline_at native-release/native-follower-operation.json)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Append one exact Native asset set through the Framework ledger
         id: append
         env:
@@ -467,30 +494,64 @@ jobs:
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ steps.checkpoint.outputs.standard_operation_id }}'
+          node --experimental-strip-types executor-source/scripts/release-operation-deadline.ts infer-standard \
+            --started-at '${{ steps.checkpoint.outputs.standard_operation_started_at }}' \
+            --deadline-at '${{ steps.checkpoint.outputs.standard_operation_deadline_at }}' \
+            > native-release/checkpoint-standard-operation.json
+          release_operation="$(jq -er .operation native-release/checkpoint-standard-operation.json)"
+          operation_started_at="$(jq -er .started_at native-release/checkpoint-standard-operation.json)"
+          operation_deadline_at="$(jq -er .deadline_at native-release/checkpoint-standard-operation.json)"
+          if ! node --experimental-strip-types executor-source/scripts/release-operation-deadline.ts check \
+            --operation "$release_operation" \
+            --started-at "$operation_started_at" \
+            --deadline-at "$operation_deadline_at" \
+            > native-release/checkpoint-operation-check.json \
+            2> native-release/checkpoint-operation-check.stderr; then
+            rg -F "$release_operation operation deadline elapsed" \
+              native-release/checkpoint-operation-check.stderr >/dev/null
+            release_operation=resume_standard
+            operation_started_at='${{ steps.follower-operation.outputs.operation_started_at }}'
+            operation_deadline_at='${{ steps.follower-operation.outputs.operation_deadline_at }}'
+          fi
           operation_args=(
-            --operation standard
+            --operation "$release_operation"
             --operation-id "$operation_id"
-            --operation-started-at '${{ steps.checkpoint.outputs.standard_operation_started_at }}'
-            --operation-deadline-at '${{ steps.checkpoint.outputs.standard_operation_deadline_at }}'
+            --operation-started-at "$operation_started_at"
+            --operation-deadline-at "$operation_deadline_at"
           )
           node --experimental-strip-types executor-source/scripts/release-operation-deadline.ts check \
-            --operation standard \
-            --started-at '${{ steps.checkpoint.outputs.standard_operation_started_at }}' \
-            --deadline-at '${{ steps.checkpoint.outputs.standard_operation_deadline_at }}'
+            --operation "$release_operation" \
+            --started-at "$operation_started_at" \
+            --deadline-at "$operation_deadline_at" \
+            > native-release/framework-operation-check.json
+          framework-executor/bin/opl release operation admit \
+            --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
+            --store "$store" --json > native-release/framework-operation-admit.json
           node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts github-inspect \
             --repo "$GITHUB_REPOSITORY" --tag '${{ steps.checkpoint.outputs.tag }}' \
             --output native-release/standard-remote.json
           node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote \
             --attempt-id "gha-${GITHUB_RUN_ID}-native-${TARGET_PLATFORM}-${TARGET_ARCHITECTURE}-standard-readback" \
-            --release-operation standard --operation-id "$operation_id" \
+            --release-operation "$release_operation" --operation-id "$operation_id" \
             --remote-target "github-release:${GITHUB_REPOSITORY}@${{ steps.checkpoint.outputs.tag }}" \
             --publication-scope track_assets --bundle "$bundle" --track standard --outcome complete \
             --inspection native-release/standard-remote.json --output native-release/standard-remote.receipt.json
           framework-executor/bin/opl release publish \
             --bundle "$BUNDLE_DIGEST" --executor-receipt native-release/standard-remote.receipt.json \
             "${operation_args[@]}" --store "$store" --json > native-release/standard-published.json
+          {
+            echo "release_operation=$release_operation"
+            echo "operation_id=$operation_id"
+            echo "operation_started_at=$operation_started_at"
+            echo "operation_deadline_at=$operation_deadline_at"
+          } >> "$GITHUB_OUTPUT"
           mutation_attempt_id="gha-${GITHUB_RUN_ID}-native-${TARGET_PLATFORM}-${TARGET_ARCHITECTURE}-assets"
+          node --experimental-strip-types executor-source/scripts/release-operation-deadline.ts check \
+            --operation native_webui_follower \
+            --started-at '${{ steps.follower-operation.outputs.operation_started_at }}' \
+            --deadline-at '${{ steps.follower-operation.outputs.operation_deadline_at }}' \
+            > native-release/native-follower-mutation-check.json
           set +e
           node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts publish \
             --manifest native-release/publication-manifest.json \
@@ -506,7 +567,7 @@ jobs:
               test "$publish_exit" -eq 0
               node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
                 --operation remote_inspect --executor remote --attempt-id "$mutation_attempt_id" \
-                --release-operation standard --operation-id "$operation_id" \
+                --release-operation "$release_operation" --operation-id "$operation_id" \
                 --remote-target "$remote_target" --publication-scope external_target \
                 --bundle "$bundle" --track standard --outcome complete \
                 --output native-release/native-framework.receipt.json
@@ -519,7 +580,7 @@ jobs:
               test "$publish_exit" -eq 2
               node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
                 --operation remote_inspect --executor remote --attempt-id "$mutation_attempt_id" \
-                --release-operation standard --operation-id "$operation_id" \
+                --release-operation "$release_operation" --operation-id "$operation_id" \
                 --remote-target "$remote_target" --publication-scope external_target \
                 --bundle "$bundle" --track standard --outcome unknown \
                 --output native-release/native-framework.receipt.json
@@ -568,7 +629,11 @@ jobs:
           set -euo pipefail
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
-          operation_id='${{ steps.checkpoint.outputs.standard_operation_id }}'
+          release_operation='${{ steps.append.outputs.release_operation }}'
+          operation_id='${{ steps.append.outputs.operation_id }}'
+          operation_started_at='${{ steps.append.outputs.operation_started_at }}'
+          operation_deadline_at='${{ steps.append.outputs.operation_deadline_at }}'
+          case "$release_operation" in standard|resume_standard) ;; *) exit 1 ;; esac
           node --experimental-strip-types executor-source/scripts/release-native-webui-carrier.ts readback \
             --manifest native-release/publication-manifest.json \
             --output native-release/reconcile-readback.json \
@@ -584,16 +649,16 @@ jobs:
           node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote \
             --attempt-id "gha-${GITHUB_RUN_ID}-native-${{ inputs.target_platform }}-${{ inputs.target_architecture }}-reconcile" \
-            --release-operation standard --operation-id "$operation_id" \
+            --release-operation "$release_operation" --operation-id "$operation_id" \
             --remote-target "$target" --prior-attempt-id "$prior_attempt" \
             --publication-scope external_target --bundle "$bundle" --track standard --outcome complete \
             --output native-release/native-reconcile.receipt.json
           framework-executor/bin/opl release reconcile \
             --bundle "$BUNDLE_DIGEST" --executor-receipt native-release/native-reconcile.receipt.json \
-            --operation standard \
+            --operation "$release_operation" \
             --operation-id "$operation_id" \
-            --operation-started-at '${{ steps.checkpoint.outputs.standard_operation_started_at }}' \
-            --operation-deadline-at '${{ steps.checkpoint.outputs.standard_operation_deadline_at }}' \
+            --operation-started-at "$operation_started_at" \
+            --operation-deadline-at "$operation_deadline_at" \
             --store "$store" --json > native-release/native-reconcile-result.json
           reconcile_status="$(jq -er .release_bundle_reconcile.status native-release/native-reconcile-result.json)"
           case "$reconcile_status" in complete|late_observation) ;; *) exit 1 ;; esac

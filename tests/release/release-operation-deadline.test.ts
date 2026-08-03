@@ -7,6 +7,7 @@ import test from 'node:test';
 
 import {
   assertReleaseOperationDeadline,
+  inferStandardReleaseOperation,
   remainingReleaseOperationMilliseconds,
   releaseOperationDeadline,
   releaseOperationDeadlineTimestamp,
@@ -32,6 +33,25 @@ test('release operations have bounded independent clocks', () => {
     releaseOperationDeadline({ operation: 'move_latest_pointer', startedAt }),
     '2026-07-21T00:30:00.000Z',
   );
+  assert.equal(
+    releaseOperationDeadline({ operation: 'native_webui_follower', startedAt }),
+    '2026-07-21T00:30:00.000Z',
+  );
+});
+
+test('Standard checkpoint controls retain their admitted 90 or 30 minute operation kind', () => {
+  assert.equal(inferStandardReleaseOperation({
+    startedAt,
+    deadlineAt: '2026-07-21T01:30:00.000Z',
+  }), 'standard');
+  assert.equal(inferStandardReleaseOperation({
+    startedAt,
+    deadlineAt: '2026-07-21T00:30:00.000Z',
+  }), 'resume_standard');
+  assert.throws(() => inferStandardReleaseOperation({
+    startedAt,
+    deadlineAt: '2026-07-21T02:00:00.000Z',
+  }), /exactly 90 or 30 minutes/);
 });
 
 test('GitHub created_at is canonicalized once before operation control is derived', () => {
@@ -71,6 +91,24 @@ test('resolve CLI writes the canonical operation start and matching deadline to 
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('infer-standard CLI returns the exact checkpoint operation kind', () => {
+  const result = spawnSync(process.execPath, [
+    '--experimental-strip-types',
+    'scripts/release-operation-deadline.ts',
+    'infer-standard',
+    '--started-at',
+    '2026-07-21T23:20:33Z',
+    '--deadline-at',
+    '2026-07-21T23:50:33Z',
+  ], { cwd: process.cwd(), encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    operation: 'resume_standard',
+    started_at: '2026-07-21T23:20:33.000Z',
+    deadline_at: '2026-07-21T23:50:33.000Z',
+  });
 });
 
 test('deadline checks reject refreshed or elapsed clocks', () => {

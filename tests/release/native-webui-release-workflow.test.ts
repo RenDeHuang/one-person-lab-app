@@ -77,6 +77,20 @@ test('Native reusable builds one exact target then performs protected additive p
   assert.equal(parsed.jobs['publish-native-assets'].environment, 'release-stable');
   assert.equal(parsed.jobs['publish-native-assets']['continue-on-error'], undefined);
   assert.deepEqual(parsed.jobs['publish-native-assets'].permissions, { contents: 'write', actions: 'read' });
+  const nativeBuildStep = parsed.jobs['build-and-qualify'].steps.find(
+    (step: Record<string, any>) => step.name === 'Build target Native WebUI artifact',
+  );
+  assert.equal(nativeBuildStep.env.NODE_OPTIONS, '--max-old-space-size=8192');
+  const appendStep = parsed.jobs['publish-native-assets'].steps.find(
+    (step: Record<string, any>) => step.name === 'Append one exact Native asset set through the Framework ledger',
+  );
+  const appendRun = String(appendStep.run);
+  assert.ok(appendRun.indexOf('infer-standard') < appendRun.indexOf('opl release operation admit'));
+  assert.ok(
+    appendRun.indexOf('--operation native_webui_follower')
+      < appendRun.indexOf('release-native-webui-carrier.ts publish'),
+  );
+  assert.match(appendRun, /--release-operation "\$release_operation"/);
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',
     'test "$(id -u)" -ne 0',
@@ -96,6 +110,11 @@ test('Native reusable builds one exact target then performs protected additive p
     'release-native-webui-carrier.ts publish',
     'release-native-webui-carrier.ts readback',
     'restore-release-checkpoint',
+    'native_webui_follower',
+    'native-follower-operation.json',
+    'infer-standard',
+    'opl release operation admit',
+    'steps.append.outputs.release_operation',
     'publication-scope external_target',
     'prior_mutation_attempt_id',
     'find native-release/native-publication-checkpoint -type f -name checkpoint.json',
@@ -115,7 +134,8 @@ test('Native reusable builds one exact target then performs protected additive p
   assert.match(source, /standard_identity_sha256/);
   assert.doesNotMatch(source, /ghcr\.io|docker build|docker push|packages: write|make_latest|github-activate-latest/);
   assert.doesNotMatch(source, /release-stable\.yml|_release-full-addon\.yml/);
-  assert.doesNotMatch(source, /NODE_OPTIONS|--max-old-space-size/);
+  assert.equal((source.match(/--max-old-space-size=8192/g) ?? []).length, 1);
+  assert.doesNotMatch(source, /--release-operation standard|--operation standard/);
 });
 
 test('Desktop Stable bundle has no Native mandatory job or dependency', () => {
