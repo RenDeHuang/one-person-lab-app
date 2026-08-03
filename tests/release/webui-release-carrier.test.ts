@@ -651,6 +651,10 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(buildRun, /\.opl-frozen-inputs\/codex-cli\.tgz/);
   assert.match(buildRun, /COPY \.opl-frozen-inputs\/codex-cli\.tgz \/tmp\/codex-cli\.tgz/);
   assert.match(buildRun, /npm install -g --prefix \/opt\/codex-cli \/tmp\/codex-cli\.tgz/);
+  assert.match(buildRun, /webui-executor-source\/scripts\/materialize-webui-seed-symlinks\.ts/);
+  assert.match(buildRun, /COPY \.opl-frozen-inputs\/materialize-webui-seed-symlinks\.ts \/tmp\/materialize-webui-seed-symlinks\.ts/);
+  assert.match(buildRun, /materialize-webui-seed-symlinks\.ts --root node_modules/);
+  assert.match(buildRun, /find node_modules -type l -print -quit/);
   assert.match(buildRun, /framework-release-adapter\.ts webui-build-input/);
   assert.match(buildRun, /oras manifest fetch/);
   assert.match(buildRun, /npm view/);
@@ -686,6 +690,11 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(buildRun, /standard-identity-receipt\.json/);
   assert.match(buildRun, /inputs\.standard_identity_sha256/);
   const imageBuildIndex = build.steps.findIndex((step: { name?: string }) => step.name === 'Build WebUI image once from frozen inputs');
+  const executorCheckout = build.steps.find(
+    (step: { name?: string }) => step.name === 'Checkout exact WebUI build executor',
+  );
+  assert.equal(executorCheckout.with.ref, '${{ github.sha }}');
+  assert.equal(executorCheckout.with.path, 'webui-executor-source');
   const qualificationIndex = build.steps.findIndex(
     (step: { name?: string }) => step.name === 'Qualify exact local runtime before any registry tag is written',
   );
