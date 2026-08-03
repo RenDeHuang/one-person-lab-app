@@ -227,8 +227,8 @@ function validateFrameworkCoreCarrier(homebrew) {
       app_requirement_owner: 'one-person-lab-app',
       required_package_name: 'opl-framework',
       required_capability_source_ref:
-        'contracts/opl-framework/app-runtime-fast-work-item-projection-contract.json#compatibility_capabilities.ids',
-      required_capability_ids: [],
+        'contracts/opl-framework/app-component-compatibility-receipt-contract.json#producer_observation.capabilities[].capability_id',
+      required_capability_ids: ['opl_dynamic_package_directory'],
       required_capability_match: 'all',
       optional_enhancement_capabilities: [
         {

@@ -431,16 +431,23 @@
         "profile_id": "gui_installed_acceptance",
         "scope": "installed_gui_artifact_acceptance_only",
         "requirements": [
-        {
-          "requirement_id": "framework_compatibility_receipt_schema",
-          "kind": "capability_id_with_versioned_schema",
-          "component_id": "opl_framework",
-          "capability_id": "opl_component_compatibility_receipt",
-          "schema_range": ">=1.0.0 <2.0.0"
-        }
-      ],
-      "shell_acceptance_boundary": "app_build_contract_active_shell_gate_and_installed_browser_first_dom_pixel_a11y_behavior",
-      "package_policy": "package_requirements_are_owner_declared_dynamic_capabilities_or_ranges_not_a_fixed_app_bom"
+          {
+            "requirement_id": "framework_compatibility_receipt_schema",
+            "kind": "capability_id_with_versioned_schema",
+            "component_id": "opl_framework",
+            "capability_id": "opl_component_compatibility_receipt",
+            "schema_range": ">=1.0.0 <2.0.0"
+          },
+          {
+            "requirement_id": "framework_dynamic_package_directory_schema",
+            "kind": "capability_id_with_versioned_schema",
+            "component_id": "opl_framework",
+            "capability_id": "opl_dynamic_package_directory",
+            "schema_range": ">=1.0.0 <2.0.0"
+          }
+        ],
+        "shell_acceptance_boundary": "app_build_contract_active_shell_gate_and_installed_browser_first_dom_pixel_a11y_behavior",
+        "package_policy": "package_requirements_are_owner_declared_dynamic_capabilities_or_ranges_not_a_fixed_app_bom"
       }
     },
     "provenance": {
@@ -1593,8 +1600,10 @@
           "producer_owner": "one-person-lab",
           "app_requirement_owner": "one-person-lab-app",
           "required_package_name": "opl-framework",
-          "required_capability_source_ref": "contracts/opl-framework/app-runtime-fast-work-item-projection-contract.json#compatibility_capabilities.ids",
-          "required_capability_ids": [],
+          "required_capability_source_ref": "contracts/opl-framework/app-component-compatibility-receipt-contract.json#producer_observation.capabilities[].capability_id",
+          "required_capability_ids": [
+            "opl_dynamic_package_directory"
+          ],
           "required_capability_match": "all",
           "optional_enhancement_capabilities": [
             {
