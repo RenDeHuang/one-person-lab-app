@@ -80,7 +80,8 @@ test('App owner manifest records only the frozen Standard public asset set', () 
     non_stable_notice: false,
   });
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
-  assert.equal(component.artifacts.length, 6);
+  assert.equal(component.artifacts.length, 5);
+  assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.endsWith('.deb')), false);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.deepEqual(
     component.artifacts.find((entry: { name: string }) => entry.name === 'opl-install.sh'),

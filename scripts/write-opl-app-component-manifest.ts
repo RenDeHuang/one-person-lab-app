@@ -163,7 +163,9 @@ export function createAppComponentManifest(input: AppComponentManifestInput) {
     `One-Person-Lab-${input.version}-mac-arm64.dmg`,
     `One-Person-Lab-${input.version}-mac-arm64.zip`,
     `One-Person-Lab-${input.version}-mac-arm64.zip.blockmap`,
-    `One-Person-Lab-${input.version}-linux-x64.deb`,
+    ...(identity.versionChannel === 'stable'
+      ? []
+      : [`One-Person-Lab-${input.version}-linux-x64.deb`]),
     ...(hasUniversalInstaller ? ['opl-install.sh'] : []),
   ]);
   const artifacts = input.assets

@@ -20,7 +20,7 @@ const contract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
 );
 
-test('Stable and Nightly resolve the exact required macOS ARM64 plus Linux x64 matrix', () => {
+test('Stable requires only macOS ARM64 while Nightly retains macOS ARM64 plus Linux x64', () => {
   assert.deepEqual(
     resolveReleasePlatformMatrix({ policy: 'stable_required' }).include,
     [
@@ -31,13 +31,6 @@ test('Stable and Nightly resolve the exact required macOS ARM64 plus Linux x64 m
         'artifact-name': 'macos-build-arm64',
         arch: 'arm64',
         native_arch: 'arm64',
-      },
-      {
-        platform: 'linux-x64',
-        os: 'ubuntu-latest',
-        command: 'node scripts/build-with-builder.js x64 --linux --x64',
-        'artifact-name': 'linux-build-x64',
-        arch: 'x64',
       },
     ],
   );
@@ -53,7 +46,7 @@ test('Stable and Nightly resolve the exact required macOS ARM64 plus Linux x64 m
   );
 });
 
-test('all seven declared capabilities remain explicitly buildable without entering Stable by default', () => {
+test('all seven capabilities remain buildable while only macOS ARM64 blocks Stable', () => {
   const matrix = contract.release_platform_matrix;
   const capabilityIds = [
     'macos-arm64',
@@ -71,17 +64,18 @@ test('all seven declared capabilities remain explicitly buildable without enteri
     ),
     capabilityIds,
   );
-  for (const id of ['macos-arm64', 'linux-x64']) {
-    assert.equal(matrix.capabilities[id].default_enabled, true);
-    assert.equal(matrix.capabilities[id].blocks_stable, true);
-  }
+  assert.equal(matrix.capabilities['macos-arm64'].default_enabled, true);
+  assert.equal(matrix.capabilities['macos-arm64'].blocks_stable, true);
+  assert.equal(matrix.capabilities['linux-x64'].default_enabled, true);
+  assert.equal(matrix.capabilities['linux-x64'].blocks_stable, false);
   for (const id of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64', 'windows-arm64']) {
     assert.equal(matrix.capabilities[id].default_enabled, false);
     assert.equal(matrix.capabilities[id].blocks_stable, false);
   }
-  assert.equal(matrix.capabilities['windows-x64'].stable_allowed, true);
-  assert.ok(matrix.capabilities['windows-x64'].quality_channels.includes('stable_optional'));
-  assert.equal(matrix.capabilities['windows-arm64'].stable_allowed, false);
+  for (const id of ['linux-x64', 'windows-x64', 'windows-arm64']) {
+    assert.equal(matrix.capabilities[id].stable_allowed, true);
+    assert.ok(matrix.capabilities[id].quality_channels.includes('stable_optional'));
+  }
   for (const id of ['windows-x64', 'windows-arm64']) {
     assert.ok(matrix.capabilities[id].quality_channels.includes('preview_rc'));
   }
@@ -91,8 +85,11 @@ test('all seven declared capabilities remain explicitly buildable without enteri
   }
 });
 
-test('optional Stable publication is a canonical contract switch and defaults to no follower build', (t) => {
-  assert.deepEqual(resolveReleasePlatformMatrix({ policy: 'stable_optional' }).include, []);
+test('optional Stable publication defaults to Linux x64 and remains authority-overridable', (t) => {
+  assert.deepEqual(
+    resolveReleasePlatformMatrix({ policy: 'stable_optional' }).include.map((row) => row.platform),
+    ['linux-x64'],
+  );
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-platform-switch-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const changed = structuredClone(contract);
@@ -103,7 +100,7 @@ test('optional Stable publication is a canonical contract switch and defaults to
     resolveReleasePlatformMatrix({ policy: 'stable_optional', contractPath }).include.map(
       (row) => row.platform,
     ),
-    ['macos-x64'],
+    ['macos-x64', 'linux-x64'],
   );
 });
 
@@ -161,10 +158,12 @@ test('workflow callers consume resolver output while reusable build keeps generi
 
   assert.equal(bundle.jobs['standard-build'].with.matrix, '${{ needs.resolve-platform-matrix.outputs.matrix }}');
   assert.equal(bundle.jobs['standard-build'].with.release_validation_profile, 'stable');
-  assert.match(
-    String(bundle.jobs['resolve-platform-matrix'].steps.find((step: any) => step.id === 'resolve')?.run),
-    /--policy stable_required/,
+  const bundleMatrixRun = String(
+    bundle.jobs['resolve-platform-matrix'].steps.find((step: any) => step.id === 'resolve')?.run,
   );
+  assert.match(bundleMatrixRun, /stable\) policy=stable_required/);
+  assert.match(bundleMatrixRun, /preview\) policy=preview_standard/);
+  assert.match(bundleMatrixRun, /--policy "\$policy"/);
   assert.equal(nightly.jobs['standard-build'].with.matrix, '${{ needs.admission.outputs.matrix }}');
   assert.equal(nightly.jobs['standard-build'].with.release_validation_profile, 'stable');
   assert.match(
@@ -417,6 +416,11 @@ test('optional platform publication is an independent protected post-success ope
   const publishRun = String(publish.steps.find(
     (step: any) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.run);
+  assert.match(
+    publishRun,
+    /\.tag_name == \$tag[\s\S]*\.prerelease == false[\s\S]*\.immutable == false[\s\S]*base-release\.json/,
+  );
+  assert.match(publishRun, /exact mutable base Stable Release used for same-tag Full append/);
   assert.match(publishRun, /gh release upload "\$tag" "\$asset_path"/);
   assert.match(publishRun, /and \.immutable == true/);
   assert.match(publishRun, /validateGithubImmutableReleaseCapabilityEvidence/);

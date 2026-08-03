@@ -119,6 +119,17 @@ export function generateFrozenUniversalInstaller(input: FrozenUniversalInstaller
       throw new Error(`Frozen universal installer omitted same-tag Full resolver fragment: ${fragment}.`);
     }
   }
+  for (const fragment of [
+    'resolve_linux_adjunct_release_record',
+    'linux_adjunct_release_record_binds_tagged_assets',
+    'opl-optional-platforms-manifest.json',
+    'LINUX_DESKTOP_ADJUNCT_TAG',
+    'Linux adjunct manifest cohort does not match the base component manifest',
+  ]) {
+    if (!generated.includes(fragment)) {
+      throw new Error(`Frozen universal installer omitted Linux adjunct resolver fragment: ${fragment}.`);
+    }
+  }
   for (const [name, value] of [
     ['OPL_APP_SOURCE_REF', appSha],
     ['OPL_SHELL_SOURCE_REF', shellSha],

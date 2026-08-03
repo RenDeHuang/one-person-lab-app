@@ -8,6 +8,7 @@ on:
   workflow_run:
     workflows:
       - OPL Stable Release Bundle
+      - OPL Stable Post-Success Full Follow-up
     types:
       - completed
   workflow_dispatch:
@@ -55,8 +56,6 @@ jobs:
       tag: ${{ steps.identity.outputs.tag }}
       artifact_name: ${{ steps.identity.outputs.artifact_name }}
       artifact_digest: ${{ steps.identity.outputs.artifact_digest }}
-      linux_artifact_name: ${{ steps.identity.outputs.linux_artifact_name }}
-      linux_artifact_digest: ${{ steps.identity.outputs.linux_artifact_digest }}
       installer_name: ${{ steps.identity.outputs.installer_name }}
       installer_digest: ${{ steps.identity.outputs.installer_digest }}
       component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
@@ -197,23 +196,7 @@ jobs:
           artifact_name="$(jq -er .primary_artifact.name public-component-manifest.json)"
           artifact_digest="$(jq -er .primary_artifact.digest public-component-manifest.json)"
           artifact_size="$(jq -er .primary_artifact.size public-component-manifest.json)"
-          linux_artifact_name="One-Person-Lab-${version}-linux-x64.deb"
           installer_name="opl-install.sh"
-          linux_artifact_digest="$(
-            jq -er --arg name "$linux_artifact_name" \
-              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
-              public-component-manifest.json
-          )"
-          linux_artifact_size="$(
-            jq -er --arg name "$linux_artifact_name" \
-              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].size' \
-              public-component-manifest.json
-          )"
-          linux_artifact_ref="$(
-            jq -er --arg name "$linux_artifact_name" \
-              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].ref' \
-              public-component-manifest.json
-          )"
           installer_digest="$(
             jq -er --arg name "$installer_name" \
               '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
@@ -241,37 +224,22 @@ jobs:
           test "$artifact_name" = "One-Person-Lab-${version}-mac-arm64.dmg"
           [[ "$artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$artifact_size" =~ ^[1-9][0-9]*$ ]]
-          [[ "$linux_artifact_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          [[ "$linux_artifact_size" =~ ^[1-9][0-9]*$ ]]
           [[ "$installer_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$installer_size" =~ ^[1-9][0-9]*$ ]]
-          test "$linux_artifact_ref" = "$release_base/$linux_artifact_name"
           test "$installer_ref" = "$release_base/$installer_name"
           jq -e --arg name "$artifact_name" --argjson size "$artifact_size" '
             [.assets[] | select(.name == $name and .size == $size)] | length == 1
           ' public-release.json >/dev/null
           jq -e \
-            --arg linux_name "$linux_artifact_name" \
-            --arg linux_digest "$linux_artifact_digest" \
-            --argjson linux_size "$linux_artifact_size" \
             --arg installer_name "$installer_name" \
             --arg installer_digest "$installer_digest" \
             --argjson installer_size "$installer_size" '
-            ([.assets[] | select(
-              .name == $linux_name
-              and .digest == $linux_digest
-              and .size == $linux_size
-            )] | length == 1)
-            and ([.assets[] | select(
+            [.assets[] | select(
               .name == $installer_name
               and .digest == $installer_digest
               and .size == $installer_size
-            )] | length == 1)
+            )] | length == 1
           ' public-release.json >/dev/null
-          curl --fail --location --retry 0 \
-            "$linux_artifact_ref" \
-            --output public-linux-artifact.deb
-          test "sha256:$(sha256sum public-linux-artifact.deb | awk '{print $1}')" = "$linux_artifact_digest"
           curl --fail --location --retry 0 \
             "$installer_ref" \
             --output public-opl-install.sh
@@ -283,6 +251,264 @@ jobs:
             echo "tag=$tag"
             echo "artifact_name=$artifact_name"
             echo "artifact_digest=$artifact_digest"
+            echo "installer_name=$installer_name"
+            echo "installer_digest=$installer_digest"
+            echo "component_manifest_digest=$component_manifest_digest"
+            echo "app_sha=$app_sha"
+            echo "shell_sha=$shell_sha"
+            echo "framework_sha=$framework_sha"
+          } >> "$GITHUB_OUTPUT"
+
+  resolve-linux-adjunct:
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.name == 'OPL Stable Post-Success Full Follow-up' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      eligible: ${{ steps.identity.outputs.eligible || steps.authority.outputs.eligible }}
+      source_run_id: ${{ steps.identity.outputs.source_run_id }}
+      tag: ${{ steps.identity.outputs.tag }}
+      adjunct_tag: ${{ steps.identity.outputs.adjunct_tag }}
+      adjunct_manifest_digest: ${{ steps.identity.outputs.adjunct_manifest_digest }}
+      linux_artifact_name: ${{ steps.identity.outputs.linux_artifact_name }}
+      linux_artifact_digest: ${{ steps.identity.outputs.linux_artifact_digest }}
+      installer_name: ${{ steps.identity.outputs.installer_name }}
+      installer_digest: ${{ steps.identity.outputs.installer_digest }}
+      component_manifest_digest: ${{ steps.identity.outputs.component_manifest_digest }}
+      app_sha: ${{ steps.identity.outputs.app_sha }}
+      shell_sha: ${{ steps.identity.outputs.shell_sha }}
+      framework_sha: ${{ steps.identity.outputs.framework_sha }}
+    steps:
+      - name: Checkout exact optional-platform follow-up source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Admit one successful optional-platform follow-up run
+        id: authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FOLLOWUP_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          [[ "$FOLLOWUP_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FOLLOWUP_RUN_ID" > followup-run.json
+          jq -e --arg run "$FOLLOWUP_RUN_ID" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable-post-success-followups.yml"
+            and .event == "workflow_run"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+            and (.head_sha | test("^[0-9a-f]{40}$"))
+            and (.display_title | test("^Full append successor for Stable run [1-9][0-9]*$"))
+          ' followup-run.json >/dev/null
+          publication_artifact="opl-selected-platform-publication-${FOLLOWUP_RUN_ID}"
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$FOLLOWUP_RUN_ID/artifacts?per_page=100" \
+            > followup-artifacts.json
+          count="$(
+            jq -r --arg name "$publication_artifact" \
+              '[.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length' \
+              followup-artifacts.json
+          )"
+          case "$count" in
+            0)
+              echo 'eligible=false' >> "$GITHUB_OUTPUT"
+              echo 'artifact_found=false' >> "$GITHUB_OUTPUT"
+              ;;
+            1)
+              echo 'artifact_found=true' >> "$GITHUB_OUTPUT"
+              echo "publication_artifact=$publication_artifact" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo '::error::Optional-platform follow-up contains duplicate publication receipt artifacts.'
+              exit 1
+              ;;
+          esac
+
+      - name: Download exact optional-platform publication receipt
+        if: ${{ steps.authority.outputs.artifact_found == 'true' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ steps.authority.outputs.publication_artifact }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: optional-publication
+
+      - name: Bind exact public Linux adjunct identity
+        id: identity
+        if: ${{ steps.authority.outputs.artifact_found == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FOLLOWUP_RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipts=()
+          while IFS= read -r value; do receipts+=("$value"); done < <(
+            find optional-publication -type f -name receipt.json -print | LC_ALL=C sort
+          )
+          test "${#receipts[@]}" -eq 1
+          receipt="${receipts[0]}"
+          jq -e '
+            .schema == "opl_app_optional_platform_publication_receipt.v1"
+            and .status == "passed"
+            and .mode == "stable_optional_follower"
+            and (.source.run_id | test("^[1-9][0-9]*$"))
+            and (.source.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.release_identity.display_version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
+            and (.release_identity.updater_version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$"))
+            and (.cohort.app_sha | test("^[0-9a-f]{40}$"))
+            and (.cohort.shell_sha | test("^[0-9a-f]{40}$"))
+            and (.cohort.framework_sha | test("^[0-9a-f]{40}$"))
+            and .release.carrier == "independent_immutable_release"
+            and .release.base_tag == ("v" + .release_identity.display_version)
+            and .release.immutable == true
+            and .release.make_latest == false
+            and (.release.platforms | type == "array" and length == (unique | length))
+            and (.release.assets | type == "array" and length > 0)
+            and all(.release.assets[];
+              (.name | type == "string" and length > 0)
+              and (.digest | test("^sha256:[0-9a-f]{64}$"))
+              and (.size_bytes | type == "number" and . > 0))
+            and .release.manifest.name == "opl-optional-platforms-manifest.json"
+            and (.release.manifest.digest | test("^sha256:[0-9a-f]{64}$"))
+            and .invariants.base_stable_terminal_modified == false
+            and .invariants.latest_modified == false
+          ' "$receipt" >/dev/null
+          if ! jq -e '.release.platforms | index("linux-x64") != null' "$receipt" >/dev/null; then
+            echo 'eligible=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          source_run_id="$(jq -er .source.run_id "$receipt")"
+          version="$(jq -er .release_identity.display_version "$receipt")"
+          tag="$(jq -er .release.base_tag "$receipt")"
+          adjunct_tag="$(jq -er .release.tag "$receipt")"
+          app_sha="$(jq -er .cohort.app_sha "$receipt")"
+          shell_sha="$(jq -er .cohort.shell_sha "$receipt")"
+          framework_sha="$(jq -er .cohort.framework_sha "$receipt")"
+          adjunct_manifest_digest="$(jq -er .release.manifest.digest "$receipt")"
+          test "$app_sha" = "$(jq -er .head_sha followup-run.json)"
+          manifest_hex="${adjunct_manifest_digest#sha256:}"
+          test "$adjunct_tag" = "${tag}-optional-${manifest_hex:0:12}"
+          linux_artifact_name="One-Person-Lab-${version}-linux-x64.deb"
+          linux_artifact_digest="$(
+            jq -er --arg name "$linux_artifact_name" \
+              '[.release.assets[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
+              "$receipt"
+          )"
+          linux_artifact_size="$(
+            jq -er --arg name "$linux_artifact_name" \
+              '[.release.assets[] | select(.name == $name)] | select(length == 1) | .[0].size_bytes' \
+              "$receipt"
+          )"
+          installer_name=opl-install.sh
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > base-release.json
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$adjunct_tag" > adjunct-release.json
+          jq -e --arg tag "$tag" --arg target "$app_sha" '
+            .tag_name == $tag
+            and .target_commitish == $target
+            and .draft == false
+            and .prerelease == false
+            and .immutable == false
+          ' base-release.json >/dev/null
+          jq -e \
+            --arg tag "$adjunct_tag" \
+            --arg target "$app_sha" \
+            --argjson expected "$(jq .release.assets "$receipt")" '
+            . as $release
+            | .tag_name == $tag
+            and .target_commitish == $target
+            and .draft == false
+            and .prerelease == false
+            and .immutable == true
+            and (.assets | length) == ($expected | length)
+            and all($expected[];
+              . as $asset
+              | any($release.assets[];
+                  .name == $asset.name
+                  and .digest == $asset.digest
+                  and .size == $asset.size_bytes))
+          ' adjunct-release.json >/dev/null
+
+          base_download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          adjunct_download="https://github.com/${GITHUB_REPOSITORY}/releases/download/${adjunct_tag}"
+          curl --fail --location --retry 0 \
+            "$base_download/opl-app-component-manifest.json" \
+            --output public-component-manifest.json
+          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+            --manifest public-component-manifest.json \
+            --expected-tag "$tag" \
+            --release-prerelease false \
+            --expected-source-commit "$app_sha" \
+            > public-component-identity.json
+          component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
+          installer_digest="$(
+            jq -er --arg name "$installer_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
+              public-component-manifest.json
+          )"
+          installer_size="$(
+            jq -er --arg name "$installer_name" \
+              '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].size' \
+              public-component-manifest.json
+          )"
+          jq -e \
+            --arg app "$app_sha" --arg shell "$shell_sha" --arg framework "$framework_sha" \
+            '.source_cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}' \
+            public-component-manifest.json >/dev/null
+          jq -e \
+            --arg name "$installer_name" --arg digest "$installer_digest" --argjson size "$installer_size" '
+            [.assets[] | select(.name == $name and .digest == $digest and .size == $size)] | length == 1
+          ' base-release.json >/dev/null
+          curl --fail --location --retry 0 \
+            "$base_download/$installer_name" --output public-opl-install.sh
+          test "sha256:$(sha256sum public-opl-install.sh | awk '{print $1}')" = "$installer_digest"
+          bash -n public-opl-install.sh
+
+          curl --fail --location --retry 0 \
+            "$adjunct_download/opl-optional-platforms-manifest.json" \
+            --output public-optional-platforms-manifest.json
+          test "sha256:$(sha256sum public-optional-platforms-manifest.json | awk '{print $1}')" = "$adjunct_manifest_digest"
+          jq -e \
+            --arg source_run_id "$source_run_id" \
+            --arg tag "$tag" --arg version "$version" \
+            --arg app "$app_sha" --arg shell "$shell_sha" --arg framework "$framework_sha" \
+            --arg linux_name "$linux_artifact_name" \
+            --arg linux_digest "$linux_artifact_digest" \
+            --argjson linux_size "$linux_artifact_size" '
+            .schema == "opl_app_immutable_platform_adjunct_manifest.v1"
+            and .kind == "stable_optional_adjunct"
+            and .source.run_id == $source_run_id
+            and .base_release_tag == $tag
+            and .release_identity.display_version == $version
+            and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+            and (.platforms | index("linux-x64") != null)
+            and ([.assets[] | select(
+              .name == $linux_name
+              and .digest == $linux_digest
+              and .size_bytes == $linux_size
+            )] | length == 1)
+          ' public-optional-platforms-manifest.json >/dev/null
+          curl --fail --location --retry 0 \
+            "$adjunct_download/$linux_artifact_name" --output public-linux-artifact.deb
+          test "sha256:$(sha256sum public-linux-artifact.deb | awk '{print $1}')" = "$linux_artifact_digest"
+          {
+            echo 'eligible=true'
+            echo "source_run_id=$source_run_id"
+            echo "tag=$tag"
+            echo "adjunct_tag=$adjunct_tag"
+            echo "adjunct_manifest_digest=$adjunct_manifest_digest"
             echo "linux_artifact_name=$linux_artifact_name"
             echo "linux_artifact_digest=$linux_artifact_digest"
             echo "installer_name=$installer_name"
@@ -294,8 +520,8 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   certify-linux-x64:
-    if: ${{ needs.resolve-standard.outputs.eligible == 'true' }}
-    needs: [resolve-standard]
+    if: ${{ needs.resolve-linux-adjunct.outputs.eligible == 'true' }}
+    needs: [resolve-linux-adjunct]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -305,23 +531,25 @@ jobs:
       - name: Checkout exact Stable source
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ needs.resolve-linux-adjunct.outputs.app_sha }}
           fetch-depth: 1
 
       - name: Run exact published Linux Desktop installer
         id: certification
         continue-on-error: true
         env:
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
-          LINUX_ARTIFACT_NAME: ${{ needs.resolve-standard.outputs.linux_artifact_name }}
-          LINUX_ARTIFACT_DIGEST: ${{ needs.resolve-standard.outputs.linux_artifact_digest }}
-          INSTALLER_NAME: ${{ needs.resolve-standard.outputs.installer_name }}
-          INSTALLER_DIGEST: ${{ needs.resolve-standard.outputs.installer_digest }}
-          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-standard.outputs.component_manifest_digest }}
-          APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
-          SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
-          FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+          SOURCE_RUN_ID: ${{ needs.resolve-linux-adjunct.outputs.source_run_id }}
+          RELEASE_TAG: ${{ needs.resolve-linux-adjunct.outputs.tag }}
+          ADJUNCT_TAG: ${{ needs.resolve-linux-adjunct.outputs.adjunct_tag }}
+          ADJUNCT_MANIFEST_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.adjunct_manifest_digest }}
+          LINUX_ARTIFACT_NAME: ${{ needs.resolve-linux-adjunct.outputs.linux_artifact_name }}
+          LINUX_ARTIFACT_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.linux_artifact_digest }}
+          INSTALLER_NAME: ${{ needs.resolve-linux-adjunct.outputs.installer_name }}
+          INSTALLER_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.installer_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-linux-adjunct.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-linux-adjunct.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-linux-adjunct.outputs.framework_sha }}
         shell: bash
         run: |
           set -uo pipefail
@@ -333,6 +561,7 @@ jobs:
           installer_path="$download_dir/$INSTALLER_NAME"
           linux_artifact_path="$download_dir/$LINUX_ARTIFACT_NAME"
           component_manifest="$download_dir/opl-app-component-manifest.json"
+          adjunct_manifest="$download_dir/opl-optional-platforms-manifest.json"
           mkdir -p "$download_dir"
           printf '%s\n' 'OPL GitHub-hosted Linux same-artifact installer output' > "$installer_log"
 
@@ -379,6 +608,7 @@ jobs:
           expected_executable_digest=''
           installed_executable_digest=''
           release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}"
+          adjunct_release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${ADJUNCT_TAG}"
 
           run_certification() {
             curl --fail --location --retry 0 \
@@ -394,8 +624,6 @@ jobs:
               > "$evidence_dir/component-manifest-identity.json" || return 11
             jq -e \
               --arg component_manifest_digest "$COMPONENT_MANIFEST_DIGEST" \
-              --arg linux_name "$LINUX_ARTIFACT_NAME" \
-              --arg linux_digest "$LINUX_ARTIFACT_DIGEST" \
               --arg installer_name "$INSTALLER_NAME" \
               --arg installer_digest "$INSTALLER_DIGEST" \
               --arg app_sha "$APP_SHA" \
@@ -409,29 +637,54 @@ jobs:
                 framework_sha:$framework_sha
               }
               and ([.artifacts[] | select(
-                .name == $linux_name
-                and .digest == $linux_digest
-                and .ref == ($release_base + "/" + $linux_name)
-              )] | length == 1)
-              and ([.artifacts[] | select(
                 .name == $installer_name
                 and .digest == $installer_digest
                 and .ref == ($release_base + "/" + $installer_name)
               )] | length == 1)
             ' "$component_manifest" >/dev/null || return 12
 
+            failure_stage=download_adjunct_manifest
+            curl --fail --location --retry 0 \
+              "$adjunct_release_base/opl-optional-platforms-manifest.json" \
+              --output "$adjunct_manifest" || return 13
+            test "sha256:$(sha256sum "$adjunct_manifest" | awk '{print $1}')" = "$ADJUNCT_MANIFEST_DIGEST" || return 14
+            jq -e \
+              --arg tag "$RELEASE_TAG" \
+              --arg version "${RELEASE_TAG#v}" \
+              --arg app_sha "$APP_SHA" \
+              --arg shell_sha "$SHELL_SHA" \
+              --arg framework_sha "$FRAMEWORK_SHA" \
+              --arg linux_name "$LINUX_ARTIFACT_NAME" \
+              --arg linux_digest "$LINUX_ARTIFACT_DIGEST" '
+              .schema == "opl_app_immutable_platform_adjunct_manifest.v1"
+              and .kind == "stable_optional_adjunct"
+              and .base_release_tag == $tag
+              and .release_identity.display_version == $version
+              and .cohort == {
+                app_sha:$app_sha,
+                shell_sha:$shell_sha,
+                framework_sha:$framework_sha
+              }
+              and (.platforms | index("linux-x64") != null)
+              and ([.assets[] | select(
+                .name == $linux_name
+                and .digest == $linux_digest
+                and (.size_bytes | type == "number" and . > 0)
+              )] | length == 1)
+            ' "$adjunct_manifest" >/dev/null || return 15
+
             failure_stage=download_linux_artifact
             curl --fail --location --retry 0 \
-              "$release_base/$LINUX_ARTIFACT_NAME" \
-              --output "$linux_artifact_path" || return 13
+              "$adjunct_release_base/$LINUX_ARTIFACT_NAME" \
+              --output "$linux_artifact_path" || return 16
             linux_artifact_downloaded=true
-            test "sha256:$(sha256sum "$linux_artifact_path" | awk '{print $1}')" = "$LINUX_ARTIFACT_DIGEST" || return 14
-            package_name="$(dpkg-deb -f "$linux_artifact_path" Package 2>/dev/null)" || return 15
-            test -n "$package_name" || return 16
-            expected_package_version="$(dpkg-deb -f "$linux_artifact_path" Version 2>/dev/null)" || return 17
-            expected_package_architecture="$(dpkg-deb -f "$linux_artifact_path" Architecture 2>/dev/null)" || return 18
-            test -n "$expected_package_version" || return 19
-            test "$expected_package_architecture" = amd64 || return 20
+            test "sha256:$(sha256sum "$linux_artifact_path" | awk '{print $1}')" = "$LINUX_ARTIFACT_DIGEST" || return 17
+            package_name="$(dpkg-deb -f "$linux_artifact_path" Package 2>/dev/null)" || return 18
+            test -n "$package_name" || return 19
+            expected_package_version="$(dpkg-deb -f "$linux_artifact_path" Version 2>/dev/null)" || return 20
+            expected_package_architecture="$(dpkg-deb -f "$linux_artifact_path" Architecture 2>/dev/null)" || return 21
+            test -n "$expected_package_version" || return 22
+            test "$expected_package_architecture" = amd64 || return 23
 
             failure_stage=preinstall_package_state
             if dpkg-query -W -f='${db:Status-Abbrev}\n' "$package_name" >/dev/null 2>&1; then
@@ -576,16 +829,16 @@ jobs:
       - name: Write exact Linux same-artifact certification receipt
         if: ${{ always() }}
         env:
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          RELEASE_TAG: ${{ needs.resolve-standard.outputs.tag }}
-          LINUX_ARTIFACT_NAME: ${{ needs.resolve-standard.outputs.linux_artifact_name }}
-          LINUX_ARTIFACT_DIGEST: ${{ needs.resolve-standard.outputs.linux_artifact_digest }}
-          INSTALLER_NAME: ${{ needs.resolve-standard.outputs.installer_name }}
-          INSTALLER_DIGEST: ${{ needs.resolve-standard.outputs.installer_digest }}
-          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-standard.outputs.component_manifest_digest }}
-          APP_SHA: ${{ needs.resolve-standard.outputs.app_sha }}
-          SHELL_SHA: ${{ needs.resolve-standard.outputs.shell_sha }}
-          FRAMEWORK_SHA: ${{ needs.resolve-standard.outputs.framework_sha }}
+          SOURCE_RUN_ID: ${{ needs.resolve-linux-adjunct.outputs.source_run_id }}
+          RELEASE_TAG: ${{ needs.resolve-linux-adjunct.outputs.tag }}
+          LINUX_ARTIFACT_NAME: ${{ needs.resolve-linux-adjunct.outputs.linux_artifact_name }}
+          LINUX_ARTIFACT_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.linux_artifact_digest }}
+          INSTALLER_NAME: ${{ needs.resolve-linux-adjunct.outputs.installer_name }}
+          INSTALLER_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.installer_digest }}
+          COMPONENT_MANIFEST_DIGEST: ${{ needs.resolve-linux-adjunct.outputs.component_manifest_digest }}
+          APP_SHA: ${{ needs.resolve-linux-adjunct.outputs.app_sha }}
+          SHELL_SHA: ${{ needs.resolve-linux-adjunct.outputs.shell_sha }}
+          FRAMEWORK_SHA: ${{ needs.resolve-linux-adjunct.outputs.framework_sha }}
           CERTIFICATION_STATUS: ${{ steps.certification.outputs.status }}
         shell: bash
         run: |

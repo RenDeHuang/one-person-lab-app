@@ -94,7 +94,7 @@ on:
       stable_optional_platforms:
         description: Canonical authority-bound JSON array of audited optional Stable platform IDs
         required: false
-        default: '[]'
+        default: '["linux-x64"]'
         type: string
     outputs:
       source_run_id:
@@ -162,12 +162,19 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Resolve required Stable platform matrix
+      - name: Resolve required Standard platform matrix
         id: resolve
-        run: >-
-          node --experimental-strip-types scripts/resolve-release-platform-matrix.ts
-          --policy stable_required
-          --github-output "$GITHUB_OUTPUT"
+        shell: bash
+        run: |
+          set -euo pipefail
+          case '${{ inputs.channel }}' in
+            stable) policy=stable_required ;;
+            preview) policy=preview_standard ;;
+            *) echo '::error::Unsupported Standard platform matrix channel.'; exit 1 ;;
+          esac
+          node --experimental-strip-types scripts/resolve-release-platform-matrix.ts \
+            --policy "$policy" \
+            --github-output "$GITHUB_OUTPUT"
 
   admission:
     if: ${{ inputs.mode == 'execute' }}
@@ -836,6 +843,7 @@ jobs:
           path: standard-assets
 
       - name: Download the exact Linux Desktop build
+        if: ${{ inputs.channel != 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: linux-build-x64

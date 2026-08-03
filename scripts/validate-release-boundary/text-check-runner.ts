@@ -986,6 +986,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   const certificationJobs = workflowJobs(optionalCertification.workflow);
   const expectedCertificationJobs = [
     'resolve-standard',
+    'resolve-linux-adjunct',
     'certify-linux-x64',
     'admit-standard-vm',
     'certify-standard-vm',
@@ -998,7 +999,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
-      JSON.stringify(['OPL Stable Release Bundle'])
+      JSON.stringify(['OPL Stable Release Bundle', 'OPL Stable Post-Success Full Follow-up'])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
     || JSON.stringify(Object.keys(certificationRecoveryInputs)) !== JSON.stringify([
       'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'recovery_confirmation',
@@ -1023,9 +1024,10 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
   if (
     certificationJobs['resolve-standard']?.needs !== undefined
+    || certificationJobs['resolve-linux-adjunct']?.needs !== undefined
     || certificationJobs['resolve-full']?.needs !== undefined
     || !certificationJobs['certify-linux-x64']
-    || !needsExactly(certificationJobs['certify-linux-x64'], ['resolve-standard'])
+    || !needsExactly(certificationJobs['certify-linux-x64'], ['resolve-linux-adjunct'])
     || !certificationJobs['admit-standard-vm']
     || !needsExactly(certificationJobs['admit-standard-vm'], ['resolve-standard'])
     || !certificationJobs['certify-standard-vm']
@@ -1049,11 +1051,12 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   ) {
     failures += reportFailure(
       id,
-      'optional certification identity resolution must not depend on the Stable or Full publication DAG',
+      'optional certification identity resolution must bind the base, platform adjunct, and same-tag Full append receipts independently',
     );
   }
   for (const jobId of [
     'resolve-standard',
+    'resolve-linux-adjunct',
     'certify-linux-x64',
     'admit-standard-vm',
     'write-standard-receipts',

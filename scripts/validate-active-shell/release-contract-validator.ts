@@ -1091,7 +1091,9 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       artifact: 'One-Person-Lab-<version>-linux-x64.deb',
       installer: 'opl-install.sh',
       installer_arguments: ['--desktop', '--release-tag', '<exact-tag>', '--no-open'],
-      same_release_deb_and_installer_manifest_binding_required: true,
+      release_set_base_installer_and_adjunct_deb_manifest_binding_required: true,
+      base_release_tag_and_adjunct_tag_required: true,
+      base_and_adjunct_cohort_binding_required: true,
       same_deb_artifact_identity_required: true,
       cross_component_version_sha_or_cohort_equality_required: false,
       dependency_compatibility_contract_ref:
@@ -1134,7 +1136,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
     !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
     !stableValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
-    !stableValidation?.required_lanes?.includes('standard_linux_x64_build') ||
+    stableValidation?.required_lanes?.includes('standard_linux_x64_build') ||
     !nightlyValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
     !nightlyValidation?.required_lanes?.includes('standard_linux_x64_build')
   ) {
@@ -1159,7 +1161,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   );
   assertDeepEqualJson(
     policies?.stable_required?.platforms,
-    ['macos-arm64', 'linux-x64'],
+    ['macos-arm64'],
     'Stable required platform policy',
   );
   assertDeepEqualJson(
@@ -1168,8 +1170,13 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     'Nightly required platform policy',
   );
   assertDeepEqualJson(
+    policies?.preview_standard?.platforms,
+    ['macos-arm64', 'linux-x64'],
+    'Preview required platform policy',
+  );
+  assertDeepEqualJson(
     policies?.stable_optional?.platforms,
-    ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64'],
+    ['macos-x64', 'macos-universal', 'linux-x64', 'linux-arm64', 'windows-x64', 'windows-arm64'],
     'Stable optional platform policy',
   );
   if (validationProfile !== 'stable') {
@@ -1190,7 +1197,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     );
   }
   const publicationCapabilityIds = validationProfile === 'stable'
-    ? ['macos-arm64', 'linux-x64']
+    ? ['macos-arm64']
     : validationProfile === 'windows-preview'
       ? ['windows-x64', 'windows-arm64']
       : capabilityIds;
@@ -1200,19 +1207,23 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || capabilities?.['macos-arm64']?.default_enabled !== true
     || capabilities?.['macos-arm64']?.blocks_stable !== true
     || capabilities?.['linux-x64']?.default_enabled !== true
-    || capabilities?.['linux-x64']?.blocks_stable !== true
+    || capabilities?.['linux-x64']?.stable_allowed !== true
+    || capabilities?.['linux-x64']?.blocks_stable !== false
+    || !capabilities?.['linux-x64']?.quality_channels?.includes('stable_optional')
     || capabilities?.['windows-x64']?.default_enabled !== false
     || capabilities?.['windows-x64']?.stable_allowed !== true
     || capabilities?.['windows-x64']?.blocks_stable !== false
     || !capabilities?.['windows-x64']?.quality_channels?.includes('stable_optional')
     || capabilities?.['windows-arm64']?.default_enabled !== false
-    || capabilities?.['windows-arm64']?.stable_allowed !== false
+    || capabilities?.['windows-arm64']?.stable_allowed !== true
     || capabilities?.['windows-arm64']?.blocks_stable !== false
+    || !capabilities?.['windows-arm64']?.quality_channels?.includes('stable_optional')
     || publicationCapabilityIds.some((capabilityId) =>
       typeof capabilities?.[capabilityId]?.publication_route !== 'string'
       || capabilities?.[capabilityId]?.publication_status?.includes('unavailable')
     )
     || policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
+    || JSON.stringify(platformMatrix?.stable_optional_selection?.default) !== JSON.stringify(['linux-x64'])
     || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows-preview'
     || platformMatrix?.stable_optional_selection?.authority_field !==
       'opl_app_stable_operation_authority.v1#optional_platforms'
@@ -1275,7 +1286,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.full_macos_additive_follower?.blocks_stable_base_terminal !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_latest_activation !== false
   ) {
-    throw new Error('Release platform matrix must keep macOS ARM64 plus Linux x64 required, Windows x64 Stable-optional, Windows arm64 Preview-only, and Full non-blocking');
+    throw new Error('Release platform matrix must keep only macOS ARM64 Stable-blocking while platform followers and the same-tag Full module remain non-blocking');
   }
 }
 

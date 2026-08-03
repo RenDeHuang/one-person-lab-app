@@ -47,7 +47,7 @@ function fixture(kind: 'stable' | 'dev' | 'nightly' = 'dev') {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    `One-Person-Lab-${version}-linux-x64.deb`,
+    ...(kind === 'stable' ? [] : [`One-Person-Lab-${version}-linux-x64.deb`]),
     'opl-install.sh',
   ];
   const manifest = createAppComponentManifest({
@@ -183,7 +183,7 @@ test('published Stable, Dev, and Nightly identities admit an exact quality-prese
         ).length,
         kind === 'stable' ? 1 : 0,
       );
-      assert.equal(current.receipt.public_assets.length, kind === 'stable' ? 8 : 7);
+      assert.equal(current.receipt.public_assets.length, 7);
     } finally {
       fs.rmSync(current.root, { recursive: true, force: true });
     }

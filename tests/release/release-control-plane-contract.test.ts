@@ -55,11 +55,11 @@ test('release platform contract keeps Stable required platforms separate from op
   const gui = readJson('contracts/app-gui-product-contract.json');
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const matrix = release.release_platform_matrix;
-  assert.deepEqual(matrix.policies.stable_required.platforms, ['macos-arm64', 'linux-x64']);
+  assert.deepEqual(matrix.policies.stable_required.platforms, ['macos-arm64']);
   assert.equal(matrix.policies.stable_required.blocks_base_terminal, true);
   assert.deepEqual(
     matrix.policies.stable_optional.platforms,
-    ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64'],
+    ['macos-x64', 'macos-universal', 'linux-x64', 'linux-arm64', 'windows-x64', 'windows-arm64'],
   );
   assert.equal(matrix.policies.stable_optional.default_enabled, false);
   assert.equal(matrix.policies.stable_optional.blocks_base_terminal, false);
@@ -67,7 +67,8 @@ test('release platform contract keeps Stable required platforms separate from op
   assert.equal(matrix.policies.windows_preview.default_enabled, false);
   assert.equal(matrix.policies.windows_preview.blocks_base_terminal, false);
   assert.equal(matrix.capabilities['windows-x64'].stable_allowed, true);
-  assert.equal(matrix.capabilities['windows-arm64'].stable_allowed, false);
+  assert.equal(matrix.capabilities['windows-arm64'].stable_allowed, true);
+  assert.deepEqual(matrix.stable_optional_selection.default, ['linux-x64']);
   assert.equal(
     matrix.optional_platform_additive_follower.windows_x64_updater_assets.build_validator,
     'scripts/validate-windows-updater-assets.ts',
@@ -93,7 +94,10 @@ test('release platform contract keeps Stable required platforms separate from op
     matrix.optional_platform_additive_follower.windows_x64_updater_assets.runtime_resolver,
     'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts',
   );
-  assert.ok(release.release_validation_profiles.stable.required_lanes.includes('standard_linux_x64_build'));
+  assert.equal(
+    release.release_validation_profiles.stable.required_lanes.includes('standard_linux_x64_build'),
+    false,
+  );
   assert.ok(
     release.release_validation_profiles.nightly_standard.required_lanes.includes(
       'standard_linux_x64_build',
@@ -101,13 +105,13 @@ test('release platform contract keeps Stable required platforms separate from op
   );
   assert.doesNotThrow(() => validateAppGuiProductContract(gui, release, installExposure));
 
-  const missingLinux = structuredClone(release);
-  missingLinux.release_validation_profiles.stable.required_lanes =
-    missingLinux.release_validation_profiles.stable.required_lanes.filter(
-      (lane: string) => lane !== 'standard_linux_x64_build',
+  const missingCoreMac = structuredClone(release);
+  missingCoreMac.release_validation_profiles.stable.required_lanes =
+    missingCoreMac.release_validation_profiles.stable.required_lanes.filter(
+      (lane: string) => lane !== 'standard_macos_arm64_build',
     );
   assert.throws(
-    () => validateAppGuiProductContract(gui, missingLinux, installExposure),
+    () => validateAppGuiProductContract(gui, missingCoreMac, installExposure),
     /App GUI stable release required lanes/,
   );
 });

@@ -131,7 +131,6 @@ test('the App adapter freezes the App Standard compatibility union without Packa
       'One-Person-Lab-26.7.20-mac-arm64.dmg',
       'One-Person-Lab-26.7.20-mac-arm64.zip',
       'One-Person-Lab-26.7.20-mac-arm64.zip.blockmap',
-      'One-Person-Lab-26.7.20-linux-x64.deb',
       'latest-arm64-mac.yml',
       'opl-app-component-manifest.json',
       'opl-install.sh',
@@ -188,7 +187,7 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
     String(workflow.jobs['resolve-platform-matrix'].steps.find(
       (step: Record<string, unknown>) => step.id === 'resolve',
     )?.run),
-    /resolve-release-platform-matrix\.ts[\s\S]*--policy stable_required/,
+    /resolve-release-platform-matrix\.ts[\s\S]*--policy "\$policy"/,
   );
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
