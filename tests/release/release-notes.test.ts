@@ -13,8 +13,11 @@ import {
 } from './app-release-boundary-cases/release-notes-fixtures.ts';
 import {
   completeAiReleaseNotesWithEvidence,
+  extractLocalizedReleaseNotes,
   publicMarkdownBeforeTechnicalDetails,
+  stripLocalizedReleaseNotes,
 } from '../../scripts/release-notes-ai-writer-parts/markdown-normalization.ts';
+import { finalizePreviewReleaseNotesDocument } from '../../scripts/release-notes.ts';
 import { extractOpenAICompatibleText } from '../../scripts/release-notes-ai-writer-parts/provider-transport.ts';
 import { validateAiReleaseNotes } from '../../scripts/release-notes-ai-writer-parts/validation.ts';
 
@@ -640,6 +643,7 @@ test('stable manifest notes expose install, component refs, and version changes'
   ], { env: { OPL_RELEASE_NOTES_SKIP_REMOTE_FAMILY_REPOS: '1' } });
 
   assert.equal(result.status, 0, result.stderr);
+  assert.notEqual(result.stdout.trimStart().split('\n', 1)[0], 'One Person Lab v26.9.2');
   assert.ok(result.stdout.includes(stableInstallCommand));
   assert.match(result.stdout, /Packaged component refs: MAS @ aaaaaaa; OfficeCLI 1\.2\.3/);
   assert.match(result.stdout, /Component updates since previous Stable: MAS bbbbbbb -> aaaaaaa; OfficeCLI 1\.2\.2 -> 1\.2\.3/);
@@ -992,6 +996,59 @@ test('final notes normalization sanitizes evidence sections added after model cl
   assert.doesNotMatch(publicMarkdown, /\b(?:gate|workflow)\b/i);
   assert.match(publicMarkdown, /checks|sessions/i);
   assert.doesNotThrow(() => validateAiReleaseNotes(output, evidence));
+});
+
+test('release notes keep the App popup title but omit the duplicate GitHub body title', () => {
+  const evidence = standardEvidence('26.9.9');
+  const output = completeAiReleaseNotesWithEvidence(
+    validStandardAiReleaseNotes('26.9.9'),
+    evidence,
+  );
+  const visible = stripLocalizedReleaseNotes(output);
+
+  assert.notEqual(visible.trimStart().split('\n', 1)[0], evidence.release_title);
+  assert.doesNotMatch(visible, /^#/);
+  assert.match(visible, /users (?:install or )?upgrade/i);
+  assert.match(extractLocalizedReleaseNotes(output, 'en-US'), /^One Person Lab v26\.9\.9/);
+  assert.match(extractLocalizedReleaseNotes(output, 'zh-CN'), /^One Person Lab v26\.9\.9/);
+  assert.doesNotThrow(() => validateAiReleaseNotes(output, evidence));
+});
+
+test('release notes validation rejects a repeated GitHub Release name in the body', () => {
+  const evidence = standardEvidence('26.9.10');
+  const output = completeAiReleaseNotesWithEvidence(
+    validStandardAiReleaseNotes('26.9.10'),
+    evidence,
+  );
+  const duplicate = `${evidence.release_title}\n\n${output}`;
+
+  assert.throws(
+    () => validateAiReleaseNotes(duplicate, evidence),
+    /repeats the GitHub Release name as the body title/,
+  );
+});
+
+test('Preview release notes also omit the duplicate GitHub body title', () => {
+  const evidence = standardEvidence('26.9.11', {
+    channel: 'preview',
+    current_tag: 'v26.9.11-preview.r1',
+    previous_tag: 'v26.9.10',
+    install_command: null,
+    release_scope: 'Qualified manual Standard macOS arm64 Desktop publication.',
+  });
+  const prepared = completeAiReleaseNotesWithEvidence(
+    validStandardAiReleaseNotes('26.9.11'),
+    evidence,
+  );
+  const output = finalizePreviewReleaseNotesDocument(
+    `${prepared}\n<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->\n`,
+    evidence,
+  );
+  const visible = stripLocalizedReleaseNotes(output);
+
+  assert.notEqual(visible.trimStart().split('\n', 1)[0], evidence.release_title);
+  assert.doesNotMatch(visible, /^#/);
+  assert.match(extractLocalizedReleaseNotes(output, 'en-US'), /^One Person Lab v26\.9\.11/);
 });
 
 test('online AI notes performs one bounded repair without echoing the validator diagnostic', () => {
