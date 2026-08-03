@@ -1623,12 +1623,18 @@ export function validateReleaseAccelerationPolicy(
     standardOperation?.control !== 'new_immutable_standard_control' ||
     standardOperation?.deadline_minutes !== 90 ||
     resumeStandardOperation?.source !== 'portable_framework_checkpoint' ||
-    resumeStandardOperation?.control !== 'reuse_exact_standard_control' ||
-    resumeStandardOperation?.deadline_minutes !== undefined ||
-    JSON.stringify(resumeStandardOperation?.reused_control_fields) !== JSON.stringify(requiredOperationControlFields) ||
+    resumeStandardOperation?.control !== 'reuse_exact_standard_identity_with_bounded_expired_window_rotation' ||
+    resumeStandardOperation?.deadline_minutes !== 30 ||
+    JSON.stringify(resumeStandardOperation?.reused_identity_fields) !== JSON.stringify(
+      requiredOperationControlFields.filter((field) => !['control_digest', 'operation_started_at', 'operation_deadline_at'].includes(field)),
+    ) ||
     resumeStandardOperation?.new_operation_id_allowed !== false ||
-    resumeStandardOperation?.start_refresh_allowed !== false ||
-    resumeStandardOperation?.deadline_refresh_allowed !== false ||
+    resumeStandardOperation?.active_window_rotation_allowed !== false ||
+    resumeStandardOperation?.expired_window_rotation_allowed !== true ||
+    resumeStandardOperation?.rotation_requires_no_active_unknown_marker !== true ||
+    resumeStandardOperation?.rotation_started_at_source !== 'current_github_actions_run_created_at' ||
+    resumeStandardOperation?.framework_source_cohort_change_allowed !== false ||
+    resumeStandardOperation?.framework_executor_may_advance_to_canonical_compatible_sha !== true ||
     resumeStandardOperation?.rebuild_allowed !== false ||
     appendFullOperation?.source !== 'portable_framework_checkpoint_at_or_after_standard_built' ||
     appendFullOperation?.control !== 'new_independent_append_full_control' ||
@@ -1641,7 +1647,7 @@ export function validateReleaseAccelerationPolicy(
     operations?.deadline_clock !== 'github_actions_created_at_resolved_once_by_controller' ||
     operations?.deadline_source_field !== 'github.created_at' ||
     operations?.deadline_frozen_at_controller_admission !== true ||
-    operations?.deadline_may_be_rebased_on_queue_start_resume_or_rerun !== false ||
+    operations?.deadline_may_be_rebased_on_queue_start_resume_or_rerun !== 'resume_standard_only_after_exact_reconcile_and_expiry' ||
     JSON.stringify(operations?.operation_admission_identity_fields) !== JSON.stringify([
       'operation', 'operation_id', 'operation_started_at', 'operation_deadline_at',
     ]) ||
@@ -1650,7 +1656,7 @@ export function validateReleaseAccelerationPolicy(
     operations?.each_external_mutation_rechecks_remaining_deadline !== true ||
     operations?.append_full_uses_new_operation_admission !== true ||
     operations?.append_full_may_inherit_standard_deadline !== false ||
-    operations?.deadline_refresh_allowed !== false ||
+    operations?.deadline_refresh_allowed !== 'resume_standard_expired_window_only' ||
     operations?.partial_workflow_rerun_allowed !== false ||
     operations?.github_run_attempt_required !== 1 ||
     operations?.recovery_entry !== 'status_then_exact_reconcile_for_active_unknown_else_resume_exact_standard_or_admit_independent_append_full' ||
@@ -1664,7 +1670,7 @@ export function validateReleaseAccelerationPolicy(
     operations?.typed_failure_evidence_persisted_before_job_exit_or_cleanup !== true ||
     operations?.typed_failure_evidence_uploaded_on_failure !== true
   ) {
-    console.error('FAIL release_operation_control: Standard control must be immutable, resume exact, append independent, and late reconcile evidence-only');
+    console.error('FAIL release_operation_control: Standard identity must be immutable, resume may rotate only an expired reconciled window, append must stay independent, and late reconcile remains evidence-only');
     failures += 1;
   }
   if (

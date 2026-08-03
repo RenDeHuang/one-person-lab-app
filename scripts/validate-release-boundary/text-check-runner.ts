@@ -318,6 +318,8 @@ const stableEntrySpecs = {
       operation: 'resume_standard',
       source_run_id: '${{ needs.admission.outputs.source_run_id }}',
       source_artifact: '${{ needs.admission.outputs.source_artifact }}',
+      operation_started_at: '${{ needs.admission.outputs.operation_started_at }}',
+      operation_deadline_at: '${{ needs.admission.outputs.operation_deadline_at }}',
     },
     permissions: exactStableEntryPermissions,
   },
@@ -465,8 +467,8 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   if (/Date\.now\(\).*operation_started_at|operation_started_at=.*date/i.test(admissionRun)) {
     failures += reportFailure(id, 'operation start must come from immutable Actions created_at');
   }
-  if (!admissionRun.includes('if [ "$OPERATION" = standard ] || [ "$OPERATION" = append_full ]; then')) {
-    failures += reportFailure(id, 'only new standard and append_full operations may resolve a fresh operation window');
+  if (!admissionRun.includes('if [ "$OPERATION" = standard ] || [ "$OPERATION" = resume_standard ] || [ "$OPERATION" = append_full ]; then')) {
+    failures += reportFailure(id, 'standard, bounded resume_standard, and append_full operations must resolve their controller window from Actions created_at');
   }
 
   const protectedAdmission = jobs['protected-operation-admission'];
@@ -594,12 +596,6 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
       if (withInputs[name] !== expected) {
         failures += reportFailure(id, `${jobId} must bind ${name} to the admitted value`);
       }
-    }
-    if (jobId === 'resume-standard' && (
-      Object.prototype.hasOwnProperty.call(withInputs, 'operation_started_at')
-      || Object.prototype.hasOwnProperty.call(withInputs, 'operation_deadline_at')
-    )) {
-      failures += reportFailure(id, 'resume-standard must inherit the exact Standard control from its checkpoint');
     }
     if (Object.keys(withInputs).some((name) => retiredLiveAuthorityPattern.test(name))) {
       failures += reportFailure(id, `${jobId} must not forward broker/session/lease inputs`);

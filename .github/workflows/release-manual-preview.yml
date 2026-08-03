@@ -361,6 +361,8 @@ jobs:
       source_run_id: ${{ needs.admission.outputs.source_run_id }}
       source_artifact: ${{ needs.admission.outputs.source_artifact }}
       framework_executor_ref: ${{ needs.admission.outputs.framework_ref }}
+      operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
     secrets: inherit
 
   move-latest-pointer:

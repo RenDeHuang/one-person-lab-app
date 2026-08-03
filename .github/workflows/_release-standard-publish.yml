@@ -42,9 +42,8 @@ on:
         default: ''
         type: string
       framework_executor_ref:
-        description: Optional exact Framework SHA expectation; the checkpoint Bundle selects the executor checkout
-        required: false
-        default: ''
+        description: Exact Framework executor SHA; independent from the frozen Bundle source SHA
+        required: true
         type: string
       operation_started_at:
         description: Stable operation start
@@ -103,12 +102,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n '${{ inputs.framework_executor_ref }}' ]; then
-            [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
-              echo "::error::Optional Framework expectation must be an exact lowercase SHA."
-              exit 1
-            }
-          fi
+          [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Framework executor must be an exact lowercase SHA."
+            exit 1
+          }
           test '${{ inputs.source_format }}' = checkpoint_v1
           mkdir -p release-failure-evidence
           status=passed
@@ -171,6 +168,7 @@ jobs:
       app_ref: ${{ steps.identity.outputs.app_ref }}
       shell_ref: ${{ steps.identity.outputs.shell_ref }}
       framework_source_ref: ${{ steps.identity.outputs.framework_source_ref }}
+      framework_executor_ref: ${{ steps.checkpoint.outputs.framework_executor_ref }}
       previous_latest_tag: ${{ steps.identity.outputs.previous_latest_tag }}
       previous_latest_display_version: ${{ steps.identity.outputs.previous_latest_display_version }}
       previous_latest_updater_version: ${{ steps.identity.outputs.previous_latest_updater_version }}
@@ -314,10 +312,10 @@ jobs:
             ' "$identity_receipt" >/dev/null
           echo "standard_identity_sha256=$observed" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve Bundle-bound Framework identity
+      - name: Resolve frozen Framework source and current executor identities
         id: framework-binding
         env:
-          EXPECTED_FRAMEWORK_REF: ${{ inputs.framework_executor_ref }}
+          FRAMEWORK_EXECUTOR_REF: ${{ inputs.framework_executor_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -332,19 +330,18 @@ jobs:
           bundle="$(dirname "${checkpoints[0]}")/bundle.json"
           test -f "$bundle" || { echo "::error::Portable checkpoint contains no bundle.json."; exit 1; }
           framework_source_ref="$(jq -er '.sources.framework.source_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$bundle")"
-          if [ -n "$EXPECTED_FRAMEWORK_REF" ]; then
-            [ "$EXPECTED_FRAMEWORK_REF" = "$framework_source_ref" ] || {
-              echo "::error::Checkpoint Framework source differs from the optional caller expectation."
-              exit 1
-            }
-          fi
+          [[ "$FRAMEWORK_EXECUTOR_REF" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Framework executor must be an exact lowercase SHA."
+            exit 1
+          }
           echo "framework_source_ref=$framework_source_ref" >> "$GITHUB_OUTPUT"
+          echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF" >> "$GITHUB_OUTPUT"
 
       - name: Restore portable checkpoint
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ steps.framework-binding.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ steps.framework-binding.outputs.framework_executor_ref }}
           source-run-id: ${{ inputs.source_run_id }}
           source-artifact: ${{ inputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -362,13 +359,14 @@ jobs:
           test "$(jq -r .publish_state_imported <<<"$CHECKPOINT_IMPORT")" = false
           test "$BUNDLE_DIGEST" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
+          test '${{ steps.checkpoint.outputs.framework_executor_ref }}' = '${{ steps.framework-binding.outputs.framework_executor_ref }}'
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           test "$(jq -r .release.channel "$bundle")" = '${{ inputs.publication_channel }}' || {
             echo "::error::Checkpoint publication channel differs from the admitted route."
             exit 1
           }
 
-      - name: Reconcile imported outcome and reuse immutable Standard control
+      - name: Reconcile imported outcome and rotate only an expired Standard window
         id: operation
         env:
           GH_TOKEN: ${{ github.token }}
@@ -380,17 +378,17 @@ jobs:
           store='${{ steps.checkpoint.outputs.store_dir }}'
           requested_operation='${{ inputs.operation }}'
           case "$requested_operation" in standard|resume_standard) ;; *) exit 1 ;; esac
-          release_operation=standard
+          release_operation="$requested_operation"
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > operation-status-before.json
           operation_id="$(jq -er '.release_bundle_status.operation_controls.standard.operation_id | strings | select(length > 0)' operation-status-before.json)"
-          operation_started_at="$(jq -er '.release_bundle_status.operation_controls.standard.operation_started_at | strings | select(length > 0)' operation-status-before.json)"
-          operation_deadline_at="$(jq -er '.release_bundle_status.operation_controls.standard.operation_deadline_at | strings | select(length > 0)' operation-status-before.json)"
-          operation_args=(
+          previous_operation_started_at="$(jq -er '.release_bundle_status.operation_controls.standard.operation_started_at | strings | select(length > 0)' operation-status-before.json)"
+          previous_operation_deadline_at="$(jq -er '.release_bundle_status.operation_controls.standard.operation_deadline_at | strings | select(length > 0)' operation-status-before.json)"
+          reconcile_args=(
             --operation "$release_operation"
             --operation-id "$operation_id"
-            --operation-started-at "$operation_started_at"
-            --operation-deadline-at "$operation_deadline_at"
+            --operation-started-at "$previous_operation_started_at"
+            --operation-deadline-at "$previous_operation_deadline_at"
           )
           marker_count="$(jq -er '.release_bundle_status.active_unknown_markers | length' operation-status-before.json)"
           if [ "$marker_count" -gt 0 ]; then
@@ -458,21 +456,41 @@ jobs:
             fi
             framework-executor/bin/opl release reconcile \
               --bundle "$BUNDLE_DIGEST" --executor-receipt resume-reconcile.receipt.json \
-              "${operation_args[@]}" --store "$store" --json > resume-reconcile-result.json
+              "${reconcile_args[@]}" --store "$store" --json > resume-reconcile-result.json
           fi
           framework-executor/bin/opl release status \
             --bundle "$BUNDLE_DIGEST" --store "$store" --json > operation-status-after-reconcile.json
-          framework-executor/bin/opl release checkpoint export \
-            --bundle "$BUNDLE_DIGEST" --output standard-operation-checkpoint \
-            --store "$store" --json > operation-checkpoint-export.json
           test "$(jq -r '.release_bundle_status.active_unknown_markers | length' operation-status-after-reconcile.json)" -eq 0 || {
             echo "::error::Exact read-only reconcile did not resolve the imported outcome; no mutation is authorized."
             exit 1
           }
+          operation_started_at="$previous_operation_started_at"
+          operation_deadline_at="$previous_operation_deadline_at"
+          release_operation=standard
+          if [ "$requested_operation" = resume_standard ] && \
+            [ "$(jq -r '.release_bundle_status.operation_controls.standard.deadline_elapsed' operation-status-after-reconcile.json)" = true ]; then
+            release_operation=resume_standard
+            operation_started_at='${{ inputs.operation_started_at }}'
+            operation_deadline_at='${{ inputs.operation_deadline_at }}'
+            test -n "$operation_started_at" && test -n "$operation_deadline_at"
+          fi
+          operation_args=(
+            --operation "$release_operation"
+            --operation-id "$operation_id"
+            --operation-started-at "$operation_started_at"
+            --operation-deadline-at "$operation_deadline_at"
+          )
           framework-executor/bin/opl release operation admit \
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
             --store "$store" --json > operation-admit-result.json
           test "$(jq -r .release_bundle_operation_admit.operation_control.operation_id operation-admit-result.json)" = "$operation_id"
+          framework-executor/bin/opl release status \
+            --bundle "$BUNDLE_DIGEST" --store "$store" --json > operation-status-after-admit.json
+          test "$(jq -r .release_bundle_status.operation_controls.standard.operation_started_at operation-status-after-admit.json)" = "$operation_started_at"
+          test "$(jq -r .release_bundle_status.operation_controls.standard.operation_deadline_at operation-status-after-admit.json)" = "$operation_deadline_at"
+          framework-executor/bin/opl release checkpoint export \
+            --bundle "$BUNDLE_DIGEST" --output standard-operation-checkpoint \
+            --store "$store" --json > operation-checkpoint-export.json
           standard_build_receipts=()
           while IFS= read -r receipt; do
             standard_build_receipts+=("$receipt")
@@ -522,6 +540,7 @@ jobs:
             standard-identity-receipt.json
             operation-status-before.json
             operation-status-after-reconcile.json
+            operation-status-after-admit.json
             operation-admit-result.json
             operation-checkpoint-export.json
             resume-observation.json
@@ -743,7 +762,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -811,7 +830,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -1219,7 +1238,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -1381,7 +1400,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}
@@ -1830,7 +1849,7 @@ jobs:
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
-          framework-executor-ref: ${{ needs.restore.outputs.framework_source_ref }}
+          framework-executor-ref: ${{ needs.restore.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
           source-artifact: ${{ needs.restore.outputs.source_artifact }}
           github-token: ${{ github.token }}

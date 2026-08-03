@@ -194,11 +194,14 @@ test('release operations are one-shot, deadline-bound, and fail closed before pu
 
   assert.equal(operations.stable_mutation_mutex, 'opl-release-bundle-global');
   assert.equal(operations.stable_operations.standard.deadline_minutes, 90);
-  assert.equal(operations.stable_operations.resume_standard.deadline_minutes, undefined);
-  assert.equal(operations.stable_operations.resume_standard.control, 'reuse_exact_standard_control');
+  assert.equal(operations.stable_operations.resume_standard.deadline_minutes, 30);
+  assert.equal(operations.stable_operations.resume_standard.control, 'reuse_exact_standard_identity_with_bounded_expired_window_rotation');
   assert.equal(operations.stable_operations.resume_standard.new_operation_id_allowed, false);
-  assert.equal(operations.stable_operations.resume_standard.start_refresh_allowed, false);
-  assert.equal(operations.stable_operations.resume_standard.deadline_refresh_allowed, false);
+  assert.equal(operations.stable_operations.resume_standard.active_window_rotation_allowed, false);
+  assert.equal(operations.stable_operations.resume_standard.expired_window_rotation_allowed, true);
+  assert.equal(operations.stable_operations.resume_standard.rotation_requires_no_active_unknown_marker, true);
+  assert.equal(operations.stable_operations.resume_standard.framework_source_cohort_change_allowed, false);
+  assert.equal(operations.stable_operations.resume_standard.framework_executor_may_advance_to_canonical_compatible_sha, true);
   assert.equal(operations.stable_operations.append_full.deadline_minutes, 120);
   assert.equal(operations.stable_operations.append_full.standard_built_required, true);
   assert.equal(operations.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
@@ -207,8 +210,8 @@ test('release operations are one-shot, deadline-bound, and fail closed before pu
   assert.equal(operations.deadline_clock, 'github_actions_created_at_resolved_once_by_controller');
   assert.equal(operations.deadline_source_field, 'github.created_at');
   assert.equal(operations.deadline_frozen_at_controller_admission, true);
-  assert.equal(operations.deadline_may_be_rebased_on_queue_start_resume_or_rerun, false);
-  assert.equal(operations.deadline_refresh_allowed, false);
+  assert.equal(operations.deadline_may_be_rebased_on_queue_start_resume_or_rerun, 'resume_standard_only_after_exact_reconcile_and_expiry');
+  assert.equal(operations.deadline_refresh_allowed, 'resume_standard_expired_window_only');
   assert.deepEqual(operations.operation_admission_identity_fields, [
     'operation',
     'operation_id',
@@ -550,11 +553,15 @@ test('release boundary rejects live authority, checkpoint, resilience, and broke
     },
     (release) => {
       release.release_bundle_control_plane.operation_control.stable_operations.resume_standard
-        .start_refresh_allowed = true;
+        .active_window_rotation_allowed = true;
     },
     (release) => {
       release.release_bundle_control_plane.operation_control.stable_operations.resume_standard
-        .deadline_refresh_allowed = true;
+        .expired_window_rotation_allowed = false;
+    },
+    (release) => {
+      release.release_bundle_control_plane.operation_control.stable_operations.resume_standard
+        .rotation_requires_no_active_unknown_marker = false;
     },
     (release) => {
       release.release_bundle_control_plane.operation_control.stable_operations.append_full

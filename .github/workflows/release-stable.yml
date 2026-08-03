@@ -399,7 +399,7 @@ jobs:
           esac
           operation_started_at=''
           operation_deadline_at=''
-          if [ "$OPERATION" = standard ] || [ "$OPERATION" = append_full ]; then
+          if [ "$OPERATION" = standard ] || [ "$OPERATION" = resume_standard ] || [ "$OPERATION" = append_full ]; then
             operation_created_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
             node --experimental-strip-types app-source/scripts/release-operation-deadline.ts resolve \
               --operation "$OPERATION" --started-at "$operation_created_at" \
@@ -424,7 +424,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable operation admission
-        if: ${{ steps.admission.outputs.operation != 'resume_standard' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-release-operation-admission-${{ github.run_id }}
@@ -633,6 +632,8 @@ jobs:
       source_run_id: ${{ needs.admission.outputs.source_run_id }}
       source_artifact: ${{ needs.admission.outputs.source_artifact }}
       framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
+      operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
     secrets: inherit
 
   append-full:
