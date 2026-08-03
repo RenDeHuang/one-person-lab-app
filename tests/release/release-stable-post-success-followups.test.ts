@@ -220,7 +220,7 @@ test("Stable success has one same-tag Full append successor trigger", () => {
   ]);
   assert.equal(
     workflow.jobs.admit.if,
-    "${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
+    "${{ github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}",
   );
   assert.equal(
     workflow.jobs.dispatch.if,
@@ -250,7 +250,7 @@ test("Stable success has one same-tag Full append successor trigger", () => {
   assert.deepEqual(workflow.jobs.receipt.needs, ["admit", "dispatch"]);
   assert.equal(
     workflow.jobs.receipt.if,
-    "${{ always() && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}",
+    "${{ always() && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}",
   );
   assert.deepEqual(workflow.jobs.receipt.permissions, {
     contents: "read",
@@ -260,7 +260,8 @@ test("Stable success has one same-tag Full append successor trigger", () => {
 
 test("admission binds the Standard source run and exact checkpoint without making it a Full content identity", () => {
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
-  assert.match(source, /\.display_title \| test\("\^OPL Stable standard/);
+  assert.match(source, /\.display_title \| test\("\^OPL Stable \(\?:standard/);
+  assert.match(source, /\|resume_standard \[1-9\]\[0-9\]\*\)\$"/);
   assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
   assert.match(source, /\.run_attempt == 1/);
   assert.match(
@@ -309,6 +310,14 @@ test("admission binds the Standard source run and exact checkpoint without makin
   assert.match(source, /'\{ref:\$ref,inputs:\$inputs\}'/);
   assert.match(source, /--input - <<<"\$dispatch_payload"/);
   assert.doesNotMatch(source, /current_main_sha/);
+});
+
+test("Full successor admits both initial and resumed Standard success titles, but no other operation", () => {
+  const titlePattern = /^OPL Stable (?:standard (?:[1-9][0-9]*|operation:[A-Za-z0-9._:-]{1,128} authority:[A-Za-z0-9._:-]{1,128} run:[1-9][0-9]*)|resume_standard [1-9][0-9]*)$/;
+  assert.match("OPL Stable standard operation:stable-op authority:stable-auth run:30800000001", titlePattern);
+  assert.match("OPL Stable resume_standard 30859273345", titlePattern);
+  assert.doesNotMatch("OPL Stable append_full source:30859273345 run:30860184622", titlePattern);
+  assert.doesNotMatch("OPL Stable resume_standard operation:stable-op run:30859273345", titlePattern);
 });
 
 test("append_full dispatch binds candidates and final readback to one exact Standard source run", () => {
