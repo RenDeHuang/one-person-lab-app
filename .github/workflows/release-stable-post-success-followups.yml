@@ -68,11 +68,25 @@ jobs:
             and .conclusion == "success"
             and (.display_title | test("^OPL Stable (?:standard (?:[1-9][0-9]*|operation:[A-Za-z0-9._:-]{1,128} authority:[A-Za-z0-9._:-]{1,128} run:[1-9][0-9]*)|resume_standard [1-9][0-9]*)$"))
           ' source-run.json >/dev/null
+          source_title="$(jq -er .display_title source-run.json)"
+          case "$source_title" in
+            "OPL Stable resume_standard $SOURCE_RUN_ID")
+              source_artifact="opl-release-standard-operation-checkpoint-$SOURCE_RUN_ID"
+              ;;
+            OPL\ Stable\ standard\ *)
+              source_artifact="opl-release-standard-checkpoint-$SOURCE_RUN_ID"
+              ;;
+            *)
+              echo "::error::Successful Standard source title cannot select a checkpoint artifact."
+              exit 1
+              ;;
+          esac
+          echo "source_artifact=$source_artifact" >> "$GITHUB_OUTPUT"
 
       - name: Download exact Standard checkpoint and activation evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: opl-release-standard-checkpoint-${{ github.event.workflow_run.id }}
+          name: ${{ steps.source.outputs.source_artifact }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
           path: standard-checkpoint
@@ -91,6 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
           SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_ARTIFACT: ${{ steps.source.outputs.source_artifact }}
         shell: bash
         run: |
           set -euo pipefail
@@ -192,7 +207,7 @@ jobs:
               echo 'eligible=false'
               echo 'reason_code=existing_append_full_for_cohort'
               echo "source_run_id=$SOURCE_RUN_ID"
-              echo "source_artifact=opl-release-standard-checkpoint-$SOURCE_RUN_ID"
+              echo "source_artifact=$SOURCE_ARTIFACT"
               echo "framework_ref=$framework_ref"
               echo "app_ref=$app_ref"
               echo "shell_ref=$shell_ref"
@@ -209,7 +224,7 @@ jobs:
             echo 'eligible=true'
             echo 'reason_code=admitted'
             echo "source_run_id=$SOURCE_RUN_ID"
-            echo "source_artifact=opl-release-standard-checkpoint-$SOURCE_RUN_ID"
+            echo "source_artifact=$SOURCE_ARTIFACT"
             echo "framework_ref=$framework_ref"
             echo "app_ref=$app_ref"
             echo "shell_ref=$shell_ref"
@@ -222,7 +237,7 @@ jobs:
 
           jq -n \
             --arg source_run_id "$SOURCE_RUN_ID" \
-            --arg source_artifact "opl-release-standard-checkpoint-$SOURCE_RUN_ID" \
+            --arg source_artifact "$SOURCE_ARTIFACT" \
             --arg app_ref "$app_ref" \
             --arg shell_ref "$shell_ref" \
             --arg framework_ref "$framework_ref" \
@@ -340,14 +355,15 @@ jobs:
                 source_artifact:$source_artifact
               }'
           )"
-          jq -e '
+          jq -e --arg run "$SOURCE_RUN_ID" '
             .operation == "append_full"
             and .version == ""
             and .include_full == "false"
             and .shell_ref == ""
             and (.framework_ref | test("^[0-9a-f]{40}$"))
             and (.source_run_id | test("^[1-9][0-9]*$"))
-            and (.source_artifact | test("^opl-release-standard-checkpoint-[1-9][0-9]*$"))
+            and (.source_artifact == ("opl-release-standard-checkpoint-" + $run)
+              or .source_artifact == ("opl-release-standard-operation-checkpoint-" + $run))
           ' <<<"$inputs_json" >/dev/null
           dispatch_ref="main"
           append_full_run_name_regex="^OPL Stable append_full source:${SOURCE_RUN_ID} run:[1-9][0-9]*$"
