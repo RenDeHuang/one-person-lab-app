@@ -158,7 +158,7 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
     ['future.agent-lab'],
   );
   assert.deepEqual(
-    appState.operator.workbench.work_item_projection_v2.items.map((item: any) => item.agent_id),
+    appState.operator.workbench.work_item_projection_v2.items.map((item: any) => item.identity.agent_id),
     ['future.agent-lab'],
   );
   assert.equal('professional_agent_packages' in profile.gui, false);

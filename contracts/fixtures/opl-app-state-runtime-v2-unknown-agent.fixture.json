@@ -1,0 +1,415 @@
+{
+  "surface_kind": "opl_app_runtime_v2_unknown_agent_fixture.v1",
+  "owner": "one-person-lab-app",
+  "producer_contract_ref": "contracts/app-runtime-bridge.json#work_item_projection",
+  "payload_policy": "descriptor_only_no_domain_payload",
+  "app_state": {
+    "schema_version": "opl_app_state.v1",
+    "agent_packages": {
+      "directory": {
+        "entries": [
+          {
+            "package_id": "future.agent-lab",
+            "package_kind": "domain_agent_package",
+            "package_role": "standard_agent",
+            "display_name": "Future Agent Lab",
+            "description": "A dynamic Agent projected from its owner descriptor.",
+            "display_name_i18n": {
+              "zh-CN": "未来智能体实验室",
+              "en-US": "Future Agent Lab"
+            },
+            "description_i18n": {
+              "zh-CN": "由 Package 所有者 descriptor 投影的动态智能体。",
+              "en-US": "A dynamic Agent projected from its owner descriptor."
+            },
+            "session_routing_summary_i18n": {
+              "zh-CN": "启动未来研究会话。",
+              "en-US": "Start a future research session."
+            },
+            "installed": true,
+            "activated": true,
+            "readiness": {
+              "status": "available",
+              "operational_ready": true,
+              "launch_allowed": true,
+              "reason": null
+            },
+            "home_shortcuts": [
+              {
+                "shortcut_id": "future-main",
+                "label_i18n": {
+                  "zh-CN": "开始未来研究",
+                  "en-US": "Start Future Research"
+                },
+                "default_visible": true,
+                "user_configurable": true,
+                "route": {
+                  "route_kind": "agent_package_shortcut",
+                  "executor": "codex_cli",
+                  "codex_visible_entry": "future-agent"
+                }
+              }
+            ],
+            "available_actions": [
+              {
+                "action_id": "future_agent_inspect",
+                "action_ref": "app_state.actions#future_agent_inspect",
+                "semantic": "custom",
+                "surface": "settings",
+                "payload": {
+                  "package_id": "future.agent-lab"
+                },
+                "required_payload_fields": [],
+                "confirmation_required": false
+              }
+            ]
+          }
+        ]
+      },
+      "status_index": {
+        "packages": {
+          "future.agent-lab": {
+            "package_id": "future.agent-lab",
+            "presence": {
+              "registered": true,
+              "installed": true,
+              "present": true,
+              "callable": true,
+              "status": "present",
+              "reason": null
+            }
+          }
+        },
+        "home_shortcut_preferences": [
+          {
+            "package_id": "future.agent-lab",
+            "shortcut_id": "future-main",
+            "visible": true,
+            "sort_order": 7
+          }
+        ]
+      }
+    },
+    "actions": {
+      "future_agent_inspect": {
+        "action_id": "future_agent_inspect",
+        "owner": "future.agent-lab",
+        "mutation": false
+      }
+    },
+    "operator": {
+      "status": "ready",
+      "workbench": {
+        "work_item_projection_v2": {
+          "surface_kind": "opl_work_item_projection",
+          "schema_version": "work-item-projection.v2",
+          "profile": "fast",
+          "generated_at": "2026-08-03T00:00:00.000Z",
+          "agent_catalog": [
+            {
+              "agent_id": "future.agent-lab",
+              "domain_id": "future-research",
+              "display_name": "Future Agent Lab",
+              "short_label": "FUTURE.AGENT-LAB",
+              "package_id": "future.agent-lab",
+              "scope_id": "agent:future.agent-lab"
+            }
+          ],
+          "agent_availability": [
+            {
+              "agent_id": "future.agent-lab",
+              "domain_id": "future-research",
+              "display_name": "Future Agent Lab",
+              "availability": "available",
+              "reason": "package_installed_and_visible",
+              "last_checked_at": "2026-08-03T00:00:00.000Z",
+              "source": "package_directory",
+              "independent_from_work_item_state": true,
+              "package_id": "future.agent-lab",
+              "source_ref": null,
+              "inventory_descriptor": {
+                "status": "readable",
+                "reason": "standard_agent_inventory_descriptor_readable",
+                "source_ref": "/fixtures/future-agent-lab-repo"
+              },
+              "package_launch_readiness": {
+                "status": "unknown",
+                "launch_allowed": null,
+                "reason": "launch_readiness_deferred_to_full_profile"
+              }
+            }
+          ],
+          "project_catalog": [
+            {
+              "project_id": "future-project",
+              "scope_id": "future-project",
+              "agent_id": "future.agent-lab",
+              "agent_display_name": "Future Agent Lab",
+              "domain_id": "future-research",
+              "display_name": "Future Research",
+              "workspace_path": "/fixtures/Future Research",
+              "binding_status": "active",
+              "selected_binding_id": "future.agent-lab-binding",
+              "binding_ids": [
+                "future.agent-lab-binding"
+              ],
+              "source_refs": [
+                {
+                  "ref_kind": "projection",
+                  "ref": "workspace-binding:future.agent-lab-binding",
+                  "role": "workspace_binding"
+                }
+              ]
+            }
+          ],
+          "identity_health": {
+            "status": "clear",
+            "execution_count": 0,
+            "resolved_execution_count": 0,
+            "unresolved_execution_count": 0,
+            "conflict_execution_count": 0,
+            "not_in_inventory_execution_count": 0,
+            "non_work_item_execution_count": 0,
+            "reason_counts": [],
+            "sample_attempt_refs": []
+          },
+          "unresolved_executions": [],
+          "summary": {
+            "agent_count": 1,
+            "project_count": 1,
+            "work_item_count": 1,
+            "visible_work_item_count": 1,
+            "archived_work_item_count": 0,
+            "total_work_item_count": 1,
+            "running_count": 0,
+            "active_session_count": 0,
+            "user_attention_count": 0,
+            "system_attention_count": 0,
+            "telemetry_observed_count": 0,
+            "telemetry_missing_count": 1
+          },
+          "items": [
+            {
+              "item_id": "future-project:future-main",
+              "identity": {
+                "agent_id": "future.agent-lab",
+                "agent_display_name": "Future Agent Lab",
+                "domain_id": "future-research",
+                "project_id": "future-project",
+                "project_display_name": "Future Research",
+                "project_scope_id": "future-project",
+                "workspace_binding_id": "future.agent-lab-binding",
+                "workspace_path": "/fixtures/Future Research",
+                "work_item_id": "future-main",
+                "work_item_display_name": "Future Research Work Item",
+                "work_item_kind": "fixture_project",
+                "work_item_root": "/fixtures/Future Research/future-main",
+                "work_item_scope_id": "work-item:58e143ab6d31fedefdcf25932d929fcd3a81e56420151c4ef1dd1e43d183a4bd",
+                "source_kind": "domain_inventory"
+              },
+              "lifecycle": {
+                "business_state": "active",
+                "domain_business_state": "active",
+                "control_state": null,
+                "primary_state": "automatically_advancing",
+                "primary_state_reason": "user_visible_progress_advancing",
+                "primary_state_label": "自动推进中",
+                "reason": "user_visible_progress_advancing",
+                "last_transition_at": "2026-08-03T00:00:00.000Z",
+                "raw_business_status": "active",
+                "current_stage_id": "review",
+                "current_stage_display_name": "Projected review",
+                "current_stage_status": "active",
+                "package_status": "ready",
+                "lifecycle_ref": "/fixtures/Future Research/future-main/lifecycle.json",
+                "source": "domain_inventory_projection",
+                "control_ref": null,
+                "control_updated_at": null,
+                "observed_generation": "sha256:3707a8488b802ab621d528b4a61b2513528b62486a47d4e9d00c9e19fbdde095"
+              },
+              "visibility": {
+                "state": "visible",
+                "source": "default",
+                "updated_at": null,
+                "control_ref": null,
+                "generation": 10
+              },
+              "execution": {
+                "state": "idle",
+                "stage_id": null,
+                "stage_status": null,
+                "current_stage_id": "review",
+                "current_stage_display_name": "Projected review",
+                "next_stage_id": "next",
+                "next_stage_display_name": "Next research step",
+                "attempt_id": null,
+                "attempt_ids": [],
+                "workflow_id": null,
+                "provider_kind": null,
+                "started_at": null,
+                "last_heartbeat_at": null,
+                "updated_at": null,
+                "running_proof_status": "not_applicable",
+                "diagnostic_reason": null,
+                "quality_budget": {
+                  "state": "not_managed",
+                  "scope_id": null,
+                  "max_attempts": null,
+                  "attempts_used": 0,
+                  "attempts_remaining": null,
+                  "max_elapsed_ms": null,
+                  "elapsed_ms": null,
+                  "max_tokens": null,
+                  "tokens_used": null,
+                  "token_observation_status": "not_applicable",
+                  "stop_reason": null
+                }
+              },
+              "session_activity": {
+                "state": "inactive",
+                "active_session_count": 0,
+                "coordination_session_count": 0,
+                "controlled_execution_session_count": 0,
+                "active_session_refs": [],
+                "nonterminal_session_refs": [],
+                "session_sequences": {},
+                "latest_session_ref": null,
+                "latest_activity_kind": null,
+                "latest_activity_state": null,
+                "latest_activity_at": null,
+                "fresh_until": null,
+                "label_key": "runtimeSessionActivity.inactive",
+                "label_args": {
+                  "active_session_count": 0
+                },
+                "source": "opl_work_item_execution_session_binding_ledger",
+                "can_affect_execution": false,
+                "execution_effect_reason": null
+              },
+              "attention": {
+                "kind": "none",
+                "reason": "no_current_action_required",
+                "owner": null,
+                "responsible_component": null,
+                "issue": null,
+                "impact": null,
+                "repair_action": null,
+                "expected_outcome": null
+              },
+              "telemetry": {
+                "state": "missing",
+                "current_stage": {
+                  "state": "missing",
+                  "input_tokens": null,
+                  "output_tokens": null,
+                  "total_tokens": null,
+                  "observed_at": null,
+                  "missing_reason": "no_stage_attempt_usage_telemetry_observed",
+                  "source_refs": []
+                },
+                "cumulative": {
+                  "state": "missing",
+                  "input_tokens": null,
+                  "output_tokens": null,
+                  "total_tokens": null,
+                  "observed_at": null,
+                  "missing_reason": "no_stage_attempt_usage_telemetry_observed",
+                  "source_refs": []
+                },
+                "missing_reason": "no_stage_attempt_usage_telemetry_observed"
+              },
+              "action": {
+                "kind": "agent_action",
+                "title": "继续推进",
+                "title_key": "lifecycle.active.title",
+                "summary": "Review the projected research route",
+                "summary_key": "inventory.nextAction.summary",
+                "message_args": {
+                  "action_ref": "lifecycle:active",
+                  "agent_id": "future.agent-lab",
+                  "agent_display_name": "Future Agent Lab",
+                  "owner": "future.agent-lab"
+                },
+                "owner": "future.agent-lab",
+                "owner_kind": "agent",
+                "owner_display_name": "Future Agent Lab",
+                "action_ref": "lifecycle:active",
+                "dry_run_required": false
+              },
+              "stage_map": [
+                {
+                  "stage_id": "review",
+                  "display_name": "Projected review",
+                  "display_names": {
+                    "en-US": "Projected review",
+                    "zh-CN": "Projected review"
+                  },
+                  "state": "current",
+                  "owner": null,
+                  "owner_display_name": null,
+                  "elapsed_seconds": null,
+                  "usage": null,
+                  "next_action": null
+                },
+                {
+                  "stage_id": "next",
+                  "display_name": "Next research step",
+                  "display_names": {
+                    "en-US": "Next research step",
+                    "zh-CN": "下一研究步骤"
+                  },
+                  "state": "next",
+                  "owner": null,
+                  "owner_display_name": null,
+                  "elapsed_seconds": null,
+                  "usage": null,
+                  "next_action": null
+                }
+              ],
+              "domain_detail_views": [
+                {
+                  "item_id": "future-project:future-main",
+                  "view_id": "future-view",
+                  "view_kind": "future_agent_view",
+                  "title": "Future Research View",
+                  "schema_ref": "package://future.agent-lab/views/future-view.schema.json",
+                  "availability": "unread"
+                }
+              ],
+              "conditions": [],
+              "freshness": {
+                "state": "current",
+                "inventory_observed_at": "2026-08-03T00:00:00.000Z",
+                "execution_observed_at": null,
+                "last_transition_time": "2026-08-03T00:00:00.000Z",
+                "observed_generation": "sha256:3707a8488b802ab621d528b4a61b2513528b62486a47d4e9d00c9e19fbdde095",
+                "reason": "domain_inventory_projection_read_currently"
+              },
+              "source_refs": []
+            }
+          ],
+          "diagnostics": {
+            "count": 0,
+            "items": [],
+            "detail_policy": "summary_only"
+          },
+          "detail_policy": {
+            "all_work_item_summaries_included": true,
+            "attempt_ref_limit_per_item": 1,
+            "diagnostic_details": "lazy",
+            "inventory_detail": "included",
+            "full_detail_surface": "opl app state --profile full --json"
+          },
+          "authority_boundary": {
+            "projection_only": true,
+            "can_write_domain_truth": false,
+            "can_create_owner_receipt": false,
+            "can_create_typed_blocker": false,
+            "can_authorize_quality_verdict": false,
+            "temporal_is_work_item_inventory": false
+          }
+        }
+      }
+    }
+  }
+}

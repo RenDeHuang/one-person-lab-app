@@ -15,6 +15,7 @@ const crossFixtureTests = {
 const appFixturePaths = [
   'contracts/fixtures/opl-app-state-fast.fixture.json',
   'contracts/fixtures/opl-app-state-runtime-v2-mas-detail.fixture.json',
+  'contracts/fixtures/opl-app-state-runtime-v2-unknown-agent.fixture.json',
   'contracts/fixtures/opl-app-state-unknown-agent.fixture.json',
 ] as const;
 const appFixtureRef = process.env.OPL_APP_FIXTURE_REF?.trim() || 'origin/main';
