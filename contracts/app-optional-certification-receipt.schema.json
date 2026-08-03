@@ -110,7 +110,7 @@
           "additionalProperties": false,
           "required": ["name", "digest", "downloaded_from_published_release"],
           "properties": {
-            "name": { "const": "opl-app-installer.sh" },
+            "name": { "const": "opl-install.sh" },
             "digest": { "$ref": "#/$defs/digest" },
             "downloaded_from_published_release": { "type": "boolean" }
           }

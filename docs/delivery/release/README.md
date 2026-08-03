@@ -234,12 +234,20 @@ deadline; dispatching a resume cannot refresh that clock.
 `append_full` imports a checkpoint at or after `standard_built`, builds or
 qualifies only missing Full stages, and appends the Full DMG and manifest without
 changing Standard assets, updater metadata, prepared notes, or Latest. Its
-absolute operation budget is 50 minutes. The adjunct Git tag points to the exact
-canonical App executor SHA that performs publication. The referenced Standard
-Release and the actual Full content App/Shell/Framework refs remain separate,
-immutable CAS fields in `opl-release-manifest.json`; neither is inferred from the
-Git tag target. This avoids granting a higher-privilege Workflows token merely to
-tag an older commit that contains superseded workflow files.
+absolute operation budget is 120 minutes. It targets the already-public mutable
+Standard Release by exact Release id, tag, target commit, sealed Standard asset
+set, and unified attestation. It creates no Full Release or tag. The actual Full
+content App/Shell/Framework refs remain observational provenance in
+`opl-release-manifest.json`; they do not replace the same-tag carrier binding.
+
+For the next real Stable, the sole Release owner must read back repository
+immutability as enabled, disable it with exact receipt CAS before creating the
+Standard Release, publish Standard and activate Latest, and immediately restore
+and read back the setting. GitHub applies that setting only to future releases,
+so this Standard remains intentionally mutable and must never claim native
+GitHub immutability. Workflow asset name/size/digest CAS and
+`opl-release-attestation.json` are its trust boundary. Existing immutable r5
+releases are not migrated, unsealed, or used as the next carrier.
 
 Before the execute call, the publisher runs the same `framework-release-adapter
 github-apply` argument surface in `rehearsal` mode. Rehearsal performs only local
@@ -304,12 +312,14 @@ the Bundle to another executor while the result is unknown.
 ## Version And Admission
 
 Stable allocation compares all public Stable releases, not only the item marked
-Latest. The base `YY.M.D` and every same-day `-rN` are independent immutable
-releases. Both display version and machine updater version must increase.
+Latest. The base `YY.M.D` and every same-day `-rN` are independent releases.
+Both display version and machine updater version must increase. A release is
+called GitHub-immutable only when its creation-time setting and fresh readback
+prove that claim; the next same-tag Full carrier intentionally does not.
 
 The updater baseline includes current Latest and the highest public Stable.
 Source and remote version checks complete before an expensive build. Publishing
-an immutable artifact, promoting the same exact digest from Preview to Stable,
+an exact artifact, promoting the same exact digest from Preview to Stable,
 and moving Latest are separate operations. `promote_quality` requires the same
 qualification as a direct Stable and does not move Latest. `move_latest_pointer`
 requires protected single-use authority, an expected-current CAS, exact

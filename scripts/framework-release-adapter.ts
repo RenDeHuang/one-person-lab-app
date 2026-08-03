@@ -22,6 +22,7 @@ import { assertStandardLatestAdmissionReceipt } from './validate-standard-latest
 import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
 import { validateGithubImmutableReleaseCapabilityEvidence } from './stable-operation-control.ts';
 import { validateStableOperationPublicationRecord } from './stable-operation-publication-record.ts';
+import { assertImmutabilitySettingReceipt } from './github-release-immutability-setting.ts';
 
 type JsonRecord = Record<string, any>;
 type Track = 'standard' | 'full';
@@ -69,9 +70,7 @@ export const githubApplyRequiredOptionNames = [
 export const githubApplyFullRequiredOptionNames = [
   ...githubApplyRequiredOptionNames,
   'executor-app-sha',
-] as const;
-const stableStandardSupplementalRemoteAssetNames = [
-  'stable-operation-publication-record.json',
+  'standard-attestation',
 ] as const;
 const appStandardIdentityMode = 'app_standard_compatibility';
 const packageCompatibility = {
@@ -207,7 +206,61 @@ function digestRef(digest: string): string {
   return digest.startsWith('sha256:') ? digest : `sha256:${digest}`;
 }
 
-function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
+function standardAttestationIdentity(filePath: string, bundle: JsonRecord): JsonRecord {
+  const resolved = path.resolve(filePath);
+  const bytes = regularFileBytes(resolved, 'Unified Standard release attestation');
+  const attestation = JSON.parse(bytes.toString('utf8')) as JsonRecord;
+  const payloadAssets = attestation.publication_record?.publication_intent?.payload_assets;
+  if (
+    attestation.schema !== 'opl_app_release_attestation.v1'
+    || attestation.status !== 'passed'
+    || attestation.release?.repository !== bundle.sources?.app?.repo
+    || attestation.release?.tag !== bundle.release?.tag
+    || attestation.release?.version !== bundle.release?.version
+    || attestation.release?.bundle_digest !== bundle.bundle_digest
+    || attestation.protection?.github_native_immutable !== false
+    || attestation.protection?.retroactive_lock_claimed !== false
+    || attestation.protection?.standard_asset_policy !== 'sealed_name_size_digest_set_no_overwrite_or_delete'
+    || !Array.isArray(payloadAssets)
+  ) {
+    throw new Error('Unified Standard release attestation does not match the exact mutable Standard Bundle.');
+  }
+  const assets = payloadAssets.map((asset: JsonRecord) => ({
+    name: String(asset?.name ?? ''),
+    size_bytes: Number(asset?.size_bytes),
+    sha256: String(asset?.digest ?? ''),
+  }));
+  assets.push({
+    name: 'opl-release-attestation.json',
+    size_bytes: bytes.byteLength,
+    sha256: digestRef(sha256Bytes(bytes)),
+  });
+  const names = new Set<string>();
+  for (const asset of assets) {
+    if (
+      !asset.name
+      || names.has(asset.name)
+      || !Number.isSafeInteger(asset.size_bytes)
+      || asset.size_bytes <= 0
+      || !digestPattern.test(asset.sha256)
+    ) {
+      throw new Error('Unified Standard release attestation has an invalid or duplicate sealed asset identity.');
+    }
+    names.add(asset.name);
+  }
+  return {
+    path: resolved,
+    name: 'opl-release-attestation.json',
+    sha256: digestRef(sha256Bytes(bytes)),
+    size_bytes: bytes.byteLength,
+    sealed_standard_assets: assets.sort((left, right) => left.name.localeCompare(right.name)),
+  };
+}
+
+function fullManifestReleaseIdentity(
+  uploadActions: JsonRecord[],
+  standardAttestation: JsonRecord,
+): JsonRecord {
   const manifestActions = uploadActions.filter((action) => action.name === 'opl-release-manifest.json');
   if (manifestActions.length !== 1) {
     throw new Error('Full publication requires exactly one opl-release-manifest.json upload action.');
@@ -240,12 +293,20 @@ function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
     || manifest.version !== version
     || !/^[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}(?:-r[1-9][0-9]*)?$/.test(version)
     || manifest.primary_install_asset !== dmgName
-    || carrierContext?.publication_model !== 'independent_immutable_adjunct_linked_to_existing_standard'
+    || carrierContext?.publication_model !== 'same_tag_mutable_standard_addon'
     || !Number.isSafeInteger(targetStandard?.release_id)
     || Number(targetStandard?.release_id) <= 0
     || targetStandard?.tag !== `v${version}`
     || !/^[0-9a-f]{40}$/.test(String(targetStandard?.target_commitish ?? ''))
-    || targetStandard?.mutation_allowed !== false
+    || targetStandard?.immutable !== false
+    || targetStandard?.full_asset_append_allowed !== true
+    || targetStandard?.standard_asset_overwrite_or_delete_allowed !== false
+    || carrierContext?.latest_modified !== false
+    || carrierContext?.updater_metadata_modified !== false
+    || carrierContext?.release_notes_modified !== false
+    || carrierContext?.standard_attestation?.name !== standardAttestation.name
+    || carrierContext?.standard_attestation?.sha256 !== standardAttestation.sha256
+    || carrierContext?.standard_attestation?.size_bytes !== standardAttestation.size_bytes
     || !/^[0-9a-f]{40}$/.test(String(releaseExecutor?.app_sha ?? ''))
     || releaseExecutor?.notarizer_path !== 'scripts/notarize-macos-dmg.ts'
     || fullContentSources?.role !== 'observational_build_provenance_only'
@@ -259,8 +320,9 @@ function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
       !== (fullContentSources?.app_sha !== targetStandard?.target_commitish)
     || manifestDmgAssets.length !== 1
     || uploadDmgActions.length !== 1
+    || uploadActions.length !== 2
   ) {
-    throw new Error('Full public manifest does not define one canonical self-owned Full carrier identity.');
+    throw new Error('Full public manifest does not define one canonical same-tag Full add-on identity.');
   }
   const manifestDmg = manifestDmgAssets[0] as JsonRecord;
   const uploadDmg = uploadDmgActions[0];
@@ -286,21 +348,23 @@ function fullManifestReleaseIdentity(uploadActions: JsonRecord[]): JsonRecord {
       sha256: uploadDmg.sha256,
       size_bytes: uploadDmg.size_bytes,
     },
+    standard_attestation: standardAttestation,
   };
 }
 
-export function fullAdjunctReleaseIdentity(
+export function fullAddonIdentity(
   bundle: JsonRecord,
   uploadActions: JsonRecord[],
+  standardAttestationPath: string,
 ): JsonRecord {
-  const releaseIdentity = fullManifestReleaseIdentity(uploadActions);
+  const standardAttestation = standardAttestationIdentity(standardAttestationPath, bundle);
+  const releaseIdentity = fullManifestReleaseIdentity(uploadActions, standardAttestation);
   const repository = String(bundle.sources?.app?.repo ?? '');
   if (
     !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
   ) {
-    throw new Error('Full adjunct identity requires one canonical App release repository.');
+    throw new Error('Full add-on identity requires one canonical App release repository.');
   }
-  const manifestSha256 = String(releaseIdentity.manifest.sha256);
   const version = String(releaseIdentity.version);
   const carrierContext = releaseIdentity.carrier_context as JsonRecord;
   const targetStandard = carrierContext.target_standard_release as JsonRecord;
@@ -311,32 +375,21 @@ export function fullAdjunctReleaseIdentity(
     targetStandard.repository !== repository
     || targetStandard.tag !== bundle.release?.tag
   ) {
-    throw new Error('Full adjunct target Standard reference does not match the exact App repository and Bundle tag.');
+    throw new Error('Full add-on target Standard reference does not match the exact App repository and Bundle tag.');
   }
-  const tag = `v${version}-full-${manifestSha256.slice('sha256:'.length, 'sha256:'.length + 12)}`;
-  const notes = [
-    `# One Person Lab Full ${version} macOS carrier`,
-    '',
-    'This immutable Release carries one independently versioned Full macOS first-install artifact.',
-    `Full manifest digest: ${manifestSha256}`,
-    `Full DMG digest: ${releaseIdentity.artifact.sha256}`,
-    `Target Standard reference: ${targetStandard.tag} (Release ID ${targetStandard.release_id}, target ${targetStandard.target_commitish}; assets not modified)`,
-    `Full content sources: App ${fullContentSources.app_sha}, Shell ${fullContentSources.shell_sha}, Framework ${fullContentSources.framework_sha}`,
-    `Release executor App source: ${releaseExecutor.app_sha}`,
-    `Source differences: executor_vs_content_app=${differences.executor_app_differs_from_full_content_app}; content_app_vs_target_standard=${differences.full_content_app_differs_from_target_standard}`,
-    '',
-    'Download the Full DMG and its manifest from this Release. Standard assets and the GitHub Latest pointer are not modified.',
-  ].join('\n');
   return {
-    schema: 'opl_app_immutable_release_adjunct_identity.v1',
+    schema: 'opl_app_same_tag_full_addon_identity.v1',
     kind: 'full_macos',
-    tag,
-    name: `One Person Lab Full ${version} macOS carrier`,
-    notes,
-    make_latest: false,
+    tag: targetStandard.tag,
     release_version: version,
     manifest: releaseIdentity.manifest,
     artifact: releaseIdentity.artifact,
+    standard_attestation: {
+      name: standardAttestation.name,
+      sha256: standardAttestation.sha256,
+      size_bytes: standardAttestation.size_bytes,
+    },
+    sealed_standard_assets: standardAttestation.sealed_standard_assets,
     target_standard_release: targetStandard,
     release_executor: releaseExecutor,
     full_content_sources: fullContentSources,
@@ -362,9 +415,6 @@ function requiredAssetNames(version: string, track: Track): string[] {
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',
-        'opl-app-installer.sh',
-        'standard-gatekeeper-launch-policy.json',
-        'standard-apple-notarization-receipt.json',
       ];
   }
   return [`One-Person-Lab-Full-${version}-mac-arm64.dmg`, 'opl-release-manifest.json'];
@@ -431,6 +481,9 @@ function parseCommon(argv: string[]) {
       'operation-deadline-at': { type: 'string' },
       'additional-upload-actions': { type: 'string' },
       'publication-record': { type: 'string' },
+      'disabled-setting-receipt': { type: 'string' },
+      'preflight-setting-receipt': { type: 'string' },
+      'standard-attestation': { type: 'string' },
       'authority-run-id': { type: 'string' },
       'latest-admission': { type: 'string' },
       'pointer-admission': { type: 'string' },
@@ -1032,12 +1085,12 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       }
     } else if (inspection.release?.exists === true) {
       const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
-      const supplementalNames = track === 'standard' && bundle.release?.channel === 'stable'
-        ? stableStandardSupplementalRemoteAssetNames
+      const permittedCarrierNames = track === 'full'
+        ? (bundle.tracks?.standard?.required_asset_names ?? [])
         : [];
       const allowedNameSet = new Set([
         ...requiredNames,
-        ...supplementalNames,
+        ...permittedCarrierNames,
       ]);
       const remoteAssets = new Map<string, JsonRecord>();
       for (const inspectedAsset of inspectedAssets) {
@@ -1055,7 +1108,7 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
         }
         remoteAssets.set(name, asset);
       }
-      assets = [...requiredNames, ...supplementalNames]
+      assets = requiredNames
         .filter((name: string) => remoteAssets.has(name))
         .map((name: string) => {
           const asset = remoteAssets.get(name) as JsonRecord;
@@ -1508,16 +1561,16 @@ function githubApplyMode(values: AdapterOptionValues): GitHubApplyMode {
 function publicationTagTargetCommitish(
   values: AdapterOptionValues,
   bundle: JsonRecord,
-  fullAdjunct: JsonRecord | null,
+  fullAddon: JsonRecord | null,
 ): string {
   const bundleAppSource = String(bundle.sources?.app?.source_commit ?? '');
   if (!/^[0-9a-f]{40}$/.test(bundleAppSource)) {
     throw new Error('Framework Bundle App source commit is not an exact lowercase SHA.');
   }
-  if (!fullAdjunct) return bundleAppSource;
+  if (!fullAddon) return bundleAppSource;
 
   const executorAppSha = requireOption(values, 'executor-app-sha');
-  const manifestExecutorAppSha = String(fullAdjunct.release_executor?.app_sha ?? '');
+  const manifestExecutorAppSha = String(fullAddon.release_executor?.app_sha ?? '');
   if (!/^[0-9a-f]{40}$/.test(executorAppSha) || executorAppSha !== manifestExecutorAppSha) {
     rejectGitHubMutation(
       'github-apply',
@@ -1530,7 +1583,7 @@ function publicationTagTargetCommitish(
       },
     );
   }
-  return executorAppSha;
+  return String(fullAddon.target_standard_release?.target_commitish ?? '');
 }
 
 function ghRead(
@@ -1717,22 +1770,12 @@ function assertImmutableReleasesEnabled(
         ) {
           throw new Error('Publication record authority run does not match the admitted Stable source run.');
         }
-        const recordActions = actions.filter(
-          (action) => action.name === 'stable-operation-publication-record.json',
-        );
-        if (recordActions.length !== 1) {
-          throw new Error('Standard publication must upload exactly one durable publication record.');
-        }
-        const recordAction = recordActions[0]!;
         const recordBytes = regularFileBytes(
-          path.resolve(String(recordAction.source_path)),
+          path.resolve(publicationRecordPath),
           'Stable operation publication record',
         );
-        if (
-          recordAction.size_bytes !== recordBytes.length
-          || recordAction.sha256 !== `sha256:${sha256Bytes(recordBytes)}`
-        ) {
-          throw new Error('Durable publication record upload action does not match the exact record bytes.');
+        if (canonicalJson(JSON.parse(recordBytes.toString('utf8'))) !== canonicalJson(publicationRecord)) {
+          throw new Error('Durable publication record file does not match the validated internal evidence.');
         }
         const expectedPayload = publicationRecord.publication_intent.payload_assets
           .map((asset) => ({
@@ -1742,7 +1785,7 @@ function assertImmutableReleasesEnabled(
           }))
           .sort((left, right) => left.name.localeCompare(right.name));
         const actualPayload = actions
-          .filter((action) => action.name !== 'stable-operation-publication-record.json')
+          .filter((action) => action.name !== 'opl-release-attestation.json')
           .map((action) => ({
             name: String(action.name),
             digest: String(action.sha256),
@@ -1818,6 +1861,98 @@ function assertImmutableReleasesEnabled(
           ? capability.enforced_by_owner ?? null
           : null,
       },
+    );
+  }
+}
+
+function assertCanonicalMutableStandardWindow(
+  values: AdapterOptionValues,
+  repo: string,
+  runtime: GitHubAdapterRuntime,
+  bundle: JsonRecord,
+  admission: { operationId: string; track: Track },
+  actions: JsonRecord[],
+): void {
+  assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, actions);
+  const attestationActions = actions.filter((action) => action.name === 'opl-release-attestation.json');
+  if (attestationActions.length !== 1) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_standard_attestation_missing',
+      'Canonical Stable publication requires exactly one unified public attestation.',
+    );
+  }
+  const attestationIdentity = standardAttestationIdentity(
+    String(attestationActions[0]!.source_path),
+    bundle,
+  );
+  if (
+    attestationActions[0]!.sha256 !== attestationIdentity.sha256
+    || attestationActions[0]!.size_bytes !== attestationIdentity.size_bytes
+  ) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_standard_attestation_mismatch',
+      'Unified public attestation upload action does not match its exact bytes.',
+    );
+  }
+  let receipt: JsonRecord;
+  try {
+    const preflight = readJson(path.resolve(requireOption(values, 'preflight-setting-receipt')));
+    receipt = assertImmutabilitySettingReceipt(
+      readJson(path.resolve(requireOption(values, 'disabled-setting-receipt'))),
+      'disabled',
+      preflight,
+    );
+  } catch (error) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutability_disabled_receipt_invalid',
+      'Canonical Stable publication requires the exact disabled-setting receipt.',
+      { validation_error: error instanceof Error ? error.message : String(error) },
+    );
+  }
+  if (receipt.repository !== repo || receipt.setting?.enabled !== false) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutability_disabled_receipt_invalid',
+      'Disabled-setting receipt does not bind the canonical Stable repository.',
+      { repository: repo, receipt_repository: receipt.repository ?? null },
+    );
+  }
+  let setting: JsonRecord | string | null;
+  try {
+    setting = ghRead([
+      'api',
+      `repos/${repo}/immutable-releases`,
+      '-H',
+      'X-GitHub-Api-Version: 2026-03-10',
+    ], runtime);
+  } catch (error) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutability_disabled_readback_unavailable',
+      'Repository immutability disabled-state readback failed before Standard publication.',
+      { read_failure: error instanceof Error ? error.message : String(error) },
+    );
+  }
+  if (
+    !setting
+    || typeof setting !== 'object'
+    || setting.enabled !== false
+    || setting.enforced_by_owner !== false
+  ) {
+    rejectGitHubMutation(
+      'github-apply',
+      values,
+      'github_immutability_disabled_readback_mismatch',
+      'Repository immutability must read back disabled and not owner-enforced before Standard publication.',
+      { observed_setting: setting ?? null },
     );
   }
 }
@@ -2212,6 +2347,54 @@ function assertReleaseAssetSet(
   }
 }
 
+function assertMutableStandardIdentity(inspection: JsonRecord, bundle: JsonRecord, addon: JsonRecord): void {
+  const target = addon.target_standard_release as JsonRecord;
+  if (
+    inspection.release?.exists !== true
+    || inspection.release?.id !== target.release_id
+    || inspection.tag !== target.tag
+    || inspection.release?.draft !== false
+    || inspection.release?.prerelease !== false
+    || inspection.release?.immutable !== false
+    || inspection.release?.target_commitish !== target.target_commitish
+    || inspection.release?.name !== `One Person Lab v${bundle.release?.version}`
+    || inspection.release?.body_sha256 !== sha256Bytes(String(bundle.prepared_notes?.markdown ?? ''))
+  ) {
+    throw new Error('Full append target is not the exact published mutable Standard Release.');
+  }
+}
+
+function assertSameTagFullAssetPolicy(
+  inspection: JsonRecord,
+  addon: JsonRecord,
+  actions: JsonRecord[],
+  exactFull: boolean,
+): void {
+  const standard = new Map(
+    (addon.sealed_standard_assets as JsonRecord[]).map((asset) => [String(asset.name), asset]),
+  );
+  const full = new Map(actions.map((asset) => [String(asset.name), asset]));
+  const remote = new Map<string, JsonRecord>();
+  for (const asset of inspection.assets as JsonRecord[]) {
+    const name = String(asset.name ?? '');
+    if (!name || remote.has(name)) throw new Error(`Remote Release contains duplicate asset name ${name || '<missing>'}.`);
+    remote.set(name, asset);
+    const expected = standard.get(name) ?? full.get(name);
+    if (!expected) throw new Error(`Remote mutable Standard contains an unsealed asset: ${name}.`);
+    if (asset.sha256 !== expected.sha256 || asset.size_bytes !== expected.size_bytes) {
+      throw new Error(`Remote asset ${name} conflicts with its sealed name, size, or digest.`);
+    }
+  }
+  for (const name of standard.keys()) {
+    if (!remote.has(name)) throw new Error(`Remote mutable Standard is missing sealed Standard asset ${name}.`);
+  }
+  if (exactFull) {
+    for (const name of full.keys()) {
+      if (!remote.has(name)) throw new Error(`Remote mutable Standard is missing appended Full asset ${name}.`);
+    }
+  }
+}
+
 function publishedMutablePolicyViolation(input: {
   repo: string;
   tag: string;
@@ -2412,21 +2595,36 @@ function publishDraftRelease(options: {
   operationDeadlineAt: string;
   runtime: GitHubAdapterRuntime;
   bundle: JsonRecord;
+  nativeImmutableRequired: boolean;
 }): JsonRecord {
   const before = inspectReleaseById(options.repo, options.tag, options.releaseId, options.runtime);
   assertReleaseIdentity(before, { ...options, draft: true });
   assertReleaseAssetSet(before, options.actions, true);
-  assertImmutableReleasesEnabled(
-    options.values,
-    options.repo,
-    options.runtime,
-    options.bundle,
-    {
-      operationId: requireOption(options.values, 'operation-id'),
-      track: requireOption(options.values, 'track') as Track,
-    },
-    options.actions,
-  );
+  if (options.nativeImmutableRequired) {
+    assertImmutableReleasesEnabled(
+      options.values,
+      options.repo,
+      options.runtime,
+      options.bundle,
+      {
+        operationId: requireOption(options.values, 'operation-id'),
+        track: requireOption(options.values, 'track') as Track,
+      },
+      options.actions,
+    );
+  } else {
+    assertCanonicalMutableStandardWindow(
+      options.values,
+      options.repo,
+      options.runtime,
+      options.bundle,
+      {
+        operationId: requireOption(options.values, 'operation-id'),
+        track: requireOption(options.values, 'track') as Track,
+      },
+      options.actions,
+    );
+  }
   const remoteTarget = `github-release:${options.repo}@${options.tag}`;
   const attempt = runGitHubMutation({
     mutation: 'release_publish',
@@ -2476,11 +2674,22 @@ function publishDraftRelease(options: {
       repo: options.repo,
       tag: options.tag,
       reconciliation,
-      reason: 'GitHub accepted draft publication but exact immutable readback did not complete.',
+      reason: 'GitHub accepted draft publication but exact release readback did not complete.',
     });
   }
   const published = reconciliation.observation;
-  if (published.release.immutable !== true) {
+  if (published.release.immutable !== options.nativeImmutableRequired) {
+    if (!options.nativeImmutableRequired) {
+      return unknownAfterAcceptedMutation({
+        mutation: 'release_publish',
+        operationDeadlineAt: options.operationDeadlineAt,
+        attemptEvidence: attempt.evidence,
+        repo: options.repo,
+        tag: options.tag,
+        reconciliation,
+        reason: 'GitHub accepted the controlled mutable Standard publication but readback reported immutable=true.',
+      });
+    }
     return publishedMutablePolicyViolation({
       repo: options.repo,
       tag: options.tag,
@@ -2511,6 +2720,217 @@ function publishDraftRelease(options: {
     uploaded: [],
     release_publish: attempt.evidence,
     inspection: published,
+    github_native_immutable: options.nativeImmutableRequired,
+    mutable_standard_protection: options.nativeImmutableRequired
+      ? null
+      : 'workflow_asset_name_digest_cas_and_unified_attestation',
+  };
+}
+
+function applyFullAddonPlan(input: {
+  values: AdapterOptionValues;
+  runtime: GitHubAdapterRuntime;
+  bundle: JsonRecord;
+  admission: JsonRecord;
+  uploadActions: JsonRecord[];
+  operationDeadlineAt: string;
+  mutationMode: GitHubApplyMode;
+  publicationStatus: string;
+}): JsonRecord {
+  const addon = fullAddonIdentity(
+    input.bundle,
+    input.uploadActions,
+    requireOption(input.values, 'standard-attestation'),
+  );
+  const repo = String(input.bundle.sources?.app?.repo ?? '');
+  const tag = String(addon.tag);
+  const targetCommitish = publicationTagTargetCommitish(input.values, input.bundle, addon);
+  if (input.publicationStatus === 'reconcile_only') {
+    const observation = inspectReleaseForReconcile(repo, tag, input.runtime);
+    if (observation.status !== 'complete') {
+      return {
+        surface_kind: 'opl_app_github_same_tag_full_reconcile.v1',
+        status: 'reconcile_only',
+        repository: repo,
+        tag,
+        mutation_authorized: false,
+        mutation_attempted: false,
+        retry_disposition: 'read_only_reconcile_only_no_retry',
+        reconciliation: { classification: 'unknown', ...observation },
+        addon,
+      };
+    }
+    try {
+      assertMutableStandardIdentity(observation.observation, input.bundle, addon);
+      assertSameTagFullAssetPolicy(observation.observation, addon, input.uploadActions, false);
+      const missing = input.uploadActions
+        .filter((action) => !observation.observation.assets.some(
+          (asset: JsonRecord) => asset.name === action.name,
+        ))
+        .map((action) => action.name);
+      return {
+        surface_kind: 'opl_app_github_same_tag_full_reconcile.v1',
+        status: 'reconcile_only',
+        repository: repo,
+        tag,
+        mutation_authorized: false,
+        mutation_attempted: false,
+        retry_disposition: 'read_only_reconcile_only_no_retry',
+        reconciliation: {
+          classification: missing.length === 0 ? 'complete' : 'incomplete',
+          missing_full_assets: missing,
+          observation: observation.observation,
+        },
+        addon,
+      };
+    } catch (error) {
+      return {
+        surface_kind: 'opl_app_github_same_tag_full_reconcile.v1',
+        status: 'reconcile_only',
+        repository: repo,
+        tag,
+        mutation_authorized: false,
+        mutation_attempted: false,
+        retry_disposition: 'read_only_reconcile_only_no_retry',
+        reconciliation: {
+          classification: 'conflict',
+          reason: error instanceof Error ? error.message : String(error),
+          observation: observation.observation,
+        },
+        addon,
+      };
+    }
+  }
+  const preexisting = inspectReleaseForReconcile(repo, tag, input.runtime);
+  if (preexisting.status !== 'complete') {
+    throw new Error('Full append requires a complete read-only inspection of the exact Standard Release.');
+  }
+  assertMutableStandardIdentity(preexisting.observation, input.bundle, addon);
+  assertSameTagFullAssetPolicy(preexisting.observation, addon, input.uploadActions, false);
+  if (input.mutationMode === 'rehearsal') {
+    return {
+      surface_kind: 'opl_app_github_publication_rehearsal.v1',
+      status: 'rehearsal_complete',
+      mutation_authorized: false,
+      mutation_attempted: false,
+      repository: repo,
+      tag,
+      track: 'full',
+      operation: input.admission.operation,
+      operation_id: input.admission.operationId,
+      publication_channel: 'stable',
+      target_commitish: targetCommitish,
+      upload_actions: input.uploadActions.map((action) => ({
+        name: action.name,
+        size_bytes: action.size_bytes,
+        sha256: action.sha256,
+      })),
+      preexisting_release: preexisting.observation.release,
+      addon,
+      forbidden_mutations: ['tag_reserve', 'release_create', 'release_publish', 'latest_patch'],
+    };
+  }
+
+  const uploaded: string[] = [];
+  const releaseId = Number(addon.target_standard_release.release_id);
+  for (const action of input.uploadActions) {
+    const before = inspectReleaseById(repo, tag, releaseId, input.runtime);
+    assertMutableStandardIdentity(before, input.bundle, addon);
+    assertSameTagFullAssetPolicy(before, addon, input.uploadActions, false);
+    const current = before.assets.find((asset: JsonRecord) => asset.name === action.name);
+    if (current) continue;
+    const attempt = runGitHubMutation({
+      mutation: 'asset_upload',
+      attemptId: mutationAttemptId(
+        input.admission.attemptId,
+        'asset_upload',
+        `github-release:${repo}@${tag}`,
+        String(action.name),
+      ),
+      remoteTarget: `github-release:${repo}@${tag}`,
+      args: ['release', 'upload', tag, action.source_path, '--repo', repo],
+      operationDeadlineAt: input.operationDeadlineAt,
+      runtime: input.runtime,
+    });
+    if (attempt.status !== 'accepted') {
+      return stoppedMutation({
+        attempt,
+        repo,
+        tag,
+        uploaded,
+        unresolvedAsset: action.name,
+        reconciliation: inspectReleaseByIdForReconcile(repo, tag, releaseId, input.runtime),
+      });
+    }
+    const reconciliation = inspectReleaseByIdForReconcile(repo, tag, releaseId, input.runtime);
+    if (reconciliation.status !== 'complete') {
+      return unknownAfterAcceptedMutation({
+        mutation: 'asset_upload',
+        operationDeadlineAt: input.operationDeadlineAt,
+        attemptEvidence: attempt.evidence,
+        repo,
+        tag,
+        uploaded,
+        unresolvedAsset: action.name,
+        reconciliation,
+        reason: `GitHub accepted ${action.name} append but exact digest readback failed.`,
+      });
+    }
+    const after = reconciliation.observation;
+    try {
+      assertMutableStandardIdentity(after, input.bundle, addon);
+      assertSameTagFullAssetPolicy(after, addon, input.uploadActions, false);
+    } catch (error) {
+      return unknownAfterAcceptedMutation({
+        mutation: 'asset_upload',
+        operationDeadlineAt: input.operationDeadlineAt,
+        attemptEvidence: attempt.evidence,
+        repo,
+        tag,
+        uploaded,
+        unresolvedAsset: action.name,
+        reconciliation,
+        reason: `GitHub accepted ${action.name} append but the sealed Standard or release identity changed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      });
+    }
+    const observed = after.assets.find((asset: JsonRecord) => asset.name === action.name);
+    if (observed?.sha256 === action.sha256 && observed?.size_bytes === action.size_bytes) {
+      uploaded.push(action.name);
+      continue;
+    }
+    return unknownAfterAcceptedMutation({
+      mutation: 'asset_upload',
+      operationDeadlineAt: input.operationDeadlineAt,
+      attemptEvidence: attempt.evidence,
+      repo,
+      tag,
+      uploaded,
+      unresolvedAsset: action.name,
+      reconciliation,
+      reason: `GitHub accepted ${action.name} append but did not expose the exact digest.`,
+    });
+  }
+  const finalInspection = inspectReleaseById(repo, tag, releaseId, input.runtime);
+  assertMutableStandardIdentity(finalInspection, input.bundle, addon);
+  assertSameTagFullAssetPolicy(finalInspection, addon, input.uploadActions, true);
+  return {
+    surface_kind: 'opl_app_github_same_tag_full_append_result.v1',
+    status: 'complete',
+    repository: repo,
+    tag,
+    uploaded,
+    inspection: finalInspection,
+    addon: {
+      ...addon,
+      release_url: `https://github.com/${repo}/releases/tag/${tag}`,
+      asset_download_base_url: `https://github.com/${repo}/releases/download/${tag}`,
+    },
+    standard_assets_modified: false,
+    release_notes_modified: false,
+    latest_modified: false,
+    updater_metadata_modified: false,
   };
 }
 
@@ -2582,31 +3002,36 @@ function applyPublishPlanInternal(
     ...plannedUploadActions(actions),
     ...supplementalUploadActions(values),
   ]);
-  const fullAdjunct = admission.track === 'full'
-    ? fullAdjunctReleaseIdentity(bundle, uploadActions)
-    : null;
-  const targetCommitish = publicationTagTargetCommitish(values, bundle, fullAdjunct);
-  const tag = fullAdjunct?.tag ?? bundle.release.tag;
+  if (admission.track === 'full') {
+    return applyFullAddonPlan({
+      values,
+      runtime,
+      bundle,
+      admission,
+      uploadActions,
+      operationDeadlineAt,
+      mutationMode,
+      publicationStatus: String(publication.status ?? ''),
+    });
+  }
+  const targetCommitish = publicationTagTargetCommitish(values, bundle, null);
+  const tag = bundle.release.tag;
   if (publication.status === 'reconcile_only') {
     return { status: 'reconcile_only', repository: repo, tag, uploaded: [] };
   }
-  const name = fullAdjunct?.name ?? `One Person Lab v${bundle.release.version}`;
-  const notes = fullAdjunct?.notes ?? bundle.prepared_notes.markdown;
-  const adjunct = fullAdjunct
-    ? {
-        ...fullAdjunct,
-        release_url: `https://github.com/${repo}/releases/tag/${tag}`,
-        asset_download_base_url: `https://github.com/${repo}/releases/download/${tag}`,
-      }
-    : null;
+  const name = `One Person Lab v${bundle.release.version}`;
+  const notes = bundle.prepared_notes.markdown;
   const preexisting = inspectReleaseForReconcile(repo, tag, runtime);
+  const canonicalMutableStandard = repo === canonicalStableRepository && publicationChannel === 'stable';
   const exactPublishedCarrier = preexisting.status === 'complete'
     && preexisting.observation.release.exists === true
     && preexisting.observation.release.draft === false;
   if (!exactPublishedCarrier) {
-    // Creating a draft or publishing it is forbidden until GitHub confirms
-    // immutable Releases are enabled. An already immutable carrier is read-only.
-    assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, uploadActions);
+    if (canonicalMutableStandard) {
+      assertCanonicalMutableStandardWindow(values, repo, runtime, bundle, admission, uploadActions);
+    } else {
+      assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, uploadActions);
+    }
   }
   if (mutationMode === 'rehearsal') {
     return {
@@ -2629,7 +3054,7 @@ function applyPublishPlanInternal(
       preexisting_release: preexisting.status === 'complete'
         ? preexisting.observation.release
         : null,
-      adjunct,
+      github_native_immutable_expected: !canonicalMutableStandard,
     };
   }
   const releaseResult = ensureRelease({
@@ -2647,7 +3072,10 @@ function applyPublishPlanInternal(
   if (releaseResult.status !== 'complete') return releaseResult;
   if (releaseResult.inspection.release.draft === false) {
     assertReleaseAssetSet(releaseResult.inspection, uploadActions, true);
-    if (releaseResult.inspection.release.immutable !== true) {
+    if (releaseResult.inspection.release.immutable !== !canonicalMutableStandard) {
+      if (canonicalMutableStandard) {
+        throw new Error('Controlled mutable Standard readback unexpectedly reports immutable=true.');
+      }
       return publishedMutablePolicyViolation({
         repo,
         tag,
@@ -2660,7 +3088,7 @@ function applyPublishPlanInternal(
       tag,
       uploaded: [],
       inspection: releaseResult.inspection,
-      adjunct,
+      github_native_immutable: !canonicalMutableStandard,
     };
   }
   assertReleaseAssetSet(releaseResult.inspection, uploadActions, false);
@@ -2763,6 +3191,7 @@ function applyPublishPlanInternal(
     operationDeadlineAt,
     runtime,
     bundle,
+    nativeImmutableRequired: !canonicalMutableStandard,
   });
   if (publicationResult.status !== 'complete') {
     return { ...publicationResult, uploaded };
@@ -2770,7 +3199,6 @@ function applyPublishPlanInternal(
   return {
     ...publicationResult,
     uploaded,
-    adjunct,
   };
 }
 

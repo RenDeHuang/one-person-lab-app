@@ -154,17 +154,24 @@ Prepared AI notes are generated and validated before the expensive build and
 become immutable Bundle inputs. Publish and promote may not regenerate notes or
 use a template fallback.
 
-Stable may become Latest only after the prepared English AI notes, all six
+Stable may become Latest only after the prepared English AI notes, all eight
 Standard assets, exact-byte qualification, remote digest readback, a real
-upgrade from the public predecessor using the same candidate ZIP, and the
-Standard Homebrew cask publication plus clean-VM readback pass:
+upgrade from the public predecessor using the same candidate ZIP, and hosted
+Standard/Homebrew readback pass:
 
 1. Standard DMG
 2. Standard ZIP
 3. ZIP blockmap
 4. `latest-arm64-mac.yml`
 5. `opl-app-component-manifest.json`
-6. `standard-local-authorization-policy.json`
+6. `One-Person-Lab-<version>-linux-x64.deb`
+7. `opl-install.sh`
+8. `opl-release-attestation.json`
+
+The attestation unifies the Standard publication record and macOS trust evidence.
+`opl-app-installer.sh`, `standard-gatekeeper-launch-policy.json`,
+`standard-apple-notarization-receipt.json`, and the bare publication record are
+not public Release assets.
 
 The updater hard gate uses both current Latest and the highest public Stable as
 its baseline, installs the public predecessor DMG, discovers and downloads the
@@ -181,6 +188,14 @@ Full is an additive same-Bundle-cohort track. Its DMG and
 `opl-release-manifest.json` may be added after Latest. Adding Full must not
 change Standard assets, updater metadata, prepared notes, or Latest selection.
 Full is never a Standard updater target.
+
+The next Standard GitHub Release is created while repository release
+immutability is disabled under owner-controlled receipt CAS. The setting is
+restored immediately after Standard publication and Latest readback, but that
+restoration affects only future releases and does not retroactively lock this
+candidate. Full therefore appends to the same mutable Release/tag under exact
+asset CAS and unified attestation protection; it creates no separate Release or
+tag. Existing immutable r5 releases remain untouched historical evidence.
 
 After Full assets pass and are appended, the Bundle may update only
 `one-person-lab-full`, then run its own Homebrew clean-VM readback. This cannot

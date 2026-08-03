@@ -38,7 +38,7 @@ test('absent GitHub Release remote inspection yields an empty receipt for the fi
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-absent-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
-  const requiredNames = ['first.zip', 'second.dmg'];
+  const requiredNames = ['first.zip', 'second.dmg', 'opl-release-attestation.json'];
   try {
     fs.writeFileSync(bundlePath, `${JSON.stringify({
       surface_kind: 'opl_release_bundle.v1',
@@ -120,7 +120,7 @@ test('existing GitHub Release remote inspection accepts required assets and know
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-partial-release-receipt-'));
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
-  const requiredNames = ['first.zip', 'second.dmg'];
+  const requiredNames = ['first.zip', 'second.dmg', 'opl-release-attestation.json'];
   const execute = (assets: Array<Record<string, unknown>>) => {
     fs.writeFileSync(inspectionPath, `${JSON.stringify({
       surface_kind: 'opl_app_github_release_inspection.v1',
@@ -158,17 +158,17 @@ test('existing GitHub Release remote inspection accepts required assets and know
       size_bytes: second.size_bytes,
       sha256: second.sha256,
     }]);
-    const publicationRecord = asset('stable-operation-publication-record.json', '4');
-    assert.deepEqual(execute([publicationRecord, second]).assets, [
+    const attestation = asset('opl-release-attestation.json', '4');
+    assert.deepEqual(execute([attestation, second]).assets, [
       {
         name: second.name,
         size_bytes: second.size_bytes,
         sha256: second.sha256,
       },
       {
-        name: publicationRecord.name,
-        size_bytes: publicationRecord.size_bytes,
-        sha256: publicationRecord.sha256,
+        name: attestation.name,
+        size_bytes: attestation.size_bytes,
+        sha256: attestation.sha256,
       },
     ]);
     assert.throws(
@@ -177,8 +177,8 @@ test('existing GitHub Release remote inspection accepts required assets and know
     );
     assert.throws(() => execute([second, second]), /contains duplicate asset second\.dmg/);
     assert.throws(
-      () => execute([publicationRecord, publicationRecord]),
-      /contains duplicate asset stable-operation-publication-record\.json/,
+      () => execute([attestation, attestation]),
+      /contains duplicate asset opl-release-attestation\.json/,
     );
     assert.throws(
       () => execute([{ ...second, sha256: 'sha256:not-a-digest' }]),
@@ -191,7 +191,7 @@ test('existing GitHub Release remote inspection accepts required assets and know
       tracks: { standard: { required_asset_names: requiredNames } },
     })}\n`);
     assert.throws(
-      () => execute([publicationRecord]),
+      () => execute([asset('stable-operation-publication-record.json', '5')]),
       /contains unknown asset stable-operation-publication-record\.json/,
     );
   } finally {

@@ -57,20 +57,20 @@ test('mutation unknown states persist evidence and only use bounded read-only re
   assert.match(readWorkflow('_release-full-addon.yml'), /fresh_bounded_read_only_inspect_then_framework_reconcile/);
 });
 
-test('Full publication declares the Stable channel at the guarded GitHub adapter boundary', () => {
+test('Full publication declares the Stable channel and same-tag CAS boundary at the guarded adapter', () => {
   const fullAddon = parseWorkflow('_release-full-addon.yml');
   const prebuildAdmission = fullAddon.jobs['restore-standard'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit executor-head Full publication target before build',
   );
   assert.match(String(prebuildAdmission.run), /git -C app-source rev-parse HEAD/);
-  assert.match(String(prebuildAdmission.run), /adjunct_git_ref_target/);
-  assert.match(String(prebuildAdmission.run), /release_executor\.app_sha/);
+  assert.match(String(prebuildAdmission.run), /same_release_append_and_asset_cas/);
+  assert.match(String(prebuildAdmission.run), /new_release_or_tag_allowed:false/);
   assert.match(String(prebuildAdmission.run), /mutation_authorized:false/);
   assert.match(String(prebuildAdmission.run), /higher_privilege_workflows_token_required:false/);
   const publish = workflowStep(
     '_release-full-addon.yml',
     'publish-full',
-    'Publish exact Full bytes as an immutable adjunct',
+    'Append exact Full bytes to the mutable Standard Release',
   );
   assert.match(
     String(publish.run),
@@ -78,11 +78,16 @@ test('Full publication declares the Stable channel at the guarded GitHub adapter
   );
   assert.equal(
     (String(publish.run).match(/framework-release-adapter\.ts github-apply/g) ?? []).length,
-    2,
+    3,
   );
   assert.match(String(publish.run), /--mutation-mode rehearsal/);
   assert.match(String(publish.run), /--mutation-mode execute/);
+  assert.match(String(publish.run), /--output full-read-only-reconcile\.json/);
+  assert.match(String(publish.run), /\.reconciliation\.classification full-read-only-reconcile\.json/);
+  assert.match(String(publish.run), /\.mutation_attempted full-read-only-reconcile\.json\)" = false/);
   assert.match(String(publish.run), /--executor-app-sha "\$GITHUB_SHA"/);
+  assert.match(String(publish.run), /--standard-attestation "\$standard_attestation"/);
+  assert.doesNotMatch(String(publish.run), /adjunct|gh release create|--create/);
   assert.doesNotMatch(String(publish.run), /scripts\/publish-release\.ts/);
 });
 
@@ -310,6 +315,8 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   const canary = parseWorkflow('release-bundle-canary.yml');
   const fullAddon = parseWorkflow('_release-full-addon.yml');
   const fullBuild = parseWorkflow('full-first-install-release.yml');
+  const fullBuildSource = readWorkflow('full-first-install-release.yml');
+  const fullAddonSource = readWorkflow('_release-full-addon.yml');
   const protectedPreflightEnvironment = "${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}";
   const protectedMacosBuildEnvironment = "${{ inputs.require_macos_gatekeeper && startsWith(matrix.platform, 'macos') && 'release-stable' || null }}";
   const signingPreflight = reusableBuild.jobs['macos-signing-preflight'].steps.find(
@@ -543,8 +550,23 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(finalizerDiagnostics.if, '${{ always() }}');
   assert.equal(finalizerDiagnostics.with['if-no-files-found'], 'warn');
   assert.doesNotMatch(
-    readWorkflow('full-first-install-release.yml'),
+    fullBuildSource,
     /Verify (?:Intel-finalized )?Full artifact plan without (?:a )?release mutation/,
+  );
+  assert.doesNotMatch(fullBuildSource, /independent_immutable_adjunct_linked_to_existing_standard/);
+  assert.equal(
+    (fullBuildSource.match(/publication_model: 'same_tag_mutable_standard_addon'/g) ?? []).length,
+    2,
+    'both Full manifest producers must bind the same-tag mutable Standard model directly',
+  );
+  assert.equal(
+    (fullBuildSource.match(/standard_asset_overwrite_or_delete_allowed: false/g) ?? []).length,
+    2,
+    'both Full manifest producers must seal Standard assets against overwrite or deletion',
+  );
+  assert.match(
+    fullAddonSource,
+    /Full build manifest does not bind the exact same-tag mutable Standard append target/,
   );
 
   for (const name of [
@@ -599,7 +621,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     'Intel finalizer must bind the public manifest with the canonical prefixed DMG digest',
   );
   assert.equal(
-    (readWorkflow('full-first-install-release.yml').match(
+    (fullBuildSource.match(
       /sha256: `sha256:\$\{crypto\.createHash\('sha256'\)/g,
     ) ?? []).length,
     2,

@@ -18,7 +18,7 @@ function asset(name: string, digit: string) {
   };
 }
 
-test('App owner manifest records only immutable standard App artifacts', () => {
+test('App owner manifest records only the frozen Standard public asset set', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-component-'));
   const releaseJson = path.join(root, 'release.json');
   const output = path.join(root, 'opl-app-component-manifest.json');
@@ -80,7 +80,7 @@ test('App owner manifest records only immutable standard App artifacts', () => {
     non_stable_notice: false,
   });
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
-  assert.equal(component.artifacts.length, 9);
+  assert.equal(component.artifacts.length, 6);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.deepEqual(
     component.artifacts.find((entry: { name: string }) => entry.name === 'opl-install.sh'),
@@ -92,16 +92,13 @@ test('App owner manifest records only immutable standard App artifacts', () => {
       content_type: 'application/octet-stream',
     },
   );
-  assert.deepEqual(
-    component.artifacts.find((entry: { name: string }) => entry.name === 'opl-app-installer.sh'),
-    {
-      name: 'opl-app-installer.sh',
-      ref: 'https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.13/opl-app-installer.sh',
-      digest: `sha256:${'5'.repeat(64)}`,
-      size: 100,
-      content_type: 'application/octet-stream',
-    },
-  );
+  for (const retired of [
+    'opl-app-installer.sh',
+    'standard-gatekeeper-launch-policy.json',
+    'standard-apple-notarization-receipt.json',
+  ]) {
+    assert.equal(component.artifacts.some((entry: { name: string }) => entry.name === retired), false);
+  }
   assert.match(component.component_manifest_digest, /^sha256:[0-9a-f]{64}$/);
   const { component_manifest_digest: _digest, ...core } = component;
   assert.equal(
@@ -194,7 +191,7 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
               non_stable_notice: true,
             },
       );
-      assert.equal(component.artifacts.length, fixture.buildTrigger === 'automated' ? 7 : 9);
+      assert.equal(component.artifacts.length, 6);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -255,8 +252,8 @@ test('Bundle topology binds the component manifest before remote digest verifica
   assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /app-source\/install\.sh/);
   assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /generate-frozen-universal-installer\.ts/);
   assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /standard-assets\/opl-install\.sh/);
-  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /opl-app-installer\.sh/);
-  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /cmp "\$source_installer" "\$release_installer"/);
+  assert.doesNotMatch(bundleWorkflow.slice(sealIdentity, checkpoint), /opl-app-installer\.sh/);
+  assert.doesNotMatch(bundleWorkflow.slice(sealIdentity, checkpoint), /standard-gatekeeper-launch-policy\.json|standard-apple-notarization-receipt\.json/);
   assert.match(bundleWorkflow.slice(publishReusable), /uses: \.\/\.github\/workflows\/_release-standard-publish\.yml/);
   assert.match(bindScript, /opl_standard_release_identity_receipt\.v2/);
   assert.doesNotMatch(publishWorkflow.slice(remoteVerify, latest), /release_bundle_status\.latest_eligible/);

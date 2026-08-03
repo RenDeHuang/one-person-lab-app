@@ -107,9 +107,11 @@ Homebrew 本身也支持 Linux。`opl` Formula 是 Base/CLI carrier；Cask 和�
 Container image 仍只是 WebUI 内部 carrier，不会形成第三个产品表面。精确可用性
 由所选 release 或 package owner 证明，不由本 README 外推。
 
-公开的 Full Homebrew Cask 仍是旧的非托管路径：它安装整个 Full DMG，同时声明
-`opl` Formula，因而引入两个 Base carrier。修正后的 Full Cask 生成器已实现，但尚未
-完成公开晋升和 clean-host 资格；完整首次安装目前优先使用下文的 Full DMG。
+Full 是 Standard 之后独立执行的可选附加模块。Standard 先公开并成为 Latest；Full
+成功后只向同一个 Standard Release/tag 新增 Full DMG 与
+`opl-release-manifest.json`，不创建平行 Full Release/tag，也不修改 Standard assets、
+release body、updater metadata 或 Latest。Full Homebrew follower 只消费该同 tag、
+digest-bound 的结果。
 Nightly 表示 Automated Preview，不是第三种质量或载荷密度。当前 schedule 选择
 Standard 密度且默认不移动 Latest；独立的 protected single-use pointer operation
 可以临时选择 exact published Preview，而不提升质量，下一 qualified Stable 默认
@@ -153,12 +155,13 @@ brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 未安装 Homebrew 时，从下面的 GitHub Release 下载精确 DMG。不要把可变
 `main` 分支中的 `install.sh` 直接通过管道交给 shell 执行。仓库脚本仍供从已审阅
 source checkout 开发或恢复时运行 `./install.sh`。公开 Release 同 tag 的
-`opl-app-installer.sh` 会在任何 App 目标变更前校验其 component manifest 与 DMG：
+`opl-install.sh` 是唯一公开 installer，会在任何 App 目标变更前校验 component
+manifest 与 DMG：
 
 ```bash
-curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-app-installer.sh
-chmod 0755 opl-app-installer.sh
-./opl-app-installer.sh --stable-macos-install --standard --release-tag v<version> --yes
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-install.sh
+chmod 0755 opl-install.sh
+./opl-install.sh --stable-macos-install --standard --release-tag v<version> --yes
 ```
 
 ### 直接下载
@@ -167,9 +170,15 @@ chmod 0755 opl-app-installer.sh
 
 [下载 One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-没有 Homebrew 的 macOS arm64 新用户优先选择
-`One-Person-Lab-Full-<version>-mac-arm64.dmg`。在 Full Homebrew publication
-仍未纳入托管前，它是完整首次安装的权威资产。
+没有 Homebrew 的 macOS arm64 新用户可在同一 Standard Release 页面已出现 Full 时
+选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`；Full 后续出现不会改变哪个
+Standard 是 Latest。
+
+下一真实 Stable 的 Standard 由唯一 Release owner 使用受控 GitHub repository
+setting window：创建 Release 前关闭 release immutability，Standard 公开并完成 Latest
+回读后立即恢复。恢复 setting 只保护后续 releases，不会追溯锁定该 Standard；其信任
+边界是 asset name/size/digest CAS 与统一 `opl-release-attestation.json`。现有 immutable
+r5 仅作历史证据，不迁移、不 unseal。
 
 支持矩阵是 Desktop/WebUI 与 Standard/Full 的四个组合。DMG、Homebrew、平台
 package、Native 与 Container 都只是这些组合中的 carrier 选择。矩阵本身不声明

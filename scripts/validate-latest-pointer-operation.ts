@@ -124,8 +124,27 @@ function validateReleaseInspection(
       }))
       .sort((left: JsonRecord, right: JsonRecord) => String(left.name).localeCompare(String(right.name)))
     : [];
-  requireEqual(observed, expected, 'Published release asset set');
-  return expected;
+  let expectedPublishedAssets = expected;
+  if (manifest.quality_status === 'stable') {
+    const attestations = observed.filter((asset: JsonRecord) => asset.name === 'opl-release-attestation.json');
+    if (attestations.length !== 1) {
+      throw new Error('Published Stable release must expose exactly one unified release attestation.');
+    }
+    const attestation = attestations[0];
+    if (!Number.isSafeInteger(attestation.size_bytes) || attestation.size_bytes <= 0) {
+      throw new Error('Published Stable release attestation must expose one positive size.');
+    }
+    expectedPublishedAssets = [
+      ...expected,
+      {
+        name: 'opl-release-attestation.json',
+        size_bytes: attestation.size_bytes,
+        sha256: requireDigest(attestation.sha256, 'Published Stable release attestation digest'),
+      },
+    ].sort((left, right) => left.name.localeCompare(right.name));
+  }
+  requireEqual(observed, expectedPublishedAssets, 'Published release asset set');
+  return expectedPublishedAssets;
 }
 
 export type LatestPointerOperationInput = {

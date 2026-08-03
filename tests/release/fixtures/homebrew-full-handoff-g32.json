@@ -24,12 +24,19 @@
   },
   "release": {
     "version": "26.8.1-r5",
-    "adjunct_tag": "v26.8.1-r5-full-17f46a1d04b9",
+    "standard_tag": "v26.8.1-r5",
     "target_standard": {
       "release_id": 363488678,
       "tag": "v26.8.1-r5",
       "target_commitish": "be731d063d8d761a6f0195cfb9c7bb36f79ce84a",
-      "mutation_allowed": false
+      "immutable": false,
+      "full_asset_append_allowed": true,
+      "standard_asset_overwrite_or_delete_allowed": false
+    },
+    "standard_attestation": {
+      "name": "opl-release-attestation.json",
+      "sha256": "sha256:c40329f2071c0efb80c1d80ef123aadb338c136e1f42d1fc8cc27ae411480e0c",
+      "size_bytes": 4096
     },
     "manifest": {
       "name": "opl-release-manifest.json",
@@ -54,13 +61,13 @@
     "name": "One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg",
     "size_bytes": 578901774,
     "sha256": "sha256:6a44266d936a031b949b0eac0951ab84d2e540f4a1d39eb92b3b9a0645b889cc",
-    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.8.1-r5-full-17f46a1d04b9/One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg"
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.8.1-r5/One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg"
   },
   "manifest": {
     "name": "opl-release-manifest.json",
     "size_bytes": 133104,
     "sha256": "sha256:17f46a1d04b964d11e5b2df831ae98a11c3379435f2fd5cf16b8790319a33a2d",
-    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.8.1-r5-full-17f46a1d04b9/opl-release-manifest.json"
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.8.1-r5/opl-release-manifest.json"
   },
   "github_full_publication": {
     "status": "complete",

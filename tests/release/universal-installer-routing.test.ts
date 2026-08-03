@@ -77,16 +77,14 @@ test('the universal installer has no Native tarball discovery or verifier fallba
   assert.doesNotMatch(source, /OPL_NATIVE_WEBUI_|install-web\.sh|native-webui-qualified/);
 });
 
-test('macOS Full resolves one self-addressed immutable carrier without assuming the Standard tag', () => {
+test('macOS Full resolves from the exact Standard tag and binds its unified attestation', () => {
   const source = fs.readFileSync(installerPath, 'utf8');
-  assert.match(source, /resolve_full_adjunct_release_record/);
-  assert.match(source, /releases\?per_page=100&page=\$page/);
-  assert.match(source, /download_release_record "\$candidate_tag"/);
-  assert.match(source, /full_release_record_binds_tagged_assets/);
-  assert.match(source, /Full carrier exact-tag readback/);
-  assert.match(source, /exactly one self-addressed immutable Release/);
-  assert.match(source, /Full adjunct public manifest does not bind the exact Full DMG digest and size/);
-  assert.match(source, /Full adjunct DMG identity changed while validating its public manifest/);
-  assert.match(source, /No immutable Full carrier is published/);
+  assert.match(source, /asset_name=\$\(release_asset_name "\$tag" full\)/);
+  assert.match(source, /releases\/download\/\$tag\/\$asset_name/);
+  assert.match(source, /carrier_context\.standard_attestation\.sha256/);
+  assert.match(source, /Full public manifest does not bind the exact Full DMG digest and size/);
+  assert.match(source, /Full DMG identity changed while validating its same-tag public manifest/);
+  assert.match(source, /No same-tag Full module is published/);
   assert.match(source, /continuing with the Standard DMG/);
+  assert.doesNotMatch(source, /resolve_full_adjunct_release_record|releases\?per_page=100&page=\$page/);
 });

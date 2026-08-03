@@ -39,10 +39,9 @@ STABLE_MACOS_RELEASE_RECORD_PATH=''
 STABLE_MACOS_RELEASE_PRERELEASE=''
 STABLE_MACOS_COMPONENT_MANIFEST_PATH=''
 STABLE_MACOS_COMPONENT_MANIFEST_SHA256=''
-STABLE_MACOS_FULL_ADJUNCT_TAG=''
-STABLE_MACOS_FULL_RELEASE_RECORD_PATH=''
 STABLE_MACOS_FULL_MANIFEST_PATH=''
 STABLE_MACOS_RELEASE_QUALITY_ASSERTED=0
+STABLE_MACOS_RELEASE_QUALITY=''
 LINUX_DESKTOP_WORK_DIR=''
 DESKTOP_WEBUI_MODE=0
 INSTALL_SCENARIO=${OPL_INSTALL_SCENARIO:-personal}
@@ -930,170 +929,6 @@ resolve_release_asset() {
   [ "$matches" -eq 1 ]
 }
 
-download_release_page() {
-  local page="$1"
-  local record_path="$2"
-  local api_path="repos/$OPL_APP_RELEASE_REPO/releases?per_page=100&page=$page"
-  local endpoint="https://api.github.com/$api_path"
-  local curl_error_path="${record_path}.curl.stderr"
-  local curl_status=0
-  if curl -fsSL \
-    -H 'Accept: application/vnd.github+json' \
-    -H 'X-GitHub-Api-Version: 2022-11-28' \
-    -H 'User-Agent: one-person-lab-installer' \
-    "$endpoint" \
-    -o "$record_path" \
-    2>"$curl_error_path"; then
-    rm -f "$curl_error_path"
-    return 0
-  else
-    curl_status=$?
-  fi
-  rm -f "$record_path"
-  if command -v gh >/dev/null 2>&1 \
-    && GH_PROMPT_DISABLED=1 gh api --hostname github.com \
-      -H 'Accept: application/vnd.github+json' \
-      -H 'X-GitHub-Api-Version: 2022-11-28' \
-      "$api_path" >"$record_path"; then
-    rm -f "$curl_error_path"
-    printf 'Anonymous GitHub Release API request failed; used authenticated gh fallback.\n' >&2
-    return 0
-  fi
-  rm -f "$record_path"
-  if [ -f "$curl_error_path" ]; then
-    cat "$curl_error_path" >&2
-    rm -f "$curl_error_path"
-  fi
-  return "$curl_status"
-}
-
-full_release_version_from_tag() {
-  local candidate="$1"
-  local carrier_tag suffix
-  case "$candidate" in
-    v*-full-*)
-      carrier_tag="${candidate%-full-*}"
-      suffix="${candidate##*-full-}"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-  validate_release_tag "$carrier_tag" || return 1
-  case "$suffix" in
-    *[!0-9a-f]*|'')
-      return 1
-      ;;
-  esac
-  [ "${#suffix}" -eq 12 ] || return 1
-  printf '%s\n' "${carrier_tag#v}"
-}
-
-validate_full_adjunct_tag() {
-  full_release_version_from_tag "$1" >/dev/null
-}
-
-full_release_record_binds_tagged_assets() {
-  local record_path="$1"
-  local release_prefix="$2"
-  local tag="$3"
-  local version dmg_name manifest_name asset_prefix index=0 name digest size url
-  local dmg_matches=0 manifest_matches=0 suffix
-  version=$(full_release_version_from_tag "$tag") || return 1
-  dmg_name="One-Person-Lab-Full-${version}-mac-arm64.dmg"
-  manifest_name='opl-release-manifest.json'
-  asset_prefix="${release_prefix:+$release_prefix.}assets"
-  suffix="${tag##*-full-}"
-  while name=$(release_record_value "$record_path" "$asset_prefix.$index.name" 2>/dev/null); do
-    if [ "$name" = "$dmg_name" ] || [ "$name" = "$manifest_name" ]; then
-      digest=$(release_record_value "$record_path" "$asset_prefix.$index.digest" 2>/dev/null || true)
-      size=$(release_record_value "$record_path" "$asset_prefix.$index.size" 2>/dev/null || true)
-      url=$(release_record_value "$record_path" "$asset_prefix.$index.browser_download_url" 2>/dev/null || true)
-      case "$digest" in
-        sha256:*)
-          digest="${digest#sha256:}"
-          ;;
-        *)
-          digest=''
-          ;;
-      esac
-      if validate_sha256_value "$digest" \
-        && validate_positive_integer "$size" \
-        && [ "$url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$name" ]; then
-        if [ "$name" = "$dmg_name" ]; then
-          dmg_matches=$((dmg_matches + 1))
-        elif [ "$suffix" = "$(printf '%s' "$digest" | cut -c1-12)" ]; then
-          manifest_matches=$((manifest_matches + 1))
-        fi
-      fi
-    fi
-    index=$((index + 1))
-  done
-  [ "$dmg_matches" -eq 1 ] && [ "$manifest_matches" -eq 1 ]
-}
-
-resolve_full_adjunct_release_record() {
-  local work_dir="$1"
-  local page=1 page_path index tag draft prerelease immutable target
-  local page_entries matching_tags=0 identity_tags=0 eligible_tags=0 candidate_tag=''
-  while [ "$page" -le 100 ]; do
-    page_path="$work_dir/github-releases-page-$page.json"
-    download_release_page "$page" "$page_path" || return 1
-    index=0
-    page_entries=0
-    while tag=$(release_record_value "$page_path" "$index.tag_name" 2>/dev/null); do
-      page_entries=$((page_entries + 1))
-      if validate_full_adjunct_tag "$tag"; then
-        matching_tags=$((matching_tags + 1))
-        draft=$(release_record_value "$page_path" "$index.draft" 2>/dev/null || true)
-        prerelease=$(release_record_value "$page_path" "$index.prerelease" 2>/dev/null || true)
-        immutable=$(release_record_value "$page_path" "$index.immutable" 2>/dev/null || true)
-        if full_release_record_binds_tagged_assets "$page_path" "$index" "$tag"; then
-          identity_tags=$((identity_tags + 1))
-        fi
-        if [ "$identity_tags" -gt 0 ] \
-          && full_release_record_binds_tagged_assets "$page_path" "$index" "$tag" \
-          && [ "$draft" = false ] \
-          && [ "$prerelease" = false ] \
-          && [ "$immutable" = true ]; then
-          eligible_tags=$((eligible_tags + 1))
-          candidate_tag="$tag"
-        fi
-      fi
-      index=$((index + 1))
-    done
-    if [ "$page_entries" -lt 100 ]; then
-      break
-    fi
-    page=$((page + 1))
-  done
-  if [ "$page" -gt 100 ]; then
-    printf 'Full adjunct discovery exceeded the bounded GitHub Release page limit.\n' >&2
-    return 1
-  fi
-  if [ "$matching_tags" -eq 0 ]; then
-    return 2
-  fi
-  if [ "$matching_tags" -ne 1 ] || [ "$identity_tags" -ne 1 ] || [ "$eligible_tags" -ne 1 ]; then
-    printf 'Full carrier discovery requires exactly one self-addressed immutable Release; found %s Full tag(s), %s self-addressed tag(s), %s eligible.\n' \
-      "$matching_tags" "$identity_tags" "$eligible_tags" >&2
-    return 1
-  fi
-
-  local record_path="$work_dir/github-full-adjunct-release.json"
-  download_release_record "$candidate_tag" "$record_path" || return 1
-  [ "$(release_record_value "$record_path" tag_name)" = "$candidate_tag" ] \
-    && [ "$(release_record_value "$record_path" draft)" = false ] \
-    && [ "$(release_record_value "$record_path" prerelease)" = false ] \
-    && [ "$(release_record_value "$record_path" immutable)" = true ] \
-    && full_release_record_binds_tagged_assets "$record_path" '' "$candidate_tag" || {
-      printf 'Full carrier exact-tag readback does not match the discovered self-addressed immutable Release.\n' >&2
-      return 1
-    }
-  STABLE_MACOS_FULL_ADJUNCT_TAG="$candidate_tag"
-  STABLE_MACOS_FULL_RELEASE_RECORD_PATH="$record_path"
-}
-
 require_caller_dmg_sha256() {
   if ! validate_sha256_value "$STABLE_MACOS_DMG_SHA256"; then
     printf 'Custom DMG URL or path requires --dmg-sha256 with 64 lowercase hexadecimal characters.\n' >&2
@@ -1141,7 +976,7 @@ release_asset_name() {
   local version
   case "$profile" in
     full)
-      version=$(full_release_version_from_tag "$tag") || return 1
+      version="${tag#v}"
       printf 'One-Person-Lab-Full-%s-mac-arm64.dmg\n' "$version"
       ;;
     standard)
@@ -1392,25 +1227,26 @@ download_and_validate_component_manifest() {
   STABLE_MACOS_COMPONENT_MANIFEST_PATH="$manifest_path"
   STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$manifest_asset_sha256"
   STABLE_MACOS_RELEASE_QUALITY_ASSERTED=1
+  STABLE_MACOS_RELEASE_QUALITY="$quality"
 }
 
 download_and_validate_full_manifest() {
   local work_dir="$1"
   local record_path="$2"
-  local adjunct_tag="$3"
+  local standard_tag="$3"
   local asset_name="$4"
   local asset_sha256="$5"
   local asset_size="$6"
   local manifest_path expected_url schema package_kind owner_authority version release_version primary_name expected_version
-  local manifest_asset_size
+  local manifest_asset_size standard_attestation_sha manifest_attestation_sha
   local index=0 name sha256 size_bytes normalized_sha256 matches=0
   resolve_release_asset "$record_path" 'opl-release-manifest.json' || {
-    printf 'Full adjunct Release has no unique digest-bound public manifest asset.\n' >&2
+    printf 'Standard Release has no unique digest-bound Full public manifest asset.\n' >&2
     return 1
   }
-  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$adjunct_tag/opl-release-manifest.json"
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$standard_tag/opl-release-manifest.json"
   [ "$RELEASE_ASSET_URL" = "$expected_url" ] || {
-    printf 'Full adjunct manifest URL does not match its exact Release asset.\n' >&2
+    printf 'Full manifest URL does not match the exact Standard Release asset.\n' >&2
     return 1
   }
   manifest_asset_size="$RELEASE_ASSET_SIZE_BYTES"
@@ -1425,7 +1261,8 @@ download_and_validate_full_manifest() {
   version=$(component_manifest_value "$manifest_path" version 2>/dev/null || true)
   release_version=$(component_manifest_value "$manifest_path" release_version 2>/dev/null || true)
   primary_name=$(component_manifest_value "$manifest_path" primary_install_asset 2>/dev/null || true)
-  expected_version=$(full_release_version_from_tag "$adjunct_tag") || return 1
+  validate_release_tag "$standard_tag" || return 1
+  expected_version="${standard_tag#v}"
   [ "$schema" = opl_public_release_manifest.v1 ] \
     && [ "$package_kind" = opl_full_first_install_macos_arm64 ] \
     && [ "$owner_authority" = one-person-lab-app ] \
@@ -1450,7 +1287,17 @@ download_and_validate_full_manifest() {
     index=$((index + 1))
   done
   [ "$matches" -eq 1 ] || {
-    printf 'Full adjunct public manifest does not bind the exact Full DMG digest and size.\n' >&2
+      printf 'Full public manifest does not bind the exact Full DMG digest and size.\n' >&2
+      return 1
+    }
+  resolve_release_asset "$record_path" 'opl-release-attestation.json' || {
+    printf 'Standard Release has no unique unified attestation.\n' >&2
+    return 1
+  }
+  standard_attestation_sha="$RELEASE_ASSET_SHA256"
+  manifest_attestation_sha=$(component_manifest_value "$manifest_path" carrier_context.standard_attestation.sha256 2>/dev/null || true)
+  [ "$manifest_attestation_sha" = "sha256:$standard_attestation_sha" ] || {
+    printf 'Full public manifest does not bind the exact Standard release attestation.\n' >&2
     return 1
   }
   STABLE_MACOS_FULL_MANIFEST_PATH="$manifest_path"
@@ -1463,8 +1310,7 @@ download_or_use_dmg() {
   STABLE_MACOS_RESOLVED_DMG_PATH=''
   STABLE_MACOS_RESOLVED_DMG_SHA256=''
   STABLE_MACOS_RELEASE_QUALITY_ASSERTED=0
-  STABLE_MACOS_FULL_ADJUNCT_TAG=''
-  STABLE_MACOS_FULL_RELEASE_RECORD_PATH=''
+  STABLE_MACOS_RELEASE_QUALITY=''
   STABLE_MACOS_FULL_MANIFEST_PATH=''
   if [ -n "$STABLE_MACOS_DMG_PATH" ] || [ -n "$STABLE_MACOS_DMG_URL" ]; then
     require_caller_dmg_sha256 || return 1
@@ -1504,45 +1350,42 @@ download_or_use_dmg() {
     "$work_dir" "$record_path" "$tag" "$standard_asset_name" "$standard_asset_sha256" || return 1
 
   if [ "$STABLE_MACOS_PACKAGE_PROFILE" = full ]; then
-    if resolve_full_adjunct_release_record "$work_dir"; then
-      record_path="$STABLE_MACOS_FULL_RELEASE_RECORD_PATH"
-      asset_name=$(release_asset_name "$STABLE_MACOS_FULL_ADJUNCT_TAG" full)
-      resolve_release_asset "$record_path" "$asset_name" || {
-        printf 'Full adjunct Release has no unique digest-bound DMG asset: %s\n' "$asset_name" >&2
+    asset_name=$(release_asset_name "$tag" full)
+    if resolve_release_asset "$record_path" "$asset_name"; then
+      if [ "$STABLE_MACOS_RELEASE_PRERELEASE" != false ] \
+        || [ "$STABLE_MACOS_RELEASE_QUALITY" != stable ]; then
+        printf 'A same-tag Full module requires one qualified non-prerelease Standard Release.\n' >&2
         return 1
-      }
-      expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$STABLE_MACOS_FULL_ADJUNCT_TAG/$asset_name"
+      fi
+      expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
       [ "$RELEASE_ASSET_URL" = "$expected_url" ] || {
-        printf 'Full adjunct DMG URL does not match its exact Release asset.\n' >&2
+        printf 'Full DMG URL does not match its exact Standard Release asset.\n' >&2
         return 1
       }
       expected_sha256="$RELEASE_ASSET_SHA256"
       expected_size="$RELEASE_ASSET_SIZE_BYTES"
       download_and_validate_full_manifest \
-        "$work_dir" "$record_path" "$STABLE_MACOS_FULL_ADJUNCT_TAG" \
+        "$work_dir" "$record_path" "$tag" \
         "$asset_name" "$expected_sha256" "$expected_size" || return 1
       resolve_release_asset "$record_path" "$asset_name" || return 1
       [ "$RELEASE_ASSET_URL" = "$expected_url" ] \
         && [ "$RELEASE_ASSET_SHA256" = "$expected_sha256" ] \
         && [ "$RELEASE_ASSET_SIZE_BYTES" = "$expected_size" ] || {
-        printf 'Full adjunct DMG identity changed while validating its public manifest.\n' >&2
+        printf 'Full DMG identity changed while validating its same-tag public manifest.\n' >&2
         return 1
       }
     else
       adjunct_status=$?
-      if [ "$adjunct_status" -eq 2 ] && [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = 0 ]; then
-        record_path="$STABLE_MACOS_RELEASE_RECORD_PATH"
+      if [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = 0 ]; then
         asset_name="$standard_asset_name"
-        printf 'Full adjunct is not published for %s; continuing with the Standard DMG.\n' "$tag" >&2
+        printf 'Full module is not appended to %s; continuing with the Standard DMG.\n' "$tag" >&2
         resolve_release_asset "$record_path" "$asset_name" || return 1
         expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
         expected_sha256="$RELEASE_ASSET_SHA256"
         expected_size="$RELEASE_ASSET_SIZE_BYTES"
-      elif [ "$adjunct_status" -eq 2 ]; then
-        printf 'No immutable Full carrier is published.\n' >&2
-        return 1
       else
-        return "$adjunct_status"
+        printf 'No same-tag Full module is published.\n' >&2
+        return 1
       fi
     fi
   else
@@ -1553,9 +1396,6 @@ download_or_use_dmg() {
     expected_size="$RELEASE_ASSET_SIZE_BYTES"
   fi
   expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name"
-  if [ "$STABLE_MACOS_PACKAGE_PROFILE" = full ] && [ -n "$STABLE_MACOS_FULL_ADJUNCT_TAG" ]; then
-    expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$STABLE_MACOS_FULL_ADJUNCT_TAG/$asset_name"
-  fi
   if [ "$RELEASE_ASSET_URL" != "$expected_url" ]; then
     printf 'GitHub Release asset URL mismatch for %s.\n' "$asset_name" >&2
     return 1

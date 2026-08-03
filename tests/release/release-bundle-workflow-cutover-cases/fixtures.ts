@@ -182,24 +182,19 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
     'Read back exact remote Standard digests',
   );
   const run = String(step.run ?? '');
-  const start = run.indexOf('record_size=');
-  const end = run.indexOf(
-    'node --experimental-strip-types app-source/scripts/stable-operation-publication-record.ts verify-published',
-    start,
-  );
-  assert.notEqual(start, -1, 'remote digest step must size the durable publication record');
-  assert.notEqual(end, -1, 'remote digest step must verify the published carrier binding');
+  const start = run.search(/jq \\\n\s+--null-input \\\n\s+--slurpfile plan/);
+  const end = run.slice(start).search(/jq -e \\\n\s+--slurpfile expected/) + start;
+  assert.notEqual(start, -1, 'remote digest step must build the expected mutable Standard asset set');
+  assert.notEqual(end, -1, 'remote digest step must verify the exact mutable Standard carrier');
 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-expected-release-assets-'));
-  const record = path.join(root, 'stable-operation-publication-record.json');
   const plan = path.join(root, 'publish-plan.json');
-  const recordBytes = `${JSON.stringify({ schema: 'opl_app_stable_operation_publication_record.v1' })}\n`;
+  const attestationBytes = `${JSON.stringify({ schema: 'opl_app_release_attestation.v1' })}\n`;
   const uploaded = {
     name: 'One-Person-Lab-26.7.31-r2-mac-arm64.dmg',
     digest: `sha256:${'a'.repeat(64)}`,
     size_bytes: 123,
   };
-  fs.writeFileSync(record, recordBytes);
   fs.writeFileSync(plan, `${JSON.stringify({
     release_bundle_publish: {
       receipt: {
@@ -218,14 +213,15 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
     const result = spawnSync(
       'bash',
       ['-e', '-u', '-o', 'pipefail', '-c', [
-        `record=${JSON.stringify(record)}`,
+        `attestation_sha=sha256:${crypto.createHash('sha256').update(attestationBytes).digest('hex')}`,
+        `attestation_size=${Buffer.byteLength(attestationBytes)}`,
         `plans=(${JSON.stringify(plan)})`,
         run.slice(start, end),
-        'test -s expected-immutable-release-assets.json',
+        'test -s expected-mutable-standard-assets.json',
       ].join('\n')],
       { cwd: root, encoding: 'utf8' },
     );
-    const outputPath = path.join(root, 'expected-immutable-release-assets.json');
+    const outputPath = path.join(root, 'expected-mutable-standard-assets.json');
     const output = result.status === 0
       ? JSON.parse(fs.readFileSync(outputPath, 'utf8'))
       : null;
@@ -236,9 +232,9 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
         assets: [
           uploaded,
           {
-            name: 'stable-operation-publication-record.json',
-            digest: `sha256:${crypto.createHash('sha256').update(recordBytes).digest('hex')}`,
-            size_bytes: Buffer.byteLength(recordBytes),
+            name: 'opl-release-attestation.json',
+            digest: `sha256:${crypto.createHash('sha256').update(attestationBytes).digest('hex')}`,
+            size_bytes: Buffer.byteLength(attestationBytes),
           },
         ],
       },

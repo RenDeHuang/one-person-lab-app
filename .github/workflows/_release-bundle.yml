@@ -841,19 +841,6 @@ jobs:
           name: linux-build-x64
           path: standard-assets
 
-      - name: Stage the exact App installer bootstrap
-        shell: bash
-        run: |
-          set -euo pipefail
-          source_installer=app-source/install.sh
-          release_installer=standard-assets/opl-app-installer.sh
-          test -f "$source_installer" && test ! -L "$source_installer"
-          cp "$source_installer" "$release_installer"
-          chmod 0755 "$release_installer"
-          test -f "$release_installer" && test ! -L "$release_installer"
-          test -x "$release_installer"
-          cmp "$source_installer" "$release_installer"
-
       - name: Generate the frozen universal installer asset
         shell: bash
         run: |

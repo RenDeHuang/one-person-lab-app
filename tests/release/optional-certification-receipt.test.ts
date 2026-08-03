@@ -29,7 +29,7 @@ const linuxExpected: OptionalCertificationExpectation = {
   ...expected,
   artifactName: 'One-Person-Lab-26.7.27-r1-linux-x64.deb',
   artifactDigest: digest('e'),
-  installerName: 'opl-app-installer.sh',
+  installerName: 'opl-install.sh',
   installerDigest: digest('f'),
 };
 
@@ -308,7 +308,7 @@ test('hosted Linux receipt rejects unavailable and non-exact admission identity'
 
   const invalidAdmission = writeJson(root, 'invalid-hosted-admission.json', hostedLinuxAdmission({
     installer: {
-      name: 'opl-app-installer.sh',
+      name: 'opl-install.sh',
       digest: digest('0'),
     },
   }));

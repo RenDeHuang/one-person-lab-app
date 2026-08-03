@@ -250,13 +250,13 @@ function requiredFormalStableAssetNames(version: string): string[] {
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
+    `One-Person-Lab-${version}-linux-x64.deb`,
     expectedDmgName(version),
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
     'opl-release-manifest.json',
-    'standard-gatekeeper-launch-policy.json',
-    'standard-apple-notarization-receipt.json',
+    'opl-release-attestation.json',
   ].sort();
 }
 

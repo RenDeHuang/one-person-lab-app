@@ -110,15 +110,13 @@ export function generateFrozenUniversalInstaller(input: FrozenUniversalInstaller
     throw new Error('Frozen universal installer omitted the exact Release tag.');
   }
   for (const fragment of [
-    'resolve_full_adjunct_release_record',
-    'releases?per_page=100&page=$page',
-    'download_release_record "$candidate_tag"',
-    'full_release_record_binds_tagged_assets',
+    'release_asset_name "$tag" full',
+    'download_and_validate_full_manifest',
+    'carrier_context.standard_attestation.sha256',
     'opl-release-manifest.json',
-    'STABLE_MACOS_FULL_ADJUNCT_TAG',
   ]) {
     if (!generated.includes(fragment)) {
-      throw new Error(`Frozen universal installer omitted Full adjunct resolver fragment: ${fragment}.`);
+      throw new Error(`Frozen universal installer omitted same-tag Full resolver fragment: ${fragment}.`);
     }
   }
   for (const [name, value] of [

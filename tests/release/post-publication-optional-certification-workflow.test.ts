@@ -310,9 +310,8 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.match(source, /operation:\[A-Za-z0-9\._:-\]\{1,128\} authority:/);
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable append_full source:/);
-  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag "\$handoff"\)"/);
-  assert.match(source, /tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
-  assert.match(source, /"\$base_tag"-full-/);
+  assert.match(source, /tag="\$\(jq -er \.release\.standard_tag "\$handoff"\)"/);
+  assert.match(source, /test "\$tag" = "\$\(jq -er \.release\.target_standard\.tag "\$handoff"\)"/);
   assert.doesNotMatch(source, /test "\$tag" = "\$head_branch"/);
   const fullIdentity = String(
     workflowStep(workflow, 'resolve-full', 'Bind exact public Full identity').run,
@@ -326,13 +325,13 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.doesNotMatch(fullIdentity, /\.release\.(?:base_tag|bundle_digest|cohort)/);
   assert.doesNotMatch(fullIdentity, /test "\$app_sha" = "\$head_sha"/);
   assert.match(fullIdentity, /\.target_commitish == \$executor/);
-  assert.match(fullIdentity, /test "\$\(jq -er \.artifact\.url "\$handoff"\)" = "\$adjunct_release_base\/\$artifact_name"/);
-  assert.match(fullIdentity, /test "\$\(jq -er \.manifest\.url "\$handoff"\)" = "\$adjunct_release_base\/\$manifest_name"/);
-  assert.match(fullIdentity, /standard_release_base=.*releases\/download\/\$\{base_tag\}/);
+  assert.match(fullIdentity, /test "\$\(jq -er \.artifact\.url "\$handoff"\)" = "\$release_base\/\$artifact_name"/);
+  assert.match(fullIdentity, /test "\$\(jq -er \.manifest\.url "\$handoff"\)" = "\$release_base\/\$manifest_name"/);
+  assert.match(fullIdentity, /standard_release_base="\$release_base"/);
   assert.match(fullIdentity, /standard_component_manifest_url="\$standard_release_base\/opl-app-component-manifest\.json"/);
-  assert.match(fullIdentity, /--expected-tag "\$base_tag"/);
+  assert.match(fullIdentity, /--expected-tag "\$tag"/);
   assert.match(fullIdentity, /\.source_cohort\.app_sha == \$app_sha/);
-  assert.doesNotMatch(fullIdentity, /adjunct_release_base\/opl-app-component-manifest\.json/);
+  assert.doesNotMatch(fullIdentity, /adjunct_release_base|adjunct_tag/);
   assert.match(fullIdentity, /--expected-source-commit "\$app_sha"/);
   assert.match(source, /opl-release-activation-\$\{SOURCE_RUN_ID\}/);
   assert.match(source, /opl-release-full-published-\$\{SOURCE_RUN_ID\}/);
@@ -413,7 +412,8 @@ test('Linux x64 certification consumes the exact public DEB and installer and pr
   assert.match(source, /\.digest == \$linux_digest/);
   assert.match(source, /\.digest == \$installer_digest/);
   assert.match(source, /sha256sum public-linux-artifact\.deb/);
-  assert.match(source, /sha256sum public-opl-app-installer\.sh/);
+  assert.match(source, /sha256sum public-opl-install\.sh/);
+  assert.doesNotMatch(source, /opl-app-installer\.sh/);
 });
 
 test('Standard and Full VM certification consume the exact published DMG without rebuilding it', () => {

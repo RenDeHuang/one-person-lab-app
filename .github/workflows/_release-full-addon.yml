@@ -211,7 +211,7 @@ jobs:
           test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ steps.framework-binding.outputs.framework_source_ref }}'
           test '${{ steps.checkpoint.outputs.framework_executor_ref }}' = '${{ inputs.framework_executor_ref }}'
 
-      - name: Reconcile imported outcome and admit independent Full control
+      - name: Reconcile imported outcome and admit same-tag Full control
         id: operation
         env:
           GH_TOKEN: ${{ github.token }}
@@ -255,31 +255,105 @@ jobs:
             case "$target" in
               github-release:*)
                 test "$publication_scope" = track_assets
-                full_manifests=()
-                while IFS= read -r manifest; do full_manifests+=("$manifest"); done < <(
-                  find checkpoint-identity-bootstrap -type f \
-                    -path '*/tracks/full/assets/opl-release-manifest.json' -print | LC_ALL=C sort
+                standard_tag="$(jq -er .release.tag "$bundle")"
+                test "$target" = "github-release:${repo}@${standard_tag}"
+                checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+                full_assets="$checkpoint/tracks/full/assets.json"
+                full_asset_dir="$checkpoint/tracks/full/assets"
+                dmg_name="One-Person-Lab-Full-$(jq -er .release.version "$bundle")-mac-arm64.dmg"
+                manifest_name=opl-release-manifest.json
+                test -f "$full_assets"
+                test -d "$full_asset_dir"
+                jq -e --arg dmg "$dmg_name" --arg manifest "$manifest_name" '
+                  (.assets | length) == 2
+                  and ([.assets[].name] | sort) == ([$dmg, $manifest] | sort)
+                  and all(.assets[];
+                    (.size_bytes | type == "number" and . > 0)
+                    and (.sha256 | type == "string" and test("^sha256:[0-9a-f]{64}$")))
+                ' "$full_assets" >/dev/null
+                while IFS=$'\t' read -r name expected_sha expected_size; do
+                  source_path="$full_asset_dir/$name"
+                  test -f "$source_path"
+                  test ! -L "$source_path"
+                  test "sha256:$(shasum -a 256 "$source_path" | awk '{print $1}')" = "$expected_sha"
+                  test "$(wc -c < "$source_path" | tr -d ' ')" = "$expected_size"
+                done < <(jq -r '.assets[] | [.name, .sha256, (.size_bytes | tostring)] | @tsv' "$full_assets")
+                standard_attestation_dir="$RUNNER_TEMP/opl-full-resume-standard-attestation-${GITHUB_RUN_ID}"
+                mkdir -p "$standard_attestation_dir"
+                gh release download "$standard_tag" \
+                  --repo "$repo" \
+                  --pattern opl-release-attestation.json \
+                  --dir "$standard_attestation_dir"
+                standard_attestations=()
+                while IFS= read -r item; do standard_attestations+=("$item"); done < <(
+                  find "$standard_attestation_dir" -type f -name opl-release-attestation.json -print
                 )
-                test "${#full_manifests[@]}" -eq 1
-                full_manifest="${full_manifests[0]}"
-                test -f "$full_manifest" && test ! -L "$full_manifest"
-                full_version="$(jq -er '
-                  select(
-                    .schema == "opl_public_release_manifest.v1"
-                    and .package_kind == "opl_full_first_install_macos_arm64"
-                    and .owner_authority == "one-person-lab-app"
-                    and .version == .release_version
-                  )
-                  | .release_version
-                  | select(type == "string" and test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
-                ' "$full_manifest")"
-                full_manifest_sha="$(shasum -a 256 "$full_manifest" | awk '{print $1}')"
-                adjunct_tag="v${full_version}-full-${full_manifest_sha:0:12}"
-                test "$target" = "github-release:${repo}@${adjunct_tag}"
-                if node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-                  --repo "$repo" --tag "$adjunct_tag" --output full-resume-observation.json; then
-                  outcome=complete
-                fi
+                test "${#standard_attestations[@]}" -eq 1
+                standard_attestation="${standard_attestations[0]}"
+                test -f "$standard_attestation"
+                test ! -L "$standard_attestation"
+                manifest_path="$full_asset_dir/$manifest_name"
+                executor_app_sha="$(jq -er '.carrier_context.release_executor.app_sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$manifest_path")"
+                jq -n \
+                  --slurpfile assets "$full_assets" \
+                  --arg bundle "$BUNDLE_DIGEST" \
+                  --arg asset_dir "$full_asset_dir" \
+                  --arg operation_id "$operation_id" \
+                  --arg operation_started_at "$operation_started_at" \
+                  --arg operation_deadline_at "$operation_deadline_at" '
+                  {
+                    release_bundle_publish: {
+                      bundle_digest: $bundle,
+                      track: "full",
+                      status: "reconcile_only",
+                      receipt: {
+                        release_operation: "append_full",
+                        operation_control: {
+                          operation_id: $operation_id,
+                          operation_started_at: $operation_started_at,
+                          operation_deadline_at: $operation_deadline_at
+                        },
+                        details: {
+                          upload_actions: ($assets[0].assets | map({
+                            action: "upload",
+                            name: .name,
+                            source_path: ($asset_dir + "/" + .name),
+                            size_bytes: .size_bytes,
+                            sha256: .sha256
+                          }))
+                        }
+                      }
+                    }
+                  }
+                ' > full-resume-reconcile-plan.json
+                node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+                  --bundle "$bundle" --plan full-resume-reconcile-plan.json \
+                  --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
+                  --publication-channel stable \
+                  --operation-id "$operation_id" --attempt-id "$reconcile_attempt" \
+                  --operation-started-at "$operation_started_at" \
+                  --operation-deadline-at "$operation_deadline_at" \
+                  --standard-attestation "$standard_attestation" \
+                  --executor-app-sha "$executor_app_sha" \
+                  --mutation-mode execute \
+                  --output full-resume-reconcile-inspection.json
+                test "$(jq -r .status full-resume-reconcile-inspection.json)" = reconcile_only
+                test "$(jq -r .mutation_attempted full-resume-reconcile-inspection.json)" = false
+                classification="$(jq -er .reconciliation.classification full-resume-reconcile-inspection.json)"
+                case "$classification" in
+                  complete)
+                    jq '.reconciliation.observation' full-resume-reconcile-inspection.json \
+                      > full-resume-observation.json
+                    outcome=complete
+                    ;;
+                  incomplete|conflict|unknown)
+                    outcome=unknown
+                    ;;
+                  *)
+                    echo "::error::Unsupported same-tag Full reconciliation classification: $classification"
+                    exit 1
+                    ;;
+                esac
                 ;;
               homebrew:*)
                 test "$publication_scope" = external_target
@@ -426,10 +500,13 @@ jobs:
             and .tag_name == $tag
             and .draft == false
             and .prerelease == false
-            and .immutable == true
+            and .immutable == false
             and (.published_at | type == "string" and length > 0)
             and (.target_commitish | type == "string" and test("^[0-9a-f]{40}$"))
-            and ([.assets[] | select(.name == "stable-operation-publication-record.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
+            and ([.assets[] | select(.name == "opl-release-attestation.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
+            and ([.assets[].name] | index("stable-operation-publication-record.json") | not)
+            and ([.assets[].name] | index("standard-gatekeeper-launch-policy.json") | not)
+            and ([.assets[].name] | index("standard-apple-notarization-receipt.json") | not)
           ' target-standard-release.json >/dev/null
           {
             bundle_digest="$(jq -r .bundle_digest "$bundle")"
@@ -459,8 +536,8 @@ jobs:
           test "$executor_sha" != "$TARGET_STANDARD_COMMITISH" || {
             echo "::notice::Full executor and target Standard currently share one App SHA; identities remain independently bound."
           }
-          contract_target="$(jq -er .full_first_install.published_addon.carrier_identity.adjunct_git_ref_target app-source/contracts/app-release-channel.json)"
-          test "$contract_target" = release_executor.app_sha
+          test "$(jq -r .full_first_install.published_addon.carrier_identity.new_release_or_tag_allowed app-source/contracts/app-release-channel.json)" = false
+          test "$(jq -r .full_first_install.published_addon.target_standard_reference.target_immutable_required app-source/contracts/app-release-channel.json)" = false
           jq -n \
             --arg executor_sha "$executor_sha" \
             --arg standard_target "$TARGET_STANDARD_COMMITISH" \
@@ -469,8 +546,9 @@ jobs:
               status:"passed",
               mutation_authorized:false,
               mutation_attempted:false,
-              adjunct_git_ref_target:{role:"release_executor",app_sha:$executor_sha},
-              target_standard_reference:{role:"reference_and_release_notes_only",target_commitish:$standard_target},
+              release_executor:{role:"full_manifest_provenance",app_sha:$executor_sha},
+              target_standard_reference:{role:"same_release_append_and_asset_cas",target_commitish:$standard_target,immutable:false},
+              new_release_or_tag_allowed:false,
               full_content_identity:{source:"opl-release-manifest.json",validated_after_build:true},
               higher_privilege_workflows_token_required:false
             }' > full-publication-target-admission.json
@@ -730,6 +808,32 @@ jobs:
           name: opl-hosted-full-core-qualification-${{ github.run_id }}
           path: hosted-core-qualification
 
+      - name: Download exact unified Standard attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir standard-attestation
+          gh release download '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern opl-release-attestation.json \
+            --dir standard-attestation
+          test -s standard-attestation/opl-release-attestation.json
+          test ! -L standard-attestation/opl-release-attestation.json
+          jq -e \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
+            --arg bundle '${{ needs.restore-standard.outputs.bundle_digest }}' '
+              .schema == "opl_app_release_attestation.v1"
+              and .status == "passed"
+              and .release.repository == $repository
+              and .release.tag == $tag
+              and .release.bundle_digest == $bundle
+              and .protection.github_native_immutable == false
+              and .protection.retroactive_lock_claimed == false
+            ' standard-attestation/opl-release-attestation.json >/dev/null
+
       - name: Bind Full bytes and export additive checkpoint
         env:
           BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
@@ -739,6 +843,40 @@ jobs:
           mkdir full-assets
           cp "full-output/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg" full-assets/
           cp full-output/opl-release-manifest.json full-assets/
+          standard_attestation=standard-attestation/opl-release-attestation.json
+          standard_attestation_sha="sha256:$(shasum -a 256 "$standard_attestation" | awk '{print $1}')"
+          standard_attestation_size="$(wc -c < "$standard_attestation" | tr -d ' ')"
+          jq \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
+            --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
+            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
+            --arg attestation_sha "$standard_attestation_sha" \
+            --argjson attestation_size "$standard_attestation_size" '
+              if (
+                .carrier_context.publication_model == "same_tag_mutable_standard_addon"
+                and .carrier_context.target_standard_release == {
+                  repository: $repository,
+                  release_id: $release_id,
+                  tag: $tag,
+                  target_commitish: $target,
+                  immutable: false,
+                  full_asset_append_allowed: true,
+                  standard_asset_overwrite_or_delete_allowed: false
+                }
+              ) then .
+              else error("Full build manifest does not bind the exact same-tag mutable Standard append target")
+              end
+              | .carrier_context.standard_attestation = {
+                  name: "opl-release-attestation.json",
+                  sha256: $attestation_sha,
+                  size_bytes: $attestation_size
+                }
+              | .carrier_context.latest_modified = false
+              | .carrier_context.updater_metadata_modified = false
+              | .carrier_context.release_notes_modified = false
+            ' full-assets/opl-release-manifest.json > full-assets/opl-release-manifest.same-tag.json
+          mv full-assets/opl-release-manifest.same-tag.json full-assets/opl-release-manifest.json
           bundle='${{ steps.checkpoint.outputs.bundle_path }}'
           store='${{ steps.checkpoint.outputs.store_dir }}'
           operation_id='${{ needs.restore-standard.outputs.operation_id }}'
@@ -901,7 +1039,7 @@ jobs:
           source-artifact: ${{ needs.provenance.outputs.source_artifact }}
           github-token: ${{ github.token }}
 
-      - name: Publish exact Full bytes as an immutable adjunct
+      - name: Append exact Full bytes to the mutable Standard Release
         env:
           GH_TOKEN: ${{ github.token }}
           BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
@@ -939,9 +1077,10 @@ jobs:
           ' "$full_manifest")"
           full_manifest_sha_hex="$(shasum -a 256 "$full_manifest" | awk '{print $1}')"
           full_manifest_sha="sha256:$full_manifest_sha_hex"
-          adjunct_tag="v${full_version}-full-${full_manifest_sha_hex:0:12}"
-          remote_target="github-release:${GITHUB_REPOSITORY}@${adjunct_tag}"
+          standard_tag='${{ needs.restore-standard.outputs.target_standard_release_tag }}'
+          remote_target="github-release:${GITHUB_REPOSITORY}@${standard_tag}"
           gh api "repos/${GITHUB_REPOSITORY}/releases/${{ needs.restore-standard.outputs.target_standard_release_id }}" > target-standard-release-before-publish.json
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > latest-before-full.json
           jq -e \
             --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
@@ -951,24 +1090,29 @@ jobs:
             and .target_commitish == $target
             and .draft == false
             and .prerelease == false
-            and .immutable == true
-            and ([.assets[] | select(.name == "stable-operation-publication-record.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
+            and .immutable == false
+            and ([.assets[] | select(.name == "opl-release-attestation.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
           ' target-standard-release-before-publish.json >/dev/null
           jq -e \
             --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
             --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' '
-            .carrier_context.publication_model == "independent_immutable_adjunct_linked_to_existing_standard"
+            .carrier_context.publication_model == "same_tag_mutable_standard_addon"
             and .carrier_context.target_standard_release.release_id == $release_id
             and .carrier_context.target_standard_release.tag == $tag
             and .carrier_context.target_standard_release.target_commitish == $target
-            and .carrier_context.target_standard_release.mutation_allowed == false
+            and .carrier_context.target_standard_release.immutable == false
+            and .carrier_context.target_standard_release.full_asset_append_allowed == true
+            and .carrier_context.target_standard_release.standard_asset_overwrite_or_delete_allowed == false
+            and .carrier_context.latest_modified == false
+            and .carrier_context.updater_metadata_modified == false
+            and .carrier_context.release_notes_modified == false
           ' "$full_manifest" >/dev/null
           framework-executor/bin/opl release operation admit \
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
             --store "$store" --json > publish-operation-admit.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag "$adjunct_tag" --output remote-before.json
+            --repo "$GITHUB_REPOSITORY" --tag "$standard_tag" --output remote-before.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-before" \
             --release-operation append_full --operation-id "$operation_id" \
@@ -979,20 +1123,20 @@ jobs:
             --bundle "$BUNDLE_DIGEST" --executor-receipt remote-before.receipt.json \
             "${operation_args[@]}" \
             --store "$store" --json > publish-plan.json
-          capability_dir="$RUNNER_TEMP/opl-full-immutable-capability-${GITHUB_RUN_ID}"
-          mkdir -p "$capability_dir"
-          gh release download '${{ needs.restore-standard.outputs.tag }}' \
+          standard_attestation_dir="$RUNNER_TEMP/opl-full-standard-attestation-${GITHUB_RUN_ID}"
+          mkdir -p "$standard_attestation_dir"
+          gh release download "$standard_tag" \
             --repo "$GITHUB_REPOSITORY" \
-            --pattern stable-operation-publication-record.json \
-            --dir "$capability_dir"
-          capability_records=()
-          while IFS= read -r item; do capability_records+=("$item"); done < <(
-            find "$capability_dir" -type f -name stable-operation-publication-record.json -print
+            --pattern opl-release-attestation.json \
+            --dir "$standard_attestation_dir"
+          standard_attestations=()
+          while IFS= read -r item; do standard_attestations+=("$item"); done < <(
+            find "$standard_attestation_dir" -type f -name opl-release-attestation.json -print
           )
-          test "${#capability_records[@]}" -eq 1
-          capability_record="${capability_records[0]}"
-          test -f "$capability_record"
-          test ! -L "$capability_record"
+          test "${#standard_attestations[@]}" -eq 1
+          standard_attestation="${standard_attestations[0]}"
+          test -f "$standard_attestation"
+          test ! -L "$standard_attestation"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
@@ -1000,7 +1144,7 @@ jobs:
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
-            --publication-record "$capability_record" \
+            --standard-attestation "$standard_attestation" \
             --executor-app-sha "$GITHUB_SHA" \
             --mutation-mode rehearsal \
             --output publication-contract-rehearsal.json
@@ -1014,7 +1158,7 @@ jobs:
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
-            --publication-record "$capability_record" \
+            --standard-attestation "$standard_attestation" \
             --executor-app-sha "$GITHUB_SHA" \
             --mutation-mode execute \
             --output publish-apply.json
@@ -1065,9 +1209,26 @@ jobs:
             unknown_attempt="$(jq -er .prior_mutation_attempt_id <<<"$marker")"
             unknown_target="$(jq -er .remote_target <<<"$marker")"
             test "$unknown_target" = "$remote_target"
-            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-              --repo "$GITHUB_REPOSITORY" --tag "$adjunct_tag" \
-              --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' --output reconcile-observation.json
+            reconcile_plan=unknown-persisted.json
+            test -s "$reconcile_plan"
+            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+              --bundle "$bundle" --plan "$reconcile_plan" \
+              --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
+              --publication-channel stable \
+              --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" \
+              --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
+              --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+              --standard-attestation "$standard_attestation" \
+              --executor-app-sha "$GITHUB_SHA" \
+              --mutation-mode execute \
+              --output full-read-only-reconcile.json
+            test "$(jq -r .status full-read-only-reconcile.json)" = reconcile_only
+            test "$(jq -r .mutation_attempted full-read-only-reconcile.json)" = false
+            test "$(jq -r .reconciliation.classification full-read-only-reconcile.json)" = complete || {
+              echo "::error::Full outcome remains incomplete, conflicting, or unknown after read-only inspection; no retry is authorized."
+              exit 1
+            }
+            jq '.reconciliation.observation' full-read-only-reconcile.json > reconcile-observation.json
             node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
               --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" \
               --release-operation append_full --operation-id "$operation_id" \
@@ -1085,7 +1246,10 @@ jobs:
             }
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
-            --repo "$GITHUB_REPOSITORY" --tag "$adjunct_tag" --output remote-after.json
+            --repo "$GITHUB_REPOSITORY" --tag "$standard_tag" --output remote-after.json
+          gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > latest-after-full.json
+          test "$(jq -c '{id,tag_name,target_commitish}' latest-before-full.json)" = \
+            "$(jq -c '{id,tag_name,target_commitish}' latest-after-full.json)"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-after" \
             --release-operation append_full --operation-id "$operation_id" \
@@ -1122,7 +1286,9 @@ jobs:
           test "$(jq -r .qualification.result "$full_qualification")" = passed
           test "$(jq -r .bundle_digest "$full_qualification")" = "$BUNDLE_DIGEST"
           published_sha="sha256:$(shasum -a 256 full-published.json | awk '{print $1}')"
-          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${adjunct_tag}"
+          standard_attestation_sha="sha256:$(shasum -a 256 "$standard_attestation" | awk '{print $1}')"
+          standard_attestation_size="$(wc -c < "$standard_attestation" | tr -d ' ')"
+          base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${standard_tag}"
           jq -n \
             --arg authority_run_id "$GITHUB_RUN_ID" --arg authority_head_sha "$GITHUB_SHA" \
             --arg source_run_id '${{ needs.provenance.outputs.source_run_id }}' \
@@ -1130,7 +1296,9 @@ jobs:
             --arg checkpoint_transport_executor '${{ needs.provenance.outputs.checkpoint_transport_executor }}' \
             --arg transport_run_id '${{ needs.provenance.outputs.transport_run_id }}' \
             --arg bundle_digest "$BUNDLE_DIGEST" --arg version "$full_version" \
-            --arg manifest_sha "$full_manifest_sha" --arg adjunct_tag "$adjunct_tag" \
+            --arg manifest_sha "$full_manifest_sha" --arg standard_tag "$standard_tag" \
+            --arg standard_attestation_sha "$standard_attestation_sha" \
+            --argjson standard_attestation_size "$standard_attestation_size" \
             --argjson target_standard_release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg target_standard_release_tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
             --arg target_standard_target_commitish '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
@@ -1152,8 +1320,9 @@ jobs:
               source:{run_id:$source_run_id,checkpoint_artifact:$source_artifact,checkpoint_transport_executor:$checkpoint_transport_executor,transport_run_id:$transport_run_id,completed_stage:"full_qualified",qualification_receipt_sha256:$qualification_sha},
               release:{
                 version:$version,
-                adjunct_tag:$adjunct_tag,
-                target_standard:{release_id:$target_standard_release_id,tag:$target_standard_release_tag,target_commitish:$target_standard_target_commitish,mutation_allowed:false},
+                standard_tag:$standard_tag,
+                target_standard:{release_id:$target_standard_release_id,tag:$target_standard_release_tag,target_commitish:$target_standard_target_commitish,immutable:false,full_asset_append_allowed:true,standard_asset_overwrite_or_delete_allowed:false},
+                standard_attestation:{name:"opl-release-attestation.json",sha256:$standard_attestation_sha,size_bytes:$standard_attestation_size},
                 manifest:{name:$manifest_name,sha256:$manifest_sha,size_bytes:$manifest_size},
                 artifact:{name:$dmg_name,sha256:$dmg_sha,size_bytes:$dmg_size}
               },
@@ -1169,11 +1338,12 @@ jobs:
               manifest:{name:$manifest_name,size_bytes:$manifest_size,sha256:$manifest_sha,url:$manifest_url},
               github_full_publication:{status:"complete",receipt_sha256:$published_sha},homebrew_modified:false,latest_modified:false
             }' > homebrew-full-handoff.json
-          jq -n --arg adjunct_tag "$adjunct_tag" --arg manifest_sha "$full_manifest_sha" \
+          jq -n --arg standard_tag "$standard_tag" --arg manifest_sha "$full_manifest_sha" \
+            --arg standard_attestation_sha "$standard_attestation_sha" \
             --argjson target_standard_release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg target_standard_release_tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
             --arg target_standard_target_commitish '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
-            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",carrier:{kind:"immutable_adjunct_release",versioning:"independent",adjunct_tag:$adjunct_tag,manifest_sha256:$manifest_sha,target_standard:{release_id:$target_standard_release_id,tag:$target_standard_release_tag,target_commitish:$target_standard_target_commitish,mutation_allowed:false}},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
+            '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",carrier:{kind:"same_standard_release_assets",versioning:"same_standard_tag",standard_tag:$standard_tag,manifest_sha256:$manifest_sha,standard_attestation_sha256:$standard_attestation_sha,target_standard:{release_id:$target_standard_release_id,tag:$target_standard_release_tag,target_commitish:$target_standard_target_commitish,immutable:false,full_asset_append_allowed:true,standard_asset_overwrite_or_delete_allowed:false}},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
             > append-full-boundary.json
 
       - name: Persist typed Full publication failure
@@ -1218,7 +1388,11 @@ jobs:
             unknown-checkpoint-export.json
             full-github-unknown-checkpoint
             reconcile-admission-status.json
+            full-read-only-reconcile.json
             remote-after.json
+            target-standard-release-before-publish.json
+            latest-before-full.json
+            latest-after-full.json
             full-published.json
             append-full-boundary.json
             homebrew-full-handoff.json

@@ -47,8 +47,7 @@ jobs:
       cas_decision: ${{ steps.identity.outputs.cas_decision }}
       tap_base_commit: ${{ steps.identity.outputs.tap_base_commit }}
       version: ${{ steps.identity.outputs.version }}
-      adjunct_tag: ${{ steps.identity.outputs.adjunct_tag }}
-      base_tag: ${{ steps.identity.outputs.base_tag }}
+      standard_tag: ${{ steps.identity.outputs.standard_tag }}
       base_target_commitish: ${{ steps.identity.outputs.base_target_commitish }}
       dmg_sha256: ${{ steps.identity.outputs.dmg_sha256 }}
       manifest_sha256: ${{ steps.identity.outputs.manifest_sha256 }}
@@ -63,7 +62,7 @@ jobs:
       - name: Checkout exact App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
-      - name: Decode and validate immutable handoff
+      - name: Decode and validate same-tag Full handoff
         id: identity
         env:
           HANDOFF_BASE64: ${{ inputs.handoff_base64 }}
@@ -90,11 +89,16 @@ jobs:
             and (.source.completed_stage == "full_qualified")
             and (.source.qualification_receipt_sha256 | test("^sha256:[0-9a-f]{64}$"))
             and (.release.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(-r[1-9][0-9]*)?$"))
-            and (.release.adjunct_tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-r[1-9][0-9]*)?-full-[0-9a-f]{12}$"))
+            and (.release.standard_tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-r[1-9][0-9]*)?$"))
             and (.release.target_standard.release_id | type == "number")
             and (.release.target_standard.tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-r[1-9][0-9]*)?$"))
             and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
-            and .release.target_standard.mutation_allowed == false
+            and .release.standard_tag == .release.target_standard.tag
+            and .release.target_standard.immutable == false
+            and .release.target_standard.full_asset_append_allowed == true
+            and .release.target_standard.standard_asset_overwrite_or_delete_allowed == false
+            and .release.standard_attestation.name == "opl-release-attestation.json"
+            and (.release.standard_attestation.sha256 | test("^sha256:[0-9a-f]{64}$"))
             and .build_provenance.admission_role == "observational_only"
             and .build_provenance.may_gate_install_or_runtime == false
             and (.build_provenance.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
@@ -108,14 +112,10 @@ jobs:
             and .homebrew_modified == false and .latest_modified == false
           ' handoff.json >/dev/null
           version="$(jq -er .release.version handoff.json)"
-          base_tag="$(jq -er .release.target_standard.tag handoff.json)"
+          standard_tag="$(jq -er .release.standard_tag handoff.json)"
           base_release_id="$(jq -er .release.target_standard.release_id handoff.json)"
           base_target_commitish="$(jq -er .release.target_standard.target_commitish handoff.json)"
-          adjunct_tag="$(jq -er .release.adjunct_tag handoff.json)"
-          case "$adjunct_tag" in
-            "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-            *) echo "::error::Full adjunct tag is not derived from the admitted Standard tag."; exit 1 ;;
-          esac
+          test "$standard_tag" = "$(jq -er .release.target_standard.tag handoff.json)"
           app_sha="$(jq -er .build_provenance.app_sha handoff.json)"
           shell_sha="$(jq -er .build_provenance.shell_sha handoff.json)"
           framework_sha="$(jq -er .build_provenance.framework_sha handoff.json)"
@@ -128,14 +128,14 @@ jobs:
           manifest_sha="$(jq -er .manifest.sha256 handoff.json)"
           manifest_size="$(jq -er .manifest.size_bytes handoff.json)"
           manifest_url="$(jq -er .manifest.url handoff.json)"
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$adjunct_tag" > release.json
-          full_release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${adjunct_tag}"
-          test "$dmg_url" = "$full_release_base/$dmg_name"
-          test "$manifest_url" = "$full_release_base/$manifest_name"
-          jq -e --arg tag "$adjunct_tag" --arg executor "$executor_sha" \
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$standard_tag" > release.json
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${standard_tag}"
+          test "$dmg_url" = "$release_base/$dmg_name"
+          test "$manifest_url" = "$release_base/$manifest_name"
+          jq -e --argjson id "$base_release_id" --arg tag "$standard_tag" --arg executor "$executor_sha" \
             --arg dmg "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" --arg dmg_url "$dmg_url" \
             --arg manifest "$manifest_name" --arg manifest_sha "$manifest_sha" --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
-            .tag_name == $tag and .draft == false and .prerelease == false and .target_commitish == $executor
+            .id == $id and .tag_name == $tag and .draft == false and .prerelease == false and .immutable == false and .target_commitish == $executor
             and ([.assets[] | select(.name == $dmg and .digest == $dmg_sha and .size == $dmg_size and .browser_download_url == $dmg_url)] | length == 1)
             and ([.assets[] | select(.name == $manifest and .digest == $manifest_sha and .size == $manifest_size and .browser_download_url == $manifest_url)] | length == 1)
           ' release.json >/dev/null
@@ -148,15 +148,14 @@ jobs:
             and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
           ' public-full-manifest.json >/dev/null
 
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > standard-release.json
-          standard_manifest_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${base_tag}/opl-app-component-manifest.json"
-          jq -e --argjson id "$base_release_id" --arg tag "$base_tag" --arg target "$base_target_commitish" --arg url "$standard_manifest_url" '
+          standard_manifest_url="$release_base/opl-app-component-manifest.json"
+          jq -e --argjson id "$base_release_id" --arg tag "$standard_tag" --arg target "$base_target_commitish" --arg url "$standard_manifest_url" '
             .id == $id and .tag_name == $tag and .draft == false and .prerelease == false and .target_commitish == $target
             and ([.assets[] | select(.name == "opl-app-component-manifest.json" and .browser_download_url == $url)] | length == 1)
-          ' standard-release.json >/dev/null
+          ' release.json >/dev/null
           curl --fail --location --retry 2 --retry-all-errors "$standard_manifest_url" --output standard-component-manifest.json
           node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
-            --manifest standard-component-manifest.json --expected-tag "$base_tag" \
+            --manifest standard-component-manifest.json --expected-tag "$standard_tag" \
             --release-prerelease false --expected-source-commit "$app_sha" > standard-component-identity.json
           jq -e --arg app "$app_sha" --arg shell "$shell_sha" --arg framework "$framework_sha" '
             .source_cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
@@ -198,17 +197,17 @@ jobs:
           jq -n --arg source_run "$AUTHORITY_RUN_ID" --arg handoff_sha "$HANDOFF_SHA256" \
             --arg follower_run "$GITHUB_RUN_ID" --arg follower_sha "$GITHUB_SHA" \
             --arg bundle "$(jq -er .build_provenance.bundle_digest handoff.json)" \
-            --arg version "$version" --arg base_tag "$base_tag" --arg base_target "$base_target_commitish" \
-            --arg adjunct_tag "$adjunct_tag" --arg dmg "$dmg_sha" --arg manifest "$manifest_sha" \
+            --arg version "$version" --arg standard_tag "$standard_tag" --arg base_target "$base_target_commitish" \
+            --arg dmg "$dmg_sha" --arg manifest "$manifest_sha" \
             --arg app "$app_sha" --arg shell "$shell_sha" --arg framework "$framework_sha" \
             --arg cask "$expected_cask_sha" --arg current "$current_cask_sha" --arg decision "$cas_decision" \
             --arg tap_base "$tap_base_commit" --arg operation_id "$operation_id" \
             --arg started "$operation_started_at" --arg deadline "$operation_deadline_at" --arg prior "$prior_operation_id" '
-            {schema:"opl_homebrew_full_observational_binding.v2",authority_model:"immutable_public_artifact_observer",release_mutation_authority_imported:false,
+            {schema:"opl_homebrew_full_observational_binding.v2",authority_model:"workflow_cas_and_unified_attestation_observer",github_release_immutable_claim:false,release_mutation_authority_imported:false,
              source:{append_full_run_id:$source_run,handoff_sha256:$handoff_sha,prior_append_full_operation_id:$prior},
              follower:{repository:"gaofeng21cn/one-person-lab-app",run_id:$follower_run,run_attempt:1,executor_sha:$follower_sha},
              operation:{operation_id:$operation_id,started_at:$started,deadline_at:$deadline},
-             release:{version:$version,adjunct_tag:$adjunct_tag,target_standard:{tag:$base_tag,target_commitish:$base_target}},
+             release:{version:$version,standard_tag:$standard_tag,target_standard:{tag:$standard_tag,target_commitish:$base_target,immutable:false}},
              build_provenance:{bundle_digest:$bundle,app_sha:$app,shell_sha:$shell,framework_sha:$framework},
              public_assets:{dmg_sha256:$dmg,manifest_sha256:$manifest},
              tap_cas:{repository:"gaofeng21cn/homebrew-one-person-lab",target:"Casks/one-person-lab-full.rb",base_commit:$tap_base,current_cask_sha256:$current,expected_cask_sha256:$cask,decision:$decision,max_push_attempts:1},
@@ -224,9 +223,8 @@ jobs:
             echo "cas_decision=$cas_decision"
             echo "tap_base_commit=$tap_base_commit"
             echo "version=$version"
-            echo "base_tag=$base_tag"
+            echo "standard_tag=$standard_tag"
             echo "base_target_commitish=$base_target_commitish"
-            echo "adjunct_tag=$adjunct_tag"
             echo "dmg_sha256=$dmg_sha"
             echo "manifest_sha256=$manifest_sha"
             echo "operation_id=$operation_id"
@@ -284,7 +282,8 @@ jobs:
             --arg operation '${{ needs.prepare-candidate.outputs.operation_id }}' \
             --arg deadline '${{ needs.prepare-candidate.outputs.operation_deadline_at }}' '
             .schema == "opl_homebrew_full_observational_binding.v2"
-            and .authority_model == "immutable_public_artifact_observer"
+            and .authority_model == "workflow_cas_and_unified_attestation_observer"
+            and .github_release_immutable_claim == false
             and .release_mutation_authority_imported == false
             and .framework_checkpoint_consumed == false and .may_gate_install_or_runtime == false
             and .follower.run_id == $run and .follower.run_attempt == 1 and .follower.executor_sha == $sha
@@ -359,13 +358,13 @@ jobs:
           if [ "$push_count" -eq 1 ]; then outcome=committed; fi
           if [ "$push_count" -eq 1 ] && [ "$observed_commit" != "$result_commit" ]; then outcome=idempotent_concurrent; fi
           jq -n --arg binding '${{ needs.prepare-candidate.outputs.binding_sha256 }}' --arg version '${{ needs.prepare-candidate.outputs.version }}' \
-            --arg adjunct '${{ needs.prepare-candidate.outputs.adjunct_tag }}' --arg base_tag '${{ needs.prepare-candidate.outputs.base_tag }}' \
+            --arg standard_tag '${{ needs.prepare-candidate.outputs.standard_tag }}' \
             --arg base "$base_commit" --arg result "$observed_commit" --arg outcome "$outcome" --arg cask "$expected" \
             --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' \
             --arg app '${{ needs.prepare-candidate.outputs.app_sha }}' --arg shell '${{ needs.prepare-candidate.outputs.shell_sha }}' \
             --arg framework '${{ needs.prepare-candidate.outputs.framework_sha }}' --argjson pushes "$push_count" '
-            {schema:"opl_homebrew_full_publication_receipt.v2",status:"passed",authority_model:"immutable_public_artifact_observer",observer_binding_sha256:$binding,
-             release:{version:$version,adjunct_tag:$adjunct,target_standard_tag:$base_tag},tap:{base_commit:$base,result_commit:$result,outcome:$outcome,push_count:$pushes,cask_sha256:$cask},
+            {schema:"opl_homebrew_full_publication_receipt.v2",status:"passed",authority_model:"workflow_cas_and_unified_attestation_observer",github_release_immutable_claim:false,observer_binding_sha256:$binding,
+             release:{version:$version,standard_tag:$standard_tag,github_release_immutable_claim:false},tap:{base_commit:$base,result_commit:$result,outcome:$outcome,push_count:$pushes,cask_sha256:$cask},
              public_assets:{dmg_sha256:$dmg,manifest_sha256:$manifest},build_provenance:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
              framework_checkpoint_consumed:false,second_push_attempted:false,public_mutation_read_back:true}
           ' > homebrew-full-publication-receipt.json
@@ -392,7 +391,7 @@ jobs:
         with:
           name: opl-release-homebrew-full-${{ github.run_id }}
           path: publication
-      - name: Verify Tap and Full adjunct public bytes
+      - name: Verify Tap and same-tag Full public bytes
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -404,7 +403,8 @@ jobs:
             --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' \
             --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' '
             .schema == "opl_homebrew_full_publication_receipt.v2" and .status == "passed"
-            and .authority_model == "immutable_public_artifact_observer" and .observer_binding_sha256 == $binding
+            and .authority_model == "workflow_cas_and_unified_attestation_observer"
+            and .github_release_immutable_claim == false and .observer_binding_sha256 == $binding
             and .framework_checkpoint_consumed == false and .tap.cask_sha256 == $cask
             and .public_assets == {dmg_sha256:$dmg,manifest_sha256:$manifest}
             and (.tap.push_count == 0 or .tap.push_count == 1)
@@ -417,20 +417,20 @@ jobs:
           git -C tap-readback fetch --no-tags --depth=1 origin "$remote"
           git -C tap-readback show 'FETCH_HEAD:Casks/one-person-lab-full.rb' > public-full-cask.rb
           test "sha256:$(shasum -a 256 public-full-cask.rb | awk '{print $1}')" = '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}'
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.prepare-candidate.outputs.adjunct_tag }}" > public-full-release.json
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.prepare-candidate.outputs.standard_tag }}" > public-full-release.json
           jq -e --arg dmg '${{ needs.prepare-candidate.outputs.dmg_sha256 }}' --arg manifest '${{ needs.prepare-candidate.outputs.manifest_sha256 }}' '
             .draft == false and .prerelease == false
             and ([.assets[] | select(.digest == $dmg)] | length == 1)
             and ([.assets[] | select(.digest == $manifest)] | length == 1)
           ' public-full-release.json >/dev/null
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.prepare-candidate.outputs.base_tag }}" > public-standard-release.json
+          cp public-full-release.json public-standard-release.json
           jq -e --arg target '${{ needs.prepare-candidate.outputs.base_target_commitish }}' '
             .draft == false and .prerelease == false and .target_commitish == $target
             and ([.assets[] | select(.name == "opl-app-component-manifest.json")] | length == 1)
           ' public-standard-release.json >/dev/null
           jq -n --arg receipt_sha "sha256:$(shasum -a 256 "$receipt" | awk '{print $1}')" \
             --arg commit "$commit" --arg cask '${{ needs.prepare-candidate.outputs.expected_cask_sha256 }}' '
-            {schema:"opl_homebrew_full_public_readback.v2",status:"passed",publication_receipt_sha256:$receipt_sha,tap_commit:$commit,cask_sha256:$cask,full_adjunct_read_back:true,target_standard_read_back:true,public_mutation_read_back:true}
+            {schema:"opl_homebrew_full_public_readback.v2",status:"passed",publication_receipt_sha256:$receipt_sha,tap_commit:$commit,cask_sha256:$cask,same_tag_full_assets_read_back:true,target_standard_read_back:true,github_release_immutable_claim:false,public_mutation_read_back:true}
           ' > homebrew-full-readback.json
       - name: Upload public readback
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

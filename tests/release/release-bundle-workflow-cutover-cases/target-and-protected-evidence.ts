@@ -87,7 +87,7 @@ test('Latest target_commitish rejects missing, ambiguous, and non-commit refs', 
   }
 });
 
-test('Standard remote digest builder materializes expected immutable assets without stdin', () => {
+test('Standard remote digest builder materializes expected mutable Standard assets without stdin', () => {
   const { result, output, expected } = runExpectedImmutableReleaseAssetsBuilder();
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.deepEqual(output, expected);

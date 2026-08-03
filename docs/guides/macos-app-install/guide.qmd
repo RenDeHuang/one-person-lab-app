@@ -41,12 +41,12 @@ lang: zh-CN
 
 从已审阅的 source checkout 开发或恢复时可以运行仓库内的 `./install.sh`。普通安装
 不要从可变 `main` 分支下载后直接执行；需要终端入口时，从所选 GitHub Release 的同一
-tag 下载 `opl-app-installer.sh`：
+tag 下载唯一公开 installer `opl-install.sh`：
 
 ```bash
-curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-app-installer.sh
-chmod 0755 opl-app-installer.sh
-./opl-app-installer.sh --stable-macos-install --standard --release-tag v<version> --yes
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-install.sh
+chmod 0755 opl-install.sh
+./opl-install.sh --stable-macos-install --standard --release-tag v<version> --yes
 ```
 
 该 installer 会在挂载 DMG 或替换 App 前校验同 tag component manifest、installer 与

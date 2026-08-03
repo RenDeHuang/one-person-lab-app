@@ -1144,7 +1144,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'opl_app_optional_certification_hosted_admission.v1',
     'opl_app_linux_same_artifact_install_evidence.v1',
     'One-Person-Lab-${version}-linux-x64.deb',
-    'public-opl-app-installer.sh',
+    'public-opl-install.sh',
     'bash "$installer_path" --desktop --release-tag "$RELEASE_TAG" --no-open',
     'preinstall_package_absent:$preinstall_package_absent',
     'dpkg-deb -x "$linux_artifact_path" "$extracted_package"',
@@ -1169,7 +1169,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     '($matches | length) == 1',
     'test "$GITHUB_REF" = refs/heads/main',
     'standard_component_manifest_url="$standard_release_base/opl-app-component-manifest.json"',
-    '--expected-tag "$base_tag"',
+    '--expected-tag "$tag"',
     '.source_cohort.app_sha == $app_sha',
   ]) {
     if (!optionalCertification.text.includes(required)) {
@@ -1507,7 +1507,7 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'append_full deadline must be exactly 120 minutes after operation start.',
     '.name == "Admit one successful append_full authority run" and .conclusion == "success"',
     '.name == "Download exact Full publication handoff" and .conclusion == "success"',
-    '.name == "Bind immutable Homebrew Full handoff" and .conclusion == "failure"',
+    '.name == "Bind same-tag Homebrew Full handoff" and .conclusion == "failure"',
     '.name == "publish-homebrew-full" and .conclusion == "skipped"',
     'runs?event=workflow_dispatch&per_page=100',
     '($matches | length) == 1',
@@ -1563,7 +1563,7 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'homebrew-full-follower-v3:${GITHUB_RUN_ID}',
     't+120*60_000',
     'opl_homebrew_full_observational_binding.v2',
-    'immutable_public_artifact_observer',
+    'workflow_cas_and_unified_attestation_observer',
     'release_mutation_authority_imported:false',
     'max_push_attempts:1',
     'standard_manifest_url=',
@@ -1587,7 +1587,7 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'git -C tap-source fetch --no-tags --depth=1 origin "$remote_commit"',
     "git -C tap-source show 'FETCH_HEAD:Casks/one-person-lab-full.rb'",
     'opl_homebrew_full_publication_receipt.v2',
-    'authority_model:"immutable_public_artifact_observer"',
+    'authority_model:"workflow_cas_and_unified_attestation_observer"',
     'build_provenance:{app_sha:$app,shell_sha:$shell,framework_sha:$framework}',
   ]) {
     if (!publishRuns.includes(required)) failures += reportFailure(id, `Full Homebrew protected publish is missing ${required}`);

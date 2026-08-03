@@ -122,7 +122,7 @@ jobs:
               and ([.jobs[] | select(.name == "publish-homebrew-full" and .conclusion == "skipped")] | length == 1)
               and ([.jobs[].steps[]? | select(.name == "Admit one successful append_full authority run" and .conclusion == "success")] | length == 1)
               and ([.jobs[].steps[]? | select(.name == "Download exact Full publication handoff" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Bind immutable Homebrew Full handoff" and .conclusion == "failure")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Bind same-tag Homebrew Full handoff" and .conclusion == "failure")] | length == 1)
               and ([.jobs[].steps[]? | select(.name == "Publish one hosted-qualified Full Cask commit")] | length == 0)
             ' failed-follower-jobs.json >/dev/null
 
@@ -148,7 +148,7 @@ jobs:
               and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
               and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
               and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Decode and validate immutable handoff" and .conclusion == "success")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "success")] | length == 1)
               and ([.jobs[].steps[]? | select(.name == "Restore exact qualified Full checkpoint" and .conclusion == "failure")] | length == 1)
               and ([.jobs[].steps[]? | select(.name == "Publish one hosted-qualified Full Cask commit")] | length == 0)
               and ([.jobs[].steps[]? | select(.name == "Publish one observer-bound Full Cask commit")] | length == 0)
@@ -176,7 +176,7 @@ jobs:
               and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
               and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
               and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Decode and validate immutable handoff" and .conclusion == "failure")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "failure")] | length == 1)
               and ([.jobs[].steps[]? | select(.name == "Publish one digest-bound Full Cask commit")] | length == 0)
             ' failed-recovery-v2-jobs.json >/dev/null
             failed_recovery_v2_job_id="$(jq -er '[.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate")] | select(length == 1) | .[0].id' failed-recovery-v2-jobs.json)"
@@ -232,7 +232,7 @@ jobs:
           github-token: ${{ github.token }}
           path: full-publication
 
-      - name: Bind immutable Homebrew Full handoff
+      - name: Bind same-tag Homebrew Full handoff
         id: handoff
         if: ${{ always() && steps.authority.outcome == 'success' }}
         env:
@@ -273,11 +273,16 @@ jobs:
             and .source.completed_stage == "full_qualified"
             and (.source.qualification_receipt_sha256 | test("^sha256:[0-9a-f]{64}$"))
             and (.release.version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
-            and (.release.adjunct_tag | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?-full-[0-9a-f]{12}$"))
+            and (.release.standard_tag | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
             and (.release.target_standard.release_id | type == "number")
             and (.release.target_standard.tag | test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
             and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
-            and .release.target_standard.mutation_allowed == false
+            and .release.standard_tag == .release.target_standard.tag
+            and .release.target_standard.immutable == false
+            and .release.target_standard.full_asset_append_allowed == true
+            and .release.target_standard.standard_asset_overwrite_or_delete_allowed == false
+            and .release.standard_attestation.name == "opl-release-attestation.json"
+            and (.release.standard_attestation.sha256 | test("^sha256:[0-9a-f]{64}$"))
             and .build_provenance.admission_role == "observational_only"
             and .build_provenance.may_gate_install_or_runtime == false
             and (.build_provenance.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
@@ -291,16 +296,8 @@ jobs:
             and .latest_modified == false
           ' "$handoff" >/dev/null
           test "$head_branch" = main
-          base_tag="$(jq -er .release.target_standard.tag "$handoff")"
-          adjunct_tag="$(jq -er .release.adjunct_tag "$handoff")"
-          case "$adjunct_tag" in
-            "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
-              ;;
-            *)
-              echo "::error::Full adjunct tag is not derived from the admitted Standard base tag."
-              exit 1
-              ;;
-          esac
+          standard_tag="$(jq -er .release.standard_tag "$handoff")"
+          test "$standard_tag" = "$(jq -er .release.target_standard.tag "$handoff")"
           handoff_sha="sha256:$(shasum -a 256 "$handoff" | awk '{print $1}')"
           handoff_base64="$(base64 < "$handoff" | tr -d '\n')"
           {

@@ -4,7 +4,7 @@ import {
   fs,
   path,
   applyPublishPlan,
-  fullAdjunctReleaseIdentity,
+  fullAddonIdentity,
   inspectRelease,
   repo,
   canonicalRepo,
@@ -32,64 +32,25 @@ import {
   isImmutableCapabilityRead,
   immutableCapabilityResponse,
   fullPublicationRuntime,
+  sha256Evidence,
 } from "./fixtures.ts";
+import { buildSettingReceipt } from '../../../scripts/github-release-immutability-setting.ts';
 import type {
   GitHubAdapterRuntime,
   Asset,
 } from "./fixtures.ts";
 
-test('github-apply admits append_full only for a Framework Full publish plan', () => {
+test('append_full rehearsal binds the same mutable Standard and forbids release-level mutations', () => {
   const files = fixture([], 'append_full');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
-  let calls = 0;
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 60_000,
-    run(_command, args) {
-      calls += 1;
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
-      if (isReleaseInspect(args)) return success(releaseResponse([]));
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
-        return success({
-          ...releaseResponse(files.uploadActions, { targetCommitish: executorCommit }),
-          tag_name: adjunct.tag,
-          name: adjunct.name,
-          body: adjunct.notes,
-        });
-      }
-      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
-    },
-  };
-  const result = applyPublishPlan({
-    ...mutationAdmission('append_full', 'full'),
-    bundle: files.bundlePath,
-    plan: files.planPath,
-    'operation-deadline-at': deadlineAt,
-  }, runtime);
-  assert.equal(result.status, 'complete');
-  assert.equal(result.tag, adjunct.tag);
-  assert.equal(result.adjunct.target_standard_release.release_id, 12345);
-  assert.equal(result.adjunct.target_standard_release.tag, tag);
-  assert.match(result.adjunct.notes, /Full content sources: App a{40}, Shell c{40}, Framework d{40}/);
-  assert.match(result.adjunct.notes, /Release executor App source: e{40}/);
-  assert.equal(calls, 1);
-});
-
-test('append_full rehearsal binds the real publication contract to the executor head without mutation', () => {
-  const files = fixture([], 'append_full');
-  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
+  const addon = fullAddonIdentity(bundle, files.uploadActions, files.standardAttestationPath);
   const calls: string[][] = [];
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isReleaseViewFor(args, adjunct.tag, repo)) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
+        return success(releaseResponse(files.standardAssets, { immutable: false }));
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
@@ -100,20 +61,24 @@ test('append_full rehearsal binds the real publication contract to the executor 
     'mutation-mode': 'rehearsal',
     bundle: files.bundlePath,
     plan: files.planPath,
+    'standard-attestation': files.standardAttestationPath,
     'operation-deadline-at': deadlineAt,
   }, runtime);
 
   assert.equal(result.status, 'rehearsal_complete');
   assert.equal(result.mutation_authorized, false);
   assert.equal(result.mutation_attempted, false);
-  assert.equal(result.target_commitish, executorCommit);
-  assert.equal(result.adjunct.target_standard_release.target_commitish, sourceCommit);
-  assert.equal(result.adjunct.release_executor.app_sha, executorCommit);
+  assert.equal(result.tag, tag);
+  assert.equal(result.target_commitish, sourceCommit);
+  assert.equal(result.addon.target_standard_release.release_id, 12345);
+  assert.equal(result.addon.release_executor.app_sha, executorCommit);
+  assert.deepEqual(result.forbidden_mutations, ['tag_reserve', 'release_create', 'release_publish', 'latest_patch']);
   assert.equal(calls.some((args) => isTagRefCreateFor(args, repo)), false);
   assert.equal(calls.some((args) => args.includes('POST') || args.includes('PATCH')), false);
+  assert.equal(addon.tag, tag);
 });
 
-test('append_full rejects the old content target before GitHub when it differs from the executor head', () => {
+test('append_full rejects a mismatched executor identity before GitHub', () => {
   const files = fixture([], 'append_full');
   let calls = 0;
   const runtime: GitHubAdapterRuntime = {
@@ -130,6 +95,7 @@ test('append_full rejects the old content target before GitHub when it differs f
       'executor-app-sha': sourceCommit,
       bundle: files.bundlePath,
       plan: files.planPath,
+      'standard-attestation': files.standardAttestationPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
     /must match the exact release executor/,
@@ -137,55 +103,7 @@ test('append_full rejects the old content target before GitHub when it differs f
   assert.equal(calls, 0);
 });
 
-test('append_full reserves the adjunct tag at the executor head, not the old content SHA', () => {
-  const files = fixture([], 'append_full');
-  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
-  const tagBodies: string[] = [];
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 90_000,
-    run(_command, args, options) {
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isReleaseViewFor(args, adjunct.tag, repo)) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefReadFor(args, adjunct.tag, repo)) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        tagBodies.push(String(options.input));
-        return {
-          status: null,
-          signal: 'SIGTERM',
-          stdout: '',
-          stderr: 'timed out',
-          error: Object.assign(new Error('spawnSync gh ETIMEDOUT'), { code: 'ETIMEDOUT' }),
-        };
-      }
-      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
-    },
-  };
-
-  const result = applyPublishPlan({
-    ...mutationAdmission('append_full', 'full'),
-    bundle: files.bundlePath,
-    plan: files.planPath,
-    'operation-deadline-at': deadlineAt,
-  }, runtime);
-
-  assert.equal(result.status, 'outcome_unknown');
-  assert.equal(result.failure.mutation, 'tag_reserve');
-  assert.deepEqual(JSON.parse(tagBodies[0]!), {
-    ref: `refs/tags/${adjunct.tag}`,
-    sha: executorCommit,
-  });
-  assert.notEqual(executorCommit, sourceCommit);
-});
-
-test('append_full creates, uploads both assets, and publishes against the executor head', () => {
+test('append_full uploads only the two missing same-tag assets without PATCH or tag creation', () => {
   const files = fixture([], 'append_full');
   const simulated = fullPublicationRuntime(files);
 
@@ -193,15 +111,16 @@ test('append_full creates, uploads both assets, and publishes against the execut
     ...mutationAdmission('append_full', 'full'),
     bundle: files.bundlePath,
     plan: files.planPath,
+    'standard-attestation': files.standardAttestationPath,
     'operation-deadline-at': deadlineAt,
   }, simulated.runtime);
 
   assert.equal(result.status, 'complete');
-  assert.equal(result.tag, simulated.adjunct.tag);
-  assert.equal(result.inspection.release.target_commitish, executorCommit);
-  assert.equal(result.inspection.release.immutable, true);
+  assert.equal(result.tag, tag);
+  assert.equal(result.inspection.release.target_commitish, sourceCommit);
+  assert.equal(result.inspection.release.immutable, false);
   assert.deepEqual(result.uploaded, files.uploadActions.map((asset) => asset.name));
-  assert.deepEqual(simulated.remoteAssets.map((asset) => asset.name), [
+  assert.deepEqual(simulated.remoteAssets.slice(-2).map((asset) => asset.name), [
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
     'opl-release-manifest.json',
   ]);
@@ -209,34 +128,29 @@ test('append_full creates, uploads both assets, and publishes against the execut
     simulated.calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length,
     2,
   );
-  assert.equal(simulated.calls.filter((args) => args.includes('PATCH')).length, 1);
-  assert.equal(JSON.parse(simulated.mutationInputs[0]!).sha, executorCommit);
-  assert.equal(JSON.parse(simulated.mutationInputs[1]!).target_commitish, executorCommit);
-  assert.notEqual(executorCommit, sourceCommit);
+  assert.equal(simulated.calls.filter((args) => args.includes('PATCH')).length, 0);
+  assert.equal(simulated.calls.some((args) => isTagRefCreateFor(args, repo)), false);
+  assert.equal(simulated.calls.some((args) => args[3] === `repos/${repo}/releases`), false);
+  assert.equal(result.standard_assets_modified, false);
+  assert.equal(result.latest_modified, false);
 });
 
-test('an identity failure after an accepted Full mutation records read-only reconcile disposition', () => {
+test('an identity failure after an accepted Full mutation returns unknown with no retry', () => {
   const files = fixture([], 'append_full');
   const simulated = fullPublicationRuntime(files, {
     targetDriftAfterFirstUpload: 'f'.repeat(40),
   });
 
-  assert.throws(
-    () => applyPublishPlan({
+  const result = applyPublishPlan({
       ...mutationAdmission('append_full', 'full'),
       bundle: files.bundlePath,
       plan: files.planPath,
+      'standard-attestation': files.standardAttestationPath,
       'operation-deadline-at': deadlineAt,
-    }, simulated.runtime),
-    (error: any) => {
-      assert.equal(error.result.status, 'failed');
-      assert.equal(error.result.retry_disposition, 'read_only_reconcile_only_no_retry');
-      assert.equal(error.result.failure.mutation_attempted, true);
-      assert.ok(error.result.failure.mutation_attempts.length >= 3);
-      assert.match(error.result.failure.stderr, /Release identity conflicts/);
-      return true;
-    },
-  );
+    }, simulated.runtime);
+  assert.equal(result.status, 'outcome_unknown');
+  assert.equal(result.retry_disposition, 'read_only_reconcile_only');
+  assert.match(result.failure.reason, /published mutable Standard Release/);
   assert.equal(
     simulated.calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length,
     1,
@@ -244,11 +158,9 @@ test('an identity failure after an accepted Full mutation records read-only reco
   assert.equal(simulated.calls.filter((args) => args.includes('PATCH')).length, 0);
 });
 
-test('append_full identity fails closed without its own manifest and never inspects a Standard Release', () => {
-  const bundle = {
-    release: { version, tag },
-    sources: { app: { repo, source_commit: sourceCommit } },
-  };
+test('append_full identity fails closed without its own manifest before GitHub inspection', () => {
+  const files = fixture([], 'append_full');
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   let calls = 0;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
@@ -258,34 +170,24 @@ test('append_full identity fails closed without its own manifest and never inspe
     },
   };
   assert.throws(
-    () => fullAdjunctReleaseIdentity(bundle, []),
+    () => fullAddonIdentity(bundle, [], files.standardAttestationPath),
     /exactly one opl-release-manifest\.json upload action/,
   );
   assert.equal(calls, 0);
 });
 
-test('an exact published Full adjunct remains idempotent with complete discovery metadata', () => {
+test('an exact same-tag Full append is idempotent with zero mutation', () => {
   const files = fixture([], 'append_full');
-  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
   const calls: string[][] = [];
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isReleaseInspect(args)) {
-        return success(releaseResponse([], { immutable: true }));
-      }
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
-        return success({
-          ...releaseResponse(files.uploadActions, {
-            immutable: true,
-            targetCommitish: executorCommit,
-          }),
-          tag_name: adjunct.tag,
-          name: adjunct.name,
-          body: adjunct.notes,
-        });
+      if (args[0] === 'api' && (
+        args[1] === `repos/${repo}/releases/tags/${tag}`
+        || args[1] === `repos/${repo}/releases/12345`
+      )) {
+        return success(releaseResponse([...files.standardAssets, ...files.uploadActions], { immutable: false }));
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
@@ -294,21 +196,54 @@ test('an exact published Full adjunct remains idempotent with complete discovery
     ...mutationAdmission('append_full', 'full'),
     bundle: files.bundlePath,
     plan: files.planPath,
+    'standard-attestation': files.standardAttestationPath,
     'operation-deadline-at': deadlineAt,
   }, runtime);
   assert.equal(result.status, 'complete');
-  assert.equal(result.adjunct.tag, adjunct.tag);
-  assert.deepEqual(result.adjunct.manifest, adjunct.manifest);
-  assert.deepEqual(result.adjunct.artifact, adjunct.artifact);
-  assert.deepEqual(result.adjunct.target_standard_release, adjunct.target_standard_release);
-  assert.deepEqual(result.adjunct.release_executor, adjunct.release_executor);
-  assert.deepEqual(result.adjunct.full_content_sources, adjunct.full_content_sources);
-  assert.equal(result.adjunct.release_url, `https://github.com/${repo}/releases/tag/${adjunct.tag}`);
+  assert.equal(result.addon.tag, tag);
+  assert.equal(result.addon.release_url, `https://github.com/${repo}/releases/tag/${tag}`);
   assert.equal(
-    result.adjunct.asset_download_base_url,
-    `https://github.com/${repo}/releases/download/${adjunct.tag}`,
+    result.addon.asset_download_base_url,
+    `https://github.com/${repo}/releases/download/${tag}`,
   );
   assert.equal(calls.every((args) => args[0] === 'api'), true);
+});
+
+test('append_full reconcile_only performs bounded inspection and classifies complete, incomplete, conflict, or unknown', () => {
+  for (const expected of ['complete', 'incomplete', 'conflict', 'unknown'] as const) {
+    const files = fixture([], 'append_full');
+    const plan = JSON.parse(fs.readFileSync(files.planPath, 'utf8'));
+    plan.release_bundle_publish.status = 'reconcile_only';
+    fs.writeFileSync(files.planPath, `${JSON.stringify(plan)}\n`);
+    const calls: string[][] = [];
+    const runtime: GitHubAdapterRuntime = {
+      now: () => deadlineMs - 60_000,
+      run(_command, args) {
+        calls.push(args);
+        if (expected === 'unknown') return { status: 1, stdout: '', stderr: 'network unavailable' };
+        const standardAssets = expected === 'conflict'
+          ? [{ ...files.standardAssets[0]!, sha256: `sha256:${'0'.repeat(64)}` }, ...files.standardAssets.slice(1)]
+          : files.standardAssets;
+        const assets = expected === 'complete'
+          ? [...standardAssets, ...files.uploadActions]
+          : standardAssets;
+        return success(releaseResponse(assets, { immutable: false }));
+      },
+    };
+    const result = applyPublishPlan({
+      ...mutationAdmission('append_full', 'full'),
+      bundle: files.bundlePath,
+      plan: files.planPath,
+      'standard-attestation': files.standardAttestationPath,
+      'operation-deadline-at': deadlineAt,
+    }, runtime);
+    assert.equal(result.status, 'reconcile_only');
+    assert.equal(result.mutation_attempted, false);
+    assert.equal(result.mutation_authorized, false);
+    assert.equal(result.reconciliation.classification, expected);
+    assert.equal(calls.some((args) => args.includes('POST') || args.includes('PATCH')), false);
+    assert.equal(calls.some((args) => args[0] === 'release' && args[1] === 'upload'), false);
+  }
 });
 
 test('github-apply publishes a Nightly Bundle as prerelease and never as Latest', () => {
@@ -538,7 +473,7 @@ test('canonical Stable publication fails closed without bound capability evidenc
   assert.equal(calls, 2, 'only bounded tag and draft discovery reads are allowed before evidence rejection');
 });
 
-test('canonical Stable publication consumes the exact durable record and never calls immutable-releases at runtime', () => {
+test('canonical Stable publication consumes internal authority evidence and publishes under a disabled setting', () => {
   const first = asset('first.zip', '2');
   const files = fixture([first]);
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
@@ -546,11 +481,46 @@ test('canonical Stable publication consumes the exact durable record and never c
   fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
   const durable = durablePublicationRecord(files.root, [first]);
   assert.notEqual(durable.operationId, standardOperationId);
+  const attestationPath = path.join(files.root, 'opl-release-attestation.json');
+  const attestationBytes = Buffer.from(`${JSON.stringify({
+    schema: 'opl_app_release_attestation.v1',
+    status: 'passed',
+    release: { repository: canonicalRepo, tag, version, bundle_digest: bundle.bundle_digest },
+    publication_record: JSON.parse(fs.readFileSync(durable.recordPath, 'utf8')),
+    protection: {
+      github_native_immutable: false,
+      retroactive_lock_claimed: false,
+      standard_asset_policy: 'sealed_name_size_digest_set_no_overwrite_or_delete',
+    },
+  })}\n`);
+  fs.writeFileSync(attestationPath, attestationBytes);
+  const attestationAction = {
+    action: 'upload',
+    name: 'opl-release-attestation.json',
+    source_path: attestationPath,
+    size_bytes: attestationBytes.length,
+    sha256: sha256Evidence(attestationBytes),
+  };
   const additionalPath = path.join(files.root, 'additional-upload-actions.json');
   fs.writeFileSync(additionalPath, `${JSON.stringify({
-    schema: 'opl_app_immutable_release_upload_actions.v1',
-    upload_actions: [durable.recordAction],
+    schema: 'opl_app_release_upload_actions.v1',
+    upload_actions: [attestationAction],
   })}\n`);
+  const preflight = buildSettingReceipt({
+    phase: 'preflight',
+    setting: { enabled: true, enforced_by_owner: false },
+    observedAt: '2026-08-03T08:00:00.000Z',
+  });
+  const disabled = buildSettingReceipt({
+    phase: 'disabled',
+    setting: { enabled: false, enforced_by_owner: false },
+    observedAt: '2026-08-03T08:00:01.000Z',
+    priorReceipt: preflight,
+  });
+  const preflightPath = path.join(files.root, 'setting-preflight.json');
+  const disabledPath = path.join(files.root, 'setting-disabled.json');
+  fs.writeFileSync(preflightPath, `${JSON.stringify(preflight)}\n`);
+  fs.writeFileSync(disabledPath, `${JSON.stringify(disabled)}\n`);
 
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
@@ -562,19 +532,19 @@ test('canonical Stable publication consumes the exact durable record and never c
     run(_command, args) {
       calls.push(args);
       if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`) {
-        throw new Error('The Actions runtime must not read the admin-only immutable Releases endpoint.');
+        return success({ enabled: false, enforced_by_owner: false });
       }
       if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/releases/tags/${tag}`) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success(releaseResponse(remoteAssets, {
           draft: !published,
-          immutable: published,
+          immutable: false,
         }));
       }
       if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/releases/12345`) {
         return success(releaseResponse(remoteAssets, {
           draft: !published,
-          immutable: published,
+          immutable: false,
         }));
       }
       if (isReleaseViewFor(args, tag, canonicalRepo)) {
@@ -594,7 +564,7 @@ test('canonical Stable publication consumes the exact durable record and never c
         return success(releaseResponse([], { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
-        const uploaded = [first, durable.recordAction].find(
+        const uploaded = [first, attestationAction].find(
           (candidate) => candidate.source_path === args[3],
         );
         assert.ok(uploaded);
@@ -622,6 +592,8 @@ test('canonical Stable publication consumes the exact durable record and never c
       plan: files.planPath,
       'additional-upload-actions': additionalPath,
       'publication-record': durable.recordPath,
+      'preflight-setting-receipt': preflightPath,
+      'disabled-setting-receipt': disabledPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
     (error: any) => {
@@ -642,14 +614,17 @@ test('canonical Stable publication consumes the exact durable record and never c
     plan: files.planPath,
     'additional-upload-actions': additionalPath,
     'publication-record': durable.recordPath,
+    'preflight-setting-receipt': preflightPath,
+    'disabled-setting-receipt': disabledPath,
     'operation-deadline-at': deadlineAt,
   }, runtime);
 
   assert.equal(result.status, 'complete');
-  assert.deepEqual(result.uploaded, [first.name, durable.recordAction.name]);
+  assert.deepEqual(result.uploaded, [first.name, attestationAction.name]);
   assert.equal(
     calls.some((args) => args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`),
-    false,
+    true,
   );
-  assert.equal(result.inspection.release.immutable, true);
+  assert.equal(result.inspection.release.immutable, false);
+  assert.equal(result.github_native_immutable, false);
 });
