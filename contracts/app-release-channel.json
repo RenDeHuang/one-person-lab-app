@@ -3225,7 +3225,23 @@
         "framework_carrier": "full_dmg_embedded_opl_base",
         "formula_dependency_required": false,
         "promotion_status": "approved_pending_first_protected_follower_readback",
-        "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch"
+        "unknown_or_conflicting_result": "fail_closed_no_retry_rerun_or_redispatch",
+        "exact_failed_follower_recovery": {
+          "trigger": "workflow_dispatch",
+          "authority_binding": "same_successful_append_full_run_and_exact_failed_first_attempt_follower",
+          "required_inputs": [
+            "source_run_id",
+            "failed_follower_run_id",
+            "recovery_confirmation"
+          ],
+          "confirmation": "recover_exact_failed_homebrew_full_follower",
+          "failed_boundary": "resolve_handoff_bind_failed_and_protected_publish_job_skipped",
+          "failed_follower_public_mutation_count_required": 0,
+          "canonical_main_executor_required": true,
+          "same_identity_recovery_run_count_required": 1,
+          "workflow_rerun_allowed": false,
+          "append_full_redispatch_allowed": false
+        }
       },
       "version_identity": {
         "cask_version": "updater_version",
@@ -4239,7 +4255,23 @@
       "physical_executor_workflow": ".github/workflows/opl-first-run-vm.yml",
       "dispatcher_execution": "github_hosted_read_only_public_artifact_consumer",
       "stable_dag_dependency": false,
-      "may_queue_without_proven_capability": false
+      "may_queue_without_proven_capability": false,
+      "exact_failed_follower_recovery": {
+        "trigger": "workflow_dispatch",
+        "authority_binding": "same_successful_append_full_run_and_exact_failed_first_attempt_follower",
+        "required_inputs": [
+          "source_run_id",
+          "failed_follower_run_id",
+          "recovery_confirmation"
+        ],
+        "confirmation": "recover_exact_failed_optional_certification",
+        "failed_boundary": "resolve_full_identity_bind_failed_and_all_certification_executors_skipped",
+        "failed_follower_public_mutation_count_required": 0,
+        "canonical_main_executor_required": true,
+        "same_identity_recovery_run_count_required": 1,
+        "workflow_rerun_allowed": false,
+        "append_full_redispatch_allowed": false
+      }
     },
     "rule": "Optional clean-machine certification consumes the exact already-published artifact and produces a separate immutable receipt. It never rebuilds, mutates or resigns the component manifest, blocks publication or Latest, or masquerades as publication success."
   },

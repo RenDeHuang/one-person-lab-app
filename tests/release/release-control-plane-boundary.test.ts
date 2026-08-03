@@ -355,6 +355,25 @@ test('Full Homebrew follower publishes hosted-qualified bytes without a physical
   assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)) > 0);
 });
 
+test('Full follower recovery fails closed on widened confirmation or missing mutation-zero evidence', (t) => {
+  const homebrewRoot = fixture(t);
+  updateWorkflow(homebrewRoot, 'release-homebrew-full-follower.yml', (workflow) => {
+    workflow.on.workflow_dispatch.inputs.recovery_confirmation.options = ['recover_any_full_follower'];
+  });
+  assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(homebrewRoot)) > 0);
+
+  const certificationRoot = fixture(t);
+  const certificationPath = workflowPath(certificationRoot, 'release-post-publication-certification.yml');
+  const current = fs.readFileSync(certificationPath, 'utf8');
+  const weakened = current.replace(
+    '.name != "resolve-full" and .conclusion != "skipped"',
+    '.name != "resolve-full"',
+  );
+  assert.notEqual(weakened, current);
+  fs.writeFileSync(certificationPath, weakened);
+  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(certificationRoot)) > 0);
+});
+
 test('Nightly cannot reuse the Stable Bundle, heavy VM, or Stable mutation mutex', (t) => {
   const root = fixture(t);
   updateWorkflow(root, 'release-nightly.yml', (workflow) => {

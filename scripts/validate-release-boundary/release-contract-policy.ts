@@ -1229,6 +1229,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
 
 function validateOptionalCertificationPolicy(releaseContract: Record<string, any>): number {
   const policy = releaseContract.post_publication_optional_certification;
+  const recovery = policy?.producer?.exact_failed_follower_recovery;
   let failures = 0;
   if (
     policy?.schema !== 'opl_app_optional_certification_policy.v1'
@@ -1259,6 +1260,18 @@ function validateOptionalCertificationPolicy(releaseContract: Record<string, any
     || policy?.producer?.dispatcher_execution !== 'github_hosted_read_only_public_artifact_consumer'
     || policy?.producer?.stable_dag_dependency !== false
     || policy?.producer?.may_queue_without_proven_capability !== false
+    || recovery?.trigger !== 'workflow_dispatch'
+    || recovery?.authority_binding !== 'same_successful_append_full_run_and_exact_failed_first_attempt_follower'
+    || !sameStringSet(recovery?.required_inputs, [
+      'source_run_id', 'failed_follower_run_id', 'recovery_confirmation',
+    ])
+    || recovery?.confirmation !== 'recover_exact_failed_optional_certification'
+    || recovery?.failed_boundary !== 'resolve_full_identity_bind_failed_and_all_certification_executors_skipped'
+    || recovery?.failed_follower_public_mutation_count_required !== 0
+    || recovery?.canonical_main_executor_required !== true
+    || recovery?.same_identity_recovery_run_count_required !== 1
+    || recovery?.workflow_rerun_allowed !== false
+    || recovery?.append_full_redispatch_allowed !== false
   ) {
     console.error('FAIL optional_certification_policy: certification must be four-state, post-publication, same-artifact, and non-blocking');
     failures += 1;
@@ -1828,6 +1841,21 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.full?.formula_dependency_required !== false ||
     homebrew?.tap_update_policy?.full?.promotion_status !== 'approved_pending_first_protected_follower_readback' ||
     homebrew?.tap_update_policy?.full?.unknown_or_conflicting_result !== 'fail_closed_no_retry_rerun_or_redispatch' ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.trigger !== 'workflow_dispatch' ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.authority_binding !==
+      'same_successful_append_full_run_and_exact_failed_first_attempt_follower' ||
+    !sameStringSet(homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.required_inputs, [
+      'source_run_id', 'failed_follower_run_id', 'recovery_confirmation',
+    ]) ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.confirmation !==
+      'recover_exact_failed_homebrew_full_follower' ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.failed_boundary !==
+      'resolve_handoff_bind_failed_and_protected_publish_job_skipped' ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.failed_follower_public_mutation_count_required !== 0 ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.canonical_main_executor_required !== true ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.same_identity_recovery_run_count_required !== 1 ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.workflow_rerun_allowed !== false ||
+    homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.append_full_redispatch_allowed !== false ||
     homebrew?.full_first_install_policy !== 'the independent immutable Full adjunct GitHub Release is the Full DMG and manifest self-identity authority; its durable receipt exposes the adjunct Release and asset URLs, and its compatibility admission uses capability, minimum-version, or SemVer-range requirements through the Framework-owner receipt. The protected Homebrew Full follower consumes that exact adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
