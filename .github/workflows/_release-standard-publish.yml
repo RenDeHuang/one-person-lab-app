@@ -827,13 +827,17 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout canonical App executor
+      - name: Checkout frozen App content
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with: { ref: '${{ needs.restore.outputs.app_ref }}', path: app-source }
 
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ github.sha }}', path: app-executor }
+
       - name: Restore Standard checkpoint
         id: checkpoint
-        uses: ./app-source/.github/actions/restore-release-checkpoint
+        uses: ./app-executor/.github/actions/restore-release-checkpoint
         with:
           framework-executor-ref: ${{ needs.restore.outputs.framework_executor_ref }}
           source-run-id: ${{ needs.restore.outputs.source_run_id }}
@@ -916,7 +920,7 @@ jobs:
           source_gate="$control_source_dir/source-gate.json"
           pre_nonce_guard="$control_source_dir/pre-issued-pre-nonce-guard.json"
           run_authority_reconcile="$control_source_dir/run-authority-reconcile.json"
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
             --control "$control" --input "$consumption" --app-root app-source \
             --source-gate "$source_gate" --pre-nonce-guard "$pre_nonce_guard" \
             --run-authority-reconcile "$run_authority_reconcile" \
@@ -934,10 +938,10 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN"
-          node --experimental-strip-types app-source/scripts/github-release-immutability-setting.ts preflight \
+          node --experimental-strip-types app-executor/scripts/github-release-immutability-setting.ts preflight \
             --repository "$GITHUB_REPOSITORY" \
             --output github-immutability-preflight.json
-          node --experimental-strip-types app-source/scripts/github-release-immutability-setting.ts disable \
+          node --experimental-strip-types app-executor/scripts/github-release-immutability-setting.ts disable \
             --repository "$GITHUB_REPOSITORY" \
             --preflight github-immutability-preflight.json \
             --output github-immutability-disabled.json
@@ -958,7 +962,7 @@ jobs:
           esac
           printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.restore.outputs.source_run_id }}' '${{ needs.restore.outputs.source_artifact }}' '${{ needs.restore.outputs.operation_deadline_at }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
-          node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
+          node --experimental-strip-types app-executor/scripts/release-operation-deadline.ts check \
             --operation '${{ needs.restore.outputs.release_operation }}' \
             --started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --deadline-at '${{ needs.restore.outputs.operation_deadline_at }}'
@@ -975,9 +979,9 @@ jobs:
           framework-executor/bin/opl release operation admit \
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
             --store "$store" --json > publish-operation-admit.json
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts github-inspect \
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote-before.json
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-before" \
             --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$remote_target" --publication-scope track_assets \
@@ -1024,7 +1028,7 @@ jobs:
             jq '{assets: (.release_bundle_publish.receipt.details.upload_actions // [])}' \
               publish-plan.json > planned-payload-assets.json
             record=stable-operation-publication-record.json
-            node --experimental-strip-types app-source/scripts/stable-operation-publication-record.ts create \
+            node --experimental-strip-types app-executor/scripts/stable-operation-publication-record.ts create \
               --authority "${authorities[0]}" --control "${controls[0]}" --consumption "${consumptions[0]}" \
               --source-gate "${source_gates[0]}" --pre-nonce-guard "${pre_nonce_guards[0]}" \
               --run-authority-reconcile "${run_reconciles[0]}" \
@@ -1038,7 +1042,7 @@ jobs:
               test -s "$evidence" && test ! -L "$evidence"
             done
             cmp "$component_manifest" "$bound_component_manifest"
-            node --experimental-strip-types app-source/scripts/write-release-attestation.ts \
+            node --experimental-strip-types app-executor/scripts/write-release-attestation.ts \
               --publication-record "$record" \
               --gatekeeper-policy "$gatekeeper_policy" \
               --notarization-receipt "$notarization_receipt" \
@@ -1064,7 +1068,7 @@ jobs:
               --disabled-setting-receipt github-immutability-disabled.json
             )
           fi
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --publication-channel '${{ needs.restore.outputs.channel }}' \
             --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
@@ -1078,7 +1082,7 @@ jobs:
             --output publication-contract-rehearsal.json
           test "$(jq -r .status publication-contract-rehearsal.json)" = rehearsal_complete
           test "$(jq -r .mutation_attempted publication-contract-rehearsal.json)" = false
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --publication-channel '${{ needs.restore.outputs.channel }}' \
             --operation '${{ needs.restore.outputs.release_operation }}' --track standard --run-attempt "$GITHUB_RUN_ATTEMPT" \
@@ -1097,7 +1101,7 @@ jobs:
                 unknown_attempt="$(jq -er '.mutation_attempt_id | strings | select(length > 0)' publish-apply.json)"
                 unknown_target="$(jq -er '.remote_target | strings | select(length > 0)' publish-apply.json)"
                 test "$unknown_target" = "$remote_target"
-                node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+                node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts executor-receipt \
                   --operation remote_inspect --executor remote --attempt-id "$unknown_attempt" \
                   --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
                   --remote-target "$unknown_target" --publication-scope track_assets \
@@ -1130,10 +1134,10 @@ jobs:
               echo "::error::Framework did not persist an unknown Standard publish outcome; reconcile is forbidden."
               exit 1
             }
-            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+            node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts github-inspect \
               --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' \
               --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' --output reconcile-observation.json
-            node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+            node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts executor-receipt \
               --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-reconcile" \
               --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
               --remote-target "$unknown_target" --prior-attempt-id "$unknown_attempt" \
@@ -1149,9 +1153,9 @@ jobs:
               exit 1
             }
           fi
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts github-inspect \
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote-after.json
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-after" \
             --release-operation '${{ needs.restore.outputs.release_operation }}' --operation-id "$operation_id" \
             --remote-target "$remote_target" --publication-scope track_assets \
@@ -2297,7 +2301,7 @@ jobs:
     steps:
       - name: Checkout canonical App executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with: { ref: '${{ needs.restore.outputs.app_ref }}', path: app-source }
+        with: { ref: '${{ github.sha }}', path: app-executor }
 
       - name: Download Standard publication evidence
         id: download-publication-evidence
@@ -2374,7 +2378,7 @@ jobs:
           else
             restore_args+=(--publication-outcome "$publication_outcome")
           fi
-          node --experimental-strip-types app-source/scripts/github-release-immutability-setting.ts restore \
+          node --experimental-strip-types app-executor/scripts/github-release-immutability-setting.ts restore \
             "${restore_args[@]}"
           jq -e '
             .phase == "restored"

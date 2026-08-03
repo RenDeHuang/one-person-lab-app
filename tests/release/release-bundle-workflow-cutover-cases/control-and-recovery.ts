@@ -329,6 +329,81 @@ test('resume admission preserves Standard identity and rotates only an expired e
   assert.match(reconcileRun, /echo "operation_deadline_at=\$operation_deadline_at"/);
 
   const publish = workflow.jobs['publish-standard-nonlatest'];
+  const frozenAppCheckout = workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Checkout frozen App content',
+  );
+  const releaseExecutorCheckout = workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Checkout canonical App executor',
+  );
+  assert.equal(frozenAppCheckout.with.ref, '${{ needs.restore.outputs.app_ref }}');
+  assert.equal(frozenAppCheckout.with.path, 'app-source');
+  assert.equal(releaseExecutorCheckout.with.ref, '${{ github.sha }}');
+  assert.equal(releaseExecutorCheckout.with.path, 'app-executor');
+  assert.notEqual(frozenAppCheckout.with.ref, releaseExecutorCheckout.with.ref);
+  assert.equal(
+    workflowStep(
+      '_release-standard-publish.yml',
+      'publish-standard-nonlatest',
+      'Restore Standard checkpoint',
+    ).uses,
+    './app-executor/.github/actions/restore-release-checkpoint',
+  );
+
+  const controlVerification = String(workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Bind consumed Stable operation control into the immutable carrier',
+  ).run);
+  assert.match(controlVerification, /app-executor\/scripts\/stable-operation-control\.ts verify/);
+  assert.match(controlVerification, /--app-root app-source/);
+  assert.doesNotMatch(controlVerification, /app-source\/scripts\//);
+
+  const settingControl = String(workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Preflight and disable future-release immutability for Stable',
+  ).run);
+  assert.match(settingControl, /app-executor\/scripts\/github-release-immutability-setting\.ts preflight/);
+  assert.match(settingControl, /app-executor\/scripts\/github-release-immutability-setting\.ts disable/);
+  assert.doesNotMatch(settingControl, /app-source\/scripts\//);
+
+  const publicationControl = String(workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Publish only missing Standard bytes',
+  ).run);
+  for (const script of [
+    'release-operation-deadline.ts',
+    'framework-release-adapter.ts',
+    'stable-operation-publication-record.ts',
+    'write-release-attestation.ts',
+  ]) {
+    assert.ok(
+      publicationControl.includes(`app-executor/scripts/${script}`),
+      `${script} is not bound to the canonical release executor checkout`,
+    );
+  }
+  assert.doesNotMatch(publicationControl, /app-source\/scripts\//);
+
+  const restoreSettingCheckout = workflowStep(
+    '_release-standard-publish.yml',
+    'restore-repository-immutability',
+    'Checkout canonical App executor',
+  );
+  assert.equal(restoreSettingCheckout.with.ref, '${{ github.sha }}');
+  assert.equal(restoreSettingCheckout.with.path, 'app-executor');
+  const restoreSettingControl = String(workflowStep(
+    '_release-standard-publish.yml',
+    'restore-repository-immutability',
+    'Restore and read back future-release immutability',
+  ).run);
+  assert.match(restoreSettingControl, /app-executor\/scripts\/github-release-immutability-setting\.ts restore/);
+  assert.doesNotMatch(restoreSettingControl, /app-source\/scripts\//);
+
   const boundEvidenceDownload = (publish.steps ?? []).find(
     (step: Record<string, unknown>) => step.name === 'Download internal Standard trust evidence',
   );
