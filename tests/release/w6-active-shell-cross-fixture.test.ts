@@ -18,7 +18,7 @@ const appFixturePaths = [
   'contracts/fixtures/opl-app-state-runtime-v2-unknown-agent.fixture.json',
   'contracts/fixtures/opl-app-state-unknown-agent.fixture.json',
 ] as const;
-const appFixtureRef = process.env.OPL_APP_FIXTURE_REF?.trim() || 'origin/main';
+const appFixtureRef = process.env.OPL_APP_FIXTURE_REF?.trim() || 'HEAD';
 
 type Project = keyof typeof crossFixtureTests;
 
