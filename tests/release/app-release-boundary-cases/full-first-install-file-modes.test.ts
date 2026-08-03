@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
 import { ensurePackagedRuntimeFilesOwnerWritable } from '../../../scripts/build-full-first-install-package/archive-output.ts';
+import { createPosixModeTempRoot } from '../native-posix-temp.ts';
 
 test('Full payload staging makes regular files owner-writable without changing executable bits', () => {
-  const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-runtime-modes-'));
+  const runtimeRoot = createPosixModeTempRoot('opl-full-runtime-modes-');
   try {
     const dataFile = path.join(runtimeRoot, 'python', '_emoji_codes.py');
     const executableFile = path.join(runtimeRoot, 'bin', 'python3');
