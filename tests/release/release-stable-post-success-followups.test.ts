@@ -21,7 +21,64 @@ const fullAddonSource = fs.readFileSync(
 );
 const fullAddon = parseYaml(fullAddonSource) as Record<string, any>;
 
-function runSuccessorDispatchStep() {
+function runSourceValidationStep(displayTitle: string) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-successor-source-"));
+  try {
+    const bin = path.join(root, "bin");
+    const outputPath = path.join(root, "github-output.txt");
+    fs.mkdirSync(bin);
+    const fakeGh = path.join(bin, "gh");
+    fs.writeFileSync(
+      fakeGh,
+      String.raw`#!/usr/bin/env node
+process.stdout.write(JSON.stringify({
+  id: Number(process.env.SOURCE_RUN_ID),
+  repository: { full_name: "gaofeng21cn/one-person-lab-app" },
+  head_repository: { full_name: "gaofeng21cn/one-person-lab-app" },
+  path: ".github/workflows/release-stable.yml",
+  event: "workflow_dispatch",
+  head_branch: "main",
+  head_sha: process.env.SOURCE_HEAD_SHA,
+  run_attempt: 1,
+  status: "completed",
+  conclusion: "success",
+  display_title: process.env.OPL_TEST_SOURCE_TITLE,
+}));
+`,
+    );
+    fs.chmodSync(fakeGh, 0o755);
+    const sourceStep = workflow.jobs.admit.steps.find(
+      (candidate: Record<string, any>) => candidate.name === "Validate successful Standard source run",
+    );
+    assert.ok(sourceStep);
+    const result = spawnSync("/bin/bash", ["-euo", "pipefail", "-c", String(sourceStep.run)], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
+        GITHUB_RUN_ATTEMPT: "1",
+        SOURCE_RUN_ID: "30859273345",
+        SOURCE_HEAD_SHA: "a".repeat(40),
+        OPL_TEST_SOURCE_TITLE: displayTitle,
+      },
+    });
+    return {
+      result,
+      output: fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8") : "",
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function runSuccessorDispatchStep({
+  sourceArtifact = "opl-release-standard-checkpoint-30123456789",
+}: {
+  sourceArtifact?: string;
+} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-successor-dispatch-"));
   try {
     const bin = path.join(root, "bin");
@@ -88,7 +145,7 @@ process.stdout.write(JSON.stringify({
         GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
         GITHUB_OUTPUT: outputPath,
         SOURCE_RUN_ID: "30123456789",
-        SOURCE_ARTIFACT: "opl-release-standard-checkpoint-30123456789",
+        SOURCE_ARTIFACT: sourceArtifact,
         FRAMEWORK_REF: "c".repeat(40),
         APP_REF: "a".repeat(40),
         SHELL_REF: "b".repeat(40),
@@ -266,8 +323,10 @@ test("admission binds the Standard source run and exact checkpoint without makin
   assert.match(source, /\.run_attempt == 1/);
   assert.match(
     source,
-    /opl-release-standard-checkpoint-\$\{\{ github\.event\.workflow_run\.id \}\}/,
+    /name: \$\{\{ steps\.source\.outputs\.source_artifact \}\}/,
   );
+  assert.match(source, /opl-release-standard-checkpoint-\$SOURCE_RUN_ID/);
+  assert.match(source, /opl-release-standard-operation-checkpoint-\$SOURCE_RUN_ID/);
   assert.match(
     source,
     /opl-release-activation-\$\{\{ github\.event\.workflow_run\.id \}\}/,
@@ -318,6 +377,28 @@ test("Full successor admits both initial and resumed Standard success titles, bu
   assert.match("OPL Stable resume_standard 30859273345", titlePattern);
   assert.doesNotMatch("OPL Stable append_full source:30859273345 run:30860184622", titlePattern);
   assert.doesNotMatch("OPL Stable resume_standard operation:stable-op run:30859273345", titlePattern);
+
+  const initial = runSourceValidationStep(
+    "OPL Stable standard operation:stable-op authority:stable-auth run:30859273345",
+  );
+  assert.equal(initial.result.status, 0, initial.result.stderr || initial.result.stdout);
+  assert.match(initial.output, /source_artifact=opl-release-standard-checkpoint-30859273345/);
+
+  const resumed = runSourceValidationStep("OPL Stable resume_standard 30859273345");
+  assert.equal(resumed.result.status, 0, resumed.result.stderr || resumed.result.stdout);
+  assert.match(
+    resumed.output,
+    /source_artifact=opl-release-standard-operation-checkpoint-30859273345/,
+  );
+
+  const appendFull = runSourceValidationStep(
+    "OPL Stable append_full source:30859273345 run:30860184622",
+  );
+  assert.notEqual(appendFull.result.status, 0);
+  const forgedResume = runSourceValidationStep(
+    "OPL Stable resume_standard operation:stable-op run:30859273345",
+  );
+  assert.notEqual(forgedResume.result.status, 0);
 });
 
 test("append_full dispatch binds candidates and final readback to one exact Standard source run", () => {
@@ -398,6 +479,18 @@ test("successor dispatch is exactly one append_full JSON input set with no legac
   assert.equal(
     execution.payload.inputs.source_artifact,
     "opl-release-standard-checkpoint-30123456789",
+  );
+  const resumedExecution = runSuccessorDispatchStep({
+    sourceArtifact: "opl-release-standard-operation-checkpoint-30123456789",
+  });
+  assert.equal(
+    resumedExecution.result.status,
+    0,
+    resumedExecution.result.stderr || resumedExecution.result.stdout,
+  );
+  assert.equal(
+    resumedExecution.payload?.inputs.source_artifact,
+    "opl-release-standard-operation-checkpoint-30123456789",
   );
   assert.equal("source_qualification_run_id" in execution.payload.inputs, false);
   assert.equal("source_qualification_receipt_digest" in execution.payload.inputs, false);
