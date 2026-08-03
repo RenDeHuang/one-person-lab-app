@@ -71,8 +71,6 @@ function roleBasedPayloadBullets(evidence: ReleaseNotesEvidence) {
 
 export function renderReleaseNotesDocument(evidence: ReleaseNotesEvidence) {
   const lines = [
-    evidence.release_title,
-    '',
     openingUserBenefit(evidence),
     '',
     '## Highlights',

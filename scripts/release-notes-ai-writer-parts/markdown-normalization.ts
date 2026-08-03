@@ -83,11 +83,22 @@ function localizedBlockHasReleaseTitle(markdown: string, evidence: ReleaseNotesE
   return new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}(?:\\s|$)`).test(markdown);
 }
 
+export function stripVisibleReleaseTitle(markdown: string, evidence: ReleaseNotesEvidence) {
+  const lines = markdown.trimStart().split('\n');
+  const titleLine = new RegExp(`^#?\\s*${escapeRegExp(evidence.release_title)}\\s*$`);
+  if (!titleLine.test(lines[0]?.trim() || '')) {
+    return `${markdown.trimEnd()}\n`;
+  }
+  lines.shift();
+  while (lines[0] !== undefined && !lines[0]!.trim()) lines.shift();
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
 function restoreLocalizedBlocks(visibleMarkdown: string, originalMarkdown: string, evidence: ReleaseNotesEvidence) {
   const extractedEnUS = extractLocalizedReleaseNotes(originalMarkdown, 'en-US');
   const enUS = extractedEnUS && localizedBlockHasReleaseTitle(extractedEnUS, evidence)
     ? extractedEnUS
-    : visibleMarkdown;
+    : ensureReleaseTitle(visibleMarkdown, evidence);
   let zhCN = extractLocalizedReleaseNotes(originalMarkdown, 'zh-CN');
   if (!zhCN || !localizedBlockHasReleaseTitle(zhCN, evidence)) {
     zhCN = buildFallbackZhCNReleaseNotes(visibleMarkdown, evidence);
@@ -431,5 +442,5 @@ export function completeAiReleaseNotesWithEvidence(markdown: string, evidence: R
   // Normalize the complete public document so those sections cannot reintroduce
   // maintainer-only wording before the technical boundary.
   visible = sanitizePreTechnicalDeveloperTerms(visible);
-  return restoreLocalizedBlocks(visible, markdown, evidence);
+  return restoreLocalizedBlocks(stripVisibleReleaseTitle(visible, evidence), markdown, evidence);
 }
