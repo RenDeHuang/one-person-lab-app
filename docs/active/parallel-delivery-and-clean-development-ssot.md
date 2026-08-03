@@ -56,6 +56,39 @@ set、立即可执行的 next action、可恢复 checkpoint 和明确的 canonic
 任务只有在 fresh main/wire/tree/blob parity、必要的 installed/public/runtime 终态、holder/
 lock=0 和 owner-native lifecycle close 全部完成后，才可转为 `SAFE_TO_ARCHIVE`。
 
+## 长目标的 bounded lane contract
+
+需要同时闭合多个发布、安装、公开 readback 或清理缺口的长目标，必须拆成可独立验收的
+bounded lanes。父 objective 只是这些 lane 的合取汇总：只有所有 required
+`publication`、`install`、`readback` 和 `cleanup` gaps 均已关闭，父 objective 才能完成；
+任何一个 lane 的成功、候选产物或测试通过都不能替代其他 gap，也不能提前关闭父 objective。
+
+每条 lane 在 OPL Ledger 中必须有且只有一个 `owner`、一个 `execution_owner`、精确或有界
+`write_set`、可立即执行的 `next_action`、typed `dependency`/`trigger`、明确的
+`integration_plan` 和独立的 `terminal_evidence`。这些是动态协调记录，不在本文冻结具体
+thread、SHA、checkpoint、ETA 或当前 lane 清单；产品文档只维护本合同，OPL Ledger 才是
+任务真相。
+
+`dependency` 描述消费的前置事实，`trigger` 描述何时可重新准入，例如
+`source_checkpoint_ready`、`immutable_artifact_published`、`public_readback_ready`、
+`installed_readback_requested` 或 `owner_cleanup_authorized`。它们必须带 schema/identity、
+版本或 digest、producer/consumer 角色和恢复条件；裸 tag、短期 Actions artifact、模糊的
+“等上游”或 peer callback 不是 typed trigger。
+
+并行开发只在 lane 自己的 worktree/write set 内进行。producer 与 consumer 可以先用已登记的
+contract、fixture 或兼容桥实现和验证，但进入同一 repo 的 canonical `main`、同一 public
+pointer、同一 install target 或同一 runtime/database 的真实 mutation 时，必须由单一
+integrator 在短时窗口内按 fresh main 做 semantic replay、受保护或普通非 force 吸收并完成
+wire/tree/blob/raw parity。其他 lane 仍可继续本地验证，不因集成窗口而形成全局总锁。
+
+只有存在可执行 next action 的 lane 才能保持 `ACTIVE`。若唯一状态是等待某个未来 artifact
+或事件，lane 必须记录 typed trigger 后转为 `EVENT_IDLE`；事件到达时再 fresh readback 并
+创建或恢复 bounded execution task。不得创建或维持只能等待 artifact 的 `ACTIVE` task。
+
+`terminal_evidence` 必须证明该 lane 自己的终态表面（例如 exact public bytes/digest、安装后
+有效状态、canonical absorption 或 owner-native cleanup），并记录失败、延迟和无变化的真实
+结果。证据不得从 sibling lane、历史 receipt、候选 checkpoint 或父 objective 的摘要推导。
+
 基线整理顺序固定为：
 
 ```text
