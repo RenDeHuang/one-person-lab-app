@@ -230,6 +230,44 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
   }
 });
 
+test("fresh-runner release-boundary jobs install active Shell dependencies before W6 validation", () => {
+  const cases = [
+    {
+      path: ".github/workflows/non-release-validation.yml",
+      start: "  release-boundary:",
+      end: null,
+      validation: "npm run test:release-boundary",
+    },
+    {
+      path: ".github/workflows/_build-reusable.yml",
+      start: "  release-boundary:",
+      end: "\n  active-shell-tests:",
+      validation: "scripts/verify.sh release-boundary",
+    },
+  ];
+
+  for (const candidate of cases) {
+    const workflow = fs.readFileSync(path.join(appRoot, candidate.path), "utf8");
+    const jobStart = workflow.indexOf(candidate.start);
+    const jobEnd =
+      candidate.end === null ? workflow.length : workflow.indexOf(candidate.end, jobStart);
+    const job = workflow.slice(jobStart, jobEnd);
+    const setup = job.indexOf("uses: ./.github/actions/setup-active-shell-deps");
+    const installShell = job.indexOf("install-dependencies: 'true'", setup);
+    const validation = job.indexOf(candidate.validation);
+
+    assert.ok(
+      jobStart >= 0 && jobEnd > jobStart,
+      `missing release-boundary job in ${candidate.path}`,
+    );
+    assert.ok(setup >= 0, `${candidate.path} must set up the active Shell before validation`);
+    assert.ok(
+      installShell > setup && validation > installShell,
+      `${candidate.path} must install active Shell dependencies before W6 validation`,
+    );
+  }
+});
+
 test("Bundle freeze gate installs frozen App and Framework dependencies before validation", () => {
   const workflow = fs.readFileSync(
     path.join(appRoot, ".github/workflows/_release-bundle.yml"),

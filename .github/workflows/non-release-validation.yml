@@ -72,7 +72,7 @@ jobs:
         uses: ./.github/actions/setup-active-shell-deps
         with:
           shell-ref: main
-          install-dependencies: 'false'
+          install-dependencies: 'true'
 
       - name: Install App root validation dependencies
         run: npm ci --ignore-scripts
