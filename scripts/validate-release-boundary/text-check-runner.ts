@@ -288,7 +288,7 @@ const stableEntrySpecs = {
   standard: {
     operation: 'standard',
     workflow: './.github/workflows/_release-bundle.yml',
-    if: "${{ needs.admission.outputs.operation == 'standard' }}",
+    if: "${{ !cancelled() && inputs.operation == 'standard' && needs.admission.result == 'success' }}",
     needs: ['admission', 'protected-operation-admission', 'stable-admission-manifest'],
     requiredInputs: {
       mode: 'execute',
@@ -311,7 +311,7 @@ const stableEntrySpecs = {
   'resume-standard': {
     operation: 'resume_standard',
     workflow: './.github/workflows/_release-standard-publish.yml',
-    if: "${{ needs.admission.outputs.operation == 'resume_standard' }}",
+    if: "${{ !cancelled() && inputs.operation == 'resume_standard' && needs.admission.result == 'success' }}",
     needs: ['admission'],
     requiredInputs: {
       mode: 'execute',
