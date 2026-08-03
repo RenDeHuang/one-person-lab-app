@@ -1286,12 +1286,31 @@ export interface GitHubAdapterRuntime {
   mutationTimeoutMs?: number;
 }
 
+export function githubCommandEnvironment(
+  command: string,
+  args: string[],
+  baseEnvironment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const endpoint = args[0] === 'api' && typeof args[1] === 'string' ? args[1] : '';
+  const adminToken = baseEnvironment.OPL_GITHUB_RELEASE_ADMIN_TOKEN?.trim();
+  if (
+    command === 'gh'
+    && args[0] === 'api'
+    && /^repos\/[^/]+\/[^/]+\/immutable-releases$/.test(endpoint)
+    && !args.includes('--method')
+    && adminToken
+  ) {
+    return { ...baseEnvironment, GH_TOKEN: adminToken };
+  }
+  return baseEnvironment;
+}
+
 const defaultGitHubRuntime: GitHubAdapterRuntime = {
   run(command, args, options) {
     const result = spawnSync(command, args, {
       encoding: 'utf8',
       input: options.input,
-      env: process.env,
+      env: githubCommandEnvironment(command, args),
       maxBuffer: 64 * 1024 * 1024,
       timeout: options.timeout,
       killSignal: options.killSignal,

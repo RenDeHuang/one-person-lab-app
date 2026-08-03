@@ -5,9 +5,35 @@ import {
   assertImmutabilitySettingReceipt,
   buildSettingReceipt,
 } from '../../scripts/github-release-immutability-setting.ts';
+import { githubCommandEnvironment } from '../../scripts/framework-release-adapter.ts';
 import { hasExactImmutabilityWindowPhases } from '../../scripts/validate-release-boundary/release-contract-policy.ts';
 
 const observedAt = '2026-08-03T08:00:00.000Z';
+
+test('immutable setting readback uses the admin token while release writes keep the Actions token', () => {
+  const baseEnvironment = {
+    GH_TOKEN: 'actions-token',
+    OPL_GITHUB_RELEASE_ADMIN_TOKEN: 'admin-token',
+  };
+  const settingRead = githubCommandEnvironment(
+    'gh',
+    ['api', 'repos/gaofeng21cn/one-person-lab-app/immutable-releases'],
+    baseEnvironment,
+  );
+  assert.equal(settingRead.GH_TOKEN, 'admin-token');
+  const releaseRead = githubCommandEnvironment(
+    'gh',
+    ['api', 'repos/gaofeng21cn/one-person-lab-app/releases/tags/v26.8.3'],
+    baseEnvironment,
+  );
+  assert.equal(releaseRead.GH_TOKEN, 'actions-token');
+  const explicitMutation = githubCommandEnvironment(
+    'gh',
+    ['api', 'repos/gaofeng21cn/one-person-lab-app/immutable-releases', '--method', 'DELETE'],
+    baseEnvironment,
+  );
+  assert.equal(explicitMutation.GH_TOKEN, 'actions-token');
+});
 
 test('immutability window phases are ordered, not merely set-equal', () => {
   const phases = [
