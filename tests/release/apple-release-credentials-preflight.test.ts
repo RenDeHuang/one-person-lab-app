@@ -8,6 +8,7 @@ import {
   type CommandRunner,
   verifyAppleReleaseCredentials,
 } from '../../scripts/verify-apple-release-credentials.ts';
+import { createPosixModeTempRoot } from './native-posix-temp.ts';
 
 const teamId = 'SVVC4TA784';
 const identitySha = 'A'.repeat(40);
@@ -240,7 +241,7 @@ test('large DMG canary rejects a non-Intel runner before allocating its payload'
 });
 
 test('Apple credential preflight imports the P12, signs a probe, and authenticates notarization read-only', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-credential-test-'));
+  const root = createPosixModeTempRoot('opl-apple-credential-test-');
   const outputPath = path.join(root, 'receipt.json');
   const fixture = successfulRunner();
   const receipt = verifyAppleReleaseCredentials({
