@@ -1,0 +1,174 @@
+import {
+  assert,
+  fs,
+  test,
+  validateAppGuiProductContract,
+  validatePrimaryInteractionPages,
+  validateProductProfile,
+  assertCanonicalThreadDirectoryGroupingSources,
+  assertCanonicalThreadDirectoryTimeoutBoundarySources,
+  assertCanonicalThreadAffinityConvergenceSources,
+  assertCurrentGuidHomeSelectionSources,
+  assertProjectlessGuidFileAccessSources,
+  assertRuntimePageSourceBoundary,
+  assertSkillsHubScopeSource,
+  validateShellVisualTokenBindings,
+  assertCodexModelPolicyProjection,
+  projectCodexModelPolicyContracts,
+  readJson,
+  readModelPolicyBundle,
+} from "./fixtures.ts";
+
+test('Skills Hub exposes global and projected Skill scopes without upstream auto-injected UI', () => {
+  const current = [
+    'const skills = await ipcBridge.fs.listAvailableSkills.invoke();',
+    'setAvailableSkills(skills);',
+    "flowManagedSkillIds === undefined ? 'my-skills-section' : 'manual-and-third-party-capabilities'",
+    "t('settings.skillsHub.mySkillsTitle', { defaultValue: 'Global User Skills' })",
+    "t('settings.skillsHub.globalUserSkillsPath', { path: skillPaths.user_skills_dir })",
+  ].join('\n');
+  assert.doesNotThrow(() => assertSkillsHubScopeSource(current));
+  assert.throws(
+    () => assertSkillsHubScopeSource(`${current}\nipcBridge.fs.listBuiltinAutoSkills.invoke();`),
+    /auto-injected Skill scope/,
+  );
+  assert.throws(
+    () => assertSkillsHubScopeSource(current.replace('Global User Skills', 'My Skills')),
+    /Global User Skills/,
+  );
+});
+
+test('conversation history and managed scratch keep identity, cwd, and Project affinity distinct', () => {
+  const guiProductContract = readJson('contracts/app-gui-product-contract.json');
+  const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
+  const threadDirectoryPolicy = guiProductContract.interaction_baseline.navigation_rail.thread_directory_policy;
+  const surfaces = threadDirectoryPolicy.conversation_history_surfaces;
+  const guiWorkspaceModel = guiProductContract.interaction_baseline.conversation_scope.session_workspace_model;
+  const profileWorkspaceModel = readJson('contracts/app-product-profile.json')
+    .gui.ordinary_conversation.session_workspace_model;
+  const home = pageStateMatrix.pages.find((page: { id: string }) => page.id === 'guid_home');
+  const ordinaryConversation = pageStateMatrix.pages.find(
+    (page: { id: string }) => page.id === 'ordinary_conversation',
+  );
+
+  assert.equal(
+    surfaces.default_rail.membership,
+    'canonical_unarchived_thread_directory',
+  );
+  assert.equal(surfaces.default_rail.authority, 'codex_app_server_thread_list_archived_false');
+  assert.equal(surfaces.default_rail.thread_classification_required, false);
+  assert.equal(
+    surfaces.default_rail.archived_false_role,
+    'directory_membership_only_never_running_status',
+  );
+  for (const unsupportedClassificationField of [
+    'thread_classification_authority',
+    'classification_values',
+    'unclassified_codex_policy',
+  ]) {
+    assert.equal(unsupportedClassificationField in surfaces.default_rail, false);
+  }
+  assert.equal('unclassified_codex_label' in surfaces.all_search, false);
+  assert.equal(surfaces.running_now.authority, 'same_codex_desktop_runtime_task_status');
+  assert.equal(surfaces.archived.membership, 'canonical_archived_thread_directory');
+  assert.equal(surfaces.all_search.may_replace_default_rail, false);
+  assert.equal(
+    surfaces.acceptance_comparison,
+    'same_instant_same_authority_exact_thread_id_set_and_archived_bit',
+  );
+  assert.equal(surfaces.fixed_count_assertion_allowed, false);
+  assert.deepEqual(surfaces.project_affinity_presentation, {
+    recorded_cwd_role:
+      'canonical_runtime_workspace_and_unregistered_directory_group_fallback_when_explicit_project_id_absent',
+    project_affinity_role:
+      'explicit_project_id_wins_for_sidebar_grouping_otherwise_non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_identity_writeback',
+    managed_projectless_workspace_root: 'user_documents_codex_subtree',
+    managed_root_grouping_policy:
+      'preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups',
+    unregistered_directory_grouping_policy:
+      'auto_load_one_read_only_directory_group_and_new_session_cwd_shortcut_from_non_managed_scratch_recorded_cwd_without_project_id_assignment_or_registered_workspace_mutation',
+    projectless_adoption_eligibility:
+      'explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd',
+  });
+  assert.equal(
+    threadDirectoryPolicy.directory_group_policy_authority,
+    'app_owned_explicit_project_affinity_and_recorded_cwd_fallback_contract_implemented_by_active_shell',
+  );
+  assert.equal(
+    threadDirectoryPolicy.project_affinity_presentation_authority_ref,
+    'conversation_history_surfaces.project_affinity_presentation',
+  );
+  assert.equal(
+    threadDirectoryPolicy.strict_project_affinity_producer,
+    'codex_app_server_adapter_project_id_projection',
+  );
+  assert.equal(
+    guiWorkspaceModel.projectless_detection,
+    'explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_never_creates_directory_group',
+  );
+  assert.equal(
+    guiWorkspaceModel.recorded_cwd_role,
+    'canonical_runtime_workspace_and_derived_directory_group_fallback_when_explicit_project_id_absent_and_not_managed_scratch',
+  );
+  assert.equal(guiWorkspaceModel.project_affinity_source, 'explicit_project_id_projection');
+  assert.equal(
+    guiWorkspaceModel.project_affinity_role,
+    'explicit_project_id_wins_for_sidebar_grouping_non_managed_scratch_recorded_cwd_only_supplies_derived_directory_group',
+  );
+  assert.equal(
+    guiWorkspaceModel.managed_scratch_presentation,
+    'user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups',
+  );
+  assert.equal(
+    guiWorkspaceModel.core_workspace_application,
+    'thread_settings_update_cwd_records_runtime_workspace_only',
+  );
+  assert.equal(
+    guiWorkspaceModel.project_adoption_transition,
+    'unbound_to_bound_once_via_explicit_project_affinity_assignment',
+  );
+  assert.deepEqual(profileWorkspaceModel, guiWorkspaceModel);
+  assert.deepEqual(ordinaryConversation.conversation_view_model.session_workspace_model, guiWorkspaceModel);
+  assert.equal(
+    guiProductContract.interaction_baseline.conversation_scope.session_workspace_model_authority,
+    'app_owned_contract_with_active_shell_explicit_project_affinity_adapter',
+  );
+  assert.equal(
+    guiProductContract.interaction_baseline.conversation_scope.project_affinity_presentation_authority_ref,
+    'interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces.project_affinity_presentation',
+  );
+  assert.deepEqual(home.home_view_model.conversation_history_surfaces, {
+    policy_ref:
+      'contracts/app-gui-product-contract.json#interaction_baseline.navigation_rail.thread_directory_policy.conversation_history_surfaces',
+    default_rail: 'canonical_unarchived_thread_directory',
+    running_now: 'same_codex_desktop_runtime_task_status_or_explicit_unavailable',
+    archived: 'independent_canonical_archived_thread_directory',
+    all_search: 'explicit_canonical_historical_search_never_default_rail',
+    project_affinity_presentation:
+      'recorded_cwd_preserved_explicit_project_id_wins_non_managed_scratch_cwd_auto_groups_managed_user_documents_codex_unbound',
+    visible_id_consumers: ['default_rail', 'archived', 'pinned', 'workspace_groups', 'timeline'],
+    fixed_count_acceptance_allowed: false,
+  });
+});
+
+test('active-shell Runtime source gate allows canonical action refs but rejects legacy fallback reconstruction', () => {
+  const canonicalActionRefs = [
+    "actionId: 'work_item_visibility_set'",
+    'payload.expected_generation = selectedItem.visibility.generation',
+    'const refreshedItem = findReadbackWorkItem(refreshedPayload, selectedItem)',
+    'const workflow_id = canonicalWorkItem.workflowId',
+  ].join('\n');
+
+  assert.doesNotThrow(() => assertRuntimePageSourceBoundary(canonicalActionRefs));
+  for (const legacyFallback of [
+    'normalizeRuntimeProjection(appState)',
+    'dedupeTaskItems(items)',
+    'runtimeTaskItem(task, controlStates)',
+    'appStateToRuntimeProjection(appState)',
+    'compactCurrentControlState(state)',
+    'controlStateFallbackForTask(task, controlStates)',
+    'record(controlState?.provider_run)',
+  ]) {
+    assert.throws(() => assertRuntimePageSourceBoundary(`${canonicalActionRefs}\n${legacyFallback}`));
+  }
+});
