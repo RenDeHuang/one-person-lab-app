@@ -182,6 +182,8 @@ jobs:
       highest_public_stable_dmg_sha256: ${{ steps.identity.outputs.highest_public_stable_dmg_sha256 }}
       completed_stage: ${{ steps.identity.outputs.completed_stage }}
       standard_identity_sha256: ${{ steps.standard-identity.outputs.standard_identity_sha256 }}
+      standard_bound_artifact_run_id: ${{ steps.standard-identity.outputs.standard_bound_artifact_run_id }}
+      standard_bound_artifact_name: ${{ steps.standard-identity.outputs.standard_bound_artifact_name }}
       checkpoint_transport_executor: ${{ steps.identity.outputs.checkpoint_transport_executor }}
       transport_run_id: ${{ steps.identity.outputs.transport_run_id }}
       operation_id: ${{ steps.operation.outputs.operation_id }}
@@ -310,7 +312,10 @@ jobs:
                 framework_sha: $framework
               }
             ' "$identity_receipt" >/dev/null
+          producer_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "$identity_receipt")"
           echo "standard_identity_sha256=$observed" >> "$GITHUB_OUTPUT"
+          echo "standard_bound_artifact_run_id=$producer_run_id" >> "$GITHUB_OUTPUT"
+          echo "standard_bound_artifact_name=opl-release-standard-bound-$producer_run_id" >> "$GITHUB_OUTPUT"
 
       - name: Resolve frozen Framework source and current executor identities
         id: framework-binding
@@ -848,8 +853,8 @@ jobs:
         if: ${{ needs.restore.outputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: opl-release-standard-bound-${{ needs.restore.outputs.source_run_id }}
-          run-id: ${{ needs.restore.outputs.source_run_id }}
+          name: ${{ needs.restore.outputs.standard_bound_artifact_name }}
+          run-id: ${{ needs.restore.outputs.standard_bound_artifact_run_id }}
           github-token: ${{ github.token }}
           path: bound-standard-evidence
 

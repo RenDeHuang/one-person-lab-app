@@ -307,6 +307,14 @@ test('resume admission preserves Standard identity and rotates only an expired e
   }), /exactly 30 minutes/);
 
   assert.equal(restore.outputs.release_operation, '${{ steps.operation.outputs.release_operation }}');
+  assert.equal(
+    restore.outputs.standard_bound_artifact_run_id,
+    '${{ steps.standard-identity.outputs.standard_bound_artifact_run_id }}',
+  );
+  assert.equal(
+    restore.outputs.standard_bound_artifact_name,
+    '${{ steps.standard-identity.outputs.standard_bound_artifact_name }}',
+  );
   assert.match(reconcileRun, /requested_operation='\$\{\{ inputs\.operation \}\}'/);
   assert.match(reconcileRun, /case "\$requested_operation" in standard\|resume_standard/);
   assert.match(reconcileRun, /previous_operation_started_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_started_at/);
@@ -319,6 +327,28 @@ test('resume admission preserves Standard identity and rotates only an expired e
   assert.match(reconcileRun, /echo "release_operation=\$release_operation"/);
   assert.match(reconcileRun, /echo "operation_started_at=\$operation_started_at"/);
   assert.match(reconcileRun, /echo "operation_deadline_at=\$operation_deadline_at"/);
+
+  const publish = workflow.jobs['publish-standard-nonlatest'];
+  const boundEvidenceDownload = (publish.steps ?? []).find(
+    (step: Record<string, unknown>) => step.name === 'Download internal Standard trust evidence',
+  );
+  assert.equal(
+    boundEvidenceDownload?.with?.name,
+    '${{ needs.restore.outputs.standard_bound_artifact_name }}',
+  );
+  assert.equal(
+    boundEvidenceDownload?.with?.['run-id'],
+    '${{ needs.restore.outputs.standard_bound_artifact_run_id }}',
+  );
+  assert.match(
+    source,
+    /producer_run_id="\$\(jq -er '\.source\.run_id \| strings \| select\(test\("\^\[1-9\]\[0-9\]\*\$"\)\)' "\$identity_receipt"\)"/,
+  );
+  assert.match(source, /standard_bound_artifact_name=opl-release-standard-bound-\$producer_run_id/);
+  assert.doesNotMatch(
+    JSON.stringify(boundEvidenceDownload),
+    /needs\.restore\.outputs\.source_run_id/,
+  );
 
   for (const jobId of [
     'publish-standard-nonlatest',
