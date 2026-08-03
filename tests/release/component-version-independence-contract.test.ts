@@ -32,7 +32,18 @@ test('component interoperability consumes a canonical Framework receipt without 
       capability_id: 'opl_component_compatibility_receipt',
       schema_range: '>=1.0.0 <2.0.0',
     },
+    {
+      requirement_id: 'framework_dynamic_package_directory_schema',
+      kind: 'capability_id_with_versioned_schema',
+      component_id: 'opl_framework',
+      capability_id: 'opl_dynamic_package_directory',
+      schema_range: '>=1.0.0 <2.0.0',
+    },
   ]);
+  assert.deepEqual(
+    policy.distribution_channels.homebrew.framework_core_carrier.compatibility_handshake.required_capability_ids,
+    ['opl_dynamic_package_directory'],
+  );
   assert.deepEqual(admission.required_receipt_coverage, {
     requirement_ids: 'exactly_once',
     component_ids: 'exactly_the_components_targeted_by_requirements',
