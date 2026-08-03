@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aioncore_codex_only_packaging_ssot`
-State: `source_implemented_packaged_runtime_evidence_pending`
+State: `implemented_with_packaged_runtime_evidence`
 Machine boundary: `contracts/app-shell-adapter.json#codex_executable_contract.carrier.target_packaging_policy`
 
 ## 结论
@@ -141,9 +141,10 @@ Owner: `gaofeng21cn/opl-aion-shell`，App 只消费最终证据。
 - 不要求 App GUI 与 Framework headless 安装使用同一物理 Codex。Framework headless
   carrier 是独立部署边界，不进入 Standard/Full App bundle。
 
-### 仍需真实 artifact trigger
+### 已完成的 artifact evidence
 
-`same_physical_runtime_currently_claimed` 保持 `false`，直到同一批真实安装证据同时包含：
+`v26.8.1-r5` Standard 与独立 immutable Full adjunct
+`v26.8.1-r5-full-17f46a1d04b9` 已在同一 Tart VM 串行完成以下证据：
 
 1. `full_clean_install_finder`：无 global Codex、`PATH=/usr/bin:/bin`、Finder 启动、
    direct initialize 与 ACP ordinary conversation real response 均通过。
@@ -153,9 +154,15 @@ Owner: `gaofeng21cn/opl-aion-shell`，App 只消费最终证据。
    realpath、version、SHA-256、`CODEX_HOME` 和 cohort ref，并附 artifact tree、
    environment、process inspection 与 handshake log digest。
 4. 两个 run 都执行五类 typed-error negative probes。
-5. `validate:codex-runtime-identity-evidence` 只有在 artifact 与全部 evidence ref 文件真实
-   存在且 SHA-256 匹配时才报告 `artifact_evidence_complete=true`；仅通过 JSON shape
-   校验不得升级为运行时完成证据。
+5. `validate:codex-runtime-identity-evidence` 对两份 DMG 和 18 个运行 evidence ref
+   逐一验证 SHA-256，最终报告 `artifact_evidence_complete=true`、
+   `verified_file_count=20`。
+
+机器可读摘要在
+`docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json`。
+`same_physical_runtime_currently_claimed=true` 只表示每个 installed run 内 direct App
+Server 与 ACP 的 OPL-controlled identity 匹配；不表示 AionCore 提供 native readback，
+也不把 Full 与 Standard 两个独立签名 artifact 的 exact SHA 当成 compatibility gate。
 
 ACP 侧证据的正式 claim scope 是
 `opl_controlled_input_and_successful_handshake_without_aioncore_native_readback`。这能在不改
@@ -169,15 +176,13 @@ identity”。
 | A3 | source完成 | Codex-only projection、Claude 排除、App consumption | App PR #149 + Shell PR #32 canonical/parity/close | 已完成 |
 | R1-S | source完成 | 唯一 identity、direct 强校验、AionCore env、typed errors | Shell focused/type/lint/full + canonical parity/close | 约 6-8 小时 |
 | R1-C | source完成 | evidence schema、validator、negative tests、App SSOT | App focused/release/active-shell + canonical parity/close | 约 4-6 小时 |
-| R1-F | 待 artifact trigger | Full clean install + minimal PATH + Finder 双 handshake | 新 Full artifact、独立安装环境、evidence validator passed | 2-4 小时 |
-| R1-U | 待 artifact trigger | Full 后应用 Standard update + restart/Finder 双 handshake | 新 Standard artifact、真实 updater、同一 evidence record passed | 3-5 小时 |
-| R1-N | 待 artifact trigger | 五类 typed error probes | 两个 run 均保存 typed machine evidence | 2-3 小时，可与 R1-F/U 重叠 |
+| R1-F | evidence完成 | Full clean install + minimal PATH + Finder 双 handshake | immutable Full artifact、同一 VM、strict evidence validator passed | 已完成 |
+| R1-U | evidence完成 | Full 后应用 Standard update + restart/Finder 双 handshake | immutable Standard artifact、同一 VM、strict evidence validator passed | 已完成 |
+| R1-N | evidence完成 | 五类 typed error probes | 两个 packaged run 均通过全部五码并保存 digest receipt | 已完成 |
 | U1 | optional | AionCore native identity/readback API | 仅上游自然提供时再消费 | 不纳入计划 |
 
-source slice 约 `10-14` 工程小时。若可用的签名 Full/Standard artifacts、更新通道和干净
-macOS 环境均已就绪，最终 artifact replay 约 `1` 个工作日；若需要重建/签名 artifact
-或修复首个真实安装断点，合理总 ETA 是 `1-2` 个工作日。任何 upstream review/release
-时间都不是关键路径。
+source 与 artifact evidence 均已完成。AionCore native readback 仍是 optional upstream
+enhancement，不属于 #122 当前 OPL acceptance 的 remaining。
 
 ## 并行执行图
 
@@ -207,9 +212,9 @@ Full clean install -> Standard update -> restart 必须串行。两仓 canonical
 5. direct App Server initialize、ACP real response、process/environment inspection与 typed errors。
 6. `npm run validate:codex-runtime-identity-evidence -- --input <evidence.json>`。
 
-测试通过、task branch、PR 或 candidate package都不是 #122 终态。source lane 必须
-canonical/parity/official close；Issue 仍保持 OPEN，直到 packaged evidence validator
-通过且获得单独的 Issue 回复/关闭授权。
+测试通过、task branch、PR 或 candidate package都不是 #122 终态。本轮 packaged
+evidence validator 已通过；GitHub Issue 仍保持 OPEN，仅因为回复/关闭属于独立外部写入，
+必须获得 fresh 授权后才能执行。
 
 ## 非目标
 

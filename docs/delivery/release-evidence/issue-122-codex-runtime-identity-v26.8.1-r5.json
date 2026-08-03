@@ -1,0 +1,147 @@
+{
+  "schema": "opl_codex_runtime_identity_closeout_receipt.v1",
+  "issue": "gaofeng21cn/one-person-lab-app#122",
+  "status": "passed",
+  "claim_scope": "opl_controlled_input_and_successful_handshake_without_aioncore_native_readback",
+  "captured_at": "2026-08-03T02:14:58.522Z",
+  "artifact_pair": {
+    "standard": {
+      "release_id": 363488678,
+      "tag": "v26.8.1-r5",
+      "immutable": true,
+      "asset": "One-Person-Lab-26.8.1-r5-mac-arm64.dmg",
+      "bytes": 381470401,
+      "sha256": "sha256:8c4a01859827af6db599faf641df1c1330437a5d477b732ad2a68eedfcb01ce0"
+    },
+    "full": {
+      "release_id": 363934248,
+      "tag": "v26.8.1-r5-full-17f46a1d04b9",
+      "immutable": true,
+      "asset": "One-Person-Lab-Full-26.8.1-r5-mac-arm64.dmg",
+      "bytes": 578901774,
+      "sha256": "sha256:6a44266d936a031b949b0eac0951ab84d2e540f4a1d39eb92b3b9a0645b889cc",
+      "manifest_sha256": "sha256:17f46a1d04b964d11e5b2df831ae98a11c3379435f2fd5cf16b8790319a33a2d",
+      "append_full_run_id": 30773752205,
+      "append_full_run_attempt": 1,
+      "append_full_status": "success"
+    }
+  },
+  "environment": {
+    "vm_name": "opl-issue-122-r5-runtime-evidence-20260803",
+    "hardware_uuid": "189CC2C9-A6A2-5CFA-9C9F-BE253C611F74",
+    "architecture": "arm64",
+    "macos_version": "26.3",
+    "sequence": "full_clean_install_then_standard_in_place_replacement_then_full_exit_and_finder_restart",
+    "finder_path": "/usr/bin:/bin",
+    "isolated_codex_home": "/Users/admin/OPL-Evidence/issue-122/codex-home",
+    "global_codex_present": false,
+    "final_app_process_count": 0,
+    "final_aioncore_process_count": 0,
+    "final_codex_process_count": 0,
+    "temporary_auth_present_after_capture": false,
+    "launch_environment_restored": true
+  },
+  "validation": {
+    "schema": "opl_codex_runtime_identity_evidence_validation.v1",
+    "status": "passed",
+    "evidence_manifest_sha256": "sha256:de2edfd05d6f0ab27a4d826fe1f68d09a62691d94fecf63e82db62e662c957a3",
+    "run_ids": [
+      "full_clean_install_finder",
+      "standard_update_after_full_finder"
+    ],
+    "aioncore_native_readback": false,
+    "evidence_manifest_valid": true,
+    "artifact_evidence_complete": true,
+    "verified_file_count": 20,
+    "raw_evidence_retention": "task_local_capture_with_canonical_digest_receipt"
+  },
+  "runs": [
+    {
+      "id": "full_clean_install_finder",
+      "runtime_profile": "full",
+      "transition": "clean_install",
+      "app_version": "26.8.195",
+      "identity": {
+        "path": "/Applications/One Person Lab.app/Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/cli/codex/0.144.6/darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+        "realpath": "/Applications/One Person Lab.app/Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/cli/codex/0.144.6/darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+        "version": "0.144.6",
+        "sha256": "sha256:b9b5839ea05fb45f493e4db67b205cb0e02fc2d6500c1a4171743f7c55b612fb",
+        "codex_home": "/Users/admin/OPL-Evidence/issue-122/codex-home",
+        "runtime_cohort_ref": "sha256:ddd93f26527eae93cd77a0a92317677d4dd93937f0d35ee24d6a5f4c22f8c5e8"
+      },
+      "direct_app_server_handshake": "initialize_passed",
+      "aioncore_acp_handshake": "ordinary_conversation_real_response_passed",
+      "aioncore_acp_response": "OPL-122-FULL-HANDSHAKE",
+      "identity_comparison": "matched",
+      "typed_error_codes": [
+        "USER_AGENT_NOT_INSTALLED",
+        "USER_AGENT_COMMAND_NOT_FOUND",
+        "MANAGED_RUNTIME_UNAVAILABLE",
+        "RUNTIME_ACTIVATION_REQUIRED",
+        "RUNTIME_IDENTITY_MISMATCH"
+      ],
+      "evidence_ref_sha256": {
+        "artifact_tree": "sha256:58530474198b2bda16b907211f32c334412047e862c67e2467d15a977fd0bbd6",
+        "process_inspection": "sha256:5cea49a0f54545867cee9759bdf965432e728203ac30925dc25d72a5e54a37c8",
+        "direct_handshake": "sha256:99b6cb996177ddd950441780fe7392d7508c52a18b8deacc846a4c8da5684dde",
+        "acp_history": "sha256:d2804843f7d099a609fd19507447c81923e1e76fce3d7576cae8866e8e0358d7",
+        "typed_USER_AGENT_NOT_INSTALLED": "sha256:df99ec95d495b3195f37cc52b5dc5f02a154ad62344015063e709a1d1ce79121",
+        "typed_USER_AGENT_COMMAND_NOT_FOUND": "sha256:aab527e58a5b0bc8c1b04c4677054e3811d4f5b42ce54a32a25fa010b6bdacf4",
+        "typed_MANAGED_RUNTIME_UNAVAILABLE": "sha256:d96e73b8fcb009f9b748688e5433fef3b80cf2c2625c0a79001ae67c03f9cf5f",
+        "typed_RUNTIME_ACTIVATION_REQUIRED": "sha256:369e7a982b0585f9ce76e3863044a43c2b1f3b9b0b53a29798cebeae7ae42fd4",
+        "typed_RUNTIME_IDENTITY_MISMATCH": "sha256:6e4b93f4d749a74d029750ba78879c8f64c2c07e5281726db91487549ccaba3b"
+      }
+    },
+    {
+      "id": "standard_update_after_full_finder",
+      "runtime_profile": "standard",
+      "transition": "full_to_standard_update",
+      "app_version": "26.8.195",
+      "identity": {
+        "path": "/Applications/One Person Lab.app/Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/cli/codex/0.144.6/darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+        "realpath": "/Applications/One Person Lab.app/Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/cli/codex/0.144.6/darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+        "version": "0.144.6",
+        "sha256": "sha256:71023279f92b091be740051aaf49ec0e64c7e4c30493fad5eabc643ab3c0c2bb",
+        "codex_home": "/Users/admin/OPL-Evidence/issue-122/codex-home",
+        "runtime_cohort_ref": "sha256:56af1c5c73a1de162e03f7ab91f426c29553dc6f15c1a18e9903ad9bbee6532e"
+      },
+      "direct_app_server_handshake": "initialize_passed",
+      "aioncore_acp_handshake": "ordinary_conversation_real_response_passed",
+      "aioncore_acp_response": "OPL-122-STANDARD-HANDSHAKE",
+      "identity_comparison": "matched",
+      "typed_error_codes": [
+        "USER_AGENT_NOT_INSTALLED",
+        "USER_AGENT_COMMAND_NOT_FOUND",
+        "MANAGED_RUNTIME_UNAVAILABLE",
+        "RUNTIME_ACTIVATION_REQUIRED",
+        "RUNTIME_IDENTITY_MISMATCH"
+      ],
+      "evidence_ref_sha256": {
+        "artifact_tree": "sha256:7bb21292b7602e3df581cf3dc5358376e74ae6cf23ac9ccb8160bb62e2926b55",
+        "process_inspection": "sha256:2cac070f75822ad0ca4fdf230eb609250ac6b60d51060c95c549f79b8c9a164d",
+        "direct_handshake": "sha256:eb365755df45a9b9be65466c0003953872af605f0e1d3344026c9a415d7faa56",
+        "acp_history": "sha256:43156e3ff41bb23f88b2ad8ebea2dd89d9e699b319b3207da0c0a7371c7f5fe9",
+        "typed_USER_AGENT_NOT_INSTALLED": "sha256:28a7de4e90336f78e9443b764f3a7c31b03284035f9462458124eaac8b1e8841",
+        "typed_USER_AGENT_COMMAND_NOT_FOUND": "sha256:70ca9742d57849332229d1e4c3ac2bb97b1b6dfaabcf69be959bedc5b43f337d",
+        "typed_MANAGED_RUNTIME_UNAVAILABLE": "sha256:47235d7985959b4fe85d6c10312c6a81b7381d37771359bfe4360b08e670cb22",
+        "typed_RUNTIME_ACTIVATION_REQUIRED": "sha256:0380a805105a74a94125814608be60dd7c5866ee3b1e18222fa5fd7a88a62ee1",
+        "typed_RUNTIME_IDENTITY_MISMATCH": "sha256:2e3d1d3cf0a47a7285a404bc3c71b02ee60b5730251da59305562b33ccda9bd5"
+      }
+    }
+  ],
+  "cross_artifact_observation": {
+    "exact_binary_sha256_equality_required": false,
+    "codex_code_directory_hash": "deab36f76a25cae5dfd41a27efa8bf6ed2b807ed",
+    "full_signing_timestamp": "2026-08-03T00:15:47Z",
+    "standard_signing_timestamp": "2026-08-01T09:31:07Z",
+    "reason": "Separate Developer ID signing timestamps change final file SHA-256 while preserving the same CodeDirectory hash; exact identity is compared within each installed run and does not gate cross-artifact compatibility."
+  },
+  "limitations": {
+    "aioncore_modified": false,
+    "aioncore_native_readback_available": false,
+    "aioncore_native_readback_claimed": false,
+    "framework_headless_identity_in_scope": false,
+    "exact_identity_may_gate_install_or_runtime": false,
+    "github_issue_comment_or_close_performed": false
+  }
+}

@@ -1170,7 +1170,7 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     throw new Error('Runtime parity must not retain the same_cohort_runtime_identity_required_for_parity gate');
   }
   for (const [field, expected] of Object.entries({
-    state: 'source_binding_implemented_artifact_evidence_pending',
+    state: 'source_binding_and_packaged_artifact_evidence_complete',
     policy_owner: 'one-person-lab-app',
     runtime_identity_owner: 'gaofeng21cn/opl-aion-shell',
     resolver_source: 'contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target',
@@ -1178,10 +1178,10 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     parity_admission_basis: 'compatible_runtime_capability_and_versioned_schema_range',
     exact_runtime_identity_equality_may_gate_install_or_runtime: false,
     host_path_only_resolution_can_prove_parity: false,
-    active_aionui_status: 'aioncore_managed_identity_binding_source_implemented_packaged_replay_pending',
+    active_aionui_status: 'aioncore_managed_identity_binding_packaged_full_standard_finder_replay_passed',
     opl_native_workbench_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
-    same_physical_runtime_currently_claimed: false,
-    implementation_status: 'source_identity_binding_implemented_full_standard_finder_evidence_pending',
+    same_physical_runtime_currently_claimed: true,
+    implementation_status: 'source_identity_binding_and_full_standard_finder_evidence_complete',
   })) {
     if (policy?.[field] !== expected) {
       throw new Error(`Runtime bridge shared GUI runtime resolution policy ${field} must be ${expected}`);
@@ -1252,7 +1252,8 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     global_codex_required: false,
     referenced_file_sha256_required: true,
     claim_scope: 'opl_controlled_input_and_successful_handshake_without_aioncore_native_readback',
-    artifact_trigger_status: 'pending',
+    artifact_trigger_status: 'complete',
+    evidence_receipt: 'docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json',
   })) {
     if (evidenceContract?.[field] !== expected) {
       throw new Error(`Runtime bridge Codex packaged evidence ${field} must be ${expected}`);
