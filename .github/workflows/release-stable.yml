@@ -594,7 +594,7 @@ jobs:
           retention-days: 30
 
   standard:
-    if: ${{ needs.admission.outputs.operation == 'standard' }}
+    if: ${{ !cancelled() && inputs.operation == 'standard' && needs.admission.result == 'success' }}
     needs: [admission, protected-operation-admission, stable-admission-manifest]
     permissions:
       contents: write
@@ -621,7 +621,7 @@ jobs:
     secrets: inherit
 
   resume-standard:
-    if: ${{ needs.admission.outputs.operation == 'resume_standard' }}
+    if: ${{ !cancelled() && inputs.operation == 'resume_standard' && needs.admission.result == 'success' }}
     needs: [admission]
     permissions:
       contents: write
