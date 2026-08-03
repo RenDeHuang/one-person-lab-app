@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   admit:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -66,7 +66,7 @@ jobs:
             and .run_attempt == 1
             and .status == "completed"
             and .conclusion == "success"
-            and (.display_title | test("^OPL Stable standard (?:[1-9][0-9]*|operation:[A-Za-z0-9._:-]{1,128} authority:[A-Za-z0-9._:-]{1,128} run:[1-9][0-9]*)$"))
+            and (.display_title | test("^OPL Stable (?:standard (?:[1-9][0-9]*|operation:[A-Za-z0-9._:-]{1,128} authority:[A-Za-z0-9._:-]{1,128} run:[1-9][0-9]*)|resume_standard [1-9][0-9]*)$"))
           ' source-run.json >/dev/null
 
       - name: Download exact Standard checkpoint and activation evidence
@@ -437,7 +437,7 @@ jobs:
           retention-days: 30
 
   receipt:
-    if: ${{ always() && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') }}
+    if: ${{ always() && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}
     needs: [admit, dispatch]
     runs-on: ubuntu-latest
     timeout-minutes: 5
