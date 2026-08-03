@@ -7,13 +7,17 @@ export type ReleaseOperation =
   | 'standard'
   | 'resume_standard'
   | 'append_full'
-  | 'move_latest_pointer';
+  | 'move_latest_pointer'
+  | 'native_webui_follower';
+
+export type StandardReleaseOperation = Extract<ReleaseOperation, 'standard' | 'resume_standard'>;
 
 const operationBudgetMinutes: Record<ReleaseOperation, number> = {
   standard: 90,
   resume_standard: 30,
   append_full: 120,
   move_latest_pointer: 30,
+  native_webui_follower: 30,
 };
 
 function operation(value: string | undefined): ReleaseOperation {
@@ -22,8 +26,11 @@ function operation(value: string | undefined): ReleaseOperation {
     || value === 'resume_standard'
     || value === 'append_full'
     || value === 'move_latest_pointer'
+    || value === 'native_webui_follower'
   ) return value;
-  throw new Error('Release operation must be standard, resume_standard, append_full, or move_latest_pointer.');
+  throw new Error(
+    'Release operation must be standard, resume_standard, append_full, move_latest_pointer, or native_webui_follower.',
+  );
 }
 
 function timestamp(value: string | undefined, label: string): number {
@@ -63,6 +70,20 @@ export function resolveReleaseOperationWindow(input: {
   };
 }
 
+export function inferStandardReleaseOperation(input: {
+  startedAt: string;
+  deadlineAt: string;
+}): StandardReleaseOperation {
+  const startedAt = timestamp(input.startedAt, 'Operation start');
+  const deadlineAt = timestamp(input.deadlineAt, 'Operation deadline');
+  for (const releaseOperation of ['standard', 'resume_standard'] as const) {
+    if (deadlineAt === startedAt + operationBudgetMinutes[releaseOperation] * 60_000) {
+      return releaseOperation;
+    }
+  }
+  throw new Error('Standard control window must be exactly 90 or 30 minutes.');
+}
+
 export function assertReleaseOperationDeadline(input: {
   operation: ReleaseOperation;
   startedAt: string;
@@ -86,7 +107,8 @@ export function assertReleaseOperationDeadline(input: {
 function usage(): never {
   process.stderr.write(
     'Usage:\n' +
-      '  release-operation-deadline.ts resolve --operation <standard|resume_standard|append_full|move_latest_pointer> --started-at <iso>\n' +
+      '  release-operation-deadline.ts resolve --operation <standard|resume_standard|append_full|move_latest_pointer|native_webui_follower> --started-at <iso>\n' +
+      '  release-operation-deadline.ts infer-standard --started-at <iso> --deadline-at <iso>\n' +
       '  release-operation-deadline.ts check --operation <...> --started-at <iso> --deadline-at <iso> [--now <iso>]\n',
   );
   process.exit(2);
@@ -106,8 +128,24 @@ function main(argv: string[]): void {
     },
   });
   const command = positionals[0];
-  const releaseOperation = operation(values.operation);
   const startedAt = values['started-at'];
+  if (command === 'infer-standard') {
+    const releaseOperation = inferStandardReleaseOperation({
+      startedAt: startedAt ?? '',
+      deadlineAt: values['deadline-at'] ?? '',
+    });
+    const operationWindow = resolveReleaseOperationWindow({
+      operation: releaseOperation,
+      startedAt: startedAt ?? '',
+    });
+    process.stdout.write(`${JSON.stringify({
+      operation: releaseOperation,
+      started_at: operationWindow.startedAt,
+      deadline_at: operationWindow.deadlineAt,
+    })}\n`);
+    return;
+  }
+  const releaseOperation = operation(values.operation);
   if (command === 'resolve') {
     const operationWindow = resolveReleaseOperationWindow({
       operation: releaseOperation,
