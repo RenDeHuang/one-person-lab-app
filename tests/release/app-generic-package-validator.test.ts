@@ -9,6 +9,7 @@ import { validateProductProfile } from '../../scripts/validate-active-shell/prod
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
 const unknownAgentFixture = readJson('contracts/fixtures/opl-app-state-unknown-agent.fixture.json');
+const unknownAgentRuntimeFixture = readJson('contracts/fixtures/opl-app-state-runtime-v2-unknown-agent.fixture.json');
 const syntheticDirectoryEntry = unknownAgentFixture.app_state.agent_packages.directory.entries[0];
 const syntheticStatusProjection =
   unknownAgentFixture.app_state.agent_packages.status_index.packages[syntheticDirectoryEntry.package_id];
@@ -134,6 +135,7 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
   assert.equal(shortcutPolicy.package_id_allowlist_allowed, false);
 
   const appState = unknownAgentFixture.app_state;
+  const runtimeAppState = unknownAgentRuntimeFixture.app_state;
   const standardAgents = appState.agent_packages.directory.entries.filter(
     (entry) => entry.package_role === 'standard_agent',
   );
@@ -158,7 +160,7 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
     ['future.agent-lab'],
   );
   assert.deepEqual(
-    appState.operator.workbench.work_item_projection_v2.items.map((item: any) => item.identity.agent_id),
+    runtimeAppState.operator.workbench.work_item_projection_v2.items.map((item: any) => item.identity.agent_id),
     ['future.agent-lab'],
   );
   assert.equal('professional_agent_packages' in profile.gui, false);
