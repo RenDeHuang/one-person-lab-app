@@ -78,10 +78,10 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
   assert.equal(policy.parity_admission_basis, 'compatible_runtime_capability_and_versioned_schema_range');
   assert.equal(policy.exact_runtime_identity_equality_may_gate_install_or_runtime, false);
   assert.equal(policy.runtime_identity_owner, 'gaofeng21cn/opl-aion-shell');
-  assert.equal(policy.same_physical_runtime_currently_claimed, false);
+  assert.equal(policy.same_physical_runtime_currently_claimed, true);
   assert.equal(
     policy.implementation_status,
-    'source_identity_binding_implemented_full_standard_finder_evidence_pending',
+    'source_identity_binding_and_full_standard_finder_evidence_complete',
   );
   assert.deepEqual(
     policy.runtime_identity_contract.required_fields,
@@ -105,7 +105,11 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
   assert.equal(policy.runtime_identity_contract.aioncore_native_readback_required, false);
   assert.equal(policy.runtime_identity_contract.aioncore_native_readback_claim_allowed, false);
   assert.equal(policy.packaged_evidence_contract.referenced_file_sha256_required, true);
-  assert.equal(policy.packaged_evidence_contract.artifact_trigger_status, 'pending');
+  assert.equal(policy.packaged_evidence_contract.artifact_trigger_status, 'complete');
+  assert.equal(
+    policy.packaged_evidence_contract.evidence_receipt,
+    'docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json',
+  );
   assert.deepEqual(
     target.compatibility_requirements.map(({ component_id, capability_id, schema_range }: any) => ({
       component_id,

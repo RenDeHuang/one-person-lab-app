@@ -300,3 +300,60 @@ test('CLI validates a captured evidence file and returns a machine-readable summ
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
+
+test('canonical Issue 122 closeout receipt binds the immutable artifact pair and honest ACP claim', () => {
+  const receiptPath =
+    'docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json';
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  const runtimeBridge = JSON.parse(fs.readFileSync('contracts/app-runtime-bridge.json', 'utf8'));
+  const policy = runtimeBridge.shared_gui_runtime_resolution_policy;
+
+  assert.equal(receipt.schema, 'opl_codex_runtime_identity_closeout_receipt.v1');
+  assert.equal(receipt.status, 'passed');
+  assert.equal(receipt.artifact_pair.standard.release_id, 363488678);
+  assert.equal(receipt.artifact_pair.standard.immutable, true);
+  assert.equal(
+    receipt.artifact_pair.standard.sha256,
+    'sha256:8c4a01859827af6db599faf641df1c1330437a5d477b732ad2a68eedfcb01ce0',
+  );
+  assert.equal(receipt.artifact_pair.full.release_id, 363934248);
+  assert.equal(receipt.artifact_pair.full.immutable, true);
+  assert.equal(receipt.artifact_pair.full.append_full_run_id, 30773752205);
+  assert.equal(receipt.artifact_pair.full.append_full_status, 'success');
+  assert.equal(
+    receipt.artifact_pair.full.sha256,
+    'sha256:6a44266d936a031b949b0eac0951ab84d2e540f4a1d39eb92b3b9a0645b889cc',
+  );
+
+  assert.deepEqual(
+    receipt.validation.run_ids,
+    REQUIRED_CODEX_RUNTIME_EVIDENCE_RUNS,
+  );
+  assert.equal(receipt.validation.status, 'passed');
+  assert.equal(receipt.validation.artifact_evidence_complete, true);
+  assert.equal(receipt.validation.verified_file_count, 20);
+  assert.equal(receipt.validation.aioncore_native_readback, false);
+  assert.match(receipt.validation.evidence_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
+
+  for (const run of receipt.runs) {
+    assert.equal(run.direct_app_server_handshake, 'initialize_passed');
+    assert.equal(run.aioncore_acp_handshake, 'ordinary_conversation_real_response_passed');
+    assert.equal(run.identity_comparison, 'matched');
+    assert.deepEqual(run.typed_error_codes, REQUIRED_CODEX_RUNTIME_ERROR_CODES);
+    assert.equal(Object.keys(run.evidence_ref_sha256).length, 9);
+    for (const value of Object.values(run.evidence_ref_sha256)) {
+      assert.match(value as string, /^sha256:[0-9a-f]{64}$/);
+    }
+  }
+  assert.equal(receipt.runs[0].identity.path, receipt.runs[1].identity.path);
+  assert.equal(receipt.runs[0].identity.version, receipt.runs[1].identity.version);
+  assert.equal(receipt.runs[0].identity.codex_home, receipt.runs[1].identity.codex_home);
+  assert.notEqual(receipt.runs[0].identity.sha256, receipt.runs[1].identity.sha256);
+  assert.equal(receipt.cross_artifact_observation.exact_binary_sha256_equality_required, false);
+  assert.equal(receipt.limitations.aioncore_native_readback_claimed, false);
+  assert.equal(receipt.limitations.github_issue_comment_or_close_performed, false);
+
+  assert.equal(policy.same_physical_runtime_currently_claimed, true);
+  assert.equal(policy.packaged_evidence_contract.artifact_trigger_status, 'complete');
+  assert.equal(policy.packaged_evidence_contract.evidence_receipt, receiptPath);
+});
