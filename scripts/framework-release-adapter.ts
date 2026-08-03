@@ -1110,9 +1110,15 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       const permittedCarrierNames = track === 'full'
         ? (bundle.tracks?.standard?.required_asset_names ?? [])
         : [];
+      // The attestation seals the payload set, so it is generated after the Bundle
+      // and cannot recursively appear in required_asset_names.
+      const permittedEvidenceNames = bundle.release?.channel === 'stable'
+        ? ['opl-release-attestation.json']
+        : [];
       const allowedNameSet = new Set([
         ...requiredNames,
         ...permittedCarrierNames,
+        ...permittedEvidenceNames,
       ]);
       const remoteAssets = new Map<string, JsonRecord>();
       for (const inspectedAsset of inspectedAssets) {
