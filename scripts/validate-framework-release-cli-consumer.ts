@@ -27,7 +27,8 @@ export type FrameworkReleaseCliConsumerReport = {
   status: 'passed';
   framework_sha: string;
   dependency_install: 'npm ci --ignore-scripts';
-  surface_generation: 'npm run cli:surface:generate';
+  command_surface_source: 'executable_command_specs';
+  surface_generation: 'not_invoked';
   release_cli_command: 'bin/opl release checkpoint import --help';
   projection: 'temporary_exact_framework_archive';
   source_framework_mutated: false;
@@ -89,7 +90,6 @@ export function runFrameworkReleaseCliConsumerGate(
     commandOutput('git', ['archive', '--format=tar', '--output', archivePath, expectedFrameworkSha], frameworkRoot);
     commandOutput('tar', ['-xf', archivePath, '-C', archiveRoot], frameworkRoot);
     commandOutput('npm', ['ci', '--ignore-scripts'], archiveRoot);
-    commandOutput('npm', ['run', 'cli:surface:generate'], archiveRoot);
     commandOutput(path.join(archiveRoot, 'bin', 'opl'), releaseCliArgs, archiveRoot);
   } catch (error) {
     consumerFailure = error;
@@ -112,7 +112,8 @@ export function runFrameworkReleaseCliConsumerGate(
     status: 'passed',
     framework_sha: frameworkHead,
     dependency_install: 'npm ci --ignore-scripts',
-    surface_generation: 'npm run cli:surface:generate',
+    command_surface_source: 'executable_command_specs',
+    surface_generation: 'not_invoked',
     release_cli_command: 'bin/opl release checkpoint import --help',
     projection: 'temporary_exact_framework_archive',
     source_framework_mutated: false,

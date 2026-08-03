@@ -55,14 +55,12 @@ test('restore action executes with the caller-bound Framework SHA while preservi
   const bindingIndex = steps.findIndex((candidate) => candidate.name === 'Resolve the opaque checkpoint transport');
   const checkoutIndex = steps.findIndex((candidate) => candidate.name === 'Checkout exact Framework checkpoint executor');
   const installIndex = steps.findIndex((candidate) => candidate.name === 'Install Framework runtime dependencies');
-  const generateIndex = steps.findIndex((candidate) => candidate.name === 'Generate Framework CLI command surface');
   const importIndex = steps.findIndex((candidate) => candidate.name === 'Verify and import portable checkpoint');
   assert.ok(
     downloadIndex < bindingIndex
       && bindingIndex < checkoutIndex
       && checkoutIndex < installIndex
-      && installIndex < generateIndex
-      && generateIndex < importIndex,
+      && installIndex < importIndex,
   );
 
   const binding = String(step('Resolve the opaque checkpoint transport').run);
@@ -76,9 +74,8 @@ test('restore action executes with the caller-bound Framework SHA while preservi
   assert.doesNotMatch(source, /expected_framework_abi=/);
 
   const install = String(step('Install Framework runtime dependencies').run);
-  const generate = String(step('Generate Framework CLI command surface').run);
   assert.match(install, /npm --prefix framework-executor ci --ignore-scripts/);
-  assert.match(generate, /npm --prefix framework-executor run cli:surface:generate/);
+  assert.doesNotMatch(source, /cli:surface:generate/);
 
   const restore = String(step('Verify and import portable checkpoint').run);
   assert.match(restore, /git -C framework-executor rev-parse HEAD/);

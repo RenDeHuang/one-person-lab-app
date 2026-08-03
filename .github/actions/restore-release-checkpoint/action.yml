@@ -176,16 +176,6 @@ runs:
           > >(tee -a "$EVIDENCE_DIR/restore.stdout.log") \
           2> >(tee -a "$EVIDENCE_DIR/restore.stderr.log" >&2)
 
-    - name: Generate Framework CLI command surface
-      shell: bash
-      env:
-        EVIDENCE_DIR: ${{ steps.evidence.outputs.evidence_dir }}
-      run: |
-        set -euo pipefail
-        npm --prefix framework-executor run cli:surface:generate \
-          > >(tee -a "$EVIDENCE_DIR/restore.stdout.log") \
-          2> >(tee -a "$EVIDENCE_DIR/restore.stderr.log" >&2)
-
     - name: Verify and import portable checkpoint
       id: restore
       shell: bash

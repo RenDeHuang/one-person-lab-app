@@ -142,21 +142,20 @@ test('Shell product-profile consumer uses the frozen local vitest executable wit
   }
 });
 
-test('Framework release CLI consumer generates the ignored command surface after an isolated ignore-scripts install', () => {
+test('Framework release CLI consumer runs direct executable specs after an isolated ignore-scripts install', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-framework-release-cli-command-'));
   const frameworkRoot = path.join(root, 'framework');
   fs.mkdirSync(path.join(frameworkRoot, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(frameworkRoot, 'scripts'), { recursive: true });
   fs.writeFileSync(
     path.join(frameworkRoot, '.gitignore'),
-    'node_modules/\nprepare-ran\nsrc/entrypoints/cli/command-surface-manifest.ts\n',
+    'node_modules/\nprepare-ran\n',
   );
   fs.writeFileSync(path.join(frameworkRoot, 'package.json'), `${JSON.stringify({
     name: 'framework-release-cli-fixture',
     version: '1.0.0',
     scripts: {
       prepare: 'node scripts/prepare.mjs',
-      'cli:surface:generate': 'node scripts/generate.mjs',
     },
   }, null, 2)}\n`);
   fs.writeFileSync(path.join(frameworkRoot, 'package-lock.json'), `${JSON.stringify({
@@ -173,12 +172,8 @@ test('Framework release CLI consumer generates the ignored command surface after
   }, null, 2)}\n`);
   fs.writeFileSync(path.join(frameworkRoot, 'scripts', 'prepare.mjs'), "import fs from 'node:fs'; fs.writeFileSync('prepare-ran', 'unexpected\\n');\n");
   fs.writeFileSync(
-    path.join(frameworkRoot, 'scripts', 'generate.mjs'),
-    "import fs from 'node:fs'; fs.mkdirSync('src/entrypoints/cli', { recursive: true }); fs.writeFileSync('src/entrypoints/cli/command-surface-manifest.ts', 'export {};\\n');\n",
-  );
-  fs.writeFileSync(
     path.join(frameworkRoot, 'bin', 'opl'),
-    '#!/bin/sh\nset -eu\ntest ! -e prepare-ran\ntest -f src/entrypoints/cli/command-surface-manifest.ts\ntest "$1 $2 $3 $4" = "release checkpoint import --help"\nprintf "checkpoint import help\\n"\n',
+    '#!/bin/sh\nset -eu\ntest ! -e prepare-ran\ntest ! -e src/entrypoints/cli/command-surface-manifest.ts\ntest "$1 $2 $3 $4" = "release checkpoint import --help"\nprintf "checkpoint import help\\n"\n',
     { mode: 0o755 },
   );
 
@@ -192,7 +187,7 @@ test('Framework release CLI consumer generates the ignored command surface after
     git('init', '-q');
     git('config', 'user.name', 'OPL Release Test');
     git('config', 'user.email', 'release-test@example.invalid');
-    git('add', '.gitignore', 'package.json', 'package-lock.json', 'bin/opl', 'scripts/prepare.mjs', 'scripts/generate.mjs');
+    git('add', '.gitignore', 'package.json', 'package-lock.json', 'bin/opl', 'scripts/prepare.mjs');
     git('commit', '-qm', 'fixture');
 
     const report = runFrameworkReleaseCliConsumerGate({
@@ -202,7 +197,8 @@ test('Framework release CLI consumer generates the ignored command surface after
 
     assert.equal(report.status, 'passed');
     assert.equal(report.dependency_install, 'npm ci --ignore-scripts');
-    assert.equal(report.surface_generation, 'npm run cli:surface:generate');
+    assert.equal(report.command_surface_source, 'executable_command_specs');
+    assert.equal(report.surface_generation, 'not_invoked');
     assert.equal(report.release_cli_command, 'bin/opl release checkpoint import --help');
     assert.equal(git('status', '--porcelain', '--untracked-files=normal'), '');
   } finally {
