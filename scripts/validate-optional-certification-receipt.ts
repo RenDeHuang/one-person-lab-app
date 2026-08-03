@@ -74,10 +74,10 @@ export function validateOptionalCertificationReceipt(
   if (
     receipt.certification?.platform === 'linux'
     && (
-      expected.installerName !== 'opl-app-installer.sh'
+      expected.installerName !== 'opl-install.sh'
       || !expected.installerDigest
       || !digestPattern.test(expected.installerDigest)
-      || receipt.artifact_handling?.installer?.name !== 'opl-app-installer.sh'
+      || receipt.artifact_handling?.installer?.name !== 'opl-install.sh'
       || !['passed', 'failed'].includes(receipt.status)
       || receipt.certification?.kind !== 'clean_machine_install'
       || receipt.certification?.capability !== 'github-hosted-ubuntu-x64'

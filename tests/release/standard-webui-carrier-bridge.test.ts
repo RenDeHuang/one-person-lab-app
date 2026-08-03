@@ -89,9 +89,6 @@ function standardAssets(root: string): string {
   fs.writeFileSync(path.join(root, 'opl-install.sh'), '#!/usr/bin/env bash\nexit 0\n', {
     mode: 0o755,
   });
-  fs.writeFileSync(path.join(root, 'opl-app-installer.sh'), '#!/usr/bin/env bash\nexit 0\n', {
-    mode: 0o755,
-  });
   writeStandardDistributionTrust(root, version);
   return zipName;
 }
@@ -144,10 +141,7 @@ test('Standard identity v2 binds the exact Bundle cohort and first source run', 
   assert.equal(identity.updater_zip.name, zipName);
   assert.match(identity.updater_metadata.sha256, /^sha256:[0-9a-f]{64}$/);
   assert.match(identity.updater_zip.sha256, /^sha256:[0-9a-f]{64}$/);
-  assert.deepEqual(identity.installer_bootstrap, {
-    name: 'opl-app-installer.sh',
-    sha256: digest(fs.readFileSync(path.join(root, 'opl-app-installer.sh'))),
-  });
+  assert.equal('installer_bootstrap' in identity, false);
   assert.deepEqual(identity.universal_installer, {
     name: 'opl-install.sh',
     sha256: digest(fs.readFileSync(path.join(root, 'opl-install.sh'))),

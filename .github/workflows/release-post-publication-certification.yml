@@ -198,7 +198,7 @@ jobs:
           artifact_digest="$(jq -er .primary_artifact.digest public-component-manifest.json)"
           artifact_size="$(jq -er .primary_artifact.size public-component-manifest.json)"
           linux_artifact_name="One-Person-Lab-${version}-linux-x64.deb"
-          installer_name="opl-app-installer.sh"
+          installer_name="opl-install.sh"
           linux_artifact_digest="$(
             jq -er --arg name "$linux_artifact_name" \
               '[.artifacts[] | select(.name == $name)] | select(length == 1) | .[0].digest' \
@@ -274,9 +274,9 @@ jobs:
           test "sha256:$(sha256sum public-linux-artifact.deb | awk '{print $1}')" = "$linux_artifact_digest"
           curl --fail --location --retry 0 \
             "$installer_ref" \
-            --output public-opl-app-installer.sh
-          test "sha256:$(sha256sum public-opl-app-installer.sh | awk '{print $1}')" = "$installer_digest"
-          bash -n public-opl-app-installer.sh
+            --output public-opl-install.sh
+          test "sha256:$(sha256sum public-opl-install.sh | awk '{print $1}')" = "$installer_digest"
+          bash -n public-opl-install.sh
           component_manifest_digest="$(jq -er .component_manifest_digest public-component-identity.json)"
           {
             echo "eligible=true"
@@ -1222,11 +1222,16 @@ jobs:
               executor_head_sha: $head
             }
             and (.release.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
-            and (.release.adjunct_tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?-full-[0-9a-f]{12}$"))
+            and (.release.standard_tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
             and (.release.target_standard.release_id | type == "number")
             and (.release.target_standard.tag | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$"))
             and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
-            and .release.target_standard.mutation_allowed == false
+            and .release.standard_tag == .release.target_standard.tag
+            and .release.target_standard.immutable == false
+            and .release.target_standard.full_asset_append_allowed == true
+            and .release.target_standard.standard_asset_overwrite_or_delete_allowed == false
+            and .release.standard_attestation.name == "opl-release-attestation.json"
+            and (.release.standard_attestation.sha256 | test("^sha256:[0-9a-f]{64}$"))
             and (.build_provenance.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
             and (.build_provenance.app_sha | test("^[0-9a-f]{40}$"))
             and (.build_provenance.shell_sha | test("^[0-9a-f]{40}$"))
@@ -1238,10 +1243,10 @@ jobs:
             and .homebrew_modified == false
             and .latest_modified == false
           ' "$handoff" >/dev/null
-          base_tag="$(jq -er .release.target_standard.tag "$handoff")"
+          tag="$(jq -er .release.standard_tag "$handoff")"
           base_release_id="$(jq -er .release.target_standard.release_id "$handoff")"
           base_target_commitish="$(jq -er .release.target_standard.target_commitish "$handoff")"
-          tag="$(jq -er .release.adjunct_tag "$handoff")"
+          test "$tag" = "$(jq -er .release.target_standard.tag "$handoff")"
           artifact_name="$(jq -er .artifact.name "$handoff")"
           artifact_digest="$(jq -er .artifact.sha256 "$handoff")"
           artifact_size="$(jq -er .artifact.size_bytes "$handoff")"
@@ -1253,26 +1258,20 @@ jobs:
           app_sha="$(jq -er .build_provenance.app_sha "$handoff")"
           shell_sha="$(jq -er .build_provenance.shell_sha "$handoff")"
           framework_sha="$(jq -er .build_provenance.framework_sha "$handoff")"
-          case "$tag" in
-            "$base_tag"-full-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
-              ;;
-            *)
-              echo "::error::Full adjunct tag is not derived from the admitted Standard base tag."
-              exit 1
-              ;;
-          esac
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > public-release.json
-          adjunct_release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
-          test "$(jq -er .artifact.url "$handoff")" = "$adjunct_release_base/$artifact_name"
-          test "$(jq -er .manifest.url "$handoff")" = "$adjunct_release_base/$manifest_name"
-          jq -e --arg tag "$tag" --arg executor "$head_sha" \
+          release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
+          test "$(jq -er .artifact.url "$handoff")" = "$release_base/$artifact_name"
+          test "$(jq -er .manifest.url "$handoff")" = "$release_base/$manifest_name"
+          jq -e --argjson release_id "$base_release_id" --arg tag "$tag" --arg executor "$head_sha" \
             --arg name "$artifact_name" --arg digest "$artifact_digest" \
             --argjson size "$artifact_size" --arg url "$artifact_url" \
             --arg manifest "$manifest_name" --arg manifest_digest "$manifest_digest" \
             --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
-            .tag_name == $tag
+            .id == $release_id
+            and .tag_name == $tag
             and .draft == false
             and .prerelease == false
+            and .immutable == false
             and .target_commitish == $executor
             and ([.assets[] | select(
               .name == $name
@@ -1288,7 +1287,7 @@ jobs:
             )] | length == 1)
           ' public-release.json >/dev/null
           curl --fail --location --retry 0 \
-            "$adjunct_release_base/$manifest_name" \
+            "$release_base/$manifest_name" \
             --output public-full-manifest.json
           test "sha256:$(sha256sum public-full-manifest.json | awk '{print $1}')" = "$manifest_digest"
           jq -e --arg name "$artifact_name" --arg sha "$artifact_digest" --argjson size "$artifact_size" '
@@ -1298,10 +1297,10 @@ jobs:
             and ([.assets[] | select(.name == $name and .sha256 == $sha and .size_bytes == $size)] | length == 1)
           ' public-full-manifest.json >/dev/null
 
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > public-standard-release.json
-          standard_release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${base_tag}"
+          cp public-release.json public-standard-release.json
+          standard_release_base="$release_base"
           standard_component_manifest_url="$standard_release_base/opl-app-component-manifest.json"
-          jq -e --argjson release_id "$base_release_id" --arg tag "$base_tag" \
+          jq -e --argjson release_id "$base_release_id" --arg tag "$tag" \
             --arg target "$base_target_commitish" --arg manifest_url "$standard_component_manifest_url" '
             .id == $release_id
             and .tag_name == $tag
@@ -1318,7 +1317,7 @@ jobs:
             --output public-component-manifest.json
           node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
             --manifest public-component-manifest.json \
-            --expected-tag "$base_tag" \
+            --expected-tag "$tag" \
             --release-prerelease false \
             --expected-source-commit "$app_sha" \
             > public-component-identity.json

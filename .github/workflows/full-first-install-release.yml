@@ -60,17 +60,17 @@ on:
         default: ''
         type: string
       target_standard_release_id:
-        description: Exact immutable Standard Release database ID referenced by this Full adjunct.
+        description: Exact mutable Standard Release database ID targeted by this same-tag Full append.
         required: false
         default: ''
         type: string
       target_standard_release_tag:
-        description: Exact immutable Standard Release tag referenced by this Full adjunct.
+        description: Exact mutable Standard Release tag targeted by this same-tag Full append.
         required: false
         default: ''
         type: string
       target_standard_target_commitish:
-        description: Exact immutable Standard Release target commit referenced by this Full adjunct.
+        description: Exact mutable Standard Release target commit targeted by this same-tag Full append.
         required: false
         default: ''
         type: string
@@ -1209,13 +1209,15 @@ jobs:
             release_version: version,
             primary_install_asset: fullDmgName,
             carrier_context: {
-              publication_model: 'independent_immutable_adjunct_linked_to_existing_standard',
+              publication_model: 'same_tag_mutable_standard_addon',
               target_standard_release: {
                 repository: 'gaofeng21cn/one-person-lab-app',
                 release_id: targetStandardReleaseId,
                 tag: targetStandardReleaseTag,
                 target_commitish: targetStandardTargetCommitish,
-                mutation_allowed: false,
+                immutable: false,
+                full_asset_append_allowed: true,
+                standard_asset_overwrite_or_delete_allowed: false,
               },
               release_executor: {
                 app_sha: releaseExecutorAppSha,
@@ -2033,8 +2035,16 @@ jobs:
             release_version: version,
             primary_install_asset: fullDmgName,
             carrier_context: {
-              publication_model: 'independent_immutable_adjunct_linked_to_existing_standard',
-              target_standard_release: { repository: 'gaofeng21cn/one-person-lab-app', release_id: Number(releaseId), tag: releaseTag, target_commitish: targetCommitish, mutation_allowed: false },
+              publication_model: 'same_tag_mutable_standard_addon',
+              target_standard_release: {
+                repository: 'gaofeng21cn/one-person-lab-app',
+                release_id: Number(releaseId),
+                tag: releaseTag,
+                target_commitish: targetCommitish,
+                immutable: false,
+                full_asset_append_allowed: true,
+                standard_asset_overwrite_or_delete_allowed: false,
+              },
               release_executor: { app_sha: executorSha, notarizer_path: 'scripts/notarize-macos-dmg.ts', finalizer_runner: 'macos-15-intel' },
               finalizer_handoff: { artifact_digest: handoffDigest, receipt: readJson('full-intel-finalizer-handoff-receipt.json') },
               full_content_sources: { role: 'observational_build_provenance_only', may_gate_install_or_runtime: false, app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },

@@ -18,9 +18,14 @@ const g32Predicate = `
   .schema == "opl_homebrew_full_follower_handoff.v1"
   and ((.operation_control.operation_started_at | opl_fromdateiso8601) > 0)
   and ((.operation_control.operation_deadline_at | opl_fromdateiso8601) > (.operation_control.operation_started_at | opl_fromdateiso8601))
+  and .release.standard_tag == .release.target_standard.tag
   and (.release.target_standard.tag | test("^v[0-9]+[.][0-9]+[.][0-9]+(-r[1-9][0-9]*)?$"))
   and (.release.target_standard.target_commitish | test("^[0-9a-f]{40}$"))
-  and .release.target_standard.mutation_allowed == false
+  and .release.target_standard.immutable == false
+  and .release.target_standard.full_asset_append_allowed == true
+  and .release.target_standard.standard_asset_overwrite_or_delete_allowed == false
+  and .release.standard_attestation.name == "opl-release-attestation.json"
+  and (.release.standard_attestation.sha256 | test("^sha256:[0-9a-f]{64}$"))
   and ((.release | has("base_tag")) | not)
   and ((.release | has("bundle_digest")) | not)
   and ((.release | has("cohort")) | not)
@@ -42,6 +47,7 @@ test('G32 Full handoff accepts fractional UTC timestamps and canonical producer 
   const handoff = JSON.parse(fs.readFileSync(g32HandoffPath, 'utf8')) as Record<string, any>;
   assert.equal(validateG32(handoff).status, 0);
   assert.equal(handoff.operation_control.operation_started_at, '2026-08-03T00:08:08.000Z');
+  assert.equal(handoff.release.standard_tag, 'v26.8.1-r5');
   assert.equal(handoff.release.target_standard.tag, 'v26.8.1-r5');
   assert.equal(handoff.build_provenance.admission_role, 'observational_only');
   assert.equal(handoff.build_provenance.may_gate_install_or_runtime, false);
@@ -72,7 +78,11 @@ test('append_full exports exact qualification-bound handoff without mutating Hom
     'completed_stage:"full_qualified"',
     'qualification_receipt_sha256',
     'version:$version',
-    'adjunct_tag:$adjunct_tag',
+    'standard_tag:$standard_tag',
+    'immutable:false',
+    'full_asset_append_allowed:true',
+    'standard_asset_overwrite_or_delete_allowed:false',
+    'standard_attestation:{name:"opl-release-attestation.json"',
     'manifest:{name:$manifest_name,sha256:$manifest_sha,size_bytes:$manifest_size}',
     'artifact:{name:$dmg_name,sha256:$dmg_sha,size_bytes:$dmg_size}',
     'admission_role:"observational_only"',
@@ -114,15 +124,14 @@ test('Full Homebrew follower permits only automatic delivery or exact failed-run
   assert.match(source, /failed-recovery-v2-jobs\.json/);
   assert.match(source, /failed_recovery_v2_run_id/);
   assert.match(source, /append_full deadline must be exactly 120 minutes after operation start\./);
-  assert.match(source, /\.name == "Bind immutable Homebrew Full handoff" and \.conclusion == "failure"/);
+  assert.match(source, /\.name == "Bind same-tag Homebrew Full handoff" and \.conclusion == "failure"/);
   assert.match(source, /\.name == "publish-homebrew-full" and \.conclusion == "skipped"/);
   assert.match(source, /runs\?event=workflow_dispatch&per_page=100/);
   assert.match(source, /\(\$matches \| length\) == 1/);
   assert.match(source, /\.head_branch == "main"/);
   assert.match(source, /\^OPL Stable append_full source:/);
-  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag "\$handoff"\)"/);
-  assert.match(source, /adjunct_tag="\$\(jq -er \.release\.adjunct_tag "\$handoff"\)"/);
-  assert.match(source, /"\$base_tag"-full-/);
+  assert.match(source, /standard_tag="\$\(jq -er \.release\.standard_tag "\$handoff"\)"/);
+  assert.match(source, /test "\$standard_tag" = "\$\(jq -er \.release\.target_standard\.tag "\$handoff"\)"/);
   assert.doesNotMatch(source, /\.release\.tag/);
   assert.doesNotMatch(source, /test "\$\(jq -er \.release\.cohort\.app_sha "\$handoff"\)" = "\$head_sha"/);
   assert.doesNotMatch(source, /\.release\.(?:base_tag|bundle_digest|cohort)/);
@@ -142,13 +151,14 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
   assert.deepEqual(workflow.jobs['publish-cask'].needs, ['prepare-candidate']);
   assert.equal(workflow.jobs['publish-cask'].environment, 'release-stable');
   assert.match(source, /def opl_fromdateiso8601/);
-  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag handoff\.json\)"/);
+  assert.match(source, /standard_tag="\$\(jq -er \.release\.standard_tag handoff\.json\)"/);
   assert.match(source, /app_sha="\$\(jq -er \.build_provenance\.app_sha handoff\.json\)"/);
   assert.doesNotMatch(source, /\.release\.(?:base_tag|bundle_digest|cohort|updater_version)/);
   assert.doesNotMatch(source, /Restore (?:exact )?qualified Full|restore-release-checkpoint|framework-executor/);
   assert.doesNotMatch(source, /opl release (?:operation|publish|reconcile|checkpoint)/);
   assert.match(source, /opl_homebrew_full_observational_binding\.v2/);
-  assert.match(source, /authority_model:"immutable_public_artifact_observer"/);
+  assert.match(source, /authority_model:"workflow_cas_and_unified_attestation_observer"/);
+  assert.match(source, /github_release_immutable_claim:false/);
   assert.match(source, /release_mutation_authority_imported:false/);
   assert.match(source, /framework_checkpoint_consumed:false/);
   assert.match(source, /max_push_attempts:1/);
@@ -173,22 +183,27 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
     source,
     /qualify-candidate|opl-first-run-vm\.yml|tart-smoke-summary\.json|smoke_harness_sha|shell-harness|opl-first-run-tart-smoke|--homebrew-cask-file|clean_vm_receipt_sha256|formula_opl_installed_before|official_profile_first_install/,
   );
-  assert.match(source, /base_tag="\$\(jq -er \.release\.target_standard\.tag handoff\.json\)"/);
-  assert.match(source, /adjunct_tag="\$\(jq -er \.release\.adjunct_tag handoff\.json\)"/);
-  assert.match(source, /releases\/tags\/\$adjunct_tag/);
+  assert.match(source, /standard_tag="\$\(jq -er \.release\.standard_tag handoff\.json\)"/);
+  assert.match(source, /releases\/tags\/\$standard_tag/);
   assert.match(source, /\.tag_name == \$tag/);
   assert.match(source, /executor_sha="\$\(jq -er \.authority\.executor_head_sha handoff\.json\)"/);
   assert.match(source, /\.target_commitish == \$executor/);
   assert.match(source, /\.browser_download_url == \$dmg_url/);
   assert.match(source, /\.browser_download_url == \$manifest_url/);
   assert.match(source, /\.target_commitish == \$target/);
-  assert.match(source, /needs\.prepare-candidate\.outputs\.adjunct_tag/);
+  assert.match(source, /needs\.prepare-candidate\.outputs\.standard_tag/);
+  assert.doesNotMatch(source, /adjunct_tag|immutable_public_artifact_observer/);
   assert.doesNotMatch(source, /jq -er \.release\.tag handoff\.json/);
   assert.doesNotMatch(source, /depends_on formula: "opl"|github-activate-latest|make_latest/);
 });
 
 test('append_full resume recognizes only exact GitHub Full or Full Cask unknown targets', () => {
   const source = read('_release-full-addon.yml');
+  const workflow = parse('_release-full-addon.yml');
+  const reconcileStep = workflow.jobs['restore-standard'].steps.find(
+    (step: Record<string, unknown>) => step.name === 'Reconcile imported outcome and admit same-tag Full control',
+  );
+  const reconcileRun = String(reconcileStep?.run ?? '');
   assert.match(source, /case "\$target" in/);
   assert.match(source, /github-release:\*\)/);
   assert.match(source, /homebrew:\*\)/);
@@ -201,6 +216,14 @@ test('append_full resume recognizes only exact GitHub Full or Full Cask unknown 
   assert.match(source, /git -C full-resume-tap show 'FETCH_HEAD:Casks\/one-person-lab-full\.rb'/);
   assert.doesNotMatch(source, /contents\/Casks\/one-person-lab-full\.rb\?ref=main/);
   assert.doesNotMatch(source, /git\b[^\n]*\bpush\b/);
+  assert.match(reconcileRun, /tracks\/full\/assets\.json/);
+  assert.match(reconcileRun, /full-resume-reconcile-plan\.json/);
+  assert.match(reconcileRun, /framework-release-adapter\.ts github-apply/);
+  assert.match(reconcileRun, /--standard-attestation "\$standard_attestation"/);
+  assert.match(reconcileRun, /\.reconciliation\.classification full-resume-reconcile-inspection\.json/);
+  assert.match(reconcileRun, /\.mutation_attempted full-resume-reconcile-inspection\.json\)" = false/);
+  assert.match(reconcileRun, /incomplete\|conflict\|unknown\)/);
+  assert.doesNotMatch(reconcileRun, /github-inspect[\s\S]*outcome=complete/);
 });
 
 test('VM harness retains an isolated Full Homebrew probe outside the publication DAG', () => {

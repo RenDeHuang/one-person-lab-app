@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onepersonlab.dev/contracts/app-release-attestation.schema.json",
+  "title": "OPL App Standard Release Attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "release",
+    "publication_record",
+    "standard_trust",
+    "component_manifest",
+    "repository_immutability_window",
+    "protection",
+    "superseded_public_assets"
+  ],
+  "properties": {
+    "schema": { "const": "opl_app_release_attestation.v1" },
+    "status": { "const": "passed" },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag", "version", "bundle_digest"],
+      "properties": {
+        "repository": { "const": "gaofeng21cn/one-person-lab-app" },
+        "tag": { "type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$" },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-r[1-9][0-9]*)?$" },
+        "bundle_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "publication_record": { "type": "object" },
+    "standard_trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gatekeeper_launch_policy", "apple_notarization_receipt"],
+      "properties": {
+        "gatekeeper_launch_policy": { "type": "object" },
+        "apple_notarization_receipt": { "type": "object" }
+      }
+    },
+    "component_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256", "size_bytes"],
+      "properties": {
+        "name": { "const": "opl-app-component-manifest.json" },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "size_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "repository_immutability_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preflight", "disabled"],
+      "properties": {
+        "preflight": { "type": "object" },
+        "disabled": { "type": "object" }
+      }
+    },
+    "protection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "github_native_immutable",
+        "repository_setting_restore_required",
+        "retroactive_lock_claimed",
+        "standard_asset_policy",
+        "full_binding"
+      ],
+      "properties": {
+        "github_native_immutable": { "const": false },
+        "repository_setting_restore_required": { "const": true },
+        "retroactive_lock_claimed": { "const": false },
+        "standard_asset_policy": { "const": "sealed_name_size_digest_set_no_overwrite_or_delete" },
+        "full_binding": { "const": "full_manifest_binds_this_attestation_and_exact_full_assets" }
+      }
+    },
+    "superseded_public_assets": {
+      "type": "array",
+      "const": [
+        "stable-operation-publication-record.json",
+        "standard-apple-notarization-receipt.json",
+        "standard-gatekeeper-launch-policy.json"
+      ]
+    }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

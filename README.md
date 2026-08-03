@@ -118,11 +118,12 @@ host-native WebUI Formula or Container image remains an internal WebUI carrier,
 not a third product surface. Exact availability comes from the selected release
 or package owner, not this README.
 
-The public Full Homebrew Cask remains an old, unmanaged path: it installs the
-whole Full DMG and also declares the `opl` Formula, so it currently introduces
-two Base carriers. The corrected Full Cask generator is implemented but has not
-been publicly promoted or clean-host qualified; for a complete first install,
-prefer the Full DMG below. Nightly means an Automated Preview, not a third
+Full is an optional post-Standard module. Standard is published and becomes
+Latest first; a successful Full operation later adds only the Full DMG and
+`opl-release-manifest.json` to that same Standard Release and tag. It creates no
+parallel Full Release or tag and cannot change Standard assets, the release
+body, updater metadata, or Latest. The Full Homebrew follower consumes only that
+same-tag, digest-bound result. Nightly means an Automated Preview, not a third
 quality level or a payload density. The current scheduled Nightly publication
 uses Standard density and does not move the updater Latest pointer by default.
 A separate, protected single-use pointer operation may temporarily select an exact
@@ -169,13 +170,13 @@ brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 
 Without Homebrew, download the exact DMG from the GitHub Release linked below.
 Do not pipe a mutable branch copy of `install.sh` directly into a shell. The
-tag-scoped `opl-app-installer.sh` Release asset verifies its own component
-manifest and DMG before any App target mutation:
+same tag-scoped `opl-install.sh` is the only public installer and verifies its
+component manifest and DMG before any App target mutation:
 
 ```bash
-curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-app-installer.sh
-chmod 0755 opl-app-installer.sh
-./opl-app-installer.sh --stable-macos-install --standard --release-tag v<version> --yes
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-install.sh
+chmod 0755 opl-install.sh
+./opl-install.sh --stable-macos-install --standard --release-tag v<version> --yes
 ```
 
 The repository script remains available as `./install.sh` for developers
@@ -188,8 +189,17 @@ You can also download the current desktop package from the App repository releas
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
 For a first-time macOS arm64 install without Homebrew, choose
-`One-Person-Lab-Full-<version>-mac-arm64.dmg`. It is the authoritative complete
-first-install asset while Full Homebrew publication remains unmanaged.
+`One-Person-Lab-Full-<version>-mac-arm64.dmg` when it is present on the same
+Standard Release page. Its later availability does not change which Standard
+release is Latest.
+
+The next Stable Standard uses an owner-controlled GitHub repository setting
+window: repository release immutability is disabled before that Release is
+created, then restored immediately after Standard publication and Latest
+readback. Restoring the setting protects future releases; it does not
+retroactively lock this Standard. Its trust boundary is exact asset
+name/size/digest CAS plus the unified `opl-release-attestation.json`. Existing
+immutable r5 releases are historical evidence and are not migrated or unsealed.
 
 The supported product matrix is Desktop/WebUI by Standard/Full. DMG, Homebrew,
 platform packages, Native, and Container are carrier choices within those

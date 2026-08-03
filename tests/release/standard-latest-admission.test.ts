@@ -50,10 +50,7 @@ function configureCandidate(
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     `One-Person-Lab-${version}-linux-x64.deb`,
-    ...(includeInstaller ? ['opl-install.sh', 'opl-app-installer.sh'] : []),
-    ...(publicationChannel === 'nightly'
-      ? []
-      : ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']),
+    ...(includeInstaller ? ['opl-install.sh'] : []),
   ];
   const manifest = createAppComponentManifest({
     version,
@@ -216,9 +213,7 @@ test('Latest admission binds the hosted publication floor, exact Standard bytes,
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',
-        'opl-app-installer.sh',
-        'standard-gatekeeper-launch-policy.json',
-        'standard-apple-notarization-receipt.json',
+        'opl-release-attestation.json',
       ],
       self_hosted_ancestor_count: 0,
       vm_ancestor_count: 0,
@@ -233,7 +228,7 @@ test('Latest admission binds the hosted publication floor, exact Standard bytes,
   }
 });
 
-test('Latest admission rejects a hosted Standard set without the public installer bootstrap', () => {
+test('Latest admission rejects a hosted Standard set without the frozen universal installer', () => {
   const fixture = createFixture();
   try {
     configureCandidate(

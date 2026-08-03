@@ -408,22 +408,23 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
   assert.equal(full.checkpoint_minimum_stage, "standard_built");
   assert.equal(full.standard_identity_required, false);
-  assert.equal(full.standard_release_readback, "required_exact_reference_cas_only_no_cross_component_compatibility_gate");
+  assert.equal(full.standard_release_readback, "required_exact_mutable_release_and_sealed_standard_asset_set_cas");
   assert.equal(full.standard_release_prerequisite_required, true);
-  assert.equal(full.mode, "independent_immutable_adjunct_release");
+  assert.equal(full.mode, "same_tag_mutable_standard_addon");
   assert.equal(full.successor_trigger.workflow, ".github/workflows/release-stable-post-success-followups.yml");
   assert.equal(full.successor_trigger.one_successor_per_standard_run, true);
   assert.equal(full.successor_trigger.workflow_dispatch_ref, "canonical_main");
   assert.equal(full.successor_trigger.executor_head_sha, "workflow_run_head_sha");
   assert.equal(full.framework_operation_receipt_schema, "opl_release_bundle_operation_receipt.v1");
   assert.equal(full.standard_assets_modified, false);
-  assert.equal(full.carrier_identity.base_release_tag, "exact_existing_immutable_standard_reference");
-  assert.equal(full.carrier_identity.adjunct_git_ref_target, "release_executor.app_sha");
+  assert.equal(full.carrier_identity.base_release_tag, "exact_existing_mutable_standard_target");
+  assert.equal(full.carrier_identity.full_release_tag, "same_as_base_release_tag");
+  assert.equal(full.carrier_identity.new_release_or_tag_allowed, false);
   assert.equal(
     full.carrier_identity.full_content_identity_source,
     "opl-release-manifest.json#carrier_context.full_content_sources",
   );
-  assert.equal(full.carrier_identity.standard_reference_role, "reference_and_release_notes_only");
+  assert.equal(full.carrier_identity.standard_reference_role, "same_release_append_target_and_asset_cas");
   assert.equal(full.carrier_identity.workflows_write_permission_required, false);
   assert.deepEqual(full.target_standard_reference.required_fields, [
     "repository",
@@ -431,9 +432,13 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
     "tag",
     "target_commitish",
     "immutable",
+    "standard_asset_set",
+    "standard_attestation",
   ]);
+  assert.equal(full.target_standard_reference.target_immutable_required, false);
+  assert.equal(full.target_standard_reference.base_assets_overwrite_or_delete_allowed, false);
   assert.equal(full.target_standard_reference.cross_component_compatibility_gate_allowed, false);
-  assert.equal(full.release_notes_modified, "owner_cas_after_full_terminal_only");
+  assert.equal(full.release_notes_modified, false);
   assert.equal(full.latest_modified, false);
   assert.ok(!control.publication.stable.latest_requires.includes("append_full"));
   assert.deepEqual(release.homebrew_tap_distribution.full_casks, ["one-person-lab-full"]);

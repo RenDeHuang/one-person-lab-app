@@ -348,13 +348,13 @@ test('Windows-only Docker/WebUI cases live only in the Preview-owned test file',
   assert.doesNotMatch(sharedInstallerTests, /test\(['"`][^\n]*Windows/);
 });
 
-test('Full macOS publication is self-identified, independently admissible, recoverable, and non-blocking', () => {
+test('Full macOS publication is self-identified, same-tag additive, recoverable, and non-blocking', () => {
   const follower = contract.release_platform_matrix.full_macos_additive_follower;
   assert.equal(
     follower.trigger,
-    'protected_automatic_post_success_or_explicit_independent_full_publication',
+    'protected_automatic_post_success_or_explicit_same_tag_full_append',
   );
-  assert.equal(follower.source_policy, 'full_artifact_self_identity_plus_component_compatibility_plus_exact_standard_reference_cas');
+  assert.equal(follower.source_policy, 'full_artifact_self_identity_plus_exact_mutable_standard_asset_set_cas');
   assert.equal(follower.standard_release_prerequisite_required, true);
   assert.equal(follower.cross_component_exact_version_sha_or_cohort_binding_allowed, false);
   assert.equal(
@@ -362,9 +362,10 @@ test('Full macOS publication is self-identified, independently admissible, recov
     'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
   );
   assert.equal(follower.operation, 'append_full');
-  assert.equal(follower.carrier, 'independent_immutable_adjunct_release');
-  assert.match(follower.tag_derivation, /full-manifest-sha256/);
-  assert.equal(follower.full_release_must_be_published_immutable, true);
+  assert.equal(follower.carrier, 'same_standard_release_assets');
+  assert.equal(follower.tag_derivation, 'none_use_exact_standard_tag');
+  assert.equal(follower.new_release_or_tag_allowed, false);
+  assert.equal(follower.target_release_must_be_mutable, true);
   assert.equal(follower.standard_asset_or_latest_mutation_allowed, false);
   assert.deepEqual(follower.target_standard_reference.required_fields, [
     'repository',
@@ -372,13 +373,15 @@ test('Full macOS publication is self-identified, independently admissible, recov
     'tag',
     'target_commitish',
     'immutable',
+    'standard_asset_set',
+    'standard_attestation',
   ]);
-  assert.equal(follower.target_standard_reference.purpose, 'reference_and_release_notes_only');
+  assert.equal(follower.target_standard_reference.purpose, 'same_release_append_target_and_standard_asset_cas');
   assert.equal(follower.target_standard_reference.cross_component_compatibility_gate_allowed, false);
   assert.equal(follower.blocks_stable_base_terminal, false);
   assert.equal(follower.blocks_latest_activation, false);
   assert.equal(follower.failure_receipt_required, true);
-  assert.match(follower.recovery, /same_full_artifact_identity/);
+  assert.equal(follower.recovery, 'bounded_read_only_reconcile_same_standard_release_no_retry');
 });
 
 test('optional platform publication is an independent protected post-success operation', () => {

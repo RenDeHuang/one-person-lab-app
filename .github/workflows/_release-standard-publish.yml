@@ -825,6 +825,15 @@ jobs:
           github-token: ${{ github.token }}
           path: immutable-carrier-input
 
+      - name: Download internal Standard trust evidence
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-standard-bound-${{ needs.restore.outputs.source_run_id }}
+          run-id: ${{ needs.restore.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: bound-standard-evidence
+
       - name: Materialize unique Standard build receipt for portable recovery
         shell: bash
         run: |
@@ -893,6 +902,22 @@ jobs:
             --expected-shell-sha '${{ needs.restore.outputs.shell_ref }}' \
             --expected-framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
 
+      - name: Preflight and disable future-release immutability for Stable
+        if: ${{ needs.restore.outputs.channel == 'stable' }}
+        env:
+          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          node --experimental-strip-types app-source/scripts/github-release-immutability-setting.ts preflight \
+            --repository "$GITHUB_REPOSITORY" \
+            --output github-immutability-preflight.json
+          node --experimental-strip-types app-source/scripts/github-release-immutability-setting.ts disable \
+            --repository "$GITHUB_REPOSITORY" \
+            --preflight github-immutability-preflight.json \
+            --output github-immutability-disabled.json
+
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -939,6 +964,7 @@ jobs:
             --store "$store" --json > publish-plan.json
           additional_upload_args=()
           publication_record_args=()
+          setting_receipt_args=()
           if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
             controls=()
             consumptions=()
@@ -979,18 +1005,37 @@ jobs:
               --run-authority-reconcile "${run_reconciles[0]}" \
               --planned-assets planned-payload-assets.json \
               --repository "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output "$record"
-            record_size="$(wc -c < "$record" | tr -d ' ')"
-            record_sha="sha256:$(shasum -a 256 "$record" | awk '{print $1}')"
-            # The record binds pre-publish evidence and payload assets only.
-            # Immutable publication readback is a separate terminal receipt.
+            component_manifest='${{ steps.checkpoint.outputs.checkpoint_dir }}/tracks/standard/assets/opl-app-component-manifest.json'
+            bound_component_manifest=bound-standard-evidence/assets/opl-app-component-manifest.json
+            gatekeeper_policy=bound-standard-evidence/assets/standard-gatekeeper-launch-policy.json
+            notarization_receipt=bound-standard-evidence/assets/standard-apple-notarization-receipt.json
+            for evidence in "$component_manifest" "$bound_component_manifest" "$gatekeeper_policy" "$notarization_receipt"; do
+              test -s "$evidence" && test ! -L "$evidence"
+            done
+            cmp "$component_manifest" "$bound_component_manifest"
+            node --experimental-strip-types app-source/scripts/write-release-attestation.ts \
+              --publication-record "$record" \
+              --gatekeeper-policy "$gatekeeper_policy" \
+              --notarization-receipt "$notarization_receipt" \
+              --component-manifest "$component_manifest" \
+              --preflight-setting-receipt github-immutability-preflight.json \
+              --disabled-setting-receipt github-immutability-disabled.json \
+              --bundle-digest "$BUNDLE_DIGEST" \
+              --output opl-release-attestation.json
+            attestation_size="$(wc -c < opl-release-attestation.json | tr -d ' ')"
+            attestation_sha="sha256:$(shasum -a 256 opl-release-attestation.json | awk '{print $1}')"
             jq -n \
-              --arg name "$record" --arg path "$PWD/$record" \
-              --argjson size "$record_size" --arg sha "$record_sha" \
-              '{schema:"opl_app_immutable_release_upload_actions.v1",upload_actions:[{action:"upload",name:$name,source_path:$path,size_bytes:$size,sha256:$sha}]}' \
-              > immutable-carrier-upload-actions.json
-            additional_upload_args=(--additional-upload-actions immutable-carrier-upload-actions.json)
+              --arg path "$PWD/opl-release-attestation.json" \
+              --argjson size "$attestation_size" --arg sha "$attestation_sha" \
+              '{schema:"opl_app_standard_attestation_upload_actions.v1",upload_actions:[{action:"upload",name:"opl-release-attestation.json",source_path:$path,size_bytes:$size,sha256:$sha}]}' \
+              > standard-attestation-upload-actions.json
+            additional_upload_args=(--additional-upload-actions standard-attestation-upload-actions.json)
             publication_record_args=(--publication-record "$record")
             publication_record_args+=(--authority-run-id '${{ needs.restore.outputs.source_run_id }}')
+            setting_receipt_args=(
+              --preflight-setting-receipt github-immutability-preflight.json
+              --disabled-setting-receipt github-immutability-disabled.json
+            )
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
@@ -1000,6 +1045,7 @@ jobs:
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
             "${publication_record_args[@]}" \
+            "${setting_receipt_args[@]}" \
             "${additional_upload_args[@]}" \
             --mutation-mode rehearsal \
             --output publication-contract-rehearsal.json
@@ -1013,6 +1059,7 @@ jobs:
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
             "${publication_record_args[@]}" \
+            "${setting_receipt_args[@]}" \
             "${additional_upload_args[@]}" \
             --mutation-mode execute \
             --output publish-apply.json
@@ -1131,6 +1178,10 @@ jobs:
             publish-apply.json
             planned-payload-assets.json
             stable-operation-publication-record.json
+            standard-attestation-upload-actions.json
+            opl-release-attestation.json
+            github-immutability-preflight.json
+            github-immutability-disabled.json
             unknown-persisted.json
             unknown-checkpoint-export.json
             standard-github-unknown-checkpoint
@@ -1194,44 +1245,73 @@ jobs:
             --store "$store" --json > operation-admit.json
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-inspect \
             --repo "$GITHUB_REPOSITORY" --tag '${{ needs.restore.outputs.tag }}' --output remote.json
-          gh release verify '${{ needs.restore.outputs.tag }}' --repo "$GITHUB_REPOSITORY"
-          jq -e '
-            .release.exists == true
-            and .release.draft == false
-            and .release.immutable == true
-          ' remote.json >/dev/null
-          cp remote.json immutable-release-terminal.json
           if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
             records=()
             plans=()
+            attestations=()
             while IFS= read -r item; do records+=("$item"); done < <(
               find pre-publish-durable-evidence -type f -name stable-operation-publication-record.json -print | LC_ALL=C sort
             )
             while IFS= read -r item; do plans+=("$item"); done < <(
               find pre-publish-durable-evidence -type f -name publish-plan.json -print | LC_ALL=C sort
             )
+            while IFS= read -r item; do attestations+=("$item"); done < <(
+              find pre-publish-durable-evidence -type f -name opl-release-attestation.json -print | LC_ALL=C sort
+            )
             test "${#records[@]}" -eq 1
             test "${#plans[@]}" -eq 1
+            test "${#attestations[@]}" -eq 1
             record="${records[0]}"
-            record_size="$(wc -c < "$record" | tr -d ' ')"
-            record_sha="sha256:$(shasum -a 256 "$record" | awk '{print $1}')"
+            attestation="${attestations[0]}"
+            attestation_size="$(wc -c < "$attestation" | tr -d ' ')"
+            attestation_sha="sha256:$(shasum -a 256 "$attestation" | awk '{print $1}')"
+            jq -e \
+              --arg repository "$GITHUB_REPOSITORY" \
+              --arg tag '${{ needs.restore.outputs.tag }}' \
+              --arg bundle "$BUNDLE_DIGEST" '
+                .schema == "opl_app_release_attestation.v1"
+                and .status == "passed"
+                and .release.repository == $repository
+                and .release.tag == $tag
+                and .release.bundle_digest == $bundle
+                and .protection.github_native_immutable == false
+                and .protection.retroactive_lock_claimed == false
+              ' "$attestation" >/dev/null
+            jq -S . "$record" > expected-publication-record.canonical.json
+            jq -S .publication_record "$attestation" > attested-publication-record.canonical.json
+            cmp expected-publication-record.canonical.json attested-publication-record.canonical.json
             jq \
               --null-input \
               --slurpfile plan "${plans[0]}" \
-              --arg name stable-operation-publication-record.json \
-              --arg sha "$record_sha" \
-              --argjson size "$record_size" \
+              --arg sha "$attestation_sha" \
+              --argjson size "$attestation_size" \
               '{
                 assets: (
                   (($plan[0].release_bundle_publish.receipt.details.upload_actions // [])
                     | map({name: .name, digest: .sha256, size_bytes: .size_bytes}))
-                  + [{name: $name, digest: $sha, size_bytes: $size}]
+                  + [{name: "opl-release-attestation.json", digest: $sha, size_bytes: $size}]
                 )
-              }' > expected-immutable-release-assets.json
-            node --experimental-strip-types app-source/scripts/stable-operation-publication-record.ts verify-published \
-              --record "$record" --github-inspection remote.json \
-              --expected-assets expected-immutable-release-assets.json \
-              > stable-operation-published-carrier-binding.json
+              }' > expected-mutable-standard-assets.json
+            jq -e \
+              --slurpfile expected expected-mutable-standard-assets.json '
+                .release.exists == true
+                and .release.draft == false
+                and .release.prerelease == false
+                and .release.immutable == false
+                and ([.assets[].name] | index("stable-operation-publication-record.json") | not)
+                and ([.assets[].name] | index("standard-gatekeeper-launch-policy.json") | not)
+                and ([.assets[].name] | index("standard-apple-notarization-receipt.json") | not)
+                and ((.assets | map({name, digest: .sha256, size_bytes}) | sort_by(.name))
+                  == ($expected[0].assets | sort_by(.name)))
+              ' remote.json >/dev/null
+            cp remote.json mutable-standard-terminal.json
+          else
+            jq -e '
+              .release.exists == true
+              and .release.draft == false
+              and .release.immutable == true
+            ' remote.json >/dev/null
+            cp remote.json immutable-release-terminal.json
           fi
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-readback" \
@@ -1255,9 +1335,11 @@ jobs:
           name: opl-release-standard-remote-verify-${{ github.run_id }}
           path: |
             remote.json
+            mutable-standard-terminal.json
             immutable-release-terminal.json
-            expected-immutable-release-assets.json
-            stable-operation-published-carrier-binding.json
+            expected-mutable-standard-assets.json
+            expected-publication-record.canonical.json
+            attested-publication-record.canonical.json
             operation-admit.json
             publication.json
             webui-registry-readback.txt
@@ -2167,5 +2249,119 @@ jobs:
             webui-follower-handoff.json
             webui-follower
             release-failure-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  restore-repository-immutability:
+    if: ${{ always() && needs.restore.result == 'success' && needs.restore.outputs.channel == 'stable' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    needs:
+      - restore
+      - publish-standard-nonlatest
+      - remote-digest-verify
+      - publish-homebrew-standard
+      - homebrew-standard-readback
+      - activate-latest
+    steps:
+      - name: Checkout canonical App executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with: { ref: '${{ needs.restore.outputs.app_ref }}', path: app-source }
+
+      - name: Download Standard publication evidence
+        id: download-publication-evidence
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-standard-published-${{ github.run_id }}
+          path: standard-publication-evidence
+
+      - name: Restore and read back future-release immutability
+        env:
+          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          mkdir -p immutability-restore-evidence
+          preflight_receipts=()
+          disabled_receipts=()
+          while IFS= read -r item; do preflight_receipts+=("$item"); done < <(
+            find standard-publication-evidence -type f -name github-immutability-preflight.json -print 2>/dev/null | LC_ALL=C sort
+          )
+          while IFS= read -r item; do disabled_receipts+=("$item"); done < <(
+            find standard-publication-evidence -type f -name github-immutability-disabled.json -print 2>/dev/null | LC_ALL=C sort
+          )
+          if [ "${#preflight_receipts[@]}" -eq 0 ] && [ "${#disabled_receipts[@]}" -eq 0 ]; then
+            gh api "repos/$GITHUB_REPOSITORY/immutable-releases" \
+              -H 'X-GitHub-Api-Version: 2026-03-10' > immutability-restore-evidence/current-setting.json
+            jq -e '.enabled == true and .enforced_by_owner == false' \
+              immutability-restore-evidence/current-setting.json >/dev/null || {
+                echo "::error::Repository setting is not safely enabled, but no exact disabled receipt chain exists."
+                exit 1
+              }
+            jq -n \
+              '{schema:"opl_app_github_immutability_restore_not_required.v1",status:"passed",reason:"stable_publication_never_entered_disabled_window"}' \
+              > immutability-restore-evidence/restore-not-required.json
+            exit 0
+          fi
+          test "${#preflight_receipts[@]}" -eq 1
+          test "${#disabled_receipts[@]}" -eq 1
+          preflight="${preflight_receipts[0]}"
+          disabled="${disabled_receipts[0]}"
+          cp "$preflight" immutability-restore-evidence/github-immutability-preflight.json
+          cp "$disabled" immutability-restore-evidence/github-immutability-disabled.json
+
+          release_id=''
+          publication_outcome=unknown
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.restore.outputs.tag }}" \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            > immutability-restore-evidence/candidate-release.json \
+            2> immutability-restore-evidence/candidate-release.stderr; then
+            if jq -e \
+              --arg tag '${{ needs.restore.outputs.tag }}' '
+                .tag_name == $tag
+                and .draft == false
+                and .immutable == false
+                and (.id | type == "number" and . > 0)
+              ' immutability-restore-evidence/candidate-release.json >/dev/null; then
+              release_id="$(jq -er '.id | tostring' immutability-restore-evidence/candidate-release.json)"
+              publication_outcome=published_mutable_standard
+            fi
+          elif rg -q 'HTTP 404|Not Found' immutability-restore-evidence/candidate-release.stderr; then
+            publication_outcome=not_published
+          fi
+
+          restore_args=(
+            --repository "$GITHUB_REPOSITORY"
+            --preflight "$preflight"
+            --disabled "$disabled"
+            --output immutability-restore-evidence/github-immutability-restored.json
+          )
+          if [ -n "$release_id" ]; then
+            restore_args+=(--release-id "$release_id" --tag '${{ needs.restore.outputs.tag }}')
+          else
+            restore_args+=(--publication-outcome "$publication_outcome")
+          fi
+          node --experimental-strip-types app-source/scripts/github-release-immutability-setting.ts restore \
+            "${restore_args[@]}"
+          jq -e '
+            .phase == "restored"
+            and .setting.enabled == true
+            and .setting.enforced_by_owner == false
+            and .applies_to == "future_releases_only"
+            and .retroactive_lock_claimed == false
+          ' immutability-restore-evidence/github-immutability-restored.json >/dev/null
+
+      - name: Upload repository immutability restoration evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-release-immutability-restored-${{ github.run_id }}
+          path: immutability-restore-evidence
           if-no-files-found: warn
           retention-days: 30

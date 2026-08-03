@@ -419,7 +419,7 @@ export function writeOptionalCertificationReceipt(input: WriteOptionalCertificat
   if (
     certification.platform === 'linux'
     && (
-      input.expected.installerName !== 'opl-app-installer.sh'
+      input.expected.installerName !== 'opl-install.sh'
       || !input.expected.installerDigest
       || !digestPattern.test(input.expected.installerDigest)
     )

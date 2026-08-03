@@ -157,12 +157,12 @@ function createCleanupHandoff(
     { name: `One-Person-Lab-${publish.version}-mac-arm64.dmg`, size_bytes: 21, sha256: '1'.repeat(64) },
     { name: `One-Person-Lab-${publish.version}-mac-arm64.zip`, size_bytes: 22, sha256: '2'.repeat(64) },
     { name: `One-Person-Lab-${publish.version}-mac-arm64.zip.blockmap`, size_bytes: 23, sha256: '3'.repeat(64) },
+    { name: `One-Person-Lab-${publish.version}-linux-x64.deb`, size_bytes: 25, sha256: '5'.repeat(64) },
     { name: 'latest-arm64-mac.yml', size_bytes: 27, sha256: 'b'.repeat(64) },
     { name: 'opl-app-component-manifest.json', size_bytes: 24, sha256: '4'.repeat(64) },
     { name: 'opl-install.sh', size_bytes: 28, sha256: '7'.repeat(64) },
     publish.releaseManifest,
-    { name: 'standard-gatekeeper-launch-policy.json', size_bytes: 25, sha256: '5'.repeat(64) },
-    { name: 'standard-apple-notarization-receipt.json', size_bytes: 26, sha256: '6'.repeat(64) },
+    { name: 'opl-release-attestation.json', size_bytes: 26, sha256: '6'.repeat(64) },
   ].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
   const bundleDigest = `sha256:${'d'.repeat(64)}`;
   writeJson(path.join(root, 'manual-full-m2-qualification-receipt.json'), {

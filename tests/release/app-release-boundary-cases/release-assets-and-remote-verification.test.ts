@@ -474,7 +474,10 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.standard_updater_app_bundle_trust.version, version);
   assert.equal(summary.standard_updater_app_bundle_trust.team_identifier, 'TESTTEAMID');
   assert.equal(summary.standard_updater_app_bundle_trust.signature, 'Developer ID Application: Test (TESTTEAMID)');
-  assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_policy, 'standard-gatekeeper-launch-policy.json');
+  assert.equal(
+    summary.standard_updater_app_bundle_trust.gatekeeper_policy,
+    'opl-release-attestation.json#standard_trust.gatekeeper_launch_policy',
+  );
   assert.equal(summary.standard_updater_app_bundle_trust.apple_developer_id_required, true);
   assert.equal(summary.standard_updater_app_bundle_trust.gatekeeper_required, true);
   assert.equal(summary.release_notes.status, 'passed');
@@ -643,13 +646,13 @@ test('remote release verifier rejects standard updater metadata that references 
   assert.match(result.stderr, /latest-arm64-mac\.yml references Full first-install assets/);
 });
 
-test('remote release verifier rejects a Standard release without its immutable installer bootstrap', () => {
+test('remote release verifier rejects a Standard release without its frozen installer bootstrap', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-no-installer-'));
   const version = '26.5.19-remote-no-installer';
   const names = writeStandardRemoteAssets(tempRoot, version);
   const releaseView = buildRemoteReleaseView(
     tempRoot,
-    names.filter((name) => name !== 'opl-app-installer.sh'),
+    names.filter((name) => name !== 'opl-install.sh'),
     `v${version}`,
   );
 
@@ -669,7 +672,7 @@ test('remote release verifier rejects a Standard release without its immutable i
   });
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /missing asset opl-app-installer\.sh/);
+  assert.match(result.stderr, /missing asset opl-install\.sh/);
 });
 
 test('remote release verifier keeps real non-macOS public trust validation fail closed', () => {

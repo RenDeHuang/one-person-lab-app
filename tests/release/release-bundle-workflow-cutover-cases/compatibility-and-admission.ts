@@ -135,9 +135,6 @@ test('the App adapter freezes the App Standard compatibility union without Packa
       'latest-arm64-mac.yml',
       'opl-app-component-manifest.json',
       'opl-install.sh',
-      'opl-app-installer.sh',
-      'standard-gatekeeper-launch-policy.json',
-      'standard-apple-notarization-receipt.json',
     ]);
     assert.equal(request.tracks.full.required_for_latest, false);
     assert.equal(request.tracks.webui, undefined);
@@ -353,32 +350,25 @@ test('Standard moving pointers require exact Desktop readback and hosted admissi
   assert.doesNotMatch(source, /oras tag[^\n]+stable|docker buildx imagetools create[^\n]+stable/);
 });
 
-test('Stable and Full publication consume one cohort-bound immutable capability proof outside the Actions token', () => {
+test('Stable and Full publication consume one mutable-Standard attestation and controlled setting receipt chain', () => {
   const standard = readWorkflow('_release-standard-publish.yml');
   const full = readWorkflow('_release-full-addon.yml');
   const adapter = readAdapter();
 
-  assert.match(standard, /stable-operation-publication-record\.ts create/);
-  assert.match(standard, /publication_record_args=\(--publication-record "\$record"\)/);
-  assert.match(
-    standard,
-    /publication_record_args\+=\(--authority-run-id '\$\{\{ needs\.restore\.outputs\.source_run_id \}\}'\)/,
-  );
-  assert.match(standard, /"\$\{publication_record_args\[@\]\}"/);
+  assert.match(standard, /github-release-immutability-setting\.ts preflight/);
+  assert.match(standard, /github-release-immutability-setting\.ts disable/);
+  assert.match(standard, /github-release-immutability-setting\.ts restore/);
+  assert.match(standard, /write-release-attestation\.ts/);
   assert.match(
     full,
-    /gh release download '\$\{\{ needs\.restore-standard\.outputs\.tag \}\}'[\s\S]*--pattern stable-operation-publication-record\.json/,
+    /gh release download "\$standard_tag"[\s\S]*--pattern opl-release-attestation\.json/,
   );
-  assert.match(full, /test "\$\{#capability_records\[@\]\}" -eq 1/);
-  assert.match(full, /test -f "\$capability_record"/);
-  assert.match(full, /test ! -L "\$capability_record"/);
-  assert.match(full, /--publication-record "\$capability_record"/);
-  assert.match(adapter, /validateStableOperationPublicationRecord/);
-  assert.match(adapter, /validateGithubImmutableReleaseCapabilityEvidence/);
-  assert.match(adapter, /github_immutable_releases_evidence_invalid/);
-  assert.match(adapter, /Canonical Stable publication requires the source-gate-bound immutable Releases capability record/);
-  assert.match(standard, /--authority-run-id '\$\{\{ needs\.restore\.outputs\.source_run_id \}\}'/);
-  assert.match(adapter, /Publication record authority run does not match the admitted Stable source run/);
-  assert.match(adapter, /Publication record payload assets do not match the exact Standard publish plan/);
-  assert.match(adapter, /published\.release\.immutable !== true/);
+  assert.match(full, /test "\$\{#standard_attestations\[@\]\}" -eq 1/);
+  assert.match(full, /--standard-attestation "\$standard_attestation"/);
+  assert.match(adapter, /standardAttestationIdentity/);
+  assert.match(adapter, /Canonical Stable publication requires exactly one unified public attestation/);
+  assert.match(adapter, /nativeImmutableRequired: !canonicalMutableStandard/);
+  assert.match(adapter, /Controlled mutable Standard readback unexpectedly reports immutable=true/);
+  assert.match(full, /index\("stable-operation-publication-record\.json"\) \| not/);
+  assert.doesNotMatch(full, /--publication-record|--pattern stable-operation-publication-record\.json/);
 });

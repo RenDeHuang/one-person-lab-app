@@ -139,9 +139,6 @@ export function bindStandardReleaseTrack(input: {
     linuxDesktopName,
     'latest-arm64-mac.yml',
     'opl-install.sh',
-    'opl-app-installer.sh',
-    'standard-gatekeeper-launch-policy.json',
-    'standard-apple-notarization-receipt.json',
   ];
   const assets = names.map((name) => {
     const filePath = requiredFile(assetsDir, name);
@@ -219,10 +216,6 @@ export function bindStandardReleaseTrack(input: {
     },
     updater_metadata: { name: 'latest-arm64-mac.yml', sha256: sha256(canonicalMetadata) },
     updater_zip: { name: zipName, sha256: sha256(zipPath) },
-    installer_bootstrap: {
-      name: 'opl-app-installer.sh',
-      sha256: sha256(requiredFile(assetsDir, 'opl-app-installer.sh')),
-    },
     universal_installer: {
       name: 'opl-install.sh',
       sha256: sha256(requiredFile(assetsDir, 'opl-install.sh')),
@@ -231,6 +224,11 @@ export function bindStandardReleaseTrack(input: {
       gatekeeper_policy: { name: 'standard-gatekeeper-launch-policy.json', sha256: sha256(gatekeeperPath) },
       notarization_receipt: { name: 'standard-apple-notarization-receipt.json', sha256: sha256(notarizationPath) },
       final_dmg: { name: dmgName, sha256: sha256(dmgPath) },
+      visibility: 'actions_evidence_embedded_in_public_release_attestation',
+    },
+    public_attestation: {
+      name: 'opl-release-attestation.json',
+      generated_during_protected_publication: true,
     },
     linux_desktop: {
       name: linuxDesktopName,

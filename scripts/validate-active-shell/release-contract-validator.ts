@@ -327,7 +327,8 @@ function validateOptionalCertificationPolicy(releaseChannel) {
     || policy?.validator !== 'scripts/validate-optional-certification-receipt.ts'
     || policy?.required_for_publication !== false
     || policy?.required_for_latest !== false
-    || policy?.artifact_source !== 'exact_immutable_published_release_artifact'
+    || policy?.artifact_source !== 'exact_published_release_artifact_with_workflow_cas_and_unified_attestation'
+    || policy?.full_artifact_release_source !== 'same_tag_mutable_standard_release'
     || policy?.artifact_rebuild_allowed !== false
     || policy?.component_manifest_mutation_allowed !== false
     || policy?.component_manifest_resign_allowed !== false
@@ -1088,7 +1089,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       runner: 'ubuntu-latest',
       platform: 'linux-x64',
       artifact: 'One-Person-Lab-<version>-linux-x64.deb',
-      installer: 'opl-app-installer.sh',
+      installer: 'opl-install.sh',
       installer_arguments: ['--desktop', '--release-tag', '<exact-tag>', '--no-open'],
       same_release_deb_and_installer_manifest_binding_required: true,
       same_deb_artifact_identity_required: true,
@@ -1253,22 +1254,24 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.publication_or_install_authority_granted_by_preflight !== false
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.blocks_stable_or_latest !== false
     || platformMatrix?.full_macos_additive_follower?.trigger !==
-      'protected_automatic_post_success_or_explicit_independent_full_publication'
+      'protected_automatic_post_success_or_explicit_same_tag_full_append'
     || platformMatrix?.full_macos_additive_follower?.source_policy !==
-      'full_artifact_self_identity_plus_component_compatibility_plus_exact_standard_reference_cas'
+      'full_artifact_self_identity_plus_exact_mutable_standard_asset_set_cas'
     || platformMatrix?.full_macos_additive_follower?.standard_release_prerequisite_required !== true
     || platformMatrix?.full_macos_additive_follower?.cross_component_exact_version_sha_or_cohort_binding_allowed !== false
     || platformMatrix?.full_macos_additive_follower?.compatibility_contract_ref !==
       'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission'
-    || platformMatrix?.full_macos_additive_follower?.carrier !==
-      'independent_immutable_adjunct_release'
-    || platformMatrix?.full_macos_additive_follower?.full_release_must_be_published_immutable !== true
+    || platformMatrix?.full_macos_additive_follower?.carrier !== 'same_standard_release_assets'
+    || platformMatrix?.full_macos_additive_follower?.tag_derivation !== 'none_use_exact_standard_tag'
+    || platformMatrix?.full_macos_additive_follower?.new_release_or_tag_allowed !== false
+    || platformMatrix?.full_macos_additive_follower?.target_release_must_be_mutable !== true
     || JSON.stringify(platformMatrix?.full_macos_additive_follower?.target_standard_reference?.required_fields) !==
-      JSON.stringify(['repository', 'release_id', 'tag', 'target_commitish', 'immutable'])
+      JSON.stringify(['repository', 'release_id', 'tag', 'target_commitish', 'immutable', 'standard_asset_set', 'standard_attestation'])
     || platformMatrix?.full_macos_additive_follower?.target_standard_reference?.purpose !==
-      'reference_and_release_notes_only'
+      'same_release_append_target_and_standard_asset_cas'
     || platformMatrix?.full_macos_additive_follower?.target_standard_reference?.cross_component_compatibility_gate_allowed !== false
     || platformMatrix?.full_macos_additive_follower?.target_standard_reference?.base_assets_mutation_allowed !== false
+    || platformMatrix?.full_macos_additive_follower?.standard_asset_or_latest_mutation_allowed !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_stable_base_terminal !== false
     || platformMatrix?.full_macos_additive_follower?.blocks_latest_activation !== false
   ) {

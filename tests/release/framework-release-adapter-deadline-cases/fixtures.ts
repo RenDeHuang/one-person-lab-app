@@ -8,7 +8,7 @@ import {
   activateLatest,
   applyPublishPlan,
   buildExecutorReceipt,
-  fullAdjunctReleaseIdentity,
+  fullAddonIdentity,
   inspectRelease,
   type GitHubAdapterRuntime,
   type GitHubCommandOptions,
@@ -36,7 +36,7 @@ export {
   activateLatest,
   applyPublishPlan,
   buildExecutorReceipt,
-  fullAdjunctReleaseIdentity,
+  fullAddonIdentity,
   inspectRelease,
   bindStableOperationAuthority,
   canonicalJson,
@@ -414,9 +414,6 @@ export function previewFixture() {
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
-    'opl-app-installer.sh',
-    'standard-gatekeeper-launch-policy.json',
-    'standard-apple-notarization-receipt.json',
   ];
   admission.homebrew = null;
   admission.latest_compare_and_swap.candidate.tag = previewTag;
@@ -493,7 +490,6 @@ export function nightlyLatestFixture() {
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
-    'opl-app-installer.sh',
   ];
   admission.homebrew = null;
   admission.latest_compare_and_swap.candidate.tag = nightlyTag;
@@ -542,8 +538,11 @@ export function fixture(
   releaseOperation: 'standard' | 'append_full' = 'standard',
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-github-deadline-'));
+  const standardAttestation = releaseOperation === 'append_full'
+    ? writeStandardAttestation(root)
+    : null;
   const uploadActions = releaseOperation === 'append_full'
-    ? writeFullUploadActions(root)
+    ? writeFullUploadActions(root, standardAttestation!.asset)
     : actions;
   const bundlePath = path.join(root, 'bundle.json');
   const planPath = path.join(root, 'plan.json');
@@ -652,9 +651,7 @@ export function fixture(
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',
-        'opl-app-installer.sh',
-        'standard-gatekeeper-launch-policy.json',
-        'standard-apple-notarization-receipt.json',
+        'opl-release-attestation.json',
       ],
       self_hosted_ancestor_count: 0,
       vm_ancestor_count: 0,
@@ -671,7 +668,16 @@ export function fixture(
   };
   sealAdmission(admission);
   fs.writeFileSync(admissionPath, `${JSON.stringify(admission)}\n`);
-  return { root, bundlePath, planPath, statusPath, admissionPath, uploadActions };
+  return {
+    root,
+    bundlePath,
+    planPath,
+    statusPath,
+    admissionPath,
+    uploadActions,
+    standardAttestationPath: standardAttestation?.path ?? '',
+    standardAssets: standardAttestation?.sealedAssets ?? [],
+  };
 }
 
 
@@ -687,10 +693,42 @@ export function asset(name: string, byte: string): Asset {
 
 
 
-export function writeFullUploadActions(root: string): Asset[] {
+export function writeStandardAttestation(root: string) {
+  const payloadAssets = [latestDmg, latestZip, latestDeb, componentManifestAsset];
+  const attestationPath = path.join(root, 'opl-release-attestation.json');
+  const bytes = Buffer.from(`${JSON.stringify({
+    schema: 'opl_app_release_attestation.v1',
+    status: 'passed',
+    release: { repository: repo, tag, version, bundle_digest: bundleDigest },
+    publication_record: {
+      publication_intent: {
+        payload_assets: payloadAssets.map((item) => ({
+          name: item.name,
+          digest: item.sha256,
+          size_bytes: item.size_bytes,
+        })),
+      },
+    },
+    protection: {
+      github_native_immutable: false,
+      retroactive_lock_claimed: false,
+      standard_asset_policy: 'sealed_name_size_digest_set_no_overwrite_or_delete',
+    },
+  })}\n`);
+  fs.writeFileSync(attestationPath, bytes);
+  const asset: Asset = {
+    name: 'opl-release-attestation.json',
+    size_bytes: bytes.length,
+    sha256: sha256Evidence(bytes),
+    source_path: attestationPath,
+  };
+  return { path: attestationPath, asset, sealedAssets: [...payloadAssets, asset] };
+}
+
+export function writeFullUploadActions(root: string, standardAttestation: Asset): Asset[] {
   const dmgName = `One-Person-Lab-Full-${version}-mac-arm64.dmg`;
   const dmgPath = path.join(root, dmgName);
-  const dmgBytes = Buffer.from('exact independently versioned Full DMG bytes\n');
+  const dmgBytes = Buffer.from('exact same-tag Full DMG bytes\n');
   fs.writeFileSync(dmgPath, dmgBytes);
   const dmgAction: Asset = {
     name: dmgName,
@@ -707,14 +745,24 @@ export function writeFullUploadActions(root: string): Asset[] {
     release_version: version,
     primary_install_asset: dmgName,
     carrier_context: {
-      publication_model: 'independent_immutable_adjunct_linked_to_existing_standard',
+      publication_model: 'same_tag_mutable_standard_addon',
       target_standard_release: {
         repository: repo,
         release_id: 12345,
         tag,
         target_commitish: sourceCommit,
-        mutation_allowed: false,
+        immutable: false,
+        full_asset_append_allowed: true,
+        standard_asset_overwrite_or_delete_allowed: false,
       },
+      standard_attestation: {
+        name: standardAttestation.name,
+        sha256: standardAttestation.sha256,
+        size_bytes: standardAttestation.size_bytes,
+      },
+      latest_modified: false,
+      updater_metadata_modified: false,
+      release_notes_modified: false,
       release_executor: {
         app_sha: executorCommit,
         notarizer_path: 'scripts/notarize-macos-dmg.ts',
@@ -829,24 +877,21 @@ export function fullPublicationRuntime(
   options: { targetDriftAfterFirstUpload?: string } = {},
 ) {
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  const adjunct = fullAdjunctReleaseIdentity(bundle, files.uploadActions);
+  const addon = fullAddonIdentity(bundle, files.uploadActions, files.standardAttestationPath);
   const calls: string[][] = [];
   const mutationInputs: string[] = [];
-  const remoteAssets: Asset[] = [];
-  let tagReserved = false;
-  let created = false;
-  let published = false;
+  const remoteAssets: Asset[] = [...files.standardAssets];
   const response = () => ({
     id: 12345,
-    tag_name: adjunct.tag,
-    name: adjunct.name,
-    draft: !published,
+    tag_name: addon.tag,
+    name: `One Person Lab v${version}`,
+    draft: false,
     prerelease: false,
-    target_commitish: remoteAssets.length > 0 && options.targetDriftAfterFirstUpload
+    target_commitish: remoteAssets.length > files.standardAssets.length && options.targetDriftAfterFirstUpload
       ? options.targetDriftAfterFirstUpload
-      : executorCommit,
-    body: adjunct.notes,
-    immutable: published,
+      : sourceCommit,
+    body: notes,
+    immutable: false,
     assets: remoteAssets.map((asset) => ({
       name: asset.name,
       size: asset.size_bytes,
@@ -855,39 +900,10 @@ export function fullPublicationRuntime(
   });
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 90_000,
-    run(_command, args, commandOptions) {
+    run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${adjunct.tag}`) {
-        return published
-          ? success(response())
-          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isReleaseViewFor(args, adjunct.tag, repo)) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
+      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${addon.tag}`) return success(response());
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
-        assert.equal(created, true);
-        return success(response());
-      }
-      if (isTagRefReadFor(args, adjunct.tag, repo)) {
-        return tagReserved
-          ? tagRefResponse(adjunct.tag, executorCommit)
-          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        tagReserved = true;
-        mutationInputs.push(String(commandOptions.input));
-        return tagRefResponse(adjunct.tag, executorCommit);
-      }
-      if (
-        args[0] === 'api'
-        && args[1] === '--method'
-        && args[2] === 'POST'
-        && args[3] === `repos/${repo}/releases`
-      ) {
-        created = true;
-        mutationInputs.push(String(commandOptions.input));
         return success(response());
       }
       if (args[0] === 'release' && args[1] === 'upload') {
@@ -896,13 +912,8 @@ export function fullPublicationRuntime(
         remoteAssets.push(uploaded);
         return success();
       }
-      if (args.includes('PATCH')) {
-        published = true;
-        mutationInputs.push(String(commandOptions.input));
-        return success(response());
-      }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
   };
-  return { adjunct, calls, mutationInputs, remoteAssets, runtime };
+  return { addon, calls, mutationInputs, remoteAssets, runtime };
 }

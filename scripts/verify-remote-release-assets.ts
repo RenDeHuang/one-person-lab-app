@@ -106,43 +106,27 @@ function readReleaseView(repo, tag) {
   return JSON.parse(result.stdout);
 }
 
-function releaseHasAsset(releaseView, name) {
-  return (
-    Array.isArray(releaseView.assets) && releaseView.assets.some((asset) => asset?.name === name)
-  );
-}
-
-function requiredAssetNames(version, includeFullPackage, releaseView) {
-  const standard = [
+function standardPayloadAssetNames(version) {
+  return [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     `One-Person-Lab-${version}-linux-x64.deb`,
     "latest-arm64-mac.yml",
     "opl-install.sh",
-    "opl-app-installer.sh",
-    "standard-gatekeeper-launch-policy.json",
-    "standard-apple-notarization-receipt.json",
+    "opl-app-component-manifest.json",
   ];
+}
+
+function requiredAssetNames(version, includeFullPackage) {
+  const standard = [...standardPayloadAssetNames(version), "opl-release-attestation.json"];
   if (!includeFullPackage) {
     return standard;
   }
   return [
     ...standard,
     `One-Person-Lab-Full-${version}-mac-arm64.dmg`,
-    ...(releaseHasAsset(releaseView, "opl-release-manifest.json")
-      ? ["opl-release-manifest.json"]
-      : [
-          "full-package-manifest.json",
-          "runtime-cache-events.json",
-          "full-runtime-currentness-probe.json",
-          "full-runtime-native-trust.json",
-          "full-app-bundle-trim-report.json",
-          "full-package-boundary-audit.json",
-          "README-Full-First-Install.txt",
-          "SHA256SUMS.txt",
-          "full-local-authorization-policy.json",
-        ]),
+    "opl-release-manifest.json",
   ];
 }
 
@@ -153,6 +137,10 @@ const forbiddenPublicAssetNames = new Set([
   "full-workflow-telemetry.json",
   "standard-release-notes-evidence.json",
   "full-release-notes-evidence.json",
+  "opl-app-installer.sh",
+  "stable-operation-publication-record.json",
+  "standard-gatekeeper-launch-policy.json",
+  "standard-apple-notarization-receipt.json",
 ]);
 
 function assertNoForbiddenPublicAssets(releaseView) {
@@ -450,31 +438,65 @@ function assertStandardUpdaterAppBundleTrust(downloadDir, displayVersion, update
       spctl_status: "passed",
       apple_developer_id_required: true,
       gatekeeper_required: true,
-      gatekeeper_policy: "standard-gatekeeper-launch-policy.json",
+      gatekeeper_policy: "opl-release-attestation.json#standard_trust.gatekeeper_launch_policy",
     };
   } finally {
     fs.rmSync(unzipDir, { recursive: true, force: true });
   }
 }
 
-function assertStandardDistributionTrust(downloadDir, version, verifiedAssets) {
+function assertStandardDistributionTrust(downloadDir, options, verifiedAssets) {
+  const { repo, tag, version } = options;
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const dmgAsset = verifiedAssets.find((asset) => asset.name === dmgName);
   if (!dmgAsset) throw new Error(`Verified assets are missing ${dmgName}.`);
-  const policyPath = path.join(downloadDir, "standard-gatekeeper-launch-policy.json");
-  const receiptPath = path.join(downloadDir, "standard-apple-notarization-receipt.json");
+  const attestation = JSON.parse(readText(path.join(downloadDir, "opl-release-attestation.json")));
+  const standardAssets = verifiedAssets
+    .filter((asset) => standardPayloadAssetNames(version).includes(asset.name))
+    .map((asset) => ({ name: asset.name, digest: `sha256:${asset.sha256}`, size_bytes: asset.size }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const attestedAssets = attestation.publication_record?.publication_intent?.payload_assets;
+  const componentAsset = verifiedAssets.find((asset) => asset.name === "opl-app-component-manifest.json");
+  if (
+    attestation.schema !== "opl_app_release_attestation.v1"
+    || attestation.status !== "passed"
+    || attestation.release?.repository !== repo
+    || attestation.release?.tag !== tag
+    || attestation.release?.version !== version
+    || !/^sha256:[0-9a-f]{64}$/.test(attestation.release?.bundle_digest ?? "")
+    || attestation.protection?.github_native_immutable !== false
+    || attestation.protection?.retroactive_lock_claimed !== false
+    || attestation.protection?.repository_setting_restore_required !== true
+    || attestation.protection?.standard_asset_policy !== "sealed_name_size_digest_set_no_overwrite_or_delete"
+    || JSON.stringify(attestation.superseded_public_assets) !== JSON.stringify([
+      "stable-operation-publication-record.json",
+      "standard-apple-notarization-receipt.json",
+      "standard-gatekeeper-launch-policy.json",
+    ])
+    || !Array.isArray(attestedAssets)
+    || JSON.stringify(attestedAssets.map((asset) => ({
+      name: asset?.name,
+      digest: asset?.digest,
+      size_bytes: asset?.size_bytes,
+    })).sort((left, right) => String(left.name).localeCompare(String(right.name)))) !== JSON.stringify(standardAssets)
+    || !componentAsset
+    || attestation.component_manifest?.name !== componentAsset.name
+    || attestation.component_manifest?.sha256 !== `sha256:${componentAsset.sha256}`
+    || attestation.component_manifest?.size_bytes !== componentAsset.size
+  ) {
+    throw new Error("Unified Standard attestation does not bind the exact mutable Release and sealed Standard asset set.");
+  }
   const policy = assertGatekeeperLaunchPolicy(
-    JSON.parse(readText(policyPath)),
+    attestation.standard_trust?.gatekeeper_launch_policy,
     "app_standard",
-    "standard-gatekeeper-launch-policy.json",
+    "opl-release-attestation.json#standard_trust.gatekeeper_launch_policy",
   );
   const receipt = assertAppleNotarizationReceipt(
-    JSON.parse(readText(receiptPath)),
-    "standard-apple-notarization-receipt.json",
+    attestation.standard_trust?.apple_notarization_receipt,
+    "opl-release-attestation.json#standard_trust.apple_notarization_receipt",
   );
   if (
     policy.team_identifier !== receipt.team_identifier
-    || policy.notarization_receipt_sha256 !== fileSha256(receiptPath)
     || receipt.final_stapled_dmg_sha256 !== dmgAsset.sha256
     || receipt.final_stapled_dmg_size_bytes !== dmgAsset.size
   ) {
@@ -1223,7 +1245,7 @@ function verifyDownloadedAssets(releaseView, options, names, downloadDir) {
   assertStandardMetadata(downloadDir, options.version, options.updaterVersion);
   const standardGatekeeperPolicy = assertStandardDistributionTrust(
     downloadDir,
-    options.version,
+    options,
     verified,
   );
   const standardUpdaterAppBundleTrust = assertStandardUpdaterAppBundleTrust(
@@ -1256,7 +1278,7 @@ function main() {
   const downloadDir =
     options.downloadDir || fs.mkdtempSync(path.join(os.tmpdir(), "opl-remote-release-"));
   const releaseView = readReleaseView(options.repo, options.tag);
-  const names = requiredAssetNames(options.version, options.includeFullPackage, releaseView);
+  const names = requiredAssetNames(options.version, options.includeFullPackage);
 
   if (releaseView.tagName && releaseView.tagName !== options.tag) {
     throw new Error(`Release tag mismatch: expected ${options.tag}, got ${releaseView.tagName}`);

@@ -267,7 +267,7 @@ jobs:
             *) echo 'optional_platforms_enabled=true' >> "$GITHUB_OUTPUT" ;;
           esac
 
-      - name: Upload immutable successor intent
+      - name: Upload typed successor intent
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -311,7 +311,7 @@ jobs:
       run_attempt: ${{ steps.dispatch.outputs.run_attempt }}
       conclusion: ${{ steps.dispatch.outputs.conclusion }}
     steps:
-      - name: Dispatch exactly one independent Full append operation
+      - name: Dispatch exactly one same-tag Full append operation
         id: dispatch
         env:
           GH_TOKEN: ${{ github.token }}
@@ -445,7 +445,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - name: Write immutable successor receipt
+      - name: Write typed successor receipt
         env:
           SOURCE_RUN_ID: ${{ needs.admit.outputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ needs.admit.outputs.source_artifact }}

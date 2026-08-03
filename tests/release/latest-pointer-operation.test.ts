@@ -48,9 +48,7 @@ function fixture(kind: 'stable' | 'dev' | 'nightly' = 'dev') {
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     `One-Person-Lab-${version}-linux-x64.deb`,
-    ...(kind !== 'nightly'
-      ? ['standard-gatekeeper-launch-policy.json', 'standard-apple-notarization-receipt.json']
-      : []),
+    'opl-install.sh',
   ];
   const manifest = createAppComponentManifest({
     version,
@@ -90,6 +88,14 @@ function fixture(kind: 'stable' | 'dev' | 'nightly' = 'dev') {
         size: fs.statSync(manifestPath).size,
         digest: sha256(fs.readFileSync(manifestPath)),
       },
+      ...(kind === 'stable'
+        ? [{
+            id: 100,
+            name: 'opl-release-attestation.json',
+            size: 256,
+            digest: sha256('unified-stable-attestation'),
+          }]
+        : []),
     ],
   };
   const releaseInspection = {
@@ -171,7 +177,13 @@ test('published Stable, Dev, and Nightly identities admit an exact quality-prese
         ).length,
         1,
       );
-      assert.equal(current.receipt.public_assets.length, kind === 'nightly' ? 6 : 8);
+      assert.equal(
+        current.receipt.public_assets.filter(
+          (asset: { name: string }) => asset.name === 'opl-release-attestation.json',
+        ).length,
+        kind === 'stable' ? 1 : 0,
+      );
+      assert.equal(current.receipt.public_assets.length, kind === 'stable' ? 8 : 7);
     } finally {
       fs.rmSync(current.root, { recursive: true, force: true });
     }

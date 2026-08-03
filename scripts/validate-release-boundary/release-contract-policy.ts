@@ -217,6 +217,7 @@ type GithubApplyInvocation = {
   options: Set<string>;
   mode: string;
   track: string;
+  reconcileOnly: boolean;
 };
 
 const githubApplyCallerSpecs = [
@@ -225,12 +226,24 @@ const githubApplyCallerSpecs = [
     job: 'publish-standard-nonlatest',
     track: 'standard',
     requiredOptions: githubApplyRequiredOptionNames,
+    reconcileOnlyCalls: 0,
+    publicationModes: ['execute', 'rehearsal'],
   },
   {
     workflow: '.github/workflows/_release-full-addon.yml',
     job: 'publish-full',
     track: 'full',
     requiredOptions: githubApplyFullRequiredOptionNames,
+    reconcileOnlyCalls: 1,
+    publicationModes: ['execute', 'rehearsal'],
+  },
+  {
+    workflow: '.github/workflows/_release-full-addon.yml',
+    job: 'restore-standard',
+    track: 'full',
+    requiredOptions: githubApplyFullRequiredOptionNames,
+    reconcileOnlyCalls: 1,
+    publicationModes: [],
   },
 ] as const;
 
@@ -271,6 +284,8 @@ function githubApplyInvocations(appRoot: string): GithubApplyInvocation[] {
             options,
             mode: block.match(/--mutation-mode\s+(rehearsal|execute)(?:\s|\\|$)/)?.[1] ?? '',
             track: block.match(/--track\s+(standard|full)(?:\s|\\|$)/)?.[1] ?? '',
+            reconcileOnly: block.includes('--output full-read-only-reconcile.json')
+              || block.includes('--output full-resume-reconcile-inspection.json'),
           });
         }
       }
@@ -295,9 +310,22 @@ export function validateGithubApplyCallerParity(appRoot: string): number {
     const callers = invocations.filter(
       (invocation) => invocation.workflow === spec.workflow && invocation.job === spec.job,
     );
-    const modes = callers.map((caller) => caller.mode).sort();
-    if (JSON.stringify(modes) !== JSON.stringify(['execute', 'rehearsal'])) {
-      console.error(`FAIL ${id}: ${spec.workflow}#${spec.job} must contain one rehearsal and one execute call`);
+    const reconciliationCallers = callers.filter((caller) => caller.reconcileOnly);
+    const publicationCallers = callers.filter((caller) => !caller.reconcileOnly);
+    if (
+      reconciliationCallers.length !== spec.reconcileOnlyCalls
+      || reconciliationCallers.some((caller) => caller.mode !== 'execute')
+    ) {
+      console.error(`FAIL ${id}: ${spec.workflow}#${spec.job} has an invalid read-only reconciliation caller set`);
+      failures += 1;
+      continue;
+    }
+    const modes = publicationCallers.map((caller) => caller.mode).sort();
+    if (JSON.stringify(modes) !== JSON.stringify(spec.publicationModes)) {
+      console.error(
+        `FAIL ${id}: ${spec.workflow}#${spec.job} publication modes ${JSON.stringify(modes)} `
+        + `do not match ${JSON.stringify(spec.publicationModes)}`,
+      );
       failures += 1;
       continue;
     }
@@ -311,8 +339,8 @@ export function validateGithubApplyCallerParity(appRoot: string): number {
         failures += 1;
       }
     }
-    const optionSets = callers.map((caller) => [...caller.options].sort().join(','));
-    if (optionSets[0] !== optionSets[1]) {
+    const optionSets = publicationCallers.map((caller) => [...caller.options].sort().join(','));
+    if (optionSets.length === 2 && optionSets[0] !== optionSets[1]) {
       console.error(`FAIL ${id}: ${spec.workflow} rehearsal and execute option surfaces differ`);
       failures += 1;
     }
@@ -326,6 +354,18 @@ function sameStringSet(actual: unknown, expected: string[]) {
     && actual.length === expected.length
     && expected.every((entry) => actual.includes(entry))
   );
+}
+
+export function hasExactImmutabilityWindowPhases(actual: unknown): boolean {
+  const expected = [
+    'preflight_enabled_not_owner_enforced',
+    'disable_before_release_creation',
+    'publish_standard_and_activate_latest',
+    'restore_enabled_and_read_back',
+  ];
+  return Array.isArray(actual)
+    && actual.length === expected.length
+    && actual.every((entry, index) => entry === expected[index]);
 }
 
 function stringArrayIncludesAll(actual: unknown, expected: string[]) {
@@ -425,40 +465,55 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
   const standardDraft = releaseContract.standard_updater?.draft_refresh;
   const fullDraft = releaseContract.full_first_install?.draft_refresh;
   const fullAddon = releaseContract.full_first_install?.published_addon;
+  const immutabilityWindow = releaseContract.release_bundle_control_plane?.publication?.stable
+    ?.repository_immutability_window;
   const nightly = releaseContract.nightly_standard;
   const sameDayRebuild = nightly?.same_day_rebuild;
   if (
     standardDraft?.allowed !== true ||
     standardDraft?.published_release_mutation_allowed !== false ||
     standardDraft?.mode !== 'unpublished_draft_prebuilt_assets_upload_clobber' ||
-    fullDraft?.allowed !== true ||
+    fullDraft?.allowed !== false ||
     fullDraft?.published_release_mutation_allowed !== false ||
-    fullDraft?.mode !== 'unpublished_draft_release_upload_clobber' ||
+    fullDraft?.mode !== 'retired_independent_full_release_draft_history_only' ||
+    immutabilityWindow?.owner !== 'release-stable protected environment unique Release owner' ||
+    immutabilityWindow?.token_secret !== 'OPL_GITHUB_RELEASE_ADMIN_TOKEN' ||
+    immutabilityWindow?.receipt_schema !== 'opl_app_github_immutability_setting_receipt.v1' ||
+    !hasExactImmutabilityWindowPhases(immutabilityWindow?.ordered_phases) ||
+    immutabilityWindow?.setting_changes_apply_to !== 'future_releases_only' ||
+    immutabilityWindow?.candidate_release_expected_immutable !== false ||
+    immutabilityWindow?.candidate_release_retroactively_locked_after_restore !== false ||
+    immutabilityWindow?.restore_required_on_failure !== true ||
+    immutabilityWindow?.unknown_result_policy !==
+      'bounded_owner_authoritative_read_only_reconcile_no_retry_rerun_redispatch_or_cancel' ||
+    immutabilityWindow?.existing_immutable_release_migration_allowed !== false ||
     fullAddon?.operation !== 'append_full' ||
     fullAddon?.workflow !== '.github/workflows/_release-full-addon.yml' ||
     fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
     fullAddon?.standard_identity_required !== false ||
     fullAddon?.standard_release_readback !==
-      'required_exact_reference_cas_only_no_cross_component_compatibility_gate' ||
+      'required_exact_mutable_release_and_sealed_standard_asset_set_cas' ||
     fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
     fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
     fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
     fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'canonical_main' ||
     fullAddon?.successor_trigger?.executor_head_sha !== 'workflow_run_head_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
-    fullAddon?.mode !== 'independent_immutable_adjunct_release' ||
+    fullAddon?.mode !== 'same_tag_mutable_standard_addon' ||
     fullAddon?.standard_release_prerequisite_required !== true ||
-    fullAddon?.carrier_identity?.base_release_tag !== 'exact_existing_immutable_standard_reference' ||
-    fullAddon?.carrier_identity?.adjunct_git_ref_target !== 'release_executor.app_sha' ||
+    fullAddon?.carrier_identity?.base_release_tag !== 'exact_existing_mutable_standard_target' ||
+    fullAddon?.carrier_identity?.full_release_tag !== 'same_as_base_release_tag' ||
+    fullAddon?.carrier_identity?.new_release_or_tag_allowed !== false ||
     fullAddon?.carrier_identity?.full_content_identity_source !==
       'opl-release-manifest.json#carrier_context.full_content_sources' ||
-    fullAddon?.carrier_identity?.standard_reference_role !== 'reference_and_release_notes_only' ||
+    fullAddon?.carrier_identity?.standard_reference_role !== 'same_release_append_target_and_asset_cas' ||
     fullAddon?.carrier_identity?.workflows_write_permission_required !== false ||
-    fullAddon?.carrier_identity?.base_release_mutation_allowed !== false ||
-    fullAddon?.carrier_identity?.adjunct_make_latest !== false ||
-    fullAddon?.carrier_identity?.adjunct_prerelease !== false ||
+    fullAddon?.carrier_identity?.base_release_asset_append_allowed !== true ||
+    fullAddon?.carrier_identity?.base_release_asset_overwrite_or_delete_allowed !== false ||
+    fullAddon?.carrier_identity?.latest_mutation_allowed !== false ||
+    fullAddon?.carrier_identity?.release_notes_mutation_allowed !== false ||
     fullAddon?.carrier_identity?.publication_sequence !==
-      'create_draft_upload_exact_closed_asset_set_publish_once_require_immutable_readback' ||
+      'inspect_exact_mutable_standard_cas_upload_missing_full_assets_readback' ||
     !sameStringSet(fullAddon?.allowed_assets, [
       'One-Person-Lab-Full-<version>-mac-arm64.dmg',
       'opl-release-manifest.json',
@@ -467,20 +522,26 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.same_name_different_digest !== 'fail_closed_require_new_bundle_or_version' ||
     fullAddon?.standard_assets_modified !== false ||
     fullAddon?.updater_metadata_modified !== false ||
-    fullAddon?.release_notes_modified !== 'owner_cas_after_full_terminal_only' ||
+    fullAddon?.release_notes_modified !== false ||
     !sameStringSet(fullAddon?.target_standard_reference?.required_fields, [
       'repository',
       'release_id',
       'tag',
       'target_commitish',
       'immutable',
+      'standard_asset_set',
+      'standard_attestation',
     ]) ||
     !sameStringSet(fullAddon?.target_standard_reference?.cas_timing, [
       'before_full_build',
-      'immediately_before_adjunct_publication',
+      'immediately_before_same_tag_append',
+      'after_each_asset_upload',
     ]) ||
     fullAddon?.target_standard_reference?.cross_component_compatibility_gate_allowed !== false ||
-    fullAddon?.target_standard_reference?.base_assets_mutation_allowed !== false ||
+    fullAddon?.target_standard_reference?.base_assets_overwrite_or_delete_allowed !== false ||
+    fullAddon?.target_standard_reference?.target_immutable_required !== false ||
+    fullAddon?.attestation_binding !==
+      'opl-release-manifest.json binds opl-release-attestation.json digest and exact Full asset name/size/digest' ||
     fullAddon?.latest_modified !== false ||
     fullAddon?.source_or_bom_change_requires_new_version !== true ||
     nightly?.status !== 'implemented_pending_first_publication_readback' ||
@@ -518,7 +579,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.scheduled_latest_release_allowed !== false ||
     nightly?.explicit_user_override_may_move_latest !== true
   ) {
-    console.error('FAIL release_immutability: Full is additive and every Nightly invocation is immutable, prerelease-only, and non-Latest by default');
+    console.error('FAIL release_immutability: Stable must use a restored future-release setting window while same-tag Full remains CAS-only and Nightly stays immutable non-Latest');
     return 1;
   }
   return 0;
@@ -670,7 +731,7 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
     hostedLinux?.runner !== 'ubuntu-latest' ||
     hostedLinux?.platform !== 'linux-x64' ||
     hostedLinux?.artifact !== 'One-Person-Lab-<version>-linux-x64.deb' ||
-    hostedLinux?.installer !== 'opl-app-installer.sh' ||
+    hostedLinux?.installer !== 'opl-install.sh' ||
     !sameStringSet(hostedLinux?.installer_arguments, [
       '--desktop',
       '--release-tag',
@@ -733,8 +794,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
-    'standard-gatekeeper-launch-policy.json',
-    'standard-apple-notarization-receipt.json',
+    'opl-release-attestation.json',
     'prepared_ai_release_notes',
   ];
   const fullRequirements = [
@@ -783,7 +843,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     parity?.full_is_standard_updater_target !== false ||
     !sameStringSet(parity?.adding_full_must_not_modify, fullForbiddenMutations)
   ) {
-    console.error('FAIL release_execution_tracks: both tracks must publish one equivalent Standard release; AI notes and six Standard surfaces gate Latest while Full remains an updater-invisible asynchronous add-on');
+    console.error('FAIL release_execution_tracks: both tracks must publish one equivalent Standard set plus unified attestation while Full remains an updater-invisible same-tag add-on');
     return 1;
   }
 
@@ -1237,9 +1297,9 @@ function validateOptionalCertificationPolicy(releaseContract: Record<string, any
     || policy?.validator !== 'scripts/validate-optional-certification-receipt.ts'
     || policy?.required_for_publication !== false
     || policy?.required_for_latest !== false
-    || policy?.artifact_source !== 'exact_immutable_published_release_artifact'
+    || policy?.artifact_source !== 'exact_published_release_artifact_with_workflow_cas_and_unified_attestation'
     || policy?.artifact_rebuild_allowed !== false
-    || policy?.full_artifact_release_source !== 'immutable_full_adjunct_release'
+    || policy?.full_artifact_release_source !== 'same_tag_mutable_standard_release'
     || policy?.full_component_manifest_release_source !== 'target_standard_release'
     || policy?.full_identity_cross_binding !==
       'target_standard_component_manifest_source_cohort_equals_full_build_provenance'
@@ -1845,7 +1905,7 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.full?.homebrew_publish_allowed !== true ||
     homebrew?.tap_update_policy?.full?.mutation_allowed !== true ||
     homebrew?.tap_update_policy?.full?.source_completed_stage !== 'full_qualified' ||
-    homebrew?.tap_update_policy?.full?.authority_model !== 'immutable_public_artifact_observer' ||
+    homebrew?.tap_update_policy?.full?.authority_model !== 'workflow_cas_and_unified_attestation_observer' ||
     homebrew?.tap_update_policy?.full?.framework_checkpoint_import_allowed !== false ||
     homebrew?.tap_update_policy?.full?.current_follower_operation_control_required !== true ||
     homebrew?.tap_update_policy?.full?.homebrew_clean_vm_gate_required !== false ||
@@ -1872,7 +1932,7 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.same_identity_recovery_v3_run_count_required !== 1 ||
     homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.workflow_rerun_allowed !== false ||
     homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.append_full_redispatch_allowed !== false ||
-    homebrew?.full_first_install_policy !== 'the independent immutable Full adjunct GitHub Release is the Full DMG and manifest self-identity authority; its durable receipt exposes the adjunct Release and asset URLs, and its compatibility admission uses capability, minimum-version, or SemVer-range requirements through the Framework-owner receipt. The protected Homebrew Full follower consumes that exact adjunct with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; the base Stable Release, Latest, and standard updater metadata remain unchanged' ||
+    homebrew?.full_first_install_policy !== 'the already-public mutable Standard GitHub Release is the exact same-tag append target; workflow asset name+digest CAS and the unified public attestation bind the Full DMG and manifest. The protected Homebrew Full follower consumes those exact same-tag assets with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; no independent Full release or tag is created, and the Standard assets, release body, Latest, and updater metadata remain unchanged' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',
     ])
@@ -2178,16 +2238,18 @@ export function validateReleasePlatformMatrix(
   const follower = matrix.full_macos_additive_follower;
   if (
     follower?.workflow !== '.github/workflows/release-stable-post-success-followups.yml'
-    || follower?.trigger !== 'protected_automatic_post_success_or_explicit_independent_full_publication'
-    || follower?.source_policy !== 'full_artifact_self_identity_plus_component_compatibility_plus_exact_standard_reference_cas'
+    || follower?.trigger !== 'protected_automatic_post_success_or_explicit_same_tag_full_append'
+    || follower?.source_policy !== 'full_artifact_self_identity_plus_exact_mutable_standard_asset_set_cas'
     || follower?.standard_release_prerequisite_required !== true
     || follower?.cross_component_exact_version_sha_or_cohort_binding_allowed !== false
     || follower?.compatibility_contract_ref !==
       'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission'
     || follower?.operation !== 'append_full'
-    || follower?.carrier !== 'independent_immutable_adjunct_release'
-    || follower?.full_release_must_be_published_immutable !== true
-    || follower?.draft_asset_set_must_be_exact_before_publication !== true
+    || follower?.carrier !== 'same_standard_release_assets'
+    || follower?.tag_derivation !== 'none_use_exact_standard_tag'
+    || follower?.new_release_or_tag_allowed !== false
+    || follower?.target_release_must_be_mutable !== true
+    || follower?.manifest !== 'opl-release-manifest.json'
     || follower?.standard_asset_or_latest_mutation_allowed !== false
     || !sameStringSet(follower?.target_standard_reference?.required_fields, [
       'repository',
@@ -2195,15 +2257,18 @@ export function validateReleasePlatformMatrix(
       'tag',
       'target_commitish',
       'immutable',
+      'standard_asset_set',
+      'standard_attestation',
     ])
-    || follower?.target_standard_reference?.purpose !== 'reference_and_release_notes_only'
+    || follower?.target_standard_reference?.purpose !== 'same_release_append_target_and_standard_asset_cas'
     || follower?.target_standard_reference?.cross_component_compatibility_gate_allowed !== false
     || follower?.target_standard_reference?.base_assets_mutation_allowed !== false
     || follower?.blocks_stable_base_terminal !== false
     || follower?.blocks_latest_activation !== false
     || follower?.failure_receipt_required !== true
+    || follower?.recovery !== 'bounded_read_only_reconcile_same_standard_release_no_retry'
   ) {
-    console.error('FAIL release_platform_matrix: Full macOS follower must remain independently self-identified, compatibility-bound, durable, and non-blocking');
+    console.error('FAIL release_platform_matrix: Full macOS follower must remain same-tag, mutable-target CAS-bound, durable, and non-blocking');
     failures += 1;
   }
   const optionalSelection = matrix.stable_optional_selection;

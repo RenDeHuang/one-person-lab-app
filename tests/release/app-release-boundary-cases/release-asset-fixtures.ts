@@ -109,11 +109,14 @@ function gatekeeperLaunchPolicy(packageKind, notarizationReceiptSha256, nativeTr
 export function writeStandardDistributionTrust(outDir, version) {
   const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
   const receiptPath = path.join(outDir, "standard-apple-notarization-receipt.json");
-  writeFile(receiptPath, `${JSON.stringify(appleNotarizationReceipt(outDir, dmgName), null, 2)}\n`);
+  const receipt = appleNotarizationReceipt(outDir, dmgName);
+  writeFile(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  const policy = gatekeeperLaunchPolicy("app_standard", fileSha256(receiptPath));
   writeFile(
     path.join(outDir, "standard-gatekeeper-launch-policy.json"),
-    `${JSON.stringify(gatekeeperLaunchPolicy("app_standard", fileSha256(receiptPath)), null, 2)}\n`,
+    `${JSON.stringify(policy, null, 2)}\n`,
   );
+  return { policy, receipt };
 }
 
 function defaultReleaseBody(tagName) {
@@ -162,9 +165,8 @@ export function standardRemoteAssetNames(version) {
     `One-Person-Lab-${version}-linux-x64.deb`,
     "latest-arm64-mac.yml",
     "opl-install.sh",
-    "opl-app-installer.sh",
-    "standard-gatekeeper-launch-policy.json",
-    "standard-apple-notarization-receipt.json",
+    "opl-app-component-manifest.json",
+    "opl-release-attestation.json",
   ];
 }
 
@@ -221,8 +223,9 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
   writeFile(path.join(outDir, `One-Person-Lab-${version}-linux-x64.deb`), "standard-linux-desktop");
   writeExecutable(path.join(outDir, "opl-install.sh"), "#!/usr/bin/env bash\nexit 0\n");
-  writeExecutable(path.join(outDir, "opl-app-installer.sh"), "#!/usr/bin/env bash\nexit 0\n");
-  writeStandardDistributionTrust(outDir, version);
+  const componentManifestPath = path.join(outDir, "opl-app-component-manifest.json");
+  writeFile(componentManifestPath, `${JSON.stringify({ surface_kind: "opl_app_component_manifest.v1" })}\n`);
+  const trust = writeStandardDistributionTrust(outDir, version);
   const metadata = [
     `version: ${updaterVersion}`,
     "files:",
@@ -238,6 +241,52 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
     "",
   ].join("\n");
   writeFile(path.join(outDir, "latest-arm64-mac.yml"), metadata);
+  const payloadNames = names.filter((name) => name !== "opl-release-attestation.json");
+  const payloadAssets = payloadNames.map((name) => ({
+    name,
+    digest: `sha256:${fileSha256(path.join(outDir, name))}`,
+    size_bytes: fs.statSync(path.join(outDir, name)).size,
+  }));
+  const componentIdentity = payloadAssets.find((asset) => asset.name === "opl-app-component-manifest.json");
+  writeFile(
+    path.join(outDir, "opl-release-attestation.json"),
+    `${JSON.stringify({
+      schema: "opl_app_release_attestation.v1",
+      status: "passed",
+      release: {
+        repository: "gaofeng21cn/one-person-lab-app",
+        tag: `v${version}`,
+        version,
+        bundle_digest: `sha256:${"a".repeat(64)}`,
+      },
+      publication_record: { publication_intent: { payload_assets: payloadAssets } },
+      standard_trust: {
+        gatekeeper_launch_policy: trust.policy,
+        apple_notarization_receipt: trust.receipt,
+      },
+      component_manifest: {
+        name: componentIdentity.name,
+        sha256: componentIdentity.digest,
+        size_bytes: componentIdentity.size_bytes,
+      },
+      repository_immutability_window: {
+        preflight: { phase: "preflight", setting: { enabled: true, enforced_by_owner: false } },
+        disabled: { phase: "disabled", setting: { enabled: false, enforced_by_owner: false } },
+      },
+      protection: {
+        github_native_immutable: false,
+        repository_setting_restore_required: true,
+        retroactive_lock_claimed: false,
+        standard_asset_policy: "sealed_name_size_digest_set_no_overwrite_or_delete",
+        full_binding: "full_manifest_binds_this_attestation_and_exact_full_assets",
+      },
+      superseded_public_assets: [
+        "stable-operation-publication-record.json",
+        "standard-apple-notarization-receipt.json",
+        "standard-gatekeeper-launch-policy.json",
+      ],
+    }, null, 2)}\n`,
+  );
   if (options.legacyMetadata) {
     writeFile(path.join(outDir, "latest-mac.yml"), metadata);
   }

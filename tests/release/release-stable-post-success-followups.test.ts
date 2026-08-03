@@ -76,7 +76,7 @@ process.stdout.write(JSON.stringify({
     fs.chmodSync(fakeGh, 0o755);
     const dispatchStep = workflow.jobs.dispatch.steps.find(
       (candidate: Record<string, any>) =>
-        candidate.name === "Dispatch exactly one independent Full append operation",
+        candidate.name === "Dispatch exactly one same-tag Full append operation",
     );
     assert.ok(dispatchStep);
     const result = spawnSync("/bin/bash", ["-euo", "pipefail", "-c", String(dispatchStep.run)], {
@@ -157,11 +157,11 @@ function runFullBuildProvenanceAdmission({
       "  target_commitish: process.env.OPL_TEST_STANDARD_TARGET,",
       "  draft: false,",
       "  prerelease: false,",
-      "  immutable: true,",
+      "  immutable: false,",
       "  published_at: '2026-08-01T09:50:34Z',",
       "  assets: [{",
-      "    name: 'stable-operation-publication-record.json',",
-      "    size: 51720,",
+      "    name: 'opl-release-attestation.json',",
+      "    size: 4096,",
       "    digest: 'sha256:' + 'f'.repeat(64),",
       "  }],",
       "}) + '\\n');",
@@ -200,7 +200,7 @@ function runFullBuildProvenanceAdmission({
   }
 }
 
-test("Stable success has one independent Full append successor trigger", () => {
+test("Stable success has one same-tag Full append successor trigger", () => {
   assert.deepEqual(Object.keys(workflow.on), ["workflow_run"]);
   assert.deepEqual(workflow.on.workflow_run.workflows, [
     "OPL Stable Release Bundle",
