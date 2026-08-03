@@ -854,8 +854,8 @@ test('release contract keeps Standard independent behind Framework checkpoint au
     'status',
     'exact_reconcile',
   ]);
-  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_minutes, undefined);
-  assert.equal(control.operation_control.stable_operations.resume_standard.control, 'reuse_exact_standard_control');
+  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_minutes, 30);
+  assert.equal(control.operation_control.stable_operations.resume_standard.control, 'reuse_exact_standard_identity_with_bounded_expired_window_rotation');
   assert.equal(control.operation_control.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
   assert.equal(control.operation_control.elapsed_deadline.exact_reconcile_result, 'late_observation');
   assert.equal(control.checkpoint_transport.publish_or_promotion_state_imported, false);
@@ -917,15 +917,21 @@ test('release contract keeps Standard independent behind Framework checkpoint au
   ];
   assert.throws(
     () => validateReleaseChannelContract(missingOperationId),
-    /Standard immutable, resume exact, append independent/,
+    /Standard identity immutable, rotate only an expired reconciled resume window/,
   );
 
-  for (const field of ['new_operation_id_allowed', 'start_refresh_allowed', 'deadline_refresh_allowed']) {
+  for (const [field, invalid] of [
+    ['new_operation_id_allowed', true],
+    ['active_window_rotation_allowed', true],
+    ['expired_window_rotation_allowed', false],
+    ['rotation_requires_no_active_unknown_marker', false],
+    ['framework_source_cohort_change_allowed', true],
+  ] as const) {
     const refreshedResume = structuredClone(release);
-    refreshedResume.release_bundle_control_plane.operation_control.stable_operations.resume_standard[field] = true;
+    refreshedResume.release_bundle_control_plane.operation_control.stable_operations.resume_standard[field] = invalid;
     assert.throws(
       () => validateReleaseChannelContract(refreshedResume),
-      /Standard immutable, resume exact, append independent/,
+      /Standard identity immutable, rotate only an expired reconciled resume window/,
     );
   }
 
@@ -934,7 +940,7 @@ test('release contract keeps Standard independent behind Framework checkpoint au
     reusedAppendControl.release_bundle_control_plane.operation_control.stable_operations.append_full[field] = true;
     assert.throws(
       () => validateReleaseChannelContract(reusedAppendControl),
-      /Standard immutable, resume exact, append independent/,
+      /Standard identity immutable, rotate only an expired reconciled resume window/,
     );
   }
 

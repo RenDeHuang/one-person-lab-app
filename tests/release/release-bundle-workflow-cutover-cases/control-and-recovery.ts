@@ -273,14 +273,14 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.doesNotMatch(`${readWorkflow('_release-bundle.yml')}\n${readWorkflow('_release-standard-publish.yml')}\n${readWorkflow('_release-full-addon.yml')}`, /release[_ -]broker|stable[_ -]session[_ -]lease/i);
 });
 
-test('resume admission restores and preserves the checkpoint-owned Standard operation control', () => {
+test('resume admission preserves Standard identity and rotates only an expired execution window', () => {
   const workflow = parseWorkflow('_release-standard-publish.yml');
   const source = readWorkflow('_release-standard-publish.yml');
   const restore = workflow.jobs.restore;
   const reconcile = workflowStep(
     '_release-standard-publish.yml',
     'restore',
-    'Reconcile imported outcome and reuse immutable Standard control',
+    'Reconcile imported outcome and rotate only an expired Standard window',
   );
   const reconcileRun = String(reconcile.run);
   const operationRef = '${{ needs.restore.outputs.release_operation }}';
@@ -309,9 +309,13 @@ test('resume admission restores and preserves the checkpoint-owned Standard oper
   assert.equal(restore.outputs.release_operation, '${{ steps.operation.outputs.release_operation }}');
   assert.match(reconcileRun, /requested_operation='\$\{\{ inputs\.operation \}\}'/);
   assert.match(reconcileRun, /case "\$requested_operation" in standard\|resume_standard/);
-  assert.match(reconcileRun, /release_operation=standard/);
-  assert.match(reconcileRun, /operation_started_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_started_at/);
-  assert.match(reconcileRun, /operation_deadline_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_deadline_at/);
+  assert.match(reconcileRun, /previous_operation_started_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_started_at/);
+  assert.match(reconcileRun, /previous_operation_deadline_at="\$\(jq -er '[^']*operation_controls\.standard\.operation_deadline_at/);
+  assert.match(reconcileRun, /deadline_elapsed[^]*release_operation=resume_standard/);
+  assert.match(reconcileRun, /operation_started_at='\$\{\{ inputs\.operation_started_at \}\}'/);
+  assert.match(reconcileRun, /operation_deadline_at='\$\{\{ inputs\.operation_deadline_at \}\}'/);
+  assert.match(reconcileRun, /operation-status-after-admit\.json/);
+  assert.match(reconcileRun, /operation-admit-result\.json[^]*checkpoint export/);
   assert.match(reconcileRun, /echo "release_operation=\$release_operation"/);
   assert.match(reconcileRun, /echo "operation_started_at=\$operation_started_at"/);
   assert.match(reconcileRun, /echo "operation_deadline_at=\$operation_deadline_at"/);

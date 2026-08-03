@@ -468,7 +468,7 @@ test("operation safety is explicit in the machine contract", () => {
   );
   assert.equal(control.operation_control.deadline_source_field, "github.created_at");
   assert.equal(control.operation_control.deadline_frozen_at_controller_admission, true);
-  assert.equal(control.operation_control.deadline_may_be_rebased_on_queue_start_resume_or_rerun, false);
+  assert.equal(control.operation_control.deadline_may_be_rebased_on_queue_start_resume_or_rerun, "resume_standard_only_after_exact_reconcile_and_expiry");
   assert.deepEqual(control.operation_control.operation_admission_identity_fields, [
     "operation",
     "operation_id",
@@ -477,12 +477,14 @@ test("operation safety is explicit in the machine contract", () => {
   ]);
   assert.equal(
     control.operation_control.stable_operations.resume_standard.control,
-    "reuse_exact_standard_control",
+    "reuse_exact_standard_identity_with_bounded_expired_window_rotation",
   );
-  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_minutes, undefined);
+  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_minutes, 30);
   assert.equal(control.operation_control.stable_operations.resume_standard.new_operation_id_allowed, false);
-  assert.equal(control.operation_control.stable_operations.resume_standard.start_refresh_allowed, false);
-  assert.equal(control.operation_control.stable_operations.resume_standard.deadline_refresh_allowed, false);
+  assert.equal(control.operation_control.stable_operations.resume_standard.active_window_rotation_allowed, false);
+  assert.equal(control.operation_control.stable_operations.resume_standard.expired_window_rotation_allowed, true);
+  assert.equal(control.operation_control.stable_operations.resume_standard.rotation_requires_no_active_unknown_marker, true);
+  assert.equal(control.operation_control.deadline_refresh_allowed, "resume_standard_expired_window_only");
   assert.equal(control.operation_control.stable_operations.append_full.standard_built_required, true);
   assert.equal(control.operation_control.stable_operations.append_full.standard_operation_id_reuse_allowed, false);
   assert.equal(control.operation_control.elapsed_deadline.exact_reconcile_result, "late_observation");

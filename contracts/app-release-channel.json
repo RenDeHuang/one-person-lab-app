@@ -1334,19 +1334,21 @@
         },
         "resume_standard": {
           "source": "portable_framework_checkpoint",
-          "control": "reuse_exact_standard_control",
-          "reused_control_fields": [
-            "control_digest",
+          "control": "reuse_exact_standard_identity_with_bounded_expired_window_rotation",
+          "reused_identity_fields": [
             "bundle_digest",
             "operation_id",
             "operation_kind",
-            "track",
-            "operation_started_at",
-            "operation_deadline_at"
+            "track"
           ],
+          "deadline_minutes": 30,
           "new_operation_id_allowed": false,
-          "start_refresh_allowed": false,
-          "deadline_refresh_allowed": false,
+          "active_window_rotation_allowed": false,
+          "expired_window_rotation_allowed": true,
+          "rotation_requires_no_active_unknown_marker": true,
+          "rotation_started_at_source": "current_github_actions_run_created_at",
+          "framework_source_cohort_change_allowed": false,
+          "framework_executor_may_advance_to_canonical_compatible_sha": true,
           "rebuild_allowed": false
         },
         "append_full": {
@@ -1361,7 +1363,7 @@
       },
       "job_admission": "every_mutating_job_checks_exact_operation_and_absolute_deadline_before_first_remote_api",
       "deadline_clock": "github_actions_created_at_resolved_once_by_controller",
-      "deadline_refresh_allowed": false,
+      "deadline_refresh_allowed": "resume_standard_expired_window_only",
       "partial_workflow_rerun_allowed": false,
       "github_run_attempt_required": 1,
       "recovery_entry": "status_then_exact_reconcile_for_active_unknown_else_resume_exact_standard_or_admit_independent_append_full",
@@ -1370,7 +1372,7 @@
       "typed_failure_evidence_uploaded_on_failure": true,
       "deadline_source_field": "github.created_at",
       "deadline_frozen_at_controller_admission": true,
-      "deadline_may_be_rebased_on_queue_start_resume_or_rerun": false,
+      "deadline_may_be_rebased_on_queue_start_resume_or_rerun": "resume_standard_only_after_exact_reconcile_and_expiry",
       "operation_admission_identity_fields": [
         "operation",
         "operation_id",

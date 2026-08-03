@@ -169,16 +169,16 @@ test('Stable and protected Manual Preview are isolated from daily-default Nightl
     Object.hasOwn(stable.jobs['resume-standard'].with, 'qualified_native_source_run_id'),
     false,
   );
-  assert.equal(Object.hasOwn(stable.jobs['resume-standard'].with, 'operation_started_at'), false);
-  assert.equal(Object.hasOwn(stable.jobs['resume-standard'].with, 'operation_deadline_at'), false);
+  assert.equal(stable.jobs['resume-standard'].with.operation_started_at, '${{ needs.admission.outputs.operation_started_at }}');
+  assert.equal(stable.jobs['resume-standard'].with.operation_deadline_at, '${{ needs.admission.outputs.operation_deadline_at }}');
   const stableSource = readWorkflow('release-stable.yml');
   assert.doesNotMatch(stableSource, /Native carrier identity|resume-standard-carrier|qualified_native_/);
-  assert.match(stableSource, /if \[ "\$OPERATION" = standard \] \|\| \[ "\$OPERATION" = append_full \]; then[\s\S]*actions\/runs\/\$GITHUB_RUN_ID" --jq \.created_at/);
+  assert.match(stableSource, /if \[ "\$OPERATION" = standard \] \|\| \[ "\$OPERATION" = resume_standard \] \|\| \[ "\$OPERATION" = append_full \]; then[\s\S]*actions\/runs\/\$GITHUB_RUN_ID" --jq \.created_at/);
   assert.match(stableSource, /--started-at "\$operation_created_at"/);
   assert.match(stableSource, /operation_started_at="\$\(jq -er \.started_at release-operation-admission\.json\)"/);
   assert.match(stableSource, /operation_deadline_at="\$\(jq -er \.deadline_at release-operation-admission\.json\)"/);
   assert.doesNotMatch(stableSource, /operation_started_at="\$\(timeout[\s\S]*actions\/runs\/\$GITHUB_RUN_ID/);
-  assert.match(stableSource, /if: \$\{\{ steps\.admission\.outputs\.operation != 'resume_standard' \}\}/);
+  assert.doesNotMatch(stableSource, /steps\.admission\.outputs\.operation != 'resume_standard'/);
   assert.doesNotMatch(stableSource, /run_started_at/);
   const bundleSource = readWorkflow('_release-bundle.yml');
   assert.match(bundleSource, /stable:stable\|preview:preview/);
@@ -346,13 +346,13 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   );
 
   const standard = parseWorkflow('_release-standard-publish.yml');
-  assert.equal(standard.on.workflow_call.inputs.framework_executor_ref.required, false);
-  assert.equal(standard.on.workflow_call.inputs.framework_executor_ref.default, '');
+  assert.equal(standard.on.workflow_call.inputs.framework_executor_ref.required, true);
+  assert.equal(standard.on.workflow_call.inputs.framework_executor_ref.default, undefined);
   assert.equal(standard.env.OPL_FRAMEWORK_CANARY_MINIMUM_ABI_REF, minimumCompatibleFrameworkAbiRef);
   const standardSource = readWorkflow('_release-standard-publish.yml');
   assert.match(standardSource, /Download checkpoint identity bootstrap/);
-  assert.match(standardSource, /Resolve Bundle-bound Framework identity/);
-  assert.match(standardSource, /Checkpoint Framework source differs from the optional caller expectation/);
+  assert.match(standardSource, /Resolve frozen Framework source and current executor identities/);
+  assert.match(standardSource, /Framework executor must be an exact lowercase SHA/);
 
   const full = parseWorkflow('_release-full-addon.yml');
   assert.equal(full.on.workflow_call.inputs.framework_executor_ref.required, true);
@@ -372,8 +372,15 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   );
   assert.equal(
     standardRestore.with['framework-executor-ref'],
-    '${{ steps.framework-binding.outputs.framework_source_ref }}',
+    '${{ steps.framework-binding.outputs.framework_executor_ref }}',
   );
+  const standardRestoreSteps = Object.values(standard.jobs)
+    .flatMap((job: any) => job.steps ?? [])
+    .filter((candidate: any) => candidate.uses === './app-source/.github/actions/restore-release-checkpoint');
+  assert.equal(standardRestoreSteps.length, 6);
+  assert.equal(standardRestoreSteps.slice(1).every(
+    (candidate: any) => candidate.with['framework-executor-ref'] === '${{ needs.restore.outputs.framework_executor_ref }}',
+  ), true);
   const fullRestore = workflowStep(
     '_release-full-addon.yml',
     'restore-standard',
