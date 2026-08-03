@@ -82,6 +82,34 @@ export const deadlineMs = Date.parse(deadlineAt);
 export const notes = 'Prepared release notes\n';
 
 
+export const projectedLegacyNotes = [
+  'Prepared release notes',
+  '',
+  'The Full DMG is appended later to this same Stable release for fresh-machine installation with bundled runtime, Office, and document-intake payloads.',
+  '',
+  '<!-- OPL_RELEASE_NOTES:en-US',
+  `One Person Lab v${version}`,
+  'Prepared release notes',
+  '-->',
+  '',
+].join('\n');
+
+
+export const legacyNotes = [
+  `One Person Lab v${version}`,
+  '',
+  'Prepared release notes',
+  '',
+  'Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.',
+  '',
+  '<!-- OPL_RELEASE_NOTES:en-US',
+  `One Person Lab v${version}`,
+  'Prepared release notes',
+  '-->',
+  '',
+].join('\n');
+
+
 export const sourceCommit = 'a'.repeat(40);
 
 
@@ -509,7 +537,7 @@ export function success(value: unknown = ''): GitHubCommandResult {
 
 export function releaseResponse(
   assets: Asset[],
-  options: { draft?: boolean; immutable?: boolean; targetCommitish?: string } = {},
+  options: { draft?: boolean; immutable?: boolean; targetCommitish?: string; body?: string } = {},
 ): Record<string, unknown> {
   return {
     id: 12345,
@@ -518,7 +546,7 @@ export function releaseResponse(
     draft: options.draft ?? false,
     prerelease: false,
     target_commitish: options.targetCommitish ?? sourceCommit,
-    body: notes,
+    body: options.body ?? notes,
     immutable: options.immutable ?? true,
     assets: assets.map((asset) => ({
       name: asset.name,

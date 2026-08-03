@@ -53,6 +53,10 @@ const packageIds = [
 const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
+const staleIndependentFullGuidance =
+  'Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.';
+const sameStableFullAddonGuidance =
+  'The Full DMG is appended later to this same Stable release for fresh-machine installation with bundled runtime, Office, and document-intake payloads.';
 export const githubApplyRequiredOptionNames = [
   'bundle',
   'plan',
@@ -104,6 +108,24 @@ function sha256Bytes(bytes: Buffer | string): string {
 
 function sha256File(filePath: string): string {
   return sha256Bytes(fs.readFileSync(filePath));
+}
+
+export function projectPublicReleaseBody(markdown: string, releaseName: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const firstVisibleLine = lines.findIndex((line) => line.trim().length > 0);
+  const candidate = firstVisibleLine >= 0 ? lines[firstVisibleLine]!.trim() : '';
+  if (candidate === releaseName || candidate === `# ${releaseName}`) {
+    lines.splice(0, firstVisibleLine + 1);
+    while (lines[0] !== undefined && lines[0]!.trim().length === 0) lines.shift();
+  }
+  return lines
+    .join('\n')
+    .replaceAll(staleIndependentFullGuidance, sameStableFullAddonGuidance);
+}
+
+function bundlePublicReleaseBody(bundle: JsonRecord): string {
+  const releaseName = `One Person Lab v${bundle.release?.version}`;
+  return projectPublicReleaseBody(String(bundle.prepared_notes?.markdown ?? ''), releaseName);
 }
 
 function regularFileBytes(filePath: string, label: string): Buffer {
@@ -2377,7 +2399,7 @@ function assertMutableStandardIdentity(inspection: JsonRecord, bundle: JsonRecor
     || inspection.release?.immutable !== false
     || inspection.release?.target_commitish !== target.target_commitish
     || inspection.release?.name !== `One Person Lab v${bundle.release?.version}`
-    || inspection.release?.body_sha256 !== sha256Bytes(String(bundle.prepared_notes?.markdown ?? ''))
+    || inspection.release?.body_sha256 !== sha256Bytes(bundlePublicReleaseBody(bundle))
   ) {
     throw new Error('Full append target is not the exact published mutable Standard Release.');
   }
@@ -3039,7 +3061,7 @@ function applyPublishPlanInternal(
     return { status: 'reconcile_only', repository: repo, tag, uploaded: [] };
   }
   const name = `One Person Lab v${bundle.release.version}`;
-  const notes = bundle.prepared_notes.markdown;
+  const notes = bundlePublicReleaseBody(bundle);
   const preexisting = inspectReleaseForReconcile(repo, tag, runtime);
   const canonicalMutableStandard = repo === canonicalStableRepository && publicationChannel === 'stable';
   const exactPublishedCarrier = preexisting.status === 'complete'

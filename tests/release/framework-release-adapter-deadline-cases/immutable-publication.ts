@@ -13,6 +13,8 @@ import {
   releaseResponse,
   fixture,
   asset,
+  legacyNotes,
+  projectedLegacyNotes,
   isReleaseInspect,
   isReleaseView,
   isTagRefReadFor,
@@ -54,6 +56,67 @@ test('immutable capability disabled fails closed before every public mutation', 
   assert.equal(calls.filter((args) => args.includes('POST')).length, 0);
   assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
+});
+
+test('standard publication projects legacy frozen notes before creating the GitHub Release', () => {
+  const files = fixture([]);
+  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
+  bundle.prepared_notes.markdown = legacyNotes;
+  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
+  const calls: Array<{ args: string[]; stdin?: string }> = [];
+  let tagReserved = false;
+  let exists = false;
+  let published = false;
+  const runtime: GitHubAdapterRuntime = {
+    now: () => deadlineMs - 60_000,
+    run(_command, args, options) {
+      calls.push({ args, stdin: options.input });
+      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
+      if (isReleaseInspect(args)) {
+        if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+        return success(releaseResponse([], {
+          draft: !published,
+          immutable: published,
+          body: projectedLegacyNotes,
+        }));
+      }
+      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      if (isTagRefReadFor(args, tag, repo)) {
+        return tagReserved
+          ? tagRefResponse(tag)
+          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
+      }
+      if (isTagRefCreateFor(args, repo)) {
+        tagReserved = true;
+        return tagRefResponse(tag);
+      }
+      if (args[3] === `repos/${repo}/releases`) {
+        exists = true;
+        return success(releaseResponse([], {
+          draft: true,
+          immutable: false,
+          body: projectedLegacyNotes,
+        }));
+      }
+      if (args.includes('PATCH')) {
+        published = true;
+        return success();
+      }
+      throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
+    },
+  };
+
+  const result = applyPublishPlan({
+    ...mutationAdmission(),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'operation-deadline-at': deadlineAt,
+  }, runtime);
+
+  assert.equal(result.status, 'complete');
+  const create = calls.find(({ args }) => args[3] === `repos/${repo}/releases`);
+  assert.ok(create?.stdin);
+  assert.equal(JSON.parse(create.stdin).body, projectedLegacyNotes);
 });
 
 test('an exact immutable published carrier remains a read-only idempotent reconcile when capability is disabled', () => {
