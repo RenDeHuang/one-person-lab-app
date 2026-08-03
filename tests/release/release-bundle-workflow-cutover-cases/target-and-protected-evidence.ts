@@ -388,9 +388,25 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   );
   const standardRestoreSteps = Object.values(standard.jobs)
     .flatMap((job: any) => job.steps ?? [])
-    .filter((candidate: any) => candidate.uses === './app-source/.github/actions/restore-release-checkpoint');
+    .filter((candidate: any) => [
+      './app-source/.github/actions/restore-release-checkpoint',
+      './app-executor/.github/actions/restore-release-checkpoint',
+    ].includes(candidate.uses));
   assert.equal(standardRestoreSteps.length, 6);
-  assert.equal(standardRestoreSteps.slice(1).every(
+  assert.equal(
+    standardRestoreSteps.filter(
+      (candidate: any) => candidate.uses === './app-source/.github/actions/restore-release-checkpoint',
+    ).length,
+    5,
+  );
+  const publicationRestoreSteps = standardRestoreSteps.filter(
+    (candidate: any) => candidate.uses === './app-executor/.github/actions/restore-release-checkpoint',
+  );
+  assert.equal(publicationRestoreSteps.length, 1);
+  assert.equal(publicationRestoreSteps[0].name, 'Restore Standard checkpoint');
+  assert.equal(standardRestoreSteps.filter(
+    (candidate: any) => candidate.name !== 'Restore portable checkpoint',
+  ).every(
     (candidate: any) => candidate.with['framework-executor-ref'] === '${{ needs.restore.outputs.framework_executor_ref }}',
   ), true);
   const fullRestore = workflowStep(
