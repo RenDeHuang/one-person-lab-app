@@ -14,8 +14,10 @@ const crossFixtureTests = {
 } as const;
 const appFixturePaths = [
   'contracts/fixtures/opl-app-state-fast.fixture.json',
+  'contracts/fixtures/opl-app-state-runtime-v2-mas-detail.fixture.json',
   'contracts/fixtures/opl-app-state-unknown-agent.fixture.json',
 ] as const;
+const appFixtureRef = process.env.OPL_APP_FIXTURE_REF?.trim() || 'origin/main';
 
 type Project = keyof typeof crossFixtureTests;
 
@@ -39,18 +41,18 @@ function assertAppFixtureAuthority(): void {
     const committed = spawnSync('git', ['-C', appRoot, 'show', `HEAD:${relativePath}`]);
     assert.equal(committed.status, 0, `Unable to read committed App fixture: ${relativePath}`);
     assert.ok(Buffer.isBuffer(committed.stdout), `Committed fixture output was not bytes: ${relativePath}`);
-    const canonical = spawnSync('git', ['-C', appRoot, 'show', `origin/main:${relativePath}`]);
-    assert.equal(canonical.status, 0, `Unable to read canonical App fixture: ${relativePath}`);
-    assert.ok(Buffer.isBuffer(canonical.stdout), `Canonical fixture output was not bytes: ${relativePath}`);
     assert.deepEqual(
       fs.readFileSync(fixturePath),
       committed.stdout,
       `Working-tree fixture drifted from the committed App authority: ${relativePath}`,
     );
+    const canonical = spawnSync('git', ['-C', appRoot, 'show', `${appFixtureRef}:${relativePath}`]);
+    assert.equal(canonical.status, 0, `Unable to read canonical App fixture: ${relativePath}`);
+    assert.ok(Buffer.isBuffer(canonical.stdout), `Canonical fixture output was not bytes: ${relativePath}`);
     assert.deepEqual(
       committed.stdout,
       canonical.stdout,
-      `Committed App fixture drifted from origin/main: ${relativePath}`,
+      `Committed App fixture drifted from ${appFixtureRef}: ${relativePath}`,
     );
   }
 }
@@ -71,6 +73,7 @@ function isolatedEnvironment(root: string, shellRoot: string, overrides: NodeJS.
     TMPDIR: tmp,
     NO_COLOR: '1',
     OPL_APP_ROOT: appRoot,
+    OPL_APP_FIXTURE_REF: 'HEAD',
     OPL_APP_SHELL_ROOT: shellRoot,
     OPL_APP_TEST_MAX_WORKERS: '1',
   };
