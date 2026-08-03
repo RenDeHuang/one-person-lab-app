@@ -1056,7 +1056,9 @@ jobs:
               > standard-attestation-upload-actions.json
             additional_upload_args=(--additional-upload-actions standard-attestation-upload-actions.json)
             publication_record_args=(--publication-record "$record")
-            publication_record_args+=(--authority-run-id '${{ needs.restore.outputs.source_run_id }}')
+            # A resume run transports the frozen checkpoint; the original Standard
+            # producer remains the authority bound by the publication record.
+            publication_record_args+=(--authority-run-id '${{ needs.restore.outputs.standard_bound_artifact_run_id }}')
             setting_receipt_args=(
               --preflight-setting-receipt github-immutability-preflight.json
               --disabled-setting-receipt github-immutability-disabled.json

@@ -349,6 +349,14 @@ test('resume admission preserves Standard identity and rotates only an expired e
     JSON.stringify(boundEvidenceDownload),
     /needs\.restore\.outputs\.source_run_id/,
   );
+  assert.match(
+    source,
+    /publication_record_args\+=\(--authority-run-id '\$\{\{ needs\.restore\.outputs\.standard_bound_artifact_run_id \}\}'\)/,
+  );
+  assert.doesNotMatch(
+    source,
+    /publication_record_args\+=\(--authority-run-id '\$\{\{ needs\.restore\.outputs\.source_run_id \}\}'\)/,
+  );
 
   for (const jobId of [
     'publish-standard-nonlatest',
