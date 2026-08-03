@@ -228,7 +228,7 @@ jobs:
         uses: ./.github/actions/setup-active-shell-deps
         with:
           shell-ref: ${{ needs.resolve-active-shell-ref.outputs.shell_sha }}
-          install-dependencies: 'false'
+          install-dependencies: 'true'
 
       - name: Install App root validation dependencies
         run: npm ci --ignore-scripts
