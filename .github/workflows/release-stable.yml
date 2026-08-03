@@ -360,7 +360,8 @@ jobs:
             echo "::error::Stable operations are one-shot; use resume_standard with the portable checkpoint."
             exit 1
           }
-          app_sha="$(git -C app-source rev-parse HEAD)"
+          executor_sha="$(git -C app-source rev-parse HEAD)"
+          APP_REF="$executor_sha"
           VERSION="$REQUESTED_VERSION"
           SHELL_REF="$REQUESTED_SHELL_REF"
           FRAMEWORK_SOURCE_REF=''
@@ -375,7 +376,8 @@ jobs:
                 echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
                 exit 1
               }
-              test "$app_sha" = '${{ needs.protected-operation-admission.outputs.app_ref }}'
+              APP_REF='${{ needs.protected-operation-admission.outputs.app_ref }}'
+              [[ "$APP_REF" =~ ^[0-9a-f]{40}$ ]]
               SHELL_REF='${{ needs.protected-operation-admission.outputs.shell_ref }}'
               FRAMEWORK_SOURCE_REF='${{ needs.protected-operation-admission.outputs.framework_ref }}'
               FRAMEWORK_EXECUTOR_REF="$FRAMEWORK_SOURCE_REF"
@@ -411,7 +413,7 @@ jobs:
             echo "operation=$OPERATION"
             echo "version=$VERSION"
             echo "include_full=$INCLUDE_FULL"
-            echo "app_ref=$app_sha"
+            echo "app_ref=$APP_REF"
             echo "shell_ref=$SHELL_REF"
             echo "framework_ref=$FRAMEWORK_SOURCE_REF"
             echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF"

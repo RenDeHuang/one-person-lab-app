@@ -223,6 +223,18 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.doesNotMatch(stableAdmission, /SOURCE_QUALIFICATION_RUN_ID="\$GITHUB_RUN_ID"/);
   assert.doesNotMatch(stableAdmission, /needs\.source-qualification/);
   assert.doesNotMatch(stableAdmission, /source-qualification-receipt\.ts verify/);
+  assert.match(stableAdmission, /executor_sha="\$\(git -C app-source rev-parse HEAD\)"/);
+  assert.match(stableAdmission, /APP_REF="\$executor_sha"/);
+  assert.match(
+    stableAdmission,
+    /standard\)[\s\S]*APP_REF='\$\{\{ needs\.protected-operation-admission\.outputs\.app_ref \}\}'/,
+  );
+  assert.match(stableAdmission, /\[\[ "\$APP_REF" =~ \^\[0-9a-f\]\{40\}\$ \]\]/);
+  assert.doesNotMatch(
+    stableAdmission,
+    /test "\$(?:app_sha|executor_sha)" = '\$\{\{ needs\.protected-operation-admission\.outputs\.app_ref \}\}'/,
+  );
+  assert.match(stableAdmission, /echo "app_ref=\$APP_REF"/);
   assert.match(
     stableAdmission,
     /SHELL_REF='\$\{\{ needs\.protected-operation-admission\.outputs\.shell_ref \}\}'/,
