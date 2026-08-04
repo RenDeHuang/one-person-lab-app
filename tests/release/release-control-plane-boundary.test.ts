@@ -140,7 +140,7 @@ test('production github-apply callers keep rehearsal and execute CLI parity', (t
   const full = workflowPath(root, '_release-full-addon.yml');
   const source = fs.readFileSync(full, 'utf8');
   const mutated = source.replace(
-    '            --executor-app-sha "$GITHUB_SHA" \\\n            --mutation-mode rehearsal',
+    '            --executor-app-sha "$full_manifest_executor_app_sha" \\\n            --mutation-mode rehearsal',
     '            --mutation-mode rehearsal',
   );
   assert.notEqual(mutated, source);

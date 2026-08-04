@@ -68,11 +68,11 @@ test("Full build artifacts survive optional upload while the real publication ca
   assert.doesNotMatch(fullWorkflow, /OPL_RELEASE_NOTES_CODEX_API_KEY:[\s\S]*release:notes:prepare/);
   assert.match(
     fullAddonWorkflow,
-    /framework-release-adapter\.ts github-apply[\s\S]*--executor-app-sha "\$GITHUB_SHA"[\s\S]*--mutation-mode rehearsal/,
+    /framework-release-adapter\.ts github-apply[\s\S]*--executor-app-sha "\$full_manifest_executor_app_sha"[\s\S]*--mutation-mode rehearsal/,
   );
   assert.match(
     fullAddonWorkflow,
-    /framework-release-adapter\.ts github-apply[\s\S]*--executor-app-sha "\$GITHUB_SHA"[\s\S]*--mutation-mode execute/,
+    /framework-release-adapter\.ts github-apply[\s\S]*--executor-app-sha "\$full_manifest_executor_app_sha"[\s\S]*--mutation-mode execute/,
   );
   assert.match(
     fullWorkflow,

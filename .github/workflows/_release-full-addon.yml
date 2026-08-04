@@ -1077,6 +1077,7 @@ jobs:
           ' "$full_manifest")"
           full_manifest_sha_hex="$(shasum -a 256 "$full_manifest" | awk '{print $1}')"
           full_manifest_sha="sha256:$full_manifest_sha_hex"
+          full_manifest_executor_app_sha="$(jq -er '.carrier_context.release_executor.app_sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$full_manifest")"
           standard_tag='${{ needs.restore-standard.outputs.target_standard_release_tag }}'
           remote_target="github-release:${GITHUB_REPOSITORY}@${standard_tag}"
           gh api "repos/${GITHUB_REPOSITORY}/releases/${{ needs.restore-standard.outputs.target_standard_release_id }}" > target-standard-release-before-publish.json
@@ -1146,7 +1147,7 @@ jobs:
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
             --standard-attestation "$standard_attestation" \
-            --executor-app-sha "$GITHUB_SHA" \
+            --executor-app-sha "$full_manifest_executor_app_sha" \
             --mutation-mode rehearsal \
             --output publication-contract-rehearsal.json
           test "$(jq -r .status publication-contract-rehearsal.json)" = rehearsal_complete
@@ -1160,7 +1161,7 @@ jobs:
             --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
             --standard-attestation "$standard_attestation" \
-            --executor-app-sha "$GITHUB_SHA" \
+            --executor-app-sha "$full_manifest_executor_app_sha" \
             --mutation-mode execute \
             --output publish-apply.json
           apply_status="$(jq -er .status publish-apply.json)"
@@ -1220,7 +1221,7 @@ jobs:
               --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
               --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
               --standard-attestation "$standard_attestation" \
-              --executor-app-sha "$GITHUB_SHA" \
+              --executor-app-sha "$full_manifest_executor_app_sha" \
               --mutation-mode execute \
               --output full-read-only-reconcile.json
             test "$(jq -r .status full-read-only-reconcile.json)" = reconcile_only

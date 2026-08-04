@@ -85,7 +85,11 @@ test('Full publication declares the Stable channel and same-tag CAS boundary at 
   assert.match(String(publish.run), /--output full-read-only-reconcile\.json/);
   assert.match(String(publish.run), /\.reconciliation\.classification full-read-only-reconcile\.json/);
   assert.match(String(publish.run), /\.mutation_attempted full-read-only-reconcile\.json\)" = false/);
-  assert.match(String(publish.run), /--executor-app-sha "\$GITHUB_SHA"/);
+  assert.match(String(publish.run), /full_manifest_executor_app_sha=.*carrier_context\.release_executor\.app_sha/);
+  assert.equal(
+    (String(publish.run).match(/--executor-app-sha "\$full_manifest_executor_app_sha"/g) ?? []).length,
+    3,
+  );
   assert.match(String(publish.run), /--standard-attestation "\$standard_attestation"/);
   assert.doesNotMatch(String(publish.run), /adjunct|gh release create|--create/);
   assert.doesNotMatch(String(publish.run), /scripts\/publish-release\.ts/);
