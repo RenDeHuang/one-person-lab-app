@@ -74,3 +74,13 @@ test('matrix control is checked out from the executor while the requested App co
   assert.match(manualSource, /\.release-control\/scripts\/resolve-release-platform-matrix\.ts/);
   assert.doesNotMatch(manualSource, /node --experimental-strip-types scripts\/resolve-release-platform-matrix\.ts/);
 });
+
+test('nonempty invocation mode selects the protected reusable route independently of event name', () => {
+  const manualWorkflow = parseYaml(manualSource) as any;
+  const matrixRun = manualWorkflow.jobs['prepare-matrix'].steps.find(
+    (step: any) => step.name === 'Generate build matrix',
+  ).run;
+  assert.match(matrixRun, /if \[ -n '\$\{\{ inputs\.invocation_mode \}\}' \]; then/);
+  assert.match(matrixRun, /test '\$\{\{ inputs\.invocation_mode \}\}' = stable_optional_follower/);
+  assert.doesNotMatch(matrixRun, /GITHUB_EVENT_NAME.*workflow_call/);
+});

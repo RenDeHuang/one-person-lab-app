@@ -189,7 +189,7 @@ jobs:
         run: |
           set -euo pipefail
           macos_x64_signed_development_validation=false
-          if [ "$GITHUB_EVENT_NAME" = workflow_call ]; then
+          if [ -n '${{ inputs.invocation_mode }}' ]; then
             test '${{ inputs.invocation_mode }}' = stable_optional_follower
             test '${{ inputs.platform_policy }}' = stable_optional
             [[ '${{ inputs.app_ref }}' =~ ^[0-9a-f]{40}$ ]]
