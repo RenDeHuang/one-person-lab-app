@@ -235,13 +235,19 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   assert.deepEqual(Object.keys(follower.on.workflow_dispatch.inputs), [
     'source_run_id',
     'failed_follower_run_id',
+    'failed_recovery_run_id',
     'recovery_confirmation',
   ]);
+  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
+  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_run_id.type, 'string');
   assert.deepEqual(follower.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_webui_follower_v1',
+    'recover_exact_failed_webui_follower_v2',
   ]);
   assert.match(followerSource, /\.total_count == 5/);
   assert.match(followerSource, /promote-webui-stable" and \.conclusion == "skipped"/);
+  assert.match(followerSource, /failed recovery v1 \$\{FAILED_RECOVERY_RUN_ID\}/);
+  assert.match(followerSource, /opl_seed_payload_symlink_forbidden/);
   assert.match(followerSource, /runs\?event=workflow_dispatch&per_page=100/);
   assert.equal(follower.jobs['webui-carrier'].needs[0], 'resolve-handoff');
   assert.deepEqual(

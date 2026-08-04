@@ -1,6 +1,9 @@
 name: OPL WebUI Stable Follower
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v2'
+    && format('WebUI follower recovery v2 for Stable run {0} failed follower {1} failed recovery v1 {2}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id)
+    || github.event_name == 'workflow_dispatch'
     && format('WebUI follower recovery v1 for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
     || format('WebUI follower for Stable run {0}', github.event.workflow_run.id) }}
 
@@ -20,12 +23,17 @@ on:
         description: Exact failed first-attempt WebUI follower run with publication skipped
         required: true
         type: string
+      failed_recovery_run_id:
+        description: Exact failed WebUI follower recovery v1 run; empty for recovery v1
+        required: false
+        type: string
       recovery_confirmation:
-        description: Confirm one-shot recovery of the exact failed WebUI follower
+        description: Confirm the exact bounded WebUI follower recovery generation
         required: true
         type: choice
         options:
           - recover_exact_failed_webui_follower_v1
+          - recover_exact_failed_webui_follower_v2
 
 permissions:
   contents: read
@@ -43,7 +51,8 @@ jobs:
     if: >-
       ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
         || (github.event_name == 'workflow_dispatch'
-        && inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v1') }}
+        && (inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v1'
+        || inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v2')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -67,6 +76,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
+          FAILED_RECOVERY_RUN_ID: ${{ inputs.failed_recovery_run_id || '' }}
           RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
           TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
@@ -77,8 +87,20 @@ jobs:
           if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
             test "$GITHUB_REF" = refs/heads/main
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v1
-            recovery_title="WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+            case "$RECOVERY_CONFIRMATION" in
+              recover_exact_failed_webui_follower_v1)
+                test -z "$FAILED_RECOVERY_RUN_ID"
+                recovery_title="WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+                ;;
+              recover_exact_failed_webui_follower_v2)
+                [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                recovery_title="WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
+                ;;
+              *)
+                echo "::error::Unknown WebUI follower recovery confirmation."
+                exit 1
+                ;;
+            esac
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > recovery-run.json
             jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" --arg sha "$GITHUB_SHA" '
               (.id | tostring) == $run
@@ -127,18 +149,89 @@ jobs:
               | ($artifacts | length) == 1
               and ($artifacts[0].name | test("^webui-runtime-failure-[0-9]+\\.[0-9]+\\.[0-9]+-" + $run + "-1$"))
             ' failed-follower-artifacts.json >/dev/null
+            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v2 ]; then
+              failed_recovery_title="WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
+              jq -e \
+                --arg run "$FAILED_RECOVERY_RUN_ID" \
+                --arg title "$failed_recovery_title" '
+                  (.id | tostring) == $run
+                  and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                  and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                  and .path == ".github/workflows/release-webui-follower.yml"
+                  and .event == "workflow_dispatch"
+                  and .head_branch == "main"
+                  and (.head_sha | test("^[0-9a-f]{40}$"))
+                  and .display_title == $title
+                  and .run_attempt == 1
+                  and .status == "completed"
+                  and .conclusion == "failure"
+                ' failed-recovery-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/jobs?per_page=100" \
+                > failed-recovery-jobs.json
+              jq -e '
+                .total_count == 5
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "webui-carrier / build-and-qualify" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "webui-carrier / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "webui-carrier / publish-immutable-carrier" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "promote-webui-stable" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Qualify exact local runtime before any registry tag is written" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Upload WebUI runtime qualification failure evidence" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Package qualified image and evidence for protected immutable publication" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Upload qualified image evidence" and .conclusion == "skipped")] | length == 1)
+              ' failed-recovery-jobs.json >/dev/null
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/artifacts?per_page=100" \
+                > failed-recovery-artifacts.json
+              failed_recovery_artifact_name="$(
+                jq -er --arg run "$FAILED_RECOVERY_RUN_ID" '
+                  [.[]?.artifacts[]? | select(.expired == false)] as $artifacts
+                  | select(($artifacts | length) == 1)
+                  | $artifacts[0].name
+                  | select(test("^webui-runtime-failure-[0-9]+\\.[0-9]+\\.[0-9]+-" + $run + "-1$"))
+                ' failed-recovery-artifacts.json
+              )"
+              gh run download "$FAILED_RECOVERY_RUN_ID" \
+                --repo "$GITHUB_REPOSITORY" \
+                --name "$failed_recovery_artifact_name" \
+                --dir failed-recovery-artifact
+              failed_runtime_logs=()
+              while IFS= read -r log; do failed_runtime_logs+=("$log"); done < <(
+                find failed-recovery-artifact -type f -name container.log -print | LC_ALL=C sort
+              )
+              test "${#failed_runtime_logs[@]}" -eq 1
+              failed_runtime_log="${failed_runtime_logs[0]}"
+              grep -F '"failure_code": "opl_seed_payload_symlink_forbidden"' "$failed_runtime_log" >/dev/null
+              grep -F '"path": "/opt/opl/seed/payload/codex_cli/bin/codex"' "$failed_runtime_log" >/dev/null
+              grep -F '[opl-webui-entrypoint] ERROR: OPL seed apply failed' "$failed_runtime_log" >/dev/null
+            fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-webui-follower.yml/runs?event=workflow_dispatch&per_page=100" \
               > recovery-runs.json
-            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" '
+            jq -e \
+              --arg run "$GITHUB_RUN_ID" \
+              --arg title "$recovery_title" \
+              --arg failed_recovery_run "$FAILED_RECOVERY_RUN_ID" \
+              --arg failed_recovery_title "${failed_recovery_title:-}" '
               [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
+              | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_title)] as $failed_recovery_matches
               | ($matches | length) == 1
               and (($matches[0].id | tostring) == $run)
               and $matches[0].run_attempt == 1
+              and (
+                ($failed_recovery_run == "" and ($failed_recovery_matches | length) == 0)
+                or (
+                  $failed_recovery_run != ""
+                  and ($failed_recovery_matches | length) == 1
+                  and (($failed_recovery_matches[0].id | tostring) == $failed_recovery_run)
+                  and $failed_recovery_matches[0].run_attempt == 1
+                )
+              )
             ' recovery-runs.json >/dev/null
           else
             test "$TRIGGER_EVENT" = workflow_run
-            test -z "$FAILED_FOLLOWER_RUN_ID$RECOVERY_CONFIRMATION"
+            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$RECOVERY_CONFIRMATION"
           fi
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" \
             > stable-authority-run.json

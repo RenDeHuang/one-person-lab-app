@@ -63,21 +63,54 @@ test('Native follower consumes only one successful Stable handoff and executes t
   assert.deepEqual(Object.keys(parsed.on.workflow_dispatch.inputs), [
     'source_run_id',
     'failed_follower_run_id',
+    'failed_recovery_run_id',
     'recovery_confirmation',
   ]);
+  assert.equal(parsed.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
+  assert.equal(parsed.on.workflow_dispatch.inputs.failed_recovery_run_id.type, 'string');
   assert.deepEqual(parsed.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_native_webui_follower_v1',
+    'recover_exact_failed_native_webui_follower_v2',
   ]);
+  assert.match(
+    source,
+    /recover_exact_failed_native_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID"/,
+  );
+  assert.match(
+    source,
+    /recover_exact_failed_native_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
+  );
   assert.equal(
     parsed.concurrency.group,
     "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
   );
+  const releaseContract = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
+  );
+  const recovery = releaseContract.native_webui_distribution.exact_failed_follower_recovery;
+  assert.equal(recovery.recovery_generation, 2);
+  assert.equal(recovery.consumed_recovery_generation, 1);
+  assert.deepEqual(recovery.inputs, [
+    'source_run_id',
+    'failed_follower_run_id',
+    'failed_recovery_run_id',
+    'recovery_confirmation',
+  ]);
+  assert.equal(recovery.confirmation, 'recover_exact_failed_native_webui_follower_v2');
+  assert.equal(recovery.legacy_confirmation, 'recover_exact_failed_native_webui_follower_v1');
+  assert.equal(recovery.failed_public_mutation_count_required, 0);
+  assert.equal(recovery.failed_recovery_public_mutation_count_required, 0);
+  assert.equal(recovery.same_identity_recovery_v2_run_count_required, 1);
   for (const required of [
     '.total_count == 7',
     'native-webui-linux / publish-native-assets',
     'native-webui-macos / build-and-qualify',
     'standard deadline must be exactly 90 minutes after operation start.',
     'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory',
+    'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
+    'failed-recovery-jobs.json',
+    'line 18: rg: command not found',
+    '($artifacts | length) == 4',
     '($matches | length) == 1',
   ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const jobId of ['native-webui-linux', 'native-webui-macos']) {
