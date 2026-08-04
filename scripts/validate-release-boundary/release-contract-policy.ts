@@ -1228,6 +1228,24 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     console.error('FAIL release_preflight_contract: standalone Apple credential preflight must be diagnostic-only');
     failures += 1;
   }
+  const githubAdminCredentials = preflight?.github_release_admin_credentials_diagnostic;
+  if (
+    githubAdminCredentials?.schema !== 'opl_app_github_release_admin_credential_preflight.v1'
+    || githubAdminCredentials?.workflow !== '.github/workflows/release-github-admin-credentials-preflight.yml'
+    || githubAdminCredentials?.script !== 'scripts/verify-github-release-admin-credential.ts'
+    || githubAdminCredentials?.protected_environment !== 'release-stable'
+    || githubAdminCredentials?.secret_name !== 'OPL_GITHUB_RELEASE_ADMIN_TOKEN'
+    || githubAdminCredentials?.endpoint !== 'GET repos/gaofeng21cn/one-person-lab-app/immutable-releases'
+    || githubAdminCredentials?.authority !== 'diagnostic_only'
+    || githubAdminCredentials?.canonical_main_first_attempt_required !== true
+    || githubAdminCredentials?.required_after_credential_replacement_before_new_stable_operation !== true
+    || githubAdminCredentials?.raw_secret_response_or_error_persistence_allowed !== false
+    || githubAdminCredentials?.repository_setting_mutation_allowed !== false
+    || githubAdminCredentials?.release_or_dispatch_mutation_allowed !== false
+  ) {
+    console.error('FAIL release_preflight_contract: GitHub release-admin credential recovery requires one sanitized read-only protected diagnostic before a new Stable operation');
+    failures += 1;
+  }
   const observability = preflight?.attempt_observability;
   if (
     observability?.schema !== 'opl_release_attempt_observation.v1'
