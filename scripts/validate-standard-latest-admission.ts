@@ -255,7 +255,7 @@ export function assertStandardLatestAdmissionReceipt(
     'Latest admission DMG size',
   );
 
-  const expectedCurrentTag = requireLatestReleaseTag(
+  requireLatestReleaseTag(
     receipt.latest_compare_and_swap?.expected_current?.tag,
     'Latest admission expected current tag',
   );
@@ -268,9 +268,6 @@ export function assertStandardLatestAdmissionReceipt(
     `v${authority.candidateDisplayVersion}`,
     'Latest admission candidate tag',
   );
-  if (expectedCurrentTag === receipt.latest_compare_and_swap.candidate.tag) {
-    throw new Error('Latest admission compare-and-swap predecessor must differ from the candidate.');
-  }
   requireDigest(receipt.standard_assets_sha256, 'Standard assets receipt sha256');
   requireEqual(
     receipt.hosted_publication_floor?.schema,
@@ -343,9 +340,6 @@ export function validateStandardLatestAdmission(input: StandardLatestAdmissionIn
     input.expectedCurrentLatestTag,
     'Expected current Latest tag',
   );
-  if (expectedCurrentLatestTag === `v${input.candidateDisplayVersion}`) {
-    throw new Error('Expected current Latest tag must differ from the candidate tag.');
-  }
   const componentManifestPath = path.resolve(input.componentManifestPath);
   const publicationInput = validateStandardPublicationInput({
     ...input,

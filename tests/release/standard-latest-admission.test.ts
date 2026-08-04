@@ -352,6 +352,25 @@ test('Latest admission input digest binds the exact current Latest tag', () => {
   }
 });
 
+test('Latest admission accepts the candidate as current for observational idempotent completion', () => {
+  const fixture = createFixture();
+  try {
+    fixture.input.expectedCurrentLatestTag = 'v26.7.21-r1';
+    const receipt = validateStandardLatestAdmission(fixture.input);
+    assert.deepEqual(receipt.latest_compare_and_swap, {
+      expected_current: { tag: 'v26.7.21-r1' },
+      candidate: { tag: 'v26.7.21-r1' },
+    });
+    assert.doesNotThrow(() => assertStandardLatestAdmissionReceipt(receipt, stableAuthority({
+      ...receipt,
+      __standardAssetsPath: fixture.input.standardAssetsPath,
+    })));
+    assert.match(receipt.input_digest, /^sha256:[0-9a-f]{64}$/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test('Latest admission rejects Homebrew readback not bound to source receipt bytes', () => {
   const fixture = createFixture();
   try {
