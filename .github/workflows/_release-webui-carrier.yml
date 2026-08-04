@@ -1090,11 +1090,13 @@ jobs:
             publication_outcome=preexisting_idempotent
           elif grep -Eqi 'not found|manifest unknown|name unknown|no such manifest|404' "$lookup_stderr"; then
             publication_outcome=created
-            if ! oras push \
-              --artifact-type "$artifact_media_type" \
-              "$receipt_ref" \
-              "$record_path:$artifact_media_type" \
-              > "$sidecar_root/receipt-sidecar-push.txt" 2>&1; then
+            if ! (
+              cd "$sidecar_root"
+              oras push \
+                --artifact-type "$artifact_media_type" \
+                "$receipt_ref" \
+                "webui-publication-record.json:$artifact_media_type"
+            ) > "$sidecar_root/receipt-sidecar-push.txt" 2>&1; then
               publication_outcome=reconciled_after_unknown_write
               write_reconcile_evidence pending "$publication_outcome"
             fi

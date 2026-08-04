@@ -845,6 +845,10 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   assert.match(sidecar.run, /Could not safely distinguish an absent receipt sidecar from a registry read failure/);
   assert.equal(sidecar.run.match(/\boras push\b/g)?.length, 1);
   assert.match(sidecar.run, /--artifact-type "\$artifact_media_type"/);
+  assert.match(sidecar.run, /cd "\$sidecar_root"\s+oras push/);
+  assert.match(sidecar.run, /"webui-publication-record\.json:\$artifact_media_type"/);
+  assert.doesNotMatch(sidecar.run, /"\$record_path:\$artifact_media_type"/);
+  assert.doesNotMatch(sidecar.run, /--disable-path-validation/);
   assert.match(sidecar.run, /oras manifest fetch "\$receipt_ref" > "\$sidecar_root\/receipt-sidecar-manifest\.json"/);
   assert.match(sidecar.run, /oras pull --output "\$pull_root" "\$receipt_ref"/);
   assert.match(sidecar.run, /cmp -s "\$record_path" "\$pulled_record"/);
