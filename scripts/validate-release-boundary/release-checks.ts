@@ -198,9 +198,12 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "target_architecture: x86_64",
       "target_platform: darwin",
       "target_architecture: arm64",
+      "workflow_dispatch:",
+      "recover_exact_failed_native_webui_follower_v1",
+      "failed-follower-jobs.json",
+      "runs?event=workflow_dispatch&per_page=100",
     ],
     forbidden: [
-      "workflow_dispatch:",
       "packages: write",
       "publication_artifact_name",
     ],

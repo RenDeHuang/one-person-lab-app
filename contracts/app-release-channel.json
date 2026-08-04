@@ -2845,6 +2845,23 @@
       "workflow": ".github/workflows/release-webui-stable.yml",
       "trigger": "production_follower_after_successful_release_stable_latest_activation_or_explicit_preview_latest_dispatch",
       "follower_workflow": ".github/workflows/release-webui-follower.yml",
+      "exact_failed_follower_recovery": {
+        "trigger": "workflow_dispatch",
+        "recovery_generation": 1,
+        "authority_binding": "same_successful_standard_stable_authority_and_exact_failed_first_attempt_follower",
+        "inputs": [
+          "source_run_id",
+          "failed_follower_run_id",
+          "recovery_confirmation"
+        ],
+        "confirmation": "recover_exact_failed_webui_follower_v1",
+        "failed_boundary": "runtime_qualification_failed_on_broken_seed_symlink_before_immutable_carrier_publication_and_stable_latest_promotion",
+        "failed_public_mutation_count_required": 0,
+        "same_identity_recovery_run_count_required": 1,
+        "server_side_unique_display_title_required": true,
+        "automatic_workflow_run_route_preserved": true,
+        "rerun_or_stable_redispatch_allowed": false
+      },
       "workflow_call_inputs": [
         "mode",
         "authority_mode",
@@ -3148,6 +3165,36 @@
     "desktop_release_bundle_may_publish_or_move_tags": false,
     "current_writer_declared_by_desktop_release_contract": false,
     "independent_stable_writer_declared": true
+  },
+  "native_webui_distribution": {
+    "owner": "one-person-lab-app",
+    "workflow": ".github/workflows/release-native-webui-follower.yml",
+    "protected_reusable": ".github/workflows/_release-native-webui-carrier.yml",
+    "role": "non_blocking_additive_post_stable_native_webui_carrier",
+    "automatic_trigger": "successful_stable_workflow_run",
+    "targets": [
+      "linux-x86_64",
+      "darwin-arm64"
+    ],
+    "exact_failed_follower_recovery": {
+      "trigger": "workflow_dispatch",
+      "recovery_generation": 1,
+      "authority_binding": "same_successful_standard_stable_authority_and_exact_failed_first_attempt_follower",
+      "inputs": [
+        "source_run_id",
+        "failed_follower_run_id",
+        "recovery_confirmation"
+      ],
+      "confirmation": "recover_exact_failed_native_webui_follower_v1",
+      "failed_boundary": "linux_stale_standard_deadline_rejected_before_publication_and_darwin_build_heap_oom_before_publication",
+      "failed_public_mutation_count_required": 0,
+      "same_identity_recovery_run_count_required": 1,
+      "server_side_unique_display_title_required": true,
+      "automatic_workflow_run_route_preserved": true,
+      "rerun_or_stable_redispatch_allowed": false
+    },
+    "stable_or_latest_mutation_allowed": false,
+    "rule": "Native WebUI assets are additive post-Stable carriers. Automatic followers remain non-blocking; the only manual route is one exact first recovery bound to the successful Stable authority and a proven pre-publication failed first attempt."
   },
   "homebrew_tap_distribution": {
     "owner": "one-person-lab-app",

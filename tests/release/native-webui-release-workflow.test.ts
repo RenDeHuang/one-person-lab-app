@@ -16,6 +16,7 @@ import {
   type NativeWebuiLocalAsset,
   type NativeWebuiRemoteAsset,
 } from '../../scripts/release-native-webui-carrier.ts';
+import { isAuthorizedFollowerRecoveryWriteJob } from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
 const workflowRoot = path.join(process.cwd(), '.github', 'workflows');
 
@@ -30,7 +31,7 @@ function digest(value: string): string {
 
 test('Native follower consumes only one successful Stable handoff and executes two isolated targets', () => {
   const { source, parsed } = workflow('release-native-webui-follower.yml');
-  assert.deepEqual(Object.keys(parsed.on), ['workflow_run']);
+  assert.deepEqual(Object.keys(parsed.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(parsed.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
   assert.deepEqual(parsed.on.workflow_run.types, ['completed']);
   assert.deepEqual(parsed.permissions, { contents: 'read', actions: 'read' });
@@ -59,7 +60,58 @@ test('Native follower consumes only one successful Stable handoff and executes t
   assert.match(source, /\.source\.standard_identity_sha256 \| test/);
   assert.match(source, /opl_standard_latest_admission_receipt\.v1/);
   assert.match(source, /framework_terminal_status == "complete"/);
-  assert.doesNotMatch(source, /workflow_dispatch:/);
+  assert.deepEqual(Object.keys(parsed.on.workflow_dispatch.inputs), [
+    'source_run_id',
+    'failed_follower_run_id',
+    'recovery_confirmation',
+  ]);
+  assert.deepEqual(parsed.on.workflow_dispatch.inputs.recovery_confirmation.options, [
+    'recover_exact_failed_native_webui_follower_v1',
+  ]);
+  assert.equal(
+    parsed.concurrency.group,
+    "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
+  );
+  for (const required of [
+    '.total_count == 7',
+    'native-webui-linux / publish-native-assets',
+    'native-webui-macos / build-and-qualify',
+    'standard deadline must be exactly 90 minutes after operation start.',
+    'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory',
+    '($matches | length) == 1',
+  ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const jobId of ['native-webui-linux', 'native-webui-macos']) {
+    assert.equal(
+      isAuthorizedFollowerRecoveryWriteJob(
+        '.github/workflows/release-native-webui-follower.yml',
+        parsed,
+        jobId,
+        parsed.jobs[jobId],
+      ),
+      true,
+    );
+  }
+  const widened = JSON.parse(JSON.stringify(parsed));
+  widened.on.workflow_dispatch.inputs.recovery_confirmation.options.push('recover_anything');
+  assert.equal(
+    isAuthorizedFollowerRecoveryWriteJob(
+      '.github/workflows/release-native-webui-follower.yml',
+      widened,
+      'native-webui-linux',
+      widened.jobs['native-webui-linux'],
+    ),
+    false,
+  );
+  const directMutation = { ...parsed.jobs['native-webui-linux'], steps: [{ run: 'gh api --method DELETE /repos/example' }] };
+  assert.equal(
+    isAuthorizedFollowerRecoveryWriteJob(
+      '.github/workflows/release-native-webui-follower.yml',
+      parsed,
+      'native-webui-linux',
+      directMutation,
+    ),
+    false,
+  );
   assert.doesNotMatch(source, /publication_prefix|publication_artifact_name|release-webui-stable\.yml|_release-webui-carrier\.yml|packages: write/);
 });
 

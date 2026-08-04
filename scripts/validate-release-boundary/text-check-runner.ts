@@ -30,6 +30,7 @@ const stableOptionalFollowupWorkflowPath =
   '.github/workflows/release-stable-post-success-followups.yml';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
+const webuiFollowerWorkflowPath = '.github/workflows/release-webui-follower.yml';
 const webuiCarrierPublishEnvironment =
   "${{ inputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}";
 const webuiPromotionPublishEnvironment =
@@ -257,6 +258,75 @@ function hasExactStableOptionalRecoveryIngress(workflow: Record<string, any>): b
     && workflow.concurrency?.group ===
       "opl-full-append-successor-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}"
     && workflow.concurrency?.['cancel-in-progress'] === false;
+}
+
+function hasExactFollowerFirstRecoveryIngress(
+  workflow: Record<string, any>,
+  confirmation: string,
+  concurrencyGroup: string,
+): boolean {
+  const inputs = workflow.on?.workflow_dispatch?.inputs ?? {};
+  return JSON.stringify(Object.keys(inputs)) === JSON.stringify([
+    'source_run_id',
+    'failed_follower_run_id',
+    'recovery_confirmation',
+  ])
+    && inputs.source_run_id?.required === true
+    && inputs.source_run_id?.type === 'string'
+    && inputs.failed_follower_run_id?.required === true
+    && inputs.failed_follower_run_id?.type === 'string'
+    && inputs.recovery_confirmation?.required === true
+    && inputs.recovery_confirmation?.type === 'choice'
+    && JSON.stringify(inputs.recovery_confirmation?.options) === JSON.stringify([confirmation])
+    && exactObject(workflow.permissions, exactReadPermissions)
+    && workflow.concurrency?.group === concurrencyGroup
+    && workflow.concurrency?.['cancel-in-progress'] === false;
+}
+
+export function isAuthorizedFollowerRecoveryWriteJob(
+  workflowPath: string,
+  workflow: Record<string, any>,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  if (workflowPath === webuiFollowerWorkflowPath) {
+    if (!hasExactFollowerFirstRecoveryIngress(
+      workflow,
+      'recover_exact_failed_webui_follower_v1',
+      "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
+    )) return false;
+    if (jobId === 'webui-carrier') {
+      return job.uses === './.github/workflows/_release-webui-carrier.yml'
+        && needsExactly(job, ['resolve-handoff'])
+        && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+        && job.with?.mode === 'execute'
+        && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
+    }
+    return jobId === 'promote-webui-stable'
+      && job.uses === './.github/workflows/release-webui-stable.yml'
+      && needsExactly(job, ['resolve-handoff', 'webui-carrier'])
+      && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+      && job.with?.mode === 'execute'
+      && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
+  }
+  if (workflowPath !== nativeWebuiFollowerWorkflowPath || !hasExactFollowerFirstRecoveryIngress(
+    workflow,
+    'recover_exact_failed_native_webui_follower_v1',
+    "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
+  )) return false;
+  const expected = jobId === 'native-webui-linux'
+    ? { needs: ['resolve-handoff'], platform: 'linux', architecture: 'x86_64' }
+    : jobId === 'native-webui-macos'
+    ? { needs: ['resolve-handoff', 'native-webui-linux'], platform: 'darwin', architecture: 'arm64' }
+    : null;
+  return expected !== null
+    && job.uses === './.github/workflows/_release-native-webui-carrier.yml'
+    && needsExactly(job, expected.needs)
+    && exactObject(job.permissions, exactStableEntryPermissions)
+    && job.with?.mode === 'execute'
+    && job.with?.target_platform === expected.platform
+    && job.with?.target_architecture === expected.architecture
+    && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
 }
 
 function isAuthorizedStableOptionalRecoveryWriteJob(
@@ -906,15 +976,19 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
   const followerTriggers = webuiFollower.workflow.on ?? {};
   const followerJobs = workflowJobs(webuiFollower.workflow);
-  if (JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run']) ||
+  if (JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch']) ||
       JSON.stringify(followerTriggers.workflow_run?.workflows) !==
         JSON.stringify(['OPL Stable Release Bundle']) ||
       JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed']) ||
-      Object.prototype.hasOwnProperty.call(followerTriggers, 'workflow_dispatch') ||
+      !hasExactFollowerFirstRecoveryIngress(
+        webuiFollower.workflow,
+        'recover_exact_failed_webui_follower_v1',
+        "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
+      ) ||
       !exactObject(webuiFollower.workflow.permissions, exactReadPermissions) ||
       JSON.stringify(Object.keys(followerJobs)) !==
         JSON.stringify(['resolve-handoff', 'webui-carrier', 'promote-webui-stable'])) {
-    failures += reportFailure(id, 'WebUI follower must be an automatic, read-default workflow_run lane');
+    failures += reportFailure(id, 'WebUI follower must be automatic with only exact failed-run recovery dispatch');
   }
   const followerCarrier = followerJobs['webui-carrier'];
   const followerPromotion = followerJobs['promote-webui-stable'];
@@ -942,6 +1016,23 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
   if (/continue-on-error/.test(webuiFollower.text)) {
     failures += reportFailure(id, 'WebUI follower failures must remain visible on the independent follower run');
+  }
+  for (const required of [
+    'recover_exact_failed_webui_follower_v1',
+    '.path == ".github/workflows/release-webui-follower.yml"',
+    '.display_title == ("WebUI follower for Stable run " + $source)',
+    '.total_count == 5',
+    '.name == "webui-carrier / build-and-qualify" and .conclusion == "failure"',
+    '.name == "webui-carrier / publish-immutable-carrier" and .conclusion == "skipped"',
+    '.name == "promote-webui-stable" and .conclusion == "skipped"',
+    'OPL image seed contains broken symlinks:',
+    'runs?event=workflow_dispatch&per_page=100',
+    '($matches | length) == 1',
+    'test "$GITHUB_REF" = refs/heads/main',
+  ]) {
+    if (!webuiFollower.text.includes(required)) {
+      failures += reportFailure(id, `WebUI follower recovery is missing ${required}`);
+    }
   }
   failures += validateWebUiCarrierCallee(
     id,
@@ -1394,17 +1485,22 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
   const macos = followerJobs['native-webui-macos'];
   let failures = 0;
   if (
-    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run'])
+    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
     || JSON.stringify(followerTriggers.workflow_run?.workflows) !==
       JSON.stringify(['OPL Stable Release Bundle'])
     || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || !hasExactFollowerFirstRecoveryIngress(
+      follower.workflow,
+      'recover_exact_failed_native_webui_follower_v1',
+      "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
+    )
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
     || JSON.stringify(Object.keys(followerJobs)) !==
       JSON.stringify(['resolve-handoff', 'native-webui-linux', 'native-webui-macos'])
   ) {
     failures += reportFailure(
       id,
-      'Native WebUI follower must be one automatic post-Stable workflow_run lane',
+      'Native WebUI follower must be automatic with only exact failed-run recovery dispatch',
     );
   }
   for (const [jobId, job, expectedNeeds, platform, architecture] of [
@@ -1459,11 +1555,29 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       failures += reportFailure(id, `Native WebUI follower is missing exact handoff binding ${required}`);
     }
   }
-  if (/workflow_dispatch:|packages:\s*write|publication_artifact_name/.test(follower.text)) {
+  if (/packages:\s*write|publication_artifact_name/.test(follower.text)) {
     failures += reportFailure(
       id,
-      'Native WebUI follower must not expose manual dispatch, package writes, or stale artifact discovery',
+      'Native WebUI follower must not expose package writes or stale artifact discovery',
     );
+  }
+  for (const required of [
+    'recover_exact_failed_native_webui_follower_v1',
+    '.path == ".github/workflows/release-native-webui-follower.yml"',
+    '.display_title == ("Native WebUI follower for Stable run " + $source)',
+    '.total_count == 7',
+    '.name == "native-webui-linux / publish-native-assets" and .conclusion == "failure"',
+    '.name == "native-webui-macos / build-and-qualify" and .conclusion == "failure"',
+    '.name == "native-webui-macos / publish-native-assets" and .conclusion == "skipped"',
+    'standard deadline must be exactly 90 minutes after operation start.',
+    'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory',
+    'runs?event=workflow_dispatch&per_page=100',
+    '($matches | length) == 1',
+    'test "$GITHUB_REF" = refs/heads/main',
+  ]) {
+    if (!follower.text.includes(required)) {
+      failures += reportFailure(id, `Native WebUI follower recovery is missing ${required}`);
+    }
   }
 
   const carrierJobs = workflowJobs(carrier.workflow);
@@ -2438,6 +2552,9 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       }
       if (isAuthorizedStableOptionalRecoveryWriteJob(workflowPath, workflow, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (isAuthorizedFollowerRecoveryWriteJob(workflowPath, workflow, jobId, job)) {
         continue;
       }
       if (

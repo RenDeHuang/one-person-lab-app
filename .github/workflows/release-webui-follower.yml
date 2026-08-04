@@ -1,5 +1,8 @@
 name: OPL WebUI Stable Follower
-run-name: WebUI follower for Stable run ${{ github.event.workflow_run.id }}
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+    && format('WebUI follower recovery v1 for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
+    || format('WebUI follower for Stable run {0}', github.event.workflow_run.id) }}
 
 on:
   workflow_run:
@@ -7,6 +10,22 @@ on:
       - OPL Stable Release Bundle
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Exact successful Standard Stable authority run
+        required: true
+        type: string
+      failed_follower_run_id:
+        description: Exact failed first-attempt WebUI follower run with publication skipped
+        required: true
+        type: string
+      recovery_confirmation:
+        description: Confirm one-shot recovery of the exact failed WebUI follower
+        required: true
+        type: choice
+        options:
+          - recover_exact_failed_webui_follower_v1
 
 permissions:
   contents: read
@@ -16,12 +35,15 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-webui-stable-follower-${{ github.event.workflow_run.id }}
+  group: opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
   resolve-handoff:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: >-
+      ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+        || (github.event_name == 'workflow_dispatch'
+        && inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v1') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -43,11 +65,81 @@ jobs:
         id: authority
         env:
           GH_TOKEN: ${{ github.token }}
-          STABLE_AUTHORITY_RUN_ID: ${{ github.event.workflow_run.id }}
+          STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
+          FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
+          RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$STABLE_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
+            test "$GITHUB_REF" = refs/heads/main
+            [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v1
+            recovery_title="WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > recovery-run.json
+            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" --arg sha "$GITHUB_SHA" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-webui-follower.yml"
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .head_sha == $sha
+              and .display_title == $title
+              and .run_attempt == 1
+            ' recovery-run.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID" > failed-follower-run.json
+            jq -e --arg run "$FAILED_FOLLOWER_RUN_ID" --arg source "$STABLE_AUTHORITY_RUN_ID" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-webui-follower.yml"
+              and .event == "workflow_run"
+              and .head_branch == "main"
+              and .display_title == ("WebUI follower for Stable run " + $source)
+              and .run_attempt == 1
+              and .status == "completed"
+              and .conclusion == "failure"
+            ' failed-follower-run.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/jobs?per_page=100" > failed-follower-jobs.json
+            jq -e '
+              .total_count == 5
+              and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+              and ([.jobs[] | select(.name == "webui-carrier / build-and-qualify" and .conclusion == "failure")] | length == 1)
+              and ([.jobs[] | select(.name == "webui-carrier / startup-canary" and .conclusion == "skipped")] | length == 1)
+              and ([.jobs[] | select(.name == "webui-carrier / publish-immutable-carrier" and .conclusion == "skipped")] | length == 1)
+              and ([.jobs[] | select(.name == "promote-webui-stable" and .conclusion == "skipped")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Qualify exact local runtime before any registry tag is written" and .conclusion == "failure")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Package qualified image and evidence for protected immutable publication" and .conclusion == "skipped")] | length == 1)
+              and ([.jobs[].steps[]? | select(.name == "Upload qualified image evidence" and .conclusion == "skipped")] | length == 1)
+            ' failed-follower-jobs.json >/dev/null
+            failed_job_id="$(jq -er '[.jobs[] | select(.name == "webui-carrier / build-and-qualify")] | select(length == 1) | .[0].id' failed-follower-jobs.json)"
+            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$failed_job_id/logs" > failed-follower.log
+            grep -F 'OPL image seed contains broken symlinks:' failed-follower.log >/dev/null
+            gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/artifacts?per_page=100" \
+              > failed-follower-artifacts.json
+            jq -e --arg run "$FAILED_FOLLOWER_RUN_ID" '
+              [.[]?.artifacts[]? | select(.expired == false)] as $artifacts
+              | ($artifacts | length) == 1
+              and ($artifacts[0].name | test("^webui-runtime-failure-[0-9]+\\.[0-9]+\\.[0-9]+-" + $run + "-1$"))
+            ' failed-follower-artifacts.json >/dev/null
+            gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/release-webui-follower.yml/runs?event=workflow_dispatch&per_page=100" \
+              > recovery-runs.json
+            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" '
+              [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
+              | ($matches | length) == 1
+              and (($matches[0].id | tostring) == $run)
+              and $matches[0].run_attempt == 1
+            ' recovery-runs.json >/dev/null
+          else
+            test "$TRIGGER_EVENT" = workflow_run
+            test -z "$FAILED_FOLLOWER_RUN_ID$RECOVERY_CONFIRMATION"
+          fi
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" \
             > stable-authority-run.json
           jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" '
@@ -90,7 +182,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ steps.authority.outputs.activation_artifact }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           github-token: ${{ github.token }}
           path: latest-activation
 
@@ -98,7 +190,7 @@ jobs:
         id: handoff
         if: ${{ always() && steps.authority.outcome == 'success' }}
         env:
-          STABLE_AUTHORITY_RUN_ID: ${{ github.event.workflow_run.id }}
+          STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
         shell: bash
         run: |
           set -euo pipefail
