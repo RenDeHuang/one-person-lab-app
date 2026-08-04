@@ -103,6 +103,10 @@ test('Full Homebrew follower permits only automatic delivery or exact failed-run
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
     'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'failed_recovery_v2_run_id', 'recovery_confirmation',
   ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.required, true);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.default, '');
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.required, true);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.default, '');
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_homebrew_full_follower_v3',
   ]);
@@ -118,12 +122,25 @@ test('Full Homebrew follower permits only automatic delivery or exact failed-run
   assert.match(source, /\.source\.transport_run_id/);
   assert.match(source, /def opl_fromdateiso8601/);
   assert.match(source, /failed-follower-run\.json/);
+  assert.match(source, /Homebrew Full follower recovery v1 for Stable run/);
+  assert.match(source, /if \[ -z "\$FAILED_RECOVERY_RUN_ID\$FAILED_RECOVERY_V2_RUN_ID" \]; then/);
+  assert.match(source, /\.total_count == 5/);
+  assert.match(source, /\.name == "publish-homebrew-full \/ prepare-candidate" and \.conclusion == "failure"/);
+  assert.match(source, /\.name == "publish-homebrew-full \/ publish-cask" and \.conclusion == "skipped"/);
+  assert.match(source, /\.name == "publish-homebrew-full \/ readback" and \.conclusion == "skipped"/);
+  assert.match(source, /\.name == "Decode and validate same-tag Full handoff" and \.conclusion == "failure"/);
+  assert.match(source, /failed-follower-artifacts\.json/);
+  assert.match(source, /\[\.\[\]\?\.artifacts\[\]\?\] \| length == 0/);
+  assert.match(source, /stale_target_executor_assertion="\.target_commitish == \\\$executor"/);
+  assert.match(source, /grep -F "\$stale_target_executor_assertion" failed-follower\.log/);
   assert.match(source, /failed-recovery-run\.json/);
   assert.match(source, /failed_recovery_run_id/);
   assert.match(source, /failed-recovery-v2-run\.json/);
   assert.match(source, /failed-recovery-v2-jobs\.json/);
   assert.match(source, /failed_recovery_v2_run_id/);
   assert.match(source, /append_full deadline must be exactly 120 minutes after operation start\./);
+  assert.match(source, /Homebrew Full follower recovery v3 for Stable run/);
+  assert.match(source, /test "\$RECOVERY_CONFIRMATION" = recover_exact_failed_homebrew_full_follower_v3/);
   assert.match(source, /\.name == "Bind same-tag Homebrew Full handoff" and \.conclusion == "failure"/);
   assert.match(source, /\.name == "publish-homebrew-full" and \.conclusion == "skipped"/);
   assert.match(source, /runs\?event=workflow_dispatch&per_page=100/);

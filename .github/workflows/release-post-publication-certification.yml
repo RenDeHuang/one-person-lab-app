@@ -1,6 +1,10 @@
 name: OPL Post-Publication Optional Certification
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.recovery_confirmation == 'recover_exact_failed_optional_certification_v2'
+    && inputs.failed_recovery_run_id == ''
+    && format('Optional certification recovery v1 for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
+    || github.event_name == 'workflow_dispatch'
     && format('Optional certification recovery v2 for Stable run {0} failed follower {1} failed recovery {2}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id)
     || format('Optional certification for Stable run {0}', github.event.workflow_run.id) }}
 
@@ -22,11 +26,12 @@ on:
         required: true
         type: string
       failed_recovery_run_id:
-        description: Exact consumed recovery v1 run that failed before certification execution
+        description: Exact consumed recovery v1 run for legacy v2 recovery; leave empty for first recovery
         required: true
+        default: ''
         type: string
       recovery_confirmation:
-        description: Confirm one-shot recovery v2 of the exact failed follower and consumed recovery
+        description: Confirm one-shot first recovery or legacy v2 recovery of exact failed runs
         required: true
         type: choice
         options:
@@ -1320,12 +1325,16 @@ jobs:
           test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
-            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_optional_certification_v2
             test "$GITHUB_REF" = refs/heads/main
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            test "$FAILED_RECOVERY_RUN_ID" != "$FAILED_FOLLOWER_RUN_ID"
-            recovery_title="Optional certification recovery v2 for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery ${FAILED_RECOVERY_RUN_ID}"
+            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_optional_certification_v2
+            if [ -z "$FAILED_RECOVERY_RUN_ID" ]; then
+              recovery_title="Optional certification recovery v1 for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+            else
+              [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+              test "$FAILED_RECOVERY_RUN_ID" != "$FAILED_FOLLOWER_RUN_ID"
+              recovery_title="Optional certification recovery v2 for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery ${FAILED_RECOVERY_RUN_ID}"
+            fi
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > recovery-run.json
             jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" --arg sha "$GITHUB_SHA" '
               (.id | tostring) == $run
@@ -1360,30 +1369,40 @@ jobs:
               and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
               and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
             ' failed-follower-jobs.json >/dev/null
-
-            failed_recovery_title="Optional certification recovery for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
-            jq -e --arg run "$FAILED_RECOVERY_RUN_ID" --arg title "$failed_recovery_title" '
-              (.id | tostring) == $run
-              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
-              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
-              and .path == ".github/workflows/release-post-publication-certification.yml"
-              and .event == "workflow_dispatch"
-              and .head_branch == "main"
-              and .display_title == $title
-              and .run_attempt == 1
-              and .status == "completed"
-              and .conclusion == "failure"
-            ' failed-recovery-run.json >/dev/null
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/jobs?per_page=100" > failed-recovery-jobs.json
-            jq -e '
-              .total_count == 9
-              and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
-            ' failed-recovery-jobs.json >/dev/null
+            if [ -z "$FAILED_RECOVERY_RUN_ID" ]; then
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/artifacts?per_page=100" \
+                > failed-follower-artifacts.json
+              jq -e '[.[]?.artifacts[]?] | length == 0' failed-follower-artifacts.json >/dev/null
+              failed_job_id="$(jq -er '[.jobs[] | select(.name == "resolve-full")] | select(length == 1) | .[0].id' failed-follower-jobs.json)"
+              gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$failed_job_id/logs" > failed-follower.log
+              stale_target_executor_assertion=".target_commitish == \$executor"
+              grep -F "$stale_target_executor_assertion" failed-follower.log >/dev/null
+            else
+              failed_recovery_title="Optional certification recovery for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
+              jq -e --arg run "$FAILED_RECOVERY_RUN_ID" --arg title "$failed_recovery_title" '
+                (.id | tostring) == $run
+                and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .path == ".github/workflows/release-post-publication-certification.yml"
+                and .event == "workflow_dispatch"
+                and .head_branch == "main"
+                and .display_title == $title
+                and .run_attempt == 1
+                and .status == "completed"
+                and .conclusion == "failure"
+              ' failed-recovery-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/jobs?per_page=100" > failed-recovery-jobs.json
+              jq -e '
+                .total_count == 9
+                and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
+              ' failed-recovery-jobs.json >/dev/null
+            fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-post-publication-certification.yml/runs?event=workflow_dispatch&per_page=100" \
               > recovery-runs.json

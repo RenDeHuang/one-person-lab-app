@@ -1,6 +1,11 @@
 name: OPL Homebrew Full Follower
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.recovery_confirmation == 'recover_exact_failed_homebrew_full_follower_v3'
+    && inputs.failed_recovery_run_id == ''
+    && inputs.failed_recovery_v2_run_id == ''
+    && format('Homebrew Full follower recovery v1 for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
+    || github.event_name == 'workflow_dispatch'
     && format('Homebrew Full follower recovery v3 for Stable run {0} failed follower {1} failed recovery v1 {2} failed recovery v2 {3}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id, inputs.failed_recovery_v2_run_id)
     || format('Homebrew Full follower for Stable run {0}', github.event.workflow_run.id) }}
 
@@ -21,15 +26,17 @@ on:
         required: true
         type: string
       failed_recovery_run_id:
-        description: Exact consumed recovery v1 run that failed before Tap mutation
+        description: Exact consumed recovery v1 run for legacy v3 recovery; leave empty for first recovery
         required: true
+        default: ''
         type: string
       failed_recovery_v2_run_id:
-        description: Exact consumed recovery v2 run that failed the canonical deadline contract before Tap mutation
+        description: Exact consumed recovery v2 run for legacy v3 recovery; leave empty for first recovery
         required: true
+        default: ''
         type: string
       recovery_confirmation:
-        description: Confirm one-shot recovery v3 of the exact failed follower and consumed v1/v2 recoveries
+        description: Confirm one-shot first recovery or legacy v3 recovery of exact failed runs
         required: true
         type: choice
         options:
@@ -81,15 +88,19 @@ jobs:
           test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
-            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_homebrew_full_follower_v3
             test "$GITHUB_REF" = refs/heads/main
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            [[ "$FAILED_RECOVERY_V2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-            test "$FAILED_RECOVERY_RUN_ID" != "$FAILED_FOLLOWER_RUN_ID"
-            test "$FAILED_RECOVERY_V2_RUN_ID" != "$FAILED_FOLLOWER_RUN_ID"
-            test "$FAILED_RECOVERY_V2_RUN_ID" != "$FAILED_RECOVERY_RUN_ID"
-            recovery_title="Homebrew Full follower recovery v3 for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID}"
+            test "$RECOVERY_CONFIRMATION" = recover_exact_failed_homebrew_full_follower_v3
+            if [ -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID" ]; then
+              recovery_title="Homebrew Full follower recovery v1 for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+            else
+              [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+              [[ "$FAILED_RECOVERY_V2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+              test "$FAILED_RECOVERY_RUN_ID" != "$FAILED_FOLLOWER_RUN_ID"
+              test "$FAILED_RECOVERY_V2_RUN_ID" != "$FAILED_FOLLOWER_RUN_ID"
+              test "$FAILED_RECOVERY_V2_RUN_ID" != "$FAILED_RECOVERY_RUN_ID"
+              recovery_title="Homebrew Full follower recovery v3 for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID}"
+            fi
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > recovery-run.json
             jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" --arg sha "$GITHUB_SHA" '
               (.id | tostring) == $run
@@ -116,72 +127,95 @@ jobs:
               and .conclusion == "failure"
             ' failed-follower-run.json >/dev/null
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/jobs?per_page=100" > failed-follower-jobs.json
-            jq -e '
-              .total_count == 2
-              and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Admit one successful append_full authority run" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Download exact Full publication handoff" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Bind same-tag Homebrew Full handoff" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Publish one hosted-qualified Full Cask commit")] | length == 0)
-            ' failed-follower-jobs.json >/dev/null
+            if [ -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID" ]; then
+              jq -e '
+                .total_count == 5
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Upload observational candidate and binding" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Upload typed observational binding" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Publish one digest-bound Full Cask commit")] | length == 0)
+              ' failed-follower-jobs.json >/dev/null
+              failed_job_id="$(jq -er '[.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate")] | select(length == 1) | .[0].id' failed-follower-jobs.json)"
+              gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$failed_job_id/logs" > failed-follower.log
+              stale_target_executor_assertion=".target_commitish == \$executor"
+              grep -F "$stale_target_executor_assertion" failed-follower.log >/dev/null
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/artifacts?per_page=100" \
+                > failed-follower-artifacts.json
+              jq -e '[.[]?.artifacts[]?] | length == 0' failed-follower-artifacts.json >/dev/null
+            else
+              jq -e '
+                .total_count == 2
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Admit one successful append_full authority run" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Download exact Full publication handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Bind same-tag Homebrew Full handoff" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Publish one hosted-qualified Full Cask commit")] | length == 0)
+              ' failed-follower-jobs.json >/dev/null
 
-            failed_recovery_title="Homebrew Full follower recovery for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
-            jq -e --arg run "$FAILED_RECOVERY_RUN_ID" --arg title "$failed_recovery_title" '
-              (.id | tostring) == $run
-              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
-              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
-              and .path == ".github/workflows/release-homebrew-full-follower.yml"
-              and .event == "workflow_dispatch"
-              and .head_branch == "main"
-              and .display_title == $title
-              and .run_attempt == 1
-              and .status == "completed"
-              and .conclusion == "failure"
-            ' failed-recovery-run.json >/dev/null
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/jobs?per_page=100" > failed-recovery-jobs.json
-            jq -e '
-              .total_count == 5
-              and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Restore exact qualified Full checkpoint" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Publish one hosted-qualified Full Cask commit")] | length == 0)
-              and ([.jobs[].steps[]? | select(.name == "Publish one observer-bound Full Cask commit")] | length == 0)
-            ' failed-recovery-jobs.json >/dev/null
+              failed_recovery_title="Homebrew Full follower recovery for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
+              jq -e --arg run "$FAILED_RECOVERY_RUN_ID" --arg title "$failed_recovery_title" '
+                (.id | tostring) == $run
+                and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .path == ".github/workflows/release-homebrew-full-follower.yml"
+                and .event == "workflow_dispatch"
+                and .head_branch == "main"
+                and .display_title == $title
+                and .run_attempt == 1
+                and .status == "completed"
+                and .conclusion == "failure"
+              ' failed-recovery-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/jobs?per_page=100" > failed-recovery-jobs.json
+              jq -e '
+                .total_count == 5
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Restore exact qualified Full checkpoint" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Publish one hosted-qualified Full Cask commit")] | length == 0)
+                and ([.jobs[].steps[]? | select(.name == "Publish one observer-bound Full Cask commit")] | length == 0)
+              ' failed-recovery-jobs.json >/dev/null
 
-            failed_recovery_v2_title="Homebrew Full follower recovery v2 for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery ${FAILED_RECOVERY_RUN_ID}"
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID" > failed-recovery-v2-run.json
-            jq -e --arg run "$FAILED_RECOVERY_V2_RUN_ID" --arg title "$failed_recovery_v2_title" '
-              (.id | tostring) == $run
-              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
-              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
-              and .path == ".github/workflows/release-homebrew-full-follower.yml"
-              and .event == "workflow_dispatch"
-              and .head_branch == "main"
-              and .display_title == $title
-              and .run_attempt == 1
-              and .status == "completed"
-              and .conclusion == "failure"
-            ' failed-recovery-v2-run.json >/dev/null
-            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID/jobs?per_page=100" > failed-recovery-v2-jobs.json
-            jq -e '
-              .total_count == 5
-              and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Publish one digest-bound Full Cask commit")] | length == 0)
-            ' failed-recovery-v2-jobs.json >/dev/null
-            failed_recovery_v2_job_id="$(jq -er '[.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate")] | select(length == 1) | .[0].id' failed-recovery-v2-jobs.json)"
-            gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$failed_recovery_v2_job_id/logs" > failed-recovery-v2.log
-            grep -F 'append_full deadline must be exactly 120 minutes after operation start.' failed-recovery-v2.log >/dev/null
+              failed_recovery_v2_title="Homebrew Full follower recovery v2 for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery ${FAILED_RECOVERY_RUN_ID}"
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID" > failed-recovery-v2-run.json
+              jq -e --arg run "$FAILED_RECOVERY_V2_RUN_ID" --arg title "$failed_recovery_v2_title" '
+                (.id | tostring) == $run
+                and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .path == ".github/workflows/release-homebrew-full-follower.yml"
+                and .event == "workflow_dispatch"
+                and .head_branch == "main"
+                and .display_title == $title
+                and .run_attempt == 1
+                and .status == "completed"
+                and .conclusion == "failure"
+              ' failed-recovery-v2-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID/jobs?per_page=100" > failed-recovery-v2-jobs.json
+              jq -e '
+                .total_count == 5
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / publish-cask" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "publish-homebrew-full / readback" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Decode and validate same-tag Full handoff" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Publish one digest-bound Full Cask commit")] | length == 0)
+              ' failed-recovery-v2-jobs.json >/dev/null
+              failed_recovery_v2_job_id="$(jq -er '[.jobs[] | select(.name == "publish-homebrew-full / prepare-candidate")] | select(length == 1) | .[0].id' failed-recovery-v2-jobs.json)"
+              gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$failed_recovery_v2_job_id/logs" > failed-recovery-v2.log
+              grep -F 'append_full deadline must be exactly 120 minutes after operation start.' failed-recovery-v2.log >/dev/null
+            fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-homebrew-full-follower.yml/runs?event=workflow_dispatch&per_page=100" \
               > recovery-runs.json
