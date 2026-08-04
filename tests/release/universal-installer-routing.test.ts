@@ -37,6 +37,24 @@ function route(osName: string, architecture: string, args: string[] = []) {
   }
 }
 
+function directStableMacInstall(osName: string, architecture: string) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-direct-macos-install-'));
+  try {
+    const bin = path.join(root, 'bin');
+    fs.mkdirSync(bin);
+    writeExecutable(
+      path.join(bin, 'uname'),
+      `#!/usr/bin/env sh\ncase "\${1:-}" in\n  -s) printf '%s\\n' '${osName}' ;;\n  -m) printf '%s\\n' '${architecture}' ;;\nesac\n`,
+    );
+    return spawnSync('/bin/bash', [installerPath, '--stable-macos-install', '--yes', '--no-open'], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:/usr/bin:/bin` },
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('personal hosts install one platform Desktop payload by default', () => {
   assert.equal(route('Darwin', 'arm64').stdout.trim(), 'desktop');
   assert.equal(route('Linux', 'x86_64').stdout.trim(), 'linux-desktop');
@@ -77,6 +95,18 @@ test('unsupported Desktop architecture fails closed before any release asset loo
   const result = route('Linux', 'aarch64');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /supported only on macOS arm64 and Linux x86_64/);
+
+  const intelMac = route('Darwin', 'x86_64');
+  assert.notEqual(intelMac.status, 0);
+  assert.match(intelMac.stderr, /supported only on macOS arm64 and Linux x86_64/);
+});
+
+test('direct Stable macOS helper rejects Intel before release asset lookup', () => {
+  const result = directStableMacInstall('Darwin', 'x86_64');
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /supported only on macOS arm64/);
+  assert.doesNotMatch(result.stderr, /curl|download|release/i);
 });
 
 test('Linux Desktop uses a Stable adjunct while preserving same-release Preview installation', () => {

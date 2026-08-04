@@ -436,6 +436,14 @@ test('optional platform publication is an independent protected post-success ope
   assert.equal(optional.with.platform_policy, 'stable_optional');
   assert.equal(optional.with.platform_ids, '${{ needs.admit.outputs.optional_platforms }}');
   assert.equal(optional.with.opl_updater_version, '${{ needs.admit.outputs.updater_version }}');
+  const manualMatrixRun = String(
+    manual.jobs['prepare-matrix'].steps.find((step: any) => step.id === 'set-matrix')?.run,
+  );
+  assert.match(
+    manualMatrixRun,
+    /Stable optional publication accepts only Linux x64 and Windows x64/,
+  );
+  assert.match(manualMatrixRun, /all\(\.\[\]; \. == "linux-x64" or \. == "windows-x64"\)/);
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_updater_assets,
     "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",

@@ -1405,6 +1405,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "copy_app_from_dmg()",
       "Mounted DMG must contain exactly one App bundle",
       "stable_macos_install()",
+      "Stable macOS App install is currently supported only on macOS arm64.",
       "hdiutil attach -nobrowse -readonly",
       'ditto "$source_app" "$OPL_LOCAL_APP_PATH"',
       "run_with_sudo_fallback",

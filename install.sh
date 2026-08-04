@@ -1732,6 +1732,10 @@ stable_macos_install() {
     printf 'Stable macOS App install is macOS-only.\n' >&2
     exit 1
   fi
+  if [ "$(uname -m)" != arm64 ]; then
+    printf 'Stable macOS App install is currently supported only on macOS arm64.\n' >&2
+    exit 1
+  fi
   for required_command in curl hdiutil ditto find plutil xattr; do
     if ! command -v "$required_command" >/dev/null 2>&1; then
       printf 'Missing required command: %s\n' "$required_command" >&2
