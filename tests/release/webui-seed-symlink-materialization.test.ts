@@ -51,6 +51,42 @@ test('materializes contained regular-file symlinks with exact bytes and executab
   }
 });
 
+test('materializes only the exact global Codex bin symlink outside npm .bin', () => {
+  const current = fixture();
+  try {
+    const target = path.join(
+      current.payload,
+      'lib',
+      'node_modules',
+      '@openai',
+      'codex',
+      'bin',
+      'codex.js',
+    );
+    const link = path.join(current.payload, 'bin', 'codex');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.writeFileSync(target, '#!/usr/bin/env node\nprocess.stdout.write("codex-global-bin\\n");\n');
+    fs.chmodSync(target, 0o755);
+    fs.symlinkSync('../lib/node_modules/@openai/codex/bin/codex.js', link);
+
+    const result = materializeWebuiSeedSymlinks(current.payload);
+
+    assert.deepEqual(result, [{
+      path: 'bin/codex',
+      target: '../lib/node_modules/@openai/codex/bin/codex.js',
+      mode: 0o755,
+      size_bytes: fs.statSync(link).size,
+    }]);
+    assert.equal(fs.lstatSync(link).isSymbolicLink(), false);
+    const execution = spawnSync(link, [], { encoding: 'utf8' });
+    assert.equal(execution.status, 0, execution.stderr);
+    assert.equal(execution.stdout, 'codex-global-bin\n');
+  } finally {
+    current.cleanup();
+  }
+});
+
 test('rejects executable symlinks outside npm .bin without partially materializing valid links', () => {
   const current = fixture();
   try {
@@ -68,7 +104,7 @@ test('rejects executable symlinks outside npm .bin without partially materializi
 
     assert.throws(
       () => materializeWebuiSeedSymlinks(current.payload),
-      /only npm \.bin symbolic links/,
+      /only npm \.bin or the exact global Codex bin symbolic link/,
     );
     assert.equal(fs.lstatSync(validLink).isSymbolicLink(), true);
     assert.equal(fs.lstatSync(invalidLink).isSymbolicLink(), true);

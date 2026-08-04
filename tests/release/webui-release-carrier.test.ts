@@ -651,6 +651,8 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(buildRun, /\.opl-frozen-inputs\/codex-cli\.tgz/);
   assert.match(buildRun, /COPY \.opl-frozen-inputs\/codex-cli\.tgz \/tmp\/codex-cli\.tgz/);
   assert.match(buildRun, /npm install -g --prefix \/opt\/codex-cli \/tmp\/codex-cli\.tgz/);
+  assert.match(buildRun, /materialize-webui-seed-symlinks\.ts --root \/opt\/codex-cli/);
+  assert.match(buildRun, /find \/opt\/codex-cli -type l -print -quit/);
   assert.match(buildRun, /webui-executor-source\/scripts\/materialize-webui-seed-symlinks\.ts/);
   assert.match(buildRun, /COPY \.opl-frozen-inputs\/materialize-webui-seed-symlinks\.ts \/tmp\/materialize-webui-seed-symlinks\.ts/);
   assert.match(buildRun, /materialize-webui-seed-symlinks\.ts --root node_modules/);
