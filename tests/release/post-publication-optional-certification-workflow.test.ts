@@ -230,6 +230,8 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
     'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'recovery_confirmation',
   ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.required, true);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.default, '');
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_optional_certification_v2',
   ]);
@@ -309,8 +311,16 @@ test('optional certification is automatic or exact failed-run recovery and remai
     /inputs\.source_run_id \|\| github\.event\.workflow_run\.id/,
   );
   assert.match(source, /failed-follower-run\.json/);
+  assert.match(source, /Optional certification recovery v1 for Stable run/);
+  assert.match(source, /if \[ -z "\$FAILED_RECOVERY_RUN_ID" \]; then/);
+  assert.match(source, /failed-follower-artifacts\.json/);
+  assert.match(source, /\[\.\[\]\?\.artifacts\[\]\?\] \| length == 0/);
+  assert.match(source, /stale_target_executor_assertion="\.target_commitish == \\\$executor"/);
+  assert.match(source, /grep -F "\$stale_target_executor_assertion" failed-follower\.log/);
   assert.match(source, /failed-recovery-run\.json/);
   assert.match(source, /failed_recovery_run_id/);
+  assert.match(source, /Optional certification recovery v2 for Stable run/);
+  assert.match(source, /test "\$RECOVERY_CONFIRMATION" = recover_exact_failed_optional_certification_v2/);
   assert.match(source, /\.name == "Bind exact public Full identity" and \.conclusion == "failure"/);
   assert.match(source, /\.name != "resolve-full" and \.conclusion != "skipped"/);
   assert.match(source, /runs\?event=workflow_dispatch&per_page=100/);
