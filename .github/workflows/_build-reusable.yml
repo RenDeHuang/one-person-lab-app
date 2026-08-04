@@ -1343,7 +1343,7 @@ jobs:
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
       - name: Write Windows RC build artifact cohort manifest
-        if: success() && matrix.platform == 'windows-x64'
+        if: success() && matrix.platform == 'windows-x64' && inputs.release_validation_profile == 'windows-preview'
         shell: bash
         env:
           OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}

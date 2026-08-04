@@ -291,7 +291,10 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   const upload = steps.find((step) => step.name === 'Upload build artifacts');
 
   assert.match(String(macCohort?.if), /startsWith\(matrix\.platform, 'macos'\)/);
-  assert.equal(windowsCohort?.if, "success() && matrix.platform == 'windows-x64'");
+  assert.equal(
+    windowsCohort?.if,
+    "success() && matrix.platform == 'windows-x64' && inputs.release_validation_profile == 'windows-preview'",
+  );
   assert.match(String(windowsCohort?.run), /write-windows-rc-build-cohort\.ts/);
   assert.match(String(windowsCohort?.run), /out\/win-unpacked/);
   assert.match(String(windowsCohort?.run), /-name '\*\.exe'/);
