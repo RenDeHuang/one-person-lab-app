@@ -2,7 +2,7 @@ name: OPL Post-Publication Optional Certification
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
     && inputs.recovery_confirmation == 'recover_exact_failed_optional_certification_v2'
-    && inputs.failed_recovery_run_id == ''
+    && inputs.failed_recovery_run_id == 'none'
     && format('Optional certification recovery v1 for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
     || github.event_name == 'workflow_dispatch'
     && format('Optional certification recovery v2 for Stable run {0} failed follower {1} failed recovery {2}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id)
@@ -26,9 +26,8 @@ on:
         required: true
         type: string
       failed_recovery_run_id:
-        description: Exact consumed recovery v1 run for legacy v2 recovery; leave empty for first recovery
+        description: Exact consumed recovery v1 run for legacy v2 recovery; use none for first recovery
         required: true
-        default: ''
         type: string
       recovery_confirmation:
         description: Confirm one-shot first recovery or legacy v2 recovery of exact failed runs
@@ -1328,7 +1327,7 @@ jobs:
             test "$GITHUB_REF" = refs/heads/main
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             test "$RECOVERY_CONFIRMATION" = recover_exact_failed_optional_certification_v2
-            if [ -z "$FAILED_RECOVERY_RUN_ID" ]; then
+            if [ "$FAILED_RECOVERY_RUN_ID" = none ]; then
               recovery_title="Optional certification recovery v1 for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
             else
               [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
@@ -1369,7 +1368,7 @@ jobs:
               and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
               and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
             ' failed-follower-jobs.json >/dev/null
-            if [ -z "$FAILED_RECOVERY_RUN_ID" ]; then
+            if [ "$FAILED_RECOVERY_RUN_ID" = none ]; then
               gh api --paginate --slurp \
                 "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/artifacts?per_page=100" \
                 > failed-follower-artifacts.json
