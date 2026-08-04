@@ -186,8 +186,8 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
   assert.match(source, /standard_tag="\$\(jq -er \.release\.standard_tag handoff\.json\)"/);
   assert.match(source, /releases\/tags\/\$standard_tag/);
   assert.match(source, /\.tag_name == \$tag/);
-  assert.match(source, /executor_sha="\$\(jq -er \.authority\.executor_head_sha handoff\.json\)"/);
-  assert.match(source, /\.target_commitish == \$executor/);
+  assert.match(source, /base_target_commitish="\$\(jq -er \.release\.target_standard\.target_commitish handoff\.json\)"/);
+  assert.match(source, /\.target_commitish == \$target/);
   assert.match(source, /\.browser_download_url == \$dmg_url/);
   assert.match(source, /\.browser_download_url == \$manifest_url/);
   assert.match(source, /\.target_commitish == \$target/);

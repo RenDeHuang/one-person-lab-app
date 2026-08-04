@@ -335,7 +335,7 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.match(fullIdentity, /\.build_provenance\.app_sha/);
   assert.doesNotMatch(fullIdentity, /\.release\.(?:base_tag|bundle_digest|cohort)/);
   assert.doesNotMatch(fullIdentity, /test "\$app_sha" = "\$head_sha"/);
-  assert.match(fullIdentity, /\.target_commitish == \$executor/);
+  assert.match(fullIdentity, /\.target_commitish == \$target/);
   assert.match(fullIdentity, /test "\$\(jq -er \.artifact\.url "\$handoff"\)" = "\$release_base\/\$artifact_name"/);
   assert.match(fullIdentity, /test "\$\(jq -er \.manifest\.url "\$handoff"\)" = "\$release_base\/\$manifest_name"/);
   assert.match(fullIdentity, /standard_release_base="\$release_base"/);

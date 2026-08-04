@@ -1515,7 +1515,7 @@ jobs:
           release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}"
           test "$(jq -er .artifact.url "$handoff")" = "$release_base/$artifact_name"
           test "$(jq -er .manifest.url "$handoff")" = "$release_base/$manifest_name"
-          jq -e --argjson release_id "$base_release_id" --arg tag "$tag" --arg executor "$head_sha" \
+          jq -e --argjson release_id "$base_release_id" --arg tag "$tag" --arg target "$base_target_commitish" \
             --arg name "$artifact_name" --arg digest "$artifact_digest" \
             --argjson size "$artifact_size" --arg url "$artifact_url" \
             --arg manifest "$manifest_name" --arg manifest_digest "$manifest_digest" \
@@ -1525,7 +1525,7 @@ jobs:
             and .draft == false
             and .prerelease == false
             and .immutable == false
-            and .target_commitish == $executor
+            and .target_commitish == $target
             and ([.assets[] | select(
               .name == $name
               and .digest == $digest
