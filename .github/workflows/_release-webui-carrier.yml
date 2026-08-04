@@ -112,6 +112,11 @@ on:
         type: string
         required: false
         default: ''
+      failed_recovery_v7_run_id:
+        description: Exact failed WebUI recovery v7 consumed by production recovery v8.
+        type: string
+        required: false
+        default: ''
       image_repository:
         description: GHCR repository without a tag or digest.
         type: string
@@ -259,6 +264,8 @@ jobs:
               || [[ '${{ inputs.failed_recovery_v5_run_id }}' =~ ^[1-9][0-9]*$ ]]
             test -z '${{ inputs.failed_recovery_v6_run_id }}' \
               || [[ '${{ inputs.failed_recovery_v6_run_id }}' =~ ^[1-9][0-9]*$ ]]
+            test -z '${{ inputs.failed_recovery_v7_run_id }}' \
+              || [[ '${{ inputs.failed_recovery_v7_run_id }}' =~ ^[1-9][0-9]*$ ]]
             test '${{ inputs.stable_framework_ref }}' != '${{ inputs.framework_ref }}'
           elif [ '${{ inputs.authority_mode }}' = production_follower ]; then
             test "$(git rev-parse HEAD)" = '${{ inputs.app_ref }}'
@@ -342,6 +349,11 @@ jobs:
             if [ -n '${{ inputs.failed_recovery_v6_run_id }}' ]; then
               recovery_args+=(
                 --webui-recovery-failed-v6-run-id '${{ inputs.failed_recovery_v6_run_id }}'
+              )
+            fi
+            if [ -n '${{ inputs.failed_recovery_v7_run_id }}' ]; then
+              recovery_args+=(
+                --webui-recovery-failed-v7-run-id '${{ inputs.failed_recovery_v7_run_id }}'
               )
             fi
           fi
