@@ -9,6 +9,9 @@ const workflowPath = path.join(appRoot, '.github/workflows/release-stable-option
 const source = fs.readFileSync(workflowPath, 'utf8');
 const workflow = parseYaml(source) as any;
 const manualSource = fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8');
+const reusableBuild = parseYaml(
+  fs.readFileSync(path.join(appRoot, '.github/workflows/_build-reusable.yml'), 'utf8'),
+) as any;
 
 test('existing-base optional route is one protected workflow_dispatch with no Standard or Full dispatch', () => {
   assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
@@ -97,4 +100,15 @@ test('reusable optional route forwards an explicit boolean code-quality input', 
     manualWorkflow.jobs['build-pipeline'].with.skip_code_quality,
     '${{ inputs.skip_code_quality }}',
   );
+});
+
+test('stable optional Windows builds do not emit the Windows RC cohort manifest', () => {
+  const rcCohort = reusableBuild.jobs.build.steps.find(
+    (step: any) => step.name === 'Write Windows RC build artifact cohort manifest',
+  );
+  assert.equal(
+    rcCohort.if,
+    "success() && matrix.platform == 'windows-x64' && inputs.release_validation_profile == 'windows-preview'",
+  );
+  assert.match(manualSource, /echo 'validation_profile=stable'/);
 });
