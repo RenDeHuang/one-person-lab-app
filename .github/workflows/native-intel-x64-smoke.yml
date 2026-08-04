@@ -1,0 +1,130 @@
+name: Native Intel macOS x64 Smoke
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_ref:
+        description: Exact App ref to validate.
+        required: true
+        default: main
+        type: string
+      shell_ref:
+        description: Exact opl-aion-shell ref to validate.
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: opl-native-intel-macos-x64-smoke
+  cancel-in-progress: false
+
+jobs:
+  native-intel-x64-smoke:
+    name: Build unsigned native x64 DMG
+    runs-on: [self-hosted, macOS, X64, opl-native-intel-macos]
+    timeout-minutes: 90
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      BUN_INSTALL_REGISTRY: https://registry.npmjs.org/
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+
+    steps:
+      - name: Admit the dedicated Intel host
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REPOSITORY" = gaofeng21cn/one-person-lab-app
+          test "$(uname -m)" = x86_64
+          test "$(sysctl -n hw.memsize)" -ge 68719476736
+          test "$(pmset -g batt | head -1)" = "Now drawing from 'AC Power'"
+          free_kib="$(df -Pk "$RUNNER_WORKSPACE" | awk 'NR == 2 {print $4}')"
+          test "$free_kib" -ge 83886080
+
+      - name: Checkout exact App source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ inputs.app_ref }}
+          fetch-depth: 1
+
+      - name: Resolve App source identity
+        id: app
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_sha="$(git rev-parse HEAD)"
+          [[ "$app_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "sha=$app_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Setup active Shell dependencies
+        uses: ./.github/actions/setup-active-shell-deps
+        with:
+          shell-ref: ${{ inputs.shell_ref }}
+
+      - name: Resolve Shell source identity
+        id: shell
+        shell: bash
+        working-directory: shells/aionui
+        run: |
+          set -euo pipefail
+          shell_sha="$(git rev-parse HEAD)"
+          [[ "$shell_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "sha=$shell_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Install App validation dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Validate App source on Intel macOS
+        run: npm run test:smoke
+
+      - name: Build unsigned native x64 package
+        run: npm run build-mac:x64
+
+      - name: Verify native x64 artifact and write receipt
+        id: artifact
+        shell: bash
+        env:
+          APP_SHA: ${{ steps.app.outputs.sha }}
+          SHELL_SHA: ${{ steps.shell.outputs.sha }}
+        run: |
+          set -euo pipefail
+          app_count="$(find shells/aionui/out -maxdepth 2 -type d -name 'One Person Lab.app' | wc -l | tr -d ' ')"
+          dmg_count="$(find shells/aionui/out -maxdepth 1 -type f -name '*.dmg' | wc -l | tr -d ' ')"
+          test "$app_count" -eq 1
+          test "$dmg_count" -eq 1
+          app_path="$(find shells/aionui/out -maxdepth 2 -type d -name 'One Person Lab.app' -print -quit)"
+          dmg_path="$(find shells/aionui/out -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          executable="$app_path/Contents/MacOS/One Person Lab"
+          test -x "$executable"
+          test "$(lipo -archs "$executable")" = x86_64
+          codesign --verify --deep --strict "$app_path"
+          dmg_sha256="$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
+          dmg_size_bytes="$(stat -f '%z' "$dmg_path")"
+          jq -n \
+            --arg app_sha "$APP_SHA" \
+            --arg shell_sha "$SHELL_SHA" \
+            --arg artifact_name "$(basename "$dmg_path")" \
+            --arg dmg_sha256 "sha256:$dmg_sha256" \
+            --argjson dmg_size_bytes "$dmg_size_bytes" \
+            '{schema:"opl_native_intel_macos_x64_smoke.v1",status:"passed",architecture:"x86_64",signed_for_distribution:false,publication_attempted:false,app_sha:$app_sha,shell_sha:$shell_sha,artifact:{name:$artifact_name,sha256:$dmg_sha256,size_bytes:$dmg_size_bytes}}' \
+            > native-intel-x64-smoke.json
+          echo "dmg_path=$dmg_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload x64 smoke evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: native-intel-x64-smoke-${{ steps.app.outputs.sha }}
+          path: |
+            ${{ steps.artifact.outputs.dmg_path }}
+            native-intel-x64-smoke.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove task-owned build output
+        if: ${{ always() }}
+        shell: bash
+        run: rm -rf shells/aionui/out

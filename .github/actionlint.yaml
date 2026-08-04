@@ -1,6 +1,7 @@
 self-hosted-runner:
   labels:
     - opl-gui-vm
+    - opl-native-intel-macos
     - opl-cert-mac-gui
     - opl-cert-mac-tart
     - opl-cert-windows-wsl
