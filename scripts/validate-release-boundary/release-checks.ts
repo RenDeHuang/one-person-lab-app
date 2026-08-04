@@ -200,7 +200,11 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "target_architecture: arm64",
       "workflow_dispatch:",
       "recover_exact_failed_native_webui_follower_v1",
+      "recover_exact_failed_native_webui_follower_v2",
+      "failed_recovery_run_id",
       "failed-follower-jobs.json",
+      "failed-recovery-jobs.json",
+      "line 18: rg: command not found",
       "runs?event=workflow_dispatch&per_page=100",
     ],
     forbidden: [

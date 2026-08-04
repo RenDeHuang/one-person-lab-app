@@ -2847,17 +2847,21 @@
       "follower_workflow": ".github/workflows/release-webui-follower.yml",
       "exact_failed_follower_recovery": {
         "trigger": "workflow_dispatch",
-        "recovery_generation": 1,
-        "authority_binding": "same_successful_standard_stable_authority_and_exact_failed_first_attempt_follower",
+        "recovery_generation": 2,
+        "consumed_recovery_generation": 1,
+        "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_and_exact_failed_recovery_v1",
         "inputs": [
           "source_run_id",
           "failed_follower_run_id",
+          "failed_recovery_run_id",
           "recovery_confirmation"
         ],
-        "confirmation": "recover_exact_failed_webui_follower_v1",
-        "failed_boundary": "runtime_qualification_failed_on_broken_seed_symlink_before_immutable_carrier_publication_and_stable_latest_promotion",
+        "confirmation": "recover_exact_failed_webui_follower_v2",
+        "legacy_confirmation": "recover_exact_failed_webui_follower_v1",
+        "failed_boundary": "first_attempt_runtime_qualification_failed_on_broken_seed_symlink_and_recovery_v1_runtime_seed_apply_rejected_the_codex_cli_symlink_before_immutable_carrier_publication_and_stable_latest_promotion",
         "failed_public_mutation_count_required": 0,
-        "same_identity_recovery_run_count_required": 1,
+        "failed_recovery_public_mutation_count_required": 0,
+        "same_identity_recovery_v2_run_count_required": 1,
         "server_side_unique_display_title_required": true,
         "automatic_workflow_run_route_preserved": true,
         "rerun_or_stable_redispatch_allowed": false
@@ -3178,23 +3182,27 @@
     ],
     "exact_failed_follower_recovery": {
       "trigger": "workflow_dispatch",
-      "recovery_generation": 1,
-      "authority_binding": "same_successful_standard_stable_authority_and_exact_failed_first_attempt_follower",
+      "recovery_generation": 2,
+      "consumed_recovery_generation": 1,
+      "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_and_exact_failed_recovery_v1",
       "inputs": [
         "source_run_id",
         "failed_follower_run_id",
+        "failed_recovery_run_id",
         "recovery_confirmation"
       ],
-      "confirmation": "recover_exact_failed_native_webui_follower_v1",
-      "failed_boundary": "linux_stale_standard_deadline_rejected_before_publication_and_darwin_build_heap_oom_before_publication",
+      "confirmation": "recover_exact_failed_native_webui_follower_v2",
+      "legacy_confirmation": "recover_exact_failed_native_webui_follower_v1",
+      "failed_boundary": "first_attempt_linux_stale_standard_deadline_rejected_and_darwin_build_heap_oom_then_recovery_v1_both_publishers_lacked_rg_before_publication",
       "failed_public_mutation_count_required": 0,
-      "same_identity_recovery_run_count_required": 1,
+      "failed_recovery_public_mutation_count_required": 0,
+      "same_identity_recovery_v2_run_count_required": 1,
       "server_side_unique_display_title_required": true,
       "automatic_workflow_run_route_preserved": true,
       "rerun_or_stable_redispatch_allowed": false
     },
     "stable_or_latest_mutation_allowed": false,
-    "rule": "Native WebUI assets are additive post-Stable carriers. Automatic followers remain non-blocking; the only manual route is one exact first recovery bound to the successful Stable authority and a proven pre-publication failed first attempt."
+    "rule": "Native WebUI assets are additive post-Stable carriers. Automatic followers remain non-blocking; manual recovery is a bounded generation chain where each new run consumes the same successful Stable authority, the exact pre-publication failed first attempt, and every prior failed recovery."
   },
   "homebrew_tap_distribution": {
     "owner": "one-person-lab-app",

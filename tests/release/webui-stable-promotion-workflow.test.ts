@@ -322,7 +322,7 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-test('WebUI follower preserves automatic delivery and admits only one exact failed-run recovery', () => {
+test('WebUI follower preserves automatic delivery and admits only exact bounded recovery generations', () => {
   const source = fs.readFileSync(followerWorkflowPath, 'utf8');
   const workflow = YAML.parse(source);
   assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
@@ -331,11 +331,23 @@ test('WebUI follower preserves automatic delivery and admits only one exact fail
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
     'source_run_id',
     'failed_follower_run_id',
+    'failed_recovery_run_id',
     'recovery_confirmation',
   ]);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.type, 'string');
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_webui_follower_v1',
+    'recover_exact_failed_webui_follower_v2',
   ]);
+  assert.match(
+    source,
+    /recover_exact_failed_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID"/,
+  );
+  assert.match(
+    source,
+    /recover_exact_failed_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
+  );
   assert.equal(
     workflow.concurrency.group,
     "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
@@ -346,6 +358,10 @@ test('WebUI follower preserves automatic delivery and admits only one exact fail
     'webui-carrier / publish-immutable-carrier',
     'promote-webui-stable',
     'OPL image seed contains broken symlinks:',
+    'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
+    'failed-recovery-jobs.json',
+    '"failure_code": "opl_seed_payload_symlink_forbidden"',
+    '"path": "/opt/opl/seed/payload/codex_cli/bin/codex"',
     '($matches | length) == 1',
   ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const jobId of ['webui-carrier', 'promote-webui-stable']) {
@@ -367,6 +383,17 @@ test('WebUI follower preserves automatic delivery and admits only one exact fail
       widenedIngress,
       'webui-carrier',
       widenedIngress.jobs['webui-carrier'],
+    ),
+    false,
+  );
+  const widenedConfirmation = clone(workflow);
+  widenedConfirmation.on.workflow_dispatch.inputs.recovery_confirmation.options.push('recover_anything');
+  assert.equal(
+    isAuthorizedFollowerRecoveryWriteJob(
+      '.github/workflows/release-webui-follower.yml',
+      widenedConfirmation,
+      'webui-carrier',
+      widenedConfirmation.jobs['webui-carrier'],
     ),
     false,
   );
@@ -409,11 +436,16 @@ test('contract separates Stable qualification from carrier Latest selection', ()
   assert.deepEqual(recovery.inputs, [
     'source_run_id',
     'failed_follower_run_id',
+    'failed_recovery_run_id',
     'recovery_confirmation',
   ]);
-  assert.equal(recovery.confirmation, 'recover_exact_failed_webui_follower_v1');
+  assert.equal(recovery.recovery_generation, 2);
+  assert.equal(recovery.consumed_recovery_generation, 1);
+  assert.equal(recovery.confirmation, 'recover_exact_failed_webui_follower_v2');
+  assert.equal(recovery.legacy_confirmation, 'recover_exact_failed_webui_follower_v1');
   assert.equal(recovery.failed_public_mutation_count_required, 0);
-  assert.equal(recovery.same_identity_recovery_run_count_required, 1);
+  assert.equal(recovery.failed_recovery_public_mutation_count_required, 0);
+  assert.equal(recovery.same_identity_recovery_v2_run_count_required, 1);
 
   const independent = promotion.task_modes.independent_preview;
   assert.equal(independent.desktop_stable_required, false);
