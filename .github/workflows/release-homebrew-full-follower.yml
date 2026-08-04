@@ -2,8 +2,8 @@ name: OPL Homebrew Full Follower
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
     && inputs.recovery_confirmation == 'recover_exact_failed_homebrew_full_follower_v3'
-    && inputs.failed_recovery_run_id == ''
-    && inputs.failed_recovery_v2_run_id == ''
+    && inputs.failed_recovery_run_id == 'none'
+    && inputs.failed_recovery_v2_run_id == 'none'
     && format('Homebrew Full follower recovery v1 for Stable run {0} failed follower {1}', inputs.source_run_id, inputs.failed_follower_run_id)
     || github.event_name == 'workflow_dispatch'
     && format('Homebrew Full follower recovery v3 for Stable run {0} failed follower {1} failed recovery v1 {2} failed recovery v2 {3}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id, inputs.failed_recovery_v2_run_id)
@@ -26,14 +26,12 @@ on:
         required: true
         type: string
       failed_recovery_run_id:
-        description: Exact consumed recovery v1 run for legacy v3 recovery; leave empty for first recovery
+        description: Exact consumed recovery v1 run for legacy v3 recovery; use none for first recovery
         required: true
-        default: ''
         type: string
       failed_recovery_v2_run_id:
-        description: Exact consumed recovery v2 run for legacy v3 recovery; leave empty for first recovery
+        description: Exact consumed recovery v2 run for legacy v3 recovery; use none for first recovery
         required: true
-        default: ''
         type: string
       recovery_confirmation:
         description: Confirm one-shot first recovery or legacy v3 recovery of exact failed runs
@@ -91,7 +89,7 @@ jobs:
             test "$GITHUB_REF" = refs/heads/main
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             test "$RECOVERY_CONFIRMATION" = recover_exact_failed_homebrew_full_follower_v3
-            if [ -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID" ]; then
+            if [ "$FAILED_RECOVERY_RUN_ID:$FAILED_RECOVERY_V2_RUN_ID" = none:none ]; then
               recovery_title="Homebrew Full follower recovery v1 for Stable run ${AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
             else
               [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
@@ -127,7 +125,7 @@ jobs:
               and .conclusion == "failure"
             ' failed-follower-run.json >/dev/null
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/jobs?per_page=100" > failed-follower-jobs.json
-            if [ -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID" ]; then
+            if [ "$FAILED_RECOVERY_RUN_ID:$FAILED_RECOVERY_V2_RUN_ID" = none:none ]; then
               jq -e '
                 .total_count == 5
                 and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
