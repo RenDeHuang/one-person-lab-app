@@ -20,6 +20,9 @@ test('native Intel x64 smoke stays manual, read-only, and dedicated to the i9 la
   assert.equal(workflow.concurrency['cancel-in-progress'], false);
   assert.match(source, /test "\$\(uname -m\)" = x86_64/);
   assert.match(source, /npm run build-mac:x64/);
+  assert.match(source, /hdiutil verify "\$dmg_path"/);
+  assert.doesNotMatch(source, /codesign --verify/);
+  assert.match(source, /signed_for_distribution:false/);
   assert.match(source, /publication_attempted:false/);
   assert.doesNotMatch(source, /pull_request|push:|contents: write|packages: write/);
 });

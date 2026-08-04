@@ -101,7 +101,7 @@ jobs:
           executable="$app_path/Contents/MacOS/One Person Lab"
           test -x "$executable"
           test "$(lipo -archs "$executable")" = x86_64
-          codesign --verify --deep --strict "$app_path"
+          hdiutil verify "$dmg_path"
           dmg_sha256="$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
           dmg_size_bytes="$(stat -f '%z' "$dmg_path")"
           jq -n \
