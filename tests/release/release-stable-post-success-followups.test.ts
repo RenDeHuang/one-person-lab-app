@@ -457,6 +457,14 @@ test("admission binds the Standard source run and exact checkpoint without makin
     fullAddonSource,
     /Bind checkpoint build provenance and exact Standard reference/,
   );
+  assert.match(
+    fullAddonSource,
+    /target_standard_commitish='\$\{\{ needs\.restore-standard\.outputs\.target_standard_target_commitish \}\}'[\s\S]*test "\$\(jq -r \.target_commitish publication-contract-rehearsal\.json\)" = "\$target_standard_commitish"/,
+  );
+  assert.doesNotMatch(
+    fullAddonSource,
+    /test "\$\(jq -r \.target_commitish publication-contract-rehearsal\.json\)" = "\$GITHUB_SHA"/,
+  );
   assert.match(fullAddonSource, /target-standard-release\.json/);
   assert.match(fullAddonSource, /\.target_commitish == \$target/);
   assert.doesNotMatch(fullAddonSource, /\[\.artifacts\[\]\?\.name\]/);

@@ -1137,6 +1137,7 @@ jobs:
           standard_attestation="${standard_attestations[0]}"
           test -f "$standard_attestation"
           test ! -L "$standard_attestation"
+          target_standard_commitish='${{ needs.restore-standard.outputs.target_standard_target_commitish }}'
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
@@ -1150,7 +1151,7 @@ jobs:
             --output publication-contract-rehearsal.json
           test "$(jq -r .status publication-contract-rehearsal.json)" = rehearsal_complete
           test "$(jq -r .mutation_attempted publication-contract-rehearsal.json)" = false
-          test "$(jq -r .target_commitish publication-contract-rehearsal.json)" = "$GITHUB_SHA"
+          test "$(jq -r .target_commitish publication-contract-rehearsal.json)" = "$target_standard_commitish"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
