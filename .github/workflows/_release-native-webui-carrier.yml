@@ -507,7 +507,7 @@ jobs:
             --deadline-at "$operation_deadline_at" \
             > native-release/checkpoint-operation-check.json \
             2> native-release/checkpoint-operation-check.stderr; then
-            rg -F "$release_operation operation deadline elapsed" \
+            grep -F -- "$release_operation operation deadline elapsed" \
               native-release/checkpoint-operation-check.stderr >/dev/null
             release_operation=resume_standard
             operation_started_at='${{ steps.follower-operation.outputs.operation_started_at }}'

@@ -411,9 +411,12 @@ jobs:
             '  && printf \'%s\\n\' "${OPL_CODEX_NPM_SPEC}" > /opt/codex-cli/OPL_CODEX_NPM_SPEC',
           ].join('\n');
           const frozenCodexInstall = [
+            'COPY .opl-frozen-inputs/materialize-webui-seed-symlinks.ts /tmp/materialize-webui-seed-symlinks.ts',
             'COPY .opl-frozen-inputs/codex-cli.tgz /tmp/codex-cli.tgz',
             'RUN npm install -g --prefix /opt/codex-cli /tmp/codex-cli.tgz \\',
-            '  && rm -f /tmp/codex-cli.tgz \\',
+            '  && node --experimental-strip-types /tmp/materialize-webui-seed-symlinks.ts --root /opt/codex-cli \\',
+            '  && rm -f /tmp/codex-cli.tgz /tmp/materialize-webui-seed-symlinks.ts \\',
+            '  && test -z "$(find /opt/codex-cli -type l -print -quit)" \\',
             '  && npm cache clean --force \\',
             '  && printf \'%s\\n\' "${OPL_CODEX_NPM_SPEC}" > /opt/codex-cli/OPL_CODEX_NPM_SPEC',
           ].join('\n');

@@ -73,8 +73,11 @@ export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSym
 
   const realRoot = fs.realpathSync.native(root);
   const validated = collectSymlinks(root).map((linkPath) => {
-    if (path.basename(path.dirname(linkPath)) !== '.bin') {
-      return fail(`WebUI seed payload may materialize only npm .bin symbolic links: ${linkPath}`);
+    const relativeLinkPath = path.relative(root, linkPath);
+    const isNpmBinLink = path.basename(path.dirname(linkPath)) === '.bin';
+    const isCodexGlobalBinLink = relativeLinkPath === path.join('bin', 'codex');
+    if (!isNpmBinLink && !isCodexGlobalBinLink) {
+      return fail(`WebUI seed payload may materialize only npm .bin or the exact global Codex bin symbolic link: ${linkPath}`);
     }
     const target = fs.readlinkSync(linkPath);
     if (path.isAbsolute(target)) {

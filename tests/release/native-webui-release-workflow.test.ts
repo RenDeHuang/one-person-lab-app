@@ -143,6 +143,11 @@ test('Native reusable builds one exact target then performs protected additive p
       < appendRun.indexOf('release-native-webui-carrier.ts publish'),
   );
   assert.match(appendRun, /--release-operation "\$release_operation"/);
+  assert.match(
+    appendRun,
+    /grep -F -- "\$release_operation operation deadline elapsed"/,
+  );
+  assert.doesNotMatch(appendRun, /\brg\s/);
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',
     'test "$(id -u)" -ne 0',
