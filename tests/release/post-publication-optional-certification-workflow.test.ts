@@ -316,6 +316,8 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.match(source, /if \[ "\$FAILED_RECOVERY_RUN_ID" = none \]; then/);
   assert.match(source, /failed-follower-artifacts\.json/);
   assert.match(source, /\[\.\[\]\?\.artifacts\[\]\?\] \| length == 0/);
+  assert.match(source, /\.total_count == 10/);
+  assert.match(source, /\.total_count == 9/);
   assert.match(source, /stale_target_executor_assertion="\.target_commitish == \\\$executor"/);
   assert.match(source, /grep -F "\$stale_target_executor_assertion" failed-follower\.log/);
   assert.match(source, /failed-recovery-run\.json/);

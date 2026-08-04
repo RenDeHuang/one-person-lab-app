@@ -1360,15 +1360,15 @@ jobs:
               and .conclusion == "failure"
             ' failed-follower-run.json >/dev/null
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/jobs?per_page=100" > failed-follower-jobs.json
-            jq -e '
-              .total_count == 9
-              and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
-              and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
-              and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
-            ' failed-follower-jobs.json >/dev/null
             if [ "$FAILED_RECOVERY_RUN_ID" = none ]; then
+              jq -e '
+                .total_count == 10
+                and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
+              ' failed-follower-jobs.json >/dev/null
               gh api --paginate --slurp \
                 "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_FOLLOWER_RUN_ID/artifacts?per_page=100" \
                 > failed-follower-artifacts.json
