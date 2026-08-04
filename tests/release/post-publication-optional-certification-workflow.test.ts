@@ -321,6 +321,11 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.match(source, /stale_target_executor_assertion="\.target_commitish == \\\$executor"/);
   assert.match(source, /grep -F "\$stale_target_executor_assertion" failed-follower\.log/);
   assert.match(source, /failed-recovery-run\.json/);
+  assert.match(source, /failed_recovery_v1_title/);
+  assert.match(source, /failed_recovery_display_title/);
+  assert.match(source, /failed-recovery-artifacts\.json/);
+  assert.match(source, /\.name == "Download exact Full publication evidence" and \.conclusion == "skipped"/);
+  assert.match(source, /\.name == "Bind exact public Full identity" and \.conclusion == "skipped"/);
   assert.match(source, /failed_recovery_run_id/);
   assert.match(source, /Optional certification recovery v2 for Stable run/);
   assert.match(source, /test "\$RECOVERY_CONFIRMATION" = recover_exact_failed_optional_certification_v2/);

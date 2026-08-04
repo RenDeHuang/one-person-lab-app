@@ -1379,28 +1379,46 @@ jobs:
               grep -F "$stale_target_executor_assertion" failed-follower.log >/dev/null
             else
               failed_recovery_title="Optional certification recovery for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
+              failed_recovery_v1_title="Optional certification recovery v1 for Stable run ${SOURCE_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
-              jq -e --arg run "$FAILED_RECOVERY_RUN_ID" --arg title "$failed_recovery_title" '
+              jq -e --arg run "$FAILED_RECOVERY_RUN_ID" --arg legacy_title "$failed_recovery_title" --arg v1_title "$failed_recovery_v1_title" '
                 (.id | tostring) == $run
                 and .repository.full_name == "gaofeng21cn/one-person-lab-app"
                 and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
                 and .path == ".github/workflows/release-post-publication-certification.yml"
                 and .event == "workflow_dispatch"
                 and .head_branch == "main"
-                and .display_title == $title
+                and (.display_title == $legacy_title or .display_title == $v1_title)
                 and .run_attempt == 1
                 and .status == "completed"
                 and .conclusion == "failure"
               ' failed-recovery-run.json >/dev/null
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/jobs?per_page=100" > failed-recovery-jobs.json
-              jq -e '
-                .total_count == 9
-                and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
-                and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
-                and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
-                and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
-                and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
-              ' failed-recovery-jobs.json >/dev/null
+              failed_recovery_display_title="$(jq -er .display_title failed-recovery-run.json)"
+              if [ "$failed_recovery_display_title" = "$failed_recovery_v1_title" ]; then
+                jq -e '
+                  .total_count == 10
+                  and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "failure")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "skipped")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "skipped")] | length == 1)
+                  and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
+                ' failed-recovery-jobs.json >/dev/null
+                gh api --paginate --slurp \
+                  "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID/artifacts?per_page=100" \
+                  > failed-recovery-artifacts.json
+                jq -e '[.[]?.artifacts[]?] | length == 0' failed-recovery-artifacts.json >/dev/null
+              else
+                test "$failed_recovery_display_title" = "$failed_recovery_title"
+                jq -e '
+                  .total_count == 9
+                  and ([.jobs[] | select(.name == "resolve-full" and .conclusion == "failure")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Resolve optional exact Full publication" and .conclusion == "success")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Download exact Full publication evidence" and .conclusion == "success")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Bind exact public Full identity" and .conclusion == "failure")] | length == 1)
+                  and ([.jobs[] | select(.name != "resolve-full" and .conclusion != "skipped")] | length == 0)
+                ' failed-recovery-jobs.json >/dev/null
+              fi
             fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-post-publication-certification.yml/runs?event=workflow_dispatch&per_page=100" \
