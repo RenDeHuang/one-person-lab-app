@@ -13,6 +13,7 @@ on:
     workflows:
       - OPL Stable Release Bundle
       - OPL Stable Post-Success Full Follow-up
+      - OPL Stable Existing-Base Optional Adjunct
     types:
       - completed
   workflow_dispatch:
@@ -264,7 +265,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   resolve-linux-adjunct:
-    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.name == 'OPL Stable Post-Success Full Follow-up' }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && (github.event.workflow_run.name == 'OPL Stable Post-Success Full Follow-up' || github.event.workflow_run.name == 'OPL Stable Existing-Base Optional Adjunct') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -306,14 +307,20 @@ jobs:
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
-            and .path == ".github/workflows/release-stable-post-success-followups.yml"
-            and .event == "workflow_run"
             and .head_branch == "main"
             and .run_attempt == 1
             and .status == "completed"
             and .conclusion == "success"
             and (.head_sha | test("^[0-9a-f]{40}$"))
-            and (.display_title | test("^Full append successor for Stable run [1-9][0-9]*$"))
+            and (
+              (.path == ".github/workflows/release-stable-post-success-followups.yml"
+                and .event == "workflow_run"
+                and (.display_title | test("^Full append successor for Stable run [1-9][0-9]*$")))
+              or
+              (.path == ".github/workflows/release-stable-optional-existing-base.yml"
+                and .event == "workflow_dispatch"
+                and (.display_title | test("^OPL Stable optional_existing_base operation:stable-optional-[0-9a-f]{32} authority:authority-[A-Za-z0-9._:-]{8,119} run:[1-9][0-9]*$")))
+            )
           ' followup-run.json >/dev/null
           publication_artifact="opl-selected-platform-publication-${FOLLOWUP_RUN_ID}"
           gh api --paginate --slurp \
@@ -368,7 +375,14 @@ jobs:
             and .status == "passed"
             and .mode == "stable_optional_follower"
             and (.source.run_id | test("^[1-9][0-9]*$"))
-            and (.source.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (.source.authority_digest | test("^sha256:[0-9a-f]{64}$"))
+            and (
+              (.source.authority_kind == "standard_bundle"
+                and .source.bundle_digest == .source.authority_digest)
+              or
+              (.source.authority_kind == "existing_base_source_qualification"
+                and .source.bundle_digest == null)
+            )
             and (.release_identity.display_version | test("^[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))
             and (.release_identity.updater_version | test("^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$"))
             and (.cohort.app_sha | test("^[0-9a-f]{40}$"))
@@ -402,7 +416,14 @@ jobs:
           shell_sha="$(jq -er .cohort.shell_sha "$receipt")"
           framework_sha="$(jq -er .cohort.framework_sha "$receipt")"
           adjunct_manifest_digest="$(jq -er .release.manifest.digest "$receipt")"
-          test "$app_sha" = "$(jq -er .head_sha followup-run.json)"
+          source_authority_kind="$(jq -er .source.authority_kind "$receipt")"
+          case "$source_authority_kind" in
+            standard_bundle) test "$app_sha" = "$(jq -er .head_sha followup-run.json)" ;;
+            existing_base_source_qualification)
+              test "$(jq -er .path followup-run.json)" = .github/workflows/release-stable-optional-existing-base.yml
+              ;;
+            *) exit 1 ;;
+          esac
           manifest_hex="${adjunct_manifest_digest#sha256:}"
           test "$adjunct_tag" = "${tag}-optional-${manifest_hex:0:12}"
           linux_artifact_name="One-Person-Lab-${version}-linux-x64.deb"

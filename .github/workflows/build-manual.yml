@@ -44,9 +44,45 @@ on:
         required: true
         type: string
       source_bundle_digest:
-        description: Exact completed Standard Bundle digest.
-        required: true
+        description: Exact completed Standard Bundle digest for the automatic/legacy follower route.
+        required: false
         type: string
+        default: ''
+      source_authority_kind:
+        description: Standard Bundle or protected existing-base source qualification authority.
+        required: false
+        type: string
+        default: standard_bundle
+      source_authority_digest:
+        description: Exact existing-base optional authority digest; empty for the Standard Bundle route.
+        required: false
+        type: string
+        default: ''
+      base_release_id:
+        description: Exact existing base Release id; empty for the Standard Bundle route.
+        required: false
+        type: string
+        default: ''
+      base_release_tag:
+        description: Exact existing base tag; empty derives v plus opl_release_version.
+        required: false
+        type: string
+        default: ''
+      base_release_target_commitish:
+        description: Exact existing base target; empty binds the Standard cohort App SHA.
+        required: false
+        type: string
+        default: ''
+      base_release_updated_at:
+        description: Exact existing base updated_at CAS; empty for the Standard Bundle route.
+        required: false
+        type: string
+        default: ''
+      base_asset_inventory_digest:
+        description: Exact existing base asset inventory digest; empty for the Standard Bundle route.
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       publication_mode:
@@ -150,8 +186,24 @@ jobs:
             [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]
             [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]
             [[ '${{ inputs.source_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            [[ '${{ inputs.source_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
             [[ '${{ inputs.opl_updater_version }}' =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+            case '${{ inputs.source_authority_kind }}' in
+              standard_bundle)
+                [[ '${{ inputs.source_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
+                test -z '${{ inputs.source_authority_digest }}${{ inputs.base_release_id }}${{ inputs.base_release_tag }}${{ inputs.base_release_target_commitish }}${{ inputs.base_release_updated_at }}${{ inputs.base_asset_inventory_digest }}'
+                ;;
+              existing_base_source_qualification)
+                test -z '${{ inputs.source_bundle_digest }}'
+                [[ '${{ inputs.source_authority_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
+                [[ '${{ inputs.base_release_id }}' =~ ^[1-9][0-9]*$ ]]
+                test '${{ inputs.base_release_tag }}' = v26.8.4
+                [[ '${{ inputs.base_release_target_commitish }}' =~ ^[0-9a-f]{40}$ ]]
+                [[ '${{ inputs.base_release_updated_at }}' =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$ ]]
+                [[ '${{ inputs.base_asset_inventory_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
+                test '${{ inputs.opl_release_version }}' = 26.8.4
+                ;;
+              *) echo '::error::Unsupported Stable optional source authority kind.'; exit 1 ;;
+            esac
             jq -e '
               . == ["linux-x64"]
               or . == ["windows-x64"]
@@ -303,6 +355,13 @@ jobs:
           UPDATER_VERSION: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
           SOURCE_BUNDLE_DIGEST: ${{ inputs.source_bundle_digest }}
+          SOURCE_AUTHORITY_KIND: ${{ inputs.source_authority_kind }}
+          SOURCE_AUTHORITY_DIGEST: ${{ inputs.source_authority_digest }}
+          BASE_RELEASE_ID: ${{ inputs.base_release_id }}
+          BASE_RELEASE_TAG: ${{ inputs.base_release_tag }}
+          BASE_RELEASE_TARGET_COMMITISH: ${{ inputs.base_release_target_commitish }}
+          BASE_RELEASE_UPDATED_AT: ${{ inputs.base_release_updated_at }}
+          BASE_ASSET_INVENTORY_DIGEST: ${{ inputs.base_asset_inventory_digest }}
           PLATFORM_IDS: ${{ needs.prepare-matrix.outputs.platform_ids }}
           IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE: ${{ inputs.immutable_release_capability_evidence }}
           DISPATCH_ACTOR: ${{ github.actor }}
@@ -334,21 +393,50 @@ jobs:
           case "$PUBLICATION_MODE" in
             stable_optional_follower)
               test -z "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE"
-              [[ "$SOURCE_BUNDLE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-              base_tag="v${VERSION}"
+              case "$SOURCE_AUTHORITY_KIND" in
+                standard_bundle)
+                  [[ "$SOURCE_BUNDLE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+                  test -z "$SOURCE_AUTHORITY_DIGEST$BASE_RELEASE_ID$BASE_RELEASE_TAG$BASE_RELEASE_TARGET_COMMITISH$BASE_RELEASE_UPDATED_AT$BASE_ASSET_INVENTORY_DIGEST"
+                  source_authority_digest="$SOURCE_BUNDLE_DIGEST"
+                  base_tag="v${VERSION}"
+                  base_target_commitish="$APP_REF"
+                  ;;
+                existing_base_source_qualification)
+                  test -z "$SOURCE_BUNDLE_DIGEST"
+                  [[ "$SOURCE_AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+                  [[ "$BASE_RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
+                  test "$BASE_RELEASE_TAG" = v26.8.4
+                  [[ "$BASE_RELEASE_TARGET_COMMITISH" =~ ^[0-9a-f]{40}$ ]]
+                  [[ "$BASE_ASSET_INVENTORY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+                  test "$VERSION" = 26.8.4
+                  source_authority_digest="$SOURCE_AUTHORITY_DIGEST"
+                  base_tag="$BASE_RELEASE_TAG"
+                  base_target_commitish="$BASE_RELEASE_TARGET_COMMITISH"
+                  ;;
+                *) echo '::error::Unsupported Stable optional source authority kind.'; exit 1 ;;
+              esac
               carrier_kind=stable_optional_adjunct
               manifest_name=opl-optional-platforms-manifest.json
               expected_prerelease=false
               capability_evidence_digest=
-              gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > base-release.json
-              jq -e --arg tag "$base_tag" --arg target "$APP_REF" '
-                .tag_name == $tag
-                and .target_commitish == $target
-                and .draft == false
-                and .prerelease == false
-                and .immutable == false
-              ' base-release.json >/dev/null || {
-                echo "::error::Optional Stable publication requires the exact mutable base Stable Release used for same-tag Full append."
+              verify_exact_base_release() {
+                gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > base-release.json
+                actual_inventory_digest="sha256:$(jq -Sc '[.assets[] | {name,digest,size}] | sort_by(.name)' base-release.json | shasum -a 256 | awk '{print $1}')"
+                jq -e --arg tag "$base_tag" --arg target "$base_target_commitish" '
+                  .tag_name == $tag
+                  and .target_commitish == $target
+                  and .draft == false
+                  and .prerelease == false
+                  and .immutable == false
+                ' base-release.json >/dev/null || return 1
+                if [ "$SOURCE_AUTHORITY_KIND" = existing_base_source_qualification ]; then
+                  test "$(jq -er .id base-release.json)" = "$BASE_RELEASE_ID"
+                  test "$(jq -er .updated_at base-release.json)" = "$BASE_RELEASE_UPDATED_AT"
+                  test "$actual_inventory_digest" = "$BASE_ASSET_INVENTORY_DIGEST"
+                fi
+              }
+              verify_exact_base_release || {
+                echo "::error::Optional Stable publication requires the exact mutable base Stable Release used for same-tag Full append and the authority-bound CAS snapshot."
                 exit 1
               }
               ;;
@@ -471,7 +559,8 @@ jobs:
           jq -S -n \
             --arg kind "$carrier_kind" \
             --arg source_run_id "$SOURCE_RUN_ID" \
-            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" \
+            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" --arg authority_kind "$SOURCE_AUTHORITY_KIND" \
+            --arg authority_digest "$source_authority_digest" \
             --arg base_tag "$base_tag" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
@@ -482,7 +571,12 @@ jobs:
               {
                 schema:"opl_app_immutable_platform_adjunct_manifest.v1",
                 kind:$kind,
-                source:{run_id:$source_run_id,bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)},
+                source:{
+                  run_id:$source_run_id,
+                  authority_kind:$authority_kind,
+                  authority_digest:$authority_digest,
+                  bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)
+                },
                 base_release_tag:(if $base_tag == "" then null else $base_tag end),
                 release_identity:{display_version:$display_version,updater_version:$updater_version},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
@@ -501,7 +595,8 @@ jobs:
           jq -e \
             --arg kind "$carrier_kind" \
             --arg source_run_id "$SOURCE_RUN_ID" \
-            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" \
+            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" --arg authority_kind "$SOURCE_AUTHORITY_KIND" \
+            --arg authority_digest "$source_authority_digest" \
             --arg base_tag "$base_tag" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
@@ -511,6 +606,8 @@ jobs:
               .schema == "opl_app_immutable_platform_adjunct_manifest.v1"
               and .kind == $kind
               and .source.run_id == $source_run_id
+              and .source.authority_kind == $authority_kind
+              and .source.authority_digest == $authority_digest
               and .source.bundle_digest == (if $bundle_digest == "" then null else $bundle_digest end)
               and .base_release_tag == (if $base_tag == "" then null else $base_tag end)
               and .release_identity == {display_version:$display_version,updater_version:$updater_version}
@@ -544,7 +641,7 @@ jobs:
             printf -v release_notes '%s\n\n%s\n%s\n%s\n' \
               "Immutable optional-platform adjunct for One Person Lab ${VERSION}." \
               "Base Stable Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${base_tag}" \
-              "Bundle digest: ${SOURCE_BUNDLE_DIGEST}" \
+              "Source authority: ${source_authority_digest}" \
               'Download the selected platform installers and machine manifest from this adjunct Release. The base Stable Release and Latest are unchanged.'
           else
             release_name="One Person Lab Windows Preview ${VERSION}"
@@ -634,6 +731,7 @@ jobs:
             exit "$release_lookup_status"
           fi
           if [ "$release_lookup_status" = 1 ]; then
+            if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then verify_exact_base_release; fi
             printf 'draft_release_creation\n' > optional-publication-evidence/failure-stage.txt
             jq -n \
               --arg tag "$tag" --arg target "$APP_REF" --arg name "$release_name" \
@@ -704,6 +802,7 @@ jobs:
               remote_count="$(jq --arg name "$asset_name" '[.assets[] | select(.name == $name)] | length' "$release_json")"
               test "$remote_count" -le 1
               if [ "$remote_count" = 0 ]; then
+                if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then verify_exact_base_release; fi
                 printf 'draft_asset_upload\n' > optional-publication-evidence/failure-stage.txt
                 attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
                 printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
@@ -736,6 +835,7 @@ jobs:
                       and .size == $asset.size_bytes))
               ' "$release_json" >/dev/null
             printf 'immutable_release_publication\n' > optional-publication-evidence/failure-stage.txt
+            if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then verify_exact_base_release; fi
             jq -n '{draft:false,make_latest:"false"}' > release-publish.json
             attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
             printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
@@ -778,6 +878,7 @@ jobs:
           jq -n \
             --arg operation_id "$operation_id" --arg mode "$PUBLICATION_MODE" \
             --arg source_run_id "$SOURCE_RUN_ID" --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" \
+            --arg authority_kind "$SOURCE_AUTHORITY_KIND" --arg authority_digest "$source_authority_digest" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
             --arg base_tag "$base_tag" --arg tag "$tag" --arg release_url "$release_url" \
             --arg download_base "$download_base" --arg manifest_name "$manifest_name" \
@@ -794,7 +895,12 @@ jobs:
                 status:"passed",
                 operation_id:$operation_id,
                 mode:$mode,
-                source:{run_id:$source_run_id,bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)},
+                source:{
+                  run_id:$source_run_id,
+                  authority_kind:$authority_kind,
+                  authority_digest:$authority_digest,
+                  bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)
+                },
                 release_identity:{display_version:$display_version,updater_version:$updater_version},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
                 publication_control:{

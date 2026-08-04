@@ -1,0 +1,283 @@
+name: OPL Stable Existing-Base Optional Adjunct
+run-name: >-
+  OPL Stable optional_existing_base operation:${{ inputs.operation_id }} authority:${{ inputs.authority_id }} run:${{ github.run_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation_id:
+        description: Deterministic existing-base optional operation identity
+        required: true
+        type: string
+      authority_id:
+        description: Single-use existing-base optional authority identity
+        required: true
+        type: string
+      authority_digest:
+        description: Exact SHA-256 digest of the canonical authority JSON
+        required: true
+        type: string
+      authority_carrier:
+        description: Pure unpadded base64url canonical authority JSON carrier
+        required: true
+        type: string
+      source_qualification_run_id:
+        description: Exact successful Source Preflight run frozen by the authority
+        required: true
+        type: string
+      confirmation:
+        description: Confirm one optional-only publication against the existing v26.8.4 base
+        required: true
+        type: choice
+        options:
+          - publish_existing_v26_8_4_linux_windows_adjunct_v1
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: opl-stable-optional-existing-base-${{ inputs.operation_id }}
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      source_run_id: ${{ steps.bind.outputs.source_run_id }}
+      source_authority_digest: ${{ steps.bind.outputs.source_authority_digest }}
+      app_ref: ${{ steps.bind.outputs.app_ref }}
+      shell_ref: ${{ steps.bind.outputs.shell_ref }}
+      framework_ref: ${{ steps.bind.outputs.framework_ref }}
+      version: ${{ steps.bind.outputs.version }}
+      updater_version: ${{ steps.bind.outputs.updater_version }}
+      platforms: ${{ steps.bind.outputs.platforms }}
+      base_release_id: ${{ steps.bind.outputs.base_release_id }}
+      base_release_tag: ${{ steps.bind.outputs.base_release_tag }}
+      base_release_target_commitish: ${{ steps.bind.outputs.base_release_target_commitish }}
+      base_release_updated_at: ${{ steps.bind.outputs.base_release_updated_at }}
+      base_asset_inventory_digest: ${{ steps.bind.outputs.base_asset_inventory_digest }}
+    steps:
+      - name: Checkout exact protected optional control
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+
+      - name: Decode and verify pure existing-base optional authority carrier
+        id: authority
+        env:
+          AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+          AUTHORITY_ID: ${{ inputs.authority_id }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_ACTOR" = "$GITHUB_REPOSITORY_OWNER"
+          test "$CONFIRMATION" = publish_existing_v26_8_4_linux_windows_adjunct_v1
+          [[ "$OPERATION_ID" =~ ^stable-optional-[0-9a-f]{32}$ ]]
+          [[ "$AUTHORITY_ID" =~ ^authority-[A-Za-z0-9._:-]{8,119}$ ]]
+          [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$AUTHORITY_CARRIER" =~ ^[A-Za-z0-9_-]+$ ]]
+          [[ "$SOURCE_QUALIFICATION_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+
+          node --experimental-strip-types --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {
+            decodeStableOptionalExistingBaseCarrier,
+            validateStableOptionalExistingBaseExecutorBinding,
+          } from './scripts/stable-optional-existing-base-control.ts';
+
+          const authority = decodeStableOptionalExistingBaseCarrier({
+            carrier: process.env.AUTHORITY_CARRIER,
+            authorityDigest: process.env.AUTHORITY_DIGEST,
+            authorityId: process.env.AUTHORITY_ID,
+          });
+          validateStableOptionalExistingBaseExecutorBinding({
+            authority,
+            appRoot: '.',
+            expectedActor: process.env.GITHUB_ACTOR,
+            expectedExecutorSha: process.env.GITHUB_SHA,
+          });
+          if (authority.operation_id !== process.env.OPERATION_ID) throw new Error('Optional authority operation_id does not match dispatch input.');
+          if (authority.source_qualification.run_id !== process.env.SOURCE_QUALIFICATION_RUN_ID) throw new Error('Optional authority source qualification run does not match dispatch input.');
+          const now = Date.now();
+          if (now < Date.parse(authority.issued_at) || now >= Date.parse(authority.expires_at)) throw new Error('Optional authority is not currently valid.');
+          fs.writeFileSync('optional-authority.json', `${JSON.stringify(authority, null, 2)}\n`);
+          NODE
+
+      - name: Prove one server-side consumer and exact Source Preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          AUTHORITY_ID: ${{ inputs.authority_id }}
+          SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_title="OPL Stable optional_existing_base operation:${OPERATION_ID} authority:${AUTHORITY_ID} run:${GITHUB_RUN_ID}"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > current-run.json
+          jq -e --arg run "$GITHUB_RUN_ID" --arg title "$expected_title" --arg head "$GITHUB_SHA" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable-optional-existing-base.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .head_sha == $head
+            and .display_title == $title
+            and .run_attempt == 1
+          ' current-run.json >/dev/null
+          gh api -X GET \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable-optional-existing-base.yml/runs" \
+            -f event=workflow_dispatch -f branch=main -f per_page=100 -f page=1 > optional-runs.json
+          jq -e --arg run "$GITHUB_RUN_ID" --arg op "$OPERATION_ID" --arg authority "$AUTHORITY_ID" '
+            [.workflow_runs[]? | select(.display_title | startswith("OPL Stable optional_existing_base operation:" + $op + " authority:" + $authority + " run:"))] as $matches
+            | ($matches | length) == 1
+            and (($matches[0].id | tostring) == $run)
+            and $matches[0].run_attempt == 1
+          ' optional-runs.json >/dev/null
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_QUALIFICATION_RUN_ID" > source-run.json
+          jq -e --arg run "$SOURCE_QUALIFICATION_RUN_ID" --arg head "$(jq -er .source_qualification.app_sha optional-authority.json)" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-source-qualification.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .head_sha == $head
+            and .run_attempt == 1
+            and .status == "completed"
+            and .conclusion == "success"
+          ' source-run.json >/dev/null
+
+      - name: Download exact Source Preflight receipt
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-source-qualification-${{ inputs.source_qualification_run_id }}
+          run-id: ${{ inputs.source_qualification_run_id }}
+          github-token: ${{ github.token }}
+          path: source-qualification
+
+      - name: Bind qualification, existing base, Latest, and empty adjunct namespace
+        id: bind
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_QUALIFICATION_RUN_ID: ${{ inputs.source_qualification_run_id }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipts=()
+          while IFS= read -r file; do receipts+=("$file"); done < <(find source-qualification -type f -name source-qualification-receipt.json -print)
+          test "${#receipts[@]}" = 1
+          receipt="${receipts[0]}"
+          receipt_digest="$(jq -er .receipt_digest "$receipt")"
+          node --experimental-strip-types scripts/validate-source-qualification-receipt.ts \
+            --receipt "$receipt" --expected-digest "$receipt_digest" \
+            --expected-run-id "$SOURCE_QUALIFICATION_RUN_ID" \
+            --expected-head-sha "$(jq -er .source_qualification.app_sha optional-authority.json)"
+          jq -e --slurpfile receipt "$receipt" '
+            .source_qualification.run_id == ($receipt[0].execution.run_id | tostring)
+            and .source_qualification.receipt_digest == $receipt[0].receipt_digest
+            and .source_qualification.app_sha == $receipt[0].cohort.app.sha
+            and .source_qualification.app_tree == $receipt[0].cohort.app.tree
+            and .source_qualification.shell_sha == $receipt[0].cohort.shell.sha
+            and .source_qualification.shell_tree == $receipt[0].cohort.shell.tree
+            and .source_qualification.framework_sha == $receipt[0].cohort.framework.sha
+            and .source_qualification.framework_tree == $receipt[0].cohort.framework.tree
+            and .platforms == ["linux-x64", "windows-x64"]
+            and .mutation_scope == {standard_release:false,full_release:false,base_release:false,latest:false,adjunct_release:true}
+          ' optional-authority.json >/dev/null
+
+          base_tag="$(jq -er .base_release.tag optional-authority.json)"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > base-release.json
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > latest-release.json
+          asset_inventory_digest="sha256:$(jq -Sc '[.assets[] | {name,digest,size}] | sort_by(.name)' base-release.json | shasum -a 256 | awk '{print $1}')"
+          jq -e --arg digest "$asset_inventory_digest" --slurpfile base base-release.json --slurpfile latest latest-release.json '
+            .base_release.release_id == $base[0].id
+            and .base_release.tag == $base[0].tag_name
+            and .base_release.target_commitish == $base[0].target_commitish
+            and .base_release.updated_at == $base[0].updated_at
+            and .base_release.mutable == ($base[0].immutable == false)
+            and .base_release.latest_tag == $latest[0].tag_name
+            and .base_release.asset_inventory_digest == $digest
+            and $base[0].draft == false
+            and $base[0].prerelease == false
+            and $base[0].immutable == false
+            and $latest[0].tag_name == "v26.8.4"
+          ' optional-authority.json >/dev/null
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > releases.json
+          jq -e '[.[]?[]? | select(.tag_name | startswith("v26.8.4-optional-"))] | length == 0' releases.json >/dev/null
+
+          {
+            echo "source_run_id=$SOURCE_QUALIFICATION_RUN_ID"
+            echo "source_authority_digest=$AUTHORITY_DIGEST"
+            echo "app_ref=$(jq -er .source_qualification.app_sha optional-authority.json)"
+            echo "shell_ref=$(jq -er .source_qualification.shell_sha optional-authority.json)"
+            echo "framework_ref=$(jq -er .source_qualification.framework_sha optional-authority.json)"
+            echo "version=$(jq -er .base_release.version optional-authority.json)"
+            echo 'updater_version=26.8.490'
+            echo "platforms=$(jq -cer .platforms optional-authority.json)"
+            echo "base_release_id=$(jq -er .base_release.release_id optional-authority.json)"
+            echo "base_release_tag=$base_tag"
+            echo "base_release_target_commitish=$(jq -er .base_release.target_commitish optional-authority.json)"
+            echo "base_release_updated_at=$(jq -er .base_release.updated_at optional-authority.json)"
+            echo "base_asset_inventory_digest=$asset_inventory_digest"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload typed optional admission
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-stable-optional-existing-base-admission-${{ github.run_id }}
+          path: |
+            optional-authority.json
+            source-qualification/source-qualification-receipt.json
+            base-release.json
+            latest-release.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-optional-platforms:
+    needs: [admit]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/build-manual.yml
+    with:
+      invocation_mode: stable_optional_follower
+      platform_policy: stable_optional
+      platform_ids: ${{ needs.admit.outputs.platforms }}
+      app_ref: ${{ needs.admit.outputs.app_ref }}
+      shell_ref: ${{ needs.admit.outputs.shell_ref }}
+      framework_ref: ${{ needs.admit.outputs.framework_ref }}
+      opl_release_version: ${{ needs.admit.outputs.version }}
+      opl_updater_version: ${{ needs.admit.outputs.updater_version }}
+      source_run_id: ${{ needs.admit.outputs.source_run_id }}
+      source_bundle_digest: ''
+      source_authority_kind: existing_base_source_qualification
+      source_authority_digest: ${{ needs.admit.outputs.source_authority_digest }}
+      base_release_id: ${{ needs.admit.outputs.base_release_id }}
+      base_release_tag: ${{ needs.admit.outputs.base_release_tag }}
+      base_release_target_commitish: ${{ needs.admit.outputs.base_release_target_commitish }}
+      base_release_updated_at: ${{ needs.admit.outputs.base_release_updated_at }}
+      base_asset_inventory_digest: ${{ needs.admit.outputs.base_asset_inventory_digest }}
+    secrets: inherit

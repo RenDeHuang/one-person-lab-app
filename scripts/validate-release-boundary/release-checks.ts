@@ -56,6 +56,7 @@ export const releaseWorkflowPaths = [
   ".github/workflows/release-nightly-homebrew-follower.yml",
   ".github/workflows/release-nightly-sampled-vm.yml",
   ".github/workflows/release-stable.yml",
+  ".github/workflows/release-stable-optional-existing-base.yml",
   ".github/workflows/release-verify-remote.yml",
 ];
 
@@ -1844,6 +1845,34 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     ],
     forbidden: [
       "continue-on-error:",
+    ],
+  },
+  {
+    id: "existing_base_optional_platform_follower",
+    file: ".github/workflows/release-stable-optional-existing-base.yml",
+    required: [
+      "workflow_dispatch:",
+      "optional_existing_base",
+      "decodeStableOptionalExistingBaseCarrier",
+      "publish-optional-platforms:",
+      "invocation_mode: stable_optional_follower",
+      "source_authority_kind: existing_base_source_qualification",
+      "source_qualification_run_id",
+      "base_release_target_commitish:",
+      "publish_existing_v26_8_4_linux_windows_adjunct_v1",
+      "v26.8.4",
+      "linux-x64",
+      "windows-x64",
+      "standard_release:false",
+      "base_release:false",
+      "latest:false",
+    ],
+    forbidden: [
+      "release-stable.yml/dispatches",
+      "operation: standard",
+      "operation: resume_standard",
+      "operation: append_full",
+      "make_latest:true",
     ],
   },
   {

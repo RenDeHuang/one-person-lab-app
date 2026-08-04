@@ -24,6 +24,8 @@ const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml'
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
 const manualBuildWorkflowPath = '.github/workflows/build-manual.yml';
+const stableOptionalExistingBaseWorkflowPath =
+  '.github/workflows/release-stable-optional-existing-base.yml';
 const stableOptionalFollowupWorkflowPath =
   '.github/workflows/release-stable-post-success-followups.yml';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
@@ -196,6 +198,44 @@ function isAuthorizedSelectedPlatformPublishJob(
       "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}"
     && exactObject(job.permissions, exactStableEntryPermissions)
     && Array.isArray(job.steps);
+}
+
+function isAuthorizedExistingBaseOptionalPublishJob(
+  workflowPath: string,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  if (
+    workflowPath !== stableOptionalExistingBaseWorkflowPath
+    || jobId !== 'publish-optional-platforms'
+    || !needsExactly(job, ['admit'])
+    || job.uses !== './.github/workflows/build-manual.yml'
+    || !exactObject(job.permissions, exactStableEntryPermissions)
+    || job.secrets !== 'inherit'
+    || Object.prototype.hasOwnProperty.call(job, 'steps')
+  ) {
+    return false;
+  }
+  const expectedWith: Record<string, unknown> = {
+    invocation_mode: 'stable_optional_follower',
+    platform_policy: 'stable_optional',
+    platform_ids: '${{ needs.admit.outputs.platforms }}',
+    app_ref: '${{ needs.admit.outputs.app_ref }}',
+    shell_ref: '${{ needs.admit.outputs.shell_ref }}',
+    framework_ref: '${{ needs.admit.outputs.framework_ref }}',
+    opl_release_version: '${{ needs.admit.outputs.version }}',
+    opl_updater_version: '${{ needs.admit.outputs.updater_version }}',
+    source_run_id: '${{ needs.admit.outputs.source_run_id }}',
+    source_bundle_digest: '',
+    source_authority_kind: 'existing_base_source_qualification',
+    source_authority_digest: '${{ needs.admit.outputs.source_authority_digest }}',
+    base_release_id: '${{ needs.admit.outputs.base_release_id }}',
+    base_release_tag: '${{ needs.admit.outputs.base_release_tag }}',
+    base_release_target_commitish: '${{ needs.admit.outputs.base_release_target_commitish }}',
+    base_release_updated_at: '${{ needs.admit.outputs.base_release_updated_at }}',
+    base_asset_inventory_digest: '${{ needs.admit.outputs.base_asset_inventory_digest }}',
+  };
+  return exactObject(job.with, expectedWith);
 }
 
 function hasExactStableOptionalRecoveryIngress(workflow: Record<string, any>): boolean {
@@ -1078,7 +1118,11 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
-      JSON.stringify(['OPL Stable Release Bundle', 'OPL Stable Post-Success Full Follow-up'])
+      JSON.stringify([
+        'OPL Stable Release Bundle',
+        'OPL Stable Post-Success Full Follow-up',
+        'OPL Stable Existing-Base Optional Adjunct',
+      ])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
     || JSON.stringify(Object.keys(certificationRecoveryInputs)) !== JSON.stringify([
       'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'recovery_confirmation',
@@ -2385,6 +2429,10 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         continue;
       }
       if (isAuthorizedSelectedPlatformPublishJob(workflowPath, jobId, job)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (isAuthorizedExistingBaseOptionalPublishJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }

@@ -657,6 +657,30 @@
       "base_release_mutation_allowed": false,
       "blocks_stable_base_terminal": false,
       "blocks_latest_activation": false,
+      "existing_base_optional_operation": {
+        "workflow": ".github/workflows/release-stable-optional-existing-base.yml",
+        "operation": "stable_optional_follower_existing_base",
+        "authority_schema": "opl_app_stable_optional_existing_base_authority.v1",
+        "source_qualification_schema": "opl_app_source_qualification_receipt.v1",
+        "source_and_base_identity_are_distinct": true,
+        "fixed_base_version": "26.8.4",
+        "fixed_base_tag": "v26.8.4",
+        "platforms": [
+          "linux-x64",
+          "windows-x64"
+        ],
+        "standard_or_full_workflow_dispatch_allowed": false,
+        "base_release_or_latest_mutation_allowed": false,
+        "single_use_authority_carrier": "pure_unpadded_base64url_canonical_json",
+        "base_release_cas_fields": [
+          "release_id",
+          "tag",
+          "target_commitish",
+          "updated_at",
+          "asset_inventory_digest",
+          "latest_tag"
+        ]
+      },
       "windows_x64_updater_assets": {
         "enabled_only_when_selected": true,
         "display_version_source": "exact_standard_release_version",
@@ -745,7 +769,7 @@
         "adjunct_tag",
         "release_url",
         "download_base_url",
-        "bundle_digest",
+        "source_authority_digest",
         "cohort",
         "updater_version",
         "platforms",
