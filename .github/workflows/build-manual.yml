@@ -101,6 +101,11 @@ on:
         required: false
         type: string
         default: ''
+      macos_x64_signed_development_validation:
+        description: 'Development validation only: sign/notarize one macOS x64 build from the exact triggering App SHA; never publishes.'
+        required: false
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -119,6 +124,7 @@ jobs:
       app_ref: ${{ steps.set-matrix.outputs.app_ref }}
       validation_profile: ${{ steps.set-matrix.outputs.validation_profile }}
       publication_mode: ${{ steps.set-matrix.outputs.publication_mode }}
+      macos_x64_signed_development_validation: ${{ steps.set-matrix.outputs.macos_x64_signed_development_validation }}
 
     steps:
       - name: Checkout requested App source
@@ -136,6 +142,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          macos_x64_signed_development_validation=false
           if [ "$GITHUB_EVENT_NAME" = workflow_call ]; then
             test '${{ inputs.invocation_mode }}' = stable_optional_follower
             test '${{ inputs.platform_policy }}' = stable_optional
@@ -157,6 +164,37 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             test '${{ inputs.invocation_mode }}' = ''
+            case '${{ inputs.macos_x64_signed_development_validation }}' in
+              true)
+                test '${{ inputs.publication_mode }}' = build_only || {
+                  echo '::error::macos_x64_signed_development_validation is build_only-only.'
+                  exit 1
+                }
+                test '${{ inputs.platform }}' = macos-x64 || {
+                  echo '::error::macos_x64_signed_development_validation accepts only macos-x64.'
+                  exit 1
+                }
+                test '${{ inputs.branch }}' = "$GITHUB_SHA" || {
+                  echo '::error::Signed macOS x64 development validation requires branch to equal the triggering github.sha.'
+                  exit 1
+                }
+                [[ '${{ inputs.branch }}' =~ ^[0-9a-f]{40}$ ]]
+                [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+                  echo '::error::Signed macOS x64 development validation requires a 40-character Shell SHA.'
+                  exit 1
+                }
+                [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+                  echo '::error::Signed macOS x64 development validation requires a 40-character Framework SHA.'
+                  exit 1
+                }
+                macos_x64_signed_development_validation=true
+                ;;
+              false|'') ;;
+              *)
+                echo '::error::macos_x64_signed_development_validation must be a boolean.'
+                exit 1
+                ;;
+            esac
             case '${{ inputs.publication_mode }}' in
               build_only)
                 policy=manual_all
@@ -193,7 +231,14 @@ jobs:
           fi
           app_ref="$(git rev-parse HEAD)"
           [[ "$app_ref" =~ ^[0-9a-f]{40}$ ]]
+          if [ "$macos_x64_signed_development_validation" = true ]; then
+            test "$app_ref" = "$GITHUB_SHA" || {
+              echo '::error::Signed macOS x64 development validation checkout is not the triggering github.sha.'
+              exit 1
+            }
+          fi
           echo "app_ref=$app_ref" >> "$GITHUB_OUTPUT"
+          echo "macos_x64_signed_development_validation=$macos_x64_signed_development_validation" >> "$GITHUB_OUTPUT"
 
   build-pipeline:
     if: ${{ needs.prepare-matrix.outputs.platform_count != '0' }}
@@ -210,6 +255,7 @@ jobs:
       opl_updater_version: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
       require_windows_updater_assets: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
       require_windows_authenticode: false
+      require_macos_gatekeeper: ${{ needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
     secrets: inherit

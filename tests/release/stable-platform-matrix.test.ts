@@ -214,6 +214,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
   assert.equal(reusable.on.workflow_call.inputs.release_validation_profile.default, 'aggregate');
   assert.equal(reusable.on.workflow_call.inputs.require_windows_updater_assets.default, false);
   assert.equal(reusable.on.workflow_call.inputs.require_windows_authenticode.default, false);
+  assert.equal(reusable.on.workflow_call.inputs.require_macos_gatekeeper.default, false);
   const windowsBuild = reusable.jobs.build.steps.find(
     (step: any) => step.name === 'Build with electron-builder (Windows)',
   );
@@ -246,6 +247,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
   );
   assert.match(String(artifactUpload?.with?.path), /opl-windows-updater-assets\.json/);
   assert.match(String(artifactUpload?.with?.path), /opl-windows-authenticode-receipt\.json/);
+  assert.doesNotMatch(String(artifactUpload?.with?.path), /latest-(?:x64-)?mac\.yml/);
   assert.deepEqual(packageValidation.permissions, { contents: 'read' });
   assert.equal(packageValidation.jobs['build-windows-updater-package']['runs-on'], 'windows-2022');
   const validationBuild = packageValidation.jobs['build-windows-updater-package'].steps.find(
@@ -442,6 +444,10 @@ test('optional platform publication is an independent protected post-success ope
     manual.jobs['build-pipeline'].with.require_windows_authenticode,
     false,
   );
+  assert.equal(
+    manual.jobs['build-pipeline'].with.require_macos_gatekeeper,
+    "${{ needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}",
+  );
   const publish = manual.jobs['publish-selected-platforms'];
   assert.equal(
     publish.environment,
@@ -462,6 +468,8 @@ test('optional platform publication is an independent protected post-success ope
   assert.match(publishRun, /jq -S -n/);
   assert.match(publishRun, /validate-windows-updater-assets\.ts/);
   assert.match(publishRun, /opl-windows-updater-assets\.json/);
+  assert.doesNotMatch(publishRun, /macos_x64_updater_selected|latest-(?:x64-)?mac\.yml/);
+  assert.doesNotMatch(publishRun, /standard-(?:apple-notarization|gatekeeper-launch-policy)/);
   assert.match(publishRun, /if \[ -f selected-platform-assets\/opl-windows-authenticode-receipt\.json \]/);
   assert.match(publishRun, /\.exe\.blockmap/);
   assert.match(publishRun, /release_identity:\{display_version:\$display_version,updater_version:\$updater_version\}/);

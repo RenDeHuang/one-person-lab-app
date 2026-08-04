@@ -367,8 +367,13 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.on.workflow_dispatch.inputs.shell_ref.type, 'string');
   assert.equal(manual.on.workflow_dispatch.inputs.framework_ref.type, 'string');
   assert.equal(manual.on.workflow_dispatch.inputs.immutable_release_capability_evidence.type, 'string');
+  assert.equal(manual.on.workflow_dispatch.inputs.macos_x64_signed_development_validation.type, 'boolean');
+  assert.equal(manual.on.workflow_dispatch.inputs.macos_x64_signed_development_validation.default, false);
+  assert.equal(manual.on.workflow_dispatch.inputs.publication_mode.default, 'build_only');
+  assert.equal(manual.on.workflow_call.inputs.macos_x64_signed_development_validation, undefined);
   assert.equal(manual.jobs['build-pipeline'].with.shell_ref, '${{ inputs.shell_ref }}');
   assert.equal(manual.jobs['build-pipeline'].with.framework_ref, '${{ inputs.framework_ref }}');
+  assert.equal(manual.jobs['build-pipeline'].with.upload_installers_only, true);
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_updater_assets,
     "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
@@ -376,6 +381,25 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_authenticode,
     false,
+  );
+  assert.equal(
+    manual.jobs['build-pipeline'].with.require_macos_gatekeeper,
+    "${{ needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}",
+  );
+  const macosX64Validation = String(
+    manual.jobs['prepare-matrix'].steps.find((step: { id?: string }) => step.id === 'set-matrix')?.run,
+  );
+  assert.match(macosX64Validation, /macos_x64_signed_development_validation/);
+  assert.match(macosX64Validation, /publication_mode.*build_only/);
+  assert.match(macosX64Validation, /platform.*macos-x64/);
+  assert.match(macosX64Validation, /branch.*GITHUB_SHA/);
+  assert.match(macosX64Validation, /shell_ref.*40/);
+  assert.match(macosX64Validation, /framework_ref.*40/);
+  assert.match(macosX64Validation, /app_ref.*GITHUB_SHA/);
+  assert.doesNotMatch(macosX64Validation, /require_macos_x64_updater_assets|latest-(?:x64-)?mac\.yml/);
+  assert.equal(
+    manual.jobs['publish-selected-platforms'].if,
+    "${{ needs.prepare-matrix.outputs.publication_mode != 'build_only' && needs.prepare-matrix.outputs.platform_count != '0' }}",
   );
   assert.match(manualText, /resolve-release-platform-matrix\.ts/);
   const windows = resolveReleasePlatformMatrix({
@@ -426,6 +450,8 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
     publishRun,
     /Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build/,
   );
+  assert.doesNotMatch(publishRun, /macos_x64_updater_selected|latest-(?:x64-)?mac\.yml/);
+  assert.doesNotMatch(publishRun, /standard-(?:apple-notarization|gatekeeper-launch-policy)/);
   assert.match(publishRun, /if \[ -f "\$authenticode_receipt" \]/);
   assert.match(publishRun, /updater_validation_args\+=\(--authenticode-receipt/);
   assert.equal(
