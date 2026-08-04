@@ -514,6 +514,14 @@ function parseCommon(argv: string[]) {
       'release-inspection': { type: 'string' },
       'expected-current-latest-tag': { type: 'string' },
       'run-attempt': { type: 'string' },
+      'allow-same-tag-full-assets': { type: 'string' },
+      'stable-framework-ref': { type: 'string' },
+      'webui-recovery-authority-digest': { type: 'string' },
+      'webui-recovery-stable-authority-run-id': { type: 'string' },
+      'webui-recovery-failed-follower-run-id': { type: 'string' },
+      'webui-recovery-failed-v1-run-id': { type: 'string' },
+      'webui-recovery-failed-v2-run-id': { type: 'string' },
+      'webui-recovery-executor-app-sha': { type: 'string' },
     },
     allowPositionals: true,
     strict: true,
@@ -811,12 +819,74 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
   const appRoot = path.resolve(requireOption(values, 'app-root'));
   const shellRoot = path.resolve(requireOption(values, 'shell-root'));
   const frameworkRoot = path.resolve(requireOption(values, 'framework-root'));
+  const recoveryKeys = [
+    'stable-framework-ref',
+    'webui-recovery-authority-digest',
+    'webui-recovery-stable-authority-run-id',
+    'webui-recovery-failed-follower-run-id',
+    'webui-recovery-failed-v1-run-id',
+    'webui-recovery-failed-v2-run-id',
+    'webui-recovery-executor-app-sha',
+  ] as const;
+  const presentRecoveryKeys = recoveryKeys.filter((key) => values[key] !== undefined);
+  if (presentRecoveryKeys.length !== 0 && presentRecoveryKeys.length !== recoveryKeys.length) {
+    throw new Error('WebUI production recovery authority requires every exact recovery binding.');
+  }
+  const recoveryFrameworkRef = gitSha(frameworkRoot);
+  let cohortRef = release.bundle_digest;
+  let admittedFrameworkRef = cohort.framework_sha;
+  if (presentRecoveryKeys.length === recoveryKeys.length) {
+    const stableFrameworkRef = requireOption(values, 'stable-framework-ref');
+    const executorAppSha = requireOption(values, 'webui-recovery-executor-app-sha');
+    const recoveryRunIds = {
+      stable_authority_run_id: requireOption(values, 'webui-recovery-stable-authority-run-id'),
+      failed_follower_run_id: requireOption(values, 'webui-recovery-failed-follower-run-id'),
+      failed_recovery_v1_run_id: requireOption(values, 'webui-recovery-failed-v1-run-id'),
+      failed_recovery_v2_run_id: requireOption(values, 'webui-recovery-failed-v2-run-id'),
+    };
+    if (
+      stableFrameworkRef !== cohort.framework_sha
+      || recoveryFrameworkRef === stableFrameworkRef
+      || !/^[0-9a-f]{40}$/.test(recoveryFrameworkRef)
+      || !/^[0-9a-f]{40}$/.test(executorAppSha)
+      || Object.values(recoveryRunIds).some((runId) => !/^[1-9][0-9]*$/.test(runId))
+    ) {
+      throw new Error('WebUI production recovery source identity is invalid or does not bind the Stable cohort.');
+    }
+    const recoveryAuthorityCore = {
+      schema: 'opl_app_webui_framework_recovery_authority.v1',
+      status: 'admitted',
+      stable_authority_run_id: recoveryRunIds.stable_authority_run_id,
+      failed_follower_run_id: recoveryRunIds.failed_follower_run_id,
+      failed_recovery_v1_run_id: recoveryRunIds.failed_recovery_v1_run_id,
+      failed_recovery_v2_run_id: recoveryRunIds.failed_recovery_v2_run_id,
+      release: {
+        version: release.version,
+        bundle_digest: release.bundle_digest,
+      },
+      stable_cohort: {
+        app_sha: cohort.app_sha,
+        shell_sha: cohort.shell_sha,
+        framework_sha: stableFrameworkRef,
+      },
+      recovery_source: {
+        executor_app_sha: executorAppSha,
+        framework_sha: recoveryFrameworkRef,
+      },
+    };
+    const expectedAuthorityDigest = digestRef(sha256Bytes(canonicalJson(recoveryAuthorityCore)));
+    if (requireOption(values, 'webui-recovery-authority-digest') !== expectedAuthorityDigest) {
+      throw new Error('WebUI production recovery authority digest does not bind the exact source transition.');
+    }
+    cohortRef = expectedAuthorityDigest;
+    admittedFrameworkRef = recoveryFrameworkRef;
+  }
   if (
     gitSha(appRoot) !== cohort.app_sha
     || gitSha(shellRoot) !== cohort.shell_sha
-    || gitSha(frameworkRoot) !== cohort.framework_sha
+    || recoveryFrameworkRef !== admittedFrameworkRef
   ) {
-    throw new Error('WebUI carrier source checkouts do not match the Standard release cohort.');
+    throw new Error('WebUI carrier source checkouts do not match the admitted Standard or recovery source authority.');
   }
   const observedAt = requireOption(values, 'source-cutoff-observed-at');
   if (
@@ -830,7 +900,7 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
     release: {
       version: release.version,
       bundle_digest: release.bundle_digest,
-      cohort_ref: release.bundle_digest,
+      cohort_ref: cohortRef,
     },
     source_cutoff: {
       observed_at: observedAt,
@@ -842,7 +912,7 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
     cohort: {
       app_sha: cohort.app_sha,
       shell_sha: cohort.shell_sha,
-      framework_sha: cohort.framework_sha,
+      framework_sha: admittedFrameworkRef,
     },
     platform: { os: 'linux', architecture: 'amd64' },
     inputs: frozenBuildInputs({
@@ -852,7 +922,7 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
       shellRoot,
       shellRef: cohort.shell_sha,
       frameworkRoot,
-      frameworkRef: cohort.framework_sha,
+      frameworkRef: admittedFrameworkRef,
     }),
   };
 }
@@ -1107,9 +1177,31 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       }
     } else if (inspection.release?.exists === true) {
       const inspectedAssets = Array.isArray(inspection.assets) ? inspection.assets : [];
+      const allowSameTagFullAssets = values['allow-same-tag-full-assets'];
+      if (allowSameTagFullAssets !== undefined && allowSameTagFullAssets !== 'true') {
+        throw new Error('--allow-same-tag-full-assets only accepts true when explicitly admitted.');
+      }
+      if (
+        allowSameTagFullAssets === 'true'
+        && (
+          track !== 'standard'
+          || releaseOperation !== 'resume_standard'
+          || bundle.release?.channel !== 'stable'
+          || bundle.release?.tag !== `v${bundle.release?.version}`
+          || !Array.isArray(bundle.tracks?.full?.required_asset_names)
+          || bundle.tracks.full.required_asset_names.length !== 2
+          || bundle.tracks.full.required_asset_names.some((name: unknown) => typeof name !== 'string')
+        )
+      ) {
+        throw new Error(
+          'Same-tag Full asset admission requires one Stable resume_standard inspection with a closed Full asset set.',
+        );
+      }
       const permittedCarrierNames = track === 'full'
         ? (bundle.tracks?.standard?.required_asset_names ?? [])
-        : [];
+        : allowSameTagFullAssets === 'true'
+          ? bundle.tracks.full.required_asset_names
+          : [];
       // The attestation seals the payload set, so it is generated after the Bundle
       // and cannot recursively appear in required_asset_names.
       const permittedEvidenceNames = bundle.release?.channel === 'stable'

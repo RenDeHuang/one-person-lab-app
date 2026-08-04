@@ -1,6 +1,9 @@
 name: OPL Native WebUI Stable Follower
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v3'
+    && format('Native WebUI follower recovery v3 for Stable run {0} failed follower {1} failed recovery v1 {2} failed recovery v2 {3} Full authority {4}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id, inputs.failed_recovery_v2_run_id, inputs.full_authority_run_id)
+    || github.event_name == 'workflow_dispatch'
     && inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v2'
     && format('Native WebUI follower recovery v2 for Stable run {0} failed follower {1} failed recovery v1 {2}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id)
     || github.event_name == 'workflow_dispatch'
@@ -27,6 +30,14 @@ on:
         description: Exact failed Native WebUI follower recovery v1 run; empty for recovery v1
         required: false
         type: string
+      failed_recovery_v2_run_id:
+        description: Exact failed Native WebUI follower recovery v2 run; required only for recovery v3
+        required: false
+        type: string
+      full_authority_run_id:
+        description: Exact successful append_full authority whose checkpoint seals the same-tag Standard and Full asset union
+        required: false
+        type: string
       recovery_confirmation:
         description: Confirm the exact bounded Native WebUI follower recovery generation
         required: true
@@ -34,6 +45,7 @@ on:
         options:
           - recover_exact_failed_native_webui_follower_v1
           - recover_exact_failed_native_webui_follower_v2
+          - recover_exact_failed_native_webui_follower_v3
 
 permissions:
   contents: read
@@ -52,7 +64,8 @@ jobs:
       ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
         || (github.event_name == 'workflow_dispatch'
         && (inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v1'
-        || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v2')) }}
+        || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v2'
+        || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v3')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -69,6 +82,7 @@ jobs:
       source_run_id: ${{ steps.handoff.outputs.source_run_id }}
       source_artifact: ${{ steps.handoff.outputs.source_artifact }}
       standard_identity_sha256: ${{ steps.handoff.outputs.standard_identity_sha256 }}
+      allow_same_tag_full_assets: ${{ steps.handoff.outputs.allow_same_tag_full_assets }}
     steps:
       - name: Admit one successful canonical Stable authority run
         id: authority
@@ -77,6 +91,8 @@ jobs:
           STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
           FAILED_RECOVERY_RUN_ID: ${{ inputs.failed_recovery_run_id || '' }}
+          FAILED_RECOVERY_V2_RUN_ID: ${{ inputs.failed_recovery_v2_run_id || '' }}
+          FULL_AUTHORITY_RUN_ID: ${{ inputs.full_authority_run_id || '' }}
           RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
           TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
@@ -89,12 +105,19 @@ jobs:
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             case "$RECOVERY_CONFIRMATION" in
               recover_exact_failed_native_webui_follower_v1)
-                test -z "$FAILED_RECOVERY_RUN_ID"
+                test -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$FULL_AUTHORITY_RUN_ID"
                 recovery_title="Native WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
                 ;;
               recover_exact_failed_native_webui_follower_v2)
                 [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                test -z "$FAILED_RECOVERY_V2_RUN_ID$FULL_AUTHORITY_RUN_ID"
                 recovery_title="Native WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
+                ;;
+              recover_exact_failed_native_webui_follower_v3)
+                [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                [[ "$FAILED_RECOVERY_V2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                [[ "$FULL_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                recovery_title="Native WebUI follower recovery v3 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID} Full authority ${FULL_AUTHORITY_RUN_ID}"
                 ;;
               *)
                 echo "::error::Unknown Native WebUI follower recovery confirmation."
@@ -156,7 +179,8 @@ jobs:
               and ([ $artifacts[] | select(.name | test("^native-webui-publication-[0-9]+\\.[0-9]+\\.[0-9]+-linux-x86_64-" + $run + "-1$")) ] | length) == 1
               and ([ $artifacts[] | select(.name | test("^native-webui-qualified-[0-9]+\\.[0-9]+\\.[0-9]+-linux-x86_64-" + $run + "-1$")) ] | length) == 1
             ' failed-follower-artifacts.json >/dev/null
-            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v2 ]; then
+            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v2 ] \
+              || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ]; then
               failed_recovery_title="Native WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
               jq -e \
@@ -207,6 +231,99 @@ jobs:
                 ))
               ' failed-recovery-artifacts.json >/dev/null
             fi
+            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ]; then
+              failed_recovery_v2_title="Native WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID" \
+                > failed-recovery-v2-run.json
+              jq -e \
+                --arg run "$FAILED_RECOVERY_V2_RUN_ID" \
+                --arg title "$failed_recovery_v2_title" '
+                  (.id | tostring) == $run
+                  and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                  and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                  and .path == ".github/workflows/release-native-webui-follower.yml"
+                  and .event == "workflow_dispatch"
+                  and .head_branch == "main"
+                  and (.head_sha | test("^[0-9a-f]{40}$"))
+                  and .display_title == $title
+                  and .run_attempt == 1
+                  and .status == "completed"
+                  and .conclusion == "failure"
+                ' failed-recovery-v2-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID/jobs?per_page=100" \
+                > failed-recovery-v2-jobs.json
+              jq -e '
+                .total_count == 7
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "native-webui-linux / build-and-qualify" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "native-webui-linux / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "native-webui-linux / publish-native-assets" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "native-webui-macos / build-and-qualify" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "native-webui-macos / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "native-webui-macos / publish-native-assets" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Append one exact Native asset set through the Framework ledger" and .conclusion == "failure")] | length == 2)
+                and ([.jobs[].steps[]? | select(.name == "Reconcile one uncertain Native mutation by exact readback only" and .conclusion == "skipped")] | length == 2)
+                and ([.jobs[].steps[]? | select(.name == "Persist typed Native publication failure" and .conclusion == "success")] | length == 2)
+              ' failed-recovery-v2-jobs.json >/dev/null
+              for target in linux macos; do
+                failed_publish_job_id="$(jq -er --arg name "native-webui-${target} / publish-native-assets" \
+                  '[.jobs[] | select(.name == $name)] | select(length == 1) | .[0].id' failed-recovery-v2-jobs.json)"
+                gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$failed_publish_job_id/logs" \
+                  > "failed-recovery-v2-${target}-publish.log"
+                grep -F 'Remote standard inspection contains unknown asset One-Person-Lab-Full-26.8.4-mac-arm64.dmg.' \
+                  "failed-recovery-v2-${target}-publish.log" >/dev/null
+              done
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID/artifacts?per_page=100" \
+                > failed-recovery-v2-artifacts.json
+              jq -e --arg run "$FAILED_RECOVERY_V2_RUN_ID" '
+                [.[]?.artifacts[]? | select(.expired == false)] as $artifacts
+                | ($artifacts | length) == 4
+                and (["linux-x86_64", "darwin-arm64"] | all(. as $target |
+                  ([ $artifacts[] | select(.name | test("^native-webui-publication-[0-9]+\\.[0-9]+\\.[0-9]+-" + $target + "-" + $run + "-1$")) ] | length) == 1
+                  and ([ $artifacts[] | select(.name | test("^native-webui-qualified-[0-9]+\\.[0-9]+\\.[0-9]+-" + $target + "-" + $run + "-1$")) ] | length) == 1
+                ))
+              ' failed-recovery-v2-artifacts.json >/dev/null
+
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FULL_AUTHORITY_RUN_ID" \
+                > full-authority-run.json
+              jq -e --arg run "$FULL_AUTHORITY_RUN_ID" '
+                (.id | tostring) == $run
+                and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                and .path == ".github/workflows/release-stable.yml"
+                and .event == "workflow_dispatch"
+                and .head_branch == "main"
+                and (.head_sha | test("^[0-9a-f]{40}$"))
+                and .display_title == ("OPL Stable append_full source:30880171420 run:" + $run)
+                and .run_attempt == 1
+                and .status == "completed"
+                and .conclusion == "success"
+              ' full-authority-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FULL_AUTHORITY_RUN_ID/jobs?per_page=100" \
+                > full-authority-jobs.json
+              jq -e '
+                .total_count == 14
+                and ([.jobs[] | select(.name == "append-full / admission" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "append-full / restore-standard" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "append-full / publish-full" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Append exact Full bytes to the mutable Standard Release" and .conclusion == "success")] | length == 1)
+              ' full-authority-jobs.json >/dev/null
+              full_checkpoint_artifact="opl-release-append-full-operation-checkpoint-${FULL_AUTHORITY_RUN_ID}"
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$FULL_AUTHORITY_RUN_ID/artifacts?per_page=100" \
+                > full-authority-artifacts.json
+              jq -e --arg checkpoint "$full_checkpoint_artifact" --arg run "$FULL_AUTHORITY_RUN_ID" '
+                [.[]?.artifacts[]? | select(.expired == false)] as $artifacts
+                | ($artifacts | length) == 5
+                and ([ $artifacts[] | select(.name == $checkpoint) ] | length) == 1
+                and ([ $artifacts[] | select(.name == ("opl-release-full-published-" + $run)) ] | length) == 1
+              ' full-authority-artifacts.json >/dev/null
+              {
+                echo "full_authority_run_id=$FULL_AUTHORITY_RUN_ID"
+                echo "full_checkpoint_artifact=$full_checkpoint_artifact"
+              } >> "$GITHUB_OUTPUT"
+            fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-native-webui-follower.yml/runs?event=workflow_dispatch&per_page=100" \
               > recovery-runs.json
@@ -214,9 +331,12 @@ jobs:
               --arg run "$GITHUB_RUN_ID" \
               --arg title "$recovery_title" \
               --arg failed_recovery_run "$FAILED_RECOVERY_RUN_ID" \
-              --arg failed_recovery_title "${failed_recovery_title:-}" '
+              --arg failed_recovery_title "${failed_recovery_title:-}" \
+              --arg failed_recovery_v2_run "$FAILED_RECOVERY_V2_RUN_ID" \
+              --arg failed_recovery_v2_title "${failed_recovery_v2_title:-}" '
               [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
               | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_title)] as $failed_recovery_matches
+              | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_v2_title)] as $failed_recovery_v2_matches
               | ($matches | length) == 1
               and (($matches[0].id | tostring) == $run)
               and $matches[0].run_attempt == 1
@@ -229,10 +349,19 @@ jobs:
                   and $failed_recovery_matches[0].run_attempt == 1
                 )
               )
+              and (
+                ($failed_recovery_v2_run == "" and ($failed_recovery_v2_matches | length) == 0)
+                or (
+                  $failed_recovery_v2_run != ""
+                  and ($failed_recovery_v2_matches | length) == 1
+                  and (($failed_recovery_v2_matches[0].id | tostring) == $failed_recovery_v2_run)
+                  and $failed_recovery_v2_matches[0].run_attempt == 1
+                )
+              )
             ' recovery-runs.json >/dev/null
           else
             test "$TRIGGER_EVENT" = workflow_run
-            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$RECOVERY_CONFIRMATION"
+            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$FULL_AUTHORITY_RUN_ID$RECOVERY_CONFIRMATION"
           fi
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" > stable-authority-run.json
           jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" '
@@ -277,6 +406,9 @@ jobs:
         if: ${{ always() && steps.authority.outcome == 'success' }}
         env:
           STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
+          RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
+          FULL_AUTHORITY_RUN_ID: ${{ steps.authority.outputs.full_authority_run_id || '' }}
+          FULL_CHECKPOINT_ARTIFACT: ${{ steps.authority.outputs.full_checkpoint_artifact || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -325,6 +457,18 @@ jobs:
             and .latest_activation.admitted == true
             and .latest_activation.framework_terminal_status == "complete"
           ' "$handoff" >/dev/null
+          source_run_id="$(jq -er .source.artifact_run_id "$handoff")"
+          source_artifact="$(jq -er .source.checkpoint_artifact "$handoff")"
+          allow_same_tag_full_assets=false
+          if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ]; then
+            [[ "$FULL_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            test "$FULL_CHECKPOINT_ARTIFACT" = "opl-release-append-full-operation-checkpoint-${FULL_AUTHORITY_RUN_ID}"
+            source_run_id="$FULL_AUTHORITY_RUN_ID"
+            source_artifact="$FULL_CHECKPOINT_ARTIFACT"
+            allow_same_tag_full_assets=true
+          else
+            test -z "$FULL_AUTHORITY_RUN_ID$FULL_CHECKPOINT_ARTIFACT"
+          fi
           {
             echo "eligible=true"
             echo "stable_authority_run_id=$STABLE_AUTHORITY_RUN_ID"
@@ -333,9 +477,10 @@ jobs:
             echo "framework_ref=$(jq -er .release.cohort.framework_sha "$handoff")"
             echo "opl_version=$(jq -er .release.version "$handoff")"
             echo "release_bundle_digest=$(jq -er .release.bundle_digest "$handoff")"
-            echo "source_run_id=$(jq -er .source.artifact_run_id "$handoff")"
-            echo "source_artifact=$(jq -er .source.checkpoint_artifact "$handoff")"
+            echo "source_run_id=$source_run_id"
+            echo "source_artifact=$source_artifact"
             echo "standard_identity_sha256=$(jq -er .source.standard_identity_sha256 "$handoff")"
+            echo "allow_same_tag_full_assets=$allow_same_tag_full_assets"
           } >> "$GITHUB_OUTPUT"
 
   native-webui-linux:
@@ -358,6 +503,7 @@ jobs:
       source_run_id: ${{ needs.resolve-handoff.outputs.source_run_id }}
       source_artifact: ${{ needs.resolve-handoff.outputs.source_artifact }}
       standard_identity_sha256: ${{ needs.resolve-handoff.outputs.standard_identity_sha256 }}
+      allow_same_tag_full_assets: ${{ needs.resolve-handoff.outputs.allow_same_tag_full_assets == 'true' }}
 
   native-webui-macos:
     if: ${{ always() && needs.resolve-handoff.outputs.eligible == 'true' }}
@@ -379,3 +525,4 @@ jobs:
       source_run_id: ${{ needs.resolve-handoff.outputs.source_run_id }}
       source_artifact: ${{ needs.resolve-handoff.outputs.source_artifact }}
       standard_identity_sha256: ${{ needs.resolve-handoff.outputs.standard_identity_sha256 }}
+      allow_same_tag_full_assets: ${{ needs.resolve-handoff.outputs.allow_same_tag_full_assets == 'true' }}

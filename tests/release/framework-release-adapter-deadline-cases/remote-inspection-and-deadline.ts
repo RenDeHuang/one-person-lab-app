@@ -121,7 +121,7 @@ test('existing GitHub Release remote inspection accepts required assets and know
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
   const requiredNames = ['first.zip', 'second.dmg'];
-  const execute = (assets: Array<Record<string, unknown>>) => {
+  const execute = (assets: Array<Record<string, unknown>>, allowSameTagFullAssets = false) => {
     fs.writeFileSync(inspectionPath, `${JSON.stringify({
       surface_kind: 'opl_app_github_release_inspection.v1',
       repository: repo,
@@ -131,7 +131,7 @@ test('existing GitHub Release remote inspection accepts required assets and know
     })}\n`);
     return buildExecutorReceipt({
       operation: 'remote_inspect',
-      'release-operation': 'standard',
+      'release-operation': allowSameTagFullAssets ? 'resume_standard' : 'standard',
       'operation-id': standardOperationId,
       executor: 'remote',
       'attempt-id': workflowAttemptId,
@@ -141,14 +141,18 @@ test('existing GitHub Release remote inspection accepts required assets and know
       'publication-scope': 'track_assets',
       bundle: bundlePath,
       inspection: inspectionPath,
+      ...(allowSameTagFullAssets ? { 'allow-same-tag-full-assets': 'true' } : {}),
     } as any);
   };
   try {
     fs.writeFileSync(bundlePath, `${JSON.stringify({
       surface_kind: 'opl_release_bundle.v1',
       bundle_digest: bundleDigest,
-      release: { channel: 'stable' },
-      tracks: { standard: { required_asset_names: requiredNames } },
+      release: { channel: 'stable', version: tag.slice(1), tag },
+      tracks: {
+        standard: { required_asset_names: requiredNames },
+        full: { required_asset_names: ['full.dmg', 'full-manifest.json'] },
+      },
     })}\n`);
 
     assert.deepEqual(execute([]).assets, []);
@@ -168,6 +172,17 @@ test('existing GitHub Release remote inspection accepts required assets and know
       () => execute([asset('unknown.bin', '3')]),
       /contains unknown asset unknown\.bin/,
     );
+    const full = asset('full.dmg', '6');
+    assert.throws(() => execute([full]), /contains unknown asset full\.dmg/);
+    assert.deepEqual(execute([full, second], true).assets, [{
+      name: second.name,
+      size_bytes: second.size_bytes,
+      sha256: second.sha256,
+    }]);
+    assert.throws(
+      () => execute([full, asset('unknown.bin', '7')], true),
+      /contains unknown asset unknown\.bin/,
+    );
     assert.throws(() => execute([second, second]), /contains duplicate asset second\.dmg/);
     assert.throws(
       () => execute([attestation, attestation]),
@@ -181,7 +196,10 @@ test('existing GitHub Release remote inspection accepts required assets and know
       surface_kind: 'opl_release_bundle.v1',
       bundle_digest: bundleDigest,
       release: { channel: 'preview' },
-      tracks: { standard: { required_asset_names: requiredNames } },
+      tracks: {
+        standard: { required_asset_names: requiredNames },
+        full: { required_asset_names: ['full.dmg', 'full-manifest.json'] },
+      },
     })}\n`);
     assert.throws(
       () => execute([attestation]),
@@ -190,6 +208,10 @@ test('existing GitHub Release remote inspection accepts required assets and know
     assert.throws(
       () => execute([asset('stable-operation-publication-record.json', '5')]),
       /contains unknown asset stable-operation-publication-record\.json/,
+    );
+    assert.throws(
+      () => execute([full], true),
+      /Same-tag Full asset admission requires one Stable resume_standard inspection/,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

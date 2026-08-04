@@ -607,6 +607,8 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const publish = workflow.jobs['publish-immutable-carrier'];
   assert.equal(inputs.authority_mode.type, 'string');
   assert.equal(inputs.authority_mode.default, 'production_follower');
+  assert.equal(inputs.production_recovery.type, 'boolean');
+  assert.equal(inputs.production_recovery.default, false);
   assert.equal(inputs.source_artifact_run_id.type, 'string');
   assert.equal(inputs.source_artifact_run_id.required, false);
   assert.equal(inputs.standard_checkpoint_artifact_name.type, 'string');
@@ -632,11 +634,14 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   const previewPublishCheckout = publish.steps.find(
     (step: { name?: string }) => step.name === 'Checkout canonical publication executor',
   );
-  assert.equal(productionPublishCheckout.if, "${{ inputs.authority_mode == 'production_follower' }}");
+  assert.equal(
+    productionPublishCheckout.if,
+    "${{ inputs.authority_mode == 'production_follower' && !inputs.production_recovery }}",
+  );
   assert.equal(productionPublishCheckout.with.ref, '${{ inputs.app_ref }}');
   assert.equal(
     previewPublishCheckout.if,
-    "${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' }}",
+    "${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}",
   );
   assert.equal(previewPublishCheckout.with.ref, '${{ github.sha }}');
   assert.doesNotMatch(source, /one-person-lab-webui:stable/);
@@ -812,7 +817,10 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   assert.match(sidecar.run, /--publication-run-id "\$GITHUB_RUN_ID"/);
   assert.match(sidecar.run, /--publication-run-attempt "\$GITHUB_RUN_ATTEMPT"/);
   assert.match(sidecar.run, /--publication-executor-sha "\$GITHUB_SHA"/);
-  assert.match(sidecar.run, /stable_authority_run_id='\$\{\{ github\.event\.workflow_run\.id \}\}'/);
+  assert.match(
+    sidecar.run,
+    /stable_authority_run_id='\$\{\{ inputs\.stable_authority_run_id \|\| github\.event\.workflow_run\.id \}\}'/,
+  );
   assert.match(sidecar.run, /--stable-authority-run-id "\$stable_authority_run_id"/);
   assert.match(sidecar.run, /--source-authority "\$source_authority_path"/);
   assert.match(sidecar.run, /source_authority_path='webui-carrier\/source-authority\.json'/);

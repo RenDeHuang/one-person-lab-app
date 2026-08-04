@@ -11,6 +11,16 @@ on:
         description: production_follower, development_validation, or independent_preview.
         type: string
         default: production_follower
+      production_recovery:
+        description: Execute one strictly bound production follower recovery from canonical control bytes.
+        type: boolean
+        required: false
+        default: false
+      stable_authority_run_id:
+        description: Exact successful Stable authority run for production follower publication records.
+        type: string
+        required: false
+        default: ''
       app_ref:
         description: Exact App SHA frozen into the Release Bundle.
         type: string
@@ -54,6 +64,31 @@ on:
         default: ''
       source_authority_artifact_name:
         description: Exact independent WebUI source-authority artifact.
+        type: string
+        required: false
+        default: ''
+      stable_framework_ref:
+        description: Original Framework SHA frozen in the Stable cohort when production_recovery is true.
+        type: string
+        required: false
+        default: ''
+      recovery_authority_digest:
+        description: Digest of the exact Stable-to-compatible-Framework recovery authority.
+        type: string
+        required: false
+        default: ''
+      failed_follower_run_id:
+        description: Exact failed automatic WebUI follower consumed by production recovery.
+        type: string
+        required: false
+        default: ''
+      failed_recovery_v1_run_id:
+        description: Exact failed WebUI recovery v1 consumed by production recovery.
+        type: string
+        required: false
+        default: ''
+      failed_recovery_v2_run_id:
+        description: Exact failed WebUI recovery v2 consumed by production recovery.
         type: string
         required: false
         default: ''
@@ -111,19 +146,19 @@ jobs:
       image_artifact_name: ${{ steps.identity.outputs.image_artifact_name }}
     steps:
       - name: Checkout exact App source
-        if: ${{ inputs.authority_mode == 'production_follower' }}
+        if: ${{ inputs.authority_mode == 'production_follower' && !inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.app_ref }}
 
       - name: Checkout canonical development executor
-        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' }}
+        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ github.sha }}
 
       - name: Checkout exact frozen App build input
-        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' }}
+        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.app_ref }}
@@ -185,7 +220,18 @@ jobs:
           test '${{ inputs.authority_mode }}' = production_follower \
             || test '${{ inputs.authority_mode }}' = development_validation \
             || test '${{ inputs.authority_mode }}' = independent_preview
-          if [ '${{ inputs.authority_mode }}' = production_follower ]; then
+          if [ '${{ inputs.production_recovery }}' = true ]; then
+            test '${{ inputs.authority_mode }}' = production_follower
+            test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+            test "$(git -C frozen-app-source rev-parse HEAD)" = '${{ inputs.app_ref }}'
+            [[ '${{ inputs.stable_authority_run_id }}' =~ ^[1-9][0-9]*$ ]]
+            [[ '${{ inputs.stable_framework_ref }}' =~ ^[0-9a-f]{40}$ ]]
+            [[ '${{ inputs.recovery_authority_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ '${{ inputs.failed_follower_run_id }}' =~ ^[1-9][0-9]*$ ]]
+            [[ '${{ inputs.failed_recovery_v1_run_id }}' =~ ^[1-9][0-9]*$ ]]
+            [[ '${{ inputs.failed_recovery_v2_run_id }}' =~ ^[1-9][0-9]*$ ]]
+            test '${{ inputs.stable_framework_ref }}' != '${{ inputs.framework_ref }}'
+          elif [ '${{ inputs.authority_mode }}' = production_follower ]; then
             test "$(git rev-parse HEAD)" = '${{ inputs.app_ref }}'
           else
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
@@ -193,6 +239,10 @@ jobs:
           fi
           test "$(git -C shells/aionui rev-parse HEAD)" = '${{ inputs.shell_ref }}'
           test "$(git -C framework-source rev-parse HEAD)" = '${{ inputs.framework_ref }}'
+          if [ '${{ inputs.production_recovery }}' = true ]; then
+            git -C framework-source merge-base --is-ancestor \
+              95640c74e0b14ba2e88056de725c417fd1693cf1 '${{ inputs.framework_ref }}'
+          fi
           test "$(git -C webui-executor-source rev-parse HEAD)" = "$GITHUB_SHA"
           test -f webui-executor-source/scripts/materialize-webui-seed-symlinks.ts
           test ! -L webui-executor-source/scripts/materialize-webui-seed-symlinks.ts
@@ -232,12 +282,27 @@ jobs:
           curl -L --fail --silent --show-error "$codex_tarball_url" \
             --output webui-carrier/frozen-codex/codex-cli.tgz
           source_cutoff_observed_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
+          app_root=.
+          recovery_args=()
+          if [ '${{ inputs.production_recovery }}' = true ]; then
+            app_root=frozen-app-source
+            recovery_args=(
+              --stable-framework-ref '${{ inputs.stable_framework_ref }}'
+              --webui-recovery-authority-digest '${{ inputs.recovery_authority_digest }}'
+              --webui-recovery-stable-authority-run-id '${{ inputs.stable_authority_run_id }}'
+              --webui-recovery-failed-follower-run-id '${{ inputs.failed_follower_run_id }}'
+              --webui-recovery-failed-v1-run-id '${{ inputs.failed_recovery_v1_run_id }}'
+              --webui-recovery-failed-v2-run-id '${{ inputs.failed_recovery_v2_run_id }}'
+              --webui-recovery-executor-app-sha "$GITHUB_SHA"
+            )
+          fi
           node --experimental-strip-types scripts/framework-release-adapter.ts webui-build-input \
             --standard-identity "$identity_receipt" \
             --bundle "$bundle" \
-            --app-root . \
+            --app-root "$app_root" \
             --shell-root shells/aionui \
             --framework-root framework-source \
+            "${recovery_args[@]}" \
             --source-cutoff-observed-at "$source_cutoff_observed_at" \
             --base-image-index webui-carrier/base-image-index.json \
             --frozen-codex-tarball webui-carrier/frozen-codex/codex-cli.tgz \
@@ -596,13 +661,13 @@ jobs:
       image_ref: ${{ steps.publish.outputs.image_ref }}
     steps:
       - name: Checkout exact production App source
-        if: ${{ inputs.authority_mode == 'production_follower' }}
+        if: ${{ inputs.authority_mode == 'production_follower' && !inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.app_ref }}
 
       - name: Checkout canonical publication executor
-        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' }}
+        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ github.sha }}
@@ -925,7 +990,7 @@ jobs:
           )
           case '${{ inputs.authority_mode }}' in
             production_follower)
-              stable_authority_run_id='${{ github.event.workflow_run.id }}'
+              stable_authority_run_id='${{ inputs.stable_authority_run_id || github.event.workflow_run.id }}'
               ;;
             development_validation)
               stable_authority_run_id='${{ inputs.source_artifact_run_id }}'

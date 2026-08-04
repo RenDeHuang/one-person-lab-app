@@ -2832,7 +2832,7 @@
       "applies_to": "production_follower_only",
       "requires": [
         "successful_stable_authority_run_after_latest_activation",
-        "workflow_run_follower_bound_to_that_stable_authority",
+        "workflow_run_follower_or_exact_generation3_recovery_bound_to_that_stable_authority",
         "unique_successful_carrier_follower_job",
         "qualified_webui_carrier_receipt",
         "immutable_version_digest"
@@ -2847,21 +2847,30 @@
       "follower_workflow": ".github/workflows/release-webui-follower.yml",
       "exact_failed_follower_recovery": {
         "trigger": "workflow_dispatch",
-        "recovery_generation": 2,
-        "consumed_recovery_generation": 1,
-        "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_and_exact_failed_recovery_v1",
+        "recovery_generation": 3,
+        "consumed_recovery_generations": [
+          1,
+          2
+        ],
+        "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_failed_recovery_v1_failed_recovery_v2_and_digest_bound_compatible_framework_source",
         "inputs": [
           "source_run_id",
           "failed_follower_run_id",
           "failed_recovery_run_id",
+          "failed_recovery_v2_run_id",
           "recovery_confirmation"
         ],
-        "confirmation": "recover_exact_failed_webui_follower_v2",
+        "confirmation": "recover_exact_failed_webui_follower_v3",
         "legacy_confirmation": "recover_exact_failed_webui_follower_v1",
-        "failed_boundary": "first_attempt_runtime_qualification_failed_on_broken_seed_symlink_and_recovery_v1_runtime_seed_apply_rejected_the_codex_cli_symlink_before_immutable_carrier_publication_and_stable_latest_promotion",
+        "consumed_confirmation": "recover_exact_failed_webui_follower_v2",
+        "failed_boundary": "recovery_v2_runtime_currentness_rejected_the_frozen_framework_before_immutable_carrier_publication_and_stable_latest_promotion",
         "failed_public_mutation_count_required": 0,
         "failed_recovery_public_mutation_count_required": 0,
-        "same_identity_recovery_v2_run_count_required": 1,
+        "failed_recovery_v2_public_mutation_count_required": 0,
+        "same_identity_recovery_v3_run_count_required": 1,
+        "framework_recovery_authority_schema": "opl_app_webui_framework_recovery_authority.v1",
+        "stable_bundle_identity_rewritten": false,
+        "recovery_framework_must_contain_fix": "95640c74e0b14ba2e88056de725c417fd1693cf1",
         "server_side_unique_display_title_required": true,
         "automatic_workflow_run_route_preserved": true,
         "rerun_or_stable_redispatch_allowed": false
@@ -2992,7 +3001,7 @@
         }
       },
       "stable_authority_binding_by_mode": {
-        "production_follower": "stable_authority_run_id_must_equal_github_event_workflow_run_id",
+        "production_follower": "stable_authority_run_id_must_equal_github_event_workflow_run_id_or_exact_generation3_recovery_input",
         "development_validation": "legacy_stable_run_receipt_binding",
         "independent_preview": "none"
       },
@@ -3028,7 +3037,7 @@
       "carrier_follower_requirements_by_mode": {
         "production_follower": [
           "release-webui-follower.yml",
-          "workflow_run_event",
+          "workflow_run_event_or_exact_generation3_workflow_dispatch",
           "main",
           "attempt_1",
           "in_progress_or_completed",
@@ -3182,21 +3191,30 @@
     ],
     "exact_failed_follower_recovery": {
       "trigger": "workflow_dispatch",
-      "recovery_generation": 2,
-      "consumed_recovery_generation": 1,
-      "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_and_exact_failed_recovery_v1",
+      "recovery_generation": 3,
+      "consumed_recovery_generations": [
+        1,
+        2
+      ],
+      "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_failed_recovery_v1_failed_recovery_v2_and_successful_same_tag_append_full_checkpoint",
       "inputs": [
         "source_run_id",
         "failed_follower_run_id",
         "failed_recovery_run_id",
+        "failed_recovery_v2_run_id",
+        "full_authority_run_id",
         "recovery_confirmation"
       ],
-      "confirmation": "recover_exact_failed_native_webui_follower_v2",
+      "confirmation": "recover_exact_failed_native_webui_follower_v3",
       "legacy_confirmation": "recover_exact_failed_native_webui_follower_v1",
-      "failed_boundary": "first_attempt_linux_stale_standard_deadline_rejected_and_darwin_build_heap_oom_then_recovery_v1_both_publishers_lacked_rg_before_publication",
+      "consumed_confirmation": "recover_exact_failed_native_webui_follower_v2",
+      "failed_boundary": "recovery_v2_both_publishers_rejected_the_successfully_appended_same_tag_full_asset_before_native_upload",
       "failed_public_mutation_count_required": 0,
       "failed_recovery_public_mutation_count_required": 0,
-      "same_identity_recovery_v2_run_count_required": 1,
+      "failed_recovery_v2_public_mutation_count_required": 0,
+      "same_identity_recovery_v3_run_count_required": 1,
+      "full_authority_operation": "append_full",
+      "same_tag_remote_asset_policy": "exact_standard_plus_full_union_only_unknown_assets_fail_closed",
       "server_side_unique_display_title_required": true,
       "automatic_workflow_run_route_preserved": true,
       "rerun_or_stable_redispatch_allowed": false

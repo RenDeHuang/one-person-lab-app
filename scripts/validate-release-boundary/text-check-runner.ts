@@ -263,6 +263,7 @@ function hasExactStableOptionalRecoveryIngress(workflow: Record<string, any>): b
 function hasExactFollowerRecoveryIngress(
   workflow: Record<string, any>,
   confirmations: string[],
+  additionalInputs: string[],
   concurrencyGroup: string,
 ): boolean {
   const inputs = workflow.on?.workflow_dispatch?.inputs ?? {};
@@ -270,6 +271,7 @@ function hasExactFollowerRecoveryIngress(
     'source_run_id',
     'failed_follower_run_id',
     'failed_recovery_run_id',
+    ...additionalInputs,
     'recovery_confirmation',
   ])
     && inputs.source_run_id?.required === true
@@ -278,6 +280,8 @@ function hasExactFollowerRecoveryIngress(
     && inputs.failed_follower_run_id?.type === 'string'
     && inputs.failed_recovery_run_id?.required === false
     && inputs.failed_recovery_run_id?.type === 'string'
+    && additionalInputs.every((name) =>
+      inputs[name]?.required === false && inputs[name]?.type === 'string')
     && inputs.recovery_confirmation?.required === true
     && inputs.recovery_confirmation?.type === 'choice'
     && JSON.stringify(inputs.recovery_confirmation?.options) === JSON.stringify(confirmations)
@@ -298,7 +302,9 @@ export function isAuthorizedFollowerRecoveryWriteJob(
       [
         'recover_exact_failed_webui_follower_v1',
         'recover_exact_failed_webui_follower_v2',
+        'recover_exact_failed_webui_follower_v3',
       ],
+      ['failed_recovery_v2_run_id'],
       "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
     )) return false;
     if (jobId === 'webui-carrier') {
@@ -320,7 +326,9 @@ export function isAuthorizedFollowerRecoveryWriteJob(
     [
       'recover_exact_failed_native_webui_follower_v1',
       'recover_exact_failed_native_webui_follower_v2',
+      'recover_exact_failed_native_webui_follower_v3',
     ],
+    ['failed_recovery_v2_run_id', 'full_authority_run_id'],
     "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
   )) return false;
   const expected = jobId === 'native-webui-linux'
@@ -994,7 +1002,9 @@ export function validateReleaseBundleTopology(appRoot: string): number {
         [
           'recover_exact_failed_webui_follower_v1',
           'recover_exact_failed_webui_follower_v2',
+          'recover_exact_failed_webui_follower_v3',
         ],
+        ['failed_recovery_v2_run_id'],
         "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
       ) ||
       !exactObject(webuiFollower.workflow.permissions, exactReadPermissions) ||
@@ -1018,9 +1028,11 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       followerPromotion.with?.mode !== 'execute' ||
       followerPromotion.with?.stable_authority_run_id !==
         '${{ needs.resolve-handoff.outputs.stable_authority_run_id }}' ||
+      followerPromotion.with?.production_recovery !==
+        "${{ needs.resolve-handoff.outputs.production_recovery == 'true' }}" ||
       followerPromotion.with?.carrier_artifact_name !==
         '${{ needs.webui-carrier.outputs.carrier_artifact_name }}' ||
-      Object.keys(followerPromotion.with ?? {}).length !== 3) {
+      Object.keys(followerPromotion.with ?? {}).length !== 5) {
     failures += reportFailure(
       id,
       'WebUI promotion must bind the triggering Stable authority and current-run carrier artifact',
@@ -1061,6 +1073,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (JSON.stringify(Object.keys(stableInputs)) !== JSON.stringify([
     'mode',
     'authority_mode',
+    'production_recovery',
     'stable_authority_run_id',
     'carrier_follower_run_id',
     'carrier_executor_ref',
@@ -1512,7 +1525,9 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       [
         'recover_exact_failed_native_webui_follower_v1',
         'recover_exact_failed_native_webui_follower_v2',
+        'recover_exact_failed_native_webui_follower_v3',
       ],
+      ['failed_recovery_v2_run_id', 'full_authority_run_id'],
       "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
     )
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
@@ -2277,6 +2292,7 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
       const expectedInputs = [
         'mode',
         'authority_mode',
+        'production_recovery',
         'stable_authority_run_id',
         'carrier_follower_run_id',
         'carrier_executor_ref',

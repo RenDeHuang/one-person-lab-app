@@ -13,6 +13,11 @@ on:
         required: false
         default: production_follower
         type: string
+      production_recovery:
+        description: Admit an exact workflow_dispatch recovery as the production follower transport.
+        required: false
+        default: false
+        type: boolean
       stable_authority_run_id:
         description: Exact successful Stable run that activated Desktop Latest.
         required: false
@@ -197,6 +202,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           AUTHORITY_MODE: ${{ inputs.authority_mode }}
+          PRODUCTION_RECOVERY: ${{ inputs.production_recovery }}
           STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
           TRIGGERED_BY_STABLE_RUN_ID: ${{ inputs.authority_mode == 'production_follower' && github.event.workflow_run.id || inputs.stable_authority_run_id }}
           CARRIER_FOLLOWER_RUN_ID: ${{ inputs.carrier_follower_run_id || steps.publication-record.outputs.carrier_follower_run_id || github.run_id }}
@@ -213,6 +219,12 @@ jobs:
             production_follower|development_validation|independent_preview) ;;
             *) echo "::error::Unsupported WebUI promotion authority mode: $AUTHORITY_MODE"; exit 1 ;;
           esac
+          if [ "$PRODUCTION_RECOVERY" = true ]; then
+            test "$AUTHORITY_MODE" = production_follower
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          else
+            test "$PRODUCTION_RECOVERY" = false
+          fi
           [[ "$CARRIER_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           [[ "$CARRIER_EXECUTOR_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$CARRIER_FOLLOWER_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
@@ -251,7 +263,7 @@ jobs:
             test -z "$TRIGGERED_BY_STABLE_RUN_ID"
           fi
 
-          jq -e --arg run "$CARRIER_FOLLOWER_RUN_ID" --arg head "$CARRIER_EXECUTOR_REF" --arg authority_mode "$AUTHORITY_MODE" --argjson run_attempt "$CARRIER_FOLLOWER_RUN_ATTEMPT" '
+          jq -e --arg run "$CARRIER_FOLLOWER_RUN_ID" --arg head "$CARRIER_EXECUTOR_REF" --arg authority_mode "$AUTHORITY_MODE" --argjson production_recovery "$PRODUCTION_RECOVERY" --argjson run_attempt "$CARRIER_FOLLOWER_RUN_ATTEMPT" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
@@ -261,7 +273,7 @@ jobs:
               else ".github/workflows/release-webui-development.yml"
               end
             )
-            and .event == (if $authority_mode == "production_follower" then "workflow_run" else "workflow_dispatch" end)
+            and .event == (if $authority_mode == "production_follower" and ($production_recovery | not) then "workflow_run" else "workflow_dispatch" end)
             and .head_branch == "main"
             and .run_attempt == (if $authority_mode == "independent_preview" then $run_attempt else 1 end)
             and (.head_sha == $head)
@@ -286,10 +298,11 @@ jobs:
             | .[0]
           ' evidence/carrier-follower-jobs.json > evidence/carrier-follower-job.json
           jq -e \
-            --arg run "$GITHUB_RUN_ID" \
-            --arg head "$GITHUB_SHA" \
-            --arg authority_mode "$AUTHORITY_MODE" \
-            --arg carrier_run "$CARRIER_FOLLOWER_RUN_ID" '
+              --arg run "$GITHUB_RUN_ID" \
+              --arg head "$GITHUB_SHA" \
+              --arg authority_mode "$AUTHORITY_MODE" \
+              --argjson production_recovery "$PRODUCTION_RECOVERY" \
+              --arg carrier_run "$CARRIER_FOLLOWER_RUN_ID" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
@@ -303,7 +316,7 @@ jobs:
               else ".github/workflows/release-webui-development-promote.yml"
               end
             )
-            and .event == (if $authority_mode == "production_follower" then "workflow_run" else "workflow_dispatch" end)
+            and .event == (if $authority_mode == "production_follower" and ($production_recovery | not) then "workflow_run" else "workflow_dispatch" end)
             and .head_branch == "main"
             and .run_attempt == 1
             and (.status == "in_progress" or .status == "completed")
@@ -490,6 +503,7 @@ jobs:
         env:
           STABLE_AUTHORITY_RUN_ID: ${{ inputs.stable_authority_run_id }}
           AUTHORITY_MODE: ${{ inputs.authority_mode }}
+          PRODUCTION_RECOVERY: ${{ inputs.production_recovery }}
           TRIGGERED_BY_STABLE_RUN_ID: ${{ inputs.authority_mode == 'production_follower' && github.event.workflow_run.id || inputs.stable_authority_run_id }}
           CARRIER_FOLLOWER_RUN_ID: ${{ inputs.carrier_follower_run_id || steps.publication-record.outputs.carrier_follower_run_id || github.run_id }}
           CARRIER_EXECUTOR_REF: ${{ inputs.carrier_executor_ref || steps.publication-record.outputs.carrier_executor_ref || github.sha }}
@@ -501,6 +515,7 @@ jobs:
           admission_args=(
             admit
             --authority-mode "$AUTHORITY_MODE"
+            --production-recovery "$PRODUCTION_RECOVERY"
             --carrier-follower-run evidence/carrier-follower-run.json
             --carrier-follower-run-id "$CARRIER_FOLLOWER_RUN_ID"
             --carrier-follower-job evidence/carrier-follower-job.json

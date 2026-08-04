@@ -166,6 +166,7 @@ function validateCarrierFollowerRun(
   carrierExecutorAppSha: string,
   authorityMode: AuthorityMode,
   expectedRunAttempt: number,
+  productionRecovery: boolean,
 ): void {
   exact(String(run.id), runId, 'carrier follower run.id');
   exact(run.repository?.full_name, appRepository, 'carrier follower run.repository');
@@ -179,7 +180,7 @@ function validateCarrierFollowerRun(
   );
   exact(
     run.event,
-    authorityMode === 'production_follower' ? 'workflow_run' : 'workflow_dispatch',
+    authorityMode === 'production_follower' && !productionRecovery ? 'workflow_run' : 'workflow_dispatch',
     'carrier follower run.event',
   );
   exact(run.head_branch, 'main', 'carrier follower run.head_branch');
@@ -228,6 +229,7 @@ function validatePromotionExecutorRun(
   promotionAppSha: string,
   authorityMode: AuthorityMode,
   carrierFollowerRunId: string,
+  productionRecovery: boolean,
 ): string {
   const callerWorkflow = authorityMode === 'production_follower'
     ? '.github/workflows/release-webui-follower.yml'
@@ -242,7 +244,7 @@ function validatePromotionExecutorRun(
   exact(run.path, callerWorkflow, 'promotion executor run.path');
   exact(
     run.event,
-    authorityMode === 'production_follower' ? 'workflow_run' : 'workflow_dispatch',
+    authorityMode === 'production_follower' && !productionRecovery ? 'workflow_run' : 'workflow_dispatch',
     'promotion executor run.event',
   );
   exact(run.head_branch, 'main', 'promotion executor run.head_branch');
@@ -401,6 +403,7 @@ function validateIndependentPublicationRecord(
 
 export type WebuiStableAdmissionInput = {
   authorityMode?: AuthorityMode;
+  productionRecovery?: boolean;
   stableAuthorityRun?: JsonRecord;
   stableAuthorityRunPath?: string;
   stableAuthorityRunId?: string;
@@ -435,6 +438,10 @@ export type WebuiStableAdmissionInput = {
 
 export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): JsonRecord {
   const mode = authorityMode(input.authorityMode ?? 'production_follower');
+  const productionRecovery = input.productionRecovery === true;
+  if (productionRecovery && mode !== 'production_follower') {
+    throw new Error('WebUI production recovery requires production_follower authority mode.');
+  }
   if (!runPattern.test(input.carrierFollowerRunId)) {
     throw new Error('carrier follower run id is invalid.');
   }
@@ -505,6 +512,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     carrierExecutorAppSha,
     mode,
     carrierRunAttempt,
+    productionRecovery,
   );
   validateCarrierFollowerJob(
     input.carrierFollowerJob,
@@ -518,6 +526,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
     promotionAppSha,
     mode,
     input.carrierFollowerRunId,
+    productionRecovery,
   );
 
   const immutable = descriptor(input.immutableReadback, carrier.ref, 'immutable readback');
@@ -569,6 +578,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   };
   const authority = {
     authority_mode: mode,
+    production_recovery: productionRecovery,
     classification: mode === 'development_validation' || mode === 'independent_preview'
       ? {
           quality_status: 'preview',
@@ -688,6 +698,7 @@ function validateWebuiStablePromotionAdmission(value: unknown): JsonRecord {
   }
   const authority = {
     authority_mode: admission.authority_mode,
+    production_recovery: admission.production_recovery === true,
     classification: admission.classification,
     stable_authority: admission.stable_authority,
     source_authority: admission.source_authority,
@@ -935,6 +946,7 @@ function main(argv: string[]): void {
     options: {
       'stable-authority-run': { type: 'string' },
       'authority-mode': { type: 'string' },
+      'production-recovery': { type: 'string' },
       'stable-authority-run-id': { type: 'string' },
       'triggered-by-stable-run-id': { type: 'string' },
       'carrier-follower-run': { type: 'string' },
@@ -968,6 +980,13 @@ function main(argv: string[]): void {
   let result: JsonRecord;
   if (command === 'admit') {
     const authorityMode = required(values['authority-mode'], 'authority-mode') as AuthorityMode;
+    if (
+      values['production-recovery'] !== undefined
+      && values['production-recovery'] !== 'true'
+      && values['production-recovery'] !== 'false'
+    ) {
+      throw new Error('--production-recovery must be true or false.');
+    }
     const stableAuthorityRunPath = values['stable-authority-run']
       ? required(values['stable-authority-run'], 'stable-authority-run')
       : undefined;
@@ -996,6 +1015,7 @@ function main(argv: string[]): void {
       : undefined;
     result = admitWebuiStablePromotion({
       authorityMode,
+      productionRecovery: values['production-recovery'] === 'true',
       stableAuthorityRun: stableAuthorityRunPath
         ? readJson(stableAuthorityRunPath, 'Stable authority run')
         : undefined,
