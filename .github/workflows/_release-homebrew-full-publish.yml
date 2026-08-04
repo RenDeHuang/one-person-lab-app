@@ -119,7 +119,6 @@ jobs:
           app_sha="$(jq -er .build_provenance.app_sha handoff.json)"
           shell_sha="$(jq -er .build_provenance.shell_sha handoff.json)"
           framework_sha="$(jq -er .build_provenance.framework_sha handoff.json)"
-          executor_sha="$(jq -er .authority.executor_head_sha handoff.json)"
           dmg_name="$(jq -er .artifact.name handoff.json)"
           dmg_sha="$(jq -er .artifact.sha256 handoff.json)"
           dmg_size="$(jq -er .artifact.size_bytes handoff.json)"
@@ -132,10 +131,10 @@ jobs:
           release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${standard_tag}"
           test "$dmg_url" = "$release_base/$dmg_name"
           test "$manifest_url" = "$release_base/$manifest_name"
-          jq -e --argjson id "$base_release_id" --arg tag "$standard_tag" --arg executor "$executor_sha" \
+          jq -e --argjson id "$base_release_id" --arg tag "$standard_tag" --arg target "$base_target_commitish" \
             --arg dmg "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" --arg dmg_url "$dmg_url" \
             --arg manifest "$manifest_name" --arg manifest_sha "$manifest_sha" --argjson manifest_size "$manifest_size" --arg manifest_url "$manifest_url" '
-            .id == $id and .tag_name == $tag and .draft == false and .prerelease == false and .immutable == false and .target_commitish == $executor
+            .id == $id and .tag_name == $tag and .draft == false and .prerelease == false and .immutable == false and .target_commitish == $target
             and ([.assets[] | select(.name == $dmg and .digest == $dmg_sha and .size == $dmg_size and .browser_download_url == $dmg_url)] | length == 1)
             and ([.assets[] | select(.name == $manifest and .digest == $manifest_sha and .size == $manifest_size and .browser_download_url == $manifest_url)] | length == 1)
           ' release.json >/dev/null
