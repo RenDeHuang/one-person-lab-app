@@ -452,6 +452,7 @@ test('WebUI follower preserves automatic delivery and admits only exact bounded 
     'failed-recovery-v6-artifacts.json',
     'fatal: Not a valid commit name 95640c74e0b14ba2e88056de725c417fd1693cf1',
     'FAILED_RECOVERY_V4_RUN_ID: unbound variable',
+    'expected one exact nested OPL Flow carrier owner descriptor error',
     'configured_codex_plugin_carrier_owner_descriptor_missing',
     'e9a5cc46766215e4e301d8a59fcaeffc2e00de7a',
   ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -515,6 +516,55 @@ test('WebUI follower preserves automatic delivery and admits only exact bounded 
     assert.notEqual(rejected.status, 0);
   } finally {
     fs.rmSync(parserRoot, { recursive: true, force: true });
+  }
+
+  const carrierParserMatch = source.match(
+    /node - "\$failed_recovery_v6_log" <<'NODE'\n([\s\S]*?)\n\s+NODE/,
+  );
+  assert.ok(carrierParserMatch, 'the v7 workflow must decode the nested carrier owner error');
+  const carrierParserRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-carrier-parser-'));
+  try {
+    const carrierTypedError = {
+      version: 'g2',
+      error: {
+        code: 'contract_shape_invalid',
+        message: 'Native carrier owner Package manifest must declare its carrier.',
+        exit_code: 3,
+        details: {
+          package_id: 'opl-flow',
+          manifest_url: 'opl+oci://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow:0.1.35#/package-manifest.json',
+          failure_code: 'configured_codex_plugin_carrier_owner_descriptor_missing',
+        },
+      },
+    };
+    const logPath = path.join(carrierParserRoot, 'container.log');
+    const escapedLog = (value: unknown) => JSON.stringify({
+      error: { message: `${JSON.stringify(value, null, 2)}\n(node:1) warning` },
+    }, null, 2);
+    fs.writeFileSync(logPath, `prefix\n${escapedLog(carrierTypedError)}\nsuffix\n`);
+    const accepted = spawnSync(process.execPath, ['-', logPath], {
+      input: carrierParserMatch[1],
+      encoding: 'utf8',
+    });
+    assert.equal(accepted.status, 0, accepted.stderr);
+
+    carrierTypedError.error.details.manifest_url = 'opl+oci://wrong.example/opl-flow:0.1.35#/package-manifest.json';
+    fs.writeFileSync(logPath, escapedLog(carrierTypedError));
+    const wrongManifest = spawnSync(process.execPath, ['-', logPath], {
+      input: carrierParserMatch[1],
+      encoding: 'utf8',
+    });
+    assert.notEqual(wrongManifest.status, 0);
+
+    carrierTypedError.error.details.manifest_url = 'opl+oci://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow:0.1.35#/package-manifest.json';
+    fs.writeFileSync(logPath, `${escapedLog(carrierTypedError)}\n${escapedLog(carrierTypedError)}\n`);
+    const duplicate = spawnSync(process.execPath, ['-', logPath], {
+      input: carrierParserMatch[1],
+      encoding: 'utf8',
+    });
+    assert.notEqual(duplicate.status, 0);
+  } finally {
+    fs.rmSync(carrierParserRoot, { recursive: true, force: true });
   }
   for (const jobId of ['webui-carrier', 'promote-webui-stable']) {
     assert.equal(
