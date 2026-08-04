@@ -525,6 +525,7 @@ function parseCommon(argv: string[]) {
       'webui-recovery-failed-v4-run-id': { type: 'string' },
       'webui-recovery-failed-v5-run-id': { type: 'string' },
       'webui-recovery-failed-v6-run-id': { type: 'string' },
+      'webui-recovery-failed-v7-run-id': { type: 'string' },
       'webui-recovery-executor-app-sha': { type: 'string' },
     },
     allowPositionals: true,
@@ -836,6 +837,7 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
   const recoveryV4RunId = values['webui-recovery-failed-v4-run-id'];
   const recoveryV5RunId = values['webui-recovery-failed-v5-run-id'];
   const recoveryV6RunId = values['webui-recovery-failed-v6-run-id'];
+  const recoveryV7RunId = values['webui-recovery-failed-v7-run-id'];
   const presentRecoveryKeys = recoveryKeys.filter((key) => values[key] !== undefined);
   if (
     (presentRecoveryKeys.length !== 0 && presentRecoveryKeys.length !== recoveryKeys.length)
@@ -843,6 +845,7 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
     || (recoveryV4RunId !== undefined && recoveryV3RunId === undefined)
     || (recoveryV5RunId !== undefined && recoveryV4RunId === undefined)
     || (recoveryV6RunId !== undefined && recoveryV5RunId === undefined)
+    || (recoveryV7RunId !== undefined && recoveryV6RunId === undefined)
   ) {
     throw new Error('WebUI production recovery authority requires every exact recovery binding.');
   }
@@ -869,6 +872,9 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
       ...(recoveryV6RunId === undefined
         ? {}
         : { failed_recovery_v6_run_id: recoveryV6RunId }),
+      ...(recoveryV7RunId === undefined
+        ? {}
+        : { failed_recovery_v7_run_id: recoveryV7RunId }),
     };
     if (
       stableFrameworkRef !== cohort.framework_sha
@@ -898,6 +904,9 @@ function buildWebuiBuildInput(values: AdapterOptionValues): JsonRecord {
       ...(recoveryV6RunId === undefined
         ? {}
         : { failed_recovery_v6_run_id: recoveryV6RunId }),
+      ...(recoveryV7RunId === undefined
+        ? {}
+        : { failed_recovery_v7_run_id: recoveryV7RunId }),
       release: {
         version: release.version,
         bundle_digest: release.bundle_digest,

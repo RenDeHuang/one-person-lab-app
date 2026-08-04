@@ -241,6 +241,7 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
     'failed_recovery_v4_run_id',
     'failed_recovery_v5_run_id',
     'failed_recovery_v6_run_id',
+    'failed_recovery_v7_run_id',
     'recovery_confirmation',
   ]);
   assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
@@ -255,6 +256,8 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v5_run_id.type, 'string');
   assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v6_run_id.required, false);
   assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v6_run_id.type, 'string');
+  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v7_run_id.required, false);
+  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v7_run_id.type, 'string');
   assert.deepEqual(follower.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_webui_follower_v1',
     'recover_exact_failed_webui_follower_v2',
@@ -263,6 +266,7 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
     'recover_exact_failed_webui_follower_v5',
     'recover_exact_failed_webui_follower_v6',
     'recover_exact_failed_webui_follower_v7',
+    'recover_exact_failed_webui_follower_v8',
   ]);
   assert.match(followerSource, /\.total_count == 5/);
   assert.match(followerSource, /promote-webui-stable" and \.conclusion == "skipped"/);
@@ -272,6 +276,7 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   assert.match(followerSource, /failed recovery v4 \$\{FAILED_RECOVERY_V4_RUN_ID\}/);
   assert.match(followerSource, /failed recovery v5 \$\{FAILED_RECOVERY_V5_RUN_ID\}/);
   assert.match(followerSource, /failed recovery v6 \$\{FAILED_RECOVERY_V6_RUN_ID\}/);
+  assert.match(followerSource, /failed recovery v7 \$\{FAILED_RECOVERY_V7_RUN_ID\}/);
   assert.match(followerSource, /opl_seed_payload_symlink_forbidden/);
   assert.match(followerSource, /expected one exact nested OPL Flow currentness error/);
   assert.match(followerSource, /\.total_count == 3/);
@@ -279,10 +284,12 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   assert.match(followerSource, /failed-recovery-v4-artifacts\.json/);
   assert.match(followerSource, /failed-recovery-v5-artifacts\.json/);
   assert.match(followerSource, /failed-recovery-v6-artifacts\.json/);
+  assert.match(followerSource, /failed-recovery-v7-artifacts\.json/);
   assert.match(followerSource, /fatal: Not a valid commit name 95640c74e0b14ba2e88056de725c417fd1693cf1/);
   assert.match(followerSource, /FAILED_RECOVERY_V4_RUN_ID: unbound variable/);
   assert.match(followerSource, /configured_codex_plugin_carrier_owner_descriptor_missing/);
   assert.match(followerSource, /e9a5cc46766215e4e301d8a59fcaeffc2e00de7a/);
+  assert.match(followerSource, /acdf7738832dcdf569ecea9b63fcbc7d0d47d238/);
   assert.match(followerSource, /runs\?event=workflow_dispatch&per_page=100/);
   assert.equal(follower.jobs['webui-carrier'].needs[0], 'resolve-handoff');
   assert.deepEqual(
