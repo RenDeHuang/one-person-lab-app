@@ -4190,6 +4190,20 @@
       "may_create_stable_admission_manifest": false,
       "may_dispatch_standard": false
     },
+    "github_release_admin_credentials_diagnostic": {
+      "schema": "opl_app_github_release_admin_credential_preflight.v1",
+      "workflow": ".github/workflows/release-github-admin-credentials-preflight.yml",
+      "script": "scripts/verify-github-release-admin-credential.ts",
+      "protected_environment": "release-stable",
+      "secret_name": "OPL_GITHUB_RELEASE_ADMIN_TOKEN",
+      "endpoint": "GET repos/gaofeng21cn/one-person-lab-app/immutable-releases",
+      "authority": "diagnostic_only",
+      "canonical_main_first_attempt_required": true,
+      "required_after_credential_replacement_before_new_stable_operation": true,
+      "raw_secret_response_or_error_persistence_allowed": false,
+      "repository_setting_mutation_allowed": false,
+      "release_or_dispatch_mutation_allowed": false
+    },
     "attempt_observability": {
       "schema": "opl_release_attempt_observation.v1",
       "workflow": ".github/workflows/release-attempt-observability.yml",
