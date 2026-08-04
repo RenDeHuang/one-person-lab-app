@@ -168,6 +168,16 @@ jobs:
         with:
           ref: ${{ inputs.app_ref || inputs.branch }}
 
+      - name: Checkout protected release control source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: .release-control
+          sparse-checkout: |
+            contracts/app-release-channel.json
+            scripts/resolve-release-platform-matrix.ts
+          persist-credentials: false
+
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
@@ -212,7 +222,7 @@ jobs:
               echo '::error::Stable optional publication accepts only the canonical Linux x64 and Windows x64 subsets.'
               exit 1
             }
-            node --experimental-strip-types scripts/resolve-release-platform-matrix.ts \
+            node --experimental-strip-types .release-control/scripts/resolve-release-platform-matrix.ts \
               --policy stable_optional \
               --platforms-json '${{ inputs.platform_ids }}' \
               --github-output "$GITHUB_OUTPUT"
@@ -278,7 +288,7 @@ jobs:
                 exit 1
                 ;;
             esac
-            node --experimental-strip-types scripts/resolve-release-platform-matrix.ts \
+            node --experimental-strip-types .release-control/scripts/resolve-release-platform-matrix.ts \
               --policy "$policy" \
               --platform '${{ inputs.platform }}' \
               --github-output "$GITHUB_OUTPUT"
@@ -298,6 +308,7 @@ jobs:
           fi
           echo "app_ref=$app_ref" >> "$GITHUB_OUTPUT"
           echo "macos_x64_signed_development_validation=$macos_x64_signed_development_validation" >> "$GITHUB_OUTPUT"
+          rm -rf .release-control
 
   build-pipeline:
     if: ${{ needs.prepare-matrix.outputs.platform_count != '0' }}
