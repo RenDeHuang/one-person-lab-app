@@ -94,7 +94,7 @@ on:
       stable_optional_platforms:
         description: Canonical authority-bound JSON array of audited optional Stable platform IDs
         required: false
-        default: '["linux-x64"]'
+        default: '["linux-x64","windows-x64"]'
         type: string
     outputs:
       source_run_id:

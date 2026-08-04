@@ -17,14 +17,10 @@ const operationIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
 const immutableReleaseApiVersion = '2026-03-10';
 const stableOptionalPlatformIds = [
-  'macos-x64',
-  'macos-universal',
   'linux-x64',
-  'linux-arm64',
   'windows-x64',
-  'windows-arm64',
 ] as const;
-const defaultStableOptionalPlatformIds = ['linux-x64'] as const;
+const defaultStableOptionalPlatformIds = ['linux-x64', 'windows-x64'] as const;
 const requiredCriticalBlobPaths = [
   '.github/workflows/release-stable.yml',
   '.github/workflows/_release-bundle.yml',

@@ -425,21 +425,19 @@
       "macos-x64": {
         "default_enabled": false,
         "quality_channels": [
-          "stable_optional",
           "development_validation"
         ],
-        "stable_allowed": true,
+        "stable_allowed": false,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "stable_optional_follower_supported_default_off",
-        "publication_route": ".github/workflows/build-manual.yml",
+        "publication_status": "development_validation_only",
+        "publication_route": null,
         "build": {
           "os": "macos-14",
           "command": "node scripts/build-with-builder.js x64 --mac --x64",
           "arch": "x64",
           "artifact_names": {
-            "stable_optional": "optional-macos-x64",
             "manual": "macos-build-x64"
           }
         }
@@ -447,22 +445,20 @@
       "macos-universal": {
         "default_enabled": false,
         "quality_channels": [
-          "stable_optional",
           "development_validation"
         ],
-        "stable_allowed": true,
+        "stable_allowed": false,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "stable_optional_follower_supported_default_off",
-        "publication_route": ".github/workflows/build-manual.yml",
+        "publication_status": "development_validation_only",
+        "publication_route": null,
         "build": {
           "os": "macos-14",
           "command": "node scripts/build-with-builder.js universal --mac --universal",
           "arch": "universal",
           "native_arch": "arm64",
           "artifact_names": {
-            "stable_optional": "optional-macos-universal",
             "manual": "macos-build-universal"
           }
         }
@@ -495,27 +491,25 @@
       "linux-arm64": {
         "default_enabled": false,
         "quality_channels": [
-          "stable_optional",
           "development_validation"
         ],
-        "stable_allowed": true,
+        "stable_allowed": false,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "stable_optional_follower_supported_default_off",
-        "publication_route": ".github/workflows/build-manual.yml",
+        "publication_status": "development_validation_only",
+        "publication_route": null,
         "build": {
           "os": "ubuntu-latest",
           "command": "node scripts/build-with-builder.js arm64 --linux --arm64",
           "arch": "arm64",
           "artifact_names": {
-            "stable_optional": "optional-linux-arm64",
             "manual": "linux-build-arm64"
           }
         }
       },
       "windows-x64": {
-        "default_enabled": false,
+        "default_enabled": true,
         "quality_channels": [
           "stable_optional",
           "preview_rc",
@@ -525,7 +519,7 @@
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "stable_optional_follower_and_preview_rc_supported_default_off",
+        "publication_status": "stable_optional_follower_default_on_and_preview_rc",
         "publication_route": ".github/workflows/build-manual.yml#protected_selected_platform_publication",
         "build": {
           "os": "windows-2022",
@@ -541,22 +535,20 @@
       "windows-arm64": {
         "default_enabled": false,
         "quality_channels": [
-          "stable_optional",
           "preview_rc",
           "development_validation"
         ],
-        "stable_allowed": true,
+        "stable_allowed": false,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "stable_optional_follower_and_preview_rc_supported_default_off",
+        "publication_status": "preview_rc_supported_default_off",
         "publication_route": ".github/workflows/build-manual.yml#protected_selected_platform_publication",
         "build": {
           "os": "windows-2022",
           "command": "node scripts/build-with-builder.js arm64 --win --arm64",
           "arch": "arm64",
           "artifact_names": {
-            "stable_optional": "optional-windows-arm64",
             "windows_preview": "windows-preview-arm64",
             "manual": "windows-build-arm64"
           }
@@ -599,12 +591,8 @@
       "stable_optional": {
         "quality_channel": "stable_optional",
         "platforms": [
-          "macos-x64",
-          "macos-universal",
           "linux-x64",
-          "linux-arm64",
-          "windows-x64",
-          "windows-arm64"
+          "windows-x64"
         ],
         "default_enabled": false,
         "required": false,
@@ -646,7 +634,8 @@
       "encoding": "canonical_json_array_of_audited_platform_ids",
       "allowed_platforms_ref": "release_platform_matrix.policies.stable_optional.platforms",
       "default": [
-        "linux-x64"
+        "linux-x64",
+        "windows-x64"
       ],
       "authority_field": "opl_app_stable_operation_authority.v1#optional_platforms",
       "control_field": "opl_app_stable_operation_control.v1#optional_platforms",

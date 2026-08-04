@@ -187,13 +187,13 @@ test('Stable operation control binds one actor, exact frozen cohort, critical bl
 });
 
 test('Stable authority canonically binds audited optional platform selection into the run control', () => {
-  assert.deepEqual(issuedAuthority().optional_platforms, ['linux-x64']);
-  const actual = control(['windows-x64', 'linux-arm64', 'macos-x64']);
-  assert.deepEqual(actual.optional_platforms, ['macos-x64', 'linux-arm64', 'windows-x64']);
+  assert.deepEqual(issuedAuthority().optional_platforms, ['linux-x64', 'windows-x64']);
+  const actual = control(['windows-x64', 'linux-x64']);
+  assert.deepEqual(actual.optional_platforms, ['linux-x64', 'windows-x64']);
   assert.deepEqual(actual.issued_authority.optional_platforms, actual.optional_platforms);
 
   const drifted = structuredClone(actual);
-  drifted.optional_platforms = ['linux-arm64'];
+  drifted.optional_platforms = ['linux-x64'];
   assert.throws(
     () => validateStableOperationControl(drifted),
     /cohort or critical blob bindings do not match/,
@@ -202,6 +202,12 @@ test('Stable authority canonically binds audited optional platform selection int
     () => control(['macos-arm64']),
     /optional_platforms contains an unknown or duplicate platform ID/,
   );
+  for (const platform of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64']) {
+    assert.throws(
+      () => control([platform]),
+      /optional_platforms contains an unknown or duplicate platform ID/,
+    );
+  }
 });
 
 test('Stable operation control rejects a missing issued authority reference', () => {

@@ -2103,6 +2103,11 @@ export function validateReleasePlatformMatrix(
   let failures = 0;
   const requiredCapabilityIds = ['macos-arm64'];
   const windowsCapabilityIds = ['windows-x64', 'windows-arm64'];
+  const developmentValidationOnlyCapabilityIds = [
+    'macos-x64',
+    'macos-universal',
+    'linux-arm64',
+  ];
   const capabilityIds = [
     'macos-arm64',
     'macos-x64',
@@ -2138,7 +2143,13 @@ export function validateReleasePlatformMatrix(
       || !Array.isArray(capability?.quality_channels)
       || capability.quality_channels.length === 0
       || typeof capability?.publication_status !== 'string'
-      || typeof capability?.publication_route !== 'string'
+      || !(
+        typeof capability?.publication_route === 'string'
+        || (
+          developmentValidationOnlyCapabilityIds.includes(id)
+          && capability?.publication_route === null
+        )
+      )
       || !capability?.build?.os
       || !capability?.build?.command
       || !capability?.build?.arch
@@ -2164,10 +2175,22 @@ export function validateReleasePlatformMatrix(
       failures += 1;
     }
   }
-  for (const id of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64', 'windows-arm64']) {
+  for (const id of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64']) {
     const capability = capabilities[id];
     if (capability.default_enabled !== false || capability.blocks_stable !== false) {
       console.error(`FAIL release_platform_matrix: ${id} must remain default-off and non-blocking`);
+      failures += 1;
+    }
+  }
+  for (const id of developmentValidationOnlyCapabilityIds) {
+    const capability = capabilities[id];
+    if (
+      capability?.stable_allowed !== false
+      || capability?.publication_status !== 'development_validation_only'
+      || capability?.publication_route !== null
+      || !capability?.quality_channels?.includes('development_validation')
+    ) {
+      console.error(`FAIL release_platform_matrix: ${id} must remain development-validation-only and unpublished`);
       failures += 1;
     }
   }
@@ -2176,13 +2199,12 @@ export function validateReleasePlatformMatrix(
     || capabilities['linux-x64'].stable_allowed !== true
     || capabilities['linux-x64'].blocks_stable !== false
     || !capabilities['linux-x64'].quality_channels.includes('stable_optional')
-    || windowsCapabilityIds.some((id) =>
-      capabilities[id].stable_allowed !== true
-      || capabilities[id].blocks_stable !== false
-      || !capabilities[id].quality_channels.includes('stable_optional')
-    )
+    || capabilities['windows-x64'].default_enabled !== true
+    || capabilities['windows-x64'].stable_allowed !== true
+    || capabilities['windows-x64'].blocks_stable !== false
+    || !capabilities['windows-x64'].quality_channels.includes('stable_optional')
   ) {
-    console.error('FAIL release_platform_matrix: Linux x64 and both Windows architectures must be non-blocking Stable adjunct capabilities');
+    console.error('FAIL release_platform_matrix: Linux x64 and Windows x64 must be non-blocking Stable adjunct capabilities');
     failures += 1;
   }
   for (const id of windowsCapabilityIds) {
@@ -2199,7 +2221,7 @@ export function validateReleasePlatformMatrix(
     ['stable_required', ['macos-arm64'], true, true],
     ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
     ['preview_standard', ['macos-arm64', 'linux-x64'], true, true],
-    ['stable_optional', ['macos-x64', 'macos-universal', 'linux-x64', 'linux-arm64', 'windows-x64', 'windows-arm64'], false, false],
+    ['stable_optional', ['linux-x64', 'windows-x64'], false, false],
     ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
   ].filter(([name]) => (
     profile === 'aggregate'
@@ -2223,7 +2245,10 @@ export function validateReleasePlatformMatrix(
   }
   if (
     policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
-    || !sameStringSet(matrix?.stable_optional_selection?.default, ['linux-x64'])
+    || !sameStringSet(
+      matrix?.stable_optional_selection?.default,
+      ['linux-x64', 'windows-x64'],
+    )
     || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
       'scripts/validate-windows-updater-assets.ts'
     || !sameStringSet(

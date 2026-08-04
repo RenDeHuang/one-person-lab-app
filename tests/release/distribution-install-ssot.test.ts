@@ -104,6 +104,12 @@ test('distribution/install SSOT validates the current and approved state split',
     },
   );
   assert.equal(
+    install.distribution_install_model.installer_convergence.approved_universal_target
+      .desktop_release_identity.macos_x64_adjunct_resolution,
+    undefined,
+    'macOS x64 remains development-validation-only and has no install adjunct resolver',
+  );
+  assert.equal(
     install.distribution_install_model.homebrew_carriers.full.formula_dependency_current,
     true,
   );
@@ -461,6 +467,13 @@ test('cross-contract drift fails closed for channel, carrier, and convergence mu
       (_, install) => {
         install.distribution_install_model.consistency_target.configured_carrier_terminal_readback_required =
           false;
+      },
+    ],
+    [
+      'Development-only macOS x64 gaining an install adjunct resolver',
+      (_, install) => {
+        install.distribution_install_model.installer_convergence.approved_universal_target
+          .desktop_release_identity.macos_x64_adjunct_resolution = {};
       },
     ],
   ];

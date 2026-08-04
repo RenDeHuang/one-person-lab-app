@@ -238,12 +238,13 @@ Windows Preview 的弱网下载从下一份 RC 起把 `download-windows-preview.
 任何自动镜像回退都必须由 App owner 预先登记 HTTPS 来源并绑定同一 exact digest；任意
 第三方镜像、网盘或用户侧 `registry-mirrors` 不构成产品自动选择 authority。
 
-Stable 的 required/blocking 平台精确且仅为 `macos-arm64`。`linux-x64` 默认进入同版本
-Release Set 的 optional/nonblocking adjunct follower；`macos-x64`、`macos-universal`、
-`linux-arm64` 与 Windows x64/ARM64 也都属于默认关闭、由 authority 显式选择的 adjunct
-capability。Windows 两种架构同时保留独立 Preview/RC policy。任何 adjunct 都不能进入
-Stable admission、qualification、Latest activation 或 Standard install/readback 的 required 集合，
-也不能回写或回滚已经成功的 base Stable Release。
+Stable 的 required/blocking 平台精确且仅为 `macos-arm64`。Full DMG 继续由独立的同 tag
+Full follower 发布；`linux-x64` 与 `windows-x64` 默认进入同版本 Release Set 的
+optional/nonblocking adjunct follower。`macos-x64`、`macos-universal` 与 `linux-arm64`
+仅保留 development validation 构建能力，不得进入 Release、Homebrew 或 updater；
+`windows-arm64` 仅保留独立 Preview/RC policy，不得进入 Stable optional。任何 adjunct 都不能
+进入 Stable admission、qualification、Latest activation 或 Standard install/readback 的 required
+集合，也不能回写或回滚已经成功的 base Stable Release。
 所有入口只选择机器合同登记的 policy 或 platform ID，由
 `scripts/resolve-release-platform-matrix.ts` 生成 reusable build matrix。单次 Stable 的
 optional ID 数组必须由 pre-issued authority 绑定并随 operation control/checkpoint 原样传递，

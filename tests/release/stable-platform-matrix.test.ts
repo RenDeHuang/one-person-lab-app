@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
@@ -67,12 +66,16 @@ test('all seven capabilities remain buildable while only macOS ARM64 blocks Stab
   assert.equal(matrix.capabilities['macos-arm64'].default_enabled, true);
   assert.equal(matrix.capabilities['macos-arm64'].blocks_stable, true);
   assert.equal(matrix.capabilities['linux-x64'].default_enabled, true);
+  assert.equal(matrix.capabilities['windows-x64'].default_enabled, true);
   assert.equal(matrix.capabilities['linux-x64'].blocks_stable, false);
-  for (const id of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-x64', 'windows-arm64']) {
+  for (const id of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64']) {
     assert.equal(matrix.capabilities[id].default_enabled, false);
     assert.equal(matrix.capabilities[id].blocks_stable, false);
+    assert.equal(matrix.capabilities[id].stable_allowed, false);
+    assert.equal(matrix.capabilities[id].publication_status === 'development_validation_only', id !== 'windows-arm64');
+    assert.equal(matrix.capabilities[id].publication_route === null, id !== 'windows-arm64');
   }
-  for (const id of ['linux-x64', 'windows-x64', 'windows-arm64']) {
+  for (const id of ['linux-x64', 'windows-x64']) {
     assert.equal(matrix.capabilities[id].stable_allowed, true);
     assert.ok(matrix.capabilities[id].quality_channels.includes('stable_optional'));
   }
@@ -80,27 +83,46 @@ test('all seven capabilities remain buildable while only macOS ARM64 blocks Stab
     assert.ok(matrix.capabilities[id].quality_channels.includes('preview_rc'));
   }
   for (const id of capabilityIds) {
-    assert.equal(typeof matrix.capabilities[id].publication_route, 'string');
+    if (['macos-x64', 'macos-universal', 'linux-arm64'].includes(id)) {
+      assert.equal(matrix.capabilities[id].publication_route, null);
+    } else {
+      assert.equal(typeof matrix.capabilities[id].publication_route, 'string');
+    }
     assert.doesNotMatch(matrix.capabilities[id].publication_status, /unavailable/);
   }
 });
 
-test('optional Stable publication defaults to Linux x64 and remains authority-overridable', (t) => {
+test('Stable optional publication is limited to Linux x64 and Windows x64 without promoting product qualification', () => {
+  assert.deepEqual(
+    contract.release_platform_matrix.policies.stable_optional.platforms,
+    ['linux-x64', 'windows-x64'],
+  );
+  assert.deepEqual(
+    contract.release_platform_matrix.stable_optional_selection.default,
+    ['linux-x64', 'windows-x64'],
+  );
+  for (const id of ['macos-x64', 'macos-universal', 'linux-arm64']) {
+    const capability = contract.release_platform_matrix.capabilities[id];
+    assert.equal(capability.stable_allowed, false);
+    assert.equal(capability.publication_status, 'development_validation_only');
+    assert.equal(capability.publication_route, null);
+  }
+  const productProfile = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-product-profile.json'), 'utf8'),
+  );
+  assert.deepEqual(productProfile.product.supported_release_platforms, ['macos-arm64']);
+});
+
+test('optional Stable publication defaults to Linux x64 plus Windows x64 and remains authority-overridable', () => {
   assert.deepEqual(
     resolveReleasePlatformMatrix({ policy: 'stable_optional' }).include.map((row) => row.platform),
-    ['linux-x64'],
+    ['linux-x64', 'windows-x64'],
   );
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-platform-switch-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const changed = structuredClone(contract);
-  changed.release_platform_matrix.capabilities['macos-x64'].default_enabled = true;
-  const contractPath = path.join(root, 'app-release-channel.json');
-  fs.writeFileSync(contractPath, `${JSON.stringify(changed, null, 2)}\n`);
   assert.deepEqual(
-    resolveReleasePlatformMatrix({ policy: 'stable_optional', contractPath }).include.map(
+    resolveReleasePlatformMatrix({ policy: 'stable_optional', platforms: ['linux-x64'] }).include.map(
       (row) => row.platform,
     ),
-    ['macos-x64', 'linux-x64'],
+    ['linux-x64'],
   );
 });
 
@@ -120,10 +142,17 @@ test('resolver accepts only audited policy and platform IDs', () => {
   assert.deepEqual(
     resolveReleasePlatformMatrix({
       policy: 'stable_optional',
-      platforms: ['windows-x64', 'macos-x64', 'linux-arm64'],
+      platforms: ['windows-x64'],
     }).include.map((entry) => entry.platform),
-    ['windows-x64', 'macos-x64', 'linux-arm64'],
+    ['windows-x64'],
   );
+  for (const platform of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64']) {
+    assert.throws(
+      () => resolveReleasePlatformMatrix({ policy: 'stable_optional', platforms: [platform] }),
+      /outside audited policy/,
+      `${platform} must remain development-only for Stable optional selection`,
+    );
+  }
   assert.deepEqual(
     resolveReleasePlatformMatrix({
       policy: 'stable_optional',
@@ -140,6 +169,9 @@ test('resolver accepts only audited policy and platform IDs', () => {
 });
 
 test('workflow callers consume resolver output while reusable build keeps generic matrix input', () => {
+  const stable = parseYaml(
+    fs.readFileSync(path.join(appRoot, '.github/workflows/release-stable.yml'), 'utf8'),
+  ) as any;
   const bundle = parseYaml(
     fs.readFileSync(path.join(appRoot, '.github/workflows/_release-bundle.yml'), 'utf8'),
   ) as any;
@@ -156,6 +188,8 @@ test('workflow callers consume resolver output while reusable build keeps generi
     fs.readFileSync(path.join(appRoot, '.github/workflows/windows-updater-package-validation.yml'), 'utf8'),
   ) as any;
 
+  assert.equal(stable.on.workflow_dispatch.inputs.optional_platforms.default, '["linux-x64","windows-x64"]');
+  assert.equal(bundle.on.workflow_call.inputs.stable_optional_platforms.default, '["linux-x64","windows-x64"]');
   assert.equal(bundle.jobs['standard-build'].with.matrix, '${{ needs.resolve-platform-matrix.outputs.matrix }}');
   assert.equal(bundle.jobs['standard-build'].with.release_validation_profile, 'stable');
   const bundleMatrixRun = String(

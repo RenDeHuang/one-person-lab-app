@@ -1158,6 +1158,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     'windows-x64',
     'windows-arm64',
   ];
+  const developmentValidationOnlyCapabilityIds = [
+    'macos-x64',
+    'macos-universal',
+    'linux-arm64',
+  ];
   assertDeepEqualJson(
     Object.keys(capabilities ?? {}).sort(),
     capabilityIds.slice().sort(),
@@ -1180,7 +1185,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   );
   assertDeepEqualJson(
     policies?.stable_optional?.platforms,
-    ['macos-x64', 'macos-universal', 'linux-x64', 'linux-arm64', 'windows-x64', 'windows-arm64'],
+    ['linux-x64', 'windows-x64'],
     'Stable optional platform policy',
   );
   if (validationProfile !== 'stable') {
@@ -1214,20 +1219,33 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || capabilities?.['linux-x64']?.stable_allowed !== true
     || capabilities?.['linux-x64']?.blocks_stable !== false
     || !capabilities?.['linux-x64']?.quality_channels?.includes('stable_optional')
-    || capabilities?.['windows-x64']?.default_enabled !== false
+    || capabilities?.['windows-x64']?.default_enabled !== true
     || capabilities?.['windows-x64']?.stable_allowed !== true
     || capabilities?.['windows-x64']?.blocks_stable !== false
     || !capabilities?.['windows-x64']?.quality_channels?.includes('stable_optional')
     || capabilities?.['windows-arm64']?.default_enabled !== false
-    || capabilities?.['windows-arm64']?.stable_allowed !== true
+    || capabilities?.['windows-arm64']?.stable_allowed !== false
     || capabilities?.['windows-arm64']?.blocks_stable !== false
-    || !capabilities?.['windows-arm64']?.quality_channels?.includes('stable_optional')
+    || !capabilities?.['windows-arm64']?.quality_channels?.includes('preview_rc')
+    || developmentValidationOnlyCapabilityIds.some((capabilityId) =>
+      capabilities?.[capabilityId]?.stable_allowed !== false
+      || capabilities?.[capabilityId]?.publication_status !== 'development_validation_only'
+      || capabilities?.[capabilityId]?.publication_route !== null
+      || !capabilities?.[capabilityId]?.quality_channels?.includes('development_validation')
+    )
     || publicationCapabilityIds.some((capabilityId) =>
-      typeof capabilities?.[capabilityId]?.publication_route !== 'string'
+      !(
+        typeof capabilities?.[capabilityId]?.publication_route === 'string'
+        || (
+          developmentValidationOnlyCapabilityIds.includes(capabilityId)
+          && capabilities?.[capabilityId]?.publication_route === null
+        )
+      )
       || capabilities?.[capabilityId]?.publication_status?.includes('unavailable')
     )
     || policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
-    || JSON.stringify(platformMatrix?.stable_optional_selection?.default) !== JSON.stringify(['linux-x64'])
+    || JSON.stringify(platformMatrix?.stable_optional_selection?.default) !==
+      JSON.stringify(['linux-x64', 'windows-x64'])
     || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows-preview'
     || platformMatrix?.stable_optional_selection?.authority_field !==
       'opl_app_stable_operation_authority.v1#optional_platforms'
