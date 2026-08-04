@@ -31,6 +31,11 @@ on:
         description: Exact Framework SHA from the completed Standard cohort.
         required: true
         type: string
+      skip_code_quality:
+        description: Skip code quality checks in the nested reusable build pipeline.
+        required: false
+        type: boolean
+        default: false
       opl_release_version:
         description: Exact completed Standard display version.
         required: true

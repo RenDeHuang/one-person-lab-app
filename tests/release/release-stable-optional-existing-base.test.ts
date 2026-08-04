@@ -84,3 +84,17 @@ test('nonempty invocation mode selects the protected reusable route independentl
   assert.match(matrixRun, /test '\$\{\{ inputs\.invocation_mode \}\}' = stable_optional_follower/);
   assert.doesNotMatch(matrixRun, /GITHUB_EVENT_NAME.*workflow_call/);
 });
+
+test('reusable optional route forwards an explicit boolean code-quality input', () => {
+  const manualWorkflow = parseYaml(manualSource) as any;
+  assert.deepEqual(manualWorkflow.on.workflow_call.inputs.skip_code_quality, {
+    description: 'Skip code quality checks in the nested reusable build pipeline.',
+    required: false,
+    type: 'boolean',
+    default: false,
+  });
+  assert.equal(
+    manualWorkflow.jobs['build-pipeline'].with.skip_code_quality,
+    '${{ inputs.skip_code_quality }}',
+  );
+});
