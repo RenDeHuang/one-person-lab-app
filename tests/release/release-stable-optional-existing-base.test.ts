@@ -62,3 +62,15 @@ test('publisher receives distinct build cohort and base target authority', () =>
   assert.match(manualSource, /authority_digest:\$authority_digest/);
   assert.match(manualSource, /if \[ "\$PUBLICATION_MODE" = stable_optional_follower \]; then verify_exact_base_release; fi/);
 });
+
+test('matrix control is checked out from the executor while the requested App cohort stays separate', () => {
+  const manualWorkflow = parseYaml(manualSource) as any;
+  const prepareSteps = manualWorkflow.jobs['prepare-matrix'].steps;
+  const appCheckout = prepareSteps.find((step: any) => step.name === 'Checkout requested App source');
+  const controlCheckout = prepareSteps.find((step: any) => step.name === 'Checkout protected release control source');
+  assert.equal(appCheckout.with.ref, '${{ inputs.app_ref || inputs.branch }}');
+  assert.equal(controlCheckout.with.ref, '${{ github.sha }}');
+  assert.equal(controlCheckout.with.path, '.release-control');
+  assert.match(manualSource, /\.release-control\/scripts\/resolve-release-platform-matrix\.ts/);
+  assert.doesNotMatch(manualSource, /node --experimental-strip-types scripts\/resolve-release-platform-matrix\.ts/);
+});
