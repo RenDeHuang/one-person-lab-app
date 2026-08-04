@@ -8,7 +8,7 @@ import {
   releaseWorkflowPathsForProfile,
 } from './release-checks.ts';
 
-const workflowMutationCommandPattern = /gh\s+api\s+--method\s+(?:POST|PATCH|PUT|DELETE)|gh\s+workflow\s+run|gh\s+run\s+(?:cancel|rerun)|gh\s+release\s+(?:create|edit|upload|delete)|git\b[^\n]*\s(?:push|tag)\b|\bopl\s+release\s+(?:freeze|operation\s+admit|build|verify|publish|reconcile)\b|publish-(?:release|full-addon)\.ts|cleanup-draft-release-candidates\.ts|curl\b[^\n]*(?:--request|-X)\s*(?:POST|PATCH|PUT|DELETE)/;
+const workflowMutationCommandPattern = /gh\s+api\s+(?:--method(?:=|\s+)|-X(?:=|\s*)?)(?:POST|PATCH|PUT|DELETE)\b|gh\s+workflow\s+run|gh\s+run\s+(?:cancel|rerun)|gh\s+release\s+(?:create|edit|upload|delete)|git\b[^\n]*\s(?:push|tag)\b|\bopl\s+release\s+(?:freeze|operation\s+admit|build|verify|publish|reconcile)\b|publish-(?:release|full-addon)\.ts|cleanup-draft-release-candidates\.ts|curl\b[^\n]*(?:--request|-X)\s*(?:POST|PATCH|PUT|DELETE)/;
 const retiredLiveAuthorityPattern = /release[_ -]broker|verify-release-broker|verify-release-session-lease|release_attempt_id|release_mutation_payload_sha256|pre_api_admission_receipt_base64|release[_ -]session[_ -]lease/i;
 const exactReadPermissions = { contents: 'read', actions: 'read' } as const;
 const exactStableEntryPermissions = { contents: 'write', actions: 'read' } as const;
@@ -24,6 +24,8 @@ const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml'
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
 const manualBuildWorkflowPath = '.github/workflows/build-manual.yml';
+const stableOptionalFollowupWorkflowPath =
+  '.github/workflows/release-stable-post-success-followups.yml';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
 const webuiCarrierPublishEnvironment =
@@ -194,6 +196,87 @@ function isAuthorizedSelectedPlatformPublishJob(
       "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}"
     && exactObject(job.permissions, exactStableEntryPermissions)
     && Array.isArray(job.steps);
+}
+
+function hasExactStableOptionalRecoveryIngress(workflow: Record<string, any>): boolean {
+  const inputs = workflow.on?.workflow_dispatch?.inputs ?? {};
+  return JSON.stringify(Object.keys(inputs)) === JSON.stringify([
+    'source_run_id',
+    'skipped_followup_run_id',
+    'recovery_confirmation',
+  ])
+    && inputs.source_run_id?.required === true
+    && inputs.source_run_id?.type === 'string'
+    && inputs.skipped_followup_run_id?.required === true
+    && inputs.skipped_followup_run_id?.type === 'string'
+    && inputs.recovery_confirmation?.required === true
+    && inputs.recovery_confirmation?.type === 'choice'
+    && JSON.stringify(inputs.recovery_confirmation?.options) ===
+      JSON.stringify(['recover_exact_skipped_stable_optional_follower_v1'])
+    && exactObject(workflow.permissions, exactReadPermissions)
+    && workflow.concurrency?.group ===
+      "opl-full-append-successor-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}"
+    && workflow.concurrency?.['cancel-in-progress'] === false;
+}
+
+function isAuthorizedStableOptionalRecoveryWriteJob(
+  workflowPath: string,
+  workflow: Record<string, any>,
+  jobId: string,
+  job: Record<string, any>,
+): boolean {
+  if (
+    workflowPath !== stableOptionalFollowupWorkflowPath
+    || !hasExactStableOptionalRecoveryIngress(workflow)
+  ) {
+    return false;
+  }
+  if (jobId === 'publish-optional-platforms') {
+    return job.if === "${{ needs.admit.outputs.optional_platforms_enabled == 'true' }}"
+      && needsExactly(job, ['admit'])
+      && job.uses === './.github/workflows/build-manual.yml'
+      && exactObject(job.permissions, exactStableEntryPermissions)
+      && job.with?.invocation_mode === 'stable_optional_follower'
+      && job.with?.platform_policy === 'stable_optional'
+      && job.with?.platform_ids === '${{ needs.admit.outputs.optional_platforms }}'
+      && job.with?.app_ref === '${{ needs.admit.outputs.app_ref }}'
+      && job.with?.shell_ref === '${{ needs.admit.outputs.shell_ref }}'
+      && job.with?.framework_ref === '${{ needs.admit.outputs.framework_ref }}'
+      && job.with?.opl_release_version === '${{ needs.admit.outputs.version }}'
+      && job.with?.opl_updater_version === '${{ needs.admit.outputs.updater_version }}'
+      && job.with?.source_run_id === '${{ needs.admit.outputs.source_run_id }}'
+      && job.with?.source_bundle_digest === '${{ needs.admit.outputs.source_bundle_digest }}'
+      && Object.keys(job.with ?? {}).length === 10
+      && job.secrets === 'inherit'
+      && !Object.prototype.hasOwnProperty.call(job, 'steps');
+  }
+  return jobId === 'dispatch'
+    && job.if === "${{ github.event_name == 'workflow_run' && needs.admit.outputs.eligible == 'true' }}"
+    && needsExactly(job, ['admit'])
+    && exactObject(job.permissions, { contents: 'read', actions: 'write' })
+    && job.environment === undefined
+    && Array.isArray(job.steps)
+    && (() => {
+      const runText = job.steps
+        .filter((step: Record<string, any>) => typeof step.run === 'string')
+        .map((step: Record<string, any>) => step.run)
+        .join('\n');
+      const mutationLines = runText
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => workflowMutationCommandPattern.test(line));
+      const allowedDispatchLine = 'gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/dispatches"';
+      const exactInputsObject = /\{\s*operation:"append_full",\s*version:"",\s*include_full:"false",\s*shell_ref:"",\s*framework_ref:\$framework_ref,\s*source_run_id:\$source_run_id,\s*source_artifact:\$source_artifact\s*\}/;
+      return mutationLines.length === 1
+        && mutationLines[0].trim().replace(/\\$/, '').trim() === allowedDispatchLine
+        && runText.includes('--arg framework_ref "$FRAMEWORK_REF"')
+        && runText.includes('--arg source_run_id "$SOURCE_RUN_ID"')
+        && runText.includes('--arg source_artifact "$SOURCE_ARTIFACT"')
+        && exactInputsObject.test(runText)
+        && runText.includes("dispatch_ref=\"main\"")
+        && runText.includes("'{ref:$ref,inputs:$inputs}'")
+        && runText.includes('--input - <<<"$dispatch_payload"');
+    })();
 }
 
 function validatePreviewLatestPointerTopology(appRoot: string): number {
@@ -2302,6 +2385,10 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         continue;
       }
       if (isAuthorizedSelectedPlatformPublishJob(workflowPath, jobId, job)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
+      if (isAuthorizedStableOptionalRecoveryWriteJob(workflowPath, workflow, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }

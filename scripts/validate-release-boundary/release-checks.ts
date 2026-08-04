@@ -1837,9 +1837,12 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "invocation_mode: stable_optional_follower",
       "platform_policy: stable_optional",
       "source_bundle_digest:",
+      "workflow_dispatch:",
+      "recover_exact_skipped_stable_optional_follower_v1",
+      "opl_app_stable_optional_recovery_admission.v1",
+      "full_successor:false",
     ],
     forbidden: [
-      "workflow_dispatch:",
       "continue-on-error:",
     ],
   },

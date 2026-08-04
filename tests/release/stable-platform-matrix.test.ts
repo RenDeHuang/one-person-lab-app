@@ -101,6 +101,14 @@ test('Stable optional publication is limited to Linux x64 and Windows x64 withou
     contract.release_platform_matrix.stable_optional_selection.default,
     ['linux-x64', 'windows-x64'],
   );
+  assert.equal(
+    contract.release_platform_matrix.optional_platform_additive_follower.base_release_must_be_published_mutable,
+    true,
+  );
+  assert.equal(
+    contract.release_platform_matrix.optional_platform_additive_follower.adjunct_release_must_be_published_immutable,
+    true,
+  );
   for (const id of ['macos-x64', 'macos-universal', 'linux-arm64']) {
     const capability = contract.release_platform_matrix.capabilities[id];
     assert.equal(capability.stable_allowed, false);

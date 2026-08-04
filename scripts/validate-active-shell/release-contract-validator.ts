@@ -1254,7 +1254,8 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || platformMatrix?.stable_optional_selection?.arbitrary_command_or_os_input_allowed !== false
     || platformMatrix?.optional_platform_additive_follower?.carrier !==
       'independent_immutable_adjunct_release'
-    || platformMatrix?.optional_platform_additive_follower?.base_release_must_be_published_immutable !== true
+    || platformMatrix?.optional_platform_additive_follower?.base_release_must_be_published_mutable !== true
+    || platformMatrix?.optional_platform_additive_follower?.adjunct_release_must_be_published_immutable !== true
     || platformMatrix?.optional_platform_additive_follower?.make_latest !== false
     || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
       'scripts/validate-windows-updater-assets.ts'

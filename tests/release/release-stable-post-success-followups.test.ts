@@ -60,9 +60,110 @@ process.stdout.write(JSON.stringify({
         GITHUB_OUTPUT: outputPath,
         GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
         GITHUB_RUN_ATTEMPT: "1",
+        TRIGGER_EVENT: "workflow_run",
         SOURCE_RUN_ID: "30859273345",
+        SOURCE_EVENT_HEAD_SHA: "a".repeat(40),
         SOURCE_HEAD_SHA: "a".repeat(40),
+        SKIPPED_FOLLOWUP_RUN_ID: "",
+        RECOVERY_CONFIRMATION: "",
         OPL_TEST_SOURCE_TITLE: displayTitle,
+      },
+    });
+    return {
+      result,
+      output: fs.existsSync(outputPath) ? fs.readFileSync(outputPath, "utf8") : "",
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function runRecoverySourceValidationStep({ duplicateTitle = false } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-stable-optional-recovery-source-"));
+  try {
+    const bin = path.join(root, "bin");
+    const outputPath = path.join(root, "github-output.txt");
+    fs.mkdirSync(bin);
+    const fakeGh = path.join(bin, "gh");
+    fs.writeFileSync(
+      fakeGh,
+      String.raw`#!/usr/bin/env node
+const args = process.argv.slice(2).join(" ");
+const repository = { full_name: "gaofeng21cn/one-person-lab-app" };
+const sourceRunId = process.env.SOURCE_RUN_ID;
+const skippedRunId = process.env.SKIPPED_FOLLOWUP_RUN_ID;
+const recoveryRunId = process.env.GITHUB_RUN_ID;
+const sourceHead = "a".repeat(40);
+const recoveryTitle = "Stable optional recovery v1 for Stable run " + sourceRunId
+  + " skipped follow-up " + skippedRunId;
+const recoveryRun = {
+  id: Number(recoveryRunId), repository, head_repository: repository,
+  path: ".github/workflows/release-stable-post-success-followups.yml",
+  event: "workflow_dispatch", head_branch: "main", head_sha: process.env.GITHUB_SHA,
+  display_title: recoveryTitle, run_attempt: 1,
+};
+if (args.includes("/actions/runs/" + skippedRunId + "/jobs?")) {
+  process.stdout.write(JSON.stringify({
+    total_count: 4,
+    jobs: ["admit", "publish-optional-platforms", "receipt", "dispatch"].map((name) => ({
+      name, status: "completed", conclusion: "skipped", steps: [],
+    })),
+  }));
+} else if (args.includes("/actions/runs/" + skippedRunId + "/artifacts?")) {
+  process.stdout.write(JSON.stringify([{ total_count: 0, artifacts: [] }]));
+} else if (args.includes("/actions/workflows/release-stable-post-success-followups.yml/runs?")) {
+  const runs = [recoveryRun];
+  if (process.env.OPL_TEST_DUPLICATE_TITLE === "true") {
+    runs.push({ ...recoveryRun, id: Number(recoveryRunId) + 1 });
+  }
+  process.stdout.write(JSON.stringify([{ workflow_runs: runs }]));
+} else if (args.endsWith("/actions/runs/" + recoveryRunId)) {
+  process.stdout.write(JSON.stringify(recoveryRun));
+} else if (args.endsWith("/actions/runs/" + skippedRunId)) {
+  process.stdout.write(JSON.stringify({
+    id: Number(skippedRunId), repository, head_repository: repository,
+    path: ".github/workflows/release-stable-post-success-followups.yml",
+    event: "workflow_run", head_branch: "main", head_sha: sourceHead,
+    display_title: "Full append successor for Stable run " + sourceRunId,
+    run_attempt: 1, status: "completed", conclusion: "skipped",
+  }));
+} else if (args.endsWith("/actions/runs/" + sourceRunId)) {
+  process.stdout.write(JSON.stringify({
+    id: Number(sourceRunId), repository, head_repository: repository,
+    path: ".github/workflows/release-stable.yml", event: "workflow_dispatch",
+    head_branch: "main", head_sha: sourceHead, run_attempt: 1,
+    status: "completed", conclusion: "success",
+    display_title: "OPL Stable resume_standard " + sourceRunId,
+  }));
+} else {
+  process.stderr.write("unexpected gh call: " + args + "\n");
+  process.exit(2);
+}
+`,
+    );
+    fs.chmodSync(fakeGh, 0o755);
+    const sourceStep = workflow.jobs.admit.steps.find(
+      (candidate: Record<string, any>) => candidate.name === "Validate successful Standard source run",
+    );
+    assert.ok(sourceStep);
+    const result = spawnSync("/bin/bash", ["-euo", "pipefail", "-c", String(sourceStep.run)], {
+      cwd: root,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "gaofeng21cn/one-person-lab-app",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_REF: "refs/heads/main",
+        GITHUB_RUN_ID: "40100000001",
+        GITHUB_SHA: "f".repeat(40),
+        TRIGGER_EVENT: "workflow_dispatch",
+        SOURCE_RUN_ID: "30859273345",
+        SOURCE_EVENT_HEAD_SHA: "",
+        SKIPPED_FOLLOWUP_RUN_ID: "30860184622",
+        RECOVERY_CONFIRMATION: "recover_exact_skipped_stable_optional_follower_v1",
+        OPL_TEST_DUPLICATE_TITLE: duplicateTitle ? "true" : "false",
       },
     });
     return {
@@ -265,6 +366,8 @@ function runSourceBindingStep({
         SOURCE_RUN_ID: sourceRunId,
         SOURCE_HEAD_SHA: transportHead,
         SOURCE_ARTIFACT: sourceArtifact,
+        TRIGGER_EVENT: "workflow_run",
+        SKIPPED_FOLLOWUP_RUN_ID: "",
       },
     });
     return {
@@ -368,15 +471,23 @@ function runFullBuildProvenanceAdmission({
 }
 
 test("Stable success has one same-tag Full append successor trigger", () => {
-  assert.deepEqual(Object.keys(workflow.on), ["workflow_run"]);
+  assert.deepEqual(Object.keys(workflow.on), ["workflow_run", "workflow_dispatch"]);
   assert.deepEqual(workflow.on.workflow_run.workflows, [
     "OPL Stable Release Bundle",
   ]);
   assert.deepEqual(workflow.on.workflow_run.types, ["completed"]);
+  assert.deepEqual(
+    Object.keys(workflow.on.workflow_dispatch.inputs),
+    ["source_run_id", "skipped_followup_run_id", "recovery_confirmation"],
+  );
+  assert.deepEqual(
+    workflow.on.workflow_dispatch.inputs.recovery_confirmation.options,
+    ["recover_exact_skipped_stable_optional_follower_v1"],
+  );
   assert.deepEqual(workflow.permissions, { contents: "read", actions: "read" });
   assert.equal(
     workflow.concurrency.group,
-    "opl-full-append-successor-${{ github.event.workflow_run.id }}",
+    "opl-full-append-successor-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
   );
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(Object.keys(workflow.jobs), [
@@ -386,12 +497,12 @@ test("Stable success has one same-tag Full append successor trigger", () => {
     "receipt",
   ]);
   assert.equal(
-    workflow.jobs.admit.if,
-    "${{ github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}",
+    workflow.jobs.admit.if.replace(/\s+/g, " ").trim(),
+    "${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard '))) || (github.event_name == 'workflow_dispatch' && inputs.recovery_confirmation == 'recover_exact_skipped_stable_optional_follower_v1') }}",
   );
   assert.equal(
     workflow.jobs.dispatch.if,
-    "${{ needs.admit.outputs.eligible == 'true' }}",
+    "${{ github.event_name == 'workflow_run' && needs.admit.outputs.eligible == 'true' }}",
   );
   assert.deepEqual(workflow.jobs.dispatch.needs, ["admit"]);
   assert.deepEqual(workflow.jobs.dispatch.permissions, {
@@ -417,7 +528,7 @@ test("Stable success has one same-tag Full append successor trigger", () => {
   assert.deepEqual(workflow.jobs.receipt.needs, ["admit", "dispatch"]);
   assert.equal(
     workflow.jobs.receipt.if,
-    "${{ always() && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}",
+    "${{ always() && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}",
   );
   assert.deepEqual(workflow.jobs.receipt.permissions, {
     contents: "read",
@@ -439,8 +550,19 @@ test("admission binds the Standard source run and exact checkpoint without makin
   assert.match(source, /opl-release-standard-operation-checkpoint-\$SOURCE_RUN_ID/);
   assert.match(
     source,
-    /opl-release-activation-\$\{\{ github\.event\.workflow_run\.id \}\}/,
+    /opl-release-activation-\$\{\{ steps\.source\.outputs\.source_run_id \}\}/,
   );
+  assert.match(source, /recover_exact_skipped_stable_optional_follower_v1/);
+  assert.match(source, /skipped-followup-jobs\.json/);
+  assert.match(source, /all\(\.jobs\[\]; \.status == "completed" and \.conclusion == "skipped" and \.steps == \[\]\)/);
+  assert.match(source, /\[\.\[\]\?\.artifacts\[\]\?\] \| length == 0/);
+  assert.match(source, /base_release_mutable:true/);
+  assert.match(source, /adjunct_release_immutable:true/);
+  assert.match(source, /full_successor:false/);
+  assert.match(source, /optional_platforms="\$frozen_optional_platforms"/);
+  assert.match(source, /recovery-base-release\.json/);
+  assert.match(source, /\.immutable == false/);
+  assert.match(source, /Upload typed Stable optional recovery admission/);
   assert.match(source, /standard_built\|standard_qualified/);
   assert.doesNotMatch(source, /standard_checkpoint_not_qualified/);
   assert.doesNotMatch(source, /status:"deferred"/);
@@ -521,6 +643,16 @@ test("Full successor admits both initial and resumed Standard success titles, bu
   assert.notEqual(forgedResume.result.status, 0);
 });
 
+test("Stable optional recovery consumes one exact skipped follower and rejects a duplicate title", () => {
+  const exact = runRecoverySourceValidationStep();
+  assert.equal(exact.result.status, 0, exact.result.stderr || exact.result.stdout);
+  assert.match(exact.output, /source_run_id=30859273345/);
+  assert.match(exact.output, /source_artifact=opl-release-standard-operation-checkpoint-30859273345/);
+
+  const duplicate = runRecoverySourceValidationStep({ duplicateTitle: true });
+  assert.notEqual(duplicate.result.status, 0);
+});
+
 test("resumed Full successor separates transport executor head from the frozen Standard cohort", () => {
   const resumed = runSourceBindingStep();
   assert.equal(resumed.result.status, 0, resumed.result.stderr || resumed.result.stdout);
@@ -595,7 +727,7 @@ test("successor dispatch is exactly one append_full JSON input set with no legac
   assert.doesNotMatch(source, /-f "inputs=\$inputs_json"/);
   assert.doesNotMatch(
     source,
-    /gh workflow run|gh run rerun|gh run cancel|gh release (?:create|edit|upload|delete)|git tag|make_latest/,
+    /gh workflow run|gh run rerun|gh run cancel|gh release (?:create|edit|upload|delete)|git tag/,
   );
 
   const execution = runSuccessorDispatchStep();
@@ -651,7 +783,12 @@ test("successor is idempotent and does not retry an unknown dispatch result", ()
   assert.match(source, /\.head_sha \| type == "string" and test/);
   assert.match(source, /executor_run_head_sha/);
   assert.match(source, /unique \| \.\[\]/);
-  assert.doesNotMatch(source, /--paginate|--slurp/);
+  const dispatchRun = String(
+    workflow.jobs.dispatch.steps.find(
+      (step: Record<string, any>) => step.name === "Dispatch exactly one same-tag Full append operation",
+    )?.run,
+  );
+  assert.doesNotMatch(dispatchRun, /--paginate|--slurp/);
   assert.equal((source.match(/-f page=1/g) ?? []).length, 2);
   assert.equal((source.match(/-f per_page=100/g) ?? []).length, 2);
   assert.equal((source.match(/-f branch=main/g) ?? []).length, 2);
@@ -668,6 +805,15 @@ test("successor receipt declares additive and non-blocking boundaries", () => {
   assert.match(source, /opl-full-append-dispatch-readback-/);
   assert.match(source, /opl-full-append-successor-receipt-/);
   assert.match(source, /executor_run_head_sha/);
+});
+
+test("Stable optional recovery is a one-shot optional-only route with no Full dispatch", () => {
+  assert.match(source, /operation:"recover_stable_optional_follower"/);
+  assert.match(source, /mutation_scope:\{base_release:false,full_successor:false,adjunct_release:true\}/);
+  assert.match(source, /if: \$\{\{ github\.event_name == 'workflow_run' && needs\.admit\.outputs\.eligible == 'true' \}\}/);
+  assert.match(source, /if: \$\{\{ always\(\) && github\.event_name == 'workflow_dispatch' \}\}/);
+  assert.match(source, /consumes_skipped_followup_run_id/);
+  assert.match(source, /recovery-runs\.json/);
 });
 
 test("Full admission CAS-binds a published Standard reference without locking Full content sources", () => {

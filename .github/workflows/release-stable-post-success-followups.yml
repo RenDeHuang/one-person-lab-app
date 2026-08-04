@@ -1,5 +1,8 @@
 name: OPL Stable Post-Success Full Follow-up
-run-name: Full append successor for Stable run ${{ github.event.workflow_run.id }}
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+    && format('Stable optional recovery v1 for Stable run {0} skipped follow-up {1}', inputs.source_run_id, inputs.skipped_followup_run_id)
+    || format('Full append successor for Stable run {0}', github.event.workflow_run.id) }}
 
 on:
   workflow_run:
@@ -7,6 +10,22 @@ on:
       - OPL Stable Release Bundle
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Exact successful standard or resume_standard Stable source run
+        required: true
+        type: string
+      skipped_followup_run_id:
+        description: Exact skipped automatic post-success follow-up with no jobs or artifacts executed
+        required: true
+        type: string
+      recovery_confirmation:
+        description: Confirm one-shot recovery of the exact skipped Stable optional follower
+        required: true
+        type: choice
+        options:
+          - recover_exact_skipped_stable_optional_follower_v1
 
 permissions:
   contents: read
@@ -16,12 +35,18 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-full-append-successor-${{ github.event.workflow_run.id }}
+  group: opl-full-append-successor-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
   admit:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}
+    if: >-
+      ${{ (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ')
+          || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')))
+        || (github.event_name == 'workflow_dispatch'
+          && inputs.recovery_confirmation == 'recover_exact_skipped_stable_optional_follower_v1') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -46,16 +71,84 @@ jobs:
         id: source
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
+          SOURCE_EVENT_HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
+          SKIPPED_FOLLOWUP_RUN_ID: ${{ inputs.skipped_followup_run_id || '' }}
+          RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-          [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
+            test "$GITHUB_REF" = refs/heads/main
+            [[ "$SKIPPED_FOLLOWUP_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            test "$SKIPPED_FOLLOWUP_RUN_ID" != "$SOURCE_RUN_ID"
+            test "$RECOVERY_CONFIRMATION" = recover_exact_skipped_stable_optional_follower_v1
+            recovery_title="Stable optional recovery v1 for Stable run ${SOURCE_RUN_ID} skipped follow-up ${SKIPPED_FOLLOWUP_RUN_ID}"
+
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > recovery-run.json
+            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" --arg head "$GITHUB_SHA" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-stable-post-success-followups.yml"
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .head_sha == $head
+              and .display_title == $title
+              and .run_attempt == 1
+            ' recovery-run.json >/dev/null
+
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SKIPPED_FOLLOWUP_RUN_ID" > skipped-followup-run.json
+            jq -e --arg run "$SKIPPED_FOLLOWUP_RUN_ID" --arg source "$SOURCE_RUN_ID" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-stable-post-success-followups.yml"
+              and .event == "workflow_run"
+              and .head_branch == "main"
+              and .display_title == ("Full append successor for Stable run " + $source)
+              and .run_attempt == 1
+              and .status == "completed"
+              and .conclusion == "skipped"
+            ' skipped-followup-run.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SKIPPED_FOLLOWUP_RUN_ID/jobs?per_page=100" > skipped-followup-jobs.json
+            jq -e '
+              .total_count == 4
+              and ([.jobs[].name] | sort) == ["admit", "dispatch", "publish-optional-platforms", "receipt"]
+              and all(.jobs[]; .status == "completed" and .conclusion == "skipped" and .steps == [])
+            ' skipped-followup-jobs.json >/dev/null
+            gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$SKIPPED_FOLLOWUP_RUN_ID/artifacts?per_page=100" \
+              > skipped-followup-artifacts.json
+            jq -e '[.[]?.artifacts[]?] | length == 0' skipped-followup-artifacts.json >/dev/null
+
+            gh api --paginate --slurp \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable-post-success-followups.yml/runs?event=workflow_dispatch&per_page=100" \
+              > recovery-runs.json
+            jq -e --arg run "$GITHUB_RUN_ID" --arg title "$recovery_title" '
+              [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
+              | ($matches | length) == 1
+              and (($matches[0].id | tostring) == $run)
+              and $matches[0].run_attempt == 1
+            ' recovery-runs.json >/dev/null
+          else
+            test "$TRIGGER_EVENT" = workflow_run
+            [[ "$SOURCE_EVENT_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test -z "$SKIPPED_FOLLOWUP_RUN_ID$RECOVERY_CONFIRMATION"
+          fi
+
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
-          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$SOURCE_HEAD_SHA" '
+          source_head_sha="$(jq -er '.head_sha | select(test("^[0-9a-f]{40}$"))' source-run.json)"
+          if [ "$TRIGGER_EVENT" = workflow_run ]; then
+            test "$source_head_sha" = "$SOURCE_EVENT_HEAD_SHA"
+          else
+            test "$(jq -er .head_sha skipped-followup-run.json)" = "$source_head_sha"
+          fi
+          jq -e --arg run "$SOURCE_RUN_ID" --arg head "$source_head_sha" '
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
@@ -81,21 +174,25 @@ jobs:
               exit 1
               ;;
           esac
-          echo "source_artifact=$source_artifact" >> "$GITHUB_OUTPUT"
+          {
+            echo "source_run_id=$SOURCE_RUN_ID"
+            echo "source_head_sha=$source_head_sha"
+            echo "source_artifact=$source_artifact"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Download exact Standard checkpoint and activation evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ steps.source.outputs.source_artifact }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.source.outputs.source_run_id }}
           github-token: ${{ github.token }}
           path: standard-checkpoint
 
       - name: Download exact Latest activation evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: opl-release-activation-${{ github.event.workflow_run.id }}
-          run-id: ${{ github.event.workflow_run.id }}
+          name: opl-release-activation-${{ steps.source.outputs.source_run_id }}
+          run-id: ${{ steps.source.outputs.source_run_id }}
           github-token: ${{ github.token }}
           path: standard-activation
 
@@ -103,9 +200,11 @@ jobs:
         id: bind
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
+          SOURCE_HEAD_SHA: ${{ steps.source.outputs.source_head_sha }}
           SOURCE_ARTIFACT: ${{ steps.source.outputs.source_artifact }}
+          SKIPPED_FOLLOWUP_RUN_ID: ${{ inputs.skipped_followup_run_id || '' }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -239,11 +338,73 @@ jobs:
               and (.size | type == "number" and . > 0))
           ' "$manifest" >/dev/null
 
-          optional_platforms="$(jq -cer .optional_platforms "$control")"
+          frozen_optional_platforms="$(jq -cer .optional_platforms "$control")"
+          optional_platforms="$frozen_optional_platforms"
           test "$(jq -er .cohort.app_sha "$control")" = "$app_ref"
           test "$(jq -er .cohort.shell_sha "$control")" = "$shell_ref"
           test "$(jq -er .cohort.framework_sha "$control")" = "$framework_ref"
           [[ "$bundle_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+
+          if [ "$TRIGGER_EVENT" = workflow_dispatch ]; then
+            optional_platforms="$frozen_optional_platforms"
+            gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > recovery-base-release.json
+            jq -e --arg tag "$tag" --arg target "$app_ref" '
+              .tag_name == $tag
+              and .target_commitish == $target
+              and .draft == false
+              and .prerelease == false
+              and .immutable == false
+            ' recovery-base-release.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/releases/latest" > recovery-latest-release.json
+            jq -e --arg tag "$tag" '.tag_name == $tag' recovery-latest-release.json >/dev/null
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              > recovery-releases.json
+            jq -e --arg prefix "${tag}-optional-" '
+              [.[]?.[]? | select(.tag_name | startswith($prefix))] | length == 0
+            ' recovery-releases.json >/dev/null
+
+            {
+              echo 'eligible=false'
+              echo 'reason_code=stable_optional_recovery_admitted'
+              echo "source_run_id=$SOURCE_RUN_ID"
+              echo "source_artifact=$SOURCE_ARTIFACT"
+              echo "framework_ref=$framework_ref"
+              echo "app_ref=$app_ref"
+              echo "shell_ref=$shell_ref"
+              echo "version=$version"
+              echo "updater_version=$updater_version"
+              echo "source_bundle_digest=$bundle_digest"
+              echo "optional_platforms=$optional_platforms"
+              echo 'existing_run_id='
+            } >> "$GITHUB_OUTPUT"
+
+            jq -n \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg source_run_id "$SOURCE_RUN_ID" \
+              --arg skipped_followup_run_id "$SKIPPED_FOLLOWUP_RUN_ID" \
+              --arg source_artifact "$SOURCE_ARTIFACT" \
+              --arg bundle_digest "$bundle_digest" \
+              --arg app_ref "$app_ref" \
+              --arg shell_ref "$shell_ref" \
+              --arg framework_ref "$framework_ref" \
+              --arg version "$version" \
+              --arg tag "$tag" \
+              --argjson frozen_optional_platforms "$frozen_optional_platforms" \
+              --argjson effective_optional_platforms "$optional_platforms" \
+              '{
+                schema:"opl_app_stable_optional_recovery_admission.v1",
+                status:"admitted",
+                operation:"recover_stable_optional_follower",
+                recovery:{run_id:$run_id,consumes_skipped_followup_run_id:$skipped_followup_run_id},
+                source:{run_id:$source_run_id,artifact:$source_artifact,bundle_digest:$bundle_digest},
+                cohort:{app_sha:$app_ref,shell_sha:$shell_ref,framework_sha:$framework_ref},
+                release:{version:$version,base_tag:$tag,base_release_mutable:true,adjunct_release_immutable:true,make_latest:false},
+                selection:{frozen:$frozen_optional_platforms,effective:$effective_optional_platforms},
+                mutation_scope:{base_release:false,full_successor:false,adjunct_release:true}
+              }' > stable-optional-recovery-admission.json
+            exit 0
+          fi
+
           successor_intent_name="opl-full-append-successor-intent-${SOURCE_RUN_ID}"
           gh api \
             "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$successor_intent_name&per_page=100" \
@@ -342,12 +503,21 @@ jobs:
           esac
 
       - name: Upload typed successor intent
-        if: ${{ always() }}
+        if: ${{ always() && github.event_name == 'workflow_run' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: opl-full-append-successor-intent-${{ github.event.workflow_run.id }}
           path: successor-intent.json
           if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload typed Stable optional recovery admission
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-stable-optional-recovery-admission-${{ github.run_id }}
+          path: stable-optional-recovery-admission.json
+          if-no-files-found: error
           retention-days: 30
 
   publish-optional-platforms:
@@ -371,7 +541,7 @@ jobs:
     secrets: inherit
 
   dispatch:
-    if: ${{ needs.admit.outputs.eligible == 'true' }}
+    if: ${{ github.event_name == 'workflow_run' && needs.admit.outputs.eligible == 'true' }}
     needs: [admit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -512,7 +682,7 @@ jobs:
           retention-days: 30
 
   receipt:
-    if: ${{ always() && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}
+    if: ${{ always() && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ') || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}
     needs: [admit, dispatch]
     runs-on: ubuntu-latest
     timeout-minutes: 5
