@@ -469,6 +469,27 @@ test('optional platform publication is an independent protected post-success ope
     publish.environment,
     "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}",
   );
+  const publishStepNames = publish.steps.map((step: any) => step.name);
+  const publisherNodeSetup = publish.steps.find(
+    (step: any) => step.name === 'Setup Node.js for App publisher validation',
+  );
+  assert.equal(
+    publisherNodeSetup?.uses,
+    'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38',
+  );
+  assert.equal(publisherNodeSetup?.with?.['node-version'], '24');
+  assert.equal(publisherNodeSetup?.with?.cache, 'npm');
+  const publisherDependencyInstall = publish.steps.find(
+    (step: any) => step.name === 'Install App publisher validation dependencies',
+  );
+  assert.equal(
+    publisherDependencyInstall?.run,
+    'npm ci --ignore-scripts --no-audit --no-fund',
+  );
+  assert.ok(
+    publishStepNames.indexOf('Install App publisher validation dependencies')
+      < publishStepNames.indexOf('Publish exact platform bytes as one immutable carrier'),
+  );
   const publishRun = String(publish.steps.find(
     (step: any) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.run);
