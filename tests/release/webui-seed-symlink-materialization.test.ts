@@ -51,6 +51,32 @@ test('materializes contained regular-file symlinks with exact bytes and executab
   }
 });
 
+test('rejects executable symlinks outside npm .bin without partially materializing valid links', () => {
+  const current = fixture();
+  try {
+    const validTarget = path.join(current.payload, 'node_modules', 'valid.js');
+    const validLink = path.join(current.payload, 'node_modules', '.bin', 'a-valid');
+    const invalidTarget = path.join(current.payload, 'node_modules', 'package', 'target.js');
+    const invalidLink = path.join(current.payload, 'node_modules', 'package', 'command');
+    fs.mkdirSync(path.dirname(invalidTarget), { recursive: true });
+    for (const target of [validTarget, invalidTarget]) {
+      fs.writeFileSync(target, '#!/usr/bin/env node\n');
+      fs.chmodSync(target, 0o755);
+    }
+    fs.symlinkSync('../valid.js', validLink);
+    fs.symlinkSync('target.js', invalidLink);
+
+    assert.throws(
+      () => materializeWebuiSeedSymlinks(current.payload),
+      /only npm \.bin symbolic links/,
+    );
+    assert.equal(fs.lstatSync(validLink).isSymbolicLink(), true);
+    assert.equal(fs.lstatSync(invalidLink).isSymbolicLink(), true);
+  } finally {
+    current.cleanup();
+  }
+});
+
 for (const invalid of [
   {
     name: 'absolute target',

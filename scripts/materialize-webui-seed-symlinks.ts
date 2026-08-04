@@ -73,6 +73,9 @@ export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSym
 
   const realRoot = fs.realpathSync.native(root);
   const validated = collectSymlinks(root).map((linkPath) => {
+    if (path.basename(path.dirname(linkPath)) !== '.bin') {
+      return fail(`WebUI seed payload may materialize only npm .bin symbolic links: ${linkPath}`);
+    }
     const target = fs.readlinkSync(linkPath);
     if (path.isAbsolute(target)) {
       return fail(`WebUI seed payload contains an absolute symbolic link: ${linkPath}`);
