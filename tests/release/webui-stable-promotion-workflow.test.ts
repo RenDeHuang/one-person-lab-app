@@ -14,12 +14,14 @@ import {
 import { createWebuiPublicationRecord } from '../../scripts/webui-publication-record.ts';
 import { createWebuiSourceAuthority } from '../../scripts/webui-source-authority.ts';
 import {
+  isAuthorizedFollowerRecoveryWriteJob,
   isAuthorizedWebuiStablePromotionWriteJob,
   validateWorkflowDispatchWriteAuthority,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
 const appRoot = process.cwd();
 const workflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-stable.yml');
+const followerWorkflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-follower.yml');
 const developmentWorkflowPath = path.join(
   appRoot,
   '.github',
@@ -320,6 +322,66 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+test('WebUI follower preserves automatic delivery and admits only one exact failed-run recovery', () => {
+  const source = fs.readFileSync(followerWorkflowPath, 'utf8');
+  const workflow = YAML.parse(source);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
+  assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
+  assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
+    'source_run_id',
+    'failed_follower_run_id',
+    'recovery_confirmation',
+  ]);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
+    'recover_exact_failed_webui_follower_v1',
+  ]);
+  assert.equal(
+    workflow.concurrency.group,
+    "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
+  );
+  for (const required of [
+    '.total_count == 5',
+    'webui-carrier / build-and-qualify',
+    'webui-carrier / publish-immutable-carrier',
+    'promote-webui-stable',
+    'OPL image seed contains broken symlinks:',
+    '($matches | length) == 1',
+  ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  for (const jobId of ['webui-carrier', 'promote-webui-stable']) {
+    assert.equal(
+      isAuthorizedFollowerRecoveryWriteJob(
+        '.github/workflows/release-webui-follower.yml',
+        workflow,
+        jobId,
+        workflow.jobs[jobId],
+      ),
+      true,
+    );
+  }
+  const widenedIngress = clone(workflow);
+  widenedIngress.on.workflow_dispatch.inputs.arbitrary_run_id = { required: false, type: 'string' };
+  assert.equal(
+    isAuthorizedFollowerRecoveryWriteJob(
+      '.github/workflows/release-webui-follower.yml',
+      widenedIngress,
+      'webui-carrier',
+      widenedIngress.jobs['webui-carrier'],
+    ),
+    false,
+  );
+  const directMutation = { ...workflow.jobs['webui-carrier'], steps: [{ run: 'gh api --method DELETE /repos/example' }] };
+  assert.equal(
+    isAuthorizedFollowerRecoveryWriteJob(
+      '.github/workflows/release-webui-follower.yml',
+      workflow,
+      'webui-carrier',
+      directMutation,
+    ),
+    false,
+  );
+});
+
 test('contract separates Stable qualification from carrier Latest selection', () => {
   const document = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
@@ -327,6 +389,7 @@ test('contract separates Stable qualification from carrier Latest selection', ()
   const latestPolicy = document.distribution_semantics.latest_policy;
   const contract = document.webui_ghcr_image;
   const promotion = contract.stable_promotion;
+  const recovery = promotion.exact_failed_follower_recovery;
 
   assert.equal(latestPolicy.default_behavior, 'each_carrier_advances_its_own_latest_pointer_when_that_carrier_publishes_a_new_qualified_stable');
   assert.deepEqual(latestPolicy.explicit_user_override.quality_statuses, ['stable', 'preview']);
@@ -343,6 +406,14 @@ test('contract separates Stable qualification from carrier Latest selection', ()
   assert.equal(promotion.writer_scope, 'single_ghcr_alias_writer_for_stable_and_latest');
   assert.deepEqual(promotion.task_modes.production_release.promotion_tags, ['stable', 'latest']);
   assert.equal(promotion.task_modes.production_release.desktop_latest_required, true);
+  assert.deepEqual(recovery.inputs, [
+    'source_run_id',
+    'failed_follower_run_id',
+    'recovery_confirmation',
+  ]);
+  assert.equal(recovery.confirmation, 'recover_exact_failed_webui_follower_v1');
+  assert.equal(recovery.failed_public_mutation_count_required, 0);
+  assert.equal(recovery.same_identity_recovery_run_count_required, 1);
 
   const independent = promotion.task_modes.independent_preview;
   assert.equal(independent.desktop_stable_required, false);

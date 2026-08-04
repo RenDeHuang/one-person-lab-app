@@ -229,10 +229,20 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   assert.doesNotMatch(String(standardPublicationReceipt.with.path), /native-qualified|native-release/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);
   assert.equal(workflow.jobs['promote-webui-stable'], undefined);
-  assert.deepEqual(Object.keys(follower.on), ['workflow_run']);
+  assert.deepEqual(Object.keys(follower.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(follower.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
   assert.deepEqual(follower.on.workflow_run.types, ['completed']);
-  assert.equal(follower.on.workflow_dispatch, undefined);
+  assert.deepEqual(Object.keys(follower.on.workflow_dispatch.inputs), [
+    'source_run_id',
+    'failed_follower_run_id',
+    'recovery_confirmation',
+  ]);
+  assert.deepEqual(follower.on.workflow_dispatch.inputs.recovery_confirmation.options, [
+    'recover_exact_failed_webui_follower_v1',
+  ]);
+  assert.match(followerSource, /\.total_count == 5/);
+  assert.match(followerSource, /promote-webui-stable" and \.conclusion == "skipped"/);
+  assert.match(followerSource, /runs\?event=workflow_dispatch&per_page=100/);
   assert.equal(follower.jobs['webui-carrier'].needs[0], 'resolve-handoff');
   assert.deepEqual(
     follower.jobs['promote-webui-stable'].needs,
