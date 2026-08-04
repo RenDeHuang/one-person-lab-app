@@ -306,8 +306,9 @@ export function isAuthorizedFollowerRecoveryWriteJob(
         'recover_exact_failed_webui_follower_v4',
         'recover_exact_failed_webui_follower_v5',
         'recover_exact_failed_webui_follower_v6',
+        'recover_exact_failed_webui_follower_v7',
       ],
-      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'failed_recovery_v5_run_id'],
+      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'failed_recovery_v5_run_id', 'failed_recovery_v6_run_id'],
       "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
     )) return false;
     if (jobId === 'webui-carrier') {
@@ -1009,8 +1010,9 @@ export function validateReleaseBundleTopology(appRoot: string): number {
           'recover_exact_failed_webui_follower_v4',
           'recover_exact_failed_webui_follower_v5',
           'recover_exact_failed_webui_follower_v6',
+          'recover_exact_failed_webui_follower_v7',
         ],
-        ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'failed_recovery_v5_run_id'],
+        ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'failed_recovery_v5_run_id', 'failed_recovery_v6_run_id'],
         "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
       ) ||
       !exactObject(webuiFollower.workflow.permissions, exactReadPermissions) ||
