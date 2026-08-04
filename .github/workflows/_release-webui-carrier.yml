@@ -151,6 +151,12 @@ jobs:
           ref: ${{ inputs.framework_ref }}
           path: framework-source
 
+      - name: Checkout exact WebUI build executor
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: webui-executor-source
+
       - name: Setup ORAS for exact external build inputs
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
@@ -187,6 +193,9 @@ jobs:
           fi
           test "$(git -C shells/aionui rev-parse HEAD)" = '${{ inputs.shell_ref }}'
           test "$(git -C framework-source rev-parse HEAD)" = '${{ inputs.framework_ref }}'
+          test "$(git -C webui-executor-source rev-parse HEAD)" = "$GITHUB_SHA"
+          test -f webui-executor-source/scripts/materialize-webui-seed-symlinks.ts
+          test ! -L webui-executor-source/scripts/materialize-webui-seed-symlinks.ts
           test '${{ inputs.app_ref }}' != '${{ inputs.shell_ref }}'
           test '${{ inputs.framework_ref }}' != '${{ inputs.shell_ref }}'
 
@@ -364,6 +373,10 @@ jobs:
             shells/aionui/.opl-frozen-inputs/codex-cli.tgz
           cmp -s webui-carrier/frozen-codex/codex-cli.tgz \
             shells/aionui/.opl-frozen-inputs/codex-cli.tgz
+          cp webui-executor-source/scripts/materialize-webui-seed-symlinks.ts \
+            shells/aionui/.opl-frozen-inputs/materialize-webui-seed-symlinks.ts
+          cmp -s webui-executor-source/scripts/materialize-webui-seed-symlinks.ts \
+            shells/aionui/.opl-frozen-inputs/materialize-webui-seed-symlinks.ts
           rm -rf webui-carrier/frozen-codex
 
       - name: Resolve frozen build arguments and materialize digest-pinned Dockerfile
@@ -404,13 +417,29 @@ jobs:
             '  && npm cache clean --force \\',
             '  && printf \'%s\\n\' "${OPL_CODEX_NPM_SPEC}" > /opt/codex-cli/OPL_CODEX_NPM_SPEC',
           ].join('\n');
+          const frameworkInstall = [
+            'RUN npm ci \\',
+            '  && npm run build \\',
+            '  && npm prune --omit=dev',
+          ].join('\n');
+          const materializedFrameworkInstall = [
+            'COPY .opl-frozen-inputs/materialize-webui-seed-symlinks.ts /tmp/materialize-webui-seed-symlinks.ts',
+            frameworkInstall,
+            'RUN node --experimental-strip-types /tmp/materialize-webui-seed-symlinks.ts --root node_modules \\',
+            '  && rm -f /tmp/materialize-webui-seed-symlinks.ts \\',
+            '  && test -z "$(find node_modules -type l -print -quit)"',
+          ].join('\n');
           if (dockerfile.split(onlineCodexInstall).length !== 2) {
             throw new Error('Shell Dockerfile must contain exactly one online Codex install block');
+          }
+          if (dockerfile.split(frameworkInstall).length !== 2) {
+            throw new Error('Shell Dockerfile must contain exactly one Framework install block');
           }
           fs.writeFileSync(
             'webui-carrier/Dockerfile.frozen',
             dockerfile
               .replaceAll(marker, `FROM ${baseRef}`)
+              .replace(frameworkInstall, materializedFrameworkInstall)
               .replace(onlineCodexInstall, frozenCodexInstall),
           );
           const outputs = {
