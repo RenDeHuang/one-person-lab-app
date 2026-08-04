@@ -1,6 +1,9 @@
 name: OPL WebUI Stable Follower
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v3'
+    && format('WebUI follower recovery v3 for Stable run {0} failed follower {1} failed recovery v1 {2} failed recovery v2 {3}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id, inputs.failed_recovery_v2_run_id)
+    || github.event_name == 'workflow_dispatch'
     && inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v2'
     && format('WebUI follower recovery v2 for Stable run {0} failed follower {1} failed recovery v1 {2}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id)
     || github.event_name == 'workflow_dispatch'
@@ -27,6 +30,10 @@ on:
         description: Exact failed WebUI follower recovery v1 run; empty for recovery v1
         required: false
         type: string
+      failed_recovery_v2_run_id:
+        description: Exact failed WebUI follower recovery v2 run; required only for recovery v3
+        required: false
+        type: string
       recovery_confirmation:
         description: Confirm the exact bounded WebUI follower recovery generation
         required: true
@@ -34,6 +41,7 @@ on:
         options:
           - recover_exact_failed_webui_follower_v1
           - recover_exact_failed_webui_follower_v2
+          - recover_exact_failed_webui_follower_v3
 
 permissions:
   contents: read
@@ -52,7 +60,8 @@ jobs:
       ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
         || (github.event_name == 'workflow_dispatch'
         && (inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v1'
-        || inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v2')) }}
+        || inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v2'
+        || inputs.recovery_confirmation == 'recover_exact_failed_webui_follower_v3')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -69,6 +78,10 @@ jobs:
       framework_ref: ${{ steps.handoff.outputs.framework_ref }}
       opl_version: ${{ steps.handoff.outputs.opl_version }}
       release_bundle_digest: ${{ steps.handoff.outputs.release_bundle_digest }}
+      release_cohort_ref: ${{ steps.handoff.outputs.release_cohort_ref }}
+      production_recovery: ${{ steps.handoff.outputs.production_recovery }}
+      stable_framework_ref: ${{ steps.handoff.outputs.stable_framework_ref }}
+      recovery_authority_digest: ${{ steps.handoff.outputs.recovery_authority_digest }}
     steps:
       - name: Admit one successful canonical Stable authority run
         id: authority
@@ -77,6 +90,7 @@ jobs:
           STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
           FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
           FAILED_RECOVERY_RUN_ID: ${{ inputs.failed_recovery_run_id || '' }}
+          FAILED_RECOVERY_V2_RUN_ID: ${{ inputs.failed_recovery_v2_run_id || '' }}
           RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
           TRIGGER_EVENT: ${{ github.event_name }}
         shell: bash
@@ -89,12 +103,18 @@ jobs:
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             case "$RECOVERY_CONFIRMATION" in
               recover_exact_failed_webui_follower_v1)
-                test -z "$FAILED_RECOVERY_RUN_ID"
+                test -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID"
                 recovery_title="WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
                 ;;
               recover_exact_failed_webui_follower_v2)
                 [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                test -z "$FAILED_RECOVERY_V2_RUN_ID"
                 recovery_title="WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
+                ;;
+              recover_exact_failed_webui_follower_v3)
+                [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                [[ "$FAILED_RECOVERY_V2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                recovery_title="WebUI follower recovery v3 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID}"
                 ;;
               *)
                 echo "::error::Unknown WebUI follower recovery confirmation."
@@ -149,7 +169,8 @@ jobs:
               | ($artifacts | length) == 1
               and ($artifacts[0].name | test("^webui-runtime-failure-[0-9]+\\.[0-9]+\\.[0-9]+-" + $run + "-1$"))
             ' failed-follower-artifacts.json >/dev/null
-            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v2 ]; then
+            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v2 ] \
+              || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v3 ]; then
               failed_recovery_title="WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
               jq -e \
@@ -206,6 +227,75 @@ jobs:
               grep -F '"path": "/opt/opl/seed/payload/codex_cli/bin/codex"' "$failed_runtime_log" >/dev/null
               grep -F '[opl-webui-entrypoint] ERROR: OPL seed apply failed' "$failed_runtime_log" >/dev/null
             fi
+            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v3 ]; then
+              failed_recovery_v2_title="WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID" \
+                > failed-recovery-v2-run.json
+              jq -e \
+                --arg run "$FAILED_RECOVERY_V2_RUN_ID" \
+                --arg title "$failed_recovery_v2_title" '
+                  (.id | tostring) == $run
+                  and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                  and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                  and .path == ".github/workflows/release-webui-follower.yml"
+                  and .event == "workflow_dispatch"
+                  and .head_branch == "main"
+                  and (.head_sha | test("^[0-9a-f]{40}$"))
+                  and .display_title == $title
+                  and .run_attempt == 1
+                  and .status == "completed"
+                  and .conclusion == "failure"
+                ' failed-recovery-v2-run.json >/dev/null
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID/jobs?per_page=100" \
+                > failed-recovery-v2-jobs.json
+              jq -e '
+                .total_count == 5
+                and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                and ([.jobs[] | select(.name == "webui-carrier / build-and-qualify" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[] | select(.name == "webui-carrier / startup-canary" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "webui-carrier / publish-immutable-carrier" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[] | select(.name == "promote-webui-stable" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Qualify exact local runtime before any registry tag is written" and .conclusion == "failure")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Upload WebUI runtime qualification failure evidence" and .conclusion == "success")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Package qualified image and evidence for protected immutable publication" and .conclusion == "skipped")] | length == 1)
+                and ([.jobs[].steps[]? | select(.name == "Upload qualified image evidence" and .conclusion == "skipped")] | length == 1)
+              ' failed-recovery-v2-jobs.json >/dev/null
+              gh api --paginate --slurp \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID/artifacts?per_page=100" \
+                > failed-recovery-v2-artifacts.json
+              failed_recovery_v2_artifact_name="$(
+                jq -er --arg run "$FAILED_RECOVERY_V2_RUN_ID" '
+                  [.[]?.artifacts[]? | select(.expired == false)] as $artifacts
+                  | select(($artifacts | length) == 1)
+                  | $artifacts[0].name
+                  | select(test("^webui-runtime-failure-[0-9]+\\.[0-9]+\\.[0-9]+-" + $run + "-1$"))
+                ' failed-recovery-v2-artifacts.json
+              )"
+              gh run download "$FAILED_RECOVERY_V2_RUN_ID" \
+                --repo "$GITHUB_REPOSITORY" \
+                --name "$failed_recovery_v2_artifact_name" \
+                --dir failed-recovery-v2-artifact
+              failed_recovery_v2_logs=()
+              while IFS= read -r log; do failed_recovery_v2_logs+=("$log"); done < <(
+                find failed-recovery-v2-artifact -type f -name container.log -print | LC_ALL=C sort
+              )
+              test "${#failed_recovery_v2_logs[@]}" -eq 1
+              grep -F '"failure_code": "configured_codex_plugin_carrier_target_currentness_mismatch"' \
+                "${failed_recovery_v2_logs[0]}" >/dev/null
+              grep -F '"package_id": "opl-flow"' "${failed_recovery_v2_logs[0]}" >/dev/null
+              grep -F '"target_version": "0.1.35"' "${failed_recovery_v2_logs[0]}" >/dev/null
+
+              gh api repos/gaofeng21cn/one-person-lab/commits/main > recovery-framework.json
+              recovery_framework_ref="$(jq -er '.sha | select(test("^[0-9a-f]{40}$"))' recovery-framework.json)"
+              gh api "repos/gaofeng21cn/one-person-lab/compare/95640c74e0b14ba2e88056de725c417fd1693cf1...${recovery_framework_ref}" \
+                > recovery-framework-fix-ancestry.json
+              jq -e '
+                (.status == "ahead" or .status == "identical")
+                and .behind_by == 0
+                and .merge_base_commit.sha == "95640c74e0b14ba2e88056de725c417fd1693cf1"
+              ' recovery-framework-fix-ancestry.json >/dev/null
+              echo "recovery_framework_ref=$recovery_framework_ref" >> "$GITHUB_OUTPUT"
+            fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-webui-follower.yml/runs?event=workflow_dispatch&per_page=100" \
               > recovery-runs.json
@@ -213,9 +303,12 @@ jobs:
               --arg run "$GITHUB_RUN_ID" \
               --arg title "$recovery_title" \
               --arg failed_recovery_run "$FAILED_RECOVERY_RUN_ID" \
-              --arg failed_recovery_title "${failed_recovery_title:-}" '
+              --arg failed_recovery_title "${failed_recovery_title:-}" \
+              --arg failed_recovery_v2_run "$FAILED_RECOVERY_V2_RUN_ID" \
+              --arg failed_recovery_v2_title "${failed_recovery_v2_title:-}" '
               [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
               | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_title)] as $failed_recovery_matches
+              | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_v2_title)] as $failed_recovery_v2_matches
               | ($matches | length) == 1
               and (($matches[0].id | tostring) == $run)
               and $matches[0].run_attempt == 1
@@ -228,10 +321,19 @@ jobs:
                   and $failed_recovery_matches[0].run_attempt == 1
                 )
               )
+              and (
+                ($failed_recovery_v2_run == "" and ($failed_recovery_v2_matches | length) == 0)
+                or (
+                  $failed_recovery_v2_run != ""
+                  and ($failed_recovery_v2_matches | length) == 1
+                  and (($failed_recovery_v2_matches[0].id | tostring) == $failed_recovery_v2_run)
+                  and $failed_recovery_v2_matches[0].run_attempt == 1
+                )
+              )
             ' recovery-runs.json >/dev/null
           else
             test "$TRIGGER_EVENT" = workflow_run
-            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$RECOVERY_CONFIRMATION"
+            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$RECOVERY_CONFIRMATION"
           fi
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" \
             > stable-authority-run.json
@@ -284,6 +386,11 @@ jobs:
         if: ${{ always() && steps.authority.outcome == 'success' }}
         env:
           STABLE_AUTHORITY_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
+          RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
+          FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
+          FAILED_RECOVERY_RUN_ID: ${{ inputs.failed_recovery_run_id || '' }}
+          FAILED_RECOVERY_V2_RUN_ID: ${{ inputs.failed_recovery_v2_run_id || '' }}
+          RECOVERY_FRAMEWORK_REF: ${{ steps.authority.outputs.recovery_framework_ref || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -336,7 +443,46 @@ jobs:
               and .latest_activation.admission_schema == "opl_standard_latest_admission_receipt.v1"
               and .latest_activation.admitted == true
               and .latest_activation.framework_terminal_status == "complete"
-            ' "$handoff" >/dev/null
+          ' "$handoff" >/dev/null
+          stable_framework_ref="$(jq -er .release.cohort.framework_sha "$handoff")"
+          framework_ref="$stable_framework_ref"
+          release_cohort_ref="$(jq -er .release.bundle_digest "$handoff")"
+          recovery_authority_digest=''
+          production_recovery=false
+          if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_webui_follower_v3 ]; then
+            [[ "$RECOVERY_FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]]
+            test "$RECOVERY_FRAMEWORK_REF" != "$stable_framework_ref"
+            recovery_authority_core="$(jq -cnS \
+              --arg stable_run "$STABLE_AUTHORITY_RUN_ID" \
+              --arg failed_follower "$FAILED_FOLLOWER_RUN_ID" \
+              --arg failed_v1 "$FAILED_RECOVERY_RUN_ID" \
+              --arg failed_v2 "$FAILED_RECOVERY_V2_RUN_ID" \
+              --arg version "$(jq -er .release.version "$handoff")" \
+              --arg bundle "$(jq -er .release.bundle_digest "$handoff")" \
+              --arg app "$(jq -er .release.cohort.app_sha "$handoff")" \
+              --arg shell "$(jq -er .release.cohort.shell_sha "$handoff")" \
+              --arg stable_framework "$stable_framework_ref" \
+              --arg executor "$GITHUB_SHA" \
+              --arg recovery_framework "$RECOVERY_FRAMEWORK_REF" '
+              {
+                schema:"opl_app_webui_framework_recovery_authority.v1",
+                status:"admitted",
+                stable_authority_run_id:$stable_run,
+                failed_follower_run_id:$failed_follower,
+                failed_recovery_v1_run_id:$failed_v1,
+                failed_recovery_v2_run_id:$failed_v2,
+                release:{version:$version,bundle_digest:$bundle},
+                stable_cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$stable_framework},
+                recovery_source:{executor_app_sha:$executor,framework_sha:$recovery_framework}
+              }
+            ')"
+            recovery_authority_digest="sha256:$(printf '%s' "$recovery_authority_core" | shasum -a 256 | awk '{print $1}')"
+            framework_ref="$RECOVERY_FRAMEWORK_REF"
+            release_cohort_ref="$recovery_authority_digest"
+            production_recovery=true
+          else
+            test -z "$RECOVERY_FRAMEWORK_REF"
+          fi
           {
             echo "eligible=true"
             echo "stable_authority_run_id=$STABLE_AUTHORITY_RUN_ID"
@@ -345,9 +491,13 @@ jobs:
             echo "standard_identity_sha256=$(jq -er .source.standard_identity_sha256 "$handoff")"
             echo "app_ref=$(jq -er .release.cohort.app_sha "$handoff")"
             echo "shell_ref=$(jq -er .release.cohort.shell_sha "$handoff")"
-            echo "framework_ref=$(jq -er .release.cohort.framework_sha "$handoff")"
+            echo "framework_ref=$framework_ref"
+            echo "stable_framework_ref=$stable_framework_ref"
             echo "opl_version=$(jq -er .release.version "$handoff")"
             echo "release_bundle_digest=$(jq -er .release.bundle_digest "$handoff")"
+            echo "release_cohort_ref=$release_cohort_ref"
+            echo "production_recovery=$production_recovery"
+            echo "recovery_authority_digest=$recovery_authority_digest"
           } >> "$GITHUB_OUTPUT"
 
   webui-carrier:
@@ -360,15 +510,23 @@ jobs:
     uses: ./.github/workflows/_release-webui-carrier.yml
     with:
       mode: execute
+      authority_mode: production_follower
+      production_recovery: ${{ needs.resolve-handoff.outputs.production_recovery == 'true' }}
+      stable_authority_run_id: ${{ needs.resolve-handoff.outputs.stable_authority_run_id }}
       app_ref: ${{ needs.resolve-handoff.outputs.app_ref }}
       shell_ref: ${{ needs.resolve-handoff.outputs.shell_ref }}
       framework_ref: ${{ needs.resolve-handoff.outputs.framework_ref }}
       opl_version: ${{ needs.resolve-handoff.outputs.opl_version }}
       release_bundle_digest: ${{ needs.resolve-handoff.outputs.release_bundle_digest }}
-      release_cohort_ref: ${{ needs.resolve-handoff.outputs.release_bundle_digest }}
+      release_cohort_ref: ${{ needs.resolve-handoff.outputs.release_cohort_ref }}
       source_artifact_run_id: ${{ needs.resolve-handoff.outputs.source_artifact_run_id }}
       standard_checkpoint_artifact_name: ${{ needs.resolve-handoff.outputs.standard_checkpoint_artifact_name }}
       standard_identity_sha256: ${{ needs.resolve-handoff.outputs.standard_identity_sha256 }}
+      stable_framework_ref: ${{ needs.resolve-handoff.outputs.stable_framework_ref }}
+      recovery_authority_digest: ${{ needs.resolve-handoff.outputs.recovery_authority_digest }}
+      failed_follower_run_id: ${{ inputs.failed_follower_run_id || '' }}
+      failed_recovery_v1_run_id: ${{ inputs.failed_recovery_run_id || '' }}
+      failed_recovery_v2_run_id: ${{ inputs.failed_recovery_v2_run_id || '' }}
 
   promote-webui-stable:
     if: ${{ needs.resolve-handoff.outputs.eligible == 'true' }}
@@ -380,5 +538,7 @@ jobs:
     uses: ./.github/workflows/release-webui-stable.yml
     with:
       mode: execute
+      authority_mode: production_follower
+      production_recovery: ${{ needs.resolve-handoff.outputs.production_recovery == 'true' }}
       stable_authority_run_id: ${{ needs.resolve-handoff.outputs.stable_authority_run_id }}
       carrier_artifact_name: ${{ needs.webui-carrier.outputs.carrier_artifact_name }}

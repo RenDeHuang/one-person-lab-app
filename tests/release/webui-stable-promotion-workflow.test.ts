@@ -235,6 +235,26 @@ function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
   return { root, paths, input };
 }
 
+function productionRecoveryFixture() {
+  const current = fixture('in_progress');
+  current.input.productionRecovery = true;
+  current.input.carrierFollowerRun.event = 'workflow_dispatch';
+  current.input.promotionExecutorRun.event = 'workflow_dispatch';
+  current.paths.carrierFollowerRun = writeJson(
+    current.root,
+    'carrier-follower-run.json',
+    current.input.carrierFollowerRun,
+  );
+  current.paths.promotionExecutorRun = writeJson(
+    current.root,
+    'promotion-executor-run.json',
+    current.input.promotionExecutorRun,
+  );
+  current.input.carrierFollowerRunPath = current.paths.carrierFollowerRun;
+  current.input.promotionExecutorRunPath = current.paths.promotionExecutorRun;
+  return current;
+}
+
 function independentPreviewFixture() {
   const current = fixture('completed');
   const previewVersion = '26.7.28-preview.r1';
@@ -332,21 +352,29 @@ test('WebUI follower preserves automatic delivery and admits only exact bounded 
     'source_run_id',
     'failed_follower_run_id',
     'failed_recovery_run_id',
+    'failed_recovery_v2_run_id',
     'recovery_confirmation',
   ]);
   assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
   assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.type, 'string');
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.required, false);
+  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.type, 'string');
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
     'recover_exact_failed_webui_follower_v1',
     'recover_exact_failed_webui_follower_v2',
+    'recover_exact_failed_webui_follower_v3',
   ]);
   assert.match(
     source,
-    /recover_exact_failed_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID"/,
+    /recover_exact_failed_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID\$FAILED_RECOVERY_V2_RUN_ID"/,
   );
   assert.match(
     source,
-    /recover_exact_failed_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
+    /recover_exact_failed_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+test -z "\$FAILED_RECOVERY_V2_RUN_ID"/,
+  );
+  assert.match(
+    source,
+    /recover_exact_failed_webui_follower_v3\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
   );
   assert.equal(
     workflow.concurrency.group,
@@ -359,6 +387,7 @@ test('WebUI follower preserves automatic delivery and admits only exact bounded 
     'promote-webui-stable',
     'OPL image seed contains broken symlinks:',
     'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
+    'failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID}',
     'failed-recovery-jobs.json',
     '"failure_code": "opl_seed_payload_symlink_forbidden"',
     '"path": "/opt/opl/seed/payload/codex_cli/bin/codex"',
@@ -424,7 +453,7 @@ test('contract separates Stable qualification from carrier Latest selection', ()
   assert.equal(contract.stable_promotion_requires.applies_to, 'production_follower_only');
   assert.deepEqual(contract.stable_promotion_requires.requires, [
     'successful_stable_authority_run_after_latest_activation',
-    'workflow_run_follower_bound_to_that_stable_authority',
+    'workflow_run_follower_or_exact_generation3_recovery_bound_to_that_stable_authority',
     'unique_successful_carrier_follower_job',
     'qualified_webui_carrier_receipt',
     'immutable_version_digest',
@@ -437,15 +466,21 @@ test('contract separates Stable qualification from carrier Latest selection', ()
     'source_run_id',
     'failed_follower_run_id',
     'failed_recovery_run_id',
+    'failed_recovery_v2_run_id',
     'recovery_confirmation',
   ]);
-  assert.equal(recovery.recovery_generation, 2);
-  assert.equal(recovery.consumed_recovery_generation, 1);
-  assert.equal(recovery.confirmation, 'recover_exact_failed_webui_follower_v2');
+  assert.equal(recovery.recovery_generation, 3);
+  assert.deepEqual(recovery.consumed_recovery_generations, [1, 2]);
+  assert.equal(recovery.confirmation, 'recover_exact_failed_webui_follower_v3');
   assert.equal(recovery.legacy_confirmation, 'recover_exact_failed_webui_follower_v1');
+  assert.equal(recovery.consumed_confirmation, 'recover_exact_failed_webui_follower_v2');
   assert.equal(recovery.failed_public_mutation_count_required, 0);
   assert.equal(recovery.failed_recovery_public_mutation_count_required, 0);
-  assert.equal(recovery.same_identity_recovery_v2_run_count_required, 1);
+  assert.equal(recovery.failed_recovery_v2_public_mutation_count_required, 0);
+  assert.equal(recovery.same_identity_recovery_v3_run_count_required, 1);
+  assert.equal(recovery.framework_recovery_authority_schema, 'opl_app_webui_framework_recovery_authority.v1');
+  assert.equal(recovery.stable_bundle_identity_rewritten, false);
+  assert.equal(recovery.recovery_framework_must_contain_fix, '95640c74e0b14ba2e88056de725c417fd1693cf1');
 
   const independent = promotion.task_modes.independent_preview;
   assert.equal(independent.desktop_stable_required, false);
@@ -505,6 +540,7 @@ test('shared alias writer binds production Stable and independent Preview author
   assert.deepEqual(Object.keys(workflow.on.workflow_call.inputs), [
     'mode',
     'authority_mode',
+    'production_recovery',
     'stable_authority_run_id',
     'carrier_follower_run_id',
     'carrier_executor_ref',
@@ -737,6 +773,35 @@ test('admission binds Stable authority, carrier follower, and promotion executor
     assert.equal(admission.expected_prestate.latest.digest, digest('f'));
     assert.equal(admission.framework, undefined);
     assert.equal(admission.evidence.carrier_receipt_sha256, sha256File(current.paths.carrier));
+  }
+});
+
+test('production recovery admits only the exact workflow_dispatch transport', () => {
+  const recovery = productionRecoveryFixture();
+  const admission = admitWebuiStablePromotion(recovery.input);
+  assert.equal(admission.authority_mode, 'production_follower');
+  assert.equal(admission.production_recovery, true);
+  assert.equal(admission.carrier_follower.workflow, '.github/workflows/release-webui-follower.yml');
+  assert.equal(
+    admission.promotion_executor.caller_workflow,
+    '.github/workflows/release-webui-follower.yml',
+  );
+
+  const automaticDispatch = fixture();
+  automaticDispatch.input.carrierFollowerRun.event = 'workflow_dispatch';
+  automaticDispatch.input.promotionExecutorRun.event = 'workflow_dispatch';
+  assert.throws(
+    () => admitWebuiStablePromotion(automaticDispatch.input),
+    /carrier follower run\.event/,
+  );
+
+  for (const authorityMode of ['development_validation', 'independent_preview'] as const) {
+    const invalid = productionRecoveryFixture();
+    invalid.input.authorityMode = authorityMode;
+    assert.throws(
+      () => admitWebuiStablePromotion(invalid.input),
+      /production recovery requires production_follower authority mode/,
+    );
   }
 });
 

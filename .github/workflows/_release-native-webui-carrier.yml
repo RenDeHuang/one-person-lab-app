@@ -51,6 +51,11 @@ on:
         description: Exact Standard identity receipt digest from the Stable handoff.
         type: string
         required: true
+      allow_same_tag_full_assets:
+        description: Admit the exact Stable Standard plus same-tag Full asset union from a successful append_full checkpoint.
+        type: boolean
+        required: false
+        default: false
     outputs:
       publication_artifact_name:
         description: Actions artifact containing manifest, qualification, and public readback receipt.
@@ -399,6 +404,8 @@ jobs:
           [[ '${{ inputs.source_run_id }}' =~ ^[1-9][0-9]*$ ]]
           [[ '${{ inputs.source_artifact }}' =~ ^[A-Za-z0-9._-]+$ ]]
           [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]]
+          test '${{ inputs.allow_same_tag_full_assets }}' = true \
+            || test '${{ inputs.allow_same_tag_full_assets }}' = false
           case '${{ inputs.target_platform }}/${{ inputs.target_architecture }}' in
             linux/x86_64|darwin/arm64) ;;
             *) echo "::error::Unsupported Native WebUI target."; exit 1 ;;
@@ -437,6 +444,10 @@ jobs:
           test '${{ steps.checkpoint.outputs.shell_ref }}' = '${{ inputs.shell_ref }}'
           test '${{ steps.checkpoint.outputs.framework_source_ref }}' = '${{ inputs.framework_ref }}'
           test '${{ steps.checkpoint.outputs.active_unknown_marker_count }}' = 0
+          if [ '${{ inputs.allow_same_tag_full_assets }}' = true ]; then
+            test '${{ steps.checkpoint.outputs.completed_stage }}' = full_qualified
+            test '${{ steps.checkpoint.outputs.append_full_operation_id }}' != ''
+          fi
           identity_receipts=()
           while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
             find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
@@ -530,12 +541,18 @@ jobs:
           node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts github-inspect \
             --repo "$GITHUB_REPOSITORY" --tag '${{ steps.checkpoint.outputs.tag }}' \
             --output native-release/standard-remote.json
+          same_tag_full_args=()
+          if [ '${{ inputs.allow_same_tag_full_assets }}' = true ]; then
+            test "$release_operation" = resume_standard
+            same_tag_full_args+=(--allow-same-tag-full-assets true)
+          fi
           node --experimental-strip-types executor-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation remote_inspect --executor remote \
             --attempt-id "gha-${GITHUB_RUN_ID}-native-${TARGET_PLATFORM}-${TARGET_ARCHITECTURE}-standard-readback" \
             --release-operation "$release_operation" --operation-id "$operation_id" \
             --remote-target "github-release:${GITHUB_REPOSITORY}@${{ steps.checkpoint.outputs.tag }}" \
             --publication-scope track_assets --bundle "$bundle" --track standard --outcome complete \
+            "${same_tag_full_args[@]}" \
             --inspection native-release/standard-remote.json --output native-release/standard-remote.receipt.json
           framework-executor/bin/opl release publish \
             --bundle "$BUNDLE_DIGEST" --executor-receipt native-release/standard-remote.receipt.json \
