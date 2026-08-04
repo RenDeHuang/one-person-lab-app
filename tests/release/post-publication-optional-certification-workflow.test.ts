@@ -225,6 +225,7 @@ test('optional certification is automatic or exact failed-run recovery and remai
   assert.deepEqual(workflow.on.workflow_run.workflows, [
     'OPL Stable Release Bundle',
     'OPL Stable Post-Success Full Follow-up',
+    'OPL Stable Existing-Base Optional Adjunct',
   ]);
   assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
@@ -303,7 +304,7 @@ test('optional certification is automatic or exact failed-run recovery and remai
   );
   assert.match(
     workflow.jobs['resolve-linux-adjunct'].if,
-    /OPL Stable Post-Success Full Follow-up/,
+    /OPL Stable Post-Success Full Follow-up.*OPL Stable Existing-Base Optional Adjunct/,
   );
   assert.match(workflow.jobs['resolve-full'].if, /recover_exact_failed_optional_certification_v2/);
   assert.match(
