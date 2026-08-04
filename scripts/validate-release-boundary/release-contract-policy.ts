@@ -2336,7 +2336,8 @@ export function validateReleasePlatformMatrix(
     || optionalSelection?.control_field !== 'opl_app_stable_operation_control.v1#optional_platforms'
     || optionalSelection?.arbitrary_command_or_os_input_allowed !== false
     || optionalFollower?.carrier !== 'independent_immutable_adjunct_release'
-    || optionalFollower?.base_release_must_be_published_immutable !== true
+    || optionalFollower?.base_release_must_be_published_mutable !== true
+    || optionalFollower?.adjunct_release_must_be_published_immutable !== true
     || optionalFollower?.make_latest !== false
     || optionalFollower?.base_release_mutation_allowed !== false
   ) {
