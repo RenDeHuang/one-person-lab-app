@@ -265,7 +265,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   resolve-linux-adjunct:
-    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && (github.event.workflow_run.name == 'OPL Stable Post-Success Full Follow-up' || github.event.workflow_run.name == 'OPL Stable Existing-Base Optional Adjunct') }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && (github.event.workflow_run.path == '.github/workflows/release-stable-post-success-followups.yml' || github.event.workflow_run.path == '.github/workflows/release-stable-optional-existing-base.yml') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
