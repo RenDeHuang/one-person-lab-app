@@ -315,9 +315,6 @@ test('Standard publisher keeps Stable qualification separate from protected Prev
   const workflow = parseWorkflow('_release-standard-publish.yml');
   const source = readWorkflow('_release-standard-publish.yml');
   const activation = workflow.jobs['activate-latest'];
-  const webuiSource = activation.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Prepare exact WebUI follower source',
-  );
   const homebrewDownloads = activation.steps.filter(
     (step: Record<string, unknown>) => String(step.name ?? '').startsWith('Download Standard Homebrew'),
   );
@@ -326,7 +323,7 @@ test('Standard publisher keeps Stable qualification separate from protected Prev
   );
   const run = String(activate?.run ?? '');
 
-  assert.equal(webuiSource.if, "${{ needs.restore.outputs.channel == 'stable' }}");
+  assert.doesNotMatch(source, /WebUI follower|webui-follower-handoff/);
   assert.deepEqual(
     homebrewDownloads.map((step: Record<string, unknown>) => step.name),
     [

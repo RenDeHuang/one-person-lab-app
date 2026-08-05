@@ -416,11 +416,11 @@ test('preflight workflow never queues a self-hosted or publication job', () => {
   assert.doesNotMatch(source, /gh release|make_latest|Restore-VMSnapshot|Start-VM|Start-Process/i);
 });
 
-test('release contract keeps Windows qualification optional, nonblocking, and independently versioned', () => {
+test('release contract keeps Windows qualification optional and nonblocking inside the same Desktop Release Set', () => {
   const contract = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
   );
-  const qualification = contract.release_platform_matrix.optional_platform_additive_follower
+  const qualification = contract.release_platform_matrix.desktop_platform_additive_follower
     .windows_x64_updater_assets.upgrade_vm_qualification;
   assert.equal(qualification.workflow, '.github/workflows/windows-updater-upgrade-vm-preflight.yml');
   assert.equal(qualification.cross_component_exact_cohort_required, false);

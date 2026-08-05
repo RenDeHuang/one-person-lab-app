@@ -674,33 +674,29 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
         standard_release_identity_or_bundle_digest_binding_allowed: false,
         cross_component_source_cohort_binding_allowed: false,
       },
-      linux_x64_adjunct_resolution: {
-        identity_source: 'exact_base_release_component_manifest_and_exact_optional_release_manifest',
-        discovery_route: 'bounded_paginated_github_releases_api',
-        tag_pattern: 'base_stable_tag-optional-adjunct_manifest_sha256_prefix_12',
+      linux_x64_same_tag_resolution: {
+        identity_source: 'exact_stable_release_component_manifest_and_desktop_platforms_manifest',
+        discovery_route: 'selected_stable_release_assets_only',
+        tag_binding: 'same_as_selected_stable_release_tag',
         eligible_release: {
-          matching_release_count: 1,
           draft: false,
           prerelease: false,
-          immutable: true,
-          target_commit_matches_base_release: true,
+          github_immutable_claim: false,
           owner_authority_verified: true,
         },
         exact_tag_readback_required: true,
-        required_base_assets: [
+        required_assets: [
           'component_manifest',
           'release_universal_installer',
-        ],
-        required_adjunct_assets: [
           'linux_x64_deb',
-          'opl-optional-platforms-manifest.json',
+          'opl-desktop-platforms-manifest.json',
         ],
-        asset_url_and_digest_must_match_exact_adjunct_release: true,
-        adjunct_manifest_must_match_base_release_version_cohort_and_linux_deb_identity: true,
+        asset_url_and_digest_must_match_exact_stable_release: true,
+        desktop_manifest_must_match_release_version_cohort_and_linux_deb_identity: true,
         compatibility_selector_ref:
           'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
         missing_ambiguous_or_invalid: 'fail_closed',
-        base_release_asset_fallback_allowed: false,
+        cross_release_fallback_allowed: false,
       },
       target_selection: 'host_platform_and_architecture',
     },

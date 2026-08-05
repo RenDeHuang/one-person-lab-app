@@ -137,8 +137,7 @@ jobs:
       release_bundle_digest: sha256:canary
       release_cohort_ref: sha256:canary
       source_artifact_run_id: '424242'
-      standard_checkpoint_artifact_name: canary
-      standard_identity_sha256: sha256:canary
+      source_authority_artifact_name: canary
 
   nested-webui-stable:
     uses: ./.github/workflows/release-webui-stable.yml
@@ -148,8 +147,7 @@ jobs:
       packages: write
     with:
       mode: canary
-      stable_authority_run_id: '424242'
-      carrier_artifact_name: canary
+      publication_record_ref: canary
 
   nested-updater-qualification:
     uses: ./.github/workflows/opl-updater-upgrade-vm.yml

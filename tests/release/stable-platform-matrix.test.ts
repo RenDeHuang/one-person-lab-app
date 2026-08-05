@@ -77,7 +77,7 @@ test('all seven capabilities remain buildable while only macOS ARM64 blocks Stab
   }
   for (const id of ['linux-x64', 'windows-x64']) {
     assert.equal(matrix.capabilities[id].stable_allowed, true);
-    assert.ok(matrix.capabilities[id].quality_channels.includes('stable_optional'));
+    assert.ok(matrix.capabilities[id].quality_channels.includes('stable'));
   }
   for (const id of ['windows-x64', 'windows-arm64']) {
     assert.ok(matrix.capabilities[id].quality_channels.includes('preview_rc'));
@@ -92,22 +92,22 @@ test('all seven capabilities remain buildable while only macOS ARM64 blocks Stab
   }
 });
 
-test('Stable optional publication is limited to Linux x64 and Windows x64 without promoting product qualification', () => {
+test('Stable additional Desktop publication is limited to Linux x64 and Windows x64 on the same Release', () => {
   assert.deepEqual(
-    contract.release_platform_matrix.policies.stable_optional.platforms,
+    contract.release_platform_matrix.policies.stable_desktop_additional.platforms,
     ['linux-x64', 'windows-x64'],
   );
   assert.deepEqual(
-    contract.release_platform_matrix.stable_optional_selection.default,
+    contract.release_platform_matrix.stable_desktop_additional_selection.default,
     ['linux-x64', 'windows-x64'],
   );
   assert.equal(
-    contract.release_platform_matrix.optional_platform_additive_follower.base_release_must_be_published_mutable,
+    contract.release_platform_matrix.desktop_platform_additive_follower.base_release_must_be_published_mutable,
     true,
   );
   assert.equal(
-    contract.release_platform_matrix.optional_platform_additive_follower.adjunct_release_must_be_published_immutable,
-    true,
+    contract.release_platform_matrix.desktop_platform_additive_follower.new_release_or_tag_allowed,
+    false,
   );
   for (const id of ['macos-x64', 'macos-universal', 'linux-arm64']) {
     const capability = contract.release_platform_matrix.capabilities[id];
@@ -123,11 +123,11 @@ test('Stable optional publication is limited to Linux x64 and Windows x64 withou
 
 test('optional Stable publication defaults to Linux x64 plus Windows x64 and remains authority-overridable', () => {
   assert.deepEqual(
-    resolveReleasePlatformMatrix({ policy: 'stable_optional' }).include.map((row) => row.platform),
+    resolveReleasePlatformMatrix({ policy: 'stable_desktop_additional' }).include.map((row) => row.platform),
     ['linux-x64', 'windows-x64'],
   );
   assert.deepEqual(
-    resolveReleasePlatformMatrix({ policy: 'stable_optional', platforms: ['linux-x64'] }).include.map(
+    resolveReleasePlatformMatrix({ policy: 'stable_desktop_additional', platforms: ['linux-x64'] }).include.map(
       (row) => row.platform,
     ),
     ['linux-x64'],
@@ -149,28 +149,28 @@ test('resolver accepts only audited policy and platform IDs', () => {
   );
   assert.deepEqual(
     resolveReleasePlatformMatrix({
-      policy: 'stable_optional',
+      policy: 'stable_desktop_additional',
       platforms: ['windows-x64'],
     }).include.map((entry) => entry.platform),
     ['windows-x64'],
   );
   for (const platform of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64']) {
     assert.throws(
-      () => resolveReleasePlatformMatrix({ policy: 'stable_optional', platforms: [platform] }),
+      () => resolveReleasePlatformMatrix({ policy: 'stable_desktop_additional', platforms: [platform] }),
       /outside audited policy/,
-      `${platform} must remain development-only for Stable optional selection`,
+      `${platform} must remain outside the additional Stable Desktop selection`,
     );
   }
   assert.deepEqual(
     resolveReleasePlatformMatrix({
-      policy: 'stable_optional',
+      policy: 'stable_desktop_additional',
       platforms: ['windows-x64'],
     }).include,
     [{
       platform: 'windows-x64',
       os: 'windows-2022',
       command: 'node scripts/build-with-builder.js x64 --win --x64',
-      'artifact-name': 'optional-windows-x64',
+      'artifact-name': 'stable-desktop-windows-x64',
       arch: 'x64',
     }],
   );
@@ -196,8 +196,8 @@ test('workflow callers consume resolver output while reusable build keeps generi
     fs.readFileSync(path.join(appRoot, '.github/workflows/windows-updater-package-validation.yml'), 'utf8'),
   ) as any;
 
-  assert.equal(stable.on.workflow_dispatch.inputs.optional_platforms.default, '["linux-x64","windows-x64"]');
-  assert.equal(bundle.on.workflow_call.inputs.stable_optional_platforms.default, '["linux-x64","windows-x64"]');
+  assert.equal(stable.on.workflow_dispatch.inputs.desktop_additional_platforms.default, '["linux-x64","windows-x64"]');
+  assert.equal(bundle.on.workflow_call.inputs.stable_desktop_additional_platforms.default, '["linux-x64","windows-x64"]');
   assert.equal(bundle.jobs['standard-build'].with.matrix, '${{ needs.resolve-platform-matrix.outputs.matrix }}');
   assert.equal(bundle.jobs['standard-build'].with.release_validation_profile, 'stable');
   const bundleMatrixRun = String(
@@ -297,19 +297,22 @@ test('Stable profile excludes only Windows-only checks and retains shared build 
   );
 });
 
-test('Stable validation ignores Windows publication drift while aggregate and Preview remain fail-closed', () => {
+test('Stable validation fails closed when a required same-Release Desktop route drifts', () => {
   const changed = structuredClone(contract);
   changed.release_platform_matrix.capabilities['windows-x64'].publication_route = null;
   const originalConsoleError = console.error;
   console.error = () => {};
   try {
-    assert.equal(validateReleasePlatformMatrix(changed, 'stable'), 0);
+    assert.ok(validateReleasePlatformMatrix(changed, 'stable') > 0);
     assert.ok(validateReleasePlatformMatrix(changed, 'aggregate') > 0);
     assert.ok(validateReleasePlatformMatrix(changed, 'windows-preview') > 0);
   } finally {
     console.error = originalConsoleError;
   }
-  assert.doesNotThrow(() => validateReleaseChannelContract(changed, null, 'stable'));
+  assert.throws(
+    () => validateReleaseChannelContract(changed, null, 'stable'),
+    /Release platform matrix/,
+  );
   assert.throws(
     () => validateReleaseChannelContract(changed, null, 'aggregate'),
     /Release platform matrix/,
@@ -427,7 +430,7 @@ test('Full macOS publication is self-identified, same-tag additive, recoverable,
   assert.equal(follower.recovery, 'bounded_read_only_reconcile_same_standard_release_no_retry');
 });
 
-test('optional platform publication is an independent protected post-success operation', () => {
+test('additional Desktop platform publication is an independent protected post-success operation', () => {
   const follower = parseYaml(
     fs.readFileSync(
       path.join(appRoot, '.github/workflows/release-stable-post-success-followups.yml'),
@@ -437,24 +440,26 @@ test('optional platform publication is an independent protected post-success ope
   const manual = parseYaml(
     fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8'),
   ) as any;
-  const optional = follower.jobs['publish-optional-platforms'];
-  assert.equal(optional.if, "${{ needs.admit.outputs.optional_platforms_enabled == 'true' }}");
-  assert.equal(optional.uses, './.github/workflows/build-manual.yml');
-  assert.equal(optional.with.invocation_mode, 'stable_optional_follower');
-  assert.equal(optional.with.platform_policy, 'stable_optional');
-  assert.equal(optional.with.platform_ids, '${{ needs.admit.outputs.optional_platforms }}');
-  assert.equal(optional.with.opl_updater_version, '${{ needs.admit.outputs.updater_version }}');
+  const build = follower.jobs['build-desktop-platforms'];
+  const append = follower.jobs['append-desktop-platforms'];
+  assert.equal(build.uses, './.github/workflows/build-manual.yml');
+  assert.equal(build.with.invocation_mode, 'stable_release_set_build');
+  assert.equal(build.with.platform_policy, 'stable_desktop_additional');
+  assert.equal(build.with.platform_ids, '${{ needs.admit.outputs.desktop_platforms }}');
+  assert.equal(build.with.opl_updater_version, '${{ needs.admit.outputs.updater_version }}');
+  assert.equal(append.environment, 'release-stable');
+  assert.deepEqual(append.permissions, { contents: 'write', actions: 'read' });
   const manualMatrixRun = String(
     manual.jobs['prepare-matrix'].steps.find((step: any) => step.id === 'set-matrix')?.run,
   );
   assert.match(
     manualMatrixRun,
-    /Stable optional publication accepts only the canonical Linux x64 and Windows x64 subsets/,
+    /Stable Release Set accepts only canonical Linux x64 and Windows x64 Desktop subsets/,
   );
   assert.match(manualMatrixRun, /\. == \["linux-x64", "windows-x64"\]/);
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_updater_assets,
-    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+    "${{ inputs.invocation_mode == 'stable_release_set_build' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
   );
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_authenticode,
@@ -465,10 +470,7 @@ test('optional platform publication is an independent protected post-success ope
     "${{ needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}",
   );
   const publish = manual.jobs['publish-selected-platforms'];
-  assert.equal(
-    publish.environment,
-    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}",
-  );
+  assert.equal(publish.environment, 'release-preview');
   const publishStepNames = publish.steps.map((step: any) => step.name);
   const publisherNodeSetup = publish.steps.find(
     (step: any) => step.name === 'Setup Node.js for App publisher validation',
@@ -493,28 +495,21 @@ test('optional platform publication is an independent protected post-success ope
   const publishRun = String(publish.steps.find(
     (step: any) => step.name === 'Publish exact platform bytes as one immutable carrier',
   )?.run);
-  assert.match(
-    publishRun,
-    /\.tag_name == \$tag[\s\S]*\.prerelease == false[\s\S]*\.immutable == false[\s\S]*base-release\.json/,
-  );
-  assert.match(publishRun, /exact mutable base Stable Release used for same-tag Full append/);
+  assert.match(publishRun, /test "\$PUBLICATION_MODE" = windows_preview_rc/);
   assert.match(publishRun, /gh release upload "\$tag" "\$asset_path"/);
   assert.match(publishRun, /and \.immutable == true/);
   assert.match(publishRun, /validateGithubImmutableReleaseCapabilityEvidence/);
   assert.doesNotMatch(publishRun, /"repos\/\$GITHUB_REPOSITORY\/immutable-releases"/);
   assert.match(publishRun, /jq -S -n/);
-  assert.match(publishRun, /validate-windows-updater-assets\.ts/);
-  assert.match(publishRun, /opl-windows-updater-assets\.json/);
+  assert.match(publishRun, /Windows Preview must not publish Stable updater assets/);
   assert.doesNotMatch(publishRun, /macos_x64_updater_selected|latest-(?:x64-)?mac\.yml/);
   assert.doesNotMatch(publishRun, /standard-(?:apple-notarization|gatekeeper-launch-policy)/);
-  assert.match(publishRun, /if \[ -f selected-platform-assets\/opl-windows-authenticode-receipt\.json \]/);
-  assert.match(publishRun, /\.exe\.blockmap/);
   assert.match(publishRun, /release_identity:\{display_version:\$display_version,updater_version:\$updater_version\}/);
   assert.match(publishRun, /test -s "\$manifest_path"/);
   assert.match(publishRun, /draft:true/);
   assert.match(publishRun, /draft:false,make_latest:"false"/);
   assert.match(publishRun, /and \.immutable == true/);
-  assert.match(publishRun, /-optional-\$\{manifest_hex:0:12\}/);
+  assert.match(publishRun, /tag="windows-rc-\$\{VERSION\}"/);
   assert.match(publishRun, /fetch_release_including_drafts/);
   assert.match(
     publishRun,
@@ -523,5 +518,6 @@ test('optional platform publication is an independent protected post-success ope
   assert.match(publishRun, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/\$release_id"/);
   assert.doesNotMatch(publishRun, /--clobber|gh run rerun|gh run cancel/);
   assert.match(publishRun, /latest_after.*latest_before/);
-  assert.match(publishRun, /opl_app_optional_platform_publication_receipt\.v1/);
+  assert.match(publishRun, /opl_app_windows_preview_publication_receipt\.v1/);
+  assert.doesNotMatch(publishRun, /stable_optional|adjunct|base_release/);
 });

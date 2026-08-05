@@ -283,7 +283,7 @@ test('single Stable admission manifest allocates the first unused cross-namespac
     'operation_id',
     'authority_carrier',
     'authority_digest',
-    'optional_platforms',
+    'desktop_additional_platforms',
   ]);
   assert.equal(manifest.dispatcher_contract.raw_standard_version_or_ref_inputs_allowed, false);
   const { manifest_digest: digest, ...core } = manifest;

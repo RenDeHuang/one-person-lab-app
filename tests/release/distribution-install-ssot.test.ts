@@ -72,33 +72,29 @@ test('distribution/install SSOT validates the current and approved state split',
       standard_release_identity_or_bundle_digest_binding_allowed: false,
       cross_component_source_cohort_binding_allowed: false,
       },
-      linux_x64_adjunct_resolution: {
-        identity_source: 'exact_base_release_component_manifest_and_exact_optional_release_manifest',
-        discovery_route: 'bounded_paginated_github_releases_api',
-        tag_pattern: 'base_stable_tag-optional-adjunct_manifest_sha256_prefix_12',
+      linux_x64_same_tag_resolution: {
+        identity_source: 'exact_stable_release_component_manifest_and_desktop_platforms_manifest',
+        discovery_route: 'selected_stable_release_assets_only',
+        tag_binding: 'same_as_selected_stable_release_tag',
         eligible_release: {
-          matching_release_count: 1,
           draft: false,
           prerelease: false,
-          immutable: true,
-          target_commit_matches_base_release: true,
+          github_immutable_claim: false,
           owner_authority_verified: true,
         },
         exact_tag_readback_required: true,
-        required_base_assets: [
+        required_assets: [
           'component_manifest',
           'release_universal_installer',
-        ],
-        required_adjunct_assets: [
           'linux_x64_deb',
-          'opl-optional-platforms-manifest.json',
+          'opl-desktop-platforms-manifest.json',
         ],
-        asset_url_and_digest_must_match_exact_adjunct_release: true,
-        adjunct_manifest_must_match_base_release_version_cohort_and_linux_deb_identity: true,
+        asset_url_and_digest_must_match_exact_stable_release: true,
+        desktop_manifest_must_match_release_version_cohort_and_linux_deb_identity: true,
         compatibility_selector_ref:
           'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
         missing_ambiguous_or_invalid: 'fail_closed',
-        base_release_asset_fallback_allowed: false,
+        cross_release_fallback_allowed: false,
       },
       target_selection: 'host_platform_and_architecture',
     },
@@ -144,15 +140,15 @@ test('distribution/install SSOT validates the current and approved state split',
       artifact: 'One-Person-Lab-<version>-linux-x64.deb',
       installer: 'opl-install.sh',
       installer_arguments: ['--desktop', '--release-tag', '<exact-tag>', '--no-open'],
-      release_set_base_installer_and_adjunct_deb_manifest_binding_required: true,
-      base_release_tag_and_adjunct_tag_required: true,
-      base_and_adjunct_cohort_binding_required: true,
+      release_set_single_tag_asset_binding_required: true,
+      same_release_tag_required: true,
+      desktop_manifest_cohort_binding_required: true,
       same_deb_artifact_identity_required: true,
       cross_component_version_sha_or_cohort_equality_required: false,
       dependency_compatibility_contract_ref:
         'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
-      typed_admission_schema: 'opl_app_optional_certification_hosted_admission.v1',
-      typed_execution_evidence_schema: 'opl_app_linux_same_artifact_install_evidence.v1',
+      typed_admission_schema: 'opl_app_stable_desktop_asset_append.v1',
+      typed_execution_evidence_schema: 'opl_app_linux_same_tag_desktop_install.v1',
       clean_machine_preinstall_absence_required: true,
       installed_executable_byte_parity_required: true,
       failed_download_evidence_truthful_required: true,
@@ -511,40 +507,15 @@ test('ordinary docs point to the SSOT without advertising retired or unpublished
   assert.match(docsIndex, /delivery\/distribution-and-install-ssot\.md/);
   assert.match(deliveryIndex, /distribution-and-install-ssot\.md/);
   assert.match(releaseGuide, /\.\.\/distribution-and-install-ssot\.md/);
-  for (const guide of [distributionGuide, releaseGuide, manualLatestGuide]) {
-    assert.match(guide, /carrier_owned_durable_publication_record/);
-  }
-  assert.match(
-    distributionGuide,
-    /Actions artifact[\s\S]{0,240}不得决定已发布版本是否可选/,
-  );
-  assert.match(
-    distributionGuide,
-    /Linux x64[\s\S]{0,1600}opl_app_optional_certification_hosted_admission\.v1/,
-  );
-  assert.match(
-    distributionGuide,
-    /--desktop --release-tag <exact-tag> --no-open/,
-  );
-  assert.match(
-    distributionGuide,
-    /Debian package 不存在[\s\S]{0,260}executable digest[\s\S]{0,260}安装字节一致性/,
-  );
-  assert.match(
-    distributionGuide,
-    /网络、队列或 hosted runner 故障[\s\S]{0,120}绝不能伪装成 `unavailable`/,
-  );
-  assert.match(
-    releaseGuide,
-    /Actions artifact[\s\S]{0,240}never the selector or retention authority/,
-  );
+  assert.match(distributionGuide, /Stable Desktop Release Set/);
+  assert.match(distributionGuide, /opl-desktop-platforms-manifest\.json/);
+  assert.match(distributionGuide, /durable GHCR publication record/);
+  assert.match(releaseGuide, /same-tag Full macOS, Linux x64 and Windows x64/);
+  assert.match(releaseGuide, /independent source authority/);
+  assert.doesNotMatch(releaseGuide, /carrier_owned_durable_publication_record/);
   assert.match(
     manualLatestGuide,
     /Actions artifact is[\s\S]{0,180}cannot make a version\s+selectable after it expires/,
-  );
-  assert.match(
-    releaseGuide,
-    /Selection consumes the\s+carrier-owned durable publication record, not a transient Actions artifact/,
   );
   assert.match(macGuide, /\{\{download\.stable_install_command\}\}/);
   assert.equal(

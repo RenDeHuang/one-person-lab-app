@@ -11,7 +11,6 @@ import {
   validateHomebrewFullPromotionTopology,
   validateIndependentWebuiPreviewTopology,
   validateNightlyReleaseTopology,
-  validateNativeWebuiPublicationTopology,
   validateStableReleaseControlPlane,
   validateWorkflowDispatchWriteAuthority,
 } from '../../scripts/validate-release-boundary/text-check-runner.ts';
@@ -132,57 +131,6 @@ test('release boundary admits the three-operation control plane and real no-secr
   assert.equal(validateIndependentWebuiPreviewTopology(process.cwd()), 0);
   assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);
   assert.equal(validateGithubApplyCallerParity(process.cwd()), 0);
-});
-
-test('Stable optional recovery admits only the exact optional publisher and workflow-run Full dispatch', (t) => {
-  const widenedConfirmation = fixture(t);
-  updateWorkflow(widenedConfirmation, 'release-stable-post-success-followups.yml', (workflow) => {
-    workflow.on.workflow_dispatch.inputs.recovery_confirmation.options = ['recover_any_skipped_run'];
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(widenedConfirmation)) > 0);
-
-  const widenedDispatch = fixture(t);
-  updateWorkflow(widenedDispatch, 'release-stable-post-success-followups.yml', (workflow) => {
-    workflow.jobs.dispatch.if = "${{ needs.admit.outputs.eligible == 'true' }}";
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(widenedDispatch)) > 0);
-
-  const widenedPublisher = fixture(t);
-  updateWorkflow(widenedPublisher, 'release-stable-post-success-followups.yml', (workflow) => {
-    workflow.jobs['publish-optional-platforms'].permissions.packages = 'write';
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(widenedPublisher)) > 0);
-
-  const widenedDispatchMutation = fixture(t);
-  updateWorkflow(widenedDispatchMutation, 'release-stable-post-success-followups.yml', (workflow) => {
-    workflow.jobs.dispatch.steps.find((step: Record<string, any>) => typeof step.run === 'string').run +=
-      '\ngh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/123"';
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(widenedDispatchMutation)) > 0);
-
-  const changedDispatchEndpoint = fixture(t);
-  updateWorkflow(changedDispatchEndpoint, 'release-stable-post-success-followups.yml', (workflow) => {
-    const step = workflow.jobs.dispatch.steps.find((candidate: Record<string, any>) => typeof candidate.run === 'string');
-    step.run = step.run.replace(
-      'actions/workflows/release-stable.yml/dispatches',
-      'releases/123/assets',
-    );
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(changedDispatchEndpoint)) > 0);
-
-  const widenedDispatchPayload = fixture(t);
-  updateWorkflow(widenedDispatchPayload, 'release-stable-post-success-followups.yml', (workflow) => {
-    const step = workflow.jobs.dispatch.steps.find((candidate: Record<string, any>) => typeof candidate.run === 'string');
-    step.run = step.run.replace('include_full:"false"', 'include_full:"true"');
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(widenedDispatchPayload)) > 0);
-
-  const alternateMutationSyntax = fixture(t);
-  updateWorkflow(alternateMutationSyntax, 'release-stable-post-success-followups.yml', (workflow) => {
-    workflow.jobs.dispatch.steps.find((step: Record<string, any>) => typeof step.run === 'string').run +=
-      '\ngh api -XDELETE "repos/$GITHUB_REPOSITORY/releases/123"';
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(alternateMutationSyntax)) > 0);
 });
 
 test('production github-apply callers keep rehearsal and execute CLI parity', (t) => {
@@ -378,37 +326,6 @@ test('Bundle, Standard publish, and Full append responsibilities cannot collapse
   assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) >= 3);
 });
 
-test('WebUI follower keeps the packages write compile ceiling outside Desktop Stable', (t) => {
-  const root = fixture(t);
-  updateWorkflow(root, 'release-webui-follower.yml', (workflow) => {
-    workflow.jobs['webui-carrier'].permissions = {
-      contents: 'read',
-      actions: 'read',
-      packages: 'read',
-    };
-  });
-
-  assert.equal(withoutExpectedDiagnostics(() => validateStableReleaseControlPlane(root)), 0);
-  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(root)) > 0);
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
-});
-
-test('Native WebUI follower remains additive and target drift fails closed', (t) => {
-  const root = fixture(t);
-  assert.equal(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)), 0);
-  assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
-
-  assert.equal(fs.existsSync(workflowPath(root, 'release-native-webui-follower.yml')), true);
-  assert.equal(fs.existsSync(workflowPath(root, '_release-native-webui-carrier.yml')), true);
-  updateWorkflow(root, 'release-native-webui-follower.yml', (workflow) => {
-    workflow.jobs['native-webui-macos'].with.target_architecture = 'x86_64';
-    workflow.jobs['native-webui-macos'].if =
-      "${{ needs.resolve-handoff.outputs.eligible == 'true' }}";
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateNativeWebuiPublicationTopology(root)) > 0);
-  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
-});
-
 test('Full Homebrew follower publishes hosted-qualified bytes without a physical VM dependency', (t) => {
   const root = fixture(t);
   assert.equal(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)), 0);
@@ -426,26 +343,6 @@ test('Full Homebrew follower publishes hosted-qualified bytes without a physical
     });
   });
   assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(root)) > 0);
-});
-
-test('Full follower recovery v3 fails closed on widened confirmation or missing consumed-v2 identity', (t) => {
-  const homebrewRoot = fixture(t);
-  updateWorkflow(homebrewRoot, 'release-homebrew-full-follower.yml', (workflow) => {
-    workflow.on.workflow_dispatch.inputs.recovery_confirmation.options = ['recover_any_full_follower'];
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(homebrewRoot)) > 0);
-
-  const missingV2Root = fixture(t);
-  updateWorkflow(missingV2Root, 'release-homebrew-full-follower.yml', (workflow) => {
-    delete workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id;
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateHomebrewFullPromotionTopology(missingV2Root)) > 0);
-
-  const certificationRoot = fixture(t);
-  updateWorkflow(certificationRoot, 'release-post-publication-certification.yml', (workflow) => {
-    delete workflow.on.workflow_dispatch.inputs.failed_recovery_run_id;
-  });
-  assert.ok(withoutExpectedDiagnostics(() => validateReleaseBundleTopology(certificationRoot)) > 0);
 });
 
 test('Nightly cannot reuse the Stable Bundle, heavy VM, or Stable mutation mutex', (t) => {
@@ -518,7 +415,7 @@ test('independent WebUI Preview publication cannot absorb Latest promotion or De
   assert.equal(withoutExpectedDiagnostics(() => validateIndependentWebuiPreviewTopology(root)), 0);
 
   updateWorkflow(root, 'release-webui-development.yml', (workflow) => {
-    workflow.jobs['webui-carrier'].with.authority_mode = 'production_follower';
+    workflow.jobs['webui-carrier'].with.authority_mode = 'independent_stable';
   });
   updateWorkflow(root, 'release-webui-development-promote.yml', (workflow) => {
     workflow.on.workflow_dispatch.inputs.stable_authority_run_id = {

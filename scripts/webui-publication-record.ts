@@ -7,8 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { validateWebuiSourceAuthority, type JsonRecord } from './webui-source-authority.ts';
 
 export type WebuiPublicationAuthorityMode =
-  | 'production_follower'
-  | 'development_validation'
+  | 'independent_stable'
   | 'independent_preview';
 
 const appRepository = 'gaofeng21cn/one-person-lab-app';
@@ -74,7 +73,7 @@ function positiveInteger(value: unknown, label: string): number {
 
 function authorityMode(value: unknown): WebuiPublicationAuthorityMode {
   const mode = text(value, 'authority mode') as WebuiPublicationAuthorityMode;
-  if (!['production_follower', 'development_validation', 'independent_preview'].includes(mode)) {
+  if (!['independent_stable', 'independent_preview'].includes(mode)) {
     throw new Error('WebUI publication authority mode is invalid.');
   }
   return mode;
@@ -104,10 +103,10 @@ function readJson(filePath: string, label: string): JsonRecord {
 }
 
 function publicationClassification(mode: WebuiPublicationAuthorityMode): JsonRecord {
-  return mode === 'production_follower'
+  return mode === 'independent_stable'
     ? {
         quality_status: 'stable',
-        build_trigger: 'automated',
+        build_trigger: 'manual',
         preview_kind: null,
         quality_unchanged: true,
       }
@@ -119,10 +118,8 @@ function publicationClassification(mode: WebuiPublicationAuthorityMode): JsonRec
       };
 }
 
-function expectedPublicationWorkflow(mode: WebuiPublicationAuthorityMode): string {
-  return mode === 'production_follower'
-    ? '.github/workflows/release-webui-follower.yml'
-    : '.github/workflows/release-webui-development.yml';
+function expectedPublicationWorkflow(): string {
+  return '.github/workflows/release-webui-development.yml';
 }
 
 function validateCarrierReceipt(
@@ -196,8 +193,7 @@ function validateVersionReadback(
 function qualificationDisclosure(
   mode: WebuiPublicationAuthorityMode,
   qualificationInput: unknown,
-  stableAuthorityRunId: string | null,
-  sourceAuthority: JsonRecord | null,
+  sourceAuthority: JsonRecord,
 ): JsonRecord {
   const runtimeQualification = record(qualificationInput, 'runtime qualification disclosure');
   exact(runtimeQualification.schema, 'opl_app_webui_runtime_qualification.v1', 'runtime qualification disclosure.schema');
@@ -211,23 +207,20 @@ function qualificationDisclosure(
   digest(runtimeQualification.registry_readback_sha256, 'runtime qualification disclosure.registry_readback_sha256');
   text(runtimeQualification.runtime_image_id, 'runtime qualification disclosure.runtime_image_id');
 
-  const stableQualification = mode === 'production_follower'
+  const stableQualification = mode === 'independent_stable'
     ? {
-        schema: 'opl_app_webui_stable_qualification_disclosure.v1',
-        status: 'passed',
-        stable_authority_run_id: stableAuthorityRunId,
+      schema: 'opl_app_webui_stable_qualification_disclosure.v1',
+      status: 'passed',
+      source_authority_digest: sourceAuthority.source_authority_digest,
       }
     : null;
-  const nonStableGateDisclosure = mode === 'production_follower'
+  const nonStableGateDisclosure = mode === 'independent_stable'
     ? null
     : {
         schema: 'opl_app_webui_non_stable_gate_disclosure.v1',
         status: 'skipped',
-        reason: mode === 'independent_preview'
-          ? 'independent_preview_not_stable'
-          : 'development_validation_not_stable',
-        stable_authority_run_id: stableAuthorityRunId,
-        source_authority_digest: sourceAuthority?.source_authority_digest ?? null,
+        reason: 'independent_preview_not_stable',
+        source_authority_digest: sourceAuthority.source_authority_digest,
         explicit_latest_override_required: true,
       };
   return {
@@ -252,7 +245,6 @@ export type CreateWebuiPublicationRecordInput = {
   publicationRunId: string;
   publicationRunAttempt: number;
   publicationExecutorSha: string;
-  stableAuthorityRunId?: string;
   sourceAuthority?: JsonRecord;
   sourceAuthoritySha256?: string;
 };
@@ -271,35 +263,27 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
   const publicationRun = runId(input.publicationRunId, 'publication run id');
   const publicationRunAttempt = positiveInteger(input.publicationRunAttempt, 'publication run attempt');
   const publicationExecutorSha = sha(input.publicationExecutorSha, 'publication executor SHA');
-  const stableRun = input.stableAuthorityRunId
-    ? runId(input.stableAuthorityRunId, 'Stable authority run id')
-    : null;
   const sourceAuthority = input.sourceAuthority ? validateWebuiSourceAuthority(input.sourceAuthority) : null;
 
-  if (mode === 'independent_preview') {
-    if (!sourceAuthority || !input.sourceAuthoritySha256) {
-      throw new Error('Independent Preview durable publication requires one exact source authority record.');
-    }
-    if (!previewVersionPattern.test(version)) {
-      throw new Error('Independent Preview durable publication version must use YY.M.D-preview.rN.');
-    }
-    exact(sourceAuthority.release.version, version, 'source authority release.version');
-    exact(sourceAuthority.source_authority_digest, release.bundle_digest, 'source authority digest');
-    exact(sourceAuthority.sources.app.source_commit, cohort.app_sha, 'source authority App SHA');
-    exact(sourceAuthority.sources.shell.source_commit, cohort.shell_sha, 'source authority Shell SHA');
-    exact(sourceAuthority.sources.framework.source_commit, cohort.framework_sha, 'source authority Framework SHA');
-    exact(sourceAuthority.authorization.run_id, publicationRun, 'source authority publication run id');
-    exact(sourceAuthority.authorization.executor_sha, publicationExecutorSha, 'source authority executor SHA');
-    if (stableRun !== null) throw new Error('Independent Preview durable publication must not bind a Stable authority run.');
-  } else {
-    if (!stableRun) throw new Error('Stable-derived durable publication requires one Stable authority run id.');
-    if (sourceAuthority !== null || input.sourceAuthoritySha256) {
-      throw new Error('Stable-derived durable publication must not carry independent source authority.');
-    }
+  if (!sourceAuthority || !input.sourceAuthoritySha256) {
+    throw new Error('Independent Docker publication requires one exact source authority record.');
   }
+  if (mode === 'independent_preview' && !previewVersionPattern.test(version)) {
+    throw new Error('Independent Preview durable publication version must use YY.M.D-preview.rN.');
+  }
+  if (mode === 'independent_stable' && previewVersionPattern.test(version)) {
+    throw new Error('Independent Stable durable publication must use a non-Preview version.');
+  }
+  exact(sourceAuthority.release.version, version, 'source authority release.version');
+  exact(sourceAuthority.source_authority_digest, release.bundle_digest, 'source authority digest');
+  exact(sourceAuthority.sources.app.source_commit, cohort.app_sha, 'source authority App SHA');
+  exact(sourceAuthority.sources.shell.source_commit, cohort.shell_sha, 'source authority Shell SHA');
+  exact(sourceAuthority.sources.framework.source_commit, cohort.framework_sha, 'source authority Framework SHA');
+  exact(sourceAuthority.authorization.run_id, publicationRun, 'source authority publication run id');
+  exact(sourceAuthority.authorization.executor_sha, publicationExecutorSha, 'source authority executor SHA');
 
   const classification = publicationClassification(mode);
-  const disclosure = qualificationDisclosure(mode, qualification, stableRun, sourceAuthority);
+  const disclosure = qualificationDisclosure(mode, qualification, sourceAuthority);
   const versionDigest = digest(versionReadback.digest, 'version readback.digest');
   const core = {
     schema: 'opl_app_webui_publication_record.v1',
@@ -329,19 +313,16 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
     },
     authority: {
       mode,
-      publication_workflow: expectedPublicationWorkflow(mode),
+      publication_workflow: expectedPublicationWorkflow(),
       publication_run_id: publicationRun,
       publication_run_attempt: publicationRunAttempt,
       publication_executor_sha: publicationExecutorSha,
-      stable_authority_run_id: stableRun,
       source_authority: sourceAuthority,
     },
     evidence: {
       carrier_receipt_sha256: digest(input.carrierReceiptSha256, 'carrier receipt SHA-256'),
       version_readback_sha256: digest(input.versionReadbackSha256, 'version readback SHA-256'),
-      source_authority_sha256: input.sourceAuthoritySha256
-        ? digest(input.sourceAuthoritySha256, 'source authority SHA-256')
-        : null,
+      source_authority_sha256: digest(input.sourceAuthoritySha256, 'source authority SHA-256'),
     },
     qualification_disclosure: disclosure,
   };
@@ -389,7 +370,6 @@ export function validateWebuiPublicationRecord(value: unknown): JsonRecord {
     publicationRunId: authority.publication_run_id,
     publicationRunAttempt: authority.publication_run_attempt,
     publicationExecutorSha: authority.publication_executor_sha,
-    stableAuthorityRunId: authority.stable_authority_run_id ?? undefined,
     sourceAuthority: authority.source_authority ?? undefined,
     sourceAuthoritySha256: evidence.source_authority_sha256 ?? undefined,
   });
@@ -422,7 +402,6 @@ function main(argv: string[]): void {
       'publication-run-attempt': { type: 'string' },
       'publication-executor-sha': { type: 'string' },
       'image-repository': { type: 'string' },
-      'stable-authority-run-id': { type: 'string' },
       'source-authority': { type: 'string' },
       input: { type: 'string' },
       output: { type: 'string' },
@@ -445,7 +424,6 @@ function main(argv: string[]): void {
         'publication run attempt',
       ),
       publicationExecutorSha: required(values['publication-executor-sha'], 'publication-executor-sha'),
-      stableAuthorityRunId: values['stable-authority-run-id']?.trim(),
       sourceAuthority: sourceAuthorityPath ? readJson(sourceAuthorityPath, 'source authority') : undefined,
       sourceAuthoritySha256: sourceAuthorityPath
         ? fileDigest(sourceAuthorityPath, 'source authority')

@@ -24,30 +24,18 @@ const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml'
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
 const manualBuildWorkflowPath = '.github/workflows/build-manual.yml';
-const stableOptionalExistingBaseWorkflowPath =
-  '.github/workflows/release-stable-optional-existing-base.yml';
-const stableOptionalFollowupWorkflowPath =
-  '.github/workflows/release-stable-post-success-followups.yml';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
-const webuiFollowerWorkflowPath = '.github/workflows/release-webui-follower.yml';
 const webuiCarrierPublishEnvironment =
   "${{ inputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}";
-const webuiCarrierBuildIf =
-  "${{ inputs.mode == 'execute' && inputs.qualified_artifact_run_id == '' }}";
-const webuiCarrierPublishIf = "${{ always()\n"
-  + "  && inputs.mode == 'execute'\n"
-  + "  && ((inputs.qualified_artifact_run_id == '' && needs.build-and-qualify.result == 'success')\n"
-  + "  || (inputs.qualified_artifact_run_id != '' && needs.build-and-qualify.result == 'skipped')) }}";
+const webuiCarrierBuildIf = "${{ inputs.mode == 'execute' }}";
+const webuiCarrierPublishIf =
+  "${{ always() && inputs.mode == 'execute' && needs.build-and-qualify.result == 'success' }}";
 const webuiPromotionPublishEnvironment =
   "${{ needs.admission.outputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}";
 const webuiDevelopmentWorkflowPath = '.github/workflows/release-webui-development.yml';
 const webuiDevelopmentPromotionWorkflowPath =
   '.github/workflows/release-webui-development-promote.yml';
-const nativeWebuiFollowerWorkflowPath =
-  '.github/workflows/release-native-webui-follower.yml';
-const nativeWebuiCarrierWorkflowPath =
-  '.github/workflows/_release-native-webui-carrier.yml';
 const homebrewFullFollowerWorkflowPath = '.github/workflows/release-homebrew-full-follower.yml';
 const homebrewFullPublisherWorkflowPath = '.github/workflows/_release-homebrew-full-publish.yml';
 const postPublicationOptionalCertificationWorkflowPath =
@@ -201,238 +189,9 @@ function isAuthorizedSelectedPlatformPublishJob(
   return workflowPath === manualBuildWorkflowPath
     && jobId === 'publish-selected-platforms'
     && needsExactly(job, ['prepare-matrix', 'build-pipeline'])
-    && job.environment ===
-      "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}"
+    && job.environment === 'release-preview'
     && exactObject(job.permissions, exactStableEntryPermissions)
     && Array.isArray(job.steps);
-}
-
-function isAuthorizedExistingBaseOptionalPublishJob(
-  workflowPath: string,
-  jobId: string,
-  job: Record<string, any>,
-): boolean {
-  if (
-    workflowPath !== stableOptionalExistingBaseWorkflowPath
-    || jobId !== 'publish-optional-platforms'
-    || !needsExactly(job, ['admit'])
-    || job.uses !== './.github/workflows/build-manual.yml'
-    || !exactObject(job.permissions, exactStableEntryPermissions)
-    || job.secrets !== 'inherit'
-    || Object.prototype.hasOwnProperty.call(job, 'steps')
-  ) {
-    return false;
-  }
-  const expectedWith: Record<string, unknown> = {
-    invocation_mode: 'stable_optional_follower',
-    platform_policy: 'stable_optional',
-    platform_ids: '${{ needs.admit.outputs.platforms }}',
-    app_ref: '${{ needs.admit.outputs.app_ref }}',
-    shell_ref: '${{ needs.admit.outputs.shell_ref }}',
-    framework_ref: '${{ needs.admit.outputs.framework_ref }}',
-    opl_release_version: '${{ needs.admit.outputs.version }}',
-    opl_updater_version: '${{ needs.admit.outputs.updater_version }}',
-    source_run_id: '${{ needs.admit.outputs.source_run_id }}',
-    source_bundle_digest: '',
-    source_authority_kind: 'existing_base_source_qualification',
-    source_authority_digest: '${{ needs.admit.outputs.source_authority_digest }}',
-    base_release_id: '${{ needs.admit.outputs.base_release_id }}',
-    base_release_tag: '${{ needs.admit.outputs.base_release_tag }}',
-    base_release_target_commitish: '${{ needs.admit.outputs.base_release_target_commitish }}',
-    base_release_updated_at: '${{ needs.admit.outputs.base_release_updated_at }}',
-    base_asset_inventory_digest: '${{ needs.admit.outputs.base_asset_inventory_digest }}',
-  };
-  return exactObject(job.with, expectedWith);
-}
-
-function hasExactStableOptionalRecoveryIngress(workflow: Record<string, any>): boolean {
-  const inputs = workflow.on?.workflow_dispatch?.inputs ?? {};
-  return JSON.stringify(Object.keys(inputs)) === JSON.stringify([
-    'source_run_id',
-    'skipped_followup_run_id',
-    'recovery_confirmation',
-  ])
-    && inputs.source_run_id?.required === true
-    && inputs.source_run_id?.type === 'string'
-    && inputs.skipped_followup_run_id?.required === true
-    && inputs.skipped_followup_run_id?.type === 'string'
-    && inputs.recovery_confirmation?.required === true
-    && inputs.recovery_confirmation?.type === 'choice'
-    && JSON.stringify(inputs.recovery_confirmation?.options) ===
-      JSON.stringify(['recover_exact_skipped_stable_optional_follower_v1'])
-    && exactObject(workflow.permissions, exactReadPermissions)
-    && workflow.concurrency?.group ===
-      "opl-full-append-successor-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}"
-    && workflow.concurrency?.['cancel-in-progress'] === false;
-}
-
-function hasExactFollowerRecoveryIngress(
-  workflow: Record<string, any>,
-  confirmations: string[],
-  additionalInputs: string[],
-  concurrencyGroup: string,
-): boolean {
-  const inputs = workflow.on?.workflow_dispatch?.inputs ?? {};
-  return JSON.stringify(Object.keys(inputs)) === JSON.stringify([
-    'source_run_id',
-    'failed_follower_run_id',
-    'failed_recovery_run_id',
-    ...additionalInputs,
-    'recovery_confirmation',
-  ])
-    && inputs.source_run_id?.required === true
-    && inputs.source_run_id?.type === 'string'
-    && inputs.failed_follower_run_id?.required === true
-    && inputs.failed_follower_run_id?.type === 'string'
-    && inputs.failed_recovery_run_id?.required === false
-    && inputs.failed_recovery_run_id?.type === 'string'
-    && additionalInputs.every((name) =>
-      inputs[name]?.required === false && inputs[name]?.type === 'string')
-    && inputs.recovery_confirmation?.required === true
-    && inputs.recovery_confirmation?.type === 'choice'
-    && JSON.stringify(inputs.recovery_confirmation?.options) === JSON.stringify(confirmations)
-    && exactObject(workflow.permissions, exactReadPermissions)
-    && workflow.concurrency?.group === concurrencyGroup
-    && workflow.concurrency?.['cancel-in-progress'] === false;
-}
-
-export function isAuthorizedFollowerRecoveryWriteJob(
-  workflowPath: string,
-  workflow: Record<string, any>,
-  jobId: string,
-  job: Record<string, any>,
-): boolean {
-  if (workflowPath === webuiFollowerWorkflowPath) {
-    if (!hasExactFollowerRecoveryIngress(
-      workflow,
-      [
-        'recover_exact_failed_webui_follower_v1',
-        'recover_exact_failed_webui_follower_v2',
-        'recover_exact_failed_webui_follower_v3',
-        'recover_exact_failed_webui_follower_v4',
-        'recover_exact_failed_webui_follower_v5',
-        'recover_exact_failed_webui_follower_v6',
-        'recover_exact_failed_webui_follower_v7',
-        'recover_exact_failed_webui_follower_v8',
-        'recover_exact_failed_webui_follower_v9',
-      ],
-      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'failed_recovery_v5_run_id', 'failed_recovery_v6_run_id', 'failed_recovery_v7_run_id', 'failed_recovery_v8_run_id'],
-      "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
-    )) return false;
-    if (jobId === 'webui-carrier') {
-      return job.uses === './.github/workflows/_release-webui-carrier.yml'
-        && needsExactly(job, ['resolve-handoff'])
-        && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
-        && job.with?.mode === 'execute'
-        && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
-    }
-    return jobId === 'promote-webui-stable'
-      && job.uses === './.github/workflows/release-webui-stable.yml'
-      && needsExactly(job, ['resolve-handoff', 'webui-carrier'])
-      && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
-      && job.with?.mode === 'execute'
-      && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
-  }
-  if (workflowPath !== nativeWebuiFollowerWorkflowPath || !hasExactFollowerRecoveryIngress(
-    workflow,
-    [
-      'recover_exact_failed_native_webui_follower_v1',
-      'recover_exact_failed_native_webui_follower_v2',
-      'recover_exact_failed_native_webui_follower_v3',
-      'recover_exact_failed_native_webui_follower_v4',
-      'recover_exact_failed_native_webui_follower_v5',
-    ],
-    ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'full_authority_run_id'],
-    "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
-  )) return false;
-  const expected = jobId === 'native-webui-linux'
-    ? {
-      needs: ['resolve-handoff'],
-      platform: 'linux',
-      architecture: 'x86_64',
-      condition: "${{ needs.resolve-handoff.outputs.eligible == 'true' && needs.resolve-handoff.outputs.recovery_v5 != 'true' }}",
-    }
-    : jobId === 'native-webui-macos'
-    ? {
-      needs: ['resolve-handoff', 'native-webui-linux'],
-      platform: 'darwin',
-      architecture: 'arm64',
-      condition: "${{ always() && needs.resolve-handoff.outputs.eligible == 'true' }}",
-    }
-    : null;
-  return expected !== null
-    && job.uses === './.github/workflows/_release-native-webui-carrier.yml'
-    && needsExactly(job, expected.needs)
-    && exactObject(job.permissions, exactStableEntryPermissions)
-    && job.with?.mode === 'execute'
-    && job.if === expected.condition
-    && job.with?.target_platform === expected.platform
-    && job.with?.target_architecture === expected.architecture
-    && (jobId === 'native-webui-linux'
-      ? !Object.prototype.hasOwnProperty.call(job.with ?? {}, 'prior_native_manifest_json')
-      : job.with?.prior_native_manifest_json ===
-        '${{ needs.resolve-handoff.outputs.prior_native_manifest_json || needs.native-webui-linux.outputs.publication_manifest_json }}')
-    && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
-}
-
-function isAuthorizedStableOptionalRecoveryWriteJob(
-  workflowPath: string,
-  workflow: Record<string, any>,
-  jobId: string,
-  job: Record<string, any>,
-): boolean {
-  if (
-    workflowPath !== stableOptionalFollowupWorkflowPath
-    || !hasExactStableOptionalRecoveryIngress(workflow)
-  ) {
-    return false;
-  }
-  if (jobId === 'publish-optional-platforms') {
-    return job.if === "${{ needs.admit.outputs.optional_platforms_enabled == 'true' }}"
-      && needsExactly(job, ['admit'])
-      && job.uses === './.github/workflows/build-manual.yml'
-      && exactObject(job.permissions, exactStableEntryPermissions)
-      && job.with?.invocation_mode === 'stable_optional_follower'
-      && job.with?.platform_policy === 'stable_optional'
-      && job.with?.platform_ids === '${{ needs.admit.outputs.optional_platforms }}'
-      && job.with?.app_ref === '${{ needs.admit.outputs.app_ref }}'
-      && job.with?.shell_ref === '${{ needs.admit.outputs.shell_ref }}'
-      && job.with?.framework_ref === '${{ needs.admit.outputs.framework_ref }}'
-      && job.with?.opl_release_version === '${{ needs.admit.outputs.version }}'
-      && job.with?.opl_updater_version === '${{ needs.admit.outputs.updater_version }}'
-      && job.with?.source_run_id === '${{ needs.admit.outputs.source_run_id }}'
-      && job.with?.source_bundle_digest === '${{ needs.admit.outputs.source_bundle_digest }}'
-      && Object.keys(job.with ?? {}).length === 10
-      && job.secrets === 'inherit'
-      && !Object.prototype.hasOwnProperty.call(job, 'steps');
-  }
-  return jobId === 'dispatch'
-    && job.if === "${{ github.event_name == 'workflow_run' && needs.admit.outputs.eligible == 'true' }}"
-    && needsExactly(job, ['admit'])
-    && exactObject(job.permissions, { contents: 'read', actions: 'write' })
-    && job.environment === undefined
-    && Array.isArray(job.steps)
-    && (() => {
-      const runText = job.steps
-        .filter((step: Record<string, any>) => typeof step.run === 'string')
-        .map((step: Record<string, any>) => step.run)
-        .join('\n');
-      const mutationLines = runText
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => workflowMutationCommandPattern.test(line));
-      const allowedDispatchLine = 'gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/dispatches"';
-      const exactInputsObject = /\{\s*operation:"append_full",\s*version:"",\s*include_full:"false",\s*shell_ref:"",\s*framework_ref:\$framework_ref,\s*source_run_id:\$source_run_id,\s*source_artifact:\$source_artifact\s*\}/;
-      return mutationLines.length === 1
-        && mutationLines[0].trim().replace(/\\$/, '').trim() === allowedDispatchLine
-        && runText.includes('--arg framework_ref "$FRAMEWORK_REF"')
-        && runText.includes('--arg source_run_id "$SOURCE_RUN_ID"')
-        && runText.includes('--arg source_artifact "$SOURCE_ARTIFACT"')
-        && exactInputsObject.test(runText)
-        && runText.includes("dispatch_ref=\"main\"")
-        && runText.includes("'{ref:$ref,inputs:$inputs}'")
-        && runText.includes('--input - <<<"$dispatch_payload"');
-    })();
 }
 
 function validatePreviewLatestPointerTopology(appRoot: string): number {
@@ -906,11 +665,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     '.github/workflows/opl-first-run-vm.yml',
     id,
   );
-  const webui = parseWorkflow(appRoot, '.github/workflows/_release-webui-carrier.yml', id);
-  const webuiFollower = parseWorkflow(appRoot, '.github/workflows/release-webui-follower.yml', id);
-  const webuiStable = parseWorkflow(appRoot, '.github/workflows/release-webui-stable.yml', id);
-  if (!bundle || !standard || !full || !optionalCertification || !optionalCertificationVm || !webui || !webuiFollower || !webuiStable) {
-    return [bundle, standard, full, optionalCertification, optionalCertificationVm, webui, webuiFollower, webuiStable]
+  if (!bundle || !standard || !full || !optionalCertification || !optionalCertificationVm) {
+    return [bundle, standard, full, optionalCertification, optionalCertificationVm]
       .filter((value) => !value).length;
   }
   let failures = 0;
@@ -1020,105 +776,6 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
   }
-  const followerTriggers = webuiFollower.workflow.on ?? {};
-  const followerJobs = workflowJobs(webuiFollower.workflow);
-  if (JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch']) ||
-      JSON.stringify(followerTriggers.workflow_run?.workflows) !==
-        JSON.stringify(['OPL Stable Release Bundle']) ||
-      JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed']) ||
-      !hasExactFollowerRecoveryIngress(
-        webuiFollower.workflow,
-        [
-          'recover_exact_failed_webui_follower_v1',
-          'recover_exact_failed_webui_follower_v2',
-          'recover_exact_failed_webui_follower_v3',
-          'recover_exact_failed_webui_follower_v4',
-          'recover_exact_failed_webui_follower_v5',
-          'recover_exact_failed_webui_follower_v6',
-          'recover_exact_failed_webui_follower_v7',
-          'recover_exact_failed_webui_follower_v8',
-          'recover_exact_failed_webui_follower_v9',
-        ],
-        ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'failed_recovery_v5_run_id', 'failed_recovery_v6_run_id', 'failed_recovery_v7_run_id', 'failed_recovery_v8_run_id'],
-        "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
-      ) ||
-      !exactObject(webuiFollower.workflow.permissions, exactReadPermissions) ||
-      JSON.stringify(Object.keys(followerJobs)) !==
-        JSON.stringify(['resolve-handoff', 'webui-carrier', 'promote-webui-stable'])) {
-    failures += reportFailure(id, 'WebUI follower must be automatic with only exact failed-run recovery dispatch');
-  }
-  const followerCarrier = followerJobs['webui-carrier'];
-  const followerPromotion = followerJobs['promote-webui-stable'];
-  if (!followerCarrier ||
-      followerCarrier.uses !== './.github/workflows/_release-webui-carrier.yml' ||
-      !needsExactly(followerCarrier, ['resolve-handoff']) ||
-      !exactObject(followerCarrier.permissions, exactWebUiCompileCeilingPermissions) ||
-      followerCarrier.with?.mode !== 'execute') {
-    failures += reportFailure(id, 'WebUI follower carrier must consume only the resolved exact handoff');
-  }
-  if (!followerPromotion ||
-      followerPromotion.uses !== './.github/workflows/release-webui-stable.yml' ||
-      !needsExactly(followerPromotion, ['resolve-handoff', 'webui-carrier']) ||
-      !exactObject(followerPromotion.permissions, exactWebUiCompileCeilingPermissions) ||
-      followerPromotion.with?.mode !== 'execute' ||
-      followerPromotion.with?.stable_authority_run_id !==
-        '${{ needs.resolve-handoff.outputs.stable_authority_run_id }}' ||
-      followerPromotion.with?.production_recovery !==
-        "${{ needs.resolve-handoff.outputs.production_recovery == 'true' }}" ||
-      followerPromotion.with?.carrier_artifact_name !==
-        '${{ needs.webui-carrier.outputs.carrier_artifact_name }}' ||
-      Object.keys(followerPromotion.with ?? {}).length !== 5) {
-    failures += reportFailure(
-      id,
-      'WebUI promotion must bind the triggering Stable authority and current-run carrier artifact',
-    );
-  }
-  if (/continue-on-error/.test(webuiFollower.text)) {
-    failures += reportFailure(id, 'WebUI follower failures must remain visible on the independent follower run');
-  }
-  for (const required of [
-    'recover_exact_failed_webui_follower_v1',
-    'recover_exact_failed_webui_follower_v2',
-    'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
-    '.event == "workflow_dispatch"',
-    '.path == ".github/workflows/release-webui-follower.yml"',
-    '.display_title == ("WebUI follower for Stable run " + $source)',
-    '.total_count == 5',
-    '.name == "webui-carrier / build-and-qualify" and .conclusion == "failure"',
-    '.name == "webui-carrier / publish-immutable-carrier" and .conclusion == "skipped"',
-    '.name == "promote-webui-stable" and .conclusion == "skipped"',
-    'OPL image seed contains broken symlinks:',
-    '"failure_code": "opl_seed_payload_symlink_forbidden"',
-    '"path": "/opt/opl/seed/payload/codex_cli/bin/codex"',
-    'failed-recovery-artifacts.json',
-    'runs?event=workflow_dispatch&per_page=100',
-    '($matches | length) == 1',
-    'test "$GITHUB_REF" = refs/heads/main',
-  ]) {
-    if (!webuiFollower.text.includes(required)) {
-      failures += reportFailure(id, `WebUI follower recovery is missing ${required}`);
-    }
-  }
-  failures += validateWebUiCarrierCallee(
-    id,
-    webui.workflow,
-    followerCarrier?.permissions ?? exactWebUiCompileCeilingPermissions,
-  );
-  const stableInputs = webuiStable.workflow.on?.workflow_call?.inputs ?? {};
-  if (JSON.stringify(Object.keys(stableInputs)) !== JSON.stringify([
-    'mode',
-    'authority_mode',
-    'production_recovery',
-    'stable_authority_run_id',
-    'carrier_follower_run_id',
-    'carrier_executor_ref',
-    'carrier_artifact_name',
-    'publication_record_ref',
-    'operator_confirmation',
-  ])) {
-    failures += reportFailure(id, 'WebUI Stable reusable must accept only exact follower identities');
-  }
-
   const standardJobs = workflowJobs(standard.workflow);
   if (
     standardJobs['nightly-terminal']
@@ -1258,95 +915,35 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
 
   const certificationTriggers = optionalCertification.workflow.on ?? {};
-  const certificationRecoveryInputs = certificationTriggers.workflow_dispatch?.inputs ?? {};
   const certificationJobs = workflowJobs(optionalCertification.workflow);
   const expectedCertificationJobs = [
-    'resolve-standard',
-    'resolve-linux-adjunct',
+    'resolve-release-set',
     'certify-linux-x64',
-    'admit-standard-vm',
+    'admit-macos-vm',
     'certify-standard-vm',
-    'write-standard-receipts',
-    'resolve-full',
-    'admit-full-vm',
     'certify-full-vm',
-    'write-full-receipt',
+    'receipt',
   ];
   if (
-    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
+    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
-      JSON.stringify([
-        'OPL Stable Release Bundle',
-        'OPL Stable Post-Success Full Follow-up',
-        'OPL Stable Existing-Base Optional Adjunct',
-      ])
+      JSON.stringify(['OPL Stable Desktop Release Set Follow-up'])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
-    || JSON.stringify(Object.keys(certificationRecoveryInputs)) !== JSON.stringify([
-      'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'recovery_confirmation',
-    ])
-    || certificationRecoveryInputs.source_run_id?.required !== true
-    || certificationRecoveryInputs.source_run_id?.type !== 'string'
-    || certificationRecoveryInputs.failed_follower_run_id?.required !== true
-    || certificationRecoveryInputs.failed_follower_run_id?.type !== 'string'
-    || certificationRecoveryInputs.failed_recovery_run_id?.required !== true
-    || certificationRecoveryInputs.failed_recovery_run_id?.type !== 'string'
-    || certificationRecoveryInputs.recovery_confirmation?.required !== true
-    || certificationRecoveryInputs.recovery_confirmation?.type !== 'choice'
-    || JSON.stringify(certificationRecoveryInputs.recovery_confirmation?.options) !==
-      JSON.stringify(['recover_exact_failed_optional_certification_v2'])
     || !exactObject(optionalCertification.workflow.permissions, exactReadPermissions)
+    || optionalCertification.workflow.concurrency?.group !==
+      'opl-desktop-release-set-certification-${{ github.event.workflow_run.id }}'
+    || optionalCertification.workflow.concurrency?.['cancel-in-progress'] !== false
     || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify(expectedCertificationJobs)
   ) {
     failures += reportFailure(
       id,
-      'post-publication certification must be automatic with only exact failed-run recovery dispatch',
+      'Desktop Release Set certification must follow only one completed Release Set follower',
     );
   }
-  if (
-    certificationJobs['resolve-standard']?.needs !== undefined
-    || certificationJobs['resolve-linux-adjunct']?.needs !== undefined
-    || certificationJobs['resolve-full']?.needs !== undefined
-    || !certificationJobs['certify-linux-x64']
-    || !needsExactly(certificationJobs['certify-linux-x64'], ['resolve-linux-adjunct'])
-    || !certificationJobs['admit-standard-vm']
-    || !needsExactly(certificationJobs['admit-standard-vm'], ['resolve-standard'])
-    || !certificationJobs['certify-standard-vm']
-    || !needsExactly(certificationJobs['certify-standard-vm'], ['resolve-standard', 'admit-standard-vm'])
-    || !certificationJobs['write-standard-receipts']
-    || !needsExactly(certificationJobs['write-standard-receipts'], [
-      'resolve-standard',
-      'admit-standard-vm',
-      'certify-standard-vm',
-    ])
-    || !certificationJobs['admit-full-vm']
-    || !needsExactly(certificationJobs['admit-full-vm'], ['resolve-full'])
-    || !certificationJobs['certify-full-vm']
-    || !needsExactly(certificationJobs['certify-full-vm'], ['resolve-full', 'admit-full-vm'])
-    || !certificationJobs['write-full-receipt']
-    || !needsExactly(certificationJobs['write-full-receipt'], [
-      'resolve-full',
-      'admit-full-vm',
-      'certify-full-vm',
-    ])
-  ) {
-    failures += reportFailure(
-      id,
-      'optional certification identity resolution must bind the base, platform adjunct, and same-tag Full append receipts independently',
-    );
-  }
-  for (const jobId of [
-    'resolve-standard',
-    'resolve-linux-adjunct',
-    'certify-linux-x64',
-    'admit-standard-vm',
-    'write-standard-receipts',
-    'resolve-full',
-    'admit-full-vm',
-    'write-full-receipt',
-  ]) {
+  for (const jobId of ['resolve-release-set', 'certify-linux-x64', 'admit-macos-vm', 'receipt']) {
     const job = certificationJobs[jobId];
-    if (!job || !exactObject(job.permissions, exactReadPermissions) || job['runs-on'] !== 'ubuntu-latest') {
-      failures += reportFailure(id, `optional certification job ${jobId} must be GitHub-hosted and read-only`);
+    if (!job || job['runs-on'] !== 'ubuntu-latest' || !Array.isArray(job.steps)) {
+      failures += reportFailure(id, `Desktop Release Set certification job ${jobId} must be GitHub-hosted`);
     }
   }
   for (const profile of ['standard', 'full']) {
@@ -1367,13 +964,13 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     }
     const expectedInputs = {
       mode: 'execute',
-      release_tag: `\${{ needs.resolve-${profile}.outputs.tag }}`,
-      published_artifact_name: `\${{ needs.resolve-${profile}.outputs.artifact_name }}`,
-      published_artifact_digest: `\${{ needs.resolve-${profile}.outputs.artifact_digest }}`,
-      artifact_app_ref: `\${{ needs.resolve-${profile}.outputs.app_sha }}`,
-      shell_ref: `\${{ needs.resolve-${profile}.outputs.shell_sha }}`,
-      smoke_harness_ref: `\${{ needs.resolve-${profile}.outputs.shell_sha }}`,
-      framework_ref: `\${{ needs.resolve-${profile}.outputs.framework_sha }}`,
+      release_tag: '${{ needs.resolve-release-set.outputs.tag }}',
+      published_artifact_name: `\${{ needs.resolve-release-set.outputs.${profile}_artifact_name }}`,
+      published_artifact_digest: `\${{ needs.resolve-release-set.outputs.${profile}_artifact_digest }}`,
+      artifact_app_ref: '${{ needs.resolve-release-set.outputs.app_sha }}',
+      shell_ref: '${{ needs.resolve-release-set.outputs.shell_sha }}',
+      smoke_harness_ref: '${{ needs.resolve-release-set.outputs.shell_sha }}',
+      framework_ref: '${{ needs.resolve-release-set.outputs.framework_sha }}',
       package_profile: profile,
       diagnostic_scope: 'post_publication_optional_certification',
       require_macos_gatekeeper: true,
@@ -1386,77 +983,24 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     }
   }
   for (const required of [
-    '.path == ".github/workflows/release-stable.yml"',
-    'opl-release-activation-${SOURCE_RUN_ID}',
-    'opl-release-full-published-${SOURCE_RUN_ID}',
-    'write-optional-certification-receipt.ts',
-    'RUNNER_INVENTORY_TOKEN: ${{ secrets.OPL_RUNNER_INVENTORY_TOKEN || github.token }}',
-    'GH_TOKEN="$RUNNER_INVENTORY_TOKEN" gh api',
+    '.path == ".github/workflows/release-stable-post-success-followups.yml"',
+    'opl-stable-release-set-followup-${source_run_id}',
+    'opl-stable-desktop-append-${source_run_id}',
+    'opl_app_stable_desktop_release_set_followup.v1',
+    'opl_app_stable_desktop_asset_append.v1',
+    'opl_homebrew_full_follower_handoff.v1',
+    'opl_app_desktop_release_set_manifest.v1',
+    'opl-desktop-platforms-manifest.json',
+    'bash "$INSTALLER_NAME" --desktop --release-tag "$RELEASE_TAG" --no-open',
+    'opl_app_linux_same_tag_desktop_install.v1',
+    'opl_app_desktop_release_set_certification.v1',
+    'required_for_publication:false',
+    'remaining:[]',
     'actions/runners?per_page=100',
-    "runner.status === 'online' && runner.busy === false",
-    'published_artifact_name',
-    'published_artifact_digest',
-    'post_publication_optional_certification',
-    'status=unavailable',
-    'capability_admission_failed',
-    'VM_CLASSIFICATION_VALID',
-    'VM_ARTIFACT_VERIFIED',
-    'VM_JOB_STARTED',
-    'VM_EXECUTION_STARTED',
-    "needs.admit-standard-vm.result == 'success'",
-    "needs.admit-full-vm.result == 'success'",
-    '--status not_run',
-    '--reason-code not_requested',
-    'physical_job_dispatched:$dispatched',
-    'component_manifest_digest',
-    'public-component-manifest.json',
-    'Download exact Standard VM evidence',
-    'opl-first-run-vm-standard-${{ github.run_id }}',
-    'Download exact Full VM evidence',
-    'opl-first-run-vm-full-${{ github.run_id }}',
-    'published-artifact-identity.json',
-    'post-publication-capability-admission.json',
-    'post-publication-execution-start.json',
-    'tart-smoke-summary.json',
-    'settings-runtime-refresh-verification.json',
-    'installed-framework-source-identity.json',
-    'full-runtime-source-identity.json',
-    'opl_framework_installed_source_identity.v1',
-    'opl_full_runtime_source_identity.v1',
-    'source == "packaged_app_resource"',
-    'opl_app_optional_certification_hosted_admission.v1',
-    'opl_app_linux_same_artifact_install_evidence.v1',
-    'One-Person-Lab-${version}-linux-x64.deb',
-    'public-opl-install.sh',
-    'bash "$installer_path" --desktop --release-tag "$RELEASE_TAG" --no-open',
-    'preinstall_package_absent:$preinstall_package_absent',
-    'dpkg-deb -x "$linux_artifact_path" "$extracted_package"',
-    'test "$installed_executable_digest" = "$expected_executable_digest"',
-    '--platform linux',
-    '--capability github-hosted-ubuntu-x64',
-    'linux-x64-same-artifact-install.json',
-    'Upload recoverable Linux certification evidence',
-    'Fail after preserving Linux certification evidence',
-    'downloaded_from_published_release:$linux_artifact_downloaded',
-    'downloaded_from_published_release:$installer_downloaded',
-    'rebuilt:false',
-    'recover_exact_failed_optional_certification_v2',
-    'failed-follower-run.json',
-    'failed-recovery-run.json',
-    'failed_recovery_run_id',
-    '.name == "Resolve optional exact Full publication" and .conclusion == "success"',
-    '.name == "Download exact Full publication evidence" and .conclusion == "success"',
-    '.name == "Bind exact public Full identity" and .conclusion == "failure"',
-    '.name != "resolve-full" and .conclusion != "skipped"',
-    'runs?event=workflow_dispatch&per_page=100',
-    '($matches | length) == 1',
-    'test "$GITHUB_REF" = refs/heads/main',
-    'standard_component_manifest_url="$standard_release_base/opl-app-component-manifest.json"',
-    '--expected-tag "$tag"',
-    '.source_cohort.app_sha == $app_sha',
+    'reason_code=operator_deferred',
   ]) {
     if (!optionalCertification.text.includes(required)) {
-      failures += reportFailure(id, `post-publication certification follower is missing ${required}`);
+      failures += reportFailure(id, `Desktop Release Set certification is missing ${required}`);
     }
   }
   if (
@@ -1466,17 +1010,12 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   ) {
     failures += reportFailure(
       id,
-      'post-publication certification follower must not dispatch, rebuild, sign, publish, or mutate public state',
+      'Desktop Release Set certification must not dispatch, rebuild, sign, publish, or mutate public state',
     );
   }
-  for (const forbidden of [
-    '${VM_REASON_CODE:-capability_admission_failed}',
-    '${VM_ADMISSION_REASON:-operator_deferred}',
-    'standard-vm-evidence.json',
-    'full-vm-evidence.json',
-  ]) {
+  for (const forbidden of ['stable_optional', 'adjunct', 'release-webui-follower.yml']) {
     if (optionalCertification.text.includes(forbidden)) {
-      failures += reportFailure(id, `post-publication certification follower must not fabricate ${forbidden}`);
+      failures += reportFailure(id, `Desktop Release Set certification must not retain ${forbidden}`);
     }
   }
   for (const required of [
@@ -1536,249 +1075,6 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   }
   if (/for attempt in 1 2 3|three read-only reconciliations/.test(homebrewStandardRuns)) {
     failures += reportFailure(id, 'Standard Homebrew must defer unknown outcomes to one Framework marker/status/exact-reconcile path, not an App-local three-pass state machine');
-  }
-  return failures;
-}
-
-export function validateNativeWebuiPublicationTopology(appRoot: string): number {
-  const id = 'native_webui_additive_follower_topology';
-  const follower = parseWorkflow(appRoot, nativeWebuiFollowerWorkflowPath, id);
-  const carrier = parseWorkflow(appRoot, nativeWebuiCarrierWorkflowPath, id);
-  if (!follower || !carrier) return [follower, carrier].filter((value) => !value).length;
-  const followerJobs = workflowJobs(follower.workflow);
-  const followerTriggers = follower.workflow.on ?? {};
-  const linux = followerJobs['native-webui-linux'];
-  const macos = followerJobs['native-webui-macos'];
-  let failures = 0;
-  if (
-    JSON.stringify(Object.keys(followerTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
-    || JSON.stringify(followerTriggers.workflow_run?.workflows) !==
-      JSON.stringify(['OPL Stable Release Bundle'])
-    || JSON.stringify(followerTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
-    || !hasExactFollowerRecoveryIngress(
-      follower.workflow,
-      [
-        'recover_exact_failed_native_webui_follower_v1',
-        'recover_exact_failed_native_webui_follower_v2',
-        'recover_exact_failed_native_webui_follower_v3',
-        'recover_exact_failed_native_webui_follower_v4',
-        'recover_exact_failed_native_webui_follower_v5',
-      ],
-      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'full_authority_run_id'],
-      "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
-    )
-    || !exactObject(follower.workflow.permissions, exactReadPermissions)
-    || JSON.stringify(Object.keys(followerJobs)) !==
-      JSON.stringify(['resolve-handoff', 'native-webui-linux', 'native-webui-macos'])
-  ) {
-    failures += reportFailure(
-      id,
-      'Native WebUI follower must be automatic with only exact failed-run recovery dispatch',
-    );
-  }
-  for (const [jobId, job, expectedNeeds, platform, architecture] of [
-    ['native-webui-linux', linux, ['resolve-handoff'], 'linux', 'x86_64'],
-    [
-      'native-webui-macos',
-      macos,
-      ['resolve-handoff', 'native-webui-linux'],
-      'darwin',
-      'arm64',
-    ],
-  ] as const) {
-    if (
-      !job
-      || job.uses !== './.github/workflows/_release-native-webui-carrier.yml'
-      || !needsExactly(job, [...expectedNeeds])
-      || !exactObject(job.permissions, exactStableEntryPermissions)
-      || job.with?.mode !== 'execute'
-      || job.with?.target_platform !== platform
-      || job.with?.target_architecture !== architecture
-      || (jobId === 'native-webui-linux'
-        ? Object.prototype.hasOwnProperty.call(job.with ?? {}, 'prior_native_manifest_json')
-        : job.with?.prior_native_manifest_json !==
-          '${{ needs.resolve-handoff.outputs.prior_native_manifest_json || needs.native-webui-linux.outputs.publication_manifest_json }}')
-      || Object.prototype.hasOwnProperty.call(job, 'steps')
-    ) {
-      failures += reportFailure(
-        id,
-        `${jobId} must delegate one exact target to the protected additive carrier`,
-      );
-    }
-  }
-  if (
-    linux?.if !== "${{ needs.resolve-handoff.outputs.eligible == 'true' && needs.resolve-handoff.outputs.recovery_v5 != 'true' }}"
-    || macos?.if !==
-      "${{ always() && needs.resolve-handoff.outputs.eligible == 'true' }}"
-  ) {
-    failures += reportFailure(
-      id,
-      'Native target execution must preserve handoff admission and cross-target failure isolation',
-    );
-  }
-  for (const required of [
-    '.path == ".github/workflows/release-stable.yml"',
-    '.run_attempt == 1',
-    'opl-release-activation-${STABLE_AUTHORITY_RUN_ID}',
-    'webui-follower-handoff.json',
-    '.schema == "opl_app_webui_follower_handoff.v1"',
-    '.source.artifact_run_id | test("^[1-9][0-9]*$")',
-    '.source.checkpoint_artifact | test("^[A-Za-z0-9._-]+$")',
-    '.source.standard_identity_sha256 | test("^sha256:[0-9a-f]{64}$")',
-    '.latest_activation.admitted == true',
-    '.latest_activation.framework_terminal_status == "complete"',
-  ]) {
-    if (!follower.text.includes(required)) {
-      failures += reportFailure(id, `Native WebUI follower is missing exact handoff binding ${required}`);
-    }
-  }
-  if (/packages:\s*write|publication_artifact_name/.test(follower.text)) {
-    failures += reportFailure(
-      id,
-      'Native WebUI follower must not expose package writes or stale artifact discovery',
-    );
-  }
-  for (const required of [
-    'recover_exact_failed_native_webui_follower_v1',
-    'recover_exact_failed_native_webui_follower_v2',
-    'recover_exact_failed_native_webui_follower_v5',
-    'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
-    '.path == ".github/workflows/release-native-webui-follower.yml"',
-    '.display_title == ("Native WebUI follower for Stable run " + $source)',
-    '.total_count == 7',
-    '.name == "native-webui-linux / publish-native-assets" and .conclusion == "failure"',
-    '.name == "native-webui-macos / build-and-qualify" and .conclusion == "failure"',
-    '.name == "native-webui-macos / publish-native-assets" and .conclusion == "skipped"',
-    'standard deadline must be exactly 90 minutes after operation start.',
-    'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory',
-    '.name == "native-webui-macos / build-and-qualify" and .conclusion == "success"',
-    'line 18: rg: command not found',
-    'failed-recovery-artifacts.json',
-    'failed-recovery-v4-jobs.json',
-    'Remote standard inspection contains unknown asset install-web.sh.',
-    '($release.assets | length) == 14',
-    'runs?event=workflow_dispatch&per_page=100',
-    '($matches | length) == 1',
-    'test "$GITHUB_REF" = refs/heads/main',
-  ]) {
-    if (!follower.text.includes(required)) {
-      failures += reportFailure(id, `Native WebUI follower recovery is missing ${required}`);
-    }
-  }
-
-  const carrierJobs = workflowJobs(carrier.workflow);
-  const carrierInputs = carrier.workflow.on?.workflow_call?.inputs ?? {};
-  const build = carrierJobs['build-and-qualify'];
-  const publish = carrierJobs['publish-native-assets'];
-  const nativeBuildStep = (build?.steps ?? []).find(
-    (step) => step.name === 'Build target Native WebUI artifact',
-  );
-  if (
-    JSON.stringify(Object.keys(carrier.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
-    || !exactObject(carrier.workflow.permissions, { contents: 'read' })
-    || JSON.stringify(Object.keys(carrierJobs)) !==
-      JSON.stringify(['startup-canary', 'build-and-qualify', 'publish-native-assets'])
-    || build?.['runs-on'] !==
-      "${{ inputs.target_platform == 'darwin' && 'macos-14' || 'ubuntu-latest' }}"
-    || !exactObject(build?.permissions, exactReadPermissions)
-    || !needsExactly(publish, ['build-and-qualify'])
-    || publish?.environment !== 'release-stable'
-    || !exactObject(publish?.permissions, exactStableEntryPermissions)
-    || nativeBuildStep?.env?.NODE_OPTIONS !== '--max-old-space-size=8192'
-    || (carrier.text.match(/--max-old-space-size=8192/g) ?? []).length !== 1
-  ) {
-    failures += reportFailure(
-      id,
-      'Native WebUI carrier must separate target qualification from one protected additive writer',
-    );
-  }
-  for (const requiredInput of [
-    'mode',
-    'stable_authority_run_id',
-    'app_ref',
-    'shell_ref',
-    'framework_ref',
-    'opl_version',
-    'target_platform',
-    'target_architecture',
-    'release_bundle_digest',
-    'source_run_id',
-    'source_artifact',
-    'standard_identity_sha256',
-    'prior_native_manifest_json',
-  ]) {
-    if (!carrierInputs[requiredInput]) {
-      failures += reportFailure(id, `Native WebUI carrier is missing input ${requiredInput}`);
-    }
-  }
-  for (const required of [
-    'linux/x86_64|darwin/arm64',
-    'PACK_PLATFORM: ${{ inputs.target_platform }}',
-    "PACK_ARCH: ${{ inputs.target_architecture == 'x86_64' && 'x64' || 'arm64' }}",
-    'OPL_WEBUI_IMAGE_PROFILE: webui-full',
-    'restore-release-checkpoint',
-    'source-run-id: ${{ inputs.source_run_id }}',
-    'source-artifact: ${{ inputs.source_artifact }}',
-    'standard_identity_sha256',
-    'native_webui_follower',
-    'native-follower-operation.json',
-    'infer-standard',
-    'opl release operation admit',
-    '--allow-exact-native-manifest native-release/publication-manifest.json',
-    '--require-exact-native-manifest native-release/prior-publication-manifest.json',
-    "--native-stable-authority-run-id '${{ inputs.stable_authority_run_id }}'",
-    'steps.append.outputs.release_operation',
-    'release-native-webui-carrier.ts publish',
-    'release-native-webui-carrier.ts readback',
-    'publication-scope external_target',
-    'prior_mutation_attempt_id',
-    'opl release reconcile',
-    'latest_modified',
-    'container_registry_modified',
-    'homebrew_modified',
-  ]) {
-    if (!carrier.text.includes(required)) {
-      failures += reportFailure(id, `Native WebUI carrier is missing ${required}`);
-    }
-  }
-  if (
-    /packages:\s*write|ghcr\.io|docker (?:build|push)|make_latest|github-activate-latest|--clobber|--release-operation standard|--operation standard/.test(
-      carrier.text,
-    )
-  ) {
-    failures += reportFailure(
-      id,
-      'Native WebUI carrier must not mutate Latest, containers, Homebrew, or hard-code the inherited Standard operation',
-    );
-  }
-  for (const stablePath of [
-    '.github/workflows/release-stable.yml',
-    '.github/workflows/_release-bundle.yml',
-    '.github/workflows/_release-standard-publish.yml',
-  ]) {
-    const stableText = fs.readFileSync(path.join(appRoot, stablePath), 'utf8');
-    if (
-      /_release-native-webui-carrier\.yml|prepare-native-webui|publish-native-webui|qualified_native_/.test(
-        stableText,
-      )
-    ) {
-      failures += reportFailure(
-        id,
-        `${stablePath} must not make the post-Stable Native follower a Desktop dependency`,
-      );
-    }
-  }
-  for (const [workflowPath, parsed] of [
-    [nativeWebuiFollowerWorkflowPath, follower],
-    [nativeWebuiCarrierWorkflowPath, carrier],
-  ] as const) {
-    for (const [jobId, job] of Object.entries(workflowJobs(parsed.workflow))) {
-      failures += validateExactActionPins(
-        workflowPath,
-        jobId,
-        Array.isArray(job.steps) ? job.steps : [],
-      );
-    }
   }
   return failures;
 }
@@ -2341,11 +1637,6 @@ export function validateReleaseBundleCanaryTopology(appRoot: string): number {
       const expectedInputs = [
         'mode',
         'authority_mode',
-        'production_recovery',
-        'stable_authority_run_id',
-        'carrier_follower_run_id',
-        'carrier_executor_ref',
-        'carrier_artifact_name',
         'publication_record_ref',
         'operator_confirmation',
       ].sort();
@@ -2581,7 +1872,6 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
     validatePreviewLatestPointerTopology(appRoot) +
     validateIndependentWebuiPreviewTopology(appRoot) +
     validateManualFullPreviewControlPlane(appRoot) +
-    validateNativeWebuiPublicationTopology(appRoot) +
     validateHomebrewFullPromotionTopology(appRoot);
   const stableWorkflowPath = '.github/workflows/release-stable.yml';
   const stableEntryJobs = new Set(Object.keys(stableEntrySpecs));
@@ -2637,17 +1927,6 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }
-      if (isAuthorizedExistingBaseOptionalPublishJob(workflowPath, jobId, job)) {
-        failures += validateExactActionPins(workflowPath, jobId, steps);
-        continue;
-      }
-      if (isAuthorizedStableOptionalRecoveryWriteJob(workflowPath, workflow, jobId, job)) {
-        failures += validateExactActionPins(workflowPath, jobId, steps);
-        continue;
-      }
-      if (isAuthorizedFollowerRecoveryWriteJob(workflowPath, workflow, jobId, job)) {
-        continue;
-      }
       if (
         workflowPath === nightlyReleaseWorkflowPath
         && jobId === 'qualify-and-publish'
@@ -2665,7 +1944,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         && needsExactly(job, ['source-authority'])
         && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
         && job.with?.mode === 'execute'
-        && job.with?.authority_mode === 'independent_preview'
+        && job.with?.authority_mode === '${{ needs.source-authority.outputs.authority_mode }}'
         && steps.length === 0
       ) {
         continue;
@@ -2677,7 +1956,7 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         && !Object.prototype.hasOwnProperty.call(job, 'needs')
         && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
         && job.with?.mode === 'execute'
-        && job.with?.authority_mode === 'independent_preview'
+        && job.with?.authority_mode === "${{ inputs.channel == 'stable' && 'independent_stable' || 'independent_preview' }}"
         && job.with?.publication_record_ref === '${{ inputs.publication_record_ref }}'
         && job.with?.operator_confirmation === '${{ inputs.operator_confirmation }}'
         && Object.keys(job.with ?? {}).length === 4
@@ -2719,17 +1998,17 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
 }
 
 export function validateIndependentWebuiPreviewTopology(appRoot: string): number {
-  const id = 'independent_webui_preview_topology';
+  const id = 'independent_webui_publication_topology';
   const publication = parseWorkflow(appRoot, webuiDevelopmentWorkflowPath, id);
   const promotion = parseWorkflow(appRoot, webuiDevelopmentPromotionWorkflowPath, id);
   if (!publication || !promotion) return 1;
   let failures = 0;
   const publicationWorkflow = publication.workflow;
   const publicationJobs = workflowJobs(publicationWorkflow);
-  const expectedPublicationInputs = ['version', 'app_ref', 'shell_ref', 'framework_ref'].sort();
+  const expectedPublicationInputs = ['channel', 'version', 'app_ref', 'shell_ref', 'framework_ref'].sort();
   const expectedCarrierWith = {
     mode: 'execute',
-    authority_mode: 'independent_preview',
+    authority_mode: '${{ needs.source-authority.outputs.authority_mode }}',
     app_ref: '${{ needs.source-authority.outputs.app_ref }}',
     shell_ref: '${{ needs.source-authority.outputs.shell_ref }}',
     framework_ref: '${{ needs.source-authority.outputs.framework_ref }}',
@@ -2744,7 +2023,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
       JSON.stringify(expectedPublicationInputs)
     || !exactObject(publicationWorkflow.permissions, exactReadPermissions)
     || !exactObject(publicationWorkflow.concurrency, {
-      group: 'opl-webui-independent-preview-publication-global',
+      group: 'opl-webui-independent-publication-global',
       'cancel-in-progress': false,
     })
     || JSON.stringify(Object.keys(publicationJobs).sort()) !==
@@ -2752,7 +2031,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   ) {
     failures += reportFailure(
       id,
-      'independent Preview publication must admit exact four refs and contain only source authority plus immutable carrier publication',
+      'independent WebUI publication must admit one channel plus exact refs and contain only source authority plus immutable carrier publication',
     );
   }
   const sourceAuthority = publicationJobs['source-authority'];
@@ -2769,7 +2048,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   ) {
     failures += reportFailure(
       id,
-      'independent Preview publication must bind source authority directly into the immutable carrier without a pointer writer',
+      'independent WebUI publication must bind source authority directly into the immutable carrier without a pointer writer',
     );
   }
   if (
@@ -2780,19 +2059,20 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   ) {
     failures += reportFailure(
       id,
-      'independent Preview publication must create and verify source authority but cannot promote stable/latest itself',
+      'independent WebUI publication must create and verify source authority but cannot promote moving tags itself',
     );
   }
 
   const promotionWorkflow = promotion.workflow;
   const promotionJobs = workflowJobs(promotionWorkflow);
   const expectedPromotionInputs = [
+    'channel',
     'publication_record_ref',
     'operator_confirmation',
   ].sort();
   const expectedPromotionWith = {
     mode: 'execute',
-    authority_mode: 'independent_preview',
+    authority_mode: "${{ inputs.channel == 'stable' && 'independent_stable' || 'independent_preview' }}",
     publication_record_ref: '${{ inputs.publication_record_ref }}',
     operator_confirmation: '${{ inputs.operator_confirmation }}',
   };
@@ -2802,7 +2082,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
       JSON.stringify(expectedPromotionInputs)
     || !exactObject(promotionWorkflow.permissions, exactReadPermissions)
     || !exactObject(promotionWorkflow.concurrency, {
-      group: 'opl-webui-independent-preview-latest-global',
+      group: 'opl-webui-independent-promotion-global',
       'cancel-in-progress': false,
     })
     || JSON.stringify(Object.keys(promotionJobs).sort()) !== JSON.stringify(['promote-webui-latest'])
@@ -2815,7 +2095,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   ) {
     failures += reportFailure(
       id,
-      'independent Preview Latest promotion must be a separate exact-carrier dispatch with no Desktop Stable authority or rebuild path',
+      'independent WebUI moving-tag promotion must be a separate exact-carrier dispatch with no Desktop Stable authority or rebuild path',
     );
   }
   return failures;

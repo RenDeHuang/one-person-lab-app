@@ -120,14 +120,11 @@ export function generateFrozenUniversalInstaller(input: FrozenUniversalInstaller
     }
   }
   for (const fragment of [
-    'resolve_linux_adjunct_release_record',
-    'linux_adjunct_release_record_binds_tagged_assets',
-    'opl-optional-platforms-manifest.json',
-    'LINUX_DESKTOP_ADJUNCT_TAG',
-    'Linux adjunct manifest cohort does not match the base component manifest',
+    'One-Person-Lab-${version}-linux-x64.deb',
+    'Linux Desktop asset URL is not bound to the selected Desktop Release',
   ]) {
     if (!generated.includes(fragment)) {
-      throw new Error(`Frozen universal installer omitted Linux adjunct resolver fragment: ${fragment}.`);
+      throw new Error(`Frozen universal installer omitted same-Release Linux Desktop fragment: ${fragment}.`);
     }
   }
   for (const [name, value] of [

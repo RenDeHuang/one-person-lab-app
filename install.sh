@@ -43,9 +43,6 @@ STABLE_MACOS_FULL_MANIFEST_PATH=''
 STABLE_MACOS_RELEASE_QUALITY_ASSERTED=0
 STABLE_MACOS_RELEASE_QUALITY=''
 LINUX_DESKTOP_WORK_DIR=''
-LINUX_DESKTOP_ADJUNCT_TAG=''
-LINUX_DESKTOP_ADJUNCT_RELEASE_RECORD_PATH=''
-LINUX_DESKTOP_ADJUNCT_MANIFEST_PATH=''
 DESKTOP_WEBUI_MODE=0
 INSTALL_SCENARIO=${OPL_INSTALL_SCENARIO:-personal}
 PRINT_INSTALL_ROUTE=0
@@ -462,8 +459,8 @@ find_linux_desktop_executable() {
 }
 
 install_linux_desktop() {
-  local record_path adjunct_record_path tag adjunct_tag version asset_name package_path package_name executable linux_asset_sha256 linux_asset_size
-  local mac_asset_name mac_asset_sha256 quality
+  local record_path tag version asset_name package_path package_name executable
+  local mac_asset_name mac_asset_sha256
   for required_command in curl python3 dpkg dpkg-deb apt-get; do
     if ! command -v "$required_command" >/dev/null 2>&1; then
       printf 'Linux Desktop install requires: %s\n' "$required_command" >&2
@@ -486,52 +483,17 @@ install_linux_desktop() {
     "$LINUX_DESKTOP_WORK_DIR" "$record_path" "$tag" "$mac_asset_name" "$mac_asset_sha256" || return 1
   asset_name="One-Person-Lab-${version}-linux-x64.deb"
   package_path="$LINUX_DESKTOP_WORK_DIR/$asset_name"
-  quality=$(component_manifest_value "$STABLE_MACOS_COMPONENT_MANIFEST_PATH" quality_status 2>/dev/null || true)
-  case "$quality" in
-    stable)
-      resolve_linux_adjunct_release_record "$LINUX_DESKTOP_WORK_DIR" "$tag" || {
-        printf 'No unique immutable Linux x64 adjunct is published for base Release %s.\n' "$tag" >&2
-        return 1
-      }
-      adjunct_record_path="$LINUX_DESKTOP_ADJUNCT_RELEASE_RECORD_PATH"
-      adjunct_tag="$LINUX_DESKTOP_ADJUNCT_TAG"
-      resolve_release_asset "$adjunct_record_path" "$asset_name" || {
-        printf 'Linux adjunct Release has no unique Desktop asset: %s\n' "$asset_name" >&2
-        return 1
-      }
-      [ "$RELEASE_ASSET_URL" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$adjunct_tag/$asset_name" ] || {
-        printf 'Linux Desktop asset URL is not bound to the selected adjunct Release.\n' >&2
-        return 1
-      }
-      download_release_file "$RELEASE_ASSET_URL" "$package_path" 'Linux Desktop package' || return 1
-      verify_file_sha256 "$package_path" "$RELEASE_ASSET_SHA256" 'Linux Desktop package' || return 1
-      verify_file_size "$package_path" "$RELEASE_ASSET_SIZE_BYTES" 'Linux Desktop package' || return 1
-      linux_asset_sha256="$RELEASE_ASSET_SHA256"
-      linux_asset_size="$RELEASE_ASSET_SIZE_BYTES"
-      download_and_validate_linux_adjunct_manifest \
-        "$LINUX_DESKTOP_WORK_DIR" "$adjunct_record_path" "$tag" "$adjunct_tag" \
-        "$asset_name" "$linux_asset_sha256" "$linux_asset_size" || return 1
-      ;;
-    preview|'')
-      resolve_release_asset "$record_path" "$asset_name" || {
-        printf 'Selected Preview or legacy Release has no unique Linux Desktop asset: %s\n' "$asset_name" >&2
-        return 1
-      }
-      [ "$RELEASE_ASSET_URL" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name" ] \
-        && component_manifest_has_exact_artifact \
-          "$STABLE_MACOS_COMPONENT_MANIFEST_PATH" "$asset_name" "$RELEASE_ASSET_SHA256" "$tag" || {
-        printf 'Selected Preview or legacy component manifest does not bind the exact Linux Desktop package.\n' >&2
-        return 1
-      }
-      download_release_file "$RELEASE_ASSET_URL" "$package_path" 'Linux Desktop package' || return 1
-      verify_file_sha256 "$package_path" "$RELEASE_ASSET_SHA256" 'Linux Desktop package' || return 1
-      verify_file_size "$package_path" "$RELEASE_ASSET_SIZE_BYTES" 'Linux Desktop package' || return 1
-      ;;
-    *)
-      printf 'Component manifest has an unsupported Linux Desktop release quality: %s\n' "$quality" >&2
-      return 1
-      ;;
-  esac
+  resolve_release_asset "$record_path" "$asset_name" || {
+    printf 'Selected Desktop Release has no unique Linux x64 package: %s\n' "$asset_name" >&2
+    return 1
+  }
+  [ "$RELEASE_ASSET_URL" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name" ] || {
+    printf 'Linux Desktop asset URL is not bound to the selected Desktop Release.\n' >&2
+    return 1
+  }
+  download_release_file "$RELEASE_ASSET_URL" "$package_path" 'Linux Desktop package' || return 1
+  verify_file_sha256 "$package_path" "$RELEASE_ASSET_SHA256" 'Linux Desktop package' || return 1
+  verify_file_size "$package_path" "$RELEASE_ASSET_SIZE_BYTES" 'Linux Desktop package' || return 1
   package_name=$(dpkg-deb -f "$package_path" Package 2>/dev/null) || return 1
   [ -n "$package_name" ] || return 1
   run_with_sudo_fallback linux-desktop apt-get install -y "$package_path" || {
@@ -999,209 +961,6 @@ download_release_page() {
   return "$curl_status"
 }
 
-linux_adjunct_base_tag_from_tag() {
-  local candidate="$1"
-  local base_tag suffix
-  case "$candidate" in
-    v*-optional-*)
-      base_tag="${candidate%-optional-*}"
-      suffix="${candidate##*-optional-}"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-  validate_release_tag "$base_tag" || return 1
-  case "$suffix" in
-    *[!0-9a-f]*|'')
-      return 1
-      ;;
-  esac
-  [ "${#suffix}" -eq 12 ] || return 1
-  printf '%s\n' "$base_tag"
-}
-
-linux_adjunct_release_record_binds_tagged_assets() {
-  local record_path="$1"
-  local release_prefix="$2"
-  local tag="$3"
-  local expected_base_tag="$4"
-  local base_tag version deb_name manifest_name asset_prefix index=0 name digest size url
-  local deb_matches=0 manifest_matches=0 suffix
-  base_tag=$(linux_adjunct_base_tag_from_tag "$tag") || return 1
-  [ "$base_tag" = "$expected_base_tag" ] || return 1
-  version="${base_tag#v}"
-  deb_name="One-Person-Lab-${version}-linux-x64.deb"
-  manifest_name='opl-optional-platforms-manifest.json'
-  asset_prefix="${release_prefix:+$release_prefix.}assets"
-  suffix="${tag##*-optional-}"
-  while name=$(release_record_value "$record_path" "$asset_prefix.$index.name" 2>/dev/null); do
-    if [ "$name" = "$deb_name" ] || [ "$name" = "$manifest_name" ]; then
-      digest=$(release_record_value "$record_path" "$asset_prefix.$index.digest" 2>/dev/null || true)
-      size=$(release_record_value "$record_path" "$asset_prefix.$index.size" 2>/dev/null || true)
-      url=$(release_record_value "$record_path" "$asset_prefix.$index.browser_download_url" 2>/dev/null || true)
-      case "$digest" in
-        sha256:*) digest="${digest#sha256:}" ;;
-        *) digest='' ;;
-      esac
-      if validate_sha256_value "$digest" \
-        && validate_positive_integer "$size" \
-        && [ "$url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$name" ]; then
-        if [ "$name" = "$deb_name" ]; then
-          deb_matches=$((deb_matches + 1))
-        elif [ "$suffix" = "$(printf '%s' "$digest" | cut -c1-12)" ]; then
-          manifest_matches=$((manifest_matches + 1))
-        fi
-      fi
-    fi
-    index=$((index + 1))
-  done
-  [ "$deb_matches" -eq 1 ] && [ "$manifest_matches" -eq 1 ]
-}
-
-resolve_linux_adjunct_release_record() {
-  local work_dir="$1"
-  local base_tag="$2"
-  local page=1 page_path index tag candidate_base draft prerelease immutable target binds
-  local page_entries matching_tags=0 identity_tags=0 eligible_tags=0 candidate_tag=''
-  local base_target
-  base_target=$(release_record_value "$STABLE_MACOS_RELEASE_RECORD_PATH" target_commitish) || return 1
-  while [ "$page" -le 100 ]; do
-    page_path="$work_dir/github-linux-adjunct-releases-page-$page.json"
-    download_release_page "$page" "$page_path" || return 1
-    index=0
-    page_entries=0
-    while tag=$(release_record_value "$page_path" "$index.tag_name" 2>/dev/null); do
-      page_entries=$((page_entries + 1))
-      candidate_base=$(linux_adjunct_base_tag_from_tag "$tag" 2>/dev/null || true)
-      if [ "$candidate_base" = "$base_tag" ]; then
-        matching_tags=$((matching_tags + 1))
-        draft=$(release_record_value "$page_path" "$index.draft" 2>/dev/null || true)
-        prerelease=$(release_record_value "$page_path" "$index.prerelease" 2>/dev/null || true)
-        immutable=$(release_record_value "$page_path" "$index.immutable" 2>/dev/null || true)
-        target=$(release_record_value "$page_path" "$index.target_commitish" 2>/dev/null || true)
-        binds=false
-        if linux_adjunct_release_record_binds_tagged_assets "$page_path" "$index" "$tag" "$base_tag"; then
-          binds=true
-          identity_tags=$((identity_tags + 1))
-        fi
-        if [ "$binds" = true ] \
-          && [ "$draft" = false ] \
-          && [ "$prerelease" = false ] \
-          && [ "$immutable" = true ] \
-          && [ "$target" = "$base_target" ]; then
-          eligible_tags=$((eligible_tags + 1))
-          candidate_tag="$tag"
-        fi
-      fi
-      index=$((index + 1))
-    done
-    if [ "$page_entries" -lt 100 ]; then
-      break
-    fi
-    page=$((page + 1))
-  done
-  if [ "$page" -gt 100 ]; then
-    printf 'Linux adjunct discovery exceeded the bounded GitHub Release page limit.\n' >&2
-    return 1
-  fi
-  if [ "$matching_tags" -eq 0 ]; then
-    return 2
-  fi
-  if [ "$matching_tags" -ne 1 ] || [ "$identity_tags" -ne 1 ] || [ "$eligible_tags" -ne 1 ]; then
-    printf 'Linux adjunct discovery requires exactly one self-addressed immutable Release; found %s tag(s), %s self-addressed tag(s), %s eligible.\n' \
-      "$matching_tags" "$identity_tags" "$eligible_tags" >&2
-    return 1
-  fi
-
-  local record_path="$work_dir/github-linux-adjunct-release.json"
-  download_release_record "$candidate_tag" "$record_path" || return 1
-  [ "$(release_record_value "$record_path" tag_name)" = "$candidate_tag" ] \
-    && [ "$(release_record_value "$record_path" target_commitish)" = "$base_target" ] \
-    && [ "$(release_record_value "$record_path" draft)" = false ] \
-    && [ "$(release_record_value "$record_path" prerelease)" = false ] \
-    && [ "$(release_record_value "$record_path" immutable)" = true ] \
-    && linux_adjunct_release_record_binds_tagged_assets "$record_path" '' "$candidate_tag" "$base_tag" || {
-      printf 'Linux adjunct exact-tag readback does not match the discovered self-addressed immutable Release.\n' >&2
-      return 1
-    }
-  LINUX_DESKTOP_ADJUNCT_TAG="$candidate_tag"
-  LINUX_DESKTOP_ADJUNCT_RELEASE_RECORD_PATH="$record_path"
-}
-
-adjunct_manifest_has_exact_asset() {
-  local manifest_path="$1"
-  local asset_name="$2"
-  local asset_sha256="$3"
-  local asset_size="$4"
-  local index=0 name digest size matches=0
-  while name=$(component_manifest_value "$manifest_path" "assets.$index.name" 2>/dev/null); do
-    if [ "$name" = "$asset_name" ]; then
-      digest=$(component_manifest_value "$manifest_path" "assets.$index.digest" 2>/dev/null || true)
-      size=$(component_manifest_value "$manifest_path" "assets.$index.size_bytes" 2>/dev/null || true)
-      if [ "$digest" = "sha256:$asset_sha256" ] && [ "$size" = "$asset_size" ]; then
-        matches=$((matches + 1))
-      fi
-    fi
-    index=$((index + 1))
-  done
-  [ "$matches" -eq 1 ]
-}
-
-download_and_validate_linux_adjunct_manifest() {
-  local work_dir="$1"
-  local record_path="$2"
-  local base_tag="$3"
-  local adjunct_tag="$4"
-  local asset_name="$5"
-  local asset_sha256="$6"
-  local asset_size="$7"
-  local manifest_name='opl-optional-platforms-manifest.json'
-  local manifest_path expected_url version platform index=0 linux_platforms=0
-  local app_sha shell_sha framework_sha
-  resolve_release_asset "$record_path" "$manifest_name" || {
-    printf 'Linux adjunct Release has no unique digest-bound manifest.\n' >&2
-    return 1
-  }
-  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$adjunct_tag/$manifest_name"
-  [ "$RELEASE_ASSET_URL" = "$expected_url" ] || {
-    printf 'Linux adjunct manifest URL does not match its exact Release asset.\n' >&2
-    return 1
-  }
-  manifest_path="$work_dir/$manifest_name"
-  download_release_file "$RELEASE_ASSET_URL" "$manifest_path" 'Linux adjunct manifest' || return 1
-  verify_file_sha256 "$manifest_path" "$RELEASE_ASSET_SHA256" 'Linux adjunct manifest' || return 1
-  version="${base_tag#v}"
-  [ "$(component_manifest_value "$manifest_path" schema)" = 'opl_app_immutable_platform_adjunct_manifest.v1' ] \
-    && [ "$(component_manifest_value "$manifest_path" kind)" = 'stable_optional_adjunct' ] \
-    && [ "$(component_manifest_value "$manifest_path" base_release_tag)" = "$base_tag" ] \
-    && [ "$(component_manifest_value "$manifest_path" release_identity.display_version)" = "$version" ] || {
-      printf 'Linux adjunct manifest does not bind the selected base Release identity.\n' >&2
-      return 1
-    }
-  app_sha=$(component_manifest_value "$STABLE_MACOS_COMPONENT_MANIFEST_PATH" source_cohort.app_sha) || return 1
-  shell_sha=$(component_manifest_value "$STABLE_MACOS_COMPONENT_MANIFEST_PATH" source_cohort.shell_sha) || return 1
-  framework_sha=$(component_manifest_value "$STABLE_MACOS_COMPONENT_MANIFEST_PATH" source_cohort.framework_sha) || return 1
-  [ "$(component_manifest_value "$manifest_path" cohort.app_sha)" = "$app_sha" ] \
-    && [ "$(component_manifest_value "$manifest_path" cohort.shell_sha)" = "$shell_sha" ] \
-    && [ "$(component_manifest_value "$manifest_path" cohort.framework_sha)" = "$framework_sha" ] || {
-      printf 'Linux adjunct manifest cohort does not match the base component manifest.\n' >&2
-      return 1
-    }
-  while platform=$(component_manifest_value "$manifest_path" "platforms.$index" 2>/dev/null); do
-    if [ "$platform" = linux-x64 ]; then
-      linux_platforms=$((linux_platforms + 1))
-    fi
-    index=$((index + 1))
-  done
-  [ "$linux_platforms" -eq 1 ] \
-    && adjunct_manifest_has_exact_asset "$manifest_path" "$asset_name" "$asset_sha256" "$asset_size" || {
-      printf 'Linux adjunct manifest does not bind one exact Linux x64 package.\n' >&2
-      return 1
-    }
-  LINUX_DESKTOP_ADJUNCT_MANIFEST_PATH="$manifest_path"
-}
-
 require_caller_dmg_sha256() {
   if ! validate_sha256_value "$STABLE_MACOS_DMG_SHA256"; then
     printf 'Custom DMG URL or path requires --dmg-sha256 with 64 lowercase hexadecimal characters.\n' >&2
@@ -1578,7 +1337,7 @@ download_and_validate_full_manifest() {
 
 download_or_use_dmg() {
   local work_dir="$1"
-  local record_path tag asset_name url expected_url dmg_path download_status expected_sha256 expected_size adjunct_status
+  local record_path tag asset_name url expected_url dmg_path download_status expected_sha256 expected_size
   local standard_asset_name standard_asset_sha256
   STABLE_MACOS_RESOLVED_DMG_PATH=''
   STABLE_MACOS_RESOLVED_DMG_SHA256=''
@@ -1648,7 +1407,6 @@ download_or_use_dmg() {
         return 1
       }
     else
-      adjunct_status=$?
       if [ "$STABLE_MACOS_PACKAGE_PROFILE_EXPLICIT" = 0 ]; then
         asset_name="$standard_asset_name"
         printf 'Full module is not appended to %s; continuing with the Standard DMG.\n' "$tag" >&2

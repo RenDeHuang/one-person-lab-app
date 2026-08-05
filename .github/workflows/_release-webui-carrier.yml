@@ -8,19 +8,9 @@ on:
         type: string
         default: execute
       authority_mode:
-        description: production_follower, development_validation, or independent_preview.
+        description: independent_stable or independent_preview.
         type: string
-        default: production_follower
-      production_recovery:
-        description: Execute one strictly bound production follower recovery from canonical control bytes.
-        type: boolean
-        required: false
-        default: false
-      stable_authority_run_id:
-        description: Exact successful Stable authority run for production follower publication records.
-        type: string
-        required: false
-        default: ''
+        default: independent_stable
       app_ref:
         description: Exact App SHA frozen into the Release Bundle.
         type: string
@@ -52,83 +42,8 @@ on:
         type: string
         required: false
         default: ''
-      standard_checkpoint_artifact_name:
-        description: Exact portable Standard checkpoint or development frozen Bundle artifact.
-        type: string
-        required: false
-        default: ''
-      standard_identity_sha256:
-        description: Exact Standard identity digest; development mode binds the Bundle digest here.
-        type: string
-        required: false
-        default: ''
       source_authority_artifact_name:
         description: Exact independent WebUI source-authority artifact.
-        type: string
-        required: false
-        default: ''
-      stable_framework_ref:
-        description: Original Framework SHA frozen in the Stable cohort when production_recovery is true.
-        type: string
-        required: false
-        default: ''
-      recovery_authority_digest:
-        description: Digest of the exact Stable-to-compatible-Framework recovery authority.
-        type: string
-        required: false
-        default: ''
-      failed_follower_run_id:
-        description: Exact failed automatic WebUI follower consumed by production recovery.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v1_run_id:
-        description: Exact failed WebUI recovery v1 consumed by production recovery.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v2_run_id:
-        description: Exact failed WebUI recovery v2 consumed by production recovery.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v3_run_id:
-        description: Exact failed WebUI recovery v3 consumed by production recovery v4.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v4_run_id:
-        description: Exact failed WebUI recovery v4 consumed by production recovery v5.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v5_run_id:
-        description: Exact failed WebUI recovery v5 consumed by production recovery v6.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v6_run_id:
-        description: Exact failed WebUI recovery v6 consumed by production recovery v7.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v7_run_id:
-        description: Exact failed WebUI recovery v7 consumed by production recovery v8.
-        type: string
-        required: false
-        default: ''
-      failed_recovery_v8_run_id:
-        description: Exact failed WebUI recovery v8 whose qualified image is reused by production recovery v9.
-        type: string
-        required: false
-        default: ''
-      qualified_artifact_run_id:
-        description: Exact prior failed publication run whose qualified image artifact is reused without rebuilding.
-        type: string
-        required: false
-        default: ''
-      qualified_artifact_name:
-        description: Exact qualified image artifact name from qualified_artifact_run_id.
         type: string
         required: false
         default: ''
@@ -165,17 +80,13 @@ jobs:
           test '${{ inputs.app_ref }}' != ''
           test '${{ inputs.shell_ref }}' != ''
           test '${{ inputs.framework_ref }}' != ''
-          if [ '${{ inputs.authority_mode }}' = independent_preview ]; then
-            test '${{ inputs.source_artifact_run_id }}' != ''
-            test '${{ inputs.source_authority_artifact_name }}' != ''
-          else
-            test '${{ inputs.source_artifact_run_id }}' != ''
-            test '${{ inputs.standard_checkpoint_artifact_name }}' != ''
-            test '${{ inputs.standard_identity_sha256 }}' != ''
-          fi
+          test '${{ inputs.authority_mode }}' = independent_preview \
+            || test '${{ inputs.authority_mode }}' = independent_stable
+          test '${{ inputs.source_artifact_run_id }}' != ''
+          test '${{ inputs.source_authority_artifact_name }}' != ''
 
   build-and-qualify:
-    if: ${{ inputs.mode == 'execute' && inputs.qualified_artifact_run_id == '' }}
+    if: ${{ inputs.mode == 'execute' }}
     runs-on: ubuntu-latest
     timeout-minutes: 75
     permissions:
@@ -185,20 +96,12 @@ jobs:
     outputs:
       image_artifact_name: ${{ steps.identity.outputs.image_artifact_name }}
     steps:
-      - name: Checkout exact App source
-        if: ${{ inputs.authority_mode == 'production_follower' && !inputs.production_recovery }}
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          ref: ${{ inputs.app_ref }}
-
-      - name: Checkout canonical development executor
-        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}
+      - name: Checkout canonical Docker executor
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ github.sha }}
 
       - name: Checkout exact frozen App build input
-        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ inputs.app_ref }}
@@ -236,17 +139,7 @@ jobs:
       - name: Setup ORAS for exact external build inputs
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
-      - name: Download exact portable Standard checkpoint
-        if: ${{ inputs.authority_mode == 'production_follower' || inputs.authority_mode == 'development_validation' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: ${{ inputs.standard_checkpoint_artifact_name }}
-          run-id: ${{ inputs.source_artifact_run_id }}
-          github-token: ${{ github.token }}
-          path: webui-carrier/standard-checkpoint
-
       - name: Download exact independent WebUI source authority
-        if: ${{ inputs.authority_mode == 'independent_preview' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.source_authority_artifact_name }}
@@ -258,176 +151,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test '${{ inputs.authority_mode }}' = production_follower \
-            || test '${{ inputs.authority_mode }}' = development_validation \
+          test '${{ inputs.authority_mode }}' = independent_stable \
             || test '${{ inputs.authority_mode }}' = independent_preview
-          if [ '${{ inputs.production_recovery }}' = true ]; then
-            test '${{ inputs.authority_mode }}' = production_follower
-            test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-            test "$(git -C frozen-app-source rev-parse HEAD)" = '${{ inputs.app_ref }}'
-            [[ '${{ inputs.stable_authority_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            [[ '${{ inputs.stable_framework_ref }}' =~ ^[0-9a-f]{40}$ ]]
-            [[ '${{ inputs.recovery_authority_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-            [[ '${{ inputs.failed_follower_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            [[ '${{ inputs.failed_recovery_v1_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            [[ '${{ inputs.failed_recovery_v2_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            test -z '${{ inputs.failed_recovery_v3_run_id }}' \
-              || [[ '${{ inputs.failed_recovery_v3_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            test -z '${{ inputs.failed_recovery_v4_run_id }}' \
-              || [[ '${{ inputs.failed_recovery_v4_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            test -z '${{ inputs.failed_recovery_v5_run_id }}' \
-              || [[ '${{ inputs.failed_recovery_v5_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            test -z '${{ inputs.failed_recovery_v6_run_id }}' \
-              || [[ '${{ inputs.failed_recovery_v6_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            test -z '${{ inputs.failed_recovery_v7_run_id }}' \
-              || [[ '${{ inputs.failed_recovery_v7_run_id }}' =~ ^[1-9][0-9]*$ ]]
-            test '${{ inputs.stable_framework_ref }}' != '${{ inputs.framework_ref }}'
-          elif [ '${{ inputs.authority_mode }}' = production_follower ]; then
-            test "$(git rev-parse HEAD)" = '${{ inputs.app_ref }}'
-          else
-            test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-            test "$(git -C frozen-app-source rev-parse HEAD)" = '${{ inputs.app_ref }}'
-          fi
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git -C frozen-app-source rev-parse HEAD)" = '${{ inputs.app_ref }}'
           test "$(git -C shells/aionui rev-parse HEAD)" = '${{ inputs.shell_ref }}'
           test "$(git -C framework-source rev-parse HEAD)" = '${{ inputs.framework_ref }}'
-          if [ '${{ inputs.production_recovery }}' = true ]; then
-            git -C framework-source merge-base --is-ancestor \
-              95640c74e0b14ba2e88056de725c417fd1693cf1 '${{ inputs.framework_ref }}'
-          fi
           test "$(git -C webui-executor-source rev-parse HEAD)" = "$GITHUB_SHA"
           test -f webui-executor-source/scripts/materialize-webui-seed-symlinks.ts
           test ! -L webui-executor-source/scripts/materialize-webui-seed-symlinks.ts
           test '${{ inputs.app_ref }}' != '${{ inputs.shell_ref }}'
           test '${{ inputs.framework_ref }}' != '${{ inputs.shell_ref }}'
 
-      - name: Derive WebUI build input from exact Standard identity
-        if: ${{ inputs.authority_mode == 'production_follower' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          one_regular_file() {
-            local root="$1" name="$2"
-            local matches=()
-            local match
-            while IFS= read -r match; do matches+=("$match"); done < <(
-              find "$root" -type f -name "$name" -print | LC_ALL=C sort
-            )
-            test "${#matches[@]}" -eq 1 || {
-              echo "::error::$root must contain exactly one $name; found ${#matches[@]}."
-              exit 1
-            }
-            test -f "${matches[0]}" && test ! -L "${matches[0]}"
-            printf '%s\n' "${matches[0]}"
-          }
-          identity_receipt="$(one_regular_file webui-carrier/standard-checkpoint standard-identity-receipt.json)"
-          bundle="$(one_regular_file webui-carrier/standard-checkpoint bundle.json)"
-          test "sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')" = '${{ inputs.standard_identity_sha256 }}'
-          mkdir -p webui-carrier/frozen-codex
-          oras manifest fetch \
-            --output webui-carrier/base-image-index.json \
-            docker.io/library/node:22-bookworm-slim
-          codex_version="$(jq -er '.managed_runtime.codex_cli.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"))' \
-            shells/aionui/contracts/aionui-upstream-intake.json)"
-          codex_tarball_url="$(npm view --json "@openai/codex@${codex_version}" dist.tarball \
-            | jq -er 'select(type == "string" and startswith("https://"))')"
-          curl -L --fail --silent --show-error "$codex_tarball_url" \
-            --output webui-carrier/frozen-codex/codex-cli.tgz
-          source_cutoff_observed_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
-          app_root=.
-          recovery_args=()
-          if [ '${{ inputs.production_recovery }}' = true ]; then
-            app_root=frozen-app-source
-            recovery_args=(
-              --stable-framework-ref '${{ inputs.stable_framework_ref }}'
-              --webui-recovery-authority-digest '${{ inputs.recovery_authority_digest }}'
-              --webui-recovery-stable-authority-run-id '${{ inputs.stable_authority_run_id }}'
-              --webui-recovery-failed-follower-run-id '${{ inputs.failed_follower_run_id }}'
-              --webui-recovery-failed-v1-run-id '${{ inputs.failed_recovery_v1_run_id }}'
-              --webui-recovery-failed-v2-run-id '${{ inputs.failed_recovery_v2_run_id }}'
-              --webui-recovery-executor-app-sha "$GITHUB_SHA"
-            )
-            if [ -n '${{ inputs.failed_recovery_v3_run_id }}' ]; then
-              recovery_args+=(
-                --webui-recovery-failed-v3-run-id '${{ inputs.failed_recovery_v3_run_id }}'
-              )
-            fi
-            if [ -n '${{ inputs.failed_recovery_v4_run_id }}' ]; then
-              recovery_args+=(
-                --webui-recovery-failed-v4-run-id '${{ inputs.failed_recovery_v4_run_id }}'
-              )
-            fi
-            if [ -n '${{ inputs.failed_recovery_v5_run_id }}' ]; then
-              recovery_args+=(
-                --webui-recovery-failed-v5-run-id '${{ inputs.failed_recovery_v5_run_id }}'
-              )
-            fi
-            if [ -n '${{ inputs.failed_recovery_v6_run_id }}' ]; then
-              recovery_args+=(
-                --webui-recovery-failed-v6-run-id '${{ inputs.failed_recovery_v6_run_id }}'
-              )
-            fi
-            if [ -n '${{ inputs.failed_recovery_v7_run_id }}' ]; then
-              recovery_args+=(
-                --webui-recovery-failed-v7-run-id '${{ inputs.failed_recovery_v7_run_id }}'
-              )
-            fi
-          fi
-          node --experimental-strip-types scripts/framework-release-adapter.ts webui-build-input \
-            --standard-identity "$identity_receipt" \
-            --bundle "$bundle" \
-            --app-root "$app_root" \
-            --shell-root shells/aionui \
-            --framework-root framework-source \
-            "${recovery_args[@]}" \
-            --source-cutoff-observed-at "$source_cutoff_observed_at" \
-            --base-image-index webui-carrier/base-image-index.json \
-            --frozen-codex-tarball webui-carrier/frozen-codex/codex-cli.tgz \
-            --output webui-carrier/build-input-draft.json
-
-      - name: Derive WebUI build input from exact development Bundle
-        if: ${{ inputs.authority_mode == 'development_validation' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          one_regular_file() {
-            local root="$1" name="$2"
-            local matches=()
-            local match
-            while IFS= read -r match; do matches+=("$match"); done < <(
-              find "$root" -type f -name "$name" -print | LC_ALL=C sort
-            )
-            test "${#matches[@]}" -eq 1 || {
-              echo "::error::$root must contain exactly one $name; found ${#matches[@]}."
-              exit 1
-            }
-            test -f "${matches[0]}" && test ! -L "${matches[0]}"
-            printf '%s\n' "${matches[0]}"
-          }
-          bundle="$(one_regular_file webui-carrier/standard-checkpoint release-bundle.json)"
-          test "$(jq -er .bundle_digest "$bundle")" = '${{ inputs.release_bundle_digest }}'
-          mkdir -p webui-carrier/frozen-codex
-          oras manifest fetch \
-            --output webui-carrier/base-image-index.json \
-            docker.io/library/node:22-bookworm-slim
-          codex_version="$(jq -er '.managed_runtime.codex_cli.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"))' \
-            shells/aionui/contracts/aionui-upstream-intake.json)"
-          codex_tarball_url="$(npm view --json "@openai/codex@${codex_version}" dist.tarball \
-            | jq -er 'select(type == "string" and startswith("https://"))')"
-          curl -L --fail --silent --show-error "$codex_tarball_url" \
-            --output webui-carrier/frozen-codex/codex-cli.tgz
-          source_cutoff_observed_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
-          node --experimental-strip-types scripts/framework-release-adapter.ts webui-build-input \
-            --bundle "$bundle" \
-            --app-root frozen-app-source \
-            --shell-root shells/aionui \
-            --framework-root framework-source \
-            --source-cutoff-observed-at "$source_cutoff_observed_at" \
-            --base-image-index webui-carrier/base-image-index.json \
-            --frozen-codex-tarball webui-carrier/frozen-codex/codex-cli.tgz \
-            --output webui-carrier/build-input-draft.json
-
       - name: Derive WebUI build input from independent exact source authority
-        if: ${{ inputs.authority_mode == 'independent_preview' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -724,11 +460,7 @@ jobs:
           retention-days: 7
 
   publish-immutable-carrier:
-    if: >-
-      ${{ always()
-        && inputs.mode == 'execute'
-        && ((inputs.qualified_artifact_run_id == '' && needs.build-and-qualify.result == 'success')
-        || (inputs.qualified_artifact_run_id != '' && needs.build-and-qualify.result == 'skipped')) }}
+    if: ${{ always() && inputs.mode == 'execute' && needs.build-and-qualify.result == 'success' }}
     needs: build-and-qualify
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -741,14 +473,7 @@ jobs:
       carrier_artifact_name: ${{ steps.receipt.outputs.carrier_artifact_name }}
       image_ref: ${{ steps.publish.outputs.image_ref }}
     steps:
-      - name: Checkout exact production App source
-        if: ${{ inputs.authority_mode == 'production_follower' && !inputs.production_recovery }}
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-        with:
-          ref: ${{ inputs.app_ref }}
-
       - name: Checkout canonical publication executor
-        if: ${{ inputs.authority_mode == 'development_validation' || inputs.authority_mode == 'independent_preview' || inputs.production_recovery }}
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ github.sha }}
@@ -756,23 +481,11 @@ jobs:
       - name: Setup ORAS for durable carrier receipt sidecar
         uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
 
-      - name: Validate exact qualified artifact recovery authority
-        if: ${{ inputs.qualified_artifact_run_id != '' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test '${{ inputs.authority_mode }}' = production_follower
-          test '${{ inputs.production_recovery }}' = true
-          [[ '${{ inputs.qualified_artifact_run_id }}' =~ ^[1-9][0-9]*$ ]]
-          test '${{ inputs.qualified_artifact_run_id }}' = '${{ inputs.failed_recovery_v8_run_id }}'
-          test '${{ inputs.qualified_artifact_name }}' = \
-            "webui-qualified-${{ inputs.opl_version }}-${{ inputs.qualified_artifact_run_id }}-1"
-
       - name: Download exact qualified image evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: ${{ inputs.qualified_artifact_name || needs.build-and-qualify.outputs.image_artifact_name }}
-          run-id: ${{ inputs.qualified_artifact_run_id || github.run_id }}
+          name: ${{ needs.build-and-qualify.outputs.image_artifact_name }}
+          run-id: ${{ github.run_id }}
           github-token: ${{ github.token }}
           path: webui-carrier
 
@@ -1027,7 +740,7 @@ jobs:
             --expected-framework-sha '${{ inputs.framework_ref }}' \
             --expected-architecture amd64 \
             > webui-carrier/carrier-receipt-verification.json
-          if [ '${{ inputs.authority_mode }}' = independent_preview ]; then
+          if [ '${{ inputs.authority_mode }}' = independent_preview ] || [ '${{ inputs.authority_mode }}' = independent_stable ]; then
             test -f webui-carrier/source-authority.json
             node --experimental-strip-types scripts/webui-source-authority.ts \
               validate --input webui-carrier/source-authority.json \
@@ -1083,30 +796,11 @@ jobs:
             --publication-run-attempt "$GITHUB_RUN_ATTEMPT"
             --publication-executor-sha "$GITHUB_SHA"
           )
-          case '${{ inputs.authority_mode }}' in
-            production_follower)
-              stable_authority_run_id='${{ inputs.stable_authority_run_id || github.event.workflow_run.id }}'
-              ;;
-            development_validation)
-              stable_authority_run_id='${{ inputs.source_artifact_run_id }}'
-              ;;
-            independent_preview)
-              source_authority_path='webui-carrier/source-authority.json'
-              test -f "$source_authority_path" && test ! -L "$source_authority_path"
-              create_args+=(--source-authority "$source_authority_path")
-              ;;
-            *)
-              echo '::error::WebUI publication authority mode is invalid.'
-              exit 1
-              ;;
-          esac
-          if [ '${{ inputs.authority_mode }}' != independent_preview ]; then
-            [[ "$stable_authority_run_id" =~ ^[1-9][0-9]*$ ]] || {
-              echo '::error::Stable-derived durable publication requires one exact Stable authority run id.'
-              exit 1
-            }
-            create_args+=(--stable-authority-run-id "$stable_authority_run_id")
-          fi
+          test '${{ inputs.authority_mode }}' = independent_stable \
+            || test '${{ inputs.authority_mode }}' = independent_preview
+          source_authority_path='webui-carrier/source-authority.json'
+          test -f "$source_authority_path" && test ! -L "$source_authority_path"
+          create_args+=(--source-authority "$source_authority_path")
 
           node --experimental-strip-types scripts/webui-publication-record.ts \
             create \
@@ -1249,7 +943,7 @@ jobs:
             test -f "$sidecar_root/$file"
             cp "$sidecar_root/$file" "carrier-artifact/$file"
           done
-          if [ '${{ inputs.authority_mode }}' = independent_preview ]; then
+          if [ '${{ inputs.authority_mode }}' = independent_preview ] || [ '${{ inputs.authority_mode }}' = independent_stable ]; then
             for file in source-authority.json source-authority-verification.json source-authority-final-verification.json; do
               test -f "webui-carrier/$file"
               cp "webui-carrier/$file" "carrier-artifact/$file"

@@ -16,11 +16,11 @@ const noncePattern = /^[0-9a-f]{32}$/;
 const operationIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
 const immutableReleaseApiVersion = '2026-03-10';
-const stableOptionalPlatformIds = [
+const stableDesktopAdditionalPlatformIds = [
   'linux-x64',
   'windows-x64',
 ] as const;
-const defaultStableOptionalPlatformIds = ['linux-x64', 'windows-x64'] as const;
+const defaultStableDesktopAdditionalPlatformIds = ['linux-x64', 'windows-x64'] as const;
 const requiredCriticalBlobPaths = [
   '.github/workflows/release-stable.yml',
   '.github/workflows/_release-bundle.yml',
@@ -50,7 +50,7 @@ export type StableOperationControl = {
     shell_sha: string;
     framework_sha: string;
   };
-  optional_platforms: string[];
+  desktop_additional_platforms: string[];
   critical_blobs: Record<string, string>;
   source_gate_digest: string;
   pre_nonce_guard_digest: string;
@@ -80,7 +80,7 @@ export type StableOperationAuthority = {
     shell_sha: string;
     framework_sha: string;
   };
-  optional_platforms: string[];
+  desktop_additional_platforms: string[];
   critical_blobs: Record<string, string>;
   source_gate_digest: string;
   pre_nonce_guard_digest: string;
@@ -345,22 +345,22 @@ function nonceDigest(value: string): string {
   return `sha256:${crypto.createHash('sha256').update(value, 'utf8').digest('hex')}`;
 }
 
-function normalizedStableOptionalPlatforms(value: unknown): string[] {
+function normalizedStableDesktopAdditionalPlatforms(value: unknown): string[] {
   if (!Array.isArray(value)) {
-    throw new Error('optional_platforms must be one JSON array of audited Stable optional platform IDs.');
+    throw new Error('desktop_additional_platforms must be one JSON array of audited Stable additional Desktop platform IDs.');
   }
   const selected = new Set<string>();
   for (const platform of value) {
     if (
       typeof platform !== 'string'
-      || !(stableOptionalPlatformIds as readonly string[]).includes(platform)
+      || !(stableDesktopAdditionalPlatformIds as readonly string[]).includes(platform)
       || selected.has(platform)
     ) {
-      throw new Error('optional_platforms contains an unknown or duplicate platform ID.');
+      throw new Error('desktop_additional_platforms contains an unknown or duplicate platform ID.');
     }
     selected.add(platform);
   }
-  return stableOptionalPlatformIds.filter((platform) => selected.has(platform));
+  return stableDesktopAdditionalPlatformIds.filter((platform) => selected.has(platform));
 }
 
 function bytesDigest(bytes: Buffer): string {
@@ -374,7 +374,7 @@ function assertAuthorityMatchesControl(
     actor: string;
     nonce: string;
     cohort: StableOperationAuthority['cohort'];
-    optional_platforms: string[];
+    desktop_additional_platforms: string[];
     critical_blobs: Record<string, string>;
     source_gate_digest: string;
     pre_nonce_guard_digest: string;
@@ -391,7 +391,7 @@ function assertAuthorityMatchesControl(
   }
   if (
     canonicalJson(authority.cohort) !== canonicalJson(control.cohort)
-    || canonicalJson(authority.optional_platforms) !== canonicalJson(control.optional_platforms)
+    || canonicalJson(authority.desktop_additional_platforms) !== canonicalJson(control.desktop_additional_platforms)
     || canonicalJson(authority.critical_blobs) !== canonicalJson(control.critical_blobs)
   ) {
     throw new Error('Pre-dispatch authority cohort or critical blob bindings do not match the run-bound control.');
@@ -413,7 +413,7 @@ export function createStableOperationControl(input: {
   appSha: string;
   shellSha: string;
   frameworkSha: string;
-  optionalPlatforms?: unknown;
+  desktopAdditionalPlatforms?: unknown;
   criticalBlobs: unknown;
   sourceGateDigest: string;
   preNonceGuardDigest: string;
@@ -437,8 +437,8 @@ export function createStableOperationControl(input: {
       shell_sha: exactSha(input.shellSha, 'cohort.shell_sha'),
       framework_sha: exactSha(input.frameworkSha, 'cohort.framework_sha'),
     },
-    optional_platforms: normalizedStableOptionalPlatforms(
-      input.optionalPlatforms ?? defaultStableOptionalPlatformIds,
+    desktop_additional_platforms: normalizedStableDesktopAdditionalPlatforms(
+      input.desktopAdditionalPlatforms ?? defaultStableDesktopAdditionalPlatformIds,
     ),
     critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
     source_gate_digest: digest(input.sourceGateDigest, 'source_gate_digest'),
@@ -474,7 +474,7 @@ export function validateStableOperationControl(value: unknown): StableOperationC
     appSha: exactSha(record(control.cohort, 'cohort').app_sha, 'cohort.app_sha'),
     shellSha: exactSha(record(control.cohort, 'cohort').shell_sha, 'cohort.shell_sha'),
     frameworkSha: exactSha(record(control.cohort, 'cohort').framework_sha, 'cohort.framework_sha'),
-    optionalPlatforms: control.optional_platforms,
+    desktopAdditionalPlatforms: control.desktop_additional_platforms,
     criticalBlobs: control.critical_blobs,
     sourceGateDigest: digest(control.source_gate_digest, 'source_gate_digest'),
     preNonceGuardDigest: digest(control.pre_nonce_guard_digest, 'pre_nonce_guard_digest'),
@@ -501,7 +501,7 @@ export function createStableOperationAuthority(input: {
   appSha: string;
   shellSha: string;
   frameworkSha: string;
-  optionalPlatforms?: unknown;
+  desktopAdditionalPlatforms?: unknown;
   criticalBlobs: unknown;
   sourceGate: unknown;
   preNonceGuard: unknown;
@@ -546,8 +546,8 @@ export function createStableOperationAuthority(input: {
       shell_sha: exactSha(input.shellSha, 'cohort.shell_sha'),
       framework_sha: exactSha(input.frameworkSha, 'cohort.framework_sha'),
     },
-    optional_platforms: normalizedStableOptionalPlatforms(
-      input.optionalPlatforms ?? defaultStableOptionalPlatformIds,
+    desktop_additional_platforms: normalizedStableDesktopAdditionalPlatforms(
+      input.desktopAdditionalPlatforms ?? defaultStableDesktopAdditionalPlatformIds,
     ),
     critical_blobs: normalizedCriticalBlobs(input.criticalBlobs),
     source_gate_digest: objectDigest(evidence.source_gate),
@@ -584,7 +584,7 @@ export function validateStableOperationAuthority(value: unknown): StableOperatio
     appSha: exactSha(record(authority.cohort, 'cohort').app_sha, 'cohort.app_sha'),
     shellSha: exactSha(record(authority.cohort, 'cohort').shell_sha, 'cohort.shell_sha'),
     frameworkSha: exactSha(record(authority.cohort, 'cohort').framework_sha, 'cohort.framework_sha'),
-    optionalPlatforms: authority.optional_platforms,
+    desktopAdditionalPlatforms: authority.desktop_additional_platforms,
     criticalBlobs: authority.critical_blobs,
     sourceGate: record(record(authority.pre_dispatch_evidence, 'pre_dispatch_evidence').source_gate, 'pre_dispatch_evidence.source_gate'),
     preNonceGuard: record(record(authority.pre_dispatch_evidence, 'pre_dispatch_evidence').pre_nonce_guard, 'pre_dispatch_evidence.pre_nonce_guard'),
@@ -739,7 +739,7 @@ export function bindStableOperationAuthority(input: {
     appSha: authority.cohort.app_sha,
     shellSha: authority.cohort.shell_sha,
     frameworkSha: authority.cohort.framework_sha,
-    optionalPlatforms: authority.optional_platforms,
+    desktopAdditionalPlatforms: authority.desktop_additional_platforms,
     criticalBlobs: authority.critical_blobs,
     sourceGateDigest: input.sourceGateDigest,
     preNonceGuardDigest: input.preNonceGuardDigest,
@@ -955,7 +955,7 @@ function main(argv: string[]): void {
       'app-sha': { type: 'string' },
       'shell-sha': { type: 'string' },
       'framework-sha': { type: 'string' },
-      'optional-platforms': { type: 'string' },
+      'desktop-additional-platforms': { type: 'string' },
       'critical-blobs': { type: 'string' },
       'source-gate-digest': { type: 'string' },
       'pre-nonce-guard-digest': { type: 'string' },
@@ -997,7 +997,10 @@ function main(argv: string[]): void {
       appSha: required(values['app-sha'], 'app-sha'),
       shellSha: required(values['shell-sha'], 'shell-sha'),
       frameworkSha: required(values['framework-sha'], 'framework-sha'),
-      optionalPlatforms: jsonArrayOption(values['optional-platforms'], 'optional-platforms'),
+      desktopAdditionalPlatforms: jsonArrayOption(
+        values['desktop-additional-platforms'],
+        'desktop-additional-platforms',
+      ),
       criticalBlobs: readJson(required(values['critical-blobs'], 'critical-blobs')),
       sourceGate: readJson(required(values['source-gate'], 'source-gate')),
       preNonceGuard: readJson(required(values['pre-nonce-guard'], 'pre-nonce-guard')),

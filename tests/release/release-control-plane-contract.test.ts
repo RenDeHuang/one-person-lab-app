@@ -50,7 +50,7 @@ test('Framework checkpoint plus the App executor is the only live release mutati
   assert.equal(control.framework_authority.app_may_derive_or_project_release_stage_state, false);
 });
 
-test('release platform contract keeps Stable required platforms separate from optional capability', () => {
+test('release platform contract keeps the primary Stable platform separate from same-tag Desktop additions', () => {
   const release = readJson('contracts/app-release-channel.json');
   const gui = readJson('contracts/app-gui-product-contract.json');
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
@@ -58,11 +58,11 @@ test('release platform contract keeps Stable required platforms separate from op
   assert.deepEqual(matrix.policies.stable_required.platforms, ['macos-arm64']);
   assert.equal(matrix.policies.stable_required.blocks_base_terminal, true);
   assert.deepEqual(
-    matrix.policies.stable_optional.platforms,
+    matrix.policies.stable_desktop_additional.platforms,
     ['linux-x64', 'windows-x64'],
   );
-  assert.equal(matrix.policies.stable_optional.default_enabled, false);
-  assert.equal(matrix.policies.stable_optional.blocks_base_terminal, false);
+  assert.equal(matrix.policies.stable_desktop_additional.default_enabled, false);
+  assert.equal(matrix.policies.stable_desktop_additional.blocks_base_terminal, false);
   assert.deepEqual(matrix.policies.windows_preview.platforms, ['windows-x64', 'windows-arm64']);
   assert.equal(matrix.policies.windows_preview.default_enabled, false);
   assert.equal(matrix.policies.windows_preview.blocks_base_terminal, false);
@@ -82,13 +82,13 @@ test('release platform contract keeps Stable required platforms separate from op
     assert.equal(matrix.capabilities[id].publication_status, 'development_validation_only');
     assert.equal(matrix.capabilities[id].publication_route, null);
   }
-  assert.deepEqual(matrix.stable_optional_selection.default, ['linux-x64', 'windows-x64']);
+  assert.deepEqual(matrix.stable_desktop_additional_selection.default, ['linux-x64', 'windows-x64']);
   assert.equal(
-    matrix.optional_platform_additive_follower.windows_x64_updater_assets.build_validator,
+    matrix.desktop_platform_additive_follower.windows_x64_updater_assets.build_validator,
     'scripts/validate-windows-updater-assets.ts',
   );
   assert.deepEqual(
-    matrix.optional_platform_additive_follower.windows_x64_updater_assets.required_assets,
+    matrix.desktop_platform_additive_follower.windows_x64_updater_assets.required_assets,
     [
       'One-Person-Lab-<display-version>-win-x64.exe',
       'One-Person-Lab-<display-version>-win-x64.exe.blockmap',
@@ -97,15 +97,15 @@ test('release platform contract keeps Stable required platforms separate from op
     ],
   );
   assert.equal(
-    matrix.optional_platform_additive_follower.windows_x64_updater_assets.authenticode_required_for_publication,
+    matrix.desktop_platform_additive_follower.windows_x64_updater_assets.authenticode_required_for_publication,
     false,
   );
   assert.equal(
-    matrix.optional_platform_additive_follower.windows_x64_updater_assets.unsigned_publication_allowed,
+    matrix.desktop_platform_additive_follower.windows_x64_updater_assets.unsigned_publication_allowed,
     true,
   );
   assert.equal(
-    matrix.optional_platform_additive_follower.windows_x64_updater_assets.runtime_resolver,
+    matrix.desktop_platform_additive_follower.windows_x64_updater_assets.runtime_resolver,
     'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts',
   );
   assert.equal(

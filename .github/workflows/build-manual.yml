@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       invocation_mode:
-        description: Audited reusable route; only stable_optional_follower is accepted.
+        description: Audited reusable route; only stable_release_set_build is accepted.
         required: true
         type: string
       platform_policy:
@@ -16,7 +16,7 @@ on:
         required: true
         type: string
       platform_ids:
-        description: Canonical authority-bound JSON array of audited optional Stable platform IDs.
+        description: Canonical authority-bound JSON array of additional Desktop Stable platform IDs.
         required: true
         type: string
       app_ref:
@@ -49,42 +49,7 @@ on:
         required: true
         type: string
       source_bundle_digest:
-        description: Exact completed Standard Bundle digest for the automatic/legacy follower route.
-        required: false
-        type: string
-        default: ''
-      source_authority_kind:
-        description: Standard Bundle or protected existing-base source qualification authority.
-        required: false
-        type: string
-        default: standard_bundle
-      source_authority_digest:
-        description: Exact existing-base optional authority digest; empty for the Standard Bundle route.
-        required: false
-        type: string
-        default: ''
-      base_release_id:
-        description: Exact existing base Release id; empty for the Standard Bundle route.
-        required: false
-        type: string
-        default: ''
-      base_release_tag:
-        description: Exact existing base tag; empty derives v plus opl_release_version.
-        required: false
-        type: string
-        default: ''
-      base_release_target_commitish:
-        description: Exact existing base target; empty binds the Standard cohort App SHA.
-        required: false
-        type: string
-        default: ''
-      base_release_updated_at:
-        description: Exact existing base updated_at CAS; empty for the Standard Bundle route.
-        required: false
-        type: string
-        default: ''
-      base_asset_inventory_digest:
-        description: Exact existing base asset inventory digest; empty for the Standard Bundle route.
+        description: Exact completed Standard Bundle digest for the Stable Release Set build.
         required: false
         type: string
         default: ''
@@ -195,46 +160,30 @@ jobs:
           set -euo pipefail
           macos_x64_signed_development_validation=false
           if [ -n '${{ inputs.invocation_mode }}' ]; then
-            test '${{ inputs.invocation_mode }}' = stable_optional_follower
-            test '${{ inputs.platform_policy }}' = stable_optional
+            test '${{ inputs.invocation_mode }}' = stable_release_set_build
+            test '${{ inputs.platform_policy }}' = stable_desktop_additional
             [[ '${{ inputs.app_ref }}' =~ ^[0-9a-f]{40}$ ]]
             [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]
             [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]
             [[ '${{ inputs.source_run_id }}' =~ ^[1-9][0-9]*$ ]]
             [[ '${{ inputs.opl_updater_version }}' =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
-            case '${{ inputs.source_authority_kind }}' in
-              standard_bundle)
-                [[ '${{ inputs.source_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-                test -z '${{ inputs.source_authority_digest }}${{ inputs.base_release_id }}${{ inputs.base_release_tag }}${{ inputs.base_release_target_commitish }}${{ inputs.base_release_updated_at }}${{ inputs.base_asset_inventory_digest }}'
-                ;;
-              existing_base_source_qualification)
-                test -z '${{ inputs.source_bundle_digest }}'
-                [[ '${{ inputs.source_authority_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-                [[ '${{ inputs.base_release_id }}' =~ ^[1-9][0-9]*$ ]]
-                test '${{ inputs.base_release_tag }}' = v26.8.4
-                [[ '${{ inputs.base_release_target_commitish }}' =~ ^[0-9a-f]{40}$ ]]
-                [[ '${{ inputs.base_release_updated_at }}' =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$ ]]
-                [[ '${{ inputs.base_asset_inventory_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
-                test '${{ inputs.opl_release_version }}' = 26.8.4
-                ;;
-              *) echo '::error::Unsupported Stable optional source authority kind.'; exit 1 ;;
-            esac
+            [[ '${{ inputs.source_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]
             jq -e '
               . == ["linux-x64"]
               or . == ["windows-x64"]
               or . == ["linux-x64", "windows-x64"]
             ' <<< '${{ inputs.platform_ids }}' >/dev/null || {
-              echo '::error::Stable optional publication accepts only the canonical Linux x64 and Windows x64 subsets.'
+              echo '::error::Stable Release Set accepts only canonical Linux x64 and Windows x64 Desktop subsets.'
               exit 1
             }
             node --experimental-strip-types .release-control/scripts/resolve-release-platform-matrix.ts \
-              --policy stable_optional \
+              --policy stable_desktop_additional \
               --platforms-json '${{ inputs.platform_ids }}' \
               --github-output "$GITHUB_OUTPUT"
             {
-              echo 'artifact_pattern=optional-*'
+              echo 'artifact_pattern=stable-desktop-*'
               echo 'validation_profile=stable'
-              echo 'publication_mode=stable_optional_follower'
+              echo 'publication_mode=build_only'
             } >> "$GITHUB_OUTPUT"
           else
             test '${{ inputs.invocation_mode }}' = ''
@@ -328,7 +277,7 @@ jobs:
       upload_installers_only: true
       opl_release_version: ${{ inputs.opl_release_version }}
       opl_updater_version: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
-      require_windows_updater_assets: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
+      require_windows_updater_assets: ${{ inputs.invocation_mode == 'stable_release_set_build' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
       require_windows_authenticode: false
       require_macos_gatekeeper: ${{ needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}
       shell_ref: ${{ inputs.shell_ref }}
@@ -340,7 +289,7 @@ jobs:
     needs: [prepare-matrix, build-pipeline]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && 'release-stable' || 'release-preview' }}
+    environment: release-preview
     permissions:
       contents: write
       actions: read
@@ -379,14 +328,6 @@ jobs:
           VERSION: ${{ inputs.opl_release_version }}
           UPDATER_VERSION: ${{ inputs.opl_updater_version || inputs.opl_release_version }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id || github.run_id }}
-          SOURCE_BUNDLE_DIGEST: ${{ inputs.source_bundle_digest }}
-          SOURCE_AUTHORITY_KIND: ${{ inputs.source_authority_kind }}
-          SOURCE_AUTHORITY_DIGEST: ${{ inputs.source_authority_digest }}
-          BASE_RELEASE_ID: ${{ inputs.base_release_id }}
-          BASE_RELEASE_TAG: ${{ inputs.base_release_tag }}
-          BASE_RELEASE_TARGET_COMMITISH: ${{ inputs.base_release_target_commitish }}
-          BASE_RELEASE_UPDATED_AT: ${{ inputs.base_release_updated_at }}
-          BASE_ASSET_INVENTORY_DIGEST: ${{ inputs.base_asset_inventory_digest }}
           PLATFORM_IDS: ${{ needs.prepare-matrix.outputs.platform_ids }}
           IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE: ${{ inputs.immutable_release_capability_evidence }}
           DISPATCH_ACTOR: ${{ github.actor }}
@@ -399,86 +340,29 @@ jobs:
           [[ "$SHELL_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          test "$PUBLICATION_MODE" = windows_preview_rc
+          test -n "$WINDOWS_PREVIEW_RELEASE_TOKEN" || {
+            echo '::error::Windows Preview publication requires the release-preview owner token with contents and workflows write permission.'
+            exit 1
+          }
+          export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"
+          mkdir -p windows-preview-publication-evidence
+          printf '0\n' > windows-preview-publication-evidence/mutation-attempt-count.txt
+          printf 'publication_admission\n' > windows-preview-publication-evidence/failure-stage.txt
+          : > windows-preview-publication-evidence/immutable-capability-evidence-digest.txt
           case "$PUBLICATION_MODE" in
             windows_preview_rc)
-              test -n "$WINDOWS_PREVIEW_RELEASE_TOKEN" || {
-                echo '::error::Windows Preview publication requires the release-preview owner token with contents and workflows write permission.'
-                exit 1
-              }
-              export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"
-              ;;
-            stable_optional_follower)
-              test -z "$WINDOWS_PREVIEW_RELEASE_TOKEN"
-              ;;
-          esac
-          mkdir -p optional-publication-evidence
-          printf '0\n' > optional-publication-evidence/mutation-attempt-count.txt
-          printf 'publication_admission\n' > optional-publication-evidence/failure-stage.txt
-          : > optional-publication-evidence/immutable-capability-evidence-digest.txt
-          case "$PUBLICATION_MODE" in
-            stable_optional_follower)
-              test -z "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE"
-              case "$SOURCE_AUTHORITY_KIND" in
-                standard_bundle)
-                  [[ "$SOURCE_BUNDLE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-                  test -z "$SOURCE_AUTHORITY_DIGEST$BASE_RELEASE_ID$BASE_RELEASE_TAG$BASE_RELEASE_TARGET_COMMITISH$BASE_RELEASE_UPDATED_AT$BASE_ASSET_INVENTORY_DIGEST"
-                  source_authority_digest="$SOURCE_BUNDLE_DIGEST"
-                  base_tag="v${VERSION}"
-                  base_target_commitish="$APP_REF"
-                  ;;
-                existing_base_source_qualification)
-                  test -z "$SOURCE_BUNDLE_DIGEST"
-                  [[ "$SOURCE_AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-                  [[ "$BASE_RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
-                  test "$BASE_RELEASE_TAG" = v26.8.4
-                  [[ "$BASE_RELEASE_TARGET_COMMITISH" =~ ^[0-9a-f]{40}$ ]]
-                  [[ "$BASE_ASSET_INVENTORY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-                  test "$VERSION" = 26.8.4
-                  source_authority_digest="$SOURCE_AUTHORITY_DIGEST"
-                  base_tag="$BASE_RELEASE_TAG"
-                  base_target_commitish="$BASE_RELEASE_TARGET_COMMITISH"
-                  ;;
-                *) echo '::error::Unsupported Stable optional source authority kind.'; exit 1 ;;
-              esac
-              carrier_kind=stable_optional_adjunct
-              manifest_name=opl-optional-platforms-manifest.json
-              expected_prerelease=false
-              capability_evidence_digest=
-              verify_exact_base_release() {
-                gh api "repos/$GITHUB_REPOSITORY/releases/tags/$base_tag" > base-release.json
-                actual_inventory_digest="sha256:$(jq -Sc '[.assets[] | {name,digest,size}] | sort_by(.name)' base-release.json | shasum -a 256 | awk '{print $1}')"
-                jq -e --arg tag "$base_tag" --arg target "$base_target_commitish" '
-                  .tag_name == $tag
-                  and .target_commitish == $target
-                  and .draft == false
-                  and .prerelease == false
-                  and .immutable == false
-                ' base-release.json >/dev/null || return 1
-                if [ "$SOURCE_AUTHORITY_KIND" = existing_base_source_qualification ]; then
-                  test "$(jq -er .id base-release.json)" = "$BASE_RELEASE_ID"
-                  test "$(jq -er .updated_at base-release.json)" = "$BASE_RELEASE_UPDATED_AT"
-                  test "$actual_inventory_digest" = "$BASE_ASSET_INVENTORY_DIGEST"
-                fi
-              }
-              verify_exact_base_release || {
-                echo "::error::Optional Stable publication requires the exact mutable base Stable Release used for same-tag Full append and the authority-bound CAS snapshot."
-                exit 1
-              }
-              ;;
-            windows_preview_rc)
-              test -z "$SOURCE_BUNDLE_DIGEST"
               test "$GITHUB_EVENT_NAME" = workflow_dispatch
               test "$DISPATCH_ACTOR" = "$REPOSITORY_OWNER"
               test -n "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE"
               [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]
               tag="windows-rc-${VERSION}"
-              base_tag=
               carrier_kind=windows_preview_rc
               manifest_name=opl-windows-preview-platforms-manifest.json
               expected_prerelease=true
               printf '%s' "$IMMUTABLE_RELEASE_CAPABILITY_EVIDENCE" \
-                | base64 --decode > optional-publication-evidence/immutable-release-capability.json
-              test -s optional-publication-evidence/immutable-release-capability.json
+                | base64 --decode > windows-preview-publication-evidence/immutable-release-capability.json
+              test -s windows-preview-publication-evidence/immutable-release-capability.json
               capability_evidence_digest="$(
                 node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -488,7 +372,7 @@ jobs:
 
           const evidence = validateGithubImmutableReleaseCapabilityEvidence(
             JSON.parse(fs.readFileSync(
-              'optional-publication-evidence/immutable-release-capability.json',
+              'windows-preview-publication-evidence/immutable-release-capability.json',
               'utf8',
             )),
             process.env.GITHUB_REPOSITORY,
@@ -503,41 +387,24 @@ jobs:
               )"
               [[ "$capability_evidence_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
               printf '%s\n' "$capability_evidence_digest" \
-                > optional-publication-evidence/immutable-capability-evidence-digest.txt
+                > windows-preview-publication-evidence/immutable-capability-evidence-digest.txt
               ;;
             *)
-              echo '::error::Unsupported selected-platform publication mode.'
+              echo '::error::Unsupported Windows Preview publication mode.'
               exit 1
               ;;
           esac
           operation_id="${PUBLICATION_MODE}-${SOURCE_RUN_ID}-${GITHUB_RUN_ID}"
           latest_before="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)"
 
-          printf 'asset_inventory\n' > optional-publication-evidence/failure-stage.txt
-          windows_updater_selected="$(jq -r 'index("windows-x64") != null' <<<"$PLATFORM_IDS")"
-          if [ "$PUBLICATION_MODE" = stable_optional_follower ] && [ "$windows_updater_selected" = true ]; then
-            updater_validation_args=(
-              --artifact-dir selected-platform-assets
-              --release-version "$VERSION"
-              --updater-version "$UPDATER_VERSION"
-              --output selected-platform-assets/opl-windows-updater-assets.json
-            )
-            authenticode_receipt=selected-platform-assets/opl-windows-authenticode-receipt.json
-            if [ -f "$authenticode_receipt" ]; then
-              updater_validation_args+=(--authenticode-receipt "$authenticode_receipt")
-            fi
-            node --experimental-strip-types scripts/validate-windows-updater-assets.ts \
-              "${updater_validation_args[@]}" \
-              > optional-publication-evidence/windows-updater-validation.json
-          else
-            test -z "$(find selected-platform-assets -maxdepth 1 -type f \
-              \( -name 'latest.yml' -o -name '*.exe.blockmap' -o -name 'opl-windows-updater-assets.json' \
-                 -o -name 'opl-windows-authenticode-receipt.json' \) \
-              -print -quit)" || {
-                echo '::error::Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build.'
-                exit 1
-              }
-          fi
+          printf 'asset_inventory\n' > windows-preview-publication-evidence/failure-stage.txt
+          test -z "$(find selected-platform-assets -maxdepth 1 -type f \
+            \( -name 'latest.yml' -o -name '*.exe.blockmap' -o -name 'opl-windows-updater-assets.json' \
+               -o -name 'opl-windows-authenticode-receipt.json' \) \
+            -print -quit)" || {
+              echo '::error::Windows Preview must not publish Stable updater assets.'
+              exit 1
+            }
           asset_paths=()
           while IFS= read -r file_path; do asset_paths+=("$file_path"); done < <(
             find selected-platform-assets -type f \
@@ -545,27 +412,8 @@ jobs:
                  -o -name 'download-windows-preview.ps1' -o -name 'SHA256SUMS.txt' \) \
               -print | LC_ALL=C sort
           )
-          if [ "$PUBLICATION_MODE" = stable_optional_follower ] && [ "$windows_updater_selected" = true ]; then
-            for updater_name in latest.yml opl-windows-updater-assets.json; do
-              updater_paths=()
-              while IFS= read -r file_path; do updater_paths+=("$file_path"); done < <(
-                find selected-platform-assets -maxdepth 1 -type f -name "$updater_name" -print
-              )
-              test "${#updater_paths[@]}" = 1
-              asset_paths+=("${updater_paths[0]}")
-            done
-            if [ -f selected-platform-assets/opl-windows-authenticode-receipt.json ]; then
-              asset_paths+=(selected-platform-assets/opl-windows-authenticode-receipt.json)
-            fi
-            blockmap_paths=()
-            while IFS= read -r file_path; do blockmap_paths+=("$file_path"); done < <(
-              find selected-platform-assets -maxdepth 1 -type f -name '*.exe.blockmap' -print
-            )
-            test "${#blockmap_paths[@]}" = 1
-            asset_paths+=("${blockmap_paths[0]}")
-          fi
           test "${#asset_paths[@]}" -gt 0
-          jq -n '[]' > optional-publication-evidence/assets.json
+          jq -n '[]' > windows-preview-publication-evidence/assets.json
           for asset_path in "${asset_paths[@]}"; do
             asset_name="$(basename "$asset_path")"
             asset_size="$(wc -c < "$asset_path" | tr -d ' ')"
@@ -576,33 +424,26 @@ jobs:
               --arg name "$asset_name" --arg digest "$asset_digest" --argjson size "$asset_size" \
               --arg source_path "$asset_path" \
               '. + [{name:$name,digest:$digest,size_bytes:$size,source_path:$source_path}]' \
-              optional-publication-evidence/assets.json \
-              > optional-publication-evidence/assets.next.json
-            mv optional-publication-evidence/assets.next.json optional-publication-evidence/assets.json
+              windows-preview-publication-evidence/assets.json \
+              > windows-preview-publication-evidence/assets.next.json
+            mv windows-preview-publication-evidence/assets.next.json windows-preview-publication-evidence/assets.json
           done
-          printf 'manifest_generation\n' > optional-publication-evidence/failure-stage.txt
+          printf 'manifest_generation\n' > windows-preview-publication-evidence/failure-stage.txt
           jq -S -n \
             --arg kind "$carrier_kind" \
             --arg source_run_id "$SOURCE_RUN_ID" \
-            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" --arg authority_kind "$SOURCE_AUTHORITY_KIND" \
-            --arg authority_digest "$source_authority_digest" \
-            --arg base_tag "$base_tag" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
             --arg display_version "$VERSION" --arg updater_version "$UPDATER_VERSION" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
             --argjson platforms "$PLATFORM_IDS" \
-            --argjson assets "$(jq 'map(del(.source_path))' optional-publication-evidence/assets.json)" '
+            --argjson assets "$(jq 'map(del(.source_path))' windows-preview-publication-evidence/assets.json)" '
               {
-                schema:"opl_app_immutable_platform_adjunct_manifest.v1",
+                schema:"opl_app_windows_preview_manifest.v1",
                 kind:$kind,
                 source:{
-                  run_id:$source_run_id,
-                  authority_kind:$authority_kind,
-                  authority_digest:$authority_digest,
-                  bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)
+                  run_id:$source_run_id
                 },
-                base_release_tag:(if $base_tag == "" then null else $base_tag end),
                 release_identity:{display_version:$display_version,updater_version:$updater_version},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
                 platforms:$platforms,
@@ -620,21 +461,14 @@ jobs:
           jq -e \
             --arg kind "$carrier_kind" \
             --arg source_run_id "$SOURCE_RUN_ID" \
-            --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" --arg authority_kind "$SOURCE_AUTHORITY_KIND" \
-            --arg authority_digest "$source_authority_digest" \
-            --arg base_tag "$base_tag" \
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --arg dispatch_actor "$DISPATCH_ACTOR" \
             --arg display_version "$VERSION" --arg updater_version "$UPDATER_VERSION" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
             --argjson platforms "$PLATFORM_IDS" '
-              .schema == "opl_app_immutable_platform_adjunct_manifest.v1"
+              .schema == "opl_app_windows_preview_manifest.v1"
               and .kind == $kind
               and .source.run_id == $source_run_id
-              and .source.authority_kind == $authority_kind
-              and .source.authority_digest == $authority_digest
-              and .source.bundle_digest == (if $bundle_digest == "" then null else $bundle_digest end)
-              and .base_release_tag == (if $base_tag == "" then null else $base_tag end)
               and .release_identity == {display_version:$display_version,updater_version:$updater_version}
               and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
               and .platforms == $platforms
@@ -656,21 +490,11 @@ jobs:
             --arg name "$manifest_name" --arg digest "$manifest_digest" --argjson size "$manifest_size" \
             --arg source_path "$manifest_path" \
             '. + [{name:$name,digest:$digest,size_bytes:$size,source_path:$source_path}]' \
-            optional-publication-evidence/assets.json \
-            > optional-publication-evidence/assets.next.json
-          mv optional-publication-evidence/assets.next.json optional-publication-evidence/assets.json
-          if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then
-            manifest_hex="${manifest_digest#sha256:}"
-            tag="${base_tag}-optional-${manifest_hex:0:12}"
-            release_name="One Person Lab ${VERSION} optional platform adjunct"
-            printf -v release_notes '%s\n\n%s\n%s\n%s\n' \
-              "Immutable optional-platform adjunct for One Person Lab ${VERSION}." \
-              "Base Stable Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${base_tag}" \
-              "Source authority: ${source_authority_digest}" \
-              'Download the selected platform installers and machine manifest from this adjunct Release. The base Stable Release and Latest are unchanged.'
-          else
-            release_name="One Person Lab Windows Preview ${VERSION}"
-            release_notes_template="$(
+            windows-preview-publication-evidence/assets.json \
+            > windows-preview-publication-evidence/assets.next.json
+          mv windows-preview-publication-evidence/assets.next.json windows-preview-publication-evidence/assets.json
+          release_name="One Person Lab Windows Preview ${VERSION}"
+          release_notes_template="$(
               cat <<'EOF'
           One Person Lab Windows Preview __VERSION__
 
@@ -709,14 +533,13 @@ jobs:
 
           This Release is a prerelease, is not Stable, does not replace GitHub Latest, and does not update the in-App Stable channel, Homebrew, or WebUI Stable.
           EOF
-            )"
-            release_notes="${release_notes_template//__VERSION__/$VERSION}"
-          fi
+          )"
+          release_notes="${release_notes_template//__VERSION__/$VERSION}"
 
           fetch_release_including_drafts() {
             local target_tag="$1"
             local output_path="$2"
-            local releases_path=optional-publication-evidence/owner-visible-releases.json
+            local releases_path=windows-preview-publication-evidence/owner-visible-releases.json
             local match_count
             if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$target_tag" \
               > "$output_path" 2>/dev/null; then
@@ -745,7 +568,7 @@ jobs:
               > "$output_path"
           }
 
-          printf 'release_reconciliation\n' > optional-publication-evidence/failure-stage.txt
+          printf 'release_reconciliation\n' > windows-preview-publication-evidence/failure-stage.txt
           release_json=selected-platform-release.json
           set +e
           fetch_release_including_drafts "$tag" "$release_json"
@@ -756,15 +579,14 @@ jobs:
             exit "$release_lookup_status"
           fi
           if [ "$release_lookup_status" = 1 ]; then
-            if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then verify_exact_base_release; fi
-            printf 'draft_release_creation\n' > optional-publication-evidence/failure-stage.txt
+            printf 'draft_release_creation\n' > windows-preview-publication-evidence/failure-stage.txt
             jq -n \
               --arg tag "$tag" --arg target "$APP_REF" --arg name "$release_name" \
               --arg body "$release_notes" --argjson prerelease "$expected_prerelease" \
               '{tag_name:$tag,target_commitish:$target,name:$name,body:$body,draft:true,prerelease:$prerelease,make_latest:"false"}' \
               > release-create.json
-            attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
-            printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
+            attempts="$(cat windows-preview-publication-evidence/mutation-attempt-count.txt)"
+            printf '%s\n' "$((attempts + 1))" > windows-preview-publication-evidence/mutation-attempt-count.txt
             set +e
             gh api --method POST "repos/$GITHUB_REPOSITORY/releases" \
               --input release-create.json > release-create-response.json
@@ -808,7 +630,7 @@ jobs:
           release_id="$(jq -er .id "$release_json")"
 
           jq -e \
-            --argjson expected "$(cat optional-publication-evidence/assets.json)" '
+            --argjson expected "$(cat windows-preview-publication-evidence/assets.json)" '
               . as $release
               | all(.assets[]?;
                   . as $remote
@@ -827,10 +649,9 @@ jobs:
               remote_count="$(jq --arg name "$asset_name" '[.assets[] | select(.name == $name)] | length' "$release_json")"
               test "$remote_count" -le 1
               if [ "$remote_count" = 0 ]; then
-                if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then verify_exact_base_release; fi
-                printf 'draft_asset_upload\n' > optional-publication-evidence/failure-stage.txt
-                attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
-                printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
+                printf 'draft_asset_upload\n' > windows-preview-publication-evidence/failure-stage.txt
+                attempts="$(cat windows-preview-publication-evidence/mutation-attempt-count.txt)"
+                printf '%s\n' "$((attempts + 1))" > windows-preview-publication-evidence/mutation-attempt-count.txt
                 set +e
                 gh release upload "$tag" "$asset_path" --repo "$GITHUB_REPOSITORY"
                 upload_status=$?
@@ -847,9 +668,9 @@ jobs:
                 [.assets[] | select(.name == $name)]
                 | length == 1 and .[0].digest == $digest and .[0].size == $size
               ' "$release_json" >/dev/null
-            done < <(jq -c '.[]' optional-publication-evidence/assets.json)
+            done < <(jq -c '.[]' windows-preview-publication-evidence/assets.json)
             jq -e \
-              --argjson expected "$(cat optional-publication-evidence/assets.json)" '
+              --argjson expected "$(cat windows-preview-publication-evidence/assets.json)" '
                 . as $release
                 | (.assets | length) == ($expected | length)
                 and all($expected[];
@@ -859,11 +680,10 @@ jobs:
                       and .digest == $asset.digest
                       and .size == $asset.size_bytes))
               ' "$release_json" >/dev/null
-            printf 'immutable_release_publication\n' > optional-publication-evidence/failure-stage.txt
-            if [ "$PUBLICATION_MODE" = stable_optional_follower ]; then verify_exact_base_release; fi
+            printf 'immutable_release_publication\n' > windows-preview-publication-evidence/failure-stage.txt
             jq -n '{draft:false,make_latest:"false"}' > release-publish.json
-            attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt)"
-            printf '%s\n' "$((attempts + 1))" > optional-publication-evidence/mutation-attempt-count.txt
+            attempts="$(cat windows-preview-publication-evidence/mutation-attempt-count.txt)"
+            printf '%s\n' "$((attempts + 1))" > windows-preview-publication-evidence/mutation-attempt-count.txt
             set +e
             gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
               --input release-publish.json > release-publish-response.json
@@ -880,7 +700,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > "$release_json"
           jq -e \
             --arg tag "$tag" --arg target "$APP_REF" --argjson prerelease "$expected_prerelease" \
-            --argjson expected "$(cat optional-publication-evidence/assets.json)" '
+            --argjson expected "$(cat windows-preview-publication-evidence/assets.json)" '
               . as $release
               | .tag_name == $tag
               and .target_commitish == $target
@@ -902,10 +722,9 @@ jobs:
           download_base="https://github.com/$GITHUB_REPOSITORY/releases/download/$tag"
           jq -n \
             --arg operation_id "$operation_id" --arg mode "$PUBLICATION_MODE" \
-            --arg source_run_id "$SOURCE_RUN_ID" --arg bundle_digest "$SOURCE_BUNDLE_DIGEST" \
-            --arg authority_kind "$SOURCE_AUTHORITY_KIND" --arg authority_digest "$source_authority_digest" \
+            --arg source_run_id "$SOURCE_RUN_ID" \
             --arg app "$APP_REF" --arg shell "$SHELL_REF" --arg framework "$FRAMEWORK_REF" \
-            --arg base_tag "$base_tag" --arg tag "$tag" --arg release_url "$release_url" \
+            --arg tag "$tag" --arg release_url "$release_url" \
             --arg download_base "$download_base" --arg manifest_name "$manifest_name" \
             --arg manifest_digest "$manifest_digest" \
             --arg display_version "$VERSION" --arg updater_version "$UPDATER_VERSION" \
@@ -913,19 +732,14 @@ jobs:
             --arg dispatch_actor "$DISPATCH_ACTOR" \
             --arg latest_before "$latest_before" --arg latest_after "$latest_after" \
             --argjson platforms "$PLATFORM_IDS" \
-            --argjson assets "$(jq 'map(del(.source_path))' optional-publication-evidence/assets.json)" \
-            --argjson mutation_attempt_count "$(cat optional-publication-evidence/mutation-attempt-count.txt)" '
+            --argjson assets "$(jq 'map(del(.source_path))' windows-preview-publication-evidence/assets.json)" \
+            --argjson mutation_attempt_count "$(cat windows-preview-publication-evidence/mutation-attempt-count.txt)" '
               {
-                schema:"opl_app_optional_platform_publication_receipt.v1",
+                schema:"opl_app_windows_preview_publication_receipt.v1",
                 status:"passed",
                 operation_id:$operation_id,
                 mode:$mode,
-                source:{
-                  run_id:$source_run_id,
-                  authority_kind:$authority_kind,
-                  authority_digest:$authority_digest,
-                  bundle_digest:(if $bundle_digest == "" then null else $bundle_digest end)
-                },
+                source:{run_id:$source_run_id},
                 release_identity:{display_version:$display_version,updater_version:$updater_version},
                 cohort:{app_sha:$app,shell_sha:$shell,framework_sha:$framework},
                 publication_control:{
@@ -936,7 +750,6 @@ jobs:
                 },
                 release:{
                   carrier:"independent_immutable_release",
-                  base_tag:(if $base_tag == "" then null else $base_tag end),
                   tag:$tag,
                   url:$release_url,
                   download_base_url:$download_base,
@@ -954,18 +767,18 @@ jobs:
                   latest_after:$latest_after
                 }
               }
-            ' > optional-publication-evidence/receipt.json
-          printf 'passed\n' > optional-publication-evidence/failure-stage.txt
+            ' > windows-preview-publication-evidence/receipt.json
+          printf 'passed\n' > windows-preview-publication-evidence/failure-stage.txt
 
-      - name: Persist typed optional publication failure
+      - name: Persist typed Windows Preview publication failure
         if: ${{ failure() }}
         shell: bash
         run: |
-          mkdir -p optional-publication-evidence
-          attempts="$(cat optional-publication-evidence/mutation-attempt-count.txt 2>/dev/null || printf 0)"
-          failure_stage="$(cat optional-publication-evidence/failure-stage.txt 2>/dev/null || printf publication_admission)"
+          mkdir -p windows-preview-publication-evidence
+          attempts="$(cat windows-preview-publication-evidence/mutation-attempt-count.txt 2>/dev/null || printf 0)"
+          failure_stage="$(cat windows-preview-publication-evidence/failure-stage.txt 2>/dev/null || printf publication_admission)"
           capability_evidence_digest="$(
-            cat optional-publication-evidence/immutable-capability-evidence-digest.txt 2>/dev/null || true
+            cat windows-preview-publication-evidence/immutable-capability-evidence-digest.txt 2>/dev/null || true
           )"
           jq -n \
             --arg mode '${{ needs.prepare-matrix.outputs.publication_mode }}' \
@@ -974,7 +787,7 @@ jobs:
             --arg capability_evidence_digest "$capability_evidence_digest" \
             --argjson attempts "$attempts" '
               {
-                schema:"opl_app_optional_platform_publication_failure.v1",
+                schema:"opl_app_windows_preview_publication_failure.v1",
                 status:"failed",
                 mode:$mode,
                 source_run_id:$source_run_id,
@@ -986,13 +799,13 @@ jobs:
                 retry_performed:false,
                 recovery:"start_distinct_operation_after_read_only_reconciliation"
               }
-            ' > optional-publication-evidence/failure.json
+            ' > windows-preview-publication-evidence/failure.json
 
-      - name: Upload durable selected-platform publication receipt
+      - name: Upload durable Windows Preview publication receipt
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: opl-selected-platform-publication-${{ github.run_id }}
-          path: optional-publication-evidence
+          name: opl-windows-preview-publication-${{ github.run_id }}
+          path: windows-preview-publication-evidence
           if-no-files-found: error
           retention-days: 30

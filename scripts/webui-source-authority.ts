@@ -12,6 +12,7 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
 const runPattern = /^[1-9][0-9]*$/;
 const previewVersionPattern = /^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])-preview\.r[1-9][0-9]*$/;
+const stableVersionPattern = /^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])(?:-r[1-9][0-9]*)?$/;
 
 const sourceRepos = {
   app: 'gaofeng21cn/one-person-lab-app',
@@ -67,8 +68,9 @@ function authorityCore(input: {
   runId: string;
   executorSha: string;
 }): JsonRecord {
-  if (!previewVersionPattern.test(input.version)) {
-    throw new Error('Independent WebUI preview version must use YY.M.D-preview.rN.');
+  const preview = previewVersionPattern.test(input.version);
+  if (!preview && !stableVersionPattern.test(input.version)) {
+    throw new Error('Independent WebUI version must be Stable YY.M.D[-rN] or Preview YY.M.D-preview.rN.');
   }
   const appSha = sha(input.appSha, 'App source SHA');
   const shellSha = sha(input.shellSha, 'Shell source SHA');
@@ -79,9 +81,9 @@ function authorityCore(input: {
     schema: 'opl_app_webui_source_authority.v1',
     status: 'admitted',
     carrier: 'container_webui',
-    quality_status: 'preview',
+    quality_status: preview ? 'preview' : 'stable',
     build_trigger: 'manual',
-    preview_kind: 'dev',
+    preview_kind: preview ? 'dev' : null,
     release: {
       version: input.version,
       tag: input.version,

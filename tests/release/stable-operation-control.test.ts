@@ -128,7 +128,7 @@ function issuedAuthority(input: {
   criticalBlobs?: Record<string, string>;
   issuer?: string;
   nonce?: string;
-  optionalPlatforms?: unknown;
+  desktopAdditionalPlatforms?: unknown;
   sourceGate?: Record<string, unknown>;
   preNonceGuard?: Record<string, unknown>;
 } = {}) {
@@ -151,14 +151,14 @@ function issuedAuthority(input: {
     appSha,
     shellSha,
     frameworkSha,
-    optionalPlatforms: input.optionalPlatforms,
+    desktopAdditionalPlatforms: input.desktopAdditionalPlatforms,
     criticalBlobs: authorityCriticalBlobs,
     sourceGate: input.sourceGate ?? sourceGate(),
     preNonceGuard: input.preNonceGuard ?? preNonceGuard({ operationId: authorityOperationId }),
   });
 }
 
-function control(optionalPlatforms: unknown = []) {
+function control(desktopAdditionalPlatforms: unknown = []) {
   return createStableOperationControl({
     operationId,
     actor: 'gaofeng21cn',
@@ -168,12 +168,12 @@ function control(optionalPlatforms: unknown = []) {
     appSha,
     shellSha,
     frameworkSha,
-    optionalPlatforms,
+    desktopAdditionalPlatforms,
     criticalBlobs,
     sourceGateDigest: evidenceDigest(sourceGate()),
     preNonceGuardDigest: evidenceDigest(preNonceGuard()),
     runAuthorityReconcileDigest: evidenceDigest(runAuthorityReconcile()),
-    issuedAuthority: issuedAuthority({ optionalPlatforms }),
+    issuedAuthority: issuedAuthority({ desktopAdditionalPlatforms }),
   });
 }
 
@@ -186,26 +186,26 @@ test('Stable operation control binds one actor, exact frozen cohort, critical bl
   assert.equal(validateStableOperationControl(actual).authority_digest, actual.authority_digest);
 });
 
-test('Stable authority canonically binds audited optional platform selection into the run control', () => {
-  assert.deepEqual(issuedAuthority().optional_platforms, ['linux-x64', 'windows-x64']);
+test('Stable authority canonically binds audited additional Desktop platform selection into the run control', () => {
+  assert.deepEqual(issuedAuthority().desktop_additional_platforms, ['linux-x64', 'windows-x64']);
   const actual = control(['windows-x64', 'linux-x64']);
-  assert.deepEqual(actual.optional_platforms, ['linux-x64', 'windows-x64']);
-  assert.deepEqual(actual.issued_authority.optional_platforms, actual.optional_platforms);
+  assert.deepEqual(actual.desktop_additional_platforms, ['linux-x64', 'windows-x64']);
+  assert.deepEqual(actual.issued_authority.desktop_additional_platforms, actual.desktop_additional_platforms);
 
   const drifted = structuredClone(actual);
-  drifted.optional_platforms = ['linux-x64'];
+  drifted.desktop_additional_platforms = ['linux-x64'];
   assert.throws(
     () => validateStableOperationControl(drifted),
     /cohort or critical blob bindings do not match/,
   );
   assert.throws(
     () => control(['macos-arm64']),
-    /optional_platforms contains an unknown or duplicate platform ID/,
+    /desktop_additional_platforms contains an unknown or duplicate platform ID/,
   );
   for (const platform of ['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64']) {
     assert.throws(
       () => control([platform]),
-      /optional_platforms contains an unknown or duplicate platform ID/,
+      /desktop_additional_platforms contains an unknown or duplicate platform ID/,
     );
   }
 });

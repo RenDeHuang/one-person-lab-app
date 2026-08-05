@@ -45,11 +45,8 @@ test('frozen universal installer binds one exact App carrier and remains executa
     assert.match(script, /opl-release-manifest\.json/);
     assert.doesNotMatch(script, /resolve_full_adjunct_release_record/);
     assert.doesNotMatch(script, /STABLE_MACOS_FULL_ADJUNCT_TAG/);
-    assert.match(script, /resolve_linux_adjunct_release_record/);
-    assert.match(script, /linux_adjunct_release_record_binds_tagged_assets/);
-    assert.match(script, /opl-optional-platforms-manifest\.json/);
-    assert.match(script, /LINUX_DESKTOP_ADJUNCT_TAG/);
-    assert.match(script, /Linux adjunct manifest cohort does not match the base component manifest/);
+    assert.doesNotMatch(script, /resolve_linux_adjunct_release_record|LINUX_DESKTOP_ADJUNCT_TAG/);
+    assert.match(script, /Linux Desktop asset URL is not bound to the selected Desktop Release/);
     assert.doesNotMatch(script, /STABLE_MACOS_SOURCE_(?:APP|SHELL|FRAMEWORK)_SHA/);
     assert.match(
       script,

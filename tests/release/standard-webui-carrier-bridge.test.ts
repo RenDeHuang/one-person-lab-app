@@ -7,6 +7,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { bindStandardReleaseTrack } from '../../scripts/bind-standard-release-track.ts';
+import { createWebuiSourceAuthority } from '../../scripts/webui-source-authority.ts';
 import { writeStandardDistributionTrust } from './app-release-boundary-cases/helpers.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
@@ -331,100 +332,58 @@ test('Standard freeze request contains only Desktop Standard and optional Full t
   });
 });
 
-test('WebUI build input derives from Standard identity without entering the Standard Bundle track', () => {
+test('WebUI build input derives only from independent source authority', () => {
   const fixture = bridgeFixture();
   const output = path.join(fixture.root, 'webui-build-input-draft.json');
+  const authority = createWebuiSourceAuthority({
+    version,
+    appSha: fixture.app.sha,
+    shellSha: fixture.shell.sha,
+    frameworkSha: fixture.framework.sha,
+    runId: '987654321',
+    executorSha: fixture.app.sha,
+  });
+  const authorityPath = path.join(fixture.root, 'webui-source-authority.json');
+  writeJson(authorityPath, authority);
   const result = runAdapter([
     'webui-build-input',
-    '--standard-identity',
-    fixture.identityPath,
-    '--bundle',
-    fixture.bundlePath,
-    '--app-root',
-    fixture.app.root,
-    '--shell-root',
-    fixture.shell.root,
-    '--framework-root',
-    fixture.framework.root,
-    '--source-cutoff-observed-at',
-    '2026-07-24T00:00:00.000Z',
-    '--base-image-index',
-    fixture.baseImageIndex,
-    '--frozen-codex-tarball',
-    fixture.codexTarball,
-    '--output',
-    output,
+    '--source-authority', authorityPath,
+    '--app-root', fixture.app.root,
+    '--shell-root', fixture.shell.root,
+    '--framework-root', fixture.framework.root,
+    '--source-cutoff-observed-at', '2026-07-24T00:00:00.000Z',
+    '--base-image-index', fixture.baseImageIndex,
+    '--frozen-codex-tarball', fixture.codexTarball,
+    '--output', output,
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 
   const buildInput = JSON.parse(fs.readFileSync(output, 'utf8'));
   assert.deepEqual(buildInput.release, {
     version,
-    bundle_digest: fixture.exactBundleDigest,
-    cohort_ref: fixture.exactBundleDigest,
+    bundle_digest: authority.source_authority_digest,
+    cohort_ref: authority.source_authority_digest,
   });
   assert.deepEqual(buildInput.cohort, {
     app_sha: fixture.app.sha,
     shell_sha: fixture.shell.sha,
     framework_sha: fixture.framework.sha,
   });
-  assert.equal(buildInput.source_cutoff.frozen_base_release_set, null);
   assert.deepEqual(
     buildInput.inputs.map((input: { id: string }) => input.id),
-    [
-      'app_source',
-      'base_image',
-      'codex_cli',
-      'dockerfile',
-      'framework_seed',
-      'qualification_harness',
-      'shell_webui_source',
-    ],
+    ['app_source', 'base_image', 'codex_cli', 'dockerfile', 'framework_seed', 'qualification_harness', 'shell_webui_source'],
   );
-  assert.equal(
-    buildInput.inputs.some((input: { id: string }) => input.id === 'first_party_packages'),
-    false,
-  );
-  assert.equal(
-    buildInput.inputs.some((input: { id: string }) => input.id === 'opl_flow'),
-    false,
-  );
-
-  const bundle = JSON.parse(fs.readFileSync(fixture.bundlePath, 'utf8'));
-  assert.equal(bundle.tracks.webui, undefined);
-  assert.equal(bundle.source_cutoff, undefined);
-  assert.equal(bundle.frozen_build_inputs, undefined);
-  assert.equal(bundle.policy.latest_required_track, 'standard');
-  assert.equal(bundle.policy.latest_required_tracks, undefined);
 });
 
-test('WebUI bridge rejects tampered Bundle bytes and Framework WebUI track receipts', () => {
+test('WebUI bridge rejects Desktop authority and Framework WebUI track receipts', () => {
   const fixture = bridgeFixture();
-  const tamperedPath = path.join(fixture.root, 'tampered-bundle.json');
-  const tampered = JSON.parse(fs.readFileSync(fixture.bundlePath, 'utf8'));
-  tampered.release.version = '26.7.25';
-  writeJson(tamperedPath, tampered);
   const rejected = runAdapter([
     'webui-build-input',
-    '--standard-identity',
-    fixture.identityPath,
-    '--bundle',
-    tamperedPath,
-    '--app-root',
-    fixture.app.root,
-    '--shell-root',
-    fixture.shell.root,
-    '--framework-root',
-    fixture.framework.root,
-    '--source-cutoff-observed-at',
-    '2026-07-24T00:00:00.000Z',
-    '--base-image-index',
-    fixture.baseImageIndex,
-    '--frozen-codex-tarball',
-    fixture.codexTarball,
+    '--standard-identity', fixture.identityPath,
+    '--bundle', fixture.bundlePath,
   ]);
   assert.notEqual(rejected.status, 0);
-  assert.match(rejected.stderr, /Bundle digest does not match/);
+  assert.match(rejected.stderr, /cannot be combined with Desktop release authority/);
 
   const executor = runAdapter([
     'executor-receipt',

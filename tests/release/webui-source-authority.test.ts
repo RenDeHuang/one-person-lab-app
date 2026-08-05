@@ -40,18 +40,17 @@ test('independent WebUI source authority binds the exact Preview cohort and disp
   assert.match(authority.source_authority_digest, /^sha256:[0-9a-f]{64}$/);
 });
 
-test('independent WebUI source authority fails closed on version, source, or digest drift', () => {
-  assert.throws(
-    () => createWebuiSourceAuthority({
+test('independent WebUI source authority admits Stable and fails closed on source or digest drift', () => {
+  const stable = createWebuiSourceAuthority({
       version: '26.7.28',
       appSha,
       shellSha,
       frameworkSha,
       runId: '302',
       executorSha,
-    }),
-    /YY\.M\.D-preview\.rN/,
-  );
+    });
+  assert.equal(stable.quality_status, 'stable');
+  assert.equal(stable.preview_kind, null);
 
   const cases: Array<[string, (authority: Record<string, any>) => void]> = [
     ['source commit', (authority) => { authority.sources.shell.source_commit = 'e'.repeat(40); }],

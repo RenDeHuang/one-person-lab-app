@@ -171,10 +171,8 @@ test('the App adapter rejects prepared notes that bind a future Full Package pay
 
 test('Stable Standard publication binds one Desktop carrier without a retired Native artifact', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
-  const follower = parseWorkflow('release-webui-follower.yml');
   const source = readWorkflow('_release-bundle.yml');
   const standardSource = readWorkflow('_release-standard-publish.yml');
-  const followerSource = readWorkflow('release-webui-follower.yml');
   const webuiSource = readWorkflow('_release-webui-carrier.yml');
   const adapterSource = readAdapter();
   assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze', 'resolve-platform-matrix']);
@@ -229,109 +227,9 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   assert.doesNotMatch(String(standardPublicationReceipt.with.path), /native-qualified|native-release/);
   assert.equal(workflow.jobs['webui-carrier'], undefined);
   assert.equal(workflow.jobs['promote-webui-stable'], undefined);
-  assert.deepEqual(Object.keys(follower.on), ['workflow_run', 'workflow_dispatch']);
-  assert.deepEqual(follower.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
-  assert.deepEqual(follower.on.workflow_run.types, ['completed']);
-  assert.deepEqual(Object.keys(follower.on.workflow_dispatch.inputs), [
-    'source_run_id',
-    'failed_follower_run_id',
-    'failed_recovery_run_id',
-    'failed_recovery_v2_run_id',
-    'failed_recovery_v3_run_id',
-    'failed_recovery_v4_run_id',
-    'failed_recovery_v5_run_id',
-    'failed_recovery_v6_run_id',
-    'failed_recovery_v7_run_id',
-    'failed_recovery_v8_run_id',
-    'recovery_confirmation',
-  ]);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v3_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v3_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v4_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v4_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v5_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v5_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v6_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v6_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v7_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v7_run_id.type, 'string');
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v8_run_id.required, false);
-  assert.equal(follower.on.workflow_dispatch.inputs.failed_recovery_v8_run_id.type, 'string');
-  assert.deepEqual(follower.on.workflow_dispatch.inputs.recovery_confirmation.options, [
-    'recover_exact_failed_webui_follower_v1',
-    'recover_exact_failed_webui_follower_v2',
-    'recover_exact_failed_webui_follower_v3',
-    'recover_exact_failed_webui_follower_v4',
-    'recover_exact_failed_webui_follower_v5',
-    'recover_exact_failed_webui_follower_v6',
-    'recover_exact_failed_webui_follower_v7',
-    'recover_exact_failed_webui_follower_v8',
-    'recover_exact_failed_webui_follower_v9',
-  ]);
-  assert.match(followerSource, /\.total_count == 5/);
-  assert.match(followerSource, /promote-webui-stable" and \.conclusion == "skipped"/);
-  assert.match(followerSource, /failed recovery v1 \$\{FAILED_RECOVERY_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v2 \$\{FAILED_RECOVERY_V2_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v3 \$\{FAILED_RECOVERY_V3_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v4 \$\{FAILED_RECOVERY_V4_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v5 \$\{FAILED_RECOVERY_V5_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v6 \$\{FAILED_RECOVERY_V6_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v7 \$\{FAILED_RECOVERY_V7_RUN_ID\}/);
-  assert.match(followerSource, /failed recovery v8 \$\{FAILED_RECOVERY_V8_RUN_ID\}/);
-  assert.match(followerSource, /opl_seed_payload_symlink_forbidden/);
-  assert.match(followerSource, /expected one exact nested OPL Flow currentness error/);
-  assert.match(followerSource, /\.total_count == 3/);
-  assert.match(followerSource, /failed-recovery-v3-artifacts\.json/);
-  assert.match(followerSource, /failed-recovery-v4-artifacts\.json/);
-  assert.match(followerSource, /failed-recovery-v5-artifacts\.json/);
-  assert.match(followerSource, /failed-recovery-v6-artifacts\.json/);
-  assert.match(followerSource, /failed-recovery-v7-artifacts\.json/);
-  assert.match(followerSource, /failed-recovery-v8-artifacts\.json/);
-  assert.match(followerSource, /webui-sidecar-reconcile-26\.8\.4-/);
-  assert.match(followerSource, /Error: absolute file path detected\./);
-  assert.match(followerSource, /sha256:44eb5268eeb16ca2362d46515da59c3db6ae5537fd9bd69ec42b6845618eed23/);
-  assert.match(followerSource, /fatal: Not a valid commit name 95640c74e0b14ba2e88056de725c417fd1693cf1/);
-  assert.match(followerSource, /FAILED_RECOVERY_V4_RUN_ID: unbound variable/);
-  assert.match(followerSource, /configured_codex_plugin_carrier_owner_descriptor_missing/);
-  assert.match(followerSource, /e9a5cc46766215e4e301d8a59fcaeffc2e00de7a/);
-  assert.match(followerSource, /acdf7738832dcdf569ecea9b63fcbc7d0d47d238/);
-  assert.match(followerSource, /runs\?event=workflow_dispatch&per_page=100/);
-  assert.equal(follower.jobs['webui-carrier'].needs[0], 'resolve-handoff');
-  assert.deepEqual(
-    follower.jobs['promote-webui-stable'].needs,
-    ['resolve-handoff', 'webui-carrier'],
-  );
-  assert.equal(
-    follower.jobs['webui-carrier'].with.source_artifact_run_id,
-    '${{ needs.resolve-handoff.outputs.source_artifact_run_id }}',
-  );
-  assert.equal(
-    follower.jobs['webui-carrier'].with.standard_checkpoint_artifact_name,
-    '${{ needs.resolve-handoff.outputs.standard_checkpoint_artifact_name }}',
-  );
-  assert.equal(
-    follower.jobs['webui-carrier'].with.qualified_artifact_run_id,
-    '${{ needs.resolve-handoff.outputs.qualified_artifact_run_id }}',
-  );
-  assert.equal(
-    follower.jobs['webui-carrier'].with.qualified_artifact_name,
-    '${{ needs.resolve-handoff.outputs.qualified_artifact_name }}',
-  );
-  assert.doesNotMatch(followerSource, /continue-on-error/);
-  assert.match(followerSource, /executor_head_sha:\s*\$head/);
-  assert.match(followerSource, /\.release\.cohort\.app_sha \| test/);
-  assert.doesNotMatch(
-    followerSource,
-    /\.release\.cohort\.app_sha == \$head/,
-    'resume_standard must keep the original Bundle App SHA independent from the current executor SHA',
-  );
-  assert.match(standardSource, /webui-follower-handoff\.json/);
+  assert.doesNotMatch(standardSource, /webui-follower-handoff\.json|release-webui-follower/);
+  assert.doesNotMatch(webuiSource, /stable_authority_run_id|production_recovery|development_validation/);
   assert.match(standardSource, /test "\$framework_terminal_status" = complete/);
-  assert.match(standardSource, /framework_terminal_status:\s*\$framework_terminal_status/);
   for (const id of [
     'app_source',
     'base_image',

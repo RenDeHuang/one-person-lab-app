@@ -313,9 +313,11 @@ jobs:
               }
             ' "$identity_receipt" >/dev/null
           producer_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "$identity_receipt")"
-          echo "standard_identity_sha256=$observed" >> "$GITHUB_OUTPUT"
-          echo "standard_bound_artifact_run_id=$producer_run_id" >> "$GITHUB_OUTPUT"
-          echo "standard_bound_artifact_name=opl-release-standard-bound-$producer_run_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "standard_identity_sha256=$observed"
+            echo "standard_bound_artifact_run_id=$producer_run_id"
+            echo "standard_bound_artifact_name=opl-release-standard-bound-$producer_run_id"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Resolve frozen Framework source and current executor identities
         id: framework-binding
@@ -1978,61 +1980,6 @@ jobs:
           cp "${standard_build_receipts[0]}" standard-build-receipt.json
           cmp "${standard_build_receipts[0]}" standard-build-receipt.json
 
-      - name: Prepare exact WebUI follower source
-        id: webui-follower-source
-        if: ${{ needs.restore.outputs.channel == 'stable' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          identity_receipts=()
-          while IFS= read -r identity_receipt; do
-            identity_receipts+=("$identity_receipt")
-          done < <(
-            find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
-          )
-          case "${#identity_receipts[@]}" in
-            0)
-              echo "eligible=false" >> "$GITHUB_OUTPUT"
-              echo "standard_identity_sha256=" >> "$GITHUB_OUTPUT"
-              ;;
-            1)
-              identity_receipt="${identity_receipts[0]}"
-              test -f "$identity_receipt" && test ! -L "$identity_receipt"
-              jq -e \
-                --arg version '${{ needs.restore.outputs.version }}' \
-                --arg bundle '${{ needs.restore.outputs.bundle_digest }}' \
-                --arg app '${{ needs.restore.outputs.app_ref }}' \
-                --arg shell '${{ needs.restore.outputs.shell_ref }}' \
-                --arg framework '${{ needs.restore.outputs.framework_source_ref }}' '
-                  .schema == "opl_standard_release_identity_receipt.v2"
-                  and .status == "passed"
-                  and .source.repository == "gaofeng21cn/one-person-lab-app"
-                  and .source.run_attempt == 1
-                  and (.source.run_id | test("^[1-9][0-9]*$"))
-                  and .release.channel == "stable"
-                  and .release.version == $version
-                  and .release.bundle_digest == $bundle
-                  and .cohort == {
-                    app_sha: $app,
-                    shell_sha: $shell,
-                    framework_sha: $framework
-                  }
-                ' "$identity_receipt" >/dev/null
-              test '${{ needs.restore.outputs.source_run_id }}' = "$GITHUB_RUN_ID"
-              test '${{ needs.restore.outputs.source_artifact }}' = "opl-release-standard-operation-checkpoint-${GITHUB_RUN_ID}"
-              mkdir -p webui-follower
-              cp "$identity_receipt" webui-follower/standard-identity-receipt.json
-              cmp "$identity_receipt" webui-follower/standard-identity-receipt.json
-              identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
-              echo "eligible=true" >> "$GITHUB_OUTPUT"
-              echo "standard_identity_sha256=$identity_sha256" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "::error::Standard checkpoint contains multiple identity receipts."
-              exit 1
-              ;;
-          esac
-
       - name: Download Standard Homebrew publication receipt
         if: ${{ needs.restore.outputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -2228,94 +2175,6 @@ jobs:
               latest-framework-result.json
           )"
           test "$framework_terminal_status" = complete
-          if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
-          if [ '${{ steps.webui-follower-source.outputs.eligible }}' = true ]; then
-            jq -n \
-              --arg stable_authority_run_id "$GITHUB_RUN_ID" \
-              --arg stable_authority_head_sha "$GITHUB_SHA" \
-              --arg source_artifact_run_id '${{ needs.restore.outputs.source_run_id }}' \
-              --arg source_artifact '${{ needs.restore.outputs.source_artifact }}' \
-              --arg standard_identity_sha256 '${{ steps.webui-follower-source.outputs.standard_identity_sha256 }}' \
-              --arg version '${{ needs.restore.outputs.version }}' \
-              --arg bundle_digest '${{ needs.restore.outputs.bundle_digest }}' \
-              --arg app_sha '${{ needs.restore.outputs.app_ref }}' \
-              --arg shell_sha '${{ needs.restore.outputs.shell_ref }}' \
-              --arg framework_sha '${{ needs.restore.outputs.framework_source_ref }}' \
-              --arg latest_adapter_status "$latest_status" \
-              --arg framework_terminal_status "$framework_terminal_status" '
-                {
-                  schema: "opl_app_webui_follower_handoff.v1",
-                  status: "ready",
-                  stable_authority: {
-                    repository: "gaofeng21cn/one-person-lab-app",
-                    workflow: ".github/workflows/release-stable.yml",
-                    run_id: $stable_authority_run_id,
-                    run_attempt: 1,
-                    executor_head_sha: $stable_authority_head_sha
-                  },
-                  source: {
-                    artifact_run_id: $source_artifact_run_id,
-                    checkpoint_artifact: $source_artifact,
-                    standard_identity_sha256: $standard_identity_sha256
-                  },
-                  release: {
-                    version: $version,
-                    bundle_digest: $bundle_digest,
-                    cohort: {
-                      app_sha: $app_sha,
-                      shell_sha: $shell_sha,
-                      framework_sha: $framework_sha
-                    }
-                  },
-                  latest_activation: {
-                    admission_schema: "opl_standard_latest_admission_receipt.v1",
-                    admitted: true,
-                    adapter_status: $latest_adapter_status,
-                    framework_terminal_status: $framework_terminal_status
-                  }
-                }
-              ' > webui-follower-handoff.json
-          else
-            jq -n \
-              --arg stable_authority_run_id "$GITHUB_RUN_ID" \
-              --arg stable_authority_head_sha "$GITHUB_SHA" \
-              --arg version '${{ needs.restore.outputs.version }}' \
-              --arg bundle_digest '${{ needs.restore.outputs.bundle_digest }}' \
-              --arg app_sha '${{ needs.restore.outputs.app_ref }}' \
-              --arg shell_sha '${{ needs.restore.outputs.shell_ref }}' \
-              --arg framework_sha '${{ needs.restore.outputs.framework_source_ref }}' \
-              --arg latest_adapter_status "$latest_status" \
-              --arg framework_terminal_status "$framework_terminal_status" '
-                {
-                  schema: "opl_app_webui_follower_handoff.v1",
-                  status: "skipped_legacy_identity_unavailable",
-                  stable_authority: {
-                    repository: "gaofeng21cn/one-person-lab-app",
-                    workflow: ".github/workflows/release-stable.yml",
-                    run_id: $stable_authority_run_id,
-                    run_attempt: 1,
-                    executor_head_sha: $stable_authority_head_sha
-                  },
-                  source: null,
-                  release: {
-                    version: $version,
-                    bundle_digest: $bundle_digest,
-                    cohort: {
-                      app_sha: $app_sha,
-                      shell_sha: $shell_sha,
-                      framework_sha: $framework_sha
-                    }
-                  },
-                  latest_activation: {
-                    admission_schema: "opl_standard_latest_admission_receipt.v1",
-                    admitted: true,
-                    adapter_status: $latest_adapter_status,
-                    framework_terminal_status: $framework_terminal_status
-                  }
-                }
-              ' > webui-follower-handoff.json
-          fi
-          fi
 
       - name: Persist typed Latest activation failure
         if: ${{ failure() }}
@@ -2372,8 +2231,6 @@ jobs:
             standard-build-receipt.json
             latest-reconcile-status.json
             latest-reconcile.receipt.json
-            webui-follower-handoff.json
-            webui-follower
             release-failure-evidence
           if-no-files-found: warn
           retention-days: 30

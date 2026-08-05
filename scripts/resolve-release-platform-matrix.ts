@@ -9,7 +9,7 @@ type ArtifactProfile =
   | 'stable_required'
   | 'nightly_standard'
   | 'preview_standard'
-  | 'stable_optional'
+  | 'stable_desktop_additional'
   | 'windows_preview'
   | 'manual';
 
@@ -116,13 +116,13 @@ export function resolveReleasePlatformMatrix(input: {
     throw new Error('Use either one --platform or one audited platform ID list, never both.');
   }
   if (input.platforms !== undefined) {
-    if (input.policy !== 'stable_optional') {
-      throw new Error('An explicit platform ID list is allowed only with stable_optional.');
+    if (input.policy !== 'stable_desktop_additional') {
+      throw new Error('An explicit platform ID list is allowed only with stable_desktop_additional.');
     }
     if (!Array.isArray(input.platforms) || input.platforms.some(
       (platform) => typeof platform !== 'string' || !platform.trim() || platform.trim() !== platform,
     )) {
-      throw new Error('Explicit optional platforms must be one JSON array of audited platform IDs.');
+      throw new Error('Explicit additional Desktop platforms must be one JSON array of audited platform IDs.');
     }
     platforms = input.platforms;
   } else if (input.platform !== undefined) {
@@ -151,8 +151,8 @@ export function resolveReleasePlatformMatrix(input: {
       if (input.policy === 'stable_required' && !capability.blocks_stable) {
         throw new Error(`Required policy ${input.policy} selected non-blocking platform ${platform}.`);
       }
-      if (input.policy === 'stable_optional' && capability.blocks_stable) {
-        throw new Error(`Optional policy ${input.policy} selected Stable blocker ${platform}.`);
+      if (input.policy === 'stable_desktop_additional' && capability.blocks_stable) {
+        throw new Error(`Additional Desktop policy ${input.policy} selected Stable blocker ${platform}.`);
       }
       return matrixEntry(platform, capability, policy.artifact_profile);
     }),

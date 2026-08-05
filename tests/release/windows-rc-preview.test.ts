@@ -379,7 +379,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(manual.jobs['build-pipeline'].with.upload_installers_only, true);
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_updater_assets,
-    "${{ needs.prepare-matrix.outputs.publication_mode == 'stable_optional_follower' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+    "${{ inputs.invocation_mode == 'stable_release_set_build' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
   );
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_authenticode,
@@ -441,22 +441,18 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.equal(publishEnv?.WINDOWS_PREVIEW_RELEASE_TOKEN, '${{ secrets.OPL_WINDOWS_PREVIEW_RELEASE_TOKEN }}');
   assert.match(
     publishRun,
-    /windows_preview_rc\)[\s\S]*test -n "\$WINDOWS_PREVIEW_RELEASE_TOKEN"[\s\S]*export GH_TOKEN="\$WINDOWS_PREVIEW_RELEASE_TOKEN"/,
+    /test "\$PUBLICATION_MODE" = windows_preview_rc[\s\S]*test -n "\$WINDOWS_PREVIEW_RELEASE_TOKEN"[\s\S]*export GH_TOKEN="\$WINDOWS_PREVIEW_RELEASE_TOKEN"/,
   );
-  assert.match(publishRun, /stable_optional_follower\)[\s\S]*test -z "\$WINDOWS_PREVIEW_RELEASE_TOKEN"/);
+  assert.doesNotMatch(publishRun, /stable_optional_follower|adjunct/);
   assert.ok(
     publishRun.indexOf('export GH_TOKEN="$WINDOWS_PREVIEW_RELEASE_TOKEN"') <
       publishRun.indexOf('latest_before="$(gh api'),
   );
   assert.match(publishRun, /windows_preview_rc\)[\s\S]*carrier_kind=windows_preview_rc[\s\S]*expected_prerelease=true/);
-  assert.match(
-    publishRun,
-    /Windows updater assets are allowed only for an authority-selected Stable optional windows-x64 build/,
-  );
+  assert.match(publishRun, /Windows Preview must not publish Stable updater assets/);
   assert.doesNotMatch(publishRun, /macos_x64_updater_selected|latest-(?:x64-)?mac\.yml/);
   assert.doesNotMatch(publishRun, /standard-(?:apple-notarization|gatekeeper-launch-policy)/);
-  assert.match(publishRun, /if \[ -f "\$authenticode_receipt" \]/);
-  assert.match(publishRun, /updater_validation_args\+=\(--authenticode-receipt/);
+  assert.doesNotMatch(publishRun, /updater_validation_args|authenticode_receipt=/);
   assert.equal(
     publish.steps.find(
       (step: { name?: string }) => step.name === 'Publish exact platform bytes as one immutable carrier',
@@ -470,7 +466,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(publishRun, /jq -S -n/);
   assert.match(publishRun, /test -s "\$manifest_path"/);
   assert.match(publishRun, /test "\$manifest_size" -gt 0/);
-  assert.match(publishRun, /opl_app_immutable_platform_adjunct_manifest\.v1/);
+  assert.match(publishRun, /opl_app_windows_preview_manifest\.v1/);
   assert.match(publishRun, /immutable_release_capability_evidence_digest/);
   assert.match(publishRun, /fetch_release_including_drafts/);
   assert.match(publishRun, /gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"[\s\S]*--slurp/);
@@ -480,7 +476,7 @@ test('manual Windows builds reuse the multi-platform builder and emit a Windows-
   assert.match(publishRun, /if \[ "\$upload_status" -eq 0 \]; then[\s\S]*exit 1/);
   assert.match(publishRun, /if \[ "\$publish_status" -eq 0 \]; then[\s\S]*exit 1/);
   const failureRun = String(
-    publish.steps.find((step: { name?: string }) => step.name === 'Persist typed optional publication failure')?.run,
+    publish.steps.find((step: { name?: string }) => step.name === 'Persist typed Windows Preview publication failure')?.run,
   );
   assert.match(failureRun, /failure_stage:\$failure_stage/);
   assert.match(failureRun, /mutation_attempt_count:\$attempts/);

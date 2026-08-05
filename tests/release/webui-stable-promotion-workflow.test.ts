@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import YAML from 'yaml';
+
 import {
   admitWebuiStablePromotion,
   decideWebuiStablePromotion,
@@ -14,88 +14,71 @@ import {
 } from '../../scripts/webui-stable-promotion.ts';
 import { createWebuiPublicationRecord } from '../../scripts/webui-publication-record.ts';
 import { createWebuiSourceAuthority } from '../../scripts/webui-source-authority.ts';
-import {
-  isAuthorizedFollowerRecoveryWriteJob,
-  isAuthorizedWebuiStablePromotionWriteJob,
-  validateWorkflowDispatchWriteAuthority,
-} from '../../scripts/validate-release-boundary/text-check-runner.ts';
 
 const appRoot = process.cwd();
-const workflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-stable.yml');
-const followerWorkflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-follower.yml');
-const developmentWorkflowPath = path.join(
-  appRoot,
-  '.github',
-  'workflows',
-  'release-webui-development.yml',
-);
-const developmentPromotionWorkflowPath = path.join(
-  appRoot,
-  '.github',
-  'workflows',
-  'release-webui-development-promote.yml',
-);
-const sourceAppSha = 'a'.repeat(40);
-const stableExecutorAppSha = 'e'.repeat(40);
-const promotionAppSha = 'd'.repeat(40);
-const carrierExecutorAppSha = promotionAppSha;
+const imageRepository = 'ghcr.io/gaofeng21cn/one-person-lab-webui';
+const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
-const stableAuthorityRunId = '301';
-const carrierFollowerRunId = '302';
-const carrierJobId = 501;
-const version = '26.7.23';
-const bundleDigest = digest('1');
-const cohortRef = digest('2');
+const carrierExecutorSha = 'd'.repeat(40);
+const promotionExecutorSha = 'e'.repeat(40);
 const imageDigest = digest('3');
-const fingerprint = digest('4');
-const versionDigest = digest('5');
+const versionDigest = digest('4');
+const predecessorDigest = digest('5');
 
 function digest(character: string): string {
   return `sha256:${character.repeat(64)}`;
 }
 
-function sha256File(filePath: string): string {
+function fileDigest(filePath: string): string {
   return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
 }
 
 function writeJson(root: string, name: string, value: unknown): string {
   const filePath = path.join(root, name);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
   return filePath;
 }
 
-function observation(
-  ref: string,
-  status: 'present' | 'absent' | 'unknown',
-  observedDigest: string | null,
-  logoutBeforeReadback?: boolean,
-) {
+function observation(ref: string, status: 'present' | 'absent' | 'unknown', observedDigest: string | null, anonymous = false) {
   return {
     schema: 'opl_app_webui_descriptor_readback.v1',
     ref,
     status,
     digest: observedDigest,
-    ...(logoutBeforeReadback === undefined
-      ? {}
-      : { logout_before_readback: logoutBeforeReadback }),
+    ...(anonymous ? { logout_before_readback: true } : {}),
   };
 }
 
-function carrierReceipt() {
-  return {
+function fixture(mode: 'independent_stable' | 'independent_preview') {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-independent-webui-'));
+  const version = mode === 'independent_stable' ? '26.8.5' : '26.8.5-preview.r1';
+  const carrierRunId = '302';
+  const promotionRunId = '303';
+  const sourceAuthority = createWebuiSourceAuthority({
+    version,
+    appSha,
+    shellSha,
+    frameworkSha,
+    runId: carrierRunId,
+    executorSha: carrierExecutorSha,
+  });
+  const carrierReceipt = {
     schema: 'opl_app_webui_release_carrier.v1',
-    release: { version, bundle_digest: bundleDigest, cohort_ref: cohortRef },
-    cohort: { app_sha: sourceAppSha, shell_sha: shellSha, framework_sha: frameworkSha },
+    release: {
+      version,
+      bundle_digest: sourceAuthority.source_authority_digest,
+      cohort_ref: sourceAuthority.source_authority_digest,
+    },
+    cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
     carrier: {
       carrier_id: 'docker_webui',
       carrier_kind: 'oci_image',
       package_profile: 'webui-full',
-      ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+      ref: `${imageRepository}@${imageDigest}`,
       digest: imageDigest,
       size_bytes: 123456,
-      content_fingerprint: fingerprint,
+      content_fingerprint: digest('6'),
       os: 'linux',
       architecture: 'amd64',
     },
@@ -105,1367 +88,179 @@ function carrierReceipt() {
       build_stage: 'webui_built',
       qualification_stage: 'webui_qualified',
       image_digest: imageDigest,
-      build_input_digest: digest('6'),
-      content_fingerprint: fingerprint,
-      runtime_summary_sha256: digest('7'),
-      registry_readback_sha256: digest('8'),
-      runtime_image_id: 'webui-test-image',
+      build_input_digest: digest('7'),
+      content_fingerprint: digest('6'),
+      runtime_summary_sha256: digest('8'),
+      registry_readback_sha256: digest('9'),
+      runtime_image_id: 'qualified-image',
     },
   };
-}
-
-function stableAuthorityRun() {
-  return {
-    id: Number(stableAuthorityRunId),
-    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
-    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
-    path: '.github/workflows/release-stable.yml',
-    event: 'workflow_dispatch',
-    head_branch: 'main',
-    status: 'completed',
-    conclusion: 'success',
-    run_attempt: 1,
-    head_sha: stableExecutorAppSha,
-  };
-}
-
-function carrierFollowerRun(status: 'in_progress' | 'completed' = 'in_progress') {
-  return {
-    id: Number(carrierFollowerRunId),
-    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
-    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
-    path: '.github/workflows/release-webui-follower.yml',
-    event: 'workflow_run',
-    head_branch: 'main',
-    status,
-    conclusion: status === 'completed' ? 'success' : null,
-    run_attempt: 1,
-    head_sha: promotionAppSha,
-  };
-}
-
-function promotionExecutorRun(
-  runId = carrierFollowerRunId,
-  appSha = promotionAppSha,
-  workflow = '.github/workflows/release-webui-follower.yml',
-) {
-  return {
-    id: Number(runId),
-    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
-    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
-    path: workflow,
-    event: workflow.endsWith('release-webui-follower.yml') ? 'workflow_run' : 'workflow_dispatch',
-    head_branch: 'main',
-    status: 'in_progress',
-    conclusion: null,
-    run_attempt: 1,
-    head_sha: appSha,
-  };
-}
-
-function carrierFollowerJob() {
-  return {
-    id: carrierJobId,
-    run_id: Number(carrierFollowerRunId),
-    run_url: `https://api.github.com/repos/gaofeng21cn/one-person-lab-app/actions/runs/${carrierFollowerRunId}`,
-    name: 'webui-carrier / publish-immutable-carrier',
-    status: 'completed',
-    conclusion: 'success',
-    run_attempt: 1,
-    head_sha: promotionAppSha,
-  };
-}
-
-function fixture(status: 'in_progress' | 'completed' = 'in_progress') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-stable-'));
-  const carrier = carrierReceipt();
-  const immutableRef = carrier.carrier.ref;
-  const versionRef = `ghcr.io/gaofeng21cn/one-person-lab-webui:${version}`;
-  const stableRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable';
-  const latestRef = 'ghcr.io/gaofeng21cn/one-person-lab-webui:latest';
-  const immutable = observation(immutableRef, 'present', imageDigest);
   const versionReadback = {
-    ...observation(versionRef, 'present', versionDigest),
+    ...observation(`${imageRepository}:${version}`, 'present', versionDigest),
     child_digest: imageDigest,
     manifest_count: 1,
     media_type: 'application/vnd.oci.image.index.v1+json',
   };
-  const stablePrestate = observation(stableRef, 'present', digest('f'));
-  const latestPrestate = observation(latestRef, 'present', digest('f'));
+  const carrierRun = {
+    id: Number(carrierRunId),
+    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    path: '.github/workflows/release-webui-development.yml',
+    event: 'workflow_dispatch',
+    head_branch: 'main',
+    status: 'completed',
+    conclusion: 'success',
+    run_attempt: 1,
+    head_sha: carrierExecutorSha,
+  };
+  const carrierJob = {
+    id: 501,
+    run_id: Number(carrierRunId),
+    run_url: `https://api.github.com/repos/gaofeng21cn/one-person-lab-app/actions/runs/${carrierRunId}`,
+    name: 'webui-carrier / publish-immutable-carrier',
+    status: 'completed',
+    conclusion: 'success',
+    run_attempt: 1,
+    head_sha: carrierExecutorSha,
+  };
+  const promotionRun = {
+    id: Number(promotionRunId),
+    repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' },
+    path: '.github/workflows/release-webui-development-promote.yml',
+    event: 'workflow_dispatch',
+    head_branch: 'main',
+    status: 'in_progress',
+    conclusion: null,
+    run_attempt: 1,
+    head_sha: promotionExecutorSha,
+  };
+  const publicationRecord = createWebuiPublicationRecord({
+    authorityMode: mode,
+    imageRepository,
+    carrierReceipt,
+    carrierReceiptSha256: digest('a'),
+    versionReadback,
+    versionReadbackSha256: digest('b'),
+    publicationRunId: carrierRunId,
+    publicationRunAttempt: 1,
+    publicationExecutorSha: carrierExecutorSha,
+    sourceAuthority,
+    sourceAuthoritySha256: digest('c'),
+  });
+  const stablePrestate = observation(`${imageRepository}:stable`, 'present', predecessorDigest);
+  const latestPrestate = observation(`${imageRepository}:latest`, 'present', predecessorDigest);
   const paths = {
-    stableAuthorityRun: writeJson(root, 'stable-authority-run.json', stableAuthorityRun()),
-    carrierFollowerRun: writeJson(root, 'carrier-follower-run.json', carrierFollowerRun(status)),
-    carrierFollowerJob: writeJson(root, 'carrier-follower-job.json', carrierFollowerJob()),
-    promotionExecutorRun: writeJson(
-      root,
-      'promotion-executor-run.json',
-      promotionExecutorRun(),
-    ),
-    carrier: writeJson(root, 'carrier.json', carrier),
-    immutable: writeJson(root, 'immutable.json', immutable),
+    carrierRun: writeJson(root, 'carrier-run.json', carrierRun),
+    carrierJob: writeJson(root, 'carrier-job.json', carrierJob),
+    promotionRun: writeJson(root, 'promotion-run.json', promotionRun),
+    carrierReceipt: writeJson(root, 'carrier-receipt.json', carrierReceipt),
+    immutable: writeJson(root, 'immutable.json', observation(`${imageRepository}@${imageDigest}`, 'present', imageDigest)),
     version: writeJson(root, 'version.json', versionReadback),
-    stablePrestate: writeJson(root, 'stable-prestate.json', stablePrestate),
-    latestPrestate: writeJson(root, 'latest-prestate.json', latestPrestate),
+    stable: writeJson(root, 'stable.json', stablePrestate),
+    latest: writeJson(root, 'latest.json', latestPrestate),
+    publication: writeJson(root, 'publication.json', publicationRecord),
   };
   const input: WebuiStableAdmissionInput = {
-    stableAuthorityRun: stableAuthorityRun(),
-    stableAuthorityRunPath: paths.stableAuthorityRun,
-    stableAuthorityRunId,
-    triggeredByStableRunId: stableAuthorityRunId,
-    carrierFollowerRun: carrierFollowerRun(status),
-    carrierFollowerRunPath: paths.carrierFollowerRun,
-    carrierFollowerRunId,
-    carrierFollowerJob: carrierFollowerJob(),
-    carrierFollowerJobPath: paths.carrierFollowerJob,
-    carrierExecutorAppSha,
-    promotionExecutorRun: promotionExecutorRun(),
-    promotionExecutorRunPath: paths.promotionExecutorRun,
-    promotionExecutorRunId: carrierFollowerRunId,
-    promotionAppSha,
-    carrierReceipt: carrier,
-    carrierReceiptPath: paths.carrier,
-    immutableReadback: immutable,
+    authorityMode: mode,
+    carrierFollowerRun: carrierRun,
+    carrierFollowerRunPath: paths.carrierRun,
+    carrierFollowerRunId: carrierRunId,
+    carrierFollowerJob: carrierJob,
+    carrierFollowerJobPath: paths.carrierJob,
+    carrierExecutorAppSha: carrierExecutorSha,
+    promotionExecutorRun: promotionRun,
+    promotionExecutorRunPath: paths.promotionRun,
+    promotionExecutorRunId: promotionRunId,
+    promotionAppSha: promotionExecutorSha,
+    carrierReceipt,
+    carrierReceiptPath: paths.carrierReceipt,
+    immutableReadback: observation(`${imageRepository}@${imageDigest}`, 'present', imageDigest),
     immutableReadbackPath: paths.immutable,
     versionReadback,
     versionReadbackPath: paths.version,
     stablePrestate,
-    stablePrestatePath: paths.stablePrestate,
+    stablePrestatePath: paths.stable,
     latestPrestate,
-    latestPrestatePath: paths.latestPrestate,
+    latestPrestatePath: paths.latest,
+    publicationRecord,
+    publicationRecordPath: paths.publication,
+    operator: 'gaofeng21cn',
+    operatorConfirmation: mode === 'independent_stable'
+      ? `move-docker-stable-and-latest:${version}`
+      : `move-docker-latest:${version}`,
   };
-  return { root, paths, input };
+  return { input, version };
 }
 
-function productionRecoveryFixture() {
-  const current = fixture('in_progress');
-  current.input.productionRecovery = true;
-  current.input.carrierFollowerRun.event = 'workflow_dispatch';
-  current.input.promotionExecutorRun.event = 'workflow_dispatch';
-  current.paths.carrierFollowerRun = writeJson(
-    current.root,
-    'carrier-follower-run.json',
-    current.input.carrierFollowerRun,
-  );
-  current.paths.promotionExecutorRun = writeJson(
-    current.root,
-    'promotion-executor-run.json',
-    current.input.promotionExecutorRun,
-  );
-  current.input.carrierFollowerRunPath = current.paths.carrierFollowerRun;
-  current.input.promotionExecutorRunPath = current.paths.promotionExecutorRun;
-  return current;
-}
-
-function independentPreviewFixture() {
-  const current = fixture('completed');
-  const previewVersion = '26.7.28-preview.r1';
-  const sourceAuthority = createWebuiSourceAuthority({
-    version: previewVersion,
-    appSha: sourceAppSha,
-    shellSha,
-    frameworkSha,
-    runId: carrierFollowerRunId,
-    executorSha: carrierExecutorAppSha,
-  });
-  current.input.authorityMode = 'independent_preview';
-  current.input.stableAuthorityRun = undefined;
-  current.input.stableAuthorityRunPath = undefined;
-  current.input.stableAuthorityRunId = undefined;
-  current.input.triggeredByStableRunId = undefined;
-  current.input.carrierFollowerRun = {
-    ...current.input.carrierFollowerRun,
-    path: '.github/workflows/release-webui-development.yml',
-    event: 'workflow_dispatch',
-    status: 'completed',
-    conclusion: 'success',
-  };
-  current.input.carrierReceipt = {
-    ...current.input.carrierReceipt,
-    release: {
-      ...current.input.carrierReceipt.release,
-      version: previewVersion,
-      bundle_digest: sourceAuthority.source_authority_digest,
-      cohort_ref: sourceAuthority.source_authority_digest,
-    },
-  };
-  current.input.versionReadback = {
-    ...current.input.versionReadback,
-    ref: `ghcr.io/gaofeng21cn/one-person-lab-webui:${previewVersion}`,
-  };
-  current.input.promotionExecutorRunId = '303';
-  current.input.promotionAppSha = 'f'.repeat(40);
-  current.input.promotionExecutorRun = promotionExecutorRun(
-    current.input.promotionExecutorRunId,
-    current.input.promotionAppSha,
-    '.github/workflows/release-webui-development-promote.yml',
-  );
-  current.input.sourceAuthority = sourceAuthority;
-  const publicationRecord = createWebuiPublicationRecord({
-    authorityMode: 'independent_preview',
-    imageRepository: 'ghcr.io/gaofeng21cn/one-person-lab-webui',
-    carrierReceipt: current.input.carrierReceipt,
-    carrierReceiptSha256: digest('9'),
-    versionReadback: current.input.versionReadback,
-    versionReadbackSha256: digest('a'),
-    publicationRunId: carrierFollowerRunId,
-    publicationRunAttempt: 1,
-    publicationExecutorSha: carrierExecutorAppSha,
-    sourceAuthority,
-    sourceAuthoritySha256: digest('b'),
-  });
-  current.paths.carrierFollowerRun = writeJson(
-    current.root,
-    'carrier-follower-run.json',
-    current.input.carrierFollowerRun,
-  );
-  current.paths.carrier = writeJson(current.root, 'carrier.json', current.input.carrierReceipt);
-  current.paths.version = writeJson(current.root, 'version.json', current.input.versionReadback);
-  current.paths.promotionExecutorRun = writeJson(
-    current.root,
-    'promotion-executor-run.json',
-    current.input.promotionExecutorRun,
-  );
-  const sourceAuthorityPath = writeJson(current.root, 'source-authority.json', sourceAuthority);
-  const publicationRecordPath = writeJson(current.root, 'publication-record.json', publicationRecord);
-  current.input.carrierFollowerRunPath = current.paths.carrierFollowerRun;
-  current.input.carrierReceiptPath = current.paths.carrier;
-  current.input.versionReadbackPath = current.paths.version;
-  current.input.promotionExecutorRunPath = current.paths.promotionExecutorRun;
-  current.input.sourceAuthorityPath = sourceAuthorityPath;
-  current.input.publicationRecord = publicationRecord;
-  current.input.publicationRecordPath = publicationRecordPath;
-  current.input.operator = 'gaofeng21cn';
-  current.input.operatorConfirmation = `move-docker-latest:${previewVersion}`;
-  return { ...current, sourceAuthorityPath, publicationRecordPath };
-}
-
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-test('WebUI follower preserves automatic delivery and admits only exact bounded recovery generations', () => {
-  const source = fs.readFileSync(followerWorkflowPath, 'utf8');
-  const carrierSource = fs.readFileSync(
-    path.join(appRoot, '.github', 'workflows', '_release-webui-carrier.yml'),
-    'utf8',
-  );
-  const adapterSource = fs.readFileSync(
-    path.join(appRoot, 'scripts', 'framework-release-adapter.ts'),
-    'utf8',
-  );
-  const workflow = YAML.parse(source);
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
-  assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Release Bundle']);
-  assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
-    'source_run_id',
-    'failed_follower_run_id',
-    'failed_recovery_run_id',
-    'failed_recovery_v2_run_id',
-    'failed_recovery_v3_run_id',
-    'failed_recovery_v4_run_id',
-    'failed_recovery_v5_run_id',
-    'failed_recovery_v6_run_id',
-    'failed_recovery_v7_run_id',
-    'failed_recovery_v8_run_id',
-    'recovery_confirmation',
-  ]);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v3_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v3_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v4_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v4_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v5_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v5_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v6_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v6_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v7_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v7_run_id.type, 'string');
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v8_run_id.required, false);
-  assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v8_run_id.type, 'string');
-  assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
-    'recover_exact_failed_webui_follower_v1',
-    'recover_exact_failed_webui_follower_v2',
-    'recover_exact_failed_webui_follower_v3',
-    'recover_exact_failed_webui_follower_v4',
-    'recover_exact_failed_webui_follower_v5',
-    'recover_exact_failed_webui_follower_v6',
-    'recover_exact_failed_webui_follower_v7',
-    'recover_exact_failed_webui_follower_v8',
-    'recover_exact_failed_webui_follower_v9',
-  ]);
-  const bindHandoffStep = workflow.jobs['resolve-handoff'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Bind exact follower handoff',
-  );
-  assert.ok(bindHandoffStep);
-  assert.equal(bindHandoffStep.env.FAILED_RECOVERY_V4_RUN_ID, "${{ inputs.failed_recovery_v4_run_id || '' }}");
-  assert.equal(bindHandoffStep.env.FAILED_RECOVERY_V5_RUN_ID, "${{ inputs.failed_recovery_v5_run_id || '' }}");
-  assert.equal(bindHandoffStep.env.FAILED_RECOVERY_V6_RUN_ID, "${{ inputs.failed_recovery_v6_run_id || '' }}");
-  assert.equal(bindHandoffStep.env.FAILED_RECOVERY_V7_RUN_ID, "${{ inputs.failed_recovery_v7_run_id || '' }}");
-  assert.equal(bindHandoffStep.env.FAILED_RECOVERY_V8_RUN_ID, "${{ inputs.failed_recovery_v8_run_id || '' }}");
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID\$FAILED_RECOVERY_V2_RUN_ID\$FAILED_RECOVERY_V3_RUN_ID\$FAILED_RECOVERY_V4_RUN_ID\$FAILED_RECOVERY_V5_RUN_ID\$FAILED_RECOVERY_V6_RUN_ID\$FAILED_RECOVERY_V7_RUN_ID\$FAILED_RECOVERY_V8_RUN_ID"/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+test -z "\$FAILED_RECOVERY_V2_RUN_ID\$FAILED_RECOVERY_V3_RUN_ID\$FAILED_RECOVERY_V4_RUN_ID\$FAILED_RECOVERY_V5_RUN_ID\$FAILED_RECOVERY_V6_RUN_ID\$FAILED_RECOVERY_V7_RUN_ID\$FAILED_RECOVERY_V8_RUN_ID"/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v3\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v4\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v5\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V4_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v6\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V4_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V5_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v7\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V4_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V5_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V6_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v8\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V4_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V5_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V6_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V7_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.match(
-    source,
-    /recover_exact_failed_webui_follower_v9\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\][\s\S]*?\[\[ "\$FAILED_RECOVERY_V8_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
-  );
-  assert.equal(
-    workflow.concurrency.group,
-    "opl-webui-stable-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
-  );
-  assert.equal(
-    workflow.jobs['webui-carrier'].with.failed_recovery_v8_run_id,
-    "${{ inputs.failed_recovery_v8_run_id || '' }}",
-  );
-  assert.equal(
-    workflow.jobs['webui-carrier'].with.qualified_artifact_run_id,
-    '${{ needs.resolve-handoff.outputs.qualified_artifact_run_id }}',
-  );
-  assert.equal(
-    workflow.jobs['webui-carrier'].with.qualified_artifact_name,
-    '${{ needs.resolve-handoff.outputs.qualified_artifact_name }}',
-  );
-  for (const required of [
-    '.total_count == 5',
-    'webui-carrier / build-and-qualify',
-    'webui-carrier / publish-immutable-carrier',
-    'promote-webui-stable',
-    'OPL image seed contains broken symlinks:',
-    'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
-    'failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID}',
-    'failed recovery v3 ${FAILED_RECOVERY_V3_RUN_ID}',
-    'failed recovery v4 ${FAILED_RECOVERY_V4_RUN_ID}',
-    'failed recovery v5 ${FAILED_RECOVERY_V5_RUN_ID}',
-    'failed recovery v6 ${FAILED_RECOVERY_V6_RUN_ID}',
-    'failed recovery v7 ${FAILED_RECOVERY_V7_RUN_ID}',
-    'failed recovery v8 ${FAILED_RECOVERY_V8_RUN_ID}',
-    'failed-recovery-jobs.json',
-    '"failure_code": "opl_seed_payload_symlink_forbidden"',
-    '"path": "/opt/opl/seed/payload/codex_cli/bin/codex"',
-    '($matches | length) == 1',
-    'expected one exact nested OPL Flow currentness error',
-    '.total_count == 3',
-    'failed-recovery-v3-artifacts.json',
-    'failed-recovery-v4-artifacts.json',
-    'failed-recovery-v5-artifacts.json',
-    'failed-recovery-v6-artifacts.json',
-    'failed-recovery-v7-artifacts.json',
-    'failed-recovery-v8-artifacts.json',
-    'webui-sidecar-reconcile-26.8.4-',
-    'Error: absolute file path detected.',
-    'sha256:44eb5268eeb16ca2362d46515da59c3db6ae5537fd9bd69ec42b6845618eed23',
-    'fatal: Not a valid commit name 95640c74e0b14ba2e88056de725c417fd1693cf1',
-    'FAILED_RECOVERY_V4_RUN_ID: unbound variable',
-    'expected one exact nested OPL Flow carrier owner descriptor error',
-    'configured_codex_plugin_carrier_owner_descriptor_missing',
-    'e9a5cc46766215e4e301d8a59fcaeffc2e00de7a',
-    'acdf7738832dcdf569ecea9b63fcbc7d0d47d238',
-  ]) assert.match(source, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  for (const binding of [
-    'failed_recovery_v3_run_id',
-    '--webui-recovery-failed-v3-run-id',
-    'failed_recovery_v4_run_id',
-    '--webui-recovery-failed-v4-run-id',
-    'failed_recovery_v5_run_id',
-    '--webui-recovery-failed-v5-run-id',
-    'failed_recovery_v6_run_id',
-    '--webui-recovery-failed-v6-run-id',
-    'failed_recovery_v7_run_id',
-    '--webui-recovery-failed-v7-run-id',
-  ]) assert.match(carrierSource, new RegExp(binding));
-  assert.match(carrierSource, /failed_recovery_v8_run_id/);
-  assert.match(carrierSource, /qualified_artifact_run_id/);
-  assert.match(carrierSource, /qualified_artifact_name/);
-  assert.match(carrierSource, /repository: gaofeng21cn\/one-person-lab[\s\S]*?path: framework-source\s+fetch-depth: 0/);
-  for (const binding of [
-    "'webui-recovery-failed-v3-run-id': { type: 'string' }",
-    'failed_recovery_v3_run_id',
-    "'webui-recovery-failed-v4-run-id': { type: 'string' }",
-    'failed_recovery_v4_run_id',
-    "'webui-recovery-failed-v5-run-id': { type: 'string' }",
-    'failed_recovery_v5_run_id',
-    "'webui-recovery-failed-v6-run-id': { type: 'string' }",
-    'failed_recovery_v6_run_id',
-    "'webui-recovery-failed-v7-run-id': { type: 'string' }",
-    'failed_recovery_v7_run_id',
-  ]) assert.match(adapterSource, new RegExp(binding.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-
-  const parserMatch = source.match(
-    /node - "\$\{failed_recovery_v2_logs\[0\]\}" <<'NODE'\n([\s\S]*?)\n\s+NODE/,
-  );
-  assert.ok(parserMatch, 'the recovery workflow must embed the nested typed-error parser');
-  const parserRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-recovery-parser-'));
-  try {
-    const typedError = {
-      version: 'g2',
-      error: {
-        code: 'contract_shape_invalid',
-        message: 'OPL Flow native carrier did not reach the exact owner Package target.',
-        exit_code: 3,
-        details: {
-          package_id: 'opl-flow',
-          target_version: '0.1.35',
-          failure_code: 'configured_codex_plugin_carrier_target_currentness_mismatch',
-        },
-      },
-    };
-    const logPath = path.join(parserRoot, 'container.log');
-    fs.writeFileSync(logPath, `prefix\n${JSON.stringify({
-      error: { message: `${JSON.stringify(typedError, null, 2)}\n(node:1) warning` },
-    }, null, 2)}\nsuffix\n`);
-    const accepted = spawnSync(process.execPath, ['-', logPath], {
-      input: parserMatch[1],
-      encoding: 'utf8',
-    });
-    assert.equal(accepted.status, 0, accepted.stderr);
-
-    typedError.error.details.target_version = '0.1.34';
-    fs.writeFileSync(logPath, JSON.stringify({ error: { message: JSON.stringify(typedError) } }));
-    const rejected = spawnSync(process.execPath, ['-', logPath], {
-      input: parserMatch[1],
-      encoding: 'utf8',
-    });
-    assert.notEqual(rejected.status, 0);
-  } finally {
-    fs.rmSync(parserRoot, { recursive: true, force: true });
-  }
-
-  const carrierParserMatch = source.match(
-    /node - "\$failed_recovery_v6_log" <<'NODE'\n([\s\S]*?)\n\s+NODE/,
-  );
-  assert.ok(carrierParserMatch, 'the v7 workflow must decode the nested carrier owner error');
-  const carrierParserRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-carrier-parser-'));
-  try {
-    const carrierTypedError = {
-      version: 'g2',
-      error: {
-        code: 'contract_shape_invalid',
-        message: 'Native carrier owner Package manifest must declare its carrier.',
-        exit_code: 3,
-        details: {
-          package_id: 'opl-flow',
-          manifest_url: 'opl+oci://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow:0.1.35#/package-manifest.json',
-          failure_code: 'configured_codex_plugin_carrier_owner_descriptor_missing',
-        },
-      },
-    };
-    const logPath = path.join(carrierParserRoot, 'container.log');
-    const escapedLog = (value: unknown) => JSON.stringify({
-      error: { message: `${JSON.stringify(value, null, 2)}\n(node:1) warning` },
-    }, null, 2);
-    fs.writeFileSync(logPath, `prefix\n${escapedLog(carrierTypedError)}\nsuffix\n`);
-    const accepted = spawnSync(process.execPath, ['-', logPath], {
-      input: carrierParserMatch[1],
-      encoding: 'utf8',
-    });
-    assert.equal(accepted.status, 0, accepted.stderr);
-
-    carrierTypedError.error.details.manifest_url = 'opl+oci://wrong.example/opl-flow:0.1.35#/package-manifest.json';
-    fs.writeFileSync(logPath, escapedLog(carrierTypedError));
-    const wrongManifest = spawnSync(process.execPath, ['-', logPath], {
-      input: carrierParserMatch[1],
-      encoding: 'utf8',
-    });
-    assert.notEqual(wrongManifest.status, 0);
-
-    carrierTypedError.error.details.manifest_url = 'opl+oci://ghcr.io/gaofeng21cn/one-person-lab-packages/opl-flow:0.1.35#/package-manifest.json';
-    fs.writeFileSync(logPath, `${escapedLog(carrierTypedError)}\n${escapedLog(carrierTypedError)}\n`);
-    const duplicate = spawnSync(process.execPath, ['-', logPath], {
-      input: carrierParserMatch[1],
-      encoding: 'utf8',
-    });
-    assert.notEqual(duplicate.status, 0);
-  } finally {
-    fs.rmSync(carrierParserRoot, { recursive: true, force: true });
-  }
-  for (const jobId of ['webui-carrier', 'promote-webui-stable']) {
-    assert.equal(
-      isAuthorizedFollowerRecoveryWriteJob(
-        '.github/workflows/release-webui-follower.yml',
-        workflow,
-        jobId,
-        workflow.jobs[jobId],
-      ),
-      true,
-    );
-  }
-  const widenedIngress = clone(workflow);
-  widenedIngress.on.workflow_dispatch.inputs.arbitrary_run_id = { required: false, type: 'string' };
-  assert.equal(
-    isAuthorizedFollowerRecoveryWriteJob(
-      '.github/workflows/release-webui-follower.yml',
-      widenedIngress,
-      'webui-carrier',
-      widenedIngress.jobs['webui-carrier'],
-    ),
-    false,
-  );
-  const widenedConfirmation = clone(workflow);
-  widenedConfirmation.on.workflow_dispatch.inputs.recovery_confirmation.options.push('recover_anything');
-  assert.equal(
-    isAuthorizedFollowerRecoveryWriteJob(
-      '.github/workflows/release-webui-follower.yml',
-      widenedConfirmation,
-      'webui-carrier',
-      widenedConfirmation.jobs['webui-carrier'],
-    ),
-    false,
-  );
-  const directMutation = { ...workflow.jobs['webui-carrier'], steps: [{ run: 'gh api --method DELETE /repos/example' }] };
-  assert.equal(
-    isAuthorizedFollowerRecoveryWriteJob(
-      '.github/workflows/release-webui-follower.yml',
-      workflow,
-      'webui-carrier',
-      directMutation,
-    ),
-    false,
-  );
+test('Docker WebUI workflows expose one independent Stable and Preview lane with no Desktop follower', () => {
+  const publication = YAML.parse(fs.readFileSync(path.join(appRoot, '.github/workflows/release-webui-development.yml'), 'utf8'));
+  const promotion = YAML.parse(fs.readFileSync(path.join(appRoot, '.github/workflows/release-webui-development-promote.yml'), 'utf8'));
+  assert.deepEqual(publication.on.workflow_dispatch.inputs.channel.options, ['stable', 'preview']);
+  assert.equal(publication.jobs['webui-carrier'].with.authority_mode, '${{ needs.source-authority.outputs.authority_mode }}');
+  assert.deepEqual(promotion.on.workflow_dispatch.inputs.channel.options, ['stable', 'preview']);
+  assert.match(promotion.jobs['promote-webui-latest'].with.authority_mode, /independent_stable/);
+  assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/release-webui-follower.yml')), false);
 });
 
-test('contract separates Stable qualification from carrier Latest selection', () => {
-  const document = JSON.parse(
-    fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'),
-  );
-  const latestPolicy = document.distribution_semantics.latest_policy;
-  const contract = document.webui_ghcr_image;
-  const promotion = contract.stable_promotion;
-  const recovery = promotion.exact_failed_follower_recovery;
-
-  assert.equal(latestPolicy.default_behavior, 'each_carrier_advances_its_own_latest_pointer_when_that_carrier_publishes_a_new_qualified_stable');
-  assert.deepEqual(latestPolicy.explicit_user_override.quality_statuses, ['stable', 'preview']);
-  assert.equal(latestPolicy.move_latest_pointer.stable_or_preview_candidate_allowed, true);
-  assert.equal(contract.stable_promotion_requires.applies_to, 'production_follower_only');
-  assert.deepEqual(contract.stable_promotion_requires.requires, [
-    'successful_stable_authority_run_after_latest_activation',
-    'workflow_run_follower_or_exact_generation9_recovery_bound_to_that_stable_authority',
-    'unique_successful_carrier_follower_job',
-    'qualified_webui_carrier_receipt',
-    'immutable_version_digest',
-  ]);
-  assert.equal(promotion.schema, 'opl_app_webui_stable_promotion_contract.v6');
-  assert.equal(promotion.writer_scope, 'single_ghcr_alias_writer_for_stable_and_latest');
-  assert.deepEqual(promotion.task_modes.production_release.promotion_tags, ['stable', 'latest']);
-  assert.equal(promotion.task_modes.production_release.desktop_latest_required, true);
-  assert.deepEqual(recovery.inputs, [
-    'source_run_id',
-    'failed_follower_run_id',
-    'failed_recovery_run_id',
-    'failed_recovery_v2_run_id',
-    'failed_recovery_v3_run_id',
-    'failed_recovery_v4_run_id',
-    'failed_recovery_v5_run_id',
-    'failed_recovery_v6_run_id',
-    'failed_recovery_v7_run_id',
-    'failed_recovery_v8_run_id',
-    'recovery_confirmation',
-  ]);
-  assert.equal(recovery.recovery_generation, 9);
-  assert.deepEqual(recovery.consumed_recovery_generations, [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.equal(recovery.confirmation, 'recover_exact_failed_webui_follower_v9');
-  assert.equal(recovery.legacy_confirmation, 'recover_exact_failed_webui_follower_v1');
-  assert.equal(recovery.consumed_confirmation, 'recover_exact_failed_webui_follower_v2');
-  assert.equal(recovery.failed_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v2_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v3_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v4_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v5_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v6_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v7_public_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v8_moving_channel_mutation_count_required, 0);
-  assert.equal(recovery.failed_recovery_v8_durable_sidecar_count_required, 0);
-  assert.equal(recovery.failed_recovery_v8_immutable_version_digest, 'sha256:caff36778d8e39ca23682445d8734d6c335ed01e337e9e86dbba9e56657db501');
-  assert.equal(recovery.recovery_v9_qualified_artifact_run_id, '30957022809');
-  assert.equal(recovery.recovery_v9_qualified_artifact_id, '8911730316');
-  assert.equal(recovery.recovery_v9_qualified_artifact_digest, 'sha256:44eb5268eeb16ca2362d46515da59c3db6ae5537fd9bd69ec42b6845618eed23');
-  assert.equal(recovery.recovery_v9_artifact_rebuild_allowed, false);
-  assert.equal(recovery.same_identity_recovery_v9_run_count_required, 1);
-  assert.equal(recovery.framework_recovery_authority_schema, 'opl_app_webui_framework_recovery_authority.v1');
-  assert.equal(recovery.stable_bundle_identity_rewritten, false);
-  assert.equal(recovery.recovery_framework_must_contain_fix, '95640c74e0b14ba2e88056de725c417fd1693cf1');
-  assert.equal(recovery.recovery_v7_framework_must_contain_fix, 'e9a5cc46766215e4e301d8a59fcaeffc2e00de7a');
-
-  const independent = promotion.task_modes.independent_preview;
-  assert.equal(independent.desktop_stable_required, false);
-  assert.equal(independent.desktop_latest_required, false);
-  assert.equal(independent.immutable_publication_required, true);
-  assert.equal(independent.publication_does_not_move_stable_or_latest, true);
-  assert.equal(independent.promotion_requires_explicit_user_dispatch, true);
-  assert.deepEqual(independent.promotion_tags, ['latest']);
-  assert.equal(independent.stable_alias_mutation_allowed, false);
-  assert.equal(independent.stable_prestate_must_remain_unchanged, true);
-  assert.deepEqual(independent.publication_entry_inputs, [
-    'version',
-    'app_ref',
-    'shell_ref',
-    'framework_ref',
-  ]);
-  assert.deepEqual(independent.promotion_entry_inputs, [
-    'publication_record_ref',
-    'operator_confirmation',
-  ]);
-  assert.deepEqual(independent.operator_confirmation, {
-    schema: 'opl_app_webui_latest_operator_authorization.v1',
-    source: 'workflow_dispatch_exact_version_confirmation',
-    actor: 'github.actor_human_login',
-    value: 'move-docker-latest:<publication_record.release.version>',
-    receipt_field: 'operator_authorization.confirmation_digest',
-  });
-  assert.equal(independent.source_authority_schema, 'opl_app_webui_source_authority.v1');
-  assert.equal(independent.source_authority_digest_must_equal_carrier_release_bundle_and_cohort_ref, true);
-  assert.equal(independent.stable_run_dependency, false);
-  assert.equal(independent.desktop_latest_dependency, false);
-  assert.equal(independent.promotion_protected_environment, 'release-preview-publication');
-  assert.deepEqual(
-    promotion.compare_and_swap.promotion_tags_by_authority_mode.independent_preview,
-    ['latest'],
-  );
-  assert.equal(
-    promotion.compare_and_swap.mutation_command_by_authority_mode.independent_preview,
-    'oras tag <repository>@<target_digest> latest',
-  );
-  assert.equal(promotion.compare_and_swap.independent_preview_requires_stable_prestate_unchanged, true);
-  assert.equal(
-    promotion.ordering.independent_preview_may_publish_and_move_webui_latest_without_desktop_stable_or_desktop_latest,
-    true,
-  );
-  assert.equal(promotion.ordering.independent_preview_immutable_publication_precedes_explicit_latest_only_promotion, true);
-  assert.equal(promotion.ordering.independent_preview_never_moves_webui_stable, true);
-  assert.equal(promotion.admission_schema, 'opl_app_webui_stable_promotion_admission.v5');
-  assert.equal(promotion.decision_schema, 'opl_app_webui_stable_promotion_decision.v2');
-  assert.equal(promotion.receipt_schema, 'opl_app_webui_stable_promotion_receipt.v5');
-});
-
-test('shared alias writer binds production Stable and independent Preview authority modes', () => {
-  const source = fs.readFileSync(workflowPath, 'utf8');
-  const workflow = YAML.parse(source);
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_call']);
-  assert.deepEqual(Object.keys(workflow.on.workflow_call.inputs), [
-    'mode',
-    'authority_mode',
-    'production_recovery',
-    'stable_authority_run_id',
-    'carrier_follower_run_id',
-    'carrier_executor_ref',
-    'carrier_artifact_name',
-    'publication_record_ref',
-    'operator_confirmation',
-  ]);
-  assert.equal(
-    workflow.concurrency.group,
-    "${{ inputs.mode == 'execute' && 'opl-webui-stable-promotion-global' || format('opl-webui-stable-canary-{0}', github.ref) }}",
-  );
-  assert.equal(workflow.concurrency['cancel-in-progress'], false);
-  const writers = Object.entries(workflow.jobs).filter(
-    ([, job]: [string, any]) => job.permissions?.packages === 'write',
-  );
-  assert.equal(writers.length, 1);
-  assert.equal(writers[0]![0], 'promote-webui-stable');
-  assert.equal((writers[0]![1] as any).needs, 'admission');
-  assert.equal(
-    (writers[0]![1] as any).environment,
-    "${{ needs.admission.outputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}",
-  );
-  assert.equal(workflow.jobs.admission.permissions.packages, undefined);
-  assert.equal(workflow.jobs['promote-webui-stable'].permissions.actions, 'read');
-  assert.equal(workflow.jobs['promote-webui-stable'].permissions.contents, 'read');
-  assert.equal((source.match(/\boras tag\b/g) ?? []).length, 1);
-  assert.match(source, /oras tag "\$target_ref" "\$\{promotion_tags\[@\]\}"/);
-  assert.match(source, /test "\$\{promotion_tags\[\*\]\}" = "stable latest"/);
-  assert.match(source, /test "\$\{promotion_tags\[\*\]\}" = latest/);
-  assert.doesNotMatch(source, /framework_candidate_run_id|framework_latest_stable_run_id/);
-  assert.doesNotMatch(source, /inputs\.source_app_run_id|^\s+workflow_dispatch:/m);
-  assert.doesNotMatch(source, /homebrew|github-latest|releases\/latest/i);
-  assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force|secrets:\s*inherit/);
-  assert.match(source, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
-  assert.match(source, /test "\$GITHUB_REF" = refs\/heads\/main/);
-  assert.match(source, /STABLE_AUTHORITY_RUN_ID: \$\{\{ inputs\.stable_authority_run_id \}\}/);
-  assert.match(
-    source,
-    /TRIGGERED_BY_STABLE_RUN_ID: \$\{\{ inputs\.authority_mode == 'production_follower' && github\.event\.workflow_run\.id \|\| inputs\.stable_authority_run_id \}\}/,
-  );
-  assert.match(
-    source,
-    /CARRIER_FOLLOWER_RUN_ID: \$\{\{ inputs\.carrier_follower_run_id \|\| steps\.publication-record\.outputs\.carrier_follower_run_id \|\| github\.run_id \}\}/,
-  );
-  assert.match(
-    source,
-    /CARRIER_EXECUTOR_REF: \$\{\{ inputs\.carrier_executor_ref \|\| steps\.publication-record\.outputs\.carrier_executor_ref \|\| github\.sha \}\}/,
-  );
-  const admissionStep = (workflow.jobs.admission.steps as any[]).find(
-    (step) => step.name === 'Seal one immutable WebUI Stable admission',
-  );
-  assert.equal(admissionStep.env.OPERATOR, '${{ github.actor }}');
-  assert.equal(admissionStep.env.OPERATOR_CONFIRMATION, '${{ inputs.operator_confirmation }}');
-  assert.doesNotMatch(source, /inputs\.carrier_run_id/);
-  assert.match(source, /carrier-follower-jobs\.json/);
-  assert.match(source, /carrier-follower-job\.json/);
-  assert.match(source, /Materialize and verify exact durable Preview publication record/);
-  assert.match(source, /Materialize carrier and source authority from durable Preview publication record/);
-  assert.match(
-    source,
-    /admission_args\+=\(\s*--publication-record evidence\/publication-record\.json\s*--operator "\$OPERATOR"\s*--operator-confirmation "\$OPERATOR_CONFIRMATION"\s*\)/,
-  );
-  assert.match(source, /oras pull --output intake\/durable-publication-record/);
-  assert.match(source, /durable Preview publication record sidecar descriptor or manifest is invalid/);
-  assert.match(source, /durable Preview publication record sidecar does not bind the exact record bytes/);
-  assert.match(source, /actions_artifact_used:false/);
-  assert.match(source, /in_progress.*completed/);
-  assert.match(source, /version-manifest\.json/);
-  assert.match(source, /child_digest/);
-  assert.match(source, /public-oci-readback\.json/);
-  assert.match(source, /oras blob fetch --descriptor/);
-  assert.match(source, /layer-descriptors\.json/);
-  assert.match(source, /version_and_latest_identical_bytes:true/);
-  assert.match(source, /config_descriptor_verified:true/);
-  assert.match(source, /Download exact App WebUI carrier artifact\n        if: \$\{\{ inputs\.authority_mode != 'independent_preview' \}\}/);
-  assert.doesNotMatch(source, /basename "\$\(dirname "\$carrier_source"\)"/);
-});
-
-test('independent Preview dispatch publishes an immutable carrier without moving either alias', () => {
-  const source = fs.readFileSync(developmentWorkflowPath, 'utf8');
-  const workflow = YAML.parse(source);
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
-    'version',
-    'app_ref',
-    'shell_ref',
-    'framework_ref',
-  ]);
-  for (const input of ['version', 'app_ref', 'shell_ref', 'framework_ref']) {
-    assert.equal(workflow.on.workflow_dispatch.inputs[input].required, true);
-    assert.equal(workflow.on.workflow_dispatch.inputs[input].type, 'string');
-  }
-  assert.equal(workflow.permissions.contents, 'read');
-  assert.equal(workflow.permissions.actions, 'read');
-  assert.equal(workflow.concurrency.group, 'opl-webui-independent-preview-publication-global');
-  assert.equal(workflow.concurrency['cancel-in-progress'], false);
-  assert.deepEqual(Object.keys(workflow.jobs), ['source-authority', 'webui-carrier']);
-  assert.equal(workflow.jobs['webui-carrier'].needs, 'source-authority');
-  assert.equal(workflow.jobs['webui-carrier'].with.authority_mode, 'independent_preview');
-  assert.equal(workflow.jobs['webui-carrier'].with.release_bundle_digest, '${{ needs.source-authority.outputs.source_authority_digest }}');
-  assert.equal(workflow.jobs['webui-carrier'].with.release_cohort_ref, '${{ needs.source-authority.outputs.source_authority_digest }}');
-  assert.match(source, /webui-source-authority\.ts[\s\\]+create/);
-  assert.match(source, /webui-source-authority\.ts[\s\\]+validate/);
-  assert.match(source, /source_authority_artifact_name/);
-  assert.match(source, /test "\$GITHUB_RUN_ATTEMPT" = 1/);
-  assert.match(source, /test "\$GITHUB_REF" = refs\/heads\/main/);
-  assert.doesNotMatch(source, /release-bundle\.json|resolve-frozen-bundle|promote-webui-stable/);
-  assert.doesNotMatch(source, /releases\/latest|github-latest|homebrew/i);
-  assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force/);
-});
-
-test('independent Preview Latest dispatch reuses one exact immutable carrier without a rebuild lane', () => {
-  const source = fs.readFileSync(developmentPromotionWorkflowPath, 'utf8');
-  const workflow = YAML.parse(source);
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
-    'publication_record_ref',
-    'operator_confirmation',
-  ]);
-  assert.equal(workflow.on.workflow_dispatch.inputs.operator_confirmation.required, true);
-  assert.equal(workflow.permissions.contents, 'read');
-  assert.equal(workflow.permissions.actions, 'read');
-  assert.equal(workflow.concurrency.group, 'opl-webui-independent-preview-latest-global');
-  assert.equal(workflow.concurrency['cancel-in-progress'], false);
-  assert.deepEqual(Object.keys(workflow.jobs), ['promote-webui-latest']);
-  const promotion = workflow.jobs['promote-webui-latest'];
-  assert.equal(promotion.uses, './.github/workflows/release-webui-stable.yml');
-  assert.equal(promotion.with.mode, 'execute');
-  assert.equal(promotion.with.authority_mode, 'independent_preview');
-  assert.equal(promotion.with.publication_record_ref, '${{ inputs.publication_record_ref }}');
-  assert.equal(promotion.with.operator_confirmation, '${{ inputs.operator_confirmation }}');
-  assert.deepEqual(promotion.permissions, {
-    contents: 'read',
-    actions: 'read',
-    packages: 'write',
-  });
-  assert.equal(promotion.steps, undefined);
-  assert.equal(promotion.with.stable_authority_run_id, undefined);
-  assert.equal(promotion.with.carrier_artifact_name, undefined);
-  assert.doesNotMatch(source, /carrier_artifact_name|carrier_follower_run_id|carrier_executor_ref/);
-  assert.doesNotMatch(source, /_release-webui-carrier|build-and-qualify|publish-immutable-carrier/);
-  assert.doesNotMatch(source, /gh workflow run|gh run rerun|gh run cancel|--force/);
-});
-
-test('write authority is closed to the exact protected promotion job and exact action pins', () => {
-  const workflow = YAML.parse(fs.readFileSync(workflowPath, 'utf8'));
-  const job = workflow.jobs['promote-webui-stable'];
-  assert.equal(
-    isAuthorizedWebuiStablePromotionWriteJob(
-      '.github/workflows/release-webui-stable.yml',
-      'promote-webui-stable',
-      job,
-    ),
-    true,
-  );
-  assert.equal(validateWorkflowDispatchWriteAuthority(appRoot), 0);
-  const rejected: Array<[string, string, Record<string, unknown>]> = [
-    ['.github/workflows/release-stable.yml', 'promote-webui-stable', job],
-    ['.github/workflows/release-webui-stable.yml', 'publish', job],
-    [
-      '.github/workflows/release-webui-stable.yml',
-      'promote-webui-stable',
-      { ...job, needs: ['admission', 'other'] },
-    ],
-    [
-      '.github/workflows/release-webui-stable.yml',
-      'promote-webui-stable',
-      { ...job, environment: 'release-webui' },
-    ],
-    [
-      '.github/workflows/release-webui-stable.yml',
-      'promote-webui-stable',
-      { ...job, permissions: { ...job.permissions, issues: 'write' } },
-    ],
-  ];
-  for (const [candidateWorkflow, candidateJob, candidate] of rejected) {
-    assert.equal(
-      isAuthorizedWebuiStablePromotionWriteJob(candidateWorkflow, candidateJob, candidate),
-      false,
-    );
-  }
-});
-
-test('workflow reads exact source and carrier evidence before the protected alias CAS', () => {
-  const source = fs.readFileSync(workflowPath, 'utf8');
-  const ordered = [
-    'Materialize and verify exact durable Preview publication record',
-    'Reject noncanonical or partial promotion runs',
-    'Download exact App WebUI carrier artifact',
-    'Materialize exactly one carrier receipt from the exact follower run',
-    'Materialize carrier and source authority from durable Preview publication record',
-    'Read immutable, version, Stable, and Latest authority',
-    'Seal one immutable WebUI Stable admission',
-    'Re-read Stable and Latest prestate and derive CAS decision',
-    'Execute at most one admitted WebUI tag mutation and reconcile read-only',
-    'Write terminal WebUI Stable receipt',
-    'Upload terminal WebUI Stable evidence',
-  ].map((entry) => source.indexOf(entry));
-  assert.ok(ordered.every((index) => index >= 0));
-  assert.deepEqual([...ordered].sort((left, right) => left - right), ordered);
-  for (const relativePath of [
-    '.github/workflows/_release-webui-carrier.yml',
-    '.github/workflows/_release-standard-publish.yml',
-  ]) {
-    const existing = fs.readFileSync(path.join(appRoot, relativePath), 'utf8');
-    assert.doesNotMatch(existing, /\boras tag\b.*one-person-lab-webui|\bone-person-lab-webui:stable\b/);
-  }
-});
-
-test('admission binds Stable authority, carrier follower, and promotion executor separately', () => {
-  for (const status of ['in_progress', 'completed'] as const) {
-    const current = fixture(status);
-    const admission = admitWebuiStablePromotion(current.input);
-    assert.equal(admission.status, 'passed');
-    assert.equal(admission.authority_mode, 'production_follower');
-    assert.equal(admission.stable_authority.run_id, stableAuthorityRunId);
-    assert.equal(admission.stable_authority.app_head_sha, stableExecutorAppSha);
-    assert.equal(admission.carrier_follower.run_id, carrierFollowerRunId);
-    assert.equal(admission.carrier_follower.carrier_job_id, carrierJobId);
-    assert.equal(admission.carrier_follower.app_head_sha, carrierExecutorAppSha);
-    assert.equal(
-      admission.carrier_follower.triggering_stable_authority_run_id,
-      stableAuthorityRunId,
-    );
-    assert.equal(admission.promotion_executor.run_id, carrierFollowerRunId);
-    assert.equal(admission.promotion_executor.app_head_sha, promotionAppSha);
-    assert.equal(admission.target.digest, versionDigest);
-    assert.equal(admission.target.child_digest, imageDigest);
-    assert.equal(admission.expected_prestate.stable.digest, digest('f'));
-    assert.equal(admission.expected_prestate.latest.digest, digest('f'));
-    assert.equal(admission.framework, undefined);
-    assert.equal(admission.evidence.carrier_receipt_sha256, sha256File(current.paths.carrier));
-  }
-});
-
-test('production recovery admits only the exact workflow_dispatch transport', () => {
-  const recovery = productionRecoveryFixture();
-  const admission = admitWebuiStablePromotion(recovery.input);
-  assert.equal(admission.authority_mode, 'production_follower');
-  assert.equal(admission.production_recovery, true);
-  assert.equal(admission.carrier_follower.workflow, '.github/workflows/release-webui-follower.yml');
-  assert.equal(
-    admission.promotion_executor.caller_workflow,
-    '.github/workflows/release-webui-follower.yml',
-  );
-
-  const automaticDispatch = fixture();
-  automaticDispatch.input.carrierFollowerRun.event = 'workflow_dispatch';
-  automaticDispatch.input.promotionExecutorRun.event = 'workflow_dispatch';
-  assert.throws(
-    () => admitWebuiStablePromotion(automaticDispatch.input),
-    /carrier follower run\.event/,
-  );
-
-  for (const authorityMode of ['development_validation', 'independent_preview'] as const) {
-    const invalid = productionRecoveryFixture();
-    invalid.input.authorityMode = authorityMode;
-    assert.throws(
-      () => admitWebuiStablePromotion(invalid.input),
-      /production recovery requires production_follower authority mode/,
-    );
-  }
-});
-
-test('development admission accepts only the exact failed Stable Bundle source and dispatch executor', () => {
-  const current = fixture('in_progress');
-  current.input.authorityMode = 'development_validation';
-  current.input.stableAuthorityRun.conclusion = 'failure';
-  current.input.stableAuthorityRun.head_sha = sourceAppSha;
-  current.input.carrierFollowerRun.path = '.github/workflows/release-webui-development.yml';
-  current.input.carrierFollowerRun.event = 'workflow_dispatch';
-  current.input.promotionExecutorRun.path = '.github/workflows/release-webui-development.yml';
-  current.input.promotionExecutorRun.event = 'workflow_dispatch';
-  const admission = admitWebuiStablePromotion(current.input);
-  assert.equal(admission.authority_mode, 'development_validation');
-  assert.equal(admission.stable_authority.conclusion, 'failure');
-  assert.equal(
-    admission.promotion_executor.caller_workflow,
-    '.github/workflows/release-webui-development.yml',
-  );
-
-  const drift = clone(current.input);
-  drift.stableAuthorityRun.head_sha = stableExecutorAppSha;
-  assert.throws(() => admitWebuiStablePromotion(drift), /Stable authority run.head_sha/);
-});
-
-test('independent Preview admission needs no Desktop Stable and binds a separate promotion run', () => {
-  const current = independentPreviewFixture();
-  const admission = admitWebuiStablePromotion(current.input);
-  assert.equal(admission.authority_mode, 'independent_preview');
-  assert.equal(admission.stable_authority, null);
-  assert.deepEqual(admission.operator_authorization, {
-    schema: 'opl_app_webui_latest_operator_authorization.v1',
-    source: 'workflow_dispatch_exact_version_confirmation',
-    actor: 'gaofeng21cn',
-    confirmation_digest: `sha256:${crypto.createHash('sha256').update('move-docker-latest:26.7.28-preview.r1').digest('hex')}`,
-  });
-  assert.equal(admission.source_authority.release.version, '26.7.28-preview.r1');
-  assert.equal(
-    admission.source_authority.source_authority_digest,
-    current.input.carrierReceipt.release.bundle_digest,
-  );
-  assert.equal(admission.carrier_follower.run_id, carrierFollowerRunId);
-  assert.equal(admission.carrier_follower.app_head_sha, carrierExecutorAppSha);
-  assert.equal(admission.carrier_follower.triggering_stable_authority_run_id, null);
-  assert.equal(admission.promotion_executor.run_id, '303');
-  assert.equal(admission.promotion_executor.app_head_sha, 'f'.repeat(40));
-  assert.equal(
-    admission.promotion_executor.caller_workflow,
-    '.github/workflows/release-webui-development-promote.yml',
-  );
-  assert.deepEqual(admission.target.promotion_tags, ['latest']);
-  assert.equal(admission.classification.quality_status, 'preview');
-  assert.equal(admission.evidence.stable_authority_run_readback_sha256, null);
-  assert.equal(
-    admission.evidence.source_authority_sha256,
-    current.input.publicationRecord.evidence.source_authority_sha256,
-  );
-  assert.equal(
-    admission.evidence.publication_record_sha256,
-    sha256File(current.publicationRecordPath),
-  );
-});
-
-test('independent Preview admission rejects source drift, incomplete publication, or implicit promotion', () => {
-  const sourceDigestDrift = independentPreviewFixture();
-  sourceDigestDrift.input.carrierReceipt.release.bundle_digest = digest('0');
-  assert.throws(
-    () => admitWebuiStablePromotion(sourceDigestDrift.input),
-    /durable publication bundle digest/,
-  );
-
-  const sourceRefDrift = independentPreviewFixture();
-  const mismatchedAuthority = createWebuiSourceAuthority({
-    version: sourceRefDrift.input.carrierReceipt.release.version,
-    appSha: sourceAppSha,
-    shellSha: 'e'.repeat(40),
-    frameworkSha,
-    runId: carrierFollowerRunId,
-    executorSha: carrierExecutorAppSha,
-  });
-  sourceRefDrift.input.carrierReceipt.cohort.shell_sha = mismatchedAuthority.sources.shell.source_commit;
-  assert.throws(
-    () => admitWebuiStablePromotion(sourceRefDrift.input),
-    /durable publication Shell SHA/,
-  );
-
-  const missingRecord = independentPreviewFixture();
-  missingRecord.input.publicationRecord = undefined;
-  missingRecord.input.publicationRecordPath = undefined;
-  assert.throws(
-    () => admitWebuiStablePromotion(missingRecord.input),
-    /requires one exact durable publication record/,
-  );
-
-  const incomplete = independentPreviewFixture();
-  incomplete.input.carrierFollowerRun.status = 'in_progress';
-  incomplete.input.carrierFollowerRun.conclusion = null;
-  assert.throws(
-    () => admitWebuiStablePromotion(incomplete.input),
-    /independent Preview carrier run\.status/,
-  );
-
-  const implicit = independentPreviewFixture();
-  implicit.input.promotionExecutorRunId = carrierFollowerRunId;
-  implicit.input.promotionExecutorRun.id = Number(carrierFollowerRunId);
-  assert.throws(
-    () => admitWebuiStablePromotion(implicit.input),
-    /cannot also execute a Latest promotion/,
-  );
-
-  const missingConfirmation = independentPreviewFixture();
-  missingConfirmation.input.operatorConfirmation = undefined;
-  assert.throws(
-    () => admitWebuiStablePromotion(missingConfirmation.input),
-    /operator confirmation/,
-  );
-
-  const mismatchedConfirmation = independentPreviewFixture();
-  mismatchedConfirmation.input.operatorConfirmation = 'move-docker-latest:26.7.28-preview.r2';
-  assert.throws(
-    () => admitWebuiStablePromotion(mismatchedConfirmation.input), /operator confirmation/);
-
-  const botActor = independentPreviewFixture();
-  botActor.input.operator = 'github-actions[bot]';
-  assert.throws(() => admitWebuiStablePromotion(botActor.input), /human GitHub login/);
-
-  const current = independentPreviewFixture();
-  const tamperedAdmission = structuredClone(admitWebuiStablePromotion(current.input));
-  tamperedAdmission.operator_authorization.actor = 'another-user';
-  assert.throws(
-    () => decideWebuiStablePromotion(
-      tamperedAdmission,
-      current.input.stablePrestate,
-      current.input.latestPrestate,
-    ),
-    /admission\.input_digest/,
-  );
-});
-
-test('admission rejects stale or ambiguous source and carrier authority', () => {
-  const cases: Array<[string, (input: WebuiStableAdmissionInput) => void, RegExp]> = [
-    ['Stable conclusion', (input) => { input.stableAuthorityRun.conclusion = 'failure'; }, /Stable authority run.conclusion/],
-    ['Stable attempt', (input) => { input.stableAuthorityRun.run_attempt = 2; }, /Stable authority run.run_attempt/],
-    ['trigger mismatch', (input) => { input.triggeredByStableRunId = '999'; }, /triggering Stable authority run id/],
-    ['follower status', (input) => { input.carrierFollowerRun.status = 'queued'; }, /in_progress or completed/],
-    ['follower job name', (input) => { input.carrierFollowerJob.name = 'webui-carrier / desktop'; }, /carrier follower job.name/],
-    ['follower job attempt', (input) => { input.carrierFollowerJob.run_attempt = 2; }, /carrier follower job.run_attempt/],
-    ['carrier digest', (input) => { input.carrierReceipt.carrier.digest = digest('0'); }, /carrier receipt.carrier.ref/],
-    ['version child digest', (input) => {
-      input.versionReadback.child_digest = digest('0');
-    }, /version readback.child_digest/],
-    ['prestate unknown', (input) => {
-      input.stablePrestate.status = 'unknown';
-      input.stablePrestate.digest = null;
-    }, /prestate is unknown/],
-    ['Latest prestate unknown', (input) => {
-      input.latestPrestate.status = 'unknown';
-      input.latestPrestate.digest = null;
-    }, /prestate is unknown/],
-  ];
-  for (const [label, mutate, error] of cases) {
-    const current = fixture();
-    const input = clone(current.input);
-    mutate(input);
-    assert.throws(() => admitWebuiStablePromotion(input), error, label);
-  }
-});
-
-test('CAS decision table permits target idempotence or frozen predecessor to target only', () => {
-  const current = fixture();
-  const admission = admitWebuiStablePromotion(current.input);
-  const stableRef = admission.target.stable_ref;
-  const latestRef = admission.target.latest_ref;
-  const states: Array<[
-    ReturnType<typeof observation>,
-    ReturnType<typeof observation>,
-    string,
-    number,
-  ]> = [
-    [
-      observation(stableRef, 'present', versionDigest),
-      observation(latestRef, 'present', versionDigest),
-      'idempotent',
-      0,
-    ],
-    [
-      observation(stableRef, 'present', digest('f')),
-      observation(latestRef, 'present', digest('f')),
-      'write_once',
-      1,
-    ],
-    [
-      observation(stableRef, 'present', digest('0')),
-      observation(latestRef, 'present', digest('0')),
-      'conflict',
-      0,
-    ],
-    [
-      observation(stableRef, 'absent', null),
-      observation(latestRef, 'absent', null),
-      'conflict',
-      0,
-    ],
-    [
-      observation(stableRef, 'present', digest('f')),
-      observation(latestRef, 'present', digest('0')),
-      'conflict',
-      0,
-    ],
-    [
-      observation(stableRef, 'unknown', null),
-      observation(latestRef, 'present', digest('f')),
-      'prestate_unknown',
-      0,
-    ],
-  ];
-  for (const [stableState, latestState, decision, attempts] of states) {
-    const result = decideWebuiStablePromotion(admission, stableState, latestState);
-    assert.equal(result.decision, decision);
-    assert.equal(result.authorized_tag_attempts, attempts);
-  }
-});
-
-test('definitive Stable/Latest drift may reconcile only through the same qualified gate', () => {
-  const current = fixture();
-  current.input.latestPrestate.digest = digest('0');
-  writeJson(current.root, 'latest-prestate.json', current.input.latestPrestate);
-  const admission = admitWebuiStablePromotion(current.input);
-  assert.equal(admission.expected_prestate.aliases_aligned, false);
-  const decision = decideWebuiStablePromotion(
-    admission,
-    observation(admission.target.stable_ref, 'present', digest('f')),
-    observation(admission.target.latest_ref, 'present', digest('0')),
-  );
+test('independent Stable admission binds a durable Docker record and moves stable plus latest', () => {
+  const { input } = fixture('independent_stable');
+  const admission = admitWebuiStablePromotion(input);
+  assert.equal('stable_authority' in admission, false);
+  assert.equal(admission.source_authority.source_authority_digest, input.carrierReceipt.release.bundle_digest);
+  assert.deepEqual(admission.target.promotion_tags, ['stable', 'latest']);
+  const decision = decideWebuiStablePromotion(admission, input.stablePrestate, input.latestPrestate);
   assert.equal(decision.decision, 'write_once');
   assert.equal(decision.authorized_tag_attempts, 1);
 });
 
-test('development CAS advances Latest only while freezing the Stable prestate', () => {
-  const current = fixture('in_progress');
-  current.input.authorityMode = 'development_validation';
-  current.input.stableAuthorityRun.conclusion = 'failure';
-  current.input.stableAuthorityRun.head_sha = sourceAppSha;
-  current.input.carrierFollowerRun.path = '.github/workflows/release-webui-development.yml';
-  current.input.carrierFollowerRun.event = 'workflow_dispatch';
-  current.input.promotionExecutorRun.path = '.github/workflows/release-webui-development.yml';
-  current.input.promotionExecutorRun.event = 'workflow_dispatch';
-  const admission = admitWebuiStablePromotion(current.input);
-  const stableRef = admission.target.stable_ref;
-  const latestRef = admission.target.latest_ref;
-
+test('independent Preview admission moves latest only and freezes stable', () => {
+  const { input } = fixture('independent_preview');
+  const admission = admitWebuiStablePromotion(input);
+  assert.equal('stable_authority' in admission, false);
   assert.deepEqual(admission.target.promotion_tags, ['latest']);
-  assert.deepEqual(admission.classification, {
-    quality_status: 'preview',
-    build_trigger: 'manual',
-    preview_kind: 'dev',
-    quality_unchanged: true,
-    non_stable_notice: true,
-  });
-  assert.equal(decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', digest('f')),
-    observation(latestRef, 'present', digest('f')),
-  ).decision, 'write_once');
-  assert.equal(decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', digest('f')),
-    observation(latestRef, 'present', versionDigest),
-  ).decision, 'idempotent');
-  assert.equal(decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', digest('0')),
-    observation(latestRef, 'present', digest('f')),
-  ).decision, 'conflict');
+  const decision = decideWebuiStablePromotion(admission, input.stablePrestate, input.latestPrestate);
+  assert.equal(decision.decision, 'write_once');
 });
 
-test('terminal receipt closes complete, reconciled, unknown, idempotent, rejected, and bounded outcomes', () => {
-  const current = fixture();
-  const admission = admitWebuiStablePromotion(current.input);
-  const stableRef = admission.target.stable_ref;
-  const latestRef = admission.target.latest_ref;
-  const writeDecision = decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', digest('f')),
-    observation(latestRef, 'present', digest('f')),
-  );
-  const targetObservation = observation(stableRef, 'present', versionDigest);
-  const latestTargetObservation = observation(latestRef, 'present', versionDigest);
-  const targetAnonymous = observation(stableRef, 'present', versionDigest, true);
-  const latestTargetAnonymous = observation(latestRef, 'present', versionDigest, true);
-  const accepted = {
-    schema: 'opl_app_webui_stable_mutation_attempt.v1',
-    status: 'accepted',
-    attempt_count: 1,
-    attempt_id: 'attempt-1',
-  };
-  const unknown = { ...accepted, status: 'unknown' };
-  const targetReadbacks = {
-    schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-    observations: [targetObservation],
-  };
-  const latestTargetReadbacks = {
-    schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-    observations: [latestTargetObservation],
-  };
-  assert.equal(writeWebuiStablePromotionReceipt({
-    admission,
-    decision: writeDecision,
-    mutation: accepted,
-    readbacks: targetReadbacks,
-    latestReadbacks: latestTargetReadbacks,
-    anonymousReadback: targetAnonymous,
-    latestAnonymousReadback: latestTargetAnonymous,
-  }).status, 'complete');
-  assert.equal(writeWebuiStablePromotionReceipt({
-    admission,
-    decision: writeDecision,
-    mutation: unknown,
-    readbacks: targetReadbacks,
-    latestReadbacks: latestTargetReadbacks,
-    anonymousReadback: targetAnonymous,
-    latestAnonymousReadback: latestTargetAnonymous,
-  }).status, 'reconciled_complete');
-  assert.equal(writeWebuiStablePromotionReceipt({
-    admission,
-    decision: writeDecision,
-    mutation: unknown,
-    readbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: [observation(stableRef, 'unknown', null)],
-    },
-    latestReadbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: [observation(latestRef, 'unknown', null)],
-    },
-    anonymousReadback: observation(stableRef, 'unknown', null, true),
-    latestAnonymousReadback: observation(latestRef, 'unknown', null, true),
-  }).status, 'outcome_unknown');
-  const idempotent = decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', versionDigest),
-    observation(latestRef, 'present', versionDigest),
-  );
-  assert.equal(writeWebuiStablePromotionReceipt({
-    admission,
-    decision: idempotent,
-    mutation: { status: 'not_attempted', attempt_count: 0 },
-    readbacks: { schema: 'opl_app_webui_stable_reconcile_readbacks.v1', observations: [] },
-    latestReadbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: [],
-    },
-    anonymousReadback: targetAnonymous,
-    latestAnonymousReadback: latestTargetAnonymous,
-  }).status, 'idempotent');
-  const conflict = decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', digest('0')),
-    observation(latestRef, 'present', digest('0')),
-  );
-  assert.equal(writeWebuiStablePromotionReceipt({
-    admission,
-    decision: conflict,
-    mutation: { status: 'not_attempted', attempt_count: 0 },
-    readbacks: { schema: 'opl_app_webui_stable_reconcile_readbacks.v1', observations: [] },
-    latestReadbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: [],
-    },
-    anonymousReadback: observation(stableRef, 'present', digest('0'), true),
-    latestAnonymousReadback: observation(latestRef, 'present', digest('0'), true),
-  }).status, 'failed');
-  assert.throws(() => writeWebuiStablePromotionReceipt({
-    admission,
-    decision: writeDecision,
-    mutation: unknown,
-    readbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: Array.from({ length: 4 }, () => targetObservation),
-    },
-    latestReadbacks: latestTargetReadbacks,
-    anonymousReadback: targetAnonymous,
-    latestAnonymousReadback: latestTargetAnonymous,
-  }), /at most three/);
+test('independent Stable rejects a wrong explicit confirmation', () => {
+  const { input } = fixture('independent_stable');
+  input.operatorConfirmation = 'move-docker-latest:26.8.5';
+  assert.throws(() => admitWebuiStablePromotion(input), /independent Stable operator confirmation/i);
 });
 
-test('independent Preview receipt proves Latest-only mutation and unchanged Stable alias', () => {
-  const current = independentPreviewFixture();
-  const admission = admitWebuiStablePromotion(current.input);
-  const stableRef = admission.target.stable_ref;
-  const latestRef = admission.target.latest_ref;
-  const decision = decideWebuiStablePromotion(
-    admission,
-    observation(stableRef, 'present', digest('f')),
-    observation(latestRef, 'present', digest('f')),
-  );
-  const stableUnchanged = observation(stableRef, 'present', digest('f'), true);
-  const latestTarget = observation(latestRef, 'present', versionDigest, true);
+test('Stable CAS is idempotent only when both moving tags already equal the target', () => {
+  const { input } = fixture('independent_stable');
+  const admission = admitWebuiStablePromotion(input);
+  const stable = observation(admission.target.stable_ref, 'present', admission.target.digest);
+  const latest = observation(admission.target.latest_ref, 'present', admission.target.digest);
+  const decision = decideWebuiStablePromotion(admission, stable, latest);
+  assert.equal(decision.decision, 'idempotent');
+  assert.equal(decision.authorized_tag_attempts, 0);
+});
+
+test('Stable terminal receipt closes one accepted CAS with anonymous digest readback', () => {
+  const { input } = fixture('independent_stable');
+  const admission = admitWebuiStablePromotion(input);
+  const decision = decideWebuiStablePromotion(admission, input.stablePrestate, input.latestPrestate);
+  const stable = observation(admission.target.stable_ref, 'present', admission.target.digest, true);
+  const latest = observation(admission.target.latest_ref, 'present', admission.target.digest, true);
   const receipt = writeWebuiStablePromotionReceipt({
     admission,
     decision,
-    mutation: {
-      schema: 'opl_app_webui_stable_mutation_attempt.v1',
-      status: 'accepted',
-      attempt_count: 1,
-      attempt_id: 'attempt-1',
-    },
-    readbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: [stableUnchanged],
-    },
-    latestReadbacks: {
-      schema: 'opl_app_webui_stable_reconcile_readbacks.v1',
-      observations: [latestTarget],
-    },
-    anonymousReadback: stableUnchanged,
-    latestAnonymousReadback: latestTarget,
+    mutation: { status: 'accepted', attempt_count: 1 },
+    readbacks: { schema: 'opl_app_webui_stable_reconcile_readbacks.v1', observations: [stable] },
+    latestReadbacks: { schema: 'opl_app_webui_stable_reconcile_readbacks.v1', observations: [latest] },
+    anonymousReadback: stable,
+    latestAnonymousReadback: latest,
   });
-
   assert.equal(receipt.status, 'complete');
-  assert.equal(receipt.schema, 'opl_app_webui_stable_promotion_receipt.v5');
-  assert.equal(receipt.authority_mode, 'independent_preview');
-  assert.deepEqual(receipt.compare_and_swap.promotion_tags, ['latest']);
-  assert.equal(receipt.classification.quality_status, 'preview');
-  assert.equal(receipt.classification.build_trigger, 'manual');
-  assert.equal(receipt.classification.preview_kind, 'dev');
-  assert.equal(receipt.classification.non_stable_notice, true);
-  assert.equal(receipt.anonymous_readback.stable_unchanged, true);
-  assert.deepEqual(receipt.operator_authorization, admission.operator_authorization);
+  assert.equal(receipt.retry_allowed, false);
+  assert.equal(receipt.compare_and_swap.tag_attempt_count, 1);
+});
+
+test('durable publication evidence paths are digest-bound', () => {
+  const { input } = fixture('independent_stable');
+  const admission = admitWebuiStablePromotion(input);
+  assert.equal(admission.evidence.publication_record_sha256, fileDigest(input.publicationRecordPath!));
 });

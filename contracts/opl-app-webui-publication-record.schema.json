@@ -136,18 +136,14 @@
         "publication_run_id",
         "publication_run_attempt",
         "publication_executor_sha",
-        "stable_authority_run_id",
         "source_authority"
       ],
       "properties": {
         "mode": {
-          "enum": ["production_follower", "development_validation", "independent_preview"]
+          "enum": ["independent_stable", "independent_preview"]
         },
         "publication_workflow": {
-          "enum": [
-            ".github/workflows/release-webui-follower.yml",
-            ".github/workflows/release-webui-development.yml"
-          ]
+          "const": ".github/workflows/release-webui-development.yml"
         },
         "publication_run_id": {
           "$ref": "#/$defs/run_id"
@@ -159,25 +155,8 @@
         "publication_executor_sha": {
           "$ref": "#/$defs/sha"
         },
-        "stable_authority_run_id": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/run_id"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "source_authority": {
-          "oneOf": [
-            {
-              "$ref": "opl-app-webui-source-authority.schema.json"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "$ref": "opl-app-webui-source-authority.schema.json"
         }
       },
       "additionalProperties": false
@@ -196,16 +175,7 @@
         "version_readback_sha256": {
           "$ref": "#/$defs/digest"
         },
-        "source_authority_sha256": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/digest"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
+        "source_authority_sha256": { "$ref": "#/$defs/digest" }
       },
       "additionalProperties": false
     },
@@ -249,11 +219,11 @@
           "oneOf": [
             {
               "type": "object",
-              "required": ["schema", "status", "stable_authority_run_id"],
+              "required": ["schema", "status", "source_authority_digest"],
               "properties": {
                 "schema": { "const": "opl_app_webui_stable_qualification_disclosure.v1" },
                 "status": { "const": "passed" },
-                "stable_authority_run_id": { "$ref": "#/$defs/run_id" }
+                "source_authority_digest": { "$ref": "#/$defs/digest" }
               },
               "additionalProperties": false
             },
@@ -268,7 +238,6 @@
                 "schema",
                 "status",
                 "reason",
-                "stable_authority_run_id",
                 "source_authority_digest",
                 "explicit_latest_override_required"
               ],
@@ -276,20 +245,9 @@
                 "schema": { "const": "opl_app_webui_non_stable_gate_disclosure.v1" },
                 "status": { "const": "skipped" },
                 "reason": {
-                  "enum": ["development_validation_not_stable", "independent_preview_not_stable"]
+                  "const": "independent_preview_not_stable"
                 },
-                "stable_authority_run_id": {
-                  "oneOf": [
-                    { "$ref": "#/$defs/run_id" },
-                    { "type": "null" }
-                  ]
-                },
-                "source_authority_digest": {
-                  "oneOf": [
-                    { "$ref": "#/$defs/digest" },
-                    { "type": "null" }
-                  ]
-                },
+                "source_authority_digest": { "$ref": "#/$defs/digest" },
                 "explicit_latest_override_required": { "const": true }
               },
               "additionalProperties": false

@@ -91,7 +91,7 @@ on:
         required: false
         default: ''
         type: string
-      stable_optional_platforms:
+      stable_desktop_additional_platforms:
         description: Canonical authority-bound JSON array of audited optional Stable platform IDs
         required: false
         default: '["linux-x64","windows-x64"]'
@@ -237,7 +237,7 @@ jobs:
               status=failed
               reason=missing_protected_stable_admission_digest
             }
-            jq -e 'type == "array"' <<< '${{ inputs.stable_optional_platforms }}' >/dev/null || {
+            jq -e 'type == "array"' <<< '${{ inputs.stable_desktop_additional_platforms }}' >/dev/null || {
               status=failed
               reason=invalid_optional_platform_selection
             }
@@ -270,8 +270,8 @@ jobs:
           control="${controls[0]}"
           test -f "$control" && test ! -L "$control"
           test "$(jq -er .authority_digest "$control")" = '${{ inputs.stable_operation_control_digest }}'
-          test "$(jq -cer .optional_platforms "$control")" = \
-            "$(jq -cer . <<< '${{ inputs.stable_optional_platforms }}')"
+          test "$(jq -cer .desktop_additional_platforms "$control")" = \
+            "$(jq -cer . <<< '${{ inputs.stable_desktop_additional_platforms }}')"
           node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
             --control "$control" --app-root app-source \
             --source-gate stable-operation-control/source-gate.json \

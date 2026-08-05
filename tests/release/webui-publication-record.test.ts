@@ -70,20 +70,20 @@ function versionReadback(version: string, repository = imageRepository) {
   };
 }
 
-function previewSourceAuthority(version: string) {
+function createSourceAuthority(version: string, runId = '302') {
   return createWebuiSourceAuthority({
     version,
     appSha,
     shellSha,
     frameworkSha,
-    runId: '302',
+    runId,
     executorSha,
   });
 }
 
 function createPreviewRecord() {
   const version = '26.7.28-preview.r1';
-  const sourceAuthority = previewSourceAuthority(version);
+  const sourceAuthority = createSourceAuthority(version);
   return createWebuiPublicationRecord({
     authorityMode: 'independent_preview',
     imageRepository,
@@ -119,31 +119,33 @@ test('durable WebUI Preview record binds a selector to exact immutable carrier b
   assert.match(publication.publication_record_digest, /^sha256:[0-9a-f]{64}$/);
 });
 
-test('durable WebUI Stable record binds stable quality to a Stable authority run', () => {
+test('durable WebUI Stable record binds stable quality to independent Docker source authority', () => {
   const version = '26.7.28-r2';
+  const sourceAuthority = createSourceAuthority(version, '401');
   const publication = createWebuiPublicationRecord({
-    authorityMode: 'production_follower',
+    authorityMode: 'independent_stable',
     imageRepository,
-    carrierReceipt: carrierReceipt(version),
+    carrierReceipt: carrierReceipt(version, sourceAuthority.source_authority_digest),
     carrierReceiptSha256: evidenceDigest('stable-carrier'),
     versionReadback: versionReadback(version),
     versionReadbackSha256: evidenceDigest('stable-version-readback'),
     publicationRunId: '401',
     publicationRunAttempt: 3,
     publicationExecutorSha: executorSha,
-    stableAuthorityRunId: '400',
+    sourceAuthority,
+    sourceAuthoritySha256: evidenceDigest('stable-source-authority'),
   });
 
   assert.equal(publication.classification.quality_status, 'stable');
   assert.equal(publication.classification.preview_kind, null);
-  assert.equal(publication.authority.stable_authority_run_id, '400');
-  assert.equal(publication.authority.source_authority, null);
+  assert.equal('stable_authority_run_id' in publication.authority, false);
+  assert.deepEqual(publication.authority.source_authority, sourceAuthority);
   assert.equal(publication.authority.publication_run_attempt, 3);
   assert.deepEqual(publication.qualification_disclosure.non_stable_gate_disclosure, null);
   assert.deepEqual(publication.qualification_disclosure.stable_qualification, {
     schema: 'opl_app_webui_stable_qualification_disclosure.v1',
     status: 'passed',
-    stable_authority_run_id: '400',
+    source_authority_digest: sourceAuthority.source_authority_digest,
   });
   assert.deepEqual(validateWebuiPublicationRecord(publication), publication);
 });
@@ -153,7 +155,7 @@ test('durable WebUI publication record fails closed on authority, digest, and so
     ['version index digest', (publication) => { publication.image.version_digest = `sha256:${'0'.repeat(64)}`; }],
     ['receipt reference', (publication) => { publication.image.receipt_ref = 'ghcr.io/gaofeng21cn/one-person-lab-webui:receipt-26.7.28'; }],
     ['quality', (publication) => { publication.classification.quality_status = 'stable'; }],
-    ['qualification disclosure', (publication) => { publication.qualification_disclosure.non_stable_gate_disclosure.reason = 'development_validation_not_stable'; }],
+    ['qualification disclosure', (publication) => { publication.qualification_disclosure.non_stable_gate_disclosure.reason = 'invalid_non_stable_reason'; }],
     ['image repository', (publication) => { publication.image.repository = 'ghcr.io/example/other'; }],
     ['source authority', (publication) => { publication.authority.source_authority.sources.framework.source_commit = '9'.repeat(40); }],
     ['publication digest', (publication) => { publication.publication_record_digest = `sha256:${'0'.repeat(64)}`; }],
@@ -188,7 +190,7 @@ test('durable WebUI publication refuses missing or conflicting authority evidenc
 
   assert.throws(
     () => createWebuiPublicationRecord({
-      authorityMode: 'production_follower',
+      authorityMode: 'independent_stable',
       imageRepository,
       carrierReceipt: carrierReceipt('26.7.28-r2'),
       carrierReceiptSha256: evidenceDigest('carrier'),
@@ -198,14 +200,14 @@ test('durable WebUI publication refuses missing or conflicting authority evidenc
       publicationRunAttempt: 1,
       publicationExecutorSha: executorSha,
     }),
-    /requires one Stable authority run/i,
+    /requires one exact source authority/i,
   );
 });
 
 test('durable WebUI publication record supports an exact validated non-default GHCR repository', () => {
   const repository = 'ghcr.io/gaofeng21cn/one-person-lab-webui-preview';
   const version = '26.7.28-preview.r1';
-  const sourceAuthority = previewSourceAuthority(version);
+  const sourceAuthority = createSourceAuthority(version);
   const publication = createWebuiPublicationRecord({
     authorityMode: 'independent_preview',
     imageRepository: repository,

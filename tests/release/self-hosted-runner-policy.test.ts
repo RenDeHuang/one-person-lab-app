@@ -68,7 +68,7 @@ test('Manual Full Preview keeps its explicit self-hosted exception outside Stabl
 
 test('Tart VM consumers and routine advisory jobs use distinct exact capability pools', () => {
   const postPublication = readWorkflow('release-post-publication-certification.yml').source;
-  assert.equal((postPublication.match(/opl-cert-mac-tart/g) || []).length >= 2, true);
+  assert.equal((postPublication.match(/opl-cert-mac-tart/g) || []).length >= 1, true);
   assert.doesNotMatch(postPublication, /opl-gui-vm/);
 
   const firstRun = readWorkflow('opl-first-run-vm.yml').workflow;
@@ -147,7 +147,7 @@ test('runner policy contract defines four routine targets without changing the h
 
 test('offline self-hosted inventory is deferred before queueing and cannot become a publication dependency', () => {
   const { workflow } = readWorkflow('release-post-publication-certification.yml');
-  const capability = workflow.jobs['admit-standard-vm'].steps.find(
+  const capability = workflow.jobs['admit-macos-vm'].steps.find(
     (step: Record<string, unknown>) => step.id === 'capability',
   ) as Record<string, any> | undefined;
   assert.ok(capability, 'missing Standard capability preflight');

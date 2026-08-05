@@ -530,11 +530,11 @@ test("failed v26.7.20 Full digest is permanently excluded from every Bundle", ()
   ]);
 });
 
-test("release guide points to the Bundle authority before legacy instructions", () => {
+test("release guide points to product authority before executor instructions", () => {
   const readme = fs.readFileSync(path.join(appRoot, "docs/delivery/release/README.md"), "utf8");
-  const bundlePointer = readme.indexOf("immutable-release-bundle.md");
-  const legacyInstructions = readme.indexOf("## GitHub Actions Release Path");
-  assert.ok(bundlePointer >= 0);
-  assert.ok(legacyInstructions < 0 || bundlePointer < legacyInstructions);
-  assert.match(readme, /legacy surfaces are read-only/);
+  const authorityPointer = readme.indexOf("../distribution-and-install-ssot.md");
+  const stableInstructions = readme.indexOf("## Stable Operations");
+  assert.ok(authorityPointer >= 0);
+  assert.ok(stableInstructions < 0 || authorityPointer < stableInstructions);
+  assert.match(readme, /Independent WebUI archives, qualification archives and follower Releases are retired/);
 });

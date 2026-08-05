@@ -36,10 +36,10 @@ AI 已经很擅长回答问题和生成内容，但当工作变成一篇论文�
 
 它不是把研究、基金、汇报压成一排按钮，而是把“开始、继续、查看进度、打开文件、处理阻塞”放到同一个产品里。用户不用关心背后是哪一个专业 Agent 在工作，只需要看到当前任务做到哪一步、生成了什么、还缺什么、下一步怎么继续。
 
-OPL App 也不是只能装在一台 Mac 上的本地工具。它有 Desktop 与 WebUI 两个产品
-表面，以及 Standard 与 Full 两种载荷密度；四个组合共享同一套产品行为和
-Official Profile。Native 与 Container 只是 WebUI 的内部 carrier，不是额外产品。
-某个精确平台资产是否已经公开、安装，仍只能由 release 和 carrier readback 证明。
+OPL App 也不是只能装在一台 Mac 上的本地工具。对用户发布的 App 产品只有
+Desktop，提供 Standard 与 Full 两种载荷密度。macOS 与 Linux Desktop 可在 headless
+host 上运行，并通过浏览器访问同一个内置 WebUI。Docker WebUI 是独立容器产品线，
+不是 Desktop follower，也不属于 Desktop GitHub Release。
 Hosted OPL Workspace 是 X0-03 条件 route，只有真实账号、存储、隔离、backend
 和 owner policy 就绪后才出现，不是当前普通产品承诺。
 
@@ -102,10 +102,8 @@ Homebrew 是 App cask 分发路径。安装后打开 `One Person Lab.app`；首�
 opl system initialize --json
 ```
 
-Homebrew 本身也支持 Linux。`opl` Formula 是 Base/CLI carrier；Cask 和未来可能
-出现的 WebUI Formula 都是 App carrier adapter。host-native WebUI Formula 或
-Container image 仍只是 WebUI 内部 carrier，不会形成第三个产品表面。精确可用性
-由所选 release 或 package owner 证明，不由本 README 外推。
+Homebrew 本身也支持 Linux。`opl` Formula 是 Base/CLI carrier，Cask 是 Desktop
+carrier。Docker WebUI 由 GHCR 独立版本化，不从 Desktop Stable 继承 authority。
 
 Full 是 Standard 之后独立执行的可选附加模块。Standard 先公开并成为 Latest；Full
 成功后只向同一个 Standard Release/tag 新增 Full DMG 与
@@ -141,10 +139,9 @@ chmod 0755 opl-install.sh
 ./opl-install.sh
 ```
 
-需要显式选择时，使用 `--desktop` 或 `--webui` 选择产品表面。载荷密度由 exact
-release carrier 解析；当前 macOS Stable installer 提供 `--standard`/`--full`。
-Native/Container selector 只是高级内部 carrier 兼容入口，不是额外产品选项；
-`--headless` 只安装 Framework Base。
+使用 `--desktop` 安装 App；当前 macOS Stable installer 提供
+`--standard`/`--full`。Linux 安装同 tag Desktop package，并可在 headless host 上
+提供内置 WebUI。`--headless` 只安装 Framework Base。
 
 已安装 Homebrew 的 macOS 用户使用摘要绑定的 Standard Cask：
 
@@ -180,8 +177,8 @@ setting window：创建 Release 前关闭 release immutability，Standard 公开
 边界是 asset name/size/digest CAS 与统一 `opl-release-attestation.json`。现有 immutable
 r5 仅作历史证据，不迁移、不 unseal。
 
-支持矩阵是 Desktop/WebUI 与 Standard/Full 的四个组合。DMG、Homebrew、平台
-package、Native 与 Container 都只是这些组合中的 carrier 选择。矩阵本身不声明
+支持的 App 产品是 Desktop Standard/Full。DMG、Homebrew 与平台 package 是 Desktop
+carrier；Docker WebUI 通过 GHCR 独立发布。矩阵本身不声明
 某个精确平台资产已经公开或安装；应检查所选 Release 的 manifest、digest、
 qualification 和安装 readback。macOS Desktop 首次启动图文教程以
 [macOS App install user guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
@@ -262,9 +259,9 @@ One Person Lab App 负责桌面产品体验：打包、发布、更新、首次�
 
 App 决定用户看到的安装形态、默认入口、首次启动体验和设置界面。One Person Lab Framework 提供背后的运行、初始化和进度数据，MAS、MAG、RCA、OBF 承载各自专业判断和交付物。App 只负责把这些能力呈现为用户能使用的桌面产品体验，不替专业 Agent 做领域判断。
 
-当前 OPL App 工作台有 Desktop 与 WebUI 两个产品表面，每个表面都支持 Standard
-和 Full 密度。Native 与 Container 是 WebUI 的内部 carrier；Docker/WebUI 因此只是
-WebUI 表面的一种部署方式，不是第二套产品。Hosted OPL Workspace 是 X0-03，只有
+当前 OPL App 工作台发布为 Desktop Standard 或 Full；macOS/Linux Desktop 的内置
+WebUI 可从浏览器使用，包括 headless host。Docker WebUI 是独立容器产品线。
+Hosted OPL Workspace 是 X0-03，只有
 真实账号、存储、隔离、backend 和 owner policy 存在时才可复用这套语言；本仓不为
 它维护 placeholder state 或默认发布义务。
 

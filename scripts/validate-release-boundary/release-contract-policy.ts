@@ -738,15 +738,15 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
       '<exact-tag>',
       '--no-open',
     ]) ||
-    hostedLinux?.release_set_base_installer_and_adjunct_deb_manifest_binding_required !== true ||
-    hostedLinux?.base_release_tag_and_adjunct_tag_required !== true ||
-    hostedLinux?.base_and_adjunct_cohort_binding_required !== true ||
+    hostedLinux?.release_set_single_tag_asset_binding_required !== true ||
+    hostedLinux?.same_release_tag_required !== true ||
+    hostedLinux?.desktop_manifest_cohort_binding_required !== true ||
     hostedLinux?.same_deb_artifact_identity_required !== true ||
     hostedLinux?.cross_component_version_sha_or_cohort_equality_required !== false ||
     hostedLinux?.dependency_compatibility_contract_ref !==
       'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission' ||
-    hostedLinux?.typed_admission_schema !== 'opl_app_optional_certification_hosted_admission.v1' ||
-    hostedLinux?.typed_execution_evidence_schema !== 'opl_app_linux_same_artifact_install_evidence.v1' ||
+    hostedLinux?.typed_admission_schema !== 'opl_app_stable_desktop_asset_append.v1' ||
+    hostedLinux?.typed_execution_evidence_schema !== 'opl_app_linux_same_tag_desktop_install.v1' ||
     hostedLinux?.clean_machine_preinstall_absence_required !== true ||
     hostedLinux?.installed_executable_byte_parity_required !== true ||
     hostedLinux?.failed_download_evidence_truthful_required !== true ||
@@ -1029,7 +1029,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     ])
     || !sameStringSet(localFirst?.remote_only, [
       'github_hosted_required_macos_linux_matrix',
-      'github_hosted_optional_platform_matrix_nonblocking',
+      'github_hosted_desktop_release_set_matrix_required',
       'protected_signing_and_notarization_credentials',
       'public_mutation',
       'owner_authoritative_remote_readback',
@@ -2198,13 +2198,18 @@ export function validateReleasePlatformMatrix(
     capabilities['linux-x64'].default_enabled !== true
     || capabilities['linux-x64'].stable_allowed !== true
     || capabilities['linux-x64'].blocks_stable !== false
-    || !capabilities['linux-x64'].quality_channels.includes('stable_optional')
+    || !capabilities['linux-x64'].quality_channels.includes('stable')
+    || capabilities['linux-x64'].publication_route !== '.github/workflows/build-manual.yml'
+    || capabilities['linux-x64'].publication_status !== 'same_stable_release_set_and_nightly'
     || capabilities['windows-x64'].default_enabled !== true
     || capabilities['windows-x64'].stable_allowed !== true
     || capabilities['windows-x64'].blocks_stable !== false
-    || !capabilities['windows-x64'].quality_channels.includes('stable_optional')
+    || !capabilities['windows-x64'].quality_channels.includes('stable')
+    || capabilities['windows-x64'].publication_route !==
+      '.github/workflows/build-manual.yml#protected_selected_platform_publication'
+    || capabilities['windows-x64'].publication_status !== 'same_stable_release_set_and_preview_rc'
   ) {
-    console.error('FAIL release_platform_matrix: Linux x64 and Windows x64 must be non-blocking Stable adjunct capabilities');
+    console.error('FAIL release_platform_matrix: Linux x64 and Windows x64 must be non-blocking members of the Stable Desktop Release Set');
     failures += 1;
   }
   for (const id of windowsCapabilityIds) {
@@ -2221,7 +2226,7 @@ export function validateReleasePlatformMatrix(
     ['stable_required', ['macos-arm64'], true, true],
     ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
     ['preview_standard', ['macos-arm64', 'linux-x64'], true, true],
-    ['stable_optional', ['linux-x64', 'windows-x64'], false, false],
+    ['stable_desktop_additional', ['linux-x64', 'windows-x64'], false, false],
     ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
   ].filter(([name]) => (
     profile === 'aggregate'
@@ -2244,15 +2249,15 @@ export function validateReleasePlatformMatrix(
     failures += 1;
   }
   if (
-    policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
+    policies?.stable_desktop_additional?.selection_mode !== 'capability_default_enabled_only'
     || !sameStringSet(
-      matrix?.stable_optional_selection?.default,
+      matrix?.stable_desktop_additional_selection?.default,
       ['linux-x64', 'windows-x64'],
     )
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
       'scripts/validate-windows-updater-assets.ts'
     || !sameStringSet(
-      matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.required_assets,
+      matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.required_assets,
       [
         'One-Person-Lab-<display-version>-win-x64.exe',
         'One-Person-Lab-<display-version>-win-x64.exe.blockmap',
@@ -2260,14 +2265,15 @@ export function validateReleasePlatformMatrix(
         'opl-windows-updater-assets.json',
       ],
     )
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== false
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_gate !==
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== false
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.authenticode_gate !==
       'optional_when_present_then_Get-AuthenticodeSignature_status_valid_with_timestamp_countersignature_and_exact_installer_digest'
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.unsigned_publication_allowed !== true
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.code_signing_status_must_be_explicit !== true
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.unsigned_publication_allowed !== true
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.code_signing_status_must_be_explicit !== true
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
       'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
-    || matrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.base_stable_asset_append_allowed !== true
+    || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.latest_pointer_mutation_allowed !== false
     || releaseContract.release_platform_matrix?.validation_ownership?.stable?.excluded_profile !==
       'windows-preview'
     || (
@@ -2289,7 +2295,7 @@ export function validateReleasePlatformMatrix(
       )
     )
   ) {
-    console.error('FAIL release_platform_matrix: optional switches and validation ownership must be contract-audited');
+    console.error('FAIL release_platform_matrix: additional Desktop selection and validation ownership must be contract-audited');
     failures += 1;
   }
 
@@ -2329,19 +2335,19 @@ export function validateReleasePlatformMatrix(
     console.error('FAIL release_platform_matrix: Full macOS follower must remain same-tag, mutable-target CAS-bound, durable, and non-blocking');
     failures += 1;
   }
-  const optionalSelection = matrix.stable_optional_selection;
-  const optionalFollower = matrix.optional_platform_additive_follower;
+  const desktopSelection = matrix.stable_desktop_additional_selection;
+  const desktopFollower = matrix.desktop_platform_additive_follower;
   if (
-    optionalSelection?.authority_field !== 'opl_app_stable_operation_authority.v1#optional_platforms'
-    || optionalSelection?.control_field !== 'opl_app_stable_operation_control.v1#optional_platforms'
-    || optionalSelection?.arbitrary_command_or_os_input_allowed !== false
-    || optionalFollower?.carrier !== 'independent_immutable_adjunct_release'
-    || optionalFollower?.base_release_must_be_published_mutable !== true
-    || optionalFollower?.adjunct_release_must_be_published_immutable !== true
-    || optionalFollower?.make_latest !== false
-    || optionalFollower?.base_release_mutation_allowed !== false
+    desktopSelection?.authority_field !== 'opl_app_stable_operation_authority.v1#desktop_additional_platforms'
+    || desktopSelection?.control_field !== 'opl_app_stable_operation_control.v1#desktop_additional_platforms'
+    || desktopSelection?.arbitrary_command_or_os_input_allowed !== false
+    || desktopFollower?.carrier !== 'same_mutable_stable_release_assets'
+    || desktopFollower?.base_release_must_be_published_mutable !== true
+    || desktopFollower?.new_release_or_tag_allowed !== false
+    || desktopFollower?.make_latest !== false
+    || desktopFollower?.base_release_asset_append_allowed !== true
   ) {
-    console.error('FAIL release_platform_matrix: optional selection and immutable adjunct carrier must remain authority-bound');
+    console.error('FAIL release_platform_matrix: additional Desktop selection and same-Release carrier must remain authority-bound');
     failures += 1;
   }
 

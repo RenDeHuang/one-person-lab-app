@@ -277,14 +277,11 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(webui.jobs['startup-canary'].if, "${{ inputs.mode == 'canary' }}");
   assert.equal(
     webui.jobs['build-and-qualify'].if,
-    "${{ inputs.mode == 'execute' && inputs.qualified_artifact_run_id == '' }}",
+    "${{ inputs.mode == 'execute' }}",
   );
   assert.equal(
     webui.jobs['publish-immutable-carrier'].if,
-    "${{ always()\n"
-      + "  && inputs.mode == 'execute'\n"
-      + "  && ((inputs.qualified_artifact_run_id == '' && needs.build-and-qualify.result == 'success')\n"
-      + "  || (inputs.qualified_artifact_run_id != '' && needs.build-and-qualify.result == 'skipped')) }}",
+    "${{ always() && inputs.mode == 'execute' && needs.build-and-qualify.result == 'success' }}",
   );
   assert.deepEqual(webui.jobs['publish-immutable-carrier'].permissions, {
     actions: 'read',

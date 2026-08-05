@@ -35,15 +35,12 @@ test('release contract exposes only the three Stable operations and validation-o
   assert.equal(control.validation_canary.stable_mutation_allowed, false);
 });
 
-test('release guide separates WebUI development validation from production order', () => {
-  assert.match(releaseGuide, /development_validation/);
-  assert.match(releaseGuide, /production_release/);
+test('release guide separates independent Docker authority from Desktop Stable', () => {
   assert.match(releaseGuide, /release-webui-development\.yml/);
-  assert.match(releaseGuide, /release-webui-follower\.yml/);
-  assert.match(releaseGuide, /Desktop Latest/);
-  assert.match(releaseGuide, /may build, qualify,\s+publish, and promote the WebUI before Desktop Latest/);
-  assert.match(releaseGuide, /receipt does not satisfy\s+production Latest or follower handoff/);
-  assert.match(releaseGuide, /promotion-only\s+delivery bridge/);
+  assert.match(releaseGuide, /release-webui-development-promote\.yml/);
+  assert.match(releaseGuide, /independent source authority/);
+  assert.match(releaseGuide, /not accepted authority/);
+  assert.doesNotMatch(releaseGuide, /release-webui-follower\.yml/);
 });
 
 test('release contract retires broker session and operator mutation authority', () => {

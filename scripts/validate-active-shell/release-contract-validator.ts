@@ -795,7 +795,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     localFirst.remote_only,
     [
       'github_hosted_required_macos_linux_matrix',
-      'github_hosted_optional_platform_matrix_nonblocking',
+      'github_hosted_desktop_release_set_matrix_required',
       'protected_signing_and_notarization_credentials',
       'public_mutation',
       'owner_authoritative_remote_readback',
@@ -1095,15 +1095,15 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       artifact: 'One-Person-Lab-<version>-linux-x64.deb',
       installer: 'opl-install.sh',
       installer_arguments: ['--desktop', '--release-tag', '<exact-tag>', '--no-open'],
-      release_set_base_installer_and_adjunct_deb_manifest_binding_required: true,
-      base_release_tag_and_adjunct_tag_required: true,
-      base_and_adjunct_cohort_binding_required: true,
+      release_set_single_tag_asset_binding_required: true,
+      same_release_tag_required: true,
+      desktop_manifest_cohort_binding_required: true,
       same_deb_artifact_identity_required: true,
       cross_component_version_sha_or_cohort_equality_required: false,
       dependency_compatibility_contract_ref:
         'contracts/app-install-exposure-policy.json#component_interoperability.compatibility_admission',
-      typed_admission_schema: 'opl_app_optional_certification_hosted_admission.v1',
-      typed_execution_evidence_schema: 'opl_app_linux_same_artifact_install_evidence.v1',
+      typed_admission_schema: 'opl_app_stable_desktop_asset_append.v1',
+      typed_execution_evidence_schema: 'opl_app_linux_same_tag_desktop_install.v1',
       clean_machine_preinstall_absence_required: true,
       installed_executable_byte_parity_required: true,
       failed_download_evidence_truthful_required: true,
@@ -1184,9 +1184,9 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     'Preview required platform policy',
   );
   assertDeepEqualJson(
-    policies?.stable_optional?.platforms,
+    policies?.stable_desktop_additional?.platforms,
     ['linux-x64', 'windows-x64'],
-    'Stable optional platform policy',
+    'Stable additional Desktop platform policy',
   );
   if (validationProfile !== 'stable') {
     assertDeepEqualJson(
@@ -1206,7 +1206,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     );
   }
   const publicationCapabilityIds = validationProfile === 'stable'
-    ? ['macos-arm64']
+    ? ['macos-arm64', 'linux-x64', 'windows-x64']
     : validationProfile === 'windows-preview'
       ? ['windows-x64', 'windows-arm64']
       : capabilityIds;
@@ -1218,11 +1218,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || capabilities?.['linux-x64']?.default_enabled !== true
     || capabilities?.['linux-x64']?.stable_allowed !== true
     || capabilities?.['linux-x64']?.blocks_stable !== false
-    || !capabilities?.['linux-x64']?.quality_channels?.includes('stable_optional')
+    || !capabilities?.['linux-x64']?.quality_channels?.includes('stable')
     || capabilities?.['windows-x64']?.default_enabled !== true
     || capabilities?.['windows-x64']?.stable_allowed !== true
     || capabilities?.['windows-x64']?.blocks_stable !== false
-    || !capabilities?.['windows-x64']?.quality_channels?.includes('stable_optional')
+    || !capabilities?.['windows-x64']?.quality_channels?.includes('stable')
     || capabilities?.['windows-arm64']?.default_enabled !== false
     || capabilities?.['windows-arm64']?.stable_allowed !== false
     || capabilities?.['windows-arm64']?.blocks_stable !== false
@@ -1243,50 +1243,52 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       )
       || capabilities?.[capabilityId]?.publication_status?.includes('unavailable')
     )
-    || policies?.stable_optional?.selection_mode !== 'capability_default_enabled_only'
-    || JSON.stringify(platformMatrix?.stable_optional_selection?.default) !==
+    || policies?.stable_desktop_additional?.selection_mode !== 'capability_default_enabled_only'
+    || JSON.stringify(platformMatrix?.stable_desktop_additional_selection?.default) !==
       JSON.stringify(['linux-x64', 'windows-x64'])
     || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows-preview'
-    || platformMatrix?.stable_optional_selection?.authority_field !==
-      'opl_app_stable_operation_authority.v1#optional_platforms'
-    || platformMatrix?.stable_optional_selection?.control_field !==
-      'opl_app_stable_operation_control.v1#optional_platforms'
-    || platformMatrix?.stable_optional_selection?.arbitrary_command_or_os_input_allowed !== false
-    || platformMatrix?.optional_platform_additive_follower?.carrier !==
-      'independent_immutable_adjunct_release'
-    || platformMatrix?.optional_platform_additive_follower?.base_release_must_be_published_mutable !== true
-    || platformMatrix?.optional_platform_additive_follower?.adjunct_release_must_be_published_immutable !== true
-    || platformMatrix?.optional_platform_additive_follower?.make_latest !== false
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
+    || platformMatrix?.stable_desktop_additional_selection?.authority_field !==
+      'opl_app_stable_operation_authority.v1#desktop_additional_platforms'
+    || platformMatrix?.stable_desktop_additional_selection?.control_field !==
+      'opl_app_stable_operation_control.v1#desktop_additional_platforms'
+    || platformMatrix?.stable_desktop_additional_selection?.arbitrary_command_or_os_input_allowed !== false
+    || platformMatrix?.desktop_platform_additive_follower?.carrier !==
+      'same_mutable_stable_release_assets'
+    || platformMatrix?.desktop_platform_additive_follower?.base_release_must_be_published_mutable !== true
+    || platformMatrix?.desktop_platform_additive_follower?.new_release_or_tag_allowed !== false
+    || platformMatrix?.desktop_platform_additive_follower?.base_release_asset_append_allowed !== true
+    || platformMatrix?.desktop_platform_additive_follower?.make_latest !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.build_validator !==
       'scripts/validate-windows-updater-assets.ts'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.updater_version_source !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.updater_version_source !==
       'exact_standard_bundle_release_updater_version'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== false
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.authenticode_receipt !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.authenticode_required_for_publication !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.authenticode_receipt !==
       'opl-windows-authenticode-receipt.json'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.unsigned_publication_allowed !== true
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.code_signing_status_must_be_explicit !== true
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.unsigned_publication_allowed !== true
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.code_signing_status_must_be_explicit !== true
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.runtime_resolver !==
       'opl-aion-shell/packages/desktop/src/process/bridge/updateBridge.ts'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.base_stable_or_latest_mutation_allowed !== false
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.workflow !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.base_stable_asset_append_allowed !== true
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.latest_pointer_mutation_allowed !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.workflow !==
       '.github/workflows/windows-updater-upgrade-vm-preflight.yml'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.admission_validator !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.admission_validator !==
       'scripts/validate-windows-updater-upgrade-vm-admission.ts'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.host_dry_run_harness !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.host_dry_run_harness !==
       'scripts/Test-OPLWindowsUpdaterUpgradeVM.ps1'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.cross_component_exact_cohort_required !== false
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.compatibility_receipt_schema !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.cross_component_exact_cohort_required !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.compatibility_receipt_schema !==
       'opl_component_compatibility_receipt.v1'
-    || JSON.stringify(platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.compatibility_requirement_kinds) !==
+    || JSON.stringify(platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.compatibility_requirement_kinds) !==
       JSON.stringify(['capability_id_with_versioned_schema', 'minimum_version', 'semver_range'])
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.runner_offline_or_busy !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.runner_offline_or_busy !==
       'typed_not_ready_without_queue'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.factory_authority !==
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.factory_authority !==
       'existing_opl_windows_vm_lease_v2_and_clean_vm_attestation_v2_only'
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.current_execute_available !== false
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.publication_or_install_authority_granted_by_preflight !== false
-    || platformMatrix?.optional_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.blocks_stable_or_latest !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.current_execute_available !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.publication_or_install_authority_granted_by_preflight !== false
+    || platformMatrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.upgrade_vm_qualification?.blocks_stable_or_latest !== false
     || platformMatrix?.full_macos_additive_follower?.trigger !==
       'protected_automatic_post_success_or_explicit_same_tag_full_append'
     || platformMatrix?.full_macos_additive_follower?.source_policy !==
@@ -1416,156 +1418,21 @@ function validateWebuiGhcrImage(webuiImage) {
     contract.publish_gate
       ?.explicit_preview_latest_requires_exact_qualified_carrier_and_protected_override !== true ||
     contract.publish_gate?.forbidden_success_state !== 'metadata_only_seed_promoted_to_latest_or_stable' ||
-    webuiImage.stable_promotion?.default_pointer_ref !==
-      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
-    webuiImage.stable_promotion?.automatic_update_ref !==
-      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
-    webuiImage.stable_promotion?.target_ref !==
-      'ghcr.io/gaofeng21cn/one-person-lab-webui:latest' ||
-    webuiImage.stable_promotion?.compatibility_alias_ref !==
-      'ghcr.io/gaofeng21cn/one-person-lab-webui:stable' ||
-    webuiImage.stable_promotion?.manual_version_promotion_policy !==
-      'manual_development_validation_may_advance_latest_after_exact_immutable_carrier_qualification_while_preserving_stable' ||
-    webuiImage.stable_promotion?.schema !== 'opl_app_webui_stable_promotion_contract.v6' ||
-    webuiImage.stable_promotion?.admission_schema !==
-      'opl_app_webui_stable_promotion_admission.v5' ||
-    webuiImage.stable_promotion?.decision_schema !==
-      'opl_app_webui_stable_promotion_decision.v2' ||
-    webuiImage.stable_promotion?.receipt_schema !==
-      'opl_app_webui_stable_promotion_receipt.v5' ||
-    webuiImage.stable_promotion?.compare_and_swap
-      ?.divergent_aliases_may_only_reconcile_to_same_qualified_target !== true ||
-    webuiImage.stable_promotion?.compare_and_swap
-      ?.development_validation_requires_stable_prestate_unchanged !== true ||
-    webuiImage.stable_promotion?.compare_and_swap
-      ?.independent_preview_requires_stable_prestate_unchanged !== true ||
-    webuiImage.stable_promotion?.task_modes?.development_validation
-      ?.stable_alias_mutation_allowed !== false ||
-    webuiImage.stable_promotion?.task_modes?.development_validation
-      ?.stable_prestate_must_remain_unchanged !== true
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.desktop_stable_required !== false
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.desktop_latest_required !== false
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.immutable_publication_required !== true
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.publication_does_not_move_stable_or_latest !== true
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.promotion_requires_explicit_user_dispatch !== true
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.source_authority_schema !== 'opl_app_webui_source_authority.v1'
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.source_authority_digest_must_equal_carrier_release_bundle_and_cohort_ref !== true
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.stable_alias_mutation_allowed !== false
-    || webuiImage.stable_promotion?.task_modes?.independent_preview
-      ?.stable_prestate_must_remain_unchanged !== true
+    webuiImage.stable_promotion?.schema !== 'opl_app_webui_stable_promotion_contract.v7' ||
+    webuiImage.stable_promotion?.workflow !== '.github/workflows/release-webui-stable.yml' ||
+    webuiImage.stable_promotion?.trigger !== 'explicit_independent_docker_publication_or_promotion' ||
+    webuiImage.stable_promotion?.desktop_release_dependency !== false ||
+    webuiImage.stable_promotion?.desktop_release_follower_allowed !== false ||
+    webuiImage.stable_promotion?.immutable_version_required !== true ||
+    webuiImage.stable_promotion?.compare_and_swap?.same_digest_is_idempotent !== true ||
+    webuiImage.stable_promotion?.compare_and_swap?.unexpected_digest !== 'conflict_without_mutation' ||
+    webuiImage.stable_promotion?.compare_and_swap?.maximum_tag_attempts !== 1 ||
+    webuiImage.stable_promotion?.compare_and_swap?.force_allowed !== false ||
+    webuiImage.stable_promotion?.unknown_outcome?.retry_allowed !== false ||
+    webuiImage.stable_promotion?.unknown_outcome?.bounded_read_only_reconcile_required !== true
   ) {
-    throw new Error('Docker/WebUI GHCR publishing must validate canonical manifest, seed metadata, full profile, and explicit Preview Latest boundaries');
+    throw new Error('Docker/WebUI GHCR publishing must remain an independent, immutable, CAS-guarded product line');
   }
-  const webuiRecovery = webuiImage.stable_promotion.exact_failed_follower_recovery;
-  if (
-    webuiRecovery?.trigger !== 'workflow_dispatch'
-    || webuiRecovery?.recovery_generation !== 9
-    || webuiRecovery?.confirmation !== 'recover_exact_failed_webui_follower_v9'
-    || webuiRecovery?.failed_recovery_v8_moving_channel_mutation_count_required !== 0
-    || webuiRecovery?.failed_recovery_v8_durable_sidecar_count_required !== 0
-    || webuiRecovery?.failed_recovery_v8_immutable_version_digest !==
-      'sha256:caff36778d8e39ca23682445d8734d6c335ed01e337e9e86dbba9e56657db501'
-    || webuiRecovery?.recovery_v9_qualified_artifact_run_id !== '30957022809'
-    || webuiRecovery?.recovery_v9_qualified_artifact_id !== '8911730316'
-    || webuiRecovery?.recovery_v9_qualified_artifact_digest !==
-      'sha256:44eb5268eeb16ca2362d46515da59c3db6ae5537fd9bd69ec42b6845618eed23'
-    || webuiRecovery?.recovery_v9_artifact_rebuild_allowed !== false
-    || webuiRecovery?.same_identity_recovery_v9_run_count_required !== 1
-    || webuiRecovery?.automatic_workflow_run_route_preserved !== true
-    || webuiRecovery?.rerun_or_stable_redispatch_allowed !== false
-  ) {
-    throw new Error('Docker/WebUI recovery v9 must reuse the exact qualified v8 artifact without rebuilding or widening authority');
-  }
-  assertDeepEqualJson(
-    webuiRecovery.consumed_recovery_generations,
-    [1, 2, 3, 4, 5, 6, 7, 8],
-    'Docker/WebUI consumed recovery generations',
-  );
-  assertDeepEqualJson(
-    webuiRecovery.inputs,
-    [
-      'source_run_id',
-      'failed_follower_run_id',
-      'failed_recovery_run_id',
-      'failed_recovery_v2_run_id',
-      'failed_recovery_v3_run_id',
-      'failed_recovery_v4_run_id',
-      'failed_recovery_v5_run_id',
-      'failed_recovery_v6_run_id',
-      'failed_recovery_v7_run_id',
-      'failed_recovery_v8_run_id',
-      'recovery_confirmation',
-    ],
-    'Docker/WebUI recovery v9 inputs',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.production_release.promotion_tags,
-    ['stable', 'latest'],
-    'Docker/WebUI production promotion tags',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.development_validation.promotion_tags,
-    ['latest'],
-    'Docker/WebUI development promotion tags',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.development_validation.classification,
-    {
-      quality_status: 'preview',
-      build_trigger: 'manual',
-      preview_kind: 'dev',
-      non_stable_notice: true,
-    },
-    'Docker/WebUI development preview classification',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.independent_preview.classification,
-    {
-      quality_status: 'preview',
-      build_trigger: 'manual',
-      preview_kind: 'dev',
-      non_stable_notice: true,
-    },
-    'Docker/WebUI independent preview classification',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.independent_preview.publication_entry_inputs,
-    ['version', 'app_ref', 'shell_ref', 'framework_ref'],
-    'Docker/WebUI independent Preview publication inputs',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.independent_preview.promotion_entry_inputs,
-    ['publication_record_ref', 'operator_confirmation'],
-    'Docker/WebUI independent Preview Latest inputs',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.task_modes.independent_preview.operator_confirmation,
-    {
-      schema: 'opl_app_webui_latest_operator_authorization.v1',
-      source: 'workflow_dispatch_exact_version_confirmation',
-      actor: 'github.actor_human_login',
-      value: 'move-docker-latest:<publication_record.release.version>',
-      receipt_field: 'operator_authorization.confirmation_digest',
-    },
-    'Docker/WebUI independent Preview Latest operator confirmation',
-  );
-  assertDeepEqualJson(
-    webuiImage.stable_promotion.compare_and_swap.promotion_tags_by_authority_mode,
-    {
-      production_follower: ['stable', 'latest'],
-      development_validation: ['latest'],
-      independent_preview: ['latest'],
-    },
-    'Docker/WebUI promotion tags by authority mode',
-  );
   assertIncludesAll(
     contract.publish_gate?.must_read_back,
     [
