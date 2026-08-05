@@ -103,9 +103,10 @@ evidence/history owner，不回填当前五轴。
 产品边界与 no-resurrection 规则，不是发布 worklist，也不证明 runtime、installed currentness、owner
 acceptance 或 production readiness。
 
-Historical evidence routing only: `a0ce713b65801fd9ca7f46ad168c977c75a187de` is the verified GUI
-ancestor and `0ebc1fdd278e8a79602458e15e28cf814dfd917d` binds the historical 41301 pixel
-cohort. Neither hash is a current Shell HEAD, current pixel, Install, or Release claim.
+Historical GUI-ancestor and 41301 pixel-cohort bindings remain only in the App machine contracts and
+[`../product/gui/evidence/aionui-41301/`](../product/gui/evidence/aionui-41301/). They are not a
+current Shell HEAD, current pixel, Install or Release claim and must not be copied back into this
+active plan.
 
 ## 维护规则
 

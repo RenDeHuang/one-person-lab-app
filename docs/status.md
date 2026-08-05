@@ -6,19 +6,22 @@ State: `active`
 Machine boundary: Human-readable status. Use `contracts/` and release/test
 artifacts for machine decisions.
 
-Package composition Phase 1 is complete and Phase 2 per-family retirement is active. The target SSOT,
-functionality-equivalence ledger and frozen implementation boundaries live in
+Package composition Phase 1 is complete and the Phase 2 controlled breaking cutover is active. The
+target SSOT, functionality-equivalence ledger and frozen implementation boundaries live in
 [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md).
 Its exact blob is canonical documentation authority; current canonical contracts/source and fresh
 platform readback remain implementation truth. Already-canonical changes are not reverted, but
 task commits/worktrees, tests and owner handoffs are only owner-bound checkpoints until fresh-main
-absorption and do not prove implementation completion. The current Framework main already includes owner-channel
-Package currentness and package-local required selection, but App-state still
-projects old lock/ABI/digest/materialization/receipt/LKG compatibility state. The next action is to
-continue the migration plan's per-family producer -> consumer -> OUT -> consumer-zero -> physical
-deletion loop. This Phase 2 source authority does not unlock canonical absorption, Stable/Latest,
-Package publication, WebUI promotion, real user managed-state mutation, or cleanup; those retain
-their own fresh owner gates and do not block zero-overlap source work.
+absorption and do not prove implementation completion. Framework main now provides owner-channel
+Package currentness, installed descriptor discovery, configured-carrier actions, fresh
+presence/App-state projection and installed-only invocation. Public Package lifecycle actions can
+still reach legacy lock, payload, materializer, receipt, rollback or transaction compatibility code.
+The next migration step is the successor-only public action and App/Shell consumer cutover, followed
+by fresh `OUT-01..OUT-17` carrier acceptance and one bounded legacy Manager deletion batch. The
+role-neutral App-contribution Source chain is canonical across App, Framework, AionUI and Relay;
+Pixel, Install, Apple Mail review-path and Release proof remain independently unverified. Phase 2
+does not itself authorize Package publication, Stable/Latest, WebUI promotion, real user managed-state
+mutation or release claims; those retain their own fresh owner gates.
 
 Plugin native profile pointer: `contracts/opl-native-profile.json` only declares
 the repo-native profile used by OPL Flow / OPL Doc plugin sync and drift checks.
