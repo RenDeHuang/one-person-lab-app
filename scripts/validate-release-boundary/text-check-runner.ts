@@ -339,8 +339,9 @@ export function isAuthorizedFollowerRecoveryWriteJob(
       'recover_exact_failed_native_webui_follower_v1',
       'recover_exact_failed_native_webui_follower_v2',
       'recover_exact_failed_native_webui_follower_v3',
+      'recover_exact_failed_native_webui_follower_v4',
     ],
-    ['failed_recovery_v2_run_id', 'full_authority_run_id'],
+    ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'full_authority_run_id'],
     "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
   )) return false;
   const expected = jobId === 'native-webui-linux'
@@ -1544,8 +1545,9 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
         'recover_exact_failed_native_webui_follower_v1',
         'recover_exact_failed_native_webui_follower_v2',
         'recover_exact_failed_native_webui_follower_v3',
+        'recover_exact_failed_native_webui_follower_v4',
       ],
-      ['failed_recovery_v2_run_id', 'full_authority_run_id'],
+      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'full_authority_run_id'],
       "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
     )
     || !exactObject(follower.workflow.permissions, exactReadPermissions)

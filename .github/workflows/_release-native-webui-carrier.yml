@@ -425,6 +425,14 @@ jobs:
           github-token: ${{ github.token }}
           path: native-release
 
+      - name: Download exact Stable activation identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: opl-release-activation-${{ inputs.stable_authority_run_id }}
+          run-id: ${{ inputs.stable_authority_run_id }}
+          github-token: ${{ github.token }}
+          path: stable-activation
+
       - name: Restore exact Standard checkpoint
         id: checkpoint
         uses: ./executor-source/.github/actions/restore-release-checkpoint
@@ -450,7 +458,7 @@ jobs:
           fi
           identity_receipts=()
           while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
-            find imported-checkpoint -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+            find stable-activation -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
           )
           test "${#identity_receipts[@]}" -eq 1
           identity_sha256="sha256:$(shasum -a 256 "${identity_receipts[0]}" | awk '{print $1}')"
