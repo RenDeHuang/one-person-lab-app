@@ -23,7 +23,6 @@ const exactWebUiPublishPermissions = { actions: 'read', contents: 'read', packag
 const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml';
 const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
 const manualFullPreviewMutationJob = 'mutate';
-const manualBuildWorkflowPath = '.github/workflows/build-manual.yml';
 const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable.yml';
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
 const webuiCarrierPublishEnvironment =
@@ -179,19 +178,6 @@ function isAuthorizedManualPreviewWriteJob(
     && job.with?.mode === 'execute'
     && job.with?.operation === 'resume_standard'
     && job.with?.publication_channel === 'preview';
-}
-
-function isAuthorizedSelectedPlatformPublishJob(
-  workflowPath: string,
-  jobId: string,
-  job: Record<string, any>,
-): boolean {
-  return workflowPath === manualBuildWorkflowPath
-    && jobId === 'publish-selected-platforms'
-    && needsExactly(job, ['prepare-matrix', 'build-pipeline'])
-    && job.environment === 'release-preview'
-    && exactObject(job.permissions, exactStableEntryPermissions)
-    && Array.isArray(job.steps);
 }
 
 function validatePreviewLatestPointerTopology(appRoot: string): number {
@@ -1921,10 +1907,6 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
         continue;
       }
       if (isAuthorizedManualPreviewWriteJob(workflowPath, jobId, job)) {
-        continue;
-      }
-      if (isAuthorizedSelectedPlatformPublishJob(workflowPath, jobId, job)) {
-        failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
       }
       if (

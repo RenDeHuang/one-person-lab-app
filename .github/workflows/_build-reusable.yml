@@ -292,11 +292,11 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Bind Windows RC Framework manifest for prepared runtime
+      - name: Bind Windows Framework manifest for prepared runtime
         shell: bash
         working-directory: ${{ github.workspace }}
         run: |
-          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
             --manifest shells/aionui/resources/opl-linux/product.json \
             --framework-ref "${{ inputs.framework_ref }}"
 
@@ -594,12 +594,12 @@ jobs:
           OPL_STANDARD_PAYLOAD_RELEASE_BOUND: ${{ inputs.operation != '' && 'true' || 'false' }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
-      - name: Bind Windows RC Framework manifest
+      - name: Bind Windows Framework manifest
         if: startsWith(matrix.platform, 'windows')
         shell: bash
         working-directory: ${{ github.workspace }}
         run: |
-          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
             --manifest shells/aionui/resources/opl-linux/product.json \
             --framework-ref "${{ inputs.framework_ref }}"
 
@@ -847,12 +847,12 @@ jobs:
           $output = Join-Path $installer.DirectoryName 'opl-windows-authenticode-receipt.json'
           [System.IO.File]::WriteAllText($output, $json, [System.Text.UTF8Encoding]::new($false))
 
-      - name: Bind packaged Windows RC Framework manifest
+      - name: Bind packaged Windows Framework manifest
         if: startsWith(matrix.platform, 'windows')
         shell: bash
         working-directory: ${{ github.workspace }}
         run: |
-          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
             --manifest shells/aionui/out/win-unpacked/resources/opl-linux/product.json \
             --framework-ref "${{ inputs.framework_ref }}"
 
@@ -1342,52 +1342,6 @@ jobs:
             --stable-session-id "${{ inputs.release_bundle_digest }}" \
             --release-cohort-ref "${{ inputs.release_cohort_ref }}"
 
-      - name: Write Windows RC build artifact cohort manifest
-        if: success() && matrix.platform == 'windows-x64' && inputs.release_validation_profile == 'windows-preview'
-        shell: bash
-        env:
-          OPL_BUILD_VERSION: ${{ steps.opl-release-version.outputs.version }}
-        run: |
-          set -euo pipefail
-          installer_paths=()
-          while IFS= read -r candidate; do installer_paths+=("$candidate"); done < <(
-            find out -maxdepth 1 -type f -name '*.exe' -print | LC_ALL=C sort
-          )
-          if [ "${#installer_paths[@]}" -ne 1 ]; then
-            echo "::error::Windows RC cohort requires exactly one top-level EXE; found ${#installer_paths[@]}."
-            exit 1
-          fi
-          installer_path="${installer_paths[0]}"
-          packaged_tree="out/win-unpacked"
-          test -f "$installer_path" && test ! -L "$installer_path"
-          test -d "$packaged_tree" && test ! -L "$packaged_tree"
-          artifact_name="${{ inputs.append_commit_hash && format('{0}-{1}', matrix.artifact-name, steps.commit.outputs.short) || matrix.artifact-name }}"
-          node --experimental-strip-types ../../scripts/write-windows-rc-build-cohort.ts \
-            --output out/opl-windows-rc-build-cohort.json \
-            --installer "$installer_path" \
-            --packaged-tree "$packaged_tree" \
-            --app-sha "$(git -C ../.. rev-parse HEAD)" \
-            --app-tree "$(git -C ../.. rev-parse 'HEAD^{tree}')" \
-            --shell-sha "$(git rev-parse HEAD)" \
-            --shell-tree "$(git rev-parse 'HEAD^{tree}')" \
-            --framework-sha "${{ inputs.framework_ref }}" \
-            --version "$OPL_BUILD_VERSION" \
-            --platform win32 \
-            --arch "${{ matrix.arch }}" \
-            --actions-run-id "$GITHUB_RUN_ID" \
-            --actions-run-attempt "$GITHUB_RUN_ATTEMPT" \
-            --actions-artifact-name "$artifact_name"
-          node --experimental-strip-types ../../scripts/render-windows-preview-downloader.ts \
-            --template ../../scripts/download-windows-preview.ps1 \
-            --output out/download-windows-preview.ps1 \
-            --repository "$GITHUB_REPOSITORY" \
-            --release-tag "windows-rc-$OPL_BUILD_VERSION" \
-            --installer "$installer_path"
-          node --experimental-strip-types ../../scripts/write-sha256-sums.ts \
-            --output out/SHA256SUMS.txt \
-            "$installer_path" \
-            out/download-windows-preview.ps1
-
       - name: Upload build artifact cohort manifest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: success() && startsWith(matrix.platform, 'macos')
@@ -1410,9 +1364,6 @@ jobs:
             shells/aionui/out/*.zip
             shells/aionui/out/*.blockmap
             shells/aionui/out/*.yml
-            shells/aionui/out/*.ps1
-            shells/aionui/out/SHA256SUMS.txt
-            shells/aionui/out/opl-windows-rc-build-cohort.json
             shells/aionui/out/opl-windows-updater-assets.json
             shells/aionui/out/opl-windows-authenticode-receipt.json
             shells/aionui/out/standard-local-authorization-policy.json

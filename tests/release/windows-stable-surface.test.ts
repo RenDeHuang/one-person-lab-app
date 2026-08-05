@@ -1,0 +1,183 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { parse as parseYaml } from 'yaml';
+
+import {
+  bindWindowsFrameworkManifest,
+  isMainModule,
+} from '../../scripts/bind-windows-framework-manifest.ts';
+import { resolveReleasePlatformMatrix } from '../../scripts/resolve-release-platform-matrix.ts';
+import { appRoot } from './app-release-boundary-cases/helpers.ts';
+
+const frameworkSha = 'e'.repeat(40);
+
+test('manual Windows builds are build-only while Windows x64 Stable uses the same-tag follower', () => {
+  const manualPath = path.join(appRoot, '.github/workflows/build-manual.yml');
+  const manualSource = fs.readFileSync(manualPath, 'utf8');
+  const manual = parseYaml(manualSource) as any;
+
+  assert.equal(manual.permissions.contents, 'read');
+  assert.equal(manual.on.workflow_dispatch.inputs.publication_mode, undefined);
+  assert.equal(manual.on.workflow_dispatch.inputs.immutable_release_capability_evidence, undefined);
+  assert.equal(manual.jobs['publish-selected-platforms'], undefined);
+  assert.doesNotMatch(manualSource, /windows_preview_rc|windows-rc-|release-preview|gh release upload/);
+  assert.deepEqual(
+    resolveReleasePlatformMatrix({ policy: 'manual_all', platform: 'windows-x64' }).include,
+    [{
+      platform: 'windows-x64',
+      os: 'windows-2022',
+      command: 'node scripts/build-with-builder.js x64 --win --x64',
+      'artifact-name': 'windows-build-x64',
+      arch: 'x64',
+    }],
+  );
+});
+
+test('Windows package Framework binder writes the exact immutable ref and URLs', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-windows-framework-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const manifestPath = path.join(root, 'product.json');
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({
+      logical_distribution: 'OPL-Linux',
+      framework_ref: 'f'.repeat(40),
+    }),
+  );
+
+  const bound = bindWindowsFrameworkManifest(manifestPath, frameworkSha);
+  assert.equal(bound.framework_ref, frameworkSha);
+  assert.equal(
+    bound.framework_install_script_url,
+    `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/${frameworkSha}/install.sh`,
+  );
+  assert.equal(
+    bound.framework_source_archive_url,
+    `https://github.com/gaofeng21cn/one-person-lab/archive/${frameworkSha}.tar.gz`,
+  );
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')), bound);
+  assert.throws(() => bindWindowsFrameworkManifest(manifestPath, 'main'), /exact 40-character Git SHA/);
+});
+
+test('Windows package Framework binder recognizes a Windows file URL entrypoint', () => {
+  const entry = new URL(
+    'file:///D:/a/one-person-lab-app/one-person-lab-app/scripts/bind-windows-framework-manifest.ts',
+  );
+  assert.equal(isMainModule(entry.href, entry), true);
+  assert.equal(
+    isMainModule('file:///D:/a/one-person-lab-app/one-person-lab-app/scripts/another-script.ts', entry),
+    false,
+  );
+});
+
+test('standalone Windows RC publication is retired without fabricating runtime acceptance', () => {
+  const release = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
+  );
+  const execution = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-windows-wsl2-execution.json'), 'utf8'),
+  );
+  const install = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-install-exposure-policy.json'), 'utf8'),
+  );
+  const history = release.distribution_semantics.publication_history.windows_x64_rc_preview;
+  const routing = install.distribution_install_model.platform_routing.windows_personal;
+
+  assert.equal(
+    release.distribution_semantics.implementation_state.windows_x64_rc_preview,
+    'retired_no_public_release_or_tag_stable_same_tag_successor',
+  );
+  assert.equal(release.distribution_semantics.approved_targets.windows_x64_rc_preview, undefined);
+  assert.equal(history.state, 'retired');
+  assert.equal(history.new_publication_workflow_present, false);
+  assert.equal(history.runtime_acceptance_inference_allowed, false);
+  assert.equal(release.release_platform_matrix.policies.windows_preview, undefined);
+  assert.equal(
+    release.release_platform_matrix.capabilities['windows-x64'].publication_status,
+    'same_stable_release_set',
+  );
+  assert.equal(
+    release.release_platform_matrix.capabilities['windows-arm64'].publication_status,
+    'development_validation_only',
+  );
+  assert.equal(execution.release_boundary.standalone_rc_publication_allowed, false);
+  assert.equal(execution.release_boundary.stable_same_tag_windows_asset_publication_allowed, true);
+  assert.equal(execution.release_boundary.stable_asset_publication_proves_wsl2_runtime_acceptance, false);
+  assert.equal(execution.release_boundary.stable_asset_publication_proves_installed_behavior, false);
+  assert.equal(execution.release_boundary.current_wsl2_runtime_acceptance, 'not_claimed');
+  assert.equal(routing.current_default_runtime_form, 'desktop');
+  assert.equal(routing.desktop_publication_proves_runtime_acceptance, false);
+  assert.equal(routing.desktop_publication_proves_installed_behavior, false);
+  assert.equal(routing.standalone_rc_preview.state, 'retired');
+  assert.equal(routing.standalone_rc_preview.publication_workflow_present, false);
+  assert.equal(routing.standalone_rc_preview.download_helper_present, false);
+
+  for (const relativePath of [
+    'scripts/download-windows-preview.ps1',
+    'scripts/render-windows-preview-downloader.ts',
+    'scripts/write-windows-rc-build-cohort.ts',
+  ]) {
+    assert.equal(fs.existsSync(path.join(appRoot, relativePath)), false, relativePath);
+  }
+});
+
+test('Windows install guide binds the v26.8.4 Stable asset and preserves evidence boundaries', () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        appRoot,
+        'docs/delivery/user-guides/windows-app-install/source/windows-app-install.quarto.json',
+      ),
+      'utf8',
+    ),
+  );
+  const guide = fs.readFileSync(
+    path.join(appRoot, 'docs/guides/windows-app-install/guide.qmd'),
+    'utf8',
+  );
+
+  assert.equal(manifest.state, 'active_stable_release_asset');
+  assert.equal(manifest.download.release_tag, 'v26.8.4');
+  assert.equal(
+    manifest.download.release_url,
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4',
+  );
+  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.8.4-win-x64.exe');
+  assert.equal(
+    manifest.download.installer_sha256,
+    '5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6',
+  );
+  assert.equal(manifest.download.installer_size_bytes, '318525958');
+  assert.equal(manifest.download.code_signing_status, 'unsigned');
+  assert.equal(manifest.download.code_signing_policy, 'optional_nonblocking');
+  assert.match(guide, /\{\{download\.release_tag\}\}/);
+  assert.match(guide, /\{\{download\.installer_sha256\}\}/);
+  assert.match(guide, /Get-FileHash/);
+  assert.match(guide, /Windows SmartScreen/);
+  assert.match(guide, /不能证明 WSL2 runtime acceptance、installed behavior 或产品支持完成/);
+  assert.doesNotMatch(guide, /windows-rc-|RC Preview|download-windows-preview\.ps1|SHA256SUMS\.txt/);
+  assert.doesNotMatch(guide, /关闭 Windows Defender|把 API Key 粘贴到 PowerShell/);
+});
+
+test('packaged installation-integrity recovery remains bounded and readback-based', () => {
+  const adapter = JSON.parse(
+    fs.readFileSync(path.join(appRoot, 'contracts/app-shell-adapter.json'), 'utf8'),
+  );
+  const recovery = adapter.startup_installation_integrity_recovery;
+
+  assert.equal(recovery.trigger, 'packaged_backend_incomplete_installation');
+  assert.equal(recovery.blocking_surface, true);
+  assert.deepEqual(recovery.required_actions, [
+    'restart_and_recheck_same_installation',
+    'copy_redacted_diagnostic_summary',
+    'open_local_app_log_directory',
+    'open_prefilled_support_issue',
+    'open_official_release_download',
+  ]);
+  assert.ok(recovery.diagnostic_copy_forbidden.includes('absolute_user_paths'));
+  assert.equal(recovery.self_heal_or_reinstall_success_claim_without_fresh_readback_allowed, false);
+  assert.equal(recovery.smartscreen_or_security_software_bypass_allowed, false);
+});

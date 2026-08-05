@@ -30,7 +30,6 @@
       "nonproduction_or_compatibility_lanes_not_counted_as_production_paths": [
         "desktop_full_additive_asset",
         "manual_full_preview",
-        "windows_x64_wsl2_only_rc_preview",
         "container_webui_manual_independent_preview",
         "desktop_nightly_automated_standard_prerelease",
         "homebrew_nightly_post_publication_follower",
@@ -258,7 +257,7 @@
       "desktop_dev_preview": "implemented_pending_first_publication_readback",
       "desktop_nightly": "implemented_pending_first_publication_readback",
       "manual_full_preview": "live_non_latest_temporary_lane",
-      "windows_x64_rc_preview": "live_public_wsl2_only_prerelease_with_terminal_acceptance",
+      "windows_x64_rc_preview": "retired_no_public_release_or_tag_stable_same_tag_successor",
       "full": "live_additive_first_install_asset_not_channel",
       "container_webui": "live_separate_development_and_production_carrier_with_independent_preview_publication",
       "desktop_linux_x86_64": "implemented_pending_first_publication_readback",
@@ -273,6 +272,14 @@
         "historical_full_by_default": false,
         "current_publication_workflow_present": true,
         "new_publication_status": "implemented_pending_first_publication_readback"
+      },
+      "windows_x64_rc_preview": {
+        "state": "retired",
+        "retirement_reason": "no_public_windows_rc_release_or_tag_and_same_tag_stable_windows_successor_is_live",
+        "new_publication_workflow_present": false,
+        "legacy_tag_pattern": "^windows-rc-[0-9]+\\.[0-9]+\\.[0-9]+-rc\\.[1-9][0-9]*$",
+        "successor": "release_platform_matrix.desktop_platform_additive_follower.windows_x64_updater_assets",
+        "runtime_acceptance_inference_allowed": false
       }
     },
     "approved_targets": {
@@ -299,52 +306,6 @@
           "official_profile_convergence"
         ],
         "heavy_vm_blocks_publication": false
-      },
-      "windows_x64_rc_preview": {
-        "target": "manual_opt_in_windows_x64_wsl2_only_prerelease",
-        "status": "live_public_wsl2_only_prerelease_with_terminal_acceptance",
-        "mainline_source_absorption_allowed": true,
-        "existing_stable_latest_dependency_allowed": false,
-        "existing_stable_latest_gate_allowed": false,
-        "quality": "preview",
-        "payload_density": "standard",
-        "publication_carrier": "app_github_releases",
-        "tag_pattern": "^windows-rc-[0-9]+\\.[0-9]+\\.[0-9]+-rc\\.[1-9][0-9]*$",
-        "installer_asset_pattern": "^One-Person-Lab-[0-9]+\\.[0-9]+\\.[0-9]+-rc\\.[1-9][0-9]*-win-x64\\.exe$",
-        "prerelease_required": true,
-        "latest_allowed": false,
-        "stable_updater_allowed": false,
-        "homebrew_allowed": false,
-        "stable_bundle_operation_allowed": false,
-        "runtime_execution_substrate": "dedicated_opl_linux_wsl2",
-        "wsl2_only_terminal_claim_required": true,
-        "current_wsl2_only_terminal_claim": true,
-        "native_windows_executor_fallback_allowed": false,
-        "required_publication_evidence": [
-          "exact_app_shell_framework_refs",
-          "windows_rc_build_cohort_with_installer_and_packaged_tree_sha256",
-          "owned_opl_linux_distribution_and_linux_runtime_sha256",
-          "one_linux_codex_identity_across_aioncore_app_server_and_framework",
-          "clean_windows_no_wsl_install_restart_resume_and_repair_readback",
-          "physical_windows_launch_gateway_runtime_restart_exit_and_zero_survivor_readback",
-          "static_and_runtime_no_native_windows_executor_inventory",
-          "github_prerelease_asset_digest_and_latest_pointer_readback",
-          "public_windows_install_guide"
-        ],
-        "blocking_publication_gates": [
-          "wsl2_only_runtime_for_every_codex_backed_path_without_native_fallback",
-          "automatic_wsl2_substrate_install_repair_and_restart_recovery",
-          "clean_machine_install_and_uninstall_acceptance",
-          "three_route_same_linux_codex_and_codex_home_acceptance",
-          "targeted_wsl_restart_and_app_session_survivor_acceptance"
-        ],
-        "deferred_stable_gates": [
-          "upgrade_from_prior_windows_build",
-          "code_signing_and_smartscreen_provenance",
-          "formal_installer_acceptance",
-          "stable_channel_and_updater_admission"
-        ],
-        "rule": "The current public Windows RC is a manual opt-in WSL2-only Preview with exact release-byte terminal acceptance. Every Codex-backed route remains bound to one Linux executor identity with no native Windows fallback; Latest, Stable updater, Homebrew, and Stable Bundle admission remain forbidden."
       },
       "homebrew_full": {
         "target": "managed_stable_full_dmg_cask",
@@ -512,22 +473,20 @@
         "default_enabled": true,
         "quality_channels": [
           "stable",
-          "preview_rc",
           "development_validation"
         ],
         "stable_allowed": true,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "same_stable_release_set_and_preview_rc",
-        "publication_route": ".github/workflows/build-manual.yml#protected_selected_platform_publication",
+        "publication_status": "same_stable_release_set",
+        "publication_route": ".github/workflows/build-manual.yml",
         "build": {
           "os": "windows-2022",
           "command": "node scripts/build-with-builder.js x64 --win --x64",
           "arch": "x64",
           "artifact_names": {
             "stable_desktop_additional": "stable-desktop-windows-x64",
-            "windows_preview": "windows-preview-x64",
             "manual": "windows-build-x64"
           }
         }
@@ -535,21 +494,19 @@
       "windows-arm64": {
         "default_enabled": false,
         "quality_channels": [
-          "preview_rc",
           "development_validation"
         ],
         "stable_allowed": false,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "preview_rc_supported_default_off",
-        "publication_route": ".github/workflows/build-manual.yml#protected_selected_platform_publication",
+        "publication_status": "development_validation_only",
+        "publication_route": null,
         "build": {
           "os": "windows-2022",
           "command": "node scripts/build-with-builder.js arm64 --win --arm64",
           "arch": "arm64",
           "artifact_names": {
-            "windows_preview": "windows-preview-arm64",
             "manual": "windows-build-arm64"
           }
         }
@@ -600,17 +557,6 @@
         "selection_mode": "capability_default_enabled_only",
         "operation_override": "authority_bound_explicit_subset",
         "artifact_profile": "stable_desktop_additional"
-      },
-      "windows_preview": {
-        "quality_channel": "preview_rc",
-        "platforms": [
-          "windows-x64",
-          "windows-arm64"
-        ],
-        "default_enabled": false,
-        "required": false,
-        "blocks_base_terminal": false,
-        "artifact_profile": "windows_preview"
       },
       "manual_all": {
         "quality_channel": "development_validation",
@@ -669,7 +615,6 @@
         "unsigned_publication_allowed": true,
         "code_signing_status_receipt": "opl-windows-updater-assets.json#code_signing",
         "code_signing_status_must_be_explicit": true,
-        "preview_authenticode_requirement_changed": false,
         "required_assets": [
           "One-Person-Lab-<display-version>-win-x64.exe",
           "One-Person-Lab-<display-version>-win-x64.exe.blockmap",
@@ -756,10 +701,10 @@
     },
     "validation_ownership": {
       "stable": {
-        "selection": "all_release_tests_except_exact_windows_preview_owned_paths",
-        "excluded_profile": "windows-preview"
+        "selection": "all_release_tests_except_exact_windows_owned_paths",
+        "excluded_profile": "windows"
       },
-      "windows-preview": {
+      "windows": {
         "selection": "exact_owned_paths_only",
         "owned_test_paths": [
           "tests/release/docker-webui-clean-windows-dispatch.test.ts",
@@ -767,8 +712,7 @@
           "tests/release/docker-webui-windows-installer.test.ts",
           "tests/release/docker-webui-windows-validation-fixtures.test.ts",
           "tests/release/windows-platform-factory-contract.test.ts",
-          "tests/release/windows-preview-bits-powershell.test.ts",
-          "tests/release/windows-rc-preview.test.ts",
+          "tests/release/windows-stable-surface.test.ts",
           "tests/release/windows-updater-upgrade-vm.test.ts",
           "tests/release/windows-wsl2-validation-fixtures.test.ts"
         ]

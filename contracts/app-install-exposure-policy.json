@@ -85,43 +85,32 @@
         "app_runtime_form": null
       },
       "windows_personal": {
-        "current_default_runtime_form": "container_webui",
-        "opt_in_desktop_preview": null,
-        "desktop_preview_publication_state": "blocked_until_wsl2_only_acceptance",
-        "desktop_preview_changes_default_route": false,
+        "current_default_runtime_form": "desktop",
+        "approved_default_runtime_form": "desktop",
+        "desktop_release_carrier": "same_tag_stable_github_release_asset",
+        "desktop_release_currentness_source": "contracts/app-release-channel.json#release_platform_matrix.desktop_platform_additive_follower",
+        "desktop_publication_proves_runtime_acceptance": false,
+        "desktop_publication_proves_installed_behavior": false,
+        "desktop_supported_platform_claim_status": "not_authorized_by_release_asset_or_docs",
         "desktop_target_execution_substrate": "dedicated_opl_linux_wsl2",
         "automatic_wsl2_provisioning_required": true,
         "native_windows_executor_fallback_allowed": false,
         "wsl2_only_desktop_target_contract": "contracts/app-windows-wsl2-execution.json",
-        "wsl2_only_supported_desktop_target_requires_exact_release_acceptance": true,
+        "wsl2_only_supported_desktop_target_requires_separate_exact_installed_acceptance": true,
         "desktop_webui_target_requires_same_desktop_qualification": true,
-        "preview_download_resilience": {
-          "delivery_status": "starting_next_windows_preview_rc",
-          "helper_asset": "download-windows-preview.ps1",
-          "transport": "windows_bits_persistent_background_transfer",
-          "resume_identity": "exact_immutable_release_tag_asset_url_and_destination",
-          "progress": [
-            "transferred_bytes",
-            "total_bytes_when_known",
-            "percentage_when_known",
-            "bits_job_state",
-            "fifteen_second_heartbeat"
-          ],
-          "verification_before_final_name": [
-            "release_generated_helper_is_bound_to_exact_immutable_prerelease_tag_asset_digest_and_size",
-            "sha256sums_exact_filename_entry",
-            "release_bound_embedded_installer_digest_and_size",
-            "downloaded_file_sha256"
-          ],
-          "public_github_api_required_for_download": false,
-          "browser_direct_download_remains_available": true,
-          "partial_or_mismatched_bytes_must_not_receive_final_exe_name": true,
-          "smartscreen_zone_marker_removal_allowed": false,
-          "mirror_policy": {
-            "automatic_arbitrary_third_party_mirror_allowed": false,
-            "automatic_candidate_requirement": "owner_published_https_source_bound_to_the_same_exact_asset_sha256_in_the_immutable_release_contract",
-            "current_additional_approved_sources": []
-          }
+        "standalone_rc_preview": {
+          "state": "retired",
+          "public_release_or_tag_present": false,
+          "publication_workflow_present": false,
+          "download_helper_present": false,
+          "successor": "same_tag_stable_windows_x64_asset",
+          "no_resurrection_without_new_owner_contract_and_public_readback": true
+        },
+        "download_integrity": {
+          "source": "github_release_asset_digest",
+          "browser_direct_download": true,
+          "user_verification": "Get-FileHash SHA256",
+          "smartscreen_zone_marker_removal_allowed": false
         }
       }
     },

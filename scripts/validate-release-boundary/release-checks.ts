@@ -13,13 +13,13 @@ export type ReleaseBoundaryCheck = {
   retired?: boolean;
 };
 
-export type ReleaseValidationProfile = 'aggregate' | 'stable' | 'windows-preview';
+export type ReleaseValidationProfile = 'aggregate' | 'stable' | 'windows';
 
 export function releaseValidationProfile(
   value = process.env.OPL_RELEASE_VALIDATION_PROFILE,
 ): ReleaseValidationProfile {
   if (value === undefined || value === '') return 'aggregate';
-  if (value === 'aggregate' || value === 'stable' || value === 'windows-preview') return value;
+  if (value === 'aggregate' || value === 'stable' || value === 'windows') return value;
   throw new Error(`Unsupported OPL_RELEASE_VALIDATION_PROFILE: ${value}.`);
 }
 
@@ -59,7 +59,7 @@ export const releaseWorkflowPaths = [
   ".github/workflows/release-verify-remote.yml",
 ];
 
-const windowsPreviewOnlyWorkflowPaths = new Set([
+const windowsOnlyWorkflowPaths = new Set([
   '.github/workflows/docker-webui-clean-windows-vm.yml',
 ]);
 
@@ -69,11 +69,11 @@ export function releaseWorkflowPathsForProfile(
   if (profile === 'aggregate') return releaseWorkflowPaths;
   if (profile === 'stable') {
     return releaseWorkflowPaths.filter((workflowPath) =>
-      !windowsPreviewOnlyWorkflowPaths.has(workflowPath)
+      !windowsOnlyWorkflowPaths.has(workflowPath)
     );
   }
   return releaseWorkflowPaths.filter((workflowPath) =>
-    windowsPreviewOnlyWorkflowPaths.has(workflowPath)
+    windowsOnlyWorkflowPaths.has(workflowPath)
     || workflowPath === '.github/workflows/_build-reusable.yml'
     || workflowPath === '.github/workflows/build-manual.yml'
   );
@@ -1446,7 +1446,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a",
       "OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json",
       "OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow",
-      "tests/release/windows-preview-bits-powershell.test.ts",
+      "tests/release/windows-stable-surface.test.ts",
       "npm run test:release-boundary",
       "npm run validate:release-boundary",
     ],
@@ -1690,37 +1690,28 @@ const supersededLiveControlPlaneChecks = new Set([
 export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   ...legacyReleaseBoundaryChecks.filter((check) => !supersededLiveControlPlaneChecks.has(check.id)),
   {
-    id: "audited_windows_preview_publication_carrier",
+    id: "audited_manual_build_and_stable_desktop_carrier",
     file: ".github/workflows/build-manual.yml",
     required: [
       "workflow_call:",
       "stable_release_set_build",
-      "windows_preview_rc",
       "resolve-release-platform-matrix.ts",
       "--policy stable_desktop_additional",
+      "--policy manual_all",
       "opl_updater_version:",
       "require_windows_updater_assets:",
       "require_windows_authenticode:",
-      "opl-windows-updater-assets.json",
-      "opl-windows-authenticode-receipt.json",
-      "*.exe.blockmap",
-      "--policy \"$policy\"",
-      "environment: release-preview",
-      "Checkout exact App publisher source",
-      "ref: ${{ needs.prepare-matrix.outputs.app_ref }}",
-      "persist-credentials: false",
-      "gh release upload \"$tag\" \"$asset_path\"",
-      "immutable_release_capability_evidence:",
-      "validateGithubImmutableReleaseCapabilityEvidence",
-      "jq -S -n",
-      "test -s \"$manifest_path\"",
-      "immutable_release_capability_evidence_digest",
-      "no retry is allowed",
-      "opl_app_windows_preview_publication_receipt.v1",
-      "latest_modified:false",
-      "start_distinct_operation_after_read_only_reconciliation",
+      "upload_installers_only: true",
+      "secrets: inherit",
     ],
     forbidden: [
+      "windows_preview_rc",
+      "windows-rc-",
+      "publish-selected-platforms",
+      "environment: release-preview",
+      "contents: write",
+      "gh release upload",
+      "immutable_release_capability_evidence",
       "--clobber",
       "make_latest: true",
       "gh run rerun",
@@ -2198,7 +2189,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   },
 ];
 
-const windowsPreviewOnlyCheckIds = new Set([
+const windowsOnlyCheckIds = new Set([
   'docker_webui_clean_windows_vm_workflow',
   'docker_webui_clean_windows_dispatch_helper',
   'docker_webui_clean_windows_dispatch_npm_script',
@@ -2210,7 +2201,7 @@ export function releaseBoundaryChecksForProfile(
 ): ReleaseBoundaryCheck[] {
   if (profile === 'aggregate') return releaseBoundaryChecks;
   if (profile === 'stable') {
-    return releaseBoundaryChecks.filter((check) => !windowsPreviewOnlyCheckIds.has(check.id));
+    return releaseBoundaryChecks.filter((check) => !windowsOnlyCheckIds.has(check.id));
   }
-  return releaseBoundaryChecks.filter((check) => windowsPreviewOnlyCheckIds.has(check.id));
+  return releaseBoundaryChecks.filter((check) => windowsOnlyCheckIds.has(check.id));
 }

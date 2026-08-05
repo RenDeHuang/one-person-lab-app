@@ -83,9 +83,9 @@ run_release_boundary_profile() {
   const profile = process.argv[2];
   const contract = JSON.parse(fs.readFileSync('contracts/app-release-channel.json', 'utf8'));
   const ownership = contract.release_platform_matrix?.validation_ownership;
-  const windowsOwned = ownership?.['windows-preview']?.owned_test_paths;
+  const windowsOwned = ownership?.windows?.owned_test_paths;
   if (!Array.isArray(windowsOwned) || windowsOwned.length === 0) {
-    throw new Error('Windows Preview test ownership is missing from the release platform contract.');
+    throw new Error('Windows test ownership is missing from the release platform contract.');
   }
   const releaseTests = fs.readdirSync('tests/release', { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
@@ -102,7 +102,7 @@ run_release_boundary_profile() {
     ? allTests
     : profile === 'stable'
       ? allTests.filter((file) => !owned.has(file))
-      : profile === 'windows-preview'
+      : profile === 'windows'
         ? allTests.filter((file) => owned.has(file))
         : null;
   if (!selected) throw new Error(`Unsupported release validation profile: ${profile}.`);

@@ -7,14 +7,14 @@ import { parseArgs } from "node:util";
 
 const gitShaPattern = /^[0-9a-f]{40}$/;
 
-export function bindWindowsRcFrameworkManifest(
+export function bindWindowsFrameworkManifest(
   manifestPath: string,
   frameworkRef: string,
 ): Record<string, unknown> {
   const normalizedRef = frameworkRef.trim().toLowerCase();
   if (!gitShaPattern.test(normalizedRef)) {
     throw new Error(
-      "Windows RC Framework ref must be an exact 40-character Git SHA.",
+      "Windows Framework ref must be an exact 40-character Git SHA.",
     );
   }
 
@@ -57,7 +57,7 @@ function main() {
     throw new Error("Both --manifest and --framework-ref are required.");
   }
 
-  const bound = bindWindowsRcFrameworkManifest(
+  const bound = bindWindowsFrameworkManifest(
     values.manifest,
     values["framework-ref"],
   );

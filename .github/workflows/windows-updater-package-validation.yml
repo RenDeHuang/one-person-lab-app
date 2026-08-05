@@ -82,7 +82,7 @@ jobs:
       - name: Bind exact Framework identity
         shell: bash
         run: |
-          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
             --manifest shells/aionui/resources/opl-linux/product.json \
             --framework-ref "${{ inputs.framework_ref }}"
 
@@ -188,7 +188,7 @@ jobs:
       - name: Bind exact Framework identity
         shell: bash
         run: |
-          node --experimental-strip-types scripts/bind-windows-rc-framework-manifest.ts \
+          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
             --manifest shells/aionui/resources/opl-linux/product.json \
             --framework-ref "${{ inputs.framework_ref }}"
 

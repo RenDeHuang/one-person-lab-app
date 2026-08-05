@@ -239,8 +239,15 @@ on App restart and retain their owner-defined rollback evidence.
 User Data / Artifacts is a separate storage, retention, and cleanup boundary. It
 is not installable software and never becomes a fourth updater object.
 
-For Docker or server deployment, Windows, macOS, server, and cloud-VM users should start
-from the Docker/WebUI one-click installer path in the
+Windows 11 x64 users can download the current same-tag Stable Windows asset from
+the [v26.8.4 Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4).
+The `One-Person-Lab-26.8.4-win-x64.exe` SHA-256 is
+`5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6`.
+The public asset and digest do not prove WSL2 runtime acceptance, installed
+behavior, signing, supported-platform completion, or release-wide readiness.
+
+For Docker or server deployment, Windows, macOS, server, and cloud-VM users
+should start from the Docker/WebUI one-click installer path in the
 [Docker/WebUI install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html). The
 same guide is also available as a
 [detailed PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf).

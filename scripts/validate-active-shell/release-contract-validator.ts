@@ -211,7 +211,7 @@ export function validateReleaseChannelContract(
   shellPaths = null,
   validationProfile: ReleaseValidationProfile = 'aggregate',
 ) {
-  if (!['aggregate', 'stable', 'windows-preview'].includes(validationProfile)) {
+  if (!['aggregate', 'stable', 'windows'].includes(validationProfile)) {
     throw new Error(`Unsupported release validation profile: ${validationProfile}`);
   }
   validateReleaseCalendarGuard(releaseChannel.github_release_name);
@@ -1162,6 +1162,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     'macos-x64',
     'macos-universal',
     'linux-arm64',
+    'windows-arm64',
   ];
   assertDeepEqualJson(
     Object.keys(capabilities ?? {}).sort(),
@@ -1190,24 +1191,23 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   );
   if (validationProfile !== 'stable') {
     assertDeepEqualJson(
-      platformMatrix?.validation_ownership?.['windows-preview']?.owned_test_paths,
+      platformMatrix?.validation_ownership?.windows?.owned_test_paths,
       [
         'tests/release/docker-webui-clean-windows-dispatch.test.ts',
         'tests/release/docker-webui-native-windows-smoke.test.ts',
         'tests/release/docker-webui-windows-installer.test.ts',
         'tests/release/docker-webui-windows-validation-fixtures.test.ts',
         'tests/release/windows-platform-factory-contract.test.ts',
-        'tests/release/windows-preview-bits-powershell.test.ts',
-        'tests/release/windows-rc-preview.test.ts',
+        'tests/release/windows-stable-surface.test.ts',
         'tests/release/windows-updater-upgrade-vm.test.ts',
         'tests/release/windows-wsl2-validation-fixtures.test.ts',
       ],
-      'Windows Preview validation ownership',
+      'Windows validation ownership',
     );
   }
   const publicationCapabilityIds = validationProfile === 'stable'
     ? ['macos-arm64', 'linux-x64', 'windows-x64']
-    : validationProfile === 'windows-preview'
+    : validationProfile === 'windows'
       ? ['windows-x64', 'windows-arm64']
       : capabilityIds;
   if (
@@ -1223,10 +1223,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || capabilities?.['windows-x64']?.stable_allowed !== true
     || capabilities?.['windows-x64']?.blocks_stable !== false
     || !capabilities?.['windows-x64']?.quality_channels?.includes('stable')
+    || capabilities?.['windows-x64']?.publication_status !== 'same_stable_release_set'
+    || capabilities?.['windows-x64']?.publication_route !== '.github/workflows/build-manual.yml'
     || capabilities?.['windows-arm64']?.default_enabled !== false
     || capabilities?.['windows-arm64']?.stable_allowed !== false
     || capabilities?.['windows-arm64']?.blocks_stable !== false
-    || !capabilities?.['windows-arm64']?.quality_channels?.includes('preview_rc')
     || developmentValidationOnlyCapabilityIds.some((capabilityId) =>
       capabilities?.[capabilityId]?.stable_allowed !== false
       || capabilities?.[capabilityId]?.publication_status !== 'development_validation_only'
@@ -1246,7 +1247,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     || policies?.stable_desktop_additional?.selection_mode !== 'capability_default_enabled_only'
     || JSON.stringify(platformMatrix?.stable_desktop_additional_selection?.default) !==
       JSON.stringify(['linux-x64', 'windows-x64'])
-    || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows-preview'
+    || platformMatrix?.validation_ownership?.stable?.excluded_profile !== 'windows'
     || platformMatrix?.stable_desktop_additional_selection?.authority_field !==
       'opl_app_stable_operation_authority.v1#desktop_additional_platforms'
     || platformMatrix?.stable_desktop_additional_selection?.control_field !==

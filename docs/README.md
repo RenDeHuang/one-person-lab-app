@@ -91,12 +91,16 @@ Use the GitHub Pages latest URLs for publishable user documents:
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pptx`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-detailed-guide.pdf`
-- `https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install.html`
-- `https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install-detailed-guide.pdf`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf`
 Do not link ordinary users to `docs/delivery/user-guides/*`; those are
 maintenance/source surfaces.
+
+The current Windows guide source binds the same-tag Stable Windows x64 asset
+and its public digest, but its Pages target must not be advertised as current
+until the docs publisher updates and reads back that public surface. Source or
+guide generation does not prove WSL2 runtime acceptance, installed behavior,
+signing, supported-platform completion, or release-wide readiness.
 
 ## GUI And Candidate Docs
 

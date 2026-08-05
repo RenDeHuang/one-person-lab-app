@@ -10,7 +10,6 @@ type ArtifactProfile =
   | 'nightly_standard'
   | 'preview_standard'
   | 'stable_desktop_additional'
-  | 'windows_preview'
   | 'manual';
 
 type PlatformCapability = {
@@ -126,8 +125,8 @@ export function resolveReleasePlatformMatrix(input: {
     }
     platforms = input.platforms;
   } else if (input.platform !== undefined) {
-    if (input.policy !== 'manual_all' && input.policy !== 'windows_preview') {
-      throw new Error('An explicit platform ID is allowed only with manual_all or windows_preview.');
+    if (input.policy !== 'manual_all') {
+      throw new Error('An explicit platform ID is allowed only with manual_all.');
     }
     platforms = input.platform === 'all' ? policy.platforms : [input.platform];
   }

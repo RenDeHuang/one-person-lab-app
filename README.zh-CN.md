@@ -219,6 +219,13 @@ rollback evidence。
 
 User Data / Artifacts 属于独立的存储、保留与清理边界，不是可安装软件，也不会成为第四个 updater 对象。
 
+Windows 11 x64 用户可从
+[v26.8.4 Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4)
+下载当前同 tag Stable Windows 资产。`One-Person-Lab-26.8.4-win-x64.exe` 的 SHA-256 为
+`5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6`。公开资产与 digest
+不能证明 WSL2 runtime acceptance、installed behavior、签名、supported-platform 完成或
+release-wide ready。
+
 Windows、macOS browser、服务器或云主机用户使用 Container WebUI 时，请从
 [Docker/WebUI install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html) 开始；Linux x86_64
 个人电脑默认可用 Native WebUI。同一份 Container guide

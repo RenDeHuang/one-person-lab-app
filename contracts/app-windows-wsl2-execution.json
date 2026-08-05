@@ -2,7 +2,7 @@
   "schema": "opl_app_windows_wsl2_execution.v1",
   "owner": "one-person-lab-app",
   "purpose": "windows_wsl2_only_desktop_execution_contract",
-  "state": "active_development_publication_blocked",
+  "state": "active_execution_boundary_standalone_rc_retired",
   "decision_date": "2026-07-26",
   "product_outcome": {
     "supported_host": {
@@ -117,10 +117,14 @@
   },
   "release_boundary": {
     "mainline_source_absorption_allowed": true,
-    "existing_stable_latest_dependency_allowed": false,
-    "existing_stable_latest_gate_allowed": false,
-    "public_rc_allowed": false,
-    "public_rc_gate": "all_required_evidence_must_pass_on_exact_release_bytes",
+    "standalone_rc_publication_allowed": false,
+    "standalone_rc_publication_state": "retired_no_public_release_or_tag",
+    "stable_same_tag_windows_asset_publication_allowed": true,
+    "stable_same_tag_windows_asset_authority": "contracts/app-release-channel.json#release_platform_matrix.desktop_platform_additive_follower.windows_x64_updater_assets",
+    "stable_asset_publication_proves_wsl2_runtime_acceptance": false,
+    "stable_asset_publication_proves_installed_behavior": false,
+    "current_wsl2_runtime_acceptance": "not_claimed",
+    "supported_platform_claim_allowed_without_exact_installed_acceptance": false,
     "required_evidence": [
       "clean_windows_no_wsl_guided_install_uac_restart_resume",
       "owned_distribution_identity_and_wsl2_readback",
@@ -133,7 +137,6 @@
       "repair_restart_persistence_and_data_retention",
       "exact_installer_packaged_tree_runtime_and_source_cohort"
     ],
-    "stable_and_latest_allowed": false,
     "code_signing_required_for_stable": false,
     "code_signing_status_must_be_explicit": true,
     "unsigned_artifact_may_claim_production_signed": false

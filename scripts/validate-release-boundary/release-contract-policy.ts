@@ -2107,6 +2107,7 @@ export function validateReleasePlatformMatrix(
     'macos-x64',
     'macos-universal',
     'linux-arm64',
+    'windows-arm64',
   ];
   const capabilityIds = [
     'macos-arm64',
@@ -2129,7 +2130,7 @@ export function validateReleasePlatformMatrix(
 
   const validatedCapabilityIds = profile === 'stable'
     ? requiredCapabilityIds
-    : profile === 'windows-preview'
+    : profile === 'windows'
       ? windowsCapabilityIds
       : capabilityIds;
   for (const id of validatedCapabilityIds) {
@@ -2205,33 +2206,20 @@ export function validateReleasePlatformMatrix(
     || capabilities['windows-x64'].stable_allowed !== true
     || capabilities['windows-x64'].blocks_stable !== false
     || !capabilities['windows-x64'].quality_channels.includes('stable')
-    || capabilities['windows-x64'].publication_route !==
-      '.github/workflows/build-manual.yml#protected_selected_platform_publication'
-    || capabilities['windows-x64'].publication_status !== 'same_stable_release_set_and_preview_rc'
+    || capabilities['windows-x64'].publication_route !== '.github/workflows/build-manual.yml'
+    || capabilities['windows-x64'].publication_status !== 'same_stable_release_set'
   ) {
     console.error('FAIL release_platform_matrix: Linux x64 and Windows x64 must be non-blocking members of the Stable Desktop Release Set');
     failures += 1;
   }
-  for (const id of windowsCapabilityIds) {
-    if (
-      profile !== 'stable'
-      && !capabilities[id].quality_channels.includes('preview_rc')
-    ) {
-      console.error(`FAIL release_platform_matrix: ${id} must retain Preview/RC capability`);
-      failures += 1;
-    }
-  }
-
   const policyAssertions: Array<[string, string[], boolean, boolean]> = [
     ['stable_required', ['macos-arm64'], true, true],
     ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
     ['preview_standard', ['macos-arm64', 'linux-x64'], true, true],
     ['stable_desktop_additional', ['linux-x64', 'windows-x64'], false, false],
-    ['windows_preview', ['windows-x64', 'windows-arm64'], false, false],
   ].filter(([name]) => (
     profile === 'aggregate'
-    || (profile === 'stable' && name !== 'windows_preview')
-    || (profile === 'windows-preview' && name === 'windows_preview')
+    || profile === 'stable'
   )) as Array<[string, string[], boolean, boolean]>;
   for (const [name, platforms, required, blocks] of policyAssertions) {
     const policy = policies?.[name];
@@ -2275,11 +2263,11 @@ export function validateReleasePlatformMatrix(
     || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.base_stable_asset_append_allowed !== true
     || matrix?.desktop_platform_additive_follower?.windows_x64_updater_assets?.latest_pointer_mutation_allowed !== false
     || releaseContract.release_platform_matrix?.validation_ownership?.stable?.excluded_profile !==
-      'windows-preview'
+      'windows'
     || (
       profile !== 'stable'
       && !sameStringSet(
-        releaseContract.release_platform_matrix?.validation_ownership?.['windows-preview']
+        releaseContract.release_platform_matrix?.validation_ownership?.windows
           ?.owned_test_paths,
         [
           'tests/release/docker-webui-clean-windows-dispatch.test.ts',
@@ -2287,8 +2275,7 @@ export function validateReleasePlatformMatrix(
           'tests/release/docker-webui-windows-installer.test.ts',
           'tests/release/docker-webui-windows-validation-fixtures.test.ts',
           'tests/release/windows-platform-factory-contract.test.ts',
-          'tests/release/windows-preview-bits-powershell.test.ts',
-          'tests/release/windows-rc-preview.test.ts',
+          'tests/release/windows-stable-surface.test.ts',
           'tests/release/windows-updater-upgrade-vm.test.ts',
           'tests/release/windows-wsl2-validation-fixtures.test.ts',
         ],

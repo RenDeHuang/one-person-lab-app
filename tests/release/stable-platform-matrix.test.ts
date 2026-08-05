@@ -72,18 +72,15 @@ test('all seven capabilities remain buildable while only macOS ARM64 blocks Stab
     assert.equal(matrix.capabilities[id].default_enabled, false);
     assert.equal(matrix.capabilities[id].blocks_stable, false);
     assert.equal(matrix.capabilities[id].stable_allowed, false);
-    assert.equal(matrix.capabilities[id].publication_status === 'development_validation_only', id !== 'windows-arm64');
-    assert.equal(matrix.capabilities[id].publication_route === null, id !== 'windows-arm64');
+    assert.equal(matrix.capabilities[id].publication_status, 'development_validation_only');
+    assert.equal(matrix.capabilities[id].publication_route, null);
   }
   for (const id of ['linux-x64', 'windows-x64']) {
     assert.equal(matrix.capabilities[id].stable_allowed, true);
     assert.ok(matrix.capabilities[id].quality_channels.includes('stable'));
   }
-  for (const id of ['windows-x64', 'windows-arm64']) {
-    assert.ok(matrix.capabilities[id].quality_channels.includes('preview_rc'));
-  }
   for (const id of capabilityIds) {
-    if (['macos-x64', 'macos-universal', 'linux-arm64'].includes(id)) {
+    if (['macos-x64', 'macos-universal', 'linux-arm64', 'windows-arm64'].includes(id)) {
       assert.equal(matrix.capabilities[id].publication_route, null);
     } else {
       assert.equal(typeof matrix.capabilities[id].publication_route, 'string');
@@ -215,7 +212,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
   const manualRun = String(manual.jobs['prepare-matrix'].steps.find(
     (step: any) => step.id === 'set-matrix',
   )?.run);
-  assert.match(manualRun, /policy=manual_all/);
+  assert.match(manualRun, /--policy manual_all/);
   assert.match(manualRun, /--platform '\$\{\{ inputs\.platform \}\}'/);
   assert.equal(reusable.on.workflow_call.inputs.matrix.type, 'string');
   assert.equal(reusable.on.workflow_call.inputs.matrix.required, true);
@@ -281,7 +278,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
 test('Stable profile excludes only Windows-only checks and retains shared build safety', () => {
   const stableIds = new Set(releaseBoundaryChecksForProfile('stable').map((check) => check.id));
   const windowsIds = new Set(
-    releaseBoundaryChecksForProfile('windows-preview').map((check) => check.id),
+    releaseBoundaryChecksForProfile('windows').map((check) => check.id),
   );
   assert.equal(stableIds.has('docker_webui_clean_windows_vm_workflow'), false);
   assert.equal(windowsIds.has('docker_webui_clean_windows_vm_workflow'), true);
@@ -305,7 +302,7 @@ test('Stable validation fails closed when a required same-Release Desktop route 
   try {
     assert.ok(validateReleasePlatformMatrix(changed, 'stable') > 0);
     assert.ok(validateReleasePlatformMatrix(changed, 'aggregate') > 0);
-    assert.ok(validateReleasePlatformMatrix(changed, 'windows-preview') > 0);
+    assert.ok(validateReleasePlatformMatrix(changed, 'windows') > 0);
   } finally {
     console.error = originalConsoleError;
   }
@@ -318,7 +315,7 @@ test('Stable validation fails closed when a required same-Release Desktop route 
     /Release platform matrix/,
   );
   assert.throws(
-    () => validateReleaseChannelContract(changed, null, 'windows-preview'),
+    () => validateReleaseChannelContract(changed, null, 'windows'),
     /Release platform matrix/,
   );
 });
@@ -326,7 +323,7 @@ test('Stable validation fails closed when a required same-Release Desktop route 
 test('active-shell quick validation defaults to Stable while full validation remains aggregate', () => {
   assert.equal(activeShellReleaseValidationProfile(true, ''), 'stable');
   assert.equal(activeShellReleaseValidationProfile(false, ''), 'aggregate');
-  assert.equal(activeShellReleaseValidationProfile(true, 'windows-preview'), 'windows-preview');
+  assert.equal(activeShellReleaseValidationProfile(true, 'windows'), 'windows');
   assert.throws(
     () => activeShellReleaseValidationProfile(true, 'unsupported'),
     /Unsupported OPL_RELEASE_VALIDATION_PROFILE/,
@@ -350,7 +347,7 @@ test('verify release-boundary selector executes aggregate as the complete releas
     .filter((entry) => entry.isFile() && entry.name.endsWith('.test.ts'))
     .map((entry) => path.posix.join('tests/release/app-release-boundary-cases', entry.name));
   const allTests = [...releaseTests, ...boundaryTests].sort();
-  const windowsOwned = contract.release_platform_matrix.validation_ownership['windows-preview']
+  const windowsOwned = contract.release_platform_matrix.validation_ownership.windows
     .owned_test_paths as string[];
 
   const select = (profile: string) => {
@@ -373,17 +370,17 @@ test('verify release-boundary selector executes aggregate as the complete releas
   assert.equal(stable.status, 0, stable.stderr);
   assert.deepEqual(stable.files, allTests.filter((file) => !windowsOwned.includes(file)));
 
-  const windowsPreview = select('windows-preview');
-  assert.equal(windowsPreview.status, 0, windowsPreview.stderr);
-  assert.deepEqual(windowsPreview.files, [...windowsOwned].sort());
+  const windows = select('windows');
+  assert.equal(windows.status, 0, windows.stderr);
+  assert.deepEqual(windows.files, [...windowsOwned].sort());
 
   const unsupported = select('unsupported');
   assert.notEqual(unsupported.status, 0);
   assert.match(unsupported.stderr, /Unsupported release validation profile: unsupported/);
 });
 
-test('Windows-only Docker/WebUI cases live only in the Preview-owned test file', () => {
-  const windowsOwned = contract.release_platform_matrix.validation_ownership['windows-preview']
+test('Windows-only Docker/WebUI cases live only in the Windows-owned test file', () => {
+  const windowsOwned = contract.release_platform_matrix.validation_ownership.windows
     .owned_test_paths;
   assert.ok(windowsOwned.includes('tests/release/docker-webui-windows-installer.test.ts'));
   assert.equal(windowsOwned.includes('tests/release/docker-webui-installer.test.ts'), false);
@@ -469,55 +466,12 @@ test('additional Desktop platform publication is an independent protected post-s
     manual.jobs['build-pipeline'].with.require_macos_gatekeeper,
     "${{ needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}",
   );
-  const publish = manual.jobs['publish-selected-platforms'];
-  assert.equal(publish.environment, 'release-preview');
-  const publishStepNames = publish.steps.map((step: any) => step.name);
-  const publisherNodeSetup = publish.steps.find(
-    (step: any) => step.name === 'Setup Node.js for App publisher validation',
+  assert.equal(manual.jobs['publish-selected-platforms'], undefined);
+  assert.equal(manual.on.workflow_dispatch.inputs.publication_mode, undefined);
+  assert.equal(manual.on.workflow_dispatch.inputs.immutable_release_capability_evidence, undefined);
+  const manualSource = fs.readFileSync(
+    path.join(appRoot, '.github/workflows/build-manual.yml'),
+    'utf8',
   );
-  assert.equal(
-    publisherNodeSetup?.uses,
-    'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38',
-  );
-  assert.equal(publisherNodeSetup?.with?.['node-version'], '24');
-  assert.equal(publisherNodeSetup?.with?.cache, 'npm');
-  const publisherDependencyInstall = publish.steps.find(
-    (step: any) => step.name === 'Install App publisher validation dependencies',
-  );
-  assert.equal(
-    publisherDependencyInstall?.run,
-    'npm ci --ignore-scripts --no-audit --no-fund',
-  );
-  assert.ok(
-    publishStepNames.indexOf('Install App publisher validation dependencies')
-      < publishStepNames.indexOf('Publish exact platform bytes as one immutable carrier'),
-  );
-  const publishRun = String(publish.steps.find(
-    (step: any) => step.name === 'Publish exact platform bytes as one immutable carrier',
-  )?.run);
-  assert.match(publishRun, /test "\$PUBLICATION_MODE" = windows_preview_rc/);
-  assert.match(publishRun, /gh release upload "\$tag" "\$asset_path"/);
-  assert.match(publishRun, /and \.immutable == true/);
-  assert.match(publishRun, /validateGithubImmutableReleaseCapabilityEvidence/);
-  assert.doesNotMatch(publishRun, /"repos\/\$GITHUB_REPOSITORY\/immutable-releases"/);
-  assert.match(publishRun, /jq -S -n/);
-  assert.match(publishRun, /Windows Preview must not publish Stable updater assets/);
-  assert.doesNotMatch(publishRun, /macos_x64_updater_selected|latest-(?:x64-)?mac\.yml/);
-  assert.doesNotMatch(publishRun, /standard-(?:apple-notarization|gatekeeper-launch-policy)/);
-  assert.match(publishRun, /release_identity:\{display_version:\$display_version,updater_version:\$updater_version\}/);
-  assert.match(publishRun, /test -s "\$manifest_path"/);
-  assert.match(publishRun, /draft:true/);
-  assert.match(publishRun, /draft:false,make_latest:"false"/);
-  assert.match(publishRun, /and \.immutable == true/);
-  assert.match(publishRun, /tag="windows-rc-\$\{VERSION\}"/);
-  assert.match(publishRun, /fetch_release_including_drafts/);
-  assert.match(
-    publishRun,
-    /gh api --paginate "repos\/\$GITHUB_REPOSITORY\/releases\?per_page=100"[\s\S]*--slurp/,
-  );
-  assert.match(publishRun, /gh api "repos\/\$GITHUB_REPOSITORY\/releases\/\$release_id"/);
-  assert.doesNotMatch(publishRun, /--clobber|gh run rerun|gh run cancel/);
-  assert.match(publishRun, /latest_after.*latest_before/);
-  assert.match(publishRun, /opl_app_windows_preview_publication_receipt\.v1/);
-  assert.doesNotMatch(publishRun, /stable_optional|adjunct|base_release/);
+  assert.doesNotMatch(manualSource, /windows_preview_rc|windows-rc-|release-preview|gh release upload/);
 });
