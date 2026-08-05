@@ -340,22 +340,38 @@ export function isAuthorizedFollowerRecoveryWriteJob(
       'recover_exact_failed_native_webui_follower_v2',
       'recover_exact_failed_native_webui_follower_v3',
       'recover_exact_failed_native_webui_follower_v4',
+      'recover_exact_failed_native_webui_follower_v5',
     ],
-    ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'full_authority_run_id'],
+    ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'full_authority_run_id'],
     "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
   )) return false;
   const expected = jobId === 'native-webui-linux'
-    ? { needs: ['resolve-handoff'], platform: 'linux', architecture: 'x86_64' }
+    ? {
+      needs: ['resolve-handoff'],
+      platform: 'linux',
+      architecture: 'x86_64',
+      condition: "${{ needs.resolve-handoff.outputs.eligible == 'true' && needs.resolve-handoff.outputs.recovery_v5 != 'true' }}",
+    }
     : jobId === 'native-webui-macos'
-    ? { needs: ['resolve-handoff', 'native-webui-linux'], platform: 'darwin', architecture: 'arm64' }
+    ? {
+      needs: ['resolve-handoff', 'native-webui-linux'],
+      platform: 'darwin',
+      architecture: 'arm64',
+      condition: "${{ always() && needs.resolve-handoff.outputs.eligible == 'true' }}",
+    }
     : null;
   return expected !== null
     && job.uses === './.github/workflows/_release-native-webui-carrier.yml'
     && needsExactly(job, expected.needs)
     && exactObject(job.permissions, exactStableEntryPermissions)
     && job.with?.mode === 'execute'
+    && job.if === expected.condition
     && job.with?.target_platform === expected.platform
     && job.with?.target_architecture === expected.architecture
+    && (jobId === 'native-webui-linux'
+      ? !Object.prototype.hasOwnProperty.call(job.with ?? {}, 'prior_native_manifest_json')
+      : job.with?.prior_native_manifest_json ===
+        '${{ needs.resolve-handoff.outputs.prior_native_manifest_json || needs.native-webui-linux.outputs.publication_manifest_json }}')
     && Object.prototype.hasOwnProperty.call(job, 'steps') === false;
 }
 
@@ -1546,8 +1562,9 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
         'recover_exact_failed_native_webui_follower_v2',
         'recover_exact_failed_native_webui_follower_v3',
         'recover_exact_failed_native_webui_follower_v4',
+        'recover_exact_failed_native_webui_follower_v5',
       ],
-      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'full_authority_run_id'],
+      ['failed_recovery_v2_run_id', 'failed_recovery_v3_run_id', 'failed_recovery_v4_run_id', 'full_authority_run_id'],
       "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
     )
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
@@ -1577,6 +1594,10 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
       || job.with?.mode !== 'execute'
       || job.with?.target_platform !== platform
       || job.with?.target_architecture !== architecture
+      || (jobId === 'native-webui-linux'
+        ? Object.prototype.hasOwnProperty.call(job.with ?? {}, 'prior_native_manifest_json')
+        : job.with?.prior_native_manifest_json !==
+          '${{ needs.resolve-handoff.outputs.prior_native_manifest_json || needs.native-webui-linux.outputs.publication_manifest_json }}')
       || Object.prototype.hasOwnProperty.call(job, 'steps')
     ) {
       failures += reportFailure(
@@ -1586,7 +1607,7 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     }
   }
   if (
-    linux?.if !== "${{ needs.resolve-handoff.outputs.eligible == 'true' }}"
+    linux?.if !== "${{ needs.resolve-handoff.outputs.eligible == 'true' && needs.resolve-handoff.outputs.recovery_v5 != 'true' }}"
     || macos?.if !==
       "${{ always() && needs.resolve-handoff.outputs.eligible == 'true' }}"
   ) {
@@ -1620,6 +1641,7 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
   for (const required of [
     'recover_exact_failed_native_webui_follower_v1',
     'recover_exact_failed_native_webui_follower_v2',
+    'recover_exact_failed_native_webui_follower_v5',
     'failed recovery v1 ${FAILED_RECOVERY_RUN_ID}',
     '.path == ".github/workflows/release-native-webui-follower.yml"',
     '.display_title == ("Native WebUI follower for Stable run " + $source)',
@@ -1632,6 +1654,9 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     '.name == "native-webui-macos / build-and-qualify" and .conclusion == "success"',
     'line 18: rg: command not found',
     'failed-recovery-artifacts.json',
+    'failed-recovery-v4-jobs.json',
+    'Remote standard inspection contains unknown asset install-web.sh.',
+    '($release.assets | length) == 14',
     'runs?event=workflow_dispatch&per_page=100',
     '($matches | length) == 1',
     'test "$GITHUB_REF" = refs/heads/main',
@@ -1680,6 +1705,7 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'source_run_id',
     'source_artifact',
     'standard_identity_sha256',
+    'prior_native_manifest_json',
   ]) {
     if (!carrierInputs[requiredInput]) {
       failures += reportFailure(id, `Native WebUI carrier is missing input ${requiredInput}`);
@@ -1698,6 +1724,9 @@ export function validateNativeWebuiPublicationTopology(appRoot: string): number 
     'native-follower-operation.json',
     'infer-standard',
     'opl release operation admit',
+    '--allow-exact-native-manifest native-release/publication-manifest.json',
+    '--require-exact-native-manifest native-release/prior-publication-manifest.json',
+    "--native-stable-authority-run-id '${{ inputs.stable_authority_run_id }}'",
     'steps.append.outputs.release_operation',
     'release-native-webui-carrier.ts publish',
     'release-native-webui-carrier.ts readback',

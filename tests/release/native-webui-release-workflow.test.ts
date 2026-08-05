@@ -48,6 +48,12 @@ test('Native follower consumes only one successful Stable handoff and executes t
   assert.equal(macos.with.mode, 'execute');
   assert.equal(macos.with.target_platform, 'darwin');
   assert.equal(macos.with.target_architecture, 'arm64');
+  assert.equal(
+    macos.with.prior_native_manifest_json,
+    '${{ needs.resolve-handoff.outputs.prior_native_manifest_json || needs.native-webui-linux.outputs.publication_manifest_json }}',
+  );
+  assert.equal(linux.with.prior_native_manifest_json, undefined);
+  assert.match(linux.if, /needs\.resolve-handoff\.outputs\.recovery_v5 != 'true'/);
   assert.deepEqual(macos.needs, ['resolve-handoff', 'native-webui-linux']);
   assert.match(macos.if, /always\(\)/);
   assert.match(macos.if, /needs\.resolve-handoff\.outputs\.eligible == 'true'/);
@@ -66,6 +72,7 @@ test('Native follower consumes only one successful Stable handoff and executes t
     'failed_recovery_run_id',
     'failed_recovery_v2_run_id',
     'failed_recovery_v3_run_id',
+    'failed_recovery_v4_run_id',
     'full_authority_run_id',
     'recovery_confirmation',
   ]);
@@ -76,14 +83,15 @@ test('Native follower consumes only one successful Stable handoff and executes t
     'recover_exact_failed_native_webui_follower_v2',
     'recover_exact_failed_native_webui_follower_v3',
     'recover_exact_failed_native_webui_follower_v4',
+    'recover_exact_failed_native_webui_follower_v5',
   ]);
   assert.match(
     source,
-    /recover_exact_failed_native_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID\$FAILED_RECOVERY_V2_RUN_ID\$FAILED_RECOVERY_V3_RUN_ID\$FULL_AUTHORITY_RUN_ID"/,
+    /recover_exact_failed_native_webui_follower_v1\)\s+test -z "\$FAILED_RECOVERY_RUN_ID\$FAILED_RECOVERY_V2_RUN_ID\$FAILED_RECOVERY_V3_RUN_ID\$FAILED_RECOVERY_V4_RUN_ID\$FULL_AUTHORITY_RUN_ID"/,
   );
   assert.match(
     source,
-    /recover_exact_failed_native_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+test -z "\$FAILED_RECOVERY_V2_RUN_ID\$FAILED_RECOVERY_V3_RUN_ID\$FULL_AUTHORITY_RUN_ID"/,
+    /recover_exact_failed_native_webui_follower_v2\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+test -z "\$FAILED_RECOVERY_V2_RUN_ID\$FAILED_RECOVERY_V3_RUN_ID\$FAILED_RECOVERY_V4_RUN_ID\$FULL_AUTHORITY_RUN_ID"/,
   );
   assert.match(
     source,
@@ -93,6 +101,10 @@ test('Native follower consumes only one successful Stable handoff and executes t
     source,
     /recover_exact_failed_native_webui_follower_v4\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FULL_AUTHORITY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
   );
+  assert.match(
+    source,
+    /recover_exact_failed_native_webui_follower_v5\)\s+\[\[ "\$FAILED_RECOVERY_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V2_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V3_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]\s+\[\[ "\$FAILED_RECOVERY_V4_RUN_ID" =~ \^\[1-9\]\[0-9\]\*\$ \]\]/,
+  );
   assert.equal(
     parsed.concurrency.group,
     "opl-native-webui-follower-${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}",
@@ -101,27 +113,30 @@ test('Native follower consumes only one successful Stable handoff and executes t
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
   );
   const recovery = releaseContract.native_webui_distribution.exact_failed_follower_recovery;
-  assert.equal(recovery.recovery_generation, 4);
-  assert.deepEqual(recovery.consumed_recovery_generations, [1, 2, 3]);
+  assert.equal(recovery.recovery_generation, 5);
+  assert.deepEqual(recovery.consumed_recovery_generations, [1, 2, 3, 4]);
   assert.deepEqual(recovery.inputs, [
     'source_run_id',
     'failed_follower_run_id',
     'failed_recovery_run_id',
     'failed_recovery_v2_run_id',
     'failed_recovery_v3_run_id',
+    'failed_recovery_v4_run_id',
     'full_authority_run_id',
     'recovery_confirmation',
   ]);
-  assert.equal(recovery.confirmation, 'recover_exact_failed_native_webui_follower_v4');
+  assert.equal(recovery.confirmation, 'recover_exact_failed_native_webui_follower_v5');
   assert.equal(recovery.legacy_confirmation, 'recover_exact_failed_native_webui_follower_v1');
-  assert.equal(recovery.consumed_confirmation, 'recover_exact_failed_native_webui_follower_v3');
+  assert.equal(recovery.consumed_confirmation, 'recover_exact_failed_native_webui_follower_v4');
   assert.equal(recovery.failed_public_mutation_count_required, 0);
   assert.equal(recovery.failed_recovery_public_mutation_count_required, 0);
   assert.equal(recovery.failed_recovery_v2_public_mutation_count_required, 0);
   assert.equal(recovery.failed_recovery_v3_public_mutation_count_required, 0);
-  assert.equal(recovery.same_identity_recovery_v4_run_count_required, 1);
+  assert.equal(recovery.failed_recovery_v4_public_mutation_count_required, 5);
+  assert.equal(recovery.failed_recovery_v4_partial_publication_platform, 'linux-x86_64');
+  assert.equal(recovery.same_identity_recovery_v5_run_count_required, 1);
   assert.equal(recovery.full_authority_operation, 'append_full');
-  assert.equal(recovery.same_tag_remote_asset_policy, 'exact_standard_plus_full_union_only_unknown_assets_fail_closed');
+  assert.equal(recovery.same_tag_remote_asset_policy, 'exact_standard_plus_full_plus_at_most_two_manifest_bound_native_asset_sets_unknown_assets_fail_closed');
   for (const required of [
     '.total_count == 7',
     'native-webui-linux / publish-native-assets',
@@ -135,6 +150,16 @@ test('Native follower consumes only one successful Stable handoff and executes t
     'Remote standard inspection contains unknown asset One-Person-Lab-Full-26.8.4-mac-arm64.dmg.',
     'failed recovery v3 ${FAILED_RECOVERY_V3_RUN_ID}',
     'failed-recovery-v3-jobs.json',
+    'failed recovery v4 ${FAILED_RECOVERY_V4_RUN_ID}',
+    'failed-recovery-v4-jobs.json',
+    'Remote standard inspection contains unknown asset install-web.sh.',
+    'opl_app_native_webui_publication_receipt.v1',
+    'failed-recovery-v4-linux-publication/publication-receipt.json',
+    'failed-recovery-v4-linux-publication/publication-manifest.json',
+    'mutation_attempt.exit_status == 0',
+    'requested_uploads == ($manifest.assets | map(.name))',
+    'reused == []',
+    '($release.assets | length) == 14',
     'Bind qualified Native bytes to the Standard checkpoint',
     'OPL Stable append_full source:30880171420 run:',
     'opl-release-append-full-operation-checkpoint-${FULL_AUTHORITY_RUN_ID}',
@@ -235,8 +260,17 @@ test('Native reusable builds one exact target then performs protected additive p
     /grep -F -- "\$release_operation operation deadline elapsed"/,
   );
   assert.match(appendRun, /--allow-same-tag-full-assets true/);
+  assert.match(appendRun, /--allow-exact-native-manifest native-release\/publication-manifest\.json/);
+  assert.match(appendRun, /--require-exact-native-manifest native-release\/prior-publication-manifest\.json/);
+  assert.match(appendRun, /--native-stable-authority-run-id '\$\{\{ inputs\.stable_authority_run_id \}\}'/);
   assert.equal(parsed.on.workflow_call.inputs.allow_same_tag_full_assets.type, 'boolean');
   assert.equal(parsed.on.workflow_call.inputs.allow_same_tag_full_assets.default, false);
+  assert.equal(parsed.on.workflow_call.inputs.prior_native_manifest_json.type, 'string');
+  assert.equal(parsed.on.workflow_call.inputs.prior_native_manifest_json.default, '');
+  assert.equal(
+    parsed.on.workflow_call.outputs.publication_manifest_json.value,
+    '${{ jobs.publish-native-assets.outputs.publication_manifest_json }}',
+  );
   assert.doesNotMatch(appendRun, /\brg\s/);
   for (const required of [
     'test "$GITHUB_RUN_ATTEMPT" = 1',
