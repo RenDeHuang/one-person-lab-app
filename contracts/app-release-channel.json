@@ -3216,28 +3216,31 @@
     ],
     "exact_failed_follower_recovery": {
       "trigger": "workflow_dispatch",
-      "recovery_generation": 3,
+      "recovery_generation": 4,
       "consumed_recovery_generations": [
         1,
-        2
+        2,
+        3
       ],
-      "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_failed_recovery_v1_failed_recovery_v2_and_successful_same_tag_append_full_checkpoint",
+      "authority_binding": "same_successful_standard_stable_authority_exact_failed_first_attempt_follower_failed_recovery_v1_failed_recovery_v2_failed_recovery_v3_and_successful_same_tag_append_full_checkpoint",
       "inputs": [
         "source_run_id",
         "failed_follower_run_id",
         "failed_recovery_run_id",
         "failed_recovery_v2_run_id",
+        "failed_recovery_v3_run_id",
         "full_authority_run_id",
         "recovery_confirmation"
       ],
-      "confirmation": "recover_exact_failed_native_webui_follower_v3",
+      "confirmation": "recover_exact_failed_native_webui_follower_v4",
       "legacy_confirmation": "recover_exact_failed_native_webui_follower_v1",
-      "consumed_confirmation": "recover_exact_failed_native_webui_follower_v2",
-      "failed_boundary": "recovery_v2_both_publishers_rejected_the_successfully_appended_same_tag_full_asset_before_native_upload",
+      "consumed_confirmation": "recover_exact_failed_native_webui_follower_v3",
+      "failed_boundary": "recovery_v3_both_publishers_failed_while_binding_the_activation_identity_before_native_publication",
       "failed_public_mutation_count_required": 0,
       "failed_recovery_public_mutation_count_required": 0,
       "failed_recovery_v2_public_mutation_count_required": 0,
-      "same_identity_recovery_v3_run_count_required": 1,
+      "failed_recovery_v3_public_mutation_count_required": 0,
+      "same_identity_recovery_v4_run_count_required": 1,
       "full_authority_operation": "append_full",
       "same_tag_remote_asset_policy": "exact_standard_plus_full_union_only_unknown_assets_fail_closed",
       "server_side_unique_display_title_required": true,

@@ -1,6 +1,9 @@
 name: OPL Native WebUI Stable Follower
 run-name: >-
   ${{ github.event_name == 'workflow_dispatch'
+    && inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v4'
+    && format('Native WebUI follower recovery v4 for Stable run {0} failed follower {1} failed recovery v1 {2} failed recovery v2 {3} failed recovery v3 {4} Full authority {5}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id, inputs.failed_recovery_v2_run_id, inputs.failed_recovery_v3_run_id, inputs.full_authority_run_id)
+    || github.event_name == 'workflow_dispatch'
     && inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v3'
     && format('Native WebUI follower recovery v3 for Stable run {0} failed follower {1} failed recovery v1 {2} failed recovery v2 {3} Full authority {4}', inputs.source_run_id, inputs.failed_follower_run_id, inputs.failed_recovery_run_id, inputs.failed_recovery_v2_run_id, inputs.full_authority_run_id)
     || github.event_name == 'workflow_dispatch'
@@ -34,6 +37,10 @@ on:
         description: Exact failed Native WebUI follower recovery v2 run; required only for recovery v3
         required: false
         type: string
+      failed_recovery_v3_run_id:
+        description: Exact failed Native WebUI follower recovery v3 run; required only for recovery v4
+        required: false
+        type: string
       full_authority_run_id:
         description: Exact successful append_full authority whose checkpoint seals the same-tag Standard and Full asset union
         required: false
@@ -46,6 +53,7 @@ on:
           - recover_exact_failed_native_webui_follower_v1
           - recover_exact_failed_native_webui_follower_v2
           - recover_exact_failed_native_webui_follower_v3
+          - recover_exact_failed_native_webui_follower_v4
 
 permissions:
   contents: read
@@ -65,7 +73,8 @@ jobs:
         || (github.event_name == 'workflow_dispatch'
         && (inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v1'
         || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v2'
-        || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v3')) }}
+        || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v3'
+        || inputs.recovery_confirmation == 'recover_exact_failed_native_webui_follower_v4')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -92,6 +101,7 @@ jobs:
           FAILED_FOLLOWER_RUN_ID: ${{ inputs.failed_follower_run_id || '' }}
           FAILED_RECOVERY_RUN_ID: ${{ inputs.failed_recovery_run_id || '' }}
           FAILED_RECOVERY_V2_RUN_ID: ${{ inputs.failed_recovery_v2_run_id || '' }}
+          FAILED_RECOVERY_V3_RUN_ID: ${{ inputs.failed_recovery_v3_run_id || '' }}
           FULL_AUTHORITY_RUN_ID: ${{ inputs.full_authority_run_id || '' }}
           RECOVERY_CONFIRMATION: ${{ inputs.recovery_confirmation || '' }}
           TRIGGER_EVENT: ${{ github.event_name }}
@@ -105,19 +115,27 @@ jobs:
             [[ "$FAILED_FOLLOWER_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             case "$RECOVERY_CONFIRMATION" in
               recover_exact_failed_native_webui_follower_v1)
-                test -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$FULL_AUTHORITY_RUN_ID"
+                test -z "$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$FAILED_RECOVERY_V3_RUN_ID$FULL_AUTHORITY_RUN_ID"
                 recovery_title="Native WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
                 ;;
               recover_exact_failed_native_webui_follower_v2)
                 [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
-                test -z "$FAILED_RECOVERY_V2_RUN_ID$FULL_AUTHORITY_RUN_ID"
+                test -z "$FAILED_RECOVERY_V2_RUN_ID$FAILED_RECOVERY_V3_RUN_ID$FULL_AUTHORITY_RUN_ID"
                 recovery_title="Native WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
                 ;;
               recover_exact_failed_native_webui_follower_v3)
                 [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
                 [[ "$FAILED_RECOVERY_V2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
                 [[ "$FULL_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                test -z "$FAILED_RECOVERY_V3_RUN_ID"
                 recovery_title="Native WebUI follower recovery v3 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID} Full authority ${FULL_AUTHORITY_RUN_ID}"
+                ;;
+              recover_exact_failed_native_webui_follower_v4)
+                [[ "$FAILED_RECOVERY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                [[ "$FAILED_RECOVERY_V2_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                [[ "$FAILED_RECOVERY_V3_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                [[ "$FULL_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+                recovery_title="Native WebUI follower recovery v4 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID} failed recovery v3 ${FAILED_RECOVERY_V3_RUN_ID} Full authority ${FULL_AUTHORITY_RUN_ID}"
                 ;;
               *)
                 echo "::error::Unknown Native WebUI follower recovery confirmation."
@@ -180,7 +198,8 @@ jobs:
               and ([ $artifacts[] | select(.name | test("^native-webui-qualified-[0-9]+\\.[0-9]+\\.[0-9]+-linux-x86_64-" + $run + "-1$")) ] | length) == 1
             ' failed-follower-artifacts.json >/dev/null
             if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v2 ] \
-              || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ]; then
+              || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ] \
+              || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v4 ]; then
               failed_recovery_title="Native WebUI follower recovery v1 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID}"
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_RUN_ID" > failed-recovery-run.json
               jq -e \
@@ -231,7 +250,8 @@ jobs:
                 ))
               ' failed-recovery-artifacts.json >/dev/null
             fi
-            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ]; then
+            if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ] \
+              || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v4 ]; then
               failed_recovery_v2_title="Native WebUI follower recovery v2 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID}"
               gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V2_RUN_ID" \
                 > failed-recovery-v2-run.json
@@ -323,6 +343,54 @@ jobs:
                 echo "full_authority_run_id=$FULL_AUTHORITY_RUN_ID"
                 echo "full_checkpoint_artifact=$full_checkpoint_artifact"
               } >> "$GITHUB_OUTPUT"
+              if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v4 ]; then
+                failed_recovery_v3_title="Native WebUI follower recovery v3 for Stable run ${STABLE_AUTHORITY_RUN_ID} failed follower ${FAILED_FOLLOWER_RUN_ID} failed recovery v1 ${FAILED_RECOVERY_RUN_ID} failed recovery v2 ${FAILED_RECOVERY_V2_RUN_ID} Full authority ${FULL_AUTHORITY_RUN_ID}"
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V3_RUN_ID" \
+                  > failed-recovery-v3-run.json
+                jq -e \
+                  --arg run "$FAILED_RECOVERY_V3_RUN_ID" \
+                  --arg title "$failed_recovery_v3_title" '
+                    (.id | tostring) == $run
+                    and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+                    and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+                    and .path == ".github/workflows/release-native-webui-follower.yml"
+                    and .event == "workflow_dispatch"
+                    and .head_branch == "main"
+                    and (.head_sha | test("^[0-9a-f]{40}$"))
+                    and .display_title == $title
+                    and .run_attempt == 1
+                    and .status == "completed"
+                    and .conclusion == "failure"
+                  ' failed-recovery-v3-run.json >/dev/null
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V3_RUN_ID/jobs?per_page=100" \
+                  > failed-recovery-v3-jobs.json
+                jq -e '
+                  .total_count == 7
+                  and ([.jobs[] | select(.name == "resolve-handoff" and .conclusion == "success")] | length == 1)
+                  and ([.jobs[] | select(.name == "native-webui-linux / build-and-qualify" and .conclusion == "success")] | length == 1)
+                  and ([.jobs[] | select(.name == "native-webui-linux / startup-canary" and .conclusion == "skipped")] | length == 1)
+                  and ([.jobs[] | select(.name == "native-webui-linux / publish-native-assets" and .conclusion == "failure")] | length == 1)
+                  and ([.jobs[] | select(.name == "native-webui-macos / build-and-qualify" and .conclusion == "success")] | length == 1)
+                  and ([.jobs[] | select(.name == "native-webui-macos / startup-canary" and .conclusion == "skipped")] | length == 1)
+                  and ([.jobs[] | select(.name == "native-webui-macos / publish-native-assets" and .conclusion == "failure")] | length == 1)
+                  and ([.jobs[].steps[]? | select(.name == "Bind qualified Native bytes to the Standard checkpoint" and .conclusion == "failure")] | length == 2)
+                  and ([.jobs[].steps[]? | select(.name == "Start bounded Native follower publication operation" and .conclusion == "skipped")] | length == 2)
+                  and ([.jobs[].steps[]? | select(.name == "Append one exact Native asset set through the Framework ledger" and .conclusion == "skipped")] | length == 2)
+                  and ([.jobs[].steps[]? | select(.name == "Reconcile one uncertain Native mutation by exact readback only" and .conclusion == "skipped")] | length == 2)
+                  and ([.jobs[].steps[]? | select(.name == "Persist typed Native publication failure" and .conclusion == "success")] | length == 2)
+                ' failed-recovery-v3-jobs.json >/dev/null
+                gh api --paginate --slurp \
+                  "repos/$GITHUB_REPOSITORY/actions/runs/$FAILED_RECOVERY_V3_RUN_ID/artifacts?per_page=100" \
+                  > failed-recovery-v3-artifacts.json
+                jq -e --arg run "$FAILED_RECOVERY_V3_RUN_ID" '
+                  [.[]?.artifacts[]? | select(.expired == false)] as $artifacts
+                  | ($artifacts | length) == 4
+                  and (["linux-x86_64", "darwin-arm64"] | all(. as $target |
+                    ([ $artifacts[] | select(.name | test("^native-webui-publication-[0-9]+\\.[0-9]+\\.[0-9]+-" + $target + "-" + $run + "-1$")) ] | length) == 1
+                    and ([ $artifacts[] | select(.name | test("^native-webui-qualified-[0-9]+\\.[0-9]+\\.[0-9]+-" + $target + "-" + $run + "-1$")) ] | length) == 1
+                  ))
+                ' failed-recovery-v3-artifacts.json >/dev/null
+              fi
             fi
             gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-native-webui-follower.yml/runs?event=workflow_dispatch&per_page=100" \
@@ -333,10 +401,13 @@ jobs:
               --arg failed_recovery_run "$FAILED_RECOVERY_RUN_ID" \
               --arg failed_recovery_title "${failed_recovery_title:-}" \
               --arg failed_recovery_v2_run "$FAILED_RECOVERY_V2_RUN_ID" \
-              --arg failed_recovery_v2_title "${failed_recovery_v2_title:-}" '
+              --arg failed_recovery_v2_title "${failed_recovery_v2_title:-}" \
+              --arg failed_recovery_v3_run "$FAILED_RECOVERY_V3_RUN_ID" \
+              --arg failed_recovery_v3_title "${failed_recovery_v3_title:-}" '
               [.[]?.workflow_runs[]? | select(.display_title == $title)] as $matches
               | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_title)] as $failed_recovery_matches
               | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_v2_title)] as $failed_recovery_v2_matches
+              | [.[]?.workflow_runs[]? | select(.display_title == $failed_recovery_v3_title)] as $failed_recovery_v3_matches
               | ($matches | length) == 1
               and (($matches[0].id | tostring) == $run)
               and $matches[0].run_attempt == 1
@@ -358,10 +429,19 @@ jobs:
                   and $failed_recovery_v2_matches[0].run_attempt == 1
                 )
               )
+              and (
+                ($failed_recovery_v3_run == "" and ($failed_recovery_v3_matches | length) == 0)
+                or (
+                  $failed_recovery_v3_run != ""
+                  and ($failed_recovery_v3_matches | length) == 1
+                  and (($failed_recovery_v3_matches[0].id | tostring) == $failed_recovery_v3_run)
+                  and $failed_recovery_v3_matches[0].run_attempt == 1
+                )
+              )
             ' recovery-runs.json >/dev/null
           else
             test "$TRIGGER_EVENT" = workflow_run
-            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$FULL_AUTHORITY_RUN_ID$RECOVERY_CONFIRMATION"
+            test -z "$FAILED_FOLLOWER_RUN_ID$FAILED_RECOVERY_RUN_ID$FAILED_RECOVERY_V2_RUN_ID$FAILED_RECOVERY_V3_RUN_ID$FULL_AUTHORITY_RUN_ID$RECOVERY_CONFIRMATION"
           fi
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STABLE_AUTHORITY_RUN_ID" > stable-authority-run.json
           jq -e --arg run "$STABLE_AUTHORITY_RUN_ID" '
@@ -460,7 +540,8 @@ jobs:
           source_run_id="$(jq -er .source.artifact_run_id "$handoff")"
           source_artifact="$(jq -er .source.checkpoint_artifact "$handoff")"
           allow_same_tag_full_assets=false
-          if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ]; then
+          if [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v3 ] \
+            || [ "$RECOVERY_CONFIRMATION" = recover_exact_failed_native_webui_follower_v4 ]; then
             [[ "$FULL_AUTHORITY_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             test "$FULL_CHECKPOINT_ARTIFACT" = "opl-release-append-full-operation-checkpoint-${FULL_AUTHORITY_RUN_ID}"
             source_run_id="$FULL_AUTHORITY_RUN_ID"
