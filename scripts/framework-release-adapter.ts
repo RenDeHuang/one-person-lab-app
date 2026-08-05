@@ -515,6 +515,9 @@ function parseCommon(argv: string[]) {
       'expected-current-latest-tag': { type: 'string' },
       'run-attempt': { type: 'string' },
       'allow-same-tag-full-assets': { type: 'string' },
+      'allow-exact-native-manifest': { type: 'string', multiple: true },
+      'require-exact-native-manifest': { type: 'string', multiple: true },
+      'native-stable-authority-run-id': { type: 'string' },
       'stable-framework-ref': { type: 'string' },
       'webui-recovery-authority-digest': { type: 'string' },
       'webui-recovery-stable-authority-run-id': { type: 'string' },
@@ -1254,10 +1257,153 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       const permittedEvidenceNames = bundle.release?.channel === 'stable'
         ? ['opl-release-attestation.json']
         : [];
+      const allowedNativeManifestPaths = values['allow-exact-native-manifest'];
+      const exactAllowedNativeManifestPaths = allowedNativeManifestPaths === undefined
+        ? []
+        : Array.isArray(allowedNativeManifestPaths)
+          ? allowedNativeManifestPaths
+          : [allowedNativeManifestPaths];
+      const requiredNativeManifestPaths = values['require-exact-native-manifest'];
+      const exactRequiredNativeManifestPaths = requiredNativeManifestPaths === undefined
+        ? []
+        : Array.isArray(requiredNativeManifestPaths)
+          ? requiredNativeManifestPaths
+          : [requiredNativeManifestPaths];
+      const exactNativeManifestPaths = [
+        ...exactAllowedNativeManifestPaths,
+        ...exactRequiredNativeManifestPaths,
+      ];
+      if (exactNativeManifestPaths.length > 2) {
+        throw new Error('Remote Standard inspection accepts at most two exact Native WebUI manifests.');
+      }
+      if (
+        exactNativeManifestPaths.length > 0
+        && (
+          track !== 'standard'
+          || !['standard', 'resume_standard'].includes(releaseOperation)
+          || bundle.release?.channel !== 'stable'
+          || bundle.release?.tag !== `v${bundle.release?.version}`
+        )
+      ) {
+        throw new Error(
+          'Exact Native WebUI asset admission requires one Stable Standard inspection with a same-version tag.',
+        );
+      }
+      const nativeStableAuthorityRunId = exactNativeManifestPaths.length > 0
+        ? requireOption(values, 'native-stable-authority-run-id')
+        : null;
+      if (nativeStableAuthorityRunId !== null && !/^[1-9][0-9]*$/.test(nativeStableAuthorityRunId)) {
+        throw new Error('--native-stable-authority-run-id must be a positive Actions run id.');
+      }
+      const exactNativeAssets = new Map<string, { size_bytes: number; sha256: string }>();
+      const exactNativeTargets = new Set<string>();
+      const requiredExactNativeAssetNames = new Set<string>();
+      const requiredManifestPaths = new Set(exactRequiredNativeManifestPaths.map((manifestPath) => (
+        path.resolve(manifestPath)
+      )));
+      let exactNativeAuthorityRunId: string | null = null;
+      for (const manifestPath of exactNativeManifestPaths) {
+        const resolvedManifestPath = path.resolve(manifestPath);
+        const manifest = readJson(resolvedManifestPath);
+        const manifestIsRequired = requiredManifestPaths.has(resolvedManifestPath);
+        const target = `${String(manifest.platform ?? '')}/${String(manifest.architecture ?? '')}`;
+        if (!['linux/x86_64', 'darwin/arm64'].includes(target) || exactNativeTargets.has(target)) {
+          throw new Error('Exact Native WebUI manifests must describe unique supported targets.');
+        }
+        exactNativeTargets.add(target);
+        const stableAuthorityRunId = String(manifest.stable_authority_run_id ?? '');
+        if (
+          manifest.schema !== 'opl_app_native_webui_publication_manifest.v1'
+          || JSON.stringify(Object.keys(manifest)) !== JSON.stringify([
+            'schema',
+            'repository',
+            'tag',
+            'version',
+            'platform',
+            'architecture',
+            'release_bundle_digest',
+            'stable_authority_run_id',
+            'cohort',
+            'qualification_receipt',
+            'assets',
+          ])
+          || manifest.repository !== bundle.sources?.app?.repo
+          || manifest.tag !== bundle.release?.tag
+          || manifest.version !== bundle.release?.version
+          || manifest.release_bundle_digest !== bundle.bundle_digest
+          || !/^[1-9][0-9]*$/.test(stableAuthorityRunId)
+          || stableAuthorityRunId !== nativeStableAuthorityRunId
+          || (exactNativeAuthorityRunId !== null && stableAuthorityRunId !== exactNativeAuthorityRunId)
+          || JSON.stringify(Object.keys(manifest.cohort ?? {})) !== JSON.stringify([
+            'app_sha',
+            'shell_sha',
+            'framework_sha',
+          ])
+          || manifest.cohort?.app_sha !== bundle.sources?.app?.source_commit
+          || manifest.cohort?.shell_sha !== bundle.sources?.shell?.source_commit
+          || manifest.cohort?.framework_sha !== bundle.sources?.framework?.source_commit
+          || typeof manifest.qualification_receipt?.path !== 'string'
+          || JSON.stringify(Object.keys(manifest.qualification_receipt ?? {})) !== JSON.stringify(['path', 'sha256'])
+          || !/^[0-9a-f]{64}$/.test(String(manifest.qualification_receipt?.sha256 ?? ''))
+        ) {
+          throw new Error('Exact Native WebUI manifest does not match the immutable Stable Bundle authority.');
+        }
+        exactNativeAuthorityRunId = stableAuthorityRunId;
+        const baseName = `one-person-lab-webui-${manifest.version}-${manifest.platform}-${manifest.architecture}`;
+        const expectedNativeNames = new Map([
+          ['runtime_tarball', `${baseName}.tar.gz`],
+          ['runtime_metadata', `${baseName}.tar.gz.sha256`],
+          ['installer', 'install-web.sh'],
+          ['installer_sha256', 'install-web.sh.sha256'],
+          ['qualification_receipt', `${baseName}.qualification.json`],
+        ]);
+        if (path.basename(manifest.qualification_receipt.path) !== expectedNativeNames.get('qualification_receipt')) {
+          throw new Error('Exact Native WebUI manifest qualification identity is not canonical.');
+        }
+        const manifestAssets = Array.isArray(manifest.assets) ? manifest.assets : [];
+        if (manifestAssets.length !== expectedNativeNames.size) {
+          throw new Error('Exact Native WebUI manifest must contain one closed five-asset set.');
+        }
+        const seenRoles = new Set<string>();
+        for (const candidate of manifestAssets) {
+          const asset = candidate as JsonRecord;
+          const role = String(asset?.role ?? '');
+          const expectedName = expectedNativeNames.get(role);
+          const sizeBytes = Number(asset?.size_bytes);
+          const sha256 = String(asset?.sha256 ?? '');
+          if (
+            expectedName === undefined
+            || seenRoles.has(role)
+            || JSON.stringify(Object.keys(asset)) !== JSON.stringify([
+              'role',
+              'name',
+              'path',
+              'size_bytes',
+              'sha256',
+            ])
+            || asset.name !== expectedName
+            || typeof asset.path !== 'string'
+            || path.basename(asset.path) !== expectedName
+            || !Number.isSafeInteger(sizeBytes)
+            || sizeBytes <= 0
+            || !/^[0-9a-f]{64}$/.test(sha256)
+          ) {
+            throw new Error('Exact Native WebUI manifest contains a non-canonical asset identity.');
+          }
+          seenRoles.add(role);
+          const prior = exactNativeAssets.get(expectedName);
+          if (prior && (prior.size_bytes !== sizeBytes || prior.sha256 !== `sha256:${sha256}`)) {
+            throw new Error(`Exact Native WebUI manifests disagree on shared asset ${expectedName}.`);
+          }
+          exactNativeAssets.set(expectedName, { size_bytes: sizeBytes, sha256: `sha256:${sha256}` });
+          if (manifestIsRequired) requiredExactNativeAssetNames.add(expectedName);
+        }
+      }
       const allowedNameSet = new Set([
         ...requiredNames,
         ...permittedCarrierNames,
         ...permittedEvidenceNames,
+        ...exactNativeAssets.keys(),
       ]);
       const remoteAssets = new Map<string, JsonRecord>();
       for (const inspectedAsset of inspectedAssets) {
@@ -1273,7 +1419,22 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
           || !digestPattern.test(String(asset.sha256 ?? ''))) {
           throw new Error(`Remote ${track} asset ${name} has no exact digest and positive size.`);
         }
+        const exactNativeAsset = exactNativeAssets.get(name);
+        if (
+          exactNativeAsset
+          && (
+            Number(asset.size_bytes) !== exactNativeAsset.size_bytes
+            || asset.sha256 !== exactNativeAsset.sha256
+          )
+        ) {
+          throw new Error(`Remote Native WebUI asset ${name} differs from its exact admitted manifest.`);
+        }
         remoteAssets.set(name, asset);
+      }
+      for (const requiredName of requiredExactNativeAssetNames) {
+        if (!remoteAssets.has(requiredName)) {
+          throw new Error(`Remote Native WebUI asset ${requiredName} required by prior exact manifest is missing.`);
+        }
       }
       assets = requiredNames
         .filter((name: string) => remoteAssets.has(name))
