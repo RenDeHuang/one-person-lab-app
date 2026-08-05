@@ -32,7 +32,7 @@ governance only.
 | [`decisions.md`](decisions.md) | Still-active App product, shell, runtime bridge, release, and docs lifecycle decisions; `active` | Durable human-readable decisions; machine gates use contracts/source/tests |
 | [`docs_portfolio_consolidation.md`](docs_portfolio_consolidation.md) | Docs lifecycle governance and directory role inventory; `active_support` | Governance index only; not release/runtime proof |
 | [`active/app-ideal-state-gap-plan.md`](active/app-ideal-state-gap-plan.md) | Active App product progress, gaps, and next-round baton; `active_plan` | Plan/read-model only; not runnable behavior or owner acceptance |
-| [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Package/carrier/executor migration, functional-equivalence matrix, frozen work packages, implementation order, and legacy deletion gates; `phase_1_complete_pending_user_evaluation` | The sole implementation-plan SSOT; Phase 2 is not authorized and current behavior remains in contracts/source/fresh readback |
+| [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Package/carrier/executor migration, functional-equivalence matrix, frozen work packages, implementation order, and legacy deletion gates; `phase_2_controlled_cutover_active` | The sole implementation-plan SSOT; Phase 2 is scoped and executing, while current behavior and completion remain subject to contracts/source/fresh readback |
 | [`delivery/distribution-and-install-ssot.md`](delivery/distribution-and-install-ssot.md) | App release/install terminology, current carrier matrix, target platform routing, and convergence gates; `active_support` | Human SSOT backed by the release and install machine contracts; remote currentness still requires owner readback |
 
 For the OPL Package ecology, read in this order:
@@ -48,13 +48,13 @@ For the OPL Package ecology, read in this order:
 4. [`history/agent-package-management-implementation-snapshot.md`](history/agent-package-management-implementation-snapshot.md)
    only for historical implementation provenance; it is not a target SSOT.
 
-Phase 1 authority is deliberately small:
+Authority remains deliberately bounded across both phases:
 
-| Document | Authority in Phase 1 | It does not authorize |
+| Document | Current authority | It does not authorize |
 | --- | --- | --- |
 | [`architecture.md`](architecture.md) | Durable ecology and owner boundaries. | Implementation state or migration completion. |
-| [`decisions.md`](decisions.md) | Two-stage authorization, presence-only composition, Official Profile, Codex-first/OPL-owned policy. | Source, test, workflow, Package or public mutation. |
-| [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Current/canonical/candidate classification, retained-consumer inventory, frozen Phase 2 work packages, dependencies, acceptance and deletion gates. | Automatic implementation start; user approval remains mandatory after canonical docs readback. |
+| [`decisions.md`](decisions.md) | Two-stage authority, presence-only composition, Official Profile, Codex-first/OPL-owned policy, and the approved successor-first Phase 2 direction. | Migration completion, release, Package publication or public mutation. |
+| [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Current/canonical/candidate classification, retained-consumer inventory, approved Phase 2 work packages, dependencies, execution order, acceptance and deletion gates. | Automatic completion claims or Package GHCR/tag, Stable/Latest, WebUI, real-user managed-state or other public mutation. |
 | [`active/over-engineering-cleanup.md`](active/over-engineering-cleanup.md) | Cleanup ordering and reopening state only. | A second implementation plan or delete authority. |
 | [`product/managed-update-three-layer.md`](product/managed-update-three-layer.md) | Target user-facing install/update behavior. | Current lifecycle implementation truth. |
 | [`delivery/distribution-and-install-ssot.md`](delivery/distribution-and-install-ssot.md) | App carrier/release/install terminology and convergence. | Package currentness or publication mutation. |

@@ -7,11 +7,12 @@ Machine boundary: 本文定义目标产品分层。当前 contracts/source 仍�
 Framework resolver、lock、payload、receipt、materialization 和 rollback
 兼容面；在迁移计划完成前，它们是 current implementation truth，但不是目标。
 本文不证明 currentness、安装完成或 release readiness。
-Execution boundary: 当前仅授权 Phase 1 文档；本文不能授权 contracts/source/tests、
-carrier state 或 public release mutation。Phase 2 的 work packages、owner surfaces 和
-批准门只以
+Execution boundary: 本文自身不授权 contracts/source/tests、carrier state 或 public
+release mutation。Phase 2 已获用户批准并执行中，但其 work packages、owner surfaces、
+回退和批准边界只以
 [`../active/opl-package-platform-composition-migration.md`](../active/opl-package-platform-composition-migration.md)
-为准。
+为准；该批准不包含 Package GHCR/tag、Stable/Latest、WebUI promotion、真实用户
+managed state 或其他 public mutation。
 
 OPL App presents one consistent maintenance experience while delegating each
 software object's mechanics to its existing platform. “Unified management”
