@@ -304,8 +304,9 @@ test('optional certification is automatic or exact failed-run recovery and remai
   );
   assert.match(
     workflow.jobs['resolve-linux-adjunct'].if,
-    /OPL Stable Post-Success Full Follow-up.*OPL Stable Existing-Base Optional Adjunct/,
+    /github\.event\.workflow_run\.path == '\.github\/workflows\/release-stable-post-success-followups\.yml'.*github\.event\.workflow_run\.path == '\.github\/workflows\/release-stable-optional-existing-base\.yml'/,
   );
+  assert.doesNotMatch(workflow.jobs['resolve-linux-adjunct'].if, /workflow_run\.name/);
   assert.match(workflow.jobs['resolve-full'].if, /recover_exact_failed_optional_certification_v2/);
   assert.match(
     String(workflow.concurrency.group),
