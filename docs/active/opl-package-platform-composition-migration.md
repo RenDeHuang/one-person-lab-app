@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app` for the cross-repository product plan. Each
 implementation package below names its producer and consumer owners.
-State: `phase_2_family_retirement_in_progress`
+State: `controlled_breaking_cutover_in_progress`
 Date: `2026-07-24`
 Purpose: `package_platform_composition_and_dynamic_agent_runtime`
 Machine boundary: 本文是目标架构、current/canonical/sealed 分账、冻结工作包、依赖
@@ -48,9 +48,9 @@ installed lock、payload、materialization、LKG、lifecycle receipt、rollback 
 
 - **Phase 1 - SSOT 与冻结计划**：已完成。目标、功能等价 ledger、工作包和删除门禁
   已进入 canonical documentation authority。
-- **Phase 2 - 逐 family 实施**：已获用户批准并执行中。每条 lane 只在已登记的
-  bounded surfaces 内修改 contracts/source/tests 或隔离测试状态；source checkpoint、
-  canonical absorption、installed/live proof 和 cleanup 继续分账。
+- **Phase 2 - controlled breaking cutover**：已获用户批准并执行中。先让 successor
+  Package plane 形成可验证、可回退的真实纵向链路，再切换 production caller，最后在
+  受控批次中移除 legacy Manager。逐字段、逐 family retirement 不再是实施主路径。
 
 Phase 2 的实施授权已经成立，但 candidate、测试通过、owner handoff、内部 ACK、未吸收
 commit 或封存 worktree 都不是 canonical 或迁移完成证明。Phase 2 也不自动授权 Package GHCR/tag、
@@ -92,7 +92,7 @@ docs/status.md
 
 Phase 1 的完成条件已经满足：两个仓的 docs-only commit 均进入各自 canonical `main`，
 文档/链接/结构/diff 门禁与远端 wire/API/tree/blob/raw readback通过。当前
-`next_action=按 Per-Family Deletion Loop 继续 Phase 2 source/canonical/live proof/cleanup`。
+`next_action=按 M1-M4 完成 successor cutover、consumer switch、OUT01-17 和 bulk delete`。
 
 ## 持久原则
 
@@ -112,8 +112,9 @@ Phase 1 的完成条件已经满足：两个仓的 docs-only commit 均进入各
    日常 composition 或 readiness。
 9. App/Shell 只消费通用 projection，不复制 carrier state、Package catalog、领域
    task truth 或 typed-view schema。
-10. 删除顺序固定为：删除需求或重复 authority，委托现有平台能力，合并为一个通用
-    projection，只有平台确有缺口时才增加最薄 adapter。
+10. 切换顺序固定为：先让 successor 纵向链路可验证、可回退，再切换 caller并在新路径
+    补强，最后按 structural caller、build 和 affected OUT 证明批量删除旧实现；只有平台
+    确有缺口时才增加最薄 adapter。
 11. 安全不变量不能随旧 Manager 一起删除：native mutation 必须幂等；unknown 只做
     bounded fresh inspect；不得覆盖 external drift、dirty/user-managed source、
     unexpected ownership、path escape 或越界 symlink。
@@ -141,24 +142,25 @@ Phase 1 的完成条件已经满足：两个仓的 docs-only commit 均进入各
 
 ## Current Truth
 
-当前主线已经进入逐 family 删除阶段：目标 policy、若干 producer/consumer 和第一批
-legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machinery 继续作为
-有界 compatibility surface 运行，不能反向成为新 authority。
+当前主线已具备 owner currentness、installed descriptor动态发现、configured carrier动作和
+通用 projection 的大部分基础，但公共动作仍可能回落旧 lock、payload、materializer、
+receipt、rollback或transaction。Phase 2 先闭合 successor-only纵向链路，再切换 App/Shell
+caller并执行受影响 OUT，最后一次性移除旧 Manager生产 reader/writer。
 
 | Surface | Current classification | 仍缺什么 |
 | --- | --- | --- |
 | App Official Profile policy | `canonical_partial`：单一 Profile、presence-only、Standard/Full 同 roots、persistent uninstall policy、data-driven roots 和只接受 first-install/explicit-Restore 的 one-shot consumer 已进入主线。 | 将 consumer 接入真实 first-install/Restore 入口，并完成跨重启不回装及 Standard/Full clean-install proof。 |
 | App Package UX | `canonical_partial`：App contracts 已把 directory/presence/actions 设为 Settings/Home authority，Framework App-state 已从 fresh Package directory 派生状态。 | Shell/Home 端到端消费、真实未知 Package proof，以及固定 starter/assistant metadata、receipt/lock/physical detail parser 的 consumer-zero 删除。 |
 | Role-neutral App contributions v1 | `owner_bound_source_checkpoint`：App 合同、Framework directory/App-state 投影、Shell parser/resolver 和 Relay 首个 descriptor 已在各自 task branch 收敛，且不按 `package_role` 或 executor 过滤。 | 仍须按 producer-before-consumer 顺序吸收 canonical，接入真实 navigation mount/标准 view renderer、Relay data/action bridge、invalid-package isolation，并分别完成 Pixel、Install、Apple Mail review path 和 Release proof。 |
-| Framework Package plane | `canonical_incremental`：owner-channel `latest-stable` currentness、MAS + ScholarSkills package-local required selection、shared-latest verifier retirement、fresh presence/App-state projection和 installed-only invocation 已进入主线。普通 invocation 只消费 installed Package lock，不访问网络或远端依赖，也不再生成 invocation `offline_lkg`/`recovered_last_known_good`。 | 显式 install/update/remove/repair 仍使用 installed lock、payload/materialization、lifecycle receipt、rollback和 mutex；继续完成 neutral carrier/live proof，并按 consumer-zero 逐 family 删除。 |
+| Framework Package plane | `canonical_partial_successor`：owner-channel `latest-stable` currentness、installed descriptor动态发现、configured carrier动作、fresh presence/App-state projection和 installed-only invocation 已进入主线。 | 让所有普通 install/update/remove/repair/enable/disable/list/status只走 successor facade，移除 lock/Full snapshot/managed-update/scope-transaction runtime fallback。 |
 | Package publication | `canonical_policy_partial`：一方 Package 使用独立 GHCR repository 和 owner `latest-stable`；普通 target discovery 已有 owner-channel实现。 | 不是所有 owner latest 都有 fresh publication proof；shared snapshot和显式 maintenance 的旧 catalog/cache retained consumers仍须清零。 |
-| Shell Package consumption | `canonical_partial`：Capabilities 已消费动态 directory 和 exact carrier identity，App contracts 已删除固定 directory authority。 | Home/Settings 全路径、legacy fallback hit-zero、非固定 Package 与真实 install/uninstall preference proof。 |
+| Shell Package consumption | `canonical_partial`：Capabilities 已消费动态 directory 和 exact carrier identity，App contracts 已删除固定 directory authority。 | Home/Settings全路径、generic actions和显式 uninstall preference闭环；consumer必须切到 successor projection，而非等待旧 family逐项退役。 |
 | Runtime | `canonical_partial`：Framework 已从 installed Agent descriptor 动态发现 task/view producer，App Runtime 已升级为 core generic Agent scope和 typed-view contract。 | Shell 端到端 generic consumer、真实 owner descriptor/live installed proof，以及剩余固定 Agent/MAS compatibility consumer 删除。 |
 | Durable Package proposal | `superseded_research`：正确拒绝大型 filesystem transaction 和跨 Package 原子性。 | 其小 intent/lock/receipt authority 仍是假设自研 Package Manager，不进入目标实现。 |
 
 机器合同和 source 中仍出现 version、lock、payload、receipt 或 materialization，不代表
-目标反悔，也不能被新 consumer 深化。它们只在 replacement canonical、affected outcome
-通过并且 retained consumer 为零后删除。
+目标反悔，也不能被新 consumer 深化。它们只允许作为 compatibility-to-delete；M1/M2
+canonical、production caller完成切换且受影响 OUT green 后，在 M4 受控批次中删除。
 
 ## Sealed Evidence And Non-Authority
 
@@ -166,7 +168,7 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 
 | Surface | Classification | Phase 2 disposition |
 | --- | --- | --- |
-| Framework per-owner currentness / MAS local closure | `canonical_incremental`：owner-channel currentness、MAS + ScholarSkills required selection、shared request/other-root exclusion、fresh presence projection和 installed-only invocation 已进入 Framework主线；这不等于显式 lifecycle Manager 已删除。 | 不重做已 canonical family；继续清理仍命中 SemVer/ABI/lock/payload/receipt 的显式 maintenance与下游 consumer。 |
+| Framework per-owner currentness / MAS local closure | `canonical_incremental`：owner-channel currentness、MAS + ScholarSkills required selection、shared request/other-root exclusion、fresh presence projection和 installed-only invocation 已进入 Framework主线；这不等于 successor-only公共动作已经闭合。 | 不重做已 canonical能力；M1直接切换仍命中 SemVer/ABI/lock/payload/receipt 的普通 maintenance caller。 |
 | OMA stale lock/receipt mismatch | `sealed_diagnostic`：只读发现 checkout bytes 与旧记录不一致；未执行 repair 或 state mutation。 | 只有新 Package plane canonical 后，由 OMA lifecycle owner在隔离状态 fresh inspect；不得用全局 `opl update apply` 代替单包 route。 |
 | App/Shell distribution and installer work | `independent_lane`：Universal installer、Native packaging/installer source、Full generator和 embedded Base已有 canonical source；Native/managed Full仍未 public promotion或 clean-host qualification。遗留 dirty worktree不是 authority。 | 不属于本迁移 Phase 2。每次只信 fresh distribution SSOT、canonical source 和 installed/public readback；旧候选只做 semantic drop/replay裁决。 |
 | RCA owner version/publication | `independent_publication`：owner Git version/tag、GHCR version tag 和 `latest-stable` 是三种不同事实。 | Package owner publication另行授权；不得因 repo version/tag 存在就声称 GHCR current。 |
@@ -193,7 +195,7 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 | `OUT-10` | 业务进展与实际执行均准确。 | Agent owns business lifecycle；Temporal owns execution。 | 两组状态可独立变化，Framework只 join，App不互相覆盖。 |
 | `OUT-11` | MAS 提供科研路线。 | MAS-owned typed view。 | App只按通用 envelope/`view_kind`消费；无医学字段 mirror。 |
 | `OUT-12` | 未知扩展不破坏 App。 | Generic fallback/local degradation。 | 未知或 invalid view只局部 unavailable，task/其他 view/Agent继续工作。 |
-| `OUT-13` | 维护成本实质下降。 | Native lifecycle + thin adapters + one projection。 | 每个 legacy family在 consumer-zero 后删除 writer/reader/schema；最终无备用 Package Manager写路径。 |
+| `OUT-13` | 维护成本实质下降。 | Native lifecycle + thin adapters + one projection。 | M1/M2 canonical、production caller=0、affected OUT green 后批量删除旧 writer/reader/schema/fixture；最终无备用 Package Manager写路径。 |
 | `OUT-14` | 更换 executor不丢 Package或业务状态。 | Installed state与route readiness分离。 | Route变化不重装、不丢 preference/Work Item/dependency/view；本轮不要求第二正式 executor。 |
 | `OUT-15` | Codex adapter不是生态唯一真相。 | 同一 descriptor可被中性 carrier消费。 | 真实 Git/local install/discovery/callability通过；公共 descriptor无 Codex私有字段。 |
 | `OUT-16` | Adapter缺失只局部降级。 | 只投影已配置 route。 | 已配置 route缺 adapter只影响该 route；未配置 Claude/Hermes不是 placeholder或门禁。 |
@@ -211,195 +213,74 @@ legacy family 已 canonical；尚未满足 consumer-zero 的旧 lifecycle machin
 未执行时不否定已通过的 core migration outcomes；core migration通过也不能声称
 这些 public outcomes完成。
 
-## Phase 2 Frozen Work Packages
+## Controlled Cutover Work Packages
 
-Phase 2 执行最多保持四条开发 lane。这里冻结行为、owner、bounded surfaces、依赖、
-验收和删除目标，不预先列出易漂移的源码路径。
+Phase 2 保持一个 Package canonical integrator，并按独立 repo、write set 和资源边界展开
+四类 lane。依赖只限制最终吸收顺序；共享 `main` CAS、真实 installed/public mutation 和
+heavy aggregate 使用短时唯一 baton。
 
-每个工作包启动时必须：
+每条 lane 启动时必须 fresh fetch canonical `main`，登记 owner、execution owner、exact
+write set、可立即执行的 next action、remote recoverable checkpoint、acceptance 和 integration
+boundary。独立 worktree可并行准备；consumer在吸收前必须按 fresh producer contract做
+semantic replay。不能独立交付的等待 lane必须并回 integrator，不能保留假 ACTIVE。
 
-1. fresh fetch对应 repo `main`，确认 canonical authority和当前唯一 writer；
-2. 用结构调用链与字面检索冻结本包 sorted exact write set；
-3. 登记与其他 active write sets的交集、field-level conflict owner和最终吸收顺序；
-   overlap不阻止在独立 worktree并行开发和验证；
-4. 在独立 worktree实现，`unexpected=0`，并完成 local-first focused/affected gates；
-5. producer和consumer可并行实现兼容桥、fixture和测试；consumer最终吸收前必须按
-   fresh canonical producer contract semantic replay；
-6. 每个 repo的 shared `main` mutation和wire readback串行，由唯一 integrator解决冲突；
-7. 每个 legacy family满足门禁后立即删除并复验，不积累到最后一次大删除。
+### `M1` Successor-Only Public Actions
 
-### `W1` Official Profile Consumers
+- Owner: 唯一 Framework Package source/canonical integrator。
+- Scope: installed descriptor动态发现、owner OCI `latest-stable`、configured/native carrier
+  `install|update|remove|repair|enable|disable`、fresh physical installed/callable/status/actions
+  readback和公共 facade。
+- Acceptance: explicit root与update-all都不读取shared snapshot作为ordinary currentness；
+  普通 list/status不以legacy lock伪造installed；native动作不可用时fail closed，不回落旧
+  Manager。覆盖`OUT-02`、`OUT-03`、`OUT-05`、`OUT-06`、`OUT-14..17`。
+- Five roots: MAS、MAG、RCA、OMA、OBF是五个同级first-party Agent/package roots；
+  `mas-scholar-skills`只作为MAS required closure，不是第六个root。
 
-- Owner: App install/profile lane。
-- Current state: one-shot consumer 已 canonical，只接受 `first_install` 与
-  `explicit_restore`，不保存持续 desired state，也不注册 startup maintenance。
-- Bounded surfaces: Official Profile intent、first-run/Restore、Standard/Full consumer、
-  installed-only maintenance policy和其 focused contracts/tests。
-- Dependencies: 可独立开始；required closure live proof依赖 `W3`，installed-only
-  maintenance终态依赖 `W3` aggregate。
-- Acceptance: `OUT-01`、`OUT-07`；`OUT-02` 的 App入口部分。
-- Delete: Standard/Full第二清单、fixed count、把 `--skip-packages` 作为普通安装默认
-  绕过 Profile收敛的路径。开发测试专用 flag若保留，不得进入普通用户语义。
-- Forbidden: 持续 desired-state controller、启动时自动恢复已卸载 roots、把 Full
-  变成第二生态 profile。
+### `M2` App/Shell Consumers And Preferences
 
-### `W2` Owner Currentness Verification And Legacy Exit
+- Owner order: App contract/intent owner -> Shell renderer/action consumer。
+- Scope: dynamic directory、presence、status、actions、Agent task、typed view、Home shortcut
+  visibility/order，以及无法从fresh carrier重建的显式uninstall intent。
+- Acceptance: unknown Package无需App id分支即可进入Settings/Home/Runtime；用户卸载后普通
+  启动、日更、App更新不回装；只有显式Restore恢复。覆盖`OUT-01`、`OUT-04`、`OUT-06..12`。
+- Forbidden: 迁移可从carrier重建的lock、receipt、payload、generation或物理路径；App/Shell
+  不解析carrier私有状态，也不成为第二lifecycle writer。
 
-- Owner: Framework Package source lane。
-- Current state: owner publication locator、per-Package `latest-stable`读取、MAS required
-  local selection、shared-latest verifier retirement和 invocation catalog/cache consumer-zero
-  已 canonical；普通 invocation 不读取 owner channel，也不使用 cache/LKG 伪造 current。
-- Bounded surfaces: fresh trace shared snapshot/catalog/cache/activation consumers；只有
-  确认显式 maintenance 或其他 retained consumer仍读取旧 source时才冻结最窄迁移
-  写集。cache只能是 package-scoped、bounded、non-authoritative observed-source cache。
-- Dependencies: 无；verify可与 `W1`、`W5`并行。
-- Acceptance: owner source failure保持 unknown/attention；shared request=0；`OUT-05` 的
-  target discovery基础不回退；`PUB-01` 另行授权和执行。
-- Delete: shared Release Set作为普通 currentness、跨 Package planner/currentness和
-  cache/LKG authority。
-- Forbidden: 新 repository-index product、version/ABI solver、family cohort、cache
-  决定 currentness。fresh source失败必须 `unknown/attention`，不能由缓存伪造 current。
+### `M3` OUT01-17 And Real Carrier Acceptance
 
-### `W3` Presence, Actions, And Neutral Carrier
+- Owner: 独立test/acceptance lanes可并行准备，唯一 integrator串行真实 installed/public
+  mutation与heavy aggregate。
+- Scope: install/update/remove/repair/enable/disable、unknown Package、Home、Runtime、
+  failure isolation、Standard/Full five-root parity和隔离fresh carrier readback。
+- Acceptance: `OUT-01..OUT-17`逐项回读；发现缺口只修successor plane，不为通过测试恢复
+  legacy fallback。publication与release仍按独立authority分账，source/test不能冒充生效。
 
-- Owner: Framework Package lifecycle/read-model lane；在 `W2` canonical后开始。
-- Current state: fresh carrier presence/callability/status/actions projection、directory-derived
-  App-state和 installed-only invocation 已 canonical。Invocation 保留 scope materialization、
-  use receipt和 lifecycle mutex，但只绑定 installed snapshot：
-  `source_selection=installed_package_lock`、`network_accessed=false`、
-  `remote_dependency_policy=forbidden`。远端 refresh/update和 invocation LKG fallback
-  已删除；mutex争用 fail closed，显式 Package update仍是推进 generation的唯一入口。
-- Bounded surfaces: required presence closure、package-local install/update/remove、
-  complete-runtime readback、configured route readiness、compact list/status、lazy
-  owner diagnostics和一个真实 Git/local neutral adapter proof。
-- Dependencies: `W2` canonical。与 Framework Runtime join共享写集时短时串行。
-- Acceptance: `OUT-02`、`OUT-03`、`OUT-05`、`OUT-06`、`OUT-14` 至 `OUT-17`。
-- Delete: resolver admission、installed lock/payload/materializer、lifecycle receipt
-  ledger、LKG/rollback manager、全局 repair/apply gate和普通 status中的 receipt历史。
-- Forbidden: 明示更新 MAS却选择其他 roots；Plugin-only报告完整 Package installed；
-  mock/synthetic carrier替代真实 neutral install/readback；新 durable transaction。
+### `M4` Legacy Bulk Deletion And Parity
 
-### `W4` Dynamic Settings And Home
-
-- Owner: App product contract consumer -> Shell renderer consumer。
-- Current state: `opl-app-contributions.v1` 的 closed declarative contract、Framework
-  directory/App-state projection、Shell fail-closed parser/resolver 和 Relay 首个 descriptor
-  已形成 owner-bound source checkpoint；尚未 canonical，也没有 production navigation
-  caller、标准 view renderer、Relay data/action bridge、Pixel、Install 或 Release 证明。
-- Bounded surfaces: generic Package/capability rows、projected actions、Home shortcut
-  preference、App-owned Restore intent和局部 unavailable体验。
-- Dependencies: `W3` Framework projection canonical；Restore还依赖 `W1` App intent
-  canonical。App producer先于 Shell consumer。
-- Acceptance: `OUT-04`、`OUT-06`、`OUT-07`、`OUT-08`。
-- Delete: App/Shell固定 Package/Agent/Skill metadata、action whitelist、manifest/
-  lock/receipt parser、assistant/starter第二清单和 legacy fallback。fallback只在 fresh
-  hit count归零后删除。
-- Forbidden: App按 Package id分支、Shell推断 installed/readiness、把 Restore放进
-  Framework单包 lifecycle authority。
-
-### `W5` Dynamic Agent Runtime Producers
-
-- Owner order: Package owner descriptor/task/view -> Framework Runtime join。
-- Current state: Framework descriptor discovery、dynamic Agent catalog、generic task/view
-  projection和 bounded lazy owner-view read 已 canonical；owner payload保持 opaque，Temporal
-  仍只按通用 execution scope join。
-- Bounded surfaces: Agent task inventory/lifecycle、opaque Temporal ref、generic task/
-  view envelope、Framework discovery/join/validation和 unknown-view handling。
-- Dependencies: Package owner producer先 canonical；Framework只消费 canonical owner
-  contract。可与 `W1`、`W2`并行。
-- Acceptance: `OUT-09`、`OUT-10`、`OUT-11`、`OUT-12` 的 producer/read-model部分。
-- Delete: Framework固定 Agent membership、领域 schema、MAS research-roadmap mirror
-  和把 Temporal execution当 business status的逻辑。
-- Forbidden: synthetic Agent进入公共 owner repo/GHCR。synthetic只允许隔离 fixture/
-  test namespace；MAS真实 descriptor由 MAS owner canonical。
-
-### `W6` Dynamic Runtime Consumers
-
-- Owner order: App Runtime contract -> Shell Runtime renderer。
-- Current state: App Runtime core route、dynamic Agent scope、generic typed-view contract和
-  unknown-view局部降级已 canonical；Shell consumer/live installed acceptance仍开放。
-- Bounded surfaces: Runtime core route、dynamic installed Agent scope、generic task/detail/
-  view renderer、optional rich renderer extension和 local fallback。
-- Dependencies: `W5` Framework projection canonical。若与 `W4`共享 App/Shell写集，
-  candidate可并行审计，实际 source writer和 main CAS串行。
-- Acceptance: `OUT-04`、`OUT-09` 至 `OUT-12`。
-- Delete: `X0-01` optional gate、固定 scope/availability、Agent-id renderer和 App/Shell
-  领域 schema mirror。
-- Forbidden: App拥有 Agent task truth、Shell实现 scheduler、未知 view导致整个 Runtime
-  或其他 Agent失效。
-
-### Entry And Regression Checks
-
-以下是检查，不是第七/第八工作包：
-
-- `E1` fresh验证已 canonical Official Profile policy；若发现 contract drift，先回报
-  exact failure再决定是否扩 `W1`，不能假设旧候选仍适用。
-- `E2` fresh复用现有 compact list/status和 lazy diagnostics；只补 `W3` 实际缺口，
-  不另建第二 read model。
-- `E3` 对每个 Package/publication/installer/release proof使用隔离环境；真实用户
-  home/state和 public namespace默认禁止 mutation。
+- Entry gate: M1/M2 canonical；所有production callers已切换；structural call graph、
+  TypeScript/build和exact literal guard证明旧入口caller=0；受影响OUT在删除前green。
+- Scope: 一次删除中央registry/resolver/lock/payload/materializer/activation/LKG/receipt/
+  rollback/transaction的生产reader、writer、schema和fixture，然后复跑同一affected OUT。
+- Exclusions: Release receipts、Release Bundle exact-byte evidence、Temporal durability、
+  Foundry/domain evidence、用户preference/config atomic-write保护不得删除。
+- Terminal: Framework/App/Shell canonical parity、fresh carrier readback、task-owned
+  worktree/ref/process/receipt清理全部闭合。
 
 ## Parallel Execution And Canonical Order
 
 ```text
-Phase 2 execution
-  |
-  +-- Lane 1 App Profile:       E1 -> W1
-  |
-  +-- Lane 2 Framework Package: W2 -> W3
-  |                                |
-  |                                +-> W4 App -> W4 Shell
-  |
-  +-- Lane 3 Runtime Producer: Package owner -> W5 Framework
-  |                                            |
-  |                                            +-> W6 App -> W6 Shell
-  |
-  +-- Lane 4 Read-only QA:      inventories, controls, proof preparation
+M1 Framework successor facade ----------------------+
+                                                     +--> M3 OUT01-17
+M2 App contract -> Shell consumer + preference -----+          |
+                                                                v
+M4 deletion patch/call-graph preparation ----------------> bulk delete
 ```
 
-并发采用
-[`parallel_work_serialized_integration`](parallel-delivery-and-clean-development-ssot.md)：
-独立 worktree中的实现、测试和checkpoint可以并行，即使存在小范围文件/字段交叉；
-交叉只决定最终吸收顺序和冲突解决 owner。以下必须串行：
-
-- producer authority canonical -> consumer absorption；
-- 每个 repo的 `main` CAS和最终 readback；
-- 真实 lifecycle/public mutation；
-- legacy writer停止、删除和同 outcome复验。
-
-`W1` 不需要等待全部 Framework/Runtime工作；`W5` Package owner可与 `W2`并行。
-`W3`/`W5` producer与 `W4`/`W6` consumer可并行准备，只在consumer canonical吸收前等待
-fresh producer contract。write-set overlap不建立跨仓总锁；发生冲突时由后吸收 owner基于
-最新用户SSOT、fresh `main`和机器合同做semantic replay，不能机械选择旧patch一侧。
-
-## Per-Family Deletion Loop
-
-旧系统不做一次性大爆炸删除。每个 family都执行同一循环：
-
-```text
-replacement producer canonical
-  -> consumer switch canonical
-  -> affected OUT fresh pass
-  -> retained consumers = 0
-  -> stop legacy writer
-  -> fresh exact deletion write set
-  -> delete writer + reader + schema/fixture
-  -> rerun same OUT
-  -> next family
-```
-
-Family顺序按依赖动态确定，默认优先：
-
-1. fixed App/Shell Package/Agent/Skill metadata和重复 action authority；
-2. shared Release Set普通 currentness和跨 Package planner；
-3. version/ABI composition resolver；
-4. Package lock/payload/materialization；
-5. lifecycle receipt/LKG/rollback/durable intent；
-6. Runtime固定 Agent scope和领域 schema mirror。
-
-Release receipts、Release Bundle exact-byte evidence、Temporal durability、Foundry build
-receipts、domain artifact/evidence receipts、用户 preference/config atomic-write保护不在
-删除范围内。字面相同的 `receipt`、`lock` 或 `materialization` 不能作为机械删除依据。
+`parallel_work_serialized_integration`允许独立worktree/write set并行；write-set overlap只影响
+fresh-main replay顺序。producer authority必须先于consumer canonical absorption；每个repo的
+`main` CAS、真实installed/public mutation、legacy writer停用和唯一heavy aggregate必须串行。
+回滚使用canonical Git revert、上一版immutable artifact和受控安装回退；新runtime不得保留
+legacy dual-write、automatic fallback或私有rollback state machine。
 
 ## Durable Research Disposition
 
@@ -441,14 +322,14 @@ fresh重现不可恢复 deadline机制失败且用户另行授权后评估。
 
 ## Validation And Completion
 
-每个工作包至少完成：
+每个里程碑至少完成：
 
 - sorted exact write set和`unexpected=0`；
 - repo-native focused tests、type/structure gates和`git diff --check`；
 - producer/consumer canonical order；
 - local/origin/wire/API/tree/blob/raw readback；
 - affected `OUT-*` 的隔离真实 readback；
-- 删除前后 consumer-zero和同 outcome复验；
+- M4删除前后的structural caller/build证明和同一affected OUT复验；
 - task worktree/branch/process/lock清理。
 
 Phase 2完成报告必须分别列出：
@@ -456,21 +337,22 @@ Phase 2完成报告必须分别列出：
 1. Core development outcomes `OUT-01..OUT-17`；
 2. Package publication outcome `PUB-01`；
 3. Production delivery outcomes `REL-01/REL-02`；
-4. 每个 legacy family删除或仍保留的 exact理由；
+4. legacy bulk-delete清单、production caller=0和明确排除的合法durability；
 5. 未执行的独立 public mutations。
 
 任何未完成项必须保持 open，不得用相邻测试或其他 owner结果替代。
 
 ## Estimated Delivery Shape
 
-在用户批准全部六包、没有新的 authority冲突时：
+在没有新的authority冲突且本地/hosted资源可用时：
 
 | Window | 并行重点 | 串行收口 |
 | --- | --- | --- |
-| Day 1-2 | `W1`、`W2`、`W5` owner producer并行；`E1-E3`只读准备。 | `W2`先进入 Framework canonical；Package owner producer先于 Framework consumer。 |
-| Day 2-4 | `W3`、`W4` App contract、`W5` Framework join。 | Framework Package plane内部串行；App/Shell consumer只读 canonical producer。 |
-| Day 4-7 | `W4` Shell、`W6` App/Shell、逐 family删除。 | 同仓 writer/main CAS、live proof和每族删除复验串行。 |
-| Day 7-12 | Core OUT终态、跨仓 readback、残留删除。 | `PUB/REL`只有另行授权才执行，不反向阻塞已完成 core outcomes。 |
+| M1 | Framework successor-only公共动作与fresh readback。 | 单一Framework source/canonical integrator；预计1-2工程日。 |
+| M2 | App/Shell consumer与preference迁移可跨仓准备。 | producer先canonical，consumer按fresh contract replay；预计1-3工程日。 |
+| M3 | OUT01-17、five-root和真实carrier验收。 | heavy aggregate与installed/public mutation唯一baton；预计1-2工程日，不含外部发布排队。 |
+| M4 | caller-zero证明、bulk delete、删除后复验与三仓parity。 | legacy writer停用和canonical吸收串行；预计2-4工程日。 |
 
-这是基于当前范围的工程估算，不是发布日期承诺。新增跨层架构、第二 executor或public
-delivery范围必须另行评估，不能隐式扩入 Phase 2。
+最快可用版本以M1+必要M2 consumer+关键OUT通过为准，目标2-4工程日；完整M4终态目标
+5-10工程日。估算不是发布日期承诺，外部publication/install只在其唯一authority下执行，
+不得反向阻塞可独立完成的source cutover。
