@@ -187,6 +187,31 @@ test('Native reusable builds one exact target then performs protected additive p
   const appendStep = parsed.jobs['publish-native-assets'].steps.find(
     (step: Record<string, any>) => step.name === 'Append one exact Native asset set through the Framework ledger',
   );
+  const activationIdentityStep = parsed.jobs['publish-native-assets'].steps.find(
+    (step: Record<string, any>) => step.name === 'Download exact Stable activation identity',
+  );
+  assert.equal(
+    activationIdentityStep.uses,
+    'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c',
+  );
+  assert.deepEqual(activationIdentityStep.with, {
+    name: 'opl-release-activation-${{ inputs.stable_authority_run_id }}',
+    'run-id': '${{ inputs.stable_authority_run_id }}',
+    'github-token': '${{ github.token }}',
+    path: 'stable-activation',
+  });
+  const bindStep = parsed.jobs['publish-native-assets'].steps.find(
+    (step: Record<string, any>) => step.name === 'Bind qualified Native bytes to the Standard checkpoint',
+  );
+  const bindRun = String(bindStep.run);
+  assert.match(
+    bindRun,
+    /find stable-activation -type f -name standard-identity-receipt\.json -print/,
+  );
+  assert.doesNotMatch(
+    bindRun,
+    /find imported-checkpoint -type f -name standard-identity-receipt\.json -print/,
+  );
   const appendRun = String(appendStep.run);
   assert.ok(appendRun.indexOf('infer-standard') < appendRun.indexOf('opl release operation admit'));
   assert.ok(
