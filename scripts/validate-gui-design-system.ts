@@ -1185,8 +1185,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (!/^State: `(active_parity_convergence|active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
     issues.add('AionUI mainline convergence plan must be in active_parity_convergence, active_currentness_refresh, release_closeout_in_progress, or complete state');
   }
-  if (!convergencePlan.includes(guiConformanceRef) || !convergencePlan.includes(historicalPixelShellSha)) {
-    issues.add('AionUI mainline convergence plan must bind both the verified GUI ancestor and historical evidence SHA');
+  if (convergencePlan.includes(guiConformanceRef) || convergencePlan.includes(historicalPixelShellSha)) {
+    issues.add('AionUI mainline convergence plan must not copy fixed GUI ancestor or historical evidence SHAs from machine owners');
   }
   for (const staleMarker of [
     '5204a68d41d799287a4567e61897df3c25345dc4',

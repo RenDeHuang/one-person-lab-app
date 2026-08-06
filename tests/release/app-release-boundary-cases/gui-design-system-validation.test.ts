@@ -616,6 +616,26 @@ test('GUI design-system validator rejects a historical evidence binding that dri
   );
 });
 
+test('GUI design-system validator rejects fixed historical SHAs copied back into the active convergence plan', () => {
+  const root = createFixture();
+  const contract = JSON.parse(
+    fs.readFileSync(path.join(root, 'contracts/app-gui-product-contract.json'), 'utf8'),
+  );
+  const adapter = JSON.parse(
+    fs.readFileSync(path.join(root, 'contracts/app-shell-adapter.json'), 'utf8'),
+  );
+  const planPath = path.join(root, 'docs/active/aionui-mainline-gui-convergence-plan.md');
+  fs.appendFileSync(
+    planPath,
+    `\n${adapter.shell_source.upstream_ref} ${contract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha}\n`,
+  );
+
+  assert.throws(
+    () => validateGuiDesignSystem(root),
+    /AionUI mainline convergence plan must not copy fixed GUI ancestor or historical evidence SHAs from machine owners/,
+  );
+});
+
 test('GUI design-system validator rejects treating historical pixels as the current source head', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
