@@ -1,8 +1,12 @@
 # 并行交付与开发清洁 SSOT
 
-Instruction revision: `user-2026-07-29-central-ledger-only-clean-baseline-v3`
-
 Owner: `one-person-lab-app` delivery coordination
+Purpose: `cross-target_coordination_contract`
+State: `active_policy`
+Machine boundary: This document defines coordination rules only. Volatile task,
+thread, owner, branch, worktree, checkpoint, and readiness state must be read
+from the current Ledger, thread/lifecycle surfaces, product owners, and remote
+readback at operation time.
 
 Machine-readable operational state is read from fresh lifecycle and thread
 readback at operation time; this document intentionally does not freeze a
@@ -22,9 +26,8 @@ Active ledger 中的 thread、ETA、current evidence和next action会快速漂�
 
 ## 中央总账治理边界
 
-唯一持久协调真相是 OPL Ledger/Bead；Dashboard thread
-`019f8f6a-718b-78f1-801f-48d5eae617e7` 只是当前人读投影和操作入口，不是永久 controller、
-release state、checkpoint 或 mutation authority。所有跨对话的 scope、owner、handoff、merge、
+唯一持久协调真相是 OPL Ledger/Bead；Dashboard thread 只是当前人读投影和操作入口，不是永久
+controller、release state、checkpoint 或 mutation authority。所有跨对话的 scope、owner、handoff、merge、
 cleanup、publication、install 和 archive 决策必须写回总账；对话、callback 与 peer-to-peer
 消息只携带当前 instruction revision、objective fingerprint、event cursor 和 next action，不能
 私下延长 owner、operation、deadline 或 authority。每条开发线只有一个 line lead 负责路由，
@@ -158,19 +161,26 @@ controller 仍负责在恢复条件满足后重新准入唯一 execution owner�
 objective 终态。外部权限或不可获得输入是唯一可暂停执行的 blocker；普通冲突、失败
 或 main 漂移由 owner 自行重放和修复。
 
-## 并行组与吸收优先级
+## 并行模式与吸收优先级
 
 保持所有具备实际执行动作的 lane；没有可执行切片的只读 watcher 不应伪装成 `ACTIVE`，
-而应转为 `EVENT_IDLE`、`SAFE_TO_ARCHIVE` 或被重新分配到独立缺口。当前并行组如下：
+而应转为 `EVENT_IDLE`、`SAFE_TO_ARCHIVE` 或被重新分配到独立缺口。下面只是可复用的
+协调模式，不是当前 lane inventory、owner 清单、branch/SHA、ETA、准入结论或完成证明。
+当前任务、owner、write set、next action 和 terminal evidence 必须在执行时从 OPL
+Ledger、thread/lifecycle readback 与对应产品/发布 owner 重新读取。
 
-1. **Public pointers**：WebUI GHCR `stable/latest` 与 Desktop Stable/Latest 独立推进；
-   两者不互相等待。
-2. **Source and release repair**：Stable 首断点、安装统一和 GUI artifact consumer 并行；
-   GUI 只消费 fresh immutable published+installed carrier artifact 及其 Framework compatibility receipt。
-3. **Hygiene and convergence**：活跃分支 semantic convergence、历史 exact-merged detached
-   lane proof-backed cleanup、跨仓 stale receipt reconcile 并行。
-4. **Package retirement**：Framework producer、App/Shell consumer、carrier-native lifecycle
-   和 consumer-zero inventory 并行；每个 legacy family 的最终删除单独串行。
+1. **Public pointers pattern**：WebUI GHCR `stable/latest` 与 Desktop Stable/Latest
+   可以独立推进；是否存在、由谁负责以及是否可吸收必须以 fresh owner/readback 为准。
+2. **Source and release repair pattern**：Stable 首断点、安装统一和 GUI artifact consumer
+   可以并行；GUI 只能消费 fresh immutable published+installed carrier artifact 及其
+   Framework compatibility receipt，不能由本模式推导发布或安装 ready。
+3. **Hygiene and convergence pattern**：活跃分支 semantic convergence、历史 exact-merged
+   detached lane 的 proof-backed cleanup、跨仓 stale receipt reconcile 可以并行；每项都须
+   重新确认 owner、holder、remote recovery 与 cleanup authority。
+4. **Package retirement pattern**：Framework producer、App/Shell consumer、carrier-native
+   lifecycle 和 consumer-zero inventory 可以并行准备；具体 Package 写集仍归现有 owner，
+   每个 legacy family 的最终删除必须以 fresh no-active-consumer proof 和 owner-native
+   authorization 单独串行完成。
 
 同一 repo 最终吸收优先级为：
 
@@ -242,4 +252,7 @@ entry、task receipt/temp、holders/process、Git locks、canonical local/tracki
 
 Ledger 中 ETA 是基于当前最深可证断点的滚动规划值，不是等待理由或硬合同。owner 每完成
 一个 checkpoint 就缩短或重估剩余步骤；可以并行的步骤不得相加为墙钟时间。发布、安装、
-GUI 和 Package retirement 分账，任何一个已具备执行条件的终态不得等待无关 objective。
+GUI、Package retirement 与其他领域 lane 的调度关系必须以本轮 fresh execution graph 为准；
+本合同不冻结任何当前分账，也不授予跨 owner 的 mutation、publication、install 或 release
+authority。任何已具备执行条件的终态都不应因无关 objective 而等待，但仍须由其 canonical
+owner 完成本 lane 的验证、吸收和 closeout。
