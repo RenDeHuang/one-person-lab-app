@@ -2932,7 +2932,7 @@
             "route_id": "gateway",
             "adapter_entry": "packages/desktop/src/renderer/pages/settings/accessProjection.ts",
             "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx",
-            "state_source": "opl app state --profile fast --json#app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
+            "state_source": "dedicated cached Gateway projection followed by app_action_execution.result.gateway_account",
             "forbidden_sources": [
               "secret bodies in App state or generic action payloads",
               "Gateway account duplication on Models or Resources"

@@ -232,9 +232,11 @@ generic action payload, App state, logs, errors, receipts, diagnostics, or
 renderer persistence.
 
 The renderer may keep only the declared public projection as a derived
-last-known-good cache. It shows that cache immediately, refreshes in the
-background, preserves it on refresh failure with a stale marker, and replaces
-it only after authoritative readback.
+last-known-good cache. It shows that cache immediately, executes
+`gateway_account_refresh` once when the page opens, and consumes
+`app_action_execution.result.gateway_account` without waiting for the complete
+fast App-state aggregation. Manual refresh uses the same owner action. Refresh
+failure preserves the cache with a stale marker.
 
 ### Models
 

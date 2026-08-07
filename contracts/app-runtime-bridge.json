@@ -136,10 +136,10 @@
       "role": "derived_last_known_good_projection_not_truth",
       "storage_scope": "dedicated_gateway_projection_cache_independent_of_full_app_state_cache",
       "field_policy": "persist_projection_top_level_and_nested_allowlists_only",
-      "initial_render": "show_cached_account_before_background_refresh",
+      "initial_render": "show_cached_account_before_gateway_account_refresh_action",
       "legacy_cache_without_projection": "keep_account_state_resolving_until_authoritative_readback",
       "refresh_failure": "retain_cached_account_and_surface_stale_or_error",
-      "invalidation": "replace_only_after_authoritative_readback_confirms_new_projection"
+      "invalidation": "replace_only_after_authoritative_gateway_action_or_readback_confirms_new_projection"
     },
     "error_codes": [
       "invalid_credentials",

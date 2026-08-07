@@ -268,12 +268,12 @@ export function validateOplGatewayAccountContract(runtimeBridge) {
     || projection.renderer_bootstrap_cache?.storage_scope !==
       'dedicated_gateway_projection_cache_independent_of_full_app_state_cache'
     || projection.renderer_bootstrap_cache?.field_policy !== 'persist_projection_top_level_and_nested_allowlists_only'
-    || projection.renderer_bootstrap_cache?.initial_render !== 'show_cached_account_before_background_refresh'
+    || projection.renderer_bootstrap_cache?.initial_render !== 'show_cached_account_before_gateway_account_refresh_action'
     || projection.renderer_bootstrap_cache?.legacy_cache_without_projection !==
       'keep_account_state_resolving_until_authoritative_readback'
     || projection.renderer_bootstrap_cache?.refresh_failure !== 'retain_cached_account_and_surface_stale_or_error'
     || projection.renderer_bootstrap_cache?.invalidation !==
-      'replace_only_after_authoritative_readback_confirms_new_projection'
+      'replace_only_after_authoritative_gateway_action_or_readback_confirms_new_projection'
     || projection.generic_action_secret_policy !==
       'password_tokens_and_api_key_material_forbidden_in_action_payload_log_state_error_and_receipt'
   ) {

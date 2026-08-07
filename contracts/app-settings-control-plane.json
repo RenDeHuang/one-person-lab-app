@@ -910,7 +910,7 @@
       "ia_group": "account_models",
       "slot_id": "settings_gateway",
       "state_source": "opl app state --profile fast --json#app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
-      "refresh_source": "opl app state --profile fast --json",
+      "refresh_source": "opl app action execute --action gateway_account_refresh --json#app_action_execution.result.gateway_account",
       "scope": "user",
       "intent": "configure",
       "risk": "reversible",
@@ -1319,7 +1319,7 @@
         "route_id": "gateway",
         "adapter_entry": "packages/desktop/src/renderer/pages/settings/accessProjection.ts",
         "renderer_entry": "packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx",
-        "state_source": "opl app state --profile fast --json#app_state.settings_control_center.app_settings_read_model.opl_gateway_account",
+        "state_source": "dedicated cached Gateway projection followed by app_action_execution.result.gateway_account",
         "forbidden_sources": [
           "secret bodies in App state or generic action payloads",
           "Gateway account duplication on Models or Resources"
@@ -3028,6 +3028,8 @@
             "freshness.stale"
           ],
           "ttl_seconds": 900,
+          "mount_refresh_policy": "execute_gateway_account_refresh_once_without_waiting_for_complete_fast_app_state",
+          "action_result_policy": "publish_app_action_execution_result_gateway_account_to_the_shared_Gateway_cache_immediately",
           "display_policy_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection.display_policy",
           "group_resolution_policy_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection.group_resolution_policy",
           "normal_state_action_policy": "refresh_icon_adjacent_to_local_time_and_disconnect_only",

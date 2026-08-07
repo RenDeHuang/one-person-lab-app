@@ -3181,8 +3181,8 @@
     {
       "id": "gateway",
       "expected_source": "OPL Gateway account projection and typed desktop secret bridge",
-      "machine_source": "opl app state --profile fast --json",
-      "refresh_source": "opl app state --profile fast --json",
+      "machine_source": "dedicated cached Gateway projection followed by app_action_execution.result.gateway_account",
+      "refresh_source": "opl app action execute --action gateway_account_refresh --json",
       "page_contract": "settings_gateway",
       "sections": [
         "gateway_connection",
@@ -3281,6 +3281,8 @@
         "manual_api_key_card_policy": "model_access_status_only_no_account_balance_or_account_usage",
         "cache_ttl_seconds": 900,
         "stale_policy": "show_cached_values_with_stale_marker_and_manual_refresh",
+        "mount_refresh_policy": "execute_gateway_account_refresh_once_without_waiting_for_complete_fast_app_state",
+        "action_result_policy": "publish_app_action_execution_result_gateway_account_to_the_shared_Gateway_cache_immediately",
         "disconnect_placement": "identity_row_trailing_adjacent_to_display_name_email_and_connection_status",
         "disconnect_detached_footer_or_page_edge_allowed": false,
         "managed_key_setup_policy": "auto_complete_exposed_setup_action_for_unique_codex_group_without_user_control",

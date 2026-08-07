@@ -130,6 +130,8 @@ function validateAppStateHook(shellPaths) {
       "setProvenance('live')",
       'payload: withoutGatewayAccountProjection(sanitizedPayload)',
       'provenance: DERIVED_BOOTSTRAP_PROVENANCE',
+      'gatewayAccountProjectionFromActionResult',
+      "actionId: 'gateway_account_refresh'",
     ],
     'Active shell display-only Gateway bootstrap cache and live snapshot authority',
   );
@@ -156,7 +158,9 @@ function validateAppStateHook(shellPaths) {
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/AccessSettings.tsx',
     [
-      "useOplAppState('fast', { requireLive: surface === 'gateway' })",
+      "useOplAppState('fast', { autoLoad: surface !== 'gateway' })",
+      'refreshGatewayAccount',
+      'applyGatewayAccountActionResult',
       "const gatewayMutationAuthority = appStateQuery.provenance === 'live' && gatewayAccount !== null",
       'if (!gatewayMutationAuthority) return',
       'gatewayFormVisible && gatewayMutationAuthority',

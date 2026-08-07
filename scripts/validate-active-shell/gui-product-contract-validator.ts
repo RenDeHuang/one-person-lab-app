@@ -1029,11 +1029,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     'update',
     'settings_theme',
   ]) {
-    const expectedStateSource = pageId === 'settings_environment'
+    const expectedStateSource = pageId === 'settings_gateway'
+      ? 'dedicated cached Gateway projection followed by app_action_execution.result.gateway_account'
+      : pageId === 'settings_environment'
       ? 'opl app state --profile fast --json + application.systemInfo.logDir when the carrier exposes systemInfo'
       : 'opl app state --profile fast --json';
     assertCommandSurface(pages[pageId].state_source, expectedStateSource, `App GUI ${pageId} state source`);
-    const expectedRefreshSource = pageId === 'settings_general'
+    const expectedRefreshSource = pageId === 'settings_gateway'
+      ? 'opl app action execute --action gateway_account_refresh --json'
+      : pageId === 'settings_general'
       ? 'background opl app state --profile fast --json with bounded retry'
       : pageId === 'about'
         ? 'startup check once or explicit manual check updates the same shared store'
