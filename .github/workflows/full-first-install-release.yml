@@ -730,7 +730,7 @@ jobs:
 
       - name: Resolve Full runtime cache keys
         id: runtime-cache-keys
-        working-directory: one-person-lab-app
+        working-directory: release-executor
         shell: bash
         run: |
           set -euo pipefail
@@ -754,6 +754,8 @@ jobs:
           export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
           npm --silent run release:full -- \
             --version "$OPL_RELEASE_VERSION" \
+            --gui-root "$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui" \
+            --out-dir "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release" \
             --runtime-cache-dir "$cache_dir" \
             --runtime-cache-mode readwrite \
             --print-runtime-cache-keys > "$RUNNER_TEMP/opl-full-runtime-cache-keys.json"
@@ -913,7 +915,7 @@ jobs:
 
       - name: Build Full first-install package
         id: full_package_build
-        working-directory: one-person-lab-app
+        working-directory: release-executor
         shell: bash
         env:
           OPL_RELEASE_VERSION: ${{ env.OPL_RELEASE_VERSION }}
@@ -966,6 +968,8 @@ jobs:
             npm run release:full --
             --version "$OPL_RELEASE_VERSION"
             --updater-version "$OPL_UPDATER_VERSION"
+            --gui-root "$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui"
+            --out-dir "$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
             --runtime-cache-dir "${{ steps.runtime-cache-keys.outputs.cache_dir }}"
             --runtime-cache-mode readwrite
           )

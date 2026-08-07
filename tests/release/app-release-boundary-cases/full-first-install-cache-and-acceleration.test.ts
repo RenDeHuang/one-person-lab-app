@@ -1,4 +1,5 @@
 import { appRoot, assert, fs, os, path, test } from "./helpers.ts";
+import { parse as parseYaml } from "yaml";
 
 test("Full domain build links the pinned local Framework package into RedCube", () => {
   const workflow = fs.readFileSync(
@@ -165,7 +166,28 @@ test("Full workflow delegates Codex to the Shell AionCore carrier without a Fram
 
   assert.doesNotMatch(workflow, /codex_tarball|codex_platform_tarball|OPL_FULL_CODEX_ROOT/);
   assert.doesNotMatch(workflow, /--codex-root|npm install -g "\$codex_tarball"/);
-  assert.match(workflow, /working-directory: one-person-lab-app[\s\S]*npm run release:full --/);
+  const parsed = parseYaml(workflow) as Record<string, any>;
+  const steps = parsed.jobs["full-first-install"].steps as Array<Record<string, any>>;
+  for (const name of ["Resolve Full runtime cache keys", "Build Full first-install package"]) {
+    const step = steps.find((candidate) => candidate.name === name);
+    assert.equal(step?.["working-directory"], "release-executor", name);
+    assert.match(String(step?.run), /npm (?:--silent )?run release:full --/, name);
+    assert.match(
+      String(step?.run),
+      /--gui-root "\$GITHUB_WORKSPACE\/one-person-lab-app\/shells\/aionui"/,
+      name,
+    );
+    assert.match(
+      String(step?.run),
+      /--out-dir "\$GITHUB_WORKSPACE\/one-person-lab-app\/dist\/opl-full-release"/,
+      name,
+    );
+  }
+  const frozenCheckout = steps.find(
+    (candidate) => candidate.name === "Checkout frozen artifact App source",
+  );
+  assert.equal(frozenCheckout?.with?.path, "one-person-lab-app");
+  assert.equal(frozenCheckout?.with?.ref, "${{ inputs.artifact_app_sha || github.sha }}");
 });
 
 test("Full runtime cache classifies hit and miss modes from one canonical key", async () => {
