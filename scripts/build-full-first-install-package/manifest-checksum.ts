@@ -175,11 +175,10 @@ export function resolveMasScholarSkillsFullRuntimeSource(options) {
     masScholarDependencies.length !== 1
     || !masScholarDependency
     || typeof masScholarDependency !== 'object'
-    || masScholarDependency.kind !== 'framework_capability_package'
     || masScholarDependency.required !== true
   ) {
     throw new Error(
-      'Full runtime MAS package manifest must require MAS Scholar Skills exactly once as a framework capability package.',
+      'Full runtime MAS package manifest must require MAS Scholar Skills exactly once.',
     );
   }
 

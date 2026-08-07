@@ -113,10 +113,11 @@ test("MAS Scholar Skills source resolution rejects ref, owner dependency, ABI, a
       { ...scholarDependency, package_id: "mas-scholar-skills-drifted" },
     ];
     assertInvalidMasDependency();
-    masManifest.capability_dependencies = [
-      { ...scholarDependency, kind: "capability_package" },
-    ];
-    assertInvalidMasDependency();
+    const dependencyWithoutLegacyKind = { ...scholarDependency };
+    delete dependencyWithoutLegacyKind.kind;
+    masManifest.capability_dependencies = [dependencyWithoutLegacyKind];
+    writeJson(masManifestPath, masManifest);
+    assert.doesNotThrow(() => resolveMasScholarSkillsFullRuntimeSource(dependencyFixture.options));
     masManifest.capability_dependencies = [{ ...scholarDependency, required: false }];
     assertInvalidMasDependency();
     masManifest.capability_dependencies = [scholarDependency, { ...scholarDependency }];
