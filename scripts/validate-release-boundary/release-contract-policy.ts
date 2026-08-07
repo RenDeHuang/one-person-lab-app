@@ -465,6 +465,8 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
   const standardDraft = releaseContract.standard_updater?.draft_refresh;
   const fullDraft = releaseContract.full_first_install?.draft_refresh;
   const fullAddon = releaseContract.full_first_install?.published_addon;
+  const fullNotarizationRecovery = releaseContract.full_first_install?.production_macos_trust
+    ?.unknown_submission_recovery;
   const immutabilityWindow = releaseContract.release_bundle_control_plane?.publication?.stable
     ?.repository_immutability_window;
   const nightly = releaseContract.nightly_standard;
@@ -476,6 +478,14 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullDraft?.allowed !== false ||
     fullDraft?.published_release_mutation_allowed !== false ||
     fullDraft?.mode !== 'retired_independent_full_release_draft_history_only' ||
+    fullNotarizationRecovery?.exact_submitted_dmg_bytes_must_be_retained !== true ||
+    JSON.stringify(fullNotarizationRecovery?.required_identity_fields) !== JSON.stringify([
+      'submission_id',
+      'sha256',
+      'size_bytes',
+    ]) ||
+    fullNotarizationRecovery?.resubmission_allowed_before_owner_authoritative_reconcile !== false ||
+    fullNotarizationRecovery?.finalize_only_may_consume_only_exact_submitted_bytes !== true ||
     immutabilityWindow?.owner !== 'release-stable protected environment unique Release owner' ||
     immutabilityWindow?.token_secret !== 'OPL_GITHUB_RELEASE_ADMIN_TOKEN' ||
     immutabilityWindow?.receipt_schema !== 'opl_app_github_immutability_setting_receipt.v1' ||

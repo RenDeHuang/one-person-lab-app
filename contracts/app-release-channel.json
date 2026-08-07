@@ -3037,6 +3037,12 @@
       "dmg_gatekeeper_required": true,
       "mounted_app_gatekeeper_required": true,
       "local_authorization_fallback_allowed": false,
+      "unknown_submission_recovery": {
+        "exact_submitted_dmg_bytes_must_be_retained": true,
+        "required_identity_fields": ["submission_id", "sha256", "size_bytes"],
+        "resubmission_allowed_before_owner_authoritative_reconcile": false,
+        "finalize_only_may_consume_only_exact_submitted_bytes": true
+      },
       "required_embedded_evidence": [
         "opl-release-manifest.json#evidence.gatekeeper_launch_policy",
         "opl-release-manifest.json#evidence.apple_notarization_receipt",

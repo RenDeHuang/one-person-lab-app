@@ -342,6 +342,8 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "Finalize Full Developer ID signing and notarization",
       "scripts/notarize-macos-dmg.ts",
       "full-apple-notarization-receipt.json",
+      "--submitted-candidate-output",
+      "submitted-for-notarization.dmg",
       "full-gatekeeper-launch-policy.json",
       "full-local-authorization-policy.json",
       "full-runtime-currentness-probe.json",

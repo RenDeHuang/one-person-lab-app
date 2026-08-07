@@ -1937,6 +1937,7 @@ jobs:
           node --experimental-strip-types "$GITHUB_WORKSPACE/release-executor/scripts/notarize-macos-dmg.ts" \
             --dmg "dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg" \
             --output dist/opl-full-release/full-apple-notarization-receipt.json \
+            --submitted-candidate-output "dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.submitted-for-notarization.dmg" \
             --operation-deadline-at '${{ inputs.operation_deadline_at }}'
 
       - name: Verify Intel-finalized Full distribution trust and bind manifest
@@ -2154,9 +2155,11 @@ jobs:
           name: opl-full-notarization-evidence-${{ inputs.opl_version }}-${{ github.run_id }}
           path: |
             one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
+            one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${{ inputs.opl_version }}-mac-arm64.submitted-for-notarization.dmg
             one-person-lab-app/dist/opl-full-release/full-intel-finalizer-handoff-receipt.json
             one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
           if-no-files-found: warn
+          compression-level: 0
           retention-days: 30
 
       - name: Upload Intel-finalized Full diagnostics artifact

@@ -27,7 +27,7 @@ function writeExecutable(filePath: string, source: string): void {
 }
 
 function fixture(
-  waitStatus: 'Accepted' | 'In Progress',
+  waitStatus: 'Accepted' | 'In Progress' | 'unknown',
   timestampSigningBehavior:
     | 'success'
     | 'probe-timeout'
@@ -38,13 +38,14 @@ function fixture(
     | 'timeout-three'
     | 'timeout-all'
     | 'fail' = 'success',
-  notaryInfoStatuses: Array<'Accepted' | 'In Progress' | 'Rejected' | 'Invalid'> = [waitStatus],
+  notaryInfoStatuses: Array<'Accepted' | 'In Progress' | 'Rejected' | 'Invalid' | 'unknown'> = [waitStatus],
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-notarize-dmg-test-'));
   const binaryRoot = path.join(root, 'bin');
   const commandLog = path.join(root, 'commands.log');
   const dmgPath = path.join(root, 'One-Person-Lab-Full.dmg');
   const outputPath = path.join(root, 'receipt.json');
+  const submittedCandidateOutputPath = path.join(root, 'submitted-candidate.dmg');
   const timestampSigningAttemptFile = path.join(root, 'timestamp-signing-attempts');
   const timestampProbeAttemptFile = path.join(root, 'timestamp-probe-attempts');
   const notaryInfoAttemptFile = path.join(root, 'notary-info-attempts');
@@ -175,6 +176,8 @@ exit 0
     dmgPath,
     '--output',
     outputPath,
+    '--submitted-candidate-output',
+    submittedCandidateOutputPath,
     '--operation-deadline-at',
     deadlineAt,
   ], {
@@ -214,6 +217,7 @@ exit 0
     root,
     result,
     receipt: JSON.parse(fs.readFileSync(outputPath, 'utf8')) as Record<string, any>,
+    submittedCandidateOutputPath,
     commands: fs.readFileSync(commandLog, 'utf8'),
     timestampSigningAttempts: fs.existsSync(timestampSigningAttemptFile)
       ? Number(fs.readFileSync(timestampSigningAttemptFile, 'utf8'))
@@ -471,6 +475,22 @@ test('an incomplete notary wait polls the existing submission until Apple accept
   }
 });
 
+test('an unknown notary response keeps polling the existing submission without resubmitting', () => {
+  const value = fixture('unknown', 'success', ['unknown', 'Accepted']);
+  try {
+    assert.equal(value.result.status, 0, value.result.stderr);
+    assert.equal(value.receipt.status, 'passed');
+    assert.equal(value.receipt.notarization.status, 'Accepted');
+    assert.equal(value.notaryInfoAttempts, 2);
+    assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
+    assert.equal((value.commands.match(/notarytool wait/g) ?? []).length, 1);
+    assert.equal((value.commands.match(/notarytool info/g) ?? []).length, 2);
+    assert.equal(fs.existsSync(value.submittedCandidateOutputPath), false);
+  } finally {
+    fs.rmSync(value.root, { recursive: true, force: true });
+  }
+});
+
 test('an incomplete bounded wait emits durable typed reconcile evidence and never staples', () => {
   const value = fixture('In Progress');
   try {
@@ -480,6 +500,14 @@ test('an incomplete bounded wait emits durable typed reconcile evidence and neve
     assert.equal(value.receipt.notarization.status, 'In Progress');
     assert.equal(value.receipt.failure.code, 'notarization_submission_incomplete');
     assert.equal(value.receipt.failure.retry_disposition, 'read_only_reconcile_submission_no_retry');
+    assert.equal(value.receipt.submitted_candidate.retained_for_reconcile, true);
+    assert.equal(value.receipt.submitted_candidate.recovery_file, 'submitted-candidate.dmg');
+    assert.match(value.receipt.submitted_candidate.sha256, /^[0-9a-f]{64}$/);
+    assert.equal(fs.existsSync(value.submittedCandidateOutputPath), true);
+    assert.equal(
+      fs.readFileSync(value.submittedCandidateOutputPath, 'utf8'),
+      'full-dmg-fixture',
+    );
     assert.equal((value.commands.match(/notarytool submit/g) ?? []).length, 1);
     assert.equal((value.commands.match(/notarytool wait/g) ?? []).length, 1);
     assert.ok(value.notaryInfoAttempts >= 1);

@@ -431,12 +431,15 @@ function submitForNotarization(target: string, credentials: {
     persist(state);
     return result;
   };
-  if (observed?.status !== 'Accepted') {
+  const isTerminalStatus = (status: unknown) => (
+    status === 'Accepted' || status === 'Rejected' || status === 'Invalid'
+  );
+  if (!isTerminalStatus(observed?.status)) {
     observed = queryStatus() ?? observed;
     const pollIntervalMs = configuredNotarizationInfoPollIntervalMs();
     const pollMaxMs = configuredNotarizationInfoPollMaxMs();
     const pollStartedAt = Date.now();
-    while (observed?.status === 'In Progress') {
+    while (!isTerminalStatus(observed?.status)) {
       const pollDeadlineMs = pollMaxMs === undefined
         ? observationDeadlineMs
         : Math.min(observationDeadlineMs, pollStartedAt + pollMaxMs);
@@ -468,6 +471,7 @@ function parseOptions() {
       dmg: { type: 'string' },
       output: { type: 'string' },
       'operation-deadline-at': { type: 'string' },
+      'submitted-candidate-output': { type: 'string' },
     },
     allowPositionals: false,
     strict: true,
@@ -477,6 +481,12 @@ function parseOptions() {
     dmgPath: path.resolve(values.dmg),
     outputPath: path.resolve(values.output),
     operationDeadlineAt: values['operation-deadline-at']?.trim() || '',
+    submittedCandidateOutputPath: values['submitted-candidate-output']
+      ? path.resolve(values['submitted-candidate-output'])
+      : path.resolve(
+          path.dirname(values.dmg),
+          `${path.basename(values.dmg, '.dmg')}.submitted-for-notarization.dmg`,
+        ),
   };
 }
 
@@ -527,6 +537,12 @@ export function finalizeNotarizedDmg() {
       artifact_size_bytes: null,
       maximum_attempts: null,
       strategy: null,
+    },
+    submitted_candidate: {
+      sha256: null,
+      size_bytes: null,
+      retained_for_reconcile: false,
+      recovery_file: path.basename(options.submittedCandidateOutputPath),
     },
     failure: null,
   };
@@ -631,6 +647,9 @@ export function finalizeNotarizedDmg() {
       preNotarizationTimeoutMs(),
     );
     const signedDmgSha256 = sha256(candidateDmg);
+    evidence.submitted_candidate.sha256 = signedDmgSha256;
+    evidence.submitted_candidate.size_bytes = fs.statSync(candidateDmg).size;
+    persist();
     const dmgSignature = signatureFacts(candidateDmg, teamId, false, preNotarizationTimeoutMs());
     stage = 'submit_and_wait';
     const notarization = submitForNotarization(candidateDmg, {
@@ -697,8 +716,16 @@ export function finalizeNotarizedDmg() {
           : 'read_only_reconcile_submission_no_retry'
         : stage === 'submit_and_wait'
           ? 'read_only_history_reconcile_before_new_operation'
-          : 'new_operation_required_no_retry',
+        : 'new_operation_required_no_retry',
     } satisfies FailureEvidence;
+    if (hasSubmissionId && fs.existsSync(candidateDmg)) {
+      fs.mkdirSync(path.dirname(options.submittedCandidateOutputPath), { recursive: true });
+      if (fs.existsSync(options.submittedCandidateOutputPath)) {
+        throw new Error(`Submitted candidate recovery output already exists: ${options.submittedCandidateOutputPath}`);
+      }
+      fs.renameSync(candidateDmg, options.submittedCandidateOutputPath);
+      evidence.submitted_candidate.retained_for_reconcile = true;
+    }
     persist();
     throw error;
   } finally {

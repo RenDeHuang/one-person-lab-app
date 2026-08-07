@@ -561,6 +561,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(finalizer.if, undefined);
   assert.match(String(finalizer.run), /\$GITHUB_WORKSPACE\/release-executor\/scripts\/notarize-macos-dmg\.ts/);
   assert.match(String(finalizer.run), /full-apple-notarization-receipt\.json/);
+  assert.match(String(finalizer.run), /--submitted-candidate-output/);
   assert.match(String(finalizer.run), /--operation-deadline-at/);
 
   const notarizationEvidence = intelFinalizer.steps.find(
@@ -569,7 +570,9 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(notarizationEvidence.if, '${{ always() }}');
   assert.match(String(notarizationEvidence.with.name), /opl-full-notarization-evidence/);
   assert.match(String(notarizationEvidence.with.path), /full-runtime-native-trust\.json/);
+  assert.match(String(notarizationEvidence.with.path), /submitted-for-notarization\.dmg/);
   assert.equal(notarizationEvidence.with['if-no-files-found'], 'warn');
+  assert.equal(notarizationEvidence.with['compression-level'], 0);
 
   const buildDiagnostics = fullBuild.jobs['full-first-install'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload Full diagnostics artifact',

@@ -404,6 +404,12 @@ test("old session, broker, operator, writer map, and owner fast path are absent"
 
 test("append_full is a checkpoint capability and not a Standard Latest requirement", () => {
   const full = release.full_first_install.published_addon;
+  assert.deepEqual(release.full_first_install.production_macos_trust.unknown_submission_recovery, {
+    exact_submitted_dmg_bytes_must_be_retained: true,
+    required_identity_fields: ["submission_id", "sha256", "size_bytes"],
+    resubmission_allowed_before_owner_authoritative_reconcile: false,
+    finalize_only_may_consume_only_exact_submitted_bytes: true,
+  });
   assert.equal(full.operation, "append_full");
   assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
   assert.equal(full.checkpoint_minimum_stage, "standard_built");
