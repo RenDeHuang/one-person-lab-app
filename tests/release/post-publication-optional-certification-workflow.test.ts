@@ -31,6 +31,38 @@ test('Desktop Release Set certification follows one completed same-tag append', 
   assert.doesNotMatch(source, /contents: write|packages: write|gh release (?:create|edit|upload|delete)/);
 });
 
+test('non-Desktop Stable operations complete certification as not applicable', () => {
+  const { source, workflow } = readWorkflow();
+  const resolve = workflow.jobs['resolve-release-set'];
+  assert.equal(resolve.outputs.applicable, '${{ steps.authority.outputs.applicable }}');
+  assert.equal(resolve.outputs.reason_code, '${{ steps.authority.outputs.reason_code }}');
+  assert.equal(resolve.outputs.source_run_id, '${{ steps.authority.outputs.source_run_id }}');
+  assert.match(source, /source_run_not_successful/);
+  assert.match(source, /source_operation_append_full/);
+  assert.match(source, /source_operation_not_desktop_release_set/);
+  assert.match(source, /status:\(if \$applicable == "true" then "complete" else "not_applicable" end\)/);
+
+  for (const stepName of [
+    'Download exact Release Set follow-up receipt',
+    'Download exact Desktop append receipt',
+    'Bind completed follow-up identity',
+    'Download exact Full append publication evidence',
+    'Bind one public Desktop Release Set',
+  ]) {
+    const step = resolve.steps.find((candidate: Record<string, unknown>) => candidate.name === stepName);
+    assert.equal(step.if, "${{ steps.authority.outputs.applicable == 'true' }}");
+  }
+
+  assert.equal(
+    workflow.jobs['certify-linux-x64'].if,
+    "${{ needs.resolve-release-set.outputs.applicable == 'true' }}",
+  );
+  assert.equal(
+    workflow.jobs['admit-macos-vm'].if,
+    "${{ needs.resolve-release-set.outputs.applicable == 'true' }}",
+  );
+});
+
 test('Linux certification consumes the exact public same-tag Desktop assets', () => {
   const { source, workflow } = readWorkflow();
   const resolve = workflow.jobs['resolve-release-set'];
@@ -57,5 +89,9 @@ test('macOS certification remains read-only and binds Standard and Full to the s
     assert.deepEqual(certify.permissions, { contents: 'read', actions: 'read' });
     assert.equal(certify.with.release_tag, '${{ needs.resolve-release-set.outputs.tag }}');
     assert.equal(certify.with.package_profile, profile);
+    assert.equal(
+      certify.if,
+      "${{ needs.resolve-release-set.outputs.applicable == 'true' && needs.admit-macos-vm.outputs.eligible == 'true' }}",
+    );
   }
 });
