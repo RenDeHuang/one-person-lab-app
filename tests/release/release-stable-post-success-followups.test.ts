@@ -94,6 +94,7 @@ test('Full append starts only after Desktop append and binds exactly one new suc
 
 test('follow-up receipt is terminal only after Desktop and Full completion', () => {
   const receipt = workflow.jobs.receipt;
+  assert.equal(receipt.if, "${{ always() && needs.admit.result != 'skipped' }}");
   assert.deepEqual(receipt.needs, [
     'admit',
     'build-desktop-platforms',

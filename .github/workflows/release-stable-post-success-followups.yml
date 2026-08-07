@@ -321,7 +321,7 @@ jobs:
           echo "full_run_id=$full_run_id" >> "$GITHUB_OUTPUT"
 
   receipt:
-    if: ${{ always() }}
+    if: ${{ always() && needs.admit.result != 'skipped' }}
     needs: [admit, build-desktop-platforms, append-desktop-platforms, dispatch-full]
     runs-on: ubuntu-latest
     steps:

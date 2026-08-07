@@ -25,7 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      source_run_id: ${{ steps.followup.outputs.source_run_id }}
+      applicable: ${{ steps.authority.outputs.applicable }}
+      reason_code: ${{ steps.authority.outputs.reason_code }}
+      source_run_id: ${{ steps.authority.outputs.source_run_id }}
       full_run_id: ${{ steps.followup.outputs.full_run_id }}
       tag: ${{ steps.identity.outputs.tag }}
       app_sha: ${{ steps.identity.outputs.app_sha }}
@@ -71,6 +73,42 @@ jobs:
             and (.display_title | test("^Desktop Release Set follow-up for Stable run [1-9][0-9]*$"))
           ' followup-run.json >/dev/null
           source_run_id="$(jq -er '.display_title | capture("Stable run (?<run>[1-9][0-9]*)$").run' followup-run.json)"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$source_run_id" > source-run.json
+          jq -e --arg run "$source_run_id" '
+            (.id | tostring) == $run
+            and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+            and .path == ".github/workflows/release-stable.yml"
+            and .event == "workflow_dispatch"
+            and .head_branch == "main"
+            and .run_attempt == 1
+            and .status == "completed"
+          ' source-run.json >/dev/null
+          if [ "$(jq -er .conclusion source-run.json)" != success ]; then
+            {
+              echo "applicable=false"
+              echo "reason_code=source_run_not_successful"
+              echo "source_run_id=$source_run_id"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! jq -e --arg run "$source_run_id" '
+            (.display_title | startswith("OPL Stable standard "))
+            or .display_title == ("OPL Stable resume_standard " + $run)
+          ' source-run.json >/dev/null; then
+            reason_code=source_operation_not_desktop_release_set
+            if jq -e --arg run "$source_run_id" '
+              .display_title | test("^OPL Stable append_full source:[1-9][0-9]* run:" + $run + "$")
+            ' source-run.json >/dev/null; then
+              reason_code=source_operation_append_full
+            fi
+            {
+              echo "applicable=false"
+              echo "reason_code=$reason_code"
+              echo "source_run_id=$source_run_id"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           gh api --paginate --slurp \
             "repos/$GITHUB_REPOSITORY/actions/runs/$FOLLOWUP_RUN_ID/artifacts?per_page=100" \
             > followup-artifacts.json
@@ -79,12 +117,15 @@ jobs:
               followup-artifacts.json >/dev/null
           done
           {
+            echo "applicable=true"
+            echo "reason_code=desktop_release_set_followup"
             echo "source_run_id=$source_run_id"
             echo "followup_receipt=opl-stable-release-set-followup-${source_run_id}"
             echo "desktop_receipt=opl-stable-desktop-append-${source_run_id}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download exact Release Set follow-up receipt
+        if: ${{ steps.authority.outputs.applicable == 'true' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ steps.authority.outputs.followup_receipt }}
@@ -93,6 +134,7 @@ jobs:
           path: followup-receipt
 
       - name: Download exact Desktop append receipt
+        if: ${{ steps.authority.outputs.applicable == 'true' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ steps.authority.outputs.desktop_receipt }}
@@ -101,6 +143,7 @@ jobs:
           path: desktop-receipt
 
       - name: Bind completed follow-up identity
+        if: ${{ steps.authority.outputs.applicable == 'true' }}
         id: followup
         env:
           SOURCE_RUN_ID: ${{ steps.authority.outputs.source_run_id }}
@@ -126,6 +169,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Download exact Full append publication evidence
+        if: ${{ steps.authority.outputs.applicable == 'true' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: opl-release-full-published-${{ steps.followup.outputs.full_run_id }}
@@ -134,6 +178,7 @@ jobs:
           path: full-publication
 
       - name: Bind one public Desktop Release Set
+        if: ${{ steps.authority.outputs.applicable == 'true' }}
         id: identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -231,6 +276,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   certify-linux-x64:
+    if: ${{ needs.resolve-release-set.outputs.applicable == 'true' }}
     needs: [resolve-release-set]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -274,6 +320,7 @@ jobs:
           retention-days: 30
 
   admit-macos-vm:
+    if: ${{ needs.resolve-release-set.outputs.applicable == 'true' }}
     needs: [resolve-release-set]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -311,7 +358,7 @@ jobs:
           fi
 
   certify-standard-vm:
-    if: ${{ needs.admit-macos-vm.outputs.eligible == 'true' }}
+    if: ${{ needs.resolve-release-set.outputs.applicable == 'true' && needs.admit-macos-vm.outputs.eligible == 'true' }}
     needs: [resolve-release-set, admit-macos-vm]
     permissions:
       contents: read
@@ -331,7 +378,7 @@ jobs:
       require_macos_gatekeeper: true
 
   certify-full-vm:
-    if: ${{ needs.admit-macos-vm.outputs.eligible == 'true' }}
+    if: ${{ needs.resolve-release-set.outputs.applicable == 'true' && needs.admit-macos-vm.outputs.eligible == 'true' }}
     needs: [resolve-release-set, admit-macos-vm]
     permissions:
       contents: read
@@ -360,11 +407,13 @@ jobs:
         run: |
           jq -n --arg tag '${{ needs.resolve-release-set.outputs.tag }}' \
             --arg source '${{ needs.resolve-release-set.outputs.source_run_id }}' \
+            --arg applicable '${{ needs.resolve-release-set.outputs.applicable }}' \
+            --arg reason '${{ needs.resolve-release-set.outputs.reason_code }}' \
             --arg linux '${{ needs.certify-linux-x64.result }}' \
             --arg admission '${{ needs.admit-macos-vm.outputs.reason_code }}' \
             --arg standard '${{ needs.certify-standard-vm.result }}' \
             --arg full '${{ needs.certify-full-vm.result }}' \
-            '{schema:"opl_app_desktop_release_set_certification.v1",release_tag:$tag,source_run_id:$source,linux_x64:$linux,macos_vm_admission:$admission,macos_standard:$standard,macos_full:$full,required_for_publication:false,remaining:[]}' \
+            '{schema:"opl_app_desktop_release_set_certification.v1",status:(if $applicable == "true" then "complete" else "not_applicable" end),applicable:($applicable == "true"),reason_code:$reason,release_tag:$tag,source_run_id:$source,linux_x64:$linux,macos_vm_admission:$admission,macos_standard:$standard,macos_full:$full,required_for_publication:false,remaining:[]}' \
             > desktop-release-set-certification.json
       - name: Upload Desktop Release Set certification receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
