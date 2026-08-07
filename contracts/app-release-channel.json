@@ -3850,7 +3850,17 @@
       "workflow": ".github/workflows/release-apple-credentials-preflight.yml",
       "authority": "diagnostic_only",
       "may_create_stable_admission_manifest": false,
-      "may_dispatch_standard": false
+      "may_dispatch_standard": false,
+      "existing_submission_reconcile": {
+        "input": "notary_submission_id",
+        "identity_binding": "exact_uuid",
+        "commands": ["xcrun notarytool info", "xcrun notarytool log on Invalid_or_Rejected"],
+        "submit_allowed": false,
+        "wait_allowed": false,
+        "staple_allowed": false,
+        "release_or_dispatch_mutation_allowed": false,
+        "public_asset_write_allowed": false
+      }
     },
     "github_release_admin_credentials_diagnostic": {
       "schema": "opl_app_github_release_admin_credential_preflight.v1",

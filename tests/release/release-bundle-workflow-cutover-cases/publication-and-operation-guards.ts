@@ -411,6 +411,12 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     default: false,
     type: 'boolean',
   });
+  assert.deepEqual(credentialPreflight.on.workflow_dispatch.inputs.notary_submission_id, {
+    description: 'Optional exact existing Apple submission UUID to reconcile read-only.',
+    required: false,
+    default: '',
+    type: 'string',
+  });
   assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-15-intel');
   assert.equal(credentialPreflight.jobs.validate.environment, 'release-stable');
   assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 45);
@@ -422,6 +428,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     (step: Record<string, unknown>) => step.name === 'Upload sanitized Apple credential preflight receipt',
   );
   assert.match(String(credentialDiagnostic.run), /--large-dmg-canary/);
+  assert.match(String(credentialDiagnostic.run), /--notary-submission-id/);
   assert.equal(credentialReceiptUpload.if, '${{ always() }}');
   assert.equal(credentialReceiptUpload.with['if-no-files-found'], 'warn');
   assert.equal(

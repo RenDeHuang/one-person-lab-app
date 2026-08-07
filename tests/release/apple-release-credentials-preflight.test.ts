@@ -40,6 +40,8 @@ function successfulRunner(overrides: {
   failImport?: boolean;
   identityOutput?: string;
   notaryStdout?: string;
+  notaryInfoStdout?: string;
+  notaryLogStdout?: string;
   largeDmgOutputBytes?: number;
   failLargeDmgCodesign?: boolean;
 } = {}) {
@@ -117,6 +119,29 @@ function successfulRunner(overrides: {
       };
     }
     if (command === 'xcrun') {
+      if (args[1] === 'info') {
+        return {
+          status: 0,
+          stdout: overrides.notaryInfoStdout ?? JSON.stringify({
+            id: args[2],
+            status: 'Accepted',
+            createdDate: '2026-08-07T12:45:30.000Z',
+            name: 'One-Person-Lab-Full.dmg',
+          }),
+          stderr: '',
+        };
+      }
+      if (args[1] === 'log') {
+        return {
+          status: 0,
+          stdout: overrides.notaryLogStdout ?? JSON.stringify({
+            statusCode: 4000,
+            statusSummary: 'Archive contains critical validation errors',
+            issues: [{ severity: 'error', message: 'fixture issue' }],
+          }),
+          stderr: '',
+        };
+      }
       return {
         status: 0,
         stdout: overrides.notaryStdout ?? '{"history":[{"status":"Accepted"}]}',
@@ -320,6 +345,82 @@ test('Apple credential preflight imports the P12, signs a probe, and authenticat
   ]) {
     assert.doesNotMatch(receiptText, new RegExp(sensitiveValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+});
+
+test('Apple credential preflight reconciles one exact existing submission without submit, wait, or staple', () => {
+  const root = createPosixModeTempRoot('opl-apple-submission-reconcile-');
+  const outputPath = path.join(root, 'receipt.json');
+  const submissionId = '5aa959ab-6fd1-45bb-83ea-e5c9ed3e78f2';
+  const fixture = successfulRunner();
+  const receipt = verifyAppleReleaseCredentials({
+    outputPath,
+    notarySubmissionId: submissionId,
+    env: credentialEnv,
+    platform: 'darwin',
+    runner: fixture.runner,
+  });
+
+  assert.equal(receipt.notarization.submission_reconcile.submission_id, submissionId);
+  assert.equal(receipt.notarization.submission_reconcile.apple_status, 'Accepted');
+  assert.equal(receipt.notarization.submission_reconcile.log_fetched, false);
+  assert.equal(receipt.mutation.notarization_submission_performed, false);
+  assert.equal(receipt.mutation.notarization_resume_performed, false);
+  assert.equal(receipt.mutation.notarization_staple_performed, false);
+  const notaryCommands = fixture.calls
+    .filter((call) => call.command === 'xcrun')
+    .map((call) => call.args.slice(0, 2).join(' '));
+  assert.deepEqual(notaryCommands, ['notarytool history', 'notarytool info']);
+  assert.equal(fixture.calls.some((call) => call.args.includes('submit')), false);
+  assert.equal(fixture.calls.some((call) => call.args.includes('wait')), false);
+  assert.equal(fixture.calls.some((call) => call.args.includes('staple')), false);
+});
+
+test('Apple credential preflight fetches the exact log only for an invalid existing submission', () => {
+  const root = createPosixModeTempRoot('opl-apple-submission-invalid-');
+  const outputPath = path.join(root, 'receipt.json');
+  const submissionId = '5aa959ab-6fd1-45bb-83ea-e5c9ed3e78f2';
+  const fixture = successfulRunner({
+    notaryInfoStdout: JSON.stringify({ id: submissionId, status: 'Invalid' }),
+  });
+  const receipt = verifyAppleReleaseCredentials({
+    outputPath,
+    notarySubmissionId: submissionId,
+    env: credentialEnv,
+    platform: 'darwin',
+    runner: fixture.runner,
+  });
+
+  assert.equal(receipt.notarization.submission_reconcile.apple_status, 'Invalid');
+  assert.equal(receipt.notarization.submission_reconcile.log_fetched, true);
+  assert.equal(receipt.notarization.submission_reconcile.log.status_code, 4000);
+  assert.equal(
+    fixture.calls.some((call) => call.command === 'xcrun' && call.args[1] === 'log'),
+    true,
+  );
+  assert.equal(fixture.calls.some((call) => call.args.includes('submit')), false);
+});
+
+test('Apple credential preflight rejects malformed and mismatched submission identities', () => {
+  const root = createPosixModeTempRoot('opl-apple-submission-identity-');
+  assert.throws(() => verifyAppleReleaseCredentials({
+    outputPath: path.join(root, 'malformed.json'),
+    notarySubmissionId: 'not-a-submission',
+    env: credentialEnv,
+    platform: 'darwin',
+    runner: successfulRunner().runner,
+  }), /exact UUID/);
+  assert.throws(() => verifyAppleReleaseCredentials({
+    outputPath: path.join(root, 'mismatch.json'),
+    notarySubmissionId: '5aa959ab-6fd1-45bb-83ea-e5c9ed3e78f2',
+    env: credentialEnv,
+    platform: 'darwin',
+    runner: successfulRunner({
+      notaryInfoStdout: JSON.stringify({
+        id: '00000000-0000-0000-0000-000000000001',
+        status: 'Accepted',
+      }),
+    }).runner,
+  }), /different submission ID/);
 });
 
 test('Apple credential preflight resolves normalized, full-name, and SHA-1 selectors to the imported SHA-1', () => {

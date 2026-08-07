@@ -1224,6 +1224,13 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || preflight?.apple_credentials_diagnostic?.authority !== 'diagnostic_only'
     || preflight?.apple_credentials_diagnostic?.may_create_stable_admission_manifest !== false
     || preflight?.apple_credentials_diagnostic?.may_dispatch_standard !== false
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.input !== 'notary_submission_id'
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.identity_binding !== 'exact_uuid'
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.submit_allowed !== false
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.wait_allowed !== false
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.staple_allowed !== false
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.release_or_dispatch_mutation_allowed !== false
+    || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.public_asset_write_allowed !== false
   ) {
     console.error('FAIL release_preflight_contract: standalone Apple credential preflight must be diagnostic-only');
     failures += 1;

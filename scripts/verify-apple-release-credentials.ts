@@ -47,6 +47,7 @@ export type CommandRunner = (
 type VerifyOptions = {
   outputPath: string;
   largeDmgCanary?: boolean;
+  notarySubmissionId?: string;
   largeDmgCanaryPayloadBytes?: number;
   largeDmgCanaryMinimumBytes?: number;
   largeDmgCanaryMaximumBytes?: number;
@@ -421,6 +422,52 @@ function parseNotaryHistory(stdout: string) {
   return { historyCount: entries.length };
 }
 
+function parseNotarySubmissionId(value: string | undefined): string | null {
+  const submissionId = value?.trim().toLowerCase() || '';
+  if (!submissionId) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(submissionId)) {
+    throw new Error('Apple notarization submission ID must be an exact UUID.');
+  }
+  return submissionId;
+}
+
+function parseNotarySubmissionInfo(stdout: string, expectedId: string) {
+  let payload: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(stdout);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+    payload = parsed as Record<string, unknown>;
+  } catch {
+    throw new Error('Apple notarytool info did not return a JSON object.');
+  }
+  const id = typeof payload.id === 'string' ? payload.id.toLowerCase() : '';
+  const status = typeof payload.status === 'string' ? payload.status.trim() : '';
+  if (id !== expectedId) throw new Error('Apple notarytool info returned a different submission ID.');
+  if (!status) throw new Error('Apple notarytool info returned no submission status.');
+  return {
+    id,
+    status,
+    created_at: typeof payload.createdDate === 'string' ? payload.createdDate : null,
+    name: typeof payload.name === 'string' ? payload.name : null,
+  };
+}
+
+function parseNotarySubmissionLog(stdout: string) {
+  let payload: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(stdout);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+    payload = parsed as Record<string, unknown>;
+  } catch {
+    throw new Error('Apple notarytool log did not return a JSON object.');
+  }
+  return {
+    status_code: typeof payload.statusCode === 'number' ? payload.statusCode : null,
+    status_summary: typeof payload.statusSummary === 'string' ? payload.statusSummary : null,
+    issues: Array.isArray(payload.issues) ? payload.issues : [],
+  };
+}
+
 function githubExecution(env: NodeJS.ProcessEnv): GithubExecution {
   if (env.GITHUB_ACTIONS !== 'true') {
     return {
@@ -474,6 +521,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
   const platform = options.platform ?? process.platform;
   const runner = options.runner ?? defaultRunner;
   const now = options.now ?? (() => new Date());
+  const notarySubmissionId = parseNotarySubmissionId(options.notarySubmissionId);
   if (platform !== 'darwin') {
     throw new Error('Apple release credential preflight requires a macOS runner.');
   }
@@ -758,6 +806,62 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       },
     );
     const notaryHistory = parseNotaryHistory(notary.stdout);
+    let submissionReconcile: Record<string, unknown> = {
+      requested: false,
+      submission_id: null,
+      apple_status: null,
+      log_fetched: false,
+      read_only: true,
+    };
+    if (notarySubmissionId) {
+      const credentialArgs = [
+        '--apple-id',
+        secrets.APPLE_ID,
+        '--password',
+        secrets.APPLE_ID_PASSWORD,
+        '--team-id',
+        secrets.TEAM_ID,
+      ];
+      const redactedCredentialArgs = [
+        '--apple-id',
+        '<redacted>',
+        '--password',
+        '<redacted>',
+        '--team-id',
+        '<redacted>',
+      ];
+      const info = parseNotarySubmissionInfo(runRequired(
+        runner,
+        'xcrun',
+        ['notarytool', 'info', notarySubmissionId, ...credentialArgs, '--output-format', 'json'],
+        {
+          redactedArgs: ['notarytool', 'info', notarySubmissionId, ...redactedCredentialArgs, '--output-format', 'json'],
+          sensitiveValues: [secrets.APPLE_ID, secrets.APPLE_ID_PASSWORD, secrets.TEAM_ID],
+        },
+      ).stdout, notarySubmissionId);
+      submissionReconcile = {
+        requested: true,
+        submission_id: info.id,
+        apple_status: info.status,
+        created_at: info.created_at,
+        name: info.name,
+        log_fetched: false,
+        log: null,
+        read_only: true,
+      };
+      if (info.status === 'Invalid' || info.status === 'Rejected') {
+        const log = parseNotarySubmissionLog(runRequired(
+          runner,
+          'xcrun',
+          ['notarytool', 'log', notarySubmissionId, ...credentialArgs],
+          {
+            redactedArgs: ['notarytool', 'log', notarySubmissionId, ...redactedCredentialArgs],
+            sensitiveValues: [secrets.APPLE_ID, secrets.APPLE_ID_PASSWORD, secrets.TEAM_ID],
+          },
+        ).stdout);
+        submissionReconcile = { ...submissionReconcile, log_fetched: true, log };
+      }
+    }
     const receipt = {
       schema: 'opl_apple_release_credentials_preflight.v1',
       status: 'passed',
@@ -781,10 +885,13 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
         command: 'xcrun notarytool history',
         history_count: notaryHistory.historyCount,
         submission_performed: false,
+        submission_reconcile: submissionReconcile,
       },
       mutation: {
         release_dispatch_performed: false,
         notarization_submission_performed: false,
+        notarization_resume_performed: false,
+        notarization_staple_performed: false,
         public_asset_write_performed: false,
       },
       truth_boundary: execution.admission_eligible
@@ -811,6 +918,7 @@ function cliOptions() {
     options: {
       output: { type: 'string' },
       'large-dmg-canary': { type: 'boolean', default: false },
+      'notary-submission-id': { type: 'string' },
     },
     strict: true,
     allowPositionals: false,
@@ -819,6 +927,7 @@ function cliOptions() {
   return {
     outputPath: path.resolve(values.output),
     largeDmgCanary: values['large-dmg-canary'],
+    notarySubmissionId: values['notary-submission-id'],
   };
 }
 
