@@ -48,6 +48,11 @@ Standard updater metadata。
 
 [macOS 首次安装图文教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 
+macOS 直接安装时会先匿名读取 GitHub Release API。如果请求失败，包括 API 限流导致的
+HTTP 403，只有本机已安装 `gh`，且 `gh auth` 已登录 `github.com`，安装器才会改用
+`gh api` 读取同一个 `latest` 或指定标签。这个备用通道不会切换版本，也不会跳过摘要校验。
+如果 GitHub CLI 不存在或登录无效，安装会在下载文件和修改目标 App 之前明确停止。
+
 ## Linux x64
 
 Linux 使用同一 Stable tag 的 `.deb` 与 `opl-install.sh`。从 Release 下载并校验脚本后：

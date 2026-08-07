@@ -53,6 +53,14 @@ updater metadata.
 
 [macOS first-install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 
+Direct macOS Release installation first reads the GitHub Release API
+anonymously. If that request fails, including an HTTP 403 rate-limit response,
+the installer may use `gh api` only when the local `gh` command exists and
+`gh auth` already has an authenticated `github.com` session. The fallback reads
+the same requested `latest` or exact tag; it never changes versions or skips
+digest verification. Without the GitHub CLI or valid authentication, the
+installer fails closed before any download or target App change.
+
 ## Linux x64
 
 Linux uses the `.deb` and `opl-install.sh` from the same Stable tag. After
