@@ -40,12 +40,12 @@ next action 的 watcher 进入 `EVENT_IDLE`，不得靠持续 wait/poll 保持 `
 delegation 或总结。
 
 模型与 reasoning 是对话自己的配置事实。任何唤醒、续派、handoff 或 reassignment 都必须
-省略 `model` 和 `thinking` 参数，保持原对话配置；总账不得把 `gpt-5.6-sol` 改成
-`gpt-5.6-terra`，也不得以任何理由替换已有模型。
+省略 `model` 和 `thinking` 参数，保持原对话配置；总账不得在恢复或交接时覆盖已有模型
+与 reasoning 配置。
 
 任务数量、状态、owner、write set、checkpoint、next action 和 integration overlap 不在本文
 冻结。它们必须从 fresh lifecycle/thread readback 获取；任何历史快照都不得用于准入、吸收、
-cleanup 或 archive。数字分身、照片中台和 ambient ops 是独立开发范围，不进入本总账。
+cleanup 或 archive。
 
 每次执行、吸收或清理前都必须重新读取 canonical/wire、worktree lifecycle、thread owner
 和 exact write set；历史 commit/tree/count 只作当时证据，不在本文冻结，也不限制独立任务
@@ -107,15 +107,15 @@ fresh repo/wire inventory
 基线优先不等于全局冻结。清洁与收敛工作必须尽量透明：独立的明确修复、文档更新、
 只读证据和已经启动的 operation，只要不争用同一 source lane、canonical `main` 临界区、
 runtime 或 public target，就继续推进。只有 owner 即将进入真实重叠 mutation 的那一刻才短时
-暂停，完成 fresh parity 后立即恢复。Windows 已启动 run 不取消、不重跑、不掩盖；其旧
-Preview 发布指令已被最新用户 SSOT supersede，因此该 run 终态后只保留只读证据，除非用户
-再给出 fresh publication/install authority。
+暂停，完成 fresh parity 后立即恢复。已经启动且仍有 owner authority 的外部 operation 不取消、
+不重跑、不掩盖；mutation 指令被最新用户 SSOT supersede 后，其终态只保留只读证据，除非
+用户重新给出对应 publication、install 或其他 mutation authority。
 
-总账文档本身也遵守同一规则：本次只在独立 governance worktree 更新，不修改 App 根或其他
-owner lane；PR、task branch、worktree 和测试通过都不是 SSOT，只有 canonical main 的 fresh
-回读才是产物 SSOT。
+总账文档本身也遵守同一规则：mutation 使用 owner 登记的隔离写集，并在 fresh main 上串行
+吸收；不得把当前 checkout、task branch 或 owner lane 写成长期政策。PR、task branch、worktree
+和测试通过都不是 SSOT，只有 canonical main 的 fresh 回读才是产物 SSOT。
 
-本轮冻结的协调原则是：
+长期协调原则是：
 
 ```text
 parallel_work_serialized_integration
