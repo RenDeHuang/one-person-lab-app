@@ -70,25 +70,21 @@ AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两�
 machine baseline。
 App machine authority 已升为 baseline schema v2；最低已验证 AionUI GUI conformance ancestor 是
 `a0ce713b65801fd9ca7f46ad168c977c75a187de`，当前 Shell HEAD 必须从 active checkout Git
-readback 获取，不复制成动态默认值。`0ebc1fdd278e8a79602458e15e28cf814dfd917d`
-的完整 source gates 与 packaged 8 场景 visual matrix 继续作为历史 exact-cohort evidence，
-不能通过替换 SHA 升级为当前 pixels。当前 parity cohort 另以
+readback 获取，不复制成动态默认值。历史 exact-cohort evidence 由 marker
+`0ebc1fdd278e8a79602458e15e28cf814dfd917d`、
+[`evidence/aionui-41301/manifest.json`](evidence/aionui-41301/manifest.json) 与
 [`evidence/aionui-41301-parity-20260714/manifest.json`](evidence/aionui-41301-parity-20260714/manifest.json)
-精确绑定 Shell `b2c05a1c8dc4ef81094323b49a67b601e3c425f5`、macOS arm64 package 和 9 个
-route/state 场景；它证明当前指定画面非空且布局检查通过，但不证明 1:1 parity、安装或
+绑定，不能通过替换 SHA 升级为当前 pixels，也不在当前入口复制 Shell topic SHA、package
+或场景 closeout。它只证明相应
+历史 cohort 的指定画面非空且布局检查通过，不证明当前 1:1 parity、source、pixels、安装或
 release-ready。`26.707.31428` 与 `26.707.31123` 只作为 superseded observations 保留。
 
-以下是当前/历史 compatibility readback，不是目标 Package 架构。此前 App machine authority 同步落在
-`2dae4961b63089bc1ec6739a4c1ab2fac8b648f3`：当时 capability 只从 Home starter 选择，管理进入
-Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow；App updater 与 Framework-owned
-managed lifecycle 分离，不再保留 OPL Flow 专用 post-update 分支。当前合同已把 Home/new-session `+` palette
-补为同一 active capability 的备用选择入口，既有 conversation 仍禁止 Agent Package 重绑。本轮 parity exact cohort
-`b2c05a1c8dc4ef81094323b49a67b601e3c425f5` 已实现 projectless local input、App Server rail、
-absolute-path Preview、用户触发的线程 lifecycle、Review 已采纳子集，以及当时仍启用的
-Runtime cockpit；Runtime V2 当时仅作为 X0-01 条件保留 route。该 exact cohort 的 full source gates、macOS arm64 directory-only package、
-codesign 与 9 场景 packaged E2E 已闭合；package 未安装，main/remote currentness 与 release
-promotion仍由操作层 fresh readback决定。当前 Session-first Shell source cohort 不绑定临时
-topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
+当前 GUI 与 Package compatibility 行为以 App contracts、active adapter、Shell source/tests 和
+fresh readback 为准，不从旧 App/Shell SHA 或一次性交付流水推断。Home/new-session `+` palette
+是同一 active capability 的备用选择入口，既有 conversation 仍禁止 Agent Package 重绑；
+Settings -> Agents 管理 package lifecycle，Settings -> Capabilities 管理 Skills/Plugins/Flow，
+App updater 与 Framework-owned managed lifecycle 分离。当前 Session-first Shell source cohort
+不绑定临时 topic SHA；它由 `useConversationListSync.ts`、`GroupedHistory/index.tsx`、`GuidPage.tsx`、只读
 `ConversationEnvironmentPopover.tsx` 及对应 DOM/source tests 定义，并要求 `WorkspaceHandoffControl.tsx`、
 `ProjectContextSection.tsx` 与 `projectContext.ts` 缺席。Home/new-session composer 上方独立 context bar 承载初始 cwd；
 Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文件、目录及 active adapter
