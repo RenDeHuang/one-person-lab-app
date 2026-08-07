@@ -31,14 +31,17 @@ Generated output:
 - `docs/site/latest/macos-app-install/macos-app-install-detailed-guide.pdf`
 - `docs/site/latest/macos-app-install/macos-app-install-slides.pdf`
 - `docs/site/latest/macos-app-install/macos-app-install-slides.pptx`
+- `docs/site/latest/windows-app-install/windows-app-install.html`
+- `docs/site/latest/windows-app-install/windows-app-install-detailed-guide.pdf`
 - `docs/site/latest/docker-webui-install/docker-webui-install.html`
 - `docs/site/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf`
 - `docs/site/latest/whitepapers/opl-app-whitepaper.html`
 - `docs/site/latest/whitepapers/opl-app-whitepaper.pdf`
 
 Do not commit `docs/site/latest/` on `main`. `npm run docs:latest` rebuilds local
-previews, while `npm run docs:publish` publishes only the general guide surface
-and preserves `latest/whitepapers/`. Do not publish a whitepaper until the
+previews, while `npm run docs:publish` publishes only the macOS, Windows, and
+Docker install guide allowlist and preserves `latest/whitepapers/`. Obsolete
+guide directories are removed from Pages during publication. Do not publish a whitepaper until the
 protected cross-repository owner route binds the approved build bytes, visual
 evidence, App Pages target, public readback, and receipt. Remove local generated copies with
 `npm run cleanup:local-artifacts -- --scope docs --execute` when they are no

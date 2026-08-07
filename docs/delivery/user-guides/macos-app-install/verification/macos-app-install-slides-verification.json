@@ -1,13 +1,13 @@
 {
   "status": "macos_app_install_slides_ready",
   "generator": "marp_pdf_plus_officecli_static_slides",
-  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.3.0); OfficeCLI 1.0.141",
+  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.4.0); OfficeCLI 1.0.143",
   "source_model": "qmd_body_manifest_metadata_to_marp_pdf_rendered_pages_and_officecli_pptx",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
   "stable_install_command": "brew install --cask gaofeng21cn/one-person-lab/one-person-lab",
   "screenshot_release_run": {
-    "id": "guide-refresh-v26.7.20-d98d6de-2026-07-20",
-    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.20",
+    "id": "guide-refresh-v26.8.4-aaf683f-2026-08-07",
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
     "conclusion": "success"
   },
   "source_qmd": "docs/guides/macos-app-install/slides.qmd",
@@ -28,15 +28,19 @@
   "screenshot_assets": [
     {
       "role": "download_release",
-      "description": "v26.7.20 Release Assets list with the macOS arm64 DMG highlighted.",
+      "description": "v26.8.4 Latest Release Assets list showing the same-tag macOS Standard and Full DMGs, Linux x64 DEB, Windows x64 EXE, and release installer.",
       "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
-      "width": 1183,
-      "height": 380,
-      "sha256": "0b2182270007e47692f4283d1c451eb3a4a01f037665a72396ae71c3c64b048d",
+      "width": 1087,
+      "height": 776,
+      "sha256": "98912043cb875143680d8bca43db6c65a4540ce2966ce15f9b75aef3815d6cf8",
       "referenced": true,
       "expected_ui_text": [
         "Assets",
-        "One-Person-Lab-26.7.20-mac-arm64.dmg"
+        "One-Person-Lab-26.8.4-mac-arm64.dmg",
+        "One-Person-Lab-Full-26.8.4-mac-arm64.dmg",
+        "One-Person-Lab-26.8.4-linux-x64.deb",
+        "One-Person-Lab-26.8.4-win-x64.exe",
+        "opl-install.sh"
       ]
     },
     {
@@ -113,7 +117,7 @@
   "pptx_roundtrip_pages": 7,
   "pptx_generation": {
     "generator": "officecli",
-    "generator_version": "1.0.141",
+    "generator_version": "1.0.143",
     "source": "marp_pdf_rendered_png_pages",
     "slides": 7,
     "pictures": 7,

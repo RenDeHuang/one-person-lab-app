@@ -16,7 +16,8 @@ lang: zh-CN
 
 - 本机安装只允许当前电脑访问 `http://localhost:3000/`，不需要注册 WebUI 账号或输入 WebUI 登录密码。
 - OPL Gateway 账户邮箱/密码和 API Key 都只在浏览器 WebUI 中填写。不要把凭据放进 PowerShell、环境变量、`compose.yaml`、聊天或截图。
-- Docker Desktop 只对本教程的 **Container WebUI 路径** 必需。Windows Desktop App 不要求 Docker Desktop；只安装桌面版的用户不需要执行本文的 Docker 安装或恢复步骤。
+- **Windows Desktop App 不要求 Docker Desktop。**
+- Docker Desktop 只对本教程的 **Container WebUI 路径** 必需；只安装桌面版的用户不需要执行本文的 Docker 安装或恢复步骤。
 
 :::
 
@@ -142,7 +143,7 @@ curl -fsSL "$root/scripts/install-docker-webui.sh" |
 
 这条个人电脑命令会在当前用户范围启用每天 03:00 的宿主自动更新。macOS 使用 LaunchAgent；Linux 使用 `systemd --user` timer。Linux 服务器默认不启用自动更新，请使用不带 `--enable-auto-update` 的安装命令，再由管理员根据维护窗口显式配置系统级调度。
 
-安装器会拉取 One Person Lab WebUI 镜像、创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。首次镜像下载约为 1 GB，安装器会持续显示 Docker layer 下载输出；不需要重新复制命令或重开 PowerShell。每次拉取开始时会显示 `attempt 1/3` 之类的当前尝试和总次数；20 秒没有新 layer 输出时会报告等待时间、3 分钟无进展边界和 Docker Desktop 代理入口。达到无进展边界后自动短退避重试，最多共 3 次；Docker 会复用已经完成的 layer，但不承诺当前未完成 layer 的字节级断点续传。首次启动还需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Latest Update** 计划任务：用户已登录时每天 03:00 检查 `latest`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
+安装器默认拉取 `ghcr.io/gaofeng21cn/one-person-lab-webui:stable`，创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。`:latest` 仅供用户显式选择 Preview，不会被普通安装或自动更新静默选中。首次镜像下载约为 1 GB，安装器会持续显示 Docker layer 下载输出；不需要重新复制命令或重开 PowerShell。每次拉取开始时会显示 `attempt 1/3` 之类的当前尝试和总次数；20 秒没有新 layer 输出时会报告等待时间、3 分钟无进展边界和 Docker Desktop 代理入口。达到无进展边界后自动短退避重试，最多共 3 次；Docker 会复用已经完成的 layer，但不承诺当前未完成 layer 的字节级断点续传。首次启动还需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Stable Update** 计划任务：用户已登录时每天 03:00 检查 `stable`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
 
 | 宿主机目录 | 容器内路径 | 保存内容 |
 |---|---|---|
@@ -236,7 +237,7 @@ Windows 推荐命令和 Linux/macOS 个人电脑命令都会启用当前用户�
 | macOS | LaunchAgent | 每天 03:00；当前用户登录时运行 |
 | Linux 个人电脑 | `systemd --user` timer | 每天 03:00；用户管理器启动后补跑 |
 
-自动任务只跟随 `ghcr.io/gaofeng21cn/one-person-lab-webui:latest`。启用时，安装器会在 `OnePersonLab/updater` 保存一份本地、经过本次安装器生成或复制的固定 runner；以后调度器只运行这个本地副本，不会每天下载并执行 GitHub `main` 上的可变安装器代码。更新会先保留旧 image digest，拉取并启动新 digest，健康检查通过才算成功；拉取、重建或健康检查失败时会恢复旧 digest。整个过程不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。以下目录始终保留：
+自动任务只跟随 `ghcr.io/gaofeng21cn/one-person-lab-webui:stable`。启用时，安装器会在 `OnePersonLab/updater` 保存一份本地、经过本次安装器生成或复制的固定 runner；以后调度器只运行这个本地副本，不会每天下载并执行 GitHub `main` 上的可变安装器代码。更新会先保留旧 image digest，拉取并启动新 digest，健康检查通过才算成功；拉取、重建或健康检查失败时会恢复旧 digest。整个过程不需要把 Docker Socket 暴露给 WebUI，也不会把密码或 API Key 写入任务。以下目录始终保留：
 
 ```text
 %USERPROFILE%\OnePersonLab\data
@@ -281,7 +282,7 @@ Get-Content "$env:USERPROFILE\OnePersonLab\updater\logs\current.log" -Tail 80
 
 更改每天运行时间时，重新执行启用命令并传入本地时间，例如 Windows 的 `-AutoUpdateTime 04:15` 或 Linux/macOS 的 `--auto-update-time 04:15`。
 
-自定义 `-Image` / `--image`、非 `latest` 的 tag 或固定 digest 不允许启用自动更新，避免调度器静默覆盖高级用户的版本选择；这些版本只能手动更新。`latest` 是自动更新跟随的发布指针，不等价于容器内自更新能力。
+自定义 `-Image` / `--image`、非 `stable` 的 tag 或固定 digest 不允许启用自动更新，避免调度器静默覆盖高级用户的版本选择；这些版本只能手动更新。`stable` 是普通安装与自动更新跟随的发布指针。`-Tag latest` / `--tag latest` 只是显式 Preview 选择，不会注册自动更新，也不等价于容器内自更新能力。
 
 ### 手动更新
 
@@ -301,12 +302,12 @@ Linux/macOS：
 \newpage
 ```
 
-### 手工拉取 latest 后快速应用
+### 手工拉取 stable 后快速应用
 
 如果你已经先运行过：
 
 ```powershell
-docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest
+docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:stable
 ```
 
 不要手工编辑 `compose.yaml`，也不要删除原容器或 `OnePersonLab/data`。直接运行下面的应用命令：
@@ -315,9 +316,9 @@ docker pull ghcr.io/gaofeng21cn/one-person-lab-webui:latest
 {{download.windows_update_command}}
 ```
 
-安装器仍会校验 `latest` 当前对应的不可变 digest；因为镜像 layer 已在本机，通常会快速显示 `Image is up to date`，随后按新 digest 重建容器并等待 WebUI 健康。若 digest 没有变化，Docker Compose 不会替换正在运行的容器。此流程保留 `OnePersonLab/data` 与 `OnePersonLab/projects`。
+安装器仍会校验 `stable` 当前对应的不可变 digest；因为镜像 layer 已在本机，通常会快速显示 `Image is up to date`，随后按新 digest 重建容器并等待 WebUI 健康。若 digest 没有变化，Docker Compose 不会替换正在运行的容器。此流程保留 `OnePersonLab/data` 与 `OnePersonLab/projects`。
 
-如果没有启用计划任务，建议至少每月手动执行一次，并在得知新 `latest` 已发布后及时执行。Linux 重新运行同一条一键安装命令即可。所有更新路径都会保留：
+如果没有启用计划任务，建议至少每月手动执行一次，并在得知新 `stable` 已发布后及时执行。Linux 重新运行同一条一键安装命令即可。所有更新路径都会保留：
 
 ```text
 Windows: %USERPROFILE%\OnePersonLab\data

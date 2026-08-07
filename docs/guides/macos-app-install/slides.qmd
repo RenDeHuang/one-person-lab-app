@@ -21,14 +21,15 @@ lang: zh-CN
 
 ## 1. 安装 One Person Lab
 
-推荐在“终端”运行稳定版安装命令；不方便使用终端时，再从最新 Release 手工下载 arm64 DMG。
+推荐在“终端”运行 Homebrew Standard 安装命令；不方便使用终端时，再从最新 Release 手工下载 arm64 DMG。
 
 最新版本：<{{download.latest_release_url}}>
 
 ![](screenshots/01-download-release.png){width=78%}
 
-- 安装命令会写入 `/Applications`、清理 quarantine 并打开 App。
-- 手工安装选择 `One-Person-Lab-<版本>-mac-arm64.dmg`。
+- Homebrew Cask 会写入 `/Applications`，但不会自动打开 App；安装后运行 `open -a "One Person Lab"`。
+- Homebrew 不是 quarantine 清理入口；系统持续阻止时改用同 tag `opl-install.sh`。
+- 普通手工安装选择 Standard DMG；只有离线首装才选择同 tag Full DMG。
 - 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
 - 页面版本号会持续变化，以最新稳定版为准。
 
@@ -40,7 +41,7 @@ lang: zh-CN
 
 - 首次打开如有安全提示，按系统提示确认。
 - 不要长期在 DMG 挂载窗口内运行 App。
-- 系统持续阻止打开时，改用稳定版安装命令。
+- 系统持续阻止打开时，改用同 tag `opl-install.sh` 完成摘要校验、quarantine 清理和启动。
 
 ## 3. 完成首次检查
 
@@ -79,6 +80,6 @@ lang: zh-CN
 - 已有 Codex 配置：点击“重新检测已有配置”，不需要先登录 Gateway。
 - 暂时没有账户或 API Key：可以先进入 OPL，后续再配置。
 - 下载文件很多：手工安装只选择 `mac-arm64.dmg`。
-- 打不开 App：确认已复制到 Applications，或重新运行稳定版安装命令。
+- 打不开 App：确认已复制到 Applications，或使用同 tag `opl-install.sh` 安装。
 
 > 密码只用于本次登录；请勿公开转发或保存 API Key 到研究目录、论文附件或代码仓库。

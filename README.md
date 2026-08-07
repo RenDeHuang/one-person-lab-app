@@ -51,9 +51,11 @@ are available; it is not a current ordinary product promise.
 Enter general work, medical research, grant writing, presentation preparation, and book writing from the desktop app instead of jumping across commands, repositories, and tools.
 
 **Desktop and browser share one workbench**<br/>
-Use the same OPL task, artifact, progress, and receipt language on Desktop or
-WebUI, at Standard or Full density. A hosted Workspace may reuse this surface
-only after its X0 owner/backend gates are met.
+Use the same OPL task, artifact, progress, and receipt language in a Desktop
+window or through the WebUI packaged in macOS/Linux Desktop. Docker WebUI is a
+separately versioned container product line for server and isolated deployment.
+A hosted Workspace may reuse this surface only after its X0 owner/backend gates
+are met.
 
 **Visible progress for long tasks**<br/>
 The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
@@ -79,11 +81,12 @@ Read the [OPL App whitepaper (HTML)](https://gaofeng21cn.github.io/one-person-la
 The maintained distribution and installation matrix is in the
 [OPL App distribution and install SSOT](docs/delivery/distribution-and-install-ssot.md).
 The user-first source guide is
-[One Person Lab installation](docs/delivery/install/README.md): choose Desktop
-or WebUI and Standard or Full first, then let the installer select an available
-carrier. Headless installs Framework Base only and is not an App product cell.
-The short list below contains only current ordinary-user paths; historical,
-transitional, and planned paths are not presented as supported.
+[One Person Lab installation](docs/delivery/install/README.md): choose a Desktop
+platform, the built-in macOS/Linux browser mode, or the independent Docker
+WebUI route. Standard and Full are Desktop payload densities; Full is currently
+available only for macOS arm64. Headless installs Framework Base only and is not
+an App product. The short list below contains only current ordinary-user paths;
+historical, transitional, and planned paths are not presented as supported.
 
 ### Homebrew
 
@@ -217,10 +220,10 @@ overwritten. See [the three-layer managed update model](docs/product/managed-upd
 
 ### Install And Update Objects
 
-Full-density packages are preloaded payloads for clean or offline use on either
-Desktop or WebUI, not a long-term update channel. After install, App maintenance
-exposes exactly three software objects. Runtime, integration, Codex projection,
-and profile migration details stay nested under their owning object instead of
+Full-density packages are preloaded macOS Desktop payloads for clean or offline
+use, not a long-term update channel. After install, App maintenance exposes
+exactly three software objects. Runtime, integration, Codex projection, and
+profile migration details stay nested under their owning object instead of
 becoming separate updaters:
 
 | Object | What it means |
@@ -245,6 +248,15 @@ The `One-Person-Lab-26.8.4-win-x64.exe` SHA-256 is
 `5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6`.
 The public asset and digest do not prove WSL2 runtime acceptance, installed
 behavior, signing, supported-platform completion, or release-wide readiness.
+Use the public
+[Windows x64 install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install.html)
+for download, digest verification, first launch, WSL2 boundaries, and updates.
+
+Linux x64 users install the same-tag `.deb` through the version-frozen
+`opl-install.sh --desktop --standard` path. `--webui` starts that Desktop
+package in browser mode; it does not restore the retired standalone Native
+WebUI carrier. Asset publication and installed/runtime acceptance remain
+separate claims.
 
 For Docker or server deployment, Windows, macOS, server, and cloud-VM users
 should start from the Docker/WebUI one-click installer path in the

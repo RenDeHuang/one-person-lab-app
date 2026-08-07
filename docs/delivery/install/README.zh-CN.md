@@ -4,27 +4,91 @@
 
 # One Person Lab 安装指南
 
-开始前只需确定两件事：使用桌面应用还是浏览器，以及选择轻量安装包还是完整安装包。
-不必先了解发布渠道和内部实现。
+先选择运行位置，不需要先理解发布流水线：
 
-| 使用需求 | 建议选择 |
-| --- | --- |
-| 独立应用窗口、系统菜单和桌面集成 | Desktop |
-| 在浏览器中使用工作台 | WebUI |
-| 部署到服务器、NAS 或隔离环境 | WebUI，通常使用 Container 载体 |
-| 初始下载较小，联网后补齐所需组件 | Standard |
-| 安装包内预置离线 Base 和 Package 种子 | Full |
-| 只安装命令行和运行基础 | Headless |
+| 需求 | 安装路径 | 当前载体 |
+| --- | --- | --- |
+| 在个人电脑上使用 One Person Lab | Desktop | macOS arm64 DMG/Homebrew、Linux x64 DEB、Windows x64 EXE |
+| 在 macOS 或 Linux 的浏览器中使用同一个 Desktop | Desktop 内置 WebUI | 同一 Desktop 安装包，启动时选择浏览器模式 |
+| 部署到服务器、NAS 或隔离环境 | Docker WebUI | 独立 GHCR 容器产品线 |
+| 只安装命令行和运行基础 | Headless | OPL Framework Base，不安装 App |
 
-Desktop 与 WebUI 决定使用形态，Standard 与 Full 决定安装包规格，两组选择互不冲突，
-共同组成 Desktop Standard、Desktop Full、WebUI Standard 和 WebUI Full 四种受支持组合。
-Native 与 Container 只是 WebUI 的内部运行载体，不是额外产品。这个矩阵只说明产品合同，
-不代表每个平台都已经公开了对应安装包；实际可用性仍应以目标发布版本和安装回读为准。
+`Standard` 与 `Full` 是 Desktop 安装包的载荷密度，不是两个更新频道。当前只有
+macOS arm64 同时公开 Standard 与 Full；Linux x64 和 Windows x64 使用各自同 tag
+Desktop 资产。Docker WebUI 使用独立版本和 GHCR 指针，不从 Desktop Stable 继承版本、
+资格或更新状态。
 
-## 统一安装入口
+## 当前 Stable Desktop Release Set
 
-请从包含 `opl-install.sh` 的 GitHub 发布版本开始安装。macOS 与 Linux 共用同一份按版本
-冻结的脚本。不要把 `main` 分支中会继续变化的脚本直接通过管道交给 shell 执行。
+每个 Stable 版本只有一个 GitHub Release 和一个 `v<version>` tag。同一 tag 可以包含：
+
+- `One-Person-Lab-<version>-mac-arm64.dmg`：macOS Standard；
+- `One-Person-Lab-Full-<version>-mac-arm64.dmg`：macOS Full，可在 Standard 之后追加；
+- `One-Person-Lab-<version>-linux-x64.deb`：Linux x64 Desktop；
+- `One-Person-Lab-<version>-win-x64.exe`：Windows x64 Desktop；
+- `opl-install.sh`、component manifest、Desktop platform manifest 和平台更新元数据。
+
+[打开当前 Latest Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
+
+Release 上存在文件，只能证明公开载体具有这些精确字节。是否已在某台电脑完成安装、
+首次启动、WSL2/Framework 运行和真实模型访问，仍需该电脑的实际回读。
+
+## macOS arm64
+
+已安装 Homebrew 时，Standard 是最短路径：
+
+```bash
+brew install --cask gaofeng21cn/one-person-lab/one-person-lab
+open -a "One Person Lab"
+```
+
+没有 Homebrew 时，从当前 Release 下载 Standard DMG。需要在新机器或离线环境预置
+Base/Package 种子时，选择同一 tag 的 Full DMG。Full 不创建独立 Release，也不进入
+Standard updater metadata。
+
+[macOS 首次安装图文教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
+
+## Linux x64
+
+Linux 使用同一 Stable tag 的 `.deb` 与 `opl-install.sh`。从 Release 下载并校验脚本后：
+
+```bash
+./opl-install.sh --desktop --standard --release-tag v<version> --no-open
+```
+
+需要在 headless host 上通过浏览器访问同一个 Desktop 时：
+
+```bash
+./opl-install.sh --webui --standard --release-tag v<version> --no-open
+```
+
+这里的 `--webui` 启动的是 Desktop 安装包自带的浏览器模式，不是已退役的独立 Native
+WebUI tarball，也不会改用 Docker。当前没有 Linux Full 载体；显式选择 `--full` 必须停止，
+不能回退到其他版本或平台。
+
+## Windows 11 x64
+
+Windows 从同一 Stable Release 下载 `One-Person-Lab-<version>-win-x64.exe`，并使用
+Release 公布的 digest 校验文件。Windows Desktop 不要求 Docker Desktop；Docker 只在
+用户明确选择独立 Container WebUI 时需要。
+
+[Windows x64 安装与配置教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install.html)
+
+Windows 资产公开不等于 WSL2 runtime acceptance、installed behavior、代码签名或完整
+平台支持已经得到证明。教程会显示当前精确版本、SHA-256 和签名状态。
+
+## Docker WebUI
+
+服务器、NAS、云主机或需要容器隔离时，使用独立 Docker WebUI。普通安装默认跟随
+`ghcr.io/gaofeng21cn/one-person-lab-webui:stable`；`:latest` 是显式 Preview 选择，
+不会被普通安装或自动更新静默采用。
+
+[Docker WebUI 图文安装教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html)
+
+## 版本冻结的公共安装器
+
+macOS 与 Linux 可以使用所选 Release 同 tag 的 `opl-install.sh`。不要把可变 `main`
+分支中的脚本直接通过管道交给 shell 执行：
 
 ```bash
 VERSION=<release-version>
@@ -43,84 +107,23 @@ else
   ACTUAL="$(sha256sum opl-install.sh | awk '{print $1}')"
 fi
 test -n "$EXPECTED" && test "$ACTUAL" = "$EXPECTED"
-
 chmod 0755 opl-install.sh
-./opl-install.sh
 ```
 
-安装路线如下：
+公开安装器会从所选 exact Release 的 manifest 解析平台资产、大小和 digest。缺少、重复或
+身份不一致时必须停止，不能改用另一个 tag、历史文件或未经绑定的下载地址。
 
-```text
-个人使用           -> Desktop 或 WebUI + Standard（默认）或 Full（明确选择）
-服务器或隔离部署   -> WebUI + Standard（默认）或 Full（明确选择）
-安装包规格         -> 仅在对应平台清单明确提供时可选
-WebUI 运行载体     -> 按对应平台清单选择 Native 或 Container
---headless         -> 仅安装 OPL Base
-```
+## Headless 与更新责任
 
-当前公开入口通过以下参数选择使用形态：
-
-```bash
-./opl-install.sh --desktop
-./opl-install.sh --webui
-./opl-install.sh --headless
-```
-
-`--desktop` 和 `--webui` 用于选择使用形态。当前 macOS 稳定版通过
-`--stable-macos-install --standard|--full` 选择安装包规格。其他平台只有在目标发布版本的
-清单中明确提供对应组合时才能选择；缺少所需安装包时必须停止，不能自动换用其他版本。
-Native/Container 兼容参数只服务于高级 WebUI 部署，不会增加新的产品形态。安装器必须从
-目标发布版本的清单中读取平台文件和摘要，不能依赖会变化的 `latest` 地址，也不能照搬文档
-里记录的历史版本。
-
-macOS 直接安装时会先匿名读取 GitHub Release API。如果请求失败，包括 API 限流导致的
-HTTP 403，只有本机已安装 `gh`，且 `gh auth` 已登录 `github.com`，安装器才会改用
-`gh api` 读取同一个 `latest` 或指定标签。这个备用通道不会切换版本，也不会跳过摘要校验。
-如果 GitHub CLI 不存在或登录无效，安装会在下载文件和修改目标 App 之前明确停止。
-
-## 支持的产品组合
-
-| 使用形态 | Standard | Full |
-| --- | --- | --- |
-| Desktop | 使用统一的桌面体验，联网后收敛到官方配置 | 使用相同桌面体验，并额外携带离线种子 |
-| WebUI | 使用统一的浏览器体验，联网后收敛到官方配置 | 使用相同浏览器体验，并额外携带离线种子 |
-
-这四种组合是产品合同，不是当前已发布文件的目录。安装前应从目标发布版本的组件清单和
-所有者回读中确认：所选平台确实提供对应载体，并且资格状态和摘要都匹配。缺少任何一项时，
-应明确报告当前不可用；不能用其他使用形态、其他安装包规格或历史载体的成功结果代替。
-
-## WebUI 运行载体
-
-Native 直接在宿主机上运行 WebUI；Container 通过 OCI 容器隔离运行。两者提供相同的
-WebUI 产品行为和官方配置，但可以使用不同的目录、服务管理方式、挂载点和更新适配器。
-选择运行载体不会改变 Standard/Full，也不会把 WebUI 拆成两套产品。
-
-## Homebrew
-
-当前 Homebrew 安装入口如下：
-
-```bash
-# macOS 桌面应用
-brew install --cask gaofeng21cn/one-person-lab/one-person-lab
-
-# macOS 或 Linux 上的 OPL Base/CLI
-brew install gaofeng21cn/one-person-lab/opl
-```
-
-Homebrew 也支持 Linux，但 Cask 承载的是 macOS 应用包，因此当前 Desktop Cask 不能用于
-Linux。未来可以提供普通 Formula `one-person-lab-webui`，复用同一 GitHub 发布版本中的
-冻结 Native 载荷；这是已经认可的方向，但目前还不是可用的安装入口。
-
-## 更新由谁负责
+`--headless` 只安装 OPL Framework Base/CLI，不安装 App。Headless 自动化应使用
+[OPL Framework 安装说明](https://github.com/gaofeng21cn/one-person-lab#installation)，
+而不是 Desktop 或 Docker WebUI 教程。
 
 | 安装内容 | 更新责任方 |
 | --- | --- |
-| Desktop Standard / Full | 所选 Desktop 载体；Full 不进入 Standard 更新元数据 |
-| WebUI Standard / Full | 所选 WebUI 载体；Native/Container 只回读各自的安装状态 |
-| OPL Base / Packages | Framework 托管更新 |
+| Desktop App | 所选 Desktop 载体；Full 仍使用 Standard 更新路径 |
+| Docker WebUI | Docker WebUI host installer/管理员，默认跟随 `:stable` |
+| OPL Base / Packages | Framework 与各 Package carrier |
 
-在 Desktop 和 WebUI 中，Standard 与 Full 都只表示安装包规格，不是两条更新渠道；
-Native 与 Container 也只是 WebUI 的运行载体，不是两套产品。
-
-产品和维护边界见
+维护侧产品边界见
 [`distribution-and-install-ssot.md`](../distribution-and-install-ssot.md)。

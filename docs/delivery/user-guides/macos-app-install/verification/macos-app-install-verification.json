@@ -14,33 +14,37 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 8,
+  "pdf_pages": 9,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 8,
+  "rendered_pages": 9,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 2739267,
+  "html_bytes": 2861338,
   "screenshot_assets": [
     {
       "role": "download_release",
-      "description": "v26.7.20 Release Assets list with the macOS arm64 DMG highlighted.",
+      "description": "v26.8.4 Latest Release Assets list showing the same-tag macOS Standard and Full DMGs, Linux x64 DEB, Windows x64 EXE, and release installer.",
       "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
       "public_file": "screenshots/01-download-release.png",
-      "width": 1183,
-      "height": 380,
-      "sha256": "0b2182270007e47692f4283d1c451eb3a4a01f037665a72396ae71c3c64b048d",
+      "width": 1087,
+      "height": 776,
+      "sha256": "98912043cb875143680d8bca43db6c65a4540ce2966ce15f9b75aef3815d6cf8",
       "referenced": true,
       "source_kind": "live_github_release_playwright_capture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.20",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
       "locale": "zh-CN",
-      "browser_size": "1440x900",
+      "browser_size": "1200x1369",
       "expected_ui_text": [
         "Assets",
-        "One-Person-Lab-26.7.20-mac-arm64.dmg"
+        "One-Person-Lab-26.8.4-mac-arm64.dmg",
+        "One-Person-Lab-Full-26.8.4-mac-arm64.dmg",
+        "One-Person-Lab-26.8.4-linux-x64.deb",
+        "One-Person-Lab-26.8.4-win-x64.exe",
+        "opl-install.sh"
       ],
-      "note": "The recommended DMG row is highlighted for tutorial readability; version numbers will change in future releases."
+      "note": "The full live Assets group is retained so users can distinguish current platform packages from updater metadata, manifests, and source archives."
     },
     {
       "role": "install_dmg",
@@ -139,6 +143,10 @@
     "登录并继续",
     "API Key",
     "重新检测已有配置",
+    "Homebrew Cask",
+    "open -a",
+    "Full DMG",
+    "quarantine",
     "设置 -> 账户与访问",
     "设置 -> 模型",
     "设置 -> 工作区",

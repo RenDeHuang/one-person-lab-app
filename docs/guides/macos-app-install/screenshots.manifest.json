@@ -5,17 +5,17 @@
   "source_summary": {
     "kind": "current_release_web_capture_and_release_cohort_shell_capture",
     "locale": "zh-CN",
-    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.20",
-    "release_asset": "One-Person-Lab-26.7.20-mac-arm64.dmg",
-    "current_app_commit": "a74d34b655c6f9d333613cd53e8609d77767badc",
-    "current_shell_commit": "d98d6de0337fde7f46b1be5cc4dae54dc9dee73e",
-    "current_framework_commit": "367738244273664452e6b7ebfb86d5de5bb36c30",
-    "captured_at": "2026-07-20T11:21:47+08:00",
-    "note": "The download capture shows the live v26.7.20 Release Assets list. App screens use the exact released Shell renderer with deterministic p19.stage-runtime contract fixtures for blocked, checking, and ready states."
+    "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
+    "release_asset": "One-Person-Lab-26.8.4-mac-arm64.dmg",
+    "current_app_commit": "aaf683f634f7d64345a90d1f0b34fd4a0e36e12d",
+    "current_shell_commit": "acf39e9221318846911b28e5b5d90111d9b70538",
+    "current_framework_commit": "54ca7e8b9d3bd3f0f8a2bc5106e014f4cf312707",
+    "captured_at": "2026-08-07T12:45:26+08:00",
+    "note": "The download capture shows the live v26.8.4 Latest Release Assets list. Retained App screens keep their exact per-file Shell renderer provenance and are not presented as current-release screenshots."
   },
   "release_run": {
-    "id": "guide-refresh-v26.7.20-d98d6de-2026-07-20",
-    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.20",
+    "id": "guide-refresh-v26.8.4-aaf683f-2026-08-07",
+    "url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
     "conclusion": "success"
   },
   "screenshots": [
@@ -23,19 +23,23 @@
       "file": "01-download-release.png",
       "role": "download_release",
       "title": "Latest GitHub Release Assets",
-      "description": "v26.7.20 Release Assets list with the macOS arm64 DMG highlighted.",
+      "description": "v26.8.4 Latest Release Assets list showing the same-tag macOS Standard and Full DMGs, Linux x64 DEB, Windows x64 EXE, and release installer.",
       "source_kind": "live_github_release_playwright_capture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.7.20",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
       "locale": "zh-CN",
-      "browser_size": "1440x900",
-      "width": 1183,
-      "height": 380,
-      "sha256": "0b2182270007e47692f4283d1c451eb3a4a01f037665a72396ae71c3c64b048d",
+      "browser_size": "1200x1369",
+      "width": 1087,
+      "height": 776,
+      "sha256": "98912043cb875143680d8bca43db6c65a4540ce2966ce15f9b75aef3815d6cf8",
       "expected_ui_text": [
         "Assets",
-        "One-Person-Lab-26.7.20-mac-arm64.dmg"
+        "One-Person-Lab-26.8.4-mac-arm64.dmg",
+        "One-Person-Lab-Full-26.8.4-mac-arm64.dmg",
+        "One-Person-Lab-26.8.4-linux-x64.deb",
+        "One-Person-Lab-26.8.4-win-x64.exe",
+        "opl-install.sh"
       ],
-      "note": "The recommended DMG row is highlighted for tutorial readability; version numbers will change in future releases."
+      "note": "The full live Assets group is retained so users can distinguish current platform packages from updater metadata, manifests, and source archives."
     },
     {
       "file": "02-install-dmg.png",

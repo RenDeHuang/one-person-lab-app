@@ -527,6 +527,27 @@ test('ordinary docs point to the SSOT without advertising retired or unpublished
   assert.doesNotMatch(rootReadme, /--stable-macos-install --yes/);
 });
 
+test('ordinary install guides expose the current Desktop and Docker routes without restoring the retired matrix', () => {
+  const english = fs.readFileSync(
+    path.join(appRoot, 'docs/delivery/install/README.md'),
+    'utf8',
+  );
+  const chinese = fs.readFileSync(
+    path.join(appRoot, 'docs/delivery/install/README.zh-CN.md'),
+    'utf8',
+  );
+
+  for (const guide of [english, chinese]) {
+    assert.match(guide, /Stable Desktop Release Set|Stable Desktop Release 集合/);
+    assert.match(guide, /macOS/);
+    assert.match(guide, /Linux x64/);
+    assert.match(guide, /Windows 11 x64/);
+    assert.match(guide, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
+    assert.doesNotMatch(guide, /four supported product cells|四个受支持产品格/);
+    assert.doesNotMatch(guide, /Native runs WebUI|Native 直接运行 WebUI/);
+  }
+});
+
 test('Docker WebUI guide exposes the shared host auto-update lifecycle without container-side mutation', () => {
   const guide = fs.readFileSync(
     path.join(appRoot, 'docs/guides/docker-webui-install/guide.qmd'),
@@ -543,11 +564,32 @@ test('Docker WebUI guide exposes the shared host auto-update lifecycle without c
   assert.match(guide, /不会每天下载并执行 GitHub `main` 上的可变安装器代码/);
   assert.match(guide, /不要把下载 GitHub `main` 的在线 `curl` 命令直接放进定时任务/);
   assert.match(guide, /恢复旧 digest/);
+  assert.match(guide, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
+  assert.match(guide, /`:latest` 仅供用户显式选择 Preview/);
+  assert.match(guide, /One Person Lab WebUI Stable Update/);
+  assert.doesNotMatch(guide, /One Person Lab WebUI Latest Update/);
+  assert.doesNotMatch(guide, /自动任务只跟随 `ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest`/);
+  assert.equal(manifest.download.image, 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable');
+  assert.equal(manifest.download.local_image, 'one-person-lab-webui:stable');
   assert.match(manifest.download.linux_macos_online_command, /--enable-auto-update/);
   assert.match(manifest.download.linux_server_online_command, /--yes$/);
   assert.match(manifest.download.windows_auto_update_status_command, /-AutoUpdateStatus/);
   assert.match(manifest.download.linux_macos_auto_update_status_command, /--auto-update-status/);
   assert.match(manifest.download.linux_macos_disable_auto_update_command, /--disable-auto-update/);
+});
+
+test('docs publisher carries only current install guides and preserves whitepapers', () => {
+  const publisher = fs.readFileSync(
+    path.join(appRoot, 'scripts/publish-docs-latest.sh'),
+    'utf8',
+  );
+
+  for (const guideId of ['macos-app-install', 'windows-app-install', 'docker-webui-install']) {
+    assert.match(publisher, new RegExp(`^[ \\t]+${guideId}$`, 'm'));
+  }
+  assert.match(publisher, /--exclude 'whitepapers\/'/);
+  assert.match(publisher, /--delete/);
+  assert.doesNotMatch(publisher, /linux-native-webui-install/);
 });
 
 test('Docker WebUI guide scopes Docker Desktop and publishes the guarded Windows AF_UNIX recovery', () => {

@@ -49,8 +49,9 @@ Hosted OPL Workspace 是 X0-03 条件 route，只有真实账号、存储、隔�
 从桌面应用进入通用工作、科研、基金、演示和写书，不需要在多个命令、仓库和工具之间切换。
 
 **桌面与浏览器共享一套工作台**<br/>
-Desktop 与 WebUI 在 Standard 或 Full 密度下共享任务、产物、进度和回执语义。
-Hosted Workspace 只有满足 X0 owner/backend gate 后才复用这套表面。
+用户可以在 Desktop 窗口中使用，也可以通过 macOS/Linux Desktop 自带的 WebUI 在
+浏览器中访问同一工作台。Docker WebUI 是面向服务器与隔离部署的独立容器产品线。
+Hosted Workspace 只有满足 X0 owner/backend gate 后才复用这套体验。
 
 **看得见长任务进度**<br/>
 应用展示任务进展、文件、运行状态和可继续的上下文。用户回来时可以直接看到做到了哪一步、有哪些结果、是否需要人工处理。
@@ -73,9 +74,10 @@ App 负责把入口、进度、文件和交付体验做好；医学研究、基�
 
 ## 下载与安装
 
-用户先选择 Desktop 或 WebUI，再选择 Standard 或 Full，不需要先理解 GitHub、
-Homebrew 或 GHCR。Headless 只安装 Framework Base，不属于 App 产品四格。统一入口、
-平台矩阵、校验、更新和回滚见
+用户先选择 macOS/Linux/Windows Desktop、macOS/Linux Desktop 自带的浏览器模式，
+或独立 Docker WebUI，不需要先理解 GitHub、Homebrew 或 GHCR。Standard 与 Full 是
+Desktop 载荷密度，当前 Full 只在 macOS arm64 公开；Headless 只安装 Framework Base，
+不属于 App 产品。统一入口、平台矩阵、校验、更新和回滚见
 [One Person Lab 安装指南](docs/delivery/install/README.zh-CN.md)；维护侧术语与状态见
 [分发与安装 SSOT](docs/delivery/distribution-and-install-ssot.md)。
 
@@ -200,8 +202,8 @@ qualification 和安装 readback。macOS Desktop 首次启动图文教程以
 
 ### 安装与更新对象
 
-Full 密度包是在 Desktop 或 WebUI 上供干净机器或离线使用的预置载荷，不是长期
-更新通道。安装完成后，App
+Full 密度包是供干净机器或离线使用的 macOS Desktop 预置载荷，不是长期更新通道。
+安装完成后，App
 维护只暴露三个软件对象。运行时、集成、Codex 投影和 profile migration
 都只是所属对象内部的状态详情，不形成独立 updater：
 
@@ -225,11 +227,17 @@ Windows 11 x64 用户可从
 `5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6`。公开资产与 digest
 不能证明 WSL2 runtime acceptance、installed behavior、签名、supported-platform 完成或
 release-wide ready。
+下载、摘要校验、首次启动、WSL2 边界和更新步骤见
+[Windows x64 安装教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install.html)。
 
-Windows、macOS browser、服务器或云主机用户使用 Container WebUI 时，请从
+Linux x64 使用同 tag `.deb` 与版本冻结的
+`opl-install.sh --desktop --standard`。`--webui` 只把同一 Desktop 包启动为浏览器模式，
+不会恢复已退役的独立 Native WebUI carrier；资产公开与 installed/runtime acceptance
+仍是两项独立结论。
+
+服务器、NAS、云主机或需要容器隔离的用户使用 Docker WebUI 时，请从
 [Docker/WebUI install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html) 开始；Linux x86_64
-个人电脑默认可用 Native WebUI。同一份 Container guide
-guide 也提供
+个人电脑默认使用 Desktop 或其自带浏览器模式。同一份 Container guide 也提供
 [detailed PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install-detailed-guide.pdf)。
 
 ## 应用能做什么

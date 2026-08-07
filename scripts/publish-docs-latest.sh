@@ -7,6 +7,11 @@ cd "$repo_root"
 site_dir="${OPL_DOCS_SITE_DIR:-docs/site/latest}"
 remote="${OPL_DOCS_REMOTE:-origin}"
 publish_branch="${OPL_DOCS_PUBLISH_BRANCH:-gh-pages}"
+public_guide_ids=(
+  macos-app-install
+  windows-app-install
+  docker-webui-install
+)
 
 if [[ -n "${OPL_DOCS_BUILD_COMMAND:-}" ]]; then
   echo "==> Building latest docs locally: ${OPL_DOCS_BUILD_COMMAND}"
@@ -29,10 +34,17 @@ if find "$site_dir" -name index.html -print -quit | grep -q .; then
   exit 1
 fi
 
-if ! find "$site_dir" -type f \( -name '*.html' -o -name '*.pdf' -o -name '*.pptx' \) -print -quit | grep -q .; then
-  echo "No public HTML/PDF/PPTX files found under $site_dir" >&2
-  exit 1
-fi
+for guide_id in "${public_guide_ids[@]}"; do
+  guide_dir="$site_dir/$guide_id"
+  if [[ ! -d "$guide_dir" ]]; then
+    echo "Missing generated public guide directory: $guide_dir" >&2
+    exit 1
+  fi
+  if ! find "$guide_dir" -type f \( -name '*.html' -o -name '*.pdf' -o -name '*.pptx' \) -print -quit | grep -q .; then
+    echo "No public HTML/PDF/PPTX files found under $guide_dir" >&2
+    exit 1
+  fi
+done
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "warning: publishing from a dirty checkout; only generated docs are copied" >&2
@@ -58,15 +70,23 @@ else
 fi
 mkdir -p "$tmp_worktree/latest"
 
+staging_dir="$tmp_parent/staging"
+mkdir -p "$staging_dir"
+for guide_id in "${public_guide_ids[@]}"; do
+  rsync -a \
+    --delete \
+    --exclude '*.md' \
+    --exclude '*.qmd' \
+    --exclude '*.tex' \
+    --exclude '*.json' \
+    --exclude '.DS_Store' \
+    "$repo_root/$site_dir/$guide_id"/ "$staging_dir/$guide_id"/
+done
+
 rsync -a \
   --delete \
   --exclude 'whitepapers/' \
-  --exclude '*.md' \
-  --exclude '*.qmd' \
-  --exclude '*.tex' \
-  --exclude '*.json' \
-  --exclude '.DS_Store' \
-  "$repo_root/$site_dir"/ "$tmp_worktree/latest"/
+  "$staging_dir"/ "$tmp_worktree/latest"/
 
 touch "$tmp_worktree/.nojekyll"
 
