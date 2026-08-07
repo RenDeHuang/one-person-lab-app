@@ -898,13 +898,13 @@ export function immutableCapabilityResponse(enabled = true): GitHubCommandResult
 
 export function fullPublicationRuntime(
   files: ReturnType<typeof fixture>,
-  options: { targetDriftAfterFirstUpload?: string } = {},
+  options: { targetDriftAfterFirstUpload?: string; additionalAssets?: Asset[] } = {},
 ) {
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   const addon = fullAddonIdentity(bundle, files.uploadActions, files.standardAttestationPath);
   const calls: string[][] = [];
   const mutationInputs: string[] = [];
-  const remoteAssets: Asset[] = [...files.standardAssets];
+  const remoteAssets: Asset[] = [...files.standardAssets, ...(options.additionalAssets ?? [])];
   const response = () => ({
     id: 12345,
     tag_name: addon.tag,

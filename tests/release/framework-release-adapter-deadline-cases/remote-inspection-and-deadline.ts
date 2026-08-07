@@ -15,6 +15,7 @@ import {
   shellCommit,
   frameworkCommit,
   standardOperationId,
+  appendFullOperationId,
   workflowAttemptId,
   mutationAdmission,
   expectedMutationAttemptId,
@@ -215,6 +216,52 @@ test('existing GitHub Release remote inspection accepts required assets and know
       () => execute([full], true),
       /Same-tag Full asset admission requires one Stable resume_standard inspection/,
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Full remote inspection accepts well-formed additive Standard follower assets', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-additive-inspection-'));
+  const bundlePath = path.join(root, 'bundle.json');
+  const inspectionPath = path.join(root, 'remote-before.json');
+  const fullNames = ['full.dmg', 'full-manifest.json'];
+  const followerAssets = [asset('latest.yml', '3'), asset('platform.exe', '4')];
+  try {
+    fs.writeFileSync(bundlePath, `${JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      release: { channel: 'stable', version: tag.slice(1), tag },
+      tracks: {
+        standard: { required_asset_names: ['first.zip', 'second.dmg'] },
+        full: { required_asset_names: fullNames },
+      },
+    })}\n`);
+    fs.writeFileSync(inspectionPath, `${JSON.stringify({
+      surface_kind: 'opl_app_github_release_inspection.v1',
+      repository: repo,
+      tag,
+      release: { exists: true, id: 12345 },
+      assets: [asset(fullNames[0]!, '5'), asset(fullNames[1]!, '6'), ...followerAssets],
+    })}\n`);
+
+    const receipt = buildExecutorReceipt({
+      operation: 'remote_inspect',
+      'release-operation': 'append_full',
+      'operation-id': appendFullOperationId,
+      executor: 'remote',
+      'attempt-id': workflowAttemptId,
+      'remote-target': `github-release:${repo}@${tag}`,
+      track: 'full',
+      outcome: 'complete',
+      'publication-scope': 'track_assets',
+      bundle: bundlePath,
+      inspection: inspectionPath,
+    } as any);
+    assert.deepEqual(receipt.assets, [
+      { name: fullNames[0], size_bytes: 100, sha256: `sha256:${'5'.repeat(64)}` },
+      { name: fullNames[1], size_bytes: 100, sha256: `sha256:${'6'.repeat(64)}` },
+    ]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

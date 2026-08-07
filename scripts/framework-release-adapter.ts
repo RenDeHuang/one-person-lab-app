@@ -926,7 +926,10 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       for (const inspectedAsset of inspectedAssets) {
         const asset = inspectedAsset as JsonRecord;
         const name = typeof asset?.name === 'string' ? asset.name : '';
-        if (!allowedNameSet.has(name)) {
+        // A published Standard Release may receive additive desktop follower
+        // assets after its original attestation. Full append only consumes its
+        // own two names, so well-formed additive names remain observational.
+        if (!allowedNameSet.has(name) && track !== 'full') {
           throw new Error(`Remote ${track} inspection contains unknown asset ${name || '<missing>'}.`);
         }
         if (remoteAssets.has(name)) {
@@ -2269,10 +2272,16 @@ function assertSameTagFullAssetPolicy(
   for (const asset of inspection.assets as JsonRecord[]) {
     const name = String(asset.name ?? '');
     if (!name || remote.has(name)) throw new Error(`Remote Release contains duplicate asset name ${name || '<missing>'}.`);
+    if (
+      !Number.isSafeInteger(asset.size_bytes)
+      || Number(asset.size_bytes) <= 0
+      || !digestPattern.test(String(asset.sha256 ?? ''))
+    ) {
+      throw new Error(`Remote mutable Standard asset ${name || '<missing>'} has no exact digest and positive size.`);
+    }
     remote.set(name, asset);
     const expected = standard.get(name) ?? full.get(name);
-    if (!expected) throw new Error(`Remote mutable Standard contains an unsealed asset: ${name}.`);
-    if (asset.sha256 !== expected.sha256 || asset.size_bytes !== expected.size_bytes) {
+    if (expected && (asset.sha256 !== expected.sha256 || asset.size_bytes !== expected.size_bytes)) {
       throw new Error(`Remote asset ${name} conflicts with its sealed name, size, or digest.`);
     }
   }

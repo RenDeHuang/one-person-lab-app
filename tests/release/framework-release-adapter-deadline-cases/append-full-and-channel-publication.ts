@@ -137,6 +137,26 @@ test('append_full uploads only the two missing same-tag assets without PATCH or 
   assert.equal(result.latest_modified, false);
 });
 
+test('append_full keeps additive Standard follower assets observational and exact', () => {
+  const files = fixture([], 'append_full');
+  const follower = asset('latest.yml', '1');
+  const simulated = fullPublicationRuntime(files, { additionalAssets: [follower] });
+
+  const result = applyPublishPlan({
+    ...mutationAdmission('append_full', 'full'),
+    bundle: files.bundlePath,
+    plan: files.planPath,
+    'standard-attestation': files.standardAttestationPath,
+    'operation-deadline-at': deadlineAt,
+  }, simulated.runtime);
+
+  assert.equal(result.status, 'complete');
+  assert.equal(result.inspection.assets.find((item: Record<string, unknown>) => item.name === follower.name)?.sha256, follower.sha256);
+  assert.equal(result.inspection.assets.find((item: Record<string, unknown>) => item.name === follower.name)?.size_bytes, follower.size_bytes);
+  assert.deepEqual(simulated.remoteAssets.at(-3)?.name, follower.name);
+  assert.equal(simulated.calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 2);
+});
+
 test('append_full binds a legacy frozen Bundle to the projected same-tag public body', () => {
   const files = fixture([], 'append_full');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
