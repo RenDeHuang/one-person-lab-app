@@ -55,6 +55,22 @@ test('Desktop assets append to the same Release through one CAS controller', () 
   assert.deepEqual(append.needs, ['admit', 'build-desktop-platforms']);
   assert.equal(append.environment, 'release-stable');
   assert.deepEqual(append.permissions, { contents: 'write', actions: 'read' });
+  const setupIndex = append.steps.findIndex(
+    (step: Record<string, unknown>) => step.name === 'Setup Node.js',
+  );
+  const installIndex = append.steps.findIndex(
+    (step: Record<string, unknown>) => step.name === 'Install App root validation dependencies',
+  );
+  const materializeIndex = append.steps.findIndex(
+    (step: Record<string, unknown>) => step.name === 'Materialize exact Desktop Release Set append',
+  );
+  assert.deepEqual(append.steps[setupIndex], {
+    name: 'Setup Node.js',
+    uses: 'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38',
+    with: { 'node-version': '24', cache: 'npm' },
+  });
+  assert.equal(append.steps[installIndex].run, 'npm ci --ignore-scripts');
+  assert.ok(setupIndex < installIndex && installIndex < materializeIndex);
   assert.match(source, /scripts\/append-stable-desktop-assets\.ts/);
   assert.match(source, /--release-id "\$\{\{ needs\.admit\.outputs\.release_id \}\}"/);
   assert.match(source, /--tag "\$\{\{ needs\.admit\.outputs\.release_tag \}\}"/);
