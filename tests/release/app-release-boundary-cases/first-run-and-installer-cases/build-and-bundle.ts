@@ -276,7 +276,7 @@ test("Bundle freeze gate installs frozen App and Framework dependencies before v
   const jobStart = workflow.indexOf("  freeze:");
   const jobEnd = workflow.indexOf("\n  standard-build:", jobStart);
   const job = workflow.slice(jobStart, jobEnd);
-  const setup = job.indexOf("uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38");
+  const setup = job.indexOf("uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020");
   const install = job.indexOf("npm ci --ignore-scripts");
   const installFramework = job.indexOf("npm --prefix framework-source ci --ignore-scripts");
   const validation = job.indexOf("- name: Validate Bundle contracts before paid work");

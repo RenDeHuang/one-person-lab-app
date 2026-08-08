@@ -448,7 +448,7 @@ jobs:
 
       - name: Upload advisory admission receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-self-hosted-advisory-admission-${{ github.run_id }}
           path: self-hosted-advisory-admission.json
@@ -464,13 +464,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout admitted source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.admit.outputs.source_sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -547,7 +547,7 @@ jobs:
 
       - name: Upload macOS advisory receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-self-hosted-advisory-macos-${{ github.run_id }}
           path: |
@@ -569,13 +569,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout admitted source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.admit.outputs.source_sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -628,7 +628,7 @@ jobs:
 
       - name: Upload macOS GUI advisory receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-self-hosted-advisory-macos-gui-${{ github.run_id }}
           path: |
@@ -647,13 +647,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout admitted source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.admit.outputs.source_sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -700,7 +700,7 @@ jobs:
 
       - name: Upload macOS VMware advisory receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-self-hosted-advisory-macos-vmware-${{ github.run_id }}
           path: |
@@ -719,13 +719,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout admitted source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.admit.outputs.source_sha }}
           fetch-depth: 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -787,7 +787,7 @@ jobs:
 
       - name: Upload Windows advisory receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-self-hosted-advisory-windows-${{ github.run_id }}
           path: |

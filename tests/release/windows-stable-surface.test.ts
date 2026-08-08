@@ -28,7 +28,7 @@ test('manual Windows builds are build-only while Windows x64 Stable uses the sam
     resolveReleasePlatformMatrix({ policy: 'manual_all', platform: 'windows-x64' }).include,
     [{
       platform: 'windows-x64',
-      os: 'windows-2022',
+      os: 'windows-latest',
       command: 'node scripts/build-with-builder.js x64 --win --x64',
       'artifact-name': 'windows-build-x64',
       arch: 'x64',

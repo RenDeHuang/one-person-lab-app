@@ -46,7 +46,7 @@ jobs:
           test "$free_kib" -ge 83886080
 
       - name: Checkout exact App source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.app_ref }}
           fetch-depth: 1
@@ -115,7 +115,7 @@ jobs:
           echo "dmg_path=$dmg_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload x64 smoke evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: native-intel-x64-smoke-${{ steps.app.outputs.sha }}
           path: |

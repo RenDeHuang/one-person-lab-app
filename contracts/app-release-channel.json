@@ -482,7 +482,7 @@
         "publication_status": "same_stable_release_set",
         "publication_route": ".github/workflows/build-manual.yml",
         "build": {
-          "os": "windows-2022",
+          "os": "windows-latest",
           "command": "node scripts/build-with-builder.js x64 --win --x64",
           "arch": "x64",
           "artifact_names": {
@@ -503,7 +503,7 @@
         "publication_status": "development_validation_only",
         "publication_route": null,
         "build": {
-          "os": "windows-2022",
+          "os": "windows-latest",
           "command": "node scripts/build-with-builder.js arm64 --win --arm64",
           "arch": "arm64",
           "artifact_names": {

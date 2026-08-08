@@ -62,13 +62,13 @@ jobs:
       authority_mode: ${{ steps.authority.outputs.authority_mode }}
     steps:
       - name: Checkout canonical App promotion authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
 
       - name: Setup ORAS for durable Preview record admission
         if: ${{ inputs.authority_mode == 'independent_preview' || inputs.authority_mode == 'independent_stable' }}
-        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
 
       - name: Materialize and verify exact durable Preview publication record
         if: ${{ inputs.authority_mode == 'independent_preview' || inputs.authority_mode == 'independent_stable' }}
@@ -294,7 +294,7 @@ jobs:
             }' > evidence/artifact-intake.json
 
       - name: Setup ORAS for anonymous descriptor admission
-        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
 
       - name: Read immutable, version, Stable, and Latest authority
         shell: bash
@@ -404,7 +404,7 @@ jobs:
           echo "admission_artifact=$admission_artifact" >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable WebUI Stable admission
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.admission.outputs.admission_artifact }}
           path: evidence
@@ -423,7 +423,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout exact admitted App authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
 
@@ -435,13 +435,13 @@ jobs:
           test "$GITHUB_REF" = refs/heads/main
 
       - name: Download exact same-run admission
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ needs.admission.outputs.admission_artifact }}
           path: evidence
 
       - name: Setup ORAS for one bounded CAS
-        uses: oras-project/setup-oras@22ce207df3b08e061f537244349aac6ae1d214f6
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
 
       - name: Re-read Stable and Latest prestate and derive CAS decision
         id: decision
@@ -772,7 +772,7 @@ jobs:
 
       - name: Upload terminal WebUI Stable evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-webui-stable-promotion-${{ github.run_id }}
           path: |

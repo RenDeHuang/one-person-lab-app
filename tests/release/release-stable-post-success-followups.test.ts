@@ -70,7 +70,7 @@ test('Desktop assets append to the same Release through one CAS controller', () 
   );
   assert.deepEqual(append.steps[setupIndex], {
     name: 'Setup Node.js',
-    uses: 'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38',
+    uses: 'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020',
     with: { 'node-version': '24', cache: 'npm' },
   });
   assert.equal(append.steps[installIndex].run, 'npm ci --ignore-scripts');

@@ -73,12 +73,12 @@ jobs:
       execute_job_queued: ${{ steps.project.outputs.execute_job_queued }}
     steps:
       - name: Checkout canonical App admission source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -103,7 +103,7 @@ jobs:
 
       - name: Download exact signed candidate artifact without publication
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.candidate_artifact_name }}
           run-id: ${{ inputs.candidate_artifact_run_id }}
@@ -180,7 +180,7 @@ jobs:
 
       - name: Upload exact read-only preflight receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-windows-updater-upgrade-vm-preflight-${{ inputs.candidate_artifact_run_id }}-${{ github.run_id }}
           path: |

@@ -57,7 +57,7 @@ jobs:
       authority_mode: ${{ steps.authority.outputs.authority_mode }}
     steps:
       - name: Checkout canonical App executor
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
 
@@ -117,7 +117,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload independent source authority
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.authority.outputs.source_authority_artifact_name }}
           path: |

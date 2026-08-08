@@ -84,7 +84,7 @@ jobs:
           fi
 
       - name: Checkout exact App main
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.app_ref || github.sha }}
           path: app
@@ -178,27 +178,27 @@ jobs:
       OPERATION_SCOPE: ${{ inputs.operation_scope || 'standalone_diagnostic' }}
     steps:
       - name: Checkout exact App cohort
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-cohort.outputs.app_sha }}
           path: app
 
       - name: Checkout exact Shell cohort
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ needs.resolve-cohort.outputs.shell_sha }}
           path: shell
 
       - name: Checkout exact Framework cohort
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ needs.resolve-cohort.outputs.framework_sha }}
           path: framework
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -278,7 +278,7 @@ jobs:
           echo "receipt_digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable source preflight evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-source-qualification-${{ github.run_id }}
           path: |

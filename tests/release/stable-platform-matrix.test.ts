@@ -165,7 +165,7 @@ test('resolver accepts only audited policy and platform IDs', () => {
     }).include,
     [{
       platform: 'windows-x64',
-      os: 'windows-2022',
+      os: 'windows-latest',
       command: 'node scripts/build-with-builder.js x64 --win --x64',
       'artifact-name': 'stable-desktop-windows-x64',
       arch: 'x64',
@@ -254,7 +254,7 @@ test('workflow callers consume resolver output while reusable build keeps generi
   assert.match(String(artifactUpload?.with?.path), /opl-windows-authenticode-receipt\.json/);
   assert.doesNotMatch(String(artifactUpload?.with?.path), /latest-(?:x64-)?mac\.yml/);
   assert.deepEqual(packageValidation.permissions, { contents: 'read' });
-  assert.equal(packageValidation.jobs['build-windows-updater-package']['runs-on'], 'windows-2022');
+  assert.equal(packageValidation.jobs['build-windows-updater-package']['runs-on'], 'windows-latest');
   const validationBuild = packageValidation.jobs['build-windows-updater-package'].steps.find(
     (step: any) => step.name === 'Build updater-capable Windows x64 package',
   );

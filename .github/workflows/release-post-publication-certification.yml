@@ -44,7 +44,7 @@ jobs:
       full_artifact_digest: ${{ steps.identity.outputs.full_artifact_digest }}
     steps:
       - name: Checkout exact certification source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
@@ -133,7 +133,7 @@ jobs:
 
       - name: Download exact Release Set follow-up receipt
         if: ${{ steps.authority.outputs.applicable == 'true' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ steps.authority.outputs.followup_receipt }}
           run-id: ${{ github.event.workflow_run.id }}
@@ -142,7 +142,7 @@ jobs:
 
       - name: Download exact Desktop append receipt
         if: ${{ steps.authority.outputs.applicable == 'true' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ steps.authority.outputs.desktop_receipt }}
           run-id: ${{ github.event.workflow_run.id }}
@@ -179,7 +179,7 @@ jobs:
 
       - name: Download exact Full append publication evidence
         if: ${{ steps.authority.outputs.applicable == 'true' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: opl-release-full-published-${{ steps.followup.outputs.full_run_id }}
           run-id: ${{ steps.followup.outputs.full_run_id }}
@@ -321,7 +321,7 @@ jobs:
             '{schema:"opl_app_linux_same_tag_desktop_install.v1",status:"passed",release_tag:$tag,artifact:{name:$name,digest:$digest},installed_package:{name:$package,version:$version,architecture:$architecture},rebuilt:false,remaining:[]}' \
             > linux-x64-same-tag-install.json
       - name: Upload Linux Desktop certification evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-linux-desktop-certification-${{ github.run_id }}
           path: linux-x64-same-tag-install.json
@@ -425,7 +425,7 @@ jobs:
             '{schema:"opl_app_desktop_release_set_certification.v1",status:(if $applicable == "true" then "complete" else "not_applicable" end),applicable:($applicable == "true"),reason_code:$reason,release_tag:$tag,source_run_id:$source,linux_x64:$linux,macos_vm_admission:$admission,macos_standard:$standard,macos_full:$full,required_for_publication:false,remaining:[]}' \
             > desktop-release-set-certification.json
       - name: Upload Desktop Release Set certification receipt
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-desktop-release-set-certification-${{ github.run_id }}
           path: desktop-release-set-certification.json

@@ -153,12 +153,12 @@ jobs:
       matrix: ${{ steps.resolve.outputs.matrix }}
     steps:
       - name: Checkout exact App platform contract
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.app_ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -186,14 +186,14 @@ jobs:
     steps:
       - name: Checkout exact App control verifier
         if: ${{ inputs.channel == 'stable' }}
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.app_ref }}
           path: app-source
 
       - name: Download protected Stable operation control
         if: ${{ inputs.channel == 'stable' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.stable_operation_control_artifact }}
           path: stable-operation-control
@@ -291,7 +291,7 @@ jobs:
 
       - name: Upload consumed Stable operation control
         if: ${{ always() && inputs.channel == 'stable' && hashFiles('stable-operation-control/stable-operation-consumption.json') != '' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-stable-operation-consumption-${{ github.run_id }}
           path: stable-operation-control
@@ -300,7 +300,7 @@ jobs:
 
       - name: Upload Bundle admission evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-bundle-admission-${{ github.run_id }}
           path: release-failure-evidence
@@ -328,14 +328,14 @@ jobs:
       operation_deadline_at: ${{ steps.bundle.outputs.operation_deadline_at }}
     steps:
       - name: Checkout canonical App source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.app_ref }}
           fetch-depth: 0
 
       - name: Download and verify consumed Stable operation control
         if: ${{ inputs.channel == 'stable' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: opl-stable-operation-consumption-${{ github.run_id }}
           path: stable-operation-control
@@ -362,27 +362,27 @@ jobs:
 
       - name: Download same-run protected Stable admission
         if: ${{ inputs.channel == 'stable' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.stable_admission_artifact }}
           path: stable-admission-evidence
 
       - name: Checkout Shell source
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
           path: shells/aionui
 
       - name: Checkout Framework source and executor
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ inputs.framework_ref || 'main' }}
           path: framework-source
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -717,7 +717,7 @@ jobs:
 
       - name: Upload notes preparation receipt
         if: ${{ always() && hashFiles('notes-prepare-receipt.json') != '' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-notes-prepare-${{ github.run_id }}
           path: notes-prepare-receipt.json
@@ -781,7 +781,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload immutable Bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
           path: |
@@ -831,20 +831,20 @@ jobs:
       standard_identity_sha256: ${{ steps.seal.outputs.standard_identity_sha256 }}
     steps:
       - name: Checkout exact App identity binder
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.freeze.outputs.app_sha }}
           path: app-source
 
       - name: Download the one signed Standard build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: macos-build-arm64
           path: standard-assets
 
       - name: Download the exact Linux Desktop build
         if: ${{ inputs.channel != 'stable' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: linux-build-x64
           path: standard-assets
@@ -899,7 +899,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload one bound Standard artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-bound-${{ github.run_id }}
           path: bound-standard
@@ -935,39 +935,39 @@ jobs:
           fi
 
       - name: Checkout App product adapter
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.freeze.outputs.app_sha }}
           path: app-source
 
       - name: Checkout Framework checkpoint authority
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: gaofeng21cn/one-person-lab
           ref: ${{ needs.freeze.outputs.framework_sha }}
           path: framework-source
 
       - name: Download Bundle
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
           path: bundle
 
       - name: Download sealed Standard artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
           path: bound-standard
 
       - name: Download consumed Stable operation control for durable carrier binding
         if: ${{ inputs.channel == 'stable' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: opl-stable-operation-consumption-${{ github.run_id }}
           path: stable-operation-control
 
       - name: Setup Framework runtime
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: npm
@@ -1088,7 +1088,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload portable Standard checkpoint
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ env.OPL_STANDARD_CHECKPOINT_ARTIFACT }}
           path: |
@@ -1100,7 +1100,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Standard identity evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-identity-${{ github.run_id }}
           path: |
