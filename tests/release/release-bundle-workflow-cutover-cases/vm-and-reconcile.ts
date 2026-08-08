@@ -554,3 +554,16 @@ test('Full append admission binds the GitHub run id as a jq argument', () => {
   assert.match(admission, /run_id:\$run_id/);
   assert.doesNotMatch(admission, /run_id:\$GITHUB_RUN_ID/);
 });
+
+test('Full append admission uses runner-portable static checks', () => {
+  const full = readWorkflow('_release-full-addon.yml');
+  const admissionStart = full.indexOf('      - name: Validate locked App dependencies and Full control-plane bindings');
+  const admissionEnd = full.indexOf('      - name: Admit one-shot Full append operation', admissionStart);
+  assert.ok(admissionStart >= 0 && admissionEnd > admissionStart);
+  const admission = full.slice(admissionStart, admissionEnd);
+  assert.equal((admission.match(/grep -E -q/g) ?? []).length, 3);
+  assert.doesNotMatch(admission, /\brg\s+-q\b/);
+  assert.match(admission, /working-directory: release-executor/);
+  assert.match(admission, /--gui-root "\\\$GITHUB_WORKSPACE\/one-person-lab-app\/shells\/aionui"/);
+  assert.match(admission, /--out-dir "\\\$GITHUB_WORKSPACE\/one-person-lab-app\/dist\/opl-full-release"/);
+});

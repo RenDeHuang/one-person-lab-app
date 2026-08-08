@@ -111,9 +111,9 @@ jobs:
             throw new Error('Full append asset integrity policy is incomplete.');
           }
           NODE
-          rg -q 'working-directory: release-executor' .github/workflows/full-first-install-release.yml
-          rg -q -- '--gui-root "\$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui"' .github/workflows/full-first-install-release.yml
-          rg -q -- '--out-dir "\$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"' .github/workflows/full-first-install-release.yml
+          grep -E -q 'working-directory: release-executor' .github/workflows/full-first-install-release.yml
+          grep -E -q -- '--gui-root "\$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui"' .github/workflows/full-first-install-release.yml
+          grep -E -q -- '--out-dir "\$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"' .github/workflows/full-first-install-release.yml
 
       - name: Admit one-shot Full append operation
         shell: bash

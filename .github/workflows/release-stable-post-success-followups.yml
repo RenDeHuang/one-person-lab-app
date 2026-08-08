@@ -289,9 +289,12 @@ jobs:
 
           full_run_id=''
           for _ in $(seq 1 60); do
-            gh api --paginate --slurp \
+            if ! gh api --paginate --slurp \
               "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/runs?event=workflow_dispatch&branch=main&per_page=100" \
-              > after-runs.json
+              > after-runs.json; then
+              sleep 10
+              continue
+            fi
             matches="$(jq -c --arg title "$title_regex" --argjson prior "$prior_ids" '
               [.[]?.workflow_runs[]?
                 | select(.display_title | test($title))

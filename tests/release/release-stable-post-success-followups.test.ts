@@ -92,6 +92,7 @@ test('Full append starts only after Desktop append and binds exactly one new suc
   assert.match(source, /prior \| index\(\$id\)/);
   assert.equal((source.match(/actions\/workflows\/release-stable\.yml\/dispatches/g) ?? []).length, 1);
   assert.match(source, /operation:"append_full"/);
+  assert.match(source, /if ! gh api --paginate --slurp/);
   assert.match(source, /Full dispatch outcome is unknown; do not redispatch/);
   assert.match(source, /opl-release-full-published-\$\{full_run_id\}/);
   assert.doesNotMatch(source, /--rerun|rerun-failed|cancel\/|force/);
