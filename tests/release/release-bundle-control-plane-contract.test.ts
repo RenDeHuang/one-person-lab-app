@@ -325,6 +325,21 @@ test("publisher is digest-idempotent and unknown API results only reconcile", ()
   });
 });
 
+test("Full append asset policy is additive while retaining byte and basename integrity", () => {
+  const policy = release.full_first_install.published_addon.asset_policy;
+  assert.deepEqual(policy.required_assets, [
+    "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+    "opl-release-manifest.json",
+  ]);
+  assert.equal(policy.additional_assets_allowed, true);
+  assert.equal(policy.same_name_same_digest, "already_complete");
+  assert.equal(policy.same_name_different_digest, "reject_without_mutation");
+  assert.equal(policy.duplicate_name, "reject_without_mutation");
+  assert.equal(policy.metadata, "positive_size_and_sha256_digest_required");
+  assert.equal(policy.name, "basename_only_without_path_separator_control_character_or_empty_name");
+  assert.equal(policy.standard_assets_modified, false);
+});
+
 test("legacy App Bundle and broker/state-machine surfaces are read-only compatibility", () => {
   const legacy = control.legacy_compatibility;
   assert.equal(legacy.lifecycle, "retired_historical_receipt_compatibility");
@@ -405,10 +420,16 @@ test("old session, broker, operator, writer map, and owner fast path are absent"
 test("append_full is a checkpoint capability and not a Standard Latest requirement", () => {
   const full = release.full_first_install.published_addon;
   assert.deepEqual(release.full_first_install.production_macos_trust.unknown_submission_recovery, {
+    workflow: ".github/workflows/full-first-install-release.yml#full-finalizer",
+    checkpoint_schema: "opl_apple_notarization_recovery_checkpoint.v1",
+    artifact_name: "opl-full-apple-recovery-<version>-<run-id>",
+    runs_on_failure_only: true,
     exact_submitted_dmg_bytes_must_be_retained: true,
     required_identity_fields: ["submission_id", "sha256", "size_bytes"],
     resubmission_allowed_before_owner_authoritative_reconcile: false,
     finalize_only_may_consume_only_exact_submitted_bytes: true,
+    identity_incomplete_status: "diagnostic_only",
+    resume_policy: "same_submission_finalize_only_after_owner_authoritative_reconcile",
   });
   assert.equal(full.operation, "append_full");
   assert.equal(full.workflow, ".github/workflows/_release-full-addon.yml");
@@ -419,6 +440,11 @@ test("append_full is a checkpoint capability and not a Standard Latest requireme
   assert.equal(full.mode, "same_tag_mutable_standard_addon");
   assert.equal(full.successor_trigger.workflow, ".github/workflows/release-stable-post-success-followups.yml");
   assert.equal(full.successor_trigger.one_successor_per_standard_run, true);
+  assert.equal(
+    full.successor_trigger.operation_kind_source,
+    "opl-release-operation-admission-<source-run-id>/release-operation-admission.json",
+  );
+  assert.deepEqual(full.successor_trigger.non_applicable_operation_kinds, ["append_full"]);
   assert.equal(full.successor_trigger.workflow_dispatch_ref, "canonical_main");
   assert.equal(full.successor_trigger.executor_head_sha, "workflow_run_head_sha");
   assert.equal(full.framework_operation_receipt_schema, "opl_release_bundle_operation_receipt.v1");

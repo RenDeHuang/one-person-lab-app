@@ -1039,7 +1039,16 @@ function checkContract(options: Options, checks: Check[]) {
     fullAddon?.controller_command !== 'release:stable dispatch-full-addon' ||
     fullAddon?.runs_during_standard_admission !== false ||
     fullAddon?.may_block_standard_terminal !== false ||
-    fullAddon?.required_before_addon_dispatch !== true
+    fullAddon?.required_before_addon_dispatch !== true ||
+    fullAddon?.admission_dry_run?.executor_source !== 'canonical_workflow_sha' ||
+    fullAddon?.admission_dry_run?.dependency_check !== 'npm_ci_ignore_scripts_dry_run' ||
+    fullAddon?.admission_dry_run?.asset_policy_check !== 'full_addon_asset_policy_v1' ||
+    JSON.stringify(fullAddon?.admission_dry_run?.runtime_binding_check) !== JSON.stringify([
+      'release-executor',
+      'gui_root',
+      'out_dir',
+    ]) ||
+    fullAddon?.admission_dry_run?.public_mutation !== false
   ) {
     addCheck(checks, 'release_preflight_contract', 'failed', 'Release preflight must admit only Standard and defer Full-specific validation to dispatch-full-addon.');
     return;

@@ -84,6 +84,37 @@ jobs:
       contents: read
       actions: read
     steps:
+      - name: Checkout canonical App executor for admission dry-run
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.sha }}
+          path: app-source
+
+      - name: Validate locked App dependencies and Full control-plane bindings
+        working-directory: app-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node --version
+          npm ci --ignore-scripts --dry-run >/dev/null
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const contract = JSON.parse(fs.readFileSync('contracts/app-release-channel.json', 'utf8'));
+          const policy = contract.full_first_install?.published_addon?.asset_policy;
+          if (!policy || policy.additional_assets_allowed !== true) {
+            throw new Error('Full append admission requires the additive asset policy.');
+          }
+          if (policy.same_name_different_digest !== 'reject_without_mutation'
+            || policy.duplicate_name !== 'reject_without_mutation'
+            || policy.standard_assets_modified !== false) {
+            throw new Error('Full append asset integrity policy is incomplete.');
+          }
+          NODE
+          rg -q 'working-directory: release-executor' .github/workflows/full-first-install-release.yml
+          rg -q -- '--gui-root "\$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui"' .github/workflows/full-first-install-release.yml
+          rg -q -- '--out-dir "\$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"' .github/workflows/full-first-install-release.yml
+
       - name: Admit one-shot Full append operation
         shell: bash
         run: |

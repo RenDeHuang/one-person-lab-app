@@ -1940,6 +1940,71 @@ jobs:
             --submitted-candidate-output "dist/opl-full-release/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.submitted-for-notarization.dmg" \
             --operation-deadline-at '${{ inputs.operation_deadline_at }}'
 
+      - name: Seal Apple submission recovery checkpoint before diagnostics
+        if: ${{ failure() }}
+        working-directory: one-person-lab-app
+        env:
+          OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir=dist/opl-full-release
+          recovery_dir=full-apple-recovery
+          rm -rf "$recovery_dir"
+          mkdir -p "$recovery_dir"
+          receipt="$output_dir/full-apple-notarization-receipt.json"
+          candidate="$output_dir/One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.submitted-for-notarization.dmg"
+          submission_id=''
+          receipt_candidate_sha=''
+          receipt_candidate_size=0
+          if [ -f "$receipt" ] && [ ! -L "$receipt" ]; then
+            cp "$receipt" "$recovery_dir/full-apple-notarization-receipt.json"
+            submission_id="$(jq -r '.notarization.id // empty' "$receipt")"
+            if ! [[ "$submission_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+              submission_id=''
+            fi
+            receipt_candidate_sha="$(jq -r '.submitted_candidate.sha256 // empty' "$receipt")"
+            receipt_candidate_size="$(jq -r '.submitted_candidate.size_bytes // 0' "$receipt")"
+          else
+            jq -n --arg artifact "One-Person-Lab-Full-${OPL_RELEASE_VERSION}-mac-arm64.dmg" \
+              '{schema:"opl_apple_notarization_recovery_unavailable.v1",status:"unavailable",artifact:$artifact,reason:"notarization receipt was not written"}' \
+              > "$recovery_dir/full-apple-notarization-receipt.json"
+          fi
+          if [ -f "$candidate" ] && [ ! -L "$candidate" ]; then
+            cp "$candidate" "$recovery_dir/"
+            candidate_sha="sha256:$(shasum -a 256 "$candidate" | awk '{print $1}')"
+            candidate_size="$(wc -c < "$candidate" | tr -d ' ')"
+            if [ -n "$submission_id" ] && [ "$candidate_sha" = "$receipt_candidate_sha" ] && [ "$candidate_size" = "$receipt_candidate_size" ]; then
+              checkpoint_status=recoverable
+              candidate_status=retained_for_reconcile
+            else
+              checkpoint_status=diagnostic_only
+              candidate_status=unbound_diagnostic
+            fi
+          else
+            checkpoint_status=diagnostic_only
+            candidate_status=not_needed_or_unavailable
+            candidate_sha=''
+            candidate_size=0
+          fi
+          jq -n \
+            --arg status "$checkpoint_status" --arg submission_id "$submission_id" \
+            --arg receipt_sha "sha256:$(shasum -a 256 "$recovery_dir/full-apple-notarization-receipt.json" | awk '{print $1}')" \
+            --arg candidate_status "$candidate_status" --arg candidate_sha "$candidate_sha" \
+            --argjson candidate_size "$candidate_size" --arg run "$GITHUB_RUN_ID" \
+            '{schema:"opl_apple_notarization_recovery_checkpoint.v1",status:$status,source_run_id:$run,submission_id:(if $submission_id == "" then null else $submission_id end),receipt_sha256:$receipt_sha,submitted_candidate:{status:$candidate_status,sha256:(if $candidate_sha == "" then null else $candidate_sha end),size_bytes:(if $candidate_size == 0 then null else $candidate_size end)},resume_policy:(if $status == "recoverable" then "same_submission_finalize_only_after_owner_authoritative_reconcile" else "no_finalize_or_resubmission_authorized" end)}' \
+            > "$recovery_dir/recovery-checkpoint.json"
+
+      - name: Upload sealed Apple submission recovery checkpoint
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: opl-full-apple-recovery-${{ inputs.opl_version }}-${{ github.run_id }}
+          path: one-person-lab-app/full-apple-recovery
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
       - name: Verify Intel-finalized Full distribution trust and bind manifest
         env:
           EXPECTED_TEAM_ID: ${{ secrets.TEAM_ID }}

@@ -52,6 +52,9 @@ const packageIds = [
 ] as const;
 const aiNotesMarker = '<!-- OPL_RELEASE_NOTES_GENERATOR:online-ai -->';
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
+// Additional release assets are observational; only path traversal and control
+// characters need rejection before their metadata is carried into receipts.
+const releaseAssetNamePattern = /^(?!\.{1,2}$)[^\\/\u0000-\u001f\u007f]+$/u;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
 const staleIndependentFullGuidance =
   'Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.';
@@ -931,6 +934,9 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
         // own two names, so well-formed additive names remain observational.
         if (!allowedNameSet.has(name) && track !== 'full') {
           throw new Error(`Remote ${track} inspection contains unknown asset ${name || '<missing>'}.`);
+        }
+        if (!releaseAssetNamePattern.test(name)) {
+          throw new Error(`Remote ${track} inspection contains an unsafe asset basename ${name || '<missing>'}.`);
         }
         if (remoteAssets.has(name)) {
           throw new Error(`Remote ${track} inspection contains duplicate asset ${name}.`);
@@ -2272,6 +2278,9 @@ function assertSameTagFullAssetPolicy(
   for (const asset of inspection.assets as JsonRecord[]) {
     const name = String(asset.name ?? '');
     if (!name || remote.has(name)) throw new Error(`Remote Release contains duplicate asset name ${name || '<missing>'}.`);
+    if (!releaseAssetNamePattern.test(name)) {
+      throw new Error(`Remote Release asset ${name || '<missing>'} has an unsafe basename.`);
+    }
     if (
       !Number.isSafeInteger(asset.size_bytes)
       || Number(asset.size_bytes) <= 0

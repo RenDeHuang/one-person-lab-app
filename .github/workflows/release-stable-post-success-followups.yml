@@ -21,15 +21,14 @@ concurrency:
 
 jobs:
   admit:
-    if: >-
-      ${{ github.event.workflow_run.conclusion == 'success'
-        && (startsWith(github.event.workflow_run.display_title, 'OPL Stable standard ')
-          || startsWith(github.event.workflow_run.display_title, 'OPL Stable resume_standard ')) }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      source_run_id: ${{ steps.bind.outputs.source_run_id }}
-      source_artifact: ${{ steps.bind.outputs.source_artifact }}
+      source_run_id: ${{ steps.source.outputs.source_run_id }}
+      operation_kind: ${{ steps.source.outputs.operation_kind }}
+      applicable: ${{ steps.source.outputs.applicable }}
+      source_artifact: ${{ steps.source.outputs.source_artifact }}
       app_ref: ${{ steps.bind.outputs.app_ref }}
       shell_ref: ${{ steps.bind.outputs.shell_ref }}
       framework_ref: ${{ steps.bind.outputs.framework_ref }}
@@ -65,19 +64,27 @@ jobs:
             and .status == "completed"
             and .conclusion == "success"
           ' source-run.json >/dev/null
-          title="$(jq -er .display_title source-run.json)"
-          case "$title" in
-            "OPL Stable resume_standard $SOURCE_RUN_ID") artifact="opl-release-standard-operation-checkpoint-$SOURCE_RUN_ID" ;;
-            OPL\ Stable\ standard\ *) artifact="opl-release-standard-checkpoint-$SOURCE_RUN_ID" ;;
-            *) echo '::error::Stable source title cannot select one checkpoint.'; exit 1 ;;
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name "opl-release-operation-admission-$SOURCE_RUN_ID" --dir operation-admission
+          mapfile -t admissions < <(find operation-admission -type f -name release-operation-admission.json -print | LC_ALL=C sort)
+          test "${#admissions[@]}" = 1
+          operation_kind="$(jq -er '.operation | strings' "${admissions[0]}")"
+          case "$operation_kind" in
+            standard) artifact="opl-release-standard-checkpoint-$SOURCE_RUN_ID"; applicable=true ;;
+            resume_standard) artifact="opl-release-standard-operation-checkpoint-$SOURCE_RUN_ID"; applicable=true ;;
+            append_full) artifact=''; applicable=false ;;
+            *) echo "::error::Unsupported structured Stable source operation: $operation_kind"; exit 1 ;;
           esac
           {
             echo "source_run_id=$SOURCE_RUN_ID"
             echo "source_head_sha=$SOURCE_HEAD_SHA"
             echo "source_artifact=$artifact"
+            echo "operation_kind=$operation_kind"
+            echo "applicable=$applicable"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download exact Standard checkpoint
+        if: ${{ steps.source.outputs.applicable == 'true' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ steps.source.outputs.source_artifact }}
@@ -87,6 +94,7 @@ jobs:
 
       - name: Bind one mutable Stable Release Set
         id: bind
+        if: ${{ steps.source.outputs.applicable == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ steps.source.outputs.source_run_id }}
@@ -136,6 +144,8 @@ jobs:
           {
             echo "source_run_id=$SOURCE_RUN_ID"
             echo "source_artifact=$SOURCE_ARTIFACT"
+            echo "operation_kind=${{ steps.source.outputs.operation_kind }}"
+            echo "applicable=true"
             echo "app_ref=$app"
             echo "shell_ref=$shell"
             echo "framework_ref=$framework"
@@ -148,6 +158,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   build-desktop-platforms:
+    if: ${{ needs.admit.outputs.applicable == 'true' }}
     needs: [admit]
     uses: ./.github/workflows/build-manual.yml
     with:
@@ -164,6 +175,7 @@ jobs:
     secrets: inherit
 
   append-desktop-platforms:
+    if: ${{ needs.admit.outputs.applicable == 'true' }}
     needs: [admit, build-desktop-platforms]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -244,6 +256,7 @@ jobs:
           retention-days: 30
 
   dispatch-full:
+    if: ${{ needs.admit.outputs.applicable == 'true' }}
     needs: [admit, append-desktop-platforms]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -329,11 +342,13 @@ jobs:
         run: |
           jq -n \
             --arg source_run_id '${{ needs.admit.outputs.source_run_id }}' \
+            --arg operation_kind '${{ needs.admit.outputs.operation_kind }}' \
+            --arg applicable '${{ needs.admit.outputs.applicable }}' \
             --arg release_tag '${{ needs.admit.outputs.release_tag }}' \
             --arg desktop '${{ needs.append-desktop-platforms.result }}' \
             --arg full '${{ needs.dispatch-full.result }}' \
             --arg full_run_id '${{ needs.dispatch-full.outputs.full_run_id }}' \
-            '{schema:"opl_app_stable_desktop_release_set_followup.v1",source_run_id:$source_run_id,release_tag:$release_tag,desktop_platform_append:$desktop,full_append:$full,full_run_id:$full_run_id,remaining:(if $desktop == "success" and $full == "success" and ($full_run_id | test("^[1-9][0-9]*$")) then [] else ["followup_failure"] end)}' \
+            '{schema:"opl_app_stable_desktop_release_set_followup.v2",source_run_id:$source_run_id,operation_kind:$operation_kind,applicable:($applicable == "true"),release_tag:$release_tag,desktop_platform_append:$desktop,full_append:$full,full_run_id:$full_run_id,remaining:(if $applicable != "true" then [] elif $desktop == "success" and $full == "success" and ($full_run_id | test("^[1-9][0-9]*$")) then [] else ["followup_failure"] end)}' \
             > stable-release-set-followup.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

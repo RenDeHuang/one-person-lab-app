@@ -1762,7 +1762,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "source_bundle_digest:",
       "append-stable-desktop-assets.ts",
       "stable-desktop-append.json",
-      "remaining:(if $desktop == \"success\"",
+      "remaining:(if $applicable != \"true\" then [] elif $desktop == \"success\"",
     ],
     forbidden: [
       "continue-on-error:",

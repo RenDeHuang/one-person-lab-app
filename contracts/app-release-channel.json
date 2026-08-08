@@ -3038,10 +3038,16 @@
       "mounted_app_gatekeeper_required": true,
       "local_authorization_fallback_allowed": false,
       "unknown_submission_recovery": {
+        "workflow": ".github/workflows/full-first-install-release.yml#full-finalizer",
+        "checkpoint_schema": "opl_apple_notarization_recovery_checkpoint.v1",
+        "artifact_name": "opl-full-apple-recovery-<version>-<run-id>",
+        "runs_on_failure_only": true,
         "exact_submitted_dmg_bytes_must_be_retained": true,
         "required_identity_fields": ["submission_id", "sha256", "size_bytes"],
         "resubmission_allowed_before_owner_authoritative_reconcile": false,
-        "finalize_only_may_consume_only_exact_submitted_bytes": true
+        "finalize_only_may_consume_only_exact_submitted_bytes": true,
+        "identity_incomplete_status": "diagnostic_only",
+        "resume_policy": "same_submission_finalize_only_after_owner_authoritative_reconcile"
       },
       "required_embedded_evidence": [
         "opl-release-manifest.json#evidence.gatekeeper_launch_policy",
@@ -3385,6 +3391,10 @@
         "workflow": ".github/workflows/release-stable-post-success-followups.yml",
         "trigger": "successful_standard_workflow_run",
         "one_successor_per_standard_run": true,
+        "operation_kind_source": "opl-release-operation-admission-<source-run-id>/release-operation-admission.json",
+        "non_applicable_operation_kinds": [
+          "append_full"
+        ],
         "workflow_dispatch_ref": "canonical_main",
         "executor_head_sha": "workflow_run_head_sha"
       },
@@ -3423,12 +3433,21 @@
         "base_assets_overwrite_or_delete_allowed": false,
         "target_immutable_required": false
       },
-      "allowed_assets": [
-        "One-Person-Lab-Full-<version>-mac-arm64.dmg",
-        "opl-release-manifest.json"
-      ],
+      "asset_policy": {
+        "required_assets": [
+          "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+          "opl-release-manifest.json"
+        ],
+        "additional_assets_allowed": true,
+        "same_name_same_digest": "already_complete",
+        "same_name_different_digest": "reject_without_mutation",
+        "duplicate_name": "reject_without_mutation",
+        "metadata": "positive_size_and_sha256_digest_required",
+        "name": "basename_only_without_path_separator_control_character_or_empty_name",
+        "standard_assets_modified": false
+      },
       "same_name_same_digest": "already_complete",
-      "same_name_different_digest": "fail_closed_require_new_bundle_or_version",
+      "same_name_different_digest": "reject_without_mutation",
       "standard_assets_modified": false,
       "updater_metadata_modified": false,
       "release_notes_modified": false,
@@ -3612,7 +3631,18 @@
       "entrypoint": ".github/workflows/release-stable.yml",
       "runs_during_standard_admission": false,
       "may_block_standard_terminal": false,
-      "required_before_append_full_operation": true
+      "required_before_append_full_operation": true,
+      "admission_dry_run": {
+        "executor_source": "canonical_workflow_sha",
+        "dependency_check": "npm_ci_ignore_scripts_dry_run",
+        "asset_policy_check": "full_addon_asset_policy_v1",
+        "runtime_binding_check": [
+          "release-executor",
+          "gui_root",
+          "out_dir"
+        ],
+        "public_mutation": false
+      }
     },
     "standard_admission_manifest": {
       "schema": "opl_stable_release_admission_manifest.v1",

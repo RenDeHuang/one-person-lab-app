@@ -564,6 +564,24 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(finalizer.run), /--submitted-candidate-output/);
   assert.match(String(finalizer.run), /--operation-deadline-at/);
 
+  const recoverySeal = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Seal Apple submission recovery checkpoint before diagnostics',
+  );
+  const recoveryUpload = intelFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload sealed Apple submission recovery checkpoint',
+  );
+  assert.equal(recoverySeal.if, '${{ failure() }}');
+  assert.equal(recoveryUpload.if, '${{ failure() }}');
+  assert.match(String(recoverySeal.run), /opl_apple_notarization_recovery_checkpoint\.v1/);
+  assert.match(String(recoverySeal.run), /submission_id/);
+  assert.match(String(recoverySeal.run), /retained_for_reconcile/);
+  assert.match(String(recoverySeal.run), /same_submission_finalize_only_after_owner_authoritative_reconcile/);
+  assert.match(String(recoveryUpload.with.name), /opl-full-apple-recovery/);
+  assert.equal(recoveryUpload.with['if-no-files-found'], 'error');
+  assert.equal(recoveryUpload.with['compression-level'], 0);
+  assert.ok(intelFinalizer.steps.indexOf(finalizer) < intelFinalizer.steps.indexOf(recoverySeal));
+  assert.ok(intelFinalizer.steps.indexOf(recoverySeal) < intelFinalizer.steps.indexOf(recoveryUpload));
+
   const notarizationEvidence = intelFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload Intel Full notarization terminal evidence',
   );

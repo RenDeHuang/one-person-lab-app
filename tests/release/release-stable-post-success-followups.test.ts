@@ -28,8 +28,10 @@ test('Stable success has one Desktop Release Set follow-up', () => {
 
 test('admission binds one published mutable Stable Release and the frozen Desktop selection', () => {
   const admit = workflow.jobs.admit;
-  assert.match(admit.if.replace(/\s+/g, ' '), /OPL Stable standard/);
-  assert.match(admit.if.replace(/\s+/g, ' '), /OPL Stable resume_standard/);
+  assert.match(admit.if.replace(/\s+/g, ' '), /workflow_run\.conclusion == 'success'/);
+  assert.match(source, /opl-release-operation-admission-\$SOURCE_RUN_ID/);
+  assert.match(source, /operation_kind=\$operation_kind/);
+  assert.match(source, /applicable=\$applicable/);
   assert.match(source, /\.path == "\.github\/workflows\/release-stable\.yml"/);
   assert.match(source, /\.event == "workflow_dispatch"/);
   assert.match(source, /\.run_attempt == 1/);
@@ -43,6 +45,7 @@ test('admission binds one published mutable Stable Release and the frozen Deskto
 
 test('additional Desktop builds are build-only and authority-bound', () => {
   const build = workflow.jobs['build-desktop-platforms'];
+  assert.equal(build.if, "${{ needs.admit.outputs.applicable == 'true' }}");
   assert.equal(build.uses, './.github/workflows/build-manual.yml');
   assert.equal(build.with.invocation_mode, 'stable_release_set_build');
   assert.equal(build.with.platform_policy, 'stable_desktop_additional');
@@ -52,6 +55,7 @@ test('additional Desktop builds are build-only and authority-bound', () => {
 
 test('Desktop assets append to the same Release through one CAS controller', () => {
   const append = workflow.jobs['append-desktop-platforms'];
+  assert.equal(append.if, "${{ needs.admit.outputs.applicable == 'true' }}");
   assert.deepEqual(append.needs, ['admit', 'build-desktop-platforms']);
   assert.equal(append.environment, 'release-stable');
   assert.deepEqual(append.permissions, { contents: 'write', actions: 'read' });
@@ -81,6 +85,7 @@ test('Desktop assets append to the same Release through one CAS controller', () 
 
 test('Full append starts only after Desktop append and binds exactly one new successful run', () => {
   const full = workflow.jobs['dispatch-full'];
+  assert.equal(full.if, "${{ needs.admit.outputs.applicable == 'true' }}");
   assert.deepEqual(full.needs, ['admit', 'append-desktop-platforms']);
   assert.deepEqual(full.permissions, { contents: 'read', actions: 'write' });
   assert.match(source, /prior_ids=/);
@@ -101,7 +106,9 @@ test('follow-up receipt is terminal only after Desktop and Full completion', () 
     'append-desktop-platforms',
     'dispatch-full',
   ]);
-  assert.match(source, /opl_app_stable_desktop_release_set_followup\.v1/);
+  assert.match(source, /opl_app_stable_desktop_release_set_followup\.v2/);
+  assert.match(source, /operation_kind:\$operation_kind/);
+  assert.match(source, /applicable:\(\$applicable == "true"\)/);
   assert.match(source, /desktop_platform_append:\$desktop/);
   assert.match(source, /full_append:\$full/);
   assert.match(source, /full_run_id:\$full_run_id/);

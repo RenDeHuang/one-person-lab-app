@@ -39,7 +39,8 @@ test('non-Desktop Stable operations complete certification as not applicable', (
   assert.equal(resolve.outputs.source_run_id, '${{ steps.authority.outputs.source_run_id }}');
   assert.match(source, /source_run_not_successful/);
   assert.match(source, /source_operation_append_full/);
-  assert.match(source, /source_operation_not_desktop_release_set/);
+  assert.match(source, /opl-release-operation-admission-\$source_run_id/);
+  assert.doesNotMatch(source, /display_title \| startswith\("OPL Stable standard/);
   assert.match(source, /status:\(if \$applicable == "true" then "complete" else "not_applicable" end\)/);
 
   for (const stepName of [

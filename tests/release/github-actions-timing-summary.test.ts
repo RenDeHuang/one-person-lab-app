@@ -95,6 +95,8 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
     runJsonPath,
     '--agent-wall-time',
     '5h45m51s',
+    '--operation-kind',
+    'append_full',
     '--output',
     outputPath,
     '--markdown',
@@ -111,6 +113,9 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
   assert.equal(summary.timing.unaccounted_operator_seconds, 3075);
   assert.equal(summary.timing.failed_or_cancelled_run_count, 2);
   assert.equal(summary.timing.failed_or_cancelled_run_wall_seconds, 2234);
+  assert.equal(summary.operation_kind, 'append_full');
+  assert.equal(summary.source.operation_kind, 'append_full');
+  assert.equal(summary.timing.recovery_gap_seconds, 12574);
   assert.deepEqual(summary.conclusion_counts, {
     cancelled: 1,
     failure: 1,
@@ -120,6 +125,7 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
   assert.equal(summary.runs[0].queue_or_admission_seconds, 21);
   assert.equal(summary.top_jobs[0].name, 'Build Full first-install assets / Build App-owned Full first-install DMG');
   assert.equal(summary.top_steps[0].name, 'Build Full first-install package');
+  assert.equal(summary.runs[1].stage_durations_seconds.build, 1930);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Failed\/cancelled run tax: 37m14s across 2 run/);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Unaccounted operator time outside Actions span: 51m15s/);
 });

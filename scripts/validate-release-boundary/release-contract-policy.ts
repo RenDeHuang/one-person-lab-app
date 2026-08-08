@@ -465,6 +465,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
   const standardDraft = releaseContract.standard_updater?.draft_refresh;
   const fullDraft = releaseContract.full_first_install?.draft_refresh;
   const fullAddon = releaseContract.full_first_install?.published_addon;
+  const fullAddonAssetPolicy = fullAddon?.asset_policy;
   const fullNotarizationRecovery = releaseContract.full_first_install?.production_macos_trust
     ?.unknown_submission_recovery;
   const immutabilityWindow = releaseContract.release_bundle_control_plane?.publication?.stable
@@ -478,6 +479,10 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullDraft?.allowed !== false ||
     fullDraft?.published_release_mutation_allowed !== false ||
     fullDraft?.mode !== 'retired_independent_full_release_draft_history_only' ||
+    fullNotarizationRecovery?.workflow !== '.github/workflows/full-first-install-release.yml#full-finalizer' ||
+    fullNotarizationRecovery?.checkpoint_schema !== 'opl_apple_notarization_recovery_checkpoint.v1' ||
+    fullNotarizationRecovery?.artifact_name !== 'opl-full-apple-recovery-<version>-<run-id>' ||
+    fullNotarizationRecovery?.runs_on_failure_only !== true ||
     fullNotarizationRecovery?.exact_submitted_dmg_bytes_must_be_retained !== true ||
     JSON.stringify(fullNotarizationRecovery?.required_identity_fields) !== JSON.stringify([
       'submission_id',
@@ -486,6 +491,9 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     ]) ||
     fullNotarizationRecovery?.resubmission_allowed_before_owner_authoritative_reconcile !== false ||
     fullNotarizationRecovery?.finalize_only_may_consume_only_exact_submitted_bytes !== true ||
+    fullNotarizationRecovery?.identity_incomplete_status !== 'diagnostic_only' ||
+    fullNotarizationRecovery?.resume_policy !==
+      'same_submission_finalize_only_after_owner_authoritative_reconcile' ||
     immutabilityWindow?.owner !== 'release-stable protected environment unique Release owner' ||
     immutabilityWindow?.token_secret !== 'OPL_GITHUB_RELEASE_ADMIN_TOKEN' ||
     immutabilityWindow?.receipt_schema !== 'opl_app_github_immutability_setting_receipt.v1' ||
@@ -506,6 +514,9 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.successor_trigger?.workflow !== '.github/workflows/release-stable-post-success-followups.yml' ||
     fullAddon?.successor_trigger?.trigger !== 'successful_standard_workflow_run' ||
     fullAddon?.successor_trigger?.one_successor_per_standard_run !== true ||
+    fullAddon?.successor_trigger?.operation_kind_source !==
+      'opl-release-operation-admission-<source-run-id>/release-operation-admission.json' ||
+    !sameStringSet(fullAddon?.successor_trigger?.non_applicable_operation_kinds, ['append_full']) ||
     fullAddon?.successor_trigger?.workflow_dispatch_ref !== 'canonical_main' ||
     fullAddon?.successor_trigger?.executor_head_sha !== 'workflow_run_head_sha' ||
     fullAddon?.framework_operation_receipt_schema !== 'opl_release_bundle_operation_receipt.v1' ||
@@ -524,12 +535,19 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullAddon?.carrier_identity?.release_notes_mutation_allowed !== false ||
     fullAddon?.carrier_identity?.publication_sequence !==
       'inspect_exact_mutable_standard_cas_upload_missing_full_assets_readback' ||
-    !sameStringSet(fullAddon?.allowed_assets, [
+    !sameStringSet(fullAddonAssetPolicy?.required_assets, [
       'One-Person-Lab-Full-<version>-mac-arm64.dmg',
       'opl-release-manifest.json',
     ]) ||
+    fullAddonAssetPolicy?.additional_assets_allowed !== true ||
+    fullAddonAssetPolicy?.same_name_same_digest !== 'already_complete' ||
+    fullAddonAssetPolicy?.same_name_different_digest !== 'reject_without_mutation' ||
+    fullAddonAssetPolicy?.duplicate_name !== 'reject_without_mutation' ||
+    fullAddonAssetPolicy?.metadata !== 'positive_size_and_sha256_digest_required' ||
+    fullAddonAssetPolicy?.name !== 'basename_only_without_path_separator_control_character_or_empty_name' ||
+    fullAddonAssetPolicy?.standard_assets_modified !== false ||
     fullAddon?.same_name_same_digest !== 'already_complete' ||
-    fullAddon?.same_name_different_digest !== 'fail_closed_require_new_bundle_or_version' ||
+    fullAddon?.same_name_different_digest !== 'reject_without_mutation' ||
     fullAddon?.standard_assets_modified !== false ||
     fullAddon?.updater_metadata_modified !== false ||
     fullAddon?.release_notes_modified !== false ||
@@ -1315,7 +1333,16 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     !preflight.rule.includes('App/Shell/Framework source refs remain provenance only') ||
     !preflight.rule.includes('append_full remains independently admissible') ||
     preflight?.full_addon_preflight?.operation !== 'append_full' ||
-    preflight?.full_addon_preflight?.required_before_append_full_operation !== true
+    preflight?.full_addon_preflight?.required_before_append_full_operation !== true ||
+    preflight?.full_addon_preflight?.admission_dry_run?.executor_source !== 'canonical_workflow_sha' ||
+    preflight?.full_addon_preflight?.admission_dry_run?.dependency_check !== 'npm_ci_ignore_scripts_dry_run' ||
+    preflight?.full_addon_preflight?.admission_dry_run?.asset_policy_check !== 'full_addon_asset_policy_v1' ||
+    !sameStringSet(preflight?.full_addon_preflight?.admission_dry_run?.runtime_binding_check, [
+      'release-executor',
+      'gui_root',
+      'out_dir',
+    ]) ||
+    preflight?.full_addon_preflight?.admission_dry_run?.public_mutation !== false
   ) {
     console.error('FAIL release_source_gate_contract: product preflight must remain non-authoritative and keep append_full independent');
     failures += 1;

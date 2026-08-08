@@ -972,7 +972,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     '.path == ".github/workflows/release-stable-post-success-followups.yml"',
     'opl-stable-release-set-followup-${source_run_id}',
     'opl-stable-desktop-append-${source_run_id}',
-    'opl_app_stable_desktop_release_set_followup.v1',
+    'opl_app_stable_desktop_release_set_followup.v2',
     'opl_app_stable_desktop_asset_append.v1',
     'opl_homebrew_full_follower_handoff.v1',
     'opl_app_desktop_release_set_manifest.v1',

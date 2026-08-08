@@ -22,6 +22,7 @@ type Options = {
   markdown: string;
   top: number;
   agentWallTime: string;
+  operationKind: string;
 };
 
 const defaultRepo = 'gaofeng21cn/one-person-lab-app';
@@ -36,6 +37,7 @@ function defaultOptions(): Options {
     markdown: '',
     top: 12,
     agentWallTime: '',
+    operationKind: '',
   };
 }
 
@@ -52,6 +54,7 @@ Options:
   --markdown <path>         Write Markdown summary.
   --top <n>                 Number of slow jobs/steps to include. Default: 12.
   --agent-wall-time <dur>   Operator-loop duration, for example 2h6m43s.
+  --operation-kind <kind>   Structured operation label to carry into the summary (standard|resume_standard|append_full|certification).
   --help                    Show this message.
 `);
 }
@@ -69,6 +72,7 @@ function parseArgs(argv: string[]): Options {
       markdown: { type: 'string' },
       top: { type: 'string' },
       'agent-wall-time': { type: 'string' },
+      'operation-kind': { type: 'string' },
     },
   });
 
@@ -83,6 +87,7 @@ function parseArgs(argv: string[]): Options {
   parsed.output = values.output ? path.resolve(values.output) : parsed.output;
   parsed.markdown = values.markdown ? path.resolve(values.markdown) : parsed.markdown;
   parsed.agentWallTime = values['agent-wall-time'] ?? parsed.agentWallTime;
+  parsed.operationKind = values['operation-kind'] ?? parsed.operationKind;
   if (values.top) parsed.top = parsePositiveInteger(values.top, '--top');
 
   if (parsed.runIds.length === 0 && parsed.runJsonPaths.length === 0) {
@@ -263,10 +268,25 @@ function buildRunSummaries(runs: JsonRecord[], top: number) {
     const lastJobCompletedAt = latestIso(jobs.map((job) => job.completedAt ?? job.completed_at));
     const createdMs = parseDateMs(createdAt);
     const firstJobMs = parseDateMs(firstJobStartedAt);
+    const phaseDurations = Object.fromEntries([
+      ['admission', /admission|admit|preflight/i],
+      ['build', /build|package|compile|finalizer/i],
+      ['apple_wait', /notar|apple|staple/i],
+      ['publication', /publish|upload|release|homebrew|latest/i],
+      ['certification', /certif|vm smoke|first-run/i],
+    ].map(([phase, pattern]) => {
+      const phaseJobs = jobs.filter((job) => pattern.test(jobName(job)));
+      const started = earliestIso(phaseJobs.map((job) => job.startedAt ?? job.started_at));
+      const completed = latestIso(phaseJobs.map((job) => job.completedAt ?? job.completed_at));
+      return [phase, started && completed ? secondsBetween(started, completed) : null];
+    }));
     return {
       id: runId(run),
       workflow_name: stringField(run, 'workflowName') ?? stringField(run, 'workflow_name'),
       display_title: stringField(run, 'displayTitle') ?? stringField(run, 'display_title'),
+      operation_kind: stringField(run, 'operationKind')
+        ?? stringField(run, 'operation_kind')
+        ?? inferOperationKind(stringField(run, 'displayTitle') ?? stringField(run, 'display_title')),
       status: stringField(run, 'status'),
       conclusion: stringField(run, 'conclusion'),
       url: stringField(run, 'url'),
@@ -278,6 +298,7 @@ function buildRunSummaries(runs: JsonRecord[], top: number) {
         ? Math.round((firstJobMs - createdMs) / 1000)
         : null,
       job_span_seconds: firstJobStartedAt && lastJobCompletedAt ? secondsBetween(firstJobStartedAt, lastJobCompletedAt) : null,
+      stage_durations_seconds: phaseDurations,
       slowest_jobs: jobs
         .map((job) => ({
           name: jobName(job),
@@ -291,6 +312,15 @@ function buildRunSummaries(runs: JsonRecord[], top: number) {
         .slice(0, top),
     };
   });
+}
+
+function inferOperationKind(title: string | null): string | null {
+  if (!title) return null;
+  if (/append_full|full append/i.test(title)) return 'append_full';
+  if (/resume_standard/i.test(title)) return 'resume_standard';
+  if (/certif/i.test(title)) return 'certification';
+  if (/standard/i.test(title)) return 'standard';
+  return null;
 }
 
 function buildTopSteps(runs: JsonRecord[], top: number) {
@@ -344,6 +374,15 @@ function buildSummary(options: Options, runs: JsonRecord[]) {
     counts[value] = (counts[value] ?? 0) + 1;
     return counts;
   }, {});
+  const recoveryGaps = runs.slice(1).map((run, index) => ({
+    from_run_id: runId(runs[index]!),
+    to_run_id: runId(run),
+    seconds: secondsBetween(
+      runs[index]!.updatedAt ?? runs[index]!.updated_at ?? runs[index]!.completedAt ?? runs[index]!.completed_at,
+      run.createdAt ?? run.created_at,
+    ),
+  }));
+  const explicitOperationKind = options.operationKind.trim() || null;
   return {
     schema: 'opl_github_actions_timing_summary.v1',
     repo: options.repo,
@@ -351,6 +390,7 @@ function buildSummary(options: Options, runs: JsonRecord[]) {
     source: {
       run_ids: runs.map(runId),
       run_json_paths: options.runJsonPaths,
+      operation_kind: explicitOperationKind,
       gh_command: 'gh run view <run-id> --json databaseId,status,conclusion,createdAt,updatedAt,startedAt,headSha,headBranch,workflowName,displayTitle,event,url,jobs',
     },
     timing: {
@@ -367,8 +407,12 @@ function buildSummary(options: Options, runs: JsonRecord[]) {
       unaccounted_operator_seconds: agentWallTimeSeconds !== null && totalSpanSeconds !== null && agentWallTimeSeconds >= totalSpanSeconds
         ? agentWallTimeSeconds - totalSpanSeconds
         : null,
+      recovery_gap_seconds: sumDurations(recoveryGaps.map((gap) => gap.seconds)),
+      recovery_gaps: recoveryGaps,
     },
     conclusion_counts: conclusionCounts,
+    operation_kind: explicitOperationKind
+      ?? ([...new Set(runSummaries.map((run) => run.operation_kind).filter(Boolean))].join(',') || null),
     runs: runSummaries,
     top_jobs: buildTopJobs(runs, options.top),
     top_steps: buildTopSteps(runs, options.top),
@@ -395,8 +439,10 @@ function buildMarkdown(summary: ReturnType<typeof buildSummary>): string {
     '',
     `- Repo: \`${summary.repo}\``,
     `- Runs: ${summary.source.run_ids.map((id) => `\`${id}\``).join(', ')}`,
+    `- Operation kind: ${summary.operation_kind ?? 'n/a'}`,
     `- Total span: ${formatDuration(timing.total_span_seconds)}`,
     `- Accumulated run wall time: ${formatDuration(timing.accumulated_run_wall_seconds)}`,
+    `- Recovery gaps between runs: ${formatDuration(timing.recovery_gap_seconds)}`,
     `- Failed/cancelled run tax: ${formatDuration(timing.failed_or_cancelled_run_wall_seconds)} across ${timing.failed_or_cancelled_run_count} run(s)`,
   ];
   if (timing.agent_wall_time_seconds !== null) {
@@ -411,6 +457,7 @@ function buildMarkdown(summary: ReturnType<typeof buildSummary>): string {
     'workflow_wall_time_seconds',
     'queue_or_admission_seconds',
     'job_span_seconds',
+    'operation_kind',
   ]));
   lines.push('', '## Top Jobs', '');
   lines.push(...markdownRows(summary.top_jobs as Array<Record<string, unknown>>, [

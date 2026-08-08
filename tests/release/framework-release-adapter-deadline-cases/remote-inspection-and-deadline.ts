@@ -226,7 +226,7 @@ test('Full remote inspection accepts well-formed additive Standard follower asse
   const bundlePath = path.join(root, 'bundle.json');
   const inspectionPath = path.join(root, 'remote-before.json');
   const fullNames = ['full.dmg', 'full-manifest.json'];
-  const followerAssets = [asset('latest.yml', '3'), asset('platform.exe', '4')];
+    const followerAssets = [asset('latest.yml', '3'), asset('platform.exe', '4'), asset('Full 额外资产+1.bin', '8')];
   try {
     fs.writeFileSync(bundlePath, `${JSON.stringify({
       surface_kind: 'opl_release_bundle.v1',
@@ -262,6 +262,29 @@ test('Full remote inspection accepts well-formed additive Standard follower asse
       { name: fullNames[0], size_bytes: 100, sha256: `sha256:${'5'.repeat(64)}` },
       { name: fullNames[1], size_bytes: 100, sha256: `sha256:${'6'.repeat(64)}` },
     ]);
+    fs.writeFileSync(inspectionPath, `${JSON.stringify({
+      surface_kind: 'opl_app_github_release_inspection.v1',
+      repository: repo,
+      tag,
+      release: { exists: true, id: 12345 },
+      assets: [asset(fullNames[0]!, '5'), asset(fullNames[1]!, '6'), asset('../unsafe.bin', '7')],
+    })}\n`);
+    assert.throws(
+      () => buildExecutorReceipt({
+        operation: 'remote_inspect',
+        'release-operation': 'append_full',
+        'operation-id': appendFullOperationId,
+        executor: 'remote',
+        'attempt-id': workflowAttemptId,
+        'remote-target': `github-release:${repo}@${tag}`,
+        track: 'full',
+        outcome: 'complete',
+        'publication-scope': 'track_assets',
+        bundle: bundlePath,
+        inspection: inspectionPath,
+      } as any),
+      /unsafe asset basename/,
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
