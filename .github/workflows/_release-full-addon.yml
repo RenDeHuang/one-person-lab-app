@@ -690,7 +690,7 @@ jobs:
   full-qualification:
     if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_built' || needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
     needs: [restore-standard, full-build, materialize-full-build]
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -766,7 +766,7 @@ jobs:
             status: 'passed',
             execution: {
               execution_class: 'github_hosted',
-              runner: 'macos-14',
+              runner: 'macos-latest',
               run_id: process.env.GITHUB_RUN_ID,
               run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
             },

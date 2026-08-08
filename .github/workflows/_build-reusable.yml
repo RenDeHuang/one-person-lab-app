@@ -334,7 +334,7 @@ jobs:
 
   macos-signing-preflight:
     name: macOS release signing preflight
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 10
     if: ${{ inputs.mode != 'canary' }}
     environment: ${{ inputs.require_macos_gatekeeper && 'release-stable' || null }}

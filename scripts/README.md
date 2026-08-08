@@ -507,7 +507,7 @@ Standard terminal.
 The Standard and Full publisher workflows exercise the actual `github-apply`
 CLI twice with a table-validated identical option surface: mutation-free
 `rehearsal`, then `execute`. Retired `publish-release.ts --dry-run` calls are not
-publication qualification. Full build, Intel finalizer, and publication
+publication qualification. Full build, ARM finalizer, and publication
 diagnostics use failure-safe uploads so typed evidence survives the first
 contract breakpoint.
 

@@ -997,7 +997,7 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
       hosted.schema !== 'opl_app_hosted_full_core_qualification.v1'
       || hosted.status !== 'passed'
       || hosted.execution?.execution_class !== 'github_hosted'
-      || hosted.execution?.runner !== 'macos-14'
+      || hosted.execution?.runner !== 'macos-latest'
       || hosted.execution?.run_attempt !== 1
       || !/^[1-9][0-9]*$/.test(String(hosted.execution?.run_id ?? ''))
       || hosted.release?.version !== bundle.release.version

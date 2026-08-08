@@ -134,7 +134,7 @@ test("workflow is a no-secret read-only hosted macOS diagnostic", () => {
     "cancel-in-progress": false,
   });
   const job = workflow.jobs.diagnose;
-  assert.equal(job["runs-on"], "macos-14");
+  assert.equal(job["runs-on"], "macos-latest");
   assert.equal(job.environment, undefined);
   assert.doesNotMatch(source, /\$\{\{\s*secrets\./);
   assert.doesNotMatch(source, /contents:\s*write/);

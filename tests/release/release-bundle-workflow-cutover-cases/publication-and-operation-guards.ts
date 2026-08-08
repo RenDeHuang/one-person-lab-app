@@ -373,7 +373,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     actions: 'read',
   });
   assert.equal(reusableBuild.permissions, undefined);
-  assert.equal(reusableBuild.jobs['macos-signing-preflight']['runs-on'], 'macos-14');
+  assert.equal(reusableBuild.jobs['macos-signing-preflight']['runs-on'], 'macos-latest');
   assert.equal(reusableBuild.jobs['macos-signing-preflight']['timeout-minutes'], 10);
   assert.equal(reusableBuild.jobs['macos-signing-preflight'].environment, protectedPreflightEnvironment);
   assert.equal(reusableBuild.jobs.build.environment, protectedMacosBuildEnvironment);
@@ -417,7 +417,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     default: '',
     type: 'string',
   });
-  assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-15-intel');
+  assert.equal(credentialPreflight.jobs.validate['runs-on'], 'macos-latest');
   assert.equal(credentialPreflight.jobs.validate.environment, 'release-stable');
   assert.equal(credentialPreflight.jobs.validate['timeout-minutes'], 45);
   assert.equal(credentialPreflight.concurrency['cancel-in-progress'], false);
@@ -477,13 +477,13 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(cleanupSigning.if, "startsWith(matrix.platform, 'macos') && always()");
   assert.match(String(cleanupSigning.run), /security delete-keychain build\.keychain/);
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
-  assert.equal(fullBuild.jobs['full-first-install']['runs-on'], 'macos-14');
+  assert.equal(fullBuild.jobs['full-first-install']['runs-on'], 'macos-latest');
   assert.equal(fullBuild.jobs['full-first-install'].environment, 'release-stable');
-  assert.equal(fullBuild.jobs['full-intel-finalizer']['runs-on'], 'macos-15-intel');
-  assert.equal(fullBuild.jobs['full-intel-finalizer'].needs, 'full-first-install');
-  assert.equal(fullBuild.jobs['full-intel-finalizer'].environment, 'release-stable');
-  assert.equal(fullBuild.jobs['full-intel-finalizer']['timeout-minutes'], 60);
-  assert.deepEqual(fullBuild.jobs['full-intel-finalizer'].permissions, {
+  assert.equal(fullBuild.jobs['full-finalizer']['runs-on'], 'macos-latest');
+  assert.equal(fullBuild.jobs['full-finalizer'].needs, 'full-first-install');
+  assert.equal(fullBuild.jobs['full-finalizer'].environment, 'release-stable');
+  assert.equal(fullBuild.jobs['full-finalizer']['timeout-minutes'], 60);
+  assert.deepEqual(fullBuild.jobs['full-finalizer'].permissions, {
     contents: 'read',
     actions: 'read',
   });
@@ -500,31 +500,31 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(credentialGate.run), /exit 1/);
 
   const armBuilder = fullBuild.jobs['full-first-install'];
-  const intelFinalizer = fullBuild.jobs['full-intel-finalizer'];
+  const fullFinalizer = fullBuild.jobs['full-finalizer'];
   const handoffUpload = armBuilder.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Upload immutable Intel finalizer input',
+    (step: Record<string, unknown>) => step.name === 'Upload immutable Full finalizer input',
   );
   const handoffDigestNormalization = armBuilder.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Normalize immutable Intel finalizer artifact digest',
+    (step: Record<string, unknown>) => step.name === 'Normalize immutable Full finalizer artifact digest',
   );
   const handoffPrepare = armBuilder.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Prepare immutable Intel finalizer input',
+    (step: Record<string, unknown>) => step.name === 'Prepare immutable Full finalizer input',
   );
   const preFinalizerRuntimeVerification = armBuilder.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Verify Full runtime payload before Intel finalization',
+    (step: Record<string, unknown>) => step.name === 'Verify Full runtime payload before ARM finalization',
   );
-  const finalizer = intelFinalizer.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization on Intel',
+  const finalizer = fullFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Finalize Full Developer ID signing and notarization on ARM',
   );
-  const cohortWriter = intelFinalizer.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Write Intel-finalized Full build artifact cohort manifest',
+  const cohortWriter = fullFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Write ARM-finalized Full build artifact cohort manifest',
   );
-  const executorCheckout = intelFinalizer.steps.find(
+  const executorCheckout = fullFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Checkout canonical Full release executor',
   );
   assert.equal(fullBuild.jobs['full-first-install']['timeout-minutes'], "${{ inputs.operation == 'append_full' && 130 || 90 }}");
   assert.equal(executorCheckout.if, undefined);
-  assert.match(String(intelFinalizer.if), /inputs\.operation == 'append_full'/);
+  assert.match(String(fullFinalizer.if), /inputs\.operation == 'append_full'/);
   assert.equal(executorCheckout.with.path, 'release-executor');
   assert.equal(executorCheckout.with.ref, '${{ github.sha }}');
   assert.match(
@@ -544,8 +544,8 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     armBuilder.steps.findIndex((step: Record<string, unknown>) => step.name === 'Upload Actions cache plan and receipt')
       < armBuilder.steps.indexOf(handoffPrepare),
   );
-  assert.match(String(handoffPrepare.run), /opl_full_intel_finalizer_input\.v1/);
-  assert.match(String(handoffPrepare.run), /source_runner: \{ label: 'macos-14', arch: process\.arch \}/);
+  assert.match(String(handoffPrepare.run), /opl_full_finalizer_input\.v1/);
+  assert.match(String(handoffPrepare.run), /source_runner: \{ label: 'macos-latest', arch: process\.arch \}/);
   assert.ok(armBuilder.steps.indexOf(handoffUpload) < armBuilder.steps.indexOf(handoffDigestNormalization));
   assert.equal(
     handoffDigestNormalization.env.RAW_HANDOFF_ARTIFACT_DIGEST,
@@ -564,10 +564,10 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(finalizer.run), /--submitted-candidate-output/);
   assert.match(String(finalizer.run), /--operation-deadline-at/);
 
-  const recoverySeal = intelFinalizer.steps.find(
+  const recoverySeal = fullFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Seal Apple submission recovery checkpoint before diagnostics',
   );
-  const recoveryUpload = intelFinalizer.steps.find(
+  const recoveryUpload = fullFinalizer.steps.find(
     (step: Record<string, unknown>) => step.name === 'Upload sealed Apple submission recovery checkpoint',
   );
   assert.equal(recoverySeal.if, '${{ failure() }}');
@@ -579,11 +579,11 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.match(String(recoveryUpload.with.name), /opl-full-apple-recovery/);
   assert.equal(recoveryUpload.with['if-no-files-found'], 'error');
   assert.equal(recoveryUpload.with['compression-level'], 0);
-  assert.ok(intelFinalizer.steps.indexOf(finalizer) < intelFinalizer.steps.indexOf(recoverySeal));
-  assert.ok(intelFinalizer.steps.indexOf(recoverySeal) < intelFinalizer.steps.indexOf(recoveryUpload));
+  assert.ok(fullFinalizer.steps.indexOf(finalizer) < fullFinalizer.steps.indexOf(recoverySeal));
+  assert.ok(fullFinalizer.steps.indexOf(recoverySeal) < fullFinalizer.steps.indexOf(recoveryUpload));
 
-  const notarizationEvidence = intelFinalizer.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Upload Intel Full notarization terminal evidence',
+  const notarizationEvidence = fullFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload ARM Full notarization terminal evidence',
   );
   assert.equal(notarizationEvidence.if, '${{ always() }}');
   assert.match(String(notarizationEvidence.with.name), /opl-full-notarization-evidence/);
@@ -597,14 +597,14 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.equal(buildDiagnostics.if, '${{ always() && !inputs.cache_only }}');
   assert.equal(buildDiagnostics.with['if-no-files-found'], 'warn');
-  const finalizerDiagnostics = intelFinalizer.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Upload Intel-finalized Full diagnostics artifact',
+  const finalizerDiagnostics = fullFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Upload ARM-finalized Full diagnostics artifact',
   );
   assert.equal(finalizerDiagnostics.if, '${{ always() }}');
   assert.equal(finalizerDiagnostics.with['if-no-files-found'], 'warn');
   assert.doesNotMatch(
     fullBuildSource,
-    /Verify (?:Intel-finalized )?Full artifact plan without (?:a )?release mutation/,
+    /Verify (?:ARM-finalized )?Full artifact plan without (?:a )?release mutation/,
   );
   assert.doesNotMatch(fullBuildSource, /independent_immutable_adjunct_linked_to_existing_standard/);
   assert.equal(
@@ -627,14 +627,14 @@ test('production Standard and Full builds fail closed on Apple distribution trus
     'Upload Full build artifact cohort manifest',
     'Upload Full DMG-only workflow artifact',
   ]) {
-    const upload = intelFinalizer.steps.find(
+    const upload = fullFinalizer.steps.find(
       (step: Record<string, unknown>) => step.name === name,
     );
     assert.equal(upload.if, '${{ success() }}', `${name} must not upload after notarization or trust failure`);
     if (name !== 'Upload Full build artifact cohort manifest') assert.equal(upload.with['compression-level'], 0);
   }
-  const finalTrust = intelFinalizer.steps.find(
-    (step: Record<string, unknown>) => step.name === 'Verify Intel-finalized Full distribution trust and bind manifest',
+  const finalTrust = fullFinalizer.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Verify ARM-finalized Full distribution trust and bind manifest',
   );
   const finalTrustScript = String(finalTrust.run);
   assert.match(finalTrustScript, /timestamp_signing\.authority_endpoint == "system_default"/);
@@ -665,13 +665,13 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.ok(
     finalTrustScript.indexOf('verify-full-runtime-native-trust.ts')
       < finalTrustScript.indexOf("const runtimeTrust = JSON.parse"),
-    'Intel finalizer must regenerate native trust from the final mounted DMG before binding public evidence',
+    'ARM finalizer must regenerate native trust from the final mounted DMG before binding public evidence',
   );
-  assert.match(finalTrustScript, /full-intel-finalizer-handoff-receipt\.json/);
+  assert.match(finalTrustScript, /full-finalizer-handoff-receipt\.json/);
   assert.match(
     finalTrustScript,
     /sha256: `sha256:\$\{crypto\.createHash\('sha256'\)/,
-    'Intel finalizer must bind the public manifest with the canonical prefixed DMG digest',
+    'ARM finalizer must bind the public manifest with the canonical prefixed DMG digest',
   );
   assert.equal(
     (fullBuildSource.match(

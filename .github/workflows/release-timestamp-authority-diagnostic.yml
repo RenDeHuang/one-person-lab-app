@@ -16,7 +16,7 @@ env:
 jobs:
   diagnose:
     name: Diagnose hosted Apple timestamp authority path
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact diagnostic source

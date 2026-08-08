@@ -175,8 +175,8 @@ function runLargeDmgCanary(input: {
 }) {
   input.onStage('validate_runner');
   const runnerArchitecture = input.env.RUNNER_ARCH?.trim() || process.arch;
-  if (runnerArchitecture !== 'X64' && runnerArchitecture !== 'x64') {
-    throw new Error('Large DMG canary requires the Intel x64 GitHub runner.');
+  if (!['ARM64', 'arm64', 'X64', 'x64'].includes(runnerArchitecture)) {
+    throw new Error('Large DMG canary requires a supported macOS GitHub runner architecture.');
   }
   const payloadDirectory = path.join(input.tempRoot, 'large-dmg-canary-payload');
   const payloadPath = path.join(payloadDirectory, 'incompressible-payload.bin');
@@ -282,7 +282,7 @@ function runLargeDmgCanary(input: {
     trusted_timestamp: true,
     codesign_strict: 'passed',
     runner: {
-      label: 'macos-15-intel',
+      label: input.env.OPL_MACOS_RUNNER_LABEL?.trim() || 'macos-latest',
       architecture: runnerArchitecture,
       image_os: input.env.ImageOS?.trim() || null,
       image_version: input.env.ImageVersion?.trim() || null,
@@ -694,7 +694,7 @@ export function verifyAppleReleaseCredentials(options: VerifyOptions) {
       timestamp_mode: 'system_default',
       reference_full_dmg_size_bytes: fullDmgReferenceSizeBytes,
       runner: {
-        label: 'macos-15-intel',
+        label: env.OPL_MACOS_RUNNER_LABEL?.trim() || 'macos-latest',
         architecture: env.RUNNER_ARCH?.trim() || process.arch,
         image_os: env.ImageOS?.trim() || null,
         image_version: env.ImageVersion?.trim() || null,

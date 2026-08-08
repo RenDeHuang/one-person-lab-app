@@ -25,7 +25,7 @@ test('Stable requires only macOS ARM64 while Nightly retains macOS ARM64 plus Li
     [
       {
         platform: 'macos-arm64',
-        os: 'macos-14',
+        os: 'macos-latest',
         command: 'node scripts/build-with-builder.js arm64 --mac --arm64',
         'artifact-name': 'macos-build-arm64',
         arch: 'arm64',

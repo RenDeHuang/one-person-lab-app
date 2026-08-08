@@ -76,8 +76,8 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
           step('Build Full first-install package', '06:19:25', '06:24:12'),
           step('Upload Full package workflow artifact', '06:28:26', '06:28:58'),
         ]),
-        job('Finalize Full DMG on Intel', '06:30:00', '06:34:00', 'success', [
-          step('Finalize Full Developer ID signing and notarization on Intel', '06:31:00', '06:33:00'),
+        job('Finalize Full DMG on ARM', '06:30:00', '06:34:00', 'success', [
+          step('Finalize Full Developer ID signing and notarization on ARM', '06:31:00', '06:33:00'),
         ]),
         job('Publish Standard GitHub Release assets', '06:45:20', '06:48:20', 'success'),
         job('Resolve release set identity', '06:48:25', '06:52:25', 'success'),

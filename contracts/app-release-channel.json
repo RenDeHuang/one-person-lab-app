@@ -371,7 +371,7 @@
         "publication_status": "stable_and_nightly",
         "publication_route": ".github/workflows/_release-bundle.yml",
         "build": {
-          "os": "macos-14",
+          "os": "macos-latest",
           "command": "node scripts/build-with-builder.js arm64 --mac --arm64",
           "arch": "arm64",
           "native_arch": "arm64",
@@ -395,7 +395,7 @@
         "publication_status": "development_validation_only",
         "publication_route": null,
         "build": {
-          "os": "macos-14",
+          "os": "macos-latest",
           "command": "node scripts/build-with-builder.js x64 --mac --x64",
           "arch": "x64",
           "artifact_names": {
@@ -415,7 +415,7 @@
         "publication_status": "development_validation_only",
         "publication_route": null,
         "build": {
-          "os": "macos-14",
+          "os": "macos-latest",
           "command": "node scripts/build-with-builder.js universal --mac --universal",
           "arch": "universal",
           "native_arch": "arm64",

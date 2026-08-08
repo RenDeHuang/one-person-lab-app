@@ -278,7 +278,7 @@ function buildRunSummaries(runs: JsonRecord[], top: number) {
       ['certification', /certif|vm smoke|first-run/i],
     ].map(([phase, pattern]) => {
       // Keep ordinary phases tied to their job taxonomy. Apple notarization is
-      // emitted by the Intel finalizer job, whose name carries the phase even
+      // emitted by the Full finalizer job, whose name carries the phase even
       // when its individual steps mention unrelated Apple preflight checks.
       const phasePattern = phase === 'apple_wait'
         ? /notar|apple|staple|finaliz/i

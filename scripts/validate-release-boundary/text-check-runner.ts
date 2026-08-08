@@ -849,7 +849,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     const fullQualification = fullJobs['full-qualification'];
     const qualificationRuns = jobRuns(fullQualification);
     if (
-      fullQualification['runs-on'] !== 'macos-14'
+      fullQualification['runs-on'] !== 'macos-latest'
       || fullQualification.uses !== undefined
       || !needsExactly(fullQualification, ['restore-standard', 'full-build', 'materialize-full-build'])
       || !exactObject(fullQualification.permissions, exactReadPermissions)

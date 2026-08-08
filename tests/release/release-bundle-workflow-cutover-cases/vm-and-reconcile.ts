@@ -11,10 +11,10 @@ import {
   workflowStep,
 } from "./fixtures.ts";
 
-test('Intel finalizer artifact digest normalization executes fail closed on the pinned action output', () => {
+test('Full finalizer artifact digest normalization executes fail closed on the pinned action output', () => {
   const workflow = parseWorkflow('full-first-install-release.yml');
   const normalization = workflow.jobs['full-first-install'].steps.find(
-    (step: Record<string, unknown>) => step.name === 'Normalize immutable Intel finalizer artifact digest',
+    (step: Record<string, unknown>) => step.name === 'Normalize immutable Full finalizer artifact digest',
   );
   const run = (rawDigest: string) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-finalizer-digest-'));
@@ -47,7 +47,7 @@ test('Intel finalizer artifact digest normalization executes fail closed on the 
     assert.equal(rejected.written, '');
     assert.match(
       `${rejected.result.stdout}${rejected.result.stderr}`,
-      /Intel finalizer input artifact digest is missing or malformed/,
+      /Full finalizer input artifact digest is missing or malformed/,
     );
   }
 });

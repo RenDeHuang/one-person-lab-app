@@ -86,7 +86,7 @@ concurrency:
 jobs:
   protected-operation-admission:
     if: ${{ inputs.operation == 'standard' }}
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 30
     environment: release-stable
     permissions:
@@ -437,7 +437,7 @@ jobs:
   stable-admission-manifest:
     if: ${{ needs.admission.outputs.operation == 'standard' }}
     needs: [admission, protected-operation-admission]
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 15
     environment: release-stable
     permissions:

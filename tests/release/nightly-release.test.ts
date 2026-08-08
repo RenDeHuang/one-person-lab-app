@@ -980,7 +980,7 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
   assert.deepEqual(resolveReleasePlatformMatrix({ policy: 'nightly_standard' }).include, [
     {
       platform: 'macos-arm64',
-      os: 'macos-14',
+      os: 'macos-latest',
       command: 'node scripts/build-with-builder.js arm64 --mac --arm64',
       'artifact-name': 'nightly-macos-arm64',
       arch: 'arm64',

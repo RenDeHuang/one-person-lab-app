@@ -641,7 +641,7 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(run, /--hosted-core-qualification "\$hosted_receipt"/);
   assert.doesNotMatch(run, /--legacy-qualification/);
   const qualification = full.jobs['full-qualification'];
-  assert.equal(qualification['runs-on'], 'macos-14');
+  assert.equal(qualification['runs-on'], 'macos-latest');
   assert.equal(qualification.uses, undefined);
   assert.deepEqual(qualification.permissions, { contents: 'read', actions: 'read' });
   const qualificationRun = qualification.steps

@@ -122,7 +122,7 @@ jobs:
   full-first-install:
     if: ${{ inputs.mode != 'canary' }}
     name: Build App-owned Full first-install DMG
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: ${{ inputs.operation == 'append_full' && 130 || 90 }}
     environment: release-stable
     permissions:
@@ -987,7 +987,7 @@ jobs:
               if (!Number.isFinite(deadlineMs) || remainingMs < 1_000) process.exit(78);
               process.stdout.write(String(remainingMs));
             ')" || {
-              echo "::error::operation_deadline_elapsed: less than 45 minutes remain for Intel finalization, verification, VM evidence, and publication."
+              echo "::error::operation_deadline_elapsed: less than 45 minutes remain for ARM finalization, verification, VM evidence, and publication."
               exit 78
             }
             FULL_BUILD_TIMEOUT_MS="$full_build_timeout_ms" node --input-type=module - "${FULL_BUILD_CMD[@]}" <<'NODE'
@@ -1025,7 +1025,7 @@ jobs:
           fi
           echo "OPL_FULL_PACKAGE_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Verify Full runtime payload before Intel finalization
+      - name: Verify Full runtime payload before ARM finalization
         if: ${{ !inputs.cache_only && inputs.operation == 'append_full' }}
         shell: bash
         env:
@@ -1048,7 +1048,7 @@ jobs:
           while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
             find "$mount_point" -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
           )
-          test "${#app_paths[@]}" -eq 1 || { echo "::error::Intel finalizer input must contain exactly one App bundle."; exit 1; }
+          test "${#app_paths[@]}" -eq 1 || { echo "::error::Full finalizer input must contain exactly one App bundle."; exit 1; }
           mounted_app_path="${app_paths[0]}"
           mounted_runtime_root="$mounted_app_path/Contents/Resources/opl-full-runtime/runtime/current"
           codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
@@ -1622,12 +1622,12 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Prepare immutable Intel finalizer input
+      - name: Prepare immutable Full finalizer input
         if: ${{ !inputs.cache_only && inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}
         shell: bash
         run: |
           set -euo pipefail
-          input_root="$RUNNER_TEMP/opl-full-intel-finalizer-input"
+          input_root="$RUNNER_TEMP/opl-full-finalizer-input"
           output_dir="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
           rm -rf "$input_root"
           mkdir -p "$input_root/full-output"
@@ -1643,22 +1643,22 @@ jobs:
             for (const name of fs.readdirSync(directory).sort()) {
               const file = path.join(directory, name);
               const stat = fs.lstatSync(file);
-              if (stat.isSymbolicLink()) throw new Error(`Intel finalizer input cannot contain symlink: ${file}`);
+              if (stat.isSymbolicLink()) throw new Error(`Full finalizer input cannot contain symlink: ${file}`);
               if (stat.isDirectory()) visit(file);
               else if (stat.isFile()) files.push({
                 path: path.relative(root, file),
                 size_bytes: stat.size,
                 sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
               });
-              else throw new Error(`Intel finalizer input contains unsupported entry: ${file}`);
+              else throw new Error(`Full finalizer input contains unsupported entry: ${file}`);
             }
           };
           visit(root);
           const dmgName = `One-Person-Lab-Full-${process.env.OPL_RELEASE_VERSION}-mac-arm64.dmg`;
-          if (!files.some((entry) => entry.path === `full-output/${dmgName}`)) throw new Error('Intel finalizer input DMG is missing.');
+          if (!files.some((entry) => entry.path === `full-output/${dmgName}`)) throw new Error('Full finalizer input DMG is missing.');
           const payload = {
-            schema: 'opl_full_intel_finalizer_input.v1',
-            source_runner: { label: 'macos-14', arch: process.arch },
+            schema: 'opl_full_finalizer_input.v1',
+            source_runner: { label: 'macos-latest', arch: process.arch },
             release_version: process.env.OPL_RELEASE_VERSION,
             full_content_sources: {
               app_sha: '${{ inputs.artifact_app_sha }}',
@@ -1671,18 +1671,18 @@ jobs:
           fs.writeFileSync(path.join(root, 'handoff-manifest.json'), `${JSON.stringify(payload, null, 2)}\n`);
           NODE
 
-      - name: Upload immutable Intel finalizer input
+      - name: Upload immutable Full finalizer input
         id: upload_full_finalizer_input
         if: ${{ !inputs.cache_only && inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: opl-full-intel-finalizer-input-${{ inputs.opl_version }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/opl-full-intel-finalizer-input
+          name: opl-full-finalizer-input-${{ inputs.opl_version }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/opl-full-finalizer-input
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
 
-      - name: Normalize immutable Intel finalizer artifact digest
+      - name: Normalize immutable Full finalizer artifact digest
         id: normalize_full_finalizer_input_digest
         if: ${{ !inputs.cache_only && inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}
         env:
@@ -1696,7 +1696,7 @@ jobs:
           elif [[ "$raw_digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             canonical_digest="$raw_digest"
           else
-            echo "::error::Intel finalizer input artifact digest is missing or malformed."
+            echo "::error::Full finalizer input artifact digest is missing or malformed."
             exit 1
           fi
           printf 'artifact_digest=%s\n' "$canonical_digest" >> "$GITHUB_OUTPUT"
@@ -1786,11 +1786,11 @@ jobs:
             security delete-keychain build.keychain
           fi
 
-  full-intel-finalizer:
+  full-finalizer:
     if: ${{ inputs.mode != 'canary' && !inputs.cache_only && inputs.operation == 'append_full' && inputs.upload_full_package_artifact }}
-    name: Finalize Full DMG on Intel
+    name: Finalize Full DMG on ARM
     needs: full-first-install
-    runs-on: macos-15-intel
+    runs-on: macos-latest
     timeout-minutes: 60
     environment: release-stable
     permissions:
@@ -1821,13 +1821,13 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Download immutable Intel finalizer input
+      - name: Download immutable Full finalizer input
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: opl-full-intel-finalizer-input-${{ inputs.opl_version }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/opl-full-intel-finalizer-input
+          name: opl-full-finalizer-input-${{ inputs.opl_version }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/opl-full-finalizer-input
 
-      - name: Verify immutable Intel finalizer handoff
+      - name: Verify immutable Full finalizer handoff
         env:
           EXPECTED_HANDOFF_ARTIFACT_DIGEST: ${{ needs.full-first-install.outputs.finalizer_input_digest }}
           EXPECTED_APP_SHA: ${{ inputs.artifact_app_sha }}
@@ -1838,10 +1838,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          input_root="$RUNNER_TEMP/opl-full-intel-finalizer-input"
+          input_root="$RUNNER_TEMP/opl-full-finalizer-input"
           manifest="$input_root/handoff-manifest.json"
           output_dir="$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"
-          [[ "$EXPECTED_HANDOFF_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Intel finalizer handoff artifact digest is missing or malformed."; exit 1; }
+          [[ "$EXPECTED_HANDOFF_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Full finalizer handoff artifact digest is missing or malformed."; exit 1; }
           test -f "$manifest" && test ! -L "$manifest"
           INPUT_ROOT="$input_root" HANDOFF_MANIFEST="$manifest" node <<'NODE'
           const crypto = require('node:crypto');
@@ -1856,34 +1856,34 @@ jobs:
             framework_sha: process.env.EXPECTED_FRAMEWORK_SHA,
             mas_scholar_skills_sha: process.env.EXPECTED_MAS_SCHOLAR_SKILLS_SHA,
           };
-          if (manifest.schema !== 'opl_full_intel_finalizer_input.v1') throw new Error('Intel finalizer handoff schema drifted.');
-          if (manifest.release_version !== process.env.OPL_RELEASE_VERSION) throw new Error('Intel finalizer handoff version drifted.');
-          if (JSON.stringify(manifest.source_runner) !== JSON.stringify({ label: 'macos-14', arch: 'arm64' })) throw new Error('Intel finalizer handoff source runner drifted.');
-          if (JSON.stringify(manifest.full_content_sources) !== JSON.stringify(exact)) throw new Error('Intel finalizer handoff source refs drifted.');
-          if (!Array.isArray(manifest.files) || manifest.files.length === 0) throw new Error('Intel finalizer handoff file inventory is empty.');
+          if (manifest.schema !== 'opl_full_finalizer_input.v1') throw new Error('Full finalizer handoff schema drifted.');
+          if (manifest.release_version !== process.env.OPL_RELEASE_VERSION) throw new Error('Full finalizer handoff version drifted.');
+          if (JSON.stringify(manifest.source_runner) !== JSON.stringify({ label: 'macos-latest', arch: 'arm64' })) throw new Error('Full finalizer handoff source runner drifted.');
+          if (JSON.stringify(manifest.full_content_sources) !== JSON.stringify(exact)) throw new Error('Full finalizer handoff source refs drifted.');
+          if (!Array.isArray(manifest.files) || manifest.files.length === 0) throw new Error('Full finalizer handoff file inventory is empty.');
           for (const entry of manifest.files) {
             const file = path.resolve(root, entry.path);
-            if (!file.startsWith(`${path.resolve(root)}${path.sep}`)) throw new Error(`Intel finalizer handoff escaped its root: ${entry.path}`);
+            if (!file.startsWith(`${path.resolve(root)}${path.sep}`)) throw new Error(`Full finalizer handoff escaped its root: ${entry.path}`);
             const stat = fs.lstatSync(file);
-            if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Intel finalizer handoff entry is not a regular file: ${entry.path}`);
-            if (stat.size !== entry.size_bytes) throw new Error(`Intel finalizer handoff size drifted: ${entry.path}`);
+            if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Full finalizer handoff entry is not a regular file: ${entry.path}`);
+            if (stat.size !== entry.size_bytes) throw new Error(`Full finalizer handoff size drifted: ${entry.path}`);
             const digest = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-            if (digest !== entry.sha256) throw new Error(`Intel finalizer handoff digest drifted: ${entry.path}`);
+            if (digest !== entry.sha256) throw new Error(`Full finalizer handoff digest drifted: ${entry.path}`);
           }
           const actual = [];
           const visit = (directory) => {
             for (const name of fs.readdirSync(directory).sort()) {
               const file = path.join(directory, name);
               const stat = fs.lstatSync(file);
-              if (stat.isSymbolicLink()) throw new Error(`Intel finalizer handoff contains symlink: ${file}`);
+              if (stat.isSymbolicLink()) throw new Error(`Full finalizer handoff contains symlink: ${file}`);
               if (stat.isDirectory()) visit(file);
               else if (stat.isFile()) actual.push(path.relative(root, file));
-              else throw new Error(`Intel finalizer handoff contains unsupported entry: ${file}`);
+              else throw new Error(`Full finalizer handoff contains unsupported entry: ${file}`);
             }
           };
           visit(root);
           const expected = [...manifest.files.map((entry) => entry.path), 'handoff-manifest.json'].sort();
-          if (JSON.stringify(actual.sort()) !== JSON.stringify(expected)) throw new Error('Intel finalizer handoff contains unlisted or missing files.');
+          if (JSON.stringify(actual.sort()) !== JSON.stringify(expected)) throw new Error('Full finalizer handoff contains unlisted or missing files.');
           NODE
           rm -rf "$output_dir"
           mkdir -p "$output_dir"
@@ -1894,12 +1894,12 @@ jobs:
           jq -n \
             --arg artifact_digest "$EXPECTED_HANDOFF_ARTIFACT_DIGEST" \
             --arg manifest_sha256 "$(shasum -a 256 "$manifest" | awk '{print $1}')" \
-            --arg source_runner "macos-14" \
-            --arg finalizer_runner "macos-15-intel" \
-            '{schema:"opl_full_intel_finalizer_handoff_receipt.v1",status:"passed",artifact_digest:$artifact_digest,handoff_manifest_sha256:$manifest_sha256,source_runner:$source_runner,finalizer_runner:$finalizer_runner}' \
-            > "$output_dir/full-intel-finalizer-handoff-receipt.json"
+            --arg source_runner "macos-latest" \
+            --arg finalizer_runner "macos-latest" \
+            '{schema:"opl_full_finalizer_handoff_receipt.v1",status:"passed",artifact_digest:$artifact_digest,handoff_manifest_sha256:$manifest_sha256,source_runner:$source_runner,finalizer_runner:$finalizer_runner}' \
+            > "$output_dir/full-finalizer-handoff-receipt.json"
 
-      - name: Import Developer ID identity for Intel finalization
+      - name: Import Developer ID identity for ARM finalization
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -1912,7 +1912,7 @@ jobs:
         run: |
           set -euo pipefail
           for secret_name in BUILD_CERTIFICATE_BASE64 P12_PASSWORD APPLE_ID APPLE_ID_PASSWORD TEAM_ID IDENTITY; do
-            test -n "${!secret_name:-}" || { echo "::error::Intel Full finalization requires $secret_name."; exit 1; }
+            test -n "${!secret_name:-}" || { echo "::error::ARM Full finalization requires $secret_name."; exit 1; }
           done
           printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > certificate.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
@@ -1923,7 +1923,7 @@ jobs:
           rm certificate.p12
           security find-identity -v -p codesigning build.keychain | grep -F "$IDENTITY" >/dev/null
 
-      - name: Finalize Full Developer ID signing and notarization on Intel
+      - name: Finalize Full Developer ID signing and notarization on ARM
         working-directory: one-person-lab-app
         env:
           appleId: ${{ secrets.APPLE_ID }}
@@ -2005,7 +2005,7 @@ jobs:
           compression-level: 0
           retention-days: 30
 
-      - name: Verify Intel-finalized Full distribution trust and bind manifest
+      - name: Verify ARM-finalized Full distribution trust and bind manifest
         env:
           EXPECTED_TEAM_ID: ${{ secrets.TEAM_ID }}
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
@@ -2029,7 +2029,7 @@ jobs:
           while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
             find "$mount_point" -maxdepth 2 -type d -name 'One Person Lab.app' -print | LC_ALL=C sort
           )
-          test "${#app_paths[@]}" -eq 1 || { echo "::error::Intel-finalized Full DMG must contain exactly one App bundle."; exit 1; }
+          test "${#app_paths[@]}" -eq 1 || { echo "::error::ARM-finalized Full DMG must contain exactly one App bundle."; exit 1; }
           mounted_app_path="${app_paths[0]}"
           mounted_runtime_root="$mounted_app_path/Contents/Resources/opl-full-runtime/runtime/current"
           codesign --verify --deep --strict --verbose=2 "$mounted_app_path"
@@ -2115,8 +2115,8 @@ jobs:
                 full_asset_append_allowed: true,
                 standard_asset_overwrite_or_delete_allowed: false,
               },
-              release_executor: { app_sha: executorSha, notarizer_path: 'scripts/notarize-macos-dmg.ts', finalizer_runner: 'macos-15-intel' },
-              finalizer_handoff: { artifact_digest: handoffDigest, receipt: readJson('full-intel-finalizer-handoff-receipt.json') },
+              release_executor: { app_sha: executorSha, notarizer_path: 'scripts/notarize-macos-dmg.ts', finalizer_runner: 'macos-latest' },
+              finalizer_handoff: { artifact_digest: handoffDigest, receipt: readJson('full-finalizer-handoff-receipt.json') },
               full_content_sources: { role: 'observational_build_provenance_only', may_gate_install_or_runtime: false, app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
               differences: { executor_app_differs_from_full_content_app: executorSha !== appSha, full_content_app_differs_from_target_standard: appSha !== targetCommitish },
             },
@@ -2142,7 +2142,7 @@ jobs:
           import crypto from 'node:crypto';
           import fs from 'node:fs';
           const existing = fs.readFileSync('SHA256SUMS.txt', 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => line.trim().split(/\s+/).at(-1));
-          const required = ['opl-release-manifest.json', 'full-runtime-currentness-probe.json', 'full-runtime-native-trust.json', 'full-gatekeeper-launch-policy.json', 'full-apple-notarization-receipt.json', 'full-intel-finalizer-handoff-receipt.json'];
+          const required = ['opl-release-manifest.json', 'full-runtime-currentness-probe.json', 'full-runtime-native-trust.json', 'full-gatekeeper-launch-policy.json', 'full-apple-notarization-receipt.json', 'full-finalizer-handoff-receipt.json'];
           const names = [...new Set([...existing, ...required])].filter((name) => name && fs.existsSync(name)).sort();
           fs.writeFileSync('SHA256SUMS.next', `${names.map((name) => `${crypto.createHash('sha256').update(fs.readFileSync(name)).digest('hex')}  ${name}`).join('\n')}\n`);
           NODE
@@ -2150,7 +2150,7 @@ jobs:
             shasum -a 256 -c SHA256SUMS.txt
           )
 
-      - name: Summarize Intel-finalized Full package size
+      - name: Summarize ARM-finalized Full package size
         working-directory: one-person-lab-app
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
@@ -2167,7 +2167,7 @@ jobs:
             --markdown > dist/opl-full-release/full-package-size-summary.md
           cat dist/opl-full-release/full-package-size-summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Write Intel-finalized Full build artifact cohort manifest
+      - name: Write ARM-finalized Full build artifact cohort manifest
         env:
           OPL_RELEASE_VERSION: ${{ inputs.opl_version }}
         shell: bash
@@ -2213,7 +2213,7 @@ jobs:
             --release-cohort-ref '${{ inputs.release_cohort_ref }}'
           cp "$RUNNER_TEMP/opl-build-cohort.json" one-person-lab-app/dist/opl-full-release/opl-build-cohort.json
 
-      - name: Upload Intel Full notarization terminal evidence
+      - name: Upload ARM Full notarization terminal evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -2221,13 +2221,13 @@ jobs:
           path: |
             one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
             one-person-lab-app/dist/opl-full-release/One-Person-Lab-Full-${{ inputs.opl_version }}-mac-arm64.submitted-for-notarization.dmg
-            one-person-lab-app/dist/opl-full-release/full-intel-finalizer-handoff-receipt.json
+            one-person-lab-app/dist/opl-full-release/full-finalizer-handoff-receipt.json
             one-person-lab-app/dist/opl-full-release/full-runtime-native-trust.json
           if-no-files-found: warn
           compression-level: 0
           retention-days: 30
 
-      - name: Upload Intel-finalized Full diagnostics artifact
+      - name: Upload ARM-finalized Full diagnostics artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -2245,7 +2245,7 @@ jobs:
             one-person-lab-app/dist/opl-full-release/full-package-boundary-audit.json
             one-person-lab-app/dist/opl-full-release/full-gatekeeper-launch-policy.json
             one-person-lab-app/dist/opl-full-release/full-apple-notarization-receipt.json
-            one-person-lab-app/dist/opl-full-release/full-intel-finalizer-handoff-receipt.json
+            one-person-lab-app/dist/opl-full-release/full-finalizer-handoff-receipt.json
             one-person-lab-app/dist/opl-full-release/SHA256SUMS.txt
             one-person-lab-app/dist/opl-full-release/README-Full-First-Install.txt
           if-no-files-found: warn
@@ -2280,7 +2280,7 @@ jobs:
           compression-level: 0
           retention-days: 14
 
-      - name: Clean up Intel finalizer keychain
+      - name: Clean up ARM finalizer keychain
         if: ${{ always() }}
         run: |
           if security list-keychains | grep -q build.keychain; then

@@ -169,7 +169,7 @@ test('large DMG canary signs a Full-sized ULMO shape with the system-default tim
     largeDmgCanaryPayloadBytes: 1_024,
     largeDmgCanaryMinimumBytes: 1_024,
     largeDmgCanaryMaximumBytes: 4_096,
-    env: { ...credentialEnv, RUNNER_ARCH: 'X64', ImageOS: 'macos15' },
+    env: { ...credentialEnv, RUNNER_ARCH: 'ARM64', ImageOS: 'macos26', OPL_MACOS_RUNNER_LABEL: 'macos-latest' },
     platform: 'darwin',
     runner: fixture.runner,
   });
@@ -177,8 +177,8 @@ test('large DMG canary signs a Full-sized ULMO shape with the system-default tim
   assert.equal(receipt.signing.large_dmg_canary.status, 'passed');
   assert.equal(receipt.signing.large_dmg_canary.format, 'ULMO');
   assert.equal(receipt.signing.large_dmg_canary.timestamp_mode, 'system_default');
-  assert.equal((receipt.signing.large_dmg_canary.runner as Record<string, unknown>).label, 'macos-15-intel');
-  assert.equal((receipt.signing.large_dmg_canary.runner as Record<string, unknown>).architecture, 'X64');
+  assert.equal((receipt.signing.large_dmg_canary.runner as Record<string, unknown>).label, 'macos-latest');
+  assert.equal((receipt.signing.large_dmg_canary.runner as Record<string, unknown>).architecture, 'ARM64');
   assert.equal(receipt.signing.large_dmg_canary.notarization_submission_performed, false);
   const create = fixture.calls.find((call) => call.command === 'hdiutil' && call.args[0] === 'create');
   assert.ok(create);
@@ -239,7 +239,7 @@ test('large DMG canary persists a sanitized typed timeout receipt without a nota
   }
 });
 
-test('large DMG canary rejects a non-Intel runner before allocating its payload', () => {
+test('large DMG canary rejects an unknown runner architecture before allocating its payload', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-apple-large-dmg-runner-'));
   const outputPath = path.join(root, 'receipt.json');
   const fixture = successfulRunner();
@@ -250,11 +250,11 @@ test('large DMG canary rejects a non-Intel runner before allocating its payload'
       largeDmgCanaryPayloadBytes: 1_024,
       largeDmgCanaryMinimumBytes: 1_024,
       largeDmgCanaryMaximumBytes: 4_096,
-      env: { ...credentialEnv, RUNNER_ARCH: 'ARM64' },
+      env: { ...credentialEnv, RUNNER_ARCH: 'PPC64' },
       platform: 'darwin',
       runner: fixture.runner,
     }),
-    /requires the Intel x64 GitHub runner/,
+    /requires a supported macOS GitHub runner architecture/,
   );
   const receipt = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
   assert.equal(receipt.signing.large_dmg_canary.failure.type, 'large_dmg_runner_identity_failed');

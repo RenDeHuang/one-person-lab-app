@@ -249,7 +249,7 @@ test('notarization wait budget preserves the exact post-notarization reserve', (
   }), /twenty minutes of operation reserve/);
 });
 
-test('notarization observation is capped below the Intel runner timeout while preserving operation reserve', () => {
+test('notarization observation is capped below the ARM runner timeout while preserving operation reserve', () => {
   const nowMs = Date.parse('2026-08-01T01:00:00.000Z');
   assert.equal(notarizationObservationDeadlineMs({
     operationDeadlineAt: '2026-08-01T03:00:00.000Z',
