@@ -79,6 +79,9 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
         job('Finalize Full DMG on Intel', '06:30:00', '06:34:00', 'success', [
           step('Finalize Full Developer ID signing and notarization on Intel', '06:31:00', '06:33:00'),
         ]),
+        job('Publish Standard GitHub Release assets', '06:45:20', '06:48:20', 'success'),
+        job('Resolve release set identity', '06:48:25', '06:52:25', 'success'),
+        job('Upload skipped certification evidence', '06:52:30', '06:56:30', 'skipped'),
         job('Run clean Full first-run VM smoke / Clean VM first launch', '06:34:37', '06:45:10', 'success', [
           step('Checkout active shell', '06:34:51', '06:37:28'),
           step('Download release DMG artifact', '06:37:32', '06:41:01'),
@@ -130,6 +133,7 @@ test('GitHub Actions timing summarizer profiles multi-run release wall time and 
   assert.equal(summary.top_steps[0].name, 'Build Full first-install package');
   assert.equal(summary.runs[1].stage_durations_seconds.build, 1930);
   assert.equal(summary.runs[2].stage_durations_seconds.apple_wait, 240);
+  assert.equal(summary.runs[2].stage_durations_seconds.publication, 180);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Failed\/cancelled run tax: 37m14s across 2 run/);
   assert.match(fs.readFileSync(markdownPath, 'utf8'), /Unaccounted operator time outside Actions span: 51m15s/);
 });

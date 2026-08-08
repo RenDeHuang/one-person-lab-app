@@ -212,16 +212,6 @@ function jobName(job: JsonRecord): string {
   return stringField(job, 'name') ?? stringField(job, 'displayName') ?? stringField(job, 'job_name') ?? 'unknown';
 }
 
-function jobPhaseText(job: JsonRecord): string {
-  return [
-    jobName(job),
-    ...asArray(job.steps)
-      .map((entry) => asRecord(entry))
-      .filter((entry): entry is JsonRecord => entry !== null)
-      .map(stepName),
-  ].join(' ');
-}
-
 function stepName(step: JsonRecord): string {
   return stringField(step, 'name') ?? stringField(step, 'displayName') ?? 'unknown';
 }
@@ -282,10 +272,20 @@ function buildRunSummaries(runs: JsonRecord[], top: number) {
       ['admission', /admission|admit|preflight/i],
       ['build', /build|package|compile|finalizer/i],
       ['apple_wait', /notar|apple|staple/i],
-      ['publication', /publish|upload|release|homebrew|latest/i],
+      // "release" also appears in read-only resolver jobs such as
+      // resolve-release-set. Keep publication tied to mutation/readback verbs.
+      ['publication', /publish|upload|homebrew|latest/i],
       ['certification', /certif|vm smoke|first-run/i],
     ].map(([phase, pattern]) => {
-      const phaseJobs = jobs.filter((job) => pattern.test(jobPhaseText(job)));
+      // Keep ordinary phases tied to their job taxonomy. Apple notarization is
+      // emitted by the Intel finalizer job, whose name carries the phase even
+      // when its individual steps mention unrelated Apple preflight checks.
+      const phasePattern = phase === 'apple_wait'
+        ? /notar|apple|staple|finaliz/i
+        : pattern;
+      const phaseJobs = jobs.filter((job) => (
+        stringField(job, 'conclusion') !== 'skipped' && phasePattern.test(jobName(job))
+      ));
       const started = earliestIso(phaseJobs.map((job) => job.startedAt ?? job.started_at));
       const completed = latestIso(phaseJobs.map((job) => job.completedAt ?? job.completed_at));
       return [phase, started && completed ? secondsBetween(started, completed) : null];
