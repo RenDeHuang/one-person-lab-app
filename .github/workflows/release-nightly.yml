@@ -218,7 +218,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts nightly-assets
+          node --experimental-strip-types scripts/prepare-release-assets.ts \
+            build-artifacts nightly-assets --skip-linux-desktop-payload
           node --experimental-strip-types scripts/generate-frozen-universal-installer.ts \
             --source install.sh \
             --output nightly-assets/opl-install.sh \

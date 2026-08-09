@@ -11,6 +11,7 @@ const artifactsDir = path.resolve(root, process.argv[2] ?? 'build-artifacts');
 const outputDir = path.resolve(root, process.argv[3] ?? 'release-assets');
 const shellPaths = resolveActiveShellPaths();
 const expectedVersion = process.env.OPL_RELEASE_VERSION?.trim() || '';
+const skipLinuxDesktopPayload = process.argv.includes('--skip-linux-desktop-payload');
 
 const result = spawnSync('bash', [shellPaths.releasePrepareScriptPath, artifactsDir, outputDir], {
   cwd: shellPaths.shellRoot,
@@ -123,4 +124,6 @@ function filterStandardAssetsToVersion(version: string): void {
 preserveStandardTrustEvidence();
 ensureCanonicalArm64Metadata();
 filterStandardAssetsToVersion(expectedVersion || readMetadataVersion());
-preserveLinuxDesktopPayload(expectedVersion);
+if (!skipLinuxDesktopPayload) {
+  preserveLinuxDesktopPayload(expectedVersion);
+}

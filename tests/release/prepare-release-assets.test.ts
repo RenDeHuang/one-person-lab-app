@@ -39,12 +39,13 @@ done < <(find "$1" -type f -print)
   return { root, artifacts, output, shell };
 }
 
-function run(input: ReturnType<typeof fixture>) {
+function run(input: ReturnType<typeof fixture>, args: string[] = []) {
   return spawnSync(process.execPath, [
     '--experimental-strip-types',
     'scripts/prepare-release-assets.ts',
     input.artifacts,
     input.output,
+    ...args,
   ], {
     cwd: appRoot,
     encoding: 'utf8',
@@ -85,4 +86,19 @@ test('release asset staging fails closed when the current Linux Desktop payload 
   const duplicateResult = run(duplicate);
   assert.notEqual(duplicateResult.status, 0);
   assert.match(duplicateResult.stderr, /Expected exactly one .*linux-x64\.deb, found 2/);
+});
+
+test('release asset staging can omit Linux Desktop for a macOS-only Nightly', (t) => {
+  const input = fixture();
+  t.after(() => fs.rmSync(input.root, { recursive: true, force: true }));
+  fs.rmSync(path.join(input.artifacts, 'linux', linuxAssetName));
+
+  const result = run(input, ['--skip-linux-desktop-payload']);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.existsSync(path.join(input.output, linuxAssetName)), false);
+  assert.equal(
+    fs.existsSync(path.join(input.output, `One-Person-Lab-${version}-mac-arm64.dmg`)),
+    true,
+  );
 });
