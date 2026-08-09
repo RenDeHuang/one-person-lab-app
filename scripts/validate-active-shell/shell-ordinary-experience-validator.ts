@@ -1281,6 +1281,24 @@ function validateCodexConversationSurfaces(shellPaths) {
     'Active shell en-US OPL conversation placeholder',
   );
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/conversation/platforms/acp/useAcpInitialMessage.ts', ["import { warmupConversation } from '../../utils/warmupConversation'", 'await warmupConversation(conversation_id)', 'ipcBridge.acpConversation.sendMessage.invoke'], 'Active shell ACP initial-message flow warm up before first send');
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/hooks/context/ConversationContext.tsx',
+    ['canonicalThreadId?: string;'],
+    'Active shell canonical conversation runtime-owner context',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/pages/conversation/platforms/acp/AcpChat.tsx',
+    ['canonicalThreadId,', '<ConversationProvider'],
+    'Active shell canonical conversation runtime-owner provider',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/renderer/components/chat/SendBox/index.tsx',
+    ['!conversationContext?.canonicalThreadId', 'conversationContext?.canonicalThreadId,'],
+    'Active shell canonical conversation bypasses AionCore focus warmup',
+  );
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/chat/ThoughtDisplay.tsx', ['formatElapsedTime', "t('conversation.chat.processing')", 'elapsedTime'], 'Active shell ThoughtDisplay elapsed processing feedback');
 }
 
