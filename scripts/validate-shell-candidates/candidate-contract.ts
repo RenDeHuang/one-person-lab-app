@@ -56,6 +56,14 @@ type CandidateAdapterContract = {
   shell_source: { owner_repo: string; history_policy: string; checkout_path: string };
   release_role: string;
   gui_authority?: { implementation_role?: string };
+  codex_executable_contract?: {
+    resolver_env?: string;
+    carrier?: {
+      kind?: string;
+      manifest_parser_owner?: string | null;
+      aioncore_required?: boolean;
+    };
+  };
   shell_contract: { source_topology: string; capabilities: string[] };
   validation_commands: ValidationCommand[];
   thread_adapter_boundary?: NativeThreadAdapterBoundary;
@@ -197,7 +205,7 @@ function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: 
     ? 'explicit_user_requested_technical_replay_only'
     : isReferenceCandidate
       ? 'manual_on_demand_technical_verification_build_only'
-      : 'selectable_for_explicit_candidate_build';
+      : 'manual_on_demand_technical_evaluation_build_only';
   if (candidate.release_participation !== expectedReleaseParticipation) {
     throw new Error(`${candidate.id} release participation must be ${expectedReleaseParticipation}`);
   }
@@ -326,7 +334,8 @@ function validateCandidateAdapterContract(
     adapterContract.state !== 'active' ||
     adapterContract.candidate_stage !==
       'opl_native_workbench_single_app_server_adapter_candidate_only' ||
-    adapterContract.gui_authority?.implementation_role !== 'active_shell_implementation_carrier'
+    adapterContract.gui_authority?.implementation_role !==
+      'foreground_alternative_candidate_implementation_carrier'
   ) {
     throw new Error(`${candidate.id} adapter must preserve the shared adapter schema and single App Server adapter candidate stage`);
   }
@@ -341,6 +350,15 @@ function validateCandidateAdapterContract(
   }
   if (adapterContract.release_role !== 'experimental_candidate_shell') {
     throw new Error(`${candidate.id} adapter release_role must be experimental_candidate_shell`);
+  }
+  if (
+    adapterContract.codex_executable_contract?.resolver_env !== 'OPL_CODEX_BIN' ||
+    adapterContract.codex_executable_contract.carrier?.kind !==
+      'candidate_owned_or_exact_external_binary' ||
+    adapterContract.codex_executable_contract.carrier.manifest_parser_owner !== null ||
+    adapterContract.codex_executable_contract.carrier.aioncore_required !== false
+  ) {
+    throw new Error(`${candidate.id} adapter must resolve Codex directly without an AionCore runtime or manifest dependency`);
   }
   if (adapterContract.shell_contract.source_topology !== candidate.source_topology) {
     throw new Error(`${candidate.id} adapter source_topology must match candidate registry`);
@@ -372,7 +390,7 @@ function validateCandidateAdapterContract(
 
 function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.implementation_basis, [
-    'OPL-native React/Electron shared renderer',
+    'OPL-native React renderer with Swift/AppKit WKWebView macOS host and Node WebUI host',
     'OPL App state/action contract first',
     'K-Dense delivery workspace patterns adapted without runtime authority transfer',
     'Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions',
@@ -443,9 +461,9 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
     'candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT',
     'candidate consumes OPL App state/action contracts without owning runtime or domain truth',
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
-    'Electron and WebUI use the same native React renderer and App-owned bridge shape',
+    'Packaged macOS and WebUI use the same native React renderer and App-owned bridge shape',
     'ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs',
-    'WebUI parity evidence proves the same renderer and product semantics as Electron',
+    'WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host',
     'one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer',
     'Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server',
     'Native source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer',
@@ -574,7 +592,7 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
     '"webui"',
     '"smoke:webui"',
     '"validate:state-model"',
-  ], 'package scripts for shared Electron/WebUI renderer');
+  ], 'package scripts for shared packaged macOS/WebUI renderer');
 }
 
 export function validateCandidate(candidate: ShellCandidateEntry, policy: CandidateValidationPolicy): void {
@@ -618,6 +636,27 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     'opl_native_workbench_single_app_server_adapter_candidate_only'
   ) {
     throw new Error(`${candidate.id}.candidate_stage must remain a single App Server adapter candidate only`);
+  }
+  const maintenance = candidate.maintenance_policy;
+  if (
+    maintenance?.mode !== 'manual_on_demand_non_periodic_technical_evaluation' ||
+    maintenance.automatic_or_scheduled_work_allowed !== false ||
+    maintenance.mainline_development_required !== false ||
+    maintenance.completion_or_parity_obligation !== false ||
+    maintenance.release_blocking !== false
+  ) {
+    throw new Error(`${candidate.id}.maintenance_policy must keep Native manual, non-periodic, non-blocking, and without a completion obligation`);
+  }
+  const runtimeDependency = candidate.runtime_dependency_policy;
+  if (
+    runtimeDependency?.aioncore_required !== false ||
+    runtimeDependency.codex_app_server_source !== 'OPL_CODEX_BIN_or_exact_external_codex' ||
+    runtimeDependency.opl_integration !== 'framework_app_state_action_contracts_only' ||
+    !runtimeDependency.forbidden_dependencies.includes('AionCore runtime') ||
+    !runtimeDependency.forbidden_dependencies.includes('AionCore managed-resources manifest') ||
+    !runtimeDependency.forbidden_dependencies.includes('AionCore session or database state')
+  ) {
+    throw new Error(`${candidate.id}.runtime_dependency_policy must keep Native independent from AionCore`);
   }
   if (
     candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||
@@ -719,7 +758,7 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
     'workspace directory picker',
     'new conversation and lightweight thread history rail',
     'Codex app-server backed chat turns',
-    'shared native React renderer for Electron and WebUI',
+    'shared native React renderer for packaged macOS and WebUI',
     'Web transport bridge with HTTP actions and SSE Codex events',
     'K-Dense-informed project sandbox and delivery artifact organization as reference-only',
     'Open Science-informed artifact, provenance, and review affordances as collapsed secondary context',
@@ -756,8 +795,8 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.shared_renderer !== true) {
     throw new Error(`${candidate.id} webui_transport.shared_renderer must be true`);
   }
-  if (transport.electron_surface !== 'Electron preload/IPC window.oplNativeWorkbench') {
-    throw new Error(`${candidate.id} electron transport must expose window.oplNativeWorkbench`);
+  if (transport.native_surface !== 'Swift WKScriptMessageHandler window.oplNativeWorkbench') {
+    throw new Error(`${candidate.id} packaged macOS transport must expose window.oplNativeWorkbench through WKScriptMessageHandler`);
   }
   if (transport.web_surface !== 'browser window.oplNativeWorkbench compatibility bridge') {
     throw new Error(`${candidate.id} web surface must expose the browser window.oplNativeWorkbench bridge`);
@@ -771,7 +810,7 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.event_stream !== 'SSE /api/opl-events') {
     throw new Error(`${candidate.id} WebUI event stream must be SSE /api/opl-events`);
   }
-  if (transport.native_picker_policy !== 'Electron may use native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth') {
+  if (transport.native_picker_policy !== 'Packaged macOS may use a native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth') {
     throw new Error(`${candidate.id} WebUI native picker policy must preserve App product truth`);
   }
 }

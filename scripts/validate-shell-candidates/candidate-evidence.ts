@@ -242,13 +242,14 @@ function validateNativeWorkbenchImplementationEvidence(
 
   if (
     evidence.webui_transport?.renderer !== 'src/workbench/App.tsx'
-    || evidence.webui_transport?.electron_transport !== 'src/bridge/electronPreload.ts'
+    || evidence.webui_transport?.native_host !== 'scripts/native-workbench-app.swift'
+    || evidence.webui_transport?.native_transport !== 'src/main.tsx#installNativeTransport'
     || evidence.webui_transport?.web_transport !== 'src/bridge/webTransport.ts'
     || evidence.webui_transport?.gateway !== 'scripts/dev-webui-server.mjs'
     || evidence.webui_transport?.shared_surface !== true
-    || evidence.webui_transport?.events !== 'GET /api/opl-events uses SSE for Codex app-server events'
+    || evidence.webui_transport?.events !== 'GET /api/opl-events uses SSE for Codex App Server and typed host events'
   ) {
-    throw new Error(`${candidate.id} evidence must prove shared native Electron/WebUI renderer transport`);
+    throw new Error(`${candidate.id} evidence must prove shared Swift packaged macOS/WebUI renderer transport`);
   }
   if (
     evidence.reuse_policy?.kdense_source_usage !== 'experience_reference_only'
@@ -290,7 +291,7 @@ function validateNativeWorkbenchImplementationEvidence(
     || evidence.webui_parity?.product_profile !== 'src/generated/oplProductProfile.generated.json'
     || evidence.webui_parity?.desktop_and_webui_default_home !== 'chat_first_default_collapsed'
   ) {
-    throw new Error(`${candidate.id} evidence must prove WebUI uses the same native renderer, bridge shape, product profile, and default home semantics as Electron`);
+    throw new Error(`${candidate.id} evidence must prove WebUI uses the same native renderer, bridge shape, product profile, and default home semantics as the packaged macOS host`);
   }
 
   const evidenceSeriesDisplay = evidence.foundry_agent_series_display_contract;

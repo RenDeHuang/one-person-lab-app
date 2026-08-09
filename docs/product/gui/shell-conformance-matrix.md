@@ -105,10 +105,11 @@ B0-11 的 execution、metadata intake、canonical discovery 与 ordinary activit
 | `U1-05` | Docker/WebUI 同产品语义。WebUI 是 OPL 的部署入口，不能成为另一个产品。 | `aligned_contract` | `upstream reuse + L2 transport adapter` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | AionUI Web Storage 使用同一 `/settings/storage` route；Desktop 保留 Electron local lifecycle，WebUI 不调用该 bridge，只消费有效 owner projections并在 refresh 单项失败时 fail-open。浏览器态 DOM 与 Web host SPA fallback 已锁测；exact Docker cohort、Pixel、Install、Release 仍独立未验证。 |
 | `U1-06` | OPL 数据、缓存、包体空间与安全清理。长期使用必须可预览、可确认、可恢复。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_missing` | `pixel_unverified` | `install_unverified` | Framework 已投影 owner inventory；Web host 已实现认证且有界的 capability/plan/execute/restore、单次确认、opaque archive/manifest/receipt refs、幂等终态回读或 typed conflict 及恢复；薄 Shell/Web consumer 在 owner 或 host capability 缺失时保持 fail-open。Package lifecycle 仍在 Agents，Shell 不得直接改 raw package/path state 或调用 generic prune。 |
 
-Source 状态说明：AionUI `R1-01..05`、`U1-01..06` 为 `source_implemented`；
-`R1-06` 为 `source_partial`，没有完全 missing。Native 的 `R1-03`、
+Source 状态说明：AionUI `R1-01..06`、`U1-01..06` 均为 `source_implemented`。Native 的 `R1-03`、
 `U1-03`、`U1-06` 为 `source_missing`，其余为 `source_partial`。这里的 `source_implemented`
 只证明主要源码路径和专项测试存在，不等于后续 fresh test pass，更不等于 pixels、install 或 release。
+Native 状态只用于不定期手动技术评估和选定实验的差距判断，不构成主线 backlog、parity
+计划、排期、release blocker 或必须清零的完成义务。
 
 下一轮顺序由 Active Truth 的 P0-P7 five-axis ledger 统一维护。U1-04 与 AionUI U1-06
 已关闭 source 轴；任何实现顺序都不能把不同状态压成一个 aggregate completion 值。
@@ -233,7 +234,7 @@ Install、Release 五轴；没有 exact-feature installed/release evidence 的�
 |   OPL 品牌、双语与普通语言一致 | `aligned_contract` | `source_implemented` | `pixel_verified` | `candidate_target` | `source_partial` | `pixel_verified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Current exact cohort覆盖OPL brand、zh-CN/en-US；文案完整性仍由i18n gate负责。   |
 |   Keyboard、focus、contrast、reduced motion | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | AionUI 既有 focused coverage 加上 light/dark semantic contrast regression 关闭 Source；真实 screen-reader、完整 rendered keyboard traversal、rendered contrast 和 installed readback 仍未验证。Native 仍须单独完成自身 Source。   |
 |   First-run 使用 App-owned readiness/page-state | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_missing` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Native 尚无完整 FirstRun；contract 和 test matrix 不能替代 clean-machine path。   |
-|   Desktop/WebUI 同 product semantics | `not_claimed` | `source_not_assessed` | `not_applicable` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | Native 共享 renderer/bridge 有基础，但缺当前 Desktop/WebUI route-by-route parity evidence。   |
+|   Desktop/WebUI 同 product semantics | `aligned_contract` | `source_implemented` | `pixel_unverified` | `candidate_target` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | AionUI 已复用同一产品 route、认证后端和 owner projection；Native 共享 renderer/bridge 有基础，但缺当前 Desktop/WebUI route-by-route parity evidence。   |
 |   Release role | `aligned_contract` | `source_implemented` | `not_applicable` | `candidate_target` | `source_implemented` | `not_applicable` | `install_unverified` | `release_unverified` | `install_unverified` | `release_unverified` | AionUI 仍是 active stable shell；Native 是 experimental candidate，package/smoke 不得推导 adoption 或 release-ready。   |
 
 ## Remaining Source / Pixel Boundaries

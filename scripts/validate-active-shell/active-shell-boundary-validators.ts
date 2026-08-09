@@ -20,7 +20,9 @@ export function validateGuiAuthority(contract, isDefaultReleaseAdapter) {
   }
   const expectedImplementationRole = contract.release_role === 'archived_technical_verification_shell'
     ? 'archived_technical_proof_replay_carrier'
-    : 'active_shell_implementation_carrier';
+    : contract.release_role === 'experimental_candidate_shell'
+      ? 'foreground_alternative_candidate_implementation_carrier'
+      : 'active_shell_implementation_carrier';
   if (contract.gui_authority.implementation_role !== expectedImplementationRole) {
     throw new Error(`Active shell GUI implementation role must be ${expectedImplementationRole}`);
   }
@@ -55,7 +57,9 @@ export function validateShellReplacementPolicy(contract) {
   }
   const expectedCandidateState = contract.release_role === 'archived_technical_verification_shell'
     ? 'archived_technical_proof_replay_only'
-    : 'candidate_until_contracts_and_tests_complete';
+    : contract.release_role === 'experimental_candidate_shell'
+      ? 'manual_technical_evaluation_candidate_without_completion_obligation'
+      : 'candidate_until_contracts_and_tests_complete';
   if (contract.shell_replacement_policy.candidate_state !== expectedCandidateState) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
   }

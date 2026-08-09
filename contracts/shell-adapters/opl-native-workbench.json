@@ -36,7 +36,7 @@
   "candidate_stage": "opl_native_workbench_single_app_server_adapter_candidate_only",
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
-    "implementation_role": "active_shell_implementation_carrier",
+    "implementation_role": "foreground_alternative_candidate_implementation_carrier",
     "product_contracts": [
       "contracts/app-gui-product-contract.json",
       "contracts/app-runtime-bridge.json",
@@ -71,7 +71,7 @@
   },
   "shell_replacement_policy": {
     "candidate_root_pattern": "shells/<candidate>",
-    "candidate_state": "candidate_until_contracts_and_tests_complete",
+    "candidate_state": "manual_technical_evaluation_candidate_without_completion_obligation",
     "authority_transfer_allowed": false,
     "adoption_gate": [
       "declare candidate in contracts/app-shell-candidates.json",

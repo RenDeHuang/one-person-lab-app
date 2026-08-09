@@ -40,6 +40,19 @@ export type ShellCandidate = HermesTargetStateContract & {
   adapter_contract: string;
   source_topology: string;
   release_participation: string;
+  maintenance_policy?: {
+    mode: string;
+    automatic_or_scheduled_work_allowed: boolean;
+    mainline_development_required: boolean;
+    completion_or_parity_obligation: boolean;
+    release_blocking: boolean;
+  };
+  runtime_dependency_policy?: {
+    aioncore_required: boolean;
+    codex_app_server_source: string;
+    opl_integration: string;
+    forbidden_dependencies: string[];
+  };
   implementation_basis: string[];
   source_upstream?: {
     repo: string;
@@ -84,7 +97,7 @@ export type ShellCandidate = HermesTargetStateContract & {
   };
   webui_transport?: {
     shared_renderer: boolean;
-    electron_surface: string;
+    native_surface: string;
     web_surface: string;
     web_bridge: string;
     event_stream: string;
