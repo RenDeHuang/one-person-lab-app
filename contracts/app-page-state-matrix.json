@@ -3404,6 +3404,8 @@
       ],
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
+        "WeChat account, pairing, and authorized-user management with an implicit fixed Codex CLI binding",
+        "remote connection details close back to Resources & Connections, and Settings retains an explicit return-to-app action",
         "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
         "user-managed external connections while the built-in OPL Gateway remains on Account & Access",
@@ -3416,6 +3418,7 @@
       ],
       "must_not_show": [
         "built-in OPL Gateway connection or Gateway count owned by Account & Access",
+        "WeChat Agent selector, model selector, or CLI-model-following status",
         "selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace",
         "empty optional resource group, placeholder state, or hosted platform promise without a canonical owner projection",
         "App-owned resource scheduling, billing, credential ownership, storage execution, or provider truth",
@@ -3431,6 +3434,25 @@
         "visibility": "always",
         "action_policy": "open_existing_local_browser_access_settings",
         "implementation_provenance_visibility": "technical_details_only"
+      },
+      "remote_channel_access": {
+        "wechat": {
+          "binding_policy": "implicit_fixed_codex_cli",
+          "ordinary_controls": [
+            "login_or_connection_status",
+            "pairing_requests",
+            "authorized_users"
+          ],
+          "forbidden_controls": [
+            "agent_selector",
+            "model_selector",
+            "model_following_status"
+          ]
+        },
+        "navigation_policy": {
+          "close_connection_details": "return_to_settings_resources",
+          "return_to_app": "use_settings_return_to_app_action"
+        }
       },
       "external_resource_projection_policy": {
         "source": "settings_control_center.app_settings_read_model.resource_sources",

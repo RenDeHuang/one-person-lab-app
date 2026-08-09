@@ -60,6 +60,11 @@ AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两�
 双 carrier 当前实现证据见
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
 
+手机远程访问当前复用 AionUI 已有 WebUI 与频道能力，不建立第二套控制面。微信频道固定
+使用 Codex CLI；设置中只保留登录/连接、配对请求和已授权用户管理，不提供 Agent 或模型
+选择，也不展示“自动跟随 CLI 模型”。连接详情关闭后回到“资源与连接”，再由“返回应用”
+进入主界面；当前不增加指定桌面 thread 绑定、原生手机客户端或额外并发状态机。
+
 视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
 品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态参考
 观察时最新可验证的官方 ChatGPT Codex macOS。精确版本只写入该次观察 receipt，不成为
