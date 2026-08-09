@@ -121,6 +121,8 @@ function requiredAssetNames(version, includeFullPackage) {
   const standard = [
     ...standardPayloadAssetNames(version),
     "opl-release-attestation.json",
+    "install-docker-webui.sh",
+    "install-docker-webui.ps1",
   ];
   if (!includeFullPackage) {
     return standard;

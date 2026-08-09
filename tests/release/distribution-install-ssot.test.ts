@@ -211,6 +211,15 @@ test('distribution/install SSOT validates the current and approved state split',
   ).installer_model;
   assert.match(hostAutoUpdate.linux_macos_online_command, /--enable-auto-update/);
   assert.doesNotMatch(hostAutoUpdate.linux_server_online_command, /--enable-auto-update/);
+  assert.equal(hostAutoUpdate.installer_release_selector, 'github_latest_release');
+  assert.equal(
+    hostAutoUpdate.installer_release_assets.linux_macos,
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh',
+  );
+  assert.equal(
+    hostAutoUpdate.installer_release_assets.windows,
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.ps1',
+  );
   const autoUpdateContract = hostAutoUpdate.host_auto_update;
   assert.equal(autoUpdateContract.follows_ref, 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable');
   assert.equal(autoUpdateContract.platform_schedulers.windows.mechanism, 'user_scoped_windows_scheduled_task');

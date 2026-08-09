@@ -675,8 +675,10 @@ test('workflow and release contract expose only the protected preview exception'
   assert.equal(preview.cleanup.same_source_lock_and_full_asset_digests_required, false);
   assert.equal(preview.cleanup.same_bundle_digest_required, false);
   assert.equal(preview.cleanup.full_artifact_identity_required, true);
-  assert.equal(preview.cleanup.required_formal_stable_assets.length, 10);
+  assert.equal(preview.cleanup.required_formal_stable_assets.length, 12);
   assert.equal(preview.cleanup.required_formal_stable_assets.includes('opl-install.sh'), true);
+  assert.equal(preview.cleanup.required_formal_stable_assets.includes('install-docker-webui.sh'), true);
+  assert.equal(preview.cleanup.required_formal_stable_assets.includes('install-docker-webui.ps1'), true);
   assert.equal(preview.cleanup.release_and_tag_double_absence_readback_required, true);
   assert.equal(validateManualFullPreviewControlPlane(process.cwd()), 0);
   assert.equal(validateWorkflowDispatchWriteAuthority(process.cwd()), 0);

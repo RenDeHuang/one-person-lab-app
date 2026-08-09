@@ -239,6 +239,14 @@ test("qualified Stable defaults Latest while daily-default Nightly keeps develop
   assert.equal(control.publication.full.updater_metadata_allowed, false);
   assert.equal(control.publication.ghcr.stable_critical_path, false);
   assert.equal(control.publication.ghcr.desktop_release_bundle_asset, false);
+  assert.deepEqual(control.publication.ghcr.installer_sidecar_assets_on_desktop_latest, [
+    "install-docker-webui.sh",
+    "install-docker-webui.ps1",
+  ]);
+  assert.equal(
+    control.publication.ghcr.installer_sidecar_attestation_policy,
+    "outside_sealed_standard_payload_additive_name_size_digest_cas",
+  );
   assert.equal(control.publication.nightly.status, "implemented_pending_first_publication_readback");
   assert.equal(control.publication.nightly.publication_available, true);
   assert.equal(control.publication.nightly.mutation_available, true);

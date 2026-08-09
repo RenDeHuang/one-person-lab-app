@@ -1144,11 +1144,32 @@ jobs:
             esac
             attestation_size="$(wc -c < opl-release-attestation.json | tr -d ' ')"
             attestation_sha="sha256:$(shasum -a 256 opl-release-attestation.json | awk '{print $1}')"
+            docker_shell_installer="$PWD/app-source/scripts/install-docker-webui.sh"
+            docker_powershell_installer="$PWD/app-source/scripts/install-docker-webui.ps1"
+            for installer in "$docker_shell_installer" "$docker_powershell_installer"; do
+              test -s "$installer" && test ! -L "$installer"
+            done
+            docker_shell_installer_size="$(wc -c < "$docker_shell_installer" | tr -d ' ')"
+            docker_shell_installer_sha="sha256:$(shasum -a 256 "$docker_shell_installer" | awk '{print $1}')"
+            docker_powershell_installer_size="$(wc -c < "$docker_powershell_installer" | tr -d ' ')"
+            docker_powershell_installer_sha="sha256:$(shasum -a 256 "$docker_powershell_installer" | awk '{print $1}')"
+            jq -n \
+              --arg shell_path "$docker_shell_installer" \
+              --argjson shell_size "$docker_shell_installer_size" \
+              --arg shell_sha "$docker_shell_installer_sha" \
+              --arg powershell_path "$docker_powershell_installer" \
+              --argjson powershell_size "$docker_powershell_installer_size" \
+              --arg powershell_sha "$docker_powershell_installer_sha" \
+              '{schema:"opl_app_release_installer_sidecar_actions.v1",upload_actions:[
+                {action:"upload",name:"install-docker-webui.sh",source_path:$shell_path,size_bytes:$shell_size,sha256:$shell_sha},
+                {action:"upload",name:"install-docker-webui.ps1",source_path:$powershell_path,size_bytes:$powershell_size,sha256:$powershell_sha}
+              ]}' > docker-webui-installer-sidecar-actions.json
             jq -n \
               --slurpfile payload standard-recovery-payload-actions.json \
+              --slurpfile sidecars docker-webui-installer-sidecar-actions.json \
               --arg path "$PWD/opl-release-attestation.json" \
               --argjson size "$attestation_size" --arg sha "$attestation_sha" \
-              '{schema:"opl_app_standard_publication_upload_actions.v1",upload_actions:($payload[0].upload_actions + [{action:"upload",name:"opl-release-attestation.json",source_path:$path,size_bytes:$size,sha256:$sha}])}' \
+              '{schema:"opl_app_standard_publication_upload_actions.v1",upload_actions:($payload[0].upload_actions + [{action:"upload",name:"opl-release-attestation.json",source_path:$path,size_bytes:$size,sha256:$sha}] + $sidecars[0].upload_actions)}' \
               > standard-publication-upload-actions.json
             additional_upload_args=(--additional-upload-actions standard-publication-upload-actions.json)
             publication_record_args=(--publication-record "$record")
@@ -1302,6 +1323,7 @@ jobs:
             planned-payload-assets.json
             stable-operation-publication-record.json
             standard-recovery-payload-actions.json
+            docker-webui-installer-sidecar-actions.json
             standard-publication-upload-actions.json
             opl-release-attestation.json
             github-immutability-preflight.json
@@ -1373,6 +1395,7 @@ jobs:
             records=()
             plans=()
             attestations=()
+            upload_actions=()
             while IFS= read -r item; do records+=("$item"); done < <(
               find pre-publish-durable-evidence -type f -name stable-operation-publication-record.json -print | LC_ALL=C sort
             )
@@ -1382,11 +1405,16 @@ jobs:
             while IFS= read -r item; do attestations+=("$item"); done < <(
               find pre-publish-durable-evidence -type f -name opl-release-attestation.json -print | LC_ALL=C sort
             )
+            while IFS= read -r item; do upload_actions+=("$item"); done < <(
+              find pre-publish-durable-evidence -type f -name standard-publication-upload-actions.json -print | LC_ALL=C sort
+            )
             test "${#records[@]}" -eq 1
             test "${#plans[@]}" -eq 1
             test "${#attestations[@]}" -eq 1
+            test "${#upload_actions[@]}" -eq 1
             record="${records[0]}"
             attestation="${attestations[0]}"
+            sidecar_actions="${upload_actions[0]}"
             attestation_size="$(wc -c < "$attestation" | tr -d ' ')"
             attestation_sha="sha256:$(shasum -a 256 "$attestation" | awk '{print $1}')"
             jq -e \
@@ -1404,12 +1432,24 @@ jobs:
             jq -S . "$record" > expected-publication-record.canonical.json
             jq -S .publication_record "$attestation" > attested-publication-record.canonical.json
             cmp expected-publication-record.canonical.json attested-publication-record.canonical.json
+            jq -e '
+              [.upload_actions[]
+                | select(.name == "install-docker-webui.sh" or .name == "install-docker-webui.ps1")
+                | {name, digest: .sha256, size_bytes}]
+              | (length == 2)
+                and ((map(.name) | sort) == ["install-docker-webui.ps1", "install-docker-webui.sh"])
+                and all(.[];
+                  (.digest | test("^sha256:[0-9a-f]{64}$"))
+                  and (.size_bytes > 0)
+                  and ((.size_bytes | floor) == .size_bytes))
+            ' "$sidecar_actions" >/dev/null
             # The durable record seals the complete payload. publish-plan.json is
             # only the upload delta and can legitimately contain zero actions.
             plans=("$record")
             jq \
               --null-input \
               --slurpfile plan "${plans[0]}" \
+              --slurpfile sidecars "$sidecar_actions" \
               --arg sha "$attestation_sha" \
               --argjson size "$attestation_size" \
               '{
@@ -1418,6 +1458,9 @@ jobs:
                     // ($plan[0].release_bundle_publish.receipt.details.upload_actions // []))
                     | map({name: .name, digest: (.digest // .sha256), size_bytes: .size_bytes}))
                   + [{name: "opl-release-attestation.json", digest: $sha, size_bytes: $size}]
+                  + ($sidecars[0].upload_actions
+                    | map(select(.name == "install-docker-webui.sh" or .name == "install-docker-webui.ps1"))
+                    | map({name, digest: .sha256, size_bytes}))
                 )
               }' > expected-mutable-standard-assets.json
             jq -e \

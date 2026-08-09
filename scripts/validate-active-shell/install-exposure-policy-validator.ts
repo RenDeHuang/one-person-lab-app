@@ -940,12 +940,24 @@ function validateInstallerSurfaces(policy) {
   if (dockerWebui.installer_model?.windows_powershell_script !== 'install-docker-webui.ps1') {
     throw new Error('Docker/WebUI install exposure must declare the Windows PowerShell installer script artifact');
   }
-  if (!dockerWebui.installer_model?.linux_macos_online_command?.includes('raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.sh')) {
+  const dockerInstallerAssets = dockerWebui.installer_model?.installer_release_assets;
+  if (
+    dockerWebui.installer_model?.installer_release_selector !== 'github_latest_release' ||
+    dockerInstallerAssets?.linux_macos !==
+      'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh' ||
+    dockerInstallerAssets?.windows !==
+      'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.ps1' ||
+    dockerInstallerAssets?.same_name_size_digest_readback_required !== true ||
+    dockerInstallerAssets?.attestation_payload_membership !== false
+  ) {
+    throw new Error('Docker/WebUI installer artifacts must use the GitHub Latest Release sidecar assets');
+  }
+  if (!dockerWebui.installer_model?.linux_macos_online_command?.includes('github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh')) {
     throw new Error('Docker/WebUI install exposure must declare the Linux/macOS online one-click command');
   }
   if (
     dockerWebui.installer_model?.windows_online_command !==
-      'download install-docker-webui.ps1 from raw.githubusercontent.com and run with -EnableAutoUpdate -Yes'
+      'download install-docker-webui.ps1 from the GitHub Latest Release and run with -EnableAutoUpdate -Yes'
   ) {
     throw new Error('Docker/WebUI install exposure must declare the Windows online one-click command model');
   }

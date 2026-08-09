@@ -557,10 +557,25 @@ test('canonical Stable publication consumes internal authority evidence and publ
     size_bytes: attestationBytes.length,
     sha256: sha256Evidence(attestationBytes),
   };
+  const installerSidecarActions = [
+    ['install-docker-webui.sh', '#!/usr/bin/env bash\nexit 0\n'],
+    ['install-docker-webui.ps1', 'exit 0\n'],
+  ].map(([name, content]) => {
+    const sourcePath = path.join(files.root, name);
+    const bytes = Buffer.from(content);
+    fs.writeFileSync(sourcePath, bytes);
+    return {
+      action: 'upload',
+      name,
+      source_path: sourcePath,
+      size_bytes: bytes.length,
+      sha256: sha256Evidence(bytes),
+    };
+  });
   const additionalPath = path.join(files.root, 'additional-upload-actions.json');
   fs.writeFileSync(additionalPath, `${JSON.stringify({
     schema: 'opl_app_release_upload_actions.v1',
-    upload_actions: [attestationAction],
+    upload_actions: [attestationAction, ...installerSidecarActions],
   })}\n`);
   const preflight = buildSettingReceipt({
     phase: 'preflight',
@@ -629,7 +644,7 @@ test('canonical Stable publication consumes internal authority evidence and publ
         return success(releaseResponse([], { draft: true, immutable: false }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
-        const uploaded = [first, attestationAction].find(
+        const uploaded = [first, attestationAction, ...installerSidecarActions].find(
           (candidate) => candidate.source_path === args[3],
         );
         assert.ok(uploaded);
@@ -685,7 +700,11 @@ test('canonical Stable publication consumes internal authority evidence and publ
   }, runtime);
 
   assert.equal(result.status, 'complete');
-  assert.deepEqual(result.uploaded, [first.name, attestationAction.name]);
+  assert.deepEqual(result.uploaded, [
+    first.name,
+    attestationAction.name,
+    ...installerSidecarActions.map((action) => action.name),
+  ]);
   assert.equal(settingReadAttempts, 4);
   assert.deepEqual(settingReadWaits, [500, 1_500]);
   assert.equal(

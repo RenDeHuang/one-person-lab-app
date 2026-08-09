@@ -157,7 +157,7 @@ function Wait-ValidationTaskStopped {
 if ([string]::IsNullOrWhiteSpace($InstallerSourcePath)) {
   Invoke-WebRequest `
     -UseBasicParsing `
-    -Uri 'https://raw.githubusercontent.com/gaofeng21cn/one-person-lab-app/main/scripts/install-docker-webui.ps1' `
+    -Uri 'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.ps1' `
     -OutFile $installerPath
 } else {
   $sourceFullPath = [System.IO.Path]::GetFullPath($InstallerSourcePath)

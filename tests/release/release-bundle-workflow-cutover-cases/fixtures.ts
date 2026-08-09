@@ -189,6 +189,7 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-expected-release-assets-'));
   const plan = path.join(root, 'publish-plan.json');
+  const sidecarActions = path.join(root, 'standard-publication-upload-actions.json');
   const attestationBytes = `${JSON.stringify({ schema: 'opl_app_release_attestation.v1' })}\n`;
   const uploaded = {
     name: 'One-Person-Lab-26.7.31-r2-mac-arm64.dmg',
@@ -208,6 +209,25 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
       },
     },
   })}\n`);
+  const sidecars = [
+    {
+      name: 'install-docker-webui.sh',
+      digest: `sha256:${'b'.repeat(64)}`,
+      size_bytes: 456,
+    },
+    {
+      name: 'install-docker-webui.ps1',
+      digest: `sha256:${'c'.repeat(64)}`,
+      size_bytes: 789,
+    },
+  ];
+  fs.writeFileSync(sidecarActions, `${JSON.stringify({
+    upload_actions: sidecars.map((asset) => ({
+      name: asset.name,
+      sha256: asset.digest,
+      size_bytes: asset.size_bytes,
+    })),
+  })}\n`);
 
   try {
     const result = spawnSync(
@@ -216,6 +236,7 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
         `attestation_sha=sha256:${crypto.createHash('sha256').update(attestationBytes).digest('hex')}`,
         `attestation_size=${Buffer.byteLength(attestationBytes)}`,
         `plans=(${JSON.stringify(plan)})`,
+        `sidecar_actions=${JSON.stringify(sidecarActions)}`,
         run.slice(start, end),
         'test -s expected-mutable-standard-assets.json',
       ].join('\n')],
@@ -236,6 +257,7 @@ export function runExpectedImmutableReleaseAssetsBuilder() {
             digest: `sha256:${crypto.createHash('sha256').update(attestationBytes).digest('hex')}`,
             size_bytes: Buffer.byteLength(attestationBytes),
           },
+          ...sidecars,
         ],
       },
     };

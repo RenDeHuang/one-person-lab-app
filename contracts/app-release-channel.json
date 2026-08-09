@@ -1503,6 +1503,8 @@
           "opl-app-component-manifest.json",
           "opl-install.sh",
           "opl-release-attestation.json",
+          "install-docker-webui.sh",
+          "install-docker-webui.ps1",
           "github_hosted_source_contract_build_preflight",
           "github_hosted_signed_notarized_standard_build",
           "remote_digest_readback",
@@ -1642,7 +1644,9 @@
             "opl-app-component-manifest.json",
             "opl-install.sh",
             "opl-release-manifest.json",
-            "opl-release-attestation.json"
+            "opl-release-attestation.json",
+            "install-docker-webui.sh",
+            "install-docker-webui.ps1"
           ],
           "stable_release_published_non_prerelease_required": true,
           "stable_latest_required": true,
@@ -1698,9 +1702,15 @@
       "ghcr": {
         "stable_critical_path": false,
         "desktop_release_bundle_asset": false,
+        "installer_sidecar_assets_on_desktop_latest": [
+          "install-docker-webui.sh",
+          "install-docker-webui.ps1"
+        ],
+        "installer_sidecar_source": "frozen_app_source_for_each_stable_release",
+        "installer_sidecar_attestation_policy": "outside_sealed_standard_payload_additive_name_size_digest_cas",
         "owner": "one-person-lab-app_webui_distribution",
         "disposition": "independent_continuous_server_image_publication_and_readback",
-        "rule": "GHCR WebUI publication is not silently omitted: it is explicitly outside the desktop Stable Latest gate and retains its independent App-owned publication and runtime readback."
+        "rule": "GHCR WebUI image publication remains independent from Desktop Stable, while its two user-facing one-click installer scripts are additive assets on every Desktop Latest Release so all official install downloads share one Latest entrypoint."
       }
     },
     "publisher_idempotency": {
@@ -1932,6 +1942,8 @@
         "opl-app-component-manifest.json",
         "opl-install.sh",
         "opl-release-attestation.json",
+        "install-docker-webui.sh",
+        "install-docker-webui.ps1",
         "prepared_ai_release_notes"
       ],
       "full_addon_may_follow_latest_asynchronously": true,

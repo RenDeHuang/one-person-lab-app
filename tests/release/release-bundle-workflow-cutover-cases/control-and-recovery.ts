@@ -387,7 +387,13 @@ test('resume admission preserves Standard identity and rotates only an expired e
       `${script} is not bound to the canonical release executor checkout`,
     );
   }
-  assert.doesNotMatch(publicationControl, /app-source\/scripts\//);
+  assert.doesNotMatch(publicationControl, /node[^\n]*app-source\/scripts\//);
+  assert.deepEqual(
+    [...publicationControl.matchAll(/app-source\/scripts\/(install-docker-webui\.(?:sh|ps1))/g)]
+      .map((match) => match[1])
+      .sort(),
+    ['install-docker-webui.ps1', 'install-docker-webui.sh'],
+  );
   assert.match(publicationControl, /standard-build-receipt\.json > planned-payload-assets\.json/);
   assert.match(publicationControl, /\.tracks\.standard\.required_asset_names as \$required/);
   assert.doesNotMatch(
