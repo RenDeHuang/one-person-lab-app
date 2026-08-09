@@ -74,14 +74,16 @@ function fixture(t: test.TestContext) {
   fs.writeFileSync(path.join(assetsDir, zipName), 'nightly zip exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, `${zipName}.blockmap`), 'nightly blockmap exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, 'opl-install.sh'), '#!/usr/bin/env bash\nexit 0\n');
-  fs.writeFileSync(path.join(assetsDir, 'latest-arm64-mac.yml'), [
+  const metadata = [
     `version: ${frozen.updater_version}`,
     'files:',
     `  - url: ${zipName}`,
     '    sha512: fixture',
     `path: ${zipName}`,
     '',
-  ].join('\n'));
+  ].join('\n');
+  fs.writeFileSync(path.join(assetsDir, 'latest-mac.yml'), metadata);
+  fs.writeFileSync(path.join(assetsDir, 'latest-arm64-mac.yml'), metadata);
   fs.writeFileSync(path.join(assetsDir, 'standard-local-authorization-policy.json'), JSON.stringify({
     schema: 'opl_local_authorized_macos_policy.v1',
     package_kind: 'app_standard',
@@ -337,7 +339,13 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     failed_gates: [],
     non_stable_notice: true,
   });
-  assert.equal(input.qualification.assets.length, 6);
+  assert.equal(input.qualification.assets.length, 7);
+  assert.equal(input.qualification.updater_metadata.name, 'latest-mac.yml');
+  assert.equal(input.qualification.updater_compatibility_metadata.name, 'latest-arm64-mac.yml');
+  assert.equal(
+    input.qualification.updater_metadata.sha256,
+    input.qualification.updater_compatibility_metadata.sha256,
+  );
   assert.equal(
     input.qualification.assets.filter((asset) => asset.name === 'opl-app-component-manifest.json').length,
     1,
@@ -385,6 +393,11 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(first.github_release.latest_after, 'v26.7.25');
   assert.deepEqual(first.invocation, input.request.invocation);
   assert.deepEqual(first.actions, input.request.actions);
+  assert.equal(first.updater_metadata.name, 'latest-mac.yml');
+  assert.equal(first.updater_compatibility_metadata.name, 'latest-arm64-mac.yml');
+  assert.equal(first.updater_metadata.sha256, first.updater_compatibility_metadata.sha256);
+  assert.match(first.updater_metadata.url, /\/latest-mac\.yml$/);
+  assert.match(first.updater_compatibility_metadata.url, /\/latest-arm64-mac\.yml$/);
   assert.equal(
     remote.calls.filter((call) => call.startsWith('upload:')).length,
     input.qualification.assets.length,
@@ -405,6 +418,22 @@ test('Nightly publisher is digest-idempotent, prerelease-only, and preserves Lat
   assert.equal(remote.calls.some((call) => call.startsWith('upload:')), false);
   assert.equal(remote.calls.includes('publish'), false);
   assert.equal(remote.calls.includes('create-tag'), false);
+});
+
+test('Nightly publisher rejects an incomplete metadata bridge before remote inspection or mutation', (t) => {
+  const input = fixture(t);
+  const remote = new FakeRemote();
+  const qualification = structuredClone(input.qualification) as Partial<NightlyQualificationReceipt>;
+  delete qualification.updater_compatibility_metadata;
+
+  assert.throws(() => publishNightlyRelease({
+    request: input.request,
+    qualification: qualification as NightlyQualificationReceipt,
+    assetsDir: input.assetsDir,
+    notes: 'Automated Standard preview.\n',
+    remote,
+  }), /exact passed Standard-only qualification receipt/);
+  assert.deepEqual(remote.calls, []);
 });
 
 test('Nightly publisher reserves the frozen tag before creating a Release', (t) => {

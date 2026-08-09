@@ -5,6 +5,8 @@ import { validateCarrierNeutralManagedUpdateSources } from '../../scripts/valida
 function validSources() {
   return {
     autoUpdaterService: `
+      getUpdateChannel(platform = process.platform, arch = process.arch)
+      platform === 'win32' && arch === 'arm64'
       recordAutoUpdateInstallNotAppliedIfNeeded
       recordAutoUpdateQuitAndInstall
       recordAutoUpdateStatus

@@ -23,6 +23,7 @@ test('App owner manifest records only the frozen Standard public asset set', () 
   const releaseJson = path.join(root, 'release.json');
   const output = path.join(root, 'opl-app-component-manifest.json');
   const standardAssets = [
+    asset('latest-mac.yml', '0'),
     asset('latest-arm64-mac.yml', '1'),
     asset('One-Person-Lab-26.7.13-mac-arm64.dmg', '2'),
     asset('One-Person-Lab-26.7.13-mac-arm64.zip', '3'),
@@ -80,7 +81,7 @@ test('App owner manifest records only the frozen Standard public asset set', () 
     non_stable_notice: false,
   });
   assert.equal(component.primary_artifact.name, 'One-Person-Lab-26.7.13-mac-arm64.dmg');
-  assert.equal(component.artifacts.length, 5);
+  assert.equal(component.artifacts.length, 6);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.endsWith('.deb')), false);
   assert.equal(component.artifacts.some((entry: { name: string }) => entry.name.includes('Full')), false);
   assert.deepEqual(
@@ -135,6 +136,7 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
         isPrerelease: fixture.isPrerelease,
         url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v${fixture.version}`,
         assets: [
+          asset('latest-mac.yml', '0'),
           asset('latest-arm64-mac.yml', '1'),
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.dmg`, '2'),
           asset(`One-Person-Lab-${fixture.version}-mac-arm64.zip`, '3'),
@@ -192,7 +194,7 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
               non_stable_notice: true,
             },
       );
-      assert.equal(component.artifacts.length, fixture.version.includes('-nightly') ? 5 : 6);
+      assert.equal(component.artifacts.length, fixture.version.includes('-nightly') ? 6 : 7);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

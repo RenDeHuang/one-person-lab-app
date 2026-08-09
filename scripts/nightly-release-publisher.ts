@@ -441,7 +441,12 @@ export function publishNightlyRelease(input: {
     qualification.stable_qualified !== false ||
     qualification.heavy_vm_required !== false ||
     qualification.full_assets_present !== false ||
-    qualification.webui_assets_present !== false
+    qualification.webui_assets_present !== false ||
+    qualification.updater_metadata?.name !== 'latest-mac.yml' ||
+    qualification.updater_compatibility_metadata?.name !== 'latest-arm64-mac.yml' ||
+    qualification.updater_metadata.size_bytes !== qualification.updater_compatibility_metadata.size_bytes ||
+    qualification.updater_metadata.sha256 !== qualification.updater_compatibility_metadata.sha256 ||
+    !digestPattern.test(qualification.updater_metadata.sha256)
   ) {
     throw new Error('Nightly publication requires an exact passed Standard-only qualification receipt.');
   }
@@ -576,6 +581,10 @@ export function publishNightlyRelease(input: {
       updater_metadata: {
         ...qualification.updater_metadata,
         url: assetUrl(qualification.updater_metadata.name),
+      },
+      updater_compatibility_metadata: {
+        ...qualification.updater_compatibility_metadata,
+        url: assetUrl(qualification.updater_compatibility_metadata.name),
       },
       stable_qualified: false,
       heavy_vm_blocking: false,

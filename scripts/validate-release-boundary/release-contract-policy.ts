@@ -210,6 +210,34 @@ function readJson(appRoot: string, relativePath: string) {
   return JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
 }
 
+function validateStandardUpdaterMetadataMigration(releaseContract: any): number {
+  const updater = releaseContract?.standard_updater;
+  const migration = updater?.metadata_migration;
+  if (
+    updater?.primary_metadata !== 'latest-mac.yml'
+    || !sameStringSet(updater?.allowed_metadata, ['latest-mac.yml', 'latest-arm64-mac.yml'])
+    || !sameStringSet(updater?.compatibility_metadata, ['latest-arm64-mac.yml'])
+    || migration?.mode !== 'dual_publish_bounded_bridge'
+    || migration?.status !== 'bridge_active'
+    || migration?.unchanged_public_release !== 'v26.8.8'
+    || migration?.successor_client_metadata !== 'latest-mac.yml'
+    || migration?.legacy_client_metadata !== 'latest-arm64-mac.yml'
+    || migration?.same_bytes_required !== true
+    || migration?.retirement_status !== 'planned_not_scheduled'
+    || !sameStringSet(migration?.retirement_requires, [
+      'publish_at_least_two_qualified_stable_releases_with_both_metadata_assets',
+      'qualify_v26.8.8_to_bridge_release_through_latest-arm64-mac.yml',
+      'qualify_bridge_release_to_successor_through_latest-mac.yml',
+      'declare_bridge_release_or_newer_as_minimum_supported_auto_update_version',
+      'retain_homebrew_and_manual_upgrade_for_older_clients',
+    ])
+  ) {
+    console.error('FAIL standard_updater_metadata_migration: native latest-mac.yml and the bounded arm64 compatibility bridge drifted');
+    return 1;
+  }
+  return 0;
+}
+
 type GithubApplyInvocation = {
   workflow: string;
   job: string;
@@ -820,6 +848,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'One-Person-Lab-<version>-mac-arm64.dmg',
     'One-Person-Lab-<version>-mac-arm64.zip',
     'One-Person-Lab-<version>-mac-arm64.zip.blockmap',
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
@@ -834,6 +863,7 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
   ];
   const fullForbiddenMutations = [
     'standard_assets',
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     'release_notes',
     'latest_selection',
@@ -2419,6 +2449,7 @@ export function validateReleaseContractPolicies(
   failures += validatePreparedNotesTransportPolicy(releaseContract);
   failures += validateStandardUpdaterCompressionPolicy(appRoot, releaseContract);
   failures += validateStandardUpdaterCandidateSelection(releaseContract);
+  failures += validateStandardUpdaterMetadataMigration(releaseContract);
   failures += validateReleasePreflightContract(releaseContract);
   failures += validateOptionalCertificationPolicy(releaseContract);
   failures += validatePhysicalVmOptionalCertificationPolicy(releaseContract);

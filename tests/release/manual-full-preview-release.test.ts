@@ -158,6 +158,7 @@ function createCleanupHandoff(
     { name: `One-Person-Lab-${publish.version}-mac-arm64.zip`, size_bytes: 22, sha256: '2'.repeat(64) },
     { name: `One-Person-Lab-${publish.version}-mac-arm64.zip.blockmap`, size_bytes: 23, sha256: '3'.repeat(64) },
     { name: `One-Person-Lab-${publish.version}-linux-x64.deb`, size_bytes: 25, sha256: '5'.repeat(64) },
+    { name: 'latest-mac.yml', size_bytes: 27, sha256: 'b'.repeat(64) },
     { name: 'latest-arm64-mac.yml', size_bytes: 27, sha256: 'b'.repeat(64) },
     { name: 'opl-app-component-manifest.json', size_bytes: 24, sha256: '4'.repeat(64) },
     { name: 'opl-install.sh', size_bytes: 28, sha256: '7'.repeat(64) },
@@ -675,7 +676,7 @@ test('workflow and release contract expose only the protected preview exception'
   assert.equal(preview.cleanup.same_source_lock_and_full_asset_digests_required, false);
   assert.equal(preview.cleanup.same_bundle_digest_required, false);
   assert.equal(preview.cleanup.full_artifact_identity_required, true);
-  assert.equal(preview.cleanup.required_formal_stable_assets.length, 12);
+  assert.equal(preview.cleanup.required_formal_stable_assets.length, 13);
   assert.equal(preview.cleanup.required_formal_stable_assets.includes('opl-install.sh'), true);
   assert.equal(preview.cleanup.required_formal_stable_assets.includes('install-docker-webui.sh'), true);
   assert.equal(preview.cleanup.required_formal_stable_assets.includes('install-docker-webui.ps1'), true);

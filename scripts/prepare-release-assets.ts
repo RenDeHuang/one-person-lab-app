@@ -95,14 +95,20 @@ function readMetadataVersion(): string {
   return '';
 }
 
-function ensureCanonicalArm64Metadata(): void {
-  const canonical = path.join(outputDir, 'latest-arm64-mac.yml');
-  const legacy = path.join(outputDir, 'latest-mac.yml');
-  if (!fs.existsSync(canonical) && fs.existsSync(legacy)) {
-    fs.copyFileSync(legacy, canonical);
+function ensureMacMetadataBridge(): void {
+  const primary = path.join(outputDir, 'latest-mac.yml');
+  const compatibility = path.join(outputDir, 'latest-arm64-mac.yml');
+  if (!fs.existsSync(primary) && fs.existsSync(compatibility)) {
+    fs.copyFileSync(compatibility, primary);
   }
-  if (fs.existsSync(legacy)) {
-    fs.rmSync(legacy, { force: true });
+  if (!fs.existsSync(compatibility) && fs.existsSync(primary)) {
+    fs.copyFileSync(primary, compatibility);
+  }
+  if (!fs.existsSync(primary) || !fs.existsSync(compatibility)) {
+    throw new Error('Standard updater metadata bridge requires latest-mac.yml and latest-arm64-mac.yml.');
+  }
+  if (!fs.readFileSync(primary).equals(fs.readFileSync(compatibility))) {
+    throw new Error('latest-mac.yml and latest-arm64-mac.yml must be byte-identical.');
   }
 }
 
@@ -122,7 +128,7 @@ function filterStandardAssetsToVersion(version: string): void {
 }
 
 preserveStandardTrustEvidence();
-ensureCanonicalArm64Metadata();
+ensureMacMetadataBridge();
 filterStandardAssetsToVersion(expectedVersion || readMetadataVersion());
 if (!skipLinuxDesktopPayload) {
   preserveLinuxDesktopPayload(expectedVersion);

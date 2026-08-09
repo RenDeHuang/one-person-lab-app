@@ -438,6 +438,40 @@ function validateStandardUpdater(updater) {
   ) {
     throw new Error('Standard updater must remain App-binary-only and join the carrier-neutral Framework reconciliation path');
   }
+  assertDeepEqualJson(
+    updater?.allowed_metadata,
+    ['latest-mac.yml', 'latest-arm64-mac.yml'],
+    'Standard updater metadata files',
+  );
+  assertDeepEqualJson(
+    updater?.compatibility_metadata,
+    ['latest-arm64-mac.yml'],
+    'Standard updater compatibility metadata files',
+  );
+  const migration = updater?.metadata_migration;
+  if (
+    updater?.primary_metadata !== 'latest-mac.yml'
+    || migration?.mode !== 'dual_publish_bounded_bridge'
+    || migration?.status !== 'bridge_active'
+    || migration?.unchanged_public_release !== 'v26.8.8'
+    || migration?.successor_client_metadata !== 'latest-mac.yml'
+    || migration?.legacy_client_metadata !== 'latest-arm64-mac.yml'
+    || migration?.same_bytes_required !== true
+    || migration?.retirement_status !== 'planned_not_scheduled'
+  ) {
+    throw new Error('Standard updater metadata migration must keep latest-mac.yml primary and the arm64 alias as a bounded byte-identical bridge');
+  }
+  assertDeepEqualJson(
+    migration?.retirement_requires,
+    [
+      'publish_at_least_two_qualified_stable_releases_with_both_metadata_assets',
+      'qualify_v26.8.8_to_bridge_release_through_latest-arm64-mac.yml',
+      'qualify_bridge_release_to_successor_through_latest-mac.yml',
+      'declare_bridge_release_or_newer_as_minimum_supported_auto_update_version',
+      'retain_homebrew_and_manual_upgrade_for_older_clients',
+    ],
+    'Standard updater metadata retirement gates',
+  );
   if (
     candidateSelection?.schema !== 'opl_app_updater_candidate_selection.v1' ||
     candidateSelection?.updater_version_field !== 'updaterVersion' ||

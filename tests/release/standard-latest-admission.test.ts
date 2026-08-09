@@ -45,6 +45,7 @@ function configureCandidate(
   input.candidateDisplayVersion = version;
   input.candidateUpdaterVersion = updaterVersion;
   const expectedAssetNames = [
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
@@ -209,6 +210,7 @@ test('Latest admission binds the hosted publication floor, exact Standard bytes,
         'One-Person-Lab-26.7.21-r1-mac-arm64.dmg',
         'One-Person-Lab-26.7.21-r1-mac-arm64.zip',
         'One-Person-Lab-26.7.21-r1-mac-arm64.zip.blockmap',
+        'latest-mac.yml',
         'latest-arm64-mac.yml',
         'opl-app-component-manifest.json',
         'opl-install.sh',

@@ -25,6 +25,8 @@ export function validateCarrierNeutralManagedUpdateSources(sources) {
   assertTextIncludesAll(
     autoUpdaterService,
     [
+      'getUpdateChannel(platform = process.platform, arch = process.arch)',
+      "platform === 'win32' && arch === 'arm64'",
       'recordAutoUpdateInstallNotAppliedIfNeeded',
       'recordAutoUpdateQuitAndInstall',
       'recordAutoUpdateStatus',
@@ -34,6 +36,11 @@ export function validateCarrierNeutralManagedUpdateSources(sources) {
       'autoUpdater.quitAndInstall(true, true)',
     ],
     'Active shell standard App binary updater',
+  );
+  assertTextExcludesAll(
+    autoUpdaterService,
+    ["return 'latest-arm64'"],
+    'Active shell macOS updater channel migration',
   );
   assertTextIncludesAll(
     autoUpdateDiagnostics,

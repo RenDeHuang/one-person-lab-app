@@ -94,10 +94,16 @@ function fixture(t: test.TestContext) {
     },
     assets: [
       { name: `One-Person-Lab-${request.version}-mac-arm64.dmg`, size_bytes: 1, sha256: 'b'.repeat(64) },
+      { name: 'latest-mac.yml', size_bytes: 1, sha256: 'c'.repeat(64) },
       { name: 'latest-arm64-mac.yml', size_bytes: 1, sha256: 'c'.repeat(64) },
     ],
     primary_dmg: { name: 'preview.dmg', size_bytes: 1, sha256: 'b'.repeat(64) },
-    updater_metadata: { name: 'latest-arm64-mac.yml', size_bytes: 1, sha256: 'c'.repeat(64) },
+    updater_metadata: { name: 'latest-mac.yml', size_bytes: 1, sha256: 'c'.repeat(64) },
+    updater_compatibility_metadata: {
+      name: 'latest-arm64-mac.yml',
+      size_bytes: 1,
+      sha256: 'c'.repeat(64),
+    },
     cohort_manifest_sha256: 'd'.repeat(64),
   } satisfies NightlyQualificationReceipt;
   const baseline = {

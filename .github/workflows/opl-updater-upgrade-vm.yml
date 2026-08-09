@@ -193,10 +193,15 @@ jobs:
             echo "::error::Installed predecessor DMG digest mismatch: $observed"
             exit 1
           }
-          find candidate -type f -name latest-arm64-mac.yml -print > updater-inputs/metadata-paths.txt
-          [ "$(wc -l < updater-inputs/metadata-paths.txt | tr -d ' ')" -eq 1 ] || { echo "::error::Bound Standard artifact must contain exactly one updater metadata file."; exit 1; }
+          find candidate -type f -name latest-mac.yml -print > updater-inputs/metadata-paths.txt
+          [ "$(wc -l < updater-inputs/metadata-paths.txt | tr -d ' ')" -eq 1 ] || { echo "::error::Bound Standard artifact must contain exactly one primary macOS updater metadata file."; exit 1; }
           metadata="$(sed -n '1p' updater-inputs/metadata-paths.txt)"
           feed_dir="$(dirname "$metadata")"
+          find candidate -type f -name latest-arm64-mac.yml -print > updater-inputs/compatibility-metadata-paths.txt
+          [ "$(wc -l < updater-inputs/compatibility-metadata-paths.txt | tr -d ' ')" -eq 1 ] || { echo "::error::Bound Standard artifact must contain exactly one arm64 compatibility metadata file."; exit 1; }
+          compatibility_metadata="$(sed -n '1p' updater-inputs/compatibility-metadata-paths.txt)"
+          test "$(dirname "$compatibility_metadata")" = "$feed_dir" || { echo "::error::Updater metadata bridge files must share the exact candidate feed directory."; exit 1; }
+          cmp -s "$metadata" "$compatibility_metadata" || { echo "::error::latest-mac.yml and latest-arm64-mac.yml must be byte-identical."; exit 1; }
           zip="$feed_dir/One-Person-Lab-${{ inputs.candidate_display_version }}-mac-arm64.zip"
           blockmap="$zip.blockmap"
           test -s "$zip" && test -s "$blockmap" || { echo "::error::Bound Standard artifact has no exact candidate ZIP feed."; exit 1; }

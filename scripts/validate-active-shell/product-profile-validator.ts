@@ -870,6 +870,11 @@ function validateCommandLineToolsPolicy(profile) {
 }
 
 function validateStandardUpdatePolicy(profile) {
+  assertDeepEqualJson(
+    profile.first_run?.updates?.standard_channel?.metadata_scope,
+    ['latest-mac.yml', 'latest-arm64-mac.yml'],
+    'Product profile Standard updater metadata bridge',
+  );
   if (
     profile.first_run?.updates?.standard_channel?.implementation_reference !== 'electron_autoUpdater_background_download_update_downloaded_restart_prompt'
     || profile.first_run?.updates?.standard_channel?.ready_prompt !== 'prompt_restart_after_download_ready'

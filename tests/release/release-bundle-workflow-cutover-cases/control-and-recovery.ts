@@ -774,6 +774,9 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
   assert.match(updater, /metadata_declared_sha512/);
   assert.match(updater, /metadata_declared_size/);
   assert.match(updater, /same_candidate_zip_downloaded/);
+  assert.match(updater, /find candidate -type f -name latest-mac\.yml/);
+  assert.match(updater, /find candidate -type f -name latest-arm64-mac\.yml/);
+  assert.match(updater, /cmp -s "\$metadata" "\$compatibility_metadata"/);
 
   const fingerprint = String(workflowStep(
     'opl-updater-upgrade-vm.yml',

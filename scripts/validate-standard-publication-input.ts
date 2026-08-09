@@ -40,6 +40,7 @@ export const stagedStandardAssetNames = (
   `One-Person-Lab-${version}-mac-arm64.zip`,
   `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
   ...(channel === 'preview' ? [`One-Person-Lab-${version}-linux-x64.deb`] : []),
+  'latest-mac.yml',
   'latest-arm64-mac.yml',
   'opl-app-component-manifest.json',
   'opl-install.sh',

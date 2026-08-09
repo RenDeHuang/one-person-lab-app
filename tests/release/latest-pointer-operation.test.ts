@@ -43,6 +43,7 @@ function fixture(kind: 'stable' | 'dev' | 'nightly' = 'dev') {
     : kind === 'dev' ? '26.7.2701' : '26.7.2791-nightly.1';
   const tag = `v${version}`;
   const assetNames = [
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
@@ -183,7 +184,7 @@ test('published Stable, Dev, and Nightly identities admit an exact quality-prese
         ).length,
         kind === 'stable' ? 1 : 0,
       );
-      assert.equal(current.receipt.public_assets.length, kind === 'nightly' ? 6 : 7);
+      assert.equal(current.receipt.public_assets.length, kind === 'nightly' ? 7 : 8);
     } finally {
       fs.rmSync(current.root, { recursive: true, force: true });
     }

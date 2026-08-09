@@ -167,11 +167,14 @@ export function buildRemoteReleaseView(
 }
 
 export function standardRemoteAssetNames(version) {
+  const metadataNames = version === "26.8.8"
+    ? ["latest-arm64-mac.yml"]
+    : ["latest-mac.yml", "latest-arm64-mac.yml"];
   return [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    "latest-arm64-mac.yml",
+    ...metadataNames,
     "opl-install.sh",
     "opl-app-component-manifest.json",
     "opl-release-attestation.json",
@@ -252,6 +255,9 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
     "",
   ].join("\n");
   writeFile(path.join(outDir, "latest-arm64-mac.yml"), metadata);
+  if (names.includes("latest-mac.yml")) {
+    writeFile(path.join(outDir, "latest-mac.yml"), metadata);
+  }
   const payloadNames = names.filter((name) => ![
     "opl-release-attestation.json",
     "install-docker-webui.sh",
@@ -302,9 +308,6 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
       ],
     }, null, 2)}\n`,
   );
-  if (options.legacyMetadata) {
-    writeFile(path.join(outDir, "latest-mac.yml"), metadata);
-  }
   return names;
 }
 

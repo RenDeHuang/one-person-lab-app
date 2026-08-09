@@ -232,6 +232,7 @@ test("qualified Stable defaults Latest while daily-default Nightly keeps develop
   assert.equal(control.publication.full.may_follow_latest, true);
   assert.deepEqual(control.publication.full.must_not_modify, [
     "standard_assets",
+    "latest-mac.yml",
     "latest-arm64-mac.yml",
     "prepared_ai_release_notes",
     "latest_selection",

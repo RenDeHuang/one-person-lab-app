@@ -83,7 +83,9 @@ function standardAssets(root: string): string {
     encoding: 'utf8',
   });
   assert.equal(zip.status, 0, zip.stderr);
-  fs.writeFileSync(path.join(root, 'latest-mac.yml'), `version: ${updaterVersion}\npath: ${zipName}\n`);
+  const metadata = `version: ${updaterVersion}\npath: ${zipName}\n`;
+  fs.writeFileSync(path.join(root, 'latest-mac.yml'), metadata);
+  fs.writeFileSync(path.join(root, 'latest-arm64-mac.yml'), metadata);
   fs.writeFileSync(path.join(root, `One-Person-Lab-${version}-mac-arm64.dmg`), 'dmg\n');
   fs.writeFileSync(path.join(root, `${zipName}.blockmap`), 'blockmap\n');
   fs.writeFileSync(path.join(root, `One-Person-Lab-${version}-linux-x64.deb`), 'linux desktop\n');
@@ -140,7 +142,10 @@ test('Standard identity v2 binds the exact Bundle cohort and first source run', 
   });
   assert.equal(identity.schema, 'opl_standard_release_identity_receipt.v2');
   assert.equal(identity.updater_zip.name, zipName);
+  assert.equal(identity.updater_metadata.name, 'latest-mac.yml');
+  assert.equal(identity.updater_compatibility_metadata.name, 'latest-arm64-mac.yml');
   assert.match(identity.updater_metadata.sha256, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(identity.updater_metadata.sha256, identity.updater_compatibility_metadata.sha256);
   assert.match(identity.updater_zip.sha256, /^sha256:[0-9a-f]{64}$/);
   assert.equal('installer_bootstrap' in identity, false);
   assert.deepEqual(identity.universal_installer, {
@@ -252,7 +257,11 @@ function bridgeFixture() {
       shell_sha: shell.sha,
       framework_sha: framework.sha,
     },
-    updater_metadata: { name: 'latest-arm64-mac.yml', sha256: `sha256:${'4'.repeat(64)}` },
+    updater_metadata: { name: 'latest-mac.yml', sha256: `sha256:${'4'.repeat(64)}` },
+    updater_compatibility_metadata: {
+      name: 'latest-arm64-mac.yml',
+      sha256: `sha256:${'4'.repeat(64)}`,
+    },
     updater_zip: {
       name: `One-Person-Lab-${version}-mac-arm64.zip`,
       sha256: `sha256:${'5'.repeat(64)}`,

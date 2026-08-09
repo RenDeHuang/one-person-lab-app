@@ -23,7 +23,7 @@ function fixture() {
     path.join(artifacts, 'macos', `One-Person-Lab-${version}-mac-arm64.zip.blockmap`),
     'blockmap',
   );
-  fs.writeFileSync(path.join(artifacts, 'macos', 'latest-arm64-mac.yml'), `version: ${version}\n`);
+  fs.writeFileSync(path.join(artifacts, 'macos', 'latest-mac.yml'), `version: ${version}\n`);
   fs.writeFileSync(path.join(artifacts, 'linux', linuxAssetName), 'linux desktop');
   const normalizer = path.join(shell, 'scripts', 'prepare-release-assets.sh');
   fs.writeFileSync(normalizer, `#!/usr/bin/env bash
@@ -31,7 +31,7 @@ set -euo pipefail
 mkdir -p "$2"
 while IFS= read -r file; do
   case "$file" in
-    *-mac-arm64.dmg|*-mac-arm64.zip|*.blockmap|*/latest-arm64-mac.yml) cp "$file" "$2/" ;;
+    *-mac-arm64.dmg|*-mac-arm64.zip|*.blockmap|*/latest-mac.yml|*/latest-arm64-mac.yml) cp "$file" "$2/" ;;
   esac
 done < <(find "$1" -type f -print)
 `);
@@ -63,6 +63,10 @@ test('release asset staging preserves exactly one current Linux Desktop payload'
   const result = run(input);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.readFileSync(path.join(input.output, linuxAssetName), 'utf8'), 'linux desktop');
+  assert.deepEqual(
+    fs.readFileSync(path.join(input.output, 'latest-mac.yml')),
+    fs.readFileSync(path.join(input.output, 'latest-arm64-mac.yml')),
+  );
 });
 
 test('release asset staging fails closed when the current Linux Desktop payload is absent or duplicated', (t) => {

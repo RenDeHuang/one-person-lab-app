@@ -1499,6 +1499,7 @@
           "One-Person-Lab-<version>-mac-arm64.dmg",
           "One-Person-Lab-<version>-mac-arm64.zip",
           "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+          "latest-mac.yml",
           "latest-arm64-mac.yml",
           "opl-app-component-manifest.json",
           "opl-install.sh",
@@ -1640,6 +1641,7 @@
             "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
             "One-Person-Lab-<version>-linux-x64.deb",
             "One-Person-Lab-Full-<version>-mac-arm64.dmg",
+            "latest-mac.yml",
             "latest-arm64-mac.yml",
             "opl-app-component-manifest.json",
             "opl-install.sh",
@@ -1693,6 +1695,7 @@
         ],
         "must_not_modify": [
           "standard_assets",
+          "latest-mac.yml",
           "latest-arm64-mac.yml",
           "prepared_ai_release_notes",
           "latest_selection"
@@ -1938,6 +1941,7 @@
         "One-Person-Lab-<version>-mac-arm64.dmg",
         "One-Person-Lab-<version>-mac-arm64.zip",
         "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+        "latest-mac.yml",
         "latest-arm64-mac.yml",
         "opl-app-component-manifest.json",
         "opl-install.sh",
@@ -1954,6 +1958,7 @@
       "full_is_standard_updater_target": false,
       "adding_full_must_not_modify": [
         "standard_assets",
+        "latest-mac.yml",
         "latest-arm64-mac.yml",
         "release_notes",
         "latest_selection"
@@ -2094,12 +2099,30 @@
         "lower_or_equal_superseding_stable": "reject"
       }
     },
+    "primary_metadata": "latest-mac.yml",
     "allowed_metadata": [
+      "latest-mac.yml",
       "latest-arm64-mac.yml"
     ],
-    "legacy_metadata": [
-      "latest-mac.yml"
+    "compatibility_metadata": [
+      "latest-arm64-mac.yml"
     ],
+    "metadata_migration": {
+      "mode": "dual_publish_bounded_bridge",
+      "status": "bridge_active",
+      "unchanged_public_release": "v26.8.8",
+      "successor_client_metadata": "latest-mac.yml",
+      "legacy_client_metadata": "latest-arm64-mac.yml",
+      "same_bytes_required": true,
+      "retirement_status": "planned_not_scheduled",
+      "retirement_requires": [
+        "publish_at_least_two_qualified_stable_releases_with_both_metadata_assets",
+        "qualify_v26.8.8_to_bridge_release_through_latest-arm64-mac.yml",
+        "qualify_bridge_release_to_successor_through_latest-mac.yml",
+        "declare_bridge_release_or_newer_as_minimum_supported_auto_update_version",
+        "retain_homebrew_and_manual_upgrade_for_older_clients"
+      ]
+    },
     "allowed_assets": [
       "One-Person-Lab-*-mac-arm64.dmg",
       "One-Person-Lab-*-mac-arm64.zip",
@@ -2123,7 +2146,7 @@
       "ulmo_standard_default_allowed": false,
       "ulmo_postprocess_status": "separate_experiment_required",
       "metadata_blockmap_gate": "node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact",
-      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves canonical updater metadata, ZIP blockmap, and latest-arm64-mac.yml still match the published assets before it can replace the default; latest-mac.yml and DMG blockmap files are legacy compatibility assets only when deliberately published."
+      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves latest-mac.yml, the latest-arm64-mac.yml compatibility copy, and the ZIP blockmap still match the published assets before it can replace the default."
     },
     "forbidden_asset_substrings": [
       "Full"
@@ -2155,7 +2178,7 @@
       "verification": "npm run verify-remote-release on macos-latest downloads the public DMG, ZIP, and unified release attestation; it binds exact SHA-256 bytes, validates embedded Gatekeeper and notarization evidence, validates the stapled DMG, mounts the App, extracts the updater App, and requires Developer ID codesign plus Gatekeeper acceptance on both App copies.",
       "rule": "Production Standard updater replacement is fail-closed: Developer ID, accepted notarization, stapling, Gatekeeper, and exact public-byte evidence are mandatory; local authorization and ad-hoc signatures are non-distributable."
     },
-    "rule": "standard updater metadata is canonical arm64-only latest-arm64-mac.yml, must never point to Full first-install assets, and must bind the final notarized Standard DMG plus Developer ID updater ZIP; latest-mac.yml is a legacy compatibility alias only when deliberately published.",
+    "rule": "standard updater metadata uses electron-builder-native latest-mac.yml for successor clients and publishes the byte-identical latest-arm64-mac.yml compatibility copy during the bounded migration; neither file may point to Full first-install assets, and both bind the final notarized Standard DMG plus Developer ID updater ZIP.",
     "draft_refresh": {
       "allowed": true,
       "published_release_mutation_allowed": false,
@@ -2583,6 +2606,7 @@
       "One-Person-Lab-<version>-mac-arm64.dmg",
       "One-Person-Lab-<version>-mac-arm64.zip",
       "One-Person-Lab-<version>-mac-arm64.zip.blockmap",
+      "latest-mac.yml",
       "latest-arm64-mac.yml",
       "opl-app-component-manifest.json"
     ],

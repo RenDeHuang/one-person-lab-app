@@ -131,6 +131,7 @@ test('the App adapter freezes the App Standard compatibility union without Packa
       'One-Person-Lab-26.7.20-mac-arm64.dmg',
       'One-Person-Lab-26.7.20-mac-arm64.zip',
       'One-Person-Lab-26.7.20-mac-arm64.zip.blockmap',
+      'latest-mac.yml',
       'latest-arm64-mac.yml',
       'opl-app-component-manifest.json',
       'opl-install.sh',

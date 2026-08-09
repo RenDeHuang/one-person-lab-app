@@ -86,21 +86,20 @@ export function bindStandardReleaseTrack(input: {
     throw new Error('Stable uses automatic Latest reclaim and cannot claim a Preview override request.');
   }
   const assetsDir = path.resolve(input.assetsDir);
-  const genericMetadata = requiredFile(assetsDir, 'latest-mac.yml');
-  const canonicalMetadata = path.join(assetsDir, 'latest-arm64-mac.yml');
-  fs.copyFileSync(genericMetadata, canonicalMetadata);
-  fs.rmSync(genericMetadata);
+  const primaryMetadata = requiredFile(assetsDir, 'latest-mac.yml');
+  const compatibilityMetadata = path.join(assetsDir, 'latest-arm64-mac.yml');
+  fs.copyFileSync(primaryMetadata, compatibilityMetadata);
   fs.rmSync(path.join(assetsDir, 'standard-local-authorization-policy.json'), { force: true });
 
   const zipName = `One-Person-Lab-${input.version}-mac-arm64.zip`;
   const zipPath = requiredFile(assetsDir, zipName);
-  const metadata = fs.readFileSync(requiredFile(assetsDir, 'latest-arm64-mac.yml'), 'utf8');
+  const metadata = fs.readFileSync(primaryMetadata, 'utf8');
   const declared = metadata.match(/^version:\s*["']?([^\s"']+)["']?\s*$/m)?.[1] ?? '';
   if (declared !== input.updaterVersion) {
-    throw new Error(`latest-arm64-mac.yml declares ${declared || '<missing>'}, expected ${input.updaterVersion}.`);
+    throw new Error(`latest-mac.yml declares ${declared || '<missing>'}, expected ${input.updaterVersion}.`);
   }
   if (!metadata.includes(zipName)) {
-    throw new Error(`latest-arm64-mac.yml does not reference exact updater ZIP ${zipName}.`);
+    throw new Error(`latest-mac.yml does not reference exact updater ZIP ${zipName}.`);
   }
   validatePackagedVersion(zipPath, input.updaterVersion);
 
@@ -139,6 +138,7 @@ export function bindStandardReleaseTrack(input: {
     zipName,
     `${zipName}.blockmap`,
     ...(linuxDesktopPath ? [linuxDesktopName] : []),
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     'opl-install.sh',
   ];
@@ -216,7 +216,11 @@ export function bindStandardReleaseTrack(input: {
       shell_sha: input.shellSha,
       framework_sha: input.frameworkSha,
     },
-    updater_metadata: { name: 'latest-arm64-mac.yml', sha256: sha256(canonicalMetadata) },
+    updater_metadata: { name: 'latest-mac.yml', sha256: sha256(primaryMetadata) },
+    updater_compatibility_metadata: {
+      name: 'latest-arm64-mac.yml',
+      sha256: sha256(compatibilityMetadata),
+    },
     updater_zip: { name: zipName, sha256: sha256(zipPath) },
     universal_installer: {
       name: 'opl-install.sh',

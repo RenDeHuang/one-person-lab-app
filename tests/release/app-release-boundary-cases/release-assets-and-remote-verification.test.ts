@@ -494,6 +494,54 @@ test('remote release verifier validates standard and Full assets from GitHub rel
   assert.equal(summary.full_first_install_budget.optional_components.bun.status, 'not_packaged');
 });
 
+test('remote release verifier preserves the unchanged v26.8.8 single-metadata release', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-legacy-anchor-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const version = '26.8.8';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  const summaryPath = path.join(tempRoot, 'remote-release-verification.json');
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+  writeFakeMacosTrustCommands(binDir);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version', version,
+    '--repo', 'gaofeng21cn/one-person-lab-app',
+    '--download-dir', tempRoot,
+    '--summary-path', summaryPath,
+    '--no-download',
+  ], {
+    env: fakeMacosTrustEnvironment(binDir, {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    }),
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(names.includes('latest-mac.yml'), false);
+  assert.equal(names.includes('latest-arm64-mac.yml'), true);
+});
+
+test('remote release verifier rejects non-identical metadata bridge bytes', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-metadata-drift-'));
+  const version = '26.8.9-metadata-drift';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  fs.appendFileSync(path.join(tempRoot, 'latest-arm64-mac.yml'), '# drift\n');
+  const releaseView = buildRemoteReleaseView(tempRoot, names, `v${version}`);
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version', version,
+    '--repo', 'gaofeng21cn/one-person-lab-app',
+    '--download-dir', tempRoot,
+    '--no-download',
+  ], {
+    env: { OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView) },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /latest-mac\.yml and latest-arm64-mac\.yml must be byte-identical/);
+});
+
 test('remote release verifier rejects a duplicate Framework Codex manifest or absence claim', () => {
   const cases = [
     {
@@ -641,7 +689,7 @@ test('remote release verifier rejects standard updater metadata that references 
   });
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /latest-arm64-mac\.yml references Full first-install assets/);
+  assert.match(result.stderr, /latest-mac\.yml references Full first-install assets/);
 });
 
 test('remote release verifier rejects a Standard release without its frozen installer bootstrap', () => {

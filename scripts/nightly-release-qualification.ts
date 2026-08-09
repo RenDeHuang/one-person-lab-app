@@ -63,6 +63,7 @@ export type NightlyQualificationReceipt = {
   assets: AssetIdentity[];
   primary_dmg: AssetIdentity;
   updater_metadata: AssetIdentity;
+  updater_compatibility_metadata: AssetIdentity;
   cohort_manifest_sha256: string;
 };
 
@@ -110,7 +111,8 @@ export function qualifyNightlyRelease(input: {
   const dmgName = `One-Person-Lab-${request.version}-mac-arm64.dmg`;
   const zipName = `One-Person-Lab-${request.version}-mac-arm64.zip`;
   const blockmapName = `${zipName}.blockmap`;
-  const metadataName = 'latest-arm64-mac.yml';
+  const metadataName = 'latest-mac.yml';
+  const compatibilityMetadataName = 'latest-arm64-mac.yml';
   const frozenInstallerName = 'opl-install.sh';
   const policyName = 'standard-local-authorization-policy.json';
   const componentManifestName = 'opl-app-component-manifest.json';
@@ -119,6 +121,7 @@ export function qualifyNightlyRelease(input: {
     dmgName,
     frozenInstallerName,
     metadataName,
+    compatibilityMetadataName,
     policyName,
     zipName,
   ].sort();
@@ -149,6 +152,10 @@ export function qualifyNightlyRelease(input: {
   const policyPath = path.join(assetsDir, policyName);
   assertLocalAuthorizationPolicy(JSON.parse(fs.readFileSync(policyPath, 'utf8')));
   const metadataPath = path.join(assetsDir, metadataName);
+  const compatibilityMetadataPath = path.join(assetsDir, compatibilityMetadataName);
+  if (!fs.readFileSync(metadataPath).equals(fs.readFileSync(compatibilityMetadataPath))) {
+    throw new Error('Nightly latest-mac.yml and latest-arm64-mac.yml must be byte-identical.');
+  }
   const metadata = parseYaml(fs.readFileSync(metadataPath, 'utf8')) as any;
   if (String(metadata?.version) !== request.updater_version) {
     throw new Error(`Nightly updater metadata must declare machine version ${request.updater_version}.`);
@@ -166,6 +173,7 @@ export function qualifyNightlyRelease(input: {
     zipName,
     blockmapName,
     metadataName,
+    compatibilityMetadataName,
     frozenInstallerName,
   ];
   const releaseBase =
@@ -243,6 +251,7 @@ export function qualifyNightlyRelease(input: {
     assets,
     primary_dmg: assets.find((asset) => asset.name === dmgName)!,
     updater_metadata: assets.find((asset) => asset.name === metadataName)!,
+    updater_compatibility_metadata: assets.find((asset) => asset.name === compatibilityMetadataName)!,
     cohort_manifest_sha256: sha256File(input.cohortManifestPath),
   };
 }

@@ -34,6 +34,7 @@ function fixture(version = '26.7.27-preview.r1') {
     releaseUrl: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v${version}`,
     repo: 'gaofeng21cn/one-person-lab-app',
     assets: [
+      ['latest-mac.yml', `sha256:${'0'.repeat(64)}`],
       ['latest-arm64-mac.yml', `sha256:${'b'.repeat(64)}`],
       [`One-Person-Lab-${version}-mac-arm64.dmg`, artifactDigest],
       [`One-Person-Lab-${version}-mac-arm64.zip`, `sha256:${'c'.repeat(64)}`],

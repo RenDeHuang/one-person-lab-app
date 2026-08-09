@@ -425,6 +425,7 @@ export function buildFullPackageManifest(input: FullPackageManifestInput = {}) {
       standard_update_assets: [
         `One-Person-Lab-${version}-mac-arm64.dmg`,
         `One-Person-Lab-${version}-mac-arm64.zip`,
+        'latest-mac.yml',
         'latest-arm64-mac.yml',
       ],
       signing_policy: {

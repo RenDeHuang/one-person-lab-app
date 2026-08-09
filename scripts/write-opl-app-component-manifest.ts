@@ -159,6 +159,7 @@ export function createAppComponentManifest(input: AppComponentManifestInput) {
     (asset) => asset.name?.trim() === 'opl-install.sh',
   );
   const standardAssetNames = new Set([
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     `One-Person-Lab-${input.version}-mac-arm64.dmg`,
     `One-Person-Lab-${input.version}-mac-arm64.zip`,

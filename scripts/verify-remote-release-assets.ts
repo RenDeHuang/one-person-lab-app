@@ -107,11 +107,14 @@ function readReleaseView(repo, tag) {
 }
 
 function standardPayloadAssetNames(version) {
+  const metadataNames = version === "26.8.8"
+    ? ["latest-arm64-mac.yml"]
+    : ["latest-mac.yml", "latest-arm64-mac.yml"];
   return [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    "latest-arm64-mac.yml",
+    ...metadataNames,
     "opl-install.sh",
     "opl-app-component-manifest.json",
   ];
@@ -314,11 +317,9 @@ function assertStandardMetadata(downloadDir, displayVersion, updaterVersion) {
     `One-Person-Lab-${displayVersion}-mac-arm64.dmg`,
     `One-Person-Lab-${displayVersion}-mac-arm64.zip`,
   ];
-  const metadataNames = ["latest-arm64-mac.yml"];
-  const legacyMetadataPath = path.join(downloadDir, "latest-mac.yml");
-  if (fs.existsSync(legacyMetadataPath)) {
-    metadataNames.push("latest-mac.yml");
-  }
+  const metadataNames = displayVersion === "26.8.8"
+    ? ["latest-arm64-mac.yml"]
+    : ["latest-mac.yml", "latest-arm64-mac.yml"];
   for (const name of metadataNames) {
     const metadataPath = path.join(downloadDir, name);
     const text = readText(metadataPath);
@@ -338,6 +339,14 @@ function assertStandardMetadata(downloadDir, displayVersion, updaterVersion) {
         throw new Error(`${name} does not reference ${expectedAsset}.`);
       }
     }
+  }
+  if (
+    metadataNames.length === 2
+    && !fs.readFileSync(path.join(downloadDir, metadataNames[0])).equals(
+      fs.readFileSync(path.join(downloadDir, metadataNames[1])),
+    )
+  ) {
+    throw new Error("latest-mac.yml and latest-arm64-mac.yml must be byte-identical.");
   }
 }
 

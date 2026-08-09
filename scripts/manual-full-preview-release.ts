@@ -252,6 +252,7 @@ function requiredFormalStableAssetNames(version: string): string[] {
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
     `One-Person-Lab-${version}-linux-x64.deb`,
     expectedDmgName(version),
+    'latest-mac.yml',
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',
