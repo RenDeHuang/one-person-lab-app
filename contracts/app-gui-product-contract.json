@@ -6471,6 +6471,16 @@
       "remote_channel_access": {
         "wechat": {
           "binding_policy": "implicit_fixed_codex_cli",
+          "conversation_projection": {
+            "canonical_identity": "codex_app_server_thread_id",
+            "channel_session_role": "internal_transport_binding_only",
+            "binding_storage": "rebuildable_shell_projection_canonical_thread_id",
+            "legacy_binding_recovery": "unique_channel_temporary_workspace_identity_only",
+            "transport_row_visibility_after_binding": "hidden",
+            "temporary_workspace_presentation": "projectless_until_explicit_project_affinity",
+            "sidebar_cardinality": "one_visible_row_per_canonical_thread_id",
+            "canonical_overview_unavailable_policy": "keep_transport_row_as_fail_open_fallback"
+          },
           "ordinary_controls": [
             "login_or_connection_status",
             "pairing_requests",

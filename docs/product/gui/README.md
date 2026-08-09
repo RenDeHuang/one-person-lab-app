@@ -63,7 +63,11 @@ AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两�
 手机远程访问当前复用 AionUI 已有 WebUI 与频道能力，不建立第二套控制面。微信频道固定
 使用 Codex CLI；设置中只保留登录/连接、配对请求和已授权用户管理，不提供 Agent 或模型
 选择，也不展示“自动跟随 CLI 模型”。连接详情关闭后回到“资源与连接”，再由“返回应用”
-进入主界面；当前不增加指定桌面 thread 绑定、原生手机客户端或额外并发状态机。
+进入主界面。微信频道 session 只承担内部 transport 绑定；首次识别 canonical Codex thread 后，
+Shell 将 `canonical_thread_id` 写入可重建投影并隐藏 transport row，侧栏和 Codex App 都只显示
+同一个 canonical task。频道生成的临时 cwd 保留用于执行，但在用户显式选择 Project 前按
+projectless 展示。Canonical overview 暂不可用时保留 transport row 作为 fail-open 回退；当前不增加
+指定桌面 thread 绑定、原生手机客户端或额外并发状态机。
 
 视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
 品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态参考

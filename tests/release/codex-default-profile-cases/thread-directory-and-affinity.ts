@@ -36,6 +36,7 @@ test('active-shell source gate keeps canonical cwd transport separate from sideb
   ];
   const focusedTestNames = [
     'keeps a managed Documents Codex task projectless and ungrouped',
+    'keeps an OPL channel temporary task projectless and ungrouped',
     'assigns explicit project affinity once without changing the recorded cwd',
     'rejects project affinity reassignment',
     'keeps canonical adoption successful when the rebuildable local projection update fails',
@@ -157,14 +158,17 @@ test('active-shell source gate requires presentation-only canonical cwd director
     'if (!workspace || isManagedCodexScratchWorkspace(workspace)) return null',
     'return workspace',
     'const projectWorkspace = getConversationDirectoryGroup(conv)',
+    '(conversation.extra as { is_temporary_workspace?: boolean }).is_temporary_workspace === true',
   ];
   const focusedTestNames = [
     'projects a canonical task from explicit project affinity rather than recorded cwd',
     'auto-loads an unregistered canonical cwd as a directory group',
     'keeps a managed Documents Codex task projectless and ungrouped',
+    'keeps an OPL channel temporary task projectless and ungrouped',
     'keeps a canonical task without cwd projectless and ungrouped',
     'keeps Linux, Windows, and WSL managed Codex scratch paths ungrouped',
     'groups a canonical recorded cwd without rebuilding project affinity',
+    'binds a WeChat transport conversation to one canonical task row',
   ];
   const groupingHelpers = groupingMarkers.join('\n');
   const focusedTests = focusedTestNames.join('\n');
@@ -221,6 +225,22 @@ test('recorded cwd compatibility auto-loads a directory group without creating p
     /non-managed-scratch canonical recorded cwd auto-loads a directory group/,
   );
   assert.match(JSON.stringify(pageStateMatrix), /recorded cwd alone treated as explicit Project affinity/);
+});
+
+test('WeChat transport projects exactly one projectless canonical Codex task', () => {
+  const contract = readJson('contracts/app-gui-product-contract.json');
+  const projection = contract.pages.settings_resources.remote_channel_access.wechat.conversation_projection;
+
+  assert.deepEqual(projection, {
+    canonical_identity: 'codex_app_server_thread_id',
+    channel_session_role: 'internal_transport_binding_only',
+    binding_storage: 'rebuildable_shell_projection_canonical_thread_id',
+    legacy_binding_recovery: 'unique_channel_temporary_workspace_identity_only',
+    transport_row_visibility_after_binding: 'hidden',
+    temporary_workspace_presentation: 'projectless_until_explicit_project_affinity',
+    sidebar_cardinality: 'one_visible_row_per_canonical_thread_id',
+    canonical_overview_unavailable_policy: 'keep_transport_row_as_fail_open_fallback',
+  });
 });
 
 test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {
