@@ -56,6 +56,10 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 // characters need rejection before their metadata is carried into receipts.
 const releaseAssetNamePattern = /^(?!\.{1,2}$)[^\\/\u0000-\u001f\u007f]+$/u;
 const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
+const standardInstallerSidecarAssetNames = [
+  'install-docker-webui.sh',
+  'install-docker-webui.ps1',
+] as const;
 const staleIndependentFullGuidance =
   'Use a Full release when you need bundled runtime, Office, and document-intake payloads on a fresh machine.';
 const sameStableFullAddonGuidance =
@@ -918,7 +922,7 @@ export function buildExecutorReceipt(values: AdapterOptionValues): JsonRecord {
       // The attestation seals the payload set, so it is generated after the Bundle
       // and cannot recursively appear in required_asset_names.
       const permittedEvidenceNames = bundle.release?.channel === 'stable'
-        ? ['opl-release-attestation.json']
+        ? ['opl-release-attestation.json', ...standardInstallerSidecarAssetNames]
         : [];
       const allowedNameSet = new Set([
         ...requiredNames,
@@ -1682,7 +1686,10 @@ function assertImmutableReleasesEnabled(
           }))
           .sort((left, right) => left.name.localeCompare(right.name));
         const actualPayload = actions
-          .filter((action) => action.name !== 'opl-release-attestation.json')
+          .filter((action) => (
+            action.name !== 'opl-release-attestation.json'
+            && !standardInstallerSidecarAssetNames.includes(action.name)
+          ))
           .map((action) => ({
             name: String(action.name),
             digest: String(action.sha256),

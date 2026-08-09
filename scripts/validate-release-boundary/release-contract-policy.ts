@@ -824,6 +824,8 @@ function validateReleaseExecutionTracks(releaseContract: Record<string, any>): n
     'opl-app-component-manifest.json',
     'opl-install.sh',
     'opl-release-attestation.json',
+    'install-docker-webui.sh',
+    'install-docker-webui.ps1',
     'prepared_ai_release_notes',
   ];
   const fullRequirements = [

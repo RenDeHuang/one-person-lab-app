@@ -136,8 +136,8 @@ docker compose version
 
 ```bash
 repo='gaofeng21cn/one-person-lab-app'
-root="https://raw.githubusercontent.com/$repo/main"
-curl -fsSL "$root/scripts/install-docker-webui.sh" |
+root="https://github.com/$repo/releases/latest/download"
+curl -fsSL "$root/install-docker-webui.sh" |
   bash -s -- --yes --enable-auto-update
 ```
 
@@ -353,9 +353,9 @@ Linux:   $HOME/OnePersonLab/projects
 
 ```powershell
 $repo = 'gaofeng21cn/one-person-lab-app'
-$root = "https://raw.githubusercontent.com/$repo/main"
+$root = "https://github.com/$repo/releases/latest/download"
 $p = Join-Path $env:TEMP 'install-docker-webui.ps1'
-iwr -UseBasicParsing "$root/scripts/install-docker-webui.ps1" -OutFile $p
+iwr -UseBasicParsing "$root/install-docker-webui.ps1" -OutFile $p
 powershell -ExecutionPolicy Bypass -File $p -Port 3001 -EnableAutoUpdate -Yes
 ```
 
@@ -367,9 +367,9 @@ powershell -ExecutionPolicy Bypass -File $p -Port 3001 -EnableAutoUpdate -Yes
 
 ```powershell
 $repo = 'gaofeng21cn/one-person-lab-app'
-$root = "https://raw.githubusercontent.com/$repo/main"
+$root = "https://github.com/$repo/releases/latest/download"
 $p = Join-Path $env:TEMP 'install-docker-webui.ps1'
-iwr -UseBasicParsing "$root/scripts/install-docker-webui.ps1" -OutFile $p
+iwr -UseBasicParsing "$root/install-docker-webui.ps1" -OutFile $p
 powershell -ExecutionPolicy Bypass -File $p `
   -Yes -NoOpen `
   -DiagnosticsDir "$env:USERPROFILE\OnePersonLab\diagnostics"

@@ -673,6 +673,35 @@ test('remote release verifier rejects a Standard release without its frozen inst
   assert.match(result.stderr, /missing: opl-install\.sh/);
 });
 
+test('remote release verifier requires both Docker WebUI Latest installer sidecars', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-no-docker-installer-'));
+  const version = '26.5.19-remote-no-docker-installer';
+  const names = writeStandardRemoteAssets(tempRoot, version);
+  const releaseView = buildRemoteReleaseView(
+    tempRoot,
+    names.filter((name) => name !== 'install-docker-webui.ps1'),
+    `v${version}`,
+  );
+
+  const result = runNode([
+    'scripts/verify-remote-release-assets.ts',
+    '--version',
+    version,
+    '--repo',
+    'gaofeng21cn/one-person-lab-app',
+    '--download-dir',
+    tempRoot,
+    '--no-download',
+  ], {
+    env: {
+      OPL_REMOTE_RELEASE_VIEW_JSON: JSON.stringify(releaseView),
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /missing: install-docker-webui\.ps1/);
+});
+
 test('remote release verifier rejects a duplicate visible title and any tenth public asset', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-remote-release-surface-'));
   const binDir = path.join(tempRoot, 'bin');

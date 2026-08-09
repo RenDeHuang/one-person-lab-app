@@ -175,6 +175,8 @@ export function standardRemoteAssetNames(version) {
     "opl-install.sh",
     "opl-app-component-manifest.json",
     "opl-release-attestation.json",
+    "install-docker-webui.sh",
+    "install-docker-webui.ps1",
   ];
 }
 
@@ -230,6 +232,8 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
   writeStandardUpdaterZip(path.join(outDir, zipName), updaterVersion);
   writeFile(path.join(outDir, `${zipName}.blockmap`), "standard-zip-blockmap");
   writeExecutable(path.join(outDir, "opl-install.sh"), "#!/usr/bin/env bash\nexit 0\n");
+  writeExecutable(path.join(outDir, "install-docker-webui.sh"), "#!/usr/bin/env bash\nexit 0\n");
+  writeFile(path.join(outDir, "install-docker-webui.ps1"), "exit 0\n");
   const componentManifestPath = path.join(outDir, "opl-app-component-manifest.json");
   writeFile(componentManifestPath, `${JSON.stringify({ surface_kind: "opl_app_component_manifest.v1" })}\n`);
   const trust = writeStandardDistributionTrust(outDir, version);
@@ -248,7 +252,11 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
     "",
   ].join("\n");
   writeFile(path.join(outDir, "latest-arm64-mac.yml"), metadata);
-  const payloadNames = names.filter((name) => name !== "opl-release-attestation.json");
+  const payloadNames = names.filter((name) => ![
+    "opl-release-attestation.json",
+    "install-docker-webui.sh",
+    "install-docker-webui.ps1",
+  ].includes(name));
   const payloadAssets = payloadNames.map((name) => ({
     name,
     digest: `sha256:${fileSha256(path.join(outDir, name))}`,
