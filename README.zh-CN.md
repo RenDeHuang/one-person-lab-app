@@ -122,12 +122,12 @@ reclaim Latest。Nightly publication 及其 digest-bound Homebrew follower 已�
 
 ### 可信安装入口
 
-从包含 `opl-install.sh` 的 Release 起，macOS 与 Linux 使用同一个按版本冻结的
-公共入口。下载同 tag 的脚本和 component manifest，校验脚本 digest 后再执行：
+macOS 与 Linux 使用当前 Latest Release 提供的同一个公共安装器入口。通过稳定的
+Latest URL 下载脚本和 component manifest，校验脚本 digest 后再执行；安装器会先把
+Latest 解析为一个精确 Release，再下载资产或修改 App：
 
 ```bash
-VERSION=<release-version>
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${VERSION}"
+BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download"
 curl -fLO "${BASE}/opl-install.sh"
 curl -fLO "${BASE}/opl-app-component-manifest.json"
 EXPECTED="$(jq -r '.artifacts[] | select(.name == "opl-install.sh") | .digest | sub("^sha256:"; "")' opl-app-component-manifest.json)"
@@ -151,16 +151,16 @@ chmod 0755 opl-install.sh
 brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 ```
 
-未安装 Homebrew 时，从下面的 GitHub Release 下载精确 DMG。不要把可变
+未安装 Homebrew 时，从下面的 Latest GitHub Release 下载 DMG。不要把可变
 `main` 分支中的 `install.sh` 直接通过管道交给 shell 执行。仓库脚本仍供从已审阅
-source checkout 开发或恢复时运行 `./install.sh`。公开 Release 同 tag 的
-`opl-install.sh` 是唯一公开 installer，会在任何 App 目标变更前校验 component
+source checkout 开发或恢复时运行 `./install.sh`。Release 中的 `opl-install.sh`
+是唯一公开 installer，会在任何 App 目标变更前解析精确 Release，并校验 component
 manifest 与 DMG：
 
 ```bash
-curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-install.sh
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-install.sh
 chmod 0755 opl-install.sh
-./opl-install.sh --stable-macos-install --standard --release-tag v<version> --yes
+./opl-install.sh --stable-macos-install --standard --yes
 ```
 
 ### 直接下载
@@ -221,17 +221,18 @@ rollback evidence。
 
 User Data / Artifacts 属于独立的存储、保留与清理边界，不是可安装软件，也不会成为第四个 updater 对象。
 
-Windows 11 x64 用户可从
-[v26.8.4 Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4)
-下载当前同 tag Stable Windows 资产。`One-Person-Lab-26.8.4-win-x64.exe` 的 SHA-256 为
-`5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6`。公开资产与 digest
+Windows 11 x64 用户应打开
+[当前 Latest Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)，
+选择其中的 Windows x64 EXE。同一 Release 的平台 manifest 持有当前文件名、大小和
+SHA-256，教程不复制版本绑定的发版数据。公开资产与 digest
 不能证明 WSL2 runtime acceptance、installed behavior、签名、supported-platform 完成或
 release-wide ready。
 下载、摘要校验、首次启动、WSL2 边界和更新步骤见
 [Windows x64 安装教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install.html)。
 
-Linux x64 使用同 tag `.deb` 与版本冻结的
-`opl-install.sh --desktop --standard`。`--webui` 只把同一 Desktop 包启动为浏览器模式，
+Linux x64 使用 Latest Release 的 `.deb` 与
+`opl-install.sh --desktop --standard`；安装器会先把 Latest 绑定到一个精确 tag。
+`--webui` 只把同一 Desktop 包启动为浏览器模式，
 不会恢复已退役的独立 Native WebUI carrier；资产公开与 installed/runtime acceptance
 仍是两项独立结论。
 

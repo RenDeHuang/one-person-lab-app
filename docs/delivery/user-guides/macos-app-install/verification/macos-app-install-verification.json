@@ -14,14 +14,14 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 9,
+  "pdf_pages": 8,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 9,
+  "rendered_pages": 8,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 2861338,
+  "html_bytes": 2635708,
   "screenshot_assets": [
     {
       "role": "download_release",
@@ -31,7 +31,7 @@
       "width": 1087,
       "height": 776,
       "sha256": "98912043cb875143680d8bca43db6c65a4540ce2966ce15f9b75aef3815d6cf8",
-      "referenced": true,
+      "referenced": false,
       "source_kind": "live_github_release_playwright_capture",
       "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
       "locale": "zh-CN",

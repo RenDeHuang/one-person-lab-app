@@ -58,13 +58,13 @@ HTTP 403，只有本机已安装 `gh`，且 `gh auth` 已登录 `github.com`，�
 Linux 使用同一 Stable tag 的 `.deb` 与 `opl-install.sh`。从 Release 下载并校验脚本后：
 
 ```bash
-./opl-install.sh --desktop --standard --release-tag v<version> --no-open
+./opl-install.sh --desktop --standard --no-open
 ```
 
 需要在 headless host 上通过浏览器访问同一个 Desktop 时：
 
 ```bash
-./opl-install.sh --webui --standard --release-tag v<version> --no-open
+./opl-install.sh --webui --standard --no-open
 ```
 
 这里的 `--webui` 启动的是 Desktop 安装包自带的浏览器模式，不是已退役的独立 Native
@@ -90,14 +90,14 @@ Windows 资产公开不等于 WSL2 runtime acceptance、installed behavior、代
 
 [Docker WebUI 图文安装教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html)
 
-## 版本冻结的公共安装器
+## Latest 公共安装器
 
-macOS 与 Linux 可以使用所选 Release 同 tag 的 `opl-install.sh`。不要把可变 `main`
-分支中的脚本直接通过管道交给 shell 执行：
+macOS 与 Linux 可以使用当前 Latest Release 的 `opl-install.sh`。不要把可变 `main`
+分支中的脚本直接通过管道交给 shell 执行；安装器会先把 Latest 解析为一个精确
+Release，再选择平台资产：
 
 ```bash
-VERSION=<release-version>
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${VERSION}"
+BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download"
 
 curl -fLO "${BASE}/opl-install.sh"
 curl -fLO "${BASE}/opl-app-component-manifest.json"
@@ -115,7 +115,7 @@ test -n "$EXPECTED" && test "$ACTUAL" = "$EXPECTED"
 chmod 0755 opl-install.sh
 ```
 
-公开安装器会从所选 exact Release 的 manifest 解析平台资产、大小和 digest。缺少、重复或
+公开安装器会从 Latest 选中的 exact Release manifest 解析平台资产、大小和 digest。缺少、重复或
 身份不一致时必须停止，不能改用另一个 tag、历史文件或未经绑定的下载地址。
 
 ## Headless 与更新责任

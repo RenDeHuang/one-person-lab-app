@@ -38,9 +38,9 @@ open -a "One Person Lab"
 
 App 启动后可直接跳到第 3 步。
 
-不方便使用终端时，打开最新 Release 页面，在 **Assets** 区域下载 `One-Person-Lab-<版本>-mac-arm64.dmg`：
-
-![手工安装时在最新 Release 的 Assets 区域下载 macOS arm64 DMG](screenshots/01-download-release.png){width=96% fig-align="center"}
+不方便使用终端时，打开上面的最新 Release 页面，在 **Assets** 区域下载
+`One-Person-Lab-<版本>-mac-arm64.dmg`。教程只保留 Latest 入口，不展示会随发版过期的
+版本截图或精确 tag URL。
 
 - 当前只提供 Apple Silicon（arm64）安装包。
 - 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
@@ -50,16 +50,16 @@ App 启动后可直接跳到第 3 步。
   `One-Person-Lab-Full-<版本>-mac-arm64.dmg`。Full 不是更新频道，后续仍走 Standard 更新路径。
 
 从已审阅的 source checkout 开发或恢复时可以运行仓库内的 `./install.sh`。普通安装
-不要从可变 `main` 分支下载后直接执行；需要终端入口时，从所选 GitHub Release 的同一
-tag 下载唯一公开 installer `opl-install.sh`：
+不要从可变 `main` 分支下载后直接执行；需要终端入口时，从 Latest Release 下载唯一
+公开 installer `opl-install.sh`。它会先解析并绑定当前精确 Release：
 
 ```bash
-curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-install.sh
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-install.sh
 chmod 0755 opl-install.sh
-./opl-install.sh --stable-macos-install --standard --release-tag v<version> --yes
+./opl-install.sh --stable-macos-install --standard --yes
 ```
 
-该 installer 会在挂载 DMG 或替换 App 前校验同 tag component manifest、installer 与
+该 installer 会在挂载 DMG 或替换 App 前校验所选 Release 的 component manifest、installer 与
 DMG 的摘要。
 
 ## 2. 手工安装 DMG（可选）
@@ -69,7 +69,7 @@ DMG 的摘要。
 
 ![将 One Person Lab 拖入 Applications](screenshots/02-install-dmg.png){width=82% fig-align="center"}
 
-首次打开如出现 macOS 安全提示，按系统提示确认。不要长期在 DMG 挂载窗口中直接运行 App；如果系统持续阻止打开，可改用第 1 步的同 tag `opl-install.sh`，由它完成摘要校验、复制、quarantine 清理和启动。
+首次打开如出现 macOS 安全提示，按系统提示确认。不要长期在 DMG 挂载窗口中直接运行 App；如果系统持续阻止打开，可改用第 1 步的 Latest `opl-install.sh`，由它完成摘要校验、复制、quarantine 清理和启动。
 
 ## 3. 完成首次检查
 

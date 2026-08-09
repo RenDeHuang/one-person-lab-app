@@ -3,35 +3,29 @@ title: "One Person Lab Windows x64 安装与配置教程"
 lang: zh-CN
 ---
 
-当前公开下载来自 One Person Lab App 的同 tag **Stable Release**：
+当前公开下载入口始终是 One Person Lab App 的 **Latest Stable Release**：
 
 <{{download.release_url}}>
 
-当前安装器：
-
-- tag：`{{download.release_tag}}`
-- 文件：`{{download.installer_asset}}`
-- 大小：{{download.installer_size_label}}
-- SHA-256：`{{download.installer_sha256}}`
-- Authenticode 状态：`{{download.code_signing_status}}`
-- 签名政策：`{{download.code_signing_policy}}`
+Release 页面中的版本号和安装包文件名会随发布变化。教程不复制某个版本的 tag、文件名、
+大小或 SHA-256；这些值应在安装时从同一 Latest Release 的平台 manifest 与 updater
+receipt 读取。
 
 PDF 版本：[下载本教程]({{download.pdf_href}})
 
 ## 先理解证据边界
 
-GitHub 已公开 `{{download.release_tag}}` 的 Windows x64 EXE、blockmap、
-`latest.yml` 和 updater receipt。这个事实只证明 release carrier 上存在这些精确
-bytes 及其 digest。
+Latest Release 上的 Windows x64 EXE、blockmap、`latest.yml`、平台 manifest 和 updater
+receipt，只能证明 release carrier 上存在这些精确 bytes 及其 digest。
 
 它不能证明 WSL2 runtime acceptance、installed behavior 或产品支持完成，也不能从
 release asset、文档生成或 focused tests 推导出生产环境、长期升级、代码签名或
 release-wide ready。安装后应以实际 App readback、可见错误和独立的 installed/runtime
 验收为准。
 
-当前 EXE 的签名状态是 `unsigned`，政策是 `optional_nonblocking`。因此 Windows
-SmartScreen 可能显示警告；不要关闭 Microsoft Defender、修改全局 SmartScreen 策略，
-也不要把未签名文件描述为已签名。
+安装器的 Authenticode 状态以 Latest Release 中 `opl-windows-updater-assets.json` 的
+`code_signing` 字段为准。Windows SmartScreen 仍可能显示警告；不要关闭 Microsoft
+Defender、修改全局 SmartScreen 策略，也不要把未签名文件描述为已签名。
 
 ## 1. 准备 Windows 11 x64
 
@@ -46,49 +40,66 @@ SmartScreen 可能显示警告；不要关闭 Microsoft Defender、修改全局 
 关闭正在运行的旧 One Person Lab 窗口。不要删除 `%APPDATA%`、项目目录、Docker
 volume 或 WSL 发行版来“准备干净环境”；这些位置可能包含用户数据。
 
-## 2. 下载当前 Stable Windows 资产
+## 2. 从 Latest 下载并校验 Windows 资产
 
 打开：
 
 <{{download.release_url}}>
 
-下载：
+在 **Assets** 区域选择名称符合 `{{download.installer_pattern}}` 的 EXE。不要选择
+`.blockmap`、`latest.yml`、JSON 或 Source code。若页面中没有唯一的 Windows x64 EXE，
+不要从历史 tag 猜测地址；这表示当前 Latest 尚不能提供该平台资产。
 
-<{{download.installer_url}}>
-
-浏览器保存后的文件名必须是：
-
-`{{download.installer_asset}}`
-
-不要从旧截图、旧 issue、第三方网盘或历史 tag 猜测下载地址。当前指南不提供独立
-下载助手；GitHub Release asset 和其公开 digest 是下载 currentness 来源。
-
-## 3. 校验 SHA-256
-
-在下载目录打开普通 PowerShell，运行：
+也可以在下载目录打开普通 PowerShell，运行下面的命令，让平台 manifest 决定当前文件名
+和 SHA-256，并通过 Latest URL 下载和校验：
 
 ```powershell
-Get-FileHash ".\{{download.installer_asset}}" -Algorithm SHA256
+$repo = 'gaofeng21cn/one-person-lab-app'
+$latest = "https://github.com/$repo/releases/latest"
+$platformManifest = "$latest/download/opl-desktop-platforms-manifest.json"
+$platforms = Invoke-RestMethod $platformManifest
+$matches = @($platforms.assets | Where-Object {
+  $_.name -like 'One-Person-Lab-*-win-x64.exe'
+})
+if ($matches.Count -ne 1) {
+  throw "Latest Release 必须包含一个 Windows x64 EXE，实际为 $($matches.Count) 个。"
+}
+
+$asset = $matches[0]
+$installer = Join-Path (Get-Location) $asset.name
+Invoke-WebRequest -UseBasicParsing "$latest/download/$($asset.name)" -OutFile $installer
+
+$expected = $asset.digest -replace '^sha256:', ''
+$actual = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) {
+  Remove-Item $installer -Force
+  throw 'SHA-256 不一致，已删除下载文件。'
+}
+
+Write-Host "已校验: $($asset.name)"
 ```
 
-输出必须等于：
+需要查看签名政策和当前签名状态时，读取同一 Latest Release 的 updater receipt：
 
-```text
-{{download.installer_sha256}}
+```powershell
+$updaterReceipt = "$latest/download/opl-windows-updater-assets.json"
+$receipt = Invoke-RestMethod $updaterReceipt
+$receipt.code_signing | Format-List
 ```
 
-如果文件名、大小或 SHA-256 不一致：
+不要从旧截图、旧 issue、第三方网盘或历史 tag 猜测下载地址。若文件名、大小或 SHA-256
+不一致：
 
 1. 不要运行该 EXE。
 2. 删除这一个错误下载文件。
-3. 从上面的 `{{download.release_tag}}` Release 页面重新下载。
-4. 再次运行 `Get-FileHash`。
+3. 从上面的 Latest Release 页面重新下载。
+4. 重新读取平台 manifest 并再次运行 `Get-FileHash`。
 
 不要通过关闭 Defender、忽略 digest 或改名来绕过不一致。
 
-## 4. 安装
+## 3. 安装
 
-1. 双击 `{{download.installer_asset}}`。
+1. 双击刚才校验通过的 `One-Person-Lab-...-win-x64.exe`。
 2. 如果 Windows SmartScreen 出现，先确认文件名和刚才校验的 SHA-256。
 3. 只有在来源与 digest 都一致时，才根据系统界面决定是否继续。
 4. 完成安装后，从开始菜单启动 One Person Lab。
@@ -97,7 +108,7 @@ Get-FileHash ".\{{download.installer_asset}}" -Algorithm SHA256
 安装器失败，记录 Windows 版本、文件名、SHA-256、时间点和完整可见错误，不要重复
 快速启动多个安装进程。
 
-## 5. 首次启动与 Gateway 账户
+## 4. 首次启动与 Gateway 账户
 
 首次启动后，按 App 当前界面完成设置。若界面要求 Gateway 账户：
 
@@ -110,7 +121,7 @@ Get-FileHash ".\{{download.installer_asset}}" -Algorithm SHA256
 Gateway 密码、token 和 API Key 不应进入 PowerShell、命令行参数、日志、截图或
 问题报告。
 
-## 6. WSL 2 与 OPL-Linux
+## 5. WSL 2 与 OPL-Linux
 
 App contract 要求 Windows 上的 agent 和 Framework 执行边界使用专用
 `OPL-Linux`，不允许 native Windows executor fallback。但当前 Stable Release asset
@@ -133,7 +144,7 @@ wsl.exe --list --verbose
 如果 App 没有显示 WSL 流程，也不要根据本指南自行 bootstrap 产品 runtime。记录
 实际界面和 readback，由 App/Shell owner 的合法入口判断。
 
-## 7. 做一次真实模型访问检查
+## 6. 做一次真实模型访问检查
 
 在单独的测试目录创建一个短任务，例如：
 
@@ -144,11 +155,11 @@ wsl.exe --list --verbose
 只有真实回复、会话完成和重新打开后的状态 readback 才能说明这次模型访问成功。
 只打开窗口、只看到首页、下载成功或本地 health 响应都不能替代模型访问结果。
 
-## 8. 检查更新
+## 7. 检查更新
 
-`{{download.release_tag}}` 包含 Windows updater metadata `{{download.updater_metadata_asset}}`
-和 receipt `{{download.updater_receipt_asset}}`。这证明当前 Release 上存在 updater 资产，
-不自动证明长期升级或所有 predecessor 路径已通过。
+Latest Release 中的 Windows updater metadata `{{download.updater_metadata_asset}}` 和
+receipt `{{download.updater_receipt_asset}}` 证明当前 Release 上存在 updater 资产，
+但不自动证明长期升级或所有 predecessor 路径已通过。
 
 使用 App 内“检查更新”时：
 
@@ -159,7 +170,7 @@ wsl.exe --list --verbose
 
 不要手工替换 `latest.yml`、blockmap 或安装目录中的二进制文件。
 
-## 9. 可选：Docker WebUI
+## 8. 可选：Docker WebUI
 
 Container WebUI 是独立运行形态：
 
@@ -172,12 +183,12 @@ Windows Desktop App 不要求 Docker Desktop。只有在选择 Container WebUI �
 
 不要为修复桌面 App 执行 Docker Factory Reset 或全局 Docker prune。
 
-## 10. 日志与问题报告
+## 9. 日志与问题报告
 
 遇到问题时记录：
 
 - Windows 版本和 OS build；
-- release tag `{{download.release_tag}}`；
+- App“关于”页显示的版本，以及当时的 Latest Release URL；
 - 安装包文件名与 SHA-256；
 - 安装、首次启动、WSL、登录或模型访问阶段；
 - 可见错误原文；
@@ -190,7 +201,7 @@ Windows Desktop App 不要求 Docker Desktop。只有在选择 Container WebUI �
 
 不要上传整个用户数据目录。先删除邮箱、项目内容、token、API Key 和其他秘密。
 
-## 11. 卸载与用户数据
+## 10. 卸载与用户数据
 
 1. 正常退出 One Person Lab。
 2. 打开“设置 -> 应用 -> 已安装的应用”。
@@ -210,9 +221,9 @@ volume。需要清理测试数据时，先从 App 的数据、存储和诊断页
 
 ### SmartScreen 为什么提示未知发布者
 
-当前安装器状态是 `unsigned`。先核对 `{{download.release_tag}}`、文件名和
-SHA-256；不要关闭 Defender 或修改全局安全策略。未来签名状态只能以 exact release
-receipt 和 Windows readback 为准。
+先读取 Latest Release updater receipt 的 `code_signing.status`，再核对文件名和
+SHA-256；不要关闭 Defender 或修改全局安全策略。签名状态只能以该 Release receipt
+和 Windows readback 为准。
 
 ### 是否已经证明 Windows 产品支持完成
 

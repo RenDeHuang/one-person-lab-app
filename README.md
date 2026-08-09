@@ -136,13 +136,13 @@ production-verified.
 
 ### Verified Install Paths
 
-Releases that contain `opl-install.sh` provide one version-frozen entry for
-macOS and Linux. Download the script and component manifest from the same exact
-tag, verify the script digest from the manifest, then run it:
+The current Latest Release provides one public installer entry for macOS and
+Linux. Download the installer and component manifest through the stable Latest
+URLs, verify the installer digest, then run it. The installer resolves Latest to
+one exact Release before downloading or changing an App target:
 
 ```bash
-VERSION=<release-version>
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${VERSION}"
+BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download"
 curl -fLO "${BASE}/opl-install.sh"
 curl -fLO "${BASE}/opl-app-component-manifest.json"
 EXPECTED="$(jq -r '.artifacts[] | select(.name == "opl-install.sh") | .digest | sub("^sha256:"; "")' opl-app-component-manifest.json)"
@@ -167,15 +167,15 @@ cask:
 brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 ```
 
-Without Homebrew, download the exact DMG from the GitHub Release linked below.
+Without Homebrew, download the DMG from the Latest GitHub Release linked below.
 Do not pipe a mutable branch copy of `install.sh` directly into a shell. The
-same tag-scoped `opl-install.sh` is the only public installer and verifies its
-component manifest and DMG before any App target mutation:
+Release-hosted `opl-install.sh` is the only public installer and verifies the
+resolved Release, component manifest, and DMG before any App target mutation:
 
 ```bash
-curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v<version>/opl-install.sh
+curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-install.sh
 chmod 0755 opl-install.sh
-./opl-install.sh --stable-macos-install --standard --release-tag v<version> --yes
+./opl-install.sh --stable-macos-install --standard --yes
 ```
 
 The repository script remains available as `./install.sh` for developers
@@ -242,18 +242,19 @@ on App restart and retain their owner-defined rollback evidence.
 User Data / Artifacts is a separate storage, retention, and cleanup boundary. It
 is not installable software and never becomes a fourth updater object.
 
-Windows 11 x64 users can download the current same-tag Stable Windows asset from
-the [v26.8.4 Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4).
-The `One-Person-Lab-26.8.4-win-x64.exe` SHA-256 is
-`5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6`.
-The public asset and digest do not prove WSL2 runtime acceptance, installed
+Windows 11 x64 users should open the
+[current Latest Release](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
+and select its Windows x64 EXE. The platform manifest on that same Release owns
+the current filename, size, and SHA-256; the guide does not copy version-specific
+release data. The public asset and digest do not prove WSL2 runtime acceptance, installed
 behavior, signing, supported-platform completion, or release-wide readiness.
 Use the public
 [Windows x64 install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/windows-app-install/windows-app-install.html)
 for download, digest verification, first launch, WSL2 boundaries, and updates.
 
-Linux x64 users install the same-tag `.deb` through the version-frozen
-`opl-install.sh --desktop --standard` path. `--webui` starts that Desktop
+Linux x64 users install the Latest Release `.deb` through
+`opl-install.sh --desktop --standard`. The installer binds the selected Latest
+Release to one exact tag before downloading. `--webui` starts that Desktop
 package in browser mode; it does not restore the retired standalone Native
 WebUI carrier. Asset publication and installed/runtime acceptance remain
 separate claims.

@@ -67,13 +67,13 @@ Linux uses the `.deb` and `opl-install.sh` from the same Stable tag. After
 downloading and verifying the Release installer:
 
 ```bash
-./opl-install.sh --desktop --standard --release-tag v<version> --no-open
+./opl-install.sh --desktop --standard --no-open
 ```
 
 To expose that same Desktop from a headless host through its built-in WebUI:
 
 ```bash
-./opl-install.sh --webui --standard --release-tag v<version> --no-open
+./opl-install.sh --webui --standard --no-open
 ```
 
 Here `--webui` starts the WebUI packaged in the Desktop bytes. It is not the
@@ -103,14 +103,14 @@ updates.
 
 [Docker WebUI install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html)
 
-## Version-Frozen Public Installer
+## Latest Public Installer
 
-macOS and Linux can use `opl-install.sh` from the selected Release tag. Do not
-pipe a mutable `main` branch script directly into a shell:
+macOS and Linux can use `opl-install.sh` from the current Latest Release. Do not
+pipe a mutable `main` branch script directly into a shell. The installer resolves
+Latest to one exact Release before it selects platform assets:
 
 ```bash
-VERSION=<release-version>
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v${VERSION}"
+BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download"
 
 curl -fLO "${BASE}/opl-install.sh"
 curl -fLO "${BASE}/opl-app-component-manifest.json"
@@ -129,7 +129,7 @@ chmod 0755 opl-install.sh
 ```
 
 The public installer resolves platform assets, sizes, and digests from the exact
-selected Release manifest. Missing, duplicate, or mismatched identities must
+Release selected by Latest. Missing, duplicate, or mismatched identities must
 stop installation instead of selecting another tag, historical file, or
 unbound download URL.
 

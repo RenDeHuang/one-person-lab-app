@@ -124,7 +124,7 @@ test('standalone Windows RC publication is retired without fabricating runtime a
   }
 });
 
-test('Windows install guide binds the v26.8.4 Stable asset and preserves evidence boundaries', () => {
+test('Windows install guide resolves assets from Latest without copying version-bound release data', () => {
   const manifest = JSON.parse(
     fs.readFileSync(
       path.join(
@@ -139,27 +139,58 @@ test('Windows install guide binds the v26.8.4 Stable asset and preserves evidenc
     'utf8',
   );
 
-  assert.equal(manifest.state, 'active_stable_release_asset');
-  assert.equal(manifest.download.release_tag, 'v26.8.4');
+  assert.equal(manifest.state, 'active_latest_release_entry');
   assert.equal(
     manifest.download.release_url,
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4',
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest',
   );
-  assert.equal(manifest.download.installer_asset, 'One-Person-Lab-26.8.4-win-x64.exe');
   assert.equal(
-    manifest.download.installer_sha256,
-    '5520f5ee022104b800ef2784fc8ec51b5690fcc49f05b5d45087f79a3f1063e6',
+    manifest.download.platform_manifest_url,
+    'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-desktop-platforms-manifest.json',
   );
-  assert.equal(manifest.download.installer_size_bytes, '318525958');
-  assert.equal(manifest.download.code_signing_status, 'unsigned');
-  assert.equal(manifest.download.code_signing_policy, 'optional_nonblocking');
-  assert.match(guide, /\{\{download\.release_tag\}\}/);
-  assert.match(guide, /\{\{download\.installer_sha256\}\}/);
+  assert.equal(manifest.download.installer_pattern, 'One-Person-Lab-*-win-x64.exe');
+  assert.equal(manifest.download.release_tag, undefined);
+  assert.equal(manifest.download.installer_url, undefined);
+  assert.equal(manifest.download.installer_sha256, undefined);
+  assert.match(guide, /\{\{download\.release_url\}\}/);
+  assert.match(guide, /\$latest = "https:\/\/github\.com\/\$repo\/releases\/latest"/);
+  assert.match(guide, /\$latest\/download\/opl-desktop-platforms-manifest\.json/);
+  assert.match(guide, /\$latest\/download\/opl-windows-updater-assets\.json/);
   assert.match(guide, /Get-FileHash/);
   assert.match(guide, /Windows SmartScreen/);
   assert.match(guide, /不能证明 WSL2 runtime acceptance、installed behavior 或产品支持完成/);
+  assert.doesNotMatch(JSON.stringify(manifest), /\bv\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.-]+)?\b/);
+  assert.doesNotMatch(JSON.stringify(manifest), /\/releases\/(?:tag|download)\/v/);
+  assert.doesNotMatch(guide, /\{\{download\.(?:release_tag|installer_url|installer_sha256)\}\}/);
   assert.doesNotMatch(guide, /windows-rc-|RC Preview|download-windows-preview\.ps1|SHA256SUMS\.txt/);
   assert.doesNotMatch(guide, /关闭 Windows Defender|把 API Key 粘贴到 PowerShell/);
+});
+
+test('ordinary Desktop install docs use Latest URLs instead of fixed release versions', () => {
+  const userInstallSources = [
+    'README.md',
+    'README.zh-CN.md',
+    'docs/delivery/install/README.md',
+    'docs/delivery/install/README.zh-CN.md',
+    'docs/guides/macos-app-install/guide.qmd',
+    'docs/guides/macos-app-install/slides.qmd',
+    'docs/guides/windows-app-install/guide.qmd',
+    'docs/delivery/user-guides/windows-app-install/source/windows-app-install.quarto.json',
+  ];
+
+  for (const relativePath of userInstallSources) {
+    const source = fs.readFileSync(path.join(appRoot, relativePath), 'utf8');
+    assert.doesNotMatch(
+      source,
+      /\bv\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.-]+)?\b/,
+      `${relativePath} must not bind a concrete App version`,
+    );
+    assert.doesNotMatch(
+      source,
+      /one-person-lab-app\/releases\/(?:tag|download)\//,
+      `${relativePath} must route ordinary downloads through releases/latest`,
+    );
+  }
 });
 
 test('packaged installation-integrity recovery remains bounded and readback-based', () => {

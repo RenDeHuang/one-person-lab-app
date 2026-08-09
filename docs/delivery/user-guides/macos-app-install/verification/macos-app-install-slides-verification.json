@@ -33,7 +33,7 @@
       "width": 1087,
       "height": 776,
       "sha256": "98912043cb875143680d8bca43db6c65a4540ce2966ce15f9b75aef3815d6cf8",
-      "referenced": true,
+      "referenced": false,
       "expected_ui_text": [
         "Assets",
         "One-Person-Lab-26.8.4-mac-arm64.dmg",

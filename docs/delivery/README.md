@@ -23,7 +23,7 @@ surfaces live under `docs/site/latest/`.
 | [`validation/windows-wsl2/`](validation/windows-wsl2/) | Sanitized, non-binding receipts and fixtures for the authorized non-blocking Windows/WSL2 technical validation lane. |
 | [`install/docker-webui-guide.md`](install/docker-webui-guide.md) | Compatibility entry for the Docker/WebUI guide maintenance source and public bundle. |
 | [`user-guides/macos-app-install/README.md`](user-guides/macos-app-install/README.md) | macOS install guide source, generated Markdown/deck source, screenshot provenance, fixtures, and verification records. |
-| [`user-guides/windows-app-install/README.md`](user-guides/windows-app-install/README.md) | Windows x64 install guide source, exact Stable asset binding, generated Markdown, and verification records. |
+| [`user-guides/windows-app-install/README.md`](user-guides/windows-app-install/README.md) | Windows x64 install guide source, Latest Release asset discovery, generated Markdown, and verification records. |
 | [`user-guides/docker-webui-install/README.md`](user-guides/docker-webui-install/README.md) | Docker/WebUI install guide source, generated Markdown, and verification records. |
 | [`whitepapers/README.md`](whitepapers/README.md) | Whitepaper bundle, visual evidence, and exact-byte publication receipt routing. |
 
