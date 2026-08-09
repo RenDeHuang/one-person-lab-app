@@ -111,7 +111,6 @@ export function qualifyNightlyRelease(input: {
   const zipName = `One-Person-Lab-${request.version}-mac-arm64.zip`;
   const blockmapName = `${zipName}.blockmap`;
   const metadataName = 'latest-arm64-mac.yml';
-  const linuxDebName = `One-Person-Lab-${request.version}-linux-x64.deb`;
   const frozenInstallerName = 'opl-install.sh';
   const policyName = 'standard-local-authorization-policy.json';
   const componentManifestName = 'opl-app-component-manifest.json';
@@ -119,7 +118,6 @@ export function qualifyNightlyRelease(input: {
     blockmapName,
     dmgName,
     frozenInstallerName,
-    linuxDebName,
     metadataName,
     policyName,
     zipName,
@@ -168,7 +166,6 @@ export function qualifyNightlyRelease(input: {
     zipName,
     blockmapName,
     metadataName,
-    linuxDebName,
     frozenInstallerName,
   ];
   const releaseBase =

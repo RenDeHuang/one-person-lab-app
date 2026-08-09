@@ -106,21 +106,20 @@ function readReleaseView(repo, tag) {
   return JSON.parse(result.stdout);
 }
 
-function standardPayloadAssetNames(version, isPrerelease) {
+function standardPayloadAssetNames(version) {
   return [
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    ...(isPrerelease ? [`One-Person-Lab-${version}-linux-x64.deb`] : []),
     "latest-arm64-mac.yml",
     "opl-install.sh",
     "opl-app-component-manifest.json",
   ];
 }
 
-function requiredAssetNames(version, includeFullPackage, isPrerelease) {
+function requiredAssetNames(version, includeFullPackage) {
   const standard = [
-    ...standardPayloadAssetNames(version, isPrerelease),
+    ...standardPayloadAssetNames(version),
     "opl-release-attestation.json",
   ];
   if (!includeFullPackage) {
@@ -480,7 +479,7 @@ function assertStandardDistributionTrust(downloadDir, options, verifiedAssets) {
   if (!dmgAsset) throw new Error(`Verified assets are missing ${dmgName}.`);
   const attestation = JSON.parse(readText(path.join(downloadDir, "opl-release-attestation.json")));
   const standardAssets = verifiedAssets
-    .filter((asset) => standardPayloadAssetNames(version, options.isPrerelease).includes(asset.name))
+    .filter((asset) => standardPayloadAssetNames(version).includes(asset.name))
     .map((asset) => ({ name: asset.name, digest: `sha256:${asset.sha256}`, size_bytes: asset.size }))
     .sort((left, right) => left.name.localeCompare(right.name));
   const attestedAssets = attestation.publication_record?.publication_intent?.payload_assets;
@@ -1309,7 +1308,6 @@ function main() {
   const names = requiredAssetNames(
     options.version,
     options.includeFullPackage,
-    releaseView.isPrerelease === true,
   );
 
   if (releaseView.tagName && releaseView.tagName !== options.tag) {

@@ -37,7 +37,7 @@ should happen only when AGUI replay is explicitly requested.
 | `generate-release-notes.ts` | Builds Stable release-note evidence and deterministic template notes for the LLM writer. Stable compares with the previous Stable release, release names use `One Person Lab v<version>`, and the public body leads with user scenarios, upgrade value, and action items. Commit logs, refs, workflow facts, changelog details, OPL-family changes, and Full payload versions stay in Technical details or evidence artifacts unless they are directly user-visible. Stable publish/promote consumes prepared AI-written notes and must not call AI on the critical path; template output is dry-run/diagnostic only. Nightly uses its own fixed scope-and-risk disclosure. |
 | `resolve-preview-release-request.ts` | Freezes one Manual Standard Dev Preview or exact recovery request, immutable App/Shell/Framework identity, qualification disclosure, and whether a separate protected Latest override must be admitted. |
 | `resolve-nightly-release-request.ts` | Freezes one scheduled Standard-only Automated Preview request, exact App/Shell/Framework SHAs, same-day revision, and default `make_latest=false`/non-Full/non-WebUI authority. |
-| `nightly-release-qualification.ts` | Verifies the exact shared-build Standard asset set and cohort without claiming Stable qualification or requiring the Stable heavy VM gate. |
+| `nightly-release-qualification.ts` | Verifies the exact shared-build macOS ARM64 Standard asset set and cohort without claiming Stable qualification or requiring the Stable heavy VM gate. |
 | `nightly-release-publisher.ts` | Publishes or read-reconciles one immutable GitHub prerelease by exact digest; same-name different bytes and unknown mutation outcomes fail closed without retry. |
 | `validate-release-quality-promotion.ts` | Verifies that one exact Preview artifact passed the complete direct-Stable gate set and emits a separate `promote_quality` receipt without rewriting its immutable manifest or moving Latest. |
 | `write-latest-pointer-override-authority.ts` | Derives one user-explicit, protected, single-use, non-persistent Preview pointer authority from the immutable component manifest and exact expected-current Latest tag. |
@@ -466,7 +466,7 @@ AI release-note drafting is a pre-release preparation path, not publish/promote
 critical-path work. Stable prepares and validates AI-written notes before the
 expensive build; the exact Markdown and evidence digests become Bundle identity.
 Stable publish cannot call AI, replace the prepared notes, or fall back to
-template output. Automated Nightly uses a fixed disclosure of its Standard-only,
+template output. Automated Nightly uses a fixed disclosure of its Standard-only macOS ARM64,
 non-Stable, scheduled `make_latest=false`, and non-heavy-VM scope rather than
 calling AI in the scheduled critical path. Any later pointer override separately
 discloses the exact Preview quality and skipped or failed gates. The Stable

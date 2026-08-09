@@ -206,12 +206,6 @@ jobs:
           name: nightly-macos-arm64
           path: build-artifacts
 
-      - name: Download Linux Desktop build assets
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: nightly-linux-x64
-          path: build-artifacts
-
       - name: Download Standard build cohort
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -247,21 +241,34 @@ jobs:
           test "$(jq -r .stable_qualified nightly-qualification.json)" = false
           test "$(jq -r .heavy_vm_required nightly-qualification.json)" = false
 
-      - name: Freeze previous published Nightly notes baseline
+      - name: Freeze latest usable published release notes baseline
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          previous="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq '.[] | select(.draft == false and .prerelease == true and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+-nightly(?:\\.r[1-9][0-9]*)?$"))) | [.published_at, (.id | tostring), .tag_name, .target_commitish] | @tsv' \
-            | sort | tail -n 1)"
-          test -n "$previous"
-          IFS=$'\t' read -r previous_published_at previous_id previous_tag previous_target <<< "$previous"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > published-releases.json
+          previous="$(jq -er '
+            [.[][]
+              | select(.draft == false)
+              | select((.published_at | type) == "string")
+              | select((.target_commitish | type) == "string"
+                  and (.target_commitish | test("^[0-9a-f]{40}$")))
+              | select([.assets[]?
+                  | select(.name == "opl-app-component-manifest.json")] | length == 1)]
+            | sort_by(.published_at, .id)
+            | last
+            | [.published_at, (.id | tostring), .tag_name, .target_commitish,
+                ([.assets[]
+                  | select(.name == "opl-app-component-manifest.json")][0].id | tostring)]
+            | @tsv
+          ' published-releases.json)"
+          IFS=$'\t' read -r previous_published_at previous_id previous_tag previous_target manifest_asset_id \
+            <<< "$previous"
           [[ "$previous_id" =~ ^[1-9][0-9]*$ ]]
           [[ "$previous_target" =~ ^[0-9a-f]{40}$ ]]
-          manifest_asset_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/$previous_id" \
-            --jq '[.assets[] | select(.name == "opl-app-component-manifest.json") | .id] | if length == 1 then .[0] else error("previous Nightly must have one component manifest") end')"
+          [[ "$manifest_asset_id" =~ ^[1-9][0-9]*$ ]]
           gh api "repos/$GITHUB_REPOSITORY/releases/assets/$manifest_asset_id" \
             -H 'Accept: application/octet-stream' > nightly-baseline-component-manifest.json
           jq -n \

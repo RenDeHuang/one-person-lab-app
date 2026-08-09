@@ -2245,7 +2245,7 @@ export function validateReleasePlatformMatrix(
     || capabilities['linux-x64'].blocks_stable !== false
     || !capabilities['linux-x64'].quality_channels.includes('stable')
     || capabilities['linux-x64'].publication_route !== '.github/workflows/build-manual.yml'
-    || capabilities['linux-x64'].publication_status !== 'same_stable_release_set_and_nightly'
+    || capabilities['linux-x64'].publication_status !== 'same_stable_release_set'
     || capabilities['windows-x64'].default_enabled !== true
     || capabilities['windows-x64'].stable_allowed !== true
     || capabilities['windows-x64'].blocks_stable !== false
@@ -2258,7 +2258,7 @@ export function validateReleasePlatformMatrix(
   }
   const policyAssertions: Array<[string, string[], boolean, boolean]> = [
     ['stable_required', ['macos-arm64'], true, true],
-    ['nightly_standard', ['macos-arm64', 'linux-x64'], true, true],
+    ['nightly_standard', ['macos-arm64'], true, true],
     ['preview_standard', ['macos-arm64', 'linux-x64'], true, true],
     ['stable_desktop_additional', ['linux-x64', 'windows-x64'], false, false],
   ].filter(([name]) => (
@@ -2393,9 +2393,9 @@ export function validateReleasePlatformMatrix(
   const nightlyRequiredLanes = releaseContract.release_validation_profiles?.nightly_standard?.required_lanes;
   if (
     !nightlyRequiredLanes?.includes('standard_macos_arm64_build')
-    || !nightlyRequiredLanes?.includes('standard_linux_x64_build')
+    || nightlyRequiredLanes?.includes('standard_linux_x64_build')
   ) {
-    console.error('FAIL release_platform_matrix: Nightly validation must still require macOS ARM64 and Linux x64');
+    console.error('FAIL release_platform_matrix: Nightly validation must require only macOS ARM64');
     failures += 1;
   }
   return failures;

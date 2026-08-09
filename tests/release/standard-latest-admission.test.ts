@@ -49,7 +49,7 @@ function configureCandidate(
     `One-Person-Lab-${version}-mac-arm64.dmg`,
     `One-Person-Lab-${version}-mac-arm64.zip`,
     `One-Person-Lab-${version}-mac-arm64.zip.blockmap`,
-    `One-Person-Lab-${version}-linux-x64.deb`,
+    ...(publicationChannel === 'preview' ? [`One-Person-Lab-${version}-linux-x64.deb`] : []),
     ...(includeInstaller ? ['opl-install.sh'] : []),
   ];
   const manifest = createAppComponentManifest({

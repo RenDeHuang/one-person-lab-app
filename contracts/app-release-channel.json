@@ -428,14 +428,13 @@
         "default_enabled": true,
         "quality_channels": [
           "stable",
-          "nightly",
           "development_validation"
         ],
         "stable_allowed": true,
         "blocks_stable": false,
         "build_available": true,
         "build_route": ".github/workflows/_build-reusable.yml",
-        "publication_status": "same_stable_release_set_and_nightly",
+        "publication_status": "same_stable_release_set",
         "publication_route": ".github/workflows/build-manual.yml",
         "build": {
           "os": "ubuntu-latest",
@@ -443,7 +442,6 @@
           "arch": "x64",
           "artifact_names": {
             "stable_desktop_additional": "stable-desktop-linux-x64",
-            "nightly_standard": "nightly-linux-x64",
             "preview_standard": "linux-build-x64",
             "manual": "linux-build-x64"
           }
@@ -526,8 +524,7 @@
       "nightly_standard": {
         "quality_channel": "nightly",
         "platforms": [
-          "macos-arm64",
-          "linux-x64"
+          "macos-arm64"
         ],
         "default_enabled": true,
         "required": true,
@@ -4978,7 +4975,6 @@
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
-        "standard_linux_x64_build",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],

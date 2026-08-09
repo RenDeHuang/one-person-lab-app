@@ -456,7 +456,6 @@ export function nightlyLatestFixture() {
   const nightlyTag = `v${nightlyVersion}`;
   const nightlyZip = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.zip`, '7');
   const nightlyDmg = asset(`One-Person-Lab-${nightlyVersion}-mac-arm64.dmg`, '5');
-  const nightlyDeb = asset(`One-Person-Lab-${nightlyVersion}-linux-x64.deb`, '4');
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   bundle.release = {
     channel: 'nightly',
@@ -469,7 +468,7 @@ export function nightlyLatestFixture() {
   const status = JSON.parse(fs.readFileSync(files.statusPath, 'utf8'));
   status.release_bundle_status.latest_eligible = false;
   status.release_bundle_status.bundle = bundle;
-  status.release_bundle_status.tracks.standard.assets = [nightlyZip, nightlyDmg, nightlyDeb, componentManifestAsset];
+  status.release_bundle_status.tracks.standard.assets = [nightlyZip, nightlyDmg, componentManifestAsset];
   fs.writeFileSync(files.statusPath, `${JSON.stringify(status)}\n`);
   const admission = JSON.parse(fs.readFileSync(files.admissionPath, 'utf8'));
   admission.publication_channel = 'nightly';
@@ -511,7 +510,6 @@ export function nightlyLatestFixture() {
     nightlyDmg.name,
     nightlyZip.name,
     `${nightlyZip.name}.blockmap`,
-    nightlyDeb.name,
     'latest-arm64-mac.yml',
     'opl-app-component-manifest.json',
     'opl-install.sh',

@@ -27,9 +27,9 @@ export type NightlyNotesBaseline = {
     surface_kind: 'opl_app_component_manifest.v1';
     version: string;
     release_version: string;
-    quality_status: 'preview';
-    build_trigger: 'automated';
-    preview_kind: 'nightly';
+    quality_status: 'stable' | 'preview';
+    build_trigger: 'manual' | 'automated';
+    preview_kind: 'dev' | 'nightly' | null;
     source_commit: string;
     source_cohort: SourceCohort;
     release_tag: string;
@@ -80,7 +80,7 @@ export type NightlyReleaseNotesEvidence = {
 };
 
 const exactShaPattern = /^[0-9a-f]{40}$/;
-const nightlyTagPattern = /^v\d+\.\d+\.\d+-nightly(?:\.r[1-9]\d*)?$/;
+const releaseTagPattern = /^v\d+\.\d+\.\d+(?:-r[1-9]\d*|-nightly(?:\.r[1-9]\d*)?|-preview\.r[1-9]\d*)?$/;
 
 function exactSha(value: unknown, label: string): string {
   const normalized = String(value ?? '');
@@ -129,22 +129,33 @@ function validateBaseline(value: NightlyNotesBaseline): NightlyNotesBaseline {
   const release = value?.release;
   const manifest = value?.component_manifest;
   const source = manifest?.source_cohort;
+  const validReleaseIdentity = (
+    manifest?.quality_status === 'stable'
+    && manifest.build_trigger === 'manual'
+    && manifest.preview_kind === null
+  ) || (
+    manifest?.quality_status === 'preview'
+    && manifest.build_trigger === 'automated'
+    && manifest.preview_kind === 'nightly'
+  ) || (
+    manifest?.quality_status === 'preview'
+    && manifest.build_trigger === 'manual'
+    && manifest.preview_kind === 'dev'
+  );
   if (
     value?.schema !== 'opl_nightly_notes_baseline.v1'
     || !Number.isSafeInteger(release?.id)
     || release.id <= 0
-    || !nightlyTagPattern.test(release.tag)
+    || !releaseTagPattern.test(release.tag)
     || !Number.isFinite(Date.parse(release.published_at))
     || manifest?.surface_kind !== 'opl_app_component_manifest.v1'
-    || manifest.quality_status !== 'preview'
-    || manifest.build_trigger !== 'automated'
-    || manifest.preview_kind !== 'nightly'
+    || !validReleaseIdentity
     || manifest.release_tag !== release.tag
     || manifest.release_version !== manifest.version
     || release.target_commitish !== manifest.source_commit
     || release.target_commitish !== source?.app_sha
   ) {
-    throw new Error('Nightly notes baseline does not bind one exact published Nightly Release and component manifest.');
+    throw new Error('Nightly notes baseline does not bind one exact published Release and component manifest.');
   }
   exactSha(source.app_sha, 'Baseline App SHA');
   exactSha(source.shell_sha, 'Baseline Shell SHA');
@@ -272,7 +283,7 @@ function renderNotes(input: {
     '- The Stable heavy VM gate is not required; sampled clean-VM and Homebrew followers run independently after publication.',
     '',
     '## Exact release identity',
-    `- Previous Nightly: [${baseline.release.tag}](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${baseline.release.tag})`,
+    `- Baseline release: [${baseline.release.tag}](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${baseline.release.tag})`,
     `- App: \`${request.source.app_sha}\``,
     `- Shell: \`${request.source.shell_sha}\``,
     `- Framework: \`${request.source.framework_sha}\``,

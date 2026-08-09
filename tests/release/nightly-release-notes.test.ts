@@ -104,24 +104,24 @@ function fixture(t: test.TestContext) {
     schema: 'opl_nightly_notes_baseline.v1',
     release: {
       id: 101,
-      tag: 'v26.7.31-nightly',
+      tag: 'v26.7.31',
       target_commitish: app.previous,
       published_at: '2026-07-31T00:31:20Z',
     },
     component_manifest: {
       surface_kind: 'opl_app_component_manifest.v1',
-      version: '26.7.31-nightly',
-      release_version: '26.7.31-nightly',
-      quality_status: 'preview',
-      build_trigger: 'automated',
-      preview_kind: 'nightly',
+      version: '26.7.31',
+      release_version: '26.7.31',
+      quality_status: 'stable',
+      build_trigger: 'manual',
+      preview_kind: null,
       source_commit: app.previous,
       source_cohort: {
         app_sha: app.previous,
         shell_sha: shell.previous,
         framework_sha: framework.previous,
       },
-      release_tag: 'v26.7.31-nightly',
+      release_tag: 'v26.7.31',
     },
   } satisfies NightlyNotesBaseline;
   return { root, app, shell, framework, request, qualification, baseline };
@@ -154,6 +154,7 @@ test('Nightly notes are deterministic, evidence-bound, and useful to Preview upd
   assert.match(first.notes, /No migration or backward-compatibility guarantee is inferred/);
   assert.match(first.notes, /not Stable-qualified/);
   assert.match(first.notes, /GitHub Latest is not changed/);
+  assert.match(first.notes, /Baseline release: \[v26\.7\.31\]/);
   assert.doesNotMatch(first.notes, /brew install --cask/);
   assert.doesNotMatch(first.notes, /cover internal release receipt/);
   for (const component of first.evidence.components) {
@@ -176,7 +177,7 @@ test('Nightly notes fail closed when public baseline identity drifts', (t) => {
       shellRoot: path.join(input.root, 'shell'),
       frameworkRoot: path.join(input.root, 'framework'),
     }),
-    /does not bind one exact published Nightly Release/,
+    /does not bind one exact published Release/,
   );
 });
 

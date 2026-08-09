@@ -73,10 +73,6 @@ function fixture(t: test.TestContext) {
   fs.writeFileSync(path.join(assetsDir, dmgName), 'nightly dmg exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, zipName), 'nightly zip exact bytes\n');
   fs.writeFileSync(path.join(assetsDir, `${zipName}.blockmap`), 'nightly blockmap exact bytes\n');
-  fs.writeFileSync(
-    path.join(assetsDir, `One-Person-Lab-${frozen.version}-linux-x64.deb`),
-    'nightly linux desktop exact bytes\n',
-  );
   fs.writeFileSync(path.join(assetsDir, 'opl-install.sh'), '#!/usr/bin/env bash\nexit 0\n');
   fs.writeFileSync(path.join(assetsDir, 'latest-arm64-mac.yml'), [
     `version: ${frozen.updater_version}`,
@@ -341,7 +337,7 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     failed_gates: [],
     non_stable_notice: true,
   });
-  assert.equal(input.qualification.assets.length, 7);
+  assert.equal(input.qualification.assets.length, 6);
   assert.equal(
     input.qualification.assets.filter((asset) => asset.name === 'opl-app-component-manifest.json').length,
     1,
@@ -358,8 +354,7 @@ test('Nightly qualification binds exact Standard assets without Stable, Full, We
     framework_sha: frameworkSha,
   });
   assert.ok(input.qualification.assets.every((asset) => !/Full|WebUI/.test(asset.name)));
-  assert.ok(input.qualification.assets.some((asset) =>
-    asset.name === `One-Person-Lab-${input.request.version}-linux-x64.deb`));
+  assert.ok(input.qualification.assets.every((asset) => !asset.name.endsWith('-linux-x64.deb')));
   assert.ok(input.qualification.assets.some((asset) => asset.name === 'opl-install.sh'));
   assert.equal(input.qualification.primary_dmg.sha256, input.cohort.artifact.sha256);
 
@@ -986,19 +981,20 @@ test('Nightly workflows keep one shared build implementation and post-publicatio
       arch: 'arm64',
       native_arch: 'arm64',
     },
-    {
-      platform: 'linux-x64',
-      os: 'ubuntu-latest',
-      command: 'node scripts/build-with-builder.js x64 --linux --x64',
-      'artifact-name': 'nightly-linux-x64',
-      arch: 'x64',
-    },
   ]);
   const publishSteps = release.jobs['qualify-and-publish'].steps;
   assert.equal(
     publishSteps.find((step: any) => step.name === 'Download Linux Desktop build assets')?.with?.name,
-    'nightly-linux-x64',
+    undefined,
   );
+  const baselineRun = String(
+    publishSteps.find((step: any) => step.name === 'Freeze latest usable published release notes baseline')?.run ?? '',
+  );
+  assert.match(baselineRun, /\.draft == false/);
+  assert.match(baselineRun, /opl-app-component-manifest\.json/);
+  assert.match(baselineRun, /sort_by\(\.published_at, \.id\)/);
+  assert.doesNotMatch(baselineRun, /\.prerelease == true/);
+  assert.doesNotMatch(baselineRun, /-nightly\(\?:/);
   const qualificationRun = String(
     publishSteps.find((step: any) => step.name === 'Normalize and qualify Standard-only assets')?.run ?? '',
   );

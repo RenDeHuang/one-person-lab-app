@@ -1142,9 +1142,12 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     !stableValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
     stableValidation?.required_lanes?.includes('standard_linux_x64_build') ||
     !nightlyValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
-    !nightlyValidation?.required_lanes?.includes('standard_linux_x64_build')
+    nightlyValidation?.required_lanes?.includes('standard_linux_x64_build')
   ) {
-    throw new Error('Full clean-VM certification must remain outside the Stable publication terminal');
+    throw new Error(
+      'Full optional certification must remain outside the Stable publication terminal; '
+      + 'Stable and Nightly core validation must remain macOS ARM64-only',
+    );
   }
   const platformMatrix = releaseChannel?.release_platform_matrix;
   const capabilities = platformMatrix?.capabilities;
@@ -1176,7 +1179,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   );
   assertDeepEqualJson(
     policies?.nightly_standard?.platforms,
-    ['macos-arm64', 'linux-x64'],
+    ['macos-arm64'],
     'Nightly required platform policy',
   );
   assertDeepEqualJson(

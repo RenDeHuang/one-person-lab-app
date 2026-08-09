@@ -19,7 +19,7 @@ const contract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
 );
 
-test('Stable requires only macOS ARM64 while Nightly retains macOS ARM64 plus Linux x64', () => {
+test('Stable and Nightly core publication require only macOS ARM64', () => {
   assert.deepEqual(
     resolveReleasePlatformMatrix({ policy: 'stable_required' }).include,
     [
@@ -40,7 +40,6 @@ test('Stable requires only macOS ARM64 while Nightly retains macOS ARM64 plus Li
     ]),
     [
       ['macos-arm64', 'nightly-macos-arm64'],
-      ['linux-x64', 'nightly-linux-x64'],
     ],
   );
 });

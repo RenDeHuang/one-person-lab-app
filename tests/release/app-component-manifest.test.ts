@@ -192,7 +192,7 @@ test('App owner manifest keeps quality, build trigger, and Latest pointer policy
               non_stable_notice: true,
             },
       );
-      assert.equal(component.artifacts.length, 6);
+      assert.equal(component.artifacts.length, fixture.version.includes('-nightly') ? 5 : 6);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

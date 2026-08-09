@@ -109,10 +109,11 @@ test('release platform contract keeps the primary Stable platform separate from 
     release.release_validation_profiles.stable.required_lanes.includes('standard_linux_x64_build'),
     false,
   );
-  assert.ok(
+  assert.equal(
     release.release_validation_profiles.nightly_standard.required_lanes.includes(
       'standard_linux_x64_build',
     ),
+    false,
   );
   assert.doesNotThrow(() => validateAppGuiProductContract(gui, release, installExposure));
 
