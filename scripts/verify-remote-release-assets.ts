@@ -117,12 +117,11 @@ function standardPayloadAssetNames(version) {
   ];
 }
 
-function requiredAssetNames(version, includeFullPackage) {
+function requiredAssetNames(version, includeFullPackage, isPrerelease) {
   const standard = [
     ...standardPayloadAssetNames(version),
     "opl-release-attestation.json",
-    "install-docker-webui.sh",
-    "install-docker-webui.ps1",
+    ...(isPrerelease ? [] : ["install-docker-webui.sh", "install-docker-webui.ps1"]),
   ];
   if (!includeFullPackage) {
     return standard;
@@ -1310,6 +1309,7 @@ function main() {
   const names = requiredAssetNames(
     options.version,
     options.includeFullPackage,
+    releaseView.isPrerelease === true,
   );
 
   if (releaseView.tagName && releaseView.tagName !== options.tag) {
