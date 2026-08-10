@@ -2033,6 +2033,22 @@ export function validateReleaseAccelerationPolicy(
     homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.same_identity_recovery_v3_run_count_required !== 1 ||
     homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.workflow_rerun_allowed !== false ||
     homebrew?.tap_update_policy?.full?.exact_failed_follower_recovery?.append_full_redispatch_allowed !== false ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.trigger !== 'workflow_dispatch' ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.authority_binding !==
+      'same_successful_append_full_run_with_zero_matching_workflow_run_follower_and_unexpired_exact_publication_handoff' ||
+    !sameStringSet(homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.required_inputs, [
+      'source_run_id', 'failed_follower_run_id', 'failed_recovery_run_id', 'failed_recovery_v2_run_id', 'recovery_confirmation',
+    ]) ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.failed_run_input_sentinel !== 'none' ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.confirmation !==
+      'recover_exact_missing_homebrew_full_follower_v1' ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.missing_boundary !==
+      'nested_workflow_run_chain_suppressed_before_homebrew_full_follower_creation' ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.matching_workflow_run_count_required !== 0 ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.canonical_main_executor_required !== true ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.same_identity_recovery_run_count_required !== 1 ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.workflow_rerun_allowed !== false ||
+    homebrew?.tap_update_policy?.full?.exact_missing_follower_recovery?.append_full_redispatch_allowed !== false ||
     homebrew?.full_first_install_policy !== 'the already-public mutable Standard GitHub Release is the exact same-tag append target; workflow asset name+digest CAS and the unified public attestation bind the Full DMG and manifest. The protected Homebrew Full follower consumes those exact same-tag assets with digest CAS and public readback; physical clean-machine certification remains optional and non-blocking; no independent Full release or tag is created, and the Standard assets, release body, Latest, and updater metadata remain unchanged' ||
     !sameStringSet(homebrew?.opl_packages_boundary?.allowed_homebrew_casks, [
       'one-person-lab', 'one-person-lab-nightly', 'one-person-lab-full',

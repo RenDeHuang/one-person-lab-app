@@ -95,7 +95,7 @@ test('append_full exports exact qualification-bound handoff without mutating Hom
   assert.doesNotMatch(source, /OPL_HOMEBREW_TAP_TOKEN|update-homebrew-tap|git\b[^\n]*\bpush\b/);
 });
 
-test('Full Homebrew follower permits only automatic delivery or exact failed-run recovery', () => {
+test('Full Homebrew follower permits only automatic delivery or exact bounded recovery', () => {
   const source = read('release-homebrew-full-follower.yml');
   const workflow = parse('release-homebrew-full-follower.yml');
   assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
@@ -108,11 +108,13 @@ test('Full Homebrew follower permits only automatic delivery or exact failed-run
   assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.required, true);
   assert.equal(workflow.on.workflow_dispatch.inputs.failed_recovery_v2_run_id.default, undefined);
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.recovery_confirmation.options, [
+    'recover_exact_missing_homebrew_full_follower_v1',
     'recover_exact_failed_homebrew_full_follower_v3',
   ]);
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.deepEqual(Object.keys(workflow.jobs), ['resolve-handoff', 'publish-homebrew-full']);
   assert.match(workflow.jobs['resolve-handoff'].if, /recover_exact_failed_homebrew_full_follower_v3/);
+  assert.match(workflow.jobs['resolve-handoff'].if, /recover_exact_missing_homebrew_full_follower_v1/);
   assert.equal(workflow.jobs['publish-homebrew-full'].uses, './.github/workflows/_release-homebrew-full-publish.yml');
   assert.match(source, /homebrew-full-handoff\.json/);
   assert.match(source, /\.operation_control\.operation_id/);
@@ -123,7 +125,11 @@ test('Full Homebrew follower permits only automatic delivery or exact failed-run
   assert.match(source, /def opl_fromdateiso8601/);
   assert.match(source, /failed-follower-run\.json/);
   assert.match(source, /Homebrew Full follower recovery v1 for Stable run/);
-  assert.match(source, /use none for first recovery/);
+  assert.match(source, /Homebrew Full follower missing-trigger recovery for Stable run/);
+  assert.match(source, /test "\$FAILED_FOLLOWER_RUN_ID:\$FAILED_RECOVERY_RUN_ID:\$FAILED_RECOVERY_V2_RUN_ID" = none:none:none/);
+  assert.match(source, /runs\?event=workflow_run&per_page=100/);
+  assert.match(source, /follower-runs\.json/);
+  assert.match(source, /length == 0/);
   assert.match(source, /if \[ "\$FAILED_RECOVERY_RUN_ID:\$FAILED_RECOVERY_V2_RUN_ID" = none:none \]; then/);
   assert.match(source, /\.total_count == 5/);
   assert.match(source, /\.name == "publish-homebrew-full \/ prepare-candidate" and \.conclusion == "failure"/);
@@ -142,6 +148,7 @@ test('Full Homebrew follower permits only automatic delivery or exact failed-run
   assert.match(source, /append_full deadline must be exactly 120 minutes after operation start\./);
   assert.match(source, /Homebrew Full follower recovery v3 for Stable run/);
   assert.match(source, /test "\$RECOVERY_CONFIRMATION" = recover_exact_failed_homebrew_full_follower_v3/);
+  assert.match(source, /if \[ "\$RECOVERY_CONFIRMATION" = recover_exact_missing_homebrew_full_follower_v1 \]; then/);
   assert.match(source, /\.name == "Bind same-tag Homebrew Full handoff" and \.conclusion == "failure"/);
   assert.match(source, /\.name == "publish-homebrew-full" and \.conclusion == "skipped"/);
   assert.match(source, /runs\?event=workflow_dispatch&per_page=100/);

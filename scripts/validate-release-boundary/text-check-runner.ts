@@ -1092,11 +1092,14 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     || followerRecoveryInputs.recovery_confirmation?.required !== true
     || followerRecoveryInputs.recovery_confirmation?.type !== 'choice'
     || JSON.stringify(followerRecoveryInputs.recovery_confirmation?.options) !==
-      JSON.stringify(['recover_exact_failed_homebrew_full_follower_v3'])
+      JSON.stringify([
+        'recover_exact_missing_homebrew_full_follower_v1',
+        'recover_exact_failed_homebrew_full_follower_v3',
+      ])
     || !exactObject(follower.workflow.permissions, exactReadPermissions)
     || JSON.stringify(Object.keys(followerJobs)) !== JSON.stringify(['resolve-handoff', 'publish-homebrew-full'])
   ) {
-    failures += reportFailure(id, 'Full Homebrew follower must be automatic with only exact failed-run recovery dispatch');
+    failures += reportFailure(id, 'Full Homebrew follower must be automatic with only exact bounded recovery dispatch');
   }
   const delegated = followerJobs['publish-homebrew-full'];
   if (
@@ -1119,6 +1122,12 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     '.source.checkpoint_transport_executor == "github_actions"',
     '.source.transport_run_id',
     '.homebrew_modified == false',
+    'recover_exact_missing_homebrew_full_follower_v1',
+    'Homebrew Full follower missing-trigger recovery for Stable run',
+    'test "$FAILED_FOLLOWER_RUN_ID:$FAILED_RECOVERY_RUN_ID:$FAILED_RECOVERY_V2_RUN_ID" = none:none:none',
+    'runs?event=workflow_run&per_page=100',
+    'follower-runs.json',
+    '| length == 0',
     'recover_exact_failed_homebrew_full_follower_v3',
     'failed-follower-run.json',
     'failed-recovery-run.json',

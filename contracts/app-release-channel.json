@@ -2988,6 +2988,25 @@
           "same_identity_recovery_v3_run_count_required": 1,
           "workflow_rerun_allowed": false,
           "append_full_redispatch_allowed": false
+        },
+        "exact_missing_follower_recovery": {
+          "trigger": "workflow_dispatch",
+          "authority_binding": "same_successful_append_full_run_with_zero_matching_workflow_run_follower_and_unexpired_exact_publication_handoff",
+          "required_inputs": [
+            "source_run_id",
+            "failed_follower_run_id",
+            "failed_recovery_run_id",
+            "failed_recovery_v2_run_id",
+            "recovery_confirmation"
+          ],
+          "failed_run_input_sentinel": "none",
+          "confirmation": "recover_exact_missing_homebrew_full_follower_v1",
+          "missing_boundary": "nested_workflow_run_chain_suppressed_before_homebrew_full_follower_creation",
+          "matching_workflow_run_count_required": 0,
+          "canonical_main_executor_required": true,
+          "same_identity_recovery_run_count_required": 1,
+          "workflow_rerun_allowed": false,
+          "append_full_redispatch_allowed": false
         }
       },
       "version_identity": {
