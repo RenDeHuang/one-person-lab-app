@@ -87,6 +87,7 @@ test('Full append starts only after Desktop append and binds exactly one new suc
   const full = workflow.jobs['dispatch-full'];
   assert.equal(full.if, "${{ needs.admit.outputs.applicable == 'true' }}");
   assert.deepEqual(full.needs, ['admit', 'append-desktop-platforms']);
+  assert.equal(full['timeout-minutes'], 160);
   assert.deepEqual(full.permissions, { contents: 'read', actions: 'write' });
   assert.match(source, /prior_ids=/);
   assert.match(source, /prior \| index\(\$id\)/);
@@ -94,6 +95,8 @@ test('Full append starts only after Desktop append and binds exactly one new suc
   assert.match(source, /operation:"append_full"/);
   assert.match(source, /if ! gh api --paginate --slurp/);
   assert.match(source, /Full dispatch outcome is unknown; do not redispatch/);
+  assert.match(source, /for _ in \$\(seq 1 840\)/);
+  assert.match(source, /reconcile that run read-only and do not redispatch/);
   assert.match(source, /opl-release-full-published-\$\{full_run_id\}/);
   assert.doesNotMatch(source, /--rerun|rerun-failed|cancel\/|force/);
 });

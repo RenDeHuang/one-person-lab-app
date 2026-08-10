@@ -259,7 +259,7 @@ jobs:
     if: ${{ needs.admit.outputs.applicable == 'true' }}
     needs: [admit, append-desktop-platforms]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 160
     permissions:
       contents: read
       actions: write
@@ -312,12 +312,16 @@ jobs:
             echo '::error::Full dispatch outcome is unknown; do not redispatch before owner-authoritative reconciliation.'
             exit 1
           }
-          for _ in $(seq 1 120); do
+          for _ in $(seq 1 840); do
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$full_run_id" > full-run.json
             status="$(jq -er .status full-run.json)"
             [ "$status" = completed ] && break
             sleep 10
           done
+          [ "$(jq -er .status full-run.json)" = completed ] || {
+            echo "::error::Full run $full_run_id did not complete within the bounded observation window; reconcile that run read-only and do not redispatch."
+            exit 1
+          }
           jq -e --arg run "$full_run_id" --arg source "$SOURCE_RUN_ID" --arg title "$title_regex" '
             (.id | tostring) == $run
             and .path == ".github/workflows/release-stable.yml"
