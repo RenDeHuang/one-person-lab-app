@@ -49,8 +49,11 @@ export type ShellCandidate = HermesTargetStateContract & {
   };
   runtime_dependency_policy?: {
     aioncore_required: boolean;
+    aionui_required: boolean;
     codex_app_server_source: string;
     opl_integration: string;
+    multi_backend_abstraction_required: boolean;
+    thread_store_owner: string;
     forbidden_dependencies: string[];
   };
   implementation_basis: string[];

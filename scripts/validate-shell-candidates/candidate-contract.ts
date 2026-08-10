@@ -650,13 +650,17 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   const runtimeDependency = candidate.runtime_dependency_policy;
   if (
     runtimeDependency?.aioncore_required !== false ||
+    runtimeDependency.aionui_required !== false ||
     runtimeDependency.codex_app_server_source !== 'OPL_CODEX_BIN_or_exact_external_codex' ||
     runtimeDependency.opl_integration !== 'framework_app_state_action_contracts_only' ||
+    runtimeDependency.multi_backend_abstraction_required !== false ||
+    runtimeDependency.thread_store_owner !== 'codex_core_app_server' ||
+    !runtimeDependency.forbidden_dependencies.includes('AionUI runtime') ||
     !runtimeDependency.forbidden_dependencies.includes('AionCore runtime') ||
     !runtimeDependency.forbidden_dependencies.includes('AionCore managed-resources manifest') ||
     !runtimeDependency.forbidden_dependencies.includes('AionCore session or database state')
   ) {
-    throw new Error(`${candidate.id}.runtime_dependency_policy must keep Native independent from AionCore`);
+    throw new Error(`${candidate.id}.runtime_dependency_policy must keep Native independent from AionUI/AionCore and scoped to Codex App Server`);
   }
   if (
     candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||

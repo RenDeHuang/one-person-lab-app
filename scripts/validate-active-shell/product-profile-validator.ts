@@ -131,6 +131,155 @@ function validateProductProfileContractRefs(profile) {
   }
 }
 
+function validateDeliveryTopology(profile) {
+  const topology = profile.delivery_topology;
+  if (
+    topology?.schema !== 'opl_app_delivery_topology.v1' ||
+    topology.decision_status !== 'approved_target_current_release_admission_separate' ||
+    topology.product_behavior_authority !== 'one-person-lab-app' ||
+    topology.current_release_support_source_ref !== 'product.supported_release_platforms' ||
+    topology.current_release_shell_source_ref !== 'contract_refs.active_shell'
+  ) {
+    throw new Error('Product profile must declare the approved delivery topology without promoting target platforms');
+  }
+  assertDeepEqualJson(
+    topology.shared_renderer,
+    {
+      product_owner: 'one-person-lab-app',
+      technology: 'react',
+      role: 'opl_owned_product_renderer',
+      implementation_status: 'approved_direction_candidate_evidence_only',
+      technical_evaluation_candidate: 'opl-native-workbench',
+      required_surfaces: ['native_macos', 'opl_workspace', 'future_cross_platform_desktop'],
+      single_active_product_renderer_required: true,
+      carrier_specific_product_forks_allowed: false,
+      aionui_source_or_runtime_dependency_required: false,
+    },
+    'Product profile shared renderer topology',
+  );
+  assertDeepEqualJson(
+    topology.runtime,
+    {
+      supported_backend_scope: 'codex_cli_only',
+      codex_interface: 'codex_app_server',
+      codex_transport_by_host: {
+        native_macos: 'stdio',
+        opl_workspace: 'host_managed_stdio',
+      },
+      opl_integration: 'framework_app_state_action_contracts_only',
+      aioncore_allowed: false,
+      aionui_required: false,
+      multi_backend_abstraction_required: false,
+      second_provider_or_session_store_allowed: false,
+      thread_store_owner: 'codex_core_app_server',
+    },
+    'Product profile Codex-only runtime topology',
+  );
+  assertDeepEqualJson(
+    topology.bridge,
+    {
+      product_runtime_interface: 'opl_app_state_action_and_codex_app_server_thread_event_contracts',
+      shared_typed_bridge_shape_required: true,
+      native_transport: 'wk_script_message_handler_to_local_process',
+      web_transport: 'http_sse_same_origin_to_host_process',
+      second_control_plane_or_session_store_allowed: false,
+    },
+    'Product profile carrier bridge topology',
+  );
+  assertDeepEqualJson(
+    topology.macos_desktop,
+    {
+      carrier_id: 'native_macos',
+      role: 'approved_target_architecture',
+      technical_evaluation_candidate: 'opl-native-workbench',
+      host_technology: 'swift_appkit_wkwebview',
+      target_platforms: ['macos-arm64'],
+      current_release_support_source_ref: 'product.supported_release_platforms',
+      mainline_implementation_assigned: false,
+      active_release_carrier: false,
+      electron_required: false,
+      aioncore_required: false,
+      container_runtime_role: 'none',
+    },
+    'Product profile native macOS topology',
+  );
+  assertDeepEqualJson(
+    topology.workspace,
+    {
+      carrier_id: 'container_webui',
+      product_name: 'OPL Workspace',
+      role: 'hosted_one_person_lab_app_web_access',
+      technical_evaluation_candidate: 'opl-native-workbench',
+      implementation_status: 'candidate_evidence_only',
+      mainline_implementation_assigned: false,
+      host_technology: 'node_web_host',
+      transport: 'http_sse',
+      runtime_process: 'codex_cli_app_server_child_process',
+      electron_in_container_allowed: false,
+      aioncore_in_container_allowed: false,
+      independent_runtime_persistence_and_release_required: true,
+      same_renderer_and_bridge_shape_required: true,
+      desktop_database_reuse_required: false,
+      codex_state_volume_required: true,
+      multi_tenant_claim_allowed: false,
+      security_admission_ref:
+        'contracts/app-install-exposure-policy.json#installer_surfaces.docker_webui.installer_model.cloud_deployment_model',
+      release_contract_ref: 'contracts/app-release-channel.json#distribution_semantics.cohort_policy',
+    },
+    'Product profile OPL Workspace topology',
+  );
+  assertDeepEqualJson(
+    topology.mobile,
+    {
+      initial_surface: 'responsive_web_pwa',
+      optional_native_wrapper: 'capacitor_after_separate_adoption_decision',
+      separate_product_renderer_allowed: false,
+    },
+    'Product profile mobile topology',
+  );
+  assertDeepEqualJson(
+    topology.cross_platform_desktop,
+    {
+      decision_status: 'wrapper_selection_deferred',
+      implementation_owner_status: 'unassigned',
+      mainline_implementation_assigned: false,
+      target_platforms: ['windows', 'linux'],
+      candidate_wrappers: ['electron', 'tauri'],
+      renderer_reuse_required: true,
+      aioncore_allowed: false,
+      support_claim_allowed: false,
+      separate_adoption_and_platform_acceptance_required: true,
+    },
+    'Product profile future cross-platform desktop topology',
+  );
+  assertDeepEqualJson(
+    topology.native_candidate,
+    {
+      candidate_id: 'opl-native-workbench',
+      role: 'manual_on_demand_non_periodic_technical_evaluation',
+      mainline_development_required: false,
+      completion_or_feature_parity_obligation: false,
+      release_blocking: false,
+      active_release_carrier: false,
+      adoption_requires_explicit_contract_change: true,
+      candidate_policy_ref: 'contracts/app-shell-candidates.json',
+    },
+    'Product profile Native evaluation policy',
+  );
+  assertDeepEqualJson(
+    topology.aionui_reference,
+    {
+      role: 'current_release_shell_and_bounded_reference_only',
+      target_renderer_owner: false,
+      target_runtime_dependency: false,
+      aioncore_target_runtime_dependency: false,
+      source_reuse_requires_separate_decision: true,
+      active_release_shell_source_ref: 'contract_refs.active_shell',
+    },
+    'Product profile AionUI reference boundary',
+  );
+}
+
 function validateProductProfileCodexDefaults(profile) {
   if (
     profile.codex?.app_runtime_home?.default_path !== '~/.codex' ||
@@ -942,6 +1091,7 @@ export function validateProductProfile(
 ) {
   validateProductProfileIdentity(profile);
   validateProductProfileContractRefs(profile);
+  validateDeliveryTopology(profile);
   validateProductProfileCodexDefaults(profile);
   assertOfficialProfileShape(profile.official_profile, 'Product profile Official Profile');
   validateAgentPackageRegistryProjection(profile);

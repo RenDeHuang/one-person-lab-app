@@ -116,6 +116,9 @@ test('native candidate machine contract removes retired private capabilities', (
     release_blocking: false,
   });
   assert.equal(candidate.runtime_dependency_policy?.aioncore_required, false);
+  assert.equal(candidate.runtime_dependency_policy?.aionui_required, false);
+  assert.equal(candidate.runtime_dependency_policy?.multi_backend_abstraction_required, false);
+  assert.equal(candidate.runtime_dependency_policy?.thread_store_owner, 'codex_core_app_server');
   assert.equal(candidate.release_participation, 'manual_on_demand_technical_evaluation_build_only');
   assert.equal('local_p0_p1_implementation_evidence' in candidate, false);
   assert.ok(candidate.required_capabilities.includes('single_codex_app_server_thread_adapter'));

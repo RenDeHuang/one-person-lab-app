@@ -476,9 +476,13 @@
       },
       "runtime_dependency_policy": {
         "aioncore_required": false,
+        "aionui_required": false,
         "codex_app_server_source": "OPL_CODEX_BIN_or_exact_external_codex",
         "opl_integration": "framework_app_state_action_contracts_only",
+        "multi_backend_abstraction_required": false,
+        "thread_store_owner": "codex_core_app_server",
         "forbidden_dependencies": [
+          "AionUI runtime",
           "AionCore runtime",
           "AionCore managed-resources manifest",
           "AionCore session or database state"
