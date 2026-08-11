@@ -55,6 +55,16 @@ function directStableMacInstall(osName: string, architecture: string) {
   }
 }
 
+function linuxDesktopExecutableResolver() {
+  const source = fs.readFileSync(installerPath, 'utf8');
+  const start = source.indexOf('find_linux_desktop_executable() {');
+  const endMarker = '\n}\n\ninstall_linux_desktop() {';
+  const end = source.indexOf(endMarker, start);
+  assert.notEqual(start, -1, 'installer is missing the Linux executable resolver');
+  assert.notEqual(end, -1, 'installer Linux executable resolver has no bounded function end');
+  return source.slice(start, end + 2);
+}
+
 test('personal hosts install one platform Desktop payload by default', () => {
   assert.equal(route('Darwin', 'arm64').stdout.trim(), 'desktop');
   assert.equal(route('Linux', 'x86_64').stdout.trim(), 'linux-desktop');
@@ -115,6 +125,54 @@ test('Linux Desktop resolves its package from the same exact Release tag', () =>
   assert.match(source, /releases\/download\/\$tag\/\$asset_name/);
   assert.match(source, /Linux Desktop asset URL is not bound to the selected Desktop Release/);
   assert.doesNotMatch(source, /resolve_linux_adjunct_release_record|v\*-optional-\*|opl-optional-platforms-manifest\.json/);
+});
+
+test('Linux executable discovery consumes a large package listing before returning the first match', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-linux-executable-resolver-'));
+  try {
+    const bin = path.join(root, 'bin');
+    const sortEofMarker = path.join(root, 'sort-consumed-eof');
+    fs.mkdirSync(bin);
+    writeExecutable(
+      path.join(bin, 'dpkg'),
+      `#!/usr/bin/env bash
+printf '%s\\n' '/opt/One Person Lab/One Person Lab'
+for ((i = 0; i < 2048; i += 1)); do
+  printf '/zzzz/%0200d-entry-%06d\\n' 0 "$i"
+done
+`,
+    );
+    writeExecutable(
+      path.join(bin, 'sort'),
+      `#!/usr/bin/env bash
+/bin/cat
+status=$?
+if [ "$status" -eq 0 ]; then
+  : > "$OPL_SORT_EOF_MARKER"
+fi
+exit "$status"
+`,
+    );
+
+    const result = spawnSync(
+      '/bin/bash',
+      ['-c', `set -euo pipefail\n${linuxDesktopExecutableResolver()}\nfind_linux_desktop_executable opl-test`],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          OPL_SORT_EOF_MARKER: sortEofMarker,
+          PATH: `${bin}:/usr/bin:/bin`,
+        },
+      },
+    );
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(result.stdout.trim(), '/opt/One Person Lab/One Person Lab');
+    assert.equal(fs.existsSync(sortEofMarker), true, 'resolver returned before consuming the sorted package list');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('the universal installer has no Native tarball discovery or verifier fallback', () => {

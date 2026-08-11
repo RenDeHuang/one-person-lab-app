@@ -446,15 +446,20 @@ install_desktop_bootstrap() {
 
 find_linux_desktop_executable() {
   local package_name="$1"
-  local candidate
+  local candidate selected=''
   while IFS= read -r candidate; do
     case "$(basename "$candidate")" in
       'One Person Lab'|one-person-lab|aionui)
-        printf '%s\n' "$candidate"
-        return 0
+        if [ -z "$selected" ]; then
+          selected="$candidate"
+        fi
         ;;
     esac
   done < <(dpkg -L "$package_name" 2>/dev/null | LC_ALL=C sort)
+  if [ -n "$selected" ]; then
+    printf '%s\n' "$selected"
+    return 0
+  fi
   return 1
 }
 
