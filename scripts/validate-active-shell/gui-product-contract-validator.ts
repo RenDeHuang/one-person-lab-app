@@ -384,6 +384,16 @@ function validateAgentPackageLifecycleUx(surface, label) {
     ['package_id', 'display_name', 'description', 'package_role', 'installed', 'readiness', 'recommended_action_ref', 'available_actions'],
     label + ' generic directory entry fields',
   );
+  assertDeepEqualJson(
+    surface.ordinary_user_status_input_mapping,
+    appOwnedAgentPackageOrdinaryStatusInputMapping,
+    label + ' ordinary user status input mapping',
+  );
+  assertDeepEqualJson(
+    surface.user_facing_status_projection,
+    appOwnedAgentPackageUserStatusProjection,
+    label + ' user-facing status projection',
+  );
 
   const controls = surface.directory_controls;
   if (

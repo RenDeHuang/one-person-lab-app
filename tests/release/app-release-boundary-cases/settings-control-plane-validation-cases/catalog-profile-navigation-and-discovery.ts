@@ -401,11 +401,30 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     reason: null,
     session_launch_disposition: "ready",
   });
-  assert.equal(lifecycle.user_facing_status_projection.schema, "agent_package_user_status_projection.v2");
+  assert.equal(lifecycle.user_facing_status_projection.schema, "agent_package_user_status_projection.v3");
   assert.equal(lifecycle.user_facing_status_projection.per_package_identity_key, "package_id");
   assert.equal(
     lifecycle.user_facing_status_projection.aggregate_status_policy,
-    "aggregate_counts_never_override_or_replace_each_projected_package_status",
+    "count_only_standard_agent_direct_conversation_availability_and_never_override_each_projected_package_status",
+  );
+  assert.deepStrictEqual(lifecycle.user_facing_status_projection.aggregate_projection, {
+    schema: "agent_package_standard_agent_direct_entry_aggregate.v1",
+    population: "directory_entries_where_package_role_standard_agent",
+    available_numerator: "population_entries_projected_as_available_with_direct_conversation_entry",
+    excluded_package_roles: ["workflow_profile", "capability_package"],
+    label_i18n: {
+      "zh-CN": "专业智能体可直接对话：{available} / {total}",
+      "en-US": "Professional agents ready for conversation: {available} / {total}",
+    },
+    empty_policy: "show_zero_of_zero_without_substituting_all_directory_entries",
+  });
+  assert.equal(
+    lifecycle.ordinary_user_status_input_mapping.signals.disabled,
+    "installed_true_and_configured_carrier_disabled_with_complete_recommended_action_ref_semantic_enable",
+  );
+  assert.equal(
+    lifecycle.ordinary_user_status_input_mapping.signals.supporting_without_direct_entry,
+    "package_role_capability_package_and_operational_ready_true_and_launch_allowed_false",
   );
   assert.equal(
     lifecycle.ordinary_user_status_input_mapping.signals.available_auto_confirm,
@@ -421,6 +440,17 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   assert.equal(available.label_i18n["zh-CN"], "可用");
   assert.match(available.explanation_i18n["zh-CN"], /已安装，可直接发起对话，无需提前设置/);
   assert.equal(available.primary_action_policy, "none");
+  const disabled = lifecycle.user_facing_status_projection.rules.find(
+    (rule: any) => rule.id === "disabled",
+  );
+  assert.equal(disabled.label_i18n["zh-CN"], "已停用");
+  assert.match(disabled.explanation_i18n["zh-CN"], /已安装，但当前已停用/);
+  assert.match(disabled.primary_action_policy, /semantic_enable/);
+  const supporting = lifecycle.user_facing_status_projection.rules.find(
+    (rule: any) => rule.id === "supporting_without_direct_entry",
+  );
+  assert.equal(supporting.label_i18n["zh-CN"], "可用");
+  assert.equal(supporting.explanation_i18n["zh-CN"], "作为配套能力使用，无独立对话入口。");
   const projectedAction = lifecycle.user_facing_status_projection.rules.find(
     (rule: any) => rule.id === "owner_projected_action_available",
   );
@@ -436,7 +466,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   const unlocalized = lifecycle.user_facing_status_projection.rules.find(
     (rule: any) => rule.id === "unlocalized_owner_attention",
   );
-  assert.equal(unlocalized.label_i18n["zh-CN"], "暂时无法使用");
+  assert.equal(unlocalized.label_i18n["zh-CN"], "需要处理");
   assert.equal(unlocalized.primary_action_policy, "open_details_only_without_a_generic_setup_or_action_label");
   assert.ok(lifecycle.user_facing_status_projection.forbidden_ordinary_labels_zh.includes("待验证"));
   assert.ok(lifecycle.user_facing_status_projection.forbidden_ordinary_labels_zh.includes("需关注"));

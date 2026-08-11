@@ -1722,7 +1722,9 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
   schema: "agent_package_ordinary_status_input_mapping.v1",
   visibility: "implementation_and_advanced_diagnostics_only",
   precedence: [
+    "disabled",
     "temporarily_unavailable",
+    "supporting_without_direct_entry",
     "available_verified",
     "available_auto_confirm",
     "localized_owner_action_required",
@@ -1730,6 +1732,10 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
     "checking",
   ],
   signals: {
+    disabled:
+      "installed_true_and_configured_carrier_disabled_with_complete_recommended_action_ref_semantic_enable",
+    supporting_without_direct_entry:
+      "package_role_capability_package_and_operational_ready_true_and_launch_allowed_false",
     available_verified: "operational_ready_true_and_launch_allowed_true",
     available_auto_confirm:
       "readiness_status_verification_deferred_or_reason_live_verification_deferred_or_scope_materialization_missing_with_package_installed_and_exposed",
@@ -1746,13 +1752,25 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
     "technical_diagnostics_only_never_ordinary_status_or_action_selection",
 };
 export const appOwnedAgentPackageUserStatusProjection = {
-  schema: "agent_package_user_status_projection.v2",
+  schema: "agent_package_user_status_projection.v3",
   locale_policy: "follow_current_app_locale_with_zh_CN_and_en_US_required",
   primary_status_policy:
     "one_user_facing_status_one_concrete_explanation_and_at_most_one_most_relevant_action_per_package_without_contradictory_badges",
   per_package_identity_key: "package_id",
   aggregate_status_policy:
-    "aggregate_counts_never_override_or_replace_each_projected_package_status",
+    "count_only_standard_agent_direct_conversation_availability_and_never_override_each_projected_package_status",
+  aggregate_projection: {
+    schema: "agent_package_standard_agent_direct_entry_aggregate.v1",
+    population: "directory_entries_where_package_role_standard_agent",
+    available_numerator:
+      "population_entries_projected_as_available_with_direct_conversation_entry",
+    excluded_package_roles: ["workflow_profile", "capability_package"],
+    label_i18n: {
+      "zh-CN": "专业智能体可直接对话：{available} / {total}",
+      "en-US": "Professional agents ready for conversation: {available} / {total}",
+    },
+    empty_policy: "show_zero_of_zero_without_substituting_all_directory_entries",
+  },
   ordinary_row_cardinality: {
     user_status: 1,
     concrete_explanation: 1,
@@ -1762,6 +1780,29 @@ export const appOwnedAgentPackageUserStatusProjection = {
   input_mapping_ref: "ordinary_user_status_input_mapping",
   raw_internal_status_visibility: "advanced_diagnostics_only",
   rules: [
+    {
+      id: "disabled",
+      when: "disabled",
+      user_status_id: "disabled",
+      label_i18n: { "zh-CN": "已停用", "en-US": "Disabled" },
+      explanation_i18n: {
+        "zh-CN": "已安装，但当前已停用。",
+        "en-US": "Installed, but currently disabled.",
+      },
+      primary_action_policy:
+        "execute_only_the_complete_recommended_action_ref_when_semantic_enable_surface_settings_and_payload_exposure_action_enable",
+    },
+    {
+      id: "supporting_without_direct_entry",
+      when: "supporting_without_direct_entry",
+      user_status_id: "available",
+      label_i18n: { "zh-CN": "可用", "en-US": "Available" },
+      explanation_i18n: {
+        "zh-CN": "作为配套能力使用，无独立对话入口。",
+        "en-US": "Available as a supporting capability without a standalone conversation entry.",
+      },
+      primary_action_policy: "none",
+    },
     {
       id: "available_verified",
       when: "available_verified",
@@ -1799,8 +1840,8 @@ export const appOwnedAgentPackageUserStatusProjection = {
     {
       id: "unlocalized_owner_attention",
       when: "unlocalized_owner_attention",
-      user_status_id: "temporarily_unavailable",
-      label_i18n: { "zh-CN": "暂时无法使用", "en-US": "Temporarily unavailable" },
+      user_status_id: "needs_attention",
+      label_i18n: { "zh-CN": "需要处理", "en-US": "Needs attention" },
       explanation_i18n: {
         "zh-CN": "打开详情查看具体原因和下一步。",
         "en-US": "Open details to see the specific reason and next step.",
