@@ -120,15 +120,17 @@ export function buildFirstRunCompiledExpectations(input: {
   requireExact('Release Standard assistant route policy', standardPolicy, {
     required: [
       'compiled_release_qualification_targets_visible',
-      'unavailable_projected_targets_selectable',
-      'launch_allowed_false_at_send',
-      'readiness_and_repair_hint_visible',
+      'projection_state_observed_per_target',
+      'projected_targets_selectable',
+      'available_projected_targets_launch_admitted_without_send',
+      'unavailable_projected_targets_send_blocked_with_typed_repair_guidance',
     ],
     forbidden: [
-      'unavailable_projected_target_disabled_before_selection',
-      'claim_full_route_receipt_from_standard_launch_gate',
+      'projected_target_disabled_before_selection',
+      'send_available_projected_target_during_standard_admission',
+      'claim_full_route_receipt_from_standard_launch_admission',
     ],
-    verification_mode: 'launch_gate',
+    verification_mode: 'state_aware_launch_admission',
   });
   const fullPolicy = input.release.release_acceleration?.assistant_route_smoke_policy?.full;
   requireExact('Release Full assistant route policy', fullPolicy, {
@@ -194,8 +196,12 @@ export function buildFirstRunCompiledExpectations(input: {
     if (/visible but disabled/i.test(joined)) {
       throw new Error(`${scenarioId} still requires disabled Home shortcuts.`);
     }
-    if (!/visible and selectable before selection/.test(joined) || !/blocks only that send/.test(joined)) {
-      throw new Error(`${scenarioId} must describe selectable shortcuts with selected-package send-time blocking.`);
+    if (
+      !/visible and selectable/.test(joined) ||
+      !/available target is selected and admitted without sending/.test(joined) ||
+      !/unavailable target preserves the draft and blocks only that send/.test(joined)
+    ) {
+      throw new Error(`${scenarioId} must describe state-aware launch admission for available and unavailable projections.`);
     }
   }
   for (const scenarioId of fullScenarioIds) {
@@ -225,14 +231,22 @@ export function buildFirstRunCompiledExpectations(input: {
       visible: true,
       selectable_before_selection: true,
     },
-    unavailable_selected_package: {
-      state: 'package_unavailable',
-      enforcement_phase: 'selected_package_send',
-      send_allowed: false,
-      launch_allowed: false,
-      typed_reason_required: true,
-      draft_preserved: true,
-      owner_repair_guidance_required: true,
+    projection_states: ['available', 'unavailable'],
+    launch_admission: {
+      available: {
+        launch_allowed: true,
+        send_attempted: false,
+        route_receipt_claimed: false,
+      },
+      unavailable: {
+        enforcement_phase: 'selected_package_send',
+        launch_allowed: false,
+        send_blocked: true,
+        typed_reason_required: true,
+        draft_preserved: true,
+        owner_repair_guidance_required: true,
+        route_receipt_claimed: false,
+      },
     },
     successful_invocation_receipt_expected: false,
   } as const;
@@ -242,7 +256,14 @@ export function buildFirstRunCompiledExpectations(input: {
     input_selector: 'textarea[data-testid="guid-input"], input[data-testid="guid-input"]',
     send_selector: '[data-testid="guid-send-btn"]',
     blocking_message_selector: '[data-testid="opl-agent-package-launch-blocked"]',
-    polling_contract: ['select', 'composer_active', 'input_event', 'send', 'blocking_message', 'passed'],
+    projection_state_attribute: 'data-opl-launch-ready',
+    polling_contract: [
+      'observe_projection_state',
+      'select',
+      'composer_active',
+      'available_admission_or_unavailable_send_gate',
+      'passed',
+    ],
   } as const;
   const fullSemantics = {
     artifact_kind: 'full',

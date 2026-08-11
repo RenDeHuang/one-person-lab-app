@@ -1026,11 +1026,12 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     assistantRouteSmoke?.standard?.required,
     [
       'compiled_release_qualification_targets_visible',
-      'unavailable_projected_targets_selectable',
-      'launch_allowed_false_at_send',
-      'readiness_and_repair_hint_visible',
+      'projection_state_observed_per_target',
+      'projected_targets_selectable',
+      'available_projected_targets_launch_admitted_without_send',
+      'unavailable_projected_targets_send_blocked_with_typed_repair_guidance',
     ],
-    'Standard assistant launch-gate requirements',
+    'Standard assistant state-aware launch-admission requirements',
   );
   assertIncludesAll(
     assistantRouteSmoke?.full?.required,
@@ -1057,7 +1058,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     'Full assistant synthetic launch-path prohibitions',
   );
   if (
-    assistantRouteSmoke?.standard?.verification_mode !== 'launch_gate' ||
+    assistantRouteSmoke?.standard?.verification_mode !== 'state_aware_launch_admission' ||
     assistantRouteSmoke?.full?.verification_mode !== 'route_receipt' ||
     assistantRouteSmoke?.target_fixture_ref !==
       'contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture' ||
@@ -1065,11 +1066,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       'release_qualification_probe_input_only_without_runtime_catalog_visibility_action_or_install_authority' ||
     assistantRouteSmoke?.runtime_target_resolution !==
       'resolve every fixture target from fresh app_state.agent_packages.directory.entries and status_index.home_shortcut_preferences before probing' ||
-    !assistantRouteSmoke?.standard?.forbidden?.includes('claim_full_route_receipt_from_standard_launch_gate') ||
+    !assistantRouteSmoke?.standard?.forbidden?.includes('claim_full_route_receipt_from_standard_launch_admission') ||
     !assistantRouteSmoke?.full?.required?.includes('release_evidence_route_receipt_per_target')
   ) {
     throw new Error(
-      'Release assistant smoke must resolve a non-authoritative target fixture and separate Standard launch gates from Full route receipts',
+      'Release assistant smoke must resolve a non-authoritative target fixture and separate Standard state-aware launch admission from Full route receipts',
     );
   }
 

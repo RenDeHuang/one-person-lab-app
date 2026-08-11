@@ -815,7 +815,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-      "Packaged GUI launch-gate smoke keeps every release qualification target visible and selectable before selection after resolving it from fresh Framework projections; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim a Full route receipt"
+      "Packaged GUI launch-admission smoke keeps every release qualification target visible and selectable after resolving it from fresh Framework projections; an available target is selected and admitted without sending, while an unavailable target preserves the draft and blocks only that send with typed repair guidance; neither path claims a Full route receipt"
       ],
       "release_evidence_artifacts": [
         "app-wrapper-diagnostics.json",
@@ -982,7 +982,7 @@
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
-      "Packaged GUI launch-gate smoke keeps every release qualification target visible and selectable before selection after resolving it from fresh Framework projections; selecting an unavailable package preserves the draft, blocks only that send with typed repair guidance, and does not claim a Full route receipt",
+      "Packaged GUI launch-admission smoke keeps every release qualification target visible and selectable after resolving it from fresh Framework projections; an available target is selected and admitted without sending, while an unavailable target preserves the draft and blocks only that send with typed repair guidance; neither path claims a Full route receipt",
         "Homebrew receipt is treated as install evidence only; activation and agent-pack exposure still come from App/CLI maintenance"
       ],
       "release_evidence_artifacts": [

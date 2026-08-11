@@ -1301,7 +1301,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       path.join(shellPaths.shellRoot, "scripts/opl-first-run-vm-smoke.mjs"),
     ),
     required: [
-      "homeAssistantStandardLaunchGateExpression",
+      "homeAssistantStandardLaunchAdmissionExpression",
       "homeAssistantWorkspaceContextExpression",
       "homeAssistantRouteSendWithoutActivationExpression",
       "frameworkStageRuntimeActivationExpression",
@@ -1309,11 +1309,11 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "data-opl-workspace-selected",
       "data-opl-workspace-path",
       "options.runtimeProfile !== 'full'",
-      "verification_mode: 'launch_gate'",
+      "verification_mode: 'state_aware_launch_admission'",
       "verification_mode: 'route_receipt'",
       "workspace_guid_ui_send_without_shell_activation_then_conversation_get",
       "home-starter-${id}",
-      "assistant_launch_gates_checked",
+      "assistant_launch_admissions_checked",
       "not_applicable_standard",
     ],
     forbidden: [

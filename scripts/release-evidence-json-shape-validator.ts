@@ -50,7 +50,7 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
   if (record.runtime_profile !== 'standard' && record.runtime_profile !== 'full') {
     throw new Error(`${artifact.id} must report runtime_profile standard or full.`);
   }
-  const expectedMode = record.runtime_profile === 'standard' ? 'launch_gate' : 'route_receipt';
+  const expectedMode = record.runtime_profile === 'standard' ? 'state_aware_launch_admission' : 'route_receipt';
   if (record.verification_mode !== expectedMode) {
     throw new Error(`${artifact.id} must use ${expectedMode} verification for ${record.runtime_profile}.`);
   }
@@ -89,21 +89,33 @@ function validateAssistantRouteSmokeSummary(artifact: EvidenceArtifact, payload:
       throw new Error(`${artifact.id}.${assistantId} must show the compiled release target badge.`);
     }
     if (record.runtime_profile === 'standard') {
-      if (assistant.verification_mode !== 'launch_gate') {
-        throw new Error(`${artifact.id}.${assistantId} must report a Standard launch gate.`);
+      if (assistant.verification_mode !== 'state_aware_launch_admission') {
+        throw new Error(`${artifact.id}.${assistantId} must report Standard state-aware launch admission.`);
       }
-      const launchGate = asRecord(assistant.launch_gate, `${artifact.id}.${assistantId}.launch_gate`);
-      if (
-        launchGate.visible !== true ||
-        launchGate.selectable_before_selection !== true ||
-        launchGate.selected !== true ||
-        launchGate.launch_allowed !== false ||
-        launchGate.send_blocked !== true ||
-        launchGate.repair_hint_visible !== true ||
-        launchGate.message_visible !== true ||
-        !String(launchGate.readiness_hint ?? '').toLowerCase().includes('repair')
-      ) {
-        throw new Error(`${artifact.id}.${assistantId} must prove selectable send-time blocking with a repair hint.`);
+      const admission = asRecord(assistant.launch_admission, `${artifact.id}.${assistantId}.launch_admission`);
+      const commonAdmissionPassed =
+        admission.visible === true &&
+        admission.selectable_before_selection === true &&
+        admission.selected === true &&
+        admission.route_receipt_claimed === false;
+      const availableAdmissionPassed =
+        admission.projection_state === 'available' &&
+        admission.launch_allowed === true &&
+        admission.send_attempted === false &&
+        admission.send_blocked === false &&
+        admission.repair_hint_visible === false;
+      const unavailableAdmissionPassed =
+        admission.projection_state === 'unavailable' &&
+        admission.launch_allowed === false &&
+        admission.send_blocked === true &&
+        admission.repair_hint_visible === true &&
+        admission.draft_preserved === true &&
+        (Boolean(String(admission.typed_reason ?? '').trim()) ||
+          admission.verification_path === 'model_access_precondition');
+      if (!commonAdmissionPassed || (!availableAdmissionPassed && !unavailableAdmissionPassed)) {
+        throw new Error(
+          `${artifact.id}.${assistantId} must prove state-aware launch admission for an available or unavailable projection.`,
+        );
       }
       if (assistant.receipt != null) {
         throw new Error(`${artifact.id}.${assistantId} must not claim a route receipt for Standard.`);
@@ -159,8 +171,8 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
   const standardProfile = record.runtime_profile === 'standard';
   const evidence = standardProfile
     ? asRecord(
-        record.assistant_launch_gates_checked,
-        'codex_functional_check_summary.assistant_launch_gates_checked',
+        record.assistant_launch_admissions_checked,
+        'codex_functional_check_summary.assistant_launch_admissions_checked',
       )
     : routeReceipts;
   if (
@@ -170,7 +182,7 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
   ) {
     throw new Error(
       standardProfile
-        ? 'Standard Codex functional evidence must pass launch gates without claiming route receipts.'
+        ? 'Standard Codex functional evidence must pass state-aware launch admissions without claiming route receipts.'
         : 'codex_functional_check_summary assistant route receipts must be deterministic and passed.',
     );
   }
@@ -180,7 +192,7 @@ function validateCodexFunctionalCheckSummary(record: Record<string, unknown>) {
     if (!required.includes(target.codex_visible_entry) || !checked.includes(target.codex_visible_entry)) {
       throw new Error(
         `codex_functional_check_summary must cover ${target.codex_visible_entry} ${
-          standardProfile ? 'launch gates' : 'route receipts'
+          standardProfile ? 'launch admissions' : 'route receipts'
         }.`,
       );
     }

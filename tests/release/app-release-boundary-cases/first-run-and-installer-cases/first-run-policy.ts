@@ -95,19 +95,21 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
     "composer_state",
     "instance_counts",
   ]);
-  const launchGateExpectations = matrix.scenarios
+  const launchAdmissionExpectations = matrix.scenarios
     .flatMap((scenario) => scenario.expects ?? [])
     .filter((expectation) =>
       expectation.includes(
-        "Packaged GUI launch-gate smoke keeps every release qualification target",
+        "Packaged GUI launch-admission smoke keeps every release qualification target",
       ),
     );
-  assert.equal(launchGateExpectations.length, 2);
-  for (const expectation of launchGateExpectations) {
-    assert.match(expectation, /visible and selectable before selection/);
+  assert.equal(launchAdmissionExpectations.length, 2);
+  for (const expectation of launchAdmissionExpectations) {
+    assert.match(expectation, /visible and selectable/);
+    assert.match(expectation, /available target is selected and admitted without sending/);
+    assert.match(expectation, /unavailable target preserves the draft/);
     assert.match(expectation, /blocks only that send with typed repair guidance/);
     assert.doesNotMatch(expectation, /visible but disabled/);
-    assert.match(expectation, /does not claim a Full route receipt/);
+    assert.match(expectation, /neither path claims a Full route receipt/);
   }
   assert.deepEqual(
     {
@@ -315,12 +317,12 @@ test("one-shot App installer boundary is enforced by release-boundary checks", (
   assert.equal(fs.existsSync(path.join(appRoot, "install-free.sh")), false);
 });
 
-test("release boundary requires profile-aware Standard launch gates and Full route receipts", () => {
+test("release boundary requires state-aware Standard launch admission and Full route receipts", () => {
   const assistantSmoke = requireReleaseBoundaryCheck("first_run_vm_profile_aware_assistant_smoke");
   const release = readJson("contracts/app-release-channel.json");
   const fullPolicy = release.release_acceleration.assistant_route_smoke_policy.full;
 
-  assert.ok(assistantSmoke.required.includes("homeAssistantStandardLaunchGateExpression"));
+  assert.ok(assistantSmoke.required.includes("homeAssistantStandardLaunchAdmissionExpression"));
   assert.ok(assistantSmoke.required.includes("homeAssistantWorkspaceContextExpression"));
   assert.ok(assistantSmoke.required.includes("homeAssistantRouteSendWithoutActivationExpression"));
   assert.ok(assistantSmoke.required.includes("frameworkStageRuntimeActivationExpression"));
@@ -332,9 +334,9 @@ test("release boundary requires profile-aware Standard launch gates and Full rou
   );
   assert.ok(assistantSmoke.required.includes("data-opl-workspace-path"));
   assert.ok(assistantSmoke.required.includes("options.runtimeProfile !== 'full'"));
-  assert.ok(assistantSmoke.required.includes("verification_mode: 'launch_gate'"));
+  assert.ok(assistantSmoke.required.includes("verification_mode: 'state_aware_launch_admission'"));
   assert.ok(assistantSmoke.required.includes("verification_mode: 'route_receipt'"));
-  assert.ok(assistantSmoke.required.includes("assistant_launch_gates_checked"));
+  assert.ok(assistantSmoke.required.includes("assistant_launch_admissions_checked"));
   assert.ok(assistantSmoke.required.includes("not_applicable_standard"));
   assert.ok(assistantSmoke.forbidden.includes("createAssistantRouteReceiptConversationExpression"));
   assert.ok(assistantSmoke.forbidden.includes("POST /api/conversations"));

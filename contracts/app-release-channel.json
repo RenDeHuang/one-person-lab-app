@@ -4950,15 +4950,17 @@
       "standard": {
         "required": [
           "compiled_release_qualification_targets_visible",
-          "unavailable_projected_targets_selectable",
-          "launch_allowed_false_at_send",
-          "readiness_and_repair_hint_visible"
+          "projection_state_observed_per_target",
+          "projected_targets_selectable",
+          "available_projected_targets_launch_admitted_without_send",
+          "unavailable_projected_targets_send_blocked_with_typed_repair_guidance"
         ],
         "forbidden": [
-          "unavailable_projected_target_disabled_before_selection",
-          "claim_full_route_receipt_from_standard_launch_gate"
+          "projected_target_disabled_before_selection",
+          "send_available_projected_target_during_standard_admission",
+          "claim_full_route_receipt_from_standard_launch_admission"
         ],
-        "verification_mode": "launch_gate"
+        "verification_mode": "state_aware_launch_admission"
       },
       "full": {
         "required": [
@@ -4982,7 +4984,7 @@
       "target_fixture_ref": "contracts/app-first-run-test-matrix.json#release_qualification_agent_target_fixture",
       "target_fixture_boundary": "release_qualification_probe_input_only_without_runtime_catalog_visibility_action_or_install_authority",
       "runtime_target_resolution": "resolve every fixture target from fresh app_state.agent_packages.directory.entries and status_index.home_shortcut_preferences before probing",
-      "rule": "Standard proves that every release qualification target resolves from fresh Framework projections and that an unavailable projected professional Agent Package remains selectable while send stays blocked with a repair path. Full applies the selected project directory as session cwd and future domain workspace identity, creates the conversation through the visible composer without Shell package activation, then reads that conversation back. Separately, a real Framework domain StageRun or StageAttempt must activate from its own workspace_locator and emit matching runtime evidence. Direct conversation POSTs, Shell send-boundary activation, and synthetic runtime or route evidence cannot satisfy the Full gate. The fixture never creates runtime catalog, visibility, lifecycle, readiness, action, or install authority, and a Standard launch gate must never be counted as a Full route receipt."
+      "rule": "Standard resolves every release qualification target from fresh Framework projections and observes each target's current launch admission state. An available projected professional Agent Package must remain selectable and launch-admitted without sending a message; an unavailable projected package must remain selectable while only its send is blocked with the draft preserved and typed repair guidance. Full applies the selected project directory as session cwd and future domain workspace identity, creates the conversation through the visible composer without Shell package activation, then reads that conversation back. Separately, a real Framework domain StageRun or StageAttempt must activate from its own workspace_locator and emit matching runtime evidence. Direct conversation POSTs, Shell send-boundary activation, and synthetic runtime or route evidence cannot satisfy the Full gate. The fixture never creates runtime catalog, visibility, lifecycle, readiness, action, or install authority, and Standard launch admission must never be counted as a Full route receipt."
     },
     "vm_gates": [
       {

@@ -191,7 +191,7 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
   const settingsSmoke = { status: "passed", pages: ["general"] };
   const assistantRouteSmoke = {
     status: "passed",
-    verification_mode: fullRuntime ? "route_receipt" : "launch_gate",
+    verification_mode: fullRuntime ? "route_receipt" : "state_aware_launch_admission",
     assistants: canonicalAssistantRouteIds,
   };
   const requiredSkillIds = canonicalAssistantRouteIds.flatMap(
@@ -207,7 +207,7 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
       checked: fullRuntime ? requiredSkillIds : [],
       deterministic: true,
     },
-    assistant_launch_gates_checked: {
+    assistant_launch_admissions_checked: {
       status: fullRuntime ? "not_applicable_full" : "passed",
       required: requiredSkillIds,
       checked: fullRuntime ? [] : requiredSkillIds,
@@ -234,7 +234,7 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
     surface_id: "opl_packaged_gui_assistant_route_smoke",
     status: "passed",
     runtime_profile: runtimeProfile,
-    verification_mode: fullRuntime ? "route_receipt" : "launch_gate",
+    verification_mode: fullRuntime ? "route_receipt" : "state_aware_launch_admission",
     assistants: canonicalAssistantRouteIds.map((id) => {
       const shortName = canonicalAssistantShortNames[id];
       const target = canonicalAssistantTargets[id];
@@ -257,16 +257,32 @@ export function writeVmSmokeSummaryFiles(tempRoot, runtimeProfile = "full") {
             id,
             ...target,
             badge,
-            verification_mode: "launch_gate",
-            launch_gate: {
+            verification_mode: "state_aware_launch_admission",
+            launch_admission: id === "mag" ? {
               visible: true,
               selectable_before_selection: true,
               selected: true,
               launch_allowed: false,
+              projection_state: "unavailable",
+              send_attempted: true,
               send_blocked: true,
               readiness_hint: "package_not_installed: status, doctor, repair",
+              typed_reason: "package_not_installed",
+              draft_preserved: true,
               repair_hint_visible: true,
               message_visible: true,
+              route_receipt_claimed: false,
+            } : {
+              visible: true,
+              selectable_before_selection: true,
+              selected: true,
+              launch_allowed: true,
+              projection_state: "available",
+              send_attempted: false,
+              send_blocked: false,
+              repair_hint_visible: false,
+              message_visible: false,
+              route_receipt_claimed: false,
             },
           };
     }),

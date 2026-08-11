@@ -60,18 +60,29 @@
           "visible": true,
           "selectable_before_selection": true
         },
-        "unavailable_selected_package": {
-          "state": "package_unavailable",
-          "enforcement_phase": "selected_package_send",
-          "send_allowed": false,
-          "launch_allowed": false,
-          "typed_reason_required": true,
-          "draft_preserved": true,
-          "owner_repair_guidance_required": true
+        "projection_states": [
+          "available",
+          "unavailable"
+        ],
+        "launch_admission": {
+          "available": {
+            "launch_allowed": true,
+            "send_attempted": false,
+            "route_receipt_claimed": false
+          },
+          "unavailable": {
+            "enforcement_phase": "selected_package_send",
+            "launch_allowed": false,
+            "send_blocked": true,
+            "typed_reason_required": true,
+            "draft_preserved": true,
+            "owner_repair_guidance_required": true,
+            "route_receipt_claimed": false
+          }
         },
         "successful_invocation_receipt_expected": false
       },
-      "semantic_digest": "fabe91c904e705dc192edcdf785b8afb583efd873884d94400e7e7bbee0aaca5",
+      "semantic_digest": "423373347cef5ec2a3db10b8daa085d458fbf5758b45d8b8e97a233e8ed92738",
       "probes": {
         "home_control_testid_templates": [
           "home-starter-<package_id>",
@@ -81,16 +92,16 @@
         "input_selector": "textarea[data-testid=\"guid-input\"], input[data-testid=\"guid-input\"]",
         "send_selector": "[data-testid=\"guid-send-btn\"]",
         "blocking_message_selector": "[data-testid=\"opl-agent-package-launch-blocked\"]",
+        "projection_state_attribute": "data-opl-launch-ready",
         "polling_contract": [
+          "observe_projection_state",
           "select",
           "composer_active",
-          "input_event",
-          "send",
-          "blocking_message",
+          "available_admission_or_unavailable_send_gate",
           "passed"
         ]
       },
-      "probe_digest": "5fca1ea07ee622be462f0fa69221a659bfc24e8fea09fa3f30138b5dbf865d91"
+      "probe_digest": "0764674f7e2127d93b5ee5517efa08b8d9a333416d4b34ec706f5b03c4a5fd27"
     },
     "full": {
       "semantics": {

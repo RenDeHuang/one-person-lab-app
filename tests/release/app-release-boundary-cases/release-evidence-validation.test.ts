@@ -159,8 +159,8 @@ test('release evidence bundle validator rejects legacy Runtime-owned acceptance 
   assert.match(result.stderr, /must not use Runtime page as its contract owner/);
 });
 
-test('release evidence keeps Standard launch gates distinct from Full route receipts', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-launch-gate-evidence-'));
+test('release evidence accepts available and unavailable Standard launch admission without Full route receipts', () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-app-standard-launch-admission-evidence-'));
   writeEvidenceManifest(tempRoot, {
     status: 'passed',
     packaged_app_evidence: true,
