@@ -21,7 +21,7 @@ OPL App GUI 使用三层设计体系：
 不能把局部代码、截图或 focused test 提升成 App product truth。
 
 默认 Computer Use 的产品策略、Standard/Full parity、TCC 状态、浏览器 provider
-路线和落地工作包统一维护在 [`computer-use.md`](computer-use.md)。AionUI 只渲染
+路线和落地总账统一维护在 [`computer-use.md`](computer-use.md)。AionUI 只渲染
 Framework 的 managed companion projection，不自行安装 provider 或复制 MCP 清单。
 
 当前 AionUI 主线的执行顺序、非降级边界、current-main disposition 与收口条件由

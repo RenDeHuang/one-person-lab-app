@@ -43,20 +43,25 @@ promoted into release-ready or family production-ready proof.
 
 ### Computer Use Implementation Ledger
 
-KimiCU `0.5.4` is the default macOS arm64 Desktop Computer Use provider. The
-App product/distribution contracts, pinned identity, Standard/Full parity,
-Settings model, first-run qualification, human SSOT, validators, and focused
-release-boundary tests are aligned. Runtime delivery remains ACTIVE across
-owner repositories:
+KimiCU `0.5.4` is the default macOS arm64 Desktop Computer Use provider. App
+product/distribution contracts and Full offline seed assembly are canonical.
+Framework `main` now owns the pinned materializer, existing Codex MCP registry
+write, managed-companion projection/actions, and fail-open desktop startup
+reconciliation. The AionUI desktop host already invokes
+`opl system startup-maintenance --json` during startup, so Standard download and
+Full seed materialization share one default runtime path. Installed-host and
+release qualification remain independent:
 
 | Axis | Current state | Owner / terminal evidence |
 | --- | --- | --- |
-| Contract and product SSOT | `aligned_contract` | App contracts plus `docs/product/gui/computer-use.md` |
-| Framework materializer and state/actions | `implementation_active` | Framework source/tests and fresh `opl app state/action` readback |
-| AionUI status and TCC UX | `implementation_active` | Shell source/DOM tests consuming Framework projection |
-| Standard online / Full offline materialization | `implementation_active` | App Full seed assembly focused tests; Framework and clean-VM parity remain |
+| Contract and product SSOT | `canonical_source_complete` | App contracts plus `docs/product/gui/computer-use.md` |
+| Full offline seed assembly | `canonical_source_complete` | Exact `KimiCU.app.zip` seed and App package-manifest evidence |
+| Framework materializer and state/actions | `canonical_source_complete` | Pinned identity checks, Standard/Full source selection, install/service/MCP reconciliation, `managed_companions[]`, and owner actions on Framework `main` |
+| AionUI default startup caller | `canonical_source_complete` | Desktop initialization invokes the Framework startup-maintenance surface |
+| AionUI dedicated Capabilities/TCC UX | `under_fresh_audit` | Must consume `managed_companions[]` and owner-projected actions without a Shell registry |
+| Standard online / Full offline installed parity | `unverified` | Clean macOS host must prove identical installed identity, path, service, MCP tools, and TCC state |
 | Browser provider | `planned_after_desktop_path` | Playwright MCP structured path; KimiCU visual fallback |
-| Installed / Release | `unverified` | Exact packaged bytes, TCC state, MCP tools, clean VM and release evidence |
+| Installed / Release | `unverified` | Real `/Applications/KimiCU.app`, TCC prompts, MCP handshake, packaged bytes, clean VM, and public release evidence |
 
 Source or contract completion must not be promoted into installed or release
 readiness. Dynamic lane owner, worktree, checkpoint, and next-action truth stays
@@ -69,6 +74,9 @@ verifies the exact archive, materializes it at
 identity reference and archive evidence in `full-package-manifest.json`. This is
 source/package assembly evidence only; installed behavior, macOS TCC, clean-VM
 parity, signing/notarization, and public release remain independently unverified.
+Framework source now consumes that same identity through
+`contracts/opl-framework/managed-computer-use.json`; no second provider catalog,
+MCP registry, session store, or Agent loop was introduced.
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.

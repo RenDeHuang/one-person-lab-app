@@ -88,21 +88,23 @@ Chrome 插件或 ChatGPT App 作为 OPL 的硬依赖。
 4. clean VM 的权限提示可以由人工完成；未完成时必须记录
    `permission_required + ready=false`，不能伪造 ready。
 
-## 落地工作包
+## 落地总账
 
-| 工作包 | Owner | 交付 | 估算 |
-| --- | --- | --- | ---: |
-| CU1 SSOT 与 build lock | App + Framework | 从 qualification manifest 生成唯一 KimiCU identity/lock，删除重复枚举 | 0.5-1 天 |
-| CU2 Materializer | Framework | Standard 下载校验、Full seed 展开、`ditto` 安装、幂等修复和签名检查 | 1.5-2 天 |
-| CU3 MCP/state bridge | Framework | 注册 `kimi-cu`、service/XPC/MCP 健康检查、`managed_companions[]` projection | 1 天 |
-| CU4 默认 UX/TCC | App + AionUI Shell | First-run 进度、Capabilities 状态、授权/重试/修复动作和 i18n | 1 天 |
-| CU5 Desktop qualification | Release owner | Standard/Full clean VM parity、安装后 readback、release evidence | 1-2 天 |
-| CU6 Browser | Framework + Shell | Playwright MCP 默认浏览器路径；KimiCU 视觉兜底；WebBridge/CDP 单独验证 | 1-2 天 |
+| 工作包 | 状态 | Owner | 交付 / 剩余证据 |
+| --- | --- | --- | --- |
+| CU1 SSOT 与 build lock | `canonical_source_complete` | App + Framework | App qualification identity 和 Framework derived lock 唯一绑定 KimiCU `0.5.4` |
+| CU2 Materializer | `canonical_source_complete` | Framework | Standard 下载、Full seed、SHA/Bundle/Team/version/arch/codesign/Gatekeeper 校验、`ditto` staged replace 和 service install 已进入 Framework `main` |
+| CU3 MCP/state bridge | `canonical_source_complete` | Framework | 复用现有 Codex registry 唯一 writer；已实现 service/XPC/`doctor`/MCP tools 健康检查、`managed_companions[]` 和 owner actions |
+| CU4 默认启动 | `canonical_source_complete` | Framework + AionUI Shell | Desktop 初始化自动调用 `opl system startup-maintenance --json`；失败只降级 Computer Use，不阻塞普通 OPL/Codex |
+| CU4 Capabilities/TCC UX | `under_fresh_audit` | App + AionUI Shell | 专用状态行和授权/重试/修复按钮必须只消费 Framework projection/actions |
+| CU5 Desktop qualification | `unverified` | Release owner | Standard/Full clean VM、真实安装路径、TCC prompt、installed MCP handshake/tools 和 release evidence |
+| CU6 Browser | `planned` | Framework + Shell | Playwright MCP 结构化路径；KimiCU 视觉兜底；WebBridge/CDP 单独验证 |
 
-桌面 Computer Use 从当前合同落到可发布能力约 `4-6` 个工作日；加入
-Playwright 浏览器路径约 `5-8` 个工作日。当前仓库已经完成 App contracts、
-validator 同步、文档和 focused contract test；Framework materializer、Shell
-真实 UI、打包 seed 和 clean-VM readback 仍是后续实现，不得把本文件视为已安装。
+当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
+materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller。剩余工作
+不再是实现第二套 Computer Use 引擎，而是补齐或确认专用 Capabilities/TCC UX，
+再完成 clean-VM installed qualification。Playwright 浏览器 provider 仍是独立后续。
+不得把本文件或源码测试视为 KimiCU 已安装、TCC 已授权或 release 已完成。
 
 ## 机器合同与验证入口
 

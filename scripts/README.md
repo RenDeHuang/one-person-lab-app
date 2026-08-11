@@ -22,7 +22,8 @@ node --experimental-strip-types --test tests/release/computer-use-distribution-c
 
 它验证 KimiCU 唯一 identity、Standard/Full materialization parity、默认 enablement、
 TCC 状态和 deterministic product qualification 边界。它不安装 KimiCU，也不替代
-未来 Framework materializer、Shell user path 或 clean-VM readback。
+已进入 Framework `main` 的 materializer source tests、Shell user path 或 clean-VM
+installed readback。
 
 | Script | Purpose |
 | --- | --- |
