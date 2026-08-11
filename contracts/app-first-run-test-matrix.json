@@ -51,6 +51,53 @@
       "permission",
       "ready"
     ],
+    "current_source_linked_host_evidence": {
+      "status": "passed",
+      "evidence_class": "current_source_linked_host_only",
+      "observed_at": "2026-08-11",
+      "runtime_source": "globally_linked_canonical_framework_checkout",
+      "installed_identity": {
+        "version": "0.5.4",
+        "bundle_id": "ai.kimi.cu",
+        "team_id": "2J9472RW75",
+        "target_path": "/Applications/KimiCU.app",
+        "architecture": "arm64",
+        "signature_and_notarization": "passed"
+      },
+      "service_and_permission_readback": {
+        "service_registered": true,
+        "xpc_ping": "passed",
+        "accessibility": "granted",
+        "screen_recording": "granted"
+      },
+      "mcp_readback": {
+        "initialize": "passed",
+        "observed_tools_count": 10,
+        "tools_exact": true,
+        "live_read_operations": [
+          "list_apps",
+          "get_app_state(com.apple.finder)"
+        ]
+      },
+      "desktop_startup_readback": {
+        "status": "completed",
+        "target_status": "ready",
+        "reason": "already_ready",
+        "attention_required_targets_count": 0,
+        "blocking_targets_count": 0
+      },
+      "proves": [
+        "current_source_linked_host_installed_identity_service_permissions_and_mcp_readiness",
+        "current_source_linked_host_live_desktop_read_path",
+        "current_source_linked_host_default_desktop_startup_readiness"
+      ],
+      "does_not_prove": [
+        "standard_packaged_install",
+        "full_packaged_install",
+        "standard_full_clean_vm_parity",
+        "public_release_qualification"
+      ]
+    },
     "full_second_manifest_or_provider_allowed": false,
     "computer_use_missing_permission_blocks_app_or_plain_codex_use": false
   },
@@ -118,6 +165,44 @@
         "clean_vm_first_run",
         "installed_registration_or_readiness",
         "release_qualification"
+      ]
+    },
+    "current_source_linked_host_evidence": {
+      "status": "passed",
+      "evidence_class": "current_source_linked_host_only",
+      "observed_at": "2026-08-11",
+      "runtime_source": "globally_linked_canonical_framework_checkout",
+      "registry_entry_uses_canonical_framework_dependency": true,
+      "registry_entry_uses_task_worktree": false,
+      "provider_runtime": "@playwright/mcp@0.0.79",
+      "browser_identity_observed": "Google Chrome 151.0.7922.77",
+      "mcp_initialize": "passed",
+      "observed_tools_count": 24,
+      "tools_exact": true,
+      "observed_structured_operations": [
+        "browser_navigate(https://example.com/)",
+        "browser_snapshot"
+      ],
+      "snapshot_semantics_observed": [
+        "Example Domain"
+      ],
+      "desktop_startup_readback": {
+        "status": "completed",
+        "target_status": "ready",
+        "reason": "already_ready",
+        "attention_required_targets_count": 0,
+        "blocking_targets_count": 0
+      },
+      "proves": [
+        "current_source_linked_host_codex_registry_and_mcp_readiness",
+        "current_source_linked_host_real_system_chrome_navigation_and_snapshot",
+        "current_source_linked_host_default_desktop_startup_readiness"
+      ],
+      "does_not_prove": [
+        "standard_packaged_install",
+        "full_packaged_install",
+        "standard_full_clean_vm_parity",
+        "public_release_qualification"
       ]
     },
     "installed_and_release_qualification_status": "unverified",

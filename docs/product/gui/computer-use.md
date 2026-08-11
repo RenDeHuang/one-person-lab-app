@@ -109,19 +109,21 @@ seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达任
 | CU3 MCP/state bridge | `canonical_source_complete` | Framework | 复用现有 Codex registry 唯一 writer；已实现 service/XPC/`doctor`/MCP tools 健康检查、`managed_companions[]` 和 owner actions |
 | CU4 默认启动 | `canonical_source_complete` | Framework + AionUI Shell | Desktop 初始化自动调用 `opl system startup-maintenance --json`；失败只降级 Computer Use，不阻塞普通 OPL/Codex |
 | CU4 Capabilities/TCC UX | `canonical_source_complete` | App + AionUI Shell | 专用状态行只消费 `managed_companions[]`，授权/复查/修复/重装按钮只调用 Framework projection actions，并在动作后执行 full readback |
-| CU5 Desktop qualification | `unverified` | Release owner | Standard/Full clean VM、真实安装路径、TCC prompt、installed MCP handshake/tools 和 release evidence |
-| CU6 Browser | `source_implementation_complete_installed_qualification_pending` | App + Framework + Shell | App/Framework source 已固定 Playwright MCP、Codex registry 单 writer、system Chrome runtime 与 Standard/Full parity；真实 source-host structured smoke 已通过，packaged installed qualification 仍缺 |
+| CU5 Desktop qualification | `current_source_linked_host_complete_packaged_qualification_pending` | App + Framework + Release owner | 当前 source-linked 宿主已回读 KimiCU identity、service/XPC、TCC granted、MCP 10/10 tools，并真实执行 `list_apps` 与 Finder `get_app_state`；Standard/Full clean VM 与 release evidence 仍缺 |
+| CU6 Browser | `current_source_linked_host_complete_packaged_qualification_pending` | App + Framework + Shell | Codex registry 已从临时 worktree 切到 canonical Framework dependency；MCP 24/24 tools、system Chrome `browser_navigate`/`browser_snapshot` 和 Desktop 默认启动 `already_ready` 已通过；packaged Standard/Full qualification 仍缺 |
 
 当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
 materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller 和专用
-Capabilities/TCC projection UX。剩余桌面工作不再是实现第二套 Computer Use 引擎，
-而是 clean-VM installed qualification 和 packaged pixel/user-path readback。CU6 的
-App/Framework source implementation 已完成；source host 上用真实 Google Chrome
-`151.0.7922.77` 验证了 MCP initialize、tools/list、`browser_navigate` 和
-`browser_snapshot`，并从 snapshot 回读到预期页面语义。该证据只证明 source-host
-结构化路径，不证明 Standard/Full packaged install、clean-VM 首启或 release readiness；
-这些 installed readback 仍是独立后续。
-不得把本文件或源码测试视为 KimiCU 已安装、TCC 已授权或 release 已完成。
+Capabilities/TCC projection UX。2026-08-11 的当前 source-linked 宿主回读进一步
+证明：KimiCU `0.5.4` 已安装到 `/Applications`，service/XPC 与两项 TCC 权限正常，
+MCP 10/10 tools 精确匹配，并通过 KimiCU MCP 真实读取 app list 和 Finder state；
+Playwright registry 已绑定 canonical Framework dependency，24/24 tools、真实 Google
+Chrome `151.0.7922.77` 导航和 snapshot 均通过。带 Desktop host hint 的产品默认
+`startup-maintenance` 同时将两项投影为 `already_ready`，无 attention 或 blocking。
+
+这些证据只证明当前 source-linked 宿主已经有效可用，不证明 Standard/Full packaged
+install、clean-VM 首启、两种 carrier parity 或 public release readiness；剩余工作是
+packaged clean-VM qualification 和同 cohort 的 GUI/release readback，不能由本机结果替代。
 
 ## 机器合同与验证入口
 

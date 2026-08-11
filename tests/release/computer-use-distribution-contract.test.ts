@@ -28,6 +28,7 @@ const distribution = release.computer_use_distribution;
 const browserPolicy = gui.computer_use_policy.browser_provider;
 const browserProfile = profile.computer_use.browser;
 const browserDistribution = distribution.browser_provider;
+const computerUseQualification = qualification.computer_use_qualification;
 const browserQualification = qualification.browser_provider_qualification;
 
 test('Computer Use has one pinned KimiCU identity across all App contracts', () => {
@@ -171,6 +172,41 @@ test('Computer Use product qualification is deterministic while AI UI review rem
   assert.equal(distribution.release_qualification.permission_prompt_completion_may_be_manual, true);
 });
 
+test('current source-linked host proves KimiCU effective without claiming packaged qualification', () => {
+  const evidence = computerUseQualification.current_source_linked_host_evidence;
+  assert.equal(evidence.status, 'passed');
+  assert.equal(evidence.evidence_class, 'current_source_linked_host_only');
+  assert.equal(evidence.runtime_source, 'globally_linked_canonical_framework_checkout');
+  assert.deepEqual(evidence.installed_identity, {
+    version: '0.5.4',
+    bundle_id: 'ai.kimi.cu',
+    team_id: '2J9472RW75',
+    target_path: '/Applications/KimiCU.app',
+    architecture: 'arm64',
+    signature_and_notarization: 'passed',
+  });
+  assert.deepEqual(evidence.service_and_permission_readback, {
+    service_registered: true,
+    xpc_ping: 'passed',
+    accessibility: 'granted',
+    screen_recording: 'granted',
+  });
+  assert.equal(evidence.mcp_readback.observed_tools_count, 10);
+  assert.equal(evidence.mcp_readback.tools_exact, true);
+  assert.deepEqual(evidence.mcp_readback.live_read_operations, [
+    'list_apps',
+    'get_app_state(com.apple.finder)',
+  ]);
+  assert.equal(evidence.desktop_startup_readback.target_status, 'ready');
+  assert.equal(evidence.desktop_startup_readback.reason, 'already_ready');
+  assert.deepEqual(evidence.does_not_prove, [
+    'standard_packaged_install',
+    'full_packaged_install',
+    'standard_full_clean_vm_parity',
+    'public_release_qualification',
+  ]);
+});
+
 test('Playwright MCP is the one default structured browser provider on the existing Codex registry', () => {
   assert.deepEqual(
     {
@@ -288,6 +324,42 @@ test('Playwright MCP first-run qualification remains separate from CU5 installed
       'clean_vm_first_run',
       'installed_registration_or_readiness',
       'release_qualification',
+    ],
+  });
+  assert.deepEqual(browserQualification.current_source_linked_host_evidence, {
+    status: 'passed',
+    evidence_class: 'current_source_linked_host_only',
+    observed_at: '2026-08-11',
+    runtime_source: 'globally_linked_canonical_framework_checkout',
+    registry_entry_uses_canonical_framework_dependency: true,
+    registry_entry_uses_task_worktree: false,
+    provider_runtime: '@playwright/mcp@0.0.79',
+    browser_identity_observed: 'Google Chrome 151.0.7922.77',
+    mcp_initialize: 'passed',
+    observed_tools_count: 24,
+    tools_exact: true,
+    observed_structured_operations: [
+      'browser_navigate(https://example.com/)',
+      'browser_snapshot',
+    ],
+    snapshot_semantics_observed: ['Example Domain'],
+    desktop_startup_readback: {
+      status: 'completed',
+      target_status: 'ready',
+      reason: 'already_ready',
+      attention_required_targets_count: 0,
+      blocking_targets_count: 0,
+    },
+    proves: [
+      'current_source_linked_host_codex_registry_and_mcp_readiness',
+      'current_source_linked_host_real_system_chrome_navigation_and_snapshot',
+      'current_source_linked_host_default_desktop_startup_readiness',
+    ],
+    does_not_prove: [
+      'standard_packaged_install',
+      'full_packaged_install',
+      'standard_full_clean_vm_parity',
+      'public_release_qualification',
     ],
   });
   assert.equal(browserQualification.installed_and_release_qualification_status, 'unverified');

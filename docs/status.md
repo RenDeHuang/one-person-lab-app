@@ -59,9 +59,10 @@ release qualification remain independent:
 | Framework materializer and state/actions | `canonical_source_complete` | Pinned identity checks, Standard/Full source selection, install/service/MCP reconciliation, `managed_companions[]`, and owner actions on Framework `main` |
 | AionUI default startup caller | `canonical_source_complete` | Desktop initialization invokes the Framework startup-maintenance surface |
 | AionUI dedicated Capabilities/TCC UX | `canonical_source_complete` | Shell `main` consumes `managed_companions[]`, renders status, and delegates request/recheck/repair/reinstall through Framework-projected actions with full readback |
-| Standard online / Full offline installed parity | `unverified` | Clean macOS host must prove identical installed identity, path, service, MCP tools, and TCC state |
-| Browser provider | `source_implementation_complete_installed_qualification_pending` | Playwright MCP source implementation uses the existing Codex MCP registry and real system Chrome; KimiCU is visual fallback only; packaged Standard/Full installed proof remains |
-| Installed / Release | `unverified` | Real `/Applications/KimiCU.app`, TCC prompts, MCP handshake, packaged bytes, clean VM, and public release evidence |
+| Current source-linked host | `effective_ready` | KimiCU identity/service/XPC/TCC/MCP 10 tools and live `list_apps`/Finder state read passed; Playwright registry uses canonical Framework dependency, MCP 24 tools and real Chrome navigation/snapshot passed; Desktop startup reports both providers `already_ready` |
+| Standard online / Full offline installed parity | `unverified` | Clean macOS hosts must prove identical installed identity, path, service, MCP tools, TCC state, and structured browser behavior from their packaged carriers |
+| Browser provider | `current_source_linked_host_complete_packaged_qualification_pending` | Existing Codex registry and real system Chrome are effective on the current source-linked host; KimiCU remains visual fallback only; packaged Standard/Full proof remains |
+| Packaged Install / Release | `unverified` | Packaged bytes, Standard/Full clean VM first run, same-cohort GUI path, signing/notarization, and public release evidence remain independent |
 
 Source or contract completion must not be promoted into installed or release
 readiness. Dynamic lane owner, worktree, checkpoint, and next-action truth stays
@@ -90,13 +91,19 @@ registry authority, writer, enablement, behavior and system Chrome requirement,
 while Full gains no second provider, engine catalog, session store or browser
 seed.
 
-A real source-host smoke passed with Google Chrome `151.0.7922.77`: MCP
-initialize and tools/list succeeded, 24 tools were observed, and
-`browser_navigate` plus `browser_snapshot` returned the expected structured page
-semantics. This proves only the Framework source-host path. It is not Standard or
-Full packaged evidence and does not qualify clean-VM first run, installed
-registration/readiness or release. Those installed/release readbacks remain
-`unverified`.
+On 2026-08-11, the current source-linked host passed an effective installed
+readback. KimiCU `0.5.4` had the expected Bundle/Team/arm64 identity, registered
+service, passing XPC, granted Accessibility and Screen Recording, exact 10-tool
+MCP handshake, and live `list_apps` plus Finder `get_app_state` calls. The
+Playwright registry entry no longer referenced a task worktree; it resolved the
+canonical Framework dependency, initialized with all 24 tools, navigated real
+Google Chrome `151.0.7922.77` to `example.com`, and returned `Example Domain` in
+the structured snapshot. Desktop startup maintenance then reported both managed
+companions `already_ready` with no attention or blocking target.
+
+This is current source-linked host evidence only. It does not qualify Standard
+or Full packaged installation, clean-VM parity, same-cohort packaged GUI paths,
+or public release; those release readbacks remain `unverified`.
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.
