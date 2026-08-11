@@ -418,6 +418,11 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     },
     empty_policy: "show_zero_of_zero_without_substituting_all_directory_entries",
   });
+  assert.deepStrictEqual(lifecycle.ordinary_user_status_input_mapping.precedence.slice(0, 3), [
+    "temporarily_unavailable",
+    "disabled",
+    "supporting_without_direct_entry",
+  ]);
   assert.equal(
     lifecycle.ordinary_user_status_input_mapping.signals.disabled,
     "installed_true_and_configured_carrier_disabled_with_complete_recommended_action_ref_semantic_enable",

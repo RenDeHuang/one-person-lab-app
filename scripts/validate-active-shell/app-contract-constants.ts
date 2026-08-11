@@ -1722,8 +1722,8 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
   schema: "agent_package_ordinary_status_input_mapping.v1",
   visibility: "implementation_and_advanced_diagnostics_only",
   precedence: [
-    "disabled",
     "temporarily_unavailable",
+    "disabled",
     "supporting_without_direct_entry",
     "available_verified",
     "available_auto_confirm",
