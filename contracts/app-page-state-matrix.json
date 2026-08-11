@@ -3,6 +3,36 @@
   "owner": "one-person-lab-app",
   "purpose": "page_state_test_matrix",
   "state": "active",
+  "computer_use_state_model": {
+    "contract_ref": "contracts/app-gui-product-contract.json#computer_use_policy",
+    "settings_surface": "capabilities",
+    "ownership_group": "opl_managed_companion",
+    "provider_id": "kimi-cu",
+    "default_state": {
+      "installed": true,
+      "registered": true,
+      "enabled": true
+    },
+    "required_projection_fields": [
+      "provider_id",
+      "version",
+      "installed",
+      "registered",
+      "enabled",
+      "permission",
+      "ready",
+      "available_actions",
+      "health_ref"
+    ],
+    "state_rules": {
+      "permission_required": "show_one_system_permission_action_without_reclassifying_the_provider_as_uninstalled_or_disabled",
+      "ready": "show_current_without_a_success_banner",
+      "failed": "show_owner_projected_repair_or_reinstall_action",
+      "unsupported": "show_platform_requirement_and_keep_the_rest_of_the_App_usable"
+    },
+    "standard_full_readback_parity_required": true,
+    "raw_mcp_or_signing_details_visibility": "technical_details_only"
+  },
   "interaction_baseline_ref": "contracts/app-gui-product-contract.json#interaction_baseline",
   "ui_experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract",
   "acceptance_boundary": {
@@ -3575,6 +3605,7 @@
       "page_contract": "settings_capabilities",
       "sections": [
         "opl_flow_managed",
+        "opl_managed_companion",
         "manual_and_third_party",
         "local_tools_and_voice",
         "details"
@@ -3584,6 +3615,7 @@
         "surface_label_en": "Capabilities",
         "tab_order": [
           "opl_flow_managed",
+          "opl_managed_companion",
           "manual_and_third_party"
         ],
         "default_tab": "opl_flow_managed",
@@ -3612,6 +3644,7 @@
       "settings_ia_ref": "contracts/app-gui-product-contract.json#settings_navigation.settings_ia",
       "must_show": [
         "OPL Flow managed and recommended Skills and Plugins from package dependency closure",
+        "OPL-managed default companions with installed, registered, enabled, permission, ready, version, and owner-projected action status",
         "manual and third-party Skills and Plugins from Codex and shell registries",
         "AionUI-native Skills, Plugins, MCP helpers, image generation, and voice input inside local or third-party ownership instead of OPL Flow",
         "product-profile display names instead of raw provider ids as primary labels",
@@ -3629,6 +3662,7 @@
         "raw provider ids as primary capability labels",
         "AionUI-native capabilities reclassified as OPL Flow managed",
         "a second OPL Flow updater or scheduler",
+        "KimiCU classified as a manual or third-party capability",
         "silent mutation of manual or third-party Skills and Plugins",
         "voice input configuration on Preferences or Advanced",
         "the manual skill directory labeled as total local or OPL capability readiness",
@@ -3639,10 +3673,11 @@
       "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.capabilities",
       "required_dom": {
         "always": [
-          "settings-page-capabilities",
-          "settings-capabilities-primary",
-          "settings-capabilities-opl-flow-managed",
-          "settings-capabilities-third-party",
+        "settings-page-capabilities",
+        "settings-capabilities-primary",
+        "settings-capabilities-opl-flow-managed",
+        "settings-capabilities-opl-managed-companion",
+        "settings-capabilities-third-party",
           "settings-capabilities-voice-input"
         ],
         "conditional": [
@@ -3654,10 +3689,12 @@
       },
       "required_anchors": [
         "opl-flow-managed",
+        "opl-managed-companion",
         "third-party"
       ],
       "search_entry_ids": [
         "capabilities.opl_flow_managed",
+        "capabilities.opl_managed_companion",
         "capabilities.third_party"
       ],
       "primary_action_id": "add_capability",

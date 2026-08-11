@@ -14,6 +14,49 @@
         "tarball_url": "https://registry.npmjs.org/@openai/codex/-/codex-0.144.5-darwin-arm64.tgz",
         "tarball_sha256": "2931f22a00e1b52a95416a97db0be3beeb4020924f04eab0d3313f02d0400343"
       }
+    },
+    "kimi_cu": {
+      "provider_id": "kimi-cu",
+      "product_name": "KimiCU",
+      "version": "0.5.4",
+      "archive_url": "https://cdn.kimi.com/kimi-computer-use/0.5.4/KimiCU.app.zip",
+      "archive_sha256": "77a7515cf7fd4b7bfa46a95eab0dff7378d00a2c5003bcf7ad93f17667e2808e",
+      "archive_size_bytes": 1498360,
+      "license_spdx": "MIT",
+      "redistribution_allowed": true,
+      "platform": {
+        "os": "macos",
+        "minimum_version": "14.0",
+        "architectures": ["arm64"]
+      },
+      "bundle": {
+        "bundle_id": "ai.kimi.cu",
+        "team_id": "2J9472RW75",
+        "signing": "developer_id",
+        "notarization": "accepted",
+        "target_install_path": "/Applications/KimiCU.app",
+        "executable": "/Applications/KimiCU.app/Contents/MacOS/kimi-cu"
+      },
+      "mcp": {
+        "args": ["mcp"],
+        "required_tools": [
+          "list_apps",
+          "get_app_state",
+          "click",
+          "type_text",
+          "press_key",
+          "scroll",
+          "set_value",
+          "perform_secondary_action",
+          "select_text",
+          "drag"
+        ]
+      },
+      "health": {
+        "service_status_args": ["service-status"],
+        "xpc_ping_args": ["xpc-ping"],
+        "mcp_handshake": ["initialize", "tools/list"]
+      }
     }
   },
   "release_boundary": {

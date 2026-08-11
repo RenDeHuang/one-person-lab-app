@@ -3,6 +3,74 @@
   "owner": "one-person-lab-app",
   "purpose": "app_owned_gui_product_contract",
   "state": "active",
+  "computer_use_policy": {
+    "schema": "opl_app_computer_use_policy.v1",
+    "product_status": "default_managed_capability",
+    "platform_scope": ["macos-arm64", "macos>=14.0"],
+    "desktop_provider": {
+      "provider_id": "kimi-cu",
+      "display_name": "Computer Use",
+      "lifecycle_class": "opl_managed_bundled_companion",
+      "provider_identity_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
+      "lifecycle_owner": "one-person-lab",
+      "app_role": "default_policy_projection_and_user_experience",
+      "managed_install_path": "/Applications/KimiCU.app",
+      "mcp_server_id": "kimi-cu",
+      "mcp_command": "/Applications/KimiCU.app/Contents/MacOS/kimi-cu",
+      "mcp_args": ["mcp"],
+      "managed_codex_home_registration": true,
+      "default_install": true,
+      "default_register": true,
+      "default_enabled": true,
+      "permission_model": {
+        "required_permissions": ["accessibility", "screen_recording"],
+        "system_prompt_or_settings_action_required": true,
+        "permission_can_be_bypassed_or_fabricated": false,
+        "permission_missing_state": {
+          "installed": true,
+          "registered": true,
+          "enabled": true,
+          "permission": "required",
+          "ready": false
+        },
+        "permission_granted_state": {
+          "installed": true,
+          "registered": true,
+          "enabled": true,
+          "permission": "granted",
+          "ready": true
+        }
+      }
+    },
+    "distribution_parity": {
+      "standard_materialization": "download_exact_pinned_archive_during_managed_install",
+      "full_materialization": "materialize_exact_same_archive_from_bundled_offline_seed",
+      "same_provider_identity_required": true,
+      "same_target_path_required": true,
+      "same_mcp_registration_required": true,
+      "same_default_enabled_state_required": true,
+      "same_permission_and_readiness_model_required": true,
+      "full_second_provider_or_behavior_allowed": false,
+      "network_available_post_install_behavior_difference_allowed": false
+    },
+    "browser_provider": {
+      "provider_id": "playwright-mcp",
+      "delivery_status": "next_implementation_slice",
+      "default_enabled_target": true,
+      "primary_role": "structured_repeatable_browser_automation",
+      "existing_chrome_session_followup": "kimi_webbridge_or_cdp_after_separate_validation",
+      "desktop_visual_fallback_provider": "kimi-cu",
+      "codex_chrome_extension_required": false
+    },
+    "authority_boundary": {
+      "codex_app_dependency_required": false,
+      "chatgpt_app_dependency_required": false,
+      "second_agent_loop_or_session_store_allowed": false,
+      "app_owned_desktop_automation_engine_allowed": false,
+      "manual_and_third_party_explicit_mutation_policy_applies": false,
+      "deterministic_release_evidence_still_required": true
+    }
+  },
   "ui_experience_contract": {
     "schema": "opl_app_ui_experience.v1",
     "authority": "one-person-lab-app",
@@ -6561,6 +6629,7 @@
       "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
       "sections": [
         "opl_flow_managed",
+        "opl_managed_companion",
         "manual_and_third_party",
         "local_tools_and_voice",
         "details"
@@ -6577,6 +6646,7 @@
         "surface_label_en": "Capabilities",
         "tab_order": [
           "opl_flow_managed",
+          "opl_managed_companion",
           "manual_and_third_party"
         ],
         "default_tab": "opl_flow_managed",
@@ -6584,12 +6654,17 @@
       },
       "group_policy": {
         "opl_flow_managed": "derive membership from the OPL Base typed Flow dependency catalog and keep reconciliation owned by OPL Packages",
+        "opl_managed_companion": "show OPL-owned default companions from Framework managed companion projection; install, register, enable, repair, and permission actions remain owner-projected",
         "manual_and_third_party": "show local built-in, user-managed, third-party, and AionUI-native capabilities with detected owner and product-profile display names; mutate only after explicit user action"
       },
       "group_labels": {
         "opl_flow_managed": {
           "label_zh": "OPL Flow 推荐",
           "label_en": "Recommended by OPL Flow"
+        },
+        "opl_managed_companion": {
+          "label_zh": "OPL 托管",
+          "label_en": "Managed by OPL"
         },
         "manual_and_third_party": {
           "label_zh": "手工添加",
@@ -6702,6 +6777,7 @@
       "capability_list_presentation_ref": "ui_experience_contract.capability_directory",
       "must_show": [
         "OPL Flow managed and recommended Skills and Plugins from package dependency closure",
+        "OPL-managed default companions with installed, registered, enabled, permission, ready, version, and owner-projected action status",
         "manual and third-party Skills and Plugins from Codex and shell registries",
         "AionUI-native Skills, Plugins, MCP helpers, image generation, and voice input inside local or third-party ownership instead of OPL Flow",
         "product-profile display names instead of raw provider ids as primary labels",
@@ -6717,6 +6793,7 @@
         "raw provider ids as primary capability labels",
         "AionUI-native capabilities reclassified as OPL Flow managed",
         "a second OPL Flow updater or scheduler",
+        "KimiCU classified as a manual or third-party capability",
         "silent mutation of manual or third-party Skills and Plugins",
         "voice input configuration on Preferences or Advanced",
         "raw English trigger instructions as the primary description in a Chinese capability row"

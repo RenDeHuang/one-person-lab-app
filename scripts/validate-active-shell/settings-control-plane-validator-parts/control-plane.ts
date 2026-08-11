@@ -417,6 +417,13 @@ export function validateSettingsControlPlane(
       "derive_from_typed_opl_base_flow_dependencies_never_from_app_hardcoded_skill_list" ||
     capabilityOwnership?.groups?.opl_flow_managed?.lifecycle_owner !== "opl_packages" ||
     capabilityOwnership?.groups?.opl_flow_managed?.cli_currentness_owner !== "opl_base" ||
+    capabilityOwnership?.groups?.opl_managed_companion?.source !== "framework_managed_companion_projection" ||
+    capabilityOwnership?.groups?.opl_managed_companion?.source_ref !==
+      "opl app state --profile fast --json#app_state.managed_companions[]" ||
+    capabilityOwnership?.groups?.opl_managed_companion?.lifecycle_owner !== "one-person-lab" ||
+    capabilityOwnership?.groups?.opl_managed_companion?.mutation_policy !==
+      "owner_projected_action_route_with_explicit_permission_action_when_system_tcc_is_required" ||
+    capabilityOwnership?.groups?.opl_managed_companion?.manual_and_third_party_policy_applies !== false ||
     capabilityOwnership?.groups?.manual_and_third_party?.source !==
       "codex_and_shell_skill_plugin_registries_plus_aionui_mcp_image_voice_configuration" ||
     capabilityOwnership?.groups?.manual_and_third_party?.label_zh !== "手工添加" ||
@@ -427,7 +434,7 @@ export function validateSettingsControlPlane(
       "keep_AionUI_native_skills_tools_assistants_MCP_helpers_image_controls_and_voice_input_controls_in_local_or_third_party_ownership_never_OPL_Flow_managed" ||
     capabilityOwnership?.groups?.manual_and_third_party?.mutation_policy !== "explicit_user_action_only"
   ) {
-    throw new Error("Settings Capabilities must separate OPL Flow dependency closure from manual and third-party Skills/Plugins");
+    throw new Error("Settings Capabilities must separate OPL Flow, OPL-managed companions, and manual/third-party capabilities");
   }
   assertDeepEqualJson(
     externalUpdates?.modes,

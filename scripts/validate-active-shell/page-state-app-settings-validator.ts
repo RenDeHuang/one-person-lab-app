@@ -165,6 +165,10 @@ function validateCapabilitiesPage(matrix, guiContract) {
     !capabilitiesPage.must_show?.includes(
       'AionUI-native Skills, Plugins, MCP helpers, image generation, and voice input inside local or third-party ownership instead of OPL Flow',
     ) ||
+    !capabilitiesPage.must_show?.includes(
+      'OPL-managed default companions with installed, registered, enabled, permission, ready, version, and owner-projected action status',
+    ) ||
+    !capabilitiesPage.must_not_show?.includes('KimiCU classified as a manual or third-party capability') ||
     !capabilitiesPage.must_not_show?.includes('silent mutation of manual or third-party Skills and Plugins') ||
     !capabilitiesPage.must_not_show?.includes('voice input configuration on Preferences or Advanced')
   ) {

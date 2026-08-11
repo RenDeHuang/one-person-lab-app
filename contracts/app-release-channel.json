@@ -4,6 +4,48 @@
   "purpose": "release_channel_contract",
   "state": "active",
   "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
+  "computer_use_distribution": {
+    "schema": "opl_app_computer_use_distribution.v1",
+    "product_policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy",
+    "qualification_identity_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
+    "full_seed_manifest_ref": "contracts/app-full-third-party-source-manifest.json#runtime_payloads.kimi_cu",
+    "provider_id": "kimi-cu",
+    "default_install": true,
+    "default_register": true,
+    "default_enabled": true,
+    "standard": {
+      "payload_density": "standard",
+      "source": "pinned_vendor_archive_download",
+      "network_required_for_first_materialization": true,
+      "target_path": "/Applications/KimiCU.app"
+    },
+    "full": {
+      "payload_density": "full",
+      "source": "bundled_exact_vendor_archive_seed",
+      "network_required_for_first_materialization": false,
+      "target_path": "/Applications/KimiCU.app"
+    },
+    "post_install_parity": {
+      "same_version": true,
+      "same_archive_sha256": true,
+      "same_bundle_id": true,
+      "same_signing_team_id": true,
+      "same_target_path": true,
+      "same_mcp_command_and_args": true,
+      "same_default_enabled_state": true,
+      "same_required_tool_set": true,
+      "same_permission_and_health_readback": true,
+      "full_second_manifest_or_provider_allowed": false
+    },
+    "release_qualification": {
+      "standard_clean_vm_requires_network_materialization": true,
+      "full_clean_vm_requires_offline_materialization": true,
+      "both_require_mcp_initialize_and_tools_list": true,
+      "both_require_identity_and_state_readback": true,
+      "permission_prompt_completion_may_be_manual": true,
+      "permission_not_granted_expected_state": "installed_registered_enabled_permission_required_not_ready"
+    }
+  },
   "distribution_semantics": {
     "schema": "opl_app_distribution_semantics.v1",
     "human_ssot": "docs/delivery/distribution-and-install-ssot.md",
@@ -5014,9 +5056,10 @@
     },
     "ai_exploratory_policy": {
       "codex_app": "non_blocking_exploratory_only",
-      "computer_use": "non_blocking_exploratory_only",
+      "computer_use_product_capability": "default_managed_and_release_qualified",
+      "computer_use_as_ai_release_reviewer": "non_blocking_exploratory_only",
       "release_blocking_requirement": "findings_must_be_promoted_to_deterministic_contract_workflow_or_script_gate",
-      "rule": "AI-assisted exploratory UI checks can discover issues but cannot block or clear release readiness without a deterministic gate."
+      "rule": "Computer Use installation, registration, enablement, MCP handshake, tools, permissions state, and health are deterministic product qualification surfaces. AI-assisted use of those tools to review arbitrary UI remains exploratory and cannot block or clear release readiness without a deterministic gate."
     }
   },
   "release_validation_profiles": {

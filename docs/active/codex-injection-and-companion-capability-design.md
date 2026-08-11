@@ -17,6 +17,19 @@ The App separates four concerns that must not be collapsed into one list:
 
 Being packaged does not make a capability default-visible.
 
+Computer Use is the explicit exception because it is now a product default,
+not a user-added third-party capability. KimiCU is an OPL-managed bundled
+companion: Standard downloads the pinned archive, Full carries the same archive
+as an offline seed, and both install/register/enable the same MCP provider by
+default. Full may not define a second provider, version, registry, tool schema,
+or behavior. See
+[`../product/gui/computer-use.md`](../product/gui/computer-use.md).
+
+This exception does not weaken the boundary for arbitrary user-installed MCP
+servers or external tools. It only reclassifies the pinned KimiCU dependency
+from `manual_and_third_party` to `opl_managed_companion`. macOS Accessibility
+and Screen Recording remain real TCC permissions and cannot be silently granted.
+
 ## Codex Configuration Ownership
 
 - A missing Codex config receives the current OPL provider, model, reasoning effort, and submitted Gateway credential.

@@ -984,7 +984,7 @@ export const appOwnedSettingsPageAnchors = {
     "additional-instructions",
   ],
   agents: ["catalog", "package-role", "availability", "source", "home-visibility"],
-  capabilities: ["opl-flow-managed", "third-party"],
+  capabilities: ["opl-flow-managed", "opl-managed-companion", "third-party"],
   resources: [
     "local-browser-access",
     "web-access",
@@ -1034,6 +1034,7 @@ export const appOwnedSettingsPageSearchEntryIds = {
   ],
   capabilities: [
     "capabilities.opl_flow_managed",
+    "capabilities.opl_managed_companion",
     "capabilities.third_party",
   ],
   resources: [
@@ -1075,7 +1076,7 @@ export const appOwnedSettingsPageSearchEntryIds = {
 export const appOwnedSettingsCapabilitiesTabContract = {
   surface_label_zh: "能力",
   surface_label_en: "Capabilities",
-  tab_order: ["opl_flow_managed", "manual_and_third_party"],
+  tab_order: ["opl_flow_managed", "opl_managed_companion", "manual_and_third_party"],
   default_tab: "opl_flow_managed",
   on_demand_tab_ids: [],
 };

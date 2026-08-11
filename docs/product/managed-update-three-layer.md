@@ -18,6 +18,16 @@ OPL App presents one consistent maintenance experience while delegating each
 software object's mechanics to its existing platform. “Unified management”
 means one UI and one aggregate status, not one custom package manager.
 
+KimiCU belongs to the OPL-managed companion class. Framework is its sole
+materializer and lifecycle owner: it consumes the pinned identity, installs or
+repairs `/Applications/KimiCU.app`, registers the OPL-managed MCP entry, and
+projects permission/health state. App and Shell do not run a separate updater
+or carry a provider list. Standard uses network materialization and Full uses
+the exact bundled seed, but both join the same installed generation and update
+path. A user disable/uninstall is a reversible explicit override and remains in
+force until explicit re-enable/reinstall. See
+[`gui/computer-use.md`](gui/computer-use.md).
+
 Package, carrier, and executor are separate concerns:
 
 ```text

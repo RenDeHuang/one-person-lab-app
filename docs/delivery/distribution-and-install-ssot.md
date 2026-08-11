@@ -22,6 +22,23 @@ Desktop Stable 的 follower，也不参与 Desktop GitHub Release 的资产集�
 
 Linux、Windows 和 Full 不创建 optional、adjunct 或独立 Release/tag。追加操作必须对
 同名资产执行 digest CAS：缺失则上传，同名同 digest 视为幂等，同名不同 digest 失败关闭。
+
+## Computer Use 分发一致性
+
+macOS arm64 Standard 与 Full 都默认安装、注册并启用 KimiCU。Standard 在首次
+managed installation 中下载并校验固定归档；Full 把完全相同的归档作为离线 seed
+放入安装包。因此 Full 的差异只有约 `1.43 MiB` 的压缩 seed 和离线可用性，不是
+另一个 Computer Use 产品或运行路径。
+
+两种载体完成安装后必须具有相同的 KimiCU `0.5.4`、归档 SHA-256、Bundle ID、
+Team ID、`/Applications/KimiCU.app` 路径、MCP command/args、默认 enablement、
+工具集与 TCC 状态模型。Standard 网络故障只降级 Computer Use 并提供重试，不阻塞
+普通 OPL/Codex；Full 的 clean VM 必须证明不联网也能 materialize。权限提示可由用户
+完成，但未授权时只能记录 `permission_required + ready=false`。
+
+机器真值在 `contracts/app-release-channel.json#computer_use_distribution` 和
+`contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu`；
+人读设计与落地计划见 [`../product/gui/computer-use.md`](../product/gui/computer-use.md)。
 这些追加不得改写主 macOS 资产、release body、updater identity 或 Latest。
 
 不再发布独立 Native WebUI tarball、WebUI qualification tarball、`install-web.sh`，也不再

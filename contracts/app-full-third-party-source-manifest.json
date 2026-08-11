@@ -29,6 +29,13 @@
     "ui_ux_pro_max": {
       "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
       "ref": "f8ac5e1266dba8354ea96e19994d9f4345e7ec31"
+    },
+    "kimi_cu": {
+      "product": "KimiCU",
+      "version": "0.5.4",
+      "source": "https://cdn.kimi.com/kimi-computer-use/0.5.4/KimiCU.app.zip",
+      "license_spdx": "MIT",
+      "distribution_role": "offline_seed_for_the_same_managed_dependency_used_by_standard"
     }
   },
   "toolchain": {
@@ -70,6 +77,14 @@
     "officecli": {
       "version": "1.0.141",
       "darwin_arm64_asset_sha256": "a9639df060513d73b125849e4c630383f7a80f70e61911ef486dd24ec2208e37"
+    },
+    "kimi_cu": {
+      "version": "0.5.4",
+      "archive_sha256": "77a7515cf7fd4b7bfa46a95eab0dff7378d00a2c5003bcf7ad93f17667e2808e",
+      "archive_size_bytes": 1498360,
+      "qualification_input_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
+      "materialization_role": "full_offline_seed_only",
+      "target_install_path": "/Applications/KimiCU.app"
     }
   },
   "authority_boundary": {
@@ -78,6 +93,8 @@
     "full_toolchain_observation_receipt_required": true,
     "manifest_is_dependency_authority": false,
     "source_versions_are_default_selection_hints": true,
+    "kimi_cu_is_the_same_managed_dependency_as_standard": true,
+    "kimi_cu_full_seed_may_define_second_provider_or_behavior": false,
     "credential_values_may_be_bundled": false,
     "unknown_user_or_third_party_mcp_may_be_removed": false
   }

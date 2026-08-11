@@ -20,6 +20,15 @@ x64 use their own same-tag Desktop assets. Docker WebUI has independent versions
 and GHCR pointers; it does not inherit version, qualification, or update state
 from Desktop Stable.
 
+On macOS arm64, both Standard and Full install, register, and enable the same
+KimiCU Computer Use provider by default. Standard downloads the pinned archive
+during managed setup; Full includes that exact archive as an offline seed. With
+network available and installation complete, their Computer Use version, path,
+MCP tools, permissions, and behavior are identical. Full adds offline density,
+not a second provider. macOS still requires the user to grant Accessibility and
+Screen Recording; before that, Computer Use reports permission required while
+the rest of OPL remains usable.
+
 ## Current Stable Desktop Release Set
 
 Each Stable version has one GitHub Release and one `v<version>` tag. The same

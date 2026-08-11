@@ -118,7 +118,15 @@ node --experimental-strip-types scripts/collect-release-evidence.ts --bundle-dir
 node --experimental-strip-types scripts/prepare-release-assets.ts build-artifacts release-assets
 node --experimental-strip-types scripts/validate-release.ts release-assets
 npm run hygiene:fallow -- --format json --summary
+node --experimental-strip-types --test tests/release/computer-use-distribution-contract.test.ts
 ```
+
+Computer Use focused test checks the pinned KimiCU identity, Standard network
+materialization versus Full exact offline seed, identical installed MCP/tools,
+default install/register/enable state, and truthful TCC permission states. It is
+contract evidence only. Release qualification still requires Standard and Full
+clean-VM materialization plus installed service/XPC/MCP readback; arbitrary AI
+use of Computer Use to review UI remains exploratory.
 
 The App page-state matrix is declared in
 `contracts/app-page-state-matrix.json`. The first-run matrix is declared in
@@ -280,6 +288,8 @@ prove App release readiness, Stable/latest promotion, Full clean-machine
 installability, domain readiness, or family production readiness.
 
 Deterministic VM automation is an optional post-publication installed-App
-certification lane. Codex App, Computer Use, and Codex CLI AI self-checks are
-diagnostic or exploratory until their findings are converted into contract,
-workflow, VM, Playwright, shell, or release-boundary tests.
+certification lane. Codex App review and AI-assisted Computer Use UI review are
+diagnostic or exploratory. Computer Use installation, registration, enablement,
+MCP handshake, tool schema, TCC state, and health remain deterministic product
+qualification and must be represented by contract, workflow, VM, Playwright,
+shell, or release-boundary tests.

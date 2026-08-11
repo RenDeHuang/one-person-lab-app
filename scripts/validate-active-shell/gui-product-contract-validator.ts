@@ -1061,6 +1061,11 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     ['skill', 'plugin', 'mcp_server', 'image_generation', 'voice_input'],
     'App GUI Settings Capabilities entity kinds',
   );
+  if (!pages.settings_capabilities.must_show?.includes(
+    'OPL-managed default companions with installed, registered, enabled, permission, ready, version, and owner-projected action status',
+  ) || !pages.settings_capabilities.must_not_show?.includes('KimiCU classified as a manual or third-party capability')) {
+    throw new Error('App GUI Settings Capabilities must expose managed companions separately from manual and third-party capabilities');
+  }
   if (
     pages.settings_capabilities.local_capability_configuration_source !==
       'AionUI local configuration#MCP servers + image generation + voice input' ||

@@ -14,6 +14,16 @@ Hermes full candidate command execution additionally requires
 `--manual-reference-replay` and an actual development need. AGUI selection
 should happen only when AGUI replay is explicitly requested.
 
+Computer Use 当前的 focused contract gate 是：
+
+```bash
+node --experimental-strip-types --test tests/release/computer-use-distribution-contract.test.ts
+```
+
+它验证 KimiCU 唯一 identity、Standard/Full materialization parity、默认 enablement、
+TCC 状态和 deterministic product qualification 边界。它不安装 KimiCU，也不替代
+未来 Framework materializer、Shell user path 或 clean-VM readback。
+
 | Script | Purpose |
 | --- | --- |
 | `ensure-active-shell.ts` | Clones or validates the selected external shell checkout, defaulting to `shells/aionui`. |
@@ -419,9 +429,11 @@ tarballs, diagnostics, and receipts remain Actions artifacts. Run
 `npm run validate:release-boundary` after any cache-step change; the validator
 parses every workflow and rejects volatile cache identity or an explicit save
 without a miss/forced-rebuild guard.
-Codex App and Computer Use checks are non-blocking exploratory tools;
-release-blocking App readiness must live in deterministic scripts, contracts,
-or GitHub Actions gates.
+Codex App review and AI-assisted Computer Use UI review are non-blocking
+exploratory tools. Computer Use installation, registration, enablement, MCP
+handshake, tool schema, TCC state, and health are deterministic product
+qualification surfaces and must live in contracts, scripts, VM checks, or
+GitHub Actions gates.
 The App VM wrapper exposes
 `diagnostic_scope=release_gate|post_publication_optional_certification|bootstrap_only`.
 `post_publication_optional_certification` is an independent, non-blocking

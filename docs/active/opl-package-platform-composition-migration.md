@@ -22,6 +22,13 @@ OPL Package     ~= R Package
 OPL standard agent = OPL Package(kind=agent)
 ```
 
+Computer Use 不进入 Package identity 或 Agent task 清单。它是 Framework 管理的
+平台 companion：App 定义默认策略，Framework 使用唯一 build lock 负责下载/seed、
+安装、修复、MCP 注册和状态投影，Codex app-server/CLI 继续是唯一会话与模型控制面。
+Standard 与 Full 共享同一个 KimiCU identity；Full 只增加离线 seed，不得形成第二个
+capability catalog、provider authority 或 session store。完整边界见
+[`../product/gui/computer-use.md`](../product/gui/computer-use.md)。
+
 统一的是产品入口、Package identity 和聚合体验，不是中央 Package Manager。
 Package、carrier、executor 和 publication 是四个正交角色：
 

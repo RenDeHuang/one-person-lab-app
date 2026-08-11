@@ -41,6 +41,27 @@ promoted into release-ready or family production-ready proof.
 
 ## Current State
 
+### Computer Use Implementation Ledger
+
+KimiCU `0.5.4` is the default macOS arm64 Desktop Computer Use provider. The
+App product/distribution contracts, pinned identity, Standard/Full parity,
+Settings model, first-run qualification, human SSOT, validators, and focused
+release-boundary tests are aligned. Runtime delivery remains ACTIVE across
+owner repositories:
+
+| Axis | Current state | Owner / terminal evidence |
+| --- | --- | --- |
+| Contract and product SSOT | `aligned_contract` | App contracts plus `docs/product/gui/computer-use.md` |
+| Framework materializer and state/actions | `implementation_active` | Framework source/tests and fresh `opl app state/action` readback |
+| AionUI status and TCC UX | `implementation_active` | Shell source/DOM tests consuming Framework projection |
+| Standard online / Full offline materialization | `implementation_active` | App/Framework packaging tests, then clean-VM parity |
+| Browser provider | `planned_after_desktop_path` | Playwright MCP structured path; KimiCU visual fallback |
+| Installed / Release | `unverified` | Exact packaged bytes, TCC state, MCP tools, clean VM and release evidence |
+
+Source or contract completion must not be promoted into installed or release
+readiness. Dynamic lane owner, worktree, checkpoint, and next-action truth stays
+in the fresh OPL Flow worktree lifecycle ledger rather than this status file.
+
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.
 - Active shell: `aionui`.

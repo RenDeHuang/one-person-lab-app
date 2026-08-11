@@ -5,6 +5,54 @@
   "state": "active",
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
+  "computer_use_qualification": {
+    "schema": "opl_first_run_computer_use_qualification.v1",
+    "product_policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy",
+    "distribution_ref": "contracts/app-release-channel.json#computer_use_distribution",
+    "provider_identity_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
+    "provider_id": "kimi-cu",
+    "applies_to": ["standard", "full"],
+    "default_expectation": {
+      "installed": true,
+      "registered": true,
+      "enabled": true
+    },
+    "materialization": {
+      "standard": "download_and_verify_exact_archive",
+      "full": "materialize_and_verify_exact_bundled_seed"
+    },
+    "required_identity_readback": [
+      "version=0.5.4",
+      "bundle_id=ai.kimi.cu",
+      "team_id=2J9472RW75",
+      "target_path=/Applications/KimiCU.app"
+    ],
+    "required_runtime_readback": [
+      "service-status",
+      "xpc-ping",
+      "initialize",
+      "tools/list"
+    ],
+    "required_permission_states": [
+      "installed_registered_enabled_permission_required_not_ready",
+      "installed_registered_enabled_permission_granted_ready"
+    ],
+    "standard_full_parity_fields": [
+      "provider_id",
+      "version",
+      "bundle_id",
+      "team_id",
+      "target_path",
+      "mcp_command",
+      "mcp_args",
+      "enabled",
+      "required_tools",
+      "permission",
+      "ready"
+    ],
+    "full_second_manifest_or_provider_allowed": false,
+    "computer_use_missing_permission_blocks_app_or_plain_codex_use": false
+  },
   "provider_configuration_qualification": {
     "release_contract_ref": "contracts/app-release-channel.json#provider_configuration_boundary",
     "default_user_authentication": "opl_gateway_account_password",
@@ -1040,6 +1088,19 @@
         "macOS Command Line Tools are requested through the system installer",
         "user confirmation happens in Apple's installer",
         "Core ready is not blocked while CLT installation is pending"
+      ]
+    },
+    {
+      "id": "managed_computer_use_standard_full_parity",
+      "package_type": "standard_or_full",
+      "provider_id": "kimi-cu",
+      "expects": [
+        "Standard downloads and verifies the pinned KimiCU archive while Full materializes the exact same archive from its offline seed",
+        "both carriers install the same version, Bundle ID, signing Team ID, target path, MCP command, MCP args, and required tool set",
+        "both carriers register and enable KimiCU by default in the OPL-managed Codex configuration",
+        "missing Accessibility or Screen Recording permission reports installed, registered, and enabled with permission_required and ready=false",
+        "granted permissions plus service, XPC, MCP initialize, and tools/list health report ready=true",
+        "Full does not own a second Computer Use provider list, version list, MCP registration, or behavior"
       ]
     },
     {

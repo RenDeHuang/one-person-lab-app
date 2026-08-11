@@ -18,6 +18,13 @@ macOS arm64 同时公开 Standard 与 Full；Linux x64 和 Windows x64 使用各
 Desktop 资产。Docker WebUI 使用独立版本和 GHCR 指针，不从 Desktop Stable 继承版本、
 资格或更新状态。
 
+在 macOS arm64 上，Standard 与 Full 都会默认安装、注册并启用同一个 KimiCU
+Computer Use provider。Standard 在托管安装过程中下载固定归档；Full 随包携带完全
+相同的归档作为离线 seed。网络正常且安装完成后，两者的 Computer Use 版本、路径、
+MCP 工具、权限模型与行为完全一致；Full 只增加离线密度，不增加第二套 provider。
+macOS 仍要求用户授予 Accessibility 和 Screen Recording，授权前只影响 Computer
+Use readiness，不影响普通 OPL/Codex 使用。
+
 ## 当前 Stable Desktop Release Set
 
 每个 Stable 版本只有一个 GitHub Release 和一个 `v<version>` tag。同一 tag 可以包含：

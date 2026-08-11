@@ -9,6 +9,34 @@
   "product_profile_projection_target": "settings.control_plane",
   "active_shell": "aionui",
   "shell_adapter_role": "render_host_and_route_adapter_only",
+  "managed_computer_use": {
+    "schema": "opl_managed_computer_use_settings.v1",
+    "product_policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy",
+    "provider_identity_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
+    "route_id": "capabilities",
+    "group_id": "opl_managed_companion",
+    "source": "framework_managed_companion_projection",
+    "lifecycle_owner": "one-person-lab",
+    "app_role": "render_status_and_execute_framework_projected_actions",
+    "default_install": true,
+    "default_enabled": true,
+    "required_actions": [
+      "request_permissions",
+      "recheck",
+      "repair",
+      "reinstall"
+    ],
+    "action_source": "opl app state --profile fast --json projected action catalog",
+    "action_route": "opl app action execute --action <projected_action_id> --json",
+    "manual_and_third_party_mutation_rule_applies": false,
+    "user_disable_or_uninstall": "explicit_reversible_override_preserved_until_explicit_reenable_or_reinstall",
+    "must_not_own": [
+      "provider_binary_implementation",
+      "desktop_input_or_screenshot_engine",
+      "mcp_tool_schema",
+      "second_dependency_or_version_catalog"
+    ]
+  },
   "agents_capabilities_ownership": {
     "agents": {
       "route_id": "agents",
@@ -53,6 +81,17 @@
           "flow_role": "dependency_and_profile_intent_only_not_a_second_updater",
           "cli_currentness_owner": "opl_base"
         },
+        "opl_managed_companion": {
+          "label_zh": "OPL 托管",
+          "label_en": "Managed by OPL",
+          "source": "framework_managed_companion_projection",
+          "source_ref": "opl app state --profile fast --json#app_state.managed_companions[]",
+          "membership_policy": "derive_from_framework_managed_companion_projection_never_from_manual_registry_or_app_hardcoded_provider_list",
+          "lifecycle_owner": "one-person-lab",
+          "mutation_policy": "owner_projected_action_route_with_explicit_permission_action_when_system_tcc_is_required",
+          "default_capability_policy": "installed_registered_enabled_by_default_ready_after_permission_and_health",
+          "manual_and_third_party_policy_applies": false
+        },
         "manual_and_third_party": {
           "label_zh": "手工添加",
           "label_en": "Manually added",
@@ -68,6 +107,7 @@
         "runnable_agent_package_lifecycle",
         "independent_flow_update_scheduler",
         "cli_latest_version_resolution",
+        "provider_binary_implementation",
         "silent_third_party_mutation"
       ]
     },
@@ -1631,6 +1671,7 @@
         "ownership_ref": "contracts/app-settings-control-plane.json#agents_capabilities_ownership.capabilities",
         "groups": [
           "opl_flow_managed",
+          "opl_managed_companion",
           "manual_and_third_party"
         ],
         "entity_kinds": [
@@ -2564,10 +2605,10 @@
             "scope": "user",
             "owner": "one-person-lab-app",
             "risk": "reversible",
-            "normal_summary": "Capabilities groups OPL Flow managed and local Skills or Plugins by canonical owner without duplicating Agent package or Home shortcut lifecycle.",
+            "normal_summary": "Capabilities groups OPL Flow, OPL-managed companions, and local Skills or Plugins by canonical owner without duplicating Agent package or Home shortcut lifecycle.",
             "next_action": "open capability details or Maintenance for owner-routed updates and repairs",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_capabilities",
-            "editable_reason": "manual and third-party capability mutations require explicit user action while OPL Flow reconciliation remains package-owned",
+            "editable_reason": "manual and third-party capability mutations require explicit user action; OPL Flow remains package-owned and OPL-managed companions follow owner-projected default lifecycle and permission actions",
             "surface_class": "status",
             "item_id": "capability_directory"
           }
@@ -3331,12 +3372,14 @@
         "label_en": "Capabilities",
         "primary_information": [
           "OPL Flow managed and recommended Skills and Plugins derived from installed package dependency closure",
+          "OPL-managed Computer Use installed, registration, enablement, permission, readiness, and repair state",
           "manual and third-party Skills and Plugins from Codex and shell registries",
           "local MCP servers, image generation, and voice input configuration owned by Capabilities",
           "source, owner, currentness, and explicit lifecycle actions"
         ],
         "first_viewport_groups": [
           "opl_flow_managed",
+          "opl_managed_companion",
           "manual_and_third_party"
         ],
         "surface_inventory": {
@@ -3381,6 +3424,7 @@
           "surface_label_en": "Capabilities",
           "tab_order": [
             "opl_flow_managed",
+            "opl_managed_companion",
             "manual_and_third_party"
           ],
           "default_tab": "opl_flow_managed",
@@ -3399,6 +3443,7 @@
             "settings-page-capabilities",
             "settings-capabilities-primary",
             "settings-capabilities-opl-flow-managed",
+            "settings-capabilities-opl-managed-companion",
             "settings-capabilities-third-party",
             "settings-capabilities-voice-input"
           ],
@@ -3411,10 +3456,12 @@
         },
         "required_anchors": [
           "opl-flow-managed",
+          "opl-managed-companion",
           "third-party"
         ],
         "search_entry_ids": [
           "capabilities.opl_flow_managed",
+          "capabilities.opl_managed_companion",
           "capabilities.third_party"
         ]
       },
@@ -4755,6 +4802,15 @@
             "skill",
             "plugin"
           ]
+        },
+        {
+          "id": "capabilities.opl_managed_companion",
+          "page_id": "capabilities",
+          "anchor": "opl-managed-companion",
+          "label_zh": "OPL 托管",
+          "label_en": "Managed by OPL",
+          "keywords_zh": ["OPL 托管", "Computer Use", "桌面操作", "KimiCU", "权限"],
+          "keywords_en": ["managed by OPL", "computer use", "desktop automation", "KimiCU", "permission"]
         },
         {
           "id": "capabilities.third_party",
