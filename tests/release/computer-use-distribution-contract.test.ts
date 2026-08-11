@@ -172,6 +172,41 @@ test('Computer Use product qualification is deterministic while AI UI review rem
   assert.equal(distribution.release_qualification.permission_prompt_completion_may_be_manual, true);
 });
 
+test('next Stable release must qualify packaged Computer Use on both publication tracks', () => {
+  const gate = distribution.next_stable_release_gate;
+
+  assert.equal(gate.status, 'pending_next_stable_release');
+  assert.equal(gate.trigger, 'next_stable_release_candidate');
+  assert.deepEqual(gate.operation_binding, {
+    standard: {
+      operation: 'standard',
+      required_before: 'standard_stable_asset_publication',
+      materialization: 'networked_first_install_from_packaged_standard',
+    },
+    full: {
+      operation: 'append_full',
+      required_before: 'full_asset_append_publication',
+      materialization: 'offline_first_install_from_packaged_full_seed',
+    },
+  });
+  assert.deepEqual(gate.both_tracks_require, [
+    'packaged_clean_vm_first_run',
+    'kimi_cu_identity_service_xpc_tcc_mcp_initialize_and_tools_list',
+    'playwright_same_codex_registry_entry_mcp_initialize_tools_list_navigation_and_snapshot',
+    'same_cohort_gui_readback',
+  ]);
+  assert.deepEqual(gate.post_publication_readback_requires, [
+    'exact_public_asset_version',
+    'exact_public_asset_digest',
+    'public_asset_download',
+  ]);
+  assert.equal(gate.current_source_linked_host_evidence_may_substitute, false);
+  assert.equal(
+    gate.close_condition,
+    'standard_and_full_qualification_and_public_readback_are_bound_to_the_same_stable_cohort',
+  );
+});
+
 test('current source-linked host proves KimiCU effective without claiming packaged qualification', () => {
   const evidence = computerUseQualification.current_source_linked_host_evidence;
   assert.equal(evidence.status, 'passed');

@@ -63,10 +63,14 @@ release qualification remain independent:
 | Standard online / Full offline installed parity | `unverified` | Clean macOS hosts must prove identical installed identity, path, service, MCP tools, TCC state, and structured browser behavior from their packaged carriers |
 | Browser provider | `current_source_linked_host_complete_packaged_qualification_pending` | Existing Codex registry and real system Chrome are effective on the current source-linked host; KimiCU remains visual fallback only; packaged Standard/Full proof remains |
 | Packaged Install / Release | `unverified` | Packaged bytes, Standard/Full clean VM first run, same-cohort GUI path, signing/notarization, and public release evidence remain independent |
+| Next Stable Computer Use qualification | `pending_next_stable_release` | The next Stable candidate must qualify networked Standard before Standard asset publication and offline-seeded Full before `append_full` asset publication, then bind both tracks plus GUI and public asset readback to that Stable cohort |
 
 Source or contract completion must not be promoted into installed or release
 readiness. Dynamic lane owner, worktree, checkpoint, and next-action truth stays
 in the fresh OPL Flow worktree lifecycle ledger rather than this status file.
+This pending qualification is an event-triggered obligation for the next Stable
+release operation, not a resident executor or evidence that the current release
+is complete. Current source-linked host evidence cannot substitute for it.
 
 The Full packager now reads the KimiCU identity only from
 `contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu`,

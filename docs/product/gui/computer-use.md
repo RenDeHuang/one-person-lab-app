@@ -111,6 +111,7 @@ seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达任
 | CU4 Capabilities/TCC UX | `canonical_source_complete` | App + AionUI Shell | 专用状态行只消费 `managed_companions[]`，授权/复查/修复/重装按钮只调用 Framework projection actions，并在动作后执行 full readback |
 | CU5 Desktop qualification | `current_source_linked_host_complete_packaged_qualification_pending` | App + Framework + Release owner | 当前 source-linked 宿主已回读 KimiCU identity、service/XPC、TCC granted、MCP 10/10 tools，并真实执行 `list_apps` 与 Finder `get_app_state`；Standard/Full clean VM 与 release evidence 仍缺 |
 | CU6 Browser | `current_source_linked_host_complete_packaged_qualification_pending` | App + Framework + Shell | Codex registry 已从临时 worktree 切到 canonical Framework dependency；MCP 24/24 tools、system Chrome `browser_navigate`/`browser_snapshot` 和 Desktop 默认启动 `already_ready` 已通过；packaged Standard/Full qualification 仍缺 |
+| CU7 Next Stable release qualification | `pending_next_stable_release` | App Release owner | 下一次 Stable candidate 必须执行：Standard 在 Standard Stable 资产发布前完成联网 clean-VM 首装；Full 在 `append_full` 资产发布前完成离线 seed clean-VM 首装；两者须绑定同一 Stable cohort，并完成 KimiCU、Playwright、GUI 和公开资产回读 |
 
 当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
 materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller 和专用
@@ -124,6 +125,11 @@ Chrome `151.0.7922.77` 导航和 snapshot 均通过。带 Desktop host hint 的�
 这些证据只证明当前 source-linked 宿主已经有效可用，不证明 Standard/Full packaged
 install、clean-VM 首启、两种 carrier parity 或 public release readiness；剩余工作是
 packaged clean-VM qualification 和同 cohort 的 GUI/release readback，不能由本机结果替代。
+
+CU7 是下一次 Stable release operation 的事件触发门禁，不是常驻 executor，也不
+表示当前 release 已完成。只有同一 Stable cohort 的 Standard/Full packaged clean-VM
+证据，以及公开资产版本、摘要和下载回读全部闭合后，才能把它改为完成；当前
+source-linked 宿主证据不得替代这些结果。
 
 ## 机器合同与验证入口
 

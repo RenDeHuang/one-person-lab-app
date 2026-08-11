@@ -86,6 +86,35 @@
         "kimi_cu_visual_fallback_may_substitute_for_playwright_qualification": false,
         "installed_and_release_status": "unverified"
       }
+    },
+    "next_stable_release_gate": {
+      "status": "pending_next_stable_release",
+      "trigger": "next_stable_release_candidate",
+      "operation_binding": {
+        "standard": {
+          "operation": "standard",
+          "required_before": "standard_stable_asset_publication",
+          "materialization": "networked_first_install_from_packaged_standard"
+        },
+        "full": {
+          "operation": "append_full",
+          "required_before": "full_asset_append_publication",
+          "materialization": "offline_first_install_from_packaged_full_seed"
+        }
+      },
+      "both_tracks_require": [
+        "packaged_clean_vm_first_run",
+        "kimi_cu_identity_service_xpc_tcc_mcp_initialize_and_tools_list",
+        "playwright_same_codex_registry_entry_mcp_initialize_tools_list_navigation_and_snapshot",
+        "same_cohort_gui_readback"
+      ],
+      "post_publication_readback_requires": [
+        "exact_public_asset_version",
+        "exact_public_asset_digest",
+        "public_asset_download"
+      ],
+      "current_source_linked_host_evidence_may_substitute": false,
+      "close_condition": "standard_and_full_qualification_and_public_readback_are_bound_to_the_same_stable_cohort"
     }
   },
   "distribution_semantics": {
