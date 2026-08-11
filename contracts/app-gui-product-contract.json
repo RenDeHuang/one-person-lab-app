@@ -54,13 +54,55 @@
       "network_available_post_install_behavior_difference_allowed": false
     },
     "browser_provider": {
+      "schema": "opl_app_browser_provider_policy.v1",
       "provider_id": "playwright-mcp",
-      "delivery_status": "next_implementation_slice",
-      "default_enabled_target": true,
+      "display_name": "Playwright MCP",
+      "product_status": "default_structured_browser_provider",
+      "delivery_status": "app_contract_complete_runtime_implementation_pending",
+      "mcp_server_id": "playwright",
+      "upstream_package": "@playwright/mcp",
+      "upstream_implementation_owner": "microsoft/playwright-mcp",
+      "lifecycle_owner": "one-person-lab",
+      "app_role": "default_policy_and_standard_full_parity",
+      "registry_authority": "existing_codex_mcp_registry",
+      "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
+      "shell_role": "configured_codex_mcp_registry_consumer_only",
+      "default_register": true,
+      "default_enabled": true,
+      "default_structured_provider": true,
       "primary_role": "structured_repeatable_browser_automation",
-      "existing_chrome_session_followup": "kimi_webbridge_or_cdp_after_separate_validation",
-      "desktop_visual_fallback_provider": "kimi-cu",
-      "codex_chrome_extension_required": false
+      "structured_tasks": [
+        "dom_and_accessibility_tree_inspection",
+        "navigation_and_selector_actions",
+        "repeatable_browser_workflows",
+        "deterministic_browser_regression"
+      ],
+      "desktop_visual_fallback_provider_id": "kimi-cu",
+      "fallback_policy": "use_kimi_cu_only_for_visual_desktop_interaction_or_when_the_structured_browser_path_cannot_represent_the_task",
+      "existing_chrome_session_followup": {
+        "status": "separate_validation_required",
+        "candidate_paths": ["kimi_webbridge", "playwright_cdp"],
+        "must_not_create_second_default_browser_provider": true
+      },
+      "distribution_parity": {
+        "standard_registry_source": "existing_codex_mcp_registry",
+        "full_registry_source": "existing_codex_mcp_registry",
+        "same_provider_and_server_id_required": true,
+        "same_registry_writer_required": true,
+        "same_default_enabled_state_required": true,
+        "same_structured_behavior_required": true,
+        "full_additional_provider_engine_catalog_or_session_store_allowed": false
+      },
+      "authority_boundary": {
+        "codex_chrome_extension_required": false,
+        "app_owned_browser_engine_allowed": false,
+        "app_owned_browser_provider_catalog_allowed": false,
+        "second_mcp_registry_writer_allowed": false,
+        "browser_session_store_allowed": false,
+        "codex_thread_or_session_authority_transfer_allowed": false,
+        "shell_may_mutate_codex_mcp_registry": false,
+        "kimi_cu_visual_fallback_may_replace_structured_default": false
+      }
     },
     "authority_boundary": {
       "codex_app_dependency_required": false,

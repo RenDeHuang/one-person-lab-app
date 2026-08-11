@@ -25,6 +25,10 @@ const exposure = readJson('contracts/app-install-exposure-policy.json');
 const identity = identityManifest.runtime_payloads.kimi_cu;
 const provider = gui.computer_use_policy.desktop_provider;
 const distribution = release.computer_use_distribution;
+const browserPolicy = gui.computer_use_policy.browser_provider;
+const browserProfile = profile.computer_use.browser;
+const browserDistribution = distribution.browser_provider;
+const browserQualification = qualification.browser_provider_qualification;
 
 test('Computer Use has one pinned KimiCU identity across all App contracts', () => {
   assert.deepEqual(
@@ -165,4 +169,108 @@ test('Computer Use product qualification is deterministic while AI UI review rem
   assert.equal(distribution.release_qualification.both_require_permission_status_readback, true);
   assert.deepEqual(identity.health.permission_status_args, ['doctor']);
   assert.equal(distribution.release_qualification.permission_prompt_completion_may_be_manual, true);
+});
+
+test('Playwright MCP is the one default structured browser provider on the existing Codex registry', () => {
+  assert.deepEqual(
+    {
+      provider_id: browserPolicy.provider_id,
+      mcp_server_id: browserPolicy.mcp_server_id,
+      upstream_package: browserPolicy.upstream_package,
+      upstream_owner: browserPolicy.upstream_implementation_owner,
+      lifecycle_owner: browserPolicy.lifecycle_owner,
+      registry_authority: browserPolicy.registry_authority,
+      registry_writer_ref: browserPolicy.registry_writer_ref,
+      shell_role: browserPolicy.shell_role,
+      default_register: browserPolicy.default_register,
+      default_enabled: browserPolicy.default_enabled,
+      default_structured_provider: browserPolicy.default_structured_provider,
+      visual_fallback: browserPolicy.desktop_visual_fallback_provider_id,
+    },
+    {
+      provider_id: 'playwright-mcp',
+      mcp_server_id: 'playwright',
+      upstream_package: '@playwright/mcp',
+      upstream_owner: 'microsoft/playwright-mcp',
+      lifecycle_owner: 'one-person-lab',
+      registry_authority: 'existing_codex_mcp_registry',
+      registry_writer_ref: 'one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer',
+      shell_role: 'configured_codex_mcp_registry_consumer_only',
+      default_register: true,
+      default_enabled: true,
+      default_structured_provider: true,
+      visual_fallback: identity.provider_id,
+    },
+  );
+
+  assert.equal(browserProfile.policy_ref, 'contracts/app-gui-product-contract.json#computer_use_policy.browser_provider');
+  assert.equal(browserProfile.default_provider, browserPolicy.provider_id);
+  assert.equal(browserProfile.mcp_server_id, browserPolicy.mcp_server_id);
+  assert.equal(browserProfile.registry_authority, browserPolicy.registry_authority);
+  assert.equal(browserProfile.registry_writer_ref, browserPolicy.registry_writer_ref);
+  assert.equal(browserProfile.kimi_cu_visual_fallback.provider_id, identity.provider_id);
+  assert.equal(browserProfile.kimi_cu_visual_fallback.may_replace_structured_default, false);
+});
+
+test('Playwright MCP has Standard-Full parity without a second engine, catalog, writer, or session store', () => {
+  assert.equal(browserDistribution.policy_ref, 'contracts/app-gui-product-contract.json#computer_use_policy.browser_provider');
+  assert.equal(browserDistribution.provider_id, browserPolicy.provider_id);
+  assert.equal(browserDistribution.mcp_server_id, browserPolicy.mcp_server_id);
+  assert.equal(browserDistribution.registry_authority, browserPolicy.registry_authority);
+  assert.equal(browserDistribution.registry_writer_ref, browserPolicy.registry_writer_ref);
+  assert.equal(browserDistribution.standard.registry_source, 'existing_codex_mcp_registry');
+  assert.equal(browserDistribution.full.registry_source, browserDistribution.standard.registry_source);
+  assert.equal(browserDistribution.standard.additional_browser_provider_or_engine_catalog, false);
+  assert.equal(browserDistribution.full.additional_browser_provider_or_engine_catalog, false);
+
+  for (const field of [
+    'same_provider_id',
+    'same_mcp_server_id',
+    'same_registry_writer',
+    'same_default_enabled_state',
+    'same_structured_browser_behavior',
+    'same_browser_session_authority',
+  ]) {
+    assert.equal(browserDistribution.post_registration_parity[field], true, field);
+  }
+  assert.equal(
+    browserDistribution.post_registration_parity
+      .full_additional_provider_engine_catalog_or_session_store_allowed,
+    false,
+  );
+  assert.equal(browserPolicy.authority_boundary.app_owned_browser_engine_allowed, false);
+  assert.equal(browserPolicy.authority_boundary.app_owned_browser_provider_catalog_allowed, false);
+  assert.equal(browserPolicy.authority_boundary.second_mcp_registry_writer_allowed, false);
+  assert.equal(browserPolicy.authority_boundary.browser_session_store_allowed, false);
+  assert.equal(browserPolicy.authority_boundary.shell_may_mutate_codex_mcp_registry, false);
+  assert.equal(browserPolicy.authority_boundary.kimi_cu_visual_fallback_may_replace_structured_default, false);
+  assert.equal(fullManifest.runtime_payloads.playwright_mcp, undefined);
+  assert.equal(fullManifest.sources.playwright_mcp, undefined);
+});
+
+test('Playwright MCP first-run qualification remains separate from CU5 installed evidence', () => {
+  assert.equal(browserQualification.provider_id, browserPolicy.provider_id);
+  assert.equal(browserQualification.mcp_server_id, browserPolicy.mcp_server_id);
+  assert.deepEqual(browserQualification.applies_to, ['standard', 'full']);
+  assert.deepEqual(browserQualification.default_expectation, {
+    registered: true,
+    enabled: true,
+    structured_default: true,
+  });
+  assert.deepEqual(browserQualification.required_runtime_readback, [
+    'initialize',
+    'tools/list',
+    'structured_browser_smoke',
+  ]);
+  assert.equal(browserQualification.desktop_visual_fallback_provider_id, identity.provider_id);
+  assert.equal(browserQualification.visual_fallback_may_substitute_for_structured_provider_qualification, false);
+  assert.equal(browserQualification.missing_browser_provider_blocks_app_or_plain_codex_use, false);
+  assert.equal(browserQualification.app_contract_status, 'complete');
+  assert.equal(browserQualification.runtime_and_installed_qualification_status, 'unverified');
+  assert.deepEqual(browserQualification.must_not_create, [
+    'second_browser_engine',
+    'browser_provider_catalog',
+    'second_mcp_registry_writer',
+    'browser_session_store',
+  ]);
 });

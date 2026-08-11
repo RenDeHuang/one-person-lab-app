@@ -45,6 +45,40 @@
       "both_require_identity_and_state_readback": true,
       "permission_prompt_completion_may_be_manual": true,
       "permission_not_granted_expected_state": "installed_registered_enabled_permission_required_not_ready"
+    },
+    "browser_provider": {
+      "schema": "opl_app_browser_provider_distribution.v1",
+      "policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy.browser_provider",
+      "provider_id": "playwright-mcp",
+      "mcp_server_id": "playwright",
+      "registry_authority": "existing_codex_mcp_registry",
+      "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
+      "standard": {
+        "payload_density": "standard",
+        "registry_source": "existing_codex_mcp_registry",
+        "additional_browser_provider_or_engine_catalog": false
+      },
+      "full": {
+        "payload_density": "full",
+        "registry_source": "existing_codex_mcp_registry",
+        "additional_browser_provider_or_engine_catalog": false
+      },
+      "post_registration_parity": {
+        "same_provider_id": true,
+        "same_mcp_server_id": true,
+        "same_registry_writer": true,
+        "same_default_enabled_state": true,
+        "same_structured_browser_behavior": true,
+        "same_browser_session_authority": true,
+        "full_additional_provider_engine_catalog_or_session_store_allowed": false
+      },
+      "release_qualification": {
+        "both_require_same_codex_registry_entry_readback": true,
+        "both_require_mcp_initialize_and_tools_list": true,
+        "both_require_structured_browser_smoke": true,
+        "kimi_cu_visual_fallback_may_substitute_for_playwright_qualification": false,
+        "installed_and_release_status": "unverified"
+      }
     }
   },
   "distribution_semantics": {

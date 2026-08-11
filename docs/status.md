@@ -60,7 +60,7 @@ release qualification remain independent:
 | AionUI default startup caller | `canonical_source_complete` | Desktop initialization invokes the Framework startup-maintenance surface |
 | AionUI dedicated Capabilities/TCC UX | `canonical_source_complete` | Shell `main` consumes `managed_companions[]`, renders status, and delegates request/recheck/repair/reinstall through Framework-projected actions with full readback |
 | Standard online / Full offline installed parity | `unverified` | Clean macOS host must prove identical installed identity, path, service, MCP tools, and TCC state |
-| Browser provider | `planned_after_desktop_path` | Playwright MCP structured path; KimiCU visual fallback |
+| Browser provider | `app_contract_complete_runtime_implementation_pending` | Playwright MCP is the structured default through the existing Codex MCP registry; KimiCU is visual fallback only; Framework/Shell runtime and installed proof remain |
 | Installed / Release | `unverified` | Real `/Applications/KimiCU.app`, TCC prompts, MCP handshake, packaged bytes, clean VM, and public release evidence |
 
 Source or contract completion must not be promoted into installed or release
@@ -80,6 +80,15 @@ MCP registry, session store, or Agent loop was introduced. AionUI source also
 keeps no provider runtime: its localized Capabilities row is a projection/action
 consumer only. Pixel-level packaged interaction remains qualification evidence,
 not a source-completion blocker.
+
+CU6 browser-provider App SSOT now fixes `playwright-mcp` as the default structured
+provider and `playwright` as its existing Codex MCP registry server id. Standard
+and Full share that same registry authority, writer, enablement and behavior;
+Full does not gain another provider, engine catalog, session store or browser
+seed. The upstream implementation remains `microsoft/playwright-mcp`, Framework
+must reuse its existing managed MCP registry writer, and Shell remains a
+configured-entry consumer. Framework ensure/health, Shell default consumption,
+structured browser smoke and installed/release readback remain unverified.
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.

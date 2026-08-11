@@ -53,9 +53,36 @@
       "missing_permission_status": "permission_required"
     },
     "browser": {
-      "default_provider_target": "playwright-mcp",
-      "delivery_status": "next_implementation_slice",
-      "kimi_cu_visual_fallback": true
+      "policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy.browser_provider",
+      "default_provider": "playwright-mcp",
+      "mcp_server_id": "playwright",
+      "upstream_package": "@playwright/mcp",
+      "upstream_implementation_owner": "microsoft/playwright-mcp",
+      "lifecycle_owner": "one-person-lab",
+      "delivery_status": "app_contract_complete_runtime_implementation_pending",
+      "registry_authority": "existing_codex_mcp_registry",
+      "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
+      "default_register": true,
+      "default_enabled": true,
+      "structured_default": true,
+      "kimi_cu_visual_fallback": {
+        "provider_id": "kimi-cu",
+        "enabled": true,
+        "may_replace_structured_default": false
+      },
+      "distribution_forms": {
+        "standard_registry_source": "existing_codex_mcp_registry",
+        "full_registry_source": "existing_codex_mcp_registry",
+        "same_provider_registration_and_behavior_required": true,
+        "full_additional_provider_or_browser_runtime_allowed": false
+      },
+      "authority_boundary": {
+        "app_browser_engine_implementation_allowed": false,
+        "app_provider_catalog_allowed": false,
+        "second_registry_writer_allowed": false,
+        "browser_session_store_allowed": false,
+        "shell_registry_mutation_allowed": false
+      }
     },
     "authority_boundary": {
       "app_second_provider_inventory_allowed": false,

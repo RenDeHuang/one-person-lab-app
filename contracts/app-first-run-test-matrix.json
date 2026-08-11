@@ -54,6 +54,49 @@
     "full_second_manifest_or_provider_allowed": false,
     "computer_use_missing_permission_blocks_app_or_plain_codex_use": false
   },
+  "browser_provider_qualification": {
+    "schema": "opl_first_run_browser_provider_qualification.v1",
+    "product_policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy.browser_provider",
+    "distribution_ref": "contracts/app-release-channel.json#computer_use_distribution.browser_provider",
+    "provider_id": "playwright-mcp",
+    "mcp_server_id": "playwright",
+    "applies_to": ["standard", "full"],
+    "default_expectation": {
+      "registered": true,
+      "enabled": true,
+      "structured_default": true
+    },
+    "required_registry_readback": [
+      "registry_authority=existing_codex_mcp_registry",
+      "single_writer=one-person-lab.registerOplManagedMcpServer",
+      "server_id=playwright",
+      "provider_id=playwright-mcp"
+    ],
+    "required_runtime_readback": [
+      "initialize",
+      "tools/list",
+      "structured_browser_smoke"
+    ],
+    "standard_full_parity_fields": [
+      "provider_id",
+      "mcp_server_id",
+      "registry_writer",
+      "enabled",
+      "structured_behavior",
+      "browser_session_authority"
+    ],
+    "desktop_visual_fallback_provider_id": "kimi-cu",
+    "visual_fallback_may_substitute_for_structured_provider_qualification": false,
+    "missing_browser_provider_blocks_app_or_plain_codex_use": false,
+    "app_contract_status": "complete",
+    "runtime_and_installed_qualification_status": "unverified",
+    "must_not_create": [
+      "second_browser_engine",
+      "browser_provider_catalog",
+      "second_mcp_registry_writer",
+      "browser_session_store"
+    ]
+  },
   "provider_configuration_qualification": {
     "release_contract_ref": "contracts/app-release-channel.json#provider_configuration_boundary",
     "default_user_authentication": "opl_gateway_account_password",

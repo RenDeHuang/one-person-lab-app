@@ -70,10 +70,19 @@ ready=false
 
 ## 浏览器策略
 
-Playwright MCP 是结构化、可重复浏览器自动化的默认 provider 目标；它适合
-DOM、导航、选择器和回归任务。KimiCU 负责桌面视觉操作，也可作为 Chrome 的
-兜底路径。现有 Chrome 登录态后续单独验证 Kimi WebBridge/CDP；不把 Codex
-Chrome 插件或 ChatGPT App 作为 OPL 的硬依赖。
+Playwright MCP 是结构化、可重复浏览器自动化的默认 provider，产品 id 为
+`playwright-mcp`，现有 Codex MCP registry 的 server id 为 `playwright`。上游实现
+由 `microsoft/playwright-mcp` / `@playwright/mcp` 持有；App 只定义默认角色与
+Standard/Full parity。Framework 后续必须复用已经服务 KimiCU 的
+`registerOplManagedMcpServer` 单一 writer 完成 ensure 和健康检查，Shell 只消费
+Codex 已配置的 MCP entry，不得直接写 registry。
+
+Standard 与 Full 使用同一个 provider id、server id、registry writer、默认启用状态、
+结构化行为和 Codex session authority。Full 不增加第二 provider、浏览器引擎、catalog、
+session store 或独立 offline seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达
+任务时作为 Chrome 视觉兜底；它不能替代 Playwright MCP 的默认角色或 qualification。
+现有 Chrome 登录态的 Kimi WebBridge / Playwright CDP 路径后续单独验证，且不得形成
+第二个默认 provider。不把 Codex Chrome 插件或 ChatGPT App 作为 OPL 的硬依赖。
 
 ## Standard / Full 验收
 
@@ -98,13 +107,14 @@ Chrome 插件或 ChatGPT App 作为 OPL 的硬依赖。
 | CU4 默认启动 | `canonical_source_complete` | Framework + AionUI Shell | Desktop 初始化自动调用 `opl system startup-maintenance --json`；失败只降级 Computer Use，不阻塞普通 OPL/Codex |
 | CU4 Capabilities/TCC UX | `canonical_source_complete` | App + AionUI Shell | 专用状态行只消费 `managed_companions[]`，授权/复查/修复/重装按钮只调用 Framework projection actions，并在动作后执行 full readback |
 | CU5 Desktop qualification | `unverified` | Release owner | Standard/Full clean VM、真实安装路径、TCC prompt、installed MCP handshake/tools 和 release evidence |
-| CU6 Browser | `planned` | Framework + Shell | Playwright MCP 结构化路径；KimiCU 视觉兜底；WebBridge/CDP 单独验证 |
+| CU6 Browser | `app_contract_complete_runtime_implementation_pending` | App + Framework + Shell | App 已固定 Playwright MCP 默认角色、Codex registry 单 writer、Standard/Full parity 与 KimiCU visual fallback；Framework ensure/health、Shell 默认消费和 installed qualification 仍缺 |
 
 当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
 materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller 和专用
 Capabilities/TCC projection UX。剩余桌面工作不再是实现第二套 Computer Use 引擎，
-而是 clean-VM installed qualification 和 packaged pixel/user-path readback。Playwright
-浏览器 provider 仍是独立后续。
+而是 clean-VM installed qualification 和 packaged pixel/user-path readback。CU6 的 App
+产品合同切片已经完成，但 Framework/Shell runtime 接线、结构化浏览器 smoke 和
+Standard/Full installed readback 仍是独立后续。
 不得把本文件或源码测试视为 KimiCU 已安装、TCC 已授权或 release 已完成。
 
 ## 机器合同与验证入口
