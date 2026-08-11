@@ -280,6 +280,21 @@ Framework projection produced from native platforms; it does not parse registry
 entries, manifests, checkouts, locks, payloads, receipts, physical paths, LKG,
 or rollback state to create rows.
 
+Every OPL-owned row carries a compact `OPL` brand mark immediately after its
+name. Ownership comes only from the projected publisher and first-party source
+explanation, so future compliant OPL Packages inherit the same treatment without
+an App list. The catalog renders `OPL Managed` first, then non-OPL Agents and
+other capabilities. Availability remains a row state rather than a catalog
+group, and third-party Packages never receive the OPL mark.
+
+OPL standard Agent names are invariant English brand names in every UI locale.
+Descriptions remain owner-localized and follow the active UI language with the
+owner default as fallback. Ordinary managed OPL Agent, workflow, and capability
+Packages follow their independent owner `latest-stable` channels with automatic
+updates. A trusted Developer Mode checkout remains authoritative and explicitly
+disables Package-channel auto-update so local development bytes are not
+overwritten.
+
 The default row has stable dimensions and only shows:
 
 - name, Package kind, publisher, and concise purpose;

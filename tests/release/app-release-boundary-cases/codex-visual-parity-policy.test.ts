@@ -174,11 +174,12 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   );
   const catalogPolicy = productProfile.gui.agent_package_registry.catalog_presentation_policy;
   assert.deepStrictEqual(catalogPolicy.section_order, [
-    'professional_agents',
-    'capability_packages',
-    'workflow_profiles',
-    'other_packages',
+    'opl_managed',
+    'other_agents',
+    'other_capabilities',
   ]);
+  assert.equal(catalogPolicy.ownership_classifier.hardcoded_package_ids_allowed, false);
+  assert.equal(catalogPolicy.section_policy.availability_status_is_row_state_not_grouping, true);
   assert.equal(catalogPolicy.raw_package_role_visible, false);
   assert.equal(
     catalogPolicy.dependency_hierarchy.source,

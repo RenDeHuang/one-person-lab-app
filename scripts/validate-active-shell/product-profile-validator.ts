@@ -521,16 +521,29 @@ function validateAgentPackageRegistryProjection(profile) {
   const presentation = projection.catalog_presentation_policy;
   assertDeepEqualJson(
     presentation?.section_order,
-    ['professional_agents', 'capability_packages', 'workflow_profiles', 'other_packages'],
+    ['opl_managed', 'other_agents', 'other_capabilities'],
     'Product profile Agent catalog section order',
   );
   if (
-    presentation?.professional_agent_order_source !==
-      'app_state.agent_packages.status_index.home_shortcut_preferences[]' ||
-    presentation?.professional_agent_order_policy !==
-      'sort_standard_agent_directory_entries_by_user_sort_order_then_localized_display_name' ||
-    presentation?.workflow_profile_policy !==
-      'render_in_a_separate_workflow_section_not_mixed_with_runnable_agents' ||
+    JSON.stringify(presentation?.ownership_classifier) !==
+      JSON.stringify({
+        source_fields: ['publisher', 'source_explanation.kind', 'source_explanation.source'],
+        opl_publisher: 'one-person-lab',
+        opl_source_kind: 'first_party_framework_projection',
+        opl_source: 'first_party',
+        hardcoded_package_ids_allowed: false,
+      }) ||
+    JSON.stringify(presentation?.section_policy) !==
+      JSON.stringify({
+        opl_managed:
+          'all dynamically identified OPL-owned Package roles, with standard Agents before workflow and capability Packages',
+        other_agents: 'non-OPL standard Agents',
+        other_capabilities: 'non-OPL workflow, capability, and unknown Package roles',
+        availability_status_is_row_state_not_grouping: true,
+      }) ||
+    presentation?.standard_agent_name_policy !==
+      'owner-projected invariant English brand name in every locale' ||
+    presentation?.description_locale_policy !== 'active UI locale then owner-default fallback' ||
     JSON.stringify(presentation?.package_role_labels_i18n) !==
       JSON.stringify({
         standard_agent: { 'zh-CN': '专业智能体', 'en-US': 'Professional agent' },
@@ -545,9 +558,9 @@ function validateAgentPackageRegistryProjection(profile) {
     presentation?.dependency_hierarchy?.single_parent_policy !==
       'render_once_as_a_compact_child_row_under_the_visible_parent' ||
     presentation?.dependency_hierarchy?.multiple_parent_policy !==
-      'render_once_in_capability_packages_with_localized_parent_labels' ||
+      'render_once_in_the_ownership-matched_capability_group_with_localized_parent_labels' ||
     presentation?.dependency_hierarchy?.missing_or_invisible_parent_policy !==
-      'render_once_in_capability_packages' ||
+      'render_once_in_the_ownership-matched_capability_group' ||
     presentation?.dependency_hierarchy?.hardcoded_package_relationships_allowed !== false ||
     presentation?.dependency_hierarchy?.duplicate_rows_allowed !== false ||
     presentation?.dependency_hierarchy?.status_and_actions_source !==

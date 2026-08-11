@@ -3951,6 +3951,7 @@
       "list_density_policy": {
         "row_identity_key": "package_id",
         "grouping_policy_ref": "contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy",
+        "brand_identity_policy_ref": "contracts/app-gui-product-contract.json#pages.settings_agents.brand_identity_policy",
         "row_hierarchy_policy": "one_projected_package_one_row_with_single_parent_dependencies_nested_and_capability_packages_grouped",
         "primary_row_fields": [
           "display_name",
@@ -4019,6 +4020,9 @@
       "every complete Settings action rendered from its projected semantic, payload, surface, and confirmation contract without an action-id allowlist",
       "Settings executes only actions projected for the Settings surface; selected project directories establish session cwd and future domain workspace identity only",
       "owner-projected localized names and descriptions for every Package directory item, including unknown future Agents",
+      "an OPL-managed group before other Agents and capabilities, with a compact OPL brand badge on every OPL-owned row and no Package-id allowlist",
+      "locale-invariant English brand names for OPL standard Agents and owner-localized descriptions selected by the active UI locale",
+      "owner latest-stable automatic updates for every ordinarily managed OPL Agent, workflow, and capability Package while trusted Developer Mode checkouts remain non-overwritten",
         "global automatic, managed, or developer source selection kept independent from maintenance permission",
       "unknown Agent Packages use the same visibility, ordering, status, and action rules as every other Agent Package",
         "Home shortcut visibility and order inline on Agent package rows",

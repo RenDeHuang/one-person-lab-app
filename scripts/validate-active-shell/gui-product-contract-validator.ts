@@ -1445,6 +1445,38 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   const agentDirectoryTarget = pages.settings_agents.codex_plugin_directory_target;
   const agentStatusModel = pages.settings_agents.status_model;
   assertDeepEqualJson(
+    pages.settings_agents.brand_identity_policy,
+    {
+      source_fields: ['publisher', 'source_explanation.kind', 'source_explanation.source'],
+      opl_publisher: 'one-person-lab',
+      opl_source_kind: 'first_party_framework_projection',
+      opl_source: 'first_party',
+      match_policy:
+        'publisher_equals_one-person-lab_or_source_explanation_kind_equals_first_party_framework_projection_or_source_explanation_source_equals_first_party',
+      row_presentation: 'compact OPL brand badge immediately after the localized display name on every matching row',
+      scope_policy:
+        'all package roles; the badge remains visible whenever its matching row is visible under any source filter',
+      catalog_group_order: ['opl_managed', 'other_agents', 'other_capabilities'],
+      grouping_policy:
+        'classify every projected row dynamically by OPL ownership and package role; render the OPL-managed group before non-OPL agents and capabilities without a package-id allowlist',
+      standard_agent_name_policy:
+        'the owner projects the invariant English brand name for every locale; the App and Shell never translate or replace that brand name',
+      description_policy:
+        'select the owner-projected description for the active UI locale with the owner default as fallback',
+      managed_update_policy: {
+        ordinary_install_source: 'per-Package owner latest-stable channel through the native carrier adapter',
+        ordinary_auto_update_projection:
+          'source_explanation.effective_source_policy.package_channel_auto_update=true',
+        scope: 'all OPL-managed Agent, workflow, and capability Packages',
+        developer_override:
+          'an active trusted developer checkout remains authoritative and projects package_channel_auto_update=false so automatic updates never overwrite developer bytes',
+        ui_inference_forbidden: true,
+      },
+      third_party_policy: 'do not show the OPL brand badge',
+    },
+    'Settings Agents OPL brand identity policy',
+  );
+  assertDeepEqualJson(
     pages.settings_agents.official_profile_restore_action,
     appOwnedOfficialProfileRestoreAction,
     'Settings Agents Official Profile restore action',
@@ -1463,6 +1495,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'collapsed_by_default_above_the_catalog' ||
     pages.settings_agents.list_density_policy?.grouping_policy_ref !==
       'contracts/app-product-profile.json#gui.agent_package_registry.catalog_presentation_policy' ||
+    pages.settings_agents.list_density_policy?.brand_identity_policy_ref !==
+      'contracts/app-gui-product-contract.json#pages.settings_agents.brand_identity_policy' ||
     pages.settings_agents.list_density_policy?.row_hierarchy_policy !==
       'one_projected_package_one_row_with_single_parent_dependencies_nested_and_capability_packages_grouped' ||
     agentStatusModel?.user_facing_projection_ref !==
@@ -1479,6 +1513,9 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       'professional Agents ordered by Home shortcut preference then localized display name, workflow profiles separated, and dependency packages grouped from dependent_guard.required_by_package_ids',
       'runtime source and authorized repository maintenance controls collapsed as advanced configuration by default',
       'owner-projected localized names and descriptions for every Package directory item, including unknown future Agents',
+      'an OPL-managed group before other Agents and capabilities, with a compact OPL brand badge on every OPL-owned row and no Package-id allowlist',
+      'locale-invariant English brand names for OPL standard Agents and owner-localized descriptions selected by the active UI locale',
+      'owner latest-stable automatic updates for every ordinarily managed OPL Agent, workflow, and capability Package while trusted Developer Mode checkouts remain non-overwritten',
       'verification deferred or scope materialization missing on an installed exposed Agent shown as 可用 with no preflight Settings action; domain StageRun readiness stays Framework-owned',
       'one localized status, one concrete explanation, and at most one most relevant action per package with technical status axes confined to details',
     ],
