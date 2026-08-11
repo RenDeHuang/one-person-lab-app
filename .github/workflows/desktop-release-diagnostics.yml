@@ -415,6 +415,7 @@ jobs:
           {"platform":"macos-arm64","os":"macos-latest","command":"node scripts/build-with-builder.js arm64 --mac --arm64","artifact-name":"macos-build-arm64","arch":"arm64"}
         ]}
       shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
       skip_code_quality: true
       upload_installers_only: true
       opl_release_version: ${{ inputs.opl_version }}

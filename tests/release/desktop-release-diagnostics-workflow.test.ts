@@ -62,6 +62,7 @@ test('Standard VM diagnostics require and inject an exact Framework SHA', () => 
   assert.match(validation?.run ?? '', /Standard VM diagnostics require framework_ref/);
 
   for (const jobId of [
+    'standard-dmg-diagnostic-artifact',
     'vm-harness-diagnostics-standard-artifact',
     'vm-harness-diagnostics-release-asset',
   ]) {
