@@ -7168,7 +7168,7 @@
         "precedence": ["temporarily_unavailable", "disabled", "supporting_without_direct_entry", "available_verified", "available_auto_confirm", "localized_owner_action_required", "unlocalized_owner_attention", "checking"],
         "signals": {
           "disabled": "installed_true_and_configured_carrier_disabled_with_complete_recommended_action_ref_semantic_enable",
-          "supporting_without_direct_entry": "package_role_capability_package_and_operational_ready_true_and_launch_allowed_false",
+          "supporting_without_direct_entry": "package_role_capability_package_and_operational_ready_true_and_codex_visibility_not_visible",
           "available_verified": "operational_ready_true_and_launch_allowed_true",
           "available_auto_confirm": "readiness_status_verification_deferred_or_reason_live_verification_deferred_or_scope_materialization_missing_with_package_installed_and_exposed",
           "localized_owner_action_required": "owner_projection_requires_one_complete_settings_action_with_projected_semantic_surface_payload_and_confirmation",

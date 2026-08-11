@@ -1735,7 +1735,7 @@ export const appOwnedAgentPackageOrdinaryStatusInputMapping = {
     disabled:
       "installed_true_and_configured_carrier_disabled_with_complete_recommended_action_ref_semantic_enable",
     supporting_without_direct_entry:
-      "package_role_capability_package_and_operational_ready_true_and_launch_allowed_false",
+      "package_role_capability_package_and_operational_ready_true_and_codex_visibility_not_visible",
     available_verified: "operational_ready_true_and_launch_allowed_true",
     available_auto_confirm:
       "readiness_status_verification_deferred_or_reason_live_verification_deferred_or_scope_materialization_missing_with_package_installed_and_exposed",

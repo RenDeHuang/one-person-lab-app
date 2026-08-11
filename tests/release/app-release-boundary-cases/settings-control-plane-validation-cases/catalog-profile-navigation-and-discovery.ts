@@ -429,7 +429,7 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
   );
   assert.equal(
     lifecycle.ordinary_user_status_input_mapping.signals.supporting_without_direct_entry,
-    "package_role_capability_package_and_operational_ready_true_and_launch_allowed_false",
+    "package_role_capability_package_and_operational_ready_true_and_codex_visibility_not_visible",
   );
   assert.equal(
     lifecycle.ordinary_user_status_input_mapping.signals.available_auto_confirm,
