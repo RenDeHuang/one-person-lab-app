@@ -51,16 +51,22 @@
       "policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy.browser_provider",
       "provider_id": "playwright-mcp",
       "mcp_server_id": "playwright",
+      "package": "@playwright/mcp@0.0.79",
+      "browser_mode": "isolated_headless_system_chrome",
+      "runtime_carrier": "framework_pinned_dependency",
+      "host_browser_requirement": "Google Chrome",
       "registry_authority": "existing_codex_mcp_registry",
       "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
       "standard": {
         "payload_density": "standard",
         "registry_source": "existing_codex_mcp_registry",
+        "runtime_source": "installed_framework_dependency",
         "additional_browser_provider_or_engine_catalog": false
       },
       "full": {
         "payload_density": "full",
         "registry_source": "existing_codex_mcp_registry",
+        "runtime_source": "bundled_framework_dependency",
         "additional_browser_provider_or_engine_catalog": false
       },
       "post_registration_parity": {
@@ -69,6 +75,7 @@
         "same_registry_writer": true,
         "same_default_enabled_state": true,
         "same_structured_browser_behavior": true,
+        "same_system_chrome_requirement": true,
         "same_browser_session_authority": true,
         "full_additional_provider_engine_catalog_or_session_store_allowed": false
       },

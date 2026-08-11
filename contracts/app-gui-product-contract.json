@@ -58,9 +58,10 @@
       "provider_id": "playwright-mcp",
       "display_name": "Playwright MCP",
       "product_status": "default_structured_browser_provider",
-      "delivery_status": "app_contract_complete_runtime_implementation_pending",
+      "delivery_status": "source_implementation_complete_installed_qualification_pending",
       "mcp_server_id": "playwright",
       "upstream_package": "@playwright/mcp",
+      "upstream_package_version": "0.0.79",
       "upstream_implementation_owner": "microsoft/playwright-mcp",
       "lifecycle_owner": "one-person-lab",
       "app_role": "default_policy_and_standard_full_parity",
@@ -70,6 +71,14 @@
       "default_register": true,
       "default_enabled": true,
       "default_structured_provider": true,
+      "browser_mode": "isolated_headless_system_chrome",
+      "host_browser_requirement": {
+        "browser": "Google Chrome",
+        "required_for_structured_provider_ready": true,
+        "missing_status": "attention_required",
+        "missing_blocks_plain_codex_or_kimi_cu": false
+      },
+      "runtime_carrier": "framework_pinned_dependency_in_standard_and_full",
       "primary_role": "structured_repeatable_browser_automation",
       "structured_tasks": [
         "dom_and_accessibility_tree_inspection",
@@ -91,6 +100,7 @@
         "same_registry_writer_required": true,
         "same_default_enabled_state_required": true,
         "same_structured_behavior_required": true,
+        "same_framework_dependency_and_system_chrome_requirement": true,
         "full_additional_provider_engine_catalog_or_session_store_allowed": false
       },
       "authority_boundary": {

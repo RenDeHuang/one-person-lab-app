@@ -57,14 +57,22 @@
       "default_provider": "playwright-mcp",
       "mcp_server_id": "playwright",
       "upstream_package": "@playwright/mcp",
+      "upstream_package_version": "0.0.79",
       "upstream_implementation_owner": "microsoft/playwright-mcp",
       "lifecycle_owner": "one-person-lab",
-      "delivery_status": "app_contract_complete_runtime_implementation_pending",
+      "delivery_status": "source_implementation_complete_installed_qualification_pending",
       "registry_authority": "existing_codex_mcp_registry",
       "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
       "default_register": true,
       "default_enabled": true,
       "structured_default": true,
+      "browser_mode": "isolated_headless_system_chrome",
+      "runtime_carrier": "framework_pinned_dependency_in_standard_and_full",
+      "host_browser_requirement": {
+        "browser": "Google Chrome",
+        "required_for_structured_provider_ready": true,
+        "missing_blocks_plain_codex_or_kimi_cu": false
+      },
       "kimi_cu_visual_fallback": {
         "provider_id": "kimi-cu",
         "enabled": true,
@@ -74,6 +82,7 @@
         "standard_registry_source": "existing_codex_mcp_registry",
         "full_registry_source": "existing_codex_mcp_registry",
         "same_provider_registration_and_behavior_required": true,
+        "same_framework_dependency_and_system_chrome_requirement": true,
         "full_additional_provider_or_browser_runtime_allowed": false
       },
       "authority_boundary": {
