@@ -266,7 +266,36 @@ test('Playwright MCP first-run qualification remains separate from CU5 installed
   assert.equal(browserQualification.visual_fallback_may_substitute_for_structured_provider_qualification, false);
   assert.equal(browserQualification.missing_browser_provider_blocks_app_or_plain_codex_use, false);
   assert.equal(browserQualification.app_contract_status, 'complete');
-  assert.equal(browserQualification.runtime_and_installed_qualification_status, 'unverified');
+  assert.equal(browserQualification.source_implementation_status, 'complete');
+  assert.deepEqual(browserQualification.source_host_structured_smoke_evidence, {
+    status: 'passed',
+    evidence_class: 'source_host_only',
+    provider_runtime: '@playwright/mcp@0.0.79',
+    browser_identity_observed: 'Google Chrome 151.0.7922.77',
+    browser_mode: 'isolated_headless_system_chrome',
+    protocol_version: '2025-06-18',
+    server_identity_observed: 'Playwright 1.63.0-alpha-2026-08-05',
+    observed_tools_count: 24,
+    observed_structured_operations: ['browser_navigate', 'browser_snapshot'],
+    snapshot_semantics_observed: ['OPL CU6 Structured Smoke', 'Ready'],
+    proves: [
+      'framework_source_host_mcp_initialize_and_tools_list',
+      'framework_source_host_real_system_chrome_structured_navigation_and_snapshot',
+    ],
+    does_not_prove: [
+      'standard_packaged_install',
+      'full_packaged_install',
+      'clean_vm_first_run',
+      'installed_registration_or_readiness',
+      'release_qualification',
+    ],
+  });
+  assert.equal(browserQualification.installed_and_release_qualification_status, 'unverified');
+  assert.equal(browserDistribution.release_qualification.installed_and_release_status, 'unverified');
+  assert.equal(browserPolicy.delivery_status, 'source_implementation_complete_installed_qualification_pending');
+  assert.equal(browserProfile.delivery_status, browserPolicy.delivery_status);
+  assert.equal(browserPolicy.browser_mode, 'isolated_headless_system_chrome');
+  assert.equal(browserDistribution.browser_mode, browserPolicy.browser_mode);
   assert.deepEqual(browserQualification.must_not_create, [
     'second_browser_engine',
     'browser_provider_catalog',

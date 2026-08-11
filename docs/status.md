@@ -60,7 +60,7 @@ release qualification remain independent:
 | AionUI default startup caller | `canonical_source_complete` | Desktop initialization invokes the Framework startup-maintenance surface |
 | AionUI dedicated Capabilities/TCC UX | `canonical_source_complete` | Shell `main` consumes `managed_companions[]`, renders status, and delegates request/recheck/repair/reinstall through Framework-projected actions with full readback |
 | Standard online / Full offline installed parity | `unverified` | Clean macOS host must prove identical installed identity, path, service, MCP tools, and TCC state |
-| Browser provider | `app_contract_complete_runtime_implementation_pending` | Playwright MCP is the structured default through the existing Codex MCP registry; KimiCU is visual fallback only; Framework/Shell runtime and installed proof remain |
+| Browser provider | `source_implementation_complete_installed_qualification_pending` | Playwright MCP source implementation uses the existing Codex MCP registry and real system Chrome; KimiCU is visual fallback only; packaged Standard/Full installed proof remains |
 | Installed / Release | `unverified` | Real `/Applications/KimiCU.app`, TCC prompts, MCP handshake, packaged bytes, clean VM, and public release evidence |
 
 Source or contract completion must not be promoted into installed or release
@@ -81,14 +81,22 @@ keeps no provider runtime: its localized Capabilities row is a projection/action
 consumer only. Pixel-level packaged interaction remains qualification evidence,
 not a source-completion blocker.
 
-CU6 browser-provider App SSOT now fixes `playwright-mcp` as the default structured
-provider and `playwright` as its existing Codex MCP registry server id. Standard
-and Full share that same registry authority, writer, enablement and behavior;
-Full does not gain another provider, engine catalog, session store or browser
-seed. The upstream implementation remains `microsoft/playwright-mcp`, Framework
-must reuse its existing managed MCP registry writer, and Shell remains a
-configured-entry consumer. Framework ensure/health, Shell default consumption,
-structured browser smoke and installed/release readback remain unverified.
+CU6 browser-provider source implementation now fixes `playwright-mcp` as the
+default structured provider and `playwright` as its existing Codex MCP registry
+server id. Framework carries pinned `@playwright/mcp@0.0.79`, reuses its existing
+managed MCP registry writer and launches isolated/headless real system Chrome;
+Shell remains a configured-entry consumer. Standard and Full share the same
+registry authority, writer, enablement, behavior and system Chrome requirement,
+while Full gains no second provider, engine catalog, session store or browser
+seed.
+
+A real source-host smoke passed with Google Chrome `151.0.7922.77`: MCP
+initialize and tools/list succeeded, 24 tools were observed, and
+`browser_navigate` plus `browser_snapshot` returned the expected structured page
+semantics. This proves only the Framework source-host path. It is not Standard or
+Full packaged evidence and does not qualify clean-VM first run, installed
+registration/readiness or release. Those installed/release readbacks remain
+`unverified`.
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.

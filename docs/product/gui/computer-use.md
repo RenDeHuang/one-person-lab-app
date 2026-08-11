@@ -72,15 +72,18 @@ ready=false
 
 Playwright MCP 是结构化、可重复浏览器自动化的默认 provider，产品 id 为
 `playwright-mcp`，现有 Codex MCP registry 的 server id 为 `playwright`。上游实现
-由 `microsoft/playwright-mcp` / `@playwright/mcp` 持有；App 只定义默认角色与
-Standard/Full parity。Framework 后续必须复用已经服务 KimiCU 的
-`registerOplManagedMcpServer` 单一 writer 完成 ensure 和健康检查，Shell 只消费
-Codex 已配置的 MCP entry，不得直接写 registry。
+由 `microsoft/playwright-mcp` 持有；Framework source 已固定
+`@playwright/mcp@0.0.79`，以 isolated/headless 模式调用宿主机真实 Google Chrome，
+并复用已经服务 KimiCU 的 `registerOplManagedMcpServer` 单一 writer 完成 ensure 和
+健康检查。App 只定义默认角色与 Standard/Full parity；Shell 只消费 Codex 已配置的
+MCP entry，不得直接写 registry。
 
 Standard 与 Full 使用同一个 provider id、server id、registry writer、默认启用状态、
-结构化行为和 Codex session authority。Full 不增加第二 provider、浏览器引擎、catalog、
-session store 或独立 offline seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达
-任务时作为 Chrome 视觉兜底；它不能替代 Playwright MCP 的默认角色或 qualification。
+结构化行为、system Chrome 要求和 Codex session authority。Standard 从 installed
+Framework dependency 取得 provider，Full 从 bundled Framework dependency 取得同一
+provider；Full 不增加第二 provider、浏览器引擎、catalog、session store 或独立 browser
+seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达任务时作为 Chrome 视觉兜底；
+它不能替代 Playwright MCP 的默认角色或 qualification。
 现有 Chrome 登录态的 Kimi WebBridge / Playwright CDP 路径后续单独验证，且不得形成
 第二个默认 provider。不把 Codex Chrome 插件或 ChatGPT App 作为 OPL 的硬依赖。
 
@@ -107,14 +110,17 @@ session store 或独立 offline seed。KimiCU 只负责视觉桌面操作，或�
 | CU4 默认启动 | `canonical_source_complete` | Framework + AionUI Shell | Desktop 初始化自动调用 `opl system startup-maintenance --json`；失败只降级 Computer Use，不阻塞普通 OPL/Codex |
 | CU4 Capabilities/TCC UX | `canonical_source_complete` | App + AionUI Shell | 专用状态行只消费 `managed_companions[]`，授权/复查/修复/重装按钮只调用 Framework projection actions，并在动作后执行 full readback |
 | CU5 Desktop qualification | `unverified` | Release owner | Standard/Full clean VM、真实安装路径、TCC prompt、installed MCP handshake/tools 和 release evidence |
-| CU6 Browser | `app_contract_complete_runtime_implementation_pending` | App + Framework + Shell | App 已固定 Playwright MCP 默认角色、Codex registry 单 writer、Standard/Full parity 与 KimiCU visual fallback；Framework ensure/health、Shell 默认消费和 installed qualification 仍缺 |
+| CU6 Browser | `source_implementation_complete_installed_qualification_pending` | App + Framework + Shell | App/Framework source 已固定 Playwright MCP、Codex registry 单 writer、system Chrome runtime 与 Standard/Full parity；真实 source-host structured smoke 已通过，packaged installed qualification 仍缺 |
 
 当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
 materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller 和专用
 Capabilities/TCC projection UX。剩余桌面工作不再是实现第二套 Computer Use 引擎，
-而是 clean-VM installed qualification 和 packaged pixel/user-path readback。CU6 的 App
-产品合同切片已经完成，但 Framework/Shell runtime 接线、结构化浏览器 smoke 和
-Standard/Full installed readback 仍是独立后续。
+而是 clean-VM installed qualification 和 packaged pixel/user-path readback。CU6 的
+App/Framework source implementation 已完成；source host 上用真实 Google Chrome
+`151.0.7922.77` 验证了 MCP initialize、tools/list、`browser_navigate` 和
+`browser_snapshot`，并从 snapshot 回读到预期页面语义。该证据只证明 source-host
+结构化路径，不证明 Standard/Full packaged install、clean-VM 首启或 release readiness；
+这些 installed readback 仍是独立后续。
 不得把本文件或源码测试视为 KimiCU 已安装、TCC 已授权或 release 已完成。
 
 ## 机器合同与验证入口
