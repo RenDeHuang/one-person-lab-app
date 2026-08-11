@@ -82,6 +82,94 @@ on:
         required: false
         default: bootstrap_only
         type: string
+  workflow_dispatch:
+    inputs:
+      opl_version:
+        description: OPL version to diagnose, for example 26.6.21
+        required: true
+        type: string
+      release_run_id:
+        description: GitHub Actions desktop release run id to inspect
+        required: false
+        default: ''
+        type: string
+      run_vm_diagnostic:
+        description: Run the first-run VM harness against an existing release, URL, or workflow artifact without rebuilding or publishing release assets
+        required: false
+        default: false
+        type: boolean
+      build_standard_artifact:
+        description: Build a temporary standard DMG artifact from shell_ref for VM diagnostics only; does not publish release assets
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: GitHub release tag to diagnose. Empty means v<opl_version>.
+        required: false
+        default: ''
+        type: string
+      release_dmg_url:
+        description: Direct DMG URL to diagnose. Overrides release_tag when set.
+        required: false
+        default: ''
+        type: string
+      release_artifact_name:
+        description: Existing GitHub Actions artifact containing the DMG to diagnose.
+        required: false
+        default: ''
+        type: string
+      release_artifact_run_id:
+        description: GitHub Actions run id that owns release_artifact_name. Defaults to release_run_id when empty.
+        required: false
+        default: ''
+        type: string
+      shell_ref:
+        description: opl-aion-shell ref containing the first-run smoke scripts
+        required: false
+        default: main
+        type: string
+      package_profile:
+        description: Install profile to diagnose
+        required: false
+        default: standard
+        type: choice
+        options:
+          - standard
+          - full
+          - homebrew-standard
+      tart_source_vm:
+        description: Tart clean snapshot/base VM. Empty means repository variable OPL_FIRST_RUN_TART_SOURCE.
+        required: false
+        default: ''
+        type: string
+      keep_vm:
+        description: Leave temporary Tart VM for debugging
+        required: false
+        default: false
+        type: boolean
+      guide_screenshots:
+        description: Capture user-guide screenshots in the VM smoke artifacts
+        required: false
+        default: false
+        type: boolean
+      run_timeout_ms:
+        description: Outer Tart run timeout passed to opl-first-run-tart-smoke.mjs
+        required: false
+        default: '900000'
+        type: string
+      smoke_timeout_ms:
+        description: Guest smoke timeout passed to opl-first-run-tart-smoke.mjs
+        required: false
+        default: '900000'
+        type: string
+      diagnostic_scope:
+        description: Diagnostic scope for the first-run VM harness. Use bootstrap_only to capture App launch/bootstrap blockers without Codex asset preseed or secondary route checks.
+        required: false
+        default: bootstrap_only
+        type: choice
+        options:
+          - bootstrap_only
+          - release_gate
 
 permissions:
   actions: read

@@ -27,6 +27,20 @@ function releaseDiagnosticSteps(): WorkflowStep[] {
   return workflow.jobs['release-diagnostics'].steps;
 }
 
+test('release diagnostics is manually invokable without Stable mutation authority', () => {
+  const workflow = YAML.parse(fs.readFileSync(workflowPath, 'utf8'));
+
+  assert.deepEqual(Object.keys(workflow.on).sort(), ['workflow_call', 'workflow_dispatch']);
+  assert.ok(workflow.on.workflow_dispatch.inputs.opl_version);
+  assert.ok(workflow.on.workflow_dispatch.inputs.run_vm_diagnostic);
+  assert.ok(workflow.on.workflow_dispatch.inputs.build_standard_artifact);
+  assert.deepEqual(workflow.permissions, { actions: 'read', contents: 'read' });
+
+  const source = fs.readFileSync(workflowPath, 'utf8');
+  assert.doesNotMatch(source, /contents:\s*write|packages:\s*write/);
+  assert.doesNotMatch(source, /gh release (?:create|upload|edit)/);
+});
+
 function writeFile(root: string, relativePath: string, bytes: string): Buffer {
   const payload = Buffer.from(bytes);
   const filePath = path.join(root, relativePath);

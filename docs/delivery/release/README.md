@@ -14,11 +14,16 @@ Docker WebUI is a separate GHCR product line and never consumes Desktop Stable a
 
 ## Stable Operations
 
-`.github/workflows/release-stable.yml` is the only Stable `workflow_dispatch`. It accepts exactly:
+`.github/workflows/release-stable.yml` is the only manual Stable mutation entry. It accepts exactly:
 
 - `standard`: build, qualify and publish the primary macOS arm64 Desktop release;
 - `resume_standard`: reconcile the same admitted Standard operation without a second mutation;
 - `append_full`: append Full macOS bytes to the same exact Release/tag.
+
+`.github/workflows/desktop-release-diagnostics.yml` is a separate manual or reusable verification
+entry. It may build a temporary Standard diagnostic artifact and run the first-run VM harness, but
+it has only `actions: read` / `contents: read` permissions and cannot publish, promote, move Latest,
+or authorize Stable.
 
 Linux x64 and Windows x64 are selected as `desktop_additional_platforms`. The successful Standard
 path dispatches `.github/workflows/release-stable-post-success-followups.yml`, which builds and

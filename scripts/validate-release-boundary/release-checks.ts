@@ -2185,15 +2185,22 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
     retired: true,
   })),
   {
-    id: "desktop_release_diagnostics_read_only",
+    id: "desktop_release_diagnostics_non_mutating",
     file: ".github/workflows/desktop-release-diagnostics.yml",
     required: [
       "workflow_call:",
+      "workflow_dispatch:",
       "actions: read",
       "contents: read",
       "uses: ./.github/workflows/opl-first-run-vm.yml",
     ],
-    forbidden: ["workflow_dispatch:", "contents: write", "packages: write", "gh release upload"],
+    forbidden: [
+      "contents: write",
+      "packages: write",
+      "gh release create",
+      "gh release upload",
+      "gh release edit",
+    ],
   },
 ];
 

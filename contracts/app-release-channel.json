@@ -4559,6 +4559,11 @@
       "diagnostics_workflow_policy": {
         "workflow": ".github/workflows/desktop-release-diagnostics.yml",
         "purpose": "harness_and_standard_artifact_only_release_diagnostics",
+        "triggers": [
+          "workflow_call",
+          "workflow_dispatch"
+        ],
+        "manual_entry_role": "diagnostics_only_non_mutating_not_stable_release_entry",
         "permissions": [
           "actions:read",
           "contents:read"
@@ -4656,7 +4661,8 @@
           "owner receipt",
           "runtime truth",
           "stable/latest promotion"
-        ]
+        ],
+        "rule": "Diagnostics may be invoked manually or by a reusable caller because it cannot publish, promote, or authorize Stable. The only manual Stable mutation entry remains .github/workflows/release-stable.yml."
       },
       "first_run_vm_mode": "run_vm_smoke",
       "first_run_vm_concurrency": {

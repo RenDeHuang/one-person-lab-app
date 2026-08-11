@@ -448,6 +448,10 @@ Settings sweep, assistant route smoke, and Codex functional/AI checks while
 still installing and launching the App and collecting bootstrap fatal/native
 modal diagnostics. Bootstrap-only artifacts are diagnostic-only and cannot
 stand in for stable release evidence.
+The diagnostics workflow supports both reusable calls and explicit manual runs.
+Its repository permissions remain read-only, and its outputs cannot publish,
+promote, move Latest, or authorize Stable; `.github/workflows/release-stable.yml`
+remains the only manual Stable mutation entry.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG
