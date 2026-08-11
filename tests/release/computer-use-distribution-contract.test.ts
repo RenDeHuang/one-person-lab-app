@@ -3,6 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
+import {
+  KIMI_CU_QUALIFICATION_IDENTITY_REF,
+  kimiCuOfflineSeedRelativePath,
+  readKimiCuQualificationIdentity,
+} from '../../scripts/build-full-first-install-package/runtime-layers.ts';
+
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const readJson = (relativePath: string) =>
   JSON.parse(fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
@@ -103,6 +109,14 @@ test('Standard and Full use different materialization sources but the same insta
   assert.equal(fullManifest.authority_boundary.kimi_cu_full_seed_may_define_second_provider_or_behavior, false);
   assert.equal(fullManifest.runtime_payloads.kimi_cu.version, identity.version);
   assert.equal(fullManifest.runtime_payloads.kimi_cu.archive_sha256, identity.archive_sha256);
+
+  const packagingIdentity = readKimiCuQualificationIdentity(appRoot);
+  assert.deepEqual(packagingIdentity, identity);
+  assert.equal(KIMI_CU_QUALIFICATION_IDENTITY_REF, provider.provider_identity_ref);
+  assert.equal(
+    kimiCuOfflineSeedRelativePath(packagingIdentity),
+    `runtime-payloads/${identity.provider_id}/${identity.version}/KimiCU.app.zip`,
+  );
 });
 
 test('Computer Use is default-on without fabricating macOS TCC permission', () => {

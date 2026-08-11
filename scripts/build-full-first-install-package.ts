@@ -17,6 +17,7 @@ import {
   resolveFullDmgCompressionLevel,
   resolveFullDmgFormat,
   syncRuntimePayloadToBuildRoots,
+  withVerifiedPinnedArchive,
 } from './build-full-first-install-package/archive-output.ts';
 import { parseArgs } from './build-full-first-install-package/env.ts';
 import { requirePath } from './build-full-first-install-package/filesystem.ts';
@@ -39,6 +40,11 @@ import { appRepoRoot } from './build-full-first-install-package/paths.ts';
 import { durationSeconds, monotonicSeconds, run } from './build-full-first-install-package/process.ts';
 import { runFullPackagePrecompressionGate } from './build-full-first-install-package/precompression.ts';
 import { buildRuntimeCacheKeyReport } from './build-full-first-install-package/runtime-cache.ts';
+import {
+  materializeKimiCuOfflineSeed,
+  readKimiCuQualificationIdentity,
+  writeKimiCuOfflineSeedManifest,
+} from './build-full-first-install-package/runtime-layers.ts';
 import { resolveRuntimeSources } from './build-full-first-install-package/runtime-sources.ts';
 import { prepareRuntime } from './build-full-first-install-package/staging.ts';
 import { resolveOfficeCliReleaseSource } from './build-full-first-install-package/upstream-release.ts';
@@ -145,6 +151,26 @@ export function shellBuildEnvironmentWithoutRedundantNotarization(env = process.
   return shellBuildEnv;
 }
 
+export function materializeFullKimiCuOfflineSeed(prepared, input = {}) {
+  const identity = input.identity ?? readKimiCuQualificationIdentity();
+  return withVerifiedPinnedArchive({
+    label: 'KimiCU Full offline seed archive',
+    sourcePath: input.sourcePath ?? process.env.OPL_KIMI_CU_ARCHIVE_PATH,
+    url: identity.archive_url,
+    sha256: identity.archive_sha256,
+    sizeBytes: identity.archive_size_bytes,
+  }, (archivePath) => {
+    const seed = materializeKimiCuOfflineSeed(prepared.runtimeRoot, archivePath, identity);
+    const manifest = writeKimiCuOfflineSeedManifest(
+      prepared.runtimeRoot,
+      prepared.manifest,
+      identity,
+    );
+    prepared.manifest = manifest;
+    return { seed, manifest };
+  });
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   assertReleaseVersionNotFuture('stable', options.version);
@@ -233,6 +259,8 @@ function main() {
     }, null, 2));
     return;
   }
+
+  materializeFullKimiCuOfflineSeed(prepared);
 
   const cacheEventsWrittenAt = monotonicSeconds();
   const payloadRoots = syncRuntimePayloadToBuildRoots(prepared.runtimeRoot, prepared.manifest, options.guiRoot);

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,6 +20,67 @@ import {
   writeFullPackageManifestIntoApp,
 } from './package-optimization.ts';
 import { findExecutable, run, runCapture } from './process.ts';
+
+function archiveSha256(archivePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(archivePath)).digest('hex');
+}
+
+export function assertPinnedArchive(archivePath, input) {
+  requirePath(archivePath, input.label);
+  const stat = fs.statSync(archivePath);
+  if (!stat.isFile()) {
+    throw new Error(`${input.label} must be a file: ${archivePath}`);
+  }
+  if (stat.size !== input.sizeBytes) {
+    throw new Error(
+      `${input.label} size drifted: expected ${input.sizeBytes}, found ${stat.size} at ${archivePath}.`,
+    );
+  }
+  const sha256 = archiveSha256(archivePath);
+  if (sha256 !== input.sha256) {
+    throw new Error(
+      `${input.label} SHA-256 drifted: expected ${input.sha256}, found ${sha256} at ${archivePath}.`,
+    );
+  }
+  return {
+    archive_path: archivePath,
+    size_bytes: stat.size,
+    sha256,
+  };
+}
+
+export function withVerifiedPinnedArchive(input, consume) {
+  const explicitSourcePath = input.sourcePath?.trim() || '';
+  const temporaryRoot = explicitSourcePath
+    ? null
+    : fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-pinned-archive-'));
+  const archivePath = explicitSourcePath
+    ? path.resolve(explicitSourcePath)
+    : path.join(temporaryRoot, 'archive.bin');
+
+  try {
+    if (!explicitSourcePath) {
+      requirePath(findExecutable('curl'), 'curl');
+      run('curl', [
+        '--fail',
+        '--location',
+        '--silent',
+        '--show-error',
+        '--retry',
+        '2',
+        '--output',
+        archivePath,
+        input.url,
+      ]);
+    }
+    const verification = assertPinnedArchive(archivePath, input);
+    return consume(archivePath, verification);
+  } finally {
+    if (temporaryRoot) {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  }
+}
 
 function createTarZst(archivePath, cwd, entries = ['.']) {
   requirePath(findExecutable('zstd'), 'zstd');

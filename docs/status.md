@@ -54,13 +54,21 @@ owner repositories:
 | Contract and product SSOT | `aligned_contract` | App contracts plus `docs/product/gui/computer-use.md` |
 | Framework materializer and state/actions | `implementation_active` | Framework source/tests and fresh `opl app state/action` readback |
 | AionUI status and TCC UX | `implementation_active` | Shell source/DOM tests consuming Framework projection |
-| Standard online / Full offline materialization | `implementation_active` | App/Framework packaging tests, then clean-VM parity |
+| Standard online / Full offline materialization | `implementation_active` | App Full seed assembly focused tests; Framework and clean-VM parity remain |
 | Browser provider | `planned_after_desktop_path` | Playwright MCP structured path; KimiCU visual fallback |
 | Installed / Release | `unverified` | Exact packaged bytes, TCC state, MCP tools, clean VM and release evidence |
 
 Source or contract completion must not be promoted into installed or release
 readiness. Dynamic lane owner, worktree, checkpoint, and next-action truth stays
 in the fresh OPL Flow worktree lifecycle ledger rather than this status file.
+
+The Full packager now reads the KimiCU identity only from
+`contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu`,
+verifies the exact archive, materializes it at
+`runtime-payloads/<provider_id>/<version>/KimiCU.app.zip`, and records the same
+identity reference and archive evidence in `full-package-manifest.json`. This is
+source/package assembly evidence only; installed behavior, macOS TCC, clean-VM
+parity, signing/notarization, and public release remain independently unverified.
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.
