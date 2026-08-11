@@ -64,7 +64,7 @@ ready=false
 
 这不会阻塞普通 OPL 或 plain Codex 对话，只会让 Computer Use capability 显示
 `permission_required` 并提供一次性授权引导。用户授权后，Framework 重新执行
-`service-status`、`xpc-ping`、MCP `initialize` 和 `tools/list`，状态变为
+`service-status`、`xpc-ping`、`doctor`、MCP `initialize` 和 `tools/list`，状态变为
 `ready=true`。下载失败、服务故障或版本不匹配同样只降级该 capability，并提供
 可重试/修复动作。
 

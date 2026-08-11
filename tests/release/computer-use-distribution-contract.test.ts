@@ -162,5 +162,7 @@ test('Computer Use product qualification is deterministic while AI UI review rem
     /installation, registration, enablement, MCP handshake, tools, permissions state, and health are deterministic/,
   );
   assert.equal(distribution.release_qualification.both_require_mcp_initialize_and_tools_list, true);
+  assert.equal(distribution.release_qualification.both_require_permission_status_readback, true);
+  assert.deepEqual(identity.health.permission_status_args, ['doctor']);
   assert.equal(distribution.release_qualification.permission_prompt_completion_may_be_manual, true);
 });

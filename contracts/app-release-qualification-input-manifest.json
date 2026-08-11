@@ -55,6 +55,7 @@
       "health": {
         "service_status_args": ["service-status"],
         "xpc_ping_args": ["xpc-ping"],
+        "permission_status_args": ["doctor"],
         "mcp_handshake": ["initialize", "tools/list"]
       }
     }

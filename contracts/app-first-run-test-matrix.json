@@ -30,6 +30,7 @@
     "required_runtime_readback": [
       "service-status",
       "xpc-ping",
+      "doctor",
       "initialize",
       "tools/list"
     ],

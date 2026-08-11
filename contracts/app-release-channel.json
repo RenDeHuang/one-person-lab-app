@@ -41,6 +41,7 @@
       "standard_clean_vm_requires_network_materialization": true,
       "full_clean_vm_requires_offline_materialization": true,
       "both_require_mcp_initialize_and_tools_list": true,
+      "both_require_permission_status_readback": true,
       "both_require_identity_and_state_readback": true,
       "permission_prompt_completion_may_be_manual": true,
       "permission_not_granted_expected_state": "installed_registered_enabled_permission_required_not_ready"
