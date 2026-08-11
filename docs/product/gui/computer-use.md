@@ -96,14 +96,15 @@ Chrome 插件或 ChatGPT App 作为 OPL 的硬依赖。
 | CU2 Materializer | `canonical_source_complete` | Framework | Standard 下载、Full seed、SHA/Bundle/Team/version/arch/codesign/Gatekeeper 校验、`ditto` staged replace 和 service install 已进入 Framework `main` |
 | CU3 MCP/state bridge | `canonical_source_complete` | Framework | 复用现有 Codex registry 唯一 writer；已实现 service/XPC/`doctor`/MCP tools 健康检查、`managed_companions[]` 和 owner actions |
 | CU4 默认启动 | `canonical_source_complete` | Framework + AionUI Shell | Desktop 初始化自动调用 `opl system startup-maintenance --json`；失败只降级 Computer Use，不阻塞普通 OPL/Codex |
-| CU4 Capabilities/TCC UX | `under_fresh_audit` | App + AionUI Shell | 专用状态行和授权/重试/修复按钮必须只消费 Framework projection/actions |
+| CU4 Capabilities/TCC UX | `canonical_source_complete` | App + AionUI Shell | 专用状态行只消费 `managed_companions[]`，授权/复查/修复/重装按钮只调用 Framework projection actions，并在动作后执行 full readback |
 | CU5 Desktop qualification | `unverified` | Release owner | Standard/Full clean VM、真实安装路径、TCC prompt、installed MCP handshake/tools 和 release evidence |
 | CU6 Browser | `planned` | Framework + Shell | Playwright MCP 结构化路径；KimiCU 视觉兜底；WebBridge/CDP 单独验证 |
 
 当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
-materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller。剩余工作
-不再是实现第二套 Computer Use 引擎，而是补齐或确认专用 Capabilities/TCC UX，
-再完成 clean-VM installed qualification。Playwright 浏览器 provider 仍是独立后续。
+materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller 和专用
+Capabilities/TCC projection UX。剩余桌面工作不再是实现第二套 Computer Use 引擎，
+而是 clean-VM installed qualification 和 packaged pixel/user-path readback。Playwright
+浏览器 provider 仍是独立后续。
 不得把本文件或源码测试视为 KimiCU 已安装、TCC 已授权或 release 已完成。
 
 ## 机器合同与验证入口

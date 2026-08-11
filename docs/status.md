@@ -58,7 +58,7 @@ release qualification remain independent:
 | Full offline seed assembly | `canonical_source_complete` | Exact `KimiCU.app.zip` seed and App package-manifest evidence |
 | Framework materializer and state/actions | `canonical_source_complete` | Pinned identity checks, Standard/Full source selection, install/service/MCP reconciliation, `managed_companions[]`, and owner actions on Framework `main` |
 | AionUI default startup caller | `canonical_source_complete` | Desktop initialization invokes the Framework startup-maintenance surface |
-| AionUI dedicated Capabilities/TCC UX | `under_fresh_audit` | Must consume `managed_companions[]` and owner-projected actions without a Shell registry |
+| AionUI dedicated Capabilities/TCC UX | `canonical_source_complete` | Shell `main` consumes `managed_companions[]`, renders status, and delegates request/recheck/repair/reinstall through Framework-projected actions with full readback |
 | Standard online / Full offline installed parity | `unverified` | Clean macOS host must prove identical installed identity, path, service, MCP tools, and TCC state |
 | Browser provider | `planned_after_desktop_path` | Playwright MCP structured path; KimiCU visual fallback |
 | Installed / Release | `unverified` | Real `/Applications/KimiCU.app`, TCC prompts, MCP handshake, packaged bytes, clean VM, and public release evidence |
@@ -76,7 +76,10 @@ source/package assembly evidence only; installed behavior, macOS TCC, clean-VM
 parity, signing/notarization, and public release remain independently unverified.
 Framework source now consumes that same identity through
 `contracts/opl-framework/managed-computer-use.json`; no second provider catalog,
-MCP registry, session store, or Agent loop was introduced.
+MCP registry, session store, or Agent loop was introduced. AionUI source also
+keeps no provider runtime: its localized Capabilities row is a projection/action
+consumer only. Pixel-level packaged interaction remains qualification evidence,
+not a source-completion blocker.
 
 - GitHub repo: `gaofeng21cn/one-person-lab-app`.
 - App product repo history policy: clean App-owned history only.
