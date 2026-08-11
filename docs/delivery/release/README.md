@@ -23,7 +23,8 @@ Docker WebUI is a separate GHCR product line and never consumes Desktop Stable a
 `.github/workflows/desktop-release-diagnostics.yml` is a separate manual or reusable verification
 entry. It may build a temporary Standard diagnostic artifact and run the first-run VM harness, but
 it has only `actions: read` / `contents: read` permissions and cannot publish, promote, move Latest,
-or authorize Stable.
+or authorize Stable. A Standard VM run requires the exact 40-character Framework SHA so the existing
+VM workflow can inject a local source archive instead of resolving mutable `main` anonymously.
 
 Linux x64 and Windows x64 are selected as `desktop_additional_platforms`. The successful Standard
 path dispatches `.github/workflows/release-stable-post-success-followups.yml`, which builds and

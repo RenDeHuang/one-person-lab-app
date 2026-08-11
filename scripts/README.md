@@ -451,7 +451,9 @@ stand in for stable release evidence.
 The diagnostics workflow supports both reusable calls and explicit manual runs.
 Its repository permissions remain read-only, and its outputs cannot publish,
 promote, move Latest, or authorize Stable; `.github/workflows/release-stable.yml`
-remains the only manual Stable mutation entry.
+remains the only manual Stable mutation entry. Standard VM diagnostics require
+an exact 40-character `framework_ref`; the existing VM workflow checks out that
+commit and injects its local source archive into the guest.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
 runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG

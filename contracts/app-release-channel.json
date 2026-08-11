@@ -4574,6 +4574,7 @@
           "release_dmg_url",
           "release_artifact_name",
           "release_artifact_run_id",
+          "framework_ref",
           "diagnostic_scope",
           "build_standard_artifact",
           "small release artifacts",
@@ -4581,6 +4582,7 @@
           "first-run VM harness diagnostics"
         ],
         "default_diagnostic_scope": "bootstrap_only",
+        "standard_vm_framework_source_rule": "When run_vm_diagnostic=true and package_profile=standard, framework_ref must be the exact 40-character Framework SHA. The existing opl-first-run-vm workflow checks out that commit, creates the local Framework source archive, and injects it into the guest; diagnostics must not depend on anonymous mutable-main archive resolution.",
         "diagnostic_scopes": {
           "bootstrap_only": {
             "purpose": "fast App launch and bootstrap blocker capture before rerunning a full release train",

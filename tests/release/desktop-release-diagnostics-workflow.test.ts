@@ -11,6 +11,7 @@ const appRoot = process.cwd();
 const workflowPath = path.join(appRoot, '.github/workflows/desktop-release-diagnostics.yml');
 
 type WorkflowStep = {
+  env?: Record<string, string>;
   name?: string;
   if?: string;
   run?: string;
@@ -34,11 +35,38 @@ test('release diagnostics is manually invokable without Stable mutation authorit
   assert.ok(workflow.on.workflow_dispatch.inputs.opl_version);
   assert.ok(workflow.on.workflow_dispatch.inputs.run_vm_diagnostic);
   assert.ok(workflow.on.workflow_dispatch.inputs.build_standard_artifact);
+  assert.ok(workflow.on.workflow_call.inputs.framework_ref);
+  assert.ok(workflow.on.workflow_dispatch.inputs.framework_ref);
   assert.deepEqual(workflow.permissions, { actions: 'read', contents: 'read' });
 
   const source = fs.readFileSync(workflowPath, 'utf8');
   assert.doesNotMatch(source, /contents:\s*write|packages:\s*write/);
   assert.doesNotMatch(source, /gh release (?:create|upload|edit)/);
+});
+
+test('Standard VM diagnostics require and inject an exact Framework SHA', () => {
+  const workflow = YAML.parse(fs.readFileSync(workflowPath, 'utf8'));
+  const validation = workflow.jobs['diagnostic-inputs'].steps.find(
+    (step: WorkflowStep) => step.name === 'Validate diagnostic input combinations',
+  );
+
+  assert.deepEqual(validation?.env, {
+    RUN_VM_DIAGNOSTIC: '${{ inputs.run_vm_diagnostic }}',
+    PACKAGE_PROFILE: '${{ inputs.package_profile }}',
+    FRAMEWORK_REF: '${{ inputs.framework_ref }}',
+  });
+  assert.match(validation?.run ?? '', /RUN_VM_DIAGNOSTIC/);
+  assert.match(validation?.run ?? '', /PACKAGE_PROFILE/);
+  assert.match(validation?.run ?? '', /FRAMEWORK_REF/);
+  assert.match(validation?.run ?? '', /\^\[0-9a-f\]\{40\}\$/);
+  assert.match(validation?.run ?? '', /Standard VM diagnostics require framework_ref/);
+
+  for (const jobId of [
+    'vm-harness-diagnostics-standard-artifact',
+    'vm-harness-diagnostics-release-asset',
+  ]) {
+    assert.equal(workflow.jobs[jobId].with.framework_ref, '${{ inputs.framework_ref }}');
+  }
 });
 
 function writeFile(root: string, relativePath: string, bytes: string): Buffer {

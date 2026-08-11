@@ -47,6 +47,11 @@ on:
         required: false
         default: main
         type: string
+      framework_ref:
+        description: Exact 40-character one-person-lab Framework SHA injected into Standard VM diagnostics
+        required: false
+        default: ''
+        type: string
       package_profile:
         description: Install profile to diagnose
         required: false
@@ -128,6 +133,11 @@ on:
         required: false
         default: main
         type: string
+      framework_ref:
+        description: Exact 40-character one-person-lab Framework SHA injected into Standard VM diagnostics
+        required: false
+        default: ''
+        type: string
       package_profile:
         description: Install profile to diagnose
         required: false
@@ -190,6 +200,10 @@ jobs:
     steps:
       - name: Validate diagnostic input combinations
         shell: bash
+        env:
+          RUN_VM_DIAGNOSTIC: ${{ inputs.run_vm_diagnostic }}
+          PACKAGE_PROFILE: ${{ inputs.package_profile }}
+          FRAMEWORK_REF: ${{ inputs.framework_ref }}
         run: |
           set -euo pipefail
           if [ "${{ inputs.build_standard_artifact }}" = "true" ]; then
@@ -199,6 +213,12 @@ jobs:
             fi
             if [ -n "${{ inputs.release_dmg_url }}" ] || [ -n "${{ inputs.release_artifact_name }}" ] || [ -n "${{ inputs.release_artifact_run_id }}" ]; then
               echo "::error::build_standard_artifact must not be combined with release_dmg_url, release_artifact_name, or release_artifact_run_id. The diagnostic VM must consume the same-run temporary standard DMG artifact."
+              exit 1
+            fi
+          fi
+          if [ "$RUN_VM_DIAGNOSTIC" = "true" ] && [ "$PACKAGE_PROFILE" = "standard" ]; then
+            if ! [[ "$FRAMEWORK_REF" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Standard VM diagnostics require framework_ref to be an exact 40-character Framework SHA."
               exit 1
             fi
           fi
@@ -414,6 +434,7 @@ jobs:
       release_artifact_name: macos-build-arm64-dmg
       release_artifact_run_id: ${{ github.run_id }}
       shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
       package_profile: ${{ inputs.package_profile }}
       tart_source_vm: ${{ inputs.tart_source_vm }}
       keep_vm: ${{ inputs.keep_vm }}
@@ -435,6 +456,7 @@ jobs:
       release_artifact_name: ${{ inputs.release_artifact_name }}
       release_artifact_run_id: ${{ inputs.release_artifact_run_id != '' && inputs.release_artifact_run_id || inputs.release_run_id }}
       shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
       package_profile: ${{ inputs.package_profile }}
       tart_source_vm: ${{ inputs.tart_source_vm }}
       keep_vm: ${{ inputs.keep_vm }}
