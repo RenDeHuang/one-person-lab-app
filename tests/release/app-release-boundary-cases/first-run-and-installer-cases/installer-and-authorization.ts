@@ -82,6 +82,11 @@ test("Stable macOS installer binds exact release assets before mount and preserv
   const standardBytes = "standard-dmg-bytes\n";
   const attestationBytes = "unified-release-attestation\n";
   const installerBytes = fs.readFileSync(path.join(appRoot, "install.sh"));
+  const releaseInstallerPath = path.join(tempRoot, "opl-install.sh");
+  fs.writeFileSync(releaseInstallerPath, installerBytes, { mode: 0o755 });
+  const originalInstallerBytes = "original-installer-bootstrap\n";
+  const intermediateInstallerBytes = "intermediate-installer-bootstrap\n";
+  const releaseId = 123456;
   const digest = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
   const asset = (
     releaseTag: string,
@@ -107,6 +112,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     legacyV3Manifest = false,
     legacyV3Fields = {} as Record<string, unknown>,
     componentBundleDigest = bundleDigest,
+    installerIdentity = installerBytes,
   }: {
     qualityStatus?: string;
     buildTrigger?: string;
@@ -119,6 +125,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     legacyV3Manifest?: boolean;
     legacyV3Fields?: Record<string, unknown>;
     componentBundleDigest?: string | null;
+    installerIdentity?: Buffer | string;
   } = {}) =>
     JSON.stringify({
       surface_kind: "opl_app_component_manifest.v1",
@@ -146,7 +153,8 @@ test("Stable macOS installer binds exact release assets before mount and preserv
         },
         {
           name: "opl-install.sh",
-          digest: `sha256:${digest(installerBytes)}`,
+          digest: `sha256:${digest(installerIdentity)}`,
+          size: Buffer.byteLength(installerIdentity),
           ref: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/opl-install.sh`,
         },
       ],
@@ -211,6 +219,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     fullManifestAssetDigest,
     fullAssetSize,
     attestationAssetDigest,
+    repairReceipts = "none",
   }: {
     fullPresent?: boolean;
     standardDigest?: string;
@@ -222,10 +231,64 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     fullManifestAssetDigest?: string;
     fullAssetSize?: number;
     attestationAssetDigest?: string;
+    repairReceipts?: "none" | "valid" | "gap" | "fork" | "digest-drift";
   } = {}) => {
+    const repairCommitOne = "d".repeat(40);
+    const repairCommitTwo = "e".repeat(40);
+    const repairCommitFork = "f".repeat(40);
+    const receiptName = (commit: string) => `opl-additive-repair-${commit.slice(0, 12)}.json`;
+    const receipt = (
+      commit: string,
+      previousId: number,
+      previousBytes: Buffer | string,
+      nextBytes: Buffer | string,
+    ) => JSON.stringify({
+      schema: "opl_app_stable_additive_repair.v1",
+      status: "complete",
+      release: {
+        id: releaseId,
+        tag,
+        target_commitish: appSha,
+        body_digest: `sha256:${"9".repeat(64)}`,
+        draft: false,
+        prerelease: false,
+      },
+      source_run_id: "31518428559",
+      repair_source_commit: commit,
+      frozen_assets: [],
+      replacement: {
+        previous: {
+          id: previousId,
+          name: "opl-install.sh",
+          size: Buffer.byteLength(previousBytes),
+          digest: `sha256:${digest(previousBytes)}`,
+        },
+        next: {
+          name: "opl-install.sh",
+          size: Buffer.byteLength(nextBytes),
+          digest: `sha256:${digest(nextBytes)}`,
+        },
+      },
+      public_receipt: receiptName(commit),
+      remaining: [],
+    });
+    const receiptEntries = [
+      [repairCommitOne, receipt(repairCommitOne, 51, originalInstallerBytes, intermediateInstallerBytes)],
+      [repairCommitTwo, receipt(repairCommitTwo, 52, intermediateInstallerBytes, installerBytes)],
+      ...(repairReceipts === "fork"
+        ? [[repairCommitFork, receipt(repairCommitFork, 51, originalInstallerBytes, "forked-installer\n")]]
+        : []),
+    ] as Array<[string, string]>;
+    const selectedReceipts = repairReceipts === "none"
+      ? []
+      : receiptEntries.filter(([commit]) => repairReceipts !== "gap" || commit !== repairCommitOne);
+    for (const [commit, bytes] of selectedReceipts) {
+      fs.writeFileSync(path.join(tempRoot, receiptName(commit)), bytes);
+    }
     const manifestBytes = componentManifest({
       ...manifest,
       primaryDigest: manifest?.primaryDigest ?? standardDigest ?? digest(standardBytes),
+      installerIdentity: repairReceipts === "none" ? installerBytes : originalInstallerBytes,
     });
     const fullManifestBytes = fullManifest(fullManifestOptions);
     const fullAssets = fullPresent
@@ -238,6 +301,7 @@ test("Stable macOS installer binds exact release assets before mount and preserv
     fs.writeFileSync(
       releaseJsonPath,
       JSON.stringify({
+        id: releaseId,
         tag_name: tag,
         draft: false,
         prerelease,
@@ -247,6 +311,12 @@ test("Stable macOS installer binds exact release assets before mount and preserv
           asset(tag, standardName, standardBytes, standardDigest),
           asset(tag, componentManifestName, manifestBytes, manifestAssetDigest),
           asset(tag, "opl-install.sh", installerBytes),
+          ...selectedReceipts.map(([commit, bytes], index) => asset(
+            tag,
+            receiptName(commit),
+            bytes,
+            repairReceipts === "digest-drift" && index === 0 ? "0".repeat(64) : undefined,
+          )),
           asset(tag, attestationName, attestationBytes, attestationAssetDigest),
           ...fullAssets,
         ],
@@ -314,6 +384,11 @@ case "$url" in
     ;;
   *opl-app-component-manifest.json)
     cp "$OPL_FAKE_COMPONENT_MANIFEST" "$output"
+    printf '200'
+    exit 0
+    ;;
+  *opl-additive-repair-*.json)
+    cp "$OPL_FAKE_RECEIPT_DIR/\${url##*/}" "$output"
     printf '200'
     exit 0
     ;;
@@ -395,6 +470,7 @@ exit 1
         fullManifestAssetDigest,
         fullAssetSize,
         attestationAssetDigest,
+        repairReceipts,
       }: {
         fullHttp?: string;
         fullPresent?: boolean;
@@ -411,6 +487,7 @@ exit 1
         fullManifestAssetDigest?: string;
         fullAssetSize?: number;
         attestationAssetDigest?: string;
+        repairReceipts?: "none" | "valid" | "gap" | "fork" | "digest-drift";
       } = {},
     ) => {
       writeRelease({
@@ -424,6 +501,7 @@ exit 1
         fullManifestAssetDigest,
         fullAssetSize,
         attestationAssetDigest,
+        repairReceipts,
       });
       fs.writeFileSync(curlArgsPath, "");
       fs.writeFileSync(ghArgsPath, "");
@@ -431,7 +509,7 @@ exit 1
       return spawnSync(
         "/bin/bash",
         [
-          path.join(appRoot, "install.sh"),
+          repairReceipts === "none" ? path.join(appRoot, "install.sh") : releaseInstallerPath,
           ...(stableMacosInstall ? ["--stable-macos-install"] : []),
           ...profileArgs,
           ...(releaseTag ? ["--release-tag", tag] : []),
@@ -449,6 +527,7 @@ exit 1
             OPL_FAKE_RELEASE_JSON: releaseJsonPath,
             OPL_FAKE_COMPONENT_MANIFEST: path.join(tempRoot, componentManifestName),
             OPL_FAKE_FULL_MANIFEST: path.join(tempRoot, fullManifestName),
+            OPL_FAKE_RECEIPT_DIR: tempRoot,
             OPL_FAKE_FULL_HTTP: fullHttp,
             OPL_FAKE_RELEASE_API_HTTP: releaseApiHttp,
             OPL_FAKE_GH_STATUS: ghStatus,
@@ -545,6 +624,23 @@ exit 1
     );
     assert.doesNotMatch(legacyReleaseResult.stdout, /Release quality: Stable/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+
+    const repairedInstallerResult = runInstaller(["--standard"], { repairReceipts: "valid" });
+    assert.notEqual(repairedInstallerResult.status, 0, "fake hdiutil should stop after receipt-chain verification");
+    assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+    assert.match(fs.readFileSync(curlArgsPath, "utf8"), /opl-additive-repair-dddddddddddd\.json/);
+    assert.match(fs.readFileSync(curlArgsPath, "utf8"), /opl-additive-repair-eeeeeeeeeeee\.json/);
+
+    for (const [repairReceipts, label] of [
+      ["gap", "missing receipt link"],
+      ["fork", "forked receipt chain"],
+      ["digest-drift", "receipt asset digest drift"],
+    ] as const) {
+      const result = runInstaller(["--standard"], { repairReceipts });
+      assert.notEqual(result.status, 0, label);
+      assert.match(result.stderr, /not connected to the component manifest by one exact additive repair receipt chain/, label);
+      assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "", label);
+    }
 
     const partialLegacyReleaseResult = runInstaller(["--standard"], {
       manifest: {

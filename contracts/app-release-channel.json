@@ -830,6 +830,7 @@
         "pre_mutation_receipt": "opl-stable-additive-repair-plan-<source-run-id>",
         "public_receipt": "opl-additive-repair-<repair-source-prefix>.json",
         "receipt_schema": "opl_app_stable_additive_repair.v1",
+        "installer_runtime_identity": "component_manifest_initial_installer_identity_plus_one_complete_unforked_digest_and_size_chain_across_all_public_additive_repair_receipts_to_the_current_release_asset",
         "certification": "same_tag_public_installer_digest_chain_and_clean_linux_install",
         "unknown_result_policy": "owner_authoritative_read_only_reconcile_no_retry_rerun_redispatch_or_cancel"
       }

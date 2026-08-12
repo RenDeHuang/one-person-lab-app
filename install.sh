@@ -1054,6 +1054,10 @@ component_manifest_value() {
 component_manifest_array_json() {
   local manifest_path="$1"
   local key_path="$2"
+  if command -v plutil >/dev/null 2>&1; then
+    plutil -extract "$key_path" json -o - "$manifest_path"
+    return
+  fi
   python3 - "$manifest_path" "$key_path" <<'PY'
 import json
 import sys
@@ -1085,12 +1089,143 @@ component_manifest_has_exact_artifact() {
   [ "$matches" -eq 1 ]
 }
 
+component_manifest_exact_artifact_identity() {
+  local manifest_path="$1"
+  local asset_name="$2"
+  local expected_url="$3"
+  local index=0 name digest ref size matches=0 matched_digest='' matched_size=''
+  while name=$(component_manifest_value "$manifest_path" "artifacts.$index.name" 2>/dev/null); do
+    if [ "$name" = "$asset_name" ]; then
+      digest=$(component_manifest_value "$manifest_path" "artifacts.$index.digest") || return 1
+      ref=$(component_manifest_value "$manifest_path" "artifacts.$index.ref") || return 1
+      size=$(component_manifest_value "$manifest_path" "artifacts.$index.size") || return 1
+      if [ "$ref" = "$expected_url" ]; then
+        matches=$((matches + 1))
+        matched_digest="$digest"
+        matched_size="$size"
+      fi
+    fi
+    index=$((index + 1))
+  done
+  [ "$matches" -eq 1 ] || return 1
+  printf '%s\t%s\n' "$matched_digest" "$matched_size"
+}
+
+verify_additive_installer_receipt_chain() {
+  local record_path="$1"
+  local tag="$2"
+  local installer_name="$3"
+  local original_sha256="$4"
+  local current_sha256="$5"
+  local current_size="$6"
+  local work_dir="$7"
+  local original_size="$8"
+  local receipt_dir="$work_dir/additive-installer-receipts"
+  local chain_path="$receipt_dir/chain.tsv"
+  local index=0 name receipt_path receipt_url receipt_sha256 receipt_size
+  local release_id release_target receipt_count=0
+  local receipt_release_id receipt_tag receipt_target receipt_source_run receipt_source_commit
+  local receipt_public_name receipt_previous_id receipt_previous_name receipt_previous_size receipt_previous_digest
+  local receipt_next_name receipt_next_size receipt_next_digest receipt_remaining
+  local chain_sha256="$original_sha256" chain_size="$original_size" used=0 matches
+  local next_sha256 next_size previous_sha256 previous_size
+
+  release_id=$(release_record_value "$record_path" id) || return 1
+  release_target=$(release_record_value "$record_path" target_commitish) || return 1
+  validate_positive_integer "$release_id" || return 1
+  validate_git_sha "$release_target" || return 1
+  mkdir -p "$receipt_dir"
+  : > "$chain_path"
+
+  while name=$(release_record_value "$record_path" "assets.$index.name" 2>/dev/null); do
+    if [[ ! "$name" =~ ^opl-additive-repair-[0-9a-f]{12}\.json$ ]]; then
+      index=$((index + 1))
+      continue
+    fi
+    receipt_sha256=$(release_record_value "$record_path" "assets.$index.digest") || return 1
+    receipt_url=$(release_record_value "$record_path" "assets.$index.browser_download_url") || return 1
+    receipt_size=$(release_record_value "$record_path" "assets.$index.size") || return 1
+    case "$receipt_sha256" in sha256:*) receipt_sha256="${receipt_sha256#sha256:}" ;; *) return 1 ;; esac
+    validate_sha256_value "$receipt_sha256" || return 1
+    validate_positive_integer "$receipt_size" || return 1
+    [ "$receipt_url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$name" ] || return 1
+    receipt_path="$receipt_dir/$name"
+    download_release_file "$receipt_url" "$receipt_path" 'additive installer repair receipt' || return 1
+    verify_file_sha256 "$receipt_path" "$receipt_sha256" 'Additive installer repair receipt' || return 1
+    verify_file_size "$receipt_path" "$receipt_size" 'Additive installer repair receipt' || return 1
+
+    [ "$(release_record_value "$receipt_path" schema)" = 'opl_app_stable_additive_repair.v1' ] || return 1
+    [ "$(release_record_value "$receipt_path" status)" = 'complete' ] || return 1
+    receipt_release_id=$(release_record_value "$receipt_path" release.id) || return 1
+    receipt_tag=$(release_record_value "$receipt_path" release.tag) || return 1
+    receipt_target=$(release_record_value "$receipt_path" release.target_commitish) || return 1
+    [ "$receipt_release_id" = "$release_id" ] || return 1
+    [ "$receipt_tag" = "$tag" ] || return 1
+    [ "$receipt_target" = "$release_target" ] || return 1
+    [ "$(release_record_value "$receipt_path" release.draft)" = false ] || return 1
+    [ "$(release_record_value "$receipt_path" release.prerelease)" = false ] || return 1
+    receipt_source_run=$(release_record_value "$receipt_path" source_run_id) || return 1
+    receipt_source_commit=$(release_record_value "$receipt_path" repair_source_commit) || return 1
+    validate_positive_integer "$receipt_source_run" || return 1
+    validate_git_sha "$receipt_source_commit" || return 1
+    [ "${receipt_source_commit:0:12}.json" = "${name#opl-additive-repair-}" ] || return 1
+    receipt_public_name=$(release_record_value "$receipt_path" public_receipt) || return 1
+    [ "$receipt_public_name" = "$name" ] || return 1
+    receipt_remaining=$(component_manifest_array_json "$receipt_path" remaining) || return 1
+    [ "$receipt_remaining" = '[]' ] || return 1
+
+    receipt_previous_id=$(release_record_value "$receipt_path" replacement.previous.id) || return 1
+    receipt_previous_name=$(release_record_value "$receipt_path" replacement.previous.name) || return 1
+    receipt_previous_size=$(release_record_value "$receipt_path" replacement.previous.size) || return 1
+    receipt_previous_digest=$(release_record_value "$receipt_path" replacement.previous.digest) || return 1
+    receipt_next_name=$(release_record_value "$receipt_path" replacement.next.name) || return 1
+    receipt_next_size=$(release_record_value "$receipt_path" replacement.next.size) || return 1
+    receipt_next_digest=$(release_record_value "$receipt_path" replacement.next.digest) || return 1
+    validate_positive_integer "$receipt_previous_id" || return 1
+    [ "$receipt_previous_name" = "$installer_name" ] || return 1
+    [ "$receipt_next_name" = "$installer_name" ] || return 1
+    validate_positive_integer "$receipt_previous_size" || return 1
+    validate_positive_integer "$receipt_next_size" || return 1
+    case "$receipt_previous_digest" in sha256:*) receipt_previous_digest="${receipt_previous_digest#sha256:}" ;; *) return 1 ;; esac
+    case "$receipt_next_digest" in sha256:*) receipt_next_digest="${receipt_next_digest#sha256:}" ;; *) return 1 ;; esac
+    validate_sha256_value "$receipt_previous_digest" || return 1
+    validate_sha256_value "$receipt_next_digest" || return 1
+    [ "$receipt_previous_digest" != "$receipt_next_digest" ] || return 1
+    printf '%s\t%s\t%s\t%s\t%s\n' \
+      "$name" "$receipt_previous_digest" "$receipt_previous_size" "$receipt_next_digest" "$receipt_next_size" \
+      >> "$chain_path"
+    receipt_count=$((receipt_count + 1))
+    index=$((index + 1))
+  done
+
+  [ "$receipt_count" -gt 0 ] || return 1
+  while [ "$chain_sha256" != "$current_sha256" ] || [ "$chain_size" != "$current_size" ]; do
+    matches=0
+    next_sha256=''
+    next_size=''
+    while IFS=$'\t' read -r name previous_sha256 previous_size receipt_next_digest receipt_next_size; do
+      if [ "$previous_sha256" = "$chain_sha256" ] && [ "$previous_size" = "$chain_size" ]; then
+        matches=$((matches + 1))
+        next_sha256="$receipt_next_digest"
+        next_size="$receipt_next_size"
+      fi
+    done < "$chain_path"
+    [ "$matches" -eq 1 ] || return 1
+    chain_sha256="$next_sha256"
+    chain_size="$next_size"
+    used=$((used + 1))
+    [ "$used" -le "$receipt_count" ] || return 1
+  done
+  [ "$used" -eq "$receipt_count" ]
+}
+
 verify_release_installer_bootstrap() {
   local record_path="$1"
   local manifest_path="$2"
   local tag="$3"
+  local work_dir="$4"
   local installer_name="${0##*/}"
-  local expected_url
+  local expected_url current_sha256 current_size original_identity original_sha256 original_size
 
   case "$installer_name" in
     opl-app-installer.sh|opl-install.sh)
@@ -1112,12 +1247,29 @@ verify_release_installer_bootstrap() {
     printf 'GitHub Release installer bootstrap URL mismatch.\n' >&2
     return 1
   fi
-  component_manifest_has_exact_artifact \
-    "$manifest_path" "$installer_name" "$RELEASE_ASSET_SHA256" "$tag" || {
-    printf 'Component manifest does not bind one exact installer bootstrap from the selected Release.\n' >&2
+  current_sha256="$RELEASE_ASSET_SHA256"
+  current_size="$RELEASE_ASSET_SIZE_BYTES"
+  if component_manifest_has_exact_artifact \
+    "$manifest_path" "$installer_name" "$current_sha256" "$tag"; then
+    verify_file_sha256 "$0" "$current_sha256" 'Installer bootstrap'
+    return
+  fi
+  original_identity=$(component_manifest_exact_artifact_identity \
+    "$manifest_path" "$installer_name" "$expected_url") || {
+    printf 'Component manifest does not bind one original installer bootstrap from the selected Release.\n' >&2
     return 1
   }
-  verify_file_sha256 "$0" "$RELEASE_ASSET_SHA256" 'Installer bootstrap'
+  original_sha256="${original_identity%%$'\t'*}"
+  original_size="${original_identity#*$'\t'}"
+  case "$original_sha256" in sha256:*) original_sha256="${original_sha256#sha256:}" ;; *) return 1 ;; esac
+  validate_sha256_value "$original_sha256" || return 1
+  validate_positive_integer "$original_size" || return 1
+  verify_additive_installer_receipt_chain \
+    "$record_path" "$tag" "$installer_name" "$original_sha256" "$current_sha256" "$current_size" "$work_dir" "$original_size" || {
+    printf 'Current installer bootstrap is not connected to the component manifest by one exact additive repair receipt chain.\n' >&2
+    return 1
+  }
+  verify_file_sha256 "$0" "$current_sha256" 'Installer bootstrap'
 }
 
 download_and_validate_component_manifest() {
@@ -1259,7 +1411,7 @@ download_and_validate_component_manifest() {
     printf 'Failed qualification gates: %s\n' "$failed_gates"
   fi
   printf 'Latest pointer selects this exact release but does not change its declared quality.\n'
-  verify_release_installer_bootstrap "$record_path" "$manifest_path" "$tag" || return 1
+  verify_release_installer_bootstrap "$record_path" "$manifest_path" "$tag" "$work_dir" || return 1
 
   STABLE_MACOS_COMPONENT_MANIFEST_PATH="$manifest_path"
   STABLE_MACOS_COMPONENT_MANIFEST_SHA256="$manifest_asset_sha256"

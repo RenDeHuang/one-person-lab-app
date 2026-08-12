@@ -490,9 +490,6 @@ jobs:
             and .release.target_commitish == $target
             and ([.assets[].name] | length == (unique | length))
           ' "$terminal" >/dev/null
-          original_installer="$(jq -ce '[.assets[] | select(.name == "opl-install.sh")] | select(length == 1) | .[0]' "$terminal")"
-          test "$(jq -er .sha256 <<<"$original_installer")" = "$EXPECTED_OLD_ASSET_DIGEST"
-          expected_old_size="$(jq -er .size_bytes <<<"$original_installer")"
           frozen_assets="$(jq -ce --arg version "$version" '
             [.assets[] | select(
               .name == "latest-arm64-mac.yml"
@@ -508,6 +505,15 @@ jobs:
           release_id="$(jq -er .release.id "$terminal")"
           gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > live-release.json
           gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > live-tag.json
+          live_installer="$(jq -ce --arg id "$EXPECTED_OLD_ASSET_ID" --arg digest "$EXPECTED_OLD_ASSET_DIGEST" '
+            [.assets[] | select(
+              (.id | tostring) == $id
+              and .name == "opl-install.sh"
+              and .digest == $digest
+              and (.size | type == "number" and . > 0)
+            )] | select(length == 1) | .[0]
+          ' live-release.json)"
+          expected_old_size="$(jq -er .size <<<"$live_installer")"
           jq -e --arg tag "$tag" --arg target "$app" '
             .ref == ("refs/tags/" + $tag) and .object.type == "commit" and .object.sha == $target
           ' live-tag.json >/dev/null
