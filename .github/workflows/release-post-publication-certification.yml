@@ -467,8 +467,8 @@ jobs:
             exit 1
           fi
           bash "$INSTALLER_NAME" --desktop --release-tag "$RELEASE_TAG" --no-open
-          test "$(dpkg-query -W -f='\${Version}' "$package")" = "$version"
-          test "$(dpkg-query -W -f='\${Architecture}' "$package")" = "$architecture"
+          test "$(dpkg-query -W -f='${Version}' "$package")" = "$version"
+          test "$(dpkg-query -W -f='${Architecture}' "$package")" = "$architecture"
           jq -n --arg tag "$RELEASE_TAG" --arg name "$ARTIFACT_NAME" --arg digest "$ARTIFACT_DIGEST" \
             --arg package "$package" --arg version "$version" --arg architecture "$architecture" \
             '{schema:"opl_app_linux_same_tag_desktop_install.v1",status:"passed",release_tag:$tag,artifact:{name:$name,digest:$digest},installed_package:{name:$package,version:$version,architecture:$architecture},rebuilt:false,remaining:[]}' \
