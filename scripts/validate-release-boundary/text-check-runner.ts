@@ -939,13 +939,14 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'receipt',
   ];
   if (
-    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run'])
+    JSON.stringify(Object.keys(certificationTriggers)) !== JSON.stringify(['workflow_run', 'workflow_dispatch'])
     || JSON.stringify(certificationTriggers.workflow_run?.workflows) !==
       JSON.stringify(['OPL Stable Desktop Release Set Follow-up'])
     || JSON.stringify(certificationTriggers.workflow_run?.types) !== JSON.stringify(['completed'])
+    || certificationTriggers.workflow_dispatch?.inputs?.operation?.options?.[0] !== 'verify_existing_repair'
     || !exactObject(optionalCertification.workflow.permissions, exactReadPermissions)
     || optionalCertification.workflow.concurrency?.group !==
-      'opl-desktop-release-set-certification-${{ github.event.workflow_run.id }}'
+      'opl-desktop-release-set-certification-${{ github.event_name == \'workflow_dispatch\' && inputs.followup_run_id || github.event.workflow_run.id }}'
     || optionalCertification.workflow.concurrency?.['cancel-in-progress'] !== false
     || JSON.stringify(Object.keys(certificationJobs)) !== JSON.stringify(expectedCertificationJobs)
   ) {

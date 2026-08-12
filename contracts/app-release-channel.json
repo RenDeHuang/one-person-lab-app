@@ -4241,6 +4241,26 @@
       "dispatcher_execution": "github_hosted_read_only_public_artifact_consumer",
       "stable_dag_dependency": false,
       "may_queue_without_proven_capability": false,
+      "existing_repair_verification": {
+        "trigger": "workflow_dispatch",
+        "operation": "verify_existing_repair",
+        "authority_binding": "canonical_main_plus_original_successful_stable_source_run_plus_successful_existing_repair_followup_run",
+        "required_inputs": [
+          "source_run_id",
+          "followup_run_id",
+          "verification_source_commit",
+          "operator_confirmation"
+        ],
+        "confirmation": "VERIFY EXISTING ADDITIVE REPAIR",
+        "workflow_permissions": {
+          "contents": "read",
+          "actions": "read"
+        },
+        "public_mutation_allowed": false,
+        "new_receipt_or_asset_allowed": false,
+        "reuses_existing_public_repair_receipt": true,
+        "canonical_main_executor_required": true
+      },
       "exact_failed_follower_recovery": {
         "trigger": "workflow_dispatch",
         "authority_binding": "same_successful_append_full_run_exact_failed_first_attempt_and_consumed_recovery_v1",

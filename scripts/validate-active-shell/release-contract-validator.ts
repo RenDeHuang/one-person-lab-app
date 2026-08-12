@@ -321,6 +321,7 @@ function validateDistributionSemantics(semantics) {
 
 function validateOptionalCertificationPolicy(releaseChannel) {
   const policy = releaseChannel?.post_publication_optional_certification;
+  const existingRepairVerification = policy?.producer?.existing_repair_verification;
   if (
     policy?.schema !== 'opl_app_optional_certification_policy.v1'
     || policy?.receipt_schema !== 'contracts/app-optional-certification-receipt.schema.json'
@@ -342,6 +343,18 @@ function validateOptionalCertificationPolicy(releaseChannel) {
     || policy?.producer?.dispatcher_execution !== 'github_hosted_read_only_public_artifact_consumer'
     || policy?.producer?.stable_dag_dependency !== false
     || policy?.producer?.may_queue_without_proven_capability !== false
+    || existingRepairVerification?.trigger !== 'workflow_dispatch'
+    || existingRepairVerification?.operation !== 'verify_existing_repair'
+    || existingRepairVerification?.authority_binding !== 'canonical_main_plus_original_successful_stable_source_run_plus_successful_existing_repair_followup_run'
+    || JSON.stringify(existingRepairVerification?.required_inputs) !== JSON.stringify([
+      'source_run_id', 'followup_run_id', 'verification_source_commit', 'operator_confirmation',
+    ])
+    || existingRepairVerification?.confirmation !== 'VERIFY EXISTING ADDITIVE REPAIR'
+    || JSON.stringify(existingRepairVerification?.workflow_permissions) !== JSON.stringify({ contents: 'read', actions: 'read' })
+    || existingRepairVerification?.public_mutation_allowed !== false
+    || existingRepairVerification?.new_receipt_or_asset_allowed !== false
+    || existingRepairVerification?.reuses_existing_public_repair_receipt !== true
+    || existingRepairVerification?.canonical_main_executor_required !== true
   ) {
     throw new Error('Optional certification must consume published bytes without blocking Stable publication or Latest');
   }

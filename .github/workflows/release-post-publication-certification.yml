@@ -1,5 +1,5 @@
 name: OPL Stable Desktop Release Set Certification
-run-name: Desktop Release Set certification for follow-up ${{ github.event.workflow_run.id }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Existing additive repair verification for follow-up {0}', inputs.followup_run_id) || format('Desktop Release Set certification for follow-up {0}', github.event.workflow_run.id) }}
 
 on:
   workflow_run:
@@ -7,6 +7,30 @@ on:
       - OPL Stable Desktop Release Set Follow-up
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Protected read-only verification of an already-published additive repair.
+        required: true
+        type: choice
+        options:
+          - verify_existing_repair
+      source_run_id:
+        description: Exact successful Stable source run that published the original Release Set.
+        required: true
+        type: string
+      followup_run_id:
+        description: Exact successful additive repair follow-up run whose public receipt is consumed.
+        required: true
+        type: string
+      verification_source_commit:
+        description: Exact canonical App main commit containing this certification fix.
+        required: true
+        type: string
+      operator_confirmation:
+        description: Type VERIFY EXISTING ADDITIVE REPAIR to authorize read-only certification.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,12 +40,12 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-desktop-release-set-certification-${{ github.event.workflow_run.id }}
+  group: opl-desktop-release-set-certification-${{ github.event_name == 'workflow_dispatch' && inputs.followup_run_id || github.event.workflow_run.id }}
   cancel-in-progress: false
 
 jobs:
   resolve-release-set:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') || (github.event_name == 'workflow_dispatch' && inputs.operation == 'verify_existing_repair') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
@@ -30,6 +54,7 @@ jobs:
       certification_kind: ${{ steps.authority.outputs.certification_kind }}
       certify_macos: ${{ steps.authority.outputs.certify_macos }}
       source_run_id: ${{ steps.authority.outputs.source_run_id }}
+      followup_run_id: ${{ steps.authority.outputs.followup_run_id }}
       full_run_id: ${{ steps.followup.outputs.full_run_id }}
       tag: ${{ steps.identity.outputs.tag || steps.repair_identity.outputs.tag }}
       app_sha: ${{ steps.identity.outputs.app_sha || steps.repair_identity.outputs.app_sha }}
@@ -49,17 +74,74 @@ jobs:
       - name: Checkout exact certification source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.verification_source_commit || github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
       - name: Admit one completed Desktop Release Set follow-up
         id: authority
         env:
           GH_TOKEN: ${{ github.token }}
-          FOLLOWUP_RUN_ID: ${{ github.event.workflow_run.id }}
+          FOLLOWUP_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
+          INPUT_OPERATION: ${{ inputs.operation }}
+          INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          INPUT_FOLLOWUP_RUN_ID: ${{ inputs.followup_run_id }}
+          VERIFICATION_SOURCE_COMMIT: ${{ inputs.verification_source_commit }}
+          OPERATOR_CONFIRMATION: ${{ inputs.operator_confirmation }}
         shell: bash
         run: |
           set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            test "$INPUT_OPERATION" = verify_existing_repair
+            test "$OPERATOR_CONFIRMATION" = 'VERIFY EXISTING ADDITIVE REPAIR'
+            SOURCE_RUN_ID="$INPUT_SOURCE_RUN_ID"
+            FOLLOWUP_RUN_ID="$INPUT_FOLLOWUP_RUN_ID"
+            [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$FOLLOWUP_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$VERIFICATION_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+            test "$(git rev-parse HEAD)" = "$VERIFICATION_SOURCE_COMMIT"
+            gh api "repos/$GITHUB_REPOSITORY/branches/main" > current-main.json
+            test "$(jq -er .commit.sha current-main.json)" = "$VERIFICATION_SOURCE_COMMIT"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > source-run.json
+            jq -e --arg run "$SOURCE_RUN_ID" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-stable.yml"
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .run_attempt == 1
+              and .status == "completed"
+              and .conclusion == "success"
+            ' source-run.json >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FOLLOWUP_RUN_ID" > followup-run.json
+            jq -e --arg run "$FOLLOWUP_RUN_ID" --arg source "$SOURCE_RUN_ID" '
+              (.id | tostring) == $run
+              and .repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
+              and .path == ".github/workflows/release-stable-post-success-followups.yml"
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .run_attempt == 1
+              and .status == "completed"
+              and .conclusion == "success"
+              and (.display_title | test("^Stable additive repair for source run " + $source + "$"))
+            ' followup-run.json >/dev/null
+            gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$FOLLOWUP_RUN_ID/artifacts?per_page=100" > followup-artifacts.json
+            jq -e --arg name "opl-stable-additive-repair-$SOURCE_RUN_ID" '
+              [.[]?.artifacts[]? | select(.name == $name and .expired == false)] | length == 1
+            ' followup-artifacts.json >/dev/null
+            {
+              echo "applicable=true"
+              echo "reason_code=existing_repair_verification"
+              echo "certification_kind=repair_additive"
+              echo "certify_macos=false"
+              echo "source_run_id=$SOURCE_RUN_ID"
+              echo "followup_run_id=$FOLLOWUP_RUN_ID"
+              echo "operation_kind=standard"
+              echo "repair_receipt=opl-stable-additive-repair-$SOURCE_RUN_ID"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           test "$GITHUB_RUN_ATTEMPT" = 1
           [[ "$FOLLOWUP_RUN_ID" =~ ^[1-9][0-9]*$ ]]
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$FOLLOWUP_RUN_ID" > followup-run.json
@@ -78,6 +160,7 @@ jobs:
             )
           ' followup-run.json >/dev/null
           followup_event="$(jq -er .event followup-run.json)"
+          followup_run_id="$FOLLOWUP_RUN_ID"
           if [ "$followup_event" = workflow_dispatch ]; then
             source_run_id="$(jq -er '.display_title | capture("source run (?<run>[1-9][0-9]*)$").run' followup-run.json)"
             certification_kind=repair_additive
@@ -132,6 +215,7 @@ jobs:
               echo "applicable=false"
               echo "reason_code=$reason_code"
               echo "source_run_id=$source_run_id"
+              echo "followup_run_id=$FOLLOWUP_RUN_ID"
               echo "operation_kind=$operation_kind"
               echo "certification_kind=$certification_kind"
               echo "certify_macos=false"
@@ -160,6 +244,7 @@ jobs:
             echo "certification_kind=desktop_release_set"
             echo "certify_macos=true"
             echo "source_run_id=$source_run_id"
+            echo "followup_run_id=$followup_run_id"
             echo "operation_kind=$operation_kind"
             echo "followup_receipt=opl-stable-release-set-followup-${source_run_id}"
             echo "desktop_receipt=opl-stable-desktop-append-${source_run_id}"
@@ -323,7 +408,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ steps.authority.outputs.repair_receipt }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.authority.outputs.followup_run_id }}
           github-token: ${{ github.token }}
           path: repair-receipt
 
@@ -342,7 +427,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ steps.authority.outputs.source_run_id }}
-          REPAIR_SOURCE_COMMIT: ${{ github.event.workflow_run.head_sha }}
+          REPAIR_SOURCE_COMMIT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -352,11 +437,10 @@ jobs:
           test "${#bundles[@]}" = 1
           receipt="${receipts[0]}"
           bundle="${bundles[0]}"
-          jq -e --arg source "$SOURCE_RUN_ID" --arg repair "$REPAIR_SOURCE_COMMIT" '
+          jq -e --arg source "$SOURCE_RUN_ID" '
             .schema == "opl_app_stable_additive_repair.v1"
             and .status == "complete"
             and .source_run_id == $source
-            and .repair_source_commit == $repair
             and .release.draft == false
             and .release.prerelease == false
             and (.release.id | type == "number")
@@ -376,6 +460,12 @@ jobs:
             and (.public_receipt | test("^opl-additive-repair-[0-9a-f]{12}\\.json$"))
             and .remaining == []
           ' "$receipt" >/dev/null
+          receipt_repair_source="$(jq -er .repair_source_commit "$receipt")"
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
+            test "$receipt_repair_source" = "$REPAIR_SOURCE_COMMIT"
+          else
+            [[ "$receipt_repair_source" =~ ^[0-9a-f]{40}$ ]]
+          fi
           tag="$(jq -er .release.tag "$receipt")"
           release_id="$(jq -er .release.id "$receipt")"
           app="$(jq -er .release.target_commitish "$receipt")"
