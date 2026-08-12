@@ -50,8 +50,10 @@ checkpoint, appends selected Linux/Windows assets to that same mutable Release/t
 one Full append. Its protected manual `repair_additive` branch may replace only `opl-install.sh` in
 the same Release/tag after old asset ID/size/digest CAS and frozen primary-asset/body/tag checks. It
 does not create a Framework Bundle operation, allocate a version, rebuild platform assets or move
-Latest. `.github/workflows/release-post-publication-certification.yml` is a read-only consumer of the
-completed same-tag Release Set and additive repair receipt.
+Latest. Repeated repairs form one complete, unforked digest-and-size chain from the component
+manifest's original installer identity through every public additive repair receipt to the current
+Release asset. `.github/workflows/release-post-publication-certification.yml` is a read-only consumer
+of the completed same-tag Release Set and additive repair receipt.
 
 Nightly and Windows Preview/RC are separate Preview policies and never become alternate Stable
 Releases. Docker WebUI is also outside this Bundle control plane.

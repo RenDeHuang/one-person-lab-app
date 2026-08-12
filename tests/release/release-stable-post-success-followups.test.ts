@@ -141,6 +141,9 @@ test('additive repair is one protected opl-install.sh compare-and-swap path', ()
   assert.match(source, /test "\$GITHUB_REF" = refs\/heads\/main/);
   assert.match(source, /test "\$OPERATOR_CONFIRMATION" = 'REPAIR ADDITIVE INSTALLER'/);
   assert.match(source, /opl-release-standard-remote-verify-\$SOURCE_RUN_ID/);
+  assert.match(source, /live_installer=.*EXPECTED_OLD_ASSET_ID.*EXPECTED_OLD_ASSET_DIGEST/s);
+  assert.match(source, /expected_old_size=.*\.size <<<"\$live_installer"/);
+  assert.doesNotMatch(source, /original_installer=.*terminal/s);
   assert.match(source, /generate-frozen-universal-installer\.ts/);
   assert.match(source, /jq -e 'select\(length == 5 and \(\[\.\[\]\.name\] \| length == \(unique \| length\)\)\)'/);
   assert.doesNotMatch(source, /jq -e 'length == 5 and \(\[\.\[\]\.name\] \| length == \(unique \| length\)\)'/);
