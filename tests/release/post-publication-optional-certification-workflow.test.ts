@@ -83,6 +83,10 @@ test('Linux certification consumes the exact public same-tag Desktop assets', ()
   assert.match(source, /opl_app_linux_same_tag_desktop_install\.v1/);
   assert.match(source, /linux-x64-same-tag-install\.json/);
   assert.match(source, /rebuilt:false/);
+  assert.equal(source.includes("dpkg-query -W -f='${Version}'"), true);
+  assert.equal(source.includes("dpkg-query -W -f='${Architecture}'"), true);
+  assert.equal(source.includes("dpkg-query -W -f='\\${Version}'"), false);
+  assert.equal(source.includes("dpkg-query -W -f='\\${Architecture}'"), false);
 });
 
 test('macOS certification remains read-only and binds Standard and Full to the same tag', () => {
