@@ -15,7 +15,7 @@ function readWorkflow(): { source: string; workflow: Record<string, any> } {
 
 test('Desktop Release Set certification follows one completed same-tag append', () => {
   const { source, workflow } = readWorkflow();
-  assert.deepEqual(Object.keys(workflow.on), ['workflow_run']);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_run', 'workflow_dispatch']);
   assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Stable Desktop Release Set Follow-up']);
   assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
   assert.deepEqual(Object.keys(workflow.jobs), [
@@ -29,6 +29,14 @@ test('Desktop Release Set certification follows one completed same-tag append', 
   assert.deepEqual(workflow.permissions, { contents: 'read', actions: 'read' });
   assert.doesNotMatch(source, /optional[_-]platform|adjunct|release-stable-optional-existing-base/);
   assert.doesNotMatch(source, /contents: write|packages: write|gh release (?:create|edit|upload|delete)/);
+  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), [
+    'operation', 'source_run_id', 'followup_run_id', 'verification_source_commit', 'operator_confirmation',
+  ]);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.operation.options, ['verify_existing_repair']);
+  assert.match(source, /VERIFY EXISTING ADDITIVE REPAIR/);
+  assert.match(source, /existing_repair_verification/);
+  assert.match(source, /current-main\.json/);
+  assert.match(source, /followup_run_id/);
 });
 
 test('non-Desktop Stable operations complete certification as not applicable', () => {

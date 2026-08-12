@@ -126,6 +126,18 @@ test('release platform contract keeps the primary Stable platform separate from 
     certification: 'same_tag_public_installer_digest_chain_and_clean_linux_install',
     unknown_result_policy: 'owner_authoritative_read_only_reconcile_no_retry_rerun_redispatch_or_cancel',
   });
+  assert.deepEqual(release.post_publication_optional_certification.producer.existing_repair_verification, {
+    trigger: 'workflow_dispatch',
+    operation: 'verify_existing_repair',
+    authority_binding: 'canonical_main_plus_original_successful_stable_source_run_plus_successful_existing_repair_followup_run',
+    required_inputs: ['source_run_id', 'followup_run_id', 'verification_source_commit', 'operator_confirmation'],
+    confirmation: 'VERIFY EXISTING ADDITIVE REPAIR',
+    workflow_permissions: { contents: 'read', actions: 'read' },
+    public_mutation_allowed: false,
+    new_receipt_or_asset_allowed: false,
+    reuses_existing_public_repair_receipt: true,
+    canonical_main_executor_required: true,
+  });
   assert.equal(
     release.release_validation_profiles.stable.required_lanes.includes('standard_linux_x64_build'),
     false,

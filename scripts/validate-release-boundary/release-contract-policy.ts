@@ -1389,6 +1389,7 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
 function validateOptionalCertificationPolicy(releaseContract: Record<string, any>): number {
   const policy = releaseContract.post_publication_optional_certification;
   const recovery = policy?.producer?.exact_failed_follower_recovery;
+  const existingRepairVerification = policy?.producer?.existing_repair_verification;
   let failures = 0;
   if (
     policy?.schema !== 'opl_app_optional_certification_policy.v1'
@@ -1430,6 +1431,18 @@ function validateOptionalCertificationPolicy(releaseContract: Record<string, any
     || policy?.producer?.dispatcher_execution !== 'github_hosted_read_only_public_artifact_consumer'
     || policy?.producer?.stable_dag_dependency !== false
     || policy?.producer?.may_queue_without_proven_capability !== false
+    || existingRepairVerification?.trigger !== 'workflow_dispatch'
+    || existingRepairVerification?.operation !== 'verify_existing_repair'
+    || existingRepairVerification?.authority_binding !== 'canonical_main_plus_original_successful_stable_source_run_plus_successful_existing_repair_followup_run'
+    || !sameStringSet(existingRepairVerification?.required_inputs, [
+      'source_run_id', 'followup_run_id', 'verification_source_commit', 'operator_confirmation',
+    ])
+    || existingRepairVerification?.confirmation !== 'VERIFY EXISTING ADDITIVE REPAIR'
+    || JSON.stringify(existingRepairVerification?.workflow_permissions) !== JSON.stringify({ contents: 'read', actions: 'read' })
+    || existingRepairVerification?.public_mutation_allowed !== false
+    || existingRepairVerification?.new_receipt_or_asset_allowed !== false
+    || existingRepairVerification?.reuses_existing_public_repair_receipt !== true
+    || existingRepairVerification?.canonical_main_executor_required !== true
     || recovery?.trigger !== 'workflow_dispatch'
     || recovery?.authority_binding !==
       'same_successful_append_full_run_exact_failed_first_attempt_and_consumed_recovery_v1'
