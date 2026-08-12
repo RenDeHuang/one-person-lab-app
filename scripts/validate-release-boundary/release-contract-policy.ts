@@ -460,10 +460,13 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
       'repair_in_original_release_set_without_new_version' ||
     releaseName?.machine_version?.legacy_stable_last_display_version !== '26.7.20' ||
     releaseName?.machine_version?.shared_preview_lane_cutover_display_version !== '26.7.31' ||
+    releaseName?.machine_version?.independent_nightly_revision_cutover_display_version !== '26.8.14' ||
     releaseName?.machine_version?.stable_patch_formula_before_cutover !== 'day_times_100_plus_revision' ||
     releaseName?.machine_version?.shared_channel_patch_formula_after_cutover !==
       'day_times_100_plus_90_plus_revision' ||
     releaseName?.machine_version?.nightly_patch_offset !== 90 ||
+    releaseName?.machine_version?.independent_nightly_machine_patch_offset !== 91 ||
+    releaseName?.machine_version?.independent_nightly_display_revision_role !== 'same_day_nightly_rebuild_only' ||
     !sameStringSet(releaseName?.machine_version?.shared_revision_sources_after_cutover, [
       'stable',
       'preview',
@@ -628,7 +631,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     sameDayRebuild?.suffix_pattern !== '.r<revision>' ||
     sameDayRebuild?.first_revision !== 1 ||
     sameDayRebuild?.maximum_revision !== 9 ||
-    sameDayRebuild?.allocation !== 'highest_existing_same_day_tag_or_release_plus_one' ||
+    sameDayRebuild?.allocation !== 'highest_existing_same_day_nightly_tag_or_release_plus_one' ||
     sameDayRebuild?.legacy_run_identity_counts_as_existing_release !== true ||
     sameDayRebuild?.github_actions_run_identity_in_version !== false ||
     sameDayRebuild?.exhaustion_policy !== 'fail_closed' ||

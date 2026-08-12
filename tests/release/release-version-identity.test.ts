@@ -171,7 +171,7 @@ test('a Stable selected to supersede a published Nightly must have a strictly hi
   );
 });
 
-test('all post-cutover App channels allocate from one published same-day revision lane', () => {
+test('Nightly keeps an independent same-day display revision lane from Stable and Preview', () => {
   const preview = resolvePreviewReleaseVersion('26.7.31', [
     'v26.7.31-nightly',
     'v26.7.31',
@@ -189,6 +189,54 @@ test('all post-cutover App channels allocate from one published same-day revisio
     '26.7.31-nightly',
     '26.7.31-preview.r1',
   ]);
+});
+
+test('first post-cutover Nightly remains unsuffixed when the same day has only Stable or Preview releases', () => {
+  const nightly = resolveNightlyReleaseVersion(
+    '26.8.14-nightly',
+    ['v26.8.14', 'v26.8.14-preview.r1'],
+    '2026-08-14',
+  );
+  assert.equal(nightly.version, '26.8.14-nightly');
+  assert.equal(nightly.rebuildRevision, null);
+  assert.deepEqual(nightly.observedSameDayVersions, []);
+});
+
+test('post-cutover Nightly separates public rebuild labels from updater ordering', () => {
+  assert.equal(
+    resolveNightlyReleaseVersion(
+      '26.8.14-nightly',
+      ['v26.8.14'],
+      '2026-08-14',
+    ).version,
+    '26.8.14-nightly',
+  );
+  assert.equal(
+    resolveNightlyReleaseVersion(
+      '26.8.14-nightly',
+      ['v26.8.14-nightly', 'v26.8.14'],
+      '2026-08-14',
+    ).version,
+    '26.8.14-nightly.r1',
+  );
+  assert.equal(resolveReleaseVersionIdentity('nightly', '26.8.14-nightly').updaterVersion, '26.8.1491-nightly.1');
+  assert.equal(resolveReleaseVersionIdentity('nightly', '26.8.14-nightly.r1').updaterVersion, '26.8.1491-nightly.2');
+  assert.ok(compareUpdaterMachineVersions('26.8.1490', '26.8.1491-nightly.1') < 0);
+  assert.ok(compareUpdaterMachineVersions('26.8.1491-nightly.1', '26.8.1491-nightly.2') < 0);
+});
+
+test('post-cutover Stable allocates a same-day revision only after a published Nightly', () => {
+  assert.equal(resolveStableReleaseVersion('26.8.14', [], [], '2026-08-14').version, '26.8.14');
+  const stable = resolveStableReleaseVersion('26.8.14', ['v26.8.14-nightly'], [], '2026-08-14');
+  assert.equal(stable.version, '26.8.14-r1');
+  assert.equal(stable.updaterVersion, '26.8.1491');
+  assert.ok(compareUpdaterMachineVersions(stable.updaterVersion, '26.8.1491-nightly.1') > 0);
+});
+
+test('post-cutover Preview observes the Nightly machine lane without creating a Nightly rebuild label', () => {
+  const preview = resolvePreviewReleaseVersion('26.8.14', ['v26.8.14-nightly'], '2026-08-14');
+  assert.equal(preview.version, '26.8.14-preview.r2');
+  assert.equal(preview.updaterVersion, '26.8.1492-preview.2');
 });
 
 test('Stable updater is Stable-only while Preview selects the highest Stable or Preview kind', () => {

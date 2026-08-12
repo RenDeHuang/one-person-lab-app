@@ -196,6 +196,17 @@ function contractSharedPreviewLaneCutoverDisplayVersion(): string {
   return value;
 }
 
+function contractIndependentNightlyRevisionCutoverDisplayVersion(): string {
+  const value = releaseContract?.github_release_name?.machine_version
+    ?.independent_nightly_revision_cutover_display_version;
+  if (typeof value !== 'string' || !/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(value)) {
+    throw new Error(
+      'App release contract must set github_release_name.machine_version.independent_nightly_revision_cutover_display_version.',
+    );
+  }
+  return value;
+}
+
 function contractNightlyPatchOffset(): number {
   const value = releaseContract?.github_release_name?.machine_version?.nightly_patch_offset;
   if (!Number.isInteger(value) || value < 10 || value > 90) {
@@ -204,14 +215,30 @@ function contractNightlyPatchOffset(): number {
   return value;
 }
 
+function contractIndependentNightlyMachinePatchOffset(): number {
+  const value = releaseContract?.github_release_name?.machine_version
+    ?.independent_nightly_machine_patch_offset;
+  if (!Number.isInteger(value) || value < 10 || value > 99) {
+    throw new Error(
+      'App release contract must set github_release_name.machine_version.independent_nightly_machine_patch_offset from 10 through 99.',
+    );
+  }
+  return value;
+}
+
 export const stableMaximumRevision = contractStableMaximumRevision();
 export const legacyStableMachineVersionLastDisplay = contractLegacyStableMachineVersionLastDisplay();
 export const sharedPreviewLaneCutoverDisplayVersion =
   contractSharedPreviewLaneCutoverDisplayVersion();
+export const independentNightlyRevisionCutoverDisplayVersion =
+  contractIndependentNightlyRevisionCutoverDisplayVersion();
 export const nightlyMachinePatchOffset = contractNightlyPatchOffset();
+export const independentNightlyMachinePatchOffset = contractIndependentNightlyMachinePatchOffset();
 
 if (nightlyMachinePatchOffset <= stableMaximumRevision
-  || nightlyMachinePatchOffset + nightlyMaximumRebuildRevision >= 100) {
+  || nightlyMachinePatchOffset + nightlyMaximumRebuildRevision >= 100
+  || independentNightlyMachinePatchOffset <= nightlyMachinePatchOffset
+  || independentNightlyMachinePatchOffset >= 100) {
   throw new Error('Nightly machine patch slots must follow Stable revisions and remain below the next calendar day.');
 }
 
@@ -282,6 +309,17 @@ function compareCalendarVersions(left: string, right: string): number {
     if (leftTuple[index] !== rightTuple[index]) return leftTuple[index]! - rightTuple[index]!;
   }
   return 0;
+}
+
+function usesIndependentNightlyMachineIdentity(displayBaseVersion: string): boolean {
+  return compareCalendarVersions(
+    displayBaseVersion,
+    independentNightlyRevisionCutoverDisplayVersion,
+  ) >= 0;
+}
+
+function nightlyMachineLaneRevision(displayBaseVersion: string, nightlyDisplayRevision: number): number {
+  return usesIndependentNightlyMachineIdentity(displayBaseVersion) ? 1 : nightlyDisplayRevision;
 }
 
 export function encodeStableMachineVersion(displayVersion: string): string {
@@ -360,12 +398,18 @@ export function resolveReleaseVersionIdentity(
     );
   }
   const legacyMachineVersion = compareCalendarVersions(baseDisplayVersion, legacyStableMachineVersionLastDisplay) <= 0;
+  const machineRevision = usesIndependentNightlyMachineIdentity(baseDisplayVersion)
+    ? revision + 1
+    : revision;
+  const machinePatchOffset = usesIndependentNightlyMachineIdentity(baseDisplayVersion)
+    ? independentNightlyMachinePatchOffset
+    : nightlyMachinePatchOffset + revision;
   return {
     channel,
     displayVersion,
     updaterVersion: legacyMachineVersion
       ? displayVersion
-      : `${year}.${calendar.month}.${calendar.day * 100 + nightlyMachinePatchOffset + revision}-nightly.${revision}`,
+      : `${year}.${calendar.month}.${calendar.day * 100 + machinePatchOffset}-nightly.${machineRevision}`,
     tag: `v${displayVersion}`,
     revision,
     legacyMachineVersion,
@@ -475,8 +519,9 @@ function normalizeReleaseRef(rawRef: string): string {
 export function resolveNightlyReleaseVersion(
   baseVersion: string,
   existingRefs: Iterable<string>,
+  currentDate = currentReleaseCalendarDate(),
 ): NightlyVersionResolution {
-  assertReleaseVersionNotFuture('nightly', baseVersion);
+  assertReleaseVersionNotFuture('nightly', baseVersion, currentDate);
   if (!baseVersion.endsWith('-nightly')) {
     throw new Error(`Nightly base version must not include a rebuild suffix: ${baseVersion}.`);
   }
@@ -489,6 +534,7 @@ export function resolveNightlyReleaseVersion(
     stableBase,
     sharedPreviewLaneCutoverDisplayVersion,
   ) >= 0;
+  const independentNightlyRevision = usesIndependentNightlyMachineIdentity(stableBase);
   const escapedStableBase = stableBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const stablePattern = new RegExp(`^${escapedStableBase}(?:-r([1-9][0-9]*))?$`);
   const previewPattern = new RegExp(`^${escapedStableBase}-preview\\.r([1-9][0-9]*)$`);
@@ -508,7 +554,7 @@ export function resolveNightlyReleaseVersion(
       highestRevision = Math.max(highestRevision, 0);
       continue;
     }
-    if (sharedPreviewLane) {
+    if (sharedPreviewLane && !independentNightlyRevision) {
       const stableMatch = stablePattern.exec(version);
       const previewMatch = previewPattern.exec(version);
       if (stableMatch || previewMatch) {
@@ -550,8 +596,9 @@ export function resolveStableReleaseVersion(
   baseVersion: string,
   existingRefs: Iterable<string>,
   publishedNightlyUpdaterVersions: Iterable<string> = [],
+  currentDate = currentReleaseCalendarDate(),
 ): StableVersionResolution {
-  assertReleaseVersionNotFuture('stable', baseVersion);
+  assertReleaseVersionNotFuture('stable', baseVersion, currentDate);
   if (stableReleaseRevision(baseVersion) !== 0) {
     throw new Error(`Stable base version must not include a revision suffix: ${baseVersion}.`);
   }
@@ -584,7 +631,11 @@ export function resolveStableReleaseVersion(
       if (nightlyMatch) observedNightlyDisplayVersions.add(version);
       highestPrereleaseRevision = Math.max(
         highestPrereleaseRevision,
-        previewMatch ? Number(previewMatch[1]) : nightlyMatch?.[1] ? Number(nightlyMatch[1]) : 0,
+        previewMatch
+          ? Number(previewMatch[1])
+          : nightlyMatch
+            ? nightlyMachineLaneRevision(baseVersion, nightlyMatch[1] ? Number(nightlyMatch[1]) : 0)
+            : 0,
       );
     }
   }
@@ -621,8 +672,9 @@ export function resolveStableReleaseVersion(
 export function resolvePreviewReleaseVersion(
   baseVersion: string,
   existingRefs: Iterable<string>,
+  currentDate = currentReleaseCalendarDate(),
 ): PreviewVersionResolution {
-  assertReleaseVersionNotFuture('stable', baseVersion);
+  assertReleaseVersionNotFuture('stable', baseVersion, currentDate);
   if (stableReleaseRevision(baseVersion) !== 0) {
     throw new Error(`Preview base version must not include a revision suffix: ${baseVersion}.`);
   }
@@ -648,8 +700,8 @@ export function resolvePreviewReleaseVersion(
       highestRevision,
       previewMatch
         ? Number(previewMatch[1])
-        : nightlyMatch?.[1]
-          ? Number(nightlyMatch[1])
+        : nightlyMatch
+          ? nightlyMachineLaneRevision(baseVersion, nightlyMatch[1] ? Number(nightlyMatch[1]) : 0)
           : stableMatch?.[1]
             ? Number(stableMatch[1])
             : 0,
