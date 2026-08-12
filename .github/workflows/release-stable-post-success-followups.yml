@@ -574,7 +574,7 @@ jobs:
             --source install.sh --output repair-assets/opl-install.sh --version "$VERSION" \
             --app-sha "$APP_REF" --shell-sha "$SHELL_REF" --framework-sha "$FRAMEWORK_REF" \
             --repository "$GITHUB_REPOSITORY"
-          jq -e 'length == 5 and ([.[].name] | length == (unique | length))' <<<"$FROZEN_ASSETS" \
+          jq -e 'select(length == 5 and ([.[].name] | length == (unique | length)))' <<<"$FROZEN_ASSETS" \
             > frozen-assets.json
       - name: Plan additive repair before public mutation
         env:
