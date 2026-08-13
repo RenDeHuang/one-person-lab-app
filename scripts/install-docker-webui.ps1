@@ -159,19 +159,28 @@ function Resolve-DockerDesktopApplicationPath {
 }
 
 function Resolve-DockerCliPath {
-  $command = Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($null -ne $command) {
-    $commandPath = if (-not [string]::IsNullOrWhiteSpace($command.Source)) { $command.Source } else { $command.Path }
-    if (-not [string]::IsNullOrWhiteSpace($commandPath) -and (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
-      return [System.IO.Path]::GetFullPath($commandPath)
+  param([switch]$Elevated)
+
+  if (-not $Elevated) {
+    $command = Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $command) {
+      $commandPath = if (-not [string]::IsNullOrWhiteSpace($command.Source)) { $command.Source } else { $command.Path }
+      if (-not [string]::IsNullOrWhiteSpace($commandPath) -and (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
+        return [System.IO.Path]::GetFullPath($commandPath)
+      }
     }
   }
 
   $candidates = [System.Collections.Generic.List[string]]::new()
-  if (-not [string]::IsNullOrWhiteSpace($env:ProgramFiles)) {
-    $candidates.Add((Join-Path $env:ProgramFiles "Docker\Docker\resources\bin\docker.exe")) | Out-Null
+  $programFilesPath = if ($Elevated) {
+    [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::ProgramFiles)
+  } else {
+    $env:ProgramFiles
   }
-  if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+  if (-not [string]::IsNullOrWhiteSpace($programFilesPath)) {
+    $candidates.Add((Join-Path $programFilesPath "Docker\Docker\resources\bin\docker.exe")) | Out-Null
+  }
+  if (-not $Elevated -and -not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
     $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\DockerDesktop\resources\bin\docker.exe")) | Out-Null
     $candidates.Add((Join-Path $env:LOCALAPPDATA "Docker\resources\bin\docker.exe")) | Out-Null
     $candidates.Add((Join-Path $env:LOCALAPPDATA "Programs\Docker\resources\bin\docker.exe")) | Out-Null
@@ -231,10 +240,12 @@ function Install-Wsl2Prerequisites {
 }
 
 function Install-DockerDesktopPrerequisite {
+  param([switch]$Elevated)
+
   if (-not $InstallPrerequisites) {
     return
   }
-  if ($null -ne (Resolve-DockerCliPath) -or $null -ne (Resolve-DockerDesktopApplicationPath)) {
+  if ($null -ne (Resolve-DockerCliPath -Elevated:$Elevated) -or $null -ne (Resolve-DockerDesktopApplicationPath)) {
     Write-Step "Docker Desktop is already installed; skipping duplicate winget installation."
     return
   }
@@ -902,12 +913,14 @@ function Assert-DockerCli {
     return "docker.exe"
   }
 
+  $elevated = Test-Administrator
+  $trustedDockerResolution = $elevated -or $InstallPrerequisites
   Refresh-ProcessPathFromEnvironment
-  $dockerCliPath = Resolve-DockerCliPath
+  $dockerCliPath = Resolve-DockerCliPath -Elevated:$trustedDockerResolution
   if ($null -eq $dockerCliPath) {
-    Install-DockerDesktopPrerequisite
+    Install-DockerDesktopPrerequisite -Elevated:$trustedDockerResolution
     Refresh-ProcessPathFromEnvironment
-    $dockerCliPath = Resolve-DockerCliPath
+    $dockerCliPath = Resolve-DockerCliPath -Elevated:$trustedDockerResolution
   }
   if ($null -eq $dockerCliPath) {
     if ($null -ne (Resolve-DockerDesktopApplicationPath)) {
@@ -2270,8 +2283,9 @@ $url = $HealthUrl
 Assert-WindowsHost
 Assert-PowerShellVersion
 if ($RepairDockerDesktopStart) {
+  $elevated = Test-Administrator
   Refresh-ProcessPathFromEnvironment
-  $dockerCliPath = Resolve-DockerCliPath
+  $dockerCliPath = Resolve-DockerCliPath -Elevated:$elevated
   if ($null -eq $dockerCliPath) {
     throw "docker.exe was not found. Install or repair Docker Desktop before using -RepairDockerDesktopStart."
   }

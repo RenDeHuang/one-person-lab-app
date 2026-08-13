@@ -574,6 +574,88 @@ test('Windows Docker/WebUI refreshes stale PATH and resolves docker.exe without 
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
+test('Windows Docker/WebUI limits elevated Docker resolution to supported machine installation paths', () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const resolver = extractPowerShellFunction(installer, 'Resolve-DockerCliPath');
+  const prerequisiteInstaller = extractPowerShellFunction(installer, 'Install-DockerDesktopPrerequisite');
+  const dockerAssertion = extractPowerShellFunction(installer, 'Assert-DockerCli');
+  const repairExecution = installer.slice(
+    installer.indexOf('if ($RepairDockerDesktopStart)'),
+    installer.indexOf('if ($DisableAutoUpdate)'),
+  );
+
+  assert.match(resolver, /param\(\[switch\]\$Elevated\)/);
+  assert.match(
+    resolver,
+    /if \(-not \$Elevated\) \{\s+\$command = Get-Command docker\.exe[\s\S]*?\n  \}/,
+    'ordinary resolution must retain the existing PATH fast path',
+  );
+  assert.match(
+    resolver,
+    /if \(\$Elevated\) \{\s+\[System\.Environment\]::GetFolderPath\(\[System\.Environment\+SpecialFolder\]::ProgramFiles\)/,
+    'elevated resolution must derive Program Files from Windows instead of the inherited process environment',
+  );
+  assert.match(resolver, /Join-Path \$programFilesPath "Docker\\Docker\\resources\\bin\\docker\.exe"/);
+  assert.match(
+    resolver,
+    /if \(-not \$Elevated -and -not \[string\]::IsNullOrWhiteSpace\(\$env:LOCALAPPDATA\)\)/,
+    'per-user Docker Desktop paths must remain available only outside the elevated trust lane',
+  );
+  assert.doesNotMatch(
+    resolver,
+    /if \(\$Elevated\)[\s\S]*Get-Command docker\.exe/,
+    'elevated resolution must not fall back to a User PATH winner',
+  );
+  assert.match(prerequisiteInstaller, /param\(\[switch\]\$Elevated\)/);
+  assert.match(prerequisiteInstaller, /Resolve-DockerCliPath -Elevated:\$Elevated/);
+  assert.match(dockerAssertion, /\$elevated = Test-Administrator/);
+  assert.match(dockerAssertion, /\$trustedDockerResolution = \$elevated -or \$InstallPrerequisites/);
+  assert.equal(
+    (dockerAssertion.match(/Resolve-DockerCliPath -Elevated:\$trustedDockerResolution/g) ?? []).length,
+    2,
+    'Docker resolution before and after prerequisite installation must use the same trusted resolution lane',
+  );
+  assert.match(dockerAssertion, /Install-DockerDesktopPrerequisite -Elevated:\$trustedDockerResolution/);
+  assert.match(repairExecution, /\$elevated = Test-Administrator/);
+  assert.match(repairExecution, /Resolve-DockerCliPath -Elevated:\$elevated/);
+});
+
+test('Windows Docker/WebUI elevated resolution ignores a docker.exe from User PATH', {
+  skip: process.platform === 'win32' && pwshPath
+    ? false
+    : 'requires native Windows PowerShell',
+}, () => {
+  const installer = fs.readFileSync(installerPath, 'utf8');
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-elevated-docker-trust-'));
+  const userBin = path.join(tempRoot, 'user-bin');
+  const userDockerExe = path.join(userBin, 'docker.exe');
+  const programFiles = path.join(tempRoot, 'Program Files');
+  const spoofedProgramFilesDockerExe = path.join(programFiles, 'Docker', 'Docker', 'resources', 'bin', 'docker.exe');
+  fs.mkdirSync(path.dirname(spoofedProgramFilesDockerExe), { recursive: true });
+  fs.mkdirSync(userBin, { recursive: true });
+  fs.writeFileSync(userDockerExe, '');
+  fs.writeFileSync(spoofedProgramFilesDockerExe, '');
+  const canonicalUserDockerExe = fs.realpathSync.native(userDockerExe);
+  const canonicalSpoofedProgramFilesDockerExe = fs.realpathSync.native(spoofedProgramFilesDockerExe);
+
+  const result = runPwshHarness([
+    extractPowerShellFunction(installer, 'Refresh-ProcessPathFromEnvironment'),
+    extractPowerShellFunction(installer, 'Resolve-DockerCliPath'),
+    `$env:Path = ${powerShellSingleQuoted(path.join(tempRoot, 'stale-process-path'))}`,
+    "$env:PATHEXT = '.CPL'",
+    `$env:ProgramFiles = ${powerShellSingleQuoted(programFiles)}`,
+    `Refresh-ProcessPathFromEnvironment -MachinePath '' -UserPath ${powerShellSingleQuoted(userBin)}`,
+    '$ordinary = Resolve-DockerCliPath',
+    `if (-not [string]::Equals($ordinary, ${powerShellSingleQuoted(canonicalUserDockerExe)}, [System.StringComparison]::OrdinalIgnoreCase)) { throw "ordinary path changed: $ordinary" }`,
+    '$elevated = Resolve-DockerCliPath -Elevated',
+    `if ([string]::Equals($elevated, ${powerShellSingleQuoted(canonicalUserDockerExe)}, [System.StringComparison]::OrdinalIgnoreCase)) { throw "elevated resolution used User PATH: $elevated" }`,
+    `if ([string]::Equals($elevated, ${powerShellSingleQuoted(canonicalSpoofedProgramFilesDockerExe)}, [System.StringComparison]::OrdinalIgnoreCase)) { throw "elevated resolution used spoofed ProgramFiles: $elevated" }`,
+  ].join('\n\n'));
+
+  assert.ok(result);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
 test('Windows Docker/WebUI does not invoke winget for a non-admin per-user Docker Desktop install outside PATH', {
   skip: process.platform === 'win32' && pwshPath
     ? false
