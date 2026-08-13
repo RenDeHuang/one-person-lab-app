@@ -138,7 +138,8 @@
   "current_state": {
     "schema": "opl_codex_security_current_state_projection.v1",
     "owner": "one-person-lab-app",
-    "canonical_revision": "c8398f08e0d01b72ea7081b3de1fd5ebaf449d8d",
+    "canonical_revision": "f86cc5b3545e5b35987499aa135cfd2877cdaf74",
+    "remediation_source_revision": "c8398f08e0d01b72ea7081b3de1fd5ebaf449d8d",
     "remote_ref": "origin/main",
     "app_remediation": "complete",
     "current_scan": {
