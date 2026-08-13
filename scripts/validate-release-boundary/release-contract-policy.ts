@@ -63,6 +63,7 @@ const requiredRemovedReleaseImplementationPaths = [
   'scripts/write-release-candidate-record.ts',
   'scripts/resolve-release-owner-candidate-record.ts',
   'scripts/verify-release-owner-candidate-record.ts',
+  'scripts/cleanup-draft-release-candidates.ts',
   'scripts/stable-release-reconcile.ts',
 ];
 const requiredRetainedNonAuthoritativeImplementationPaths = [
@@ -71,7 +72,7 @@ const requiredRetainedNonAuthoritativeImplementationPaths = [
   'scripts/stable-release-session.ts',
   'scripts/closeout-release-run.ts',
   'scripts/publish-release.ts',
-  'scripts/cleanup-draft-release-candidates.ts',
+  'scripts/inspect-release-draft-candidates.ts',
 ];
 const requiredStandardLatestAdmission = {
   validator: 'scripts/validate-standard-latest-admission.ts',
@@ -1632,6 +1633,7 @@ export function validateReleaseAccelerationPolicy(
   const publication = control?.publication;
   const publisher = control?.publisher_idempotency;
   const legacy = control?.legacy_compatibility;
+  const draftInspection = legacy?.draft_candidate_inspection;
   const validationCanary = control?.validation_canary;
   const acceleration = releaseContract.release_acceleration;
   const preflight = releaseContract.release_preflight;
@@ -1968,6 +1970,18 @@ export function validateReleaseAccelerationPolicy(
       legacy?.retained_non_authoritative_implementation_paths,
       requiredRetainedNonAuthoritativeImplementationPaths,
     ) ||
+    draftInspection?.implementation_path !== 'scripts/inspect-release-draft-candidates.ts' ||
+    draftInspection?.lifecycle !== 'historical_read_only' ||
+    draftInspection?.capability !== 'inspect_draft_candidates' ||
+    draftInspection?.package_entry !== null ||
+    draftInspection?.workflow_entry !== null ||
+    draftInspection?.requires_published_stable_release !== true ||
+    !sameStringSet(draftInspection?.accepted_tag_families, [
+      'v<version>-draft.<YYYYMMDDhhmmss>',
+      'v<version>-readiness.<YYYYMMDDhhmmss>',
+    ]) ||
+    draftInspection?.mutation_authorized !== false ||
+    draftInspection?.release_or_tag_deletion_available !== false ||
     legacy?.retired_scripts_may_parse_historical_receipts !== false ||
     legacy?.retired_scripts_may_be_package_or_workflow_mutation_entrypoints !== false ||
     legacy?.legacy_contract_role !== 'historical_receipt_verification_only' ||

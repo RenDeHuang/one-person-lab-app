@@ -55,7 +55,7 @@ installed readback。
 | `validate-standard-latest-admission.ts` | Admits the default qualified-Stable Latest takeover or a Standard publisher's same-run Preview override against exact updater predecessors, component identity, pointer authority, CAS, disclosure, and applicable carrier evidence. |
 | `validate-standard-publication-input.ts` | Performs read-only deterministic admission of a checkpoint's Standard component manifest, staged asset set, local file identities, and digest/size bindings before public GitHub Release mutation. |
 | `validate-latest-pointer-operation.ts` | Separately admits a pointer-only operation for one already-published exact Dev/Nightly Preview by binding the public release inspection, first Actions attempt, immutable deadline, protected authority, expected-current CAS, quality preservation, and required public readback. |
-| `cleanup-draft-release-candidates.ts` | Discovers stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the Stable release exists. It is read-only; deleting a Release or tag requires a separately authorized product change outside the live Bundle executor. |
+| `inspect-release-draft-candidates.ts` | Lists stale `v<version>-draft.*` and `v<version>-readiness.*` draft Releases after the Stable release exists. It has no package or workflow entrypoint and cannot delete a Release or tag. |
 | `cleanup-webui-ghcr-versions.ts` | Dry-runs or deletes stale `one-person-lab-webui` GHCR package versions according to the App release-channel retention policy. |
 | `cleanup-local-artifacts.ts` | Dry-runs or deletes local ignored generated output: `tmp/`, `docs/site/latest/`, generated Full runtime payload dirs, and stale top-level `artifacts/*` run directories. It never manages tool state or external shell checkouts. |
 | `install-docker-webui.sh` | Linux/macOS Bash entrypoint for starting the Docker/WebUI image with host `/data` and `/projects` mounts through `docker compose`; Ubuntu may install Docker Engine, while macOS only checks for an existing Docker runtime. After compose startup it waits for the local HTTP endpoint and can write a diagnostic directory or `.tar.gz` package without accepting API keys. |
@@ -128,7 +128,7 @@ npm run release:notes -- --version <version> --channel stable --include-full-pac
 npm run release:notes -- --version <YY.M.D-nightly-or-rebuild> --channel nightly
 npm run verify-remote-release -- --version <version> --include-full-package
 npm run verify-remote-release -- --version <YY.M.D-nightly-or-rebuild>
-npm run release:cleanup-drafts -- --version <version>
+node --experimental-strip-types scripts/inspect-release-draft-candidates.ts --version <version>
 npm run release:cleanup-webui-ghcr -- --summary-path webui-ghcr-cleanup.json
 npm run release:cleanup-webui-ghcr -- --rollback-tag <version> --execute
 npm run cleanup:local-artifacts
@@ -606,13 +606,12 @@ workflow job result as bootstrap status source, the
 fields, blockers, next step, retry state, and `--skip-packages` state in JSON and
 the Markdown summary.
 
-Draft candidate discovery is an explicit read-only metadata step. Use
-**OPL Desktop Release Cleanup Drafts** or `release:cleanup-drafts` after the
+Draft candidate discovery is an explicit read-only metadata step. Run
+`scripts/inspect-release-draft-candidates.ts --version <version>` after the
 stable `v<version>` Release is published to list stale
-`v<version>-draft.*` and `v<version>-readiness.*` drafts. The live Bundle
-control plane exposes no Release or tag deletion mutation; this CLI lists only.
-Deletion requires a separately authorized product change. An unknown upload or
-publish result must be inspected and reconciled before any new mutation.
+`v<version>-draft.*` and `v<version>-readiness.*` drafts. This inspector has no
+package or workflow entrypoint and cannot delete a Release or tag. Any cleanup
+is a separate product change owned by the current release authority.
 
 WebUI GHCR cleanup is a separate dry-run-first package admin step. Use
 `release:cleanup-webui-ghcr` to read

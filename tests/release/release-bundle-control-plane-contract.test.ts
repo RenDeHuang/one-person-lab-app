@@ -402,8 +402,22 @@ test("legacy App Bundle and broker/state-machine surfaces are read-only compatib
     "scripts/stable-release-session.ts",
     "scripts/closeout-release-run.ts",
     "scripts/publish-release.ts",
-    "scripts/cleanup-draft-release-candidates.ts",
+    "scripts/inspect-release-draft-candidates.ts",
   ]);
+  assert.deepEqual(legacy.draft_candidate_inspection, {
+    implementation_path: "scripts/inspect-release-draft-candidates.ts",
+    lifecycle: "historical_read_only",
+    capability: "inspect_draft_candidates",
+    package_entry: null,
+    workflow_entry: null,
+    requires_published_stable_release: true,
+    accepted_tag_families: [
+      "v<version>-draft.<YYYYMMDDhhmmss>",
+      "v<version>-readiness.<YYYYMMDDhhmmss>",
+    ],
+    mutation_authorized: false,
+    release_or_tag_deletion_available: false,
+  });
   assert.deepEqual(legacy.removed_implementation_paths, [
     "scripts/run-stable-release.ts",
     "scripts/release-operator.ts",
@@ -419,6 +433,7 @@ test("legacy App Bundle and broker/state-machine surfaces are read-only compatib
     "scripts/write-release-candidate-record.ts",
     "scripts/resolve-release-owner-candidate-record.ts",
     "scripts/verify-release-owner-candidate-record.ts",
+    "scripts/cleanup-draft-release-candidates.ts",
     "scripts/stable-release-reconcile.ts",
   ]);
   assert.equal(legacy.removed_implementation_paths_must_be_absent, true);

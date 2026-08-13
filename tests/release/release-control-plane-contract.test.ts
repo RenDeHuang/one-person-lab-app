@@ -482,6 +482,12 @@ test('legacy broker, session, and operator contracts are historical receipt read
     'release:historical-candidate-record:status',
     'release:historical-bundle:status',
   ]);
+  assert.equal(
+    legacy.draft_candidate_inspection.implementation_path,
+    'scripts/inspect-release-draft-candidates.ts',
+  );
+  assert.equal(legacy.draft_candidate_inspection.mutation_authorized, false);
+  assert.equal(legacy.draft_candidate_inspection.release_or_tag_deletion_available, false);
   assert.equal(release.release_acceleration.scope, 'product_build_qualification_vm_and_cache_policy_only');
   assert.equal(release.release_acceleration.live_state_authority, false);
   assert.equal(release.release_acceleration.new_session_or_dispatch_allowed, false);
