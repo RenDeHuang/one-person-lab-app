@@ -134,5 +134,49 @@
     "capability_minimum_or_semver_range_is_the_only_cross_component_compatibility_language": true,
     "same_component_build_provenance_may_be_recorded_but_may_not_gate_install_or_runtime": true,
     "report_does_not_claim_any_remediation_is_published_or_installed": true
+  },
+  "current_state": {
+    "schema": "opl_codex_security_current_state_projection.v1",
+    "owner": "one-person-lab-app",
+    "canonical_revision": "c8398f08e0d01b72ea7081b3de1fd5ebaf449d8d",
+    "remote_ref": "origin/main",
+    "app_remediation": "complete",
+    "current_scan": {
+      "scan_id": "754fe5a4-452d-4600-b5b7-79edf1443533",
+      "revision": "c8398f08e0d01b72ea7081b3de1fd5ebaf449d8d",
+      "finding_count": 0,
+      "coverage": "partial",
+      "coverage_note": "Partial only because Framework producer/release assets are explicitly deferred and outside the App write set."
+    },
+    "finding_status": {
+      "app_container_webui_bootstrap": "resolved_in_current_app_source",
+      "public_unix_docker_webui_command": "resolved_in_current_app_source",
+      "windows_admin_prerequisite_command": "resolved_in_current_app_source",
+      "windows_port_troubleshooting_command": "resolved_in_current_app_source",
+      "windows_diagnostics_troubleshooting_command": "resolved_in_current_app_source",
+      "windows_primary_one_click_command": "resolved_in_current_app_source",
+      "elevated_installer_accepts_user_path_docker": "resolved_in_current_app_source",
+      "secret_marker_retains_matched_bytes": "resolved_in_current_app_source",
+      "framework_desktop_bootstrap": "deferred_framework_owner",
+      "framework_headless_bootstrap": "deferred_framework_owner",
+      "mineru_default_remote_document_extraction": "accepted_expected_behavior"
+    },
+    "verification": {
+      "focused_tests": {"tests": 57, "passed": 53, "failed": 0, "skipped": 4},
+      "release_boundary_tests": {"tests": 1300, "passed": 1293, "failed": 0, "skipped": 7},
+      "typecheck": "passed",
+      "fail_open_policy": "verified_cache_reuse_on_metadata_or_network_outage; explicit mismatch rejects only new bytes; optional attestation outage does not block required exact identity checks"
+    },
+    "historical_scan_immutable": true,
+    "framework_follow_up": {
+      "status": "open",
+      "owner": "one-person-lab-framework",
+      "required_next_boundary": "versioned installer asset and manifest, then App wrapper verification",
+      "mixed_into_app_write_set": false
+    },
+    "mineru_upload_disclosure": {
+      "status": "accepted_expected_behavior",
+      "mixed_into_app_write_set": false
+    }
   }
 }
