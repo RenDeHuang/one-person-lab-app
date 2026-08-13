@@ -61,12 +61,10 @@ export function generateFrozenUniversalInstaller(input: FrozenUniversalInstaller
   const tag = `v${version}`;
   const frameworkInstallerUrl = `https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/${frameworkSha}/install.sh`;
   const frameworkArchiveUrl = `https://github.com/gaofeng21cn/one-person-lab/archive/${frameworkSha}.tar.gz`;
-  const dockerInstallerUrl = `https://raw.githubusercontent.com/${repository}/${appSha}/scripts/install-docker-webui.sh`;
   let generated = fs.readFileSync(sourcePath, 'utf8');
   generated = replaceDefault(generated, 'OPL_INSTALL_SCRIPT_URL', frameworkInstallerUrl);
   generated = replaceDefault(generated, 'OPL_APP_RELEASE_REPO', repository);
   generated = replaceDefault(generated, 'OPL_APP_DOCS_REF', appSha);
-  generated = replaceDefault(generated, 'OPL_DOCKER_WEBUI_INSTALLER_URL', dockerInstallerUrl);
   generated = replaceDefault(generated, 'OPL_APP_SOURCE_REF', appSha);
   generated = replaceDefault(generated, 'OPL_SHELL_SOURCE_REF', shellSha);
   generated = replaceDefault(generated, 'OPL_FRAMEWORK_SOURCE_REF', frameworkSha);

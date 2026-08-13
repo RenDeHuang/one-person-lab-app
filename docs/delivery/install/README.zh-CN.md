@@ -104,7 +104,12 @@ macOS 与 Linux 可以使用当前 Latest Release 的 `opl-install.sh`。不要�
 Release，再选择平台资产：
 
 ```bash
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download"
+REPO="gaofeng21cn/one-person-lab-app"
+RELEASE_JSON="$(mktemp)"
+trap 'rm -f "$RELEASE_JSON"' EXIT
+curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" -o "$RELEASE_JSON"
+TAG="$(jq -er 'if .draft or .prerelease or (.tag_name | test("^v[0-9A-Za-z._-]+$") | not) then error("Latest is not an eligible exact Release") else .tag_name end' "$RELEASE_JSON")"
+BASE="https://github.com/$REPO/releases/download/$TAG"
 
 curl -fLO "${BASE}/opl-install.sh"
 curl -fLO "${BASE}/opl-app-component-manifest.json"
@@ -124,6 +129,12 @@ chmod 0755 opl-install.sh
 
 公开安装器会从 Latest 选中的 exact Release manifest 解析平台资产、大小和 digest。缺少、重复或
 身份不一致时必须停止，不能改用另一个 tag、历史文件或未经绑定的下载地址。
+
+仓库中的 `install.sh` 只是在已审阅 source checkout 中使用的开发/恢复入口，不是公开
+分发 authority。Container WebUI 由已验证的公开 `opl-install.sh` 从同一 exact Release
+record 获取 Docker/WebUI installer，并保存绑定身份的本地缓存。元数据或网络中断时可以在
+重新校验缓存大小/SHA-256 后继续；明确 mismatch 只拒绝本次新字节，不回退到 `main` 或未
+校验的 Latest 下载。通过必需 exact Release 身份校验的字节不依赖可选 attestation 在线可用。
 
 ## Headless 与更新责任
 

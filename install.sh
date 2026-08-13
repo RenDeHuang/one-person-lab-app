@@ -5,7 +5,7 @@ OPL_INSTALL_SCRIPT_URL=${OPL_INSTALL_SCRIPT_URL:-https://raw.githubusercontent.c
 OPL_LOCAL_APP_PATH=${OPL_LOCAL_APP_PATH:-/Applications/One Person Lab.app}
 OPL_APP_RELEASE_REPO=${OPL_APP_RELEASE_REPO:-gaofeng21cn/one-person-lab-app}
 OPL_APP_DOCS_REF=${OPL_APP_DOCS_REF:-main}
-OPL_DOCKER_WEBUI_INSTALLER_URL=${OPL_DOCKER_WEBUI_INSTALLER_URL:-https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh}
+OPL_INSTALLER_CACHE_DIR=${OPL_INSTALLER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/one-person-lab/installers}
 OPL_APP_SOURCE_REF=${OPL_APP_SOURCE_REF:-}
 OPL_SHELL_SOURCE_REF=${OPL_SHELL_SOURCE_REF:-}
 OPL_FRAMEWORK_SOURCE_REF=${OPL_FRAMEWORK_SOURCE_REF:-}
@@ -533,6 +533,9 @@ install_headless_base() {
 
 install_container_webui() {
   local container_args=()
+  if [ "${#INSTALL_ARGS[@]}" -gt 0 ]; then
+    container_args=("${INSTALL_ARGS[@]}")
+  fi
   if [ -n "$OPL_CONTAINER_WEBUI_TAG" ]; then
     container_args+=("--tag" "$OPL_CONTAINER_WEBUI_TAG")
   fi
@@ -542,10 +545,11 @@ install_container_webui() {
   if [ "$OPEN_OPTION_EXPLICIT" = "--no-open" ]; then
     container_args+=("--no-open")
   fi
+  acquire_docker_webui_installer || return 1
   if [ "${#container_args[@]}" -eq 0 ]; then
-    curl -fsSL "$OPL_DOCKER_WEBUI_INSTALLER_URL" | bash -s --
+    bash "$DOCKER_WEBUI_INSTALLER_PATH"
   else
-    curl -fsSL "$OPL_DOCKER_WEBUI_INSTALLER_URL" | bash -s -- "${container_args[@]}"
+    bash "$DOCKER_WEBUI_INSTALLER_PATH" "${container_args[@]}"
   fi
 }
 
@@ -1043,6 +1047,125 @@ download_release_file() {
   fi
   rm -f "$output_path"
   return "$curl_status"
+}
+
+docker_webui_installer_cache_paths() {
+  DOCKER_WEBUI_INSTALLER_CACHE_PATH="$OPL_INSTALLER_CACHE_DIR/install-docker-webui.sh"
+  DOCKER_WEBUI_INSTALLER_CACHE_IDENTITY_PATH="$OPL_INSTALLER_CACHE_DIR/install-docker-webui.identity.json"
+}
+
+validate_cached_docker_webui_installer() {
+  local identity_path installer_path schema repository tag name url sha256 size expected_url
+  docker_webui_installer_cache_paths
+  identity_path="$DOCKER_WEBUI_INSTALLER_CACHE_IDENTITY_PATH"
+  installer_path="$DOCKER_WEBUI_INSTALLER_CACHE_PATH"
+  [ -f "$identity_path" ] && [ ! -L "$identity_path" ] \
+    && [ -f "$installer_path" ] && [ ! -L "$installer_path" ] || return 1
+  schema=$(release_record_value "$identity_path" schema 2>/dev/null) || return 1
+  repository=$(release_record_value "$identity_path" repository 2>/dev/null) || return 1
+  tag=$(release_record_value "$identity_path" release_tag 2>/dev/null) || return 1
+  name=$(release_record_value "$identity_path" asset.name 2>/dev/null) || return 1
+  url=$(release_record_value "$identity_path" asset.url 2>/dev/null) || return 1
+  sha256=$(release_record_value "$identity_path" asset.sha256 2>/dev/null) || return 1
+  size=$(release_record_value "$identity_path" asset.size_bytes 2>/dev/null) || return 1
+  [ "$schema" = 'opl_verified_installer_cache.v1' ] \
+    && [ "$repository" = "$OPL_APP_RELEASE_REPO" ] \
+    && validate_release_tag "$tag" \
+    && [ "$name" = 'install-docker-webui.sh' ] \
+    && validate_sha256_value "$sha256" \
+    && validate_positive_integer "$size" || return 1
+  expected_url="https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$name"
+  [ "$url" = "$expected_url" ] || return 1
+  verify_file_sha256 "$installer_path" "$sha256" 'Cached Docker/WebUI installer' || return 1
+  verify_file_size "$installer_path" "$size" 'Cached Docker/WebUI installer' || return 1
+  DOCKER_WEBUI_INSTALLER_PATH="$installer_path"
+  DOCKER_WEBUI_INSTALLER_CACHE_TAG="$tag"
+}
+
+write_verified_docker_webui_installer_cache() {
+  local source_path="$1"
+  local tag="$2"
+  local url="$3"
+  local sha256="$4"
+  local size="$5"
+  local temporary_installer temporary_identity
+  docker_webui_installer_cache_paths
+  mkdir -p "$OPL_INSTALLER_CACHE_DIR" || return 1
+  temporary_installer="$DOCKER_WEBUI_INSTALLER_CACHE_PATH.new.$$"
+  temporary_identity="$DOCKER_WEBUI_INSTALLER_CACHE_IDENTITY_PATH.new.$$"
+  cp "$source_path" "$temporary_installer" || return 1
+  chmod 0755 "$temporary_installer" || return 1
+  cat > "$temporary_identity" <<EOF
+{
+  "schema": "opl_verified_installer_cache.v1",
+  "repository": "$OPL_APP_RELEASE_REPO",
+  "release_tag": "$tag",
+  "asset": {
+    "name": "install-docker-webui.sh",
+    "url": "$url",
+    "sha256": "$sha256",
+    "size_bytes": $size
+  }
+}
+EOF
+  verify_file_sha256 "$temporary_installer" "$sha256" 'Docker/WebUI installer cache candidate' \
+    && verify_file_size "$temporary_installer" "$size" 'Docker/WebUI installer cache candidate' \
+    && mv -f "$temporary_installer" "$DOCKER_WEBUI_INSTALLER_CACHE_PATH" \
+    && mv -f "$temporary_identity" "$DOCKER_WEBUI_INSTALLER_CACHE_IDENTITY_PATH" || {
+      rm -f "$temporary_installer" "$temporary_identity"
+      return 1
+    }
+  DOCKER_WEBUI_INSTALLER_PATH="$DOCKER_WEBUI_INSTALLER_CACHE_PATH"
+  DOCKER_WEBUI_INSTALLER_CACHE_TAG="$tag"
+}
+
+download_verified_docker_webui_installer() {
+  local work_dir="$1"
+  local record_path tag standard_asset_name standard_asset_sha256 asset_name asset_url asset_sha256 asset_size candidate
+  resolve_release_record "$work_dir" || return 1
+  record_path="$STABLE_MACOS_RELEASE_RECORD_PATH"
+  tag="$STABLE_MACOS_RELEASE_TAG"
+  standard_asset_name=$(release_asset_name "$tag" standard)
+  resolve_release_asset "$record_path" "$standard_asset_name" || return 1
+  standard_asset_sha256="$RELEASE_ASSET_SHA256"
+  download_and_validate_component_manifest \
+    "$work_dir" "$record_path" "$tag" "$standard_asset_name" "$standard_asset_sha256" || return 1
+
+  asset_name='install-docker-webui.sh'
+  resolve_release_asset "$record_path" "$asset_name" || {
+    printf 'GitHub Release record has no unique digest-bound Docker/WebUI installer asset.\n' >&2
+    return 1
+  }
+  asset_url="$RELEASE_ASSET_URL"
+  asset_sha256="$RELEASE_ASSET_SHA256"
+  asset_size="$RELEASE_ASSET_SIZE_BYTES"
+  [ "$asset_url" = "https://github.com/$OPL_APP_RELEASE_REPO/releases/download/$tag/$asset_name" ] || {
+    printf 'Docker/WebUI installer URL is not bound to the selected exact Release.\n' >&2
+    return 1
+  }
+  candidate="$work_dir/$asset_name"
+  download_release_file "$asset_url" "$candidate" 'Docker/WebUI installer' || return 1
+  verify_file_sha256 "$candidate" "$asset_sha256" 'Docker/WebUI installer' || return 1
+  verify_file_size "$candidate" "$asset_size" 'Docker/WebUI installer' || return 1
+  write_verified_docker_webui_installer_cache \
+    "$candidate" "$tag" "$asset_url" "$asset_sha256" "$asset_size"
+}
+
+acquire_docker_webui_installer() {
+  local work_dir
+  work_dir=$(mktemp -d "${TMPDIR:-/tmp}/opl-docker-webui-acquire.XXXXXX") || return 1
+  if download_verified_docker_webui_installer "$work_dir"; then
+    rm -rf "$work_dir"
+    return 0
+  fi
+  rm -rf "$work_dir"
+  printf 'Exact Release acquisition was unavailable or rejected; checking the previously verified installer cache.\n' >&2
+  if validate_cached_docker_webui_installer; then
+    printf 'Using previously verified Docker/WebUI installer cache from %s.\n' "$DOCKER_WEBUI_INSTALLER_CACHE_TAG" >&2
+    return 0
+  fi
+  printf 'No valid verified Docker/WebUI installer cache is available; no new or unverified installer bytes were executed.\n' >&2
+  return 1
 }
 
 component_manifest_value() {

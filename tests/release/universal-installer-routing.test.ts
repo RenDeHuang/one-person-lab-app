@@ -20,6 +20,135 @@ function writeExecutable(filePath: string, source: string): void {
   fs.chmodSync(filePath, 0o755);
 }
 
+function writeJson(filePath: string, value: unknown): void {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function dockerAcquisitionFixture(root: string) {
+  const releaseDir = path.join(root, 'release');
+  const bin = path.join(root, 'bin');
+  const cacheDir = path.join(root, 'cache');
+  const executed = path.join(root, 'executed.log');
+  const version = '26.8.14';
+  const tag = `v${version}`;
+  fs.mkdirSync(releaseDir, { recursive: true });
+  fs.mkdirSync(bin, { recursive: true });
+
+  const assets = new Map<string, Buffer>();
+  for (const [name, bytes] of [
+    [`One-Person-Lab-${version}-mac-arm64.dmg`, 'dmg'],
+    [`One-Person-Lab-${version}-mac-arm64.zip`, 'zip'],
+    [`One-Person-Lab-${version}-mac-arm64.zip.blockmap`, 'blockmap'],
+    ['latest-mac.yml', 'latest'],
+    ['latest-arm64-mac.yml', 'latest-arm64'],
+  ] as const) {
+    assets.set(name, Buffer.from(bytes));
+  }
+  const trustedInstaller = Buffer.from(
+    '#!/usr/bin/env bash\nprintf \'trusted:%s\\n\' "$*" >> "$OPL_FAKE_EXECUTED"\n',
+  );
+  assets.set('install-docker-webui.sh', trustedInstaller);
+  for (const [name, bytes] of assets) fs.writeFileSync(path.join(releaseDir, name), bytes);
+
+  const releaseAssets = [...assets].map(([name, bytes]) => ({
+    name,
+    url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/${name}`,
+    digest: sha256(bytes),
+    size: bytes.length,
+    contentType: 'application/octet-stream',
+  }));
+  const componentManifest = createAppComponentManifest({
+    version,
+    updaterVersion: '26.8.1490',
+    sourceCommit: 'a'.repeat(40),
+    shellCommit: 'b'.repeat(40),
+    frameworkCommit: 'c'.repeat(40),
+    tag,
+    releaseUrl: `https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/${tag}`,
+    assets: releaseAssets,
+    repo: 'gaofeng21cn/one-person-lab-app',
+  });
+  const manifestPath = path.join(releaseDir, 'opl-app-component-manifest.json');
+  writeJson(manifestPath, componentManifest);
+  const manifestBytes = fs.readFileSync(manifestPath);
+  const allAssets = [
+    ...releaseAssets,
+    {
+      name: 'opl-app-component-manifest.json',
+      url: `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/opl-app-component-manifest.json`,
+      digest: sha256(manifestBytes),
+      size: manifestBytes.length,
+      contentType: 'application/json',
+    },
+  ];
+  const recordPath = path.join(releaseDir, 'github-release.json');
+  const writeRecord = (dockerDigest = sha256(trustedInstaller), dockerSize = trustedInstaller.length) => {
+    writeJson(recordPath, {
+      tag_name: tag,
+      draft: false,
+      prerelease: false,
+      assets: allAssets.map((asset) => ({
+        name: asset.name,
+        digest: asset.name === 'install-docker-webui.sh' ? dockerDigest : asset.digest,
+        size: asset.name === 'install-docker-webui.sh' ? dockerSize : asset.size,
+        browser_download_url: asset.url,
+      })),
+    });
+  };
+  writeRecord();
+
+  writeExecutable(
+    path.join(bin, 'curl'),
+    `#!/usr/bin/env bash
+set -u
+if [ "\${OPL_FAKE_CURL_OUTAGE:-0}" = 1 ]; then exit 22; fi
+output=''
+url=''
+write_code=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o) shift; output="$1" ;;
+    -w) shift; write_code=1 ;;
+    http://*|https://*) url="$1" ;;
+  esac
+  shift
+done
+case "$url" in
+  https://api.github.com/repos/gaofeng21cn/one-person-lab-app/releases/*)
+    source="$OPL_FAKE_RELEASE_DIR/github-release.json"
+    ;;
+  https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}/*)
+    source="$OPL_FAKE_RELEASE_DIR/\${url##*/}"
+    ;;
+  *) exit 22 ;;
+esac
+/bin/cp "$source" "$output"
+if [ "$write_code" = 1 ]; then printf '200'; fi
+`,
+  );
+  writeExecutable(
+    path.join(bin, 'uname'),
+    '#!/usr/bin/env sh\ncase "${1:-}" in -s) printf \'Linux\\n\' ;; -m) printf \'x86_64\\n\' ;; esac\n',
+  );
+
+  const run = (
+    extraEnv: NodeJS.ProcessEnv = {},
+    args = ['--container-webui', '--release-tag', tag, '--yes', '--no-open'],
+  ) => spawnSync('/bin/bash', [installerPath, ...args], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      HOME: path.join(root, 'home'),
+      OPL_FAKE_EXECUTED: executed,
+      OPL_FAKE_RELEASE_DIR: releaseDir,
+      OPL_INSTALLER_CACHE_DIR: cacheDir,
+      PATH: `${bin}:/usr/bin:/bin`,
+      ...extraEnv,
+    },
+  });
+  return { cacheDir, executed, releaseDir, run, trustedInstaller, writeRecord };
+}
+
 function route(osName: string, architecture: string, args: string[] = []) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-install-route-'));
   try {
@@ -196,4 +325,73 @@ test('macOS Full resolves from the exact Standard tag and binds its unified atte
   assert.match(source, /continuing with the Standard DMG/);
   assert.doesNotMatch(source, /resolve_full_adjunct_release_record/);
   assert.doesNotMatch(source, /resolve_linux_adjunct_release_record/);
+});
+
+test('Container WebUI acquires and executes only the exact Release-bound installer asset', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-docker-acquisition-'));
+  try {
+    const fixture = dockerAcquisitionFixture(root);
+    const result = fixture.run({}, ['--container-webui', '--release-tag', 'v26.8.14', '--yes', '--no-open', '--update']);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(fs.readFileSync(fixture.executed, 'utf8').trim(), 'trusted:--update --yes --no-open');
+    const identity = JSON.parse(fs.readFileSync(
+      path.join(fixture.cacheDir, 'install-docker-webui.identity.json'),
+      'utf8',
+    ));
+    assert.equal(identity.release_tag, 'v26.8.14');
+    assert.equal(identity.asset.sha256, sha256(fixture.trustedInstaller).slice('sha256:'.length));
+    assert.equal(identity.asset.size_bytes, fixture.trustedInstaller.length);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Container WebUI reuses verified cache through metadata outage without unverified fallback', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-docker-cache-outage-'));
+  try {
+    const fixture = dockerAcquisitionFixture(root);
+    assert.equal(fixture.run().status, 0);
+    fs.writeFileSync(fixture.executed, '');
+    const outage = fixture.run({ OPL_FAKE_CURL_OUTAGE: '1' });
+    assert.equal(outage.status, 0, outage.stderr || outage.stdout);
+    assert.match(outage.stderr, /Using previously verified Docker\/WebUI installer cache from v26\.8\.14/);
+    assert.equal(fs.readFileSync(fixture.executed, 'utf8').trim(), 'trusted:--yes --no-open');
+    assert.doesNotMatch(`${outage.stdout}\n${outage.stderr}`, /raw\.githubusercontent|\/main\//);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Container WebUI rejects mismatched new bytes and preserves the prior verified cache', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-docker-mismatch-cache-'));
+  try {
+    const fixture = dockerAcquisitionFixture(root);
+    assert.equal(fixture.run().status, 0);
+    const cachedBefore = fs.readFileSync(path.join(fixture.cacheDir, 'install-docker-webui.sh'));
+    fs.writeFileSync(path.join(fixture.releaseDir, 'install-docker-webui.sh'), '#!/usr/bin/env bash\nprintf \'malicious\\n\' >> "$OPL_FAKE_EXECUTED"\n');
+    fs.writeFileSync(fixture.executed, '');
+    const mismatch = fixture.run();
+    assert.equal(mismatch.status, 0, mismatch.stderr || mismatch.stdout);
+    assert.match(mismatch.stderr, /Docker\/WebUI installer (?:SHA256|size) mismatch/);
+    assert.equal(fs.readFileSync(fixture.executed, 'utf8').trim(), 'trusted:--yes --no-open');
+    assert.deepEqual(fs.readFileSync(path.join(fixture.cacheDir, 'install-docker-webui.sh')), cachedBefore);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Container WebUI refuses a modified cache when the release metadata is unavailable', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-docker-tampered-cache-'));
+  try {
+    const fixture = dockerAcquisitionFixture(root);
+    assert.equal(fixture.run().status, 0);
+    fs.writeFileSync(path.join(fixture.cacheDir, 'install-docker-webui.sh'), 'modified');
+    fs.writeFileSync(fixture.executed, '');
+    const result = fixture.run({ OPL_FAKE_CURL_OUTAGE: '1' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /No valid verified Docker\/WebUI installer cache is available/);
+    assert.equal(fs.readFileSync(fixture.executed, 'utf8'), '');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

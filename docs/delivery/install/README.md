@@ -119,7 +119,12 @@ pipe a mutable `main` branch script directly into a shell. The installer resolve
 Latest to one exact Release before it selects platform assets:
 
 ```bash
-BASE="https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download"
+REPO="gaofeng21cn/one-person-lab-app"
+RELEASE_JSON="$(mktemp)"
+trap 'rm -f "$RELEASE_JSON"' EXIT
+curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" -o "$RELEASE_JSON"
+TAG="$(jq -er 'if .draft or .prerelease or (.tag_name | test("^v[0-9A-Za-z._-]+$") | not) then error("Latest is not an eligible exact Release") else .tag_name end' "$RELEASE_JSON")"
+BASE="https://github.com/$REPO/releases/download/$TAG"
 
 curl -fLO "${BASE}/opl-install.sh"
 curl -fLO "${BASE}/opl-app-component-manifest.json"
@@ -141,6 +146,15 @@ The public installer resolves platform assets, sizes, and digests from the exact
 Release selected by Latest. Missing, duplicate, or mismatched identities must
 stop installation instead of selecting another tag, historical file, or
 unbound download URL.
+
+Repository `install.sh` is the reviewed source-checkout development/recovery
+entrypoint; it is not the public distribution authority. Container WebUI uses
+the verified public `opl-install.sh`, which acquires the Docker/WebUI installer
+from the same exact Release record and stores an identity-bound local cache.
+Metadata or network outage may reuse that cache after size/SHA-256 revalidation;
+an explicit mismatch rejects only the new bytes and never falls back to `main`
+or an unverified Latest download. Optional attestation availability is not a
+prerequisite for bytes that pass the required exact Release identity checks.
 
 ## Headless And Update Ownership
 

@@ -211,15 +211,32 @@ test('distribution/install SSOT validates the current and approved state split',
     (surface: any) => surface.surface === 'docker_webui',
   ).installer_model;
   assert.match(hostAutoUpdate.linux_macos_online_command, /--enable-auto-update/);
+  assert.match(hostAutoUpdate.linux_macos_online_command, /.\/opl-install\.sh --container-webui/);
+  assert.doesNotMatch(hostAutoUpdate.linux_macos_online_command, /\| bash/);
   assert.doesNotMatch(hostAutoUpdate.linux_server_online_command, /--enable-auto-update/);
-  assert.equal(hostAutoUpdate.installer_release_selector, 'github_latest_release');
+  assert.equal(
+    hostAutoUpdate.installer_release_selector,
+    'github_latest_pointer_resolved_to_exact_release_record',
+  );
   assert.equal(
     hostAutoUpdate.installer_release_assets.linux_macos,
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh',
+    'exact_release_record_asset_url_for_install-docker-webui.sh',
   );
   assert.equal(
     hostAutoUpdate.installer_release_assets.windows,
-    'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.ps1',
+    'exact_release_record_asset_url_for_install-docker-webui.ps1',
+  );
+  assert.equal(
+    hostAutoUpdate.acquisition_integrity.metadata_or_network_outage,
+    'use_valid_verified_cache_or_block_only_this_new_acquisition',
+  );
+  assert.equal(
+    hostAutoUpdate.acquisition_integrity.explicit_identity_mismatch,
+    'reject_new_bytes_preserve_prior_verified_cache_and_installed_webui',
+  );
+  assert.equal(
+    hostAutoUpdate.acquisition_integrity.optional_attestation_outage,
+    'does_not_block_bytes_that_pass_required_exact_release_name_size_sha256_checks',
   );
   const autoUpdateContract = hostAutoUpdate.host_auto_update;
   assert.equal(autoUpdateContract.follows_ref, 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable');
@@ -555,6 +572,7 @@ test('ordinary install guides expose the current Desktop and Docker routes witho
     assert.match(guide, /Linux x64/);
     assert.match(guide, /Windows 11 x64/);
     assert.match(guide, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
+    assert.doesNotMatch(guide, /github\.com\/gaofeng21cn\/one-person-lab-app\/releases\/latest\/download/);
     assert.doesNotMatch(guide, /four supported product cells|四个受支持产品格/);
     assert.doesNotMatch(guide, /Native runs WebUI|Native 直接运行 WebUI/);
   }
@@ -579,6 +597,8 @@ test('Docker WebUI guide exposes the shared host auto-update lifecycle without c
   assert.match(guide, /ghcr\.io\/gaofeng21cn\/one-person-lab-webui:stable/);
   assert.match(guide, /`:latest` 仅供用户显式选择 Preview/);
   assert.match(guide, /One Person Lab WebUI Stable Update/);
+  assert.doesNotMatch(guide, /github\.com\/\$repo\/releases\/latest\/download/);
+  assert.doesNotMatch(guide, /iwr[^\n]*install-docker-webui\.ps1/);
   assert.doesNotMatch(guide, /One Person Lab WebUI Latest Update/);
   assert.doesNotMatch(guide, /自动任务只跟随 `ghcr\.io\/gaofeng21cn\/one-person-lab-webui:latest`/);
   assert.equal(manifest.download.image, 'ghcr.io/gaofeng21cn/one-person-lab-webui:stable');

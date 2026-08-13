@@ -14,14 +14,14 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 16,
+  "pdf_pages": 17,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 16,
+  "rendered_pages": 17,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 2995825,
+  "html_bytes": 3008393,
   "html_pdf_download": {
     "href": "docker-webui-install-detailed-guide.pdf",
     "status": "present"
@@ -142,6 +142,9 @@
     "--enable-auto-update",
     "--disable-auto-update",
     "--auto-update-status",
+    "opl-install.sh",
+    "SHA-256",
+    "已验证缓存",
     "LaunchAgent",
     "systemd --user",
     "One Person Lab WebUI Stable Update",

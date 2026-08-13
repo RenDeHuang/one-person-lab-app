@@ -117,6 +117,8 @@
     "installer_convergence": {
       "current_default_app_script": {
         "entrypoint": "install.sh",
+        "authority": "reviewed_source_checkout_development_or_recovery_only",
+        "public_distribution_authority": false,
         "framework_arguments": [
           "--with-app"
         ],
@@ -127,8 +129,10 @@
         },
         "official_profile_converged_by_installer": true
       },
-    "approved_universal_target": {
-      "entrypoint": "opl-install.sh",
+      "approved_universal_target": {
+        "entrypoint": "opl-install.sh",
+        "authority": "exact_github_release_asset_after_release_record_name_size_sha256_verification",
+        "public_distribution_authority": true,
       "release_asset_status": "generated_per_exact_release_starting_next_publication",
       "source_checkout_compatibility_entrypoint": "install.sh",
       "installer_artifact_identity": {
@@ -921,19 +925,41 @@
       "post_launch_reconcile_ref": "contracts/app-release-channel.json#managed_update_plane.carrier_reconciliation",
       "installer_model": {
         "primary_user_path": "one_click_installer",
+        "public_bootstrap_entrypoint": "opl-install.sh --container-webui",
+        "development_bootstrap_entrypoint": "reviewed_source_checkout_install.sh --container-webui",
         "linux_macos_shell_script": "install-docker-webui.sh",
         "windows_powershell_script": "install-docker-webui.ps1",
-        "installer_release_selector": "github_latest_release",
+        "installer_release_selector": "github_latest_pointer_resolved_to_exact_release_record",
         "installer_release_assets": {
-          "linux_macos": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh",
-          "windows": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.ps1",
+          "linux_macos": "exact_release_record_asset_url_for_install-docker-webui.sh",
+          "windows": "exact_release_record_asset_url_for_install-docker-webui.ps1",
           "same_name_size_digest_readback_required": true,
           "attestation_payload_membership": false,
           "role": "additive_install_entrypoint_sidecars"
         },
-        "linux_macos_online_command": "curl -fsSL https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh | bash -s -- --yes --enable-auto-update",
-        "linux_server_online_command": "curl -fsSL https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh | bash -s -- --yes",
-        "windows_online_command": "download install-docker-webui.ps1 from the GitHub Latest Release and run with -EnableAutoUpdate -Yes",
+        "acquisition_integrity": {
+          "required_identity": [
+            "repository",
+            "exact_release_tag",
+            "asset_name",
+            "exact_release_asset_url",
+            "size_bytes",
+            "sha256"
+          ],
+          "component_manifest_role": "validate_public_opl-install_bootstrap_and_selected_app_release_identity",
+          "verified_cache": "reuse_only_after_recomputing_cached_size_and_sha256_against_the_saved_exact_release_identity",
+          "metadata_or_network_outage": "use_valid_verified_cache_or_block_only_this_new_acquisition",
+          "explicit_identity_mismatch": "reject_new_bytes_preserve_prior_verified_cache_and_installed_webui",
+          "unverified_fallbacks": [
+            "mutable_main",
+            "unverified_releases_latest_download",
+            "different_or_historical_release_tag"
+          ],
+          "optional_attestation_outage": "does_not_block_bytes_that_pass_required_exact_release_name_size_sha256_checks"
+        },
+        "linux_macos_online_command": "download and verify public Release opl-install.sh, then run ./opl-install.sh --container-webui --yes --enable-auto-update",
+        "linux_server_online_command": "download and verify public Release opl-install.sh, then run ./opl-install.sh --container-webui --yes",
+        "windows_online_command": "resolve the GitHub Latest pointer to one exact Release record, verify or reuse cached install-docker-webui.ps1 by exact tag/name/url/size/SHA-256, then run with -EnableAutoUpdate -Yes",
         "windows_prerequisite_mode": "explicit_install_prerequisites_switch_requires_administrator",
         "default_image_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:stable",
         "explicit_preview_alias_ref": "ghcr.io/gaofeng21cn/one-person-lab-webui:latest",

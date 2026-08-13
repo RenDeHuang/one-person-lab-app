@@ -46,6 +46,13 @@ Team ID、`/Applications/KimiCU.app` 路径、MCP command/args、默认 enableme
 
 ## 安装入口
 
+公开分发 authority 是 exact GitHub Release 中、经名称/URL/大小/SHA-256 校验的
+`opl-install.sh`。仓库 `install.sh` 只服务已审阅 source checkout 的开发与恢复，不得在
+公开教程中替代 Release installer，也不得把 `main` 或未验证的 Latest 字节作为 fallback。
+Docker/WebUI 子安装器可保存 exact Release 身份缓存：元数据/网络中断时重算缓存大小和
+SHA-256 后继续；明确 mismatch 只拒绝新字节并保留既有缓存/安装。可选 attestation 不属于
+这条必需获取链。
+
 ### macOS
 
 Homebrew 用户安装 Desktop Standard：

@@ -52,9 +52,11 @@ test('frozen universal installer binds one exact App carrier and remains executa
       script,
       new RegExp(`one-person-lab/archive/${frameworkSha}\\.tar\\.gz`),
     );
-    assert.match(
+    assert.match(script, /acquire_docker_webui_installer/);
+    assert.match(script, /releases\/download\/\$tag\/\$asset_name/);
+    assert.doesNotMatch(
       script,
-      new RegExp(`one-person-lab-app/${appSha}/scripts/install-docker-webui\\.sh`),
+      /raw\.githubusercontent\.com\/[^/]+\/one-person-lab-app\/[^/]+\/scripts\/install-docker-webui\.sh/,
     );
     assert.notEqual(fs.statSync(output).mode & 0o111, 0);
 

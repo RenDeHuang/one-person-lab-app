@@ -124,24 +124,106 @@ docker compose version
 
 ## 2. 运行一键安装器
 
+普通用户的公开入口是 GitHub Release 中的 `opl-install.sh`，不是仓库分支中的
+`install.sh`。后者只用于已经审阅的 source checkout 中做开发或恢复。公开入口先把
+Latest 解析成一个精确 Release，再校验 installer 的名称、URL、大小和 SHA-256；不会
+回退到 `main`，也不会直接执行未经校验的 `releases/latest/download` 字节。
+
 ### Windows PowerShell
 
 打开普通 PowerShell 窗口，复制并运行：
 
 ```powershell
-{{download.windows_online_command}}
+$repo = 'gaofeng21cn/one-person-lab-app'
+$name = 'install-docker-webui.ps1'
+$cache = Join-Path $env:LOCALAPPDATA 'OnePersonLab\installer-cache'
+$p = Join-Path $cache $name
+$id = Join-Path $cache 'install-docker-webui.identity.json'
+try {
+  $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
+  $asset = @($release.assets | Where-Object name -eq $name)
+  if ($release.draft -or $release.prerelease -or $release.tag_name -notmatch '^v[0-9A-Za-z._-]+$' -or
+      $asset.Count -ne 1 -or $asset[0].digest -notmatch '^sha256:[0-9a-f]{64}$' -or
+      [int64]$asset[0].size -le 0) { throw 'Latest did not resolve to one eligible exact installer asset.' }
+  $expectedUrl = "https://github.com/$repo/releases/download/$($release.tag_name)/$name"
+  if ($asset[0].browser_download_url -ne $expectedUrl) { throw 'Release asset URL mismatch.' }
+  New-Item -ItemType Directory -Force $cache | Out-Null
+  $candidate = "$p.new"
+  Invoke-WebRequest -UseBasicParsing $expectedUrl -OutFile $candidate
+  $sha = (Get-FileHash $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ((Get-Item $candidate).Length -ne [int64]$asset[0].size -or
+      $sha -ne $asset[0].digest.Substring(7)) {
+    Remove-Item $candidate -Force
+    throw 'Downloaded installer size or SHA-256 mismatch.'
+  }
+  Move-Item $candidate $p -Force
+  $identity = [ordered]@{
+    schema = 'opl_verified_installer_cache.v1'
+    repository = $repo
+    release_tag = $release.tag_name
+    asset = [ordered]@{name=$name; url=$expectedUrl; sha256=$sha; size_bytes=[int64]$asset[0].size}
+  }
+  $identity | ConvertTo-Json -Depth 4 | Set-Content $id -Encoding UTF8
+} catch {
+  if (-not (Test-Path $p) -or -not (Test-Path $id)) { throw }
+  $saved = Get-Content $id -Raw | ConvertFrom-Json
+  $sha = (Get-FileHash $p -Algorithm SHA256).Hash.ToLowerInvariant()
+  $savedUrl = "https://github.com/$repo/releases/download/$($saved.release_tag)/$name"
+  if ($saved.schema -ne 'opl_verified_installer_cache.v1' -or $saved.repository -ne $repo -or
+      $saved.release_tag -notmatch '^v[0-9A-Za-z._-]+$' -or $saved.asset.name -ne $name -or
+      $saved.asset.url -ne $savedUrl -or $saved.asset.sha256 -ne $sha -or
+      [int64]$saved.asset.size_bytes -ne (Get-Item $p).Length) {
+    throw 'No valid verified installer cache is available.'
+  }
+  Write-Warning "Using verified installer cache from $($saved.release_tag): $($_.Exception.Message)"
+}
+powershell -ExecutionPolicy Bypass -File $p -EnableAutoUpdate -Yes
 ```
 
 ### Linux 个人电脑或 macOS 终端
 
 ```bash
 repo='gaofeng21cn/one-person-lab-app'
-root="https://github.com/$repo/releases/latest/download"
-curl -fsSL "$root/install-docker-webui.sh" |
-  bash -s -- --yes --enable-auto-update
+work_dir="$(mktemp -d)"
+release_json="$work_dir/release.json"
+installer="$work_dir/opl-install.sh"
+
+curl -fsSL "https://api.github.com/repos/$repo/releases/latest" -o "$release_json"
+read -r tag url expected_sha expected_size <<EOF
+$(python3 - "$release_json" "$repo" <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1], encoding='utf-8'))
+assets = [a for a in r.get('assets', []) if a.get('name') == 'opl-install.sh']
+if r.get('draft') or len(assets) != 1:
+    raise SystemExit('Latest did not resolve to one published installer asset')
+a = assets[0]
+tag = r.get('tag_name', '')
+url = f"https://github.com/{sys.argv[2]}/releases/download/{tag}/opl-install.sh"
+digest = a.get('digest', '')
+if a.get('browser_download_url') != url or not digest.startswith('sha256:'):
+    raise SystemExit('Release installer identity is invalid')
+print(tag, url, digest[7:], a.get('size', 0))
+PY
+)
+EOF
+curl -fsSL "$url" -o "$installer"
+test "$(wc -c < "$installer" | tr -d ' ')" = "$expected_size"
+if command -v shasum >/dev/null 2>&1; then
+  actual_sha="$(shasum -a 256 "$installer" | awk '{print $1}')"
+else
+  actual_sha="$(sha256sum "$installer" | awk '{print $1}')"
+fi
+test "$actual_sha" = "$expected_sha"
+chmod 0755 "$installer"
+"$installer" --container-webui --yes --enable-auto-update
 ```
 
 这条个人电脑命令会在当前用户范围启用每天 03:00 的宿主自动更新。macOS 使用 LaunchAgent；Linux 使用 `systemd --user` timer。Linux 服务器默认不启用自动更新，请使用不带 `--enable-auto-update` 的安装命令，再由管理员根据维护窗口显式配置系统级调度。
+
+安装器会把通过 exact Release 名称、URL、大小和 SHA-256 校验的 Docker/WebUI 子安装器
+保存为本机已验证缓存。GitHub API、元数据或网络暂时不可用时，仍可重新计算缓存大小和摘要后
+继续使用；如果新下载明确不匹配，则只拒绝这次新字节并保留原缓存和已安装 WebUI。
+可选 attestation 暂时不可用不会阻断已经通过上述必需校验的字节。
 
 安装器默认拉取 `ghcr.io/gaofeng21cn/one-person-lab-webui:stable`，创建 `compose.yaml` 和两个持久目录，然后启动 WebUI。`:latest` 仅供用户显式选择 Preview，不会被普通安装或自动更新静默选中。首次镜像下载约为 1 GB，安装器会持续显示 Docker layer 下载输出；不需要重新复制命令或重开 PowerShell。每次拉取开始时会显示 `attempt 1/3` 之类的当前尝试和总次数；20 秒没有新 layer 输出时会报告等待时间、3 分钟无进展边界和 Docker Desktop 代理入口。达到无进展边界后自动短退避重试，最多共 3 次；Docker 会复用已经完成的 layer，但不承诺当前未完成 layer 的字节级断点续传。首次启动还需要初始化数据库、内置能力和工作台资源；在较慢的 WSL 2 或虚拟机中可能接近 10 分钟，请保持 PowerShell 和 Docker Desktop 运行，等待安装器报告健康检查通过。后续启动和更新通常更快。安装成功后，Windows 桌面会出现 **One Person Lab** 快捷方式；以后不需要再次复制安装命令。Windows 推荐命令还会为当前用户注册 **One Person Lab WebUI Stable Update** 计划任务：用户已登录时每天 03:00 检查 `stable`，并在该用户每次登录时补一次检查。任务不保存 Windows 密码；电脑关机或用户未登录时不会后台强行运行。默认映射如下：
 
@@ -349,13 +431,10 @@ Linux:   $HOME/OnePersonLab/projects
 
 ### 提示端口 3000 已被占用
 
-下载脚本后改用其它本机端口，例如：
+使用前面主安装步骤保存的已验证脚本缓存，并改用其它本机端口，例如：
 
 ```powershell
-$repo = 'gaofeng21cn/one-person-lab-app'
-$root = "https://github.com/$repo/releases/latest/download"
-$p = Join-Path $env:TEMP 'install-docker-webui.ps1'
-iwr -UseBasicParsing "$root/install-docker-webui.ps1" -OutFile $p
+$p = Join-Path $env:LOCALAPPDATA 'OnePersonLab\installer-cache\install-docker-webui.ps1'
 powershell -ExecutionPolicy Bypass -File $p -Port 3001 -EnableAutoUpdate -Yes
 ```
 
@@ -366,10 +445,7 @@ powershell -ExecutionPolicy Bypass -File $p -Port 3001 -EnableAutoUpdate -Yes
 健康检查超时时，安装器会输出自动生成的诊断目录。也可以主动指定诊断目录：
 
 ```powershell
-$repo = 'gaofeng21cn/one-person-lab-app'
-$root = "https://github.com/$repo/releases/latest/download"
-$p = Join-Path $env:TEMP 'install-docker-webui.ps1'
-iwr -UseBasicParsing "$root/install-docker-webui.ps1" -OutFile $p
+$p = Join-Path $env:LOCALAPPDATA 'OnePersonLab\installer-cache\install-docker-webui.ps1'
 powershell -ExecutionPolicy Bypass -File $p `
   -Yes -NoOpen `
   -DiagnosticsDir "$env:USERPROFILE\OnePersonLab\diagnostics"

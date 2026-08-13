@@ -942,24 +942,57 @@ function validateInstallerSurfaces(policy) {
   }
   const dockerInstallerAssets = dockerWebui.installer_model?.installer_release_assets;
   if (
-    dockerWebui.installer_model?.installer_release_selector !== 'github_latest_release' ||
+    dockerWebui.installer_model?.public_bootstrap_entrypoint !== 'opl-install.sh --container-webui' ||
+    dockerWebui.installer_model?.development_bootstrap_entrypoint !==
+      'reviewed_source_checkout_install.sh --container-webui' ||
+    dockerWebui.installer_model?.installer_release_selector !==
+      'github_latest_pointer_resolved_to_exact_release_record' ||
     dockerInstallerAssets?.linux_macos !==
-      'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh' ||
+      'exact_release_record_asset_url_for_install-docker-webui.sh' ||
     dockerInstallerAssets?.windows !==
-      'https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.ps1' ||
+      'exact_release_record_asset_url_for_install-docker-webui.ps1' ||
     dockerInstallerAssets?.same_name_size_digest_readback_required !== true ||
     dockerInstallerAssets?.attestation_payload_membership !== false
   ) {
-    throw new Error('Docker/WebUI installer artifacts must use the GitHub Latest Release sidecar assets');
+    throw new Error('Docker/WebUI installer artifacts must resolve one exact GitHub Release before acquisition');
   }
-  if (!dockerWebui.installer_model?.linux_macos_online_command?.includes('github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/install-docker-webui.sh')) {
-    throw new Error('Docker/WebUI install exposure must declare the Linux/macOS online one-click command');
+  const acquisition = dockerWebui.installer_model?.acquisition_integrity;
+  if (
+    JSON.stringify(acquisition?.required_identity) !== JSON.stringify([
+      'repository',
+      'exact_release_tag',
+      'asset_name',
+      'exact_release_asset_url',
+      'size_bytes',
+      'sha256',
+    ]) ||
+    acquisition?.verified_cache !==
+      'reuse_only_after_recomputing_cached_size_and_sha256_against_the_saved_exact_release_identity' ||
+    acquisition?.metadata_or_network_outage !==
+      'use_valid_verified_cache_or_block_only_this_new_acquisition' ||
+    acquisition?.explicit_identity_mismatch !==
+      'reject_new_bytes_preserve_prior_verified_cache_and_installed_webui' ||
+    JSON.stringify(acquisition?.unverified_fallbacks) !== JSON.stringify([
+      'mutable_main',
+      'unverified_releases_latest_download',
+      'different_or_historical_release_tag',
+    ]) ||
+    acquisition?.optional_attestation_outage !==
+      'does_not_block_bytes_that_pass_required_exact_release_name_size_sha256_checks'
+  ) {
+    throw new Error('Docker/WebUI acquisition must preserve verified-cache fail-open semantics without unverified fallback');
+  }
+  if (
+    !dockerWebui.installer_model?.linux_macos_online_command?.includes('./opl-install.sh --container-webui') ||
+    dockerWebui.installer_model?.linux_macos_online_command?.includes('| bash')
+  ) {
+    throw new Error('Docker/WebUI install exposure must route public Linux/macOS acquisition through verified opl-install.sh');
   }
   if (
     dockerWebui.installer_model?.windows_online_command !==
-      'download install-docker-webui.ps1 from the GitHub Latest Release and run with -EnableAutoUpdate -Yes'
+      'resolve the GitHub Latest pointer to one exact Release record, verify or reuse cached install-docker-webui.ps1 by exact tag/name/url/size/SHA-256, then run with -EnableAutoUpdate -Yes'
   ) {
-    throw new Error('Docker/WebUI install exposure must declare the Windows online one-click command model');
+    throw new Error('Docker/WebUI install exposure must declare exact Release-bound Windows acquisition');
   }
   if (dockerWebui.installer_model?.windows_prerequisite_mode !== 'explicit_install_prerequisites_switch_requires_administrator') {
     throw new Error('Docker/WebUI install exposure must keep Windows Docker/WSL2 installation behind an explicit administrator prerequisite switch');
