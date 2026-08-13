@@ -938,18 +938,16 @@ for (const { name, mutate, assertPayload } of [
   },
   {
     name: 'secret-like markers in imported evidence',
-    mutate({ diagnostics }: { diagnostics: string }) {
+    mutate({ evidence }: { evidence: string }) {
       fs.writeFileSync(
-        path.join(diagnostics, 'docker-compose-logs.txt'),
+        path.join(evidence, 'extra.log'),
         'Bearer abcdefghijklmnopqrstuvwxyz123456\n',
       );
     },
     assertPayload(payload: any) {
-      assert.ok(
-        payload.evidence_validation.forbidden_secret_markers.some(
-          (marker: string) => marker.includes('Bearer'),
-        ),
-      );
+      const markers = payload.evidence_validation.forbidden_secret_markers;
+      assert.ok(markers.includes('extra.log:bearer_token'));
+      assert.equal(JSON.stringify(payload).includes('abcdefghijklmnopqrstuvwxyz123456'), false);
     },
   },
   {
