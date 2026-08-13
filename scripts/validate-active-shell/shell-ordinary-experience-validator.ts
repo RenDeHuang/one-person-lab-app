@@ -1558,7 +1558,10 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       "data-testid='guid-workspace-select'",
       "data-testid='guid-workspace-clear'",
       "properties: ['openDirectory', 'createDirectory']",
-      'onSelectWorkspace(selectedDirectory)',
+      'ipcBridge.dialog.showWorkspace',
+      'addRecentWorkspace(selection.runtime_path)',
+      'runtimePath: selection.runtime_path',
+      'hostPath: selection.host_path',
       'onClearWorkspace',
     ],
     'Active shell independent new-session working-directory context bar',
@@ -1574,10 +1577,34 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       "import GuidWorkspaceContextBar from './components/GuidWorkspaceContextBar'",
       '<GuidWorkspaceContextBar',
       'workspaceDir={guidInput.dir}',
+      'workspaceDisplayDir={workspaceDisplayDir}',
       'onSelectWorkspace={handleWorkspaceSelect}',
       'onClearWorkspace={handleWorkspaceClear}',
+      'guidInput.setDir(runtimePath)',
+      'setWorkspaceDisplayDir(hostPath)',
     ],
     'Active shell Home working-directory context bar placement',
+  );
+  const dialogBridge = assertShellTextIncludesAll(
+    shellPaths,
+    'packages/desktop/src/process/bridge/dialogBridge.ts',
+    [
+      'ipcBridge.dialog.showOpen.provider',
+      'ipcBridge.dialog.showWorkspace.provider',
+      'getWindowsWslRuntime()',
+      'runtime.projectWorkspacePath(hostPath)',
+      'host_path: hostPath',
+      'runtime_path: runtimePath',
+    ],
+    'Active shell workspace host/runtime path projection bridge',
+  );
+  assertTextExcludesAll(
+    dialogBridge.slice(
+      dialogBridge.indexOf('ipcBridge.dialog.showOpen.provider'),
+      dialogBridge.indexOf('ipcBridge.dialog.showWorkspace.provider'),
+    ),
+    ['projectWorkspacePath'],
+    'Active shell generic local picker path projection isolation',
   );
   const guidActionRow = readShellText(
     shellPaths,

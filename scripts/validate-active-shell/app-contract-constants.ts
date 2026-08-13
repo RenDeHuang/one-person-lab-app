@@ -1492,6 +1492,16 @@ export const appOwnedSessionWorkspaceModel = {
     "user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups",
   workspace_binding_role:
     "new_session_initial_cwd_and_explicit_project_affinity_assignment_are_distinct",
+  workspace_path_projection: {
+    picker_result: "host_path_and_canonical_runtime_path",
+    host_path_role: "native_picker_display_only_not_conversation_payload",
+    runtime_path_role:
+      "canonical_new_session_cwd_recent_workspace_value_and_backend_payload",
+    windows_projection: "opl_linux_distribution_bound_wslpath",
+    non_windows_projection: "host_path_equals_runtime_path",
+    native_windows_backend_fallback_allowed: false,
+    generic_local_picker_projection_allowed: false,
+  },
   runtime_pwd_role:
     "turn_cwd_or_command_pwd_execution_context_not_persisted_as_project_affinity",
   turn_cwd_override_allowed: true,

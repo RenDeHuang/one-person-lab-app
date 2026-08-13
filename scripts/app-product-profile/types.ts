@@ -422,6 +422,15 @@ export type AppProductProfile = {
         projectless_detection: string;
         project_affinity_role: string;
         workspace_binding_role: string;
+        workspace_path_projection: {
+          picker_result: string;
+          host_path_role: string;
+          runtime_path_role: string;
+          windows_projection: string;
+          non_windows_projection: string;
+          native_windows_backend_fallback_allowed: boolean;
+          generic_local_picker_projection_allowed: boolean;
+        };
         runtime_pwd_role: string;
         turn_cwd_override_allowed: boolean;
         writable_roots_role: string;
