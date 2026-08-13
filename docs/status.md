@@ -24,7 +24,8 @@ does not itself authorize Package publication, Stable/Latest, WebUI promotion, r
 mutation or release claims; those retain their own fresh owner gates.
 
 Plugin native profile pointer: `contracts/opl-native-profile.json` only declares
-the repo-native profile used by OPL Flow / OPL Doc plugin sync and drift checks.
+the repo-native profile used by OPL Flow bundled Skills and drift checks. The
+retired standalone OPL Doc repo no longer provides a plugin or profile writer.
 It is not GUI product truth, release authority, runtime truth, domain truth, or
 installation evidence.
 
