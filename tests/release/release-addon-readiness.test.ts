@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import {
   buildArtifactQualificationReceipt,
@@ -600,68 +599,6 @@ test('Full qualification override rejects a receipt for a different build smoke 
     assert.equal(result.full_qualification_override.applied, false);
     assert.match(result.errors.join('\n'), /build manifest smoke_harness_sha256/);
     assert.match(result.errors.join('\n'), /full-first-run-vm-smoke is failure/);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test('exact retry evidence cannot restore retired owner-resolution promotion authority', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-owner-override-'));
-  try {
-    const fixture = writeFixture(root);
-    const candidatePath = path.join(root, 'release-candidate-record.json');
-    const preflightPath = path.join(root, 'release-preflight-summary.json');
-    const readinessPath = path.join(root, 'release-readiness-summary.json');
-    const remotePath = path.join(root, 'remote-release-verification.json');
-    const historicalCandidate = {
-      schema: 'opl_release_candidate_record.v1',
-      status: 'blocked',
-      version: '26.7.13',
-      release_mode: 'new_release',
-      inputs: { include_full_package: true, run_vm_smoke: true, shell_ref: 'b'.repeat(40), framework_ref: 'c'.repeat(40) },
-      provenance: { app_commit: 'a'.repeat(40), workflow_run_id: '101' },
-      job_results: { 'full-first-run-vm-smoke': 'failure' },
-    };
-    fs.writeFileSync(candidatePath, `${JSON.stringify(historicalCandidate, null, 2)}\n`);
-    fs.writeFileSync(preflightPath, `${JSON.stringify({ status: 'passed' })}\n`);
-    fs.writeFileSync(remotePath, `${JSON.stringify({ status: 'passed', version: '26.7.13' })}\n`);
-    fs.writeFileSync(readinessPath, `${JSON.stringify({
-      schema: 'opl_release_readiness_summary.v1',
-      status: 'failed',
-      version: '26.7.13',
-      job_results: { 'full-first-run-vm-smoke': 'failure' },
-      gates: { full_dmg_clean_vm: { required: true, status: 'failed', reason: 'old VM assertion failed' } },
-      failed_required_gates: [{ id: 'full_dmg_clean_vm', status: 'failed', reason: 'old VM assertion failed' }],
-      release_cohort: {
-        schema: 'opl_app_release_evidence_cohort.v1',
-        version: '26.7.13',
-        tag: 'v26.7.13',
-        channel: 'stable',
-        source: 'release_readiness_summary',
-        current_cohort_evidence: true,
-      },
-    }, null, 2)}\n`);
-    const result = spawnSync(process.execPath, [
-      '--experimental-strip-types',
-      'scripts/resolve-release-owner-candidate-record.ts',
-      '--candidate-record', candidatePath,
-      '--preflight', preflightPath,
-      '--readiness', readinessPath,
-      '--remote-verification', remotePath,
-      '--output', candidatePath,
-      '--release-owner-receipt-ref', 'release_owner_receipt_ref://one-person-lab-app/release-owner/v26.7.13/receipt-test',
-      '--full-qualification-receipt', fixture.receiptPath,
-      '--build-artifact-manifest', fixture.manifestPath,
-      '--stable-session-id', stableSessionId,
-      '--release-cohort-ref', releaseCohortRef,
-      '--source-artifact-run-id', '101',
-      '--source-artifact-name', sourceArtifactName,
-    ], { cwd: path.resolve(import.meta.dirname, '../..'), encoding: 'utf8' });
-    assert.equal(result.status, 1, result.stderr || result.stdout);
-    assert.match(result.stderr, /opl_app_release_candidate_record_writer_retired\.v1/);
-    assert.match(result.stderr, /retired_fail_closed/);
-    assert.match(result.stderr, /framework_opl_release_portable_checkpoint_and_receipt/);
-    assert.deepEqual(JSON.parse(fs.readFileSync(candidatePath, 'utf8')), historicalCandidate);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -396,6 +396,32 @@ test("legacy App Bundle and broker/state-machine surfaces are read-only compatib
     "release:historical-candidate-record:status",
     "release:historical-bundle:status",
   ]);
+  assert.deepEqual(legacy.retained_non_authoritative_implementation_paths, [
+    "scripts/release-bundle.ts",
+    "scripts/validate-release-candidate-record.ts",
+    "scripts/stable-release-session.ts",
+    "scripts/closeout-release-run.ts",
+    "scripts/publish-release.ts",
+    "scripts/cleanup-draft-release-candidates.ts",
+  ]);
+  assert.deepEqual(legacy.removed_implementation_paths, [
+    "scripts/run-stable-release.ts",
+    "scripts/release-operator.ts",
+    "scripts/release-mutation-broker.ts",
+    "scripts/release-session-lease.ts",
+    "scripts/publish-full-addon.ts",
+    "scripts/plan-release-candidate.ts",
+    "scripts/validate-release-preflight.ts",
+    "scripts/release-cohort-lock.ts",
+    "scripts/plan-release-cohort.ts",
+    "scripts/plan-release-gate-reuse.ts",
+    "scripts/write-release-cohort-manifest.ts",
+    "scripts/write-release-candidate-record.ts",
+    "scripts/resolve-release-owner-candidate-record.ts",
+    "scripts/verify-release-owner-candidate-record.ts",
+    "scripts/stable-release-reconcile.ts",
+  ]);
+  assert.equal(legacy.removed_implementation_paths_must_be_absent, true);
   assert.ok(legacy.parser_forbidden_capabilities.includes("authorize_mutation"));
   assert.ok(legacy.parser_forbidden_capabilities.includes("reconcile_live_state"));
   assert.equal(legacy.retired_scripts_may_parse_historical_receipts, false);

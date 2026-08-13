@@ -1,6 +1,18 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import type { ReleaseCohortPlan } from './plan-release-cohort.ts';
+
+type HistoricalReleaseCohortPlan = {
+  schema: 'opl_app_release_cohort_plan.v1';
+  version: string;
+  generated_at: string;
+  operator_plan_ref: string;
+  cohort_lock: {
+    app: { resolved_sha: string };
+    shell: { resolved_sha: string };
+    framework: { resolved_sha: string };
+  };
+  [key: string]: unknown;
+};
 
 export type StableReleasePhase =
   | 'candidate_frozen'
@@ -41,7 +53,7 @@ export type StableReleaseSession = {
   phase: StableReleasePhase;
   version: string;
   repo: string;
-  cohort_plan: ReleaseCohortPlan;
+  cohort_plan: HistoricalReleaseCohortPlan;
   release_run: { id: string | null; url?: string | null; conclusion: string | null };
   promotion_run: {
     id: string | null;
@@ -71,7 +83,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-export function stableReleaseSessionIdentity(plan: ReleaseCohortPlan): string {
+export function stableReleaseSessionIdentity(plan: HistoricalReleaseCohortPlan): string {
   return `sha256:${crypto.createHash('sha256').update(JSON.stringify({
     version: plan.version,
     admitted_at: plan.generated_at,
@@ -102,7 +114,7 @@ export function validateStableReleaseSessionInvariants(value: unknown): string[]
   if (!Number.isFinite(Date.parse(String(candidate.created_at))) || !Number.isFinite(Date.parse(String(candidate.updated_at)))) {
     errors.push('historical Stable session timestamps are invalid');
   }
-  const plan = record(candidate.cohort_plan) as ReleaseCohortPlan | null;
+  const plan = record(candidate.cohort_plan) as HistoricalReleaseCohortPlan | null;
   if (!plan || plan.schema !== 'opl_app_release_cohort_plan.v1') {
     errors.push('historical Stable session cohort plan is missing');
   } else {

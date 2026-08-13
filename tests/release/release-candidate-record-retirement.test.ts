@@ -34,28 +34,6 @@ function historicalRecord() {
   };
 }
 
-test('retired candidate writer fails closed without creating a new record or mutation command', () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-candidate-writer-retired-'));
-  const output = path.join(tempRoot, 'release-candidate-record.json');
-  try {
-    const result = runScript('scripts/write-release-candidate-record.ts', ['--output', output]);
-    assert.equal(result.status, 2, result.stderr || result.stdout);
-    const summary = JSON.parse(result.stdout);
-    assert.equal(summary.schema, 'opl_app_release_candidate_record_writer_retired.v1');
-    assert.equal(summary.status, 'retired_fail_closed');
-    assert.equal(summary.lifecycle, 'historical_read_only');
-    assert.equal(summary.candidate_record_generated, false);
-    assert.equal(summary.authoritative_for_new_release, false);
-    assert.equal(summary.mutation_authorized, false);
-    assert.equal(summary.framework_handoff.status_command, statusCommand);
-    assert.equal(summary.framework_handoff.checkpoint_schema_ref, 'opl_release_bundle_checkpoint.v1');
-    assert.equal(fs.existsSync(output), false);
-    assert.doesNotMatch(result.stdout, /ready_to_promote|release:stable|--execute|promote_command/);
-  } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-  }
-});
-
 test('candidate validator inspects historical evidence without returning promotion admission', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-candidate-inspection-'));
   const recordPath = path.join(tempRoot, 'release-candidate-record.json');

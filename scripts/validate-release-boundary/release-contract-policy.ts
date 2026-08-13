@@ -48,6 +48,31 @@ const requiredRetiredReleasePackageScripts = [
   'release:candidate-record:status',
   'release:owner-candidate-record:verify',
 ];
+const requiredRemovedReleaseImplementationPaths = [
+  'scripts/run-stable-release.ts',
+  'scripts/release-operator.ts',
+  'scripts/release-mutation-broker.ts',
+  'scripts/release-session-lease.ts',
+  'scripts/publish-full-addon.ts',
+  'scripts/plan-release-candidate.ts',
+  'scripts/validate-release-preflight.ts',
+  'scripts/release-cohort-lock.ts',
+  'scripts/plan-release-cohort.ts',
+  'scripts/plan-release-gate-reuse.ts',
+  'scripts/write-release-cohort-manifest.ts',
+  'scripts/write-release-candidate-record.ts',
+  'scripts/resolve-release-owner-candidate-record.ts',
+  'scripts/verify-release-owner-candidate-record.ts',
+  'scripts/stable-release-reconcile.ts',
+];
+const requiredRetainedNonAuthoritativeImplementationPaths = [
+  'scripts/release-bundle.ts',
+  'scripts/validate-release-candidate-record.ts',
+  'scripts/stable-release-session.ts',
+  'scripts/closeout-release-run.ts',
+  'scripts/publish-release.ts',
+  'scripts/cleanup-draft-release-candidates.ts',
+];
 const requiredStandardLatestAdmission = {
   validator: 'scripts/validate-standard-latest-admission.ts',
   receipt_schema: 'opl_standard_latest_admission_receipt.v1',
@@ -1073,14 +1098,14 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     preflight?.live_state_authority !== false ||
     preflight?.checkpoint_authority_ref !== 'release_bundle_control_plane.framework_authority' ||
     !sameStringSet(preflight?.stable_operations, ['standard', 'resume_standard', 'append_full']) ||
-    preflight?.legacy_preflight?.script !== 'scripts/validate-release-preflight.ts' ||
-    preflight?.legacy_preflight?.lifecycle !== 'retired_historical_non_authoritative' ||
-    preflight?.legacy_preflight?.access !== 'read_only' ||
+    preflight?.legacy_preflight?.implementation_path !== null ||
+    preflight?.legacy_preflight?.lifecycle !== 'removed' ||
     preflight?.legacy_preflight?.package_entry !== null ||
+    preflight?.legacy_preflight?.replacement !== 'scripts/framework-release-adapter.ts freeze-request' ||
     preflight?.legacy_preflight?.may_create_release_state_or_authorize_mutation !== false ||
     preflight?.failure_budget !== 'fail product-policy admission before Framework freeze or any expensive build; evaluate Full-specific failures only in append_full'
   ) {
-    console.error('FAIL release_preflight_contract: release_preflight must bind the App product adapter freeze-request and retire the legacy preflight CLI');
+    console.error('FAIL release_preflight_contract: release_preflight must bind the App product adapter freeze-request and keep the legacy preflight implementation absent');
     failures += 1;
   }
   if (
@@ -1482,29 +1507,25 @@ function validateHomebrewVmGateStaticPolicy(
   const homebrewVm = homebrewVmScenario?.vm;
   const homebrewPolicy = releaseContract.homebrew_tap_distribution?.cask_install_policy;
   const workflowVmText = fs.readFileSync(path.join(appRoot, '.github/workflows/opl-first-run-vm.yml'), 'utf8');
-  const preflightText = fs.readFileSync(path.join(appRoot, 'scripts/validate-release-preflight.ts'), 'utf8');
 
   if (
     homebrewVm?.homebrew_cask_install_ref !== requiredHomebrewStandardCaskRef ||
     homebrewPolicy?.standard_cask_install_ref !== requiredHomebrewStandardCaskRef ||
-    !workflowVmText.includes(`homebrew_cask=${requiredHomebrewStandardCaskRef}`) ||
-    !preflightText.includes(`const requiredHomebrewStandardCaskRef = '${requiredHomebrewStandardCaskRef}'`)
+    !workflowVmText.includes(`homebrew_cask=${requiredHomebrewStandardCaskRef}`)
   ) {
     console.error('FAIL homebrew_vm_gate_static_policy: the standalone Homebrew VM gate must install the fully qualified App cask ref');
     failures += 1;
   }
   if (
     !sameStringSet(homebrewVm?.homebrew_trusted_cask_refs, requiredHomebrewTrustedCaskRefs) ||
-    !sameStringSet(homebrewPolicy?.standard_install_trusted_cask_refs, requiredHomebrewTrustedCaskRefs) ||
-    !preflightText.includes('const requiredHomebrewTrustedCaskRefs = [')
+    !sameStringSet(homebrewPolicy?.standard_install_trusted_cask_refs, requiredHomebrewTrustedCaskRefs)
   ) {
     console.error('FAIL homebrew_vm_gate_static_policy: trusted refs must cover explicit standard/full/nightly cask refs');
     failures += 1;
   }
   if (
     homebrewVm?.homebrew_trust_scope !== requiredHomebrewTrustScope ||
-    homebrewPolicy?.trust_scope !== requiredHomebrewTrustScope ||
-    !preflightText.includes(`const requiredHomebrewTrustScope = '${requiredHomebrewTrustScope}'`)
+    homebrewPolicy?.trust_scope !== requiredHomebrewTrustScope
   ) {
     console.error('FAIL homebrew_vm_gate_static_policy: trust scope must stay explicit cask refs, not whole tap');
     failures += 1;
@@ -1592,6 +1613,7 @@ export function evaluateReleaseBrokerAuthorityReadiness(
 }
 
 export function validateReleaseAccelerationPolicy(
+  appRoot: string,
   releaseContract: Record<string, any>,
   brokerAuthority: unknown,
 ): number {
@@ -1940,6 +1962,12 @@ export function validateReleaseAccelerationPolicy(
       'build', 'qualify', 'publish', 'promote', 'reconcile_live_state',
     ]) ||
     !sameStringSet(legacy?.retired_package_scripts, requiredRetiredReleasePackageScripts) ||
+    !sameStringSet(legacy?.removed_implementation_paths, requiredRemovedReleaseImplementationPaths) ||
+    legacy?.removed_implementation_paths_must_be_absent !== true ||
+    !sameStringSet(
+      legacy?.retained_non_authoritative_implementation_paths,
+      requiredRetainedNonAuthoritativeImplementationPaths,
+    ) ||
     legacy?.retired_scripts_may_parse_historical_receipts !== false ||
     legacy?.retired_scripts_may_be_package_or_workflow_mutation_entrypoints !== false ||
     legacy?.legacy_contract_role !== 'historical_receipt_verification_only' ||
@@ -1956,6 +1984,18 @@ export function validateReleaseAccelerationPolicy(
   ) {
     console.error('FAIL release_legacy_retirement: broker, session, and operator implementations must remain absent while retained Bundle status commands read historical evidence');
     failures += 1;
+  }
+  for (const relativePath of requiredRemovedReleaseImplementationPaths) {
+    if (fs.existsSync(path.join(appRoot, relativePath))) {
+      console.error(`FAIL release_legacy_retirement: removed implementation still exists: ${relativePath}`);
+      failures += 1;
+    }
+  }
+  for (const relativePath of requiredRetainedNonAuthoritativeImplementationPaths) {
+    if (!fs.existsSync(path.join(appRoot, relativePath))) {
+      console.error(`FAIL release_legacy_retirement: retained non-authoritative reader is missing: ${relativePath}`);
+      failures += 1;
+    }
   }
   if (JSON.stringify(validationCanary) !== JSON.stringify(requiredValidationCanary)) {
     console.error('FAIL release_validation_canary: Canary must start the complete reusable topology in validation-only mode without secrets, builds, VMs, or external writes');
@@ -2516,7 +2556,7 @@ export function validateReleaseContractPolicies(
   failures += validatePhysicalVmOptionalCertificationPolicy(releaseContract);
   failures += validateHomebrewVmGateStaticPolicy(appRoot, releaseContract, firstRunMatrix);
   failures += validateWebuiPackagePolicy(releaseContract);
-  failures += validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);
+  failures += validateReleaseAccelerationPolicy(appRoot, releaseContract, brokerAuthority);
   failures += validateSourceMaterialRouteContract(appRoot);
   failures += validateReleasePlatformMatrix(releaseContract, profile);
   failures += validateGithubApplyCallerParity(appRoot);

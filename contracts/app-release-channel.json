@@ -1970,29 +1970,32 @@
         "release:historical-candidate-record:status",
         "release:historical-bundle:status"
       ],
-      "retired_implementation_scripts": [
+      "retained_non_authoritative_implementation_paths": [
+        "scripts/release-bundle.ts",
+        "scripts/validate-release-candidate-record.ts",
+        "scripts/stable-release-session.ts",
+        "scripts/closeout-release-run.ts",
+        "scripts/publish-release.ts",
+        "scripts/cleanup-draft-release-candidates.ts"
+      ],
+      "removed_implementation_paths": [
         "scripts/run-stable-release.ts",
         "scripts/release-operator.ts",
-        "scripts/stable-release-session.ts",
         "scripts/release-mutation-broker.ts",
         "scripts/release-session-lease.ts",
-        "scripts/publish-release.ts",
         "scripts/publish-full-addon.ts",
         "scripts/plan-release-candidate.ts",
         "scripts/validate-release-preflight.ts",
         "scripts/release-cohort-lock.ts",
         "scripts/plan-release-cohort.ts",
-        "scripts/closeout-release-run.ts",
-        "scripts/cleanup-draft-release-candidates.ts",
         "scripts/plan-release-gate-reuse.ts",
         "scripts/write-release-cohort-manifest.ts",
         "scripts/write-release-candidate-record.ts",
         "scripts/resolve-release-owner-candidate-record.ts",
-        "scripts/verify-release-owner-candidate-record.ts"
-      ],
-      "removed_live_implementation_scripts": [
+        "scripts/verify-release-owner-candidate-record.ts",
         "scripts/stable-release-reconcile.ts"
       ],
+      "removed_implementation_paths_must_be_absent": true,
       "retired_scripts_may_parse_historical_receipts": false,
       "retired_scripts_may_be_package_or_workflow_mutation_entrypoints": false,
       "legacy_contract": "contracts/app-release-broker-authority.json",
@@ -3794,10 +3797,10 @@
     "live_state_authority": false,
     "checkpoint_authority_ref": "release_bundle_control_plane.framework_authority",
     "legacy_preflight": {
-      "script": "scripts/validate-release-preflight.ts",
-      "lifecycle": "retired_historical_non_authoritative",
-      "access": "read_only",
+      "implementation_path": null,
+      "lifecycle": "removed",
       "package_entry": null,
+      "replacement": "scripts/framework-release-adapter.ts freeze-request",
       "may_create_release_state_or_authorize_mutation": false
     },
     "local_first": {

@@ -18,7 +18,7 @@ function validateSilently(releaseContract: Record<string, any>, brokerAuthority:
   const originalError = console.error;
   console.error = () => {};
   try {
-    return validateReleaseAccelerationPolicy(releaseContract, brokerAuthority);
+    return validateReleaseAccelerationPolicy(appRoot, releaseContract, brokerAuthority);
   } finally {
     console.error = originalError;
   }
@@ -29,7 +29,7 @@ test('Framework checkpoint plus the App executor is the only live release mutati
   const broker = readJson('contracts/app-release-broker-authority.json');
   const control = release.release_bundle_control_plane;
 
-  assert.equal(validateReleaseAccelerationPolicy(release, broker), 0);
+  assert.equal(validateReleaseAccelerationPolicy(appRoot, release, broker), 0);
   assert.equal(control.live_authority.single_live_mutation_authority, true);
   assert.equal(control.live_authority.state_owner, 'OPL Framework opl release');
   assert.equal(control.live_authority.state_surface, 'opl_release_bundle_checkpoint.v1');
