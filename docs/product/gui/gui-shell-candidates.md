@@ -14,11 +14,11 @@ package scripts, validation output, and candidate package artifacts.
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable plus Dev/Nightly Preview wrapper commands |
 | Foreground candidate | `opl-native-workbench` | `shells/opl-native-workbench` or `../opl-native-workbench` | `contracts/shell-adapters/opl-native-workbench.json` | Explicit Native validation/build only |
-| Retained candidate | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Role registry by default; explicit source validation or manual technical replay only |
-| Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit AGUI replay only |
+| Archived proof | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Explicit user-requested historical replay only |
+| Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit user-requested historical replay only |
 
 Stable role marker:
-`gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex`.
+`gui_shell_roles: active=aionui; foreground=opl-native-workbench; archived=hermes-codex,agui-codex`.
 
 Default maintenance validates only this four-role registry. Detailed candidate
 contracts are intentionally carrier-owned and explicit:
@@ -27,8 +27,8 @@ contracts are intentionally carrier-owned and explicit:
 | --- | --- | --- |
 | Fixed role registry | `npm run validate:shell-candidates` | Included in default structural gates; does not inspect candidate implementation detail. |
 | Native foreground detail | `npm run validate:candidate:native` / `npm run test:candidate:native` | Explicit on demand; full candidate evidence is Native-only. |
-| Hermes retained detail | `npm run validate:candidate:hermes` | Explicit source check; package/smoke command replay additionally requires `--manual-reference-replay`. |
-| AGUI archived proof | `npm run validate:candidate:agui` | Explicit historical replay only. |
+| Hermes archived proof | `npm run validate:candidate:hermes` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
+| AGUI archived proof | `npm run validate:candidate:agui` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
 
 Hermes and AGUI are role tombstones in the active registry. Their detailed
 commands and source/package expectations live in their adapter contracts and
@@ -83,15 +83,17 @@ canonical thread history。迁移计划见
 或与 AionUI 的 Runtime/session parity。两个 bundle 可并存，但在 host coordination 与并发
 负向证据完成前，只承诺快速顺序切换，不承诺两个 GUI 同时写同一 workspace/thread 的安全性。
 
-Hermes Desktop / `hermes-codex` remains a retained technical reference, not a
-second routinely maintained product line. Keep its role tombstone, adapter,
-wrapper commands, checkout policy, and runbook unless the App owner explicitly
-retires the replay route; do not duplicate its detailed state in the active
-candidate registry.
-Hermes is not a continuously built candidate. Push, pull-request, scheduled,
-watch/on-save, daily-patrol, and routine-validation paths must not compile it.
-Package, smoke, and install evidence is produced only when an actual Hermes
-development task explicitly requests a manual technical replay.
+Hermes Desktop / `hermes-codex` is archived and no longer under product
+consideration. Its role tombstone, adapter and runbooks preserve historical
+technical evidence only. Push, pull-request, scheduled, watch/on-save,
+daily-patrol, routine-validation and adoption paths must not compile or improve
+it. Source, package or smoke replay is allowed only when the user explicitly
+requests that archived proof.
+
+DeepSeek Harness is not another shell role. It is a pinned design and bounded
+source-reuse candidate for the sole foreground route, `opl-native-workbench`.
+The evaluation and controlled migration plan lives in
+[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md).
 
 ## Design System Governance
 
@@ -181,14 +183,14 @@ an actual Hermes development need:
 
 ```bash
 npm run package:candidate:native
-npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
+npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
 ```
 
 If the candidate checkout is a sibling repo instead of `shells/<candidate>`,
 set `OPL_APP_SHELL_ROOT` for that command:
 
 ```bash
-OPL_APP_SHELL_ROOT=../opl-hermes-shell npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
+OPL_APP_SHELL_ROOT=../opl-hermes-shell npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
 OPL_APP_SHELL_ROOT=../opl-native-workbench npm run package:candidate:native
 ```
 

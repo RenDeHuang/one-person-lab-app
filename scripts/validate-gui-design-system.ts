@@ -33,8 +33,7 @@ export type GuiDesignSystemValidation = {
   shell_roles: {
     active: 'aionui';
     foreground: 'opl-native-workbench';
-    retained: 'hermes-codex';
-    archived: 'agui-codex';
+    archived: ['hermes-codex', 'agui-codex'];
   };
   codex_reference: string;
   codex_pixel_reference: string;
@@ -91,7 +90,7 @@ export type GuiDesignSystemValidation = {
 };
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-native-workbench; retained=hermes-codex; archived=agui-codex';
+const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-native-workbench; archived=hermes-codex,agui-codex';
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
@@ -630,11 +629,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('default GUI design validation must use role registry only, not candidate detail');
   }
   if (
-    !stringArray(alternatives.reference_only_candidates).includes('hermes-codex') ||
-    hermesCandidate.state !== 'technical_reference' ||
+    !stringArray(alternatives.archived_technical_proofs).includes('hermes-codex') ||
+    hermesCandidate.state !== 'archived_technical_proof' ||
     hermesCandidate.role_tombstone !== true
   ) {
-    issues.add('candidate registry must keep hermes-codex as a retained reference candidate');
+    issues.add('candidate registry must keep hermes-codex as archived technical proof');
   }
   if (
     !stringArray(alternatives.archived_technical_proofs).includes('agui-codex') ||
@@ -2067,8 +2066,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     shell_roles: {
       active: 'aionui',
       foreground: 'opl-native-workbench',
-      retained: 'hermes-codex',
-      archived: 'agui-codex',
+      archived: ['hermes-codex', 'agui-codex'],
     },
     codex_reference: codexReference,
     codex_pixel_reference: codexPixelReference,

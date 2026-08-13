@@ -4,15 +4,13 @@ The root `scripts/` directory exposes App-level wrappers. The active Electron
 shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
 By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
-active GUI carrier, `opl-native-workbench` is the foreground alternative,
-Hermes Desktop / `hermes-codex` is a retained reference candidate, and
-AGUI / `agui-codex` is archived technical proof rather than a routine
-implementation, validation, or polish lane. Source-only technical validation
+active GUI carrier, `opl-native-workbench` is the foreground alternative, and
+Hermes Desktop / `hermes-codex` plus AGUI / `agui-codex` are archived technical
+proofs rather than routine implementation, validation, or polish lanes. Source-only technical validation
 can select a different linked shell repo with
 `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`;
-Hermes full candidate command execution additionally requires
-`--manual-reference-replay` and an actual development need. AGUI selection
-should happen only when AGUI replay is explicitly requested.
+Archived proof command execution additionally requires
+`--archived-proof-replay` and an explicit user request for that exact replay.
 
 Computer Use 当前的 focused contract gate 是：
 
@@ -32,7 +30,7 @@ installed readback。
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
 | `validate-runtime-route.ts` | Explicitly validates the core dynamic Agent Runtime route, including its product contract, page-state matrix, generic typed-view envelope, and required Framework producer. Runtime is required for an adopted shell, while Stable release admission remains independently scoped. |
-| `validate-shell-candidates.ts` | Validates only the fixed active/foreground/retained/archived role registry by default. `--candidate opl-native-workbench` enables Native detail validation; Hermes and AGUI remain role tombstones whose explicit validation/replay detail is owned by their adapters and runbooks. Hermes command execution requires `--manual-reference-replay` for an actual technical-verification need. |
+| `validate-shell-candidates.ts` | Validates only the fixed active/foreground/archived role registry by default. `--candidate opl-native-workbench` enables Native detail validation; Hermes and AGUI remain archived role tombstones whose explicit validation/replay detail is owned by their adapters and runbooks. Archived command execution requires `--archived-proof-replay` for an explicit historical replay. |
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, the 16-scene Codex visual reference cohort, exact mask/pixel/review semantics, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs or cohort bindings are absent and never promotes docs or visual QA into installed or release readiness. |
 | `app-product-profile.ts` | Projects the exact App product profile and App-owned Official Profile apply helper into the selected shell. `--check` rejects profile or helper byte drift so Standard and Full cannot acquire separate root lists or helper behavior. |
 | `validate-shell-product-profile-consumer.ts` | Projects the current App profile into a temporary archive of the exact clean Shell commit and runs the real Shell consumer test without writing the source Shell checkout. |
@@ -147,10 +145,10 @@ npm run validate:shell-candidates
 npm run test:candidate:native
 npm run validate:shell-candidates -- --candidate opl-native-workbench --run-candidate-commands
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package
-# Prior Hermes reference only:
+# Archived Hermes source/contract check only:
 npm run validate:candidate:hermes
-# Manual packaged replay only when an actual Hermes development task requires it:
-npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --manual-reference-replay
+# Archived packaged replay only when the user explicitly requests it:
+npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
 # Explicit AGUI replay only:
 npm run validate:candidate:agui
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package

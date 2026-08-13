@@ -166,16 +166,13 @@ export type ShellCandidate = HermesTargetStateContract & {
 
 export type ShellCandidateRoleTombstone = {
   id: string;
-  state: 'technical_reference' | 'archived_technical_proof';
+  state: 'archived_technical_proof';
   archived_reason?: string;
   default_update_policy?: string;
-  foreground_alternative_role?: string;
   candidate_root: string;
   adapter_contract: string;
   source_topology: 'external_checkout_linked_shell_repo';
-  release_participation:
-    | 'manual_on_demand_technical_verification_build_only'
-    | 'explicit_user_requested_technical_replay_only';
+  release_participation: 'explicit_user_requested_technical_replay_only';
   role_tombstone: true;
   checkout_policy?: {
     primary_path: string;
@@ -183,7 +180,7 @@ export type ShellCandidateRoleTombstone = {
     missing_checkout_status: string;
   };
   replay: {
-    mode: 'manual_on_demand_only' | 'explicit_user_request_only';
+    mode: 'explicit_user_request_only';
     validator_command: string;
     runbook_ref: string;
     source_checkout_policy: 'optional_until_explicit_replay';
@@ -210,9 +207,9 @@ export type ShellCandidateRegistry = {
     basis: string;
     default_candidate_validation_scope: string[];
     explicit_candidate_validation_scope: string[];
-    reference_only_candidates?: string[];
-    reference_candidate_policy?: string;
-    reference_candidate_execution_policy: {
+    archived_technical_proofs: string[];
+    archived_proof_policy: string;
+    archived_proof_execution_policy: {
       scope: string;
       trigger: string;
       automatic_build_allowed: boolean;
@@ -221,8 +218,6 @@ export type ShellCandidateRegistry = {
       candidate_command_chain_opt_in: string;
       forbidden_automatic_triggers: string[];
     };
-    archived_technical_proofs: string[];
-    archived_proof_policy: string;
     active_shell_switch_policy: string;
   };
   interactive_launcher_policy: {
@@ -301,6 +296,7 @@ export type ShellCandidateRegistry = {
     source_repo: string;
     evaluated_ref: string;
     evaluated_at: string;
+    evaluated_version?: string;
     license: string;
     source_usage: string;
     reference_value: string[];

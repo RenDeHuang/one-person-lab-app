@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
 import {
-  assertReferenceCandidateCommandExecutionAllowed,
+  assertArchivedProofCommandExecutionAllowed,
   validateRegistryShape,
 } from '../../scripts/validate-shell-candidates/registry.ts';
 import type { ShellCandidateRegistry } from '../../scripts/validate-shell-candidates/types.ts';
@@ -36,26 +36,27 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
   assert.doesNotThrow(() => validateRegistryShape(candidateDetailDrift));
 });
 
-test('Hermes builds require an explicit manual technical-verification replay', () => {
+test('archived Hermes replay requires an explicit user-requested historical replay', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const hermes = registry.candidates.find((candidate) => candidate.id === 'hermes-codex');
-  assert.equal(hermes?.release_participation, 'manual_on_demand_technical_verification_build_only');
+  assert.equal(hermes?.state, 'archived_technical_proof');
+  assert.equal(hermes?.release_participation, 'explicit_user_requested_technical_replay_only');
   assert.throws(
-    () => assertReferenceCandidateCommandExecutionAllowed(registry, ['hermes-codex'], false),
-    /add --manual-reference-replay only when actual Hermes development requires packaged evidence/,
+    () => assertArchivedProofCommandExecutionAllowed(registry, ['hermes-codex'], false),
+    /add --archived-proof-replay only when the user explicitly requests that exact archived proof/,
   );
   assert.doesNotThrow(
-    () => assertReferenceCandidateCommandExecutionAllowed(registry, ['hermes-codex'], true),
+    () => assertArchivedProofCommandExecutionAllowed(registry, ['hermes-codex'], true),
   );
   assert.doesNotThrow(
-    () => assertReferenceCandidateCommandExecutionAllowed(registry, ['opl-native-workbench'], false),
+    () => assertArchivedProofCommandExecutionAllowed(registry, ['opl-native-workbench'], false),
   );
 
   const automaticBuild = structuredClone(registry);
-  automaticBuild.alternative_gui_policy!.reference_candidate_execution_policy.automatic_build_allowed = true;
+  automaticBuild.alternative_gui_policy!.archived_proof_execution_policy.automatic_build_allowed = true;
   assert.throws(
     () => validateRegistryShape(automaticBuild),
-    /Hermes reference candidate builds must stay manual, on-demand, technical-verification-only/,
+    /archived proof replay must stay explicit, historical, and outside release channels/,
   );
 
   const restoredSnapshot = structuredClone(registry);
@@ -64,6 +65,38 @@ test('Hermes builds require an explicit manual technical-verification replay', (
   assert.throws(
     () => validateRegistryShape(restoredSnapshot),
     /role tombstone must not duplicate detailed field first_run_contract/,
+  );
+});
+
+test('DeepSeek Harness stays a pinned Native-only composition reference', () => {
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const reference = registry.design_references?.find(({ id }) => id === 'deepseek-harness');
+
+  assert.equal(reference?.evaluated_ref, '47f943859bef60e4160492346772ded9b24f765a');
+  assert.equal(reference?.license, 'MIT');
+  assert.equal(reference?.source_usage, 'design_and_bounded_source_reuse_candidate');
+  assert.doesNotThrow(() => validateRegistryShape(registry));
+
+  const secondShell = structuredClone(registry);
+  const driftedReference = secondShell.design_references?.find(({ id }) => id === 'deepseek-harness');
+  assert.ok(driftedReference);
+  driftedReference.opl_mapping = driftedReference.opl_mapping.filter(
+    (item) => !item.startsWith('OPL Native Workbench is the only GUI route'),
+  );
+  assert.throws(
+    () => validateRegistryShape(secondShell),
+    /DeepSeek Harness opl_mapping must include OPL Native Workbench is the only GUI route allowed to evaluate DeepSeek Harness renderer or slot reuse/,
+  );
+
+  const runtimeTakeover = structuredClone(registry);
+  const takeoverReference = runtimeTakeover.design_references?.find(({ id }) => id === 'deepseek-harness');
+  assert.ok(takeoverReference);
+  takeoverReference.forbidden_reuse = takeoverReference.forbidden_reuse.filter(
+    (item) => !item.startsWith('do not create a second OPL Package registry'),
+  );
+  assert.throws(
+    () => validateRegistryShape(runtimeTakeover),
+    /DeepSeek Harness forbidden_reuse must include do not create a second OPL Package registry/,
   );
 });
 

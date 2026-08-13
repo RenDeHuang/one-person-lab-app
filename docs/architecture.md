@@ -535,24 +535,12 @@ for Native Candidate launches; active AionUI parity and direct Native bundle
 launches remain current deviations. Side-by-side installation and sequential launch selection
 therefore do not imply safe simultaneous writes to one workspace or thread.
 
-Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit technical verification builds. `contracts/app-shell-candidates.json` declares `opl-native-workbench` as the foreground alternative, with its adapter under `contracts/shell-adapters/opl-native-workbench.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell. Hermes Desktop / `hermes-codex` is retained as the prior foreground alternative reference with its explicit adapter under `contracts/shell-adapters/hermes-codex.json`; its source/package/smoke evidence remains technical verification evidence until a later App-owned adoption decision changes the active-shell contract. `agui-codex` is now an archived AG-UI/CopilotKit technical proof: it remains replayable through its explicit adapter only when AGUI is requested, but it is not a routine candidate lane and should not receive default polish or feature work. The OPL Native Workbench route is the new shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and K-Dense-style delivery experience without importing external runtime authority. The Hermes route remains upstream-first OPL customization reference material: later Hermes replay should record the upstream ref, compare official Hermes Desktop features, reapply the smallest OPL delta, and only then decide what to hide, rename, replace, or elevate through App-owned gates. Hermes must not inherit AionUI/AGUI stable payload, page-state, Full runtime, or WebUI assumptions until a Hermes-native feature comparison records what should be preserved, replaced, or hidden.
+Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit technical verification builds. `contracts/app-shell-candidates.json` declares `opl-native-workbench` as the foreground alternative, with its adapter under `contracts/shell-adapters/opl-native-workbench.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell. Hermes Desktop / `hermes-codex` and `agui-codex` are archived AGUI/Hermes technical proofs, replayable only through their explicit adapters when the user requests historical evidence; neither is a routine candidate lane or adoption input. The OPL Native Workbench route is the shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and bounded DSH composition reuse without importing external runtime authority. DSH-derived slot/renderer work remains a Native-only successor spike until source, install, and readback evidence justify a later decision.
 
-Hermes 的 first-run 是一个例外的最低可用性要求：可以复用 Hermes Desktop 的
-onboarding/progress UI module，但行为 owner 必须是 OPL App/OPL CLI，不能默认
-下载或执行 Hermes Agent installer。候选包启动路径必须分成四条线：每次 launch
-只做轻量检查 marker、One Person Lab CLI、Codex CLI、可用 Codex 模型访问和 Codex
-adapter startup；只有 marker 缺失、marker 过旧或核心组件缺失时才进入一次性本机
-初始化 checklist；完全没有可用模型访问时进入“OPL Gateway”向导，通过
-`opl system configure-codex --api-key-stdin --json` 写入 OPL Gateway 访问密钥。已有
-Codex/OpenAI 登录或其它可用 provider 时可跳过首启 Gateway 配置，Settings 保留
-OPL Gateway 配置入口用于后续切换；`opl system initialize --json`、
-`opl system startup-maintenance --json`、`opl packages update --json`、
-MAS/MAG/RCA 状态和 contract diagnostics 在 OPL Codex adapter ready、主界面可见后
-后台异步执行，不能阻塞热启动进入主界面。如果 `setup.status` 已显示 Codex 模型访问
-配置存在，则直接进入 OPL Codex adapter，不等待 `setup.runtime_check`，也不把
-runtime 超时作为普通用户首启主错误。Hermes candidate 的 macOS 图标也属于最低可用性边界：
-Dock 中必须使用 OPL/AionUI 官方图标族，并保留安全边距，当前 contract 要求 alpha
-bounds 不超过 900px，目标资源为 `840x840+92+92`。
+Hermes 的历史 first-run、图标和 WebUI 要求只保留在归档 runbook 中，用于用户明确要求的
+historical replay；它们不再是 App backlog、foreground adoption gate 或 release requirement。
+普通 candidate adoption 规则只适用于当前 foreground route 或未来经 App contract 新登记的
+候选，不能因 Hermes adapter/runbook 仍存在而复活该产品线。
 
 A candidate enters App product truth only through App-owned contract updates and validation gates; implementation roadmaps and candidate package evidence remain technical verification until an explicit active-shell adoption decision changes `contracts/app-shell-adapter.json`. A candidate becomes the default release shell only when `contracts/app-shell-adapter.json` is updated deliberately and the runtime bridge remains satisfied, App product profile syncs into its configured target, App page-state and first-run matrices pass, shared desktop/WebUI evidence passes when claimed, App-root active-shell validation passes, GUI package compile succeeds through the App wrapper, and the external checkout history policy is preserved.
 
@@ -562,9 +550,8 @@ product semantics as its desktop shell, preserve the App-owned
 `window.oplCandidate` API shape or an explicitly equivalent browser bridge, and
 route browser actions/events through a local transport bridge to Codex app-server
 and `opl app state/action`. Renderer technology is candidate-specific: AGUI's
-React/CopilotKit shared renderer belongs only to explicit AGUI archived-proof
-replay, while Hermes WebUI support must be claimed and validated through the
-Hermes candidate route before it can count as foreground-alternative evidence.
+React/CopilotKit shared renderer and Hermes WebUI material belong only to their
+explicit archived-proof replay and cannot count as foreground-alternative evidence.
 Electron may use native preload/IPC and native directory picking; browser WebUI
 may use HTTP actions and SSE event streams. Neither path may introduce a
 separate product profile, runtime truth source, provider selector, memory body

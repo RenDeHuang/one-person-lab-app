@@ -91,8 +91,8 @@ npm run validate:candidate:agui
 ```
 
 The command without `--candidate` validates only the fixed role registry:
-`active=aionui`, `foreground=opl-native-workbench`, `retained=hermes-codex`, and
-`archived=agui-codex`. It intentionally does not read candidate implementation
+`active=aionui`, `foreground=opl-native-workbench`, and
+`archived=hermes-codex,agui-codex`. It intentionally does not read candidate implementation
 detail, build a candidate, or turn dormant candidate drift into an AionUI/full/
 release blocker.
 
@@ -100,8 +100,8 @@ Native remains the only full foreground-candidate contract and evidence path.
 Its optional focused test lives under `tests/optional/` and runs only through
 `test:candidate:native`. Hermes and AGUI are role tombstones in the active
 registry; their explicit checks consume adapter and replay-runbook truth.
-Hermes package/smoke replay additionally requires
-`--run-candidate-commands --manual-reference-replay`. None of these commands
+Archived package/smoke replay additionally requires
+`--run-candidate-commands --archived-proof-replay`. None of these commands
 proves active-shell adoption, Pixel, Install, Release, or owner acceptance.
 
 ## App-Level Checks

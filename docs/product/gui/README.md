@@ -52,6 +52,13 @@ Codex executable 也遵循该 shell-adapter 边界：当前 AionUI 仍从 bundle
 或 exact external binary，不继承 AionCore 依赖。迁移状态与门禁见
 [`../../architecture/aioncore-codex-only-carrier.md`](../../architecture/aioncore-codex-only-carrier.md)。
 
+DeepSeek Harness 的 GUI 与“一切皆插件”理念已作为外部学习落点记录在
+[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md)：Native
+Workbench 是唯一允许验证 DSH-derived slot/renderer 的 foreground route；App contract、
+Framework projection/action ABI、Codex thread authority 和 Package owner 边界不变。该计划
+采用 successor-first vertical spike，未通过真实 source/install/readback 前不改变 active shell，
+也不把 DSH runtime 引入 OPL。
+
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
 OPL capabilities、progress、evidence refs、artifacts 与 safe actions 必须

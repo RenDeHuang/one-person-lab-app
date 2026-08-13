@@ -41,10 +41,10 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (
     alternative?.only_foreground_alternative !== 'opl-native-workbench' ||
     alternative.basis !== 'OPL native workbench' ||
-    alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_agui' ||
+    alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay' ||
     alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
   ) {
-    throw new Error('candidate registry must keep OPL native workbench as the foreground alternative, Hermes as a reference candidate, and AGUI as explicit-only archived proof');
+    throw new Error('candidate registry must keep OPL native workbench as the only foreground alternative and Hermes/AGUI as explicit-only archived proofs');
   }
   if (alternative.default_candidate_validation_scope.length !== 0) {
     throw new Error('default candidate validation scope must stay empty; default gates validate role registry only');
@@ -57,30 +57,26 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (alternative.explicit_candidate_validation_scope.length !== 3) {
     throw new Error('explicit candidate validation scope must contain exactly Native, Hermes, and AGUI');
   }
-  assertStringArrayIncludes(alternative.reference_only_candidates ?? [], ['hermes-codex'], 'alternative_gui_policy.reference_only_candidates');
-  if (alternative.reference_candidate_policy !== 'kept_for_explicit_reference_replay_not_default_foreground_scope') {
-    throw new Error('Hermes reference candidate policy must keep Hermes out of default foreground scope');
-  }
-  const referenceExecution = alternative.reference_candidate_execution_policy;
+  const archivedExecution = alternative.archived_proof_execution_policy;
   if (
-    referenceExecution?.scope !== 'technical_verification_only' ||
-    referenceExecution.trigger !== 'manual_on_demand_only' ||
-    referenceExecution.automatic_build_allowed !== false ||
-    referenceExecution.default_validation_includes_build !== false ||
-    referenceExecution.release_channel_participation.length !== 0 ||
-    referenceExecution.candidate_command_chain_opt_in !== '--manual-reference-replay'
+    archivedExecution?.scope !== 'historical_technical_replay_only' ||
+    archivedExecution.trigger !== 'explicit_user_request_only' ||
+    archivedExecution.automatic_build_allowed !== false ||
+    archivedExecution.default_validation_includes_build !== false ||
+    archivedExecution.release_channel_participation.length !== 0 ||
+    archivedExecution.candidate_command_chain_opt_in !== '--archived-proof-replay'
   ) {
-    throw new Error('Hermes reference candidate builds must stay manual, on-demand, technical-verification-only, and outside release channels');
+    throw new Error('archived proof replay must stay explicit, historical, and outside release channels');
   }
-  assertStringArrayIncludes(referenceExecution.forbidden_automatic_triggers, [
+  assertStringArrayIncludes(archivedExecution.forbidden_automatic_triggers, [
     'push',
     'pull_request',
     'schedule',
     'watch_or_on_save',
     'daily_patrol',
     'routine_validation',
-  ], 'alternative_gui_policy.reference_candidate_execution_policy.forbidden_automatic_triggers');
-  assertStringArrayIncludes(alternative.archived_technical_proofs, ['agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
+  ], 'alternative_gui_policy.archived_proof_execution_policy.forbidden_automatic_triggers');
+  assertStringArrayIncludes(alternative.archived_technical_proofs, ['hermes-codex', 'agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
   validateInteractiveLauncherPolicy(registry);
   for (const [label, expected] of Object.entries({
     release_shell_contract: 'contracts/app-shell-adapter.json',
@@ -163,10 +159,10 @@ function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
   validateRoleTombstone(
     entries.find((entry) => entry.id === 'hermes-codex'),
     {
-      state: 'technical_reference',
-      releaseParticipation: 'manual_on_demand_technical_verification_build_only',
+      state: 'archived_technical_proof',
+      releaseParticipation: 'explicit_user_requested_technical_replay_only',
       adapterContract: 'contracts/shell-adapters/hermes-codex.json',
-      replayMode: 'manual_on_demand_only',
+      replayMode: 'explicit_user_request_only',
       validatorCommand: 'npm run validate:candidate:hermes',
       runbookRef: 'docs/product/shell-alternatives/hermes-first-run-flow.md',
     },
@@ -188,9 +184,9 @@ function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
     !tombstoneContract ||
     tombstoneContract.detail_owner !== 'candidate_adapter_contract_and_replay_runbook' ||
     JSON.stringify(tombstoneContract.applies_to_states) !==
-      JSON.stringify(['technical_reference', 'archived_technical_proof'])
+      JSON.stringify(['archived_technical_proof'])
   ) {
-    throw new Error('candidate policy must keep reference and archived detail in adapters and replay runbooks');
+    throw new Error('candidate policy must keep archived detail in adapters and replay runbooks');
   }
   const requiredFields = [
     'id',
@@ -237,7 +233,7 @@ function validateRoleTombstone(
   },
 ): void {
   if (!entry || !('role_tombstone' in entry) || entry.role_tombstone !== true) {
-    throw new Error('reference and archived candidates must be role tombstones');
+    throw new Error('archived candidates must be role tombstones');
   }
   if (
     entry.state !== expected.state ||
@@ -274,23 +270,23 @@ function validateRoleTombstone(
   }
 }
 
-export function assertReferenceCandidateCommandExecutionAllowed(
+export function assertArchivedProofCommandExecutionAllowed(
   registry: ShellCandidateRegistry,
   candidateIds: string[],
-  manualReferenceReplay: boolean,
+  archivedProofReplay: boolean,
 ): void {
   const alternative = registry.alternative_gui_policy;
-  const referenceCandidates = alternative?.reference_only_candidates ?? [];
-  const selectedReferenceCandidates = candidateIds.filter((id) => referenceCandidates.includes(id));
-  if (selectedReferenceCandidates.length === 0) {
+  const archivedProofs = alternative?.archived_technical_proofs ?? [];
+  const selectedArchivedProofs = candidateIds.filter((id) => archivedProofs.includes(id));
+  if (selectedArchivedProofs.length === 0) {
     return;
   }
   if (
-    manualReferenceReplay !== true ||
-    alternative?.reference_candidate_execution_policy.candidate_command_chain_opt_in !== '--manual-reference-replay'
+    archivedProofReplay !== true ||
+    alternative?.archived_proof_execution_policy.candidate_command_chain_opt_in !== '--archived-proof-replay'
   ) {
     throw new Error(
-      `${selectedReferenceCandidates.join(', ')} command execution is manual technical verification only; add --manual-reference-replay only when actual Hermes development requires packaged evidence`,
+      `${selectedArchivedProofs.join(', ')} command execution is historical replay only; add --archived-proof-replay only when the user explicitly requests that exact archived proof`,
     );
   }
 }
@@ -415,18 +411,11 @@ function validateCandidateNoResurrectionPolicy(registry: ShellCandidateRegistry)
   ], 'candidate_policy.no_resurrection_policy.forbidden_default_routes');
 
   const archivedProofs = new Set(alternative.archived_technical_proofs);
-  const referenceCandidates = new Set(alternative.reference_only_candidates ?? []);
   const defaultScopeArchivedProofs = alternative.default_candidate_validation_scope.filter((id) => (
     archivedProofs.has(id)
   ));
   if (defaultScopeArchivedProofs.length > 0) {
     throw new Error(`default candidate validation scope must not include archived proofs: ${defaultScopeArchivedProofs.join(', ')}`);
-  }
-  const defaultScopeReferences = alternative.default_candidate_validation_scope.filter((id) => (
-    referenceCandidates.has(id)
-  ));
-  if (defaultScopeReferences.length > 0) {
-    throw new Error(`default candidate validation scope must not include reference-only candidates: ${defaultScopeReferences.join(', ')}`);
   }
   const adoptionGateText = policy.adoption_gate.join('\n');
   for (const archivedProof of archivedProofs) {
@@ -560,6 +549,45 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'do not make a three-column scientific workbench, artifact inspector, or activity cockpit the ordinary default Home layout',
     'do not convert MAS into a co-scientist monitor UI; MAS progress and results are inspect-on-demand refs',
   ], 'Open Science forbidden_reuse');
+
+  const deepseekHarness = references.find((reference) => reference.id === 'deepseek-harness');
+  if (!deepseekHarness) {
+    throw new Error('candidate registry must record DeepSeek Harness as the bounded Native composition reuse reference');
+  }
+  if (
+    deepseekHarness.source_repo !== 'https://github.com/deepseek-ai/deepseek-harness' ||
+    deepseekHarness.evaluated_ref !== '47f943859bef60e4160492346772ded9b24f765a' ||
+    deepseekHarness.evaluated_at !== '2026-08-14' ||
+    deepseekHarness.evaluated_version !== '0.1.0-rc.5 source; 0.1.0-rc.6 installable entry observed' ||
+    deepseekHarness.license !== 'MIT' ||
+    deepseekHarness.source_usage !== 'design_and_bounded_source_reuse_candidate'
+  ) {
+    throw new Error('DeepSeek Harness reference must stay pinned to the evaluated preview source, version, date, license, and bounded reuse status');
+  }
+  assertStringArrayIncludes(deepseekHarness.reference_value, [
+    'quiet chat-first Web UI with workspace/session rail and persistent composer',
+    'typed UI slot registry with single, list, keyed, and chain composition kinds',
+    'client plugins discovered from package manifests and unloaded on the same lifecycle axis as registration',
+    'profile and bundle composition with explicit ordered layers and user patches',
+    'capability seams separating service definitions, providers, and consumers',
+    'dynamic plugin inventory and configuration rendered from installed deployment state',
+  ], 'DeepSeek Harness reference_value');
+  assertStringArrayIncludes(deepseekHarness.opl_mapping, [
+    'OPL Native Workbench is the only GUI route allowed to evaluate DeepSeek Harness renderer or slot reuse',
+    'OPL App keeps product truth and slot policy while Framework projections and App actions remain the only runtime state and mutation ABI',
+    'Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state',
+    'slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation',
+    'OPL should reuse or adapt the smallest independently testable GUI packages before considering a source fork',
+    'existing Framework modular-monolith and native Package lifecycle boundaries remain authoritative and are not replaced by Cordis',
+  ], 'DeepSeek Harness opl_mapping');
+  assertStringArrayIncludes(deepseekHarness.forbidden_reuse, [
+    'do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority',
+    'do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane',
+    'do not add DeepSeek Harness as a second foreground shell beside opl-native-workbench',
+    'do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes',
+    'do not assume the repository root license covers every selected package or third-party payload without per-package notices review',
+    'do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces',
+  ], 'DeepSeek Harness forbidden_reuse');
 }
 
 export function validateActiveShellUnaffected(): void {

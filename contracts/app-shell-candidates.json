@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_gui_route_policy",
-  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Native Workbench is the foreground alternative candidate. Hermes Desktop is retained as an explicit reference candidate. Archived technical-proof entries stay selectable only when explicitly requested and must not be improved by default.",
+  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Native Workbench is the only foreground alternative candidate. Hermes Desktop and AGUI/CopilotKit are archived technical proofs: they stay selectable only for an explicitly requested historical replay and must not receive routine maintenance or product consideration.",
   "active_shell_unchanged": "aionui",
   "active_gui_mainline": {
     "shell": "aionui",
@@ -16,17 +16,18 @@
     "only_foreground_alternative": "opl-native-workbench",
     "basis": "OPL native workbench",
     "default_candidate_validation_scope": [],
-    "reference_only_candidates": [
-      "hermes-codex"
+    "archived_technical_proofs": [
+      "hermes-codex",
+      "agui-codex"
     ],
-    "reference_candidate_policy": "kept_for_explicit_reference_replay_not_default_foreground_scope",
-    "reference_candidate_execution_policy": {
-      "scope": "technical_verification_only",
-      "trigger": "manual_on_demand_only",
+    "archived_proof_policy": "do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay",
+    "archived_proof_execution_policy": {
+      "scope": "historical_technical_replay_only",
+      "trigger": "explicit_user_request_only",
       "automatic_build_allowed": false,
       "default_validation_includes_build": false,
       "release_channel_participation": [],
-      "candidate_command_chain_opt_in": "--manual-reference-replay",
+      "candidate_command_chain_opt_in": "--archived-proof-replay",
       "forbidden_automatic_triggers": [
         "push",
         "pull_request",
@@ -36,10 +37,6 @@
         "routine_validation"
       ]
     },
-    "archived_technical_proofs": [
-      "agui-codex"
-    ],
-    "archived_proof_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
     "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell",
     "explicit_candidate_validation_scope": [
       "opl-native-workbench",
@@ -270,7 +267,6 @@
     "default_validation_contract": "minimal_role_registry_only",
     "role_tombstone_contract": {
       "applies_to_states": [
-        "technical_reference",
         "archived_technical_proof"
       ],
       "required_fields": [
@@ -438,6 +434,39 @@
         "do not make a three-column scientific workbench, artifact inspector, or activity cockpit the ordinary default Home layout",
         "do not treat Open Science screenshots, mock sessions, planned features, provenance records, or review outputs as OPL product or domain truth",
         "do not convert MAS into a co-scientist monitor UI; MAS progress and results are inspect-on-demand refs"
+      ]
+    },
+    {
+      "id": "deepseek-harness",
+      "source_repo": "https://github.com/deepseek-ai/deepseek-harness",
+      "evaluated_ref": "47f943859bef60e4160492346772ded9b24f765a",
+      "evaluated_at": "2026-08-14",
+      "evaluated_version": "0.1.0-rc.5 source; 0.1.0-rc.6 installable entry observed",
+      "license": "MIT",
+      "source_usage": "design_and_bounded_source_reuse_candidate",
+      "reference_value": [
+        "quiet chat-first Web UI with workspace/session rail and persistent composer",
+        "typed UI slot registry with single, list, keyed, and chain composition kinds",
+        "client plugins discovered from package manifests and unloaded on the same lifecycle axis as registration",
+        "profile and bundle composition with explicit ordered layers and user patches",
+        "capability seams separating service definitions, providers, and consumers",
+        "dynamic plugin inventory and configuration rendered from installed deployment state"
+      ],
+      "opl_mapping": [
+        "OPL Native Workbench is the only GUI route allowed to evaluate DeepSeek Harness renderer or slot reuse",
+        "OPL App keeps product truth and slot policy while Framework projections and App actions remain the only runtime state and mutation ABI",
+        "Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state",
+        "slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation",
+        "OPL should reuse or adapt the smallest independently testable GUI packages before considering a source fork",
+        "existing Framework modular-monolith and native Package lifecycle boundaries remain authoritative and are not replaced by Cordis"
+      ],
+      "forbidden_reuse": [
+        "do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority",
+        "do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane",
+        "do not add DeepSeek Harness as a second foreground shell beside opl-native-workbench",
+        "do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes",
+        "do not assume the repository root license covers every selected package or third-party payload without per-package notices review",
+        "do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces"
       ]
     }
   ],
@@ -878,12 +907,13 @@
     },
     {
       "id": "hermes-codex",
-      "state": "technical_reference",
-      "foreground_alternative_role": "superseded_foreground_alternative_reference",
+      "state": "archived_technical_proof",
+      "archived_reason": "Hermes Desktop is no longer under product consideration. Its prior GUI and first-run experiments are retained only as historical technical evidence and explicit replay material.",
+      "default_update_policy": "do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay",
       "candidate_root": "shells/hermes",
       "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
       "source_topology": "external_checkout_linked_shell_repo",
-      "release_participation": "manual_on_demand_technical_verification_build_only",
+      "release_participation": "explicit_user_requested_technical_replay_only",
       "role_tombstone": true,
       "checkout_policy": {
         "primary_path": "shells/hermes",
@@ -891,7 +921,7 @@
         "missing_checkout_status": "blocked_missing_checkout"
       },
       "replay": {
-        "mode": "manual_on_demand_only",
+        "mode": "explicit_user_request_only",
         "validator_command": "npm run validate:candidate:hermes",
         "runbook_ref": "docs/product/shell-alternatives/hermes-first-run-flow.md",
         "source_checkout_policy": "optional_until_explicit_replay"

@@ -116,7 +116,7 @@ or public release; those release readbacks remain `unverified`.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
 - Foreground alternative GUI candidate: `opl-native-workbench`, an independent shell checkout governed by the App candidate registry and adapter contract.
-- Retained GUI reference: `hermes-codex`, based on Hermes Desktop. Its active registry entry is a role tombstone; explicit validation, package replay, adapter, and runbook remain available without creating a routinely maintained second product line.
+- Archived GUI proof: `hermes-codex`, based on Hermes Desktop. Its registry entry is a role tombstone; adapter and runbook remain only for an explicit user-requested historical replay and receive no routine maintenance or adoption work.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
@@ -127,12 +127,13 @@ docs stay in `one-person-lab-app`.
 
 Current GUI development follows one active mainline plus explicit alternative
 routes: AionUI is the stable App GUI mainline, `opl-native-workbench` is the
-foreground alternative candidate, Hermes Desktop / `hermes-codex` is a retained
-reference, and AGUI is archived proof. Default shell-candidate validation checks
-only the fixed role registry. Native detail remains explicit; Hermes/AGUI detail
-lives in adapter and replay-runbook owners rather than duplicated active-registry
-snapshots. See `docs/product/gui/gui-shell-candidates.md` for the topology and
-commands. Neither retained route receives routine builds, updates, or polish. Treat
+foreground alternative candidate, and Hermes Desktop / `hermes-codex` plus AGUI
+are archived technical proofs. Default shell-candidate validation checks only the
+fixed role registry. Native detail remains explicit; archived proof detail lives
+in adapter and replay-runbook owners rather than duplicated active-registry
+snapshots, and replay is user-requested only. See
+`docs/product/gui/gui-shell-candidates.md` for the topology and commands. Archived
+proofs receive no routine builds, updates, or polish. Treat
 `candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
 backward-compatible replay label only; it does not reopen AGUI as a foreground
 candidate or default validation target. The App-owned convergence aggregate is
@@ -479,7 +480,7 @@ are role tombstones whose detailed truth stays in their adapters and runbooks.
 it runs the active-shell quick guard and the role-registry-only candidate validator
 without maintaining a second JSON readback surface or pulling dormant candidate
 detail into default maintenance. `docs/product/gui/opl-native-workbench-plan.md`
-owns the active candidate plan. Hermes docs remain prior-candidate reference:
+owns the active candidate plan. Hermes docs remain archived replay context:
 `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
 `docs/product/shell-alternatives/hermes-first-run-flow.md`.
 `docs/history/shell-candidates/agui-codex-candidate-verification.md` is read only

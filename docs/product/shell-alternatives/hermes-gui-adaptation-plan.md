@@ -1,13 +1,17 @@
-# OPL Hermes GUI 改造方案
+# OPL Hermes GUI 归档技术证明
 
 Owner: `one-person-lab-app`
 Purpose: `opl_hermes_gui_adaptation_plan`
-State: `technical_reference`
-Machine boundary: 本文是人读 GUI 改造方案。机器可读候选状态、adapter contract、
+State: `archived_technical_proof`
+Machine boundary: 本文是人读历史方案和显式 replay 背景。机器可读归档状态、adapter contract、
 model policy、first-run gate 和 release gate 仍以 `contracts/`、源码、验证脚本、
 packaged artifact 和测试输出为准。
 
-本文把 `hermes-codex` 后续 GUI 改造收敛成一个 App-owned 方案。它不替代
+Hermes 已退出产品考虑，不再是候选、reference 或 adoption 路线。本文只保留既有设计与
+验收思路，供用户明确要求 `archived proof replay` 时理解历史技术证明；默认验证、构建、
+维护、GUI 选型和发布流程都不得执行或推进本文后续内容。
+
+历史上，本文曾把 `hermes-codex` GUI 改造收敛成一个 App-owned 方案。它不替代
 [`ideal-interaction-spec.md`](../gui/ideal-interaction-spec.md)、
 [`codex-to-opl-app-delta.md`](../gui/codex-to-opl-app-delta.md) 和
 [`feature-inventory.md`](../gui/feature-inventory.md)，而是回答一个更
@@ -15,16 +19,11 @@ packaged artifact 和测试输出为准。
 保留、收窄、隐藏、重命名或延后，才能最快得到一个看起来像 Codex App 换壳、
 但由 OPL 控制的候选包。
 
-当前结论：Hermes 路线继续作为 prior foreground alternative reference，采用
-upstream-first OPL customization。先保留官方
-Hermes Desktop 的 chat、files、preview、tool output、settings、onboarding、
-i18n 和 native packaging；OPL 只在普通路径上收窄 provider/backend/runtime
-概念，并补上 Codex CLI、模型访问、first-run、品牌化、简体中文/英文双语和 Codex Skill/Plugin 能力入口。
-AionUI 仍是当前 release shell；`opl-native-workbench` 是当前 foreground alternative
-candidate。Hermes 现阶段证据仍按 technical verification / reference replay 读取；
-未切换 active-shell contract 前，它不是默认发布 shell，也不是 release-ready claim。
+当前结论：AionUI 仍是 release shell；`opl-native-workbench` 是唯一 foreground
+alternative。Hermes 只保留 adapter、runbook 和历史证据，且仅响应用户对该归档证明的
+明确 replay 请求。以下路线、目标态和缺口清单均为历史上下文，不是待执行 backlog。
 
-## 三阶段路线
+## 三阶段路线（历史，不执行）
 
 Hermes prior alternative reference 的推进分三阶段。阶段顺序服务一个更窄的目标：先得到一个
 可维护、chat-first、行为接近 Codex App 的 OPL wrapper，再逐步呈现 OPL 品牌能力，
@@ -57,7 +56,7 @@ Phase 1 的状态只按当前 owner surface 读取。`source tests passed` 能�
 
 ## App-owned 目标态
 
-Hermes prior foreground alternative reference 的 App-owned 目标态已经由本仓固化，而不是由
+Hermes archived proof 的历史 App-owned 目标态曾由本仓固化，而不是由
 `/Users/gaofeng/workspace/opl-hermes-shell` 或 upstream Hermes roadmap 定义：
 
 - 默认发布 shell 仍是 AionUI。Hermes 只通过
@@ -96,7 +95,7 @@ Hermes prior foreground alternative reference 的 App-owned 目标态已经由�
 
 ## 当前缺口口径
 
-本文只保留 Hermes prior foreground alternative reference 的目标态、功能/结构读法和后置证据 owner。
+本文只保留 Hermes archived proof 的历史目标态、功能/结构读法和后置证据 owner。
 Contract、source tests、packaged smoke、Settings visual smoke、VM smoke 和 live Codex
 app-server smoke 可以证明各自覆盖的 candidate 边界；它们不能单独证明视觉不低于 AionUI、
 release promotion、MAS/MAG/RCA domain ready、artifact ready 或 quality verdict。
@@ -107,7 +106,7 @@ active plan 不维护第二份 candidate evidence ledger。
 
 ## 目标体验
 
-Hermes prior foreground alternative reference 的目标不是“完整 Hermes 工作台加 OPL 插件”，而是 Codex App-like
+Hermes archived proof 的历史目标不是“完整 Hermes 工作台加 OPL 插件”，而是 Codex App-like
 OPL thin shell：
 
 - 打开后进入 workspace-aware chat，而不是 dashboard、provider marketplace 或
@@ -293,7 +292,7 @@ runtime bridge、packaged smoke、WebUI claim 和 release gates。
 | 条目 | 当前功能/结构状态 | 目的 | 剩余功能/结构缺口 | 后置证据 owner |
 | --- | --- | --- | --- | --- |
 | App-owned Hermes 目标态 | Contract / docs owner 已明确。 | 让 Hermes prior reference 受 App product truth 约束，而不是受 upstream roadmap 或 shell-local state 约束。 | 目标态变化时先改 App-owned contract/docs，再改 shell。 | Candidate validators and shell artifacts. |
-| 默认 release shell 仍是 AionUI | Active shell contract 仍指向 AionUI；Hermes 是 prior foreground alternative reference，当前 foreground alternative 是 `opl-native-workbench`。 | 防止 candidate work 被误读成默认发布 shell 切换。 | Hermes promotion 需要单独 adoption decision 和 active-shell contract change。 | Release owner records, release artifacts, release validators. |
+| 默认 release shell 仍是 AionUI | Active shell contract 仍指向 AionUI；Hermes 是 archived proof，当前 foreground alternative 是 `opl-native-workbench`。 | 防止 historical replay 被误读成默认发布 shell 切换。 | Hermes promotion 已关闭；只有未来新的用户 SSOT 才能重新建立独立候选。 | Archived adapter and replay evidence. |
 | Foreground alternative app bundle identity | OPL branded candidate bundle identity 已纳入 candidate contract/readback 要求。 | 避免候选包仍暴露 generic Electron identity。 | 后续若 packaging 机制变化，保留等价 bundle identity gate。 | Candidate manifests and package validation artifacts. |
 | Codex app-server gateway | 目标 gateway 和事件流边界已定义。 | 让普通 chat 走 Codex app-server，而不是 Hermes backend/provider selector。 | 继续补齐 tool / approval / error bridge 和长 turn 稳定性。 | Source tests, packaged smoke, live app-server readback. |
 | gflabtoken-only 模型访问 | 普通模型访问目标已收敛到 gflabtoken/API key。 | 避免 provider marketplace、Base URL、OAuth 和多 provider 设置成为普通用户路径。 | Settings 深层仍需持续按普通路径 / Advanced / 隐藏分级处理。 | Renderer tests, Settings visual smoke, real user credential readback. |
@@ -301,4 +300,4 @@ runtime bridge、packaged smoke、WebUI claim 和 release gates。
 | Settings OPL 化 | Ordinary IA 已定义，仍需逐页跟进 upstream 通用 Agent 设置残留。 | 让 Settings 表达 App control center，而不是 Aion/Hermes generic backend manager。 | 深层远程网关、高级能力和通用 Agent 文案继续分流到 Advanced/Diagnostics 或隐藏。 | Active-shell validation and Settings visual QA manifest. |
 | 首启四线模型 | 轻量检查、一次性初始化、模型访问、后台刷新已形成目标模型。 | 防止 full initialize 或后台维护挡住 chat-first 入口。 | 持续防回归：marker/fast probe/user-deferred/缺 key/热启动路径不能混淆。 | First-run matrix, packaged/VM smoke artifacts, real model access readback. |
 | 视觉不低于 AionUI | 方向和门槛已写入 product/docs。 | 防止只有 protocol 可用但 GUI 体验倒退。 | 仍需 desktop、Settings、首启 packaged screenshot 对比和视觉接受。 | Visual QA screenshots, release/candidate artifacts, owner acceptance. |
-| Hermes release promotion | 未进入默认发布 shell。 | 保持 reference candidate 与 release shell 分离。 | 需要 active shell contract 切换、page-state、first-run、product profile、runtime bridge、packaged smoke、WebUI 和 release gates 一起通过。 | Release owner decision, release artifacts, release validators. |
+| Hermes release promotion | `permanently_closed_under_current_policy`。 | 保持 archived proof 与 release shell 分离。 | 无当前实施路径；未来若用户重新立项，必须作为新候选重新定义，而不能从本归档文档复活。 | Current App candidate registry. |

@@ -2,12 +2,16 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_hermes_first_run_flow`
-State: `active_target_spec`
-Machine boundary: 本文是人读流程草案和验收清单。机器可读 first-run gate、
+State: `archived_technical_proof_replay_context`
+Machine boundary: 本文是归档技术证明的人读流程与验收背景。机器可读 replay gate、
 adapter contract、packaged smoke、timing artifact 和 release gate 仍以
 `contracts/`、源码、验证脚本、候选包和测试输出为准。
 
-本文把 Hermes Desktop candidate 的启动路径拆成四条独立流程：每次启动轻量检查、
+Hermes 已退出产品考虑；本文不再定义待实现的 active target，只在用户明确要求
+`archived proof replay` 时说明历史验证场景。默认验证、构建、维护、adoption 和 release
+流程不得执行本文中的 Hermes 路径。
+
+历史上，本文把 Hermes Desktop candidate 的启动路径拆成四条独立流程：每次启动轻量检查、
 一次性本机初始化、模型访问配置、后台 OPL 状态刷新。它补充
 [`hermes-gui-adaptation-plan.md`](hermes-gui-adaptation-plan.md)，并按用户
 最新要求修正过宽的 first-run 说法：Hermes checklist UI 只承载真正需要等待的本机

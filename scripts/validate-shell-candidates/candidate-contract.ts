@@ -138,8 +138,6 @@ export type CandidateValidationPolicy = {
   explicitCandidateValidationScope: string[];
   archivedTechnicalProofs: string[];
   archivedProofUpdatePolicy: string;
-  referenceOnlyCandidates: string[];
-  referenceCandidatePolicy?: string;
 };
 
 export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRegistry): CandidateValidationPolicy {
@@ -153,8 +151,6 @@ export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRe
     explicitCandidateValidationScope: alternative.explicit_candidate_validation_scope,
     archivedTechnicalProofs: alternative.archived_technical_proofs,
     archivedProofUpdatePolicy: alternative.archived_proof_policy,
-    referenceOnlyCandidates: alternative.reference_only_candidates ?? [],
-    referenceCandidatePolicy: alternative.reference_candidate_policy,
   };
 }
 
@@ -166,17 +162,14 @@ function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: 
   const isForegroundAlternative = candidate.id === policy.onlyForegroundAlternative;
   const isDefaultCandidate = policy.defaultCandidateValidationScope.includes(candidate.id);
   const isExplicitCandidate = policy.explicitCandidateValidationScope.includes(candidate.id);
-  const isReferenceCandidate = policy.referenceOnlyCandidates.includes(candidate.id);
   const expectedState = isArchivedProof
     ? 'archived_technical_proof'
-    : isReferenceCandidate
-      ? 'technical_reference'
-      : 'technical_verification';
+    : 'technical_verification';
   if (candidate.state !== expectedState) {
     throw new Error(`${candidate.id} must stay in ${expectedState} according to app-shell-candidates alternative_gui_policy`);
   }
-  if (!isArchivedProof && !isForegroundAlternative && !isReferenceCandidate) {
-    throw new Error(`${candidate.id} must be the foreground alternative, a reference candidate, or an archived technical proof`);
+  if (!isArchivedProof && !isForegroundAlternative) {
+    throw new Error(`${candidate.id} must be the foreground alternative or an archived technical proof`);
   }
   if (!isExplicitCandidate) {
     throw new Error(`${candidate.id} must be listed in explicit_candidate_validation_scope`);
@@ -184,15 +177,12 @@ function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: 
   if (isArchivedProof && isDefaultCandidate) {
     throw new Error(`${candidate.id} archived technical proof must not enter default candidate validation scope`);
   }
-  if (isReferenceCandidate && isDefaultCandidate) {
-    throw new Error(`${candidate.id} reference candidate must not enter default candidate validation scope`);
-  }
   if (isForegroundAlternative && isDefaultCandidate) {
     throw new Error(`${candidate.id} foreground alternative detail must stay out of default candidate validation scope`);
   }
   if (isArchivedProof) {
-    if (!candidate.archived_reason?.includes('AG-UI/CopilotKit work served its technical verification purpose')) {
-      throw new Error(`${candidate.id} archived technical proof must record why it is no longer a foreground alternative`);
+    if (!candidate.archived_reason || candidate.archived_reason.trim().length < 40) {
+      throw new Error(`${candidate.id} archived technical proof must record a meaningful retirement reason`);
     }
     if (candidate.default_update_policy !== policy.archivedProofUpdatePolicy) {
       throw new Error(`${candidate.id} archived proof update policy must match alternative_gui_policy.archived_proof_policy`);
@@ -203,9 +193,7 @@ function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: 
   }
   const expectedReleaseParticipation = isArchivedProof
     ? 'explicit_user_requested_technical_replay_only'
-    : isReferenceCandidate
-      ? 'manual_on_demand_technical_verification_build_only'
-      : 'manual_on_demand_technical_evaluation_build_only';
+    : 'manual_on_demand_technical_evaluation_build_only';
   if (candidate.release_participation !== expectedReleaseParticipation) {
     throw new Error(`${candidate.id} release participation must be ${expectedReleaseParticipation}`);
   }
@@ -226,8 +214,8 @@ function validateCandidateRoleTombstone(
 ): void {
   const expected = candidate.id === 'hermes-codex'
     ? {
-        state: 'technical_reference',
-        mode: 'manual_on_demand_only',
+        state: 'archived_technical_proof',
+        mode: 'explicit_user_request_only',
         command: 'npm run validate:candidate:hermes',
       }
     : candidate.id === 'agui-codex'
@@ -238,7 +226,7 @@ function validateCandidateRoleTombstone(
         }
       : undefined;
   if (!expected) {
-    throw new Error(`${candidate.id} must not use the reference/archive role tombstone schema`);
+    throw new Error(`${candidate.id} must not use the archived-proof role tombstone schema`);
   }
   if (
     candidate.state !== expected.state ||
