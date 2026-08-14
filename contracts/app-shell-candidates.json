@@ -598,6 +598,123 @@
           "AionCore session or database state"
         ]
       },
+      "carrier_evidence_contract": {
+        "schema": "opl_studio_carrier_evidence.v1",
+        "manifest_path": "out/opl-studio-carrier-evidence-manifest.json",
+        "candidate_only": true,
+        "release_authority": false,
+        "product_profile_owner": "one-person-lab-app",
+        "shared_renderer": "deepseek_harness_derived_react",
+        "shared_host_core": "scripts/webui-host/host-core.mjs",
+        "bridge_abi": "opl_app_host_bridge.v1",
+        "required_entries": [
+          "electron_desktop",
+          "standalone_headless_webui",
+          "docker_webui"
+        ],
+        "current_aionui_release_evidence_may_close_successor_entry": false,
+        "entries": {
+          "electron_desktop": {
+            "source_refs": [
+              "src/workbench/App.tsx",
+              "scripts/webui-host/host-core.mjs",
+              "desktop/main.mjs",
+              "desktop/preload.cjs",
+              "electron-builder.yml"
+            ],
+            "package_artifact_kind": "electron_app_bundle",
+            "qualification_commands": [
+              "npm run test:desktop",
+              "npm run package:desktop",
+              "npm run validate:package"
+            ],
+            "user_service_manager_source": {
+              "status": "not_applicable",
+              "platforms": []
+            },
+            "distribution_wiring_status": "not_wired",
+            "update_adapter_source": {
+              "status": "implemented",
+              "ref": "desktop/updater.mjs"
+            },
+            "update_wiring_status": "not_wired",
+            "release": {
+              "signed": "not_proven",
+              "notarized": "not_proven",
+              "public_feed": "not_published",
+              "release_admission": "not_admitted"
+            }
+          },
+          "standalone_headless_webui": {
+            "source_refs": [
+              "src/workbench/App.tsx",
+              "scripts/webui-host/host-core.mjs",
+              "scripts/headless/run.mjs",
+              "scripts/headless/server.mjs",
+              "scripts/headless/installer.mjs",
+              "scripts/headless/service-manager.mjs"
+            ],
+            "package_artifact_kind": "standalone_webui_bundle",
+            "qualification_commands": [
+              "npm run test:headless",
+              "npm run smoke:webui"
+            ],
+            "user_service_manager_source": {
+              "status": "implemented",
+              "platforms": [
+                "macos",
+                "linux",
+                "windows"
+              ]
+            },
+            "distribution_wiring_status": "not_wired",
+            "update_adapter_source": {
+              "status": "implemented",
+              "ref": "scripts/headless/update-runner.mjs"
+            },
+            "update_wiring_status": "not_wired",
+            "release": {
+              "signed": "not_applicable",
+              "notarized": "not_applicable",
+              "public_feed": "not_published",
+              "release_admission": "not_admitted"
+            }
+          },
+          "docker_webui": {
+            "source_refs": [
+              "src/workbench/App.tsx",
+              "scripts/webui-host/host-core.mjs",
+              "Dockerfile",
+              "docker-compose.distribution.yaml",
+              "scripts/oci/manage.mjs",
+              "scripts/oci/build-plan.mjs"
+            ],
+            "package_artifact_kind": "local_oci_smoke_receipt",
+            "qualification_commands": [
+              "node --test tests/oci/*.test.mjs",
+              "npm run smoke:docker"
+            ],
+            "user_service_manager_source": {
+              "status": "not_applicable",
+              "platforms": []
+            },
+            "distribution_wiring_status": "not_wired",
+            "update_adapter_source": {
+              "status": "implemented",
+              "ref": "scripts/oci/manage.mjs"
+            },
+            "update_wiring_status": "not_wired",
+            "release": {
+              "signed": "not_applicable",
+              "notarized": "not_applicable",
+              "public_feed": "not_published",
+              "release_admission": "not_admitted"
+            },
+            "multi_arch_qualification": "plan_only_not_qualified",
+            "signature_verification": "not_implemented"
+          }
+        }
+      },
       "p1_baseline_contract": {
         "runtime_bridge_ref": "contracts/app-runtime-bridge.json#native_minimum_product_bridge",
         "adapter_binding_ref": "contracts/shell-adapters/opl-studio.json#p1_baseline_bridge",

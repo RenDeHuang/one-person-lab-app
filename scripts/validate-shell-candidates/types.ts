@@ -46,6 +46,49 @@ export type NativeP1BaselineBridge = {
   shell_owned_persistent_queue_allowed: boolean;
 };
 
+export type OPLStudioCarrierId =
+  | 'electron_desktop'
+  | 'standalone_headless_webui'
+  | 'docker_webui';
+
+export type OPLStudioCarrierEvidenceExpectation = {
+  source_refs: string[];
+  package_artifact_kind: string;
+  qualification_commands: string[];
+  user_service_manager_source: {
+    status: 'implemented' | 'not_applicable';
+    platforms: Array<'macos' | 'linux' | 'windows'>;
+  };
+  distribution_wiring_status: 'not_wired';
+  update_adapter_source: {
+    status: 'implemented';
+    ref: string;
+  };
+  update_wiring_status: 'not_wired';
+  release: {
+    signed: 'not_proven' | 'not_applicable';
+    notarized: 'not_proven' | 'not_applicable';
+    public_feed: 'not_published';
+    release_admission: 'not_admitted';
+  };
+  multi_arch_qualification?: 'plan_only_not_qualified';
+  signature_verification?: 'not_implemented';
+};
+
+export type OPLStudioCarrierEvidenceContract = {
+  schema: 'opl_studio_carrier_evidence.v1';
+  manifest_path: 'out/opl-studio-carrier-evidence-manifest.json';
+  candidate_only: true;
+  release_authority: false;
+  product_profile_owner: 'one-person-lab-app';
+  shared_renderer: 'deepseek_harness_derived_react';
+  shared_host_core: 'scripts/webui-host/host-core.mjs';
+  bridge_abi: 'opl_app_host_bridge.v1';
+  required_entries: OPLStudioCarrierId[];
+  current_aionui_release_evidence_may_close_successor_entry: false;
+  entries: Record<OPLStudioCarrierId, OPLStudioCarrierEvidenceExpectation>;
+};
+
 export type ShellCandidate = HermesTargetStateContract & {
   id: string;
   state: string;
@@ -74,6 +117,7 @@ export type ShellCandidate = HermesTargetStateContract & {
     thread_store_owner: string;
     forbidden_dependencies: string[];
   };
+  carrier_evidence_contract?: OPLStudioCarrierEvidenceContract;
   p1_baseline_contract?: {
     runtime_bridge_ref: string;
     adapter_binding_ref: string;

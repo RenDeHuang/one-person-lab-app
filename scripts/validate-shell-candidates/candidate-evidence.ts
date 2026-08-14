@@ -1,11 +1,14 @@
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type {
+  OPLStudioCarrierEvidenceExpectation,
+  OPLStudioCarrierId,
   ShellCandidate,
   ShellCandidateEntry,
   ShellCandidateRoleTombstone,
   ValidationCommand,
 } from './types.ts';
+import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 import {
   isCandidateRoleTombstone,
   requiredNativeVisualParitySurfaces,
@@ -22,9 +25,7 @@ import {
   forbiddenLegacySettingsTabs,
   forbiddenSeriesDomainFields,
   readJson,
-  requiredContextTestIds,
   requiredConversationEventKinds,
-  requiredHomeEntries,
   requiredNativeCapabilities,
   requiredSeriesProgressFields,
   requiredSettingsTabs,
@@ -32,26 +33,50 @@ import {
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
-type OPLStudioPackageManifest = Record<string, unknown> & {
-  status: string;
-  package_kind: string;
-  app_bundle_path: string;
-  app_bundle_executable?: string;
-  product_profile_owner: string;
-  default_release_shell_unchanged: boolean;
-  active_shell_adopted: boolean;
-  runtime_authority_transfer: boolean;
-  domain_truth_owned: boolean;
-  home_purpose_entries: string[];
-  implemented_capabilities?: string[];
-  context_testids?: string[];
+export type OPLStudioCarrierEvidenceEntry = {
+  carrier_id: OPLStudioCarrierId;
+  source_implementation: {
+    status: 'implemented';
+    refs: string[];
+  };
+  package_build: {
+    status: 'passed_local_candidate_build';
+    artifact_kind: string;
+    artifact_path: string;
+  };
+  local_qualification: {
+    status: 'passed_local_candidate_qualification';
+    commands: string[];
+  };
+  user_service_manager_source: OPLStudioCarrierEvidenceExpectation['user_service_manager_source'];
+  distribution_wiring: {
+    status: 'not_wired';
+    current_aionui_release_evidence_reused: false;
+  };
+  update_adapter_source: OPLStudioCarrierEvidenceExpectation['update_adapter_source'];
+  update_wiring: {
+    status: 'not_wired';
+  };
+  release: OPLStudioCarrierEvidenceExpectation['release'];
+  multi_arch_qualification?: 'plan_only_not_qualified';
+  signature_verification?: 'not_implemented';
 };
 
-const studioPackageFields = {
-  default_release_shell_unchanged: true,
-  active_shell_adopted: false,
-  runtime_authority_transfer: false,
-  domain_truth_owned: false,
+export type OPLStudioCarrierEvidenceManifest = {
+  schema: 'opl_studio_carrier_evidence.v1';
+  candidate_id: 'opl-studio';
+  source_commit: string;
+  candidate_only: true;
+  release_authority: false;
+  product_profile_owner: 'one-person-lab-app';
+  default_release_shell_unchanged: true;
+  active_shell_adopted: false;
+  runtime_authority_transfer: false;
+  domain_truth_owned: false;
+  shared_renderer: 'deepseek_harness_derived_react';
+  shared_host_core: 'scripts/webui-host/host-core.mjs';
+  bridge_abi: 'opl_app_host_bridge.v1';
+  carriers: Record<OPLStudioCarrierId, OPLStudioCarrierEvidenceEntry>;
 };
 
 export function runCandidateCommands(candidate: ShellCandidateEntry): void {
@@ -67,10 +92,10 @@ export function runCandidateCommands(candidate: ShellCandidateEntry): void {
     if (entry.optional) continue;
     runRequiredCommand(candidate.id, 'validation', entry);
     if (entry.id === 'candidate_app_bundle_build') {
-      validateOPLStudioPackageManifest(candidate, { requireSmoke: false });
+      validateOPLStudioCarrierEvidenceManifestFile(candidate);
     }
     if (entry.id === 'candidate_packaged_first_run_smoke') {
-      validateOPLStudioPackageManifest(candidate, { requireSmoke: true });
+      validateOPLStudioCarrierEvidenceManifestFile(candidate);
     }
   }
 
@@ -103,82 +128,191 @@ function runRequiredCommand(candidateId: string, commandKind: string, entry: Val
   }
 }
 
-function validateOPLStudioPackageManifest(
+export function validateOPLStudioCarrierEvidenceManifestFile(
   candidate: ShellCandidate,
-  options: { requireSmoke?: boolean } = { requireSmoke: true },
 ): void {
-  const manifestPath = path.join(
-    root,
-    candidate.candidate_root,
-    'out',
-    'opl-studio-candidate-manifest.json',
+  const contract = candidate.carrier_evidence_contract;
+  if (!contract) {
+    throw new Error(`${candidate.id} must declare carrier_evidence_contract`);
+  }
+  const candidateRoot = path.join(root, candidate.candidate_root);
+  const manifestPath = path.join(candidateRoot, contract.manifest_path);
+  assertFile(manifestPath, `${candidate.id} carrier evidence manifest`);
+  validateOPLStudioCarrierEvidenceManifest(
+    candidate,
+    readJson<OPLStudioCarrierEvidenceManifest>(manifestPath),
+    candidateRoot,
   );
-  assertFile(manifestPath, `${candidate.id} package manifest`);
-  const manifest = readJson<OPLStudioPackageManifest>(manifestPath);
-
-  if (manifest.status !== 'candidate_app_bundle_built') {
-    throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_built`);
-  }
-  if (manifest.package_kind !== 'explicit_candidate_app_bundle') {
-    throw new Error(`${candidate.id} package manifest must declare explicit_candidate_app_bundle`);
-  }
-  if (!manifest.app_bundle_path?.endsWith('.app')) {
-    throw new Error(`${candidate.id} package manifest must point at a .app bundle`);
-  }
-  assertRelativePath(manifest.app_bundle_path, `${candidate.id} package manifest app_bundle_path`);
-  const appBundleRoot = path.join(root, candidate.candidate_root, manifest.app_bundle_path);
-  assertDirectory(appBundleRoot, `${candidate.id} .app bundle`);
-  assertFile(path.join(appBundleRoot, 'Contents', 'Info.plist'), `${candidate.id} .app Info.plist`);
-  const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
-  assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
-  if (
-    manifest.app_bundle_executable !== 'One Person Lab Preview'
-    || findMacAppExecutable(macOsDir, candidate.id) !== 'One Person Lab Preview'
-  ) {
-    throw new Error(`${candidate.id} .app bundle must use the One Person Lab Preview executable name`);
-  }
-  assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
-  if (manifest.product_profile_owner !== 'one-person-lab-app') {
-    throw new Error(`${candidate.id} package manifest must prove App-owned product profile input`);
-  }
-
-  assertManifestFieldValues(candidate, manifest, studioPackageFields);
-  assertStringArrayIncludes(
-    manifest.home_purpose_entries,
-    requiredHomeEntries,
-    `${candidate.id} package manifest purpose entries`,
-  );
-  assertStringArrayIncludes(
-    manifest.implemented_capabilities ?? [],
-    requiredNativeCapabilities,
-    `${candidate.id} package manifest implemented capabilities`,
-  );
-  assertStringArrayIncludes(
-    manifest.context_testids ?? [],
-    requiredContextTestIds,
-    `${candidate.id} package manifest context testids`,
-  );
-  if (options.requireSmoke !== false) {
-    assertManifestFieldValues(candidate, manifest, {
-      source_ui_smoke_status: 'passed',
-      packaged_ui_smoke_status: 'passed',
-      webui_smoke_status: 'passed',
-      state_model_status: 'passed',
-      action_dry_run_status: 'passed',
-      webui_parity_status: 'passed',
-    });
-  }
 }
 
-function assertManifestFieldValues(
-  candidate: ShellCandidate,
-  manifest: Record<string, unknown>,
-  expectedValues: Record<string, string | boolean>,
+function validateCarrierArtifact(
+  candidateId: string,
+  carrierId: OPLStudioCarrierId,
+  entry: OPLStudioCarrierEvidenceEntry,
+  candidateRoot: string,
 ): void {
-  for (const [field, expected] of Object.entries(expectedValues)) {
-    if (manifest[field] !== expected) {
-      throw new Error(`${candidate.id} package manifest ${field} must be ${String(expected)}`);
+  assertRelativePath(entry.package_build.artifact_path, `${candidateId} ${carrierId} artifact_path`);
+  const artifactPath = path.join(candidateRoot, entry.package_build.artifact_path);
+  if (carrierId !== 'electron_desktop') {
+    assertFile(artifactPath, `${candidateId} ${carrierId} candidate artifact evidence`);
+    return;
+  }
+  if (!entry.package_build.artifact_path.endsWith('.app')) {
+    throw new Error(`${candidateId} electron_desktop artifact must point at a .app bundle`);
+  }
+  assertDirectory(artifactPath, `${candidateId} electron_desktop .app bundle`);
+  assertFile(path.join(artifactPath, 'Contents', 'Info.plist'), `${candidateId} electron_desktop Info.plist`);
+  const macOsDir = path.join(artifactPath, 'Contents', 'MacOS');
+  assertDirectory(macOsDir, `${candidateId} electron_desktop Contents/MacOS`);
+  if (findMacAppExecutable(macOsDir, candidateId) !== 'One Person Lab Preview') {
+    throw new Error(`${candidateId} electron_desktop .app must use the One Person Lab Preview executable name`);
+  }
+  assertNoAbsoluteSymlinks(artifactPath, candidateId);
+}
+
+export function validateOPLStudioCarrierEvidenceManifest(
+  candidate: ShellCandidate,
+  manifest: OPLStudioCarrierEvidenceManifest,
+  candidateRoot: string,
+): void {
+  const contract = candidate.carrier_evidence_contract;
+  if (!contract) {
+    throw new Error(`${candidate.id} must declare carrier_evidence_contract`);
+  }
+  assertDeepEqualJson(
+    Object.keys(manifest),
+    [
+      'schema',
+      'candidate_id',
+      'source_commit',
+      'candidate_only',
+      'release_authority',
+      'product_profile_owner',
+      'default_release_shell_unchanged',
+      'active_shell_adopted',
+      'runtime_authority_transfer',
+      'domain_truth_owned',
+      'shared_renderer',
+      'shared_host_core',
+      'bridge_abi',
+      'carriers',
+    ],
+    `${candidate.id} carrier evidence top-level fields`,
+  );
+  assertDeepEqualJson(
+    {
+      schema: manifest.schema,
+      candidate_id: manifest.candidate_id,
+      candidate_only: manifest.candidate_only,
+      release_authority: manifest.release_authority,
+      product_profile_owner: manifest.product_profile_owner,
+      default_release_shell_unchanged: manifest.default_release_shell_unchanged,
+      active_shell_adopted: manifest.active_shell_adopted,
+      runtime_authority_transfer: manifest.runtime_authority_transfer,
+      domain_truth_owned: manifest.domain_truth_owned,
+      shared_renderer: manifest.shared_renderer,
+      shared_host_core: manifest.shared_host_core,
+      bridge_abi: manifest.bridge_abi,
+    },
+    {
+      schema: contract.schema,
+      candidate_id: 'opl-studio',
+      candidate_only: contract.candidate_only,
+      release_authority: contract.release_authority,
+      product_profile_owner: contract.product_profile_owner,
+      default_release_shell_unchanged: true,
+      active_shell_adopted: false,
+      runtime_authority_transfer: false,
+      domain_truth_owned: false,
+      shared_renderer: contract.shared_renderer,
+      shared_host_core: contract.shared_host_core,
+      bridge_abi: contract.bridge_abi,
+    },
+    `${candidate.id} carrier evidence authority boundary`,
+  );
+  if (!/^[0-9a-f]{40}$/.test(manifest.source_commit)) {
+    throw new Error(`${candidate.id} carrier evidence source_commit must be an exact lowercase Git SHA`);
+  }
+  assertDeepEqualJson(
+    Object.keys(manifest.carriers ?? {}),
+    contract.required_entries,
+    `${candidate.id} carrier evidence entries`,
+  );
+
+  for (const carrierId of contract.required_entries) {
+    const expected = contract.entries[carrierId];
+    const entry = manifest.carriers[carrierId];
+    if (!entry || entry.carrier_id !== carrierId) {
+      throw new Error(`${candidate.id} carrier evidence must contain ${carrierId}`);
     }
+    assertDeepEqualJson(
+      Object.keys(entry),
+      [
+        'carrier_id',
+        'source_implementation',
+        'package_build',
+        'local_qualification',
+        'user_service_manager_source',
+        'distribution_wiring',
+        'update_adapter_source',
+        'update_wiring',
+        'release',
+        ...(carrierId === 'docker_webui'
+          ? ['multi_arch_qualification', 'signature_verification']
+          : []),
+      ],
+      `${candidate.id} ${carrierId} evidence fields`,
+    );
+    assertDeepEqualJson(
+      {
+        carrier_id: entry.carrier_id,
+        source_implementation: entry.source_implementation,
+        package_build_status: entry.package_build?.status,
+        package_artifact_kind: entry.package_build?.artifact_kind,
+        local_qualification: entry.local_qualification,
+        user_service_manager_source: entry.user_service_manager_source,
+        distribution_wiring: entry.distribution_wiring,
+        update_adapter_source: entry.update_adapter_source,
+        update_wiring: entry.update_wiring,
+        release: entry.release,
+        ...(carrierId === 'docker_webui'
+          ? {
+              multi_arch_qualification: entry.multi_arch_qualification,
+              signature_verification: entry.signature_verification,
+            }
+          : {}),
+      },
+      {
+        carrier_id: carrierId,
+        source_implementation: { status: 'implemented', refs: expected.source_refs },
+        package_build_status: 'passed_local_candidate_build',
+        package_artifact_kind: expected.package_artifact_kind,
+        local_qualification: {
+          status: 'passed_local_candidate_qualification',
+          commands: expected.qualification_commands,
+        },
+        user_service_manager_source: expected.user_service_manager_source,
+        distribution_wiring: {
+          status: expected.distribution_wiring_status,
+          current_aionui_release_evidence_reused: false,
+        },
+        update_adapter_source: expected.update_adapter_source,
+        update_wiring: { status: expected.update_wiring_status },
+        release: expected.release,
+        ...(carrierId === 'docker_webui'
+          ? {
+              multi_arch_qualification: expected.multi_arch_qualification,
+              signature_verification: expected.signature_verification,
+            }
+          : {}),
+      },
+      `${candidate.id} ${carrierId} candidate evidence status`,
+    );
+    for (const sourceRef of [...expected.source_refs, expected.update_adapter_source.ref]) {
+      assertRelativePath(sourceRef, `${candidate.id} ${carrierId} source ref`);
+      assertFile(path.join(candidateRoot, sourceRef), `${candidate.id} ${carrierId} source ref`);
+    }
+    validateCarrierArtifact(candidate.id, carrierId, entry, candidateRoot);
   }
 }
 

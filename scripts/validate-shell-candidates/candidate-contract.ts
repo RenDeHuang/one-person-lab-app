@@ -3,6 +3,7 @@ import path from 'node:path';
 import type {
   NativeP1BaselineBridge,
   NativeThreadAdapterBoundary,
+  OPLStudioCarrierEvidenceContract,
   ShellCandidate,
   ShellCandidateEntry,
   ShellCandidateRegistry,
@@ -84,6 +85,13 @@ type CandidateAdapterContract = {
     web_adapter?: string;
     web_runtime_forms?: string[];
     bridge_abi?: string;
+    carrier_evidence_manifest?: {
+      schema?: string;
+      path?: string;
+      candidate_only?: boolean;
+      release_authority?: boolean;
+    };
+    carrier_entries?: Record<string, Record<string, string>>;
     aionui_or_aioncore_dependency_allowed?: boolean;
     active_release_carrier?: boolean;
   };
@@ -477,6 +485,31 @@ function validateCandidateAdapterContract(
       web_adapter: 'http_sse',
       web_runtime_forms: ['standalone_headless_webui', 'docker_webui'],
       bridge_abi: 'opl_app_host_bridge.v1',
+      carrier_evidence_manifest: {
+        schema: 'opl_studio_carrier_evidence.v1',
+        path: 'out/opl-studio-carrier-evidence-manifest.json',
+        candidate_only: true,
+        release_authority: false,
+      },
+      carrier_entries: {
+        electron_desktop: {
+          host_adapter: 'desktop/main.mjs + desktop/preload.cjs',
+          package_config: 'electron-builder.yml',
+          update_adapter: 'desktop/updater.mjs',
+        },
+        standalone_headless_webui: {
+          host_adapter: 'scripts/headless/run.mjs + scripts/headless/server.mjs',
+          service_manager: 'scripts/headless/service-manager.mjs',
+          installer: 'scripts/headless/installer.mjs',
+          update_adapter: 'scripts/headless/update-runner.mjs',
+        },
+        docker_webui: {
+          host_adapter: 'Dockerfile + docker-compose.distribution.yaml',
+          distribution_manager: 'scripts/oci/manage.mjs',
+          multi_arch_plan: 'scripts/oci/build-plan.mjs',
+          update_adapter: 'scripts/oci/manage.mjs',
+        },
+      },
       aionui_or_aioncore_dependency_allowed: false,
       active_release_carrier: false,
     },
@@ -496,6 +529,96 @@ function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
     'OPL branding bridges and custom functions implemented outside the DSH vendor snapshot as adapters and slot plugins',
     'independent shell repo mounted under shells/opl-studio',
   ], `${candidate.id}.implementation_basis`);
+}
+
+const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
+  schema: 'opl_studio_carrier_evidence.v1',
+  manifest_path: 'out/opl-studio-carrier-evidence-manifest.json',
+  candidate_only: true,
+  release_authority: false,
+  product_profile_owner: 'one-person-lab-app',
+  shared_renderer: 'deepseek_harness_derived_react',
+  shared_host_core: 'scripts/webui-host/host-core.mjs',
+  bridge_abi: 'opl_app_host_bridge.v1',
+  required_entries: ['electron_desktop', 'standalone_headless_webui', 'docker_webui'],
+  current_aionui_release_evidence_may_close_successor_entry: false,
+  entries: {
+    electron_desktop: {
+      source_refs: [
+        'src/workbench/App.tsx',
+        'scripts/webui-host/host-core.mjs',
+        'desktop/main.mjs',
+        'desktop/preload.cjs',
+        'electron-builder.yml',
+      ],
+      package_artifact_kind: 'electron_app_bundle',
+      qualification_commands: ['npm run test:desktop', 'npm run package:desktop', 'npm run validate:package'],
+      user_service_manager_source: { status: 'not_applicable', platforms: [] },
+      distribution_wiring_status: 'not_wired',
+      update_adapter_source: { status: 'implemented', ref: 'desktop/updater.mjs' },
+      update_wiring_status: 'not_wired',
+      release: {
+        signed: 'not_proven',
+        notarized: 'not_proven',
+        public_feed: 'not_published',
+        release_admission: 'not_admitted',
+      },
+    },
+    standalone_headless_webui: {
+      source_refs: [
+        'src/workbench/App.tsx',
+        'scripts/webui-host/host-core.mjs',
+        'scripts/headless/run.mjs',
+        'scripts/headless/server.mjs',
+        'scripts/headless/installer.mjs',
+        'scripts/headless/service-manager.mjs',
+      ],
+      package_artifact_kind: 'standalone_webui_bundle',
+      qualification_commands: ['npm run test:headless', 'npm run smoke:webui'],
+      user_service_manager_source: { status: 'implemented', platforms: ['macos', 'linux', 'windows'] },
+      distribution_wiring_status: 'not_wired',
+      update_adapter_source: { status: 'implemented', ref: 'scripts/headless/update-runner.mjs' },
+      update_wiring_status: 'not_wired',
+      release: {
+        signed: 'not_applicable',
+        notarized: 'not_applicable',
+        public_feed: 'not_published',
+        release_admission: 'not_admitted',
+      },
+    },
+    docker_webui: {
+      source_refs: [
+        'src/workbench/App.tsx',
+        'scripts/webui-host/host-core.mjs',
+        'Dockerfile',
+        'docker-compose.distribution.yaml',
+        'scripts/oci/manage.mjs',
+        'scripts/oci/build-plan.mjs',
+      ],
+      package_artifact_kind: 'local_oci_smoke_receipt',
+      qualification_commands: ['node --test tests/oci/*.test.mjs', 'npm run smoke:docker'],
+      user_service_manager_source: { status: 'not_applicable', platforms: [] },
+      distribution_wiring_status: 'not_wired',
+      update_adapter_source: { status: 'implemented', ref: 'scripts/oci/manage.mjs' },
+      update_wiring_status: 'not_wired',
+      release: {
+        signed: 'not_applicable',
+        notarized: 'not_applicable',
+        public_feed: 'not_published',
+        release_admission: 'not_admitted',
+      },
+      multi_arch_qualification: 'plan_only_not_qualified',
+      signature_verification: 'not_implemented',
+    },
+  },
+};
+
+export function validateCandidateCarrierEvidenceContract(candidate: ShellCandidate): void {
+  assertDeepEqualJson(
+    candidate.carrier_evidence_contract,
+    expectedCarrierEvidenceContract,
+    `${candidate.id}.carrier_evidence_contract`,
+  );
 }
 
 function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
@@ -736,6 +859,7 @@ export function validateCandidate(candidate: ShellCandidateEntry, policy: Candid
   const adapterContract = readCandidateAdapterContract(candidate);
   validateCandidateAdapterContract(candidate, adapterContract, policy);
   validateCandidateImplementationBasis(candidate);
+  validateCandidateCarrierEvidenceContract(candidate);
   validateOPLStudioCandidateContract(candidate);
   validateCandidateChatTarget(candidate);
   validateCandidateWebUiTransport(candidate);

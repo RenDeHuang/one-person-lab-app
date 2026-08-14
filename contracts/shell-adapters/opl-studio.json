@@ -44,6 +44,31 @@
     "web_adapter": "http_sse",
     "web_runtime_forms": ["standalone_headless_webui", "docker_webui"],
     "bridge_abi": "opl_app_host_bridge.v1",
+    "carrier_evidence_manifest": {
+      "schema": "opl_studio_carrier_evidence.v1",
+      "path": "out/opl-studio-carrier-evidence-manifest.json",
+      "candidate_only": true,
+      "release_authority": false
+    },
+    "carrier_entries": {
+      "electron_desktop": {
+        "host_adapter": "desktop/main.mjs + desktop/preload.cjs",
+        "package_config": "electron-builder.yml",
+        "update_adapter": "desktop/updater.mjs"
+      },
+      "standalone_headless_webui": {
+        "host_adapter": "scripts/headless/run.mjs + scripts/headless/server.mjs",
+        "service_manager": "scripts/headless/service-manager.mjs",
+        "installer": "scripts/headless/installer.mjs",
+        "update_adapter": "scripts/headless/update-runner.mjs"
+      },
+      "docker_webui": {
+        "host_adapter": "Dockerfile + docker-compose.distribution.yaml",
+        "distribution_manager": "scripts/oci/manage.mjs",
+        "multi_arch_plan": "scripts/oci/build-plan.mjs",
+        "update_adapter": "scripts/oci/manage.mjs"
+      }
+    },
     "aionui_or_aioncore_dependency_allowed": false,
     "active_release_carrier": false
   },
