@@ -447,11 +447,11 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
   ], `${candidate.id}.target_product_shape.runtime_status_sources`);
   const identity = candidate.target_product_shape.product_identity;
   if (
-    JSON.stringify(identity.visible_text) !== JSON.stringify(['OPL Studio', 'One Person Lab']) ||
+    JSON.stringify(identity.visible_text) !== JSON.stringify(['One Person Lab']) ||
     identity.logo_visible !== false ||
     identity.bundle_icon_allowed !== true
   ) {
-    throw new Error(`${candidate.id}.target_product_shape.product_identity must use OPL Studio and One Person Lab text without an in-app Logo`);
+    throw new Error(`${candidate.id}.target_product_shape.product_identity must use One Person Lab text without an in-app Logo`);
   }
   validateCandidateAiFirstInteractionModel(candidate);
 }
@@ -491,7 +491,7 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
     'Packaged macOS and WebUI use the same native React renderer and App-owned bridge shape',
     'ordinary UI keeps only projects, conversations, search, and Settings in the left rail and opens run status, files and results, or agents and capabilities in the DSH details column on demand',
     'runtime status consumes the current Codex thread and active_project_lines while hypotheses and roadmaps come from owner-projected runtime.detail contributions',
-    'in-app identity is text-only OPL Studio and One Person Lab while the macOS bundle icon remains allowed',
+    'in-app identity is text-only One Person Lab while the macOS bundle icon remains allowed',
     'WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host',
     'one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer',
     'Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server',
@@ -879,7 +879,7 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
     'hypotheses and roadmaps rendered from runtime.detail contribution readback',
     'user-selected files only and owner-projected artifacts without action JSON masquerading as results',
     'Agent Package lifecycle management remains in Settings',
-    'text-only OPL Studio and One Person Lab identity without an in-app Logo',
+    'text-only One Person Lab identity without an in-app Logo',
     'candidate .app package through the App wrapper',
   ], `${candidate.id}.codex_app_like_chat_target.capability_inventory`);
 }

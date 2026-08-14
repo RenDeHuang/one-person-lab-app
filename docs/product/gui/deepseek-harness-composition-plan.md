@@ -40,7 +40,8 @@ OPL 应吸收 DeepSeek Harness（DSH）的组合理念，并直接复用选定�
 - 运行状态读取当前 Codex thread 和 `active_project_lines`；论文假设、路线图等 owner 数据通过
   `ui_contributions.runtime.detail` 加载，不由 Shell 静态编造。
 - 文件仅来自用户主动添加；结果仅来自 owner-projected artifact，action JSON 不冒充结果。
-- Package 生命周期操作在 Settings；App 内只显示 `OPL Studio` / `One Person Lab` 文字，不显示 Logo。
+- Package 生命周期操作在 Settings；App 内只显示 `One Person Lab` 文字，不显示 Logo。`OPL Studio`
+  仅用于 repo、开发线和候选 artifact 身份。
 
 ## 生态落点
 
@@ -194,7 +195,7 @@ contributor 或一个无法用现有 slot 表达的当前产品需求支付复�
    `AppFrame`、`SidebarRoot`、conversation/composer、Settings、ui-theme、`client-ui-slots`、
    `client-web-react` 和所需 primitives，禁止 floating `latest`。
 2. **Thin OPL adapter：** 保留 DSH root/sidebar/conversation/details/settings slot 结构；通过
-   vendor 外 adapter 隐藏 DSH Logo，并显示 `OPL Studio` / `One Person Lab` 文字。数据和动作只
+   vendor 外 adapter 隐藏 DSH Logo，并只显示 `One Person Lab` 文字。数据和动作只
    来自 Codex/OPL bridge，OPL Runtime/Settings/Capability 以 slot occupants 注册，不另写一套
    外层 workbench。
 3. **Direct source adoption：** 发布包边界不完整或会强制带入 DSH authority runtime 时，直接
@@ -244,6 +245,11 @@ slot host -> DSH-derived React renderer -> visible UI -> App action dry-run -> a
 当前状态：source/package/fixture 链已实现；完整 pixel、cold-start、installed readback 和
 canonical absorption 仍待完成，不能据此声称 release-ready。
 
+当前 UI 基线已进一步完成：用户可见品牌只保留 `One Person Lab`；模型 Auto 与固定模型消歧；
+强度选项使用短标签；OPL 标准智能体在 composer `+` 菜单独立成组；DSH Appearance 三态已接入
+真实 light/dark token。标准智能体选择/启动、运行中 queue/steer、研究假设/路线图投影以及完整
+Settings 动作闭环仍是明确缺口，不能由静态状态行替代。
+
 ### Wave 2: OPL contribution ABI
 
 只有 Wave 1 通过才新增 App/Framework machine schema。先支持
@@ -264,6 +270,17 @@ installed Package pilot、producer-consumer canonical conformance 与 install/re
 
 完成条件：当前 B0/R1/U1 surface 行为保持，App-owned visual baseline 通过，Native source、pixel、
 package、installed user path 五条证据独立完成。
+
+Wave 3 按用户结果而非 AionUI 页面数推进：
+
+1. P1a：Agent select/start action、运行中 queue/steer，以及右侧 Run status / Files and results；
+2. P1b：Gateway 账户动作、Agent 安装/更新/启停/移除、App/Base/Packages 自动更新与 apply/restart；
+3. P1c：`runtime.detail` 的假设、路线图、阶段和 owner task module 真实投影；
+4. P2：连接、通知、存储维护、诊断导出和 DSH upstream intake 自动化。
+
+每个切片都必须复用 App state/action 与 installed Package contribution；没有 action ABI 的项目只显示
+诚实状态和 owner route，不渲染无效开关。AionUI 上游遗留的 provider selector、Team、AionCore、
+第二 scheduler 或自定义 assistant catalog 不进入 Native 缺口。
 
 ### Wave 4: active-shell qualification and cutover
 

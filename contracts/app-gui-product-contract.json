@@ -3730,7 +3730,8 @@
     "forbidden_visible_terms": [
       "AionUI",
       "Aion UI",
-      "AionUi"
+      "AionUi",
+      "OPL Studio"
     ],
     "appearance_mode": {
       "config_key": "theme.appearanceMode",

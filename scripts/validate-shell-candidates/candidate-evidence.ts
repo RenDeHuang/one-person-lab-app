@@ -361,7 +361,7 @@ export function validateDeepSeekHarnessProductLayoutContract(
     || alignment.files_input_policy !== 'user_selected_files_and_directories_only'
     || alignment.results_policy !== 'owner_projected_artifacts_only_no_action_json'
     || alignment.package_lifecycle_surface !== 'settings'
-    || JSON.stringify(alignment.product_identity?.visible_text) !== JSON.stringify(['OPL Studio', 'One Person Lab'])
+    || JSON.stringify(alignment.product_identity?.visible_text) !== JSON.stringify(['One Person Lab'])
     || alignment.product_identity?.logo_visible !== false
     || alignment.product_identity?.bundle_icon_allowed !== true
   ) {

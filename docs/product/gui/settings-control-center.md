@@ -40,6 +40,31 @@ search, page experience and DOM requirements, and the Codex quiet visual grammar
 They do not own runtime truth, provider implementation, domain truth, release
 readiness, installed App currentness, or owner acceptance.
 
+### Native DSH host application
+
+The Native successor reuses the pinned DSH Settings shell, layout, theme tokens and selected controls as
+source. It does not imitate those pixels in a second OPL Settings implementation, and it does not import
+DSH connection, credential, model-provider, session or plugin-runtime authority. `One Person Lab` is the only
+user-visible product name; `OPL Studio` remains an internal implementation codename.
+
+DSH General, Models, Plugins and Agent Presets provide the presentation baseline. OPL maps those concepts to
+its existing owner model and adds only current product needs: Gateway account/access, working directory and
+storage, Agents and Capabilities, App/Base/Packages updates, service diagnostics and About/notices. The active
+AionUI route count is an adapter compatibility surface, not a Native feature-count target.
+
+Native Settings completion is action-based:
+
+- a local preference is complete only after persistence and immediate renderer readback;
+- an App/Framework/Package action is complete only after owner execution and fresh state readback;
+- a dynamic Package setting appears through `settings.section` and disappears with its registration scope;
+- a status without an available action remains read-only and names its owner route; it never becomes an inert
+  toggle, optimistic success or shell-owned fallback.
+
+The first Native closure slice is Appearance/language and model/effort presentation, followed by Gateway
+account actions, Agent select/start and lifecycle, and separate App/Base/Packages update apply/restart. The
+second slice adds connections, notifications, storage maintenance and diagnostic export. This ordering does
+not weaken the current AionUI contract while it remains the active release shell.
+
 ## Startup Performance Boundary
 
 The first interactive Settings window renders from a persisted narrow snapshot

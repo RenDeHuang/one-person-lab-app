@@ -186,7 +186,7 @@ test('OPL Studio candidate evidence binds layout and interaction semantics to pi
     results_policy: 'owner_projected_artifacts_only_no_action_json',
     package_lifecycle_surface: 'settings',
     product_identity: {
-      visible_text: ['OPL Studio', 'One Person Lab'],
+      visible_text: ['One Person Lab'],
       logo_visible: false,
       bundle_icon_allowed: true,
     },

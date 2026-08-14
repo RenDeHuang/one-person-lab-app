@@ -45,8 +45,9 @@ The product layout is intentionally small and follows the pinned DSH composition
   readback; the shell does not invent them.
 - Files shows only files or directories the user actually added. Results show owner-projected artifacts;
   App state refs and action JSON are not displayed as files or results.
-- In-app identity is text-only `OPL Studio` / `One Person Lab`. No Logo is rendered in the workbench;
-  the macOS bundle icon remains a normal operating-system asset.
+- In-app identity is text-only `One Person Lab`. `OPL Studio` is an internal repository, development-line,
+  and candidate-artifact codename and must not appear as the user-facing product name. No Logo is rendered
+  in the workbench; the macOS bundle icon remains a normal operating-system asset.
 
 The prior unified coordination plan is superseded by the repo-owned boundaries in
 [`aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md),
@@ -55,22 +56,40 @@ Historical experiments involving model-triggered cross-thread tools, private del
 cross-host handoff, or a second thread runtime are evidence of those experiments only. They are not
 required capabilities, release blockers, or an authority source for product behavior.
 
-## Minimum Complete Product
+## Current Source Baseline
+
+The current Studio source baseline directly reuses the pinned DSH AppFrame, conversation/composer,
+Settings shell, theme tokens, Appearance control and slot host. It now renders only `One Person Lab`,
+disambiguates Auto from a fixed model, presents effort values without a redundant “reasoning” prefix,
+and lists owner-projected OPL standard Agents separately in the composer palette. These are source and
+local visual results only; they do not prove installed, active-shell or release adoption.
+
+An Agent row in the composer palette is currently read-only because the App action ABI does not yet expose
+one canonical select/start action for that surface. The shell must not add an inert switch or invent a second
+launch route. The same rule applies to Settings: a page or status row is not a completed capability until a
+real local preference or owner action can be executed and freshly read back.
+
+## Minimum Complete Product And Ordered Gaps
 
 Studio completion follows the App profile's minimum-complete contract, not AionUI feature parity.
 
 | Surface | Current Studio baseline | Required closure |
 | --- | --- | --- |
-| Agent management | Dynamic catalog, search/filter, projected lifecycle actions | Show owner source and automatic-update policy; support projected Home visibility/order actions; fresh readback after mutation |
-| App update | App check action is present but shown only as a generic maintenance action | Preserve the managed-update result, show installed/latest/channel/state, and bind apply/restart to the Native host updater once that carrier exists |
+| Agent management | Dynamic catalog and projected installed/enabled state; OPL standard Agents are separated from Skills and connections | Add one App-owned select/start action, queue/steer during a run, lifecycle actions, owner source, automatic-update policy and fresh mutation readback |
+| Run and research state | Thread turn state and `active_project_lines` are available | Project current Agent phase, queued/active work, hypotheses, roadmap and owner task modules through `runtime.detail`; never synthesize research state in the shell |
+| App update | App check action is present but shown only as a generic maintenance action | Preserve the managed-update result, show installed/latest/channel/state, and bind check/apply/restart to the Native host updater once that carrier exists |
 | OPL Base update | Runtime status and rollback refs exist | Show the Base component independently; use only Framework-projected owner actions |
 | OPL Packages and Agent updates | Per-package actions exist | Show aggregate currentness and managed automatic-update policy independently from App/Base |
 | Capabilities | Composer skill picker and `settings.section` contributions exist | Replace counts-only Settings content with the dynamic Skill/Plugin/MCP/managed-companion directory |
 | Workspace and storage | Owner state is readable | Add owner-projected select/rebind and cleanup actions; never create a second store |
+| Account and access | Public Gateway state can be projected | Add login, refresh, repair and disconnect through the credential owner without persisting secrets in renderer state |
+| Preferences and diagnostics | DSH System/Light/Dark is wired to the real renderer theme | Add necessary language, notifications and local behavior controls, service diagnostics/export and About/notices without copying DSH runtime settings |
 
-The first four rows are the minimum Settings/update closure. Capability,
-workspace, and storage actions follow without blocking the conversation, run
-status, right-side files/results, or package contribution path already present.
+P1 closes the first usable product loop: Agent select/start, live run status and `runtime.detail`, account
+actions, Agent lifecycle, and App/Base/Packages update apply/readback. P2 adds connections, notifications,
+storage maintenance, diagnostic export and repeatable DSH upstream intake. AionUI-only provider, Team,
+scheduler or AionCore surfaces are not parity requirements unless a current OPL user outcome independently
+requires them.
 
 ## Composition Rule
 
