@@ -186,7 +186,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export ELECTRON_APP_PATH="$(cat candidate-artifacts/desktop-headless/electron-app-path.txt)"
+          ELECTRON_APP_PATH="$(cat candidate-artifacts/desktop-headless/electron-app-path.txt)"
+          export ELECTRON_APP_PATH
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
 
