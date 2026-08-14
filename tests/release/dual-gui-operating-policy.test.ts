@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import { readAppShellAdapterContract } from '../../scripts/app-shell-adapter.ts';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
 import {
   assertArchivedProofCommandExecutionAllowed,
@@ -29,11 +30,23 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
   );
 
   const candidateDetailDrift = structuredClone(registry);
-  const native = candidateDetailDrift.candidates.find((candidate) => candidate.id === 'opl-native-workbench');
+  const native = candidateDetailDrift.candidates.find((candidate) => candidate.id === 'opl-studio');
   assert.ok(native && !('role_tombstone' in native));
   native.required_capabilities = [];
   native.visual_parity_contract!.default_model = 'candidate-only-drift';
   assert.doesNotThrow(() => validateRegistryShape(candidateDetailDrift));
+});
+
+test('explicit Studio adapter keeps its candidate implementation role', () => {
+  assert.doesNotThrow(() =>
+    readAppShellAdapterContract('contracts/shell-adapters/opl-studio.json'),
+  );
+
+  const adapter = readJson<any>('contracts/shell-adapters/opl-studio.json');
+  assert.equal(
+    adapter.gui_authority.implementation_role,
+    'foreground_alternative_candidate_implementation_carrier',
+  );
 });
 
 test('archived Hermes replay requires an explicit user-requested historical replay', () => {
@@ -49,7 +62,7 @@ test('archived Hermes replay requires an explicit user-requested historical repl
     () => assertArchivedProofCommandExecutionAllowed(registry, ['hermes-codex'], true),
   );
   assert.doesNotThrow(
-    () => assertArchivedProofCommandExecutionAllowed(registry, ['opl-native-workbench'], false),
+    () => assertArchivedProofCommandExecutionAllowed(registry, ['opl-studio'], false),
   );
 
   const automaticBuild = structuredClone(registry);
@@ -68,24 +81,43 @@ test('archived Hermes replay requires an explicit user-requested historical repl
   );
 });
 
-test('DeepSeek Harness stays a pinned Native-only composition reference', () => {
+test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution ABI remains shell-neutral', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const reference = registry.design_references?.find(({ id }) => id === 'deepseek-harness');
 
   assert.equal(reference?.evaluated_ref, '47f943859bef60e4160492346772ded9b24f765a');
   assert.equal(reference?.license, 'MIT');
-  assert.equal(reference?.source_usage, 'design_and_bounded_source_reuse_candidate');
+  assert.equal(reference?.source_usage, 'approved_bounded_source_and_package_reuse');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-ui-slots'], '0.1.0-rc.6');
+  assert.equal(reference?.adopted_source?.root, 'src/vendor/deepseek-harness');
+  assert.equal(reference?.adopted_source?.path_policy, 'preserve_upstream_package_relative_paths');
+  assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-layout/src/client/AppFrame.tsx'));
+  assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-sidebar/src/client/SidebarRoot.tsx'));
+  assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-conversation/src/client/skeleton/InputBar.tsx'));
+  assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-settings-general/src/client/SettingsRoot.tsx'));
+  assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-theme/src/styles/design-platform.css'));
+  assert.equal(reference?.upstream_intake?.floating_ref_allowed, false);
+  assert.equal(reference?.upstream_intake?.automatic_promotion_allowed, false);
   assert.doesNotThrow(() => validateRegistryShape(registry));
+
+  const privateFork = structuredClone(registry);
+  const privateForkReference = privateFork.design_references?.find(({ id }) => id === 'deepseek-harness');
+  assert.ok(privateForkReference?.upstream_intake);
+  privateForkReference.upstream_intake.opl_delta_policy = 'edit_vendor_files_in_place';
+  assert.throws(
+    () => validateRegistryShape(privateFork),
+    /DeepSeek Harness upstream_intake/,
+  );
 
   const secondShell = structuredClone(registry);
   const driftedReference = secondShell.design_references?.find(({ id }) => id === 'deepseek-harness');
   assert.ok(driftedReference);
   driftedReference.opl_mapping = driftedReference.opl_mapping.filter(
-    (item) => !item.startsWith('OPL Native Workbench is the only GUI route'),
+    (item) => !item.startsWith('OPL Studio is the only GUI route allowed to import'),
   );
   assert.throws(
     () => validateRegistryShape(secondShell),
-    /DeepSeek Harness opl_mapping must include OPL Native Workbench is the only GUI route allowed to evaluate DeepSeek Harness renderer or slot reuse/,
+    /DeepSeek Harness opl_mapping must include OPL Studio is the only GUI route allowed to import DeepSeek Harness renderer runtime or GUI source/,
   );
 
   const runtimeTakeover = structuredClone(registry);
@@ -229,7 +261,7 @@ test('Runtime keeps its Framework producer and is required for every adopted she
   assert.equal(runtimeRow.aionui_route_required, true);
   assert.equal(runtimeRow.adopted_shell_route_required, true);
   assert.equal(
-    runtimeBridge.canonical_state_display_action_map.shells.opl_native_workbench.role,
+    runtimeBridge.canonical_state_display_action_map.shells.opl_studio.role,
     'foreground_candidate_must_implement_core_runtime_before_adoption',
   );
   assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));

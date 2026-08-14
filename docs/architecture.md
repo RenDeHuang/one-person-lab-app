@@ -519,7 +519,7 @@ operating policy and landing route live in
 ```text
 App contracts / product profile
   -> local GUI launcher -> AionUI client
-                        -> OPL Native Workbench client
+                        -> OPL Studio client
   -> App runtime bridge -> OPL Framework state/action
   -> typed host bridge  -> Codex App Server thread/turn authority
 ```
@@ -535,7 +535,7 @@ for Native Candidate launches; active AionUI parity and direct Native bundle
 launches remain current deviations. Side-by-side installation and sequential launch selection
 therefore do not imply safe simultaneous writes to one workspace or thread.
 
-Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit technical verification builds. `contracts/app-shell-candidates.json` declares `opl-native-workbench` as the foreground alternative, with its adapter under `contracts/shell-adapters/opl-native-workbench.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell. Hermes Desktop / `hermes-codex` and `agui-codex` are archived AGUI/Hermes technical proofs, replayable only through their explicit adapters when the user requests historical evidence; neither is a routine candidate lane or adoption input. The OPL Native Workbench route is the shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and bounded DSH composition reuse without importing external runtime authority. DSH-derived slot/renderer work remains a Native-only successor spike until source, install, and readback evidence justify a later decision.
+Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit technical verification builds. `contracts/app-shell-candidates.json` declares `opl-studio` as the foreground alternative, with its adapter under `contracts/shell-adapters/opl-studio.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell. Hermes Desktop / `hermes-codex` and `agui-codex` are archived AGUI/Hermes technical proofs, replayable only through their explicit adapters when the user requests historical evidence; neither is a routine candidate lane or adoption input. The OPL Studio route is the shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and bounded DSH composition reuse without importing external runtime authority. DSH-derived slot/renderer work remains a Native-only successor spike until source, install, and readback evidence justify a later decision.
 
 Hermes 的历史 first-run、图标和 WebUI 要求只保留在归档 runbook 中，用于用户明确要求的
 historical replay；它们不再是 App backlog、foreground adoption gate 或 release requirement。

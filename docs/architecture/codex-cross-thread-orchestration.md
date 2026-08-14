@@ -85,7 +85,7 @@ source-completion claims.
 
 ## Known Machine Cleanup
 
-Some `opl-native-workbench` candidate contracts, validator modules, fixtures, and
+Some `opl-studio` candidate contracts, validator modules, fixtures, and
 focused tests still require the retired typed host bridge, dynamic tools,
 coordination ledger, bilateral receipts, advisory/idempotency, security cases, and
 Desktop/WebUI coordination parity. This is a documented

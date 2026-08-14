@@ -88,7 +88,7 @@ Decision: `reject (no-safe-semantic-split)`, closed by scope rather than pending
 ### 2026-07-07 shell candidate blocker and evidence cleanup
 
 - Removed `scripts/validate-shell-candidates.ts`'s file-list blocker projection. Missing checkout and implementation-file failures now stay with the candidate contract and evidence validators instead of a second hand-maintained Native/Hermes list in the CLI summary.
-- `scripts/validate-shell-candidates/candidate-evidence.ts` keeps Native Workbench and Hermes package evidence in their candidate-specific validators, but shares the local `.app` bundle executable/symlink/profile check and uses named expected-field tables for repeated non-adoption assertions.
+- `scripts/validate-shell-candidates/candidate-evidence.ts` keeps OPL Studio and Hermes package evidence in their candidate-specific validators, but shares the local `.app` bundle executable/symlink/profile check and uses named expected-field tables for repeated non-adoption assertions.
 - Candidate roles remain owned by `contracts/app-shell-candidates.json`; this cleanup does not restate or alter them.
 - Verification required for this slice: `npm run validate:shell-candidates` and `git diff --check`.
 

@@ -7,8 +7,8 @@ import {
   validateNativeThreadAdapterBoundary,
 } from '../../scripts/validate-shell-candidates/candidate-contract.ts';
 import {
-  validateCodexDesignReferenceAlignment,
-  validateCodexDesignReferenceEvidence,
+  validateDeepSeekHarnessCompositionEvidence,
+  validateDeepSeekHarnessProductLayoutContract,
 } from '../../scripts/validate-shell-candidates/candidate-evidence.ts';
 import type {
   NativeThreadAdapterBoundary,
@@ -20,9 +20,9 @@ const readJson = <T>(relativePath: string): T =>
 
 const readAdapter = (): Record<string, unknown> & {
   thread_adapter_boundary: NativeThreadAdapterBoundary;
-} => readJson('contracts/shell-adapters/opl-native-workbench.json');
+} => readJson('contracts/shell-adapters/opl-studio.json');
 
-test('native candidate keeps one App Server thread adapter and Codex subagent projection', () => {
+test('OPL Studio candidate keeps one App Server thread adapter and Codex subagent projection', () => {
   const adapter = readAdapter();
   const boundary = adapter.thread_adapter_boundary;
 
@@ -53,7 +53,7 @@ test('native candidate keeps one App Server thread adapter and Codex subagent pr
   assert.equal('cross_top_level_thread_authority' in adapter, false);
 });
 
-test('native candidate rejects an incomplete thread lifecycle protocol', () => {
+test('OPL Studio candidate rejects an incomplete thread lifecycle protocol', () => {
   const boundary = structuredClone(readAdapter().thread_adapter_boundary);
   boundary.supported_protocols = boundary.supported_protocols.filter(
     (method) => method !== 'thread/start',
@@ -65,7 +65,7 @@ test('native candidate rejects an incomplete thread lifecycle protocol', () => {
   );
 });
 
-test('native candidate rejects a private coordination layer', () => {
+test('OPL Studio candidate rejects a private coordination layer', () => {
   const enabled = structuredClone(readAdapter().thread_adapter_boundary);
   enabled.private_coordination_layer_allowed = true;
   assert.throws(
@@ -83,7 +83,7 @@ test('native candidate rejects a private coordination layer', () => {
   );
 });
 
-test('native candidate rejects removal of Codex subagent projections', () => {
+test('OPL Studio candidate rejects removal of Codex subagent projections', () => {
   const missingMetadata = structuredClone(readAdapter().thread_adapter_boundary);
   missingMetadata.codex_subagent_projection.metadata_fields = ['parentThreadId'];
 
@@ -101,13 +101,13 @@ test('native candidate rejects removal of Codex subagent projections', () => {
   }
 });
 
-test('native candidate machine contract removes retired private capabilities', () => {
+test('OPL Studio candidate machine contract removes retired private capabilities', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
-  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(candidate);
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
-  assert.equal(candidate.candidate_stage, 'opl_native_workbench_single_app_server_adapter_candidate_only');
+  assert.equal(candidate.candidate_stage, 'opl_studio_single_app_server_adapter_candidate_only');
   assert.deepEqual(candidate.maintenance_policy, {
     mode: 'manual_on_demand_non_periodic_technical_evaluation',
     automatic_or_scheduled_work_allowed: false,
@@ -135,19 +135,19 @@ test('native candidate machine contract removes retired private capabilities', (
   }
 });
 
-test('native candidate uses rolling external design observations and an App-owned pixel baseline', () => {
+test('OPL Studio candidate binds its visual baseline to pinned DSH source plus App product constraints', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
-  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(candidate);
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
   assert.equal(
     candidate.visual_parity_contract?.visual_style_baseline,
-    'One Person Lab App-owned visual system and approved pixel baseline',
+    'DeepSeek Harness selected MIT GUI source plus One Person Lab App-owned product constraints',
   );
   assert.equal(
     candidate.visual_parity_contract?.font_asset_policy,
-    'match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries',
+    'reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets',
   );
 
   const staleCandidate = structuredClone(candidate);
@@ -160,13 +160,29 @@ test('native candidate uses rolling external design observations and an App-owne
   );
 });
 
-test('native candidate evidence validates stable interaction semantics without an external build pin', () => {
+test('OPL Studio candidate evidence binds layout and interaction semantics to pinned DSH source', () => {
   const alignment = {
+    reference_product: 'DeepSeek Harness Web client',
     project_rail: 'persistent',
     timeline: 'single_conversation_timeline',
     model_controls: 'composer_bottom_row',
     reasoning_controls: 'composer_bottom_row',
-    environment_details: 'floating_on_demand',
+    details: 'dsh_resizable_column_on_desktop_fullscreen_overlay_on_mobile',
+    left_rail_items: ['projects', 'conversations', 'search', 'settings'],
+    right_context_modules: ['run_status', 'files_results', 'agents_capabilities'],
+    runtime_status_sources: [
+      'codex_app_server_current_thread',
+      'opl_app_state_active_project_lines',
+    ],
+    runtime_detail_slot: 'ui_contributions.runtime.detail',
+    files_input_policy: 'user_selected_files_and_directories_only',
+    results_policy: 'owner_projected_artifacts_only_no_action_json',
+    package_lifecycle_surface: 'settings',
+    product_identity: {
+      visible_text: ['OPL Studio', 'One Person Lab'],
+      logo_visible: false,
+      bundle_icon_allowed: true,
+    },
     settings_locale_surface: 'settings',
     model_policy_source:
       'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options',
@@ -175,99 +191,88 @@ test('native candidate evidence validates stable interaction semantics without a
       'persistent_project_rail',
       'single_conversation_timeline',
       'composer_model_and_reasoning_controls',
-      'floating_on_demand_environment',
+      'on_demand_dsh_details_column',
       'settings_locale_surface',
+      'text_only_opl_product_identity',
     ],
   };
 
   assert.doesNotThrow(() =>
-    validateCodexDesignReferenceEvidence('opl-native-workbench', {
-      codex_design_reference_alignment: alignment,
+    validateDeepSeekHarnessCompositionEvidence('opl-studio', {
+      product_layout_contract: alignment,
+      primary_visual_reference: {
+        reference_product: 'DeepSeek Harness',
+        reference_version: '47f943859bef60e4160492346772ded9b24f765a',
+        source_usage: 'direct_mit_gui_source_reuse',
+        left_side: 'persistent project and conversation rail with search and Settings only',
+        center: 'single dominant conversation timeline with bottom composer',
+        right_side: 'on-demand DSH details column for run status, files and results, and agents and capabilities',
+      },
+      visual_style_reference: {
+        reference_product: 'DeepSeek Harness',
+        reference_version: '47f943859bef60e4160492346772ded9b24f765a',
+        scope: 'six_pinned_gui_package_source_trees_with_vendor_external_opl_adapters',
+        token_source: 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css',
+        font_asset_policy: 'system_font_stack_no_foreign_font_binary_redistribution',
+      },
     }),
   );
 
   const missingTimeline = structuredClone(alignment);
   missingTimeline.timeline = 'split_conversation_timeline';
   assert.throws(
-    () => validateCodexDesignReferenceAlignment('opl-native-workbench', missingTimeline),
-    /stable Codex-style interaction semantics/,
-  );
-
-  const pinnedExternalBuild = {
-    ...alignment,
-    reference_version: '26.707.41301',
-  };
-  assert.throws(
-    () =>
-      validateCodexDesignReferenceAlignment(
-        'opl-native-workbench',
-        pinnedExternalBuild,
-      ),
-    /without pinning current conformance to an external product build/,
+    () => validateDeepSeekHarnessProductLayoutContract('opl-studio', missingTimeline),
+    /DeepSeek Harness Web client composition/,
   );
 
   assert.throws(
     () =>
-      validateCodexDesignReferenceEvidence('opl-native-workbench', {
-        codex_2026_07_11_alignment: alignment,
+      validateDeepSeekHarnessCompositionEvidence('opl-studio', {
+        codex_design_reference_alignment: alignment,
       }),
-    /historical provenance and cannot satisfy current conformance/,
+    /must not retain Codex visual-alignment contracts/,
   );
 });
 
-test('native phase one may omit the core Runtime route from candidate parity', () => {
+test('OPL Studio keeps runtime work in the three-module on-demand context instead of a separate core route', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
-  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(candidate);
   assert.equal(Object.hasOwn(candidate.target_product_shape, 'runtime_page_policy'), false);
-  assert.equal(Object.hasOwn(candidate.framework_surfaces, 'full_drilldown'), false);
-  assert.equal(candidate.required_capabilities.includes('runtime_summary_detail_action_bridge'), false);
-  assert.equal(
-    candidate.codex_app_like_chat_target?.capability_inventory.includes(
-      'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
-    ),
-    false,
-  );
+  assert.deepEqual(candidate.target_product_shape.left_rail_items, ['projects', 'conversations', 'search', 'settings']);
+  assert.deepEqual(candidate.target_product_shape.right_context_modules, ['run_status', 'files_results', 'agents_capabilities']);
+  assert.equal(candidate.target_product_shape.runtime_detail_slot, 'ui_contributions.runtime.detail');
+  assert.equal(candidate.target_product_shape.package_lifecycle_surface, 'settings');
+  assert.equal(candidate.target_product_shape.product_identity.logo_visible, false);
+  assert.equal(candidate.framework_surfaces.full_drilldown, 'opl runtime app-operator-drilldown --detail full --json');
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
 
-  const resurrectedPolicy = structuredClone(candidate);
-  resurrectedPolicy.target_product_shape.runtime_page_policy =
-    'minimal_work_item_list_stage_popover_selected_detail_only';
+  const extraLeftRailPage = structuredClone(candidate);
+  extraLeftRailPage.target_product_shape.left_rail_items.push('environment');
   assert.throws(
-    () => validateCandidate(resurrectedPolicy, policy),
-    /must omit the core Runtime route from Native phase-one candidate parity/,
+    () => validateCandidate(extraLeftRailPage, policy),
+    /left_rail_items must be exactly/,
   );
 
-  const resurrectedDrilldown = structuredClone(candidate);
-  resurrectedDrilldown.framework_surfaces.full_drilldown =
-    'opl runtime app-operator-drilldown --detail full --json';
+  const extraRightModule = structuredClone(candidate);
+  extraRightModule.target_product_shape.right_context_modules.push('project_context');
   assert.throws(
-    () => validateCandidate(resurrectedDrilldown, policy),
-    /must omit Runtime full drilldown from Native phase-one candidate parity/,
+    () => validateCandidate(extraRightModule, policy),
+    /right_context_modules must be exactly/,
   );
 
-  const resurrectedCapability = structuredClone(candidate);
-  resurrectedCapability.required_capabilities.push('runtime_summary_detail_action_bridge');
+  const visibleLogo = structuredClone(candidate);
+  visibleLogo.target_product_shape.product_identity.logo_visible = true;
   assert.throws(
-    () => validateCandidate(resurrectedCapability, policy),
-    /must omit the Runtime parity capability from Native phase one/,
-  );
-
-  const resurrectedTab = structuredClone(candidate);
-  assert.ok(resurrectedTab.codex_app_like_chat_target);
-  resurrectedTab.codex_app_like_chat_target.capability_inventory.push(
-    'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
-  );
-  assert.throws(
-    () => validateCandidate(resurrectedTab, policy),
-    /must omit Runtime from Native phase-one context-tab parity/,
+    () => validateCandidate(visibleLogo, policy),
+    /without an in-app Logo/,
   );
 });
 
-test('native candidate account footer consumes only the canonical Gateway display name', () => {
+test('OPL Studio candidate account footer consumes only the canonical Gateway display name', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
-  const candidate = registry.candidates.find((entry) => entry.id === 'opl-native-workbench');
+  const candidate = registry.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(candidate);
   const footer = candidate.target_product_shape.account_footer_policy;
   assert.equal(footer?.source_ref, 'contracts/app-runtime-bridge.json#opl_gateway_account_projection');

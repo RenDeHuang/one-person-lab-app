@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const defaultAppRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const supportedShells = ['aionui', 'opl-native-workbench'] as const;
+const supportedShells = ['aionui', 'opl-studio'] as const;
 
 export type GuiShellId = (typeof supportedShells)[number];
 export type GuiLaunchMode = 'packaged' | 'dev';
@@ -220,7 +220,7 @@ export function buildNativeCandidateOpenArgs(options: {
 
 function resolveShellRoot(appRoot: string, shell: GuiShellId): string | null {
   const localRoot = path.join(appRoot, 'shells', shell);
-  const siblingName = shell === 'aionui' ? 'opl-aion-shell' : 'opl-native-workbench';
+  const siblingName = shell === 'aionui' ? 'opl-aion-shell' : 'opl-studio';
   const siblingRoot = path.resolve(appRoot, '..', siblingName);
   for (const candidate of [localRoot, siblingRoot]) {
     if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
@@ -233,7 +233,7 @@ function validateLauncherContracts(
   activeAdapter: ActiveShellAdapter,
 ): Record<GuiShellId, LaunchProfile> {
   if (registry.interactive_launcher_policy.selectable_shells.join(',') !== supportedShells.join(',')) {
-    throw new Error('Launcher contract selectable_shells must be exactly aionui and opl-native-workbench');
+    throw new Error('Launcher contract selectable_shells must be exactly aionui and opl-studio');
   }
   if (
     registry.interactive_launcher_policy.selection_mutates_release_adoption ||
@@ -244,12 +244,12 @@ function validateLauncherContracts(
   assertGuiShell(activeAdapter.active_shell);
   const profiles = registry.interactive_launcher_policy.launch_profiles;
   const aionui = profiles.aionui;
-  const native = profiles['opl-native-workbench'];
+  const native = profiles['opl-studio'];
   if (!aionui || !native) throw new Error('Launcher contract is missing a required launch profile');
   if (aionui.bundle_id === native.bundle_id) {
     throw new Error('Mainline and candidate GUI bundle identities must differ');
   }
-  return { aionui, 'opl-native-workbench': native };
+  return { aionui, 'opl-studio': native };
 }
 
 function resolveWorkspace(workspace: string | undefined): string {
@@ -277,8 +277,8 @@ export function createGuiLaunchPlan(options: {
   if (!profile.supported_modes.includes(mode)) {
     throw new Error(`GUI shell ${shell} does not support ${mode} mode`);
   }
-  if (shell !== 'opl-native-workbench' && (options.args.rebuild || options.args.workspace || options.args.allowActions)) {
-    throw new Error('--rebuild, --workspace and --allow-actions apply only to opl-native-workbench');
+  if (shell !== 'opl-studio' && (options.args.rebuild || options.args.workspace || options.args.allowActions)) {
+    throw new Error('--rebuild, --workspace and --allow-actions apply only to opl-studio');
   }
 
   const runtimeIdentity = resolveGuiRuntimeIdentity({ env });
@@ -312,7 +312,7 @@ export function createGuiLaunchPlan(options: {
     appPath = profile.packaged_app_path;
     buildRequired = options.args.rebuild || !fs.existsSync(appPath);
     if (buildRequired && !shellRoot) {
-      throw new Error('Missing opl-native-workbench checkout required to build the installed Native app');
+      throw new Error('Missing opl-studio checkout required to build the installed Native app');
     }
     if (shellRoot) {
       packageAppPath = path.join(shellRoot, profile.bundle_relative_path);
@@ -339,11 +339,11 @@ export function createGuiLaunchPlan(options: {
     app_path: appPath,
     package_app_path: packageAppPath,
     bundle_id: profile.bundle_id,
-    bundle_identity_isolated: profiles.aionui.bundle_id !== profiles['opl-native-workbench'].bundle_id,
+    bundle_identity_isolated: profiles.aionui.bundle_id !== profiles['opl-studio'].bundle_id,
     build_required: buildRequired,
     rebuild_requested: options.args.rebuild,
     workspace,
-    candidate_actions: shell === 'opl-native-workbench'
+    candidate_actions: shell === 'opl-studio'
       ? (options.args.allowActions ? 'explicitly_allowed' : 'dry_run_only')
       : 'not_applicable',
     runtime_identity: runtimeIdentity,

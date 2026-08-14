@@ -221,7 +221,7 @@ therefore:
 ## Ordinary User Lifecycle UX
 
 Settings > 智能体 is an App-owned product requirement, not a runtime
-authority surface. AionUI and Native Workbench must consume the same
+authority surface. AionUI and OPL Studio must consume the same
 `app_state.agent_packages.directory.entries + app_state.agent_packages.status_index`
 projection and the same `app_state.actions` refs. `app_state.modules.items[]`
 must not become a second package directory, package execution truth, currentness
@@ -264,7 +264,7 @@ external registry entries are Codex/OPL capability packages that the App can dis
 install, update, repair, uninstall, configure exposure, and launch. Exposure
 state uses `agent_package_preferences_set` with an `exposure_action` such as
 hide/unhide/enable/disable. Those mutations are Framework action refs with
-receipts; AionUI and Native Workbench only display the package directory and
+receipts; AionUI and OPL Studio only display the package directory and
 trigger the declared App action route. The App records launches with a thin
 invocation receipt, but it must not decide the agent's domain workflow, stage
 model, prompt internals, artifact schema, readiness verdict, quality/export
@@ -305,7 +305,7 @@ may show `rollback_ref`, fail-closed status, action receipts, and repair/update
 routes from Framework readback. Agent Package lifecycle does not define a
 rollback action id; managed update rollback for runtime substrate or
 package-channel components remains owned by the Managed Update plane. AionUI and
-Native Workbench must not invent shell-local rollback semantics beyond
+OPL Studio must not invent shell-local rollback semantics beyond
 displaying those recovery refs and triggering declared repair/update actions.
 
 ## Module Positioning
@@ -479,7 +479,7 @@ lanes a shell must render: runtime, task, and package. Its machine source is
 and `contracts/app-page-state-matrix.json#canonical_state_display_action_map_ref`
 binding GUI and page-state validation to the same map.
 
-| Semantic lane | Canonical source | Aion display role | Native Workbench display role | Action boundary |
+| Semantic lane | Canonical source | Aion display role | OPL Studio display role | Action boundary |
 | --- | --- | --- | --- | --- |
 | Runtime | `opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2` | Minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore | Same minimal WorkItem status contract | Only `work_item_visibility_set` through `opl app action execute`; selected-item detail stays projection-bound, while full operator drilldown belongs to Maintenance diagnostics. |
 | Task | `opl app state --profile fast --json#app_state.operator.workbench.task_run_projection_v2.tasks[]` | Current task slice in conversation and right inspector | Task detail and artifact/provenance workbench pane | Task action, follow-up, export, and workflow-skill candidate refs only; no artifact body, owner receipt, or domain verdict authority. |

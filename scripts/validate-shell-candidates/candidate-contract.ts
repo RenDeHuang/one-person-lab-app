@@ -13,8 +13,6 @@ import {
   assertStringArrayIncludes,
   expectedFrameworkSurfaces,
   forbiddenAuthority,
-  requiredContextSurfaces,
-  requiredContextTestIds,
   requiredHomeEntries,
   requiredSeriesProgressFields,
   forbiddenSeriesDomainFields,
@@ -32,6 +30,24 @@ function assertCandidateFileContains(candidate: ShellCandidate, relativePath: st
   for (const snippet of snippets) {
     if (!source.includes(snippet)) {
       throw new Error(`${candidate.id} ${label} must include ${snippet}`);
+    }
+  }
+}
+
+function assertCandidatePathAbsent(candidate: ShellCandidate, relativePath: string, label: string): void {
+  const filePath = path.join(root, candidate.candidate_root, relativePath);
+  if (fs.existsSync(filePath)) {
+    throw new Error(`${candidate.id} must not retain ${label}: ${relativePath}`);
+  }
+}
+
+function assertCandidateFileExcludes(candidate: ShellCandidate, relativePath: string, snippets: string[], label: string): void {
+  const filePath = path.join(root, candidate.candidate_root, relativePath);
+  assertFile(filePath, `${candidate.id} ${label}`);
+  const source = fs.readFileSync(filePath, 'utf8');
+  for (const snippet of snippets) {
+    if (source.includes(snippet)) {
+      throw new Error(`${candidate.id} ${label} must not include ${snippet}`);
     }
   }
 }
@@ -88,8 +104,9 @@ export const requiredNativeVisualParitySurfaces = [
   'persistent_project_rail',
   'single_conversation_timeline',
   'composer_model_and_reasoning_controls',
-  'floating_on_demand_environment',
+  'on_demand_dsh_details_column',
   'settings_locale_surface',
+  'text_only_opl_product_identity',
 ];
 
 const requiredNativeThreadProtocols = [
@@ -321,7 +338,7 @@ function validateCandidateAdapterContract(
     adapterContract.purpose !== 'active_shell_adapter' ||
     adapterContract.state !== 'active' ||
     adapterContract.candidate_stage !==
-      'opl_native_workbench_single_app_server_adapter_candidate_only' ||
+      'opl_studio_single_app_server_adapter_candidate_only' ||
     adapterContract.gui_authority?.implementation_role !==
       'foreground_alternative_candidate_implementation_carrier'
   ) {
@@ -380,10 +397,9 @@ function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.implementation_basis, [
     'OPL-native React renderer with Swift/AppKit WKWebView macOS host and Node WebUI host',
     'OPL App state/action contract first',
-    'K-Dense delivery workspace patterns adapted without runtime authority transfer',
-    'Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions',
-    'results and artifact delivery-first presentation',
-    'independent shell repo mounted under shells/opl-native-workbench',
+    'DeepSeek Harness AppFrame sidebar conversation composer Settings theme SlotCore createSlotRenderer and primitives reused from one pinned MIT source cohort',
+    'OPL branding bridges and custom functions implemented outside the DSH vendor snapshot as adapters and slot plugins',
+    'independent shell repo mounted under shells/opl-studio',
   ], `${candidate.id}.implementation_basis`);
 }
 
@@ -404,15 +420,38 @@ function validateCandidateTargetProductShape(candidate: ShellCandidate): void {
     throw new Error(`${candidate.id}.target_product_shape.settings_policy must keep Settings App-owned and refs-only`);
   }
   if (Object.hasOwn(candidate.target_product_shape, 'runtime_page_policy')) {
-    throw new Error(`${candidate.id}.target_product_shape must omit the core Runtime route from Native phase-one candidate parity`);
+    throw new Error(`${candidate.id}.target_product_shape must keep run status in the on-demand right context instead of a separate core Runtime route`);
   }
   if (
-    candidate.target_product_shape.default_visual_basis !== 'codex_app_composer_first' ||
+    candidate.target_product_shape.default_visual_basis !== 'deepseek_harness_direct_source_chat_first' ||
     candidate.target_product_shape.right_context_user_request_only !== true ||
     candidate.target_product_shape.co_scientist_split_screen_default !== false ||
-    candidate.target_product_shape.mas_autonomous_research_default !== true
+    candidate.target_product_shape.mas_autonomous_research_default !== true ||
+    candidate.target_product_shape.right_context_default !== 'closed' ||
+    candidate.target_product_shape.runtime_detail_slot !== 'ui_contributions.runtime.detail' ||
+    candidate.target_product_shape.files_input_policy !== 'user_selected_files_and_directories_only' ||
+    candidate.target_product_shape.results_policy !== 'owner_projected_artifacts_only_no_action_json' ||
+    candidate.target_product_shape.package_lifecycle_surface !== 'settings'
   ) {
-    throw new Error(`${candidate.id}.target_product_shape must encode AI-first Codex App defaults and MAS autonomous research interaction`);
+    throw new Error(`${candidate.id}.target_product_shape must encode the DSH direct-source chat-first basis and MAS autonomous research interaction`);
+  }
+  if (JSON.stringify(candidate.target_product_shape.left_rail_items) !== JSON.stringify(['projects', 'conversations', 'search', 'settings'])) {
+    throw new Error(`${candidate.id}.target_product_shape.left_rail_items must be exactly projects, conversations, search, and settings`);
+  }
+  if (JSON.stringify(candidate.target_product_shape.right_context_modules) !== JSON.stringify(['run_status', 'files_results', 'agents_capabilities'])) {
+    throw new Error(`${candidate.id}.target_product_shape.right_context_modules must be exactly run status, files and results, and agents and capabilities`);
+  }
+  assertStringArrayIncludes(candidate.target_product_shape.runtime_status_sources, [
+    'codex_app_server_current_thread',
+    'opl_app_state_active_project_lines',
+  ], `${candidate.id}.target_product_shape.runtime_status_sources`);
+  const identity = candidate.target_product_shape.product_identity;
+  if (
+    JSON.stringify(identity.visible_text) !== JSON.stringify(['OPL Studio', 'One Person Lab']) ||
+    identity.logo_visible !== false ||
+    identity.bundle_icon_allowed !== true
+  ) {
+    throw new Error(`${candidate.id}.target_product_shape.product_identity must use OPL Studio and One Person Lab text without an in-app Logo`);
   }
   validateCandidateAiFirstInteractionModel(candidate);
 }
@@ -421,19 +460,19 @@ function validateCandidateAiFirstInteractionModel(candidate: ShellCandidate): vo
   const model = candidate.ai_first_interaction_model;
   if (
     !model ||
-    model.default_visual_basis !== 'codex_app_composer_first' ||
+    model.default_visual_basis !== 'deepseek_harness_direct_source_chat_first' ||
     model.primary_policy !== 'maximize_direct_ai_interaction_on_the_chat_canvas' ||
     model.right_context_policy !== 'collapsed_user_requested_secondary_layer' ||
     model.mas_autonomy_policy !== 'MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work'
   ) {
     throw new Error(`${candidate.id}.ai_first_interaction_model must preserve composer-first interaction and collapsed secondary context`);
   }
-  assertStringArrayIncludes(model.open_science_adoption, [
-    'artifact_provenance_review_refs_as_secondary_context',
-    'plain_language_data_flow_and_safety_copy',
-    'workflow_starters_as_purpose_entries_or_app_actions',
-    'scientific_preview_affordances_on_demand',
-  ], `${candidate.id}.ai_first_interaction_model.open_science_adoption`);
+  assertStringArrayIncludes(model.on_demand_context_policy, [
+    'run_status_from_current_thread_and_active_project_lines',
+    'hypotheses_and_roadmap_from_runtime_detail_contributions',
+    'files_and_results_open_only_on_user_request',
+    'agents_and_capabilities_render_as_a_searchable_live_catalog',
+  ], `${candidate.id}.ai_first_interaction_model.on_demand_context_policy`);
   assertStringArrayIncludes(model.must_not, [
     'default_three_column_scientific_workbench',
     'default_open_artifact_inspector',
@@ -450,7 +489,9 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
     'candidate consumes OPL App state/action contracts without owning runtime or domain truth',
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
     'Packaged macOS and WebUI use the same native React renderer and App-owned bridge shape',
-    'ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs',
+    'ordinary UI keeps only projects, conversations, search, and Settings in the left rail and opens run status, files and results, or agents and capabilities in the DSH details column on demand',
+    'runtime status consumes the current Codex thread and active_project_lines while hypotheses and roadmaps come from owner-projected runtime.detail contributions',
+    'in-app identity is text-only OPL Studio and One Person Lab while the macOS bundle icon remains allowed',
     'WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host',
     'one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer',
     'Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server',
@@ -463,9 +504,6 @@ function validateCandidateFrameworkSurfaces(candidate: ShellCandidate): void {
     if (candidate.framework_surfaces[surface] !== expected) {
       throw new Error(`${candidate.id}.framework_surfaces.${surface} must be ${expected}`);
     }
-  }
-  if (Object.hasOwn(candidate.framework_surfaces, 'full_drilldown')) {
-    throw new Error(`${candidate.id}.framework_surfaces must omit Runtime full drilldown from Native phase-one candidate parity`);
   }
 }
 
@@ -522,7 +560,7 @@ function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
     'do not switch active_shell away from aionui',
     'do not enter default stable or nightly release packaging',
     'do not introduce runtime or domain truth into the App repo',
-    'do not continue AGUI/CopilotKit implementation as the native workbench route',
+    'do not continue AGUI/CopilotKit implementation as the OPL Studio route',
     'do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer',
     'do not claim release-ready from contract-only evidence',
   ], `${candidate.id}.non_goals`);
@@ -574,7 +612,7 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
   if (missingCandidateCheckoutCanBeBlocked(candidate)) {
     return;
   }
-  assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-native-workbench-candidate.mjs'), `${candidate.id} self-check`);
+  assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-opl-studio-candidate.mjs'), `${candidate.id} self-check`);
   assertCandidateFileContains(candidate, 'package.json', [
     '"build:webui"',
     '"webui"',
@@ -595,7 +633,7 @@ export function validateCandidate(candidate: ShellCandidateEntry, policy: Candid
   const adapterContract = readCandidateAdapterContract(candidate);
   validateCandidateAdapterContract(candidate, adapterContract, policy);
   validateCandidateImplementationBasis(candidate);
-  validateNativeWorkbenchCandidateContract(candidate);
+  validateOPLStudioCandidateContract(candidate);
   validateCandidateChatTarget(candidate);
   validateCandidateWebUiTransport(candidate);
   validateCandidateTargetProductShape(candidate);
@@ -608,20 +646,20 @@ export function validateCandidate(candidate: ShellCandidateEntry, policy: Candid
   validateCandidatePackageScriptSurfaces(candidate);
 }
 
-function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): void {
+function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   if (candidate.foreground_alternative_role !== 'only_foreground_alternative') {
     throw new Error(`${candidate.id}.foreground_alternative_role must be only_foreground_alternative`);
   }
   if (
-    candidate.source_upstream?.repo !== 'gaofeng21cn/opl-native-workbench' ||
+    candidate.source_upstream?.repo !== 'gaofeng21cn/opl-studio' ||
     candidate.source_upstream.app_path !== '.' ||
     candidate.source_upstream.license !== 'Apache-2.0'
   ) {
-    throw new Error(`${candidate.id}.source_upstream must point to gaofeng21cn/opl-native-workbench under Apache-2.0`);
+    throw new Error(`${candidate.id}.source_upstream must point to gaofeng21cn/opl-studio under Apache-2.0`);
   }
   if (
     candidate.candidate_stage !==
-    'opl_native_workbench_single_app_server_adapter_candidate_only'
+    'opl_studio_single_app_server_adapter_candidate_only'
   ) {
     throw new Error(`${candidate.id}.candidate_stage must remain a single App Server adapter candidate only`);
   }
@@ -651,11 +689,11 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     throw new Error(`${candidate.id}.runtime_dependency_policy must keep Native independent from AionUI/AionCore and scoped to Codex App Server`);
   }
   if (
-    candidate.checkout_policy?.primary_path !== 'shells/opl-native-workbench' ||
-    candidate.checkout_policy.accepted_alternate_path !== '../opl-native-workbench' ||
+    candidate.checkout_policy?.primary_path !== 'shells/opl-studio' ||
+    candidate.checkout_policy.accepted_alternate_path !== '../opl-studio' ||
     candidate.checkout_policy.missing_checkout_status !== 'blocked_missing_checkout'
   ) {
-    throw new Error(`${candidate.id}.checkout_policy must accept shells/opl-native-workbench or ../opl-native-workbench and report blocked_missing_checkout`);
+    throw new Error(`${candidate.id}.checkout_policy must accept shells/opl-studio or ../opl-studio and report blocked_missing_checkout`);
   }
   if (
     candidate.build_wrapper?.adapter_contract !== candidate.adapter_contract ||
@@ -666,15 +704,15 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
   }
   const visual = candidate.visual_parity_contract as NativeVisualParityContract | undefined;
   if (
-    visual?.comparison_baseline !== 'latest verified official ChatGPT Codex macOS observation' ||
-    visual.visual_style_baseline !== 'One Person Lab App-owned visual system and approved pixel baseline' ||
+    visual?.comparison_baseline !== 'DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source' ||
+    visual.visual_style_baseline !== 'DeepSeek Harness selected MIT GUI source plus One Person Lab App-owned product constraints' ||
     visual.visual_style_scope !== 'light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface' ||
-    visual.visual_token_source !== 'app_owned_visual_contracts_plus_optional_verified_official_observation_receipts' ||
-    visual.font_asset_policy !== 'match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries' ||
-    visual.current_reference_status !== 'rolling_external_design_reference_only' ||
+    visual.visual_token_source !== 'deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@47f943859bef60e4160492346772ded9b24f765a' ||
+    visual.font_asset_policy !== 'reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets' ||
+    visual.current_reference_status !== 'pinned_direct_source_reuse' ||
     visual.regression_floor !== 'AionUI active release shell' ||
-    visual.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy' ||
-    visual.minimum_bar !== 'one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details' ||
+    visual.source_usage !== 'direct_mit_package_and_selected_source_reuse' ||
+    visual.minimum_bar !== 'direct_dsh_primitives_slots_layout_and_error_isolation_with_opl_owned_authority' ||
     visual.model_policy_source !== 'contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
     visual.default_model !== configuredDefaultModel ||
     visual.default_reasoning_effort !== configuredDefaultReasoningEffort ||
@@ -696,11 +734,11 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
     `${candidate.id}.visual_parity_contract.required_surfaces`,
   );
   assertStringArrayIncludes(visual.required_evidence, [
-    'desktop design review against the latest verified official ChatGPT Codex macOS observation',
+    'desktop source provenance review against the pinned DeepSeek Harness selected GUI source',
     'desktop pixel regression against the App-owned approved visual baseline',
     'persistent project rail and single conversation timeline screenshot comparison',
     'composer model and reasoning controls screenshot comparison',
-    'floating on-demand environment screenshot comparison',
+    'on-demand DeepSeek Harness details column screenshot comparison',
     'Settings locale surface screenshot comparison',
     'webui screenshot comparison against desktop renderer',
     'packaged app screenshot or VM smoke artifact',
@@ -708,22 +746,98 @@ function validateNativeWorkbenchCandidateContract(candidate: ShellCandidate): vo
 }
 
 export function validateCandidateImplementationFiles(candidate: ShellCandidate): void {
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-layout/src/client/AppFrame.tsx', [
+    'export function AppFrame',
+    "renderSlot('sidebar'",
+    "renderSlot('conversation'",
+    "renderSlot('details'",
+  ], 'vendored DeepSeek Harness AppFrame');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-sidebar/src/client/SidebarRoot.tsx', [
+    'export function SidebarRoot',
+    "renderSlot('sidebar.workspaces'",
+  ], 'vendored DeepSeek Harness SidebarRoot');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx', [
+    'export function ConversationRoot',
+  ], 'vendored DeepSeek Harness ConversationRoot');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-conversation/src/client/skeleton/InputBar.tsx', [
+    'export function InputBar',
+  ], 'vendored DeepSeek Harness InputBar');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-settings-general/src/client/SettingsRoot.tsx', [
+    'export function SettingsRoot',
+    "renderSlot('settings.section'",
+  ], 'vendored DeepSeek Harness SettingsRoot');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css', [
+    '--dsw-static-deepseek-450',
+    '--dsw-specific-sidebar-fill',
+  ], 'vendored DeepSeek Harness UI theme');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-primitives/src/index.ts', [
+    "export { Button } from './Button.tsx'",
+    "export { Menu } from './Menu.tsx'",
+    "export { RiskConfirmation } from './RiskConfirmation.tsx'",
+    "export * from './icons/index.tsx'",
+  ], 'vendored DeepSeek Harness UI primitives');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-primitives/src/Button.tsx', [
+    "import css from './Button.module.css'",
+    'export function Button',
+  ], 'vendored DeepSeek Harness Button primitive');
+  assertCandidatePathAbsent(
+    candidate,
+    'src/integrations/deepseek-harness/uiPrimitives.tsx',
+    'the handwritten DeepSeek Harness primitives replacement',
+  );
+  assertCandidateFileContains(candidate, 'src/composition/dshSlotHost.tsx', [
+    'SlotCore',
+    'createSlotRenderer',
+    'AppFrame',
+    'SidebarRoot',
+    'ConversationRoot',
+    'InputBar',
+    'SettingsRoot',
+    '<AppFrame',
+    '<SidebarRoot',
+    '<ConversationRoot',
+    '<InputBar',
+    '<SettingsRoot',
+    'renderRoot()',
+  ], 'DeepSeek Harness slot host and rendered GUI composition');
+  assertCandidateFileContains(candidate, 'src/main.tsx', [
+    'renderOplStudioRoot',
+    'createRoot(rootElement).render(renderOplStudioRoot())',
+  ], 'DeepSeek Harness composition entrypoint');
   assertCandidateFileContains(candidate, 'src/workbench/App.tsx', [
+    'renderShell',
     'data-testid="opl-workspace-rail"',
     'data-testid="opl-session-list"',
     'data-testid="opl-context-tabs"',
-    'data-testid="opl-files-panel"',
+    'data-testid="opl-runtime-status-panel"',
+    'data-testid="opl-agent-run-status"',
+    'data-testid="opl-runtime-contributions"',
+    'data-testid="opl-files-results-panel"',
+    'data-testid="opl-input-files-list"',
+    'data-testid="opl-agents-capabilities-panel"',
+    'data-testid="opl-current-agent-capabilities"',
+    'data-testid="opl-codex-capability-catalog"',
+    'renderContributionSlot?.("runtime.detail"',
+    'data-testid="opl-web-transport"',
+  ], 'OPL Studio surface producer and contextual content');
+  assertCandidateFileExcludes(candidate, 'src/workbench/App.tsx', [
     'data-testid="opl-skills-panel"',
     'data-testid="opl-routing-panel"',
     'data-testid="opl-memory-panel"',
     'data-testid="opl-always-on-panel"',
-    'data-testid="opl-web-transport"',
+    'branding/opl-app-logo.png',
+  ], 'OPL Studio product layout');
+  assertCandidateFileContains(candidate, 'src/workbench/SettingsPanel.tsx', [
     'data-testid="opl-locale-toggle"',
-  ], 'native chat-first contextual renderer');
+    'onSettingChange("locale", "zh")',
+    'onSettingChange("locale", "en")',
+  ], 'OPL Studio settings locale control');
   assertCandidateFileContains(candidate, 'src/bridge/oplBridge.ts', [
     'opl app state --profile fast --json',
     'opl app state --profile full --json',
+    'opl app contribution read',
     'opl app action execute --action',
+    'readContribution',
   ], 'OPL App state/action bridge');
   assertCandidateFileContains(candidate, 'src/workbench/workbenchModel.ts', [
     'results',
@@ -731,11 +845,11 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     'receipts',
     'activeProjectLines',
   ], 'results and delivery workbench model');
-  assertCandidateFileContains(candidate, 'scripts/validate-native-workbench-candidate.mjs', [
+  assertCandidateFileContains(candidate, 'scripts/validate-opl-studio-candidate.mjs', [
     'src/candidateContractEvidence.json',
     'opl-workspace-rail',
-    'opl-native-workbench',
-  ], 'native workbench self-validator');
+    'opl-studio',
+  ], 'OPL Studio self-validator');
 }
 
 function validateCandidateChatTarget(candidate: ShellCandidate): void {
@@ -743,8 +857,8 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
   if (!target) {
     throw new Error(`${candidate.id} must declare codex_app_like_chat_target`);
   }
-  if (target.scope !== 'OPL-native chat-first desktop and WebUI target optimized for results, deliverables, and artifact refs') {
-    throw new Error(`${candidate.id} target must be the OPL-native results/delivery workbench`);
+  if (target.scope !== 'OPL-native DSH-source chat-first desktop and WebUI workbench with contextual runtime, files, results, agents, and capabilities') {
+    throw new Error(`${candidate.id} target must be the OPL-native DSH-source chat-first workbench`);
   }
   assertStringArrayIncludes(target.capability_inventory, [
     'workspace directory picker',
@@ -752,31 +866,17 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
     'Codex app-server backed chat turns',
     'shared native React renderer for packaged macOS and WebUI',
     'Web transport bridge with HTTP actions and SSE Codex events',
-    'K-Dense-informed project sandbox and delivery artifact organization as reference-only',
-    'Open Science-informed artifact, provenance, and review affordances as collapsed secondary context',
+    'pinned DeepSeek Harness AppFrame SidebarRoot conversation composer Settings theme and primitives used directly',
     'chat-first main canvas with pinned composer',
-    'results, files, receipts, and delivery refs as first-class context',
-    'right-side collapsible Files, Skills, Routing, Memory, Always-On, and Settings context tabs',
+    'left rail limited to projects, conversations, search, and Settings',
+    'right-side on-demand Run status, Files and results, and Agents and capabilities modules',
+    'current Codex agent state and active project lines rendered as run status',
+    'hypotheses and roadmaps rendered from runtime.detail contribution readback',
+    'user-selected files only and owner-projected artifacts without action JSON masquerading as results',
+    'Agent Package lifecycle management remains in Settings',
+    'text-only OPL Studio and One Person Lab identity without an in-app Logo',
     'candidate .app package through the App wrapper',
   ], `${candidate.id}.codex_app_like_chat_target.capability_inventory`);
-  if (target.capability_inventory.includes(
-    'right-side collapsible Files, Skills, Routing, Memory, Always-On, Runtime, and Settings context tabs',
-  )) {
-    throw new Error(`${candidate.id} target must omit Runtime from Native phase-one context-tab parity`);
-  }
-
-  const pilotdeckTarget = candidate.pilotdeck_information_architecture_target;
-  if (!pilotdeckTarget) {
-    throw new Error(`${candidate.id} must declare pilotdeck_information_architecture_target`);
-  }
-  if (pilotdeckTarget.source_usage !== 'design_reference_only' || pilotdeckTarget.license !== 'AGPL-3.0') {
-    throw new Error(`${candidate.id} PilotDeck target must remain AGPL design_reference_only`);
-  }
-  if (pilotdeckTarget.copied_source_allowed !== false || pilotdeckTarget.runtime_authority_transfer_allowed !== false) {
-    throw new Error(`${candidate.id} must not copy PilotDeck source or transfer PilotDeck runtime authority`);
-  }
-  assertStringArrayIncludes(pilotdeckTarget.required_surfaces, requiredContextSurfaces, `${candidate.id}.pilotdeck_information_architecture_target.required_surfaces`);
-  assertStringArrayIncludes(pilotdeckTarget.required_testids, requiredContextTestIds, `${candidate.id}.pilotdeck_information_architecture_target.required_testids`);
 }
 
 function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
@@ -787,11 +887,11 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.shared_renderer !== true) {
     throw new Error(`${candidate.id} webui_transport.shared_renderer must be true`);
   }
-  if (transport.native_surface !== 'Swift WKScriptMessageHandler window.oplNativeWorkbench') {
-    throw new Error(`${candidate.id} packaged macOS transport must expose window.oplNativeWorkbench through WKScriptMessageHandler`);
+  if (transport.native_surface !== 'Swift WKScriptMessageHandler window.oplStudio') {
+    throw new Error(`${candidate.id} packaged macOS transport must expose window.oplStudio through WKScriptMessageHandler`);
   }
-  if (transport.web_surface !== 'browser window.oplNativeWorkbench compatibility bridge') {
-    throw new Error(`${candidate.id} web surface must expose the browser window.oplNativeWorkbench bridge`);
+  if (transport.web_surface !== 'browser window.oplStudio compatibility bridge') {
+    throw new Error(`${candidate.id} web surface must expose the browser window.oplStudio bridge`);
   }
   if (transport.web_bridge !== 'src/bridge/webTransport.ts') {
     throw new Error(`${candidate.id} web bridge must be src/bridge/webTransport.ts`);

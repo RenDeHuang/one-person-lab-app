@@ -10,7 +10,7 @@ import {
 import { root } from './validation-config.ts';
 import { assertCommandSurface } from './value-helpers.ts';
 
-const appContributionCollections = ['navigation', 'views', 'commands', 'badges'];
+const appContributionCollections = ['navigation', 'views', 'commands', 'badges', 'ui'];
 const appContributionViewTypes = [
   'list_detail',
   'timeline',
@@ -44,6 +44,7 @@ export function validatePackageAppContributionsProductContract(contract) {
     views: 'view',
     commands: 'command',
     badges: 'badge',
+    ui: 'ui_placement',
   })) {
     const collectionSchema = schema.properties?.[collection];
     if (
@@ -70,6 +71,7 @@ export function validatePackageAppContributionsProductContract(contract) {
     view: ['view_id', 'view_type', 'title_i18n', 'data_ref'],
     command: ['command_id', 'label_i18n', 'action_ref'],
     badge: ['badge_id', 'label_i18n', 'data_ref'],
+    ui_placement: ['contribution_id', 'slot', 'contribution_kind', 'trust_tier', 'scope'],
   })) {
     if (schema.$defs?.[entry]?.additionalProperties !== false) {
       throw new Error(`App contributions schema ${entry} entries must reject arbitrary fields`);
@@ -79,7 +81,7 @@ export function validatePackageAppContributionsProductContract(contract) {
       requiredFields,
       `App contributions schema ${entry} required fields`,
     );
-    for (const forbiddenField of ['component', 'code', 'path', 'url']) {
+    for (const forbiddenField of ['component', 'code', 'html', 'path', 'url']) {
       if (forbiddenField in (schema.$defs?.[entry]?.properties ?? {})) {
         throw new Error(`App contributions schema ${entry} must not expose ${forbiddenField}`);
       }
@@ -128,7 +130,7 @@ export function validatePackageAppContributionsProductContract(contract) {
   );
   assertDeepEqualJson(
     contract.stable_id_fields,
-    ['navigation_id', 'view_id', 'command_id', 'badge_id'],
+    ['navigation_id', 'view_id', 'command_id', 'badge_id', 'contribution_id'],
     'App GUI Package contribution stable ids',
   );
   assertDeepEqualJson(
@@ -136,12 +138,36 @@ export function validatePackageAppContributionsProductContract(contract) {
     {
       navigation_view_id: 'must_reference_local_views_view_id',
       view_command_ids: 'must_reference_local_commands_command_id',
+      ui_view_id: 'must_reference_local_views_view_id',
+      ui_command_ids: 'must_reference_local_commands_command_id',
     },
     'App GUI Package contribution reference integrity',
   );
   assertDeepEqualJson(
+    contract.ui_composition,
+    {
+      projection_source: 'app_state.ui_contributions',
+      projection_schema: 'opl_app_ui_contributions_projection.v1',
+      slots: ['composer.palette', 'runtime.detail', 'settings.section'],
+      contribution_kinds: ['view', 'command_group'],
+      trust_tiers: ['declarative', 'trusted_first_party_renderer'],
+      scopes: ['root', 'work_item'],
+      ordering_policy: 'sort_order_then_package_id_then_contribution_id',
+      identity_policy: 'package_id_colon_contribution_id',
+      unknown_kind_policy: 'render_local_fallback_without_disabling_other_contributions',
+      lifecycle_policy: 'register_from_current_projection_and_remove_immediately_when_package_is_disabled_or_uninstalled',
+      shell_implementation_policy: 'consume_projection_through_existing_shell_extension_surfaces_without_a_second_plugin_manager',
+      native_candidate_host: 'reuse_DeepSeek_Harness_SlotCore_createSlotRenderer_and_ui_primitives',
+      active_aionui_host: 'thin_OPL_owned_adapter_over_existing_AionUI_components_and_registries',
+      active_shell_adopted: true,
+      release_ready: false,
+      clean_vm_ready: false,
+    },
+    'App GUI Package contribution UI composition',
+  );
+  assertDeepEqualJson(
     contract.forbidden_descriptor_fields,
-    ['component', 'code', 'path', 'url'],
+    ['component', 'code', 'html', 'path', 'url'],
     'App GUI Package contribution forbidden descriptor fields',
   );
   assertDeepEqualJson(

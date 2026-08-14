@@ -11,7 +11,7 @@ const readAdapter = (relativePath: string): ShellAdapterContract =>
 
 test('AionUI and Native share a carrier-neutral Codex executable boundary', () => {
   const aionui = readAdapter('contracts/app-shell-adapter.json');
-  const native = readAdapter('contracts/shell-adapters/opl-native-workbench.json');
+  const native = readAdapter('contracts/shell-adapters/opl-studio.json');
 
   assert.doesNotThrow(() => validateCodexExecutableContract(aionui));
   assert.doesNotThrow(() => validateCodexExecutableContract(native));
@@ -149,7 +149,7 @@ test('Full App contract delegates Codex to AionCore and omits the Framework mani
 });
 
 test('Native adoption cannot inherit the AionCore carrier', () => {
-  const native = structuredClone(readAdapter('contracts/shell-adapters/opl-native-workbench.json'));
+  const native = structuredClone(readAdapter('contracts/shell-adapters/opl-studio.json'));
   assert.ok(native.codex_executable_contract);
   native.codex_executable_contract.carrier = {
     kind: 'aioncore_managed_resources_manifest',

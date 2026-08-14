@@ -196,9 +196,9 @@
         "role": "active_release_shell_thin_display_consumer",
         "implementation_carrier": "opl-aion-shell"
       },
-      "opl_native_workbench": {
+      "opl_studio": {
         "role": "foreground_candidate_must_implement_core_runtime_before_adoption",
-        "implementation_carrier": "opl-native-workbench"
+        "implementation_carrier": "opl-studio"
       }
     },
     "rows": [
@@ -451,7 +451,7 @@
     "exact_runtime_identity_equality_may_gate_install_or_runtime": false,
     "host_path_only_resolution_can_prove_parity": false,
     "active_aionui_status": "aioncore_managed_identity_binding_packaged_full_standard_finder_replay_passed",
-    "opl_native_workbench_status": "launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains",
+    "opl_studio_status": "launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains",
     "same_physical_runtime_currently_claimed": true,
     "implementation_status": "source_identity_binding_and_full_standard_finder_evidence_complete",
     "runtime_identity_contract": {
@@ -548,7 +548,7 @@
     "duplicate_thread_store_allowed": false,
     "simultaneous_same_thread_write_safety_claimed": false,
     "active_aionui_status": "shell_local_conversation_repository_requires_canonical_projection",
-    "opl_native_workbench_status": "resume_capable_full_local_transcript_cache_requires_canonical_thread_directory",
+    "opl_studio_status": "resume_capable_full_local_transcript_cache_requires_canonical_thread_directory",
     "archive_restore_operations": ["thread/archive", "thread/unarchive"],
     "task_action_protocols": {
       "rename": "thread/name/set",

@@ -15,7 +15,7 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 [`visual-system.md`](visual-system.md)，carrier 当前差距见
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 
-本文不描述 AionUI、native workbench、Hermes 或 AGUI 的组件实现。任何 shell 都应
+本文不描述 AionUI、OPL Studio、Hermes 或 AGUI 的组件实现。任何 shell 都应
 通过 App-owned profile、page-state、state/action bridge 和 Settings Control Plane
 表达同一交互；实现现状不能反向定义理想目标。
 

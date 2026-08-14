@@ -32,7 +32,7 @@ import {
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
-type NativeWorkbenchPackageManifest = Record<string, unknown> & {
+type OPLStudioPackageManifest = Record<string, unknown> & {
   status: string;
   package_kind: string;
   app_bundle_path: string;
@@ -47,7 +47,7 @@ type NativeWorkbenchPackageManifest = Record<string, unknown> & {
   context_testids?: string[];
 };
 
-const nativeWorkbenchPackageFields = {
+const studioPackageFields = {
   default_release_shell_unchanged: true,
   active_shell_adopted: false,
   runtime_authority_transfer: false,
@@ -59,7 +59,7 @@ export function runCandidateCommands(candidate: ShellCandidateEntry): void {
     runRoleTombstoneReplayCommands(candidate);
     return;
   }
-  if (candidate.id !== 'opl-native-workbench') {
+  if (candidate.id !== 'opl-studio') {
     throw new Error(`Only the foreground Native candidate may own full candidate evidence: ${candidate.id}`);
   }
 
@@ -67,15 +67,15 @@ export function runCandidateCommands(candidate: ShellCandidateEntry): void {
     if (entry.optional) continue;
     runRequiredCommand(candidate.id, 'validation', entry);
     if (entry.id === 'candidate_app_bundle_build') {
-      validateNativeWorkbenchPackageManifest(candidate, { requireSmoke: false });
+      validateOPLStudioPackageManifest(candidate, { requireSmoke: false });
     }
     if (entry.id === 'candidate_packaged_first_run_smoke') {
-      validateNativeWorkbenchPackageManifest(candidate, { requireSmoke: true });
+      validateOPLStudioPackageManifest(candidate, { requireSmoke: true });
     }
   }
 
   validateCandidateImplementationFiles(candidate);
-  validateNativeWorkbenchImplementationEvidenceFile(candidate);
+  validateOPLStudioImplementationEvidenceFile(candidate);
 }
 
 function runRoleTombstoneReplayCommands(candidate: ShellCandidateRoleTombstone): void {
@@ -103,7 +103,7 @@ function runRequiredCommand(candidateId: string, commandKind: string, entry: Val
   }
 }
 
-function validateNativeWorkbenchPackageManifest(
+function validateOPLStudioPackageManifest(
   candidate: ShellCandidate,
   options: { requireSmoke?: boolean } = { requireSmoke: true },
 ): void {
@@ -111,10 +111,10 @@ function validateNativeWorkbenchPackageManifest(
     root,
     candidate.candidate_root,
     'out',
-    'opl-native-workbench-candidate-manifest.json',
+    'opl-studio-candidate-manifest.json',
   );
   assertFile(manifestPath, `${candidate.id} package manifest`);
-  const manifest = readJson<NativeWorkbenchPackageManifest>(manifestPath);
+  const manifest = readJson<OPLStudioPackageManifest>(manifestPath);
 
   if (manifest.status !== 'candidate_app_bundle_built') {
     throw new Error(`${candidate.id} package manifest must declare candidate_app_bundle_built`);
@@ -132,17 +132,17 @@ function validateNativeWorkbenchPackageManifest(
   const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
   assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
   if (
-    manifest.app_bundle_executable !== 'One Person Lab Native'
-    || findMacAppExecutable(macOsDir, candidate.id) !== 'One Person Lab Native'
+    manifest.app_bundle_executable !== 'One Person Lab Studio Preview'
+    || findMacAppExecutable(macOsDir, candidate.id) !== 'One Person Lab Studio Preview'
   ) {
-    throw new Error(`${candidate.id} .app bundle must use the OPL native workbench executable name`);
+    throw new Error(`${candidate.id} .app bundle must use the OPL Studio executable name`);
   }
   assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
   if (manifest.product_profile_owner !== 'one-person-lab-app') {
     throw new Error(`${candidate.id} package manifest must prove App-owned product profile input`);
   }
 
-  assertManifestFieldValues(candidate, manifest, nativeWorkbenchPackageFields);
+  assertManifestFieldValues(candidate, manifest, studioPackageFields);
   assertStringArrayIncludes(
     manifest.home_purpose_entries,
     requiredHomeEntries,
@@ -182,17 +182,17 @@ function assertManifestFieldValues(
   }
 }
 
-function validateNativeWorkbenchImplementationEvidenceFile(candidate: ShellCandidate): void {
+function validateOPLStudioImplementationEvidenceFile(candidate: ShellCandidate): void {
   const evidencePath = path.join(root, candidate.candidate_root, 'src', 'candidateContractEvidence.json');
   assertFile(evidencePath, `${candidate.id} contract evidence`);
   const evidence = readJson<Record<string, any>>(evidencePath);
   if (evidence.owner !== 'one-person-lab-app' || evidence.shell !== candidate.id) {
     throw new Error(`${candidate.id} evidence must be App-owned and match the candidate id`);
   }
-  validateNativeWorkbenchImplementationEvidence(candidate, evidence);
+  validateOPLStudioImplementationEvidence(candidate, evidence);
 }
 
-function validateNativeWorkbenchImplementationEvidence(
+function validateOPLStudioImplementationEvidence(
   candidate: ShellCandidate,
   evidence: Record<string, any>,
 ): void {
@@ -228,21 +228,21 @@ function validateNativeWorkbenchImplementationEvidence(
     `${candidate.id} evidence bilingual_ui.supported_locales`,
   );
   if (
-    evidence.default_home_layout?.policy !== 'ordinary home opens with the Codex project and conversation rail visible, the chat canvas dominant, model and reasoning controls in the composer, and the inspector closed until explicitly requested'
+    evidence.default_home_layout?.policy !== 'ordinary home uses the directly reused DeepSeek Harness chat-first composition baseline: workspace rail visible, conversation dominant, composer persistent, and secondary context closed until requested'
     || evidence.default_home_layout?.workspace_rail_default_open !== true
     || evidence.default_home_layout?.inspector_default_open !== false
   ) {
-    throw new Error(`${candidate.id} evidence must prove the Codex project rail is visible and the environment inspector is closed by default`);
+    throw new Error(`${candidate.id} evidence must prove the DeepSeek Harness chat-first layout is the default and secondary context stays closed`);
   }
 
-  validateCodexDesignReferenceEvidence(
+  validateDeepSeekHarnessCompositionEvidence(
     candidate.id,
     evidence.default_home_layout,
   );
 
   if (
     evidence.webui_transport?.renderer !== 'src/workbench/App.tsx'
-    || evidence.webui_transport?.native_host !== 'scripts/native-workbench-app.swift'
+    || evidence.webui_transport?.native_host !== 'scripts/opl-studio-app.swift'
     || evidence.webui_transport?.native_transport !== 'src/main.tsx#installNativeTransport'
     || evidence.webui_transport?.web_transport !== 'src/bridge/webTransport.ts'
     || evidence.webui_transport?.gateway !== 'scripts/dev-webui-server.mjs'
@@ -252,12 +252,15 @@ function validateNativeWorkbenchImplementationEvidence(
     throw new Error(`${candidate.id} evidence must prove shared Swift packaged macOS/WebUI renderer transport`);
   }
   if (
-    evidence.reuse_policy?.kdense_source_usage !== 'experience_reference_only'
+    evidence.reuse_policy?.deepseek_harness_source_usage !== 'direct_mit_package_and_selected_source_reuse'
+    || evidence.reuse_policy?.deepseek_harness_source_ref !== '47f943859bef60e4160492346772ded9b24f765a'
+    || evidence.reuse_policy?.deepseek_harness_selected_source_reused !== true
+    || evidence.reuse_policy?.kdense_source_usage !== 'experience_reference_only'
     || evidence.reuse_policy?.openclaudescience_source_usage !== 'experience_reference_only'
-    || evidence.reuse_policy?.copied_source !== false
+    || evidence.reuse_policy?.other_external_gui_source_copied !== false
     || evidence.reuse_policy?.runtime_authority_transfer !== false
   ) {
-    throw new Error(`${candidate.id} evidence must keep K-Dense/OpenClaudeScience as experience references without copied source or runtime authority transfer`);
+    throw new Error(`${candidate.id} evidence must prove pinned DeepSeek Harness source reuse while keeping other GUI references non-copied and runtime authority unchanged`);
   }
   assertStringArrayIncludes(
     evidence.reuse_policy?.adopted_patterns ?? [],
@@ -282,12 +285,12 @@ function validateNativeWorkbenchImplementationEvidence(
   );
   assertStringArrayIncludes(
     evidence.first_run_matrix_mapping?.required_shell_testids ?? [],
-    ['opl-native-workbench-root', 'opl-model-access-entry', 'opl-skip-to-chat'],
+    ['opl-studio-root', 'opl-model-access-entry', 'opl-skip-to-chat'],
     `${candidate.id} evidence first-run testids`,
   );
   if (
     evidence.webui_parity?.shared_renderer !== true
-    || evidence.webui_parity?.bridge_shape !== 'window.oplNativeWorkbench'
+    || evidence.webui_parity?.bridge_shape !== 'window.oplStudio'
     || evidence.webui_parity?.product_profile !== 'src/generated/oplProductProfile.generated.json'
     || evidence.webui_parity?.desktop_and_webui_default_home !== 'chat_first_default_collapsed'
   ) {
@@ -321,48 +324,86 @@ function validateNativeWorkbenchImplementationEvidence(
   }
 }
 
-export function validateCodexDesignReferenceAlignment(
+export function validateDeepSeekHarnessProductLayoutContract(
   candidateId: string,
   alignment: Record<string, any> | undefined,
 ): void {
-  const fixedExternalIdentityFields = [
-    'reference_version',
-    'reference_build',
-    'reference_observed_at',
-    'observed_on',
-    'current_reference_status',
-  ];
   if (
-    alignment?.project_rail !== 'persistent'
+    alignment?.reference_product !== 'DeepSeek Harness Web client'
+    || alignment?.project_rail !== 'persistent'
     || alignment?.timeline !== 'single_conversation_timeline'
     || alignment?.model_controls !== 'composer_bottom_row'
     || alignment?.reasoning_controls !== 'composer_bottom_row'
-    || alignment?.environment_details !== 'floating_on_demand'
+    || alignment?.details !== 'dsh_resizable_column_on_desktop_fullscreen_overlay_on_mobile'
     || alignment?.settings_locale_surface !== 'settings'
     || alignment?.model_policy_source !== 'one-person-lab-app/contracts/app-product-profile.json#gui.home.codex_model_display_options'
     || alignment?.model_policy_consumption !== 'dynamic_build_injection_with_minimal_offline_fallback'
-    || fixedExternalIdentityFields.some((field) => field in alignment)
   ) {
-    throw new Error(`${candidateId} evidence must prove stable Codex-style interaction semantics without pinning current conformance to an external product build`);
+    throw new Error(`${candidateId} evidence must bind product layout and interaction semantics to the DeepSeek Harness Web client composition`);
   }
   assertStringArrayIncludes(
     alignment.required_surfaces ?? [],
     requiredNativeVisualParitySurfaces,
-    `${candidateId} evidence default_home_layout Codex design reference required_surfaces`,
+    `${candidateId} evidence default_home_layout DSH product layout required_surfaces`,
   );
+  if (JSON.stringify(alignment.left_rail_items) !== JSON.stringify(['projects', 'conversations', 'search', 'settings'])) {
+    throw new Error(`${candidateId} evidence left rail must contain only projects, conversations, search, and settings`);
+  }
+  if (JSON.stringify(alignment.right_context_modules) !== JSON.stringify(['run_status', 'files_results', 'agents_capabilities'])) {
+    throw new Error(`${candidateId} evidence right context must contain only run status, files and results, and agents and capabilities`);
+  }
+  assertStringArrayIncludes(alignment.runtime_status_sources ?? [], [
+    'codex_app_server_current_thread',
+    'opl_app_state_active_project_lines',
+  ], `${candidateId} evidence runtime_status_sources`);
+  if (
+    alignment.runtime_detail_slot !== 'ui_contributions.runtime.detail'
+    || alignment.files_input_policy !== 'user_selected_files_and_directories_only'
+    || alignment.results_policy !== 'owner_projected_artifacts_only_no_action_json'
+    || alignment.package_lifecycle_surface !== 'settings'
+    || JSON.stringify(alignment.product_identity?.visible_text) !== JSON.stringify(['OPL Studio', 'One Person Lab'])
+    || alignment.product_identity?.logo_visible !== false
+    || alignment.product_identity?.bundle_icon_allowed !== true
+  ) {
+    throw new Error(`${candidateId} evidence must preserve runtime contribution, file/result, Settings lifecycle, and text-only identity boundaries`);
+  }
 }
 
-export function validateCodexDesignReferenceEvidence(
+export function validateDeepSeekHarnessCompositionEvidence(
   candidateId: string,
   defaultHomeLayout: Record<string, any> | undefined,
 ): void {
-  if (defaultHomeLayout?.codex_2026_07_11_alignment !== undefined) {
+  if (
+    defaultHomeLayout?.codex_2026_07_11_alignment !== undefined
+    || defaultHomeLayout?.codex_design_reference_alignment !== undefined
+  ) {
     throw new Error(
-      `${candidateId} evidence legacy codex_2026_07_11_alignment is historical provenance and cannot satisfy current conformance`,
+      `${candidateId} evidence must not retain Codex visual-alignment contracts after adopting DeepSeek Harness as the GUI source baseline`,
     );
   }
-  validateCodexDesignReferenceAlignment(
+  validateDeepSeekHarnessProductLayoutContract(
     candidateId,
-    defaultHomeLayout?.codex_design_reference_alignment,
+    defaultHomeLayout?.product_layout_contract,
   );
+  const visual = defaultHomeLayout?.primary_visual_reference;
+  if (
+    visual?.reference_product !== 'DeepSeek Harness'
+    || visual?.reference_version !== '47f943859bef60e4160492346772ded9b24f765a'
+    || visual?.source_usage !== 'direct_mit_gui_source_reuse'
+    || visual?.left_side !== 'persistent project and conversation rail with search and Settings only'
+    || visual?.center !== 'single dominant conversation timeline with bottom composer'
+    || visual?.right_side !== 'on-demand DSH details column for run status, files and results, and agents and capabilities'
+  ) {
+    throw new Error(`${candidateId} evidence must bind the visible shell to the pinned DeepSeek Harness GUI source cohort`);
+  }
+  const style = defaultHomeLayout?.visual_style_reference;
+  if (
+    style?.reference_product !== 'DeepSeek Harness'
+    || style?.reference_version !== '47f943859bef60e4160492346772ded9b24f765a'
+    || style?.scope !== 'six_pinned_gui_package_source_trees_with_vendor_external_opl_adapters'
+    || style?.token_source !== 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css'
+    || style?.font_asset_policy !== 'system_font_stack_no_foreign_font_binary_redistribution'
+  ) {
+    throw new Error(`${candidateId} evidence must bind visual style to the pinned DeepSeek Harness theme source`);
+  }
 }

@@ -95,7 +95,7 @@ export type ShellCandidate = HermesTargetStateContract & {
     primary_policy: string;
     right_context_policy: string;
     mas_autonomy_policy: string;
-    open_science_adoption: string[];
+    on_demand_context_policy: string[];
     must_not: string[];
   };
   webui_transport?: {
@@ -106,14 +106,6 @@ export type ShellCandidate = HermesTargetStateContract & {
     event_stream: string;
     gateway: string;
     native_picker_policy: string;
-  };
-  pilotdeck_information_architecture_target?: {
-    source_usage: string;
-    license: string;
-    copied_source_allowed: boolean;
-    runtime_authority_transfer_allowed: boolean;
-    required_surfaces: string[];
-    required_testids: string[];
   };
   target_product_shape: {
     codex_cli_fixed_executor: boolean;
@@ -127,6 +119,19 @@ export type ShellCandidate = HermesTargetStateContract & {
     right_context_user_request_only?: boolean;
     co_scientist_split_screen_default?: boolean;
     mas_autonomous_research_default?: boolean;
+    left_rail_items: string[];
+    right_context_modules: string[];
+    right_context_default: string;
+    runtime_status_sources: string[];
+    runtime_detail_slot: string;
+    files_input_policy: string;
+    results_policy: string;
+    package_lifecycle_surface: string;
+    product_identity: {
+      visible_text: string[];
+      logo_visible: boolean;
+      bundle_icon_allowed: boolean;
+    };
     purpose_entries: string[];
     runtime_page_policy?: string;
     settings_policy: string;
@@ -299,6 +304,25 @@ export type ShellCandidateRegistry = {
     evaluated_version?: string;
     license: string;
     source_usage: string;
+    adopted_packages?: Record<string, string>;
+    adopted_source?: {
+      root: string;
+      ref: string;
+      path_policy?: string;
+      byte_policy?: string;
+      package_roots?: string[];
+      files: string[];
+    };
+    adopted_surface?: string[];
+    upstream_intake?: {
+      mode: string;
+      vendor_source_policy: string;
+      opl_delta_policy: string;
+      update_policy: string;
+      floating_ref_allowed: boolean;
+      automatic_promotion_allowed: boolean;
+      stop_condition: string;
+    };
     reference_value: string[];
     opl_mapping: string[];
     forbidden_reuse: string[];

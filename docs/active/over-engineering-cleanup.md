@@ -72,7 +72,7 @@ result requires it. A defect confined to Team, another rejected surface, or
 retired/private legacy does not enter the ordinary product repair line.
 
 The GUI role boundary remains fixed: AionUI is active,
-`opl-native-workbench` is the foreground alternative, and Hermes/AGUI are
+`opl-studio` is the foreground alternative, and Hermes/AGUI are
 archived technical proofs. Documentation cleanup cannot change those roles,
 remove their owner contracts, or claim adoption, release readiness, or
 retirement.

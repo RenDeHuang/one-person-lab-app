@@ -124,7 +124,7 @@ Native 状态只用于不定期手动技术评估和选定实验的差距判断�
 - [`visual-system.md`](visual-system.md)
 
 Carrier 角色和候选边界读取 active adapter、`contracts/app-shell-candidates.json` 和
-`contracts/shell-adapters/opl-native-workbench.json`。后者只描述实现/候选边界，不能
+`contracts/shell-adapters/opl-studio.json`。后者只描述实现/候选边界，不能
 覆盖上面的 App product authority。
 
 Active AionUI 默认状态通过 README 治理段声明的动态 state source 读取；当前值与
@@ -143,7 +143,7 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
   [`evidence/aionui-41301-parity-20260714/manifest.json`](evidence/aionui-41301-parity-20260714/manifest.json)
   和 [`evidence/aionui-41301/manifest.json`](evidence/aionui-41301/manifest.json)；不得改绑为
   current source或外推为 Install/Release。
-- Native candidate currentness从 `contracts/app-shell-candidates.json`、Native adapter、candidate
+- OPL Studio candidate currentness从 `contracts/app-shell-candidates.json`、Studio adapter、candidate
   source/tests和显式验证入口读取；旧 smoke、package、branch或 SHA不承担 active truth。
 - Pixel、Install与Release只从绑定当前 exact cohort的各自 owner evidence更新。Source/validator
   通过不能填充这三轴，旧 evidence也不能被描述为 current proof。
@@ -155,11 +155,11 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | `A1` | `bun run validate:active-shell -- --quick` | Active adapter、contracts 和 source probes 的快速结构检查。 |
 | `A2` | `bun run validate:active-shell` | Active shell 完整 App-root contract validation。 |
 | `C1` | `npm run validate:shell-candidates` | 只验证 active/foreground/retained/archived 固定角色，不读取 candidate detail。 |
-| `N1` | `npm run test:candidate:native` | Explicit Native candidate contract、单 App Server adapter、Codex subagent projection 与 no-private-layer 边界。 |
-| `N2` | `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json node --experimental-strip-types scripts/validate-active-shell.ts --quick` | Explicit native adapter contract 结构。 |
+| `N1` | `npm run test:candidate:studio` | Explicit OPL Studio candidate contract、单 App Server adapter、Codex subagent projection 与 no-private-layer 边界。 |
+| `N2` | `OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json node --experimental-strip-types scripts/validate-active-shell.ts --quick` | Explicit native adapter contract 结构。 |
 | `N3` | Candidate repo `npm run validate:candidate` 和 `npm run validate:state-model` | Candidate source 与 state-model consumption。 |
 | `N4` | Candidate repo `npm run smoke:visual` | Manual/foreground visual smoke；不等于 packaged acceptance。 |
-| `N5` | `npm run package:candidate:native` | Explicit candidate package path；不改变 active release shell。 |
+| `N5` | `npm run package:candidate:studio` | Explicit candidate package path；不改变 active release shell。 |
 | `H1` | `npm run validate:candidate:hermes` | Hermes role tombstone + adapter-owned source route；缺 checkout 返回 typed blocked，不进入默认门。 |
 | `G1` | `npm run validate:candidate:agui` | AGUI archived role tombstone 与显式 replay route；不恢复 routine lane。 |
 | `V1` | Route/viewport/ref-bound screenshots、pixel checks、packaged/VM evidence | 对应视觉、package 或用户路径；每层 evidence 只证明自身。 |
@@ -192,7 +192,7 @@ X0 只记录已保留 source 的收敛债务，不进入核心完成度、默认
 ## Cross-shell Detail Appendix
 
 以下明细保留 active/candidate 的逐轴审计价值，但不作为 AionUI 主线工作的优先级入口；
-Native candidate 不得与 active-shell P0 差距竞争实施资源。每行保留 Contract、Source、Pixel、
+OPL Studio candidate 不得与 active-shell P0 差距竞争实施资源。每行保留 Contract、Source、Pixel、
 Install、Release 五轴；没有 exact-feature installed/release evidence 的列保持 unverified。
 
 | 功能或交互要求 | AionUI contract | AionUI source | AionUI pixel | Native contract | Native source | Native pixel | AionUI install | AionUI release | Native install | Native release | 验证入口与当前差距 |
@@ -251,7 +251,7 @@ Install、Release 五轴；没有 exact-feature installed/release evidence 的�
   Worktree/Handoff、同线程focus fallback或local annotation store。
 - **Settings / Accessibility：** Source/DOM regressions只守IA、窄窗、keyboard/focus/ARIA、reduced-motion
   和semantic contrast；真实screen-reader、rendered traversal/contrast及installed pixels仍由各自owner验收。
-- **Native candidate：** Candidate contract/source/pixel状态从当前Native owner surface与显式验证入口读取；
+- **OPL Studio candidate：** Candidate contract/source/pixel状态从当前 Studio owner surface与显式验证入口读取；
   旧smoke、package或设计观察不授权active-shell adoption或release-ready。
 
 这些边界继续按对应owner单独推进；不能用source validator、历史manifest或本表状态外推公开

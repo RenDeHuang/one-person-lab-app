@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 import type {
   ShellCandidateEntry,
   ShellCandidateRegistry,
@@ -39,19 +40,19 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   }
   const alternative = registry.alternative_gui_policy;
   if (
-    alternative?.only_foreground_alternative !== 'opl-native-workbench' ||
-    alternative.basis !== 'OPL native workbench' ||
+    alternative?.only_foreground_alternative !== 'opl-studio' ||
+    alternative.basis !== 'OPL Studio DSH-derived composition workbench' ||
     alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay' ||
     alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
   ) {
-    throw new Error('candidate registry must keep OPL native workbench as the only foreground alternative and Hermes/AGUI as explicit-only archived proofs');
+    throw new Error('candidate registry must keep OPL Studio as the only foreground alternative and Hermes/AGUI as explicit-only archived proofs');
   }
   if (alternative.default_candidate_validation_scope.length !== 0) {
     throw new Error('default candidate validation scope must stay empty; default gates validate role registry only');
   }
   assertStringArrayIncludes(
     alternative.explicit_candidate_validation_scope,
-    ['opl-native-workbench', 'hermes-codex', 'agui-codex'],
+    ['opl-studio', 'hermes-codex', 'agui-codex'],
     'alternative_gui_policy.explicit_candidate_validation_scope',
   );
   if (alternative.explicit_candidate_validation_scope.length !== 3) {
@@ -117,7 +118,8 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'candidate uses one App-owned product renderer across claimed delivery surfaces without making the renderer a product truth owner',
     'candidate provides delivery-surface bridges that expose the same App-owned API shape without taking runtime authority',
     'candidate passes WebUI smoke only when it explicitly claims WebUI delivery; otherwise WebUI remains explicitly deferred and non-claiming',
-    'candidate re-expresses PilotDeck information organization as a Codex App-style chat-first UI with a lightweight workspace/session rail and right-side collapsible contextual tabs without copying PilotDeck code or runtime',
+    'candidate directly reuses the pinned DeepSeek Harness GUI source cohort and keeps OPL custom functions outside the vendor snapshot',
+    'candidate keeps only projects, conversations, search, and Settings in the left rail and exposes run status, files and results, and agents and capabilities as user-requested right context',
     'candidate passes state-model validation proving active project line projection consumption without taking runtime or domain authority',
     'candidate compiles a launchable .app bundle through the App wrapper when OPL_APP_SHELL_ADAPTER_CONTRACT selects its adapter contract',
     'candidate passes App-root candidate validation',
@@ -140,17 +142,17 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
 function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
   const entries = registry.candidates;
   const ids = entries.map((entry) => entry.id).sort();
-  if (JSON.stringify(ids) !== JSON.stringify(['agui-codex', 'hermes-codex', 'opl-native-workbench'])) {
+  if (JSON.stringify(ids) !== JSON.stringify(['agui-codex', 'hermes-codex', 'opl-studio'])) {
     throw new Error('candidate role registry must contain exactly Native, Hermes, and AGUI');
   }
 
-  const native = entries.find((entry) => entry.id === 'opl-native-workbench');
+  const native = entries.find((entry) => entry.id === 'opl-studio');
   if (
     !native ||
     'role_tombstone' in native ||
     native.state !== 'technical_verification' ||
     native.foreground_alternative_role !== 'only_foreground_alternative' ||
-    native.adapter_contract !== 'contracts/shell-adapters/opl-native-workbench.json' ||
+    native.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
     native.release_participation !== 'manual_on_demand_technical_evaluation_build_only'
   ) {
     throw new Error('Native must remain the explicit foreground candidate and must not collapse into a role tombstone');
@@ -338,8 +340,8 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   }
   const profiles = launcher?.launch_profiles ?? {};
   const profileIds = Object.keys(profiles).sort();
-  if (profileIds.join(',') !== ['aionui', 'opl-native-workbench'].sort().join(',')) {
-    throw new Error('interactive launcher launch_profiles must be exactly aionui and opl-native-workbench');
+  if (profileIds.join(',') !== ['aionui', 'opl-studio'].sort().join(',')) {
+    throw new Error('interactive launcher launch_profiles must be exactly aionui and opl-studio');
   }
   const aionui = profiles.aionui;
   if (
@@ -352,13 +354,13 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   ) {
     throw new Error('interactive launcher AionUI profile must preserve the installed mainline and existing dev command');
   }
-  const native = profiles['opl-native-workbench'];
+  const native = profiles['opl-studio'];
   if (
-    native?.adapter_contract !== 'contracts/shell-adapters/opl-native-workbench.json' ||
+    native?.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
     native.default_mode !== 'packaged' ||
-    native.bundle_id !== 'cn.gflab.opl.native-workbench.candidate' ||
-    native.packaged_app_path !== '/Applications/One Person Lab Native.app' ||
-    native.bundle_relative_path !== 'out/One Person Lab Native.app' ||
+    native.bundle_id !== 'cn.gflab.opl.studio.preview' ||
+    native.packaged_app_path !== '/Applications/One Person Lab Studio Preview.app' ||
+    native.bundle_relative_path !== 'out/One Person Lab Studio Preview.app' ||
     native.supported_modes?.join(',') !== 'packaged' ||
     native.package_command?.join(' ') !== 'npm run package'
   ) {
@@ -481,7 +483,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
 
   const kdense = references.find((reference) => reference.id === 'kdense-byok');
   if (!kdense) {
-    throw new Error('candidate registry must record K-Dense BYOK as an experience reference for opl-native-workbench');
+    throw new Error('candidate registry must record K-Dense BYOK as an experience reference for opl-studio');
   }
   if (kdense.source_repo !== 'https://github.com/K-Dense-AI/k-dense-byok') {
     throw new Error('K-Dense design reference must point at K-Dense-AI/k-dense-byok');
@@ -538,7 +540,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'scientific report, figure, notebook, and table preview affordances',
   ], 'Open Science reference_value');
   assertStringArrayIncludes(openScience.opl_mapping, [
-    "OPL Native Workbench should keep the default visual basis Codex App composer-first, not Open Science's three-column workbench default",
+    "OPL Studio should keep the DeepSeek Harness chat-first source-reuse basis, not Open Science's three-column workbench default",
     'OPL right context stays collapsed by default and opens only when the user asks to inspect files, artifacts, review refs, actions, runtime refs, memory refs, automations, or settings',
     'MAS is autonomous research execution, not a co-scientist pair-work surface; the UI must not assume users monitor results beside chat while work runs',
     'Open Science artifact/provenance/review ideas map to secondary refs, Runtime/delivery pages, and explicit inspector tabs without taking artifact body, domain verdict, or runtime authority',
@@ -560,10 +562,80 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     deepseekHarness.evaluated_at !== '2026-08-14' ||
     deepseekHarness.evaluated_version !== '0.1.0-rc.5 source; 0.1.0-rc.6 installable entry observed' ||
     deepseekHarness.license !== 'MIT' ||
-    deepseekHarness.source_usage !== 'design_and_bounded_source_reuse_candidate'
+    deepseekHarness.source_usage !== 'approved_bounded_source_and_package_reuse'
   ) {
     throw new Error('DeepSeek Harness reference must stay pinned to the evaluated preview source, version, date, license, and bounded reuse status');
   }
+  assertDeepEqualJson(deepseekHarness.adopted_packages, {
+    '@deepseek-ai/dsh-client-ui-slots': '0.1.0-rc.6',
+    '@deepseek-ai/dsh-client-web-react': '0.1.0-rc.6',
+    '@deepseek-ai/cordis': '4.0.1',
+    '@deepseek-ai/dsh-invariants': '0.1.0-rc.6',
+  }, 'DeepSeek Harness adopted_packages');
+  assertDeepEqualJson(deepseekHarness.adopted_source, {
+    root: 'src/vendor/deepseek-harness',
+    ref: '47f943859bef60e4160492346772ded9b24f765a',
+    path_policy: 'preserve_upstream_package_relative_paths',
+    byte_policy: 'byte_identical_to_pinned_ref',
+    package_roots: [
+      'packages/client/ui-layout/src',
+      'packages/client/ui-sidebar/src',
+      'packages/client/ui-conversation/src',
+      'packages/client/ui-settings-general/src',
+      'packages/client/ui-theme/src',
+      'packages/client/ui-primitives/src',
+    ],
+    files: [
+      'packages/client/ui-layout/src/client/AppFrame.tsx',
+      'packages/client/ui-layout/src/client/AppFrame.module.css',
+      'packages/client/ui-layout/src/client/columns.ts',
+      'packages/client/ui-sidebar/src/client/SidebarRoot.tsx',
+      'packages/client/ui-sidebar/src/client/SidebarRoot.module.css',
+      'packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx',
+      'packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css',
+      'packages/client/ui-conversation/src/client/skeleton/InputBar.tsx',
+      'packages/client/ui-conversation/src/client/skeleton/InputBar.module.css',
+      'packages/client/ui-conversation/src/client/skeleton/EmptyHero.tsx',
+      'packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css',
+      'packages/client/ui-settings-general/src/client/SettingsRoot.tsx',
+      'packages/client/ui-settings-general/src/client/SettingsRoot.module.css',
+      'packages/client/ui-theme/src/styles/design-platform.css',
+      'packages/client/ui-theme/src/styles/base.css',
+      'packages/client/ui-theme/src/styles/scrollbar.css',
+      'packages/client/ui-theme/src/styles/gradient-shadow-text.css',
+      'packages/client/ui-primitives/src/Button.tsx',
+      'packages/client/ui-primitives/src/Button.module.css',
+      'packages/client/ui-primitives/src/Pill.tsx',
+      'packages/client/ui-primitives/src/Pill.module.css',
+      'packages/client/ui-primitives/src/Input.tsx',
+      'packages/client/ui-primitives/src/Input.module.css',
+      'packages/client/ui-primitives/src/StateDot.tsx',
+      'packages/client/ui-primitives/src/StateDot.module.css',
+      'packages/client/ui-primitives/src/Tooltip.tsx',
+      'packages/client/ui-primitives/src/Tooltip.module.css',
+      'packages/client/ui-primitives/src/markdown/MessageText.tsx',
+      'packages/client/ui-primitives/src/markdown/MessageText.module.css',
+    ],
+  }, 'DeepSeek Harness adopted_source');
+  assertStringArrayIncludes(deepseekHarness.adopted_surface, [
+    'SlotCore registration lifecycle',
+    'createSlotRenderer React composition and error isolation',
+    'AppFrame three-column composition and responsive column solver',
+    'SidebarRoot workspace and session rail composition',
+    'ConversationRoot InputBar EmptyHero and persistent composer composition',
+    'SettingsRoot navigation and modal composition',
+    'ui-theme design platform base scrollbar and gradient shadow styles',
+    'complete ui-primitives source tree with OPL brand overrides outside the vendor root',
+  ], 'DeepSeek Harness adopted_surface');
+  assertDeepEqualJson(deepseekHarness.upstream_intake, {
+    mode: 'pinned_vendor_snapshot_with_external_opl_adapters',
+    vendor_source_policy: 'byte_identical_to_recorded_upstream_path_and_ref',
+    opl_delta_policy: 'branding_bridge_state_and_custom_functions_live_outside_vendor_tree_as_adapters_and_slot_plugins',
+    update_policy: 'fetch_review_exact_source_diff_update_one_pinned_ref_then_run_source_interaction_desktop_webui_pixel_notice_and_package_gates',
+    floating_ref_allowed: false,
+    automatic_promotion_allowed: false,
+    stop_condition: 'large_private_vendor_delta_or_required_dsh_authority_runtime',
+  }, 'DeepSeek Harness upstream_intake');
   assertStringArrayIncludes(deepseekHarness.reference_value, [
     'quiet chat-first Web UI with workspace/session rail and persistent composer',
     'typed UI slot registry with single, list, keyed, and chain composition kinds',
@@ -573,17 +645,18 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'dynamic plugin inventory and configuration rendered from installed deployment state',
   ], 'DeepSeek Harness reference_value');
   assertStringArrayIncludes(deepseekHarness.opl_mapping, [
-    'OPL Native Workbench is the only GUI route allowed to evaluate DeepSeek Harness renderer or slot reuse',
+    'OPL Studio is the only GUI route allowed to import DeepSeek Harness renderer runtime or GUI source; AionUI may consume only the OPL-owned contribution ABI without a DeepSeek Harness dependency',
     'OPL App keeps product truth and slot policy while Framework projections and App actions remain the only runtime state and mutation ABI',
     'Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state',
     'slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation',
-    'OPL should reuse or adapt the smallest independently testable GUI packages before considering a source fork',
+    'OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices',
     'existing Framework modular-monolith and native Package lifecycle boundaries remain authoritative and are not replaced by Cordis',
   ], 'DeepSeek Harness opl_mapping');
   assertStringArrayIncludes(deepseekHarness.forbidden_reuse, [
     'do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority',
     'do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane',
-    'do not add DeepSeek Harness as a second foreground shell beside opl-native-workbench',
+    'do not add DeepSeek Harness as a second foreground shell beside opl-studio',
+    'do not import DeepSeek Harness runtime or GUI source into the AionUI mainline',
     'do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes',
     'do not assume the repository root license covers every selected package or third-party payload without per-package notices review',
     'do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces',

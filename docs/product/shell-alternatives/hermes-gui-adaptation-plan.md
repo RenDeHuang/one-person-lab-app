@@ -19,7 +19,7 @@ Hermes 已退出产品考虑，不再是候选、reference 或 adoption 路线�
 保留、收窄、隐藏、重命名或延后，才能最快得到一个看起来像 Codex App 换壳、
 但由 OPL 控制的候选包。
 
-当前结论：AionUI 仍是 release shell；`opl-native-workbench` 是唯一 foreground
+当前结论：AionUI 仍是 release shell；`opl-studio` 是唯一 foreground
 alternative。Hermes 只保留 adapter、runbook 和历史证据，且仅响应用户对该归档证明的
 明确 replay 请求。以下路线、目标态和缺口清单均为历史上下文，不是待执行 backlog。
 
@@ -292,7 +292,7 @@ runtime bridge、packaged smoke、WebUI claim 和 release gates。
 | 条目 | 当前功能/结构状态 | 目的 | 剩余功能/结构缺口 | 后置证据 owner |
 | --- | --- | --- | --- | --- |
 | App-owned Hermes 目标态 | Contract / docs owner 已明确。 | 让 Hermes prior reference 受 App product truth 约束，而不是受 upstream roadmap 或 shell-local state 约束。 | 目标态变化时先改 App-owned contract/docs，再改 shell。 | Candidate validators and shell artifacts. |
-| 默认 release shell 仍是 AionUI | Active shell contract 仍指向 AionUI；Hermes 是 archived proof，当前 foreground alternative 是 `opl-native-workbench`。 | 防止 historical replay 被误读成默认发布 shell 切换。 | Hermes promotion 已关闭；只有未来新的用户 SSOT 才能重新建立独立候选。 | Archived adapter and replay evidence. |
+| 默认 release shell 仍是 AionUI | Active shell contract 仍指向 AionUI；Hermes 是 archived proof，当前 foreground alternative 是 `opl-studio`。 | 防止 historical replay 被误读成默认发布 shell 切换。 | Hermes promotion 已关闭；只有未来新的用户 SSOT 才能重新建立独立候选。 | Archived adapter and replay evidence. |
 | Foreground alternative app bundle identity | OPL branded candidate bundle identity 已纳入 candidate contract/readback 要求。 | 避免候选包仍暴露 generic Electron identity。 | 后续若 packaging 机制变化，保留等价 bundle identity gate。 | Candidate manifests and package validation artifacts. |
 | Codex app-server gateway | 目标 gateway 和事件流边界已定义。 | 让普通 chat 走 Codex app-server，而不是 Hermes backend/provider selector。 | 继续补齐 tool / approval / error bridge 和长 turn 稳定性。 | Source tests, packaged smoke, live app-server readback. |
 | gflabtoken-only 模型访问 | 普通模型访问目标已收敛到 gflabtoken/API key。 | 避免 provider marketplace、Base URL、OAuth 和多 provider 设置成为普通用户路径。 | Settings 深层仍需持续按普通路径 / Advanced / 隐藏分级处理。 | Renderer tests, Settings visual smoke, real user credential readback. |

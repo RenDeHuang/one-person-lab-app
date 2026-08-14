@@ -37,7 +37,7 @@ function fakeAppRoot(): { appRoot: string; cleanup: () => void } {
   for (const name of ["app-shell-candidates.json", "app-shell-adapter.json"]) {
     fs.copyFileSync(path.join(process.cwd(), "contracts", name), path.join(contractsDir, name));
   }
-  const nativeRoot = path.join(appRoot, "shells", "opl-native-workbench");
+  const nativeRoot = path.join(appRoot, "shells", "opl-studio");
   fs.mkdirSync(nativeRoot, { recursive: true });
   fs.writeFileSync(path.join(nativeRoot, "package.json"), '{"private":true}\n');
   return {
@@ -71,7 +71,7 @@ test("GUI launcher parses the explicit candidate safety controls", () => {
   assert.deepEqual(
     parseGuiLauncherArgs([
       "--shell",
-      "opl-native-workbench",
+      "opl-studio",
       "--mode",
       "packaged",
       "--rebuild",
@@ -81,7 +81,7 @@ test("GUI launcher parses the explicit candidate safety controls", () => {
       "--allow-actions",
     ]),
     {
-      shell: "opl-native-workbench",
+      shell: "opl-studio",
       mode: "packaged",
       rebuild: true,
       plan: true,
@@ -108,7 +108,7 @@ test("GUI Runtime resolver returns absolute executable identity and a stable coh
   }
 });
 
-test("Native candidate open args preserve one instance and default to read-only actions", () => {
+test("OPL Studio candidate open args preserve one instance and default to read-only actions", () => {
   const fixture = fakeRuntimePath();
   try {
     const identity = resolveGuiRuntimeIdentity({ env: fixture.env });
@@ -135,27 +135,27 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
   const appFixture = fakeAppRoot();
   try {
     const plan = createGuiLaunchPlan({
-      args: parseGuiLauncherArgs(["--shell", "opl-native-workbench", "--rebuild", "--plan"]),
+      args: parseGuiLauncherArgs(["--shell", "opl-studio", "--rebuild", "--plan"]),
       appRoot: appFixture.appRoot,
       env: fixture.env,
     });
-    assert.equal(plan.shell, "opl-native-workbench");
+    assert.equal(plan.shell, "opl-studio");
     assert.equal(plan.bundle_identity_isolated, true);
     assert.equal(plan.candidate_actions, "dry_run_only");
     assert.equal(plan.release_adoption_changed, false);
     assert.equal(plan.updater_channel_changed, false);
-    assert.equal(plan.app_path, "/Applications/One Person Lab Native.app");
+    assert.equal(plan.app_path, "/Applications/One Person Lab Studio Preview.app");
     assert.equal(
       plan.package_app_path,
-      path.join(appFixture.appRoot, "shells", "opl-native-workbench", "out", "One Person Lab Native.app"),
+      path.join(appFixture.appRoot, "shells", "opl-studio", "out", "One Person Lab Studio Preview.app"),
     );
     assert.deepEqual(plan.package_command, {
       executable: "npm",
       args: ["run", "package"],
-      cwd: path.join(appFixture.appRoot, "shells", "opl-native-workbench"),
+      cwd: path.join(appFixture.appRoot, "shells", "opl-studio"),
     });
     assert.equal(plan.command.executable, "/usr/bin/open");
-    assert.equal(plan.command.args[0], "/Applications/One Person Lab Native.app");
+    assert.equal(plan.command.args[0], "/Applications/One Person Lab Studio Preview.app");
     assert.equal(plan.command.args.includes("-n"), false);
   } finally {
     appFixture.cleanup();
@@ -163,18 +163,18 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
   }
 });
 
-test("Native install atomically replaces only the isolated bundle identity", () => {
+test("OPL Studio install atomically replaces only the isolated bundle identity", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-native-install-"));
-  const source = fakeAppBundle(root, "source", "cn.gflab.opl.native-workbench.candidate", "new");
-  const installed = fakeAppBundle(root, "installed", "cn.gflab.opl.native-workbench.candidate", "old");
+  const source = fakeAppBundle(root, "source", "cn.gflab.opl.studio.preview", "new");
+  const installed = fakeAppBundle(root, "installed", "cn.gflab.opl.studio.preview", "old");
   try {
     installAppBundleAtomically({
       sourceAppPath: source,
       installedAppPath: installed,
-      expectedBundleId: "cn.gflab.opl.native-workbench.candidate",
+      expectedBundleId: "cn.gflab.opl.studio.preview",
       appBundleOperations: fakeAppBundleOperations,
     });
-    assert.equal(fakeAppBundleOperations.readIdentifier(installed), "cn.gflab.opl.native-workbench.candidate");
+    assert.equal(fakeAppBundleOperations.readIdentifier(installed), "cn.gflab.opl.studio.preview");
     assert.equal(fs.readFileSync(path.join(installed, "Contents", "cohort.txt"), "utf8"), "new\n");
     assert.equal(fs.existsSync(source), true);
   } finally {
@@ -182,16 +182,16 @@ test("Native install atomically replaces only the isolated bundle identity", () 
   }
 });
 
-test("Native install refuses to overwrite an unrelated application", () => {
+test("OPL Studio install refuses to overwrite an unrelated application", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-native-install-"));
-  const source = fakeAppBundle(root, "source", "cn.gflab.opl.native-workbench.candidate", "new");
+  const source = fakeAppBundle(root, "source", "cn.gflab.opl.studio.preview", "new");
   const installed = fakeAppBundle(root, "installed", "example.unrelated.app", "unrelated");
   try {
     assert.throws(
       () => installAppBundleAtomically({
         sourceAppPath: source,
         installedAppPath: installed,
-        expectedBundleId: "cn.gflab.opl.native-workbench.candidate",
+        expectedBundleId: "cn.gflab.opl.studio.preview",
         appBundleOperations: fakeAppBundleOperations,
       }),
       /Refusing app bundle/,

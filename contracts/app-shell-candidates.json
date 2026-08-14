@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_gui_route_policy",
-  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Native Workbench is the only foreground alternative candidate. Hermes Desktop and AGUI/CopilotKit are archived technical proofs: they stay selectable only for an explicitly requested historical replay and must not receive routine maintenance or product consideration.",
+  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Studio is the only foreground alternative candidate. Hermes Desktop and AGUI/CopilotKit are archived technical proofs: they stay selectable only for an explicitly requested historical replay and must not receive routine maintenance or product consideration.",
   "active_shell_unchanged": "aionui",
   "active_gui_mainline": {
     "shell": "aionui",
@@ -13,8 +13,8 @@
     "product_truth_owner": "one-person-lab-app"
   },
   "alternative_gui_policy": {
-    "only_foreground_alternative": "opl-native-workbench",
-    "basis": "OPL native workbench",
+    "only_foreground_alternative": "opl-studio",
+    "basis": "OPL Studio DSH-derived composition workbench",
     "default_candidate_validation_scope": [],
     "archived_technical_proofs": [
       "hermes-codex",
@@ -39,7 +39,7 @@
     },
     "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell",
     "explicit_candidate_validation_scope": [
-      "opl-native-workbench",
+      "opl-studio",
       "hermes-codex",
       "agui-codex"
     ]
@@ -49,7 +49,7 @@
     "topology": "single_control_plane_multiple_independent_gui_clients",
     "selectable_shells": [
       "aionui",
-      "opl-native-workbench"
+      "opl-studio"
     ],
     "selection_scope": "per_local_launch_only",
     "default_target_source": "contracts/app-shell-adapter.json#active_shell",
@@ -81,15 +81,15 @@
           "start"
         ]
       },
-      "opl-native-workbench": {
-        "adapter_contract": "contracts/shell-adapters/opl-native-workbench.json",
+      "opl-studio": {
+        "adapter_contract": "contracts/shell-adapters/opl-studio.json",
         "default_mode": "packaged",
         "supported_modes": [
           "packaged"
         ],
-        "bundle_id": "cn.gflab.opl.native-workbench.candidate",
-        "packaged_app_path": "/Applications/One Person Lab Native.app",
-        "bundle_relative_path": "out/One Person Lab Native.app",
+        "bundle_id": "cn.gflab.opl.studio.preview",
+        "packaged_app_path": "/Applications/One Person Lab Studio Preview.app",
+        "bundle_relative_path": "out/One Person Lab Studio Preview.app",
         "package_command": [
           "npm",
           "run",
@@ -225,7 +225,8 @@
       "candidate uses one App-owned product renderer across claimed delivery surfaces without making the renderer a product truth owner",
       "candidate provides delivery-surface bridges that expose the same App-owned API shape without taking runtime authority",
       "candidate passes WebUI smoke only when it explicitly claims WebUI delivery; otherwise WebUI remains explicitly deferred and non-claiming",
-      "candidate re-expresses PilotDeck information organization as a Codex App-style chat-first UI with a lightweight workspace/session rail and right-side collapsible contextual tabs without copying PilotDeck code or runtime",
+      "candidate directly reuses the pinned DeepSeek Harness GUI source cohort and keeps OPL custom functions outside the vendor snapshot",
+      "candidate keeps only projects, conversations, search, and Settings in the left rail and exposes run status, files and results, and agents and capabilities as user-requested right context",
       "candidate maps App product profile without owning product truth",
       "candidate consumes opl app state/action surfaces only",
       "candidate passes state-model validation proving active project line projection consumption without taking runtime or domain authority",
@@ -372,7 +373,7 @@
         "editable specialist roles and workflow templates"
       ],
       "opl_mapping": [
-        "OPL Native Workbench should organize work by project, conversation, files, receipts, and delivery outputs",
+        "OPL Studio should organize work by project, conversation, files, receipts, and delivery outputs",
         "OPL result surfaces should make generated artifacts, previews, handoff receipts, and next actions scannable before raw logs",
         "OPL confirmation flows should use structured App actions and dry-run receipts rather than ad hoc prompts",
         "OPL specialist entries stay Codex Skill/Plugin references and App-owned capability summaries, not runtime authority"
@@ -397,7 +398,7 @@
         "research artifact review and handoff patterns"
       ],
       "opl_mapping": [
-        "OPL Native Workbench should show active scientific work as progress, result refs, artifact refs, and owner handoff state",
+        "OPL Studio should show active scientific work as progress, result refs, artifact refs, and owner handoff state",
         "OPL research UI should keep method/result/deliverable review close to the conversation without taking domain verdict authority",
         "OPL scientific panels consume OPL Framework and domain projections rather than local GUI-owned research state"
       ],
@@ -422,7 +423,7 @@
         "local-first runtime isolation as a packaging reference only"
       ],
       "opl_mapping": [
-        "OPL Native Workbench should keep the default visual basis Codex App composer-first, not Open Science's three-column workbench default",
+        "OPL Studio should keep the DeepSeek Harness chat-first source-reuse basis, not Open Science's three-column workbench default",
         "OPL right context stays collapsed by default and opens only when the user asks to inspect files, artifacts, review refs, actions, runtime refs, memory refs, automations, or settings",
         "MAS is autonomous research execution, not a co-scientist pair-work surface; the UI must not assume users monitor results beside chat while work runs",
         "Open Science artifact/provenance/review ideas map to secondary refs, Runtime/delivery pages, and explicit inspector tabs without taking artifact body, domain verdict, or runtime authority",
@@ -443,7 +444,77 @@
       "evaluated_at": "2026-08-14",
       "evaluated_version": "0.1.0-rc.5 source; 0.1.0-rc.6 installable entry observed",
       "license": "MIT",
-      "source_usage": "design_and_bounded_source_reuse_candidate",
+      "source_usage": "approved_bounded_source_and_package_reuse",
+      "adopted_packages": {
+        "@deepseek-ai/dsh-client-ui-slots": "0.1.0-rc.6",
+        "@deepseek-ai/dsh-client-web-react": "0.1.0-rc.6",
+        "@deepseek-ai/cordis": "4.0.1",
+        "@deepseek-ai/dsh-invariants": "0.1.0-rc.6"
+      },
+      "adopted_source": {
+        "root": "src/vendor/deepseek-harness",
+        "ref": "47f943859bef60e4160492346772ded9b24f765a",
+        "path_policy": "preserve_upstream_package_relative_paths",
+        "byte_policy": "byte_identical_to_pinned_ref",
+        "package_roots": [
+          "packages/client/ui-layout/src",
+          "packages/client/ui-sidebar/src",
+          "packages/client/ui-conversation/src",
+          "packages/client/ui-settings-general/src",
+          "packages/client/ui-theme/src",
+          "packages/client/ui-primitives/src"
+        ],
+        "files": [
+          "packages/client/ui-layout/src/client/AppFrame.tsx",
+          "packages/client/ui-layout/src/client/AppFrame.module.css",
+          "packages/client/ui-layout/src/client/columns.ts",
+          "packages/client/ui-sidebar/src/client/SidebarRoot.tsx",
+          "packages/client/ui-sidebar/src/client/SidebarRoot.module.css",
+          "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.tsx",
+          "packages/client/ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+          "packages/client/ui-conversation/src/client/skeleton/InputBar.tsx",
+          "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
+          "packages/client/ui-conversation/src/client/skeleton/EmptyHero.tsx",
+          "packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css",
+          "packages/client/ui-settings-general/src/client/SettingsRoot.tsx",
+          "packages/client/ui-settings-general/src/client/SettingsRoot.module.css",
+          "packages/client/ui-theme/src/styles/design-platform.css",
+          "packages/client/ui-theme/src/styles/base.css",
+          "packages/client/ui-theme/src/styles/scrollbar.css",
+          "packages/client/ui-theme/src/styles/gradient-shadow-text.css",
+          "packages/client/ui-primitives/src/Button.tsx",
+          "packages/client/ui-primitives/src/Button.module.css",
+          "packages/client/ui-primitives/src/Pill.tsx",
+          "packages/client/ui-primitives/src/Pill.module.css",
+          "packages/client/ui-primitives/src/Input.tsx",
+          "packages/client/ui-primitives/src/Input.module.css",
+          "packages/client/ui-primitives/src/StateDot.tsx",
+          "packages/client/ui-primitives/src/StateDot.module.css",
+          "packages/client/ui-primitives/src/Tooltip.tsx",
+          "packages/client/ui-primitives/src/Tooltip.module.css",
+          "packages/client/ui-primitives/src/markdown/MessageText.tsx",
+          "packages/client/ui-primitives/src/markdown/MessageText.module.css"
+        ]
+      },
+      "adopted_surface": [
+        "SlotCore registration lifecycle",
+        "createSlotRenderer React composition and error isolation",
+        "AppFrame three-column composition and responsive column solver",
+        "SidebarRoot workspace and session rail composition",
+        "ConversationRoot InputBar EmptyHero and persistent composer composition",
+        "SettingsRoot navigation and modal composition",
+        "ui-theme design platform base scrollbar and gradient shadow styles",
+        "complete ui-primitives source tree with OPL brand overrides outside the vendor root"
+      ],
+      "upstream_intake": {
+        "mode": "pinned_vendor_snapshot_with_external_opl_adapters",
+        "vendor_source_policy": "byte_identical_to_recorded_upstream_path_and_ref",
+        "opl_delta_policy": "branding_bridge_state_and_custom_functions_live_outside_vendor_tree_as_adapters_and_slot_plugins",
+        "update_policy": "fetch_review_exact_source_diff_update_one_pinned_ref_then_run_source_interaction_desktop_webui_pixel_notice_and_package_gates",
+        "floating_ref_allowed": false,
+        "automatic_promotion_allowed": false,
+        "stop_condition": "large_private_vendor_delta_or_required_dsh_authority_runtime"
+      },
       "reference_value": [
         "quiet chat-first Web UI with workspace/session rail and persistent composer",
         "typed UI slot registry with single, list, keyed, and chain composition kinds",
@@ -453,17 +524,18 @@
         "dynamic plugin inventory and configuration rendered from installed deployment state"
       ],
       "opl_mapping": [
-        "OPL Native Workbench is the only GUI route allowed to evaluate DeepSeek Harness renderer or slot reuse",
+        "OPL Studio is the only GUI route allowed to import DeepSeek Harness renderer runtime or GUI source; AionUI may consume only the OPL-owned contribution ABI without a DeepSeek Harness dependency",
         "OPL App keeps product truth and slot policy while Framework projections and App actions remain the only runtime state and mutation ABI",
         "Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state",
         "slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation",
-        "OPL should reuse or adapt the smallest independently testable GUI packages before considering a source fork",
+        "OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices",
         "existing Framework modular-monolith and native Package lifecycle boundaries remain authoritative and are not replaced by Cordis"
       ],
       "forbidden_reuse": [
         "do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority",
         "do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane",
-        "do not add DeepSeek Harness as a second foreground shell beside opl-native-workbench",
+        "do not add DeepSeek Harness as a second foreground shell beside opl-studio",
+        "do not import DeepSeek Harness runtime or GUI source into the AionUI mainline",
         "do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes",
         "do not assume the repository root license covers every selected package or third-party payload without per-package notices review",
         "do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces"
@@ -474,7 +546,7 @@
     {
       "id": "agui-codex",
       "state": "archived_technical_proof",
-      "archived_reason": "AG-UI/CopilotKit work served its technical verification purpose. AionUI is the App GUI mainline and OPL Native Workbench is the foreground alternative; AGUI stays explicit replay only.",
+      "archived_reason": "AG-UI/CopilotKit work served its technical verification purpose. AionUI is the App GUI mainline and OPL Studio is the foreground alternative; AGUI stays explicit replay only.",
       "default_update_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
       "candidate_root": "shells/agui-codex",
       "adapter_contract": "contracts/shell-adapters/agui-codex.json",
@@ -489,10 +561,10 @@
       }
     },
     {
-      "id": "opl-native-workbench",
+      "id": "opl-studio",
       "state": "technical_verification",
-      "candidate_root": "shells/opl-native-workbench",
-      "adapter_contract": "contracts/shell-adapters/opl-native-workbench.json",
+      "candidate_root": "shells/opl-studio",
+      "adapter_contract": "contracts/shell-adapters/opl-studio.json",
       "source_topology": "external_checkout_linked_shell_repo",
       "release_participation": "manual_on_demand_technical_evaluation_build_only",
       "foreground_alternative_role": "only_foreground_alternative",
@@ -518,23 +590,21 @@
         ]
       },
       "source_upstream": {
-        "repo": "gaofeng21cn/opl-native-workbench",
+        "repo": "gaofeng21cn/opl-studio",
         "app_path": ".",
         "license": "Apache-2.0"
       },
       "implementation_basis": [
         "OPL-native React renderer with Swift/AppKit WKWebView macOS host and Node WebUI host",
         "OPL App state/action contract first",
-        "K-Dense delivery workspace patterns adapted without runtime authority transfer",
-        "OpenClaudeScience scientific task-awareness patterns adapted without domain authority transfer",
-        "Open Science artifact/provenance/review affordances adapted as secondary context without default split-screen workbench assumptions",
-        "results and artifact delivery-first presentation",
         "single Codex App Server adapter for canonical thread directory and lifecycle operations",
-        "independent shell repo mounted under shells/opl-native-workbench"
+        "DeepSeek Harness AppFrame sidebar conversation composer Settings theme SlotCore createSlotRenderer and primitives reused from one pinned MIT source cohort",
+        "OPL branding bridges and custom functions implemented outside the DSH vendor snapshot as adapters and slot plugins",
+        "independent shell repo mounted under shells/opl-studio"
       ],
       "codex_app_like_chat_target": {
-        "scope": "OPL-native chat-first desktop and WebUI target optimized for results, deliverables, and artifact refs",
-        "primary_user_flow": "choose workspace, start or continue a Codex conversation, route the turn to an OPL purpose, and inspect result refs, files, receipts, current-task status refs, and delivery handoff from secondary context without displacing the chat canvas",
+        "scope": "OPL-native DSH-source chat-first desktop and WebUI workbench with contextual runtime, files, results, agents, and capabilities",
+        "primary_user_flow": "choose a project or conversation, work with Codex in the central timeline, and open run status, files and results, or agents and capabilities only when that context is needed",
         "capability_inventory": [
           "workspace directory picker",
           "new conversation and lightweight thread history rail",
@@ -542,26 +612,29 @@
           "single Codex App Server thread directory, lifecycle actions, and standard subagent metadata and event projection",
           "shared native React renderer for packaged macOS and WebUI",
           "Web transport bridge with HTTP actions and SSE Codex events",
-          "K-Dense-informed project sandbox and delivery artifact organization as reference-only",
-          "OpenClaudeScience-informed scientific task awareness as reference-only",
-          "Open Science-informed artifact, provenance, and review affordances as collapsed secondary context",
+          "pinned DeepSeek Harness AppFrame SidebarRoot conversation composer Settings theme and primitives used directly",
           "chat-first main canvas with pinned composer",
-          "results, files, receipts, and delivery refs as first-class context",
-          "right-side collapsible Files, Skills, Routing, Memory, Always-On, and Settings context tabs",
+          "left rail limited to projects, conversations, search, and Settings",
+          "right-side on-demand Run status, Files and results, and Agents and capabilities modules",
+          "current Codex agent state and active project lines rendered as run status",
+          "hypotheses and roadmaps rendered from runtime.detail contribution readback",
+          "user-selected files only and owner-projected artifacts without action JSON masquerading as results",
+          "Agent Package lifecycle management remains in Settings",
+          "text-only OPL Studio and One Person Lab identity without an in-app Logo",
           "App-owned model access and Settings summaries",
           "candidate .app package through the App wrapper"
         ]
       },
       "ai_first_interaction_model": {
-        "default_visual_basis": "codex_app_composer_first",
+        "default_visual_basis": "deepseek_harness_direct_source_chat_first",
         "primary_policy": "maximize_direct_ai_interaction_on_the_chat_canvas",
         "right_context_policy": "collapsed_user_requested_secondary_layer",
         "mas_autonomy_policy": "MAS_runs_as_autonomous_research_execution_not_co_scientist_pair_work",
-        "open_science_adoption": [
-          "artifact_provenance_review_refs_as_secondary_context",
-          "plain_language_data_flow_and_safety_copy",
-          "workflow_starters_as_purpose_entries_or_app_actions",
-          "scientific_preview_affordances_on_demand"
+        "on_demand_context_policy": [
+          "run_status_from_current_thread_and_active_project_lines",
+          "hypotheses_and_roadmap_from_runtime_detail_contributions",
+          "files_and_results_open_only_on_user_request",
+          "agents_and_capabilities_render_as_a_searchable_live_catalog"
         ],
         "must_not": [
           "default_three_column_scientific_workbench",
@@ -572,66 +645,39 @@
       },
       "webui_transport": {
         "shared_renderer": true,
-        "native_surface": "Swift WKScriptMessageHandler window.oplNativeWorkbench",
-        "web_surface": "browser window.oplNativeWorkbench compatibility bridge",
+        "native_surface": "Swift WKScriptMessageHandler window.oplStudio",
+        "web_surface": "browser window.oplStudio compatibility bridge",
         "web_bridge": "src/bridge/webTransport.ts",
         "event_stream": "SSE /api/opl-events",
         "gateway": "scripts/dev-webui-server.mjs",
         "native_picker_policy": "Packaged macOS may use a native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth"
       },
-      "pilotdeck_information_architecture_target": {
-        "source_usage": "design_reference_only",
-        "license": "AGPL-3.0",
-        "copied_source_allowed": false,
-        "runtime_authority_transfer_allowed": false,
-        "required_surfaces": [
-          "chat-first main canvas",
-          "lightweight workspace/session rail",
-          "right-side collapsible inspector tabs",
-          "Files context tab",
-          "Skills context tab",
-          "Routing context tab",
-          "Memory context tab",
-          "Always-On context tab"
-        ],
-        "required_testids": [
-          "opl-workspace-rail",
-          "opl-session-list",
-          "opl-context-tabs",
-          "opl-files-panel",
-          "opl-skills-panel",
-          "opl-routing-panel",
-          "opl-memory-panel",
-          "opl-always-on-panel",
-          "opl-web-transport"
-        ]
-      },
       "checkout_policy": {
-        "primary_path": "shells/opl-native-workbench",
-        "accepted_alternate_path": "../opl-native-workbench",
+        "primary_path": "shells/opl-studio",
+        "accepted_alternate_path": "../opl-studio",
         "missing_checkout_status": "blocked_missing_checkout"
       },
       "build_wrapper": {
-        "adapter_contract": "contracts/shell-adapters/opl-native-workbench.json",
-        "app_root_command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package",
+        "adapter_contract": "contracts/shell-adapters/opl-studio.json",
+        "app_root_command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package",
         "missing_checkout_blocker_allowed": true,
-        "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-native-workbench OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
+        "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-studio OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package"
       },
-      "candidate_stage": "opl_native_workbench_single_app_server_adapter_candidate_only",
+      "candidate_stage": "opl_studio_single_app_server_adapter_candidate_only",
       "visual_parity_contract": {
-        "comparison_baseline": "latest verified official ChatGPT Codex macOS observation",
-        "visual_style_baseline": "One Person Lab App-owned visual system and approved pixel baseline",
+        "comparison_baseline": "DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source",
+        "visual_style_baseline": "DeepSeek Harness selected MIT GUI source plus One Person Lab App-owned product constraints",
         "visual_style_scope": "light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface",
-        "visual_token_source": "app_owned_visual_contracts_plus_optional_verified_official_observation_receipts",
-        "font_asset_policy": "match_the_current_codex_workbench_system_font_stack_without_copying_or_redistributing_openai_sans_font_binaries",
-        "current_reference_status": "rolling_external_design_reference_only",
+        "visual_token_source": "deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@47f943859bef60e4160492346772ded9b24f765a",
+        "font_asset_policy": "reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets",
+        "current_reference_status": "pinned_direct_source_reuse",
         "superseded_observations": [
           "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
           "ChatGPT Codex macOS 26.707.31123 (2026-07-10)"
         ],
         "regression_floor": "AionUI active release shell",
-        "source_usage": "visual_and_interaction_reference_only_no_code_or_brand_copy",
-        "minimum_bar": "one_to_one_codex_layout_density_typography_composer_timeline_project_rail_settings_and_floating_environment_details",
+        "source_usage": "direct_mit_package_and_selected_source_reuse",
+        "minimum_bar": "direct_dsh_primitives_slots_layout_and_error_isolation_with_opl_owned_authority",
         "model_policy_source": "contracts/app-product-profile.json#gui.home.codex_model_display_options",
         "default_model": "gpt-5.6-sol",
         "default_reasoning_effort": "max",
@@ -639,15 +685,16 @@
           "persistent_project_rail",
           "single_conversation_timeline",
           "composer_model_and_reasoning_controls",
-          "floating_on_demand_environment",
-          "settings_locale_surface"
+          "on_demand_dsh_details_column",
+          "settings_locale_surface",
+          "text_only_opl_product_identity"
         ],
         "required_evidence": [
-          "desktop design review against the latest verified official ChatGPT Codex macOS observation",
+          "desktop source provenance review against the pinned DeepSeek Harness selected GUI source",
           "desktop pixel regression against the App-owned approved visual baseline",
           "persistent project rail and single conversation timeline screenshot comparison",
           "composer model and reasoning controls screenshot comparison",
-          "floating on-demand environment screenshot comparison",
+          "on-demand DeepSeek Harness details column screenshot comparison",
           "Settings locale surface screenshot comparison",
           "webui screenshot comparison against desktop renderer",
           "packaged app screenshot or VM smoke artifact"
@@ -664,10 +711,38 @@
         "permission_mode_selector_visible": false,
         "workspace_session_rail_default_visible": true,
         "inspector_default_visible": false,
-        "default_visual_basis": "codex_app_composer_first",
+        "default_visual_basis": "deepseek_harness_direct_source_chat_first",
         "right_context_user_request_only": true,
         "co_scientist_split_screen_default": false,
         "mas_autonomous_research_default": true,
+        "left_rail_items": [
+          "projects",
+          "conversations",
+          "search",
+          "settings"
+        ],
+        "right_context_modules": [
+          "run_status",
+          "files_results",
+          "agents_capabilities"
+        ],
+        "right_context_default": "closed",
+        "runtime_status_sources": [
+          "codex_app_server_current_thread",
+          "opl_app_state_active_project_lines"
+        ],
+        "runtime_detail_slot": "ui_contributions.runtime.detail",
+        "files_input_policy": "user_selected_files_and_directories_only",
+        "results_policy": "owner_projected_artifacts_only_no_action_json",
+        "package_lifecycle_surface": "settings",
+        "product_identity": {
+          "visible_text": [
+            "OPL Studio",
+            "One Person Lab"
+          ],
+          "logo_visible": false,
+          "bundle_icon_allowed": true
+        },
         "purpose_entries": [
           "research",
           "grant",
@@ -704,6 +779,7 @@
         "state": "opl app state --profile fast --json",
         "refresh": "opl app state --profile fast --json",
         "full_state": "opl app state --profile full --json",
+        "full_drilldown": "opl runtime app-operator-drilldown --detail full --json",
         "action": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json"
       },
       "active_project_line_state_model": {
@@ -780,7 +856,9 @@
         "single_codex_app_server_thread_adapter",
         "thread_list_read_start_resume_fork_archive_unarchive",
         "turn_start_steer",
-        "codex_subagent_event_projection"
+        "codex_subagent_event_projection",
+        "dsh_slot_core_composition_host",
+        "framework_ui_contributions_projection"
       ],
       "technical_verification": {
         "app_root_commands": [
@@ -792,38 +870,38 @@
           {
             "id": "candidate_registry",
             "cwd": ".",
-            "command": "npm run validate:shell-candidates -- --candidate opl-native-workbench"
+            "command": "npm run validate:shell-candidates -- --candidate opl-studio"
           },
           {
             "id": "candidate_adapter_quick",
             "cwd": ".",
-            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
           },
           {
             "id": "candidate_app_bundle_build",
             "cwd": ".",
-            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
+            "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package"
           }
         ],
         "candidate_shell_commands": [
           {
             "id": "source_self_check",
-            "cwd": "shells/opl-native-workbench",
+            "cwd": "shells/opl-studio",
             "command": "npm run validate:candidate"
           },
           {
             "id": "state_model",
-            "cwd": "shells/opl-native-workbench",
+            "cwd": "shells/opl-studio",
             "command": "npm run validate:state-model"
           },
           {
             "id": "webui_smoke",
-            "cwd": "shells/opl-native-workbench",
+            "cwd": "shells/opl-studio",
             "command": "npm run smoke:webui"
           },
           {
             "id": "source_renderer_build",
-            "cwd": "shells/opl-native-workbench",
+            "cwd": "shells/opl-studio",
             "command": "npm run build"
           }
         ],
@@ -834,7 +912,9 @@
           "candidate consumes OPL App state/action contracts without owning runtime or domain truth",
           "candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims",
           "Packaged macOS and WebUI use the same native React renderer and App-owned bridge shape",
-          "ordinary UI stays chat-first while prioritizing results, files, receipts, and delivery refs",
+          "ordinary UI keeps only projects, conversations, search, and Settings in the left rail and opens run status, files and results, or agents and capabilities in the DSH details column on demand",
+          "runtime status consumes the current Codex thread and active_project_lines while hypotheses and roadmaps come from owner-projected runtime.detail contributions",
+          "in-app identity is text-only OPL Studio and One Person Lab while the macOS bundle icon remains allowed",
           "WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host",
           "one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer",
           "Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server",
@@ -866,34 +946,34 @@
         {
           "id": "candidate_contract",
           "cwd": ".",
-          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json node --experimental-strip-types scripts/validate-active-shell.ts --quick"
         },
         {
           "id": "candidate_self_check",
-          "cwd": "shells/opl-native-workbench",
+          "cwd": "shells/opl-studio",
           "command": "npm run validate:candidate"
         },
         {
           "id": "candidate_state_model",
-          "cwd": "shells/opl-native-workbench",
+          "cwd": "shells/opl-studio",
           "command": "npm run validate:state-model"
         },
         {
           "id": "candidate_webui_smoke",
-          "cwd": "shells/opl-native-workbench",
+          "cwd": "shells/opl-studio",
           "command": "npm run smoke:webui"
         },
         {
           "id": "candidate_app_bundle_build",
           "cwd": ".",
-          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-native-workbench.json npm run package"
+          "command": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package"
         }
       ],
       "non_goals": [
         "do not switch active_shell away from aionui",
         "do not enter default stable or nightly release packaging",
         "do not introduce runtime or domain truth into the App repo",
-        "do not continue AGUI/CopilotKit implementation as the native workbench route",
+        "do not continue AGUI/CopilotKit implementation as the OPL Studio route",
         "do not use same-agent-tree send_input as a cross-top-level message bus",
         "do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer",
         "do not claim release-ready from contract-only evidence"

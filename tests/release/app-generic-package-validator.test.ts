@@ -237,20 +237,20 @@ test('any Package role may project one closed standard App contribution block', 
   assert.equal(schema.properties.schema_version.const, 'opl-app-contributions.v1');
   assert.deepEqual(
     schema.anyOf,
-    ['navigation', 'views', 'commands', 'badges'].map((collection) => ({
+    ['navigation', 'views', 'commands', 'badges', 'ui'].map((collection) => ({
       required: [collection],
       properties: { [collection]: { minItems: 1 } },
     })),
   );
-  for (const collection of ['navigation', 'views', 'commands', 'badges']) {
+  for (const collection of ['navigation', 'views', 'commands', 'badges', 'ui']) {
     assert.equal(schema.properties[collection].maxItems, 100);
   }
   assert.equal(schema.$defs.view.properties.command_ids.maxItems, 100);
   assert.equal(schema.$defs.view.properties.badge_ids.maxItems, 100);
   assert.deepEqual(schema.$defs.view.properties.view_type.enum, viewTypes);
-  for (const entry of ['navigation', 'view', 'command', 'badge']) {
+  for (const entry of ['navigation', 'view', 'command', 'badge', 'ui_placement']) {
     assert.equal(schema.$defs[entry].additionalProperties, false);
-    for (const forbiddenField of ['component', 'code', 'path', 'url']) {
+    for (const forbiddenField of ['component', 'code', 'html', 'path', 'url']) {
       assert.equal(forbiddenField in schema.$defs[entry].properties, false);
     }
   }
@@ -276,6 +276,8 @@ test('any Package role may project one closed standard App contribution block', 
   assert.deepEqual(contributionContract.reference_integrity, {
     navigation_view_id: 'must_reference_local_views_view_id',
     view_command_ids: 'must_reference_local_commands_command_id',
+    ui_view_id: 'must_reference_local_views_view_id',
+    ui_command_ids: 'must_reference_local_commands_command_id',
   });
   assert.equal(contributionContract.arbitrary_plugin_ui_code_allowed, false);
   assert.equal(contributionContract.execute_broker_command_role, 'framework_internal_delegated_surface_only_never_shell_invoked');

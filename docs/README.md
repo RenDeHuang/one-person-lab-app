@@ -110,7 +110,7 @@ GUI definition and candidate verification material is separated into
 product/history ownership:
 
 - [`product/gui/`](product/gui/) holds the ideal interaction spec, element
-  audit, Codex-to-OPL product delta, `opl-native-workbench` foreground
+  audit, Codex-to-OPL product delta, `opl-studio` foreground
   alternative plan, Claude Science
   Runtime task-awareness landing plan, and GUI feature inventory.
 - [`product/shell-alternatives/`](product/shell-alternatives/) holds Hermes

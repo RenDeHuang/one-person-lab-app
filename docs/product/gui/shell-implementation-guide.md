@@ -46,7 +46,7 @@ AionUI fork 中存在但未被 OPL 采纳的 Team、provider/backend、任意 sk
 
 若现有 shell 行为与目标不同，先分类差异，不在 renderer 中偷偷建立新默认。当前
 Codex-based ideal target 是宽桌面 persistent project/conversation rail；active
-AionUI 读取动态 state source，native candidate contract 记录 ideal target。两者是否
+AionUI 读取动态 state source，OPL Studio candidate contract 记录 ideal target。两者是否
 收敛由 validator readback 动态计算，不在人读实现指引复制当前 profile 值；应由产品
 contract/实现收敛 lane 处理。
 
@@ -80,7 +80,7 @@ contract/实现收敛 lane 处理。
 `product.supported_release_platforms` 和各 carrier 的 fresh admission evidence 决定：
 
 - App 批准的方向是 OPL-owned React renderer 覆盖 Native macOS、OPL Workspace 和未来
-  cross-platform Desktop；Native Workbench 只提供手动候选证据，`mainline_implementation_assigned`
+  cross-platform Desktop；OPL Studio 只提供手动候选证据，`mainline_implementation_assigned`
   仍为 false。不得为 carrier 建第二套产品 IA、状态模型或 session store，也不得把 AionUI
   renderer 变成未来轻量路线的运行时依赖。
 - macOS target host 使用 Swift/AppKit + WKWebView，直接启动 Codex CLI App Server，不打包
@@ -94,7 +94,7 @@ contract/实现收敛 lane 处理。
   thread/event bridge shape，不增加 provider abstraction、AionCore session 或第二控制面。
 - Windows/Linux 方向复用同一 renderer，但 wrapper selection 和 mainline owner 均为 deferred。
   Electron 与 Tauri 需用实际 artifact size、签名、更新和 installed acceptance 比较后另立
-  carrier adoption；Native candidate 不承担该交付义务，当前不得宣称 Windows/Linux 支持。
+  carrier adoption；OPL Studio candidate 不承担该交付义务，当前不得宣称 Windows/Linux 支持。
 - 移动端先使用同一 responsive renderer 的 PWA。Capacitor 只是后续独立 adoption decision，
   不能成为第二 renderer 或第二控制面。
 
@@ -270,7 +270,7 @@ Settings route、registry、slot 与 compatibility 变化再使用以下四类�
   `26.707.41301`、`26.707.31428` 与 `26.707.31123` 仅保留为历史 observations。正式像素
   回归只绑定 OPL App 自有、经人工批准的 baseline；OPL branding 与 product contracts
   始终是 authority。
-- AionUI 是 active implementation carrier 和 native candidate 的 regression floor，
+- AionUI 是 active implementation carrier 和 OPL Studio candidate 的 regression floor，
   不是理想视觉 authority。
 - 优先通过 tokens、CSS、existing layout primitives、composition 和 i18n 对齐。
 - 不复制 ChatGPT/Codex、AionUI upstream 或外部 demo 源码来建立产品层。

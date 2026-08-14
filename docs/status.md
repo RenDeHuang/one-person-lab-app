@@ -32,7 +32,7 @@ installation evidence.
 Live Evidence deferred / functional structure first is the current App
 development rule. Normal App work should first close functional and structural
 gaps: App-owned contracts, active-shell sync, AionUI mainline behavior,
-`opl-native-workbench` foreground-alternative boundaries, page-state validation, first-run policy,
+`opl-studio` foreground-alternative boundaries, page-state validation, first-run policy,
 Settings / Storage / route receipts, and no-authority runtime/domain guards.
 Release cohorts, clean-VM proof, packaged GUI smoke, same-cohort user-path
 evidence, real user-directory E2E, owner acceptance, and production-ready
@@ -115,7 +115,7 @@ or public release; those release readbacks remain `unverified`.
 - Active shell: `aionui`.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
-- Foreground alternative GUI candidate: `opl-native-workbench`, an independent shell checkout governed by the App candidate registry and adapter contract.
+- Foreground alternative GUI candidate: `opl-studio`, an independent shell checkout governed by the App candidate registry and adapter contract.
 - Archived GUI proof: `hermes-codex`, based on Hermes Desktop. Its registry entry is a role tombstone; adapter and runbook remain only for an explicit user-requested historical replay and receive no routine maintenance or adoption work.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
@@ -126,7 +126,7 @@ upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
 
 Current GUI development follows one active mainline plus explicit alternative
-routes: AionUI is the stable App GUI mainline, `opl-native-workbench` is the
+routes: AionUI is the stable App GUI mainline, `opl-studio` is the
 foreground alternative candidate, and Hermes Desktop / `hermes-codex` plus AGUI
 are archived technical proofs. Default shell-candidate validation checks only the
 fixed role registry. Native detail remains explicit; archived proof detail lives
@@ -473,13 +473,13 @@ requirements, literal labels, forbidden-display lists, or test matrices.
 
 Shell alternative work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` owns the registry,
-`contracts/shell-adapters/opl-native-workbench.json` owns the foreground
+`contracts/shell-adapters/opl-studio.json` owns the foreground
 alternative adapter when selected, while Hermes and AGUI active-registry entries
 are role tombstones whose detailed truth stays in their adapters and runbooks.
 `npm run validate:shell-convergence` is the thin aggregate gate for that policy:
 it runs the active-shell quick guard and the role-registry-only candidate validator
 without maintaining a second JSON readback surface or pulling dormant candidate
-detail into default maintenance. `docs/product/gui/opl-native-workbench-plan.md`
+detail into default maintenance. `docs/product/gui/opl-studio-plan.md`
 owns the active candidate plan. Hermes docs remain archived replay context:
 `docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
 `docs/product/shell-alternatives/hermes-first-run-flow.md`.
@@ -495,7 +495,7 @@ fresh readback, while historical bytes stay read-compatible. Its exact boundary 
 `docs/delivery/distribution-and-install-ssot.md`. Scheduled validation uses the
 separate non-user Canary lane.
 
-The `opl-native-workbench` route is candidate-structure and non-live product
+The `opl-studio` route is candidate-structure and non-live product
 surface first: candidate registration, adapter contract, independent external
 checkout, state/action bridge, basic UI modules, artifact preview tabs,
 provenance drawer, starter forms, confirmation/interview cards, desktop/WebUI
@@ -549,7 +549,7 @@ npm run validate:release-boundary
 npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 npm run validate:shell-candidates
-npm run test:candidate:native
+npm run test:candidate:studio
 npm run validate:candidate:hermes
 npm run validate:candidate:agui
 bun run i18n:types

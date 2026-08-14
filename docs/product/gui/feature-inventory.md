@@ -38,7 +38,7 @@ tests 与 evidence。
 ## 功能来源分类
 
 `B0 / R1 / U1 / X0` 回答“功能从哪里来、OPL 是否必须自维护”；`P0 / P1 / P2`
-回答“先做什么”。两条轴不得互相替代。AionUI active 与 Native candidate 是同一
+回答“先做什么”。两条轴不得互相替代。AionUI active 与 OPL Studio candidate 是同一
 `B0 + R1 + U1` 产品定义的两种 carrier，不是两层产品：AionUI 能复用就复用并保持薄适配，
 Native 将来需要独立实现同一用户结果。视觉 1:1 是独立的 pixel 目标，不改变功能来源分类。
 
@@ -264,7 +264,7 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 
 ## 功能层 Non-goals
 
-- 不定义 AionUI、native workbench、Hermes 或 AGUI 的组件/目录结构。
+- 不定义 AionUI、OPL Studio、Hermes 或 AGUI 的组件/目录结构。
 - 不记录 candidate/release 完成度、截图 proof、commit 或 run id。
 - 不复制模型 allowlist、Settings route registry、action catalog 或 page-state payload。
 - 不把 runtime、domain、artifact、memory、owner receipt 或 release truth 移入 App GUI。

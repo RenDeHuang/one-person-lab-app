@@ -15,7 +15,7 @@ foreground candidate 或后续默认完善路线。
 
 `agui-codex` 是已归档的 AG-UI/CopilotKit 技术验证。它不是默认 release
 shell，不是当前 foreground alternative candidate，也不是 AionUI 修改清单。当前
-App GUI 主线是 AionUI；当前 foreground alternative 是 `opl-native-workbench`；
+App GUI 主线是 AionUI；当前 foreground alternative 是 `opl-studio`；
 Hermes Desktop / `hermes-codex` 是 prior foreground alternative reference。除非用户
 明确要求 AGUI，不再更新、完善或抛光本路线。
 
@@ -120,7 +120,7 @@ Stitch 生成源码或 demo data；不可把 Stitch 中的 local inference、mod
 node --experimental-strip-types scripts/validate-active-shell.ts --quick
 ```
 
-验证 foreground alternative registry 默认只覆盖 `opl-native-workbench`：
+验证 foreground alternative registry 默认只覆盖 `opl-studio`：
 
 ```bash
 npm run validate:shell-candidates
@@ -225,5 +225,5 @@ Hermes Desktop / `hermes-codex` 文档和合同为准。
 跑 `npm run validate:candidate -- --require-app --require-smoke`。
 
 剩余边界是历史技术验证回放，而不是在本文追加执行日志。AionUI 仍是默认 release
-shell；`opl-native-workbench` 是当前 foreground alternative；Hermes Desktop 是
+shell；`opl-studio` 是当前 foreground alternative；Hermes Desktop 是
 prior foreground alternative reference；AGUI 只有在用户明确要求时才重新进入执行队列。

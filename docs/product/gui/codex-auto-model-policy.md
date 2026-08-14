@@ -94,7 +94,7 @@ npm run codex:export-default-profile -- \
   --app-product-profile /absolute/path/to/one-person-lab-app/contracts/app-product-profile.json
 npm run test:fresh-install
 
-# opl-native-workbench
+# opl-studio
 npm run validate:candidate
 ```
 

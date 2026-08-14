@@ -487,7 +487,7 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
 export function validateCodexExecutableContract(contract: ShellAdapterContract): void {
   const executable = contract.codex_executable_contract;
   if (!executable) {
-    if (contract.active_shell !== 'aionui' && contract.candidate_shell !== 'opl-native-workbench') {
+    if (contract.active_shell !== 'aionui' && contract.candidate_shell !== 'opl-studio') {
       return;
     }
     throw new Error('shell adapter must declare codex_executable_contract');
@@ -601,14 +601,14 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
     return;
   }
 
-  if (contract.candidate_shell === 'opl-native-workbench') {
+  if (contract.candidate_shell === 'opl-studio') {
     if (
       executable.carrier.kind !== 'candidate_owned_or_exact_external_binary' ||
       executable.carrier.source_ref !== null ||
       executable.carrier.manifest_parser_owner !== null ||
       executable.carrier.aioncore_required !== false
     ) {
-      throw new Error('Native Workbench Codex carrier must remain independent from AionCore');
+      throw new Error('OPL Studio Codex carrier must remain independent from AionCore');
     }
   }
 }
@@ -654,7 +654,9 @@ function assertAdapterGuiAuthority(contract: ShellAdapterContract): void {
   }
   const expectedImplementationRole = contract.release_role === 'archived_technical_verification_shell'
     ? 'archived_technical_proof_replay_carrier'
-    : 'active_shell_implementation_carrier';
+    : contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
+      ? 'foreground_alternative_candidate_implementation_carrier'
+      : 'active_shell_implementation_carrier';
   if (contract.gui_authority.implementation_role !== expectedImplementationRole) {
     throw new Error(`active shell GUI implementation role must be ${expectedImplementationRole}`);
   }
@@ -696,7 +698,9 @@ function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
   }
   const allowedCandidateStates = contract.release_role === 'archived_technical_verification_shell'
     ? ['archived_technical_proof_replay_only']
-    : ['candidate_until_contracts_and_tests_complete', 'foreground_alternative_or_archived_technical_proof'];
+    : contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
+      ? ['manual_technical_evaluation_candidate_without_completion_obligation']
+      : ['candidate_until_contracts_and_tests_complete', 'foreground_alternative_or_archived_technical_proof'];
   if (!allowedCandidateStates.includes(contract.shell_replacement_policy.candidate_state)) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
   }

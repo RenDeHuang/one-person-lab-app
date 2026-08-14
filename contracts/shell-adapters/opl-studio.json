@@ -4,10 +4,10 @@
   "purpose": "active_shell_adapter",
   "state": "active",
   "app_repo": "gaofeng21cn/one-person-lab-app",
-  "adapter_id": "opl-native-workbench",
-  "candidate_shell": "opl-native-workbench",
+  "adapter_id": "opl-studio",
+  "candidate_shell": "opl-studio",
   "adapter_role": "foreground_alternative_candidate_adapter",
-  "shell_root": "shells/opl-native-workbench",
+  "shell_root": "shells/opl-studio",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
   "codex_executable_contract": {
     "resolver_env": "OPL_CODEX_BIN",
@@ -24,16 +24,16 @@
     },
     "framework_headless_carrier_policy": "preserved_outside_app_bundle"
   },
-  "upstream_family": "OPL Native Workbench",
+  "upstream_family": "OPL Studio",
   "shell_source": {
-    "owner_repo": "gaofeng21cn/opl-native-workbench",
+    "owner_repo": "gaofeng21cn/opl-studio",
     "default_ref": "main",
-    "checkout_path": "shells/opl-native-workbench",
+    "checkout_path": "shells/opl-studio",
     "history_policy": "external_checkout_not_merged_into_app_default_branch",
     "upstream_ref": "main"
   },
   "release_role": "experimental_candidate_shell",
-  "candidate_stage": "opl_native_workbench_single_app_server_adapter_candidate_only",
+  "candidate_stage": "opl_studio_single_app_server_adapter_candidate_only",
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "foreground_alternative_candidate_implementation_carrier",
@@ -51,7 +51,7 @@
       "process and preload implementation",
       "shell package metadata",
       "shell tests and release hooks",
-      "native workbench implementation experiments",
+      "OPL Studio implementation experiments",
       "shell-local implementation details",
       "shell-local tests that prove App contracts are implemented"
     ],
@@ -109,7 +109,7 @@
     }
   },
   "shell_contract": {
-    "layout_id": "opl_native_workbench_app_bundle",
+    "layout_id": "opl_studio_app_bundle",
     "source_topology": "external_checkout_linked_shell_repo",
     "implementation_validation": "contract_paths_only",
     "paths": {
@@ -166,29 +166,29 @@
   "validation_commands": [
     {
       "id": "candidate_self_check",
-      "cwd": "shells/opl-native-workbench",
+      "cwd": "shells/opl-studio",
       "command": "npm run validate:candidate"
     },
     {
       "id": "candidate_state_model",
-      "cwd": "shells/opl-native-workbench",
+      "cwd": "shells/opl-studio",
       "command": "npm run validate:state-model"
     },
     {
       "id": "candidate_webui_smoke",
-      "cwd": "shells/opl-native-workbench",
+      "cwd": "shells/opl-studio",
       "command": "npm run smoke:webui"
     },
     {
       "id": "candidate_app_bundle_build",
-      "cwd": "shells/opl-native-workbench",
+      "cwd": "shells/opl-studio",
       "command": "npm run package"
     }
   ],
   "manual_verification_commands": [
     {
       "id": "candidate_visual_smoke",
-      "cwd": "shells/opl-native-workbench",
+      "cwd": "shells/opl-studio",
       "command": "npm run smoke:visual",
       "policy": "manual_or_vm_foreground_only"
     }

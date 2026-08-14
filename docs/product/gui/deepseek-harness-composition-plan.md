@@ -2,44 +2,57 @@
 
 Owner: `one-person-lab-app`
 Purpose: `deepseek_harness_gui_reuse_and_opl_spatiotemporal_composition_plan`
-State: `approved_direction_prototype_required_before_cutover`
+State: `waves_1_2_source_implemented_validation_and_canonical_absorption_pending`
 Machine boundary: 本文是 App-owned 架构决策与迁移方案。当前候选角色、产品行为和运行
 接口仍以 `contracts/app-shell-candidates.json`、GUI contracts、Framework contracts、真实
 Shell source/tests 和 fresh runtime readback 为准。本文不把 DeepSeek Harness、Cordis、
-Native Workbench 或任何 prototype 提升为 active shell、runtime authority 或 release-ready。
+OPL Studio 或任何 prototype 提升为 active shell、runtime authority 或 release-ready。
 
 ## 结论
 
-OPL 应吸收 DeepSeek Harness（DSH）的组合理念，也可以复用其一部分 GUI 源码，但不应
-整体采用 DSH runtime，也不应把 DSH 新增为第二个 foreground shell。
+OPL 应吸收 DeepSeek Harness（DSH）的组合理念，并直接复用选定的 pinned GUI 源码闭包；
+但不应整体采用 DSH runtime，也不应把 DSH 新增为第二个 foreground shell。
 
 推荐目标是：
 
-1. `opl-native-workbench` 继续作为唯一 GUI successor 试验线；AionUI 仍是当前 active
+1. `opl-studio` 继续作为唯一 GUI successor 试验线；AionUI 仍是当前 active
    release shell，直到 successor 通过真实垂直链路和 adoption gate。
-2. 第一优先复用 DSH 的 `client-ui-slots`、React renderer contract 和纯 UI primitives；
-   OPL 自己实现 App bridge、session/workspace projection 和产品布局。
+2. OPL Studio 直接复用 DSH 的 `AppFrame`、`SidebarRoot`、conversation/composer、Settings、
+   `client-ui-slots`、React renderer contract、ui-theme 和纯 UI primitives；OPL 只实现品牌替换、
+   App bridge、Codex/OPL projection 与 slot contribution，不再仿写 Codex App 布局。
 3. OPL Package descriptor 增加可选的 typed UI contribution；Framework 只聚合 installed
    contribution，App 定义 slot vocabulary 和组合规则，Shell 只渲染。
 4. Framework 已有模块化单体、动态 Package discovery、`opl app state/action` 和领域 owner
    边界不重写成 Cordis。没有真实收益的全生态重构明确拒绝。
-5. successor 路径通过后只保留一个发布 GUI：要么 Native adoption 后退役 AionUI fork，
-   要么把已证明的 contribution ABI 回植 AionUI 后终止 Native；不长期双主线。
+5. 当前产品决策是 `retain_aionui_with_thin_adapter`：AionUI 继续作为唯一发布 GUI，
+   `opl-studio` 保留为手动开发候选和 DSH source-reuse 试验线，不进入发布主线。
 
 总原则是：**一切可组合，但不是一切同权。** 功能和 GUI 可以动态装配；产品真值、线程、
 权限、安全、领域判断、artifact 和 release authority 仍由明确 owner 持有。
 
+当前 App-owned 信息架构固定为：
+
+- 左栏只有项目、会话、搜索和设置；运行环境、项目上下文、文件与结果、智能体与能力都不作为
+  独立 Home 导航项。
+- 中间完整沿用 DSH conversation/composer 结构。
+- 右侧 DSH details 只按需承载运行状态、文件与结果、智能体与能力三个模块。
+- 运行状态读取当前 Codex thread 和 `active_project_lines`；论文假设、路线图等 owner 数据通过
+  `ui_contributions.runtime.detail` 加载，不由 Shell 静态编造。
+- 文件仅来自用户主动添加；结果仅来自 owner-projected artifact，action JSON 不冒充结果。
+- Package 生命周期操作在 Settings；App 内只显示 `OPL Studio` / `One Person Lab` 文字，不显示 Logo。
+
 ## 生态落点
 
-这不是一次全仓同时重写。每个 owner 只承担一层，未到对应 wave 不改源码：
+这不是一次全仓同时重写。当前已完成 App/Framework/Studio/AionUI 的最小 source 链，
+每个 owner 仍只承担一层：
 
 | Owner / repo | 目标责任 | 当前动作 | 明确不拥有 |
 | --- | --- | --- | --- |
-| `one-person-lab-app` | contribution schema、slot vocabulary、trust/冲突/降级策略、产品验收 | 本方案和 pinned reference；Wave 2 才新增 machine contract | Package 清单、domain schema、runtime state |
-| `one-person-lab` Framework | 从 installed Package 动态发现、校验并聚合 contribution；复用现有 App state/action ABI | Wave 1 只提供 fixture；Wave 2 才实现 producer | GUI layout、renderer、Package-specific 分支 |
-| 各 OPL Package / domain repo | 声明自身 descriptor，继续拥有 projection、action 和 domain truth | Wave 2 只选一个已有 typed view 的 pilot | App route、slot 冲突规则、跨 Package registry |
-| `opl-native-workbench` | 唯一 DSH-derived renderer/slot host 试验线，Desktop/WebUI 同 renderer | Wave 1 pinned vertical spike | session/thread store、credentials、provider/runtime authority |
-| `opl-aion-shell` | 继续承载当前 active release；只有 Wave 4 选择 `retain_aionui` 才接收已证明的 ABI | 当前不改 | 第二套 contribution schema 或 DSH runtime |
+| `one-person-lab-app` | contribution schema、slot vocabulary、trust/冲突/降级策略、产品验收 | OPL-owned machine contract 已实现 | Package 清单、domain schema、runtime state |
+| `one-person-lab` Framework | 从 installed Package 动态发现、校验并聚合 contribution；复用现有 App state/action ABI | `app_state.ui_contributions` producer 已实现，canonical replay 待完成 | GUI layout、renderer、Package-specific 分支 |
+| 各 OPL Package / domain repo | 声明自身 descriptor，继续拥有 projection、action 和 domain truth | 真实 Package install/disable pilot 尚待 installed readback | App route、slot 冲突规则、跨 Package registry |
+| `opl-studio` | 唯一 DSH-derived renderer/slot host 试验线，Desktop/WebUI 同 renderer | pinned DSH slots、renderer contract 与 UI primitives 已直接复用 | session/thread store、credentials、provider/runtime authority |
+| `opl-aion-shell` | 当前 active release shell 的薄 consumer | 三个 slot 的 OPL-owned thin adapter 已实现；不导入 DSH/Cordis | 第二套 contribution schema、DSH runtime 或 plugin manager |
 | OPL Flow / Fleet | 沿用现有 Package 安装、更新、currentness 和 worktree/release lifecycle | 当前不因本方案新增控制面 | GUI contribution 内容和布局决策 |
 | OPL Cloud / Console / mobile carriers | 将来可消费同一 contribution projection；不能先定义另一套协议 | Wave 5 前不改 | App/kernel authority 和独立插件 registry |
 
@@ -75,12 +88,12 @@ aggregation -> App contract -> Native renderer。它先由一个真实 Package �
 
 | Candidate | 分类 | 判断 | OPL owner / 落点 |
 | --- | --- | --- | --- |
-| Chat-first 视觉与 Workspace/Session rail | `adopt` / Strong | 与现有 OPL GUI 目标高度一致，真实 UI 已验证 | App GUI contract；Native renderer |
+| Chat-first AppFrame、Workspace/Session rail、conversation/composer、Settings 与 ui-theme | `adopt` / Strong | 直接使用经过上游优化的布局和样式源码，消除视觉仿写偏差 | App GUI contract；OPL Studio renderer |
 | Typed slot registry 与可逆注册 | `adapt` / Strong | 直接解决 Package 能力动态发现后 GUI 仍需固定接线的问题 | App slot contract；Native renderer |
 | Package-discovered client plugin graph | `adapt` / Strong | 可让功能、设置、typed view 随 installed Package 出现/消失 | Package descriptor；Framework projection |
 | `single/list/keyed/chain` composition kinds | `adopt` / Strong | 足以表达单 owner、追加列表、kind renderer 和条件 takeover | App slot vocabulary |
 | App/session/workspace/task 的时间作用域 | `adapt` / Strong | OPL 需要比 DSH 更明确的 owner/permission boundary | App composition scope contract |
-| DSH pure primitives / slot / React renderer packages | `worth_exploring` | 可能显著减少 Native GUI 自研量；需要 pinned source/API spike | Native Workbench only |
+| DSH AppFrame/sidebar/conversation/composer/settings/theme、primitives、slot / React renderer packages | `adopt` / Strong | 按 pinned ref 直接复用完整 GUI 宿主闭包并保留 notices；OPL 功能以 slot occupants 注入 | OPL Studio only |
 | DSH 完整 Web client | `watch_only` | UI 合适，但与 DSH runtime/connection/session graph 耦合较深 | 不进入 App dependency |
 | Cordis profile/bundle runtime | `no_code_needed` | OPL 已有 Package/Framework composition owner；只吸收分层和可逆性 | 现有 Framework/Package contracts |
 | DSH agent loop/session log/provider/credentials/plugin manager | `reject` | 会形成第二 runtime、第二状态与第二权限面 | 保持 Codex/Framework/domain owner |
@@ -133,19 +146,15 @@ projection/action refs 并输出聚合结果。Shell 不推断 schema，也不�
 
 ### 3. Spatial composition
 
-初始 slot vocabulary 只覆盖已有真实需求：
+当前 slot vocabulary 只覆盖已有真实 caller：
 
 | Slot | Kind | 用途 |
 | --- | --- | --- |
-| `navigation.primary` | `list` | App-owned route contribution，按可用能力出现 |
 | `composer.palette` | `list` | Package/Skill/Tool/Plugin/MCP 的动态启动入口 |
-| `conversation.node` | `keyed` | 按 versioned event/view kind 选择 renderer |
-| `conversation.composer` | `chain` | approval/question/plan 等临时接管，fallback 保留 draft |
-| `inspector.tab` | `list` | files、artifacts、runtime refs、memory refs 等按需面板 |
-| `runtime.detail` | `keyed` | Agent Package typed views |
+| `runtime.detail` | `list` | 运行状态模块内的 Agent Package typed views，例如假设和路线图 |
 | `settings.section` | `list` | owner-projected 设置与 lifecycle 入口 |
-| `artifact.preview` | `keyed` | 已准入 artifact MIME/view kind 的只读预览 |
 
+左栏导航、conversation、三个右侧模块及 product identity 属于 kernel，不允许 Package 改写。
 不要先建立通用 canvas、任意嵌套 slot、布局 DSL 或用户拖拽编排器。新 slot 必须由第二个真实
 contributor 或一个无法用现有 slot 表达的当前产品需求支付复杂度。
 
@@ -180,17 +189,33 @@ contributor 或一个无法用现有 slot 表达的当前产品需求支付复�
 
 按成本从低到高推进：
 
-1. **Pinned package spike：** 在 Native Workbench 的独立 checkout 中，以精确版本或 source
-   commit 引入 `client-ui-slots`、`client-web-react` 和少量 pure primitives，禁止 floating
-   `latest`。用 OPL fake projection 驱动一个 rail、一个 composer contribution 和一个 typed
-   view。
-2. **Thin OPL host：** 实现 DSH renderer contract 所需的最小 observable/slot host，但数据只
-   来自 OPL bridge；不引入 DSH connection、session、agent、settings、credentials 或 profile
-   home。
-3. **Selective source adoption：** 若 package public API 不足但源码边界清晰，把选定 package
-   以保留 LICENSE/notices 的方式 vendoring 或 fork；记录 exact upstream ref 和 OPL delta。
-4. **Stop before full client fork：** 如果必须引入 DSH client runtime 才能渲染普通 conversation，
-   则停止直接复用，保留其 slot API/视觉模式并在 Native 内重写。完整 client fork 不是默认降级。
+1. **Pinned GUI host：** 在 OPL Studio 的独立 checkout 中，以精确 source commit 直接引入
+   `AppFrame`、`SidebarRoot`、conversation/composer、Settings、ui-theme、`client-ui-slots`、
+   `client-web-react` 和所需 primitives，禁止 floating `latest`。
+2. **Thin OPL adapter：** 保留 DSH root/sidebar/conversation/details/settings slot 结构；通过
+   vendor 外 adapter 隐藏 DSH Logo，并显示 `OPL Studio` / `One Person Lab` 文字。数据和动作只
+   来自 Codex/OPL bridge，OPL Runtime/Settings/Capability 以 slot occupants 注册，不另写一套
+   外层 workbench。
+3. **Direct source adoption：** 发布包边界不完整或会强制带入 DSH authority runtime 时，直接
+   vendor pinned MIT 源码并记录逐文件 inventory、LICENSE/notices 和 OPL adapter delta。
+4. **Authority stop：** DSH GUI source 可以直接复用；一旦需要 DSH connection/session/agent/
+   provider/credentials/plugin-manager 才能工作，就停在 GUI adapter 边界，不接管 OPL authority。
+
+### Upstream intake policy
+
+Studio 把 DSH 当作可跟随的 GUI upstream，而不是一次性截图参考：
+
+- vendored GUI source 放在独立目录，逐文件记录 upstream path、exact ref 和许可证，默认保持
+  byte-identical；不得在 vendor 文件中混入 OPL domain、bridge 或产品状态判断；
+- OPL 品牌、Codex/Framework bridge、slot registration 和产品功能放在独立 adapter/plugins；
+  unavoidable source delta 必须小、可列举，并由 source inventory 标出；
+- 更新流程固定为 fetch 新 DSH ref、生成 upstream source diff、更新 vendor snapshot、跑 type/test/
+  Desktop+WebUI pixel/package 门禁，再由人判断是否提升 pinned ref；不自动跟随 floating branch/tag；
+- 若一次上游升级需要大面积修改 vendor 文件或引入 DSH authority runtime，说明边界已失效，应停止
+  升级并重新评估 adapter，而不是在 Studio 内形成长期私有 fork。
+
+这使日常维护集中在少量 OPL adapters 和 contribution plugins，DSH 的布局、主题、交互修复与
+可组合性改进可以按 pinned cohort 吸收，避免 AionUI 式大面积 upstream fork delta。
 
 ## 迁移波次
 
@@ -204,7 +229,7 @@ contributor 或一个无法用现有 slot 表达的当前产品需求支付复�
 
 ### Wave 1: Native vertical spike
 
-在 `opl-native-workbench` 完成一条最小真实链路：Framework fixture projection -> OPL bridge ->
+在 `opl-studio` 完成一条最小真实链路：Framework fixture projection -> OPL bridge ->
 slot host -> DSH-derived React renderer -> visible UI -> App action dry-run -> authoritative readback。
 
 必须同时证明：
@@ -215,6 +240,9 @@ slot host -> DSH-derived React renderer -> visible UI -> App action dry-run -> a
 - 不产生 DSH home、session store、credential store 或第二 action bus；
 - build size、cold start 和 steady render 没有不可接受回归。
 
+当前状态：source/package/fixture 链已实现；完整 pixel、cold-start、installed readback 和
+canonical absorption 仍待完成，不能据此声称 release-ready。
+
 ### Wave 2: OPL contribution ABI
 
 只有 Wave 1 通过才新增 App/Framework machine schema。先支持
@@ -224,23 +252,26 @@ Package 作为 pilot，建议使用已存在 typed view 的 MAS，而不是编�
 完成条件：Package owner 只改自己的 descriptor/projection，App/Shell 无 Package id allowlist 或
 领域 schema mirror，即可出现、执行、卸载并 read back。
 
+当前状态：App schema、Framework producer、Studio host 和 AionUI thin consumer 已实现；真实
+installed Package pilot、producer-consumer canonical conformance 与 install/readback 尚待完成。
+
 ### Wave 3: Native renderer cutover
 
-逐页把 Native 固定接线迁到 slot composition。先 conversation/runtime/settings，后 navigation、
-artifact preview；每批删除被替代的固定 registry 和 adapter，不长期双写。
+把三个真实 contribution surface 的固定接线迁到 slot composition；左栏导航、conversation、
+右侧三模块和文字 identity 保持 App-owned kernel。每批删除被替代的固定 registry 和 adapter，
+不长期双写。
 
 完成条件：当前 B0/R1/U1 surface 行为保持，App-owned visual baseline 通过，Native source、pixel、
 package、installed user path 五条证据独立完成。
 
-### Wave 4: single-shell decision
+### Wave 4: active-shell decision
 
-Native 达到 adoption gate 后做一次明确选择：
+当前决策是 `retain_aionui_with_thin_adapter`：不修改 `contracts/app-shell-adapter.json`，AionUI
+继续作为唯一 release shell，并只消费 OPL-owned contribution ABI。`opl-studio` 保留为显式手动
+开发候选，用于直接复用 DSH GUI source 和验证组合上限；它不参加默认 package/updater/release。
 
-- `adopt_native`：切换 `contracts/app-shell-adapter.json`，完成 release/readback，然后退役 AionUI
-  fork 和其专有 runtime/UI glue；或
-- `retain_aionui`：把已证明的 contribution ABI 以最小 delta 移入 AionUI，随后归档 Native。
-
-禁止结果：AionUI、Native 和 DSH fork 三条长期产品线并行维护。
+禁止结果：AionUI 直接导入 DSH/Cordis、建立第二 plugin runtime，或把 Studio candidate evidence
+提升为 active-shell/release-ready 证据。
 
 ### Wave 5: ecosystem expansion
 

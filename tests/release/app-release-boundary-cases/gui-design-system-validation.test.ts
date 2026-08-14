@@ -299,7 +299,7 @@ test('GUI design-system validator rejects explicit candidate detail in default c
   const root = createFixture();
   const packagePath = path.join(root, 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-  packageJson.scripts['validate:shell-convergence'] += ' && npm run validate:candidate:native';
+  packageJson.scripts['validate:shell-convergence'] += ' && npm run validate:candidate:studio';
   writeJson(root, 'package.json', packageJson);
 
   assert.throws(
@@ -439,7 +439,7 @@ test('GUI design-system validator ignores explicit Native candidate detail drift
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  const native = registry.candidates.find((candidate) => candidate.id === 'opl-native-workbench');
+  const native = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
   native.visual_parity_contract.default_reasoning_effort = 'candidate-only-drift';
   native.required_capabilities = [];
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
@@ -964,7 +964,7 @@ test('GUI design-system validator rejects a stale foreground role marker in the 
     candidatesPath,
     fs
       .readFileSync(candidatesPath, 'utf8')
-      .replace('foreground=opl-native-workbench', 'foreground=hermes-codex'),
+      .replace('foreground=opl-studio', 'foreground=hermes-codex'),
     'utf8',
   );
   assert.throws(() => validateGuiDesignSystem(root), /gui-shell-candidates\.md must include gui_shell_roles/);
@@ -1002,7 +1002,7 @@ test('GUI design-system validator rejects a candidate-owned ideal target', () =>
   const root = createFixture();
   const registryPath = path.join(root, 'contracts', 'app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.design_system_governance.state_boundary.ideal_target.source_candidate = 'opl-native-workbench';
+  registry.design_system_governance.state_boundary.ideal_target.source_candidate = 'opl-studio';
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),

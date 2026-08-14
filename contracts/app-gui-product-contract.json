@@ -1445,7 +1445,8 @@
         "navigation",
         "views",
         "commands",
-        "badges"
+        "badges",
+        "ui"
       ],
       "at_least_one_non_empty_collection_required": true,
       "supported_view_types": [
@@ -1460,12 +1461,46 @@
         "navigation_id",
         "view_id",
         "command_id",
-        "badge_id"
+        "badge_id",
+        "contribution_id"
       ],
       "id_uniqueness_scope": "per_package_per_collection",
       "reference_integrity": {
         "navigation_view_id": "must_reference_local_views_view_id",
-        "view_command_ids": "must_reference_local_commands_command_id"
+        "view_command_ids": "must_reference_local_commands_command_id",
+        "ui_view_id": "must_reference_local_views_view_id",
+        "ui_command_ids": "must_reference_local_commands_command_id"
+      },
+      "ui_composition": {
+        "projection_source": "app_state.ui_contributions",
+        "projection_schema": "opl_app_ui_contributions_projection.v1",
+        "slots": [
+          "composer.palette",
+          "runtime.detail",
+          "settings.section"
+        ],
+        "contribution_kinds": [
+          "view",
+          "command_group"
+        ],
+        "trust_tiers": [
+          "declarative",
+          "trusted_first_party_renderer"
+        ],
+        "scopes": [
+          "root",
+          "work_item"
+        ],
+        "ordering_policy": "sort_order_then_package_id_then_contribution_id",
+        "identity_policy": "package_id_colon_contribution_id",
+        "unknown_kind_policy": "render_local_fallback_without_disabling_other_contributions",
+        "lifecycle_policy": "register_from_current_projection_and_remove_immediately_when_package_is_disabled_or_uninstalled",
+        "shell_implementation_policy": "consume_projection_through_existing_shell_extension_surfaces_without_a_second_plugin_manager",
+        "native_candidate_host": "reuse_DeepSeek_Harness_SlotCore_createSlotRenderer_and_ui_primitives",
+        "active_aionui_host": "thin_OPL_owned_adapter_over_existing_AionUI_components_and_registries",
+        "active_shell_adopted": true,
+        "release_ready": false,
+        "clean_vm_ready": false
       },
       "data_resolution_policy": "resolve_data_ref_from_framework_projected_state_only",
       "action_execution_policy": "resolve_action_ref_through_the_descriptor_neutral_app_contribution_execute_broker",
@@ -1549,6 +1584,7 @@
       "forbidden_descriptor_fields": [
         "component",
         "code",
+        "html",
         "path",
         "url"
       ]
@@ -1637,7 +1673,7 @@
         "package"
       ],
       "aion_display_contract": "active AionUI shell renders the map as a thin App-state consumer",
-      "workbench_display_contract": "OPL Native Workbench candidate must render the same map without introducing runtime or package truth",
+      "workbench_display_contract": "OPL Studio candidate must render the same map without introducing runtime or package truth",
       "fallback_claim_policy": "fallback projections may keep older payloads usable but cannot claim currentness, readiness, domain truth, or mutation authority"
     },
     "advanced_full_drilldown": {
@@ -7072,7 +7108,7 @@
         "source_semantics_policy": "directory entries own package discovery plus installed, activated, installability, coarse readiness, orthogonal exposure, and lifecycle actions; status_index contributes canonical diagnostics but cannot override directory lifecycle or action availability",
         "shell_consumers": [
           "aionui",
-          "opl_native_workbench"
+          "opl_studio"
         ],
         "action_ref_source": "app_state.actions",
         "action_route": "opl app action execute --action <action_id> [--payload <json>] [--dry-run] --json",

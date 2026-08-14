@@ -40,7 +40,7 @@ Release Set 只用于 Full/offline/integration-test/QA。当前 contracts/source
 compatibility，文档更新不表示实现完成。
 
 GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本机可以把 AionUI 或
-`opl-native-workbench` 作为一次性的 `local GUI launch target`。启动候选不等于 adoption，
+`opl-studio` 作为一次性的 `local GUI launch target`。启动候选不等于 adoption，
 也不修改 release/updater authority。共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
 当前 Runtime/session 偏差统一见
 [`gui-shell-candidates.md`](gui-shell-candidates.md)，不在本入口复制命令或状态矩阵。
@@ -53,16 +53,21 @@ Codex executable 也遵循该 shell-adapter 边界：当前 AionUI 仍从 bundle
 [`../../architecture/aioncore-codex-only-carrier.md`](../../architecture/aioncore-codex-only-carrier.md)。
 
 DeepSeek Harness 的 GUI 与“一切皆插件”理念已作为外部学习落点记录在
-[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md)：Native
-Workbench 是唯一允许验证 DSH-derived slot/renderer 的 foreground route；App contract、
-Framework projection/action ABI、Codex thread authority 和 Package owner 边界不变。该计划
-采用 successor-first vertical spike，未通过真实 source/install/readback 前不改变 active shell，
-也不把 DSH runtime 引入 OPL。
+[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md)：`opl-studio` 是唯一
+允许直接复用 DSH slot/renderer/primitives 的 foreground route；AionUI 只消费 OPL-owned
+contribution ABI。App contract、Framework projection/action ABI、Codex thread authority 和
+Package owner 边界不变；Studio 直接使用 DSH AppFrame/sidebar/conversation/composer/Settings/theme
+作为宿主，OPL 功能通过 slots 注入，不再仿写 Codex App 布局。DSH runtime、Cordis 和第二
+plugin manager 不进入 AionUI。
 
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
 OPL capabilities、progress、evidence refs、artifacts 与 safe actions 必须
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
+
+该原则描述用户工作流，不要求 Studio 复制 Codex 视觉实现。OPL Studio 的具体视觉与排版基底
+直接来自 pinned DeepSeek Harness GUI source，AionUI 继续按自身 upstream 薄适配；两者都实现
+同一 App-owned 用户结果和 OPL contribution ABI。
 
 功能来源使用独立的 `B0 / R1 / U1 / X0` 轴：B0 是 Codex 必要 baseline，R1 是等价
 替换，U1 是 OPL 定位必须增加，X0 是条件保留/当前非目标；`P0/P1/P2` 继续只表示优先级。
@@ -315,7 +320,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
   本文档族不复制当前 model/reasoning 值或具体模型 allowlist。
 
 Active AionUI 通过上面的动态 state-source marker 读取默认状态；
-`opl-native-workbench` candidate contract 则把 rail 记为 default visible。当前是否
+`opl-studio` candidate contract 则把 rail 记为 default visible。当前是否
 收敛由 validator readback 动态计算，不在本文复制 profile 值。右上 Environment/details
 的理想目标为默认关闭。Product target、active source 和 pixel evidence 必须
 分轴记录；条件 Runtime 还必须把 Product contract、Framework producer、Shell consumer、Live evidence

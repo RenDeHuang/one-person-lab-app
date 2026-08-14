@@ -104,25 +104,18 @@ export const forbiddenLegacySettingsTabs = [
 ];
 export const requiredActivityGroups = ['needs_attention', 'active_projects', 'recent_projects'];
 export const requiredConversationEventKinds = ['tool', 'process', 'diff', 'file', 'receipt', 'user_input', 'permission'];
-export const requiredContextSurfaces = [
-  'chat-first main canvas',
-  'lightweight workspace/session rail',
-  'right-side collapsible inspector tabs',
-  'Files context tab',
-  'Skills context tab',
-  'Routing context tab',
-  'Memory context tab',
-  'Always-On context tab',
-];
 export const requiredContextTestIds = [
   'opl-workspace-rail',
   'opl-session-list',
   'opl-context-tabs',
-  'opl-files-panel',
-  'opl-skills-panel',
-  'opl-routing-panel',
-  'opl-memory-panel',
-  'opl-always-on-panel',
+  'opl-runtime-status-panel',
+  'opl-agent-run-status',
+  'opl-runtime-contributions',
+  'opl-files-results-panel',
+  'opl-input-files-list',
+  'opl-agents-capabilities-panel',
+  'opl-current-agent-capabilities',
+  'opl-codex-capability-catalog',
   'opl-web-transport',
 ];
 export const forbiddenAuthority = [
@@ -141,6 +134,7 @@ export const expectedFrameworkSurfaces: Record<string, string> = {
   state: 'opl app state --profile fast --json',
   refresh: 'opl app state --profile fast --json',
   full_state: 'opl app state --profile full --json',
+  full_drilldown: 'opl runtime app-operator-drilldown --detail full --json',
   action: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
 };
 export const expectedOptionalRuntimeFrameworkSurfaces: Record<string, string> = {

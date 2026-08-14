@@ -32,7 +32,7 @@ export type GuiDesignSystemValidation = {
   definition_stack: string[];
   shell_roles: {
     active: 'aionui';
-    foreground: 'opl-native-workbench';
+    foreground: 'opl-studio';
     archived: ['hermes-codex', 'agui-codex'];
   };
   codex_reference: string;
@@ -90,7 +90,7 @@ export type GuiDesignSystemValidation = {
 };
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-native-workbench; archived=hermes-codex,agui-codex';
+const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-studio; archived=hermes-codex,agui-codex';
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
@@ -616,14 +616,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const mainline = record(registry.active_gui_mainline);
   const alternatives = record(registry.alternative_gui_policy);
   const candidates = Array.isArray(registry.candidates) ? registry.candidates.map(record) : [];
-  const nativeCandidate = candidates.find((candidate) => candidate.id === 'opl-native-workbench') ?? {};
+  const nativeCandidate = candidates.find((candidate) => candidate.id === 'opl-studio') ?? {};
   const hermesCandidate = candidates.find((candidate) => candidate.id === 'hermes-codex') ?? {};
   const aguiCandidate = candidates.find((candidate) => candidate.id === 'agui-codex') ?? {};
   if (mainline.shell !== 'aionui' || registry.active_shell_unchanged !== 'aionui') {
     issues.add('candidate registry must keep AionUI active');
   }
-  if (alternatives.only_foreground_alternative !== 'opl-native-workbench') {
-    issues.add('candidate registry must keep opl-native-workbench foreground');
+  if (alternatives.only_foreground_alternative !== 'opl-studio') {
+    issues.add('candidate registry must keep opl-studio foreground');
   }
   if (stringArray(alternatives.default_candidate_validation_scope).length !== 0) {
     issues.add('default GUI design validation must use role registry only, not candidate detail');
@@ -643,7 +643,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('candidate registry must keep agui-codex as archived technical proof');
   }
   if (nativeCandidate.foreground_alternative_role !== 'only_foreground_alternative') {
-    issues.add('opl-native-workbench must carry only_foreground_alternative role');
+    issues.add('opl-studio must carry only_foreground_alternative role');
   }
 
   const decisions = readText(root, 'docs/decisions.md', issues);
@@ -2065,7 +2065,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     definition_stack: expectedStack.map((layer) => layer.id),
     shell_roles: {
       active: 'aionui',
-      foreground: 'opl-native-workbench',
+      foreground: 'opl-studio',
       archived: ['hermes-codex', 'agui-codex'],
     },
     codex_reference: codexReference,

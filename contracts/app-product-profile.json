@@ -110,7 +110,7 @@
       "technology": "react",
       "role": "opl_owned_product_renderer",
       "implementation_status": "approved_direction_candidate_evidence_only",
-      "technical_evaluation_candidate": "opl-native-workbench",
+      "technical_evaluation_candidate": "opl-studio",
       "required_surfaces": ["native_macos", "opl_workspace", "future_cross_platform_desktop"],
       "single_active_product_renderer_required": true,
       "carrier_specific_product_forks_allowed": false,
@@ -140,7 +140,7 @@
     "macos_desktop": {
       "carrier_id": "native_macos",
       "role": "approved_target_architecture",
-      "technical_evaluation_candidate": "opl-native-workbench",
+      "technical_evaluation_candidate": "opl-studio",
       "host_technology": "swift_appkit_wkwebview",
       "target_platforms": ["macos-arm64"],
       "current_release_support_source_ref": "product.supported_release_platforms",
@@ -154,7 +154,7 @@
       "carrier_id": "container_webui",
       "product_name": "OPL Workspace",
       "role": "hosted_one_person_lab_app_web_access",
-      "technical_evaluation_candidate": "opl-native-workbench",
+      "technical_evaluation_candidate": "opl-studio",
       "implementation_status": "candidate_evidence_only",
       "mainline_implementation_assigned": false,
       "host_technology": "node_web_host",
@@ -187,7 +187,7 @@
       "separate_adoption_and_platform_acceptance_required": true
     },
     "native_candidate": {
-      "candidate_id": "opl-native-workbench",
+      "candidate_id": "opl-studio",
       "role": "manual_on_demand_non_periodic_technical_evaluation",
       "mainline_development_required": false,
       "completion_or_feature_parity_obligation": false,

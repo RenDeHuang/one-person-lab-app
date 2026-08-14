@@ -41,6 +41,7 @@ const args = parseArgs(process.argv);
 const releaseValidationProfile = activeShellReleaseValidationProfile(args.quick);
 const contract = readAppShellAdapterContract();
 const shellPaths = resolveActiveShellPaths({ contract });
+const validateImplementation = contract.shell_contract?.implementation_validation !== 'contract_paths_only';
 const requestedShellRef = process.env.OPL_APP_SHELL_REF?.trim();
 ensureActiveShellCheckout({
   shellRoot: shellPaths.shellRoot,
@@ -74,7 +75,11 @@ validateFirstRunCompiledExpectations({
   release: releaseChannel,
 });
 validateProductProfile(productProfile, installExposurePolicy);
-validateReleaseChannelContract(releaseChannel, shellPaths, releaseValidationProfile);
+validateReleaseChannelContract(
+  releaseChannel,
+  validateImplementation ? shellPaths : null,
+  releaseValidationProfile,
+);
 validateReleaseEvidenceBundle(releaseChannel, firstRunMatrix);
 validateActiveShellImplementation(shellPaths);
 validateShellThreadCoordination(shellPaths);

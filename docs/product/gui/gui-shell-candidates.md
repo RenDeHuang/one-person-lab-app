@@ -13,12 +13,12 @@ package scripts, validation output, and candidate package artifacts.
 | Role | Shell | Physical checkout | Adapter contract | Default scope |
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable plus Dev/Nightly Preview wrapper commands |
-| Foreground candidate | `opl-native-workbench` | `shells/opl-native-workbench` or `../opl-native-workbench` | `contracts/shell-adapters/opl-native-workbench.json` | Explicit Native validation/build only |
+| Foreground candidate | `opl-studio` | `shells/opl-studio` or `../opl-studio` | `contracts/shell-adapters/opl-studio.json` | Explicit Native validation/build only |
 | Archived proof | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Explicit user-requested historical replay only |
 | Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit user-requested historical replay only |
 
 Stable role marker:
-`gui_shell_roles: active=aionui; foreground=opl-native-workbench; archived=hermes-codex,agui-codex`.
+`gui_shell_roles: active=aionui; foreground=opl-studio; archived=hermes-codex,agui-codex`.
 
 Default maintenance validates only this four-role registry. Detailed candidate
 contracts are intentionally carrier-owned and explicit:
@@ -26,7 +26,7 @@ contracts are intentionally carrier-owned and explicit:
 | Validation scope | Owner entry | Default/release participation |
 | --- | --- | --- |
 | Fixed role registry | `npm run validate:shell-candidates` | Included in default structural gates; does not inspect candidate implementation detail. |
-| Native foreground detail | `npm run validate:candidate:native` / `npm run test:candidate:native` | Explicit on demand; full candidate evidence is Native-only. |
+| OPL Studio foreground detail | `npm run validate:candidate:studio` / `npm run test:candidate:studio` | Explicit on demand; full candidate evidence is Studio-only. |
 | Hermes archived proof | `npm run validate:candidate:hermes` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
 | AGUI archived proof | `npm run validate:candidate:agui` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
 
@@ -38,7 +38,7 @@ model-policy, design-system, full, or release-boundary maintenance.
 ## 双 GUI、单控制面
 
 OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模型。AionUI 与
-`opl-native-workbench` 都消费 App-owned product contracts、OPL state/action surface
+`opl-studio` 都消费 App-owned product contracts、OPL state/action surface
 和 Codex App Server authority，但不共享 renderer 源码、前端依赖目录、GUI 私有数据库
 或构建链。这个关系类似同一个语言 Runtime 可以被多个 IDE 使用，而不是把两个 IDE
 合并进同一个依赖树。
@@ -65,8 +65,8 @@ managed-resources manifest 解析 exact Codex；目标由 Shell 从同一上游�
 `OPL_CODEX_BIN` 交给单一 App Server adapter。Standard/Full 最终包必须物理排除 Claude，
 并继续排除 Framework managed Codex archive、cache 或 generation。Framework headless
 carrier 作为独立 Base 安装能力保留，不得因为 App 选择 AionCore 而打入 App bundle。
-Native candidate 与后续 adopted Native shell 继续使用同一 resolver/protocol，但其
-carrier 必须是 Native-owned 或 exact external binary，不能要求 AionCore，也不能读取
+OPL Studio candidate 与后续 adopted shell 继续使用同一 resolver/protocol，但其
+carrier 必须是 Studio-owned 或 exact external binary，不能要求 AionCore，也不能读取
 AionUI 私有 manifest parser。这保证替换 GUI 时只切换 executable source，不迁移
 canonical thread history。迁移计划见
 [`../../architecture/aioncore-codex-only-carrier.md`](../../architecture/aioncore-codex-only-carrier.md)。
@@ -91,7 +91,9 @@ it. Source, package or smoke replay is allowed only when the user explicitly
 requests that archived proof.
 
 DeepSeek Harness is not another shell role. It is a pinned design and bounded
-source-reuse candidate for the sole foreground route, `opl-native-workbench`.
+source dependency for the sole foreground candidate route, `opl-studio`.
+AionUI consumes only the OPL-owned contribution ABI through a thin adapter and
+does not import DeepSeek Harness, Cordis, or a second plugin runtime.
 The evaluation and controlled migration plan lives in
 [`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md).
 
@@ -137,19 +139,19 @@ the current profile value.
 npm run gui
 ```
 
-Native candidate 使用独立 bundle，可与正在运行的主线并存。默认 action 只允许 dry-run：
+OPL Studio candidate 使用独立 bundle，可与正在运行的主线并存。默认 action 只允许 dry-run：
 
 ```bash
-npm run gui -- --shell opl-native-workbench
-npm run gui -- --shell opl-native-workbench --rebuild
-npm run gui -- --shell opl-native-workbench --workspace /path/to/project
-npm run gui -- --shell opl-native-workbench --plan
+npm run gui -- --shell opl-studio
+npm run gui -- --shell opl-studio --rebuild
+npm run gui -- --shell opl-studio --workspace /path/to/project
+npm run gui -- --shell opl-studio --plan
 ```
 
 只有明确需要测试真实 mutation 时才使用：
 
 ```bash
-npm run gui -- --shell opl-native-workbench --allow-actions
+npm run gui -- --shell opl-studio --allow-actions
 ```
 
 切换权限模式前先退出已运行的 Native Candidate；`open` 不创建第二个 Candidate 实例，
@@ -171,18 +173,18 @@ without changing the active GUI:
 
 ```bash
 npm run validate:shell-candidates
-npm run validate:candidate:native
+npm run validate:candidate:studio
 npm run validate:candidate:hermes
 npm run validate:candidate:agui
 ```
 
-Build the foreground candidate through the App wrapper. Full Native evidence is
-owned by the Native candidate path. Hermes/AGUI command chains are read from
+Build the foreground candidate through the App wrapper. Full Studio evidence is
+owned by the OPL Studio candidate path. Hermes/AGUI command chains are read from
 their adapters; Hermes packaging remains a separate manual replay justified by
 an actual Hermes development need:
 
 ```bash
-npm run package:candidate:native
+npm run package:candidate:studio
 npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
 ```
 
@@ -191,7 +193,7 @@ set `OPL_APP_SHELL_ROOT` for that command:
 
 ```bash
 OPL_APP_SHELL_ROOT=../opl-hermes-shell npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
-OPL_APP_SHELL_ROOT=../opl-native-workbench npm run package:candidate:native
+OPL_APP_SHELL_ROOT=../opl-studio npm run package:candidate:studio
 ```
 
 ## Boundaries
@@ -213,6 +215,6 @@ is deliberately outside that authority path.
 | 1 | Operating policy | Contracts declare launcher selection, shared Runtime resolution and conversation continuity boundaries; validators reject policy drift and false-ready flags. | Implemented for local launch policy; stronger parity/readiness claims remain gated. |
 | 2 | App-root launcher | One `--shell/--mode` interface selects active or foreground shell without mutating release adoption. | Implemented with plan/readback, isolated bundle identity and Candidate default read-only policy. |
 | 3 | Shared Runtime resolver | Both GUI clients consume the App resolver and emit exact OPL/Codex path, version and cohort readback. | Implemented for launcher-started Native only; active AionUI parity and Native direct-launch fallback remain unproven. |
-| 4 | Canonical conversation continuity | Both clients project App Server `thread/list/read/resume`; local stores contain UI state/drafts/rebuildable cache only. | P1c App/Native candidate bytes remove the Native private coordination/cache requirement, but canonical absorption and cross-GUI continuity evidence remain pending; AionUI private repository is unchanged by this slice. |
+| 4 | Canonical conversation continuity | Both clients project App Server `thread/list/read/resume`; local stores contain UI state/drafts/rebuildable cache only. | P1c App/Studio candidate bytes remove the Studio private coordination/cache requirement, but canonical absorption and cross-GUI continuity evidence remain pending; AionUI private repository is unchanged by this slice. |
 | 5 | Side-by-side acceptance | Distinct bundle identities, sequential switching, same-workspace readback and negative concurrent-write cases use one exact cohort. | Pending; no simultaneous-write claim. |
 | 6 | Optional adoption | Candidate changes the active adapter and passes full release/owner gates. | Separate later decision. |

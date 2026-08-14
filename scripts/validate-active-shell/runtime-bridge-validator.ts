@@ -1179,7 +1179,7 @@ function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     exact_runtime_identity_equality_may_gate_install_or_runtime: false,
     host_path_only_resolution_can_prove_parity: false,
     active_aionui_status: 'aioncore_managed_identity_binding_packaged_full_standard_finder_replay_passed',
-    opl_native_workbench_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
+    opl_studio_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
     same_physical_runtime_currently_claimed: true,
     implementation_status: 'source_identity_binding_and_full_standard_finder_evidence_complete',
   })) {
@@ -1299,7 +1299,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     duplicate_thread_store_allowed: false,
     simultaneous_same_thread_write_safety_claimed: false,
     active_aionui_status: 'shell_local_conversation_repository_requires_canonical_projection',
-    opl_native_workbench_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
+    opl_studio_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
     pin_role: 'shell_ui_metadata_only',
     local_reset_role: 'retain_existing_aionui_conversation_semantics_not_app_server_history_reset',
     workspace_directory_role:
@@ -1507,7 +1507,7 @@ function validatePackageReadinessProjection(runtimeBridge) {
   const rows = runtimeBridge.canonical_state_display_action_map?.rows;
   const runtimeRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'runtime') : null;
   const packageRow = Array.isArray(rows) ? rows.find((row) => row?.semantic_area === 'package') : null;
-  const nativeShellRole = runtimeBridge.canonical_state_display_action_map?.shells?.opl_native_workbench?.role;
+  const nativeShellRole = runtimeBridge.canonical_state_display_action_map?.shells?.opl_studio?.role;
   if (
     runtimeRow?.route_classification !== 'core_dynamic_agent_runtime'
     || runtimeRow.producer_required !== true
