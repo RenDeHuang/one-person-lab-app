@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { readAppProductProfile } from '../../scripts/app-product-profile/profile-contract.ts';
+import { appOwnedOplStandardAgentMembershipPolicy } from '../../scripts/validate-active-shell/app-contract-constants.ts';
 import { validatePackageAppContributionsProductContract } from '../../scripts/validate-active-shell/gui-framework-surfaces-validator.ts';
 import { validateGuiProductHomeContract } from '../../scripts/validate-active-shell/gui-product-home-validator.ts';
 import { validateProductProfile } from '../../scripts/validate-active-shell/product-profile-validator.ts';
@@ -102,7 +103,7 @@ test('App-owned Agent, Skill, and generated session authorities stay absent and 
   );
 });
 
-test('one unknown Agent projection covers Settings, Home, Runtime, and projected actions without an App id branch', () => {
+test('one unknown non-OPL Agent remains generic Settings/Runtime truth but cannot enter the OPL standard Agent palette', () => {
   const profile = readJson('contracts/app-product-profile.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
   const palettePolicy = profile.gui.ordinary_capability_selector_policy;
@@ -110,7 +111,11 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
 
   assert.equal(
     palettePolicy.palette_agent_catalog_source_ref,
-    'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    'app_state.agent_packages.directory.entries',
+  );
+  assert.deepEqual(
+    palettePolicy.opl_standard_agent_membership_policy,
+    appOwnedOplStandardAgentMembershipPolicy,
   );
   assert.equal(
     palettePolicy.palette_agent_status_source_ref,
@@ -118,15 +123,15 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
   );
   assert.equal(
     palettePolicy.palette_unknown_standard_agent_policy,
-    'include_without_app_package_id_branch',
+    'include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership',
   );
   assert.equal(
     guiContract.home_layout.unknown_standard_agent_policy,
-    'render_when_installed_and_default_or_user_preference_visible_without_app_package_id_branch',
+    'render_unknown_package_ids_only_when_they_match_opl_standard_agent_membership_without_app_allowlist',
   );
   assert.equal(
     guiContract.home_layout.starter_visibility_policy,
-    'installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts',
+    'opl_standard_agent_membership_with_selectable_readiness_real_codex_route_and_default_or_user_visible_shortcuts',
   );
   assert.equal(
     shortcutPolicy.shortcut_source_ref,
@@ -143,8 +148,36 @@ test('one unknown Agent projection covers Settings, Home, Runtime, and projected
   const preference = appState.agent_packages.status_index.home_shortcut_preferences.find(
     (entry) => entry.package_id === syntheticDirectoryEntry.package_id,
   );
+  const oplStandardAgents = standardAgents.filter((entry) => {
+    const oplOwned = entry.official === true || entry.publisher === 'one-person-lab';
+    const currentStatus = appState.agent_packages.status_index.packages[entry.package_id];
+    const selectable = entry.installed !== false
+      && currentStatus?.presence?.present !== false
+      && currentStatus?.presence?.callable !== false;
+    const realCodexRoute = entry.home_shortcuts?.some((shortcut) => (
+      shortcut.route?.route_kind === 'agent_package_shortcut'
+      && shortcut.route?.executor === 'codex_cli'
+      && typeof shortcut.route?.codex_visible_entry === 'string'
+      && shortcut.route.codex_visible_entry.trim()
+    ));
+    return oplOwned && selectable && realCodexRoute;
+  });
 
   assert.deepEqual(standardAgents.map((entry) => entry.package_id), ['future.agent-lab']);
+  assert.deepEqual(oplStandardAgents, []);
+  const sourceMarkerOnly = {
+    ...standardAgents[0],
+    publisher: 'third-party',
+    source_explanation: {
+      kind: 'first_party_framework_projection',
+      source: 'first_party',
+    },
+  };
+  assert.equal(
+    sourceMarkerOnly.official === true || sourceMarkerOnly.publisher === 'one-person-lab',
+    false,
+    'Framework projection provenance alone must not grant OPL standard Agent membership',
+  );
   assert.equal(standardAgents[0]?.installed, true);
   assert.equal(status?.presence.present, true);
   assert.equal(status?.presence.callable, true);

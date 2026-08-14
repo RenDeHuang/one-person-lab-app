@@ -3,6 +3,7 @@ import {
   appOwnedActiveAionuiPrimaryNavigation,
   appOwnedCodexSubagentActivityPolicy,
   appOwnedExplicitSessionInputPolicy,
+  appOwnedOplStandardAgentMembershipPolicy,
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
   appOwnedSendFailureInputPolicy,
@@ -10,6 +11,8 @@ import {
   appOwnedTranscriptExport,
   appOwnedUnifiedContextMenu,
 } from './validate-active-shell/app-contract-constants.ts';
+
+export { appOwnedOplStandardAgentMembershipPolicy };
 
 type ProductProfileLike = {
   schema_version?: unknown;
@@ -133,12 +136,14 @@ export const expectedHomeComposerStateContract = {
   contract_id: 'opl_home_composer_state.v1',
   executor: 'codex',
   shortcut_package_membership_source_ref:
-    'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+    'app_state.agent_packages.directory.entries',
+  opl_standard_agent_membership_policy: appOwnedOplStandardAgentMembershipPolicy,
   shortcut_preference_source_ref:
     'app_state.agent_packages.status_index.home_shortcut_preferences[]',
   shortcut_availability_source_ref:
     'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
-  unknown_standard_agent_allowed: true,
+  unknown_standard_agent_allowed: false,
+  unknown_first_party_opl_standard_agent_allowed: true,
   viewports: ['desktop', 'mobile'],
   availability_states: ['available', 'unavailable'],
   invariants: {
@@ -196,12 +201,12 @@ const expectedCodexVisibleModels = [
   { id: 'gpt-5.2', label_zh: '5.2', label_en: '5.2' },
 ];
 const expectedReasoningLabels = {
-  low: { zh: '推理低', en: 'Low reasoning' },
-  medium: { zh: '推理中', en: 'Medium reasoning' },
-  high: { zh: '推理高', en: 'High reasoning' },
-  xhigh: { zh: '推理超高', en: 'Extra high reasoning' },
-  max: { zh: '推理最高', en: 'Maximum reasoning' },
-  ultra: { zh: '推理极高', en: 'Ultra reasoning' },
+  low: { zh: '低', en: 'Low' },
+  medium: { zh: '中', en: 'Medium' },
+  high: { zh: '高', en: 'High' },
+  xhigh: { zh: '超高', en: 'Extra high' },
+  max: { zh: '最高', en: 'Maximum' },
+  ultra: { zh: '极高', en: 'Ultra' },
 };
 
 type GuiLike = NonNullable<ProductProfileLike['gui']>;

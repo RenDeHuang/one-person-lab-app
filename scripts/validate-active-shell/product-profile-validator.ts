@@ -36,6 +36,7 @@ import {
   assertCapabilityReferenceListShape,
   assertHomeComposerStateContract,
   assertOfficialProfileShape,
+  appOwnedOplStandardAgentMembershipPolicy,
 } from '../app-product-profile-shared-validators.ts';
 
 const ordinaryForbiddenCapabilityPolicy = {
@@ -57,27 +58,33 @@ const ordinaryForbiddenCapabilityPolicy = {
 
 const dynamicHomeComposerAuthority = {
   shortcut_package_membership_source_ref:
-    'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+    'app_state.agent_packages.directory.entries',
+  opl_standard_agent_membership_policy: appOwnedOplStandardAgentMembershipPolicy,
   shortcut_preference_source_ref:
     'app_state.agent_packages.status_index.home_shortcut_preferences[]',
   shortcut_availability_source_ref:
     'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
-  unknown_standard_agent_allowed: true,
+  unknown_standard_agent_allowed: false,
+  unknown_first_party_opl_standard_agent_allowed: true,
 };
 
 function validateDynamicHomeComposerStateContract(value, label) {
   const {
     shortcut_package_membership_source_ref,
+    opl_standard_agent_membership_policy,
     shortcut_preference_source_ref,
     shortcut_availability_source_ref,
     unknown_standard_agent_allowed,
+    unknown_first_party_opl_standard_agent_allowed,
   } = value ?? {};
   assertDeepEqualJson(
     {
       shortcut_package_membership_source_ref,
+      opl_standard_agent_membership_policy,
       shortcut_preference_source_ref,
       shortcut_availability_source_ref,
       unknown_standard_agent_allowed,
+      unknown_first_party_opl_standard_agent_allowed,
     },
     dynamicHomeComposerAuthority,
     `${label} dynamic authority`,
@@ -543,7 +550,7 @@ function validateHomeAssistantDefaults(profile) {
   }
   if (
     homeLayout?.home_presentation_source_ref !==
-    'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]'
+    'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[]'
   ) {
     throw new Error('Product profile Home presentation must come from the dynamic Agent directory and shortcut compatibility metadata');
   }
@@ -594,10 +601,9 @@ function validateAgentPackageRegistryProjection(profile) {
   if (
     JSON.stringify(presentation?.ownership_classifier) !==
       JSON.stringify({
-        source_fields: ['publisher', 'source_explanation.kind', 'source_explanation.source'],
+        source_fields: ['official', 'publisher'],
+        opl_official: true,
         opl_publisher: 'one-person-lab',
-        opl_source_kind: 'first_party_framework_projection',
-        opl_source: 'first_party',
         hardcoded_package_ids_allowed: false,
       }) ||
     JSON.stringify(presentation?.section_policy) !==
@@ -766,17 +772,20 @@ function validateOrdinaryCapabilitySelectorPolicy(profile) {
     policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     policy?.authority !== 'owner_or_carrier_skill_projection_and_mcp_negative_filter' ||
     policy?.palette_agent_catalog_source_ref !==
-      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+      'app_state.agent_packages.directory.entries' ||
+    JSON.stringify(policy?.opl_standard_agent_membership_policy) !==
+      JSON.stringify(appOwnedOplStandardAgentMembershipPolicy) ||
     policy?.palette_agent_status_source_ref !== 'app_state.agent_packages.status_index.packages[]' ||
     policy?.palette_agent_availability_policy !==
       'join_by_package_id_and_use_fresh_directory_installed_plus_status_index_presence.present_and_presence.callable' ||
     policy?.palette_agent_action_policy !== 'directory_available_actions_and_recommended_action_ref_only' ||
-    policy?.palette_unknown_standard_agent_policy !== 'include_without_app_package_id_branch' ||
+    policy?.palette_unknown_standard_agent_policy !==
+      'include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership' ||
     policy?.palette_required_agent_package_ids !== undefined ||
     JSON.stringify(policy?.palette_agent_group_label_i18n) !==
-      JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
+      JSON.stringify({ 'zh-CN': 'OPL 标准智能体', 'en-US': 'OPL standard agents' }) ||
     policy?.palette_home_shortcut_independence_policy !==
-      'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
+      'complete_opl_standard_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
     policy?.agent_owned_skill_deduplication_policy !==
       'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
     policy?.skill_source_ref !== 'owner_or_carrier_projected_capability_metadata_for_the_selected_package' ||

@@ -311,7 +311,7 @@ Public role map:
 - App is the ordinary-user product entry and GUI product truth. It owns product navigation, page-state expectations, user documentation, screenshots, and the agent package-management UI that makes OPL usable without knowing the underlying repositories.
 - Agent package management is an App product surface. Each Package owner defines identity and publication, the configured native carrier owns physical lifecycle and installed readback, and Framework/root aggregates installed/callable status plus generic actions. The App renders that dynamic projection; shell-local state cannot become install authority.
 - One Person Lab Framework/root owns runtime state, action execution, package/runtime projections, provider/domain projections, and domain routes behind the App views.
-- AionUI is the mainline shell implementation carrier. OPL Studio is the developer backup candidate. Both consume App/root canonical state and do not own product, runtime, package, or domain truth.
+- AionUI remains the mainline shell implementation carrier. The internal `opl-studio` candidate is the first-party Native successor under active development; it remains non-mainline until it satisfies the minimum-complete and release-admission gates and the App explicitly switches carriers. Both consume App/root canonical state and do not own product, runtime, package, or domain truth.
 
 The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, RCA, and BookForge keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
 
@@ -324,7 +324,7 @@ placeholder state or default release obligation follows from this repository.
 
 OPL Book Forge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
-GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. OPL Studio is the developer backup and foreground candidate; Hermes Desktop is retained as a prior-candidate reference. `agui-codex`, PilotDeck, and similar references are archived technical verification or inspiration material; they are not routine implementation, validation, or polish lanes. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
+GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. The internal `opl-studio` candidate is the first-party Native successor under active development and the only foreground alternative; it does not become mainline until minimum completion, release admission, and an explicit App carrier switch. Hermes Desktop is retained as a prior-candidate reference. `agui-codex`, PilotDeck, and similar references are archived technical verification or inspiration material; they are not routine implementation, validation, or polish lanes. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
 
@@ -345,7 +345,7 @@ one-person-lab-app/
     aionui/             External checkout of gaofeng21cn/opl-aion-shell
 ```
 
-`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. OPL Studio follows the same external-checkout rule as the developer backup candidate at `shells/opl-studio`; Hermes Desktop / `hermes-codex` is retained as a prior-candidate reference. `shells/agui-codex/` remains an archived technical-proof link to `gaofeng21cn/opl-agui-codex-shell` and is selected only when AGUI replay is explicitly requested.
+`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. The first-party Native successor follows the same external-checkout rule under its internal `opl-studio` repo/candidate id at `shells/opl-studio`; Hermes Desktop / `hermes-codex` is retained as a prior-candidate reference. `shells/agui-codex/` remains an archived technical-proof link to `gaofeng21cn/opl-agui-codex-shell` and is selected only when AGUI replay is explicitly requested.
 
 ### Validation Commands
 
@@ -378,7 +378,7 @@ The active shell is declared in [`contracts/app-shell-adapter.json`](contracts/a
 - shell source: `gaofeng21cn/opl-aion-shell`
 - shell history policy: external checkout, not merged into App default branch
 
-The OPL Studio developer backup candidate can be selected without changing the default release adapter:
+The first-party Native successor candidate (`opl-studio`) can be selected without changing the default release adapter:
 
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package

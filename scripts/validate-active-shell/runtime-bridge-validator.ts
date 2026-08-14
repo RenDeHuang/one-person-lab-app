@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 import {
   appOwnedGenericOwnerAcceptanceCurrentnessRefPolicy,
+  appOwnedOplStandardAgentMembershipPolicy,
   forbiddenAuthorityOwners,
 } from './app-contract-constants.ts';
 import { isDefaultReleaseAdapter } from './active-shell-contract.ts';
@@ -1601,6 +1602,18 @@ function validatePackageReadinessProjection(runtimeBridge) {
   }
 }
 
+function validateNativeMinimumProductBridge(runtimeBridge) {
+  const launch = runtimeBridge.native_minimum_product_bridge?.agent_conversation_launch;
+  if (launch?.catalog_source !== 'app_state.agent_packages.directory.entries') {
+    throw new Error('Native Agent launch catalog must read the raw Framework directory before applying App membership');
+  }
+  assertDeepEqualJson(
+    launch?.opl_standard_agent_membership_policy,
+    appOwnedOplStandardAgentMembershipPolicy,
+    'Native standard Agent membership policy',
+  );
+}
+
 function validateRuntimeSurfaceOwnerMatrix(runtimeBridge) {
   const matrix = runtimeBridge.runtime_surface_owner_matrix;
   for (const [field, expected] of Object.entries({
@@ -1721,6 +1734,7 @@ export function validateRuntimeBridgeContract(runtimeBridge, contract) {
   validateCodexParityAdapterPolicies(runtimeBridge);
   validateRuntimeBridgeProjectionContracts(runtimeBridge);
   validatePackageReadinessProjection(runtimeBridge);
+  validateNativeMinimumProductBridge(runtimeBridge);
   validateRuntimeBridgeUserTaskStatus(runtimeBridge);
   validateRuntimeSurfaceOwnerMatrix(runtimeBridge);
   validateRuntimeBridgeAuthorityBoundary(runtimeBridge);

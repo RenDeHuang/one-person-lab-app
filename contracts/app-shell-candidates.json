@@ -88,8 +88,8 @@
           "packaged"
         ],
         "bundle_id": "cn.gflab.opl.studio.preview",
-        "packaged_app_path": "/Applications/One Person Lab Studio Preview.app",
-        "bundle_relative_path": "out/One Person Lab Studio Preview.app",
+        "packaged_app_path": "/Applications/One Person Lab Preview.app",
+        "bundle_relative_path": "out/One Person Lab Preview.app",
         "package_command": [
           "npm",
           "run",
@@ -597,6 +597,7 @@
         "adapter_binding_ref": "contracts/shell-adapters/opl-studio.json#p1_baseline_bridge",
         "required_user_outcomes": [
           "standard Agent selection launches a canonical Codex thread and first turn without a Framework activation action",
+          "the separate OPL standard Agent composer group includes only producer-declared first-party OPL professional Agents with package_role=standard_agent, selectable readiness, and a real Codex route; generic Skills and plugins remain separate even when a descriptor defaults to standard_agent, without a package-id allowlist",
           "running-turn input uses Codex turn/steer while idle input uses turn/start and no persistent Shell queue exists",
           "Gateway login uses the dedicated secret bridge while non-secret account actions use projected App actions",
           "Agent Package lifecycle renders every complete projected available_action without an action-id allowlist",
@@ -945,6 +946,7 @@
           "WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host",
           "one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer",
           "standard Agent selection binds package_id, shortcut_id, codex_visible_entry, and required_skill_ids to thread/start plus turn/start without creating a Framework activation action",
+          "OPL standard Agent palette membership combines producer-projected OPL publisher or ownership identity with package_role=standard_agent, selectable readiness, and a real Codex route; it uses no package-id allowlist and never folds generic Skills, plugins, or connections into that group",
           "running-turn submissions use turn/steer and idle submissions use turn/start while queued input stays renderer-ephemeral until App Server acceptance",
           "Gateway login uses loginGatewayAccount without generic action secret payloads and all other Gateway mutations use the projected action ids",
           "Agent Package lifecycle actions come dynamically from complete directory available_actions entries without a Shell allowlist or inferred semantics",

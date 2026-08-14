@@ -284,7 +284,21 @@
     "catalog_membership_authority": false,
     "visibility_authority": false,
     "action_authority": false,
-    "runtime_projection_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+    "runtime_projection_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+    "opl_standard_agent_membership_policy": {
+      "ownership_source_fields": ["official", "publisher"],
+      "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+      "required_package_role": "standard_agent",
+      "required_readiness": "selectable",
+      "required_codex_route": {
+        "source": "home_shortcuts[].route",
+        "route_kind": "agent_package_shortcut",
+        "executor": "codex_cli",
+        "codex_visible_entry": "non_empty"
+      },
+      "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+      "package_id_allowlist_allowed": false
+    },
     "selection_policy": "The release harness resolves these exact probe identities against fresh Framework-projected directory entries and shortcuts; missing or mismatched projections fail qualification without creating App catalog truth.",
     "targets": [
       {
@@ -643,10 +657,25 @@
       },
       "home_composer_probe": {
         "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.home.home_composer_state_contract",
-        "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
+        "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries",
+        "opl_standard_agent_membership_policy": {
+          "ownership_source_fields": ["official", "publisher"],
+          "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+          "required_package_role": "standard_agent",
+          "required_readiness": "selectable",
+          "required_codex_route": {
+            "source": "home_shortcuts[].route",
+            "route_kind": "agent_package_shortcut",
+            "executor": "codex_cli",
+            "codex_visible_entry": "non_empty"
+          },
+          "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+          "package_id_allowlist_allowed": false
+        },
         "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
         "shortcut_availability_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence",
-        "unknown_standard_agent_allowed": true,
+        "unknown_standard_agent_allowed": false,
+        "unknown_first_party_opl_standard_agent_allowed": true,
         "viewports": ["desktop", "mobile"],
         "availability_states": ["available", "unavailable"],
         "required_summary_fields": ["missing_controls", "composer_state", "instance_counts"],
@@ -1128,10 +1157,25 @@
         },
         "home_composer_probe": {
           "contract_ref": "contracts/app-gui-product-contract.json#interaction_baseline.home.home_composer_state_contract",
-          "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
+          "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries",
+          "opl_standard_agent_membership_policy": {
+            "ownership_source_fields": ["official", "publisher"],
+            "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+            "required_package_role": "standard_agent",
+            "required_readiness": "selectable",
+            "required_codex_route": {
+              "source": "home_shortcuts[].route",
+              "route_kind": "agent_package_shortcut",
+              "executor": "codex_cli",
+              "codex_visible_entry": "non_empty"
+            },
+            "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+            "package_id_allowlist_allowed": false
+          },
           "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
           "shortcut_availability_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence",
-          "unknown_standard_agent_allowed": true,
+          "unknown_standard_agent_allowed": false,
+          "unknown_first_party_opl_standard_agent_allowed": true,
           "viewports": ["desktop", "mobile"],
           "availability_states": ["available", "unavailable"],
           "required_summary_fields": ["missing_controls", "composer_state", "instance_counts"],

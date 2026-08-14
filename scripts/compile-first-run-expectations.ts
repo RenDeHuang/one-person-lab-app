@@ -66,33 +66,75 @@ export function buildFirstRunCompiledExpectations(input: {
     homePage?.home_view_model?.home_agent_shortcuts_metadata_policy,
     shortcutProjection,
   );
+  const oplStandardAgentMembershipPolicy = {
+    ownership_source_fields: [
+      'official',
+      'publisher',
+    ],
+    ownership_match_policy:
+      'official_equals_true_or_publisher_equals_one-person-lab',
+    required_package_role: 'standard_agent',
+    required_readiness: 'selectable',
+    required_codex_route: {
+      source: 'home_shortcuts[].route',
+      route_kind: 'agent_package_shortcut',
+      executor: 'codex_cli',
+      codex_visible_entry: 'non_empty',
+    },
+    generic_skills_plugins_connections_group_policy:
+      'separate_never_in_opl_standard_agent_group',
+    package_id_allowlist_allowed: false,
+  };
   const composerProjection = {
-    membership_source_ref:
-      'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+    membership_source_ref: 'app_state.agent_packages.directory.entries',
+    opl_standard_agent_membership_policy: oplStandardAgentMembershipPolicy,
     preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
     availability_source_ref:
       'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
-    unknown_standard_agent_allowed: true,
+    unknown_standard_agent_allowed: false,
+    unknown_first_party_opl_standard_agent_allowed: true,
   };
+  requireExact('GUI Home composer projection', {
+    membership_source_ref:
+      input.gui.interaction_baseline?.home?.home_composer_state_contract?.shortcut_package_membership_source_ref,
+    opl_standard_agent_membership_policy:
+      input.gui.interaction_baseline?.home?.home_composer_state_contract?.opl_standard_agent_membership_policy,
+    preference_source_ref:
+      input.gui.interaction_baseline?.home?.home_composer_state_contract?.shortcut_preference_source_ref,
+    availability_source_ref:
+      input.gui.interaction_baseline?.home?.home_composer_state_contract?.shortcut_availability_source_ref,
+    unknown_standard_agent_allowed:
+      input.gui.interaction_baseline?.home?.home_composer_state_contract?.unknown_standard_agent_allowed,
+    unknown_first_party_opl_standard_agent_allowed:
+      input.gui.interaction_baseline?.home?.home_composer_state_contract?.unknown_first_party_opl_standard_agent_allowed,
+  }, composerProjection);
   requireExact('Product profile Home composer projection', {
     membership_source_ref:
       input.productProfile.gui?.home?.home_composer_state_contract?.shortcut_package_membership_source_ref,
+    opl_standard_agent_membership_policy:
+      input.productProfile.gui?.home?.home_composer_state_contract?.opl_standard_agent_membership_policy,
     preference_source_ref:
       input.productProfile.gui?.home?.home_composer_state_contract?.shortcut_preference_source_ref,
     availability_source_ref:
       input.productProfile.gui?.home?.home_composer_state_contract?.shortcut_availability_source_ref,
     unknown_standard_agent_allowed:
       input.productProfile.gui?.home?.home_composer_state_contract?.unknown_standard_agent_allowed,
+    unknown_first_party_opl_standard_agent_allowed:
+      input.productProfile.gui?.home?.home_composer_state_contract?.unknown_first_party_opl_standard_agent_allowed,
   }, composerProjection);
   requireExact('Page-state Home composer projection', {
     membership_source_ref:
       homePage?.home_view_model?.home_composer_state_contract?.shortcut_package_membership_source_ref,
+    opl_standard_agent_membership_policy:
+      homePage?.home_view_model?.home_composer_state_contract?.opl_standard_agent_membership_policy,
     preference_source_ref:
       homePage?.home_view_model?.home_composer_state_contract?.shortcut_preference_source_ref,
     availability_source_ref:
       homePage?.home_view_model?.home_composer_state_contract?.shortcut_availability_source_ref,
     unknown_standard_agent_allowed:
       homePage?.home_view_model?.home_composer_state_contract?.unknown_standard_agent_allowed,
+    unknown_first_party_opl_standard_agent_allowed:
+      homePage?.home_view_model?.home_composer_state_contract?.unknown_first_party_opl_standard_agent_allowed,
   }, composerProjection);
   const targetFixture = input.matrix.release_qualification_agent_target_fixture;
   requireExact('Release qualification Agent target fixture boundary', {
@@ -101,12 +143,17 @@ export function buildFirstRunCompiledExpectations(input: {
     catalog_membership_authority: targetFixture?.catalog_membership_authority,
     visibility_authority: targetFixture?.visibility_authority,
     action_authority: targetFixture?.action_authority,
+    runtime_projection_source_ref: targetFixture?.runtime_projection_source_ref,
+    opl_standard_agent_membership_policy: targetFixture?.opl_standard_agent_membership_policy,
   }, {
     role: 'release_qualification_probe_input_only',
     runtime_authority: false,
     catalog_membership_authority: false,
     visibility_authority: false,
     action_authority: false,
+    runtime_projection_source_ref:
+      'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[]',
+    opl_standard_agent_membership_policy: oplStandardAgentMembershipPolicy,
   });
   const shortcutSelectionPolicy =
     'explicit_user_or_navigation_selection_only_no_saved_preset_restore_and_never_disabled_by_launch_readiness';
@@ -222,10 +269,12 @@ export function buildFirstRunCompiledExpectations(input: {
     target_fixture_role: 'release_qualification_probe_input_only',
     target_projection: {
       membership_source_ref: composerProjection.membership_source_ref,
+      opl_standard_agent_membership_policy: oplStandardAgentMembershipPolicy,
       shortcut_source_ref: shortcutProjection.shortcut_source_ref,
       preference_source_ref: shortcutProjection.preference_source_ref,
       runtime_catalog_authority: false,
-      unknown_standard_agent_allowed: true,
+      unknown_standard_agent_allowed: false,
+      unknown_first_party_opl_standard_agent_allowed: true,
     },
     projected_home_shortcut: {
       visible: true,

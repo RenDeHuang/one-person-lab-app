@@ -760,13 +760,27 @@
       "title_policy": "modest_dynamic_prompt_in_composer_reading_lane",
       "starter_policy": "compact_opl_capability_shortcuts_not_primary_navigation",
       "starter_limit": null,
-      "starter_visibility_policy": "installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts",
+      "starter_visibility_policy": "opl_standard_agent_membership_with_selectable_readiness_real_codex_route_and_default_or_user_visible_shortcuts",
       "starter_order_policy": "home_shortcut_preferences_sort_order_then_localized_display_name",
       "starter_layout_policy": "compact_inline_wrap",
       "starter_truncation_allowed": false,
-      "shortcut_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
+      "shortcut_membership_source_ref": "app_state.agent_packages.directory.entries",
       "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
-      "unknown_standard_agent_policy": "render_when_installed_and_default_or_user_preference_visible_without_app_package_id_branch",
+      "unknown_standard_agent_policy": "render_unknown_package_ids_only_when_they_match_opl_standard_agent_membership_without_app_allowlist",
+      "opl_standard_agent_membership_policy": {
+        "ownership_source_fields": ["official", "publisher"],
+        "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+        "required_package_role": "standard_agent",
+        "required_readiness": "selectable",
+        "required_codex_route": {
+          "source": "home_shortcuts[].route",
+          "route_kind": "agent_package_shortcut",
+          "executor": "codex_cli",
+          "codex_visible_entry": "non_empty"
+        },
+        "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+        "package_id_allowlist_allowed": false
+      },
       "visual_structure": {
         "starter_region": "composer_reading_lane_immediately_above_input_not_page_navigation",
         "starter_item_width": "content_sized",
@@ -809,10 +823,25 @@
       "home_composer_state_contract": {
         "contract_id": "opl_home_composer_state.v1",
         "executor": "codex",
-        "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
+        "shortcut_package_membership_source_ref": "app_state.agent_packages.directory.entries",
+        "opl_standard_agent_membership_policy": {
+          "ownership_source_fields": ["official", "publisher"],
+          "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+          "required_package_role": "standard_agent",
+          "required_readiness": "selectable",
+          "required_codex_route": {
+            "source": "home_shortcuts[].route",
+            "route_kind": "agent_package_shortcut",
+            "executor": "codex_cli",
+            "codex_visible_entry": "non_empty"
+          },
+          "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+          "package_id_allowlist_allowed": false
+        },
         "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
         "shortcut_availability_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence",
-        "unknown_standard_agent_allowed": true,
+        "unknown_standard_agent_allowed": false,
+        "unknown_first_party_opl_standard_agent_allowed": true,
         "viewports": [
           "desktop",
           "mobile"
@@ -2675,16 +2704,30 @@
     "workspace_selector_entry": "home.new_session_context_bar",
     "unselected_workspace_control_visible": true,
     "unselected_workspace_control_policy": "localized_choose_project_directory_action_not_projectless_status_placeholder",
-    "home_presentation_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
-    "home_shortcut_visibility_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+    "home_presentation_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+    "home_shortcut_visibility_source_ref": "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+    "opl_standard_agent_membership_policy": {
+      "ownership_source_fields": ["official", "publisher"],
+      "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+      "required_package_role": "standard_agent",
+      "required_readiness": "selectable",
+      "required_codex_route": {
+        "source": "home_shortcuts[].route",
+        "route_kind": "agent_package_shortcut",
+        "executor": "codex_cli",
+        "codex_visible_entry": "non_empty"
+      },
+      "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+      "package_id_allowlist_allowed": false
+    },
     "home_shortcut_placement": "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
     "dynamic_question_title": true,
     "starter_limit": null,
-    "starter_visibility_policy": "installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts",
+    "starter_visibility_policy": "opl_standard_agent_membership_with_selectable_readiness_real_codex_route_and_default_or_user_visible_shortcuts",
     "starter_order_policy": "home_shortcut_preferences_sort_order_then_localized_display_name",
-    "shortcut_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
+    "shortcut_membership_source_ref": "app_state.agent_packages.directory.entries",
     "shortcut_preference_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
-    "unknown_standard_agent_policy": "render_when_installed_and_default_or_user_preference_visible_without_app_package_id_branch",
+    "unknown_standard_agent_policy": "render_unknown_package_ids_only_when_they_match_opl_standard_agent_membership_without_app_allowlist",
     "starter_layout_policy": "compact_inline_wrap",
     "starter_item_width_policy": "content_sized",
     "starter_count_layout_policy": "center_actual_visible_count_and_wrap_without_navigation_chevrons",
@@ -2960,17 +3003,31 @@
           "id": "agent_packages",
           "scope": "new_session_configuration_only",
           "label_i18n": {
-            "zh-CN": "专业智能体",
-            "en-US": "Professional agents"
+            "zh-CN": "OPL 标准智能体",
+            "en-US": "OPL standard agents"
           },
-          "source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
-          "catalog_membership_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+          "source_ref": "app_state.agent_packages.directory.entries",
+          "catalog_membership_source_ref": "app_state.agent_packages.directory.entries",
+          "opl_standard_agent_membership_policy": {
+            "ownership_source_fields": ["official", "publisher"],
+            "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+            "required_package_role": "standard_agent",
+            "required_readiness": "selectable",
+            "required_codex_route": {
+              "source": "home_shortcuts[].route",
+              "route_kind": "agent_package_shortcut",
+              "executor": "codex_cli",
+              "codex_visible_entry": "non_empty"
+            },
+            "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+            "package_id_allowlist_allowed": false
+          },
           "status_source_ref": "app_state.agent_packages.status_index.packages[]",
           "catalog_order_policy": "home_shortcut_preferences_sort_order_then_localized_display_name",
-          "home_shortcut_independence_policy": "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
-          "availability_policy": "join_by_package_id_and_render_fresh_installed_present_callable_state_without_app_allowlist",
+          "home_shortcut_independence_policy": "render_the_complete_opl_standard_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
+          "availability_policy": "render_only_membership_matches_and_join_by_package_id_for_fresh_readiness_without_app_allowlist",
           "action_policy": "render_only_directory_available_actions_and_recommended_action_ref",
-          "unknown_standard_agent_policy": "include_without_app_package_id_branch",
+          "unknown_standard_agent_policy": "include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership",
           "existing_session_rebinding_allowed": false,
           "surface_actions": {
             "home_new_session": ["select_new_session_agent_package"],
@@ -3514,15 +3571,29 @@
       "single_scroll_owner": "content_pane",
       "horizontal_overflow_allowed": false
     },
-    "palette_agent_catalog_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+    "palette_agent_catalog_source_ref": "app_state.agent_packages.directory.entries",
+    "opl_standard_agent_membership_policy": {
+      "ownership_source_fields": ["official", "publisher"],
+      "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+      "required_package_role": "standard_agent",
+      "required_readiness": "selectable",
+      "required_codex_route": {
+        "source": "home_shortcuts[].route",
+        "route_kind": "agent_package_shortcut",
+        "executor": "codex_cli",
+        "codex_visible_entry": "non_empty"
+      },
+      "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+      "package_id_allowlist_allowed": false
+    },
     "palette_agent_status_source_ref": "app_state.agent_packages.status_index.packages[]",
     "palette_agent_availability_policy": "join_by_package_id_and_use_fresh_directory_installed_plus_status_index_presence.present_and_presence.callable",
     "palette_agent_action_policy": "directory_available_actions_and_recommended_action_ref_only",
-    "palette_unknown_standard_agent_policy": "include_without_app_package_id_branch",
-    "palette_home_shortcut_independence_policy": "complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order",
+    "palette_unknown_standard_agent_policy": "include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership",
+    "palette_home_shortcut_independence_policy": "complete_opl_standard_agent_catalog_independent_of_home_shortcut_visibility_and_order",
     "palette_agent_group_label_i18n": {
-      "zh-CN": "专业智能体",
-      "en-US": "Professional agents"
+      "zh-CN": "OPL 标准智能体",
+      "en-US": "OPL standard agents"
     },
     "agent_owned_skill_deduplication_policy": "exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills",
     "agent_reference_admission_policy": {
@@ -5514,7 +5585,21 @@
       "refresh_source": "opl app state --profile fast --json",
       "executor_policy_ref": "executor_policy",
       "home_layout_ref": "home_layout",
-      "agent_package_source_ref": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+      "agent_package_source_ref": "app_state.agent_packages.directory.entries",
+      "opl_standard_agent_membership_policy": {
+        "ownership_source_fields": ["official", "publisher"],
+        "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+        "required_package_role": "standard_agent",
+        "required_readiness": "selectable",
+        "required_codex_route": {
+          "source": "home_shortcuts[].route",
+          "route_kind": "agent_package_shortcut",
+          "executor": "codex_cli",
+          "codex_visible_entry": "non_empty"
+        },
+        "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+        "package_id_allowlist_allowed": false
+      },
       "agent_package_status_source_ref": "app_state.agent_packages.status_index.packages[]",
       "home_agent_shortcut_source_ref": "app_state.agent_packages.status_index.home_shortcut_preferences[]",
       "agent_package_skill_source_ref": "owner_or_carrier_projected_capability_metadata_for_the_selected_package",
@@ -7025,14 +7110,12 @@
       },
       "brand_identity_policy": {
         "source_fields": [
-          "publisher",
-          "source_explanation.kind",
-          "source_explanation.source"
+          "official",
+          "publisher"
         ],
+        "opl_official": true,
         "opl_publisher": "one-person-lab",
-        "opl_source_kind": "first_party_framework_projection",
-        "opl_source": "first_party",
-        "match_policy": "publisher_equals_one-person-lab_or_source_explanation_kind_equals_first_party_framework_projection_or_source_explanation_source_equals_first_party",
+        "match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
         "row_presentation": "compact OPL brand badge immediately after the localized display name on every matching row",
         "scope_policy": "all package roles; the badge remains visible whenever its matching row is visible under any source filter",
         "catalog_group_order": [

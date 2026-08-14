@@ -144,10 +144,10 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
     assert.equal(plan.candidate_actions, "dry_run_only");
     assert.equal(plan.release_adoption_changed, false);
     assert.equal(plan.updater_channel_changed, false);
-    assert.equal(plan.app_path, "/Applications/One Person Lab Studio Preview.app");
+    assert.equal(plan.app_path, "/Applications/One Person Lab Preview.app");
     assert.equal(
       plan.package_app_path,
-      path.join(appFixture.appRoot, "shells", "opl-studio", "out", "One Person Lab Studio Preview.app"),
+      path.join(appFixture.appRoot, "shells", "opl-studio", "out", "One Person Lab Preview.app"),
     );
     assert.deepEqual(plan.package_command, {
       executable: "npm",
@@ -155,7 +155,7 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
       cwd: path.join(appFixture.appRoot, "shells", "opl-studio"),
     });
     assert.equal(plan.command.executable, "/usr/bin/open");
-    assert.equal(plan.command.args[0], "/Applications/One Person Lab Studio Preview.app");
+    assert.equal(plan.command.args[0], "/Applications/One Person Lab Preview.app");
     assert.equal(plan.command.args.includes("-n"), false);
   } finally {
     appFixture.cleanup();

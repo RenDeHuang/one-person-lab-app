@@ -6,31 +6,38 @@ import {
   appOwnedRightContextInspectorForbiddenOwners,
   appOwnedRightContextInspectorPolicy,
   homeActivityCenterForbiddenDisplays,
+  appOwnedOplStandardAgentMembershipPolicy,
 } from './app-contract-constants.ts';
 import { assertHomeComposerStateContract } from '../app-product-profile-shared-validators.ts';
 
 function validateDynamicHomeComposerStateContract(value, label) {
   const {
     shortcut_package_membership_source_ref,
+    opl_standard_agent_membership_policy,
     shortcut_preference_source_ref,
     shortcut_availability_source_ref,
     unknown_standard_agent_allowed,
+    unknown_first_party_opl_standard_agent_allowed,
   } = value ?? {};
   assertDeepEqualJson(
     {
       shortcut_package_membership_source_ref,
+      opl_standard_agent_membership_policy,
       shortcut_preference_source_ref,
       shortcut_availability_source_ref,
       unknown_standard_agent_allowed,
+      unknown_first_party_opl_standard_agent_allowed,
     },
     {
       shortcut_package_membership_source_ref:
-        'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+        'app_state.agent_packages.directory.entries',
+      opl_standard_agent_membership_policy: appOwnedOplStandardAgentMembershipPolicy,
       shortcut_preference_source_ref:
         'app_state.agent_packages.status_index.home_shortcut_preferences[]',
       shortcut_availability_source_ref:
         'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
-      unknown_standard_agent_allowed: true,
+      unknown_standard_agent_allowed: false,
+      unknown_first_party_opl_standard_agent_allowed: true,
     },
     `${label} dynamic authority`,
   );
@@ -84,7 +91,7 @@ function validateGuidHomeViewModelFields(homeViewModel) {
     state_source: 'opl app state --profile fast --json',
     refresh_source: 'opl app state --profile fast --json',
     executor_policy_ref: 'contracts/app-gui-product-contract.json#executor_policy',
-    agent_package_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    agent_package_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.directory.entries',
     agent_package_status_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.status_index.packages[]',
     home_agent_shortcut_source_ref: 'opl app state --profile fast --json#app_state.agent_packages.status_index.home_shortcut_preferences[]',
     agent_package_skill_source_ref: 'owner_or_carrier_projected_capability_metadata_for_the_selected_package',
@@ -149,11 +156,13 @@ function validateGuidHomeLayout(homeViewModel) {
 function validateGuidHomeAgentPackageAuthority(homeViewModel) {
   if (
     homeViewModel.professional_agent_package_membership_source_ref !==
-      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+      'app_state.agent_packages.directory.entries' ||
     homeViewModel.home_agent_package_membership_source_ref !==
-      'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]' ||
+      'app_state.agent_packages.directory.entries' ||
+    JSON.stringify(homeViewModel.opl_standard_agent_membership_policy) !==
+      JSON.stringify(appOwnedOplStandardAgentMembershipPolicy) ||
     homeViewModel.unknown_standard_agent_policy !==
-      'include_in_palette_and_home_when_installed_without_app_package_id_branch' ||
+      'include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership' ||
     'professional_agent_packages' in homeViewModel ||
     'default_home_agent_packages' in homeViewModel ||
     'default_assistants' in homeViewModel ||

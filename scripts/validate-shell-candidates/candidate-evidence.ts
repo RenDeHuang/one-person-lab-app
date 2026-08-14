@@ -132,10 +132,10 @@ function validateOPLStudioPackageManifest(
   const macOsDir = path.join(appBundleRoot, 'Contents', 'MacOS');
   assertDirectory(macOsDir, `${candidate.id} .app Contents/MacOS`);
   if (
-    manifest.app_bundle_executable !== 'One Person Lab Studio Preview'
-    || findMacAppExecutable(macOsDir, candidate.id) !== 'One Person Lab Studio Preview'
+    manifest.app_bundle_executable !== 'One Person Lab Preview'
+    || findMacAppExecutable(macOsDir, candidate.id) !== 'One Person Lab Preview'
   ) {
-    throw new Error(`${candidate.id} .app bundle must use the OPL Studio executable name`);
+    throw new Error(`${candidate.id} .app bundle must use the One Person Lab Preview executable name`);
   }
   assertNoAbsoluteSymlinks(appBundleRoot, candidate.id);
   if (manifest.product_profile_owner !== 'one-person-lab-app') {

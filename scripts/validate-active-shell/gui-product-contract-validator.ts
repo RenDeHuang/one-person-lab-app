@@ -4,6 +4,7 @@ import {
   appOwnedSettingsAboutUpdaterStatePolicy,
   appOwnedAgentPackageOrdinaryStatusInputMapping,
   appOwnedAgentPackageUserStatusProjection,
+  appOwnedOplStandardAgentMembershipPolicy,
   appOwnedSettingsResourcesBrowserEntry,
   appOwnedSettingsCapabilitiesTabContract,
   appOwnedSettingsManagedDependencySummary,
@@ -78,25 +79,31 @@ export const appOwnedOfficialProfileRestoreAction = {
 function validateDynamicHomeComposerStateContract(value, label) {
   const {
     shortcut_package_membership_source_ref,
+    opl_standard_agent_membership_policy,
     shortcut_preference_source_ref,
     shortcut_availability_source_ref,
     unknown_standard_agent_allowed,
+    unknown_first_party_opl_standard_agent_allowed,
   } = value ?? {};
   assertDeepEqualJson(
     {
       shortcut_package_membership_source_ref,
+      opl_standard_agent_membership_policy,
       shortcut_preference_source_ref,
       shortcut_availability_source_ref,
       unknown_standard_agent_allowed,
+      unknown_first_party_opl_standard_agent_allowed,
     },
     {
       shortcut_package_membership_source_ref:
-        'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+        'app_state.agent_packages.directory.entries',
+      opl_standard_agent_membership_policy: appOwnedOplStandardAgentMembershipPolicy,
       shortcut_preference_source_ref:
         'app_state.agent_packages.status_index.home_shortcut_preferences[]',
       shortcut_availability_source_ref:
         'app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.packages[].presence',
-      unknown_standard_agent_allowed: true,
+      unknown_standard_agent_allowed: false,
+      unknown_first_party_opl_standard_agent_allowed: true,
     },
     `${label} dynamic authority`,
   );
@@ -1187,11 +1194,20 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     }
   }
   if (
+    pages.guid_home.agent_package_source_ref !== 'app_state.agent_packages.directory.entries' ||
+    JSON.stringify(pages.guid_home.opl_standard_agent_membership_policy) !==
+      JSON.stringify(appOwnedOplStandardAgentMembershipPolicy)
+  ) {
+    throw new Error('App GUI Home Agent source must apply the OPL ownership, role, readiness, and Codex-route membership policy');
+  }
+  if (
     guiContract.ordinary_capability_selector_policy?.scope !== 'home_composer_and_ordinary_conversation' ||
     guiContract.ordinary_capability_selector_policy?.authority !==
       'owner_or_carrier_skill_projection_and_mcp_negative_filter' ||
     guiContract.ordinary_capability_selector_policy?.palette_agent_catalog_source_ref !==
-      'app_state.agent_packages.directory.entries[package_role=standard_agent]' ||
+      'app_state.agent_packages.directory.entries' ||
+    JSON.stringify(guiContract.ordinary_capability_selector_policy?.opl_standard_agent_membership_policy) !==
+      JSON.stringify(appOwnedOplStandardAgentMembershipPolicy) ||
     guiContract.ordinary_capability_selector_policy?.palette_agent_status_source_ref !==
       'app_state.agent_packages.status_index.packages[]' ||
     guiContract.ordinary_capability_selector_policy?.palette_agent_availability_policy !==
@@ -1199,12 +1215,12 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
     guiContract.ordinary_capability_selector_policy?.palette_agent_action_policy !==
       'directory_available_actions_and_recommended_action_ref_only' ||
     guiContract.ordinary_capability_selector_policy?.palette_unknown_standard_agent_policy !==
-      'include_without_app_package_id_branch' ||
+      'include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership' ||
     guiContract.ordinary_capability_selector_policy?.palette_required_agent_package_ids !== undefined ||
     JSON.stringify(guiContract.ordinary_capability_selector_policy?.palette_agent_group_label_i18n) !==
-      JSON.stringify({ 'zh-CN': '专业智能体', 'en-US': 'Professional agents' }) ||
+      JSON.stringify({ 'zh-CN': 'OPL 标准智能体', 'en-US': 'OPL standard agents' }) ||
     guiContract.ordinary_capability_selector_policy?.palette_home_shortcut_independence_policy !==
-      'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
+      'complete_opl_standard_agent_catalog_independent_of_home_shortcut_visibility_and_order' ||
     guiContract.ordinary_capability_selector_policy?.agent_owned_skill_deduplication_policy !==
       'exclude_rendered_professional_agent_required_skill_ids_from_home_new_session_standalone_skills' ||
     guiContract.ordinary_capability_selector_policy?.skill_source_ref !==
@@ -1447,12 +1463,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   assertDeepEqualJson(
     pages.settings_agents.brand_identity_policy,
     {
-      source_fields: ['publisher', 'source_explanation.kind', 'source_explanation.source'],
+      source_fields: ['official', 'publisher'],
+      opl_official: true,
       opl_publisher: 'one-person-lab',
-      opl_source_kind: 'first_party_framework_projection',
-      opl_source: 'first_party',
-      match_policy:
-        'publisher_equals_one-person-lab_or_source_explanation_kind_equals_first_party_framework_projection_or_source_explanation_source_equals_first_party',
+      match_policy: 'official_equals_true_or_publisher_equals_one-person-lab',
       row_presentation: 'compact OPL brand badge immediately after the localized display name on every matching row',
       scope_policy:
         'all package roles; the badge remains visible whenever its matching row is visible under any source filter',

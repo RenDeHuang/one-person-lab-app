@@ -78,6 +78,15 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'routine_validation',
   ], 'alternative_gui_policy.archived_proof_execution_policy.forbidden_automatic_triggers');
   assertStringArrayIncludes(alternative.archived_technical_proofs, ['hermes-codex', 'agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
+  const nativeCandidate = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
+  const oplAgentPaletteOutcome = 'the separate OPL standard Agent composer group includes only producer-declared first-party OPL professional Agents with package_role=standard_agent, selectable readiness, and a real Codex route; generic Skills and plugins remain separate even when a descriptor defaults to standard_agent, without a package-id allowlist';
+  if (
+    !nativeCandidate
+    || !('p1_baseline_contract' in nativeCandidate)
+    || !nativeCandidate.p1_baseline_contract?.required_user_outcomes.includes(oplAgentPaletteOutcome)
+  ) {
+    throw new Error('foreground Native candidate must keep OPL standard Agents separate from generic Skills and plugins using producer-owned identity without a package-id allowlist');
+  }
   validateInteractiveLauncherPolicy(registry);
   for (const [label, expected] of Object.entries({
     release_shell_contract: 'contracts/app-shell-adapter.json',
@@ -359,8 +368,8 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
     native?.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
     native.default_mode !== 'packaged' ||
     native.bundle_id !== 'cn.gflab.opl.studio.preview' ||
-    native.packaged_app_path !== '/Applications/One Person Lab Studio Preview.app' ||
-    native.bundle_relative_path !== 'out/One Person Lab Studio Preview.app' ||
+    native.packaged_app_path !== '/Applications/One Person Lab Preview.app' ||
+    native.bundle_relative_path !== 'out/One Person Lab Preview.app' ||
     native.supported_modes?.join(',') !== 'packaged' ||
     native.package_command?.join(' ') !== 'npm run package'
   ) {

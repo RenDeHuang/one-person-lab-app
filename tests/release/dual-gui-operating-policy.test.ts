@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { readAppShellAdapterContract } from '../../scripts/app-shell-adapter.ts';
+import { appOwnedOplStandardAgentMembershipPolicy } from '../../scripts/validate-active-shell/app-contract-constants.ts';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
 import {
   assertArchivedProofCommandExecutionAllowed,
@@ -137,8 +138,22 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const target = runtimeBridge.command_resolution_policy.shared_gui_target;
   const policy = runtimeBridge.shared_gui_runtime_resolution_policy;
+  const nativeAgentLaunch = runtimeBridge.native_minimum_product_bridge.agent_conversation_launch;
 
   assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
+  assert.equal(nativeAgentLaunch.catalog_source, 'app_state.agent_packages.directory.entries');
+  assert.deepEqual(
+    nativeAgentLaunch.opl_standard_agent_membership_policy,
+    appOwnedOplStandardAgentMembershipPolicy,
+  );
+  const sourceMarkerMembershipDrift = structuredClone(runtimeBridge);
+  sourceMarkerMembershipDrift.native_minimum_product_bridge.agent_conversation_launch
+    .opl_standard_agent_membership_policy.ownership_match_policy =
+      'source_explanation.kind_equals_first_party_framework_projection';
+  assert.throws(
+    () => validateRuntimeBridgeContract(sourceMarkerMembershipDrift, activeAdapter),
+    /Native standard Agent membership policy/,
+  );
   assert.equal('same_cohort_runtime_identity_required_for_parity' in policy, false);
   assert.equal(policy.parity_admission_basis, 'compatible_runtime_capability_and_versioned_schema_range');
   assert.equal(policy.exact_runtime_identity_equality_may_gate_install_or_runtime, false);

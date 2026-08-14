@@ -196,7 +196,21 @@
       "second_updater_allowed": false
     },
     "agent_conversation_launch": {
-      "catalog_source": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+      "catalog_source": "app_state.agent_packages.directory.entries",
+      "opl_standard_agent_membership_policy": {
+        "ownership_source_fields": ["official", "publisher"],
+        "ownership_match_policy": "official_equals_true_or_publisher_equals_one-person-lab",
+        "required_package_role": "standard_agent",
+        "required_readiness": "selectable",
+        "required_codex_route": {
+          "source": "home_shortcuts[].route",
+          "route_kind": "agent_package_shortcut",
+          "executor": "codex_cli",
+          "codex_visible_entry": "non_empty"
+        },
+        "generic_skills_plugins_connections_group_policy": "separate_never_in_opl_standard_agent_group",
+        "package_id_allowlist_allowed": false
+      },
       "status_source": "app_state.agent_packages.status_index.packages[package_id]",
       "shortcut_source": "directory.entries[].home_shortcuts[]",
       "selection_snapshot_fields": [

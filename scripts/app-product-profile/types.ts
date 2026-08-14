@@ -1,3 +1,18 @@
+export type OplStandardAgentMembershipPolicy = {
+  ownership_source_fields: ['official', 'publisher'];
+  ownership_match_policy: string;
+  required_package_role: 'standard_agent';
+  required_readiness: 'selectable';
+  required_codex_route: {
+    source: 'home_shortcuts[].route';
+    route_kind: 'agent_package_shortcut';
+    executor: 'codex_cli';
+    codex_visible_entry: 'non_empty';
+  };
+  generic_skills_plugins_connections_group_policy: 'separate_never_in_opl_standard_agent_group';
+  package_id_allowlist_allowed: false;
+};
+
 export type AppProductProfile = {
   schema_version: 2;
   owner: string;
@@ -94,9 +109,11 @@ export type AppProductProfile = {
         contract_id: 'opl_home_composer_state.v1';
         executor: 'codex';
         shortcut_package_membership_source_ref: string;
+        opl_standard_agent_membership_policy: OplStandardAgentMembershipPolicy;
         shortcut_preference_source_ref: string;
         shortcut_availability_source_ref: string;
         unknown_standard_agent_allowed: boolean;
+        unknown_first_party_opl_standard_agent_allowed: boolean;
         viewports: string[];
         availability_states: string[];
         invariants: {
@@ -209,6 +226,7 @@ export type AppProductProfile = {
         unselected_workspace_control_policy: string;
         home_presentation_source_ref: string;
         home_shortcut_visibility_source_ref: string;
+        opl_standard_agent_membership_policy: OplStandardAgentMembershipPolicy;
         home_shortcut_placement: string;
         dynamic_question_title: boolean;
         starter_limit: number | null;
@@ -383,6 +401,7 @@ export type AppProductProfile = {
           source_ref?: string;
           label_i18n?: Record<'zh-CN' | 'en-US', string>;
           catalog_membership_source_ref?: string;
+          opl_standard_agent_membership_policy?: OplStandardAgentMembershipPolicy;
           status_source_ref?: string;
           required_package_ids?: string[];
           catalog_order_policy?: string;
@@ -536,6 +555,7 @@ export type AppProductProfile = {
       authority: string;
       recommendation_authority: string;
       palette_agent_catalog_source_ref: string;
+      opl_standard_agent_membership_policy: OplStandardAgentMembershipPolicy;
       palette_agent_status_source_ref: string;
       palette_agent_availability_policy: string;
       palette_agent_action_policy: string;

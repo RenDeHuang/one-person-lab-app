@@ -1378,6 +1378,26 @@ export const appOwnedActiveAionuiPrimaryNavigation = {
     route_gate_boundary: "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime",
   },
 };
+export const appOwnedOplStandardAgentMembershipPolicy = {
+  ownership_source_fields: [
+    "official",
+    "publisher",
+  ],
+  ownership_match_policy:
+    "official_equals_true_or_publisher_equals_one-person-lab",
+  required_package_role: "standard_agent",
+  required_readiness: "selectable",
+  required_codex_route: {
+    source: "home_shortcuts[].route",
+    route_kind: "agent_package_shortcut",
+    executor: "codex_cli",
+    codex_visible_entry: "non_empty",
+  },
+  generic_skills_plugins_connections_group_policy:
+    "separate_never_in_opl_standard_agent_group",
+  package_id_allowlist_allowed: false,
+};
+
 export const appOwnedHomeLayout = {
   default_mode: "composer_first_chat_canvas",
   default_active_shortcut: null,
@@ -1392,22 +1412,23 @@ export const appOwnedHomeLayout = {
   unselected_workspace_control_policy:
     "localized_choose_project_directory_action_not_projectless_status_placeholder",
   home_presentation_source_ref:
-    "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+    "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[]",
   home_shortcut_visibility_source_ref:
-    "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+    "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[visible=true]",
+  opl_standard_agent_membership_policy: appOwnedOplStandardAgentMembershipPolicy,
   home_shortcut_placement:
     "compact_shortcuts_immediately_above_composer_with_management_in_settings_agents_not_persistent_composer_selector",
   dynamic_question_title: true,
   starter_limit: null,
   starter_visibility_policy:
-    "installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts",
+    "opl_standard_agent_membership_with_selectable_readiness_real_codex_route_and_default_or_user_visible_shortcuts",
   starter_order_policy: "home_shortcut_preferences_sort_order_then_localized_display_name",
   shortcut_membership_source_ref:
-    "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]",
+    "app_state.agent_packages.directory.entries",
   shortcut_preference_source_ref:
     "app_state.agent_packages.status_index.home_shortcut_preferences[]",
   unknown_standard_agent_policy:
-    "render_when_installed_and_default_or_user_preference_visible_without_app_package_id_branch",
+    "render_unknown_package_ids_only_when_they_match_opl_standard_agent_membership_without_app_allowlist",
   starter_layout_policy: "compact_inline_wrap",
   starter_item_width_policy: "content_sized",
   starter_count_layout_policy: "center_actual_visible_count_and_wrap_without_navigation_chevrons",
@@ -1462,7 +1483,7 @@ export const appOwnedHomeLayout = {
 export const appOwnedPageStateHomeLayout = {
   ...appOwnedHomeLayout,
   home_presentation_source_ref:
-    "app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true] + app_state.agent_packages.status_index.home_shortcut_preferences[]",
+    "app_state.agent_packages.directory.entries + app_state.agent_packages.status_index.home_shortcut_preferences[]",
   must_not_show: [
     "dashboard-first home",
     "explanatory landing page",
@@ -1637,23 +1658,25 @@ export const appOwnedUnifiedContextMenu = {
       id: "agent_packages",
       scope: "new_session_configuration_only",
       label_i18n: {
-        "zh-CN": "专业智能体",
-        "en-US": "Professional agents",
+        "zh-CN": "OPL 标准智能体",
+        "en-US": "OPL standard agents",
       },
       source_ref:
-        "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+        "app_state.agent_packages.directory.entries",
       catalog_membership_source_ref:
-        "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+        "app_state.agent_packages.directory.entries",
+      opl_standard_agent_membership_policy: appOwnedOplStandardAgentMembershipPolicy,
       status_source_ref: "app_state.agent_packages.status_index.packages[]",
       catalog_order_policy:
         "home_shortcut_preferences_sort_order_then_localized_display_name",
       home_shortcut_independence_policy:
-        "render_the_complete_professional_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
+        "render_the_complete_opl_standard_agent_catalog_regardless_of_home_shortcut_visibility_or_order",
       availability_policy:
-        "join_by_package_id_and_render_fresh_installed_present_callable_state_without_app_allowlist",
+        "render_only_membership_matches_and_join_by_package_id_for_fresh_readiness_without_app_allowlist",
       action_policy:
         "render_only_directory_available_actions_and_recommended_action_ref",
-      unknown_standard_agent_policy: "include_without_app_package_id_branch",
+      unknown_standard_agent_policy:
+        "include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership",
       existing_session_rebinding_allowed: false,
       surface_actions: {
         home_new_session: ["select_new_session_agent_package"],

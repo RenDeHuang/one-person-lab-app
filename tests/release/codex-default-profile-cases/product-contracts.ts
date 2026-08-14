@@ -18,6 +18,7 @@ import {
   readJson,
   readModelPolicyBundle,
 } from "./fixtures.ts";
+import { appOwnedOplStandardAgentMembershipPolicy } from "../../../scripts/validate-active-shell/app-contract-constants.ts";
 
 test('Codex interaction surfaces stay aligned across the App profile and contracts', () => {
   assert.doesNotThrow(() => assertCodexModelPolicyProjection(readModelPolicyBundle()));
@@ -320,20 +321,27 @@ test('Home capability palette is dynamic, localized, shortcut-independent, and a
   assert.equal('palette_required_agent_package_ids' in policy, false);
   assert.equal(
     policy.palette_agent_catalog_source_ref,
-    'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+    'app_state.agent_packages.directory.entries',
+  );
+  assert.deepStrictEqual(
+    policy.opl_standard_agent_membership_policy,
+    appOwnedOplStandardAgentMembershipPolicy,
   );
   assert.equal(
     policy.palette_agent_status_source_ref,
     'app_state.agent_packages.status_index.packages[]',
   );
-  assert.equal(policy.palette_unknown_standard_agent_policy, 'include_without_app_package_id_branch');
+  assert.equal(
+    policy.palette_unknown_standard_agent_policy,
+    'include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership',
+  );
   assert.deepStrictEqual(policy.palette_agent_group_label_i18n, {
-    'zh-CN': '专业智能体',
-    'en-US': 'Professional agents',
+    'zh-CN': 'OPL 标准智能体',
+    'en-US': 'OPL standard agents',
   });
   assert.equal(
     policy.palette_home_shortcut_independence_policy,
-    'complete_professional_agent_catalog_independent_of_home_shortcut_visibility_and_order',
+    'complete_opl_standard_agent_catalog_independent_of_home_shortcut_visibility_and_order',
   );
   assert.equal(
     policy.agent_owned_skill_deduplication_policy,
@@ -397,6 +405,14 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
     .find((page: any) => page.id === 'ordinary_conversation').conversation_view_model
     .unified_context_menu.groups.find((group: any) => group.id === 'agent_packages');
   assert.deepStrictEqual(
+    home.opl_standard_agent_membership_policy,
+    appOwnedOplStandardAgentMembershipPolicy,
+  );
+  assert.deepStrictEqual(
+    agentPackageGroup.opl_standard_agent_membership_policy,
+    appOwnedOplStandardAgentMembershipPolicy,
+  );
+  assert.deepStrictEqual(
     {
       home_membership_source_ref: home.home_agent_package_membership_source_ref,
       home_preference_source_ref: home.home_layout.shortcut_preference_source_ref,
@@ -410,17 +426,18 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
     },
     {
       home_membership_source_ref:
-        'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+        'app_state.agent_packages.directory.entries',
       home_preference_source_ref:
         'app_state.agent_packages.status_index.home_shortcut_preferences[]',
       home_visibility_policy:
-        'installed_standard_agent_directory_membership_with_default_or_user_visible_shortcuts',
+        'opl_standard_agent_membership_with_selectable_readiness_real_codex_route_and_default_or_user_visible_shortcuts',
       home_order_policy: 'home_shortcut_preferences_sort_order_then_localized_display_name',
-      source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent]',
+      source_ref: 'app_state.agent_packages.directory.entries',
       status_source_ref: 'app_state.agent_packages.status_index.packages[]',
       catalog_order_policy: 'home_shortcut_preferences_sort_order_then_localized_display_name',
       action_policy: 'render_only_directory_available_actions_and_recommended_action_ref',
-      unknown_standard_agent_policy: 'include_without_app_package_id_branch',
+      unknown_standard_agent_policy:
+        'include_unknown_package_ids_only_when_they_match_opl_standard_agent_membership',
     },
   );
   assert.doesNotThrow(() => validatePrimaryInteractionPages(matrix));
@@ -433,6 +450,10 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
     (value: any) => {
       value.pages.find((page: any) => page.id === 'guid_home').home_view_model
         .unknown_standard_agent_policy = 'reject_unknown_package_ids';
+    },
+    (value: any) => {
+      value.pages.find((page: any) => page.id === 'guid_home').home_view_model
+        .opl_standard_agent_membership_policy.package_id_allowlist_allowed = true;
     },
     (value: any) => {
       value.pages.find((page: any) => page.id === 'guid_home').home_view_model.home_layout

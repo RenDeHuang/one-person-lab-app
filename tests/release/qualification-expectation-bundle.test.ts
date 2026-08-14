@@ -48,11 +48,28 @@ test('compiled first-run expectations exactly match all App contract projections
   assert.equal(compiled.profiles.full.semantics.artifact_kind, 'full');
   assert.equal(compiled.profiles.standard.semantics.target_fixture_role, 'release_qualification_probe_input_only');
   assert.deepEqual(compiled.profiles.standard.semantics.target_projection, {
-    membership_source_ref: 'app_state.agent_packages.directory.entries[package_role=standard_agent,installed=true]',
+    membership_source_ref: 'app_state.agent_packages.directory.entries',
+    opl_standard_agent_membership_policy: {
+      ownership_source_fields: ['official', 'publisher'],
+      ownership_match_policy:
+        'official_equals_true_or_publisher_equals_one-person-lab',
+      required_package_role: 'standard_agent',
+      required_readiness: 'selectable',
+      required_codex_route: {
+        source: 'home_shortcuts[].route',
+        route_kind: 'agent_package_shortcut',
+        executor: 'codex_cli',
+        codex_visible_entry: 'non_empty',
+      },
+      generic_skills_plugins_connections_group_policy:
+        'separate_never_in_opl_standard_agent_group',
+      package_id_allowlist_allowed: false,
+    },
     shortcut_source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[]',
     preference_source_ref: 'app_state.agent_packages.status_index.home_shortcut_preferences[]',
     runtime_catalog_authority: false,
-    unknown_standard_agent_allowed: true,
+    unknown_standard_agent_allowed: false,
+    unknown_first_party_opl_standard_agent_allowed: true,
   });
   assert.deepEqual(compiled.profiles.standard.semantics.assistant_targets, expectedAssistantTargets);
   assert.deepEqual(compiled.profiles.full.semantics.assistant_targets, expectedAssistantTargets);
