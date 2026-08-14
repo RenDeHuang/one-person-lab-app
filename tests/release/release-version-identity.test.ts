@@ -225,18 +225,44 @@ test('post-cutover Nightly separates public rebuild labels from updater ordering
   assert.ok(compareUpdaterMachineVersions('26.8.1491-nightly.1', '26.8.1491-nightly.2') < 0);
 });
 
-test('post-cutover Stable allocates a same-day revision only after a published Nightly', () => {
+test('post-cutover Stable ignores same-day Nightly and Preview display revisions', () => {
   assert.equal(resolveStableReleaseVersion('26.8.14', [], [], '2026-08-14').version, '26.8.14');
-  const stable = resolveStableReleaseVersion('26.8.14', ['v26.8.14-nightly'], [], '2026-08-14');
-  assert.equal(stable.version, '26.8.14-r1');
+  const stable = resolveStableReleaseVersion(
+    '26.8.14',
+    ['v26.8.14-nightly', 'v26.8.14-nightly.r1', 'v26.8.14-preview.r1'],
+    [],
+    '2026-08-14',
+  );
+  assert.equal(stable.version, '26.8.14');
   assert.equal(stable.updaterVersion, '26.8.1491');
-  assert.ok(compareUpdaterMachineVersions(stable.updaterVersion, '26.8.1491-nightly.1') > 0);
+  assert.deepEqual(stable.observedSameDayVersions, []);
+});
+
+test('post-cutover Stable allocates r1 only after a same-day Stable release', () => {
+  const stable = resolveStableReleaseVersion(
+    '26.8.14',
+    ['v26.8.14', 'v26.8.14-nightly'],
+    [],
+    '2026-08-14',
+  );
+  assert.equal(stable.version, '26.8.14-r1');
+  assert.equal(stable.updaterVersion, '26.8.1492');
+  assert.deepEqual(stable.observedSameDayVersions, ['26.8.14']);
 });
 
 test('post-cutover Preview observes the Nightly machine lane without creating a Nightly rebuild label', () => {
   const preview = resolvePreviewReleaseVersion('26.8.14', ['v26.8.14-nightly'], '2026-08-14');
-  assert.equal(preview.version, '26.8.14-preview.r2');
-  assert.equal(preview.updaterVersion, '26.8.1492-preview.2');
+  assert.equal(preview.version, '26.8.14-preview.r1');
+  assert.equal(preview.updaterVersion, '26.8.1491-preview.1');
+});
+
+test('post-cutover Stable uses its own r1 namespace and reserves the machine slot boundary', () => {
+  assert.equal(resolveReleaseVersionIdentity('stable', '26.8.14').updaterVersion, '26.8.1491');
+  assert.equal(resolveReleaseVersionIdentity('stable', '26.8.14-r1').updaterVersion, '26.8.1492');
+  assert.throws(
+    () => resolveReleaseVersionIdentity('stable', '26.8.14-r9'),
+    /Stable revision r9 exceeds r8/,
+  );
 });
 
 test('Stable updater is Stable-only while Preview selects the highest Stable or Preview kind', () => {

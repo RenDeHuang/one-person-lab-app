@@ -487,17 +487,16 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
     releaseName?.machine_version?.legacy_stable_last_display_version !== '26.7.20' ||
     releaseName?.machine_version?.shared_preview_lane_cutover_display_version !== '26.7.31' ||
     releaseName?.machine_version?.independent_nightly_revision_cutover_display_version !== '26.8.14' ||
+    releaseName?.machine_version?.independent_stable_revision_cutover_display_version !== '26.8.14' ||
     releaseName?.machine_version?.stable_patch_formula_before_cutover !== 'day_times_100_plus_revision' ||
     releaseName?.machine_version?.shared_channel_patch_formula_after_cutover !==
       'day_times_100_plus_90_plus_revision' ||
     releaseName?.machine_version?.nightly_patch_offset !== 90 ||
     releaseName?.machine_version?.independent_nightly_machine_patch_offset !== 91 ||
+    releaseName?.machine_version?.independent_stable_maximum_revision !== 8 ||
     releaseName?.machine_version?.independent_nightly_display_revision_role !== 'same_day_nightly_rebuild_only' ||
-    !sameStringSet(releaseName?.machine_version?.shared_revision_sources_after_cutover, [
-      'stable',
-      'preview',
-      'nightly',
-    ]) ||
+    !sameStringSet(releaseName?.machine_version?.stable_revision_sources_before_independent_cutover, ['stable', 'preview', 'nightly']) ||
+    !sameStringSet(releaseName?.machine_version?.stable_revision_sources_after_independent_cutover, ['stable']) ||
     releaseName?.machine_version?.same_revision_stable_outranks_nightly !==
       'semver_release_outranks_prerelease_with_equal_core' ||
     releaseName?.machine_version?.comparison !==

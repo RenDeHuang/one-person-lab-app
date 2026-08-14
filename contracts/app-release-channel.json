@@ -961,16 +961,22 @@
       "legacy_versions_keep_recorded_machine_identity": true,
       "shared_preview_lane_cutover_display_version": "26.7.31",
       "independent_nightly_revision_cutover_display_version": "26.8.14",
+      "independent_stable_revision_cutover_display_version": "26.8.14",
       "stable_patch_formula_before_cutover": "day_times_100_plus_revision",
       "shared_channel_patch_formula_after_cutover": "day_times_100_plus_90_plus_revision",
+      "independent_stable_patch_formula_after_cutover": "day_times_100_plus_91_plus_revision",
+      "independent_stable_maximum_revision": 8,
       "stable_base_revision": 0,
       "nightly_patch_offset": 90,
       "independent_nightly_machine_patch_offset": 91,
       "independent_nightly_display_revision_role": "same_day_nightly_rebuild_only",
-      "shared_revision_sources_after_cutover": [
+      "stable_revision_sources_before_independent_cutover": [
         "stable",
         "preview",
         "nightly"
+      ],
+      "stable_revision_sources_after_independent_cutover": [
+        "stable"
       ],
       "same_revision_stable_outranks_nightly": "semver_release_outranks_prerelease_with_equal_core",
       "comparison": "semver_core_decimal_integer_segments_then_prerelease_precedence",
@@ -2774,7 +2780,7 @@
       "latest-arm64-mac.yml",
       "opl-app-component-manifest.json"
     ],
-      "rule": "Nightly production defaults to the daily schedule. A user-explicit development_validation may invoke workflow_dispatch with the exact publish_nonlatest_nightly confirmation and must execute the same scheduled Nightly path. The frozen request, qualification, publication receipt, and followers bind the invocation mode, event, authority source, exact run, and cohort. Neither mode publishes Full or WebUI or changes Latest. A separate explicit protected single-use exact-CAS operation may move Latest to the published Nightly without changing Preview quality; the next qualified Stable reclaims by default. From the independent Nightly revision cutover, public Nightly rebuild revisions are allocated only from existing same-day Nightly tags or Releases; Stable and Preview releases do not consume the Nightly .r1 display slot. The updater keeps a separate same-day preview slot so removing the public suffix cannot lower update ordering."
+      "rule": "Nightly production defaults to the daily schedule. A user-explicit development_validation may invoke workflow_dispatch with the exact publish_nonlatest_nightly confirmation and must execute the same scheduled Nightly path. The frozen request, qualification, publication receipt, and followers bind the invocation mode, event, authority source, exact run, and cohort. Neither mode publishes Full or WebUI or changes Latest. A separate explicit protected single-use exact-CAS operation may move Latest to the published Nightly without changing Preview quality; the next qualified Stable reclaims by default. From 26.8.14, Stable display revisions are allocated only from existing same-day Stable tags or Releases. Nightly and Preview display revisions are separate channel namespaces and never consume a Stable -rN slot. Stable uses machine slot 91 plus its own revision so an unsuffixed Stable outranks the same-core Nightly or Preview prerelease without borrowing their display revision. Historical releases before the cutover keep the shared allocator and recorded updater identity."
   },
   "webui_ghcr_image": {
     "owner": "one-person-lab-app",
