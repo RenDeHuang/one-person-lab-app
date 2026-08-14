@@ -18,7 +18,16 @@ import {
   requireReleaseBoundaryCheck,
 } from "./fixtures.ts";
 
-test("one-shot App installer defaults to the shared base plus optional GUI without Agents", () => {
+const installerScenarioGroup = process.env.OPL_INSTALLER_SCENARIO_GROUP;
+const isInstallerScenarioGroup = (group: string) => installerScenarioGroup === group;
+const registerInstallerTest = (groups: string[], name: string, body: () => void) => {
+  if (installerScenarioGroup && groups.includes(installerScenarioGroup)) test(name, body);
+};
+
+registerInstallerTest(
+  ["basics"],
+  "one-shot App installer defaults to the shared base plus optional GUI without Agents",
+  () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-app-installer-args-"));
   const fakeCurl = path.join(tempRoot, "curl");
   const capturePath = path.join(tempRoot, "args.txt");
@@ -57,8 +66,12 @@ fi
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
-});
-test("Stable macOS installer binds exact release assets before mount and preserves profile selection", () => {
+  },
+);
+registerInstallerTest(
+  ["routing", "repair-and-quality", "full-integrity", "custom-sources"],
+  "Stable macOS installer binds exact release assets before mount and preserves profile selection",
+  () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-stable-installer-profile-"));
   const fakeBin = path.join(tempRoot, "bin");
   const curlArgsPath = path.join(tempRoot, "curl-args.txt");
@@ -537,6 +550,7 @@ exit 1
       );
     };
 
+    if (isInstallerScenarioGroup("routing")) {
     const availableFullResult = runInstaller([]);
     assert.notEqual(
       availableFullResult.status,
@@ -624,7 +638,9 @@ exit 1
     );
     assert.doesNotMatch(legacyReleaseResult.stdout, /Release quality: Stable/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+    }
 
+    if (isInstallerScenarioGroup("repair-and-quality")) {
     const repairedInstallerResult = runInstaller(["--standard"], { repairReceipts: "valid" });
     assert.notEqual(repairedInstallerResult.status, 0, "fake hdiutil should stop after receipt-chain verification");
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
@@ -719,7 +735,9 @@ exit 1
     assert.notEqual(undisclosedPreviewResult.status, 0);
     assert.match(undisclosedPreviewResult.stderr, /must disclose skipped qualification gates/);
     assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+    }
 
+    if (isInstallerScenarioGroup("full-integrity")) {
     const fallbackResult = runInstaller([], { fullPresent: false });
     assert.notEqual(
       fallbackResult.status,
@@ -853,7 +871,9 @@ exit 1
       /releases\/download\/v26\.7\.20\/opl-release-manifest\.json/,
     );
     assert.equal(fs.readFileSync(hdiutilArgsPath, "utf8"), "");
+    }
 
+    if (isInstallerScenarioGroup("custom-sources")) {
     const mismatchResult = runInstaller(["--standard"], { standardDigest: "0".repeat(64) });
     assert.notEqual(mismatchResult.status, 0);
     assert.match(mismatchResult.stderr, /DMG SHA256 mismatch/);
@@ -938,12 +958,17 @@ exit 1
     assert.match(customUrlVerified.stdout, /Release quality: not asserted for a custom DMG source/);
     assert.doesNotMatch(fs.readFileSync(curlArgsPath, "utf8"), /opl-app-component-manifest/);
     assert.match(fs.readFileSync(hdiutilArgsPath, "utf8"), /attach/);
+    }
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
-});
+  },
+);
 
-test("local authorization checks each nested directory symlink path once", () => {
+registerInstallerTest(
+  ["basics"],
+  "local authorization checks each nested directory symlink path once",
+  () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-local-authorization-symlink-"));
   const appPath = path.join(tempRoot, "One Person Lab.app");
   writeFile(path.join(appPath, "real", "sub", "f"), "abc");
@@ -991,4 +1016,5 @@ exit 0
     "real/sub/f",
   ]);
   assert.equal(JSON.parse(fs.readFileSync(output, "utf8")).quarantine_attribute_count, 6);
-});
+  },
+);
