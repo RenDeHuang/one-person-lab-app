@@ -104,7 +104,7 @@ export type AppDeliveryTopology = {
     product_name: 'One Person Lab';
     role: 'standalone_service_and_browser_access';
     technical_evaluation_candidate: 'opl-studio';
-    implementation_status: 'shared_renderer_development_target_release_admission_separate';
+    implementation_status: 'shared_host_core_and_http_sse_source_implemented_install_service_admission_open';
     mainline_implementation_assigned: false;
     host_technology: 'shared_node_host_core';
     transport: 'http_sse';
