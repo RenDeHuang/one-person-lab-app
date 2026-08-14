@@ -1,22 +1,22 @@
-# OPL Studio Lightweight Architecture Evaluation Boundary
+# OPL Studio Native Product Boundary
 
 Owner: `one-person-lab-app`
-Purpose: `opl_studio_candidate_boundary`
-State: `manual_evaluation_not_in_active_release_scope`
-Machine boundary: 本文记录轻量 OPL GUI 方向的人读候选边界。产品、mainline owner 与 adoption
-真值归 App contracts，候选 source/tests 归独立 OPL Studio；package、pixel、install 与
+Purpose: `opl_studio_native_product_boundary`
+State: `active_product_development_release_admission_separate`
+Machine boundary: 本文记录轻量 OPL GUI 方向的人读产品边界。产品、mainline owner 与 adoption
+真值归 App contracts，source/tests 归独立 OPL Studio；package、pixel、install 与
 release 结论归对应 owner evidence。本文不改变当前 active AionUI release adapter。
 
 ## Decision
 
-`opl-studio` remains the foreground alternative candidate used to evaluate the approved lightweight
-OPL GUI direction: an OPL-owned React renderer, Swift/AppKit + WKWebView macOS host, lightweight OPL
-Studio Node Web host, and their shared typed bridge. The candidate supports Codex CLI/App Server only and
+`opl-studio` is the active first-party implementation of the approved lightweight OPL GUI direction:
+an OPL-owned React renderer, Swift/AppKit + WKWebView macOS host, lightweight OPL Studio Node Web host,
+and their shared typed bridge. The product supports Codex CLI/App Server only and
 must not require, start, package, or read AionUI/AionCore.
 
 AionUI remains the active release shell until the App adapter and release surfaces complete a separate
-adoption transition. That current release role does not make AionUI the future lightweight renderer or runtime
-dependency. OPL Studio remains manual, non-periodic, non-mainline, non-blocking, and without feature-parity or
+adoption transition. That current release role does not make AionUI the target renderer, feature inventory,
+or runtime dependency. Studio is now required product development, but it has no full-AionUI-parity or
 cross-platform delivery obligation. Windows/Linux are a future product direction using the same renderer;
 Electron versus Tauri and the implementation owner remain deferred.
 
@@ -51,9 +51,36 @@ The product layout is intentionally small and follows the pinned DSH composition
 The prior unified coordination plan is superseded by the repo-owned boundaries in
 [`aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md),
 [`feature-inventory.md`](feature-inventory.md), and [`decisions.md`](../../decisions.md).
-Historical candidate experiments involving model-triggered cross-thread tools, private delivery ledgers,
+Historical experiments involving model-triggered cross-thread tools, private delivery ledgers,
 cross-host handoff, or a second thread runtime are evidence of those experiments only. They are not
-required capabilities, release blockers, or an authority source for product mainline ownership.
+required capabilities, release blockers, or an authority source for product behavior.
+
+## Minimum Complete Product
+
+Studio completion follows the App profile's minimum-complete contract, not AionUI feature parity.
+
+| Surface | Current Studio baseline | Required closure |
+| --- | --- | --- |
+| Agent management | Dynamic catalog, search/filter, projected lifecycle actions | Show owner source and automatic-update policy; support projected Home visibility/order actions; fresh readback after mutation |
+| App update | App check action is present but shown only as a generic maintenance action | Preserve the managed-update result, show installed/latest/channel/state, and bind apply/restart to the Native host updater once that carrier exists |
+| OPL Base update | Runtime status and rollback refs exist | Show the Base component independently; use only Framework-projected owner actions |
+| OPL Packages and Agent updates | Per-package actions exist | Show aggregate currentness and managed automatic-update policy independently from App/Base |
+| Capabilities | Composer skill picker and `settings.section` contributions exist | Replace counts-only Settings content with the dynamic Skill/Plugin/MCP/managed-companion directory |
+| Workspace and storage | Owner state is readable | Add owner-projected select/rebind and cleanup actions; never create a second store |
+
+The first four rows are the minimum Settings/update closure. Capability,
+workspace, and storage actions follow without blocking the conversation, run
+status, right-side files/results, or package contribution path already present.
+
+## Composition Rule
+
+The product kernel owns navigation, Codex thread/turn transport, the Settings
+host, permissions, and the action broker. Packages may contribute only through
+declared `settings.section`, `runtime.detail`, and `composer.palette` slots.
+Studio reuses pinned DeepSeek Harness registration, ordering, error isolation,
+and disposal. Cordis contributes the service/provider/consumer and temporal
+lifecycle model only; neither Cordis nor DSH becomes a second Package registry,
+state store, updater, or runtime authority.
 
 ## Current Boundary
 
@@ -79,13 +106,12 @@ required capabilities, release blockers, or an authority source for product main
 - Model dynamic tools, JSONL audit/idempotency ledgers, write-set advisory control planes, pending-request
   coordination UI, and cross-host task handoff require a separate future product decision.
 
-## Manual Evaluation Gate
+## Release Admission Gate
 
-OPL Studio may be evaluated or improved only through an explicit manual task with a bounded objective
-and focused acceptance surface. Ordinary technical evaluation does not create a parity plan, mainline backlog,
-cross-platform workstream, release relationship, or product-completion obligation. Product expansion,
-mainline ownership, active-shell adoption, or release participation requires a separate App owner decision and
-corresponding contract delta. App release validators must not infer those states from candidate evidence.
+OPL Studio development follows the minimum-complete product contract. It does not create a full AionUI
+parity plan or cross-platform workstream. Active-shell adoption, installed-App replacement, updater
+participation, and release promotion still require separate App-owner qualification and evidence. App release
+validators must not infer those states from source, local package, or candidate evidence.
 
 ## Optional Design Evaluation Tooling
 

@@ -109,17 +109,24 @@ test('OPL Studio candidate machine contract removes retired private capabilities
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
   assert.equal(candidate.candidate_stage, 'opl_studio_single_app_server_adapter_candidate_only');
   assert.deepEqual(candidate.maintenance_policy, {
-    mode: 'manual_on_demand_non_periodic_technical_evaluation',
+    mode: 'active_product_development_release_admission_separate',
     automatic_or_scheduled_work_allowed: false,
-    mainline_development_required: false,
-    completion_or_parity_obligation: false,
+    product_development_required: true,
+    current_mainline: false,
+    minimum_complete_product_obligation: true,
+    aionui_feature_parity_obligation: false,
     release_blocking: false,
   });
+  assert.equal(
+    candidate.minimum_complete_contract_ref,
+    'contracts/app-product-profile.json#delivery_topology.minimum_complete_product',
+  );
   assert.equal(candidate.runtime_dependency_policy?.aioncore_required, false);
   assert.equal(candidate.runtime_dependency_policy?.aionui_required, false);
   assert.equal(candidate.runtime_dependency_policy?.multi_backend_abstraction_required, false);
   assert.equal(candidate.runtime_dependency_policy?.thread_store_owner, 'codex_core_app_server');
-  assert.equal(candidate.release_participation, 'manual_on_demand_technical_evaluation_build_only');
+  assert.equal(candidate.state, 'active_product_development');
+  assert.equal(candidate.release_participation, 'pre_adoption_explicit_build_only');
   assert.equal('local_p0_p1_implementation_evidence' in candidate, false);
   assert.ok(candidate.required_capabilities.includes('single_codex_app_server_thread_adapter'));
   assert.ok(candidate.required_capabilities.includes('codex_subagent_event_projection'));

@@ -150,10 +150,10 @@ function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
   if (
     !native ||
     'role_tombstone' in native ||
-    native.state !== 'technical_verification' ||
+    native.state !== 'active_product_development' ||
     native.foreground_alternative_role !== 'only_foreground_alternative' ||
     native.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
-    native.release_participation !== 'manual_on_demand_technical_evaluation_build_only'
+    native.release_participation !== 'pre_adoption_explicit_build_only'
   ) {
     throw new Error('Native must remain the explicit foreground candidate and must not collapse into a role tombstone');
   }

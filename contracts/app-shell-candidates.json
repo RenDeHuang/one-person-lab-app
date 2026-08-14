@@ -562,19 +562,22 @@
     },
     {
       "id": "opl-studio",
-      "state": "technical_verification",
+      "state": "active_product_development",
       "candidate_root": "shells/opl-studio",
       "adapter_contract": "contracts/shell-adapters/opl-studio.json",
       "source_topology": "external_checkout_linked_shell_repo",
-      "release_participation": "manual_on_demand_technical_evaluation_build_only",
+      "release_participation": "pre_adoption_explicit_build_only",
       "foreground_alternative_role": "only_foreground_alternative",
       "maintenance_policy": {
-        "mode": "manual_on_demand_non_periodic_technical_evaluation",
+        "mode": "active_product_development_release_admission_separate",
         "automatic_or_scheduled_work_allowed": false,
-        "mainline_development_required": false,
-        "completion_or_parity_obligation": false,
+        "product_development_required": true,
+        "current_mainline": false,
+        "minimum_complete_product_obligation": true,
+        "aionui_feature_parity_obligation": false,
         "release_blocking": false
       },
+      "minimum_complete_contract_ref": "contracts/app-product-profile.json#delivery_topology.minimum_complete_product",
       "runtime_dependency_policy": {
         "aioncore_required": false,
         "aionui_required": false,

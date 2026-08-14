@@ -58,7 +58,7 @@ export function validateShellReplacementPolicy(contract) {
   const expectedCandidateState = contract.release_role === 'archived_technical_verification_shell'
     ? 'archived_technical_proof_replay_only'
     : contract.release_role === 'experimental_candidate_shell'
-      ? 'manual_technical_evaluation_candidate_without_completion_obligation'
+      ? 'active_product_development_pre_adoption'
       : 'candidate_until_contracts_and_tests_complete';
   if (contract.shell_replacement_policy.candidate_state !== expectedCandidateState) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);

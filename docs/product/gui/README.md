@@ -39,9 +39,10 @@ carrier/executor-neutral；一方 Package owner 独立发布 GHCR `latest-stable
 Release Set 只用于 Full/offline/integration-test/QA。当前 contracts/source 仍是
 compatibility，文档更新不表示实现完成。
 
-GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，而本机可以把 AionUI 或
-`opl-studio` 作为一次性的 `local GUI launch target`。启动候选不等于 adoption，
-也不修改 release/updater authority。共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
+GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，`opl-studio` 则是
+App-owned 原生产品的 active development target，并可作为本机 `local GUI launch target`。
+启动或开发 Studio 不等于 release adoption，也不修改当前 release/updater authority。
+共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
 当前 Runtime/session 偏差统一见
 [`gui-shell-candidates.md`](gui-shell-candidates.md)，不在本入口复制命令或状态矩阵。
 Codex executable 也遵循该 shell-adapter 边界：当前 AionUI 仍从 bundled AionCore
@@ -69,7 +70,11 @@ OPL capabilities、progress、evidence refs、artifacts 与 safe actions 必须
 直接来自 pinned DeepSeek Harness GUI source，AionUI 继续按自身 upstream 薄适配；两者都实现
 同一 App-owned 用户结果和 OPL contribution ABI。
 
-功能来源使用独立的 `B0 / R1 / U1 / X0` 轴：B0 是 Codex 必要 baseline，R1 是等价
+Studio 的完整性由 `app-product-profile.json#delivery_topology.minimum_complete_product`
+定义：保留对话/线程、运行状态与 Agent 贡献的假设和路线图、按需文件与结果、动态 Agent/
+Capability 管理、App/Base/Packages 分权更新、服务维护和必要设置闭环。AionUI 只是需求证据，
+不是 feature inventory authority；AionCore、多 backend、自定义 Assistant 和 Team 不因上游存在
+而进入 Studio。功能来源使用独立的 `B0 / R1 / U1 / X0` 轴：B0 是 Codex 必要 baseline，R1 是等价
 替换，U1 是 OPL 定位必须增加，X0 是条件保留/当前非目标；`P0/P1/P2` 继续只表示优先级。
 AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两张必要功能 List 和
 “为什么必要”见 [`feature-inventory.md#功能来源分类`](feature-inventory.md#功能来源分类)，

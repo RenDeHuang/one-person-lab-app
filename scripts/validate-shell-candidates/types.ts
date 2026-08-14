@@ -40,11 +40,14 @@ export type ShellCandidate = HermesTargetStateContract & {
   adapter_contract: string;
   source_topology: string;
   release_participation: string;
+  minimum_complete_contract_ref?: string;
   maintenance_policy?: {
     mode: string;
     automatic_or_scheduled_work_allowed: boolean;
-    mainline_development_required: boolean;
-    completion_or_parity_obligation: boolean;
+    product_development_required: boolean;
+    current_mainline: boolean;
+    minimum_complete_product_obligation: boolean;
+    aionui_feature_parity_obligation: boolean;
     release_blocking: boolean;
   };
   runtime_dependency_policy?: {

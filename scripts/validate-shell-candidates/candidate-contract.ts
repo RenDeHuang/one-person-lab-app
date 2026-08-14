@@ -181,7 +181,7 @@ function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: 
   const isExplicitCandidate = policy.explicitCandidateValidationScope.includes(candidate.id);
   const expectedState = isArchivedProof
     ? 'archived_technical_proof'
-    : 'technical_verification';
+    : 'active_product_development';
   if (candidate.state !== expectedState) {
     throw new Error(`${candidate.id} must stay in ${expectedState} according to app-shell-candidates alternative_gui_policy`);
   }
@@ -210,7 +210,7 @@ function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: 
   }
   const expectedReleaseParticipation = isArchivedProof
     ? 'explicit_user_requested_technical_replay_only'
-    : 'manual_on_demand_technical_evaluation_build_only';
+    : 'pre_adoption_explicit_build_only';
   if (candidate.release_participation !== expectedReleaseParticipation) {
     throw new Error(`${candidate.id} release participation must be ${expectedReleaseParticipation}`);
   }
@@ -665,13 +665,18 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   }
   const maintenance = candidate.maintenance_policy;
   if (
-    maintenance?.mode !== 'manual_on_demand_non_periodic_technical_evaluation' ||
+    maintenance?.mode !== 'active_product_development_release_admission_separate' ||
     maintenance.automatic_or_scheduled_work_allowed !== false ||
-    maintenance.mainline_development_required !== false ||
-    maintenance.completion_or_parity_obligation !== false ||
+    maintenance.product_development_required !== true ||
+    maintenance.current_mainline !== false ||
+    maintenance.minimum_complete_product_obligation !== true ||
+    maintenance.aionui_feature_parity_obligation !== false ||
     maintenance.release_blocking !== false
   ) {
-    throw new Error(`${candidate.id}.maintenance_policy must keep Native manual, non-periodic, non-blocking, and without a completion obligation`);
+    throw new Error(`${candidate.id}.maintenance_policy must require the OPL minimum-complete product without making release or AionUI parity implicit`);
+  }
+  if (candidate.minimum_complete_contract_ref !== 'contracts/app-product-profile.json#delivery_topology.minimum_complete_product') {
+    throw new Error(`${candidate.id}.minimum_complete_contract_ref must point to the App-owned Native product contract`);
   }
   const runtimeDependency = candidate.runtime_dependency_policy;
   if (

@@ -71,7 +71,7 @@
   },
   "shell_replacement_policy": {
     "candidate_root_pattern": "shells/<candidate>",
-    "candidate_state": "manual_technical_evaluation_candidate_without_completion_obligation",
+    "candidate_state": "active_product_development_pre_adoption",
     "authority_transfer_allowed": false,
     "adoption_gate": [
       "declare candidate in contracts/app-shell-candidates.json",

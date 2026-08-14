@@ -15,8 +15,9 @@ OPL 应吸收 DeepSeek Harness（DSH）的组合理念，并直接复用选定�
 
 推荐目标是：
 
-1. `opl-studio` 继续作为唯一 GUI successor 试验线；AionUI 仍是当前 active
-   release shell，直到 successor 通过真实垂直链路和 adoption gate。
+1. `opl-studio` 是唯一 GUI successor 实现线，并承担 App-owned 最低完整产品义务；AionUI
+   仍是当前 active release shell，直到 successor 完成真实垂直链路、updater/package/install/release
+   准入并执行显式切换。
 2. OPL Studio 直接复用 DSH 的 `AppFrame`、`SidebarRoot`、conversation/composer、Settings、
    `client-ui-slots`、React renderer contract、ui-theme 和纯 UI primitives；OPL 只实现品牌替换、
    App bridge、Codex/OPL projection 与 slot contribution，不再仿写 Codex App 布局。
@@ -24,8 +25,8 @@ OPL 应吸收 DeepSeek Harness（DSH）的组合理念，并直接复用选定�
    contribution，App 定义 slot vocabulary 和组合规则，Shell 只渲染。
 4. Framework 已有模块化单体、动态 Package discovery、`opl app state/action` 和领域 owner
    边界不重写成 Cordis。没有真实收益的全生态重构明确拒绝。
-5. 当前产品决策是 `retain_aionui_with_thin_adapter`：AionUI 继续作为唯一发布 GUI，
-   `opl-studio` 保留为手动开发候选和 DSH source-reuse 试验线，不进入发布主线。
+5. 当前过渡状态是 `aionui_mainline_until_studio_cutover`：AionUI 继续作为唯一发布 GUI，
+   `opl-studio` 处于 active product development；完善和准入之前不进入发布主线，显式切换后才退役 AionUI。
 
 总原则是：**一切可组合，但不是一切同权。** 功能和 GUI 可以动态装配；产品真值、线程、
 权限、安全、领域判断、artifact 和 release authority 仍由明确 owner 持有。
@@ -264,11 +265,12 @@ installed Package pilot、producer-consumer canonical conformance 与 install/re
 完成条件：当前 B0/R1/U1 surface 行为保持，App-owned visual baseline 通过，Native source、pixel、
 package、installed user path 五条证据独立完成。
 
-### Wave 4: active-shell decision
+### Wave 4: active-shell qualification and cutover
 
-当前决策是 `retain_aionui_with_thin_adapter`：不修改 `contracts/app-shell-adapter.json`，AionUI
-继续作为唯一 release shell，并只消费 OPL-owned contribution ABI。`opl-studio` 保留为显式手动
-开发候选，用于直接复用 DSH GUI source 和验证组合上限；它不参加默认 package/updater/release。
+当前阶段不修改 `contracts/app-shell-adapter.json`：AionUI 继续作为唯一 release shell，并只消费
+OPL-owned contribution ABI。`opl-studio` 继续完成最低完整产品以及原生 updater、package、install、
+release qualification；这些 gate 全部通过后，由 App owner 显式切换 active shell，完成 installed/runtime
+回读，再退役 AionUI。完善前的 candidate bytes 不参加默认 package/updater/release。
 
 禁止结果：AionUI 直接导入 DSH/Cordis、建立第二 plugin runtime，或把 Studio candidate evidence
 提升为 active-shell/release-ready 证据。

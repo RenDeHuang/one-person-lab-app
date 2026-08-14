@@ -699,7 +699,7 @@ function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
   const allowedCandidateStates = contract.release_role === 'archived_technical_verification_shell'
     ? ['archived_technical_proof_replay_only']
     : contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
-      ? ['manual_technical_evaluation_candidate_without_completion_obligation']
+      ? ['active_product_development_pre_adoption']
       : ['candidate_until_contracts_and_tests_complete', 'foreground_alternative_or_archived_technical_proof'];
   if (!allowedCandidateStates.includes(contract.shell_replacement_policy.candidate_state)) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
