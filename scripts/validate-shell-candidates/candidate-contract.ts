@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {
+  NativeP1BaselineBridge,
   NativeThreadAdapterBoundary,
   ShellCandidate,
   ShellCandidateEntry,
@@ -18,6 +19,7 @@ import {
   forbiddenSeriesDomainFields,
   readJson,
   requiredNativeCapabilities,
+  requiredNativeP1Capabilities,
   requiredNativeThreadCapabilities,
   root,
   validateActiveProjectLineStateModel,
@@ -82,6 +84,7 @@ type CandidateAdapterContract = {
   };
   shell_contract: { source_topology: string; capabilities: string[] };
   validation_commands: ValidationCommand[];
+  p1_baseline_bridge?: NativeP1BaselineBridge;
   thread_adapter_boundary?: NativeThreadAdapterBoundary;
 };
 
@@ -316,6 +319,60 @@ export function validateNativeThreadAdapterBoundary(
     );
   }
 }
+
+export function validateNativeP1BaselineBridge(
+  bridge: NativeP1BaselineBridge | undefined,
+): void {
+  const expectedKeys = [
+    'active_turn_transport',
+    'agent_launch_transport',
+    'app_updater_ref',
+    'contract_ref',
+    'gateway_projection_ref',
+    'gateway_secret_bridge_ref',
+    'managed_update_ref',
+    'package_action_source',
+    'required_host_capabilities',
+    'shell_owned_action_bus_allowed',
+    'shell_owned_package_registry_allowed',
+    'shell_owned_persistent_queue_allowed',
+  ];
+  const requiredHostCapabilities = [
+    'loginGatewayAccount',
+    'opl-runtime.get-managed-update-status',
+    'opl-runtime.get-managed-update-check',
+    'opl-runtime.get-managed-update-plan',
+    'opl-runtime.run-managed-update-apply',
+    'opl-runtime.run-managed-update-repair',
+    'opl-runtime.run-managed-update-rollback',
+    'app_update_check',
+    'app_update_install_downloaded',
+    'application_restart',
+  ];
+  if (
+    !bridge ||
+    JSON.stringify(Object.keys(bridge).sort()) !== JSON.stringify(expectedKeys) ||
+    bridge.contract_ref !== 'contracts/app-runtime-bridge.json#native_minimum_product_bridge' ||
+    bridge.agent_launch_transport !== 'codex_app_server_thread_start_then_turn_start' ||
+    bridge.active_turn_transport !== 'codex_app_server_turn_steer_else_turn_start' ||
+    bridge.gateway_projection_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_projection' ||
+    bridge.gateway_secret_bridge_ref !== 'contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge' ||
+    bridge.package_action_source !== 'app_state.agent_packages.directory.entries[].available_actions[]' ||
+    bridge.managed_update_ref !== 'contracts/app-release-channel.json#managed_update_plane.software_lifecycle' ||
+    bridge.app_updater_ref !== 'contracts/app-release-channel.json#standard_updater' ||
+    bridge.shell_owned_action_bus_allowed !== false ||
+    bridge.shell_owned_package_registry_allowed !== false ||
+    bridge.shell_owned_persistent_queue_allowed !== false
+  ) {
+    throw new Error('native candidate P1 bridge must bind existing owner transports without a parallel action bus, package registry, or persistent queue');
+  }
+  assertStringArrayIncludes(
+    bridge.required_host_capabilities,
+    requiredHostCapabilities,
+    'native candidate P1 bridge required_host_capabilities',
+  );
+}
+
 function validateCandidateAdapterContract(
   candidate: ShellCandidate,
   adapterContract: CandidateAdapterContract,
@@ -376,6 +433,11 @@ function validateCandidateAdapterContract(
     requiredNativeThreadCapabilities,
     `${candidate.id} adapter thread capabilities`,
   );
+  assertStringArrayIncludes(
+    adapterContract.shell_contract.capabilities,
+    requiredNativeP1Capabilities,
+    `${candidate.id} adapter P1 capabilities`,
+  );
   if (
     'cross_top_level_thread_authority' in adapterContract ||
     'local_p0_p1_implementation_evidence' in candidate ||
@@ -388,6 +450,7 @@ function validateCandidateAdapterContract(
     throw new Error(`${candidate.id} registry and adapter must not retain private cross-thread coordination contracts or capabilities`);
   }
   validateNativeThreadAdapterBoundary(adapterContract.thread_adapter_boundary);
+  validateNativeP1BaselineBridge(adapterContract.p1_baseline_bridge);
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
   }
@@ -494,6 +557,11 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
     'in-app identity is text-only One Person Lab while the macOS bundle icon remains allowed',
     'WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host',
     'one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer',
+    'standard Agent selection binds package_id, shortcut_id, codex_visible_entry, and required_skill_ids to thread/start plus turn/start without creating a Framework activation action',
+    'running-turn submissions use turn/steer and idle submissions use turn/start while queued input stays renderer-ephemeral until App Server acceptance',
+    'Gateway login uses loginGatewayAccount without generic action secret payloads and all other Gateway mutations use the projected action ids',
+    'Agent Package lifecycle actions come dynamically from complete directory available_actions entries without a Shell allowlist or inferred semantics',
+    'OPL Base and OPL Packages use Framework managed-update capabilities while OPL App uses the Native host updater and restart with fresh terminal readback',
     'Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server',
     'Native source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer',
   ], `${candidate.id}.technical_verification.minimum_acceptance`);
@@ -678,6 +746,33 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   if (candidate.minimum_complete_contract_ref !== 'contracts/app-product-profile.json#delivery_topology.minimum_complete_product') {
     throw new Error(`${candidate.id}.minimum_complete_contract_ref must point to the App-owned Native product contract`);
   }
+  const p1 = candidate.p1_baseline_contract;
+  if (
+    p1?.runtime_bridge_ref !== 'contracts/app-runtime-bridge.json#native_minimum_product_bridge' ||
+    p1.adapter_binding_ref !== 'contracts/shell-adapters/opl-studio.json#p1_baseline_bridge'
+  ) {
+    throw new Error(`${candidate.id}.p1_baseline_contract must bind the App runtime bridge and Native adapter without creating a second control plane`);
+  }
+  assertStringArrayIncludes(p1.required_user_outcomes, [
+    'standard Agent selection launches a canonical Codex thread and first turn without a Framework activation action',
+    'running-turn input uses Codex turn/steer while idle input uses turn/start and no persistent Shell queue exists',
+    'Gateway login uses the dedicated secret bridge while non-secret account actions use projected App actions',
+    'Agent Package lifecycle renders every complete projected available_action without an action-id allowlist',
+    'OPL Base and OPL Packages updates use Framework managed-update host capabilities and terminal readback',
+    'OPL App update check, downloaded-update installation, restart, and running-version readback stay Native-host owned',
+  ], `${candidate.id}.p1_baseline_contract.required_user_outcomes`);
+  assertStringArrayIncludes(p1.forbidden_parallel_control_planes, [
+    'shell_owned_action_bus',
+    'shell_owned_package_registry',
+    'shell_owned_persistent_turn_queue',
+    'second_agent_runtime',
+    'second_managed_updater',
+  ], `${candidate.id}.p1_baseline_contract.forbidden_parallel_control_planes`);
+  assertStringArrayIncludes(
+    candidate.required_capabilities,
+    requiredNativeP1Capabilities,
+    `${candidate.id}.required_capabilities`,
+  );
   const runtimeDependency = candidate.runtime_dependency_policy;
   if (
     runtimeDependency?.aioncore_required !== false ||

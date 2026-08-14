@@ -54,6 +54,14 @@ export const requiredNativeThreadCapabilities = [
   'turn_start_steer',
   'codex_subagent_event_projection',
 ];
+export const requiredNativeP1Capabilities = [
+  'standard_agent_conversation_launch',
+  'active_turn_steer_and_ephemeral_queue',
+  'gateway_account_secret_bridge',
+  'dynamic_agent_package_lifecycle',
+  'managed_update_base_packages_bridge',
+  'native_app_updater_and_restart',
+];
 export const requiredNativeCapabilities = [
   'codex_cli_fixed_executor_home',
   'codex_app_server_thread_turn_backend',
@@ -87,6 +95,7 @@ export const requiredNativeCapabilities = [
   'release_isolation',
   'candidate_app_bundle_package',
   ...requiredNativeThreadCapabilities,
+  ...requiredNativeP1Capabilities,
 ];
 export const requiredSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 export const forbiddenLegacySettingsTabs = [

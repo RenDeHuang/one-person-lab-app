@@ -64,10 +64,13 @@ disambiguates Auto from a fixed model, presents effort values without a redundan
 and lists owner-projected OPL standard Agents separately in the composer palette. These are source and
 local visual results only; they do not prove installed, active-shell or release adoption.
 
-An Agent row in the composer palette is currently read-only because the App action ABI does not yet expose
-one canonical select/start action for that surface. The shell must not add an inert switch or invent a second
-launch route. The same rule applies to Settings: a page or status row is not a completed capability until a
-real local preference or owner action can be executed and freshly read back.
+The App contract now defines the missing Native P1 binding without adding an Agent activation action.
+Selecting a standard Agent captures the owner-projected `package_id`, `shortcut_id`, `codex_visible_entry`,
+and `required_skill_ids`, then launches the canonical conversation through Codex `thread/start` and
+`turn/start`. During an active turn, accepted follow-up input uses `turn/steer`; otherwise it uses
+`turn/start`. Any visible queue is renderer-ephemeral until App Server acceptance and is never a persistent
+Shell queue. Studio source must still implement and freshly read back this contract before the capability is
+complete.
 
 ## Minimum Complete Product And Ordered Gaps
 
@@ -75,18 +78,21 @@ Studio completion follows the App profile's minimum-complete contract, not AionU
 
 | Surface | Current Studio baseline | Required closure |
 | --- | --- | --- |
-| Agent management | Dynamic catalog and projected installed/enabled state; OPL standard Agents are separated from Skills and connections | Add one App-owned select/start action, queue/steer during a run, lifecycle actions, owner source, automatic-update policy and fresh mutation readback |
+| Agent management | Dynamic catalog and projected installed/enabled state; OPL standard Agents are separated from Skills and connections; App P1 transport and lifecycle binding is canonical | Implement the contract-owned `thread/start` + `turn/start` launch, active-turn `turn/steer`, dynamic projected lifecycle actions, automatic-update policy and fresh readback; do not add an Agent activation action or Shell queue |
 | Run and research state | Thread turn state and `active_project_lines` are available | Project current Agent phase, queued/active work, hypotheses, roadmap and owner task modules through `runtime.detail`; never synthesize research state in the shell |
-| App update | App check action is present but shown only as a generic maintenance action | Preserve the managed-update result, show installed/latest/channel/state, and bind check/apply/restart to the Native host updater once that carrier exists |
-| OPL Base update | Runtime status and rollback refs exist | Show the Base component independently; use only Framework-projected owner actions |
-| OPL Packages and Agent updates | Per-package actions exist | Show aggregate currentness and managed automatic-update policy independently from App/Base |
+| App update | Standard updater authority and Native host capability contract are canonical | Implement check, downloaded-update installation, restart and post-restart running-version readback in the Native host |
+| OPL Base update | Framework managed-update status/action/receipt authority and Native host capability binding are canonical | Render Base independently and invoke only the existing Framework managed-update bridge with terminal readback |
+| OPL Packages and Agent updates | Dynamic Package actions, managed automatic-update policy and Native host binding are canonical | Render aggregate currentness and projected per-Package lifecycle independently from App/Base; Agent Packages never become a fourth updater |
 | Capabilities | Composer skill picker and `settings.section` contributions exist | Replace counts-only Settings content with the dynamic Skill/Plugin/MCP/managed-companion directory |
 | Workspace and storage | Owner state is readable | Add owner-projected select/rebind and cleanup actions; never create a second store |
-| Account and access | Public Gateway state can be projected | Add login, refresh, repair and disconnect through the credential owner without persisting secrets in renderer state |
+| Account and access | Gateway projection, projected non-secret actions and dedicated login secret bridge are canonical | Implement Settings controls and post-action readback; never place password material in generic App actions or renderer persistence |
 | Preferences and diagnostics | DSH System/Light/Dark is wired to the real renderer theme | Add necessary language, notifications and local behavior controls, service diagnostics/export and About/notices without copying DSH runtime settings |
 
-P1 closes the first usable product loop: Agent select/start, live run status and `runtime.detail`, account
-actions, Agent lifecycle, and App/Base/Packages update apply/readback. P2 adds connections, notifications,
+P1 contract closure is now explicit in `app-runtime-bridge.json#native_minimum_product_bridge`, the Studio
+adapter, candidate requirements and focused validation. Source implementation remains open for Agent launch,
+active-turn submission, Gateway Settings actions, dynamic lifecycle and the three update objects. P1 closes
+only after those paths execute and freshly read back in Studio alongside live run status and `runtime.detail`.
+P2 adds connections, notifications,
 storage maintenance, diagnostic export and repeatable DSH upstream intake. AionUI-only provider, Team,
 scheduler or AionCore surfaces are not parity requirements unless a current OPL user outcome independently
 requires them.

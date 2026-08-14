@@ -135,7 +135,13 @@
       "single_codex_app_server_thread_adapter",
       "thread_list_read_start_resume_fork_archive_unarchive",
       "turn_start_steer",
-      "codex_subagent_event_projection"
+      "codex_subagent_event_projection",
+      "standard_agent_conversation_launch",
+      "active_turn_steer_and_ephemeral_queue",
+      "gateway_account_secret_bridge",
+      "dynamic_agent_package_lifecycle",
+      "managed_update_base_packages_bridge",
+      "native_app_updater_and_restart"
     ]
   },
   "gui_product_contract": "contracts/app-gui-product-contract.json",
@@ -193,6 +199,31 @@
       "policy": "manual_or_vm_foreground_only"
     }
   ],
+  "p1_baseline_bridge": {
+    "contract_ref": "contracts/app-runtime-bridge.json#native_minimum_product_bridge",
+    "agent_launch_transport": "codex_app_server_thread_start_then_turn_start",
+    "active_turn_transport": "codex_app_server_turn_steer_else_turn_start",
+    "gateway_projection_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
+    "gateway_secret_bridge_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
+    "package_action_source": "app_state.agent_packages.directory.entries[].available_actions[]",
+    "managed_update_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
+    "app_updater_ref": "contracts/app-release-channel.json#standard_updater",
+    "required_host_capabilities": [
+      "loginGatewayAccount",
+      "opl-runtime.get-managed-update-status",
+      "opl-runtime.get-managed-update-check",
+      "opl-runtime.get-managed-update-plan",
+      "opl-runtime.run-managed-update-apply",
+      "opl-runtime.run-managed-update-repair",
+      "opl-runtime.run-managed-update-rollback",
+      "app_update_check",
+      "app_update_install_downloaded",
+      "application_restart"
+    ],
+    "shell_owned_action_bus_allowed": false,
+    "shell_owned_package_registry_allowed": false,
+    "shell_owned_persistent_queue_allowed": false
+  },
   "thread_adapter_boundary": {
     "source_ref": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination",
     "adapter": "single_codex_app_server_adapter",

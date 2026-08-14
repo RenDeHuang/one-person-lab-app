@@ -181,6 +181,134 @@
     "secret_receipt_fields": false,
     "shell_fail_closed_policy": "reject_unexpected_cli_fields_and_never_return_raw_stdout_stderr_or_secret_material"
   },
+  "native_minimum_product_bridge": {
+    "schema": "opl_native_minimum_product_bridge.v1",
+    "consumer": "opl-studio",
+    "product_contract_ref": "contracts/app-product-profile.json#delivery_topology.minimum_complete_product",
+    "authority_split": {
+      "conversation": "codex_core_app_server",
+      "app_state_and_projected_actions": "one-person-lab_framework",
+      "app_self_update": "one-person-lab-app_native_host",
+      "gateway_credentials": "dedicated_gateway_secret_bridge",
+      "shell_role": "typed_transport_and_projection_consumer_only",
+      "shell_owned_action_bus_allowed": false,
+      "second_package_registry_allowed": false,
+      "second_updater_allowed": false
+    },
+    "agent_conversation_launch": {
+      "catalog_source": "app_state.agent_packages.directory.entries[package_role=standard_agent]",
+      "status_source": "app_state.agent_packages.status_index.packages[package_id]",
+      "shortcut_source": "directory.entries[].home_shortcuts[]",
+      "selection_snapshot_fields": [
+        "package_id",
+        "shortcut_id",
+        "codex_visible_entry",
+        "required_skill_ids"
+      ],
+      "codex_visible_entry_source": "home_shortcuts[].route.codex_visible_entry",
+      "required_skill_ids_source": "status_index.packages[package_id].materialization_readiness.required_skill_ids",
+      "selection_effect": "composer_scoped_context_for_the_next_new_conversation_only",
+      "selection_mutates_package_or_framework_state": false,
+      "new_conversation_protocol": [
+        "thread/start",
+        "turn/start"
+      ],
+      "existing_conversation_rebinding_allowed": false,
+      "launch_readiness_gate": "directory installed and readiness plus status_index presence present and callable",
+      "launch_success_readback": "thread/read includeTurns=true for the returned canonical thread id after accepted turn/start",
+      "app_action_id_required": false,
+      "private_launch_receipt_allowed": false
+    },
+    "active_turn_submission": {
+      "active_turn_authority": "codex_app_server_thread_and_turn_events",
+      "active_turn_identity_fields": [
+        "threadId",
+        "turnId"
+      ],
+      "when_active_turn_accepts_input": "turn/steer",
+      "when_no_active_turn": "turn/start",
+      "queue_role": "renderer_ephemeral_submission_state_until_codex_app_server_accepts_or_rejects_the_request",
+      "ordering_authority": "codex_app_server_acceptance_and_event_order",
+      "failure_policy": "restore_unsent_input_to_the_composer_and_show_the_typed_protocol_error",
+      "cancellation_policy": "remove_only_not_yet_accepted_renderer_ephemeral_input",
+      "persistent_shell_queue_allowed": false,
+      "host_queue_allowed": false,
+      "framework_action_route_allowed": false
+    },
+    "gateway_account": {
+      "projection_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_projection",
+      "secret_bridge_ref": "contracts/app-runtime-bridge.json#opl_gateway_account_secret_bridge",
+      "login_bridge_id": "loginGatewayAccount",
+      "projected_action_ids": [
+        "gateway_account_complete_setup",
+        "gateway_account_refresh",
+        "gateway_account_repair",
+        "gateway_account_use_for_model_access",
+        "gateway_account_disconnect"
+      ],
+      "login_via_generic_app_action_allowed": false,
+      "renderer_secret_persistence_allowed": false,
+      "post_action_readback": "opl app state --profile fast --json#app_state.settings_control_center.app_settings_read_model.opl_gateway_account"
+    },
+    "agent_package_lifecycle": {
+      "directory_source": "app_state.agent_packages.directory.entries[]",
+      "action_source": "app_state.agent_packages.directory.entries[].available_actions[]",
+      "required_action_fields": [
+        "action_id",
+        "action_ref",
+        "semantic",
+        "surface",
+        "payload",
+        "required_payload_fields",
+        "confirmation_required"
+      ],
+      "dispatch_route": "opl app action execute --action <action_id> [--payload json] [--dry-run] --json",
+      "action_id_allowlist_allowed": false,
+      "semantic_inference_from_action_id_allowed": false,
+      "install_update_repair_enable_disable_show_hide_uninstall_policy": "render_only_actions_projected_for_the_selected_directory_entry",
+      "automatic_update_policy_ref": "contracts/app-gui-product-contract.json#settings_information_architecture.agent_packages.managed_update_policy",
+      "developer_checkout_automatic_mutation_allowed": false,
+      "post_action_readback": "opl app state --profile fast --json#app_state.agent_packages.directory+status_index"
+    },
+    "software_updates": {
+      "software_object_contract_ref": "contracts/app-release-channel.json#managed_update_plane.software_lifecycle",
+      "public_objects": [
+        "opl_app",
+        "opl_base",
+        "opl_packages"
+      ],
+      "opl_base_and_packages": {
+        "owner": "one-person-lab",
+        "status_source": "opl app state --profile fast --json#managed_update",
+        "host_capabilities": [
+          "opl-runtime.get-managed-update-status",
+          "opl-runtime.get-managed-update-check",
+          "opl-runtime.get-managed-update-plan",
+          "opl-runtime.run-managed-update-apply",
+          "opl-runtime.run-managed-update-repair",
+          "opl-runtime.run-managed-update-rollback"
+        ],
+        "direct_shell_mutation_allowed": false,
+        "terminal_readback_required": true
+      },
+      "opl_app": {
+        "owner": "one-person-lab-app",
+        "standard_updater_ref": "contracts/app-release-channel.json#standard_updater",
+        "native_host_capabilities": [
+          "app_update_check",
+          "app_update_install_downloaded",
+          "application_restart"
+        ],
+        "apply_started_operation": "standard_updater quitAndInstall equivalent owned by the native host",
+        "downloaded_state_is_success": false,
+        "post_restart_readback": "running app version must be greater than or equal to the downloaded target version",
+        "base_or_packages_mutation_allowed": false
+      },
+      "restart_guidance_source": "managed update status or owner action result only",
+      "single_component_picker_allowed": false,
+      "agent_packages_are_fourth_updater": false
+    }
+  },
   "canonical_state_display_action_map": {
     "schema": "app_canonical_state_display_action_map.v1",
     "authority": "one-person-lab-app",

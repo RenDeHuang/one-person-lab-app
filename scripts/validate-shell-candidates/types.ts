@@ -31,6 +31,21 @@ export type NativeThreadAdapterBoundary = {
   private_coordination_layer_allowed: boolean;
 };
 
+export type NativeP1BaselineBridge = {
+  contract_ref: string;
+  agent_launch_transport: string;
+  active_turn_transport: string;
+  gateway_projection_ref: string;
+  gateway_secret_bridge_ref: string;
+  package_action_source: string;
+  managed_update_ref: string;
+  app_updater_ref: string;
+  required_host_capabilities: string[];
+  shell_owned_action_bus_allowed: boolean;
+  shell_owned_package_registry_allowed: boolean;
+  shell_owned_persistent_queue_allowed: boolean;
+};
+
 export type ShellCandidate = HermesTargetStateContract & {
   id: string;
   state: string;
@@ -58,6 +73,12 @@ export type ShellCandidate = HermesTargetStateContract & {
     multi_backend_abstraction_required: boolean;
     thread_store_owner: string;
     forbidden_dependencies: string[];
+  };
+  p1_baseline_contract?: {
+    runtime_bridge_ref: string;
+    adapter_binding_ref: string;
+    required_user_outcomes: string[];
+    forbidden_parallel_control_planes: string[];
   };
   implementation_basis: string[];
   source_upstream?: {

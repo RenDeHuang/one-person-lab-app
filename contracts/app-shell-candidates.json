@@ -592,6 +592,25 @@
           "AionCore session or database state"
         ]
       },
+      "p1_baseline_contract": {
+        "runtime_bridge_ref": "contracts/app-runtime-bridge.json#native_minimum_product_bridge",
+        "adapter_binding_ref": "contracts/shell-adapters/opl-studio.json#p1_baseline_bridge",
+        "required_user_outcomes": [
+          "standard Agent selection launches a canonical Codex thread and first turn without a Framework activation action",
+          "running-turn input uses Codex turn/steer while idle input uses turn/start and no persistent Shell queue exists",
+          "Gateway login uses the dedicated secret bridge while non-secret account actions use projected App actions",
+          "Agent Package lifecycle renders every complete projected available_action without an action-id allowlist",
+          "OPL Base and OPL Packages updates use Framework managed-update host capabilities and terminal readback",
+          "OPL App update check, downloaded-update installation, restart, and running-version readback stay Native-host owned"
+        ],
+        "forbidden_parallel_control_planes": [
+          "shell_owned_action_bus",
+          "shell_owned_package_registry",
+          "shell_owned_persistent_turn_queue",
+          "second_agent_runtime",
+          "second_managed_updater"
+        ]
+      },
       "source_upstream": {
         "repo": "gaofeng21cn/opl-studio",
         "app_path": ".",
@@ -859,6 +878,12 @@
         "thread_list_read_start_resume_fork_archive_unarchive",
         "turn_start_steer",
         "codex_subagent_event_projection",
+        "standard_agent_conversation_launch",
+        "active_turn_steer_and_ephemeral_queue",
+        "gateway_account_secret_bridge",
+        "dynamic_agent_package_lifecycle",
+        "managed_update_base_packages_bridge",
+        "native_app_updater_and_restart",
         "dsh_slot_core_composition_host",
         "framework_ui_contributions_projection"
       ],
@@ -919,6 +944,11 @@
           "in-app identity is text-only One Person Lab while the macOS bundle icon remains allowed",
           "WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host",
           "one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer",
+          "standard Agent selection binds package_id, shortcut_id, codex_visible_entry, and required_skill_ids to thread/start plus turn/start without creating a Framework activation action",
+          "running-turn submissions use turn/steer and idle submissions use turn/start while queued input stays renderer-ephemeral until App Server acceptance",
+          "Gateway login uses loginGatewayAccount without generic action secret payloads and all other Gateway mutations use the projected action ids",
+          "Agent Package lifecycle actions come dynamically from complete directory available_actions entries without a Shell allowlist or inferred semantics",
+          "OPL Base and OPL Packages use Framework managed-update capabilities while OPL App uses the Native host updater and restart with fresh terminal readback",
           "Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server",
           "Native source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer",
           "candidate evidence must not claim release-ready, active-shell-adopted, production-ready, or full-release-ready from contract-only validation"

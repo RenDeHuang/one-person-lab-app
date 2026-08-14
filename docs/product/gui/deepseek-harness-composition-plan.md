@@ -247,8 +247,12 @@ canonical absorption 仍待完成，不能据此声称 release-ready。
 
 当前 UI 基线已进一步完成：用户可见品牌只保留 `One Person Lab`；模型 Auto 与固定模型消歧；
 强度选项使用短标签；OPL 标准智能体在 composer `+` 菜单独立成组；DSH Appearance 三态已接入
-真实 light/dark token。标准智能体选择/启动、运行中 queue/steer、研究假设/路线图投影以及完整
-Settings 动作闭环仍是明确缺口，不能由静态状态行替代。
+真实 light/dark token。App P1 contract 已把标准智能体选择绑定为 Codex `thread/start` +
+`turn/start`，把运行中提交绑定为 `turn/steer`、空闲提交绑定为 `turn/start`，并明确 queue 只是在
+App Server 接受前的 renderer 临时状态；没有 Agent activation action 或 Shell-owned host queue。
+Gateway secret bridge、动态 Package actions、Framework managed update 与 Native App updater/restart
+也已形成一个 adapter contract。Studio 真实 source caller、研究假设/路线图投影和完整 Settings
+动作闭环仍是明确缺口，不能由 contract 或静态状态行替代。
 
 ### Wave 2: OPL contribution ABI
 
@@ -273,8 +277,10 @@ package、installed user path 五条证据独立完成。
 
 Wave 3 按用户结果而非 AionUI 页面数推进：
 
-1. P1a：Agent select/start action、运行中 queue/steer，以及右侧 Run status / Files and results；
-2. P1b：Gateway 账户动作、Agent 安装/更新/启停/移除、App/Base/Packages 自动更新与 apply/restart；
+1. P1a：按 App P1 transport contract 实现 Agent selection -> `thread/start` + `turn/start`、运行中
+   `turn/steer`/临时 queue，以及右侧 Run status / Files and results；不新增 Framework activation action；
+2. P1b：实现既有 Gateway dedicated secret bridge 与 projected actions、动态 Agent lifecycle、
+   Framework managed update，以及 Native-host App updater/apply/restart；不新增第二 action bus 或 updater；
 3. P1c：`runtime.detail` 的假设、路线图、阶段和 owner task module 真实投影；
 4. P2：连接、通知、存储维护、诊断导出和 DSH upstream intake 自动化。
 
