@@ -59,7 +59,7 @@ function dockerAcquisitionFixture(root: string) {
   }));
   const componentManifest = createAppComponentManifest({
     version,
-    updaterVersion: '26.8.1490',
+    updaterVersion: '26.8.1491',
     sourceCommit: 'a'.repeat(40),
     shellCommit: 'b'.repeat(40),
     frameworkCommit: 'c'.repeat(40),
