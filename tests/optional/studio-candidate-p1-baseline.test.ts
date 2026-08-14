@@ -58,7 +58,7 @@ type NativeMinimumProductBridge = {
       terminal_readback_required: boolean;
     };
     opl_app: {
-      native_host_capabilities: string[];
+      logical_host_capabilities: string[];
       downloaded_state_is_success: boolean;
       base_or_packages_mutation_allowed: boolean;
     };
@@ -140,7 +140,7 @@ test('Native P1 keeps App, Base, and Packages update ownership separate', () => 
   ]);
   assert.equal(updates.opl_base_and_packages.direct_shell_mutation_allowed, false);
   assert.equal(updates.opl_base_and_packages.terminal_readback_required, true);
-  assert.deepEqual(updates.opl_app.native_host_capabilities, [
+  assert.deepEqual(updates.opl_app.logical_host_capabilities, [
     'app_update_check',
     'app_update_install_downloaded',
     'application_restart',
