@@ -242,14 +242,15 @@ function validateOPLStudioImplementationEvidence(
 
   if (
     evidence.webui_transport?.renderer !== 'src/workbench/App.tsx'
-    || evidence.webui_transport?.native_host !== 'scripts/opl-studio-app.swift'
-    || evidence.webui_transport?.native_transport !== 'src/main.tsx#installNativeTransport'
+    || evidence.webui_transport?.host_core !== 'scripts/webui-host/host-core.mjs'
+    || evidence.webui_transport?.native_host !== 'desktop/main.mjs'
+    || evidence.webui_transport?.native_transport !== 'desktop/preload.cjs#window.oplStudio'
     || evidence.webui_transport?.web_transport !== 'src/bridge/webTransport.ts'
     || evidence.webui_transport?.gateway !== 'scripts/dev-webui-server.mjs'
     || evidence.webui_transport?.shared_surface !== true
     || evidence.webui_transport?.events !== 'GET /api/opl-events uses SSE for Codex App Server and typed host events'
   ) {
-    throw new Error(`${candidate.id} evidence must prove shared Swift packaged macOS/WebUI renderer transport`);
+    throw new Error(`${candidate.id} evidence must prove one renderer and shared Node host core across Electron desktop and WebUI adapters`);
   }
   if (
     evidence.reuse_policy?.deepseek_harness_source_usage !== 'direct_mit_package_and_selected_source_reuse'
@@ -294,7 +295,7 @@ function validateOPLStudioImplementationEvidence(
     || evidence.webui_parity?.product_profile !== 'src/generated/oplProductProfile.generated.json'
     || evidence.webui_parity?.desktop_and_webui_default_home !== 'chat_first_default_collapsed'
   ) {
-    throw new Error(`${candidate.id} evidence must prove WebUI uses the same native renderer, bridge shape, product profile, and default home semantics as the packaged macOS host`);
+    throw new Error(`${candidate.id} evidence must prove WebUI and Electron desktop use the same renderer, bridge shape, product profile, and default home semantics`);
   }
 
   const evidenceSeriesDisplay = evidence.foundry_agent_series_display_contract;

@@ -141,23 +141,47 @@ function validateProductProfileContractRefs(profile) {
 function validateDeliveryTopology(profile) {
   const topology = profile.delivery_topology;
   if (
-    topology?.schema !== 'opl_app_delivery_topology.v1' ||
+    JSON.stringify(profile.product?.target_desktop_platforms) !== JSON.stringify(['macos', 'windows', 'linux']) ||
+    JSON.stringify(profile.product?.target_runtime_forms) !==
+      JSON.stringify(['electron_desktop', 'standalone_headless_webui', 'docker_webui']) ||
+    Object.hasOwn(profile.product ?? {}, 'supported_release_platforms') ||
+    topology?.schema !== 'opl_app_delivery_topology.v2' ||
+    topology.role !== 'successor_target_only' ||
     topology.decision_status !== 'approved_target_current_release_admission_separate' ||
     topology.product_behavior_authority !== 'one-person-lab-app' ||
-    topology.current_release_support_source_ref !== 'product.supported_release_platforms' ||
-    topology.current_release_shell_source_ref !== 'contract_refs.active_shell'
+    topology.release_roles_source_ref !== 'release_roles'
   ) {
-    throw new Error('Product profile must declare the approved delivery topology without promoting target platforms');
+    throw new Error('Product profile must separate the approved target topology from current release-platform authority');
   }
+  assertDeepEqualJson(
+    profile.release_roles,
+    {
+      current: {
+        shell: 'aionui',
+        adapter_ref: 'contracts/app-shell-adapter.json',
+        release_channel_ref: 'contracts/app-release-channel.json',
+        admitted_product_platforms: ['macos-arm64'],
+      },
+      successor: {
+        candidate_id: 'opl-studio',
+        topology_ref: 'delivery_topology',
+        active_release_carrier: false,
+        release_admission_separate: true,
+        target_platforms_are_not_current_release_evidence: true,
+      },
+    },
+    'Product profile current and successor release roles',
+  );
   assertDeepEqualJson(
     topology.shared_renderer,
     {
       product_owner: 'one-person-lab-app',
-      technology: 'react',
-      role: 'opl_owned_product_renderer',
+      technology: 'deepseek_harness_derived_react',
+      role: 'single_opl_owned_product_renderer',
       implementation_status: 'approved_active_product_development_release_admission_separate',
       technical_evaluation_candidate: 'opl-studio',
-      required_surfaces: ['native_macos', 'opl_workspace', 'future_cross_platform_desktop'],
+      required_surfaces: ['electron_desktop', 'standalone_headless_webui', 'docker_webui'],
+      source_reuse_policy_ref: 'docs/product/gui/deepseek-harness-composition-plan.md',
       single_active_product_renderer_required: true,
       carrier_specific_product_forks_allowed: false,
       aionui_source_or_runtime_dependency_required: false,
@@ -165,13 +189,33 @@ function validateDeliveryTopology(profile) {
     'Product profile shared renderer topology',
   );
   assertDeepEqualJson(
+    topology.shared_host_core,
+    {
+      technology: 'node',
+      role: 'single_codex_and_opl_transport_host',
+      owns: [
+        'codex_app_server_process_lifecycle',
+        'canonical_thread_and_turn_transport',
+        'opl_app_state_action_bridge',
+        'typed_host_events',
+      ],
+      desktop_adapter: 'electron_main_and_preload_ipc',
+      web_adapter: 'http_sse',
+      same_core_required_across_carriers: true,
+      carrier_specific_business_logic_allowed: false,
+      second_session_store_or_action_bus_allowed: false,
+    },
+    'Product profile shared Node host core topology',
+  );
+  assertDeepEqualJson(
     topology.runtime,
     {
       supported_backend_scope: 'codex_cli_only',
       codex_interface: 'codex_app_server',
-      codex_transport_by_host: {
-        native_macos: 'stdio',
-        opl_workspace: 'host_managed_stdio',
+      codex_transport_by_carrier: {
+        electron_desktop: 'shared_node_host_core_managed_stdio',
+        standalone_headless_webui: 'shared_node_host_core_managed_stdio',
+        docker_webui: 'shared_node_host_core_managed_stdio',
       },
       opl_integration: 'framework_app_state_action_contracts_only',
       aioncore_allowed: false,
@@ -185,55 +229,87 @@ function validateDeliveryTopology(profile) {
   assertDeepEqualJson(
     topology.bridge,
     {
+      abi: 'opl_app_host_bridge.v1',
       product_runtime_interface: 'opl_app_state_action_and_codex_app_server_thread_event_contracts',
       shared_typed_bridge_shape_required: true,
-      native_transport: 'wk_script_message_handler_to_local_process',
-      web_transport: 'http_sse_same_origin_to_host_process',
+      desktop_transport_adapter: 'electron_preload_ipc_to_shared_node_host_core',
+      web_transport_adapter: 'http_sse_to_shared_node_host_core',
+      renderer_api_semantics_identical_across_adapters: true,
       second_control_plane_or_session_store_allowed: false,
     },
     'Product profile carrier bridge topology',
   );
   assertDeepEqualJson(
-    topology.macos_desktop,
+    topology.desktop,
     {
-      carrier_id: 'native_macos',
+      carrier_id: 'electron_desktop',
       role: 'approved_target_architecture',
       technical_evaluation_candidate: 'opl-studio',
-      host_technology: 'swift_appkit_wkwebview',
-      target_platforms: ['macos-arm64'],
-      current_release_support_source_ref: 'product.supported_release_platforms',
+      host_technology: 'electron_thin_shell',
+      target_platforms: ['macos', 'windows', 'linux'],
       mainline_implementation_assigned: false,
       active_release_carrier: false,
-      electron_required: false,
+      platform_support_claim_allowed_before_platform_admission: false,
+      electron_role: 'window_preload_os_integration_packaging_signing_and_updater_only',
+      platform_runtime_placement: 'adapter_owned_and_unresolved_until_platform_evidence',
+      windows_native_or_wsl_placement_predecided: false,
+      swift_appkit_wkwebview_product_host_allowed: false,
+      platform_specific_renderer_fork_allowed: false,
       aioncore_required: false,
       container_runtime_role: 'none',
     },
-    'Product profile native macOS topology',
+    'Product profile Electron desktop topology',
   );
   assertDeepEqualJson(
-    topology.workspace,
+    topology.headless_webui,
     {
-      carrier_id: 'container_webui',
-      product_name: 'OPL Workspace',
-      role: 'hosted_one_person_lab_app_web_access',
+      carrier_id: 'standalone_headless_webui',
+      product_name: 'One Person Lab',
+      role: 'standalone_service_and_browser_access',
       technical_evaluation_candidate: 'opl-studio',
       implementation_status: 'shared_renderer_development_target_release_admission_separate',
       mainline_implementation_assigned: false,
-      host_technology: 'node_web_host',
+      host_technology: 'shared_node_host_core',
       transport: 'http_sse',
       runtime_process: 'codex_cli_app_server_child_process',
+      install_and_launch_modes: ['foreground_cli', 'background_service'],
+      explicit_cli_mode_required: true,
+      legacy_headless_flag_semantics: 'base_only_unchanged_until_separate_migration',
+      existing_packaged_desktop_webui_counts_as_standalone_host: false,
+      implementation_gap: 'extract_shared_host_core_and_add_explicit_headless_webui_install_and_service_entry',
+      electron_required: false,
+      aioncore_required: false,
+      same_renderer_host_core_and_bridge_abi_required: true,
+      desktop_database_reuse_required: false,
+      codex_state_volume_required: true,
+      multi_tenant_claim_allowed: false,
+    },
+    'Product profile standalone headless WebUI topology',
+  );
+  assertDeepEqualJson(
+    topology.docker_webui,
+    {
+      carrier_id: 'docker_webui',
+      product_name: 'One Person Lab',
+      role: 'containerized_shared_host_core_and_webui',
+      technical_evaluation_candidate: 'opl-studio',
+      implementation_status: 'shared_renderer_development_target_release_admission_separate',
+      mainline_implementation_assigned: false,
+      host_technology: 'shared_node_host_core',
+      transport: 'http_sse',
+      runtime_process: 'codex_cli_app_server_child_process',
+      existing_aionui_container_counts_as_successor_implementation: false,
       electron_in_container_allowed: false,
       aioncore_in_container_allowed: false,
+      same_renderer_host_core_and_bridge_abi_required: true,
       independent_runtime_persistence_and_release_required: true,
-      same_renderer_and_bridge_shape_required: true,
-      desktop_database_reuse_required: false,
       codex_state_volume_required: true,
       multi_tenant_claim_allowed: false,
       security_admission_ref:
         'contracts/app-install-exposure-policy.json#installer_surfaces.docker_webui.installer_model.cloud_deployment_model',
       release_contract_ref: 'contracts/app-release-channel.json#distribution_semantics.cohort_policy',
     },
-    'Product profile OPL Workspace topology',
+    'Product profile Docker WebUI topology',
   );
   assertDeepEqualJson(
     topology.mobile,
@@ -245,25 +321,12 @@ function validateDeliveryTopology(profile) {
     'Product profile mobile topology',
   );
   assertDeepEqualJson(
-    topology.cross_platform_desktop,
-    {
-      decision_status: 'wrapper_selection_deferred',
-      implementation_owner_status: 'unassigned',
-      mainline_implementation_assigned: false,
-      target_platforms: ['windows', 'linux'],
-      candidate_wrappers: ['electron', 'tauri'],
-      renderer_reuse_required: true,
-      aioncore_allowed: false,
-      support_claim_allowed: false,
-      separate_adoption_and_platform_acceptance_required: true,
-    },
-    'Product profile future cross-platform desktop topology',
-  );
-  assertDeepEqualJson(
-    topology.native_product,
+    topology.successor_product,
     {
       candidate_id: 'opl-studio',
-      role: 'first_party_native_successor_implementation',
+      user_visible_product_name: 'One Person Lab',
+      development_codename_user_visible: false,
+      role: 'first_party_cross_platform_app_successor_implementation',
       product_development_required: true,
       current_mainline: false,
       minimum_complete_product_obligation: true,
@@ -273,7 +336,7 @@ function validateDeliveryTopology(profile) {
       release_adoption_requires_separate_qualification: true,
       candidate_policy_ref: 'contracts/app-shell-candidates.json',
     },
-    'Product profile Native product policy',
+    'Product profile successor product policy',
   );
   assertDeepEqualJson(
     topology.aionui_reference,
@@ -291,7 +354,7 @@ function validateDeliveryTopology(profile) {
   assertDeepEqualJson(
     topology.minimum_complete_product,
     {
-      schema: 'opl_native_minimum_complete_product.v1',
+      schema: 'opl_app_successor_minimum_complete_product.v2',
       implementation_id: 'opl-studio',
       completion_rule:
         'all_required_user_outcomes_have_owner_backed_state_action_and_post_action_readback_without_a_second_runtime_or_truth_store',
@@ -306,7 +369,8 @@ function validateDeliveryTopology(profile) {
         'service_health_safe_recovery_and_owner_routed_diagnostics',
       ],
       update_ownership: {
-        opl_app: 'native_host_updater_state_and_app_owner_installation_carrier_route',
+        opl_app:
+          'one_app_update_contract_with_carrier_specific_desktop_headless_and_container_adapters_owned_by_one-person-lab-app',
         opl_base: 'framework_managed_update_component_projection_and_owner_actions',
         opl_packages: 'framework_package_projection_owner_actions_and_managed_automatic_update_policy',
         agent_packages: 'part_of_opl_packages_never_a_fourth_updater',
@@ -340,7 +404,7 @@ function validateDeliveryTopology(profile) {
         strategy: 'establish_then_replace',
         ordered_gates: [
           'complete_minimum_product_outcomes',
-          'qualify_native_updater_packaging_install_and_release',
+          'qualify_electron_desktop_headless_webui_docker_packaging_install_update_and_release',
           'explicitly_switch_active_shell_and_release_carrier',
           'verify_installed_and_runtime_readback',
           'retire_aionui_mainline',
@@ -350,7 +414,7 @@ function validateDeliveryTopology(profile) {
         source_or_local_candidate_evidence_may_trigger_cutover: false,
       },
     },
-    'Product profile minimum complete Native product contract',
+    'Product profile minimum complete successor product contract',
   );
 }
 

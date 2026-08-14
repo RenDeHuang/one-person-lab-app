@@ -363,19 +363,21 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   ) {
     throw new Error('interactive launcher AionUI profile must preserve the installed mainline and existing dev command');
   }
-  const native = profiles['opl-studio'];
+  const successor = profiles['opl-studio'];
   if (
-    native?.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
-    native.default_mode !== 'packaged' ||
-    native.bundle_id !== 'cn.gflab.opl.studio.preview' ||
-    native.packaged_app_path !== '/Applications/One Person Lab Preview.app' ||
-    native.bundle_relative_path !== 'out/One Person Lab Preview.app' ||
-    native.supported_modes?.join(',') !== 'packaged' ||
-    native.package_command?.join(' ') !== 'npm run package'
+    successor?.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
+    successor.default_mode !== 'packaged' ||
+    successor.bundle_id !== 'cn.gflab.opl.studio.preview' ||
+    successor.packaged_app_path !== '/Applications/One Person Lab Preview.app' ||
+    successor.bundle_relative_path !== 'out/mac-arm64/One Person Lab Preview.app' ||
+    successor.supported_modes?.join(',') !== 'packaged' ||
+    successor.package_command?.join(' ') !== 'npm run package' ||
+    successor.launcher_env_abi?.join(',') !==
+      'OPL_CODEX_BIN,OPL_APP_OPL_BIN,OPL_NATIVE_WORKBENCH_CODEX_CWD,OPL_NATIVE_WORKBENCH_READ_ONLY'
   ) {
-    throw new Error('interactive launcher Native profile must preserve the formal local install, isolated bundle, and package command');
+    throw new Error('interactive launcher successor profile must preserve the formal local install, host ABI, isolated bundle, and package command');
   }
-  if (aionui.bundle_id === native.bundle_id) {
+  if (aionui.bundle_id === successor.bundle_id) {
     throw new Error('interactive launcher mainline and candidate bundle identities must differ');
   }
 }

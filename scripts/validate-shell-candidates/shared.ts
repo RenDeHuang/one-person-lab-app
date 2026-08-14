@@ -60,7 +60,7 @@ export const requiredNativeP1Capabilities = [
   'gateway_account_secret_bridge',
   'dynamic_agent_package_lifecycle',
   'managed_update_base_packages_bridge',
-  'native_app_updater_and_restart',
+  'app_carrier_update_and_restart',
 ];
 export const requiredNativeCapabilities = [
   'codex_cli_fixed_executor_home',
@@ -96,6 +96,9 @@ export const requiredNativeCapabilities = [
   'candidate_app_bundle_package',
   ...requiredNativeThreadCapabilities,
   ...requiredNativeP1Capabilities,
+  'shared_node_host_core',
+  'electron_desktop_adapter',
+  'http_sse_web_adapter',
 ];
 export const requiredSettingsTabs = ['general', 'access', 'capabilities', 'environment', 'storage', 'appearance', 'advanced'];
 export const forbiddenLegacySettingsTabs = [

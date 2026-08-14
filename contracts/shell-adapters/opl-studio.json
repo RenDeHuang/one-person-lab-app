@@ -34,6 +34,19 @@
   },
   "release_role": "experimental_candidate_shell",
   "candidate_stage": "opl_studio_single_app_server_adapter_candidate_only",
+  "delivery_topology": {
+    "product_profile_ref": "contracts/app-product-profile.json#delivery_topology",
+    "topology_authority": false,
+    "renderer": "deepseek_harness_derived_react",
+    "shared_host_core": "scripts/webui-host/host-core.mjs",
+    "desktop_adapter": "desktop/main.mjs + desktop/preload.cjs",
+    "desktop_platforms": ["macos", "windows", "linux"],
+    "web_adapter": "http_sse",
+    "web_runtime_forms": ["standalone_headless_webui", "docker_webui"],
+    "bridge_abi": "opl_app_host_bridge.v1",
+    "aionui_or_aioncore_dependency_allowed": false,
+    "active_release_carrier": false
+  },
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "foreground_alternative_candidate_implementation_carrier",
@@ -120,7 +133,7 @@
       "build_output_dir": "out",
       "product_profile_target": "src/generated/oplProductProfile.generated.json",
       "packaged_runtime_root": "packaged-runtimes/opl-full-runtime",
-      "packaged_runtime_validator": "scripts/validate-packaged-runtime.mjs",
+      "packaged_runtime_validator": "scripts/validate-desktop-package.mjs",
       "release_prepare_script": "scripts/prepare-release-assets.sh",
       "release_verify_script": "scripts/verify-release-assets.sh"
     },
@@ -141,7 +154,10 @@
       "gateway_account_secret_bridge",
       "dynamic_agent_package_lifecycle",
       "managed_update_base_packages_bridge",
-      "native_app_updater_and_restart"
+      "app_carrier_update_and_restart",
+      "shared_node_host_core",
+      "electron_desktop_adapter",
+      "http_sse_web_adapter"
     ]
   },
   "gui_product_contract": "contracts/app-gui-product-contract.json",

@@ -1,7 +1,7 @@
-# OPL Studio Native Product Boundary
+# One Person Lab App Successor Product Boundary
 
 Owner: `one-person-lab-app`
-Purpose: `opl_studio_native_product_boundary`
+Purpose: `opl_app_successor_product_boundary`
 State: `active_product_development_release_admission_separate`
 Machine boundary: 本文记录轻量 OPL GUI 方向的人读产品边界。产品、mainline owner 与 adoption
 真值归 App contracts，source/tests 归独立 OPL Studio；package、pixel、install 与
@@ -9,16 +9,18 @@ release 结论归对应 owner evidence。本文不改变当前 active AionUI rel
 
 ## Decision
 
-`opl-studio` is the active first-party implementation of the approved lightweight OPL GUI direction:
-an OPL-owned React renderer, Swift/AppKit + WKWebView macOS host, lightweight OPL Studio Node Web host,
-and their shared typed bridge. The product supports Codex CLI/App Server only and
-must not require, start, package, or read AionUI/AionCore.
+`opl-studio` is the internal repo and candidate id for the approved One Person Lab App successor:
+one DSH-derived React renderer, one shared Node host core, an Electron thin desktop carrier for macOS,
+Windows, and Linux, plus HTTP/SSE adapters for standalone headless WebUI and Docker WebUI. All runtime
+forms expose the same App-owned bridge ABI and product behavior. The product supports Codex CLI/App
+Server only and must not require, start, package, or read AionUI/AionCore.
 
 AionUI remains the active release shell until the App adapter and release surfaces complete a separate
 adoption transition. That current release role does not make AionUI the target renderer, feature inventory,
-or runtime dependency. Studio is now required product development, but it has no full-AionUI-parity or
-cross-platform delivery obligation. Windows/Linux are a future product direction using the same renderer;
-Electron versus Tauri and the implementation owner remain deferred.
+or runtime dependency. The successor is required product development, but it has no full-AionUI-parity
+obligation. Electron is now the selected thin desktop carrier for all three desktop platforms; each
+platform still needs its own packaging, signing, updater, install, and runtime admission before support can
+be claimed. Windows process placement remains adapter-owned and unresolved until native/WSL evidence exists.
 
 The current mainline decision is `retain_aionui_with_thin_adapter`: AionUI may render the OPL-owned
 UI-contribution ABI through existing App state/action surfaces, while only OPL Studio may directly reuse
@@ -47,7 +49,7 @@ The product layout is intentionally small and follows the pinned DSH composition
   App state refs and action JSON are not displayed as files or results.
 - In-app identity is text-only `One Person Lab`. `OPL Studio` is an internal repository, development-line,
   and candidate-artifact codename and must not appear as the user-facing product name. No Logo is rendered
-  in the workbench; the macOS bundle icon remains a normal operating-system asset.
+  in the workbench; platform bundle icons remain normal operating-system assets.
 
 The prior unified coordination plan is superseded by the repo-owned boundaries in
 [`aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md),
@@ -64,7 +66,7 @@ disambiguates Auto from a fixed model, presents effort values without a redundan
 and lists owner-projected OPL standard Agents separately in the composer palette. These are source and
 local visual results only; they do not prove installed, active-shell or release adoption.
 
-The App contract now defines the missing Native P1 binding without adding an Agent activation action.
+The App contract now defines the missing successor P1 binding without adding an Agent activation action.
 Selecting a standard Agent captures the owner-projected `package_id`, `shortcut_id`, `codex_visible_entry`,
 and `required_skill_ids`, then launches the canonical conversation through Codex `thread/start` and
 `turn/start`. During an active turn, accepted follow-up input uses `turn/steer`; otherwise it uses
@@ -80,9 +82,9 @@ Studio completion follows the App profile's minimum-complete contract, not AionU
 | --- | --- | --- |
 | Agent management | Dynamic catalog and projected installed/enabled state; OPL standard Agents are separated from Skills and connections; App P1 transport and lifecycle binding is canonical | Implement the contract-owned `thread/start` + `turn/start` launch, active-turn `turn/steer`, dynamic projected lifecycle actions, automatic-update policy and fresh readback; do not add an Agent activation action or Shell queue |
 | Run and research state | Thread turn state and `active_project_lines` are available | Project current Agent phase, queued/active work, hypotheses, roadmap and owner task modules through `runtime.detail`; never synthesize research state in the shell |
-| App update | Standard updater authority and Native host capability contract are canonical | Implement check, downloaded-update installation, restart and post-restart running-version readback in the Native host |
-| OPL Base update | Framework managed-update status/action/receipt authority and Native host capability binding are canonical | Render Base independently and invoke only the existing Framework managed-update bridge with terminal readback |
-| OPL Packages and Agent updates | Dynamic Package actions, managed automatic-update policy and Native host binding are canonical | Render aggregate currentness and projected per-Package lifecycle independently from App/Base; Agent Packages never become a fourth updater |
+| App update | One App-owned logical update contract is canonical | Implement Electron, standalone-service/package, and container-image adapters without turning them into separate product updaters; each route requires restart/recreate and running-version readback |
+| OPL Base update | Framework managed-update status/action/receipt authority and shared host-core binding are canonical | Render Base independently and invoke only the existing Framework managed-update bridge with terminal readback |
+| OPL Packages and Agent updates | Dynamic Package actions, managed automatic-update policy and shared host-core binding are canonical | Render aggregate currentness and projected per-Package lifecycle independently from App/Base; Agent Packages never become a fourth updater |
 | Capabilities | Composer skill picker and `settings.section` contributions exist | Replace counts-only Settings content with the dynamic Skill/Plugin/MCP/managed-companion directory |
 | Workspace and storage | Owner state is readable | Add owner-projected select/rebind and cleanup actions; never create a second store |
 | Account and access | Gateway projection, projected non-secret actions and dedicated login secret bridge are canonical | Implement Settings controls and post-action readback; never place password material in generic App actions or renderer persistence |
@@ -117,15 +119,19 @@ state store, updater, or runtime authority.
   session is not arbitrarily reassigned; runtime `pwd` changes do not rewrite affinity, and the directory does
   not own sessions, context, or artifacts.
 - Ordinary conversation starts Codex CLI App Server directly; no ACP/AionCore carrier is required.
-- Native does not require, start, package, or read AionCore. It resolves an exact Codex executable through
+- The successor does not require, start, package, or read AionCore. Its shared Node host core resolves an exact Codex executable through
   `OPL_CODEX_BIN` or an App-owned equivalent, starts Codex App Server directly, and consumes OPL only
   through Framework `opl app state/action` contracts.
-- Native macOS uses Swift/AppKit + WKWebView; OPL Studio WebUI uses a lightweight Node HTTP/SSE host and Codex
-  state volume. Both load the same OPL renderer and bridge shape. Docker runs neither Electron nor AionCore.
+- Electron desktop owns only windows, preload IPC, OS integration, packaging, signing, and the desktop update
+  adapter. Business logic and Codex/OPL transports stay in the shared Node host core. Standalone headless WebUI
+  and Docker use the same host core through HTTP/SSE and run neither Electron nor AionCore.
+- The existing `install.sh --headless` remains Base-only. Standalone headless WebUI requires a new explicit
+  runtime form or service entry and a separate migration decision; the current packaged Desktop `--webui`
+  path is not evidence that the Electron-free host is complete.
 - Candidate-specific storage, protocol, renderer, package, or live-smoke evidence never proves active-shell
   adoption, release readiness, or shared physical Runtime parity.
-- Windows/Linux wrapper work requires the separate adoption decision recorded in the delivery topology; it
-  must reuse the OPL renderer, stay Codex-only, and cannot claim current platform support from source alone.
+- macOS, Windows, and Linux must reuse the same renderer, host core, and bridge ABI. Source support does not
+  establish platform support, and the Windows adapter must not pre-decide native versus WSL process placement.
 - AionUI and OpenChamber are bounded references only. Any source reuse requires a separate decision and must
   not bring their runtime authority, provider abstraction, session store, or control plane into OPL.
 - Model dynamic tools, JSONL audit/idempotency ledgers, write-set advisory control planes, pending-request
@@ -133,8 +139,8 @@ state store, updater, or runtime authority.
 
 ## Release Admission Gate
 
-OPL Studio development follows the minimum-complete product contract. It does not create a full AionUI
-parity plan or cross-platform workstream. Active-shell adoption, installed-App replacement, updater
+Successor development follows the minimum-complete product contract. It does not create a full AionUI
+parity plan. Active-shell adoption, installed-App replacement, platform updater
 participation, and release promotion still require separate App-owner qualification and evidence. App release
 validators must not infer those states from source, local package, or candidate evidence.
 

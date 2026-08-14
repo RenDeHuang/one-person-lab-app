@@ -124,12 +124,16 @@ export type ShellCandidate = HermesTargetStateContract & {
   };
   webui_transport?: {
     shared_renderer: boolean;
-    native_surface: string;
+    shared_host_core: string;
+    bridge_abi: string;
+    desktop_surface: string;
     web_surface: string;
+    desktop_adapter: string;
     web_bridge: string;
     event_stream: string;
     gateway: string;
-    native_picker_policy: string;
+    desktop_picker_policy: string;
+    electron_in_headless_or_container_allowed: boolean;
   };
   target_product_shape: {
     codex_cli_fixed_executor: boolean;
@@ -274,6 +278,7 @@ export type ShellCandidateRegistry = {
       bundle_id: string;
       packaged_app_path?: string;
       bundle_relative_path?: string;
+      launcher_env_abi?: string[];
       dev_command?: string[];
       package_command?: string[];
     }>;

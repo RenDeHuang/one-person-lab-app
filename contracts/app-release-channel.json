@@ -3,6 +3,19 @@
   "owner": "one-person-lab-app",
   "purpose": "release_channel_contract",
   "state": "active",
+  "successor_delivery_target": {
+    "schema": "opl_app_successor_delivery_target.v1",
+    "candidate_id": "opl-studio",
+    "product_profile_ref": "contracts/app-product-profile.json#delivery_topology",
+    "role": "target_only_not_current_release_authority",
+    "topology_authority": false,
+    "carrier_set_source_ref": "contracts/app-product-profile.json#product.target_runtime_forms",
+    "platform_admission_required_independently": true,
+    "active_shell_remains": "aionui",
+    "active_release_carrier": false,
+    "current_release_platform_matrix_is_successor_admission_evidence": false,
+    "source_contract_or_candidate_evidence_implies_release_ready": false
+  },
   "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
   "computer_use_distribution": {
     "schema": "opl_app_computer_use_distribution.v1",

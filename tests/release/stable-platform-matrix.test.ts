@@ -114,7 +114,11 @@ test('Stable additional Desktop publication is limited to Linux x64 and Windows 
   const productProfile = JSON.parse(
     fs.readFileSync(path.join(appRoot, 'contracts/app-product-profile.json'), 'utf8'),
   );
-  assert.deepEqual(productProfile.product.supported_release_platforms, ['macos-arm64']);
+  assert.deepEqual(productProfile.product.target_desktop_platforms, ['macos', 'windows', 'linux']);
+  assert.deepEqual(productProfile.release_roles.current.admitted_product_platforms, ['macos-arm64']);
+  assert.equal(productProfile.release_roles.current.release_channel_ref, 'contracts/app-release-channel.json');
+  assert.equal(productProfile.release_roles.successor.target_platforms_are_not_current_release_evidence, true);
+  assert.equal('supported_release_platforms' in productProfile.product, false);
 });
 
 test('optional Stable publication defaults to Linux x64 plus Windows x64 and remains authority-overridable', () => {

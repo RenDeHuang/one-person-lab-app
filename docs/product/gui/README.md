@@ -40,7 +40,7 @@ Release Set 只用于 Full/offline/integration-test/QA。当前 contracts/source
 compatibility，文档更新不表示实现完成。
 
 GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，`opl-studio` 则是
-App-owned 原生产品的 active development target，并可作为本机 `local GUI launch target`。
+App-owned successor 的 internal repo/candidate id，并可作为本机 `local GUI launch target`。
 启动或开发 Studio 不等于 release adoption，也不修改当前 release/updater authority。
 共享逻辑基座、独立 GUI 状态、统一 launcher 目标和
 当前 Runtime/session 偏差统一见
@@ -49,7 +49,7 @@ Codex executable 也遵循该 shell-adapter 边界：当前 AionUI 仍从 bundle
 完整 managed-resources manifest 解析 Codex；目标由 Shell 将该完整导出当作 staging，
 生成只含 Node + Codex 的 OPL projection，Standard/Full 最终包物理排除 Claude。App bundle
 不再携带 Framework managed Codex payload；Framework headless carrier 继续留在 App bundle
-之外。未来 Native adoption 通过同一 `OPL_CODEX_BIN` 和 Codex App Server 接口选择自己的
+之外。未来 successor adoption 通过同一 `OPL_CODEX_BIN` 和 Codex App Server 接口选择自己的
 或 exact external binary，不继承 AionCore 依赖。迁移状态与门禁见
 [`../../architecture/aioncore-codex-only-carrier.md`](../../architecture/aioncore-codex-only-carrier.md)。
 
@@ -60,6 +60,13 @@ contribution ABI。App contract、Framework projection/action ABI、Codex thread
 Package owner 边界不变；Studio 直接使用 DSH AppFrame/sidebar/conversation/composer/Settings/theme
 作为宿主，OPL 功能通过 slots 注入，不再仿写 Codex App 布局。DSH runtime、Cordis 和第二
 plugin manager 不进入 AionUI。
+
+Successor 的交付拓扑由 `app-product-profile.json#delivery_topology` 单点定义：一套 DSH-derived
+React renderer 和 shared Node host core，Electron 薄壳承载 macOS/Windows/Linux，HTTP/SSE
+adapter 承载 standalone headless WebUI 与 Docker WebUI。三类 carrier 使用同一 bridge ABI；
+headless/Docker 不运行 Electron。旧 `--headless` 仍保持 Base-only，Windows 的 Node/Codex
+进程位置也不在产品合同中预设为 native 或 WSL。目标拓扑不改变 AionUI 当前发布主线，也不
+构成任一 successor carrier 的平台准入或 release evidence。
 
 产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
 专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
@@ -76,7 +83,7 @@ Capability 管理、App/Base/Packages 分权更新、服务维护和必要设置
 不是 feature inventory authority；AionCore、多 backend、自定义 Assistant 和 Team 不因上游存在
 而进入 Studio。功能来源使用独立的 `B0 / R1 / U1 / X0` 轴：B0 是 Codex 必要 baseline，R1 是等价
 替换，U1 是 OPL 定位必须增加，X0 是条件保留/当前非目标；`P0/P1/P2` 继续只表示优先级。
-AionUI 与 Native 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两张必要功能 List 和
+AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。两张必要功能 List 和
 “为什么必要”见 [`feature-inventory.md#功能来源分类`](feature-inventory.md#功能来源分类)，
 双 carrier 当前实现证据见
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。

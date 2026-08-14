@@ -13,6 +13,195 @@ export type OplStandardAgentMembershipPolicy = {
   package_id_allowlist_allowed: false;
 };
 
+export type AppRuntimeForm =
+  | 'electron_desktop'
+  | 'standalone_headless_webui'
+  | 'docker_webui';
+
+export type AppReleaseRoles = {
+  current: {
+    shell: 'aionui';
+    adapter_ref: string;
+    release_channel_ref: string;
+    admitted_product_platforms: string[];
+  };
+  successor: {
+    candidate_id: 'opl-studio';
+    topology_ref: 'delivery_topology';
+    active_release_carrier: false;
+    release_admission_separate: true;
+    target_platforms_are_not_current_release_evidence: true;
+  };
+};
+
+export type AppDeliveryTopology = {
+  schema: 'opl_app_delivery_topology.v2';
+  role: 'successor_target_only';
+  decision_status: 'approved_target_current_release_admission_separate';
+  product_behavior_authority: 'one-person-lab-app';
+  release_roles_source_ref: 'release_roles';
+  shared_renderer: {
+    product_owner: 'one-person-lab-app';
+    technology: 'deepseek_harness_derived_react';
+    role: 'single_opl_owned_product_renderer';
+    implementation_status: 'approved_active_product_development_release_admission_separate';
+    technical_evaluation_candidate: 'opl-studio';
+    required_surfaces: AppRuntimeForm[];
+    source_reuse_policy_ref: string;
+    single_active_product_renderer_required: true;
+    carrier_specific_product_forks_allowed: false;
+    aionui_source_or_runtime_dependency_required: false;
+  };
+  shared_host_core: {
+    technology: 'node';
+    role: 'single_codex_and_opl_transport_host';
+    owns: string[];
+    desktop_adapter: 'electron_main_and_preload_ipc';
+    web_adapter: 'http_sse';
+    same_core_required_across_carriers: true;
+    carrier_specific_business_logic_allowed: false;
+    second_session_store_or_action_bus_allowed: false;
+  };
+  runtime: {
+    supported_backend_scope: 'codex_cli_only';
+    codex_interface: 'codex_app_server';
+    codex_transport_by_carrier: Record<AppRuntimeForm, 'shared_node_host_core_managed_stdio'>;
+    opl_integration: 'framework_app_state_action_contracts_only';
+    aioncore_allowed: false;
+    aionui_required: false;
+    multi_backend_abstraction_required: false;
+    second_provider_or_session_store_allowed: false;
+    thread_store_owner: 'codex_core_app_server';
+  };
+  bridge: {
+    abi: 'opl_app_host_bridge.v1';
+    product_runtime_interface: string;
+    shared_typed_bridge_shape_required: true;
+    desktop_transport_adapter: 'electron_preload_ipc_to_shared_node_host_core';
+    web_transport_adapter: 'http_sse_to_shared_node_host_core';
+    renderer_api_semantics_identical_across_adapters: true;
+    second_control_plane_or_session_store_allowed: false;
+  };
+  desktop: {
+    carrier_id: 'electron_desktop';
+    role: 'approved_target_architecture';
+    technical_evaluation_candidate: 'opl-studio';
+    host_technology: 'electron_thin_shell';
+    target_platforms: Array<'macos' | 'windows' | 'linux'>;
+    mainline_implementation_assigned: false;
+    active_release_carrier: false;
+    platform_support_claim_allowed_before_platform_admission: false;
+    electron_role: string;
+    platform_runtime_placement: string;
+    windows_native_or_wsl_placement_predecided: false;
+    swift_appkit_wkwebview_product_host_allowed: false;
+    platform_specific_renderer_fork_allowed: false;
+    aioncore_required: false;
+    container_runtime_role: 'none';
+  };
+  headless_webui: {
+    carrier_id: 'standalone_headless_webui';
+    product_name: 'One Person Lab';
+    role: 'standalone_service_and_browser_access';
+    technical_evaluation_candidate: 'opl-studio';
+    implementation_status: 'shared_renderer_development_target_release_admission_separate';
+    mainline_implementation_assigned: false;
+    host_technology: 'shared_node_host_core';
+    transport: 'http_sse';
+    runtime_process: 'codex_cli_app_server_child_process';
+    install_and_launch_modes: Array<'foreground_cli' | 'background_service'>;
+    explicit_cli_mode_required: true;
+    legacy_headless_flag_semantics: 'base_only_unchanged_until_separate_migration';
+    existing_packaged_desktop_webui_counts_as_standalone_host: false;
+    implementation_gap: string;
+    electron_required: false;
+    aioncore_required: false;
+    same_renderer_host_core_and_bridge_abi_required: true;
+    desktop_database_reuse_required: false;
+    codex_state_volume_required: true;
+    multi_tenant_claim_allowed: false;
+  };
+  docker_webui: {
+    carrier_id: 'docker_webui';
+    product_name: 'One Person Lab';
+    role: 'containerized_shared_host_core_and_webui';
+    technical_evaluation_candidate: 'opl-studio';
+    implementation_status: 'shared_renderer_development_target_release_admission_separate';
+    mainline_implementation_assigned: false;
+    host_technology: 'shared_node_host_core';
+    transport: 'http_sse';
+    runtime_process: 'codex_cli_app_server_child_process';
+    existing_aionui_container_counts_as_successor_implementation: false;
+    electron_in_container_allowed: false;
+    aioncore_in_container_allowed: false;
+    same_renderer_host_core_and_bridge_abi_required: true;
+    independent_runtime_persistence_and_release_required: true;
+    codex_state_volume_required: true;
+    multi_tenant_claim_allowed: false;
+    security_admission_ref: string;
+    release_contract_ref: string;
+  };
+  mobile: {
+    initial_surface: 'responsive_web_pwa';
+    optional_native_wrapper: 'capacitor_after_separate_adoption_decision';
+    separate_product_renderer_allowed: false;
+  };
+  successor_product: {
+    candidate_id: 'opl-studio';
+    user_visible_product_name: 'One Person Lab';
+    development_codename_user_visible: false;
+    role: 'first_party_cross_platform_app_successor_implementation';
+    product_development_required: true;
+    current_mainline: false;
+    minimum_complete_product_obligation: true;
+    aionui_feature_parity_obligation: false;
+    release_blocking: false;
+    active_release_carrier: false;
+    release_adoption_requires_separate_qualification: true;
+    candidate_policy_ref: string;
+  };
+  aionui_reference: {
+    role: 'current_release_shell_and_bounded_requirements_evidence_only';
+    target_renderer_owner: false;
+    target_feature_inventory_owner: false;
+    target_runtime_dependency: false;
+    aioncore_target_runtime_dependency: false;
+    source_reuse_requires_separate_decision: true;
+    active_release_shell_source_ref: string;
+  };
+  minimum_complete_product: {
+    schema: 'opl_app_successor_minimum_complete_product.v2';
+    implementation_id: 'opl-studio';
+    completion_rule: string;
+    required_user_outcomes: string[];
+    update_ownership: {
+      opl_app: string;
+      opl_base: string;
+      opl_packages: string;
+      agent_packages: string;
+    };
+    composition_model: {
+      kernel_owns: string[];
+      package_contribution_slots: string[];
+      registration_lifecycle: string;
+      spatial_scope: string;
+      temporal_scope: string;
+      cordis_learning: string;
+      second_plugin_runtime_allowed: false;
+      second_package_registry_allowed: false;
+      second_state_or_action_truth_allowed: false;
+    };
+    explicit_non_goals: string[];
+    cutover_policy: {
+      strategy: 'establish_then_replace';
+      ordered_gates: string[];
+      aionui_remains_only_mainline_until_cutover: true;
+      aionui_retirement_before_studio_qualification_allowed: false;
+      source_or_local_candidate_evidence_may_trigger_cutover: false;
+    };
+  };
+};
+
 export type AppProductProfile = {
   schema_version: 2;
   owner: string;
@@ -25,9 +214,14 @@ export type AppProductProfile = {
     display_name: string;
     ordinary_chrome_name: string;
     primary_surface: string;
-    supported_release_platforms: string[];
+    target_desktop_platforms: Array<'macos' | 'windows' | 'linux'>;
+    target_runtime_forms: AppRuntimeForm[];
+    positioning: string;
+    primary_user_path: string;
   };
   contract_refs: Record<string, string>;
+  release_roles: AppReleaseRoles;
+  delivery_topology: AppDeliveryTopology;
   official_profile: {
     profile_id: 'opl-official';
     authority: 'one-person-lab-app';

@@ -124,6 +124,7 @@ test("OPL Studio candidate open args preserve one instance and default to read-o
     assert(args.includes("OPL_NATIVE_WORKBENCH_READ_ONLY=1"));
     assert(args.includes(`OPL_APP_OPL_BIN=${identity.opl_path}`));
     assert(args.includes(`OPL_CODEX_BIN=${identity.codex_path}`));
+    assert(args.includes("OPL_NATIVE_WORKBENCH_CODEX_CWD=/tmp/workspace"));
     assert(args.some((entry) => entry.startsWith("OPL_APP_RUNTIME_IDENTITY_JSON=")));
   } finally {
     fixture.cleanup();
@@ -147,7 +148,7 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
     assert.equal(plan.app_path, "/Applications/One Person Lab Preview.app");
     assert.equal(
       plan.package_app_path,
-      path.join(appFixture.appRoot, "shells", "opl-studio", "out", "One Person Lab Preview.app"),
+      path.join(appFixture.appRoot, "shells", "opl-studio", "out", "mac-arm64", "One Person Lab Preview.app"),
     );
     assert.deepEqual(plan.package_command, {
       executable: "npm",

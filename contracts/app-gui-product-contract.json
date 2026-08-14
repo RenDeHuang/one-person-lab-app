@@ -3,6 +3,23 @@
   "owner": "one-person-lab-app",
   "purpose": "app_owned_gui_product_contract",
   "state": "active",
+  "successor_delivery_policy": {
+    "schema": "opl_app_gui_successor_delivery_policy.v1",
+    "product_profile_ref": "contracts/app-product-profile.json#delivery_topology",
+    "candidate_id": "opl-studio",
+    "user_visible_product_name": "One Person Lab",
+    "development_codename_user_visible": false,
+    "renderer": "single_deepseek_harness_derived_react_renderer",
+    "topology_authority": false,
+    "carrier_and_bridge_shape_source": "contracts/app-product-profile.json#delivery_topology",
+    "same_product_behavior_across_carriers_required": true,
+    "platform_specific_renderer_or_business_logic_fork_allowed": false,
+    "swift_appkit_wkwebview_product_host_allowed": false,
+    "electron_in_headless_or_container_allowed": false,
+    "aionui_or_aioncore_target_dependency_allowed": false,
+    "active_release_shell": "aionui",
+    "candidate_or_contract_evidence_implies_active_adoption_or_release_ready": false
+  },
   "computer_use_policy": {
     "schema": "opl_app_computer_use_policy.v1",
     "product_status": "default_managed_capability",

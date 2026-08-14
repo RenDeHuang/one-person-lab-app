@@ -69,32 +69,28 @@ contract/实现收敛 lane 处理。
 | Route adapter | 把 legacy/upstream route 映射到 App-owned page。 | 让 compatibility route 重新成为 ordinary navigation。 |
 | Settings slot | 从 Control Plane registry 渲染 ordinary/secondary pages。 | 复制一套 shell-owned Settings IA。 |
 | Presentation adapter | 复用 shell primitives 实现 App layout、tokens、i18n 和 accessibility。 | 复制外部源码或把视觉 token变成产品 truth。 |
-| Platform adapter | Electron/Web/native file picker、window、notification、secure storage。 | 把平台能力提升成 runtime/domain authority。 |
+| Platform adapter | Electron desktop 与 HTTP/SSE Web carrier 的 file picker、window、notification、secure storage。 | 把平台能力提升成 runtime/domain authority，或在 carrier 中复制 host-core business logic。 |
 
 只有在现有 primitive 无法表达 App contract 时才新增 shell-local component。新增组件
 应围绕一个明确 slot 或 page-state，而不是创建未来可能使用的 framework。
 
 ## Active Delivery Topology
 
-`contracts/app-product-profile.json#delivery_topology` 定义正式目标，当前 release 支持仍只由
-`product.supported_release_platforms` 和各 carrier 的 fresh admission evidence 决定：
+`contracts/app-product-profile.json#delivery_topology` 是 successor 正式目标的唯一机器 SSOT；
+`release_roles.current` 与 `contracts/app-release-channel.json` 单独持有当前 AionUI 发布事实：
 
-- App 批准的方向是 OPL-owned React renderer 覆盖 Native macOS、OPL Workspace 和未来
-  cross-platform Desktop；OPL Studio 只提供手动候选证据，`mainline_implementation_assigned`
-  仍为 false。不得为 carrier 建第二套产品 IA、状态模型或 session store，也不得把 AionUI
-  renderer 变成未来轻量路线的运行时依赖。
-- macOS target host 使用 Swift/AppKit + WKWebView，直接启动 Codex CLI App Server，不打包
-  Electron、AionUI 或 AionCore。窗口、菜单、file picker、notification、secure storage 和 updater
-  由原生 host 提供，产品状态和 thread/turn 语义仍来自共享 typed bridge。
-- OPL Workspace 是托管运行的 One Person Lab App Web 访问面，对应独立 `container_webui`
-  carrier。容器运行轻量 Node HTTP/SSE host、Codex CLI App Server、认证和 Codex state volume，
-  不运行 Electron/AionCore，也不挂接 Desktop 私有数据库。
-- 当前 backend scope 只有 Codex CLI。macOS 通过 WKScriptMessageHandler 到本地进程，Web 通过
-  same-origin HTTP/SSE 到 host 进程；两者消费同一 OPL state/action 与 Codex App Server
-  thread/event bridge shape，不增加 provider abstraction、AionCore session 或第二控制面。
-- Windows/Linux 方向复用同一 renderer，但 wrapper selection 和 mainline owner 均为 deferred。
-  Electron 与 Tauri 需用实际 artifact size、签名、更新和 installed acceptance 比较后另立
-  carrier adoption；OPL Studio candidate 不承担该交付义务，当前不得宣称 Windows/Linux 支持。
+- App 批准一套 DSH-derived React renderer 和一套 shared Node host core。不得为 carrier 建第二套
+  产品 IA、状态模型、host business logic 或 session store，也不得把 AionUI/AionCore 变成 successor
+  运行时依赖。
+- Electron 是 macOS、Windows、Linux 的薄桌面 carrier，只拥有 window、preload IPC、OS integration、
+  package/sign 和桌面 updater adapter；Node host core 统一拥有 Codex App Server、OPL bridge、thread/turn
+  transport 和 typed events。
+- standalone headless WebUI 与 Docker WebUI 通过 HTTP/SSE 使用同一 host core 和 renderer，均不运行
+  Electron/AionCore。旧 `install.sh --headless` 继续是 Base-only，不能静默改义；新 WebUI service 使用
+  独立显式 runtime form / entry。当前 Desktop `--webui` 和 AionUI Docker 也不算 successor 实现证据。
+- 三类 carrier 暴露同一 `opl_app_host_bridge.v1` 语义。Windows 的 Node/Codex 物理位置由 platform
+  execution adapter 与后续实机证据决定，不预设 native 或 WSL。任一平台支持仍需独立 package、sign、
+  update、install 和 runtime admission，目标合同与 source build 都不能提前宣称支持。
 - 移动端先使用同一 responsive renderer 的 PWA。Capacitor 只是后续独立 adoption decision，
   不能成为第二 renderer 或第二控制面。
 

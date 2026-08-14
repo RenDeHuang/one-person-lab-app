@@ -24,6 +24,7 @@ import {
   root,
   validateActiveProjectLineStateModel,
 } from './shared.ts';
+import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 
 function assertCandidateFileContains(candidate: ShellCandidate, relativePath: string, snippets: string[], label: string): void {
   const filePath = path.join(root, candidate.candidate_root, relativePath);
@@ -73,6 +74,19 @@ type CandidateAdapterContract = {
   shell_root: string;
   shell_source: { owner_repo: string; history_policy: string; checkout_path: string };
   release_role: string;
+  delivery_topology?: {
+    product_profile_ref?: string;
+    topology_authority?: boolean;
+    renderer?: string;
+    shared_host_core?: string;
+    desktop_adapter?: string;
+    desktop_platforms?: string[];
+    web_adapter?: string;
+    web_runtime_forms?: string[];
+    bridge_abi?: string;
+    aionui_or_aioncore_dependency_allowed?: boolean;
+    active_release_carrier?: boolean;
+  };
   gui_authority?: { implementation_role?: string };
   codex_executable_contract?: {
     resolver_env?: string;
@@ -451,6 +465,23 @@ function validateCandidateAdapterContract(
   }
   validateNativeThreadAdapterBoundary(adapterContract.thread_adapter_boundary);
   validateNativeP1BaselineBridge(adapterContract.p1_baseline_bridge);
+  assertDeepEqualJson(
+    adapterContract.delivery_topology,
+    {
+      product_profile_ref: 'contracts/app-product-profile.json#delivery_topology',
+      topology_authority: false,
+      renderer: 'deepseek_harness_derived_react',
+      shared_host_core: 'scripts/webui-host/host-core.mjs',
+      desktop_adapter: 'desktop/main.mjs + desktop/preload.cjs',
+      desktop_platforms: ['macos', 'windows', 'linux'],
+      web_adapter: 'http_sse',
+      web_runtime_forms: ['standalone_headless_webui', 'docker_webui'],
+      bridge_abi: 'opl_app_host_bridge.v1',
+      aionui_or_aioncore_dependency_allowed: false,
+      active_release_carrier: false,
+    },
+    `${candidate.id} adapter delivery topology`,
+  );
   if (!adapterContract.validation_commands.some((entry) => entry.id === 'candidate_app_bundle_build')) {
     throw new Error(`${candidate.id} adapter validation_commands must include candidate_app_bundle_build`);
   }
@@ -458,7 +489,8 @@ function validateCandidateAdapterContract(
 
 function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.implementation_basis, [
-    'OPL-native React renderer with Swift/AppKit WKWebView macOS host and Node WebUI host',
+    'one DeepSeek Harness-derived React renderer with a shared Node host core',
+    'Electron thin desktop carrier for macOS Windows and Linux plus HTTP/SSE standalone and Docker adapters',
     'OPL App state/action contract first',
     'DeepSeek Harness AppFrame sidebar conversation composer Settings theme SlotCore createSlotRenderer and primitives reused from one pinned MIT source cohort',
     'OPL branding bridges and custom functions implemented outside the DSH vendor snapshot as adapters and slot plugins',
@@ -551,19 +583,19 @@ function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
     'candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT',
     'candidate consumes OPL App state/action contracts without owning runtime or domain truth',
     'candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims',
-    'Packaged macOS and WebUI use the same native React renderer and App-owned bridge shape',
+    'Electron desktop standalone WebUI and Docker WebUI use the same DSH-derived React renderer shared Node host core and App-owned bridge ABI',
     'ordinary UI keeps only projects, conversations, search, and Settings in the left rail and opens run status, files and results, or agents and capabilities in the DSH details column on demand',
     'runtime status consumes the current Codex thread and active_project_lines while hypotheses and roadmaps come from owner-projected runtime.detail contributions',
-    'in-app identity is text-only One Person Lab while the macOS bundle icon remains allowed',
-    'WebUI parity evidence proves the same renderer and product semantics as the packaged macOS host',
+    'in-app identity is text-only One Person Lab while platform bundle icons remain allowed',
+    'WebUI parity evidence proves the same renderer host core and product semantics as Electron desktop',
     'one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer',
     'standard Agent selection binds package_id, shortcut_id, codex_visible_entry, and required_skill_ids to thread/start plus turn/start without creating a Framework activation action',
     'running-turn submissions use turn/steer and idle submissions use turn/start while queued input stays renderer-ephemeral until App Server acceptance',
     'Gateway login uses loginGatewayAccount without generic action secret payloads and all other Gateway mutations use the projected action ids',
     'Agent Package lifecycle actions come dynamically from complete directory available_actions entries without a Shell allowlist or inferred semantics',
-    'OPL Base and OPL Packages use Framework managed-update capabilities while OPL App uses the Native host updater and restart with fresh terminal readback',
+    'OPL Base and OPL Packages use Framework managed-update capabilities while OPL App uses one logical update contract with carrier-specific update and restart adapters plus fresh terminal readback',
     'Codex subagent metadata, source kinds, and thread items remain read-only projections from Codex Core and App Server',
-    'Native source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer',
+    'successor source acceptance requires no private coordination host, model-triggered cross-thread tools, OPL-owned host queue, JSONL coordination ledger, bilateral receipts, write-set advisory, coordination idempotency, or cross-host handoff layer',
   ], `${candidate.id}.technical_verification.minimum_acceptance`);
 }
 
@@ -682,11 +714,14 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
   }
   assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-opl-studio-candidate.mjs'), `${candidate.id} self-check`);
   assertCandidateFileContains(candidate, 'package.json', [
+    '"build:desktop"',
+    '"package:desktop"',
     '"build:webui"',
     '"webui"',
     '"smoke:webui"',
+    '"test:webui-host"',
     '"validate:state-model"',
-  ], 'package scripts for shared packaged macOS/WebUI renderer');
+  ], 'package scripts for the shared renderer, Electron desktop, and headless WebUI');
 }
 
 export function validateCandidate(candidate: ShellCandidateEntry, policy: CandidateValidationPolicy): void {
@@ -759,7 +794,7 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
     'Gateway login uses the dedicated secret bridge while non-secret account actions use projected App actions',
     'Agent Package lifecycle renders every complete projected available_action without an action-id allowlist',
     'OPL Base and OPL Packages updates use Framework managed-update host capabilities and terminal readback',
-    'OPL App update check, downloaded-update installation, restart, and running-version readback stay Native-host owned',
+    'OPL App update check, apply, restart, and running-version readback stay App-owned behind carrier-specific adapters',
   ], `${candidate.id}.p1_baseline_contract.required_user_outcomes`);
   assertStringArrayIncludes(p1.forbidden_parallel_control_planes, [
     'shell_owned_action_bus',
@@ -957,15 +992,15 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
   if (!target) {
     throw new Error(`${candidate.id} must declare codex_app_like_chat_target`);
   }
-  if (target.scope !== 'OPL-native DSH-source chat-first desktop and WebUI workbench with contextual runtime, files, results, agents, and capabilities') {
-    throw new Error(`${candidate.id} target must be the OPL-native DSH-source chat-first workbench`);
+  if (target.scope !== 'One Person Lab DSH-source chat-first desktop and WebUI product with contextual runtime, files, results, agents, and capabilities') {
+    throw new Error(`${candidate.id} target must be the One Person Lab DSH-source chat-first product`);
   }
   assertStringArrayIncludes(target.capability_inventory, [
     'workspace directory picker',
     'new conversation and lightweight thread history rail',
     'Codex app-server backed chat turns',
-    'shared native React renderer for packaged macOS and WebUI',
-    'Web transport bridge with HTTP actions and SSE Codex events',
+    'shared DSH-derived React renderer for Electron desktop standalone WebUI and Docker WebUI',
+    'shared Node host core with Electron IPC and HTTP/SSE transport adapters',
     'pinned DeepSeek Harness AppFrame SidebarRoot conversation composer Settings theme and primitives used directly',
     'chat-first main canvas with pinned composer',
     'left rail limited to projects, conversations, search, and Settings',
@@ -975,7 +1010,7 @@ function validateCandidateChatTarget(candidate: ShellCandidate): void {
     'user-selected files only and owner-projected artifacts without action JSON masquerading as results',
     'Agent Package lifecycle management remains in Settings',
     'text-only One Person Lab identity without an in-app Logo',
-    'candidate .app package through the App wrapper',
+    'candidate Electron desktop packages through the App wrapper',
   ], `${candidate.id}.codex_app_like_chat_target.capability_inventory`);
 }
 
@@ -987,11 +1022,20 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.shared_renderer !== true) {
     throw new Error(`${candidate.id} webui_transport.shared_renderer must be true`);
   }
-  if (transport.native_surface !== 'Swift WKScriptMessageHandler window.oplStudio') {
-    throw new Error(`${candidate.id} packaged macOS transport must expose window.oplStudio through WKScriptMessageHandler`);
+  if (transport.shared_host_core !== 'scripts/webui-host/host-core.mjs') {
+    throw new Error(`${candidate.id} transport must use the shared Node host core`);
   }
-  if (transport.web_surface !== 'browser window.oplStudio compatibility bridge') {
-    throw new Error(`${candidate.id} web surface must expose the browser window.oplStudio bridge`);
+  if (transport.bridge_abi !== 'opl_app_host_bridge.v1') {
+    throw new Error(`${candidate.id} transport must expose the App-owned bridge ABI`);
+  }
+  if (transport.desktop_surface !== 'Electron preload window.oplStudio') {
+    throw new Error(`${candidate.id} desktop surface must expose window.oplStudio through Electron preload`);
+  }
+  if (transport.web_surface !== 'browser window.oplStudio HTTP/SSE adapter') {
+    throw new Error(`${candidate.id} web surface must expose the browser window.oplStudio HTTP/SSE adapter`);
+  }
+  if (transport.desktop_adapter !== 'desktop/main.mjs + desktop/preload.cjs') {
+    throw new Error(`${candidate.id} desktop adapter must use the Electron main and preload entrypoints`);
   }
   if (transport.web_bridge !== 'src/bridge/webTransport.ts') {
     throw new Error(`${candidate.id} web bridge must be src/bridge/webTransport.ts`);
@@ -1002,7 +1046,10 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.event_stream !== 'SSE /api/opl-events') {
     throw new Error(`${candidate.id} WebUI event stream must be SSE /api/opl-events`);
   }
-  if (transport.native_picker_policy !== 'Packaged macOS may use a native directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth') {
-    throw new Error(`${candidate.id} WebUI native picker policy must preserve App product truth`);
+  if (transport.desktop_picker_policy !== 'Electron desktop may use the platform directory picker; WebUI uses an explicit workspace path/action bridge without changing App product truth') {
+    throw new Error(`${candidate.id} WebUI desktop picker policy must preserve App product truth`);
+  }
+  if (transport.electron_in_headless_or_container_allowed !== false) {
+    throw new Error(`${candidate.id} must keep Electron out of headless and container runtime forms`);
   }
 }

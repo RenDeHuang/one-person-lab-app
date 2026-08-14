@@ -182,13 +182,24 @@
     "shell_fail_closed_policy": "reject_unexpected_cli_fields_and_never_return_raw_stdout_stderr_or_secret_material"
   },
   "native_minimum_product_bridge": {
-    "schema": "opl_native_minimum_product_bridge.v1",
+    "schema": "opl_app_successor_minimum_product_bridge.v2",
     "consumer": "opl-studio",
     "product_contract_ref": "contracts/app-product-profile.json#delivery_topology.minimum_complete_product",
+    "delivery_topology_ref": "contracts/app-product-profile.json#delivery_topology",
+    "host_core": {
+      "owner": "opl-studio",
+      "technology": "node",
+      "role": "shared_codex_and_opl_transport_host",
+      "desktop_adapter": "electron_main_and_preload_ipc",
+      "web_adapter": "http_sse",
+      "same_bridge_abi_required": true,
+      "platform_runtime_placement": "adapter_owned_and_unresolved_until_platform_evidence",
+      "aionui_or_aioncore_dependency_allowed": false
+    },
     "authority_split": {
       "conversation": "codex_core_app_server",
       "app_state_and_projected_actions": "one-person-lab_framework",
-      "app_self_update": "one-person-lab-app_native_host",
+      "app_self_update": "one-person-lab-app_carrier_update_adapter",
       "gateway_credentials": "dedicated_gateway_secret_bridge",
       "shell_role": "typed_transport_and_projection_consumer_only",
       "shell_owned_action_bus_allowed": false,
@@ -308,12 +319,18 @@
       "opl_app": {
         "owner": "one-person-lab-app",
         "standard_updater_ref": "contracts/app-release-channel.json#standard_updater",
-        "native_host_capabilities": [
+        "logical_host_capabilities": [
           "app_update_check",
           "app_update_install_downloaded",
           "application_restart"
         ],
-        "apply_started_operation": "standard_updater quitAndInstall equivalent owned by the native host",
+        "carrier_adapters": {
+          "electron_desktop": "electron_updater_and_platform_restart",
+          "standalone_headless_webui": "explicit_service_or_package_update_route_not_legacy_headless_flag",
+          "docker_webui": "container_image_update_and_recreate_route"
+        },
+        "same_logical_state_and_action_contract_required": true,
+        "apply_started_operation": "carrier adapter executes its owner-specific apply and restart route",
         "downloaded_state_is_success": false,
         "post_restart_readback": "running app version must be greater than or equal to the downloaded target version",
         "base_or_packages_mutation_allowed": false
