@@ -20,7 +20,8 @@ OPL 应吸收 DeepSeek Harness（DSH）的组合理念，并直接复用选定�
    准入并执行显式切换。
 2. OPL Studio 直接复用 DSH 的 `AppFrame`、`SidebarRoot`、conversation/composer、Settings、
    `client-ui-slots`、React renderer contract、ui-theme 和纯 UI primitives；OPL 只实现品牌替换、
-   App bridge、Codex/OPL projection 与 slot contribution，不再仿写 Codex App 布局。
+   App bridge、Codex/OPL projection 与 slot contribution。这是 source-preserving reuse，不是根据
+   截图进行像素仿制，也不是在 DSH 组件外再建一套 OPL 视觉系统。
 3. OPL Package descriptor 增加可选的 typed UI contribution；Framework 只聚合 installed
    contribution，App 定义 slot vocabulary 和组合规则，Shell 只渲染。
 4. Framework 已有模块化单体、动态 Package discovery、`opl app state/action` 和领域 owner
@@ -30,6 +31,13 @@ OPL 应吸收 DeepSeek Harness（DSH）的组合理念，并直接复用选定�
 
 总原则是：**一切可组合，但不是一切同权。** 功能和 GUI 可以动态装配；产品真值、线程、
 权限、安全、领域判断、artifact 和 release authority 仍由明确 owner 持有。
+
+对于 DSH 已覆盖的 GUI 模块，字体与 fallback、字号/字重/行高/type scale、间距与几何、颜色/表面/
+边框/阴影/圆角、组件 rendering/states、响应式布局、转场与交互均随 pinned DSH 源码保留。OPL 只能
+通过公开 slots/props、typed contributions、App bridge 和 vendor 外 host adapter 注入品牌文字、
+App-owned 数据、能力分类及宿主行为。不得为了“更像 DSH”重写现有 DSH 组件，不得增加平行 token/
+typography/layout 系统，也不得用全局选择器或高特异性 CSS 覆盖 DSH。只有真实的 OPL 语义、宿主、
+平台或 accessibility 边界才能支付最小的 vendor 外差异，并必须能指出对应 caller。
 
 当前 App-owned 信息架构固定为：
 
@@ -215,7 +223,8 @@ contributor 或一个无法用现有 slot 表达的当前产品需求支付复�
 2. **Thin OPL adapter：** 保留 DSH root/sidebar/conversation/details/settings slot 结构；通过
    vendor 外 adapter 隐藏 DSH Logo，并只显示 `One Person Lab` 文字。数据和动作只
    来自 Codex/OPL bridge，OPL Runtime/Settings/Capability 以 slot occupants 注册，不另写一套
-   外层 workbench。
+   外层 workbench。DSH 已有组件继续使用其原始 font/type scale/spacing/geometry/rendering/state/
+   responsive/interaction 实现；品牌文字和 OPL 数据变化不得成为重写组件样式的理由。
 3. **Direct source adoption：** 发布包边界不完整或会强制带入 DSH authority runtime 时，直接
    vendor pinned MIT 源码并记录逐文件 inventory、LICENSE/notices 和 OPL adapter delta。
 4. **Authority stop：** DSH GUI source 可以直接复用；一旦需要 DSH connection/session/agent/
@@ -229,6 +238,8 @@ Studio 把 DSH 当作可跟随的 GUI upstream，而不是一次性截图参考�
   byte-identical；不得在 vendor 文件中混入 OPL domain、bridge 或产品状态判断；
 - OPL 品牌、Codex/Framework bridge、slot registration 和产品功能放在独立 adapter/plugins；
   unavoidable source delta 必须小、可列举，并由 source inventory 标出；
+- pixel screenshot 只用于发现 source reuse 加入 OPL adapter 后的回归，不是重建 DSH 的设计输入，
+  也不能为平行 CSS/token 系统提供授权；
 - 更新流程固定为 fetch 新 DSH ref、生成 upstream source diff、更新 vendor snapshot、跑 type/test/
   Desktop+WebUI pixel/package 门禁，再由人判断是否提升 pinned ref；不自动跟随 floating branch/tag；
 - 若一次上游升级需要大面积修改 vendor 文件或引入 DSH authority runtime，说明边界已失效，应停止

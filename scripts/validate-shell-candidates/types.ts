@@ -89,6 +89,33 @@ export type OPLStudioCarrierEvidenceContract = {
   entries: Record<OPLStudioCarrierId, OPLStudioCarrierEvidenceExpectation>;
 };
 
+export type DSHSourceReuseContract = {
+  source_cohort: string;
+  vendor_byte_policy: string;
+  contract_role: string;
+  reuse_method: string;
+  visual_style_baseline?: string;
+  visual_style_scope?: string;
+  visual_token_source?: string;
+  font_asset_policy?: string;
+  dsh_owned_visual_properties: string[];
+  opl_injection_boundary: string[];
+  parallel_opl_visual_system_allowed: boolean;
+  css_override_policy: string;
+  pixel_evidence_role: string;
+  current_reference_status: string;
+  superseded_observations?: string[];
+  regression_floor?: string;
+  source_usage?: string;
+  minimum_bar: string;
+  model_policy_source: string;
+  default_model: string;
+  default_reasoning_effort: string;
+  required_surfaces: string[];
+  required_evidence: string[];
+  docs_or_contract_only_completion_allowed: boolean;
+};
+
 export type ShellCandidate = HermesTargetStateContract & {
   id: string;
   state: string;
@@ -118,6 +145,7 @@ export type ShellCandidate = HermesTargetStateContract & {
     forbidden_dependencies: string[];
   };
   carrier_evidence_contract?: OPLStudioCarrierEvidenceContract;
+  dsh_source_reuse_contract?: DSHSourceReuseContract;
   p1_baseline_contract?: {
     runtime_bridge_ref: string;
     adapter_binding_ref: string;

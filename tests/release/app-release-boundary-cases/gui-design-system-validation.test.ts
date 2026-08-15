@@ -440,7 +440,7 @@ test('GUI design-system validator ignores explicit Native candidate detail drift
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
   const native = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
-  native.visual_parity_contract.default_reasoning_effort = 'candidate-only-drift';
+  native.dsh_source_reuse_contract.default_reasoning_effort = 'candidate-only-drift';
   native.required_capabilities = [];
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
 

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {
+  DSHSourceReuseContract,
   NativeP1BaselineBridge,
   NativeThreadAdapterBoundary,
   OPLStudioCarrierEvidenceContract,
@@ -110,22 +111,7 @@ type CandidateAdapterContract = {
   thread_adapter_boundary?: NativeThreadAdapterBoundary;
 };
 
-type NativeVisualParityContract = NonNullable<ShellCandidate['visual_parity_contract']> & {
-  regression_floor?: string;
-  source_usage?: string;
-  current_reference_status?: string;
-  visual_style_baseline?: string;
-  visual_style_scope?: string;
-  visual_token_source?: string;
-  font_asset_policy?: string;
-  superseded_observations?: string[];
-  model_policy_source?: string;
-  default_model?: string;
-  default_reasoning_effort?: string;
-  required_surfaces?: string[];
-};
-
-export const requiredNativeVisualParitySurfaces = [
+export const requiredDSHSourceReuseSurfaces = [
   'persistent_project_rail',
   'single_conversation_timeline',
   'composer_model_and_reasoning_controls',
@@ -961,13 +947,19 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   ) {
     throw new Error(`${candidate.id}.build_wrapper must route through the App-root explicit adapter and allow missing-checkout blocker reporting`);
   }
-  const visual = candidate.visual_parity_contract as NativeVisualParityContract | undefined;
+  const visual = candidate.dsh_source_reuse_contract as DSHSourceReuseContract | undefined;
   if (
-    visual?.comparison_baseline !== 'DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source' ||
-    visual.visual_style_baseline !== 'DeepSeek Harness selected MIT GUI source plus One Person Lab App-owned product constraints' ||
+    visual?.source_cohort !== 'DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source' ||
+    visual.vendor_byte_policy !== 'selected_gui_files_remain_byte_identical_to_their_recorded_upstream_paths_at_the_pinned_ref' ||
+    visual.contract_role !== 'source_preservation_and_opl_integration_regression_not_pixel_reimplementation' ||
+    visual.reuse_method !== 'source_preserving_direct_reuse_through_public_slots_props_and_external_adapters' ||
+    visual.visual_style_baseline !== 'DeepSeek Harness selected MIT GUI source preserved for DSH-covered modules plus semantically necessary One Person Lab integrations' ||
     visual.visual_style_scope !== 'light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface' ||
     visual.visual_token_source !== 'deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@47f943859bef60e4160492346772ded9b24f765a' ||
     visual.font_asset_policy !== 'reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets' ||
+    visual.parallel_opl_visual_system_allowed !== false ||
+    visual.css_override_policy !== 'forbidden_for_dsh_covered_modules_unless_a_real_opl_semantic_host_accessibility_or_platform_boundary_requires_the_smallest_external_delta' ||
+    visual.pixel_evidence_role !== 'detect_regressions_after_source_reuse_and_opl_integration_not_reconstruct_or_approximate_dsh' ||
     visual.current_reference_status !== 'pinned_direct_source_reuse' ||
     visual.regression_floor !== 'AionUI active release shell' ||
     visual.source_usage !== 'direct_mit_package_and_selected_source_reuse' ||
@@ -977,31 +969,54 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
     visual.default_reasoning_effort !== configuredDefaultReasoningEffort ||
     visual.docs_or_contract_only_completion_allowed !== false
   ) {
-    throw new Error(`${candidate.id}.visual_parity_contract must consume the App-owned configured model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
+    throw new Error(`${candidate.id}.dsh_source_reuse_contract must require source-preserving DSH GUI reuse, reject pixel reimplementation and parallel visual systems, consume the App-owned configured model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
   }
+  assertDeepEqualJson(
+    visual.dsh_owned_visual_properties,
+    [
+      'font_family_and_fallback_behavior',
+      'font_sizes_weights_line_heights_and_type_scale',
+      'spacing_density_and_geometry',
+      'colors_surfaces_borders_shadows_and_radii',
+      'component_rendering_and_interaction_states',
+      'responsive_layout_and_transitions',
+    ],
+    `${candidate.id}.dsh_source_reuse_contract.dsh_owned_visual_properties`,
+  );
+  assertDeepEqualJson(
+    visual.opl_injection_boundary,
+    [
+      'brand_text_through_public_props_or_slots',
+      'app_owned_data_through_the_host_bridge',
+      'capability_classification_through_typed_contributions',
+      'host_specific_behavior_through_external_adapters',
+    ],
+    `${candidate.id}.dsh_source_reuse_contract.opl_injection_boundary`,
+  );
   assertStringArrayIncludes(
     visual.superseded_observations ?? [],
     [
       'ChatGPT Codex macOS 26.707.31428 (2026-07-10)',
       'ChatGPT Codex macOS 26.707.31123 (2026-07-10)',
     ],
-    `${candidate.id}.visual_parity_contract.superseded_observations`,
+    `${candidate.id}.dsh_source_reuse_contract.superseded_observations`,
   );
   assertStringArrayIncludes(
     visual.required_surfaces ?? [],
-    requiredNativeVisualParitySurfaces,
-    `${candidate.id}.visual_parity_contract.required_surfaces`,
+    requiredDSHSourceReuseSurfaces,
+    `${candidate.id}.dsh_source_reuse_contract.required_surfaces`,
   );
   assertStringArrayIncludes(visual.required_evidence, [
     'desktop source provenance review against the pinned DeepSeek Harness selected GUI source',
-    'desktop pixel regression against the App-owned approved visual baseline',
-    'persistent project rail and single conversation timeline screenshot comparison',
-    'composer model and reasoning controls screenshot comparison',
-    'on-demand DeepSeek Harness details column screenshot comparison',
-    'Settings locale surface screenshot comparison',
-    'webui screenshot comparison against desktop renderer',
+    'vendor byte parity for every selected DeepSeek Harness GUI source file',
+    'desktop integration regression against the App-owned approved rendered baseline',
+    'persistent project rail and single conversation timeline regression capture',
+    'composer model and reasoning controls regression capture',
+    'on-demand DeepSeek Harness details column regression capture',
+    'Settings locale surface regression capture',
+    'WebUI rendered regression against the shared desktop renderer',
     'packaged app screenshot or VM smoke artifact',
-  ], `${candidate.id}.visual_parity_contract.required_evidence`);
+  ], `${candidate.id}.dsh_source_reuse_contract.required_evidence`);
 }
 
 export function validateCandidateImplementationFiles(candidate: ShellCandidate): void {

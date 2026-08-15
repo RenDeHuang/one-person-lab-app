@@ -142,28 +142,29 @@ test('OPL Studio candidate machine contract removes retired private capabilities
   }
 });
 
-test('OPL Studio candidate binds its visual baseline to pinned DSH source plus App product constraints', () => {
+test('OPL Studio candidate binds DSH-covered visuals to source-preserving reuse plus semantic App integrations', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);
   const candidate = registry.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(candidate);
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
   assert.equal(
-    candidate.visual_parity_contract?.visual_style_baseline,
-    'DeepSeek Harness selected MIT GUI source plus One Person Lab App-owned product constraints',
+    candidate.dsh_source_reuse_contract?.visual_style_baseline,
+    'DeepSeek Harness selected MIT GUI source preserved for DSH-covered modules plus semantically necessary One Person Lab integrations',
   );
   assert.equal(
-    candidate.visual_parity_contract?.font_asset_policy,
+    candidate.dsh_source_reuse_contract?.font_asset_policy,
     'reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets',
   );
+  assert.equal(candidate.dsh_source_reuse_contract?.parallel_opl_visual_system_allowed, false);
 
   const staleCandidate = structuredClone(candidate);
-  assert.ok(staleCandidate.visual_parity_contract);
-  staleCandidate.visual_parity_contract.comparison_baseline =
+  assert.ok(staleCandidate.dsh_source_reuse_contract);
+  staleCandidate.dsh_source_reuse_contract.source_cohort =
     'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
   assert.throws(
     () => validateCandidate(staleCandidate, policy),
-    /visual_parity_contract must consume the App-owned configured model policy/,
+    /dsh_source_reuse_contract must require source-preserving DSH GUI reuse/,
   );
 });
 

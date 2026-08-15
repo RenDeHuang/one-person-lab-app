@@ -34,7 +34,7 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
   const native = candidateDetailDrift.candidates.find((candidate) => candidate.id === 'opl-studio');
   assert.ok(native && !('role_tombstone' in native));
   native.required_capabilities = [];
-  native.visual_parity_contract!.default_model = 'candidate-only-drift';
+  native.dsh_source_reuse_contract!.default_model = 'candidate-only-drift';
   assert.doesNotThrow(() => validateRegistryShape(candidateDetailDrift));
 });
 

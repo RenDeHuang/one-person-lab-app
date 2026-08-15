@@ -11,7 +11,7 @@ import type {
 import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 import {
   isCandidateRoleTombstone,
-  requiredNativeVisualParitySurfaces,
+  requiredDSHSourceReuseSurfaces,
   validateCandidateImplementationFiles,
 } from './candidate-contract.ts';
 import {
@@ -478,7 +478,7 @@ export function validateDeepSeekHarnessProductLayoutContract(
   }
   assertStringArrayIncludes(
     alignment.required_surfaces ?? [],
-    requiredNativeVisualParitySurfaces,
+    requiredDSHSourceReuseSurfaces,
     `${candidateId} evidence default_home_layout DSH product layout required_surfaces`,
   );
   if (JSON.stringify(alignment.left_rail_items) !== JSON.stringify(['projects', 'conversations', 'search', 'settings'])) {

@@ -815,12 +815,32 @@
         "sibling_checkout_command": "OPL_APP_SHELL_ROOT=../opl-studio OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package"
       },
       "candidate_stage": "opl_studio_single_app_server_adapter_candidate_only",
-      "visual_parity_contract": {
-        "comparison_baseline": "DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source",
-        "visual_style_baseline": "DeepSeek Harness selected MIT GUI source plus One Person Lab App-owned product constraints",
+      "dsh_source_reuse_contract": {
+        "source_cohort": "DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source",
+        "vendor_byte_policy": "selected_gui_files_remain_byte_identical_to_their_recorded_upstream_paths_at_the_pinned_ref",
+        "contract_role": "source_preservation_and_opl_integration_regression_not_pixel_reimplementation",
+        "reuse_method": "source_preserving_direct_reuse_through_public_slots_props_and_external_adapters",
+        "visual_style_baseline": "DeepSeek Harness selected MIT GUI source preserved for DSH-covered modules plus semantically necessary One Person Lab integrations",
         "visual_style_scope": "light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface",
         "visual_token_source": "deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@47f943859bef60e4160492346772ded9b24f765a",
         "font_asset_policy": "reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets",
+        "dsh_owned_visual_properties": [
+          "font_family_and_fallback_behavior",
+          "font_sizes_weights_line_heights_and_type_scale",
+          "spacing_density_and_geometry",
+          "colors_surfaces_borders_shadows_and_radii",
+          "component_rendering_and_interaction_states",
+          "responsive_layout_and_transitions"
+        ],
+        "opl_injection_boundary": [
+          "brand_text_through_public_props_or_slots",
+          "app_owned_data_through_the_host_bridge",
+          "capability_classification_through_typed_contributions",
+          "host_specific_behavior_through_external_adapters"
+        ],
+        "parallel_opl_visual_system_allowed": false,
+        "css_override_policy": "forbidden_for_dsh_covered_modules_unless_a_real_opl_semantic_host_accessibility_or_platform_boundary_requires_the_smallest_external_delta",
+        "pixel_evidence_role": "detect_regressions_after_source_reuse_and_opl_integration_not_reconstruct_or_approximate_dsh",
         "current_reference_status": "pinned_direct_source_reuse",
         "superseded_observations": [
           "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
@@ -842,12 +862,13 @@
         ],
         "required_evidence": [
           "desktop source provenance review against the pinned DeepSeek Harness selected GUI source",
-          "desktop pixel regression against the App-owned approved visual baseline",
-          "persistent project rail and single conversation timeline screenshot comparison",
-          "composer model and reasoning controls screenshot comparison",
-          "on-demand DeepSeek Harness details column screenshot comparison",
-          "Settings locale surface screenshot comparison",
-          "webui screenshot comparison against desktop renderer",
+          "vendor byte parity for every selected DeepSeek Harness GUI source file",
+          "desktop integration regression against the App-owned approved rendered baseline",
+          "persistent project rail and single conversation timeline regression capture",
+          "composer model and reasoning controls regression capture",
+          "on-demand DeepSeek Harness details column regression capture",
+          "Settings locale surface regression capture",
+          "WebUI rendered regression against the shared desktop renderer",
           "packaged app screenshot or VM smoke artifact"
         ],
         "docs_or_contract_only_completion_allowed": false
@@ -1071,6 +1092,8 @@
           "candidate consumes OPL App state/action contracts without owning runtime or domain truth",
           "candidate state-model validation proves active project line projection consumption from opl app state without domain-ready, production-ready, clean-VM-ready, Full-release-ready, or active-shell-adopted claims",
           "Electron desktop standalone WebUI and Docker WebUI use the same DSH-derived React renderer shared Node host core and App-owned bridge ABI",
+          "DSH-covered GUI modules preserve upstream font type scale spacing geometry rendering states responsive behavior and interactions instead of being recreated from pixels",
+          "OPL injects only brand text App-owned data capability classification and host behavior through public slots props typed contributions and external adapters without a parallel visual system or unearned CSS overrides",
           "ordinary UI keeps only projects, conversations, search, and Settings in the left rail and opens run status, files and results, or agents and capabilities in the DSH details column on demand",
           "runtime status consumes the current Codex thread and active_project_lines while hypotheses and roadmaps come from owner-projected runtime.detail contributions",
           "in-app identity is text-only One Person Lab while platform bundle icons remain allowed",
