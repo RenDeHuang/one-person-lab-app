@@ -6,7 +6,7 @@
 
 发布日期：2026-07-13
 
-最近修订：2026-08-12
+最近修订：2026-08-15
 
 适用对象：希望理解 OPL App 为什么这样设计，以及这些设计怎样帮助自己完成研究、基金、演示和书稿等复杂知识工作的用户、合作者、早期采用者和技术决策者。
 
@@ -124,16 +124,41 @@ OPL App 是本地优先的。用户可以先在自己的设备上选择工作目
 
 这个模型让维护动作更容易理解：App、Base 和 Packages 各自独立安装、更新、修复和卸载；界面汇总它们的真实状态，不要求用户理解多套版本与恢复机制。
 
+## 一个产品，两个可替换的界面实现
+
+OPL App 只有一个产品定义和一个发布负责人，但可以有多个 GUI 实现。当前的
+`opl-aion-shell` 是 Stable AionUI Shell；`opl-studio` 是基于 DeepSeek Harness GUI
+思路的原生候选 Shell。它们不是两套 App，而是同一个 App 产品合同的两种载体：
+
+```text
+OPL Packages -> Framework Host 的 runtime contributions
+             -> App GUI ABI 的 declarative contributions
+OPL Framework Host
+  -> App-owned Client profile / GUI ABI
+    -> AionUI Shell 或 DSH-derived Studio Shell
+      -> 同一组产品状态、动作和贡献投影
+```
+
+因此，导航、页面身份、状态名称、命令含义、onboarding、Package 管理和发布准入由
+`one-person-lab-app` 统一；两个 Shell 可以使用不同的 renderer、组件库、上游来源和
+构建方式。它们都通过同一套 Framework state/action、runtime bridge 和 GUI contribution
+schema 工作，也都不能建立第二套产品 authority、Package registry 或线程历史。
+
+一次发布会明确冻结 App product version、Framework compatibility、Shell identity/version、
+GUI ABI、Client composition snapshot 和 contribution versions。Studio 的候选功能或源码
+完成并不等于它已经取代 AionUI；只有 App 的 active-shell 合同、安装/安全/更新和 release
+证据全部切换后，用户才会看到新的默认载体。
+
 ## 清楚的分工带来可信的产品
 
 OPL App 通过清楚分工建立专业性：
 
 ```text
-用户目标
-  -> OPL App：入口、交互、状态与下一步
-      -> OPL Base：阶段运行、恢复、证据与交接
-          -> OPL Packages：领域判断、审阅与交付
-              -> Workspace / Cloud：按需提供托管、资源与组织能力
+OPL 产品体验
+  = OPL Base：阶段运行、恢复、证据与交接
+  + OPL Packages：专业能力、领域判断、审阅与交付
+  + OPL App：入口、交互、状态与下一步
+  + OPL Cloud（可选）：在线 Workspace、托管资源与组织治理
 ```
 
 App 负责入口、交互、状态翻译和下一步；Framework 负责运行事实；MAS、MAG、RCA、OBF 或 OMA 负责领域质量判断；云端管理面负责账号、资源和组织策略。App 把这些事实组织成普通用户可以理解和操作的工作台。

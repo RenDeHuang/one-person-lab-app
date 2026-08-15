@@ -37,6 +37,10 @@ model-policy, design-system, full, or release-boundary maintenance.
 
 ## 双 GUI、单控制面
 
+在 `OPL Base + OPL App + OPL Packages + optional OPL Cloud` 四层生态中，
+本文件只管理 App 的 Shell carrier 选择。Package 安装/发布、Framework Host composition
+与 Cloud 服务都不因 Shell 切换而迁移 authority。
+
 OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模型。AionUI 与
 `opl-studio` 都消费 App-owned product contracts、OPL state/action surface
 和 Codex App Server authority，但不共享 renderer 源码、前端依赖目录、GUI 私有数据库

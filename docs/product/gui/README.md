@@ -16,15 +16,21 @@ Machine boundary: 本目录是人读产品设计与实现指引。GUI machine tr
 OPL App 不是两个 GUI 产品，而是一个产品 authority 配两个可替换实现：
 
 ```text
-OPL Framework
-  Host Cordis、状态/动作服务、Package 与 runtime 能力
-          |
-          v
+OPL Base
+  `-- OPL Framework：唯一 Cordis Host、状态/动作与 Package projection
+OPL Packages
+  |-- 向 Framework 贡献 runtime/plugin capabilities
+  `-- 向 App GUI ABI 贡献受限的 declarative slots/routes/actions
+                |
+                v
 one-person-lab-app
   App 产品 SSOT、Client profile、GUI ABI、发布 authority
-          |
-          +-- opl-aion-shell   当前 Stable Shell，AionUI 薄适配
-          `-- opl-studio       DSH-native 下一代候选 Shell
+                |
+                +-- opl-aion-shell   当前 Stable Shell，AionUI 薄适配
+                `-- opl-studio       DSH-native 下一代候选 Shell
+
+OPL Cloud（可选）通过同一 App/Framework ABI 提供在线产品 projection，
+但保留独立服务与数据 authority。
 ```
 
 `active_shell = aionui` 只由 [`contracts/app-shell-adapter.json`](../../../contracts/app-shell-adapter.json)

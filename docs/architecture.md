@@ -5,16 +5,20 @@ Purpose: `app_architecture_boundary`
 State: `active_truth`
 Machine boundary: Human-readable architecture note. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
 
-The App product layer is a consumer of the OPL Framework and domain agents:
+The stable OPL ecosystem is `OPL Base + OPL App + OPL Packages + optional OPL
+Cloud`. The App is one product layer in that ecology, not the owner of Base,
+Packages, Cloud, or domain truth:
 
 ```text
-One Person Lab App
-  -> App product contracts and release wrappers
-  -> active shell checkout
-  -> OPL Framework CLI JSON / contracts / provider receipts
-  -> installed OPL Agent Packages and domain-owned projections from MAS, MAG,
-     RCA, OMA, BookForge, and future agents
+OPL Base       -> OPL Framework, the single Cordis Host
+OPL Packages   -> installable runtime and declarative GUI contributions
+OPL App        -> one-person-lab-app product profile, GUI ABI, Shell and release
+OPL Cloud      -> optional online Workspace, governance and hosted services
 ```
+
+`one-person-lab-app` consumes Framework state/actions and Package/domain
+projections, then freezes one selected Shell. It does not turn Packages into App
+modules or Cloud into a GUI plugin.
 
 The App owns desktop packaging, update flow, first-run product behavior, release
 evidence collection, user guides, screenshots, GUI product truth, page-state
@@ -30,7 +34,7 @@ The intended analogy is:
 
 ```text
 OPL Base       ~= R
-OPL App        ~= RStudio (a replaceable GUI/deployment carrier)
+OPL App        ~= RStudio (the workbench product; its Shell is replaceable)
 OPL Package    ~= R Package
 Registry       ~= CRAN index (discovery metadata, not installed truth)
 Build manifest ~= a record of the inputs actually included in one build
@@ -46,11 +50,15 @@ The App repository is the single product and release authority above two
 replaceable Shell implementations:
 
 ```text
-OPL Framework (single Host Cordis)
-  -> frozen Host graph and App state/action projection
-    -> one-person-lab-app product profile + Client Cordis/GUI ABI
-      -> opl-aion-shell (current Stable AionUI carrier)
-      -> opl-studio (DSH-derived candidate carrier)
+OPL Packages
+  -> runtime/plugin contributions -> OPL Framework (single Host Cordis)
+  -> declarative GUI contributions -----------------------------+
+OPL Framework -> frozen Host graph and App state/action projection
+                                                           |
+                                                           v
+one-person-lab-app product profile + Client Cordis/GUI ABI
+  -> opl-aion-shell (current Stable AionUI carrier)
+  -> opl-studio (DSH-derived candidate carrier)
 ```
 
 Both Shells must implement the same product semantics, runtime bridge, typed
