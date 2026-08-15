@@ -15,9 +15,8 @@ tracked on `main`, because a committed verification file can drift away from the
 bytes it claims to verify.
 
 App `main` has no whitepaper publication workflow or write token. Build and
-inspect the App profile locally with `npm run docs:whitepaper`. Public App
-whitepaper updates remain blocked until the Framework owner provides a protected
-cross-repository publisher that binds the exact App source and target repository
-without widening App `main` permissions. Only that publisher's artifact and
-post-deployment exact-byte receipt, not this directory or an App push check,
-would be publication evidence.
+inspect the App profile locally with `npm run docs:whitepaper`. The Framework
+repository owns the protected family publisher, binds the exact App source into
+the five-whitepaper bundle, and publishes it on the One Person Lab branded site.
+Only that publisher's artifact and post-deployment exact-byte receipt, not this
+directory or an App build, is publication evidence.

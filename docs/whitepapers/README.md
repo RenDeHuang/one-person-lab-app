@@ -13,6 +13,10 @@ thin local entry that delegates to the canonical renderer in the OPL Framework
 repo. Set `OPL_FRAMEWORK_REPO` when the Framework checkout is not at the normal
 same-workspace `one-person-lab` path.
 
+The Framework repository owns the five-whitepaper branded publication bundle
+and its public URL. This repository remains the source owner for App prose and
+the local build profile.
+
 This repo follows the OPL-wide whitepaper pattern:
 
 - Keep canonical Markdown source under `docs/whitepapers/`.
@@ -24,10 +28,9 @@ This repo follows the OPL-wide whitepaper pattern:
 - Keep App `main` free of a second whitepaper workflow or publication token.
   The former App caller could not instantiate the Framework reusable workflow
   under App's read-only permission ceiling and has been retired.
-- Public App-whitepaper updates remain fail closed until the Framework owner
-  exposes a protected cross-repository publisher that binds this App profile,
-  exact source ref, target repository, and exact-byte public readback without
-  widening the App `main` workflow token.
+- Public App-whitepaper updates enter the Framework-owned family bundle and are
+  complete only after that bundle is published and read back from the branded
+  whitepaper site.
 - Do not publish whitepapers through `scripts/publish-docs-latest.sh`; that
   general docs path explicitly preserves the whitepaper surface.
 

@@ -31,7 +31,7 @@ one-person-lab-app
                 +-- opl-aion-shell   当前 Stable Shell，AionUI 薄适配
                 `-- opl-studio       DSH-native 下一代候选 Shell
 
-OPL Cloud（可选）通过同一 App/Framework ABI 提供在线产品 projection，
+OPL Cloud 通过同一 App/Framework ABI 提供在线产品 projection，
 但保留独立服务与数据 authority。
 ```
 

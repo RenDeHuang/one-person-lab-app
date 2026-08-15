@@ -87,7 +87,7 @@ unless they replace a canonical latest bundle.
 
 Use the GitHub Pages latest URLs for publishable user documents:
 
-- OPL App whitepaper: [HTML](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html) / [PDF](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.pdf)
+- OPL App whitepaper: [HTML](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.html) / [PDF](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.pdf)
 
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html`
 - `https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install-slides.pdf`

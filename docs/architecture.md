@@ -5,15 +5,15 @@ Purpose: `app_architecture_boundary`
 State: `active_truth`
 Machine boundary: Human-readable architecture note. Machine-readable truth lives in `contracts/`, source, release artifacts, updater metadata, and test results.
 
-The stable OPL ecosystem is `OPL Base + OPL App + OPL Packages + optional OPL
-Cloud`. The App is one product layer in that ecology, not the owner of Base,
+The stable OPL ecosystem is `OPL Base + OPL App + OPL Packages + OPL Cloud`.
+The App is one product layer in that ecology, not the owner of Base,
 Packages, Cloud, or domain truth:
 
 ```text
 OPL Base       -> OPL Framework, the single Cordis Host
 OPL Packages   -> installable runtime and declarative GUI contributions
 OPL App        -> one-person-lab-app product profile, GUI ABI, Shell and release
-OPL Cloud      -> optional online Workspace, governance and hosted services
+OPL Cloud      -> online Workspace, governance and hosted services
 ```
 
 `one-person-lab-app` consumes Framework state/actions and Package/domain
