@@ -131,10 +131,10 @@ OPL App 只有一个产品定义和一个发布负责人，但可以有多个 GU
 思路的原生候选 Shell。它们不是两套 App，而是同一个 App 产品合同的两种载体：
 
 ```text
-OPL Packages -> Framework Host 的 runtime contributions
-             -> App GUI ABI 的 declarative contributions
+OPL Packages -> runtime capabilities + App schema 允许的 declarative GUI descriptors
 OPL Framework Host
-  -> App-owned Client profile / GUI ABI
+  -> allowlisted state/action/RPC/event 与 GUI projection
+    -> App-owned Client profile / GUI ABI
     -> AionUI Shell 或 DSH-derived Studio Shell
       -> 同一组产品状态、动作和贡献投影
 ```
@@ -142,7 +142,10 @@ OPL Framework Host
 因此，导航、页面身份、状态名称、命令含义、onboarding、Package 管理和发布准入由
 `one-person-lab-app` 统一；两个 Shell 可以使用不同的 renderer、组件库、上游来源和
 构建方式。它们都通过同一套 Framework state/action、runtime bridge 和 GUI contribution
-schema 工作，也都不能建立第二套产品 authority、Package registry 或线程历史。
+schema 工作，也都不能自行发现/安装 plugin、获得 release-operation，或建立第二套产品
+authority、Package registry/currentness、任务与线程历史。当前双 GUI consumer contract 已
+明确，Framework Host 的真实 Client graph producer/projection 与跨 GUI conformance 仍在后续
+实现和验证中；设计完成不等于运行链已经完成。
 
 一次发布会明确冻结 App product version、Framework compatibility、Shell identity/version、
 GUI ABI、Client composition snapshot 和 contribution versions。Studio 的候选功能或源码

@@ -47,6 +47,12 @@ OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模�
 或构建链。这个关系类似同一个语言 Runtime 可以被多个 IDE 使用，而不是把两个 IDE
 合并进同一个依赖树。
 
+两个 Shell 的 Client Cordis 必须消费同一 Host-projected allowlisted graph、typed
+slots/actions、RPC/events 与产品状态语义。Client 只渲染并经 canonical App action bridge
+派发：不得自行发现/安装 plugin、维护 registry/currentness、获得 release-operation，或拥有
+task、Package、product truth。Framework P7 producer/projection 尚未 landed，因此本节是
+统一目标与 consumer contract，不是双 GUI runtime conformance 完成声明。
+
 三仓的终态关系固定为“一个产品 authority、两个可替换 Shell 实现”：
 
 | 仓库 | 终态职责 | 明确不拥有 |

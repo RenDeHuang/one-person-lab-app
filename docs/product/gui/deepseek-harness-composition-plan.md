@@ -73,13 +73,13 @@ Base-only；新 headless WebUI 必须使用明确的新 runtime form / service e
 
 ## 生态落点
 
-这不是一次全仓同时重写。当前已完成 App/Framework/Studio/AionUI 的最小 source 链，
-每个 owner 仍只承担一层：
+这不是一次全仓同时重写。当前已冻结 App consumer contract 与双 GUI 顶层语义；Framework
+P7 的真实 producer/projection 和跨 GUI conformance 尚未 landed。每个 owner 仍只承担一层：
 
 | Owner / repo | 目标责任 | 当前动作 | 明确不拥有 |
 | --- | --- | --- | --- |
 | `one-person-lab-app` | contribution schema、slot vocabulary、trust/冲突/降级策略、产品验收 | OPL-owned machine contract 已实现 | Package 清单、domain schema、runtime state |
-| `one-person-lab` Framework | 唯一 Cordis Host；从 installed Package 动态发现、校验并聚合 contribution；通过 Host-derived projection 提供 App state/action ABI | `app_state.ui_contributions` producer 与 Host composition 已实现，跨仓 replay 仍按 owner fresh evidence 读取 | GUI layout、renderer、Package-specific 分支 |
+| `one-person-lab` Framework | 唯一 Cordis Host；从 installed Package 动态发现、校验并聚合 contribution；通过 Host-derived projection 提供 App state/action ABI | Framework SSOT 已冻结；P7 `app_state.ui_contributions` producer/projection 与 producer-consumer conformance 尚未 landed | GUI layout、renderer、Package-specific 分支 |
 | 各 OPL Package / domain repo | 声明自身 descriptor，继续拥有 projection、action 和 domain truth | 真实 Package install/disable pilot 尚待 installed readback | App route、slot 冲突规则、跨 Package registry |
 | `opl-studio` | 唯一 DSH-derived renderer/slot host 试验线；Electron Desktop、standalone WebUI、Docker WebUI 同 renderer 和 Node host core | pinned DSH slots、renderer contract 与 UI primitives 已直接复用；统一 host core / carrier adapter 仍在实现与验证 | session/thread store、credentials、provider/runtime authority |
 | `opl-aion-shell` | 当前 active release shell 的薄 consumer | 三个 slot 的 OPL-owned thin adapter 消费同一 App Client Contribution ABI；可运行 Host-derived Client Cordis，但不导入 DSH GUI/runtime | 独立 Host graph、第二套 contribution schema、Package registry/currentness/action authority 或 plugin manager |
@@ -120,7 +120,7 @@ aggregation -> App contract -> successor renderer。它先由一个真实 Packag
 | --- | --- | --- | --- |
 | Chat-first AppFrame、Workspace/Session rail、conversation/composer、Settings 与 ui-theme | `adopt` / Strong | 直接使用经过上游优化的布局和样式源码，消除视觉仿写偏差 | App GUI contract；OPL Studio renderer |
 | Typed slot registry 与可逆注册 | `adapt` / Strong | 直接解决 Package 能力动态发现后 GUI 仍需固定接线的问题 | App slot contract；successor renderer |
-| Package-discovered client plugin graph | `adapt` / Strong | 可让功能、设置、typed view 随 installed Package 出现/消失 | Package descriptor；Framework projection |
+| Host-projected Package contribution graph | `adapt` / Strong | Package descriptor 先经 App schema 准入，再由 Framework Host 投影；Client 不做 plugin discovery/install | Package descriptor；App schema；Framework projection |
 | `single/list/keyed/chain` composition kinds | `adopt` / Strong | 足以表达单 owner、追加列表、kind renderer 和条件 takeover | App slot vocabulary |
 | App/session/workspace/task 的时间作用域 | `adapt` / Strong | OPL 需要比 DSH 更明确的 owner/permission boundary | App composition scope contract |
 | DSH AppFrame/sidebar/conversation/composer/settings/theme、primitives、slot / React renderer packages | `adopt` / Strong | 按 pinned ref 直接复用完整 GUI 宿主闭包并保留 notices；OPL 功能以 slot occupants 注入 | OPL Studio only |

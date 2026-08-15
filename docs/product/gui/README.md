@@ -19,8 +19,10 @@ OPL App 不是两个 GUI 产品，而是一个产品 authority 配两个可替�
 OPL Base
   `-- OPL Framework：唯一 Cordis Host、状态/动作与 Package projection
 OPL Packages
-  |-- 向 Framework 贡献 runtime/plugin capabilities
-  `-- 向 App GUI ABI 贡献受限的 declarative slots/routes/actions
+  `-- 提交 runtime capabilities 与 App-schema-admitted declarative GUI descriptors
+                |
+                v
+OPL Framework Host 校验并投影 allowlisted state/action/RPC/events + GUI graph
                 |
                 v
 one-person-lab-app
@@ -38,9 +40,9 @@ OPL Cloud（可选）通过同一 App/Framework ABI 提供在线产品 projectio
 管理。Studio 完成源码、功能或候选验证，不会自动改变 active shell、发布渠道或 release
 readiness。
 
-两种 Shell 必须统一产品语义、`opl app state/action` 与 runtime bridge、Client Cordis
-组合协议、GUI contribution ABI、设计/可访问性语义，以及 contract/功能/GUI/安装/安全/
-更新/release 证据类别。它们不需要统一 React 组件树、CSS、Electron/Node carrier、
+两种 Shell 必须统一产品状态语义、typed RPC reads/events、canonical App actions、
+`opl app state/action` 与 runtime bridge、Client Cordis 组合协议、GUI contribution ABI、
+设计/可访问性语义，以及 contract/功能/GUI/安装/安全/更新/release 证据类别。它们不需要统一 React 组件树、CSS、Electron/Node carrier、
 AionCore/Codex 适配、上游同步策略、缓存或 Git 分支。
 
 一次 App 发布冻结一组可回读的组合输入：
@@ -64,13 +66,16 @@ GUI 的技术形态是 Host/Client 双运行面，而不是 Framework Node 直�
 ```
 
 AionUI 可以通过薄 bridge 实现这条协议；Studio 可以原生采用 DSH 的 Client Cordis
-形态。两个 Shell 都不能建立第二套 OPL Host、Package registry、thread/history、
-currentness 或产品发布 authority。
+形态。两个 Shell 都不能建立第二套 OPL Host，自行发现/安装 plugin，维护 Package
+registry/currentness，获得 release-operation，或拥有 task、Package、product、thread/history
+truth。
 
-Host projection 是 App schema 约束的 closed allowlisted graph：只允许 product profile
-声明的 typed slots 与声明式 view/command/badge 字段。GUI action 只能携带 `action_ref`，
-并经 canonical App action bridge 执行；组件代码、HTML、路径、URL、handler 或任意插件
-对象不得进入 Client graph。AionUI 与 Studio 必须实现同一规则，而不是各自维护 allowlist。
+Host projection 是 App schema 约束的 closed allowlisted graph：Package 只提交 schema
+允许的 declarative view/command/badge 与 product-profile typed slots，再由 Framework Host
+投影。GUI action 只能携带 `action_ref`，并经 canonical App action bridge 执行；组件代码、
+HTML、路径、URL、handler 或任意插件对象不得进入 Client graph。AionUI 与 Studio 必须实现
+同一规则，而不是各自维护 allowlist。Framework P7 的真实 producer/projection 与端到端
+conformance 尚未 landed；这里定义的是 App consumer contract，不是 live completion 证明。
 
 OPL App GUI 使用三层设计体系：
 

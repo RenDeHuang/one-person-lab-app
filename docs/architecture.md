@@ -51,37 +51,43 @@ replaceable Shell implementations:
 
 ```text
 OPL Packages
-  -> runtime/plugin contributions -> OPL Framework (single Host Cordis)
-  -> declarative GUI contributions -----------------------------+
-OPL Framework -> frozen Host graph and App state/action projection
-                                                           |
-                                                           v
+  -> runtime/plugin capabilities -------------------------------+
+  -> App-schema-admitted declarative GUI descriptors -----------+
+                                                               v
+OPL Framework (single Host Cordis)
+  -> frozen Host graph and allowlisted state/action/RPC/event projection
+                                                               |
+                                                               v
 one-person-lab-app product profile + Client Cordis/GUI ABI
   -> opl-aion-shell (current Stable AionUI carrier)
   -> opl-studio (DSH-derived candidate carrier)
 ```
 
-Both Shells must implement the same product semantics, runtime bridge, typed
-slots/routes/actions, GUI contribution schema, accessibility policy, and release
-evidence categories. They may keep independent renderers, component trees,
+Both Shells must implement the same product state semantics, typed RPC reads and
+events, canonical App actions, runtime bridge, typed slots/routes/actions, GUI
+contribution schema, accessibility policy, and release evidence categories.
+They may keep independent renderers, component trees,
 Electron/Node carriers, AionCore/Codex adapters, upstream intake, caches, build
 systems, Git histories, and implementation tests. Neither Shell may own a
-second OPL Host, Package registry/currentness, Codex thread history, domain
-truth, or release policy.
+second OPL Host, discover or install Packages/plugins, maintain Package
+registry/currentness, receive release-operation, or own task, Package, product,
+Codex thread, domain, or release truth.
 
-The GUI is a Host/Client composition, not Node rendering React directly. The
-Framework freezes the Host graph and projects bounded declarative client
+The GUI target is a Host/Client composition, not Node rendering React directly.
+The Framework Host freezes the graph and projects bounded declarative client
 contributions. A Shell reads the App-owned boot/profile, creates its Client
 Cordis, loads only that Host-derived graph, and mounts contributions into typed
 slots. AionUI may implement this through a thin bridge; Studio may implement it
-natively in the DSH style.
+natively in the DSH style. The Framework P7 producer/projection and end-to-end
+producer-consumer conformance are still pending; these App contracts do not
+claim that runtime path is already live.
 
 That Host projection is a closed allowlisted graph, not a browser-side Package
 discovery feed. `contracts/opl-app-contributions.schema.json` admits only the
-App-owned declarative fields and product-profile slots; commands cross the
-boundary only as typed action refs and execute only through the canonical App
-action bridge. Renderer code, HTML, paths, URLs, handlers, and arbitrary plugin
-objects never become Client graph occupants.
+App-owned declarative fields and product-profile slots before the Framework Host
+projects them; commands cross the boundary only as typed action refs and execute
+only through the canonical App action bridge. Renderer code, HTML, paths, URLs,
+handlers, and arbitrary plugin objects never become Client graph occupants.
 
 Each App release freezes one composition tuple:
 
