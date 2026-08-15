@@ -124,33 +124,26 @@ OPL App 是本地优先的。用户可以先在自己的设备上选择工作目
 
 这个模型让维护动作更容易理解：App、Base 和 Packages 各自独立安装、更新、修复和卸载；界面汇总它们的真实状态，不要求用户理解多套版本与恢复机制。
 
+OPL 的品牌名称表达跨产品的能力领域，而不是一张固定的软件拆分表。一个领域可能同时使用 Framework 运行能力、App 交互、Cloud 服务和多个专业 Package；一个通用 Package 也可以服务多个领域。因此，品牌数量不决定 Package、插件、源码目录或发布物数量。
+
+Package 的源码组织与公开发布同样是两件事。即使 workspace 中的 Package 边界和本地构建拓扑已经落地，也只证明源码和构建关系成立；只有 Package 负责人对不可变版本、digest、渠道和公开产物完成真实回读，App 才能把它显示为“已独立发布”。目录、构建成功、测试或候选分支都不能代替发布证据。
+
 ## 一个产品，两个可替换的界面实现
 
-OPL App 只有一个产品定义和一个发布负责人，但可以有多个 GUI 实现。当前的
-`opl-aion-shell` 是 Stable AionUI Shell；`opl-studio` 是基于 DeepSeek Harness GUI
-思路的原生候选 Shell。它们不是两套 App，而是同一个 App 产品合同的两种载体：
+OPL App 只有一个产品定义、一个 profile/GUI ABI、一个 active-shell 决策和一个发布负责人，但可以有多个 GUI 实现。当前的 `opl-aion-shell` 是 Stable AionUI Shell；`opl-studio` 是基于 DeepSeek Harness GUI 思路的原生候选 Shell。它们不是两套 App，而是同一个 App 产品合同的两种载体：
 
 ```text
-OPL Packages -> runtime capabilities + App schema 允许的 declarative GUI descriptors
-OPL Framework Host
-  -> allowlisted state/action/RPC/event 与 GUI projection
-    -> App-owned Client profile / GUI ABI
-    -> AionUI Shell 或 DSH-derived Studio Shell
+OPL Packages -> Framework Host 的 runtime contributions
+             -> App GUI ABI 的 declarative contributions
+OPL Framework Host（唯一组合权威）
+  -> Host projection + App allowlist/profile
+    -> AionUI Client Cordis 或 DSH-derived Studio Client Cordis
       -> 同一组产品状态、动作和贡献投影
 ```
 
-因此，导航、页面身份、状态名称、命令含义、onboarding、Package 管理和发布准入由
-`one-person-lab-app` 统一；两个 Shell 可以使用不同的 renderer、组件库、上游来源和
-构建方式。它们都通过同一套 Framework state/action、runtime bridge 和 GUI contribution
-schema 工作，也都不能自行发现/安装 plugin、获得 release-operation，或建立第二套产品
-authority、Package registry/currentness、任务与线程历史。当前双 GUI consumer contract 已
-明确，Framework Host 的真实 Client graph producer/projection 与跨 GUI conformance 仍在后续
-实现和验证中；设计完成不等于运行链已经完成。
+因此，导航、页面身份、状态名称、命令含义、onboarding、Package 管理和发布准入由 `one-person-lab-app` 统一；两个 Shell 可以使用不同的 renderer、组件库、上游来源和构建方式。它们都通过同一套 Framework state/action、runtime bridge 和 GUI contribution schema 工作，也都不能自行发现或安装插件、维护 Package registry/currentness、建立第二套产品 authority，或获得 Framework 的 release-operation 服务。
 
-一次发布会明确冻结 App product version、Framework compatibility、Shell identity/version、
-GUI ABI、Client composition snapshot 和 contribution versions。Studio 的候选功能或源码
-完成并不等于它已经取代 AionUI；只有 App 的 active-shell 合同、安装/安全/更新和 release
-证据全部切换后，用户才会看到新的默认载体。
+一次发布会明确冻结 App product version、Framework compatibility、Shell identity/version、GUI ABI、Client composition snapshot 和 contribution versions。Studio 的候选功能或源码完成并不等于它已经取代 AionUI；只有 App 的 active-shell 合同、安装/安全/更新和 release 证据全部切换后，用户才会看到新的默认载体。
 
 ## 清楚的分工带来可信的产品
 

@@ -46,7 +46,16 @@ any compliant package, shell, registry, or deployment carrier can be added,
 removed, or replaced without editing the App for every package. The same
 generic complexity must have one owner.
 
-The App repository is the single product and release authority above two
+The historical OPL brand names are cross-repository **capability domains**. They
+group product language and accountable outcomes across Framework, App, Cloud,
+and domain owners; they are not a fixed count of source directories, Packages,
+Cordis plugins, or release artifacts. One domain may use several Packages, and
+one reusable Package may support several domains. Physical topology and
+publication are therefore read from their owner contracts and release evidence,
+never inferred from a brand name.
+
+The App repository is the single product, profile, GUI ABI, active-Shell, and
+product-release authority above two
 replaceable Shell implementations:
 
 ```text
@@ -55,10 +64,10 @@ OPL Packages
   -> App-schema-admitted declarative GUI descriptors -----------+
                                                                v
 OPL Framework (single Host Cordis)
-  -> frozen Host graph and allowlisted state/action/RPC/event projection
+  -> frozen Host graph and allowlisted state/action/RPC/event + GUI projection
                                                                |
                                                                v
-one-person-lab-app product profile + Client Cordis/GUI ABI
+one-person-lab-app product profile + allowlisted Client Cordis/GUI ABI
   -> opl-aion-shell (current Stable AionUI carrier)
   -> opl-studio (DSH-derived candidate carrier)
 ```
@@ -104,16 +113,16 @@ Only `contracts/app-shell-adapter.json` selects the release Shell;
 `contracts/app-shell-candidates.json` records candidates. Candidate source or
 feature completion cannot promote itself into the release tuple.
 
-First-party OPL Packages currently publish their complete official bytes to
-independent GHCR repositories. Immutable version refs identify exact bytes,
-`candidate` carries Preview input, and each Package owner alone advances its
-Stable/LKG `latest-stable` after full qualification; bare `latest` is retired
-and Nightly is not a Package consumption channel. The shared
-`one-person-lab-manifest:latest-stable` is not ordinary currentness and remains
-only a Full/offline/integration-test/QA snapshot. GHCR is the official
-first-party publication store, while the Package's identity, installed truth,
-capabilities, dependencies, task state, and typed views remain carrier- and
-executor-neutral.
+Workspace Package topology and independent Package publication are separate
+state axes. A topology is landed only after the Framework owner has absorbed and
+read back its canonical source/package contracts and callers; that proves local
+source and build boundaries, not an externally consumable version. Independent
+publication is complete only after the Package owner publishes immutable bytes
+and reads back the exact version, digest, channel, and public artifact. A
+workspace directory, `package.json`, build, test, candidate ref, or Release Set
+plan cannot supply that publication evidence. Until owner-authoritative release
+readback exists, App surfaces must report publication as pending or unknown and
+must not synthesize `latest-stable` currentness.
 
 Package composition, physical carriage, and execution are independent:
 

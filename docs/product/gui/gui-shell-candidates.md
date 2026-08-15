@@ -38,8 +38,9 @@ model-policy, design-system, full, or release-boundary maintenance.
 ## 双 GUI、单控制面
 
 在 `OPL Base + OPL App + OPL Packages + optional OPL Cloud` 四层生态中，
-本文件只管理 App 的 Shell carrier 选择。Package 安装/发布、Framework Host composition
-与 Cloud 服务都不因 Shell 切换而迁移 authority。
+本文件只管理 App 的 Shell carrier 选择。Package topology/发布、Framework Host
+composition 与 Cloud 服务都不因 Shell 切换而迁移 authority；跨仓品牌名也只是
+capability domains，不是 Shell plugin 或 Package 清单。
 
 OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模型。AionUI 与
 `opl-studio` 都消费 App-owned product contracts、OPL state/action surface
@@ -117,9 +118,10 @@ DeepSeek Harness is not another shell role. It is a pinned design and bounded
 source dependency for the sole foreground candidate route, `opl-studio`.
 AionUI consumes only the OPL-owned contribution ABI through a thin adapter and
 does not import DeepSeek Harness GUI/runtime source. Both shells may run the
-single App-approved Client Cordis graph derived from the Framework Host graph;
-neither may create independent Host truth, Package discovery, registry,
-currentness, state, session, or action authority.
+single App-approved Client Cordis graph derived from the Framework Host graph
+and App profile/allowlist; neither may create independent Host truth, discover
+or install OPL plugins, maintain a Package registry/currentness view, receive
+release-operation, or own state, session, or action authority.
 The evaluation and controlled migration plan lives in
 [`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md).
 

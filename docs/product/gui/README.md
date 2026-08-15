@@ -35,6 +35,10 @@ OPL Cloud（可选）通过同一 App/Framework ABI 提供在线产品 projectio
 但保留独立服务与数据 authority。
 ```
 
+历史十大品牌名在这里按跨 Framework、App、Cloud 与 domain owner 的 capability domains
+读取，不与 Package、源码目录、Cordis plugin 或 release artifact 一一对应。App 只持有唯一
+product/profile/GUI ABI/active-shell/release authority，不接管各 capability domain 的业务真相。
+
 `active_shell = aionui` 只由 [`contracts/app-shell-adapter.json`](../../../contracts/app-shell-adapter.json)
 决定；Studio 的候选身份由 [`contracts/app-shell-candidates.json`](../../../contracts/app-shell-candidates.json)
 管理。Studio 完成源码、功能或候选验证，不会自动改变 active shell、发布渠道或 release
@@ -66,9 +70,9 @@ GUI 的技术形态是 Host/Client 双运行面，而不是 Framework Node 直�
 ```
 
 AionUI 可以通过薄 bridge 实现这条协议；Studio 可以原生采用 DSH 的 Client Cordis
-形态。两个 Shell 都不能建立第二套 OPL Host，自行发现/安装 plugin，维护 Package
-registry/currentness，获得 release-operation，或拥有 task、Package、product、thread/history
-truth。
+形态。两个 Shell 都只能执行 Framework Host projection 与 App allowlist/profile 派生的
+graph；不能建立第二套 OPL Host，自行发现或安装 plugin，维护 Package registry/currentness，
+获得 release-operation，或拥有 task、Package、product、thread/history truth。
 
 Host projection 是 App schema 约束的 closed allowlisted graph：Package 只提交 schema
 允许的 declarative view/command/badge 与 product-profile typed slots，再由 Framework Host
@@ -101,9 +105,11 @@ Package、Capability、Home 与 Runtime 的新目标由
 动态发现并只做 presence/callability 检查；一个 Official Profile 服务 Standard 与
 Full；Runtime 是目标核心动态 Agent 任务面。当前采用 Codex-first 实现以降低成本，
 但 Package identity、偏好、Work Item、Temporal refs 与 typed views 保持 OPL-owned、
-carrier/executor-neutral；一方 Package owner 独立发布 GHCR `latest-stable`，共享
-Release Set 只用于 Full/offline/integration-test/QA。当前 contracts/source 仍是
-compatibility，文档更新不表示实现完成。
+carrier/executor-neutral。Framework canonical source/package contract 与 caller readback
+可以证明 workspace topology 已落地；它不证明 Package 已独立发布。只有 Package owner
+对 immutable version、digest、channel 与公开 artifact 的真实 release readback，才允许把
+对应状态写成 independent publication complete。App/Shell 不从目录、manifest、测试或
+候选 ref 推断发布完成或 currentness。
 
 GUI 运行采用双轴模型：AionUI 继续是 `active release shell`，`opl-studio` 则是
 App-owned successor 的 internal repo/candidate id，并可作为本机 `local GUI launch target`。
