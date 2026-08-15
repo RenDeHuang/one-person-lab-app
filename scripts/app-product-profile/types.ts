@@ -214,6 +214,11 @@ export type AppDeliveryTopology = {
       temporal_scope: string;
       app_client_contribution_abi: 'opl_app_client_contributions.v1';
       framework_host_graph_source: 'app_state.ui_contributions';
+      framework_host_projection_schema: 'opl_app_ui_contributions_projection.v1';
+      host_projection_graph_policy: 'allowlisted_closed_graph_from_framework_projection_only';
+      host_projection_allowlist_contract: 'contracts/opl-app-contributions.schema.json';
+      typed_slot_policy: 'mount_only_app_product_profile_declared_slots';
+      typed_action_policy: 'action_refs_only_via_canonical_app_action_bridge';
       client_cordis_graph: string;
       shared_shell_consumers: ['opl-aion-shell', 'opl-studio'];
       renderer_and_package_carrier_may_differ: true;

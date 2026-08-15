@@ -68,6 +68,13 @@ Cordis, loads only that Host-derived graph, and mounts contributions into typed
 slots. AionUI may implement this through a thin bridge; Studio may implement it
 natively in the DSH style.
 
+That Host projection is a closed allowlisted graph, not a browser-side Package
+discovery feed. `contracts/opl-app-contributions.schema.json` admits only the
+App-owned declarative fields and product-profile slots; commands cross the
+boundary only as typed action refs and execute only through the canonical App
+action bridge. Renderer code, HTML, paths, URLs, handlers, and arbitrary plugin
+objects never become Client graph occupants.
+
 Each App release freezes one composition tuple:
 
 ```text

@@ -61,6 +61,11 @@ AionUI 可以通过薄 bridge 实现这条协议；Studio 可以原生采用 DSH
 形态。两个 Shell 都不能建立第二套 OPL Host、Package registry、thread/history、
 currentness 或产品发布 authority。
 
+Host projection 是 App schema 约束的 closed allowlisted graph：只允许 product profile
+声明的 typed slots 与声明式 view/command/badge 字段。GUI action 只能携带 `action_ref`，
+并经 canonical App action bridge 执行；组件代码、HTML、路径、URL、handler 或任意插件
+对象不得进入 Client graph。AionUI 与 Studio 必须实现同一规则，而不是各自维护 allowlist。
+
 OPL App GUI 使用三层设计体系：
 
 1. **功能层**回答“产品必须具备什么能力”。

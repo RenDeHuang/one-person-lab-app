@@ -78,6 +78,11 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
     'composer.palette',
   ]);
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.app_client_contribution_abi, 'opl_app_client_contributions.v1');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.framework_host_projection_schema, 'opl_app_ui_contributions_projection.v1');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.host_projection_graph_policy, 'allowlisted_closed_graph_from_framework_projection_only');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.host_projection_allowlist_contract, 'contracts/opl-app-contributions.schema.json');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.typed_slot_policy, 'mount_only_app_product_profile_declared_slots');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.typed_action_policy, 'action_refs_only_via_canonical_app_action_bridge');
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_cordis_graph, 'derived_from_framework_host_graph_and_app_product_profile_slot_policy');
   assert.deepEqual(profile.delivery_topology.minimum_complete_product.composition_model.shared_shell_consumers, ['opl-aion-shell', 'opl-studio']);
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.independent_host_truth_allowed, false);
