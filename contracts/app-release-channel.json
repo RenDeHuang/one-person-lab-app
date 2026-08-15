@@ -1153,7 +1153,7 @@
       "app_may_derive_or_project_release_stage_state": false,
       "rule": "OPL Framework owns the generic immutable Release Bundle schema, store, canonical digest, receipts, operation events, consumer envelopes, and executor ABI. The App consumes that authority and must not fork or redefine its closed shape.",
       "portable_checkpoint_authority_first_landed_sha": "f785cda96",
-      "consumed_abi_sha": "bee837d46a3695710c93c3acc69c10eb1d900167",
+      "consumed_abi_sha": "97510b268300b1996f308e7a4110205cd703b95e",
       "cordis_composition": {
         "host_owner": "OPL Framework",
         "host_count": 1,

@@ -115,9 +115,12 @@ export function runFrameworkReleaseCliConsumerGate(
     if (status.status !== 3) {
       throw new Error(`Framework release status canary must return typed read-only exit 3, got ${String(status.status)}: ${status.stderr || status.stdout}`);
     }
-    const statusPayload = JSON.parse(status.stdout) as { error?: { code?: string } };
+    if (status.stdout.trim()) {
+      throw new Error(`Framework release status canary wrote failure output to stdout: ${status.stdout}`);
+    }
+    const statusPayload = JSON.parse(status.stderr) as { error?: { code?: string } };
     if (statusPayload.error?.code !== 'contract_file_missing') {
-      throw new Error(`Framework release status canary returned an unexpected error: ${status.stdout}`);
+      throw new Error(`Framework release status canary returned an unexpected error: ${status.stderr}`);
     }
     if (fs.existsSync(statusStore)) {
       throw new Error('Framework release status canary must not create a release store for a missing Bundle.');

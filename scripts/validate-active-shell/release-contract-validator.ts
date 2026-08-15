@@ -114,7 +114,7 @@ const publisherReconcileAdmissionContract = {
   deadline_elapsed_reconcile_may_advance_stage: false,
   create_upload_latest_or_homebrew_retry_allowed: false,
 };
-const frameworkReleaseAbiSha = 'bee837d46a3695710c93c3acc69c10eb1d900167';
+const frameworkReleaseAbiSha = '97510b268300b1996f308e7a4110205cd703b95e';
 const frameworkReleaseCommands = [
   'freeze',
   'operation admit',

@@ -71,7 +71,7 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     app_may_derive_or_project_release_stage_state: false,
     rule: control.framework_authority.rule,
     portable_checkpoint_authority_first_landed_sha: "f785cda96",
-    consumed_abi_sha: "bee837d46a3695710c93c3acc69c10eb1d900167",
+    consumed_abi_sha: "97510b268300b1996f308e7a4110205cd703b95e",
     cordis_composition: {
       host_owner: "OPL Framework",
       host_count: 1,
