@@ -132,6 +132,10 @@ test('Stable and protected Manual Preview are isolated from daily-default Nightl
     'resume_standard',
     'append_full',
   ]);
+  assert.deepEqual(stable.on.workflow_dispatch.inputs.entry.options, [
+    'framework_release',
+    'studio_carrier_admission',
+  ]);
   assert.deepEqual(stable.concurrency, { group: 'opl-release-bundle-global', 'cancel-in-progress': false });
   assert.deepEqual(Object.keys(canary.on).sort(), ['schedule', 'workflow_dispatch']);
   assert.deepEqual(canary.on.schedule, [{ cron: '0 13 * * *' }]);
@@ -212,7 +216,7 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
     /uses:\s*\.\/\.github\/workflows\/release-source-qualification\.yml/,
   );
   assert.deepEqual(stable.jobs.admission.needs, ['protected-operation-admission']);
-  assert.equal(stable.jobs.admission.if, '${{ always() }}');
+  assert.equal(stable.jobs.admission.if, "${{ always() && inputs.entry == 'framework_release' }}");
   const stableAdmission = String(stable.jobs.admission.steps.find(
     (step: Record<string, unknown>) => step.name === 'Admit one bounded Bundle operation',
   )?.run ?? '');

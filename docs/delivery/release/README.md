@@ -15,11 +15,28 @@ Docker WebUI is a separate GHCR product line and never consumes Desktop Stable a
 
 ## Stable Operations
 
-`.github/workflows/release-stable.yml` is the only manual Stable version/publication entry. It accepts exactly:
+`.github/workflows/release-stable.yml` is the only manual protected App release entry. Its three
+Framework-backed mutation operations remain exactly:
 
 - `standard`: build, qualify and publish the primary macOS arm64 Desktop release;
 - `resume_standard`: reconcile the same admitted Standard operation without a second mutation;
 - `append_full`: append Full macOS bytes to the same exact Release/tag.
+
+The same entry also exposes `entry=studio_carrier_admission`, a plan-only source admission for the candidate
+Studio Electron carrier. It requires an exact `gaofeng21cn/opl-studio` commit, tree and tag, runs in
+the App-owned `release-stable` environment with read-only permissions, and writes
+`opl_studio_protected_release_admission.v1`. It does not map protected secret values into the job,
+create a Framework release operation, submit to Apple, mutate a GitHub Release, change the active
+shell, or make Studio the active release carrier.
+
+An admitted Studio plan fixes this fail-closed order: exact checkout, Developer ID signed build,
+Apple notarization, App/DMG staple and Gatekeeper validation, exact-tag publication to the dedicated
+`opl-studio` GitHub Release, anonymous byte readback, then Studio's
+`qualify:desktop:mac:release`. Any failed or unknown stage blocks every later stage. The admission
+receipt is source evidence, not publication authority; protected execution still requires the exact
+receipt identity, an environment reviewer, explicit user approval, and capability preflight before
+the first external mutation. Apple and GitHub credentials remain only in the App protected
+environment and must never be copied into Studio repository secrets.
 
 `.github/workflows/desktop-release-diagnostics.yml` is a separate manual or reusable verification
 entry. It may build a temporary Standard diagnostic artifact and run the first-run VM harness, but

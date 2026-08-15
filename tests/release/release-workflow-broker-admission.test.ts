@@ -23,6 +23,7 @@ test('Stable has one dispatch and exactly three Framework Bundle operations', ()
     'authority_digest',
     'authority_id',
     'desktop_additional_platforms',
+    'entry',
     'framework_ref',
     'include_full',
     'operation',
@@ -30,6 +31,9 @@ test('Stable has one dispatch and exactly three Framework Bundle operations', ()
     'shell_ref',
     'source_artifact',
     'source_run_id',
+    'studio_sha',
+    'studio_tag',
+    'studio_tree',
     'version',
   ]);
   assert.match(source, /test "\$GITHUB_RUN_ATTEMPT" = 1/);

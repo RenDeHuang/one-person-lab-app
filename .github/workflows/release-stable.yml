@@ -1,9 +1,17 @@
 name: OPL Stable Release Bundle
-run-name: "${{ inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || inputs.operation == 'append_full' && format('OPL Stable append_full source:{0} run:{1}', inputs.source_run_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
+run-name: "${{ inputs.entry == 'studio_carrier_admission' && format('OPL Stable Studio admission ref:{0} run:{1}', inputs.studio_sha, github.run_id) || inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || inputs.operation == 'append_full' && format('OPL Stable append_full source:{0} run:{1}', inputs.source_run_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
 
 on:
   workflow_dispatch:
     inputs:
+      entry:
+        description: Select the Framework release lane or the plan-only Studio carrier admission lane
+        required: false
+        default: framework_release
+        type: choice
+        options:
+          - framework_release
+          - studio_carrier_admission
       operation:
         description: One bounded operation over an immutable Framework Bundle
         required: true
@@ -48,6 +56,21 @@ on:
         required: false
         default: '["linux-x64","windows-x64"]'
         type: string
+      studio_sha:
+        description: Exact OPL Studio commit admitted for protected release execution planning
+        required: false
+        default: ''
+        type: string
+      studio_tree:
+        description: Exact OPL Studio tree bound independently from the requested commit
+        required: false
+        default: ''
+        type: string
+      studio_tag:
+        description: Exact dedicated OPL Studio release tag matching the frozen package version
+        required: false
+        default: ''
+        type: string
       shell_ref:
         description: Legacy raw Standard input; must be empty because the admission manifest owns the cohort
         required: false
@@ -84,8 +107,111 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  studio-protected-release-admission:
+    if: ${{ inputs.entry == 'studio_carrier_admission' }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Reject mutable or mixed Studio admission request
+        env:
+          OPERATION: ${{ inputs.operation }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+          AUTHORITY_ID: ${{ inputs.authority_id }}
+          OPERATION_ID: ${{ inputs.operation_id }}
+          AUTHORITY_CARRIER: ${{ inputs.authority_carrier }}
+          AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          INCLUDE_FULL: ${{ inputs.include_full }}
+          REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$OPERATION" = standard
+          [[ "$STUDIO_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDIO_TREE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDIO_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]
+          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
+          test "$INCLUDE_FULL" = false
+
+      - name: Checkout exact App release authority
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: app-source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout exact Studio source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gaofeng21cn/opl-studio
+          ref: ${{ inputs.studio_sha }}
+          path: studio-source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app-source/package-lock.json
+
+      - name: Install App admission dependencies without lifecycle scripts
+        working-directory: app-source
+        run: npm ci --ignore-scripts
+
+      - name: Bind Studio to an ordered protected release plan
+        working-directory: app-source
+        env:
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/studio-protected-release-admission.ts plan \
+            --app-root . \
+            --studio-root ../studio-source \
+            --studio-sha "$STUDIO_SHA" \
+            --studio-tree "$STUDIO_TREE" \
+            --studio-tag "$STUDIO_TAG" \
+            --output studio-protected-release-admission.json
+          jq -e '
+            .schema == "opl_studio_protected_release_admission.v1"
+            and .status == "source_admitted_pending_protected_execution"
+            and .source.commit_sha == env.STUDIO_SHA
+            and .source.tree_sha == env.STUDIO_TREE
+            and .source.tag == env.STUDIO_TAG
+            and .active_shell_unchanged == true
+            and .active_release_carrier == false
+            and .release_ready == false
+            and .public_mutation_authorized == false
+            and .external_mutation_attempted == false
+          ' studio-protected-release-admission.json >/dev/null
+
+      - name: Upload immutable Studio protected admission receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-studio-protected-release-admission-${{ inputs.studio_sha }}-${{ github.run_id }}
+          path: app-source/studio-protected-release-admission.json
+          if-no-files-found: error
+          retention-days: 30
+
   protected-operation-admission:
-    if: ${{ inputs.operation == 'standard' }}
+    if: ${{ inputs.entry == 'framework_release' && inputs.operation == 'standard' }}
     runs-on: macos-latest
     timeout-minutes: 30
     environment: release-stable
@@ -115,6 +241,9 @@ jobs:
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
           INCLUDE_FULL: ${{ inputs.include_full }}
           REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS: ${{ inputs.desktop_additional_platforms }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -127,6 +256,7 @@ jobs:
           test -n "$AUTHORITY_CARRIER"
           [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
+          test -z "$STUDIO_SHA$STUDIO_TREE$STUDIO_TAG"
           test "$INCLUDE_FULL" = false
           jq -e 'type == "array"' <<<"$REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS" >/dev/null
 
@@ -314,7 +444,7 @@ jobs:
 
   admission:
     needs: [protected-operation-admission]
-    if: ${{ always() }}
+    if: ${{ always() && inputs.entry == 'framework_release' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -353,11 +483,18 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_RUN_ATTEMPT" = 1 || {
             echo "::error::Stable operations are one-shot; use resume_standard with the portable checkpoint."
+            exit 1
+          }
+          test -z "$STUDIO_SHA$STUDIO_TREE$STUDIO_TAG" || {
+            echo "::error::Studio identity inputs are accepted only by admit_studio_carrier."
             exit 1
           }
           executor_sha="$(git -C app-source rev-parse HEAD)"

@@ -215,6 +215,7 @@ export function validateReleaseChannelContract(
     throw new Error(`Unsupported release validation profile: ${validationProfile}`);
   }
   validateReleaseCalendarGuard(releaseChannel.github_release_name);
+  validateSuccessorProtectedReleaseAdmission(releaseChannel.successor_delivery_target);
   validateProviderConfigurationBoundary(releaseChannel.provider_configuration_boundary);
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateStandardUpdater(releaseChannel.standard_updater);
@@ -226,6 +227,64 @@ export function validateReleaseChannelContract(
   validateOptionalCertificationPolicy(releaseChannel);
   validateReleaseHomebrewDistribution(releaseChannel);
   validateReleaseFullFirstInstallPayloads(releaseChannel);
+}
+
+function validateSuccessorProtectedReleaseAdmission(successor) {
+  const admission = successor?.protected_release_admission;
+  if (
+    successor?.candidate_id !== 'opl-studio'
+    || successor?.role !== 'target_only_not_current_release_authority'
+    || successor?.active_shell_remains !== 'aionui'
+    || successor?.active_release_carrier !== false
+    || admission?.schema !== 'opl_studio_protected_release_admission_policy.v1'
+    || admission?.authority_owner !== 'one-person-lab-app'
+    || admission?.workflow !== '.github/workflows/release-stable.yml'
+    || admission?.entry_selector !== 'studio_carrier_admission'
+    || admission?.framework_operation !== null
+    || admission?.environment !== 'release-stable'
+    || admission?.repository !== 'gaofeng21cn/opl-studio'
+    || admission?.carrier !== 'electron_desktop'
+    || admission?.source_admission_is_release_ready !== false
+    || admission?.active_release_carrier_after_admission !== false
+    || admission?.framework_release_operation_created !== false
+    || admission?.second_release_owner_created !== false
+    || admission?.secret_custody?.source !== 'one-person-lab-app release-stable protected environment'
+    || admission?.secret_custody?.values_read_or_copied_by_admission !== false
+    || admission?.secret_custody?.studio_repository_secret_copy_allowed !== false
+    || admission?.secret_custody?.execution_capability_preflight_required_before_first_external_mutation !== true
+    || admission?.fail_closed_gates?.exact_commit_tree_and_tag_required !== true
+    || admission?.fail_closed_gates?.developer_id_application_required !== true
+    || admission?.fail_closed_gates?.notarization_status_required !== 'Accepted'
+    || admission?.fail_closed_gates?.stapler_validate_required !== true
+    || admission?.fail_closed_gates?.dedicated_release_repository_required !== 'gaofeng21cn/opl-studio'
+    || admission?.fail_closed_gates?.anonymous_public_byte_readback_required !== true
+    || admission?.fail_closed_gates?.any_failed_stage_blocks_later_stages !== true
+    || admission?.admission_mutation_policy?.secret_values_accessed !== false
+    || admission?.admission_mutation_policy?.notary_submission_allowed !== false
+    || admission?.admission_mutation_policy?.release_or_asset_mutation_allowed !== false
+    || admission?.admission_mutation_policy?.deployment_allowed !== false
+    || admission?.admission_mutation_policy?.publication_allowed !== false
+  ) {
+    throw new Error('Studio protected release admission must remain App-owned, plan-only, and fail closed');
+  }
+  assertDeepEqualJson(
+    admission.identity_inputs,
+    ['studio_sha', 'studio_tree', 'studio_tag'],
+    'Studio protected release identity inputs',
+  );
+  assertDeepEqualJson(
+    admission.stage_order,
+    [
+      'exact_source_checkout',
+      'developer_id_signed_build',
+      'apple_notarization',
+      'staple_and_gatekeeper_validation',
+      'exact_tag_publication',
+      'anonymous_public_byte_readback',
+      'studio_release_qualification',
+    ],
+    'Studio protected release stage order',
+  );
 }
 
 function validateDistributionSemantics(semantics) {

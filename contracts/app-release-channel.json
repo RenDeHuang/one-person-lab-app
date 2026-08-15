@@ -14,7 +14,58 @@
     "active_shell_remains": "aionui",
     "active_release_carrier": false,
     "current_release_platform_matrix_is_successor_admission_evidence": false,
-    "source_contract_or_candidate_evidence_implies_release_ready": false
+    "source_contract_or_candidate_evidence_implies_release_ready": false,
+    "protected_release_admission": {
+      "schema": "opl_studio_protected_release_admission_policy.v1",
+      "authority_owner": "one-person-lab-app",
+      "workflow": ".github/workflows/release-stable.yml",
+      "entry_selector": "studio_carrier_admission",
+      "framework_operation": null,
+      "environment": "release-stable",
+      "repository": "gaofeng21cn/opl-studio",
+      "carrier": "electron_desktop",
+      "identity_inputs": [
+        "studio_sha",
+        "studio_tree",
+        "studio_tag"
+      ],
+      "source_admission_is_release_ready": false,
+      "active_release_carrier_after_admission": false,
+      "framework_release_operation_created": false,
+      "second_release_owner_created": false,
+      "secret_custody": {
+        "source": "one-person-lab-app release-stable protected environment",
+        "values_read_or_copied_by_admission": false,
+        "studio_repository_secret_copy_allowed": false,
+        "execution_capability_preflight_required_before_first_external_mutation": true
+      },
+      "stage_order": [
+        "exact_source_checkout",
+        "developer_id_signed_build",
+        "apple_notarization",
+        "staple_and_gatekeeper_validation",
+        "exact_tag_publication",
+        "anonymous_public_byte_readback",
+        "studio_release_qualification"
+      ],
+      "fail_closed_gates": {
+        "exact_commit_tree_and_tag_required": true,
+        "developer_id_application_required": true,
+        "notarization_status_required": "Accepted",
+        "stapler_validate_required": true,
+        "dedicated_release_repository_required": "gaofeng21cn/opl-studio",
+        "anonymous_public_byte_readback_required": true,
+        "any_failed_stage_blocks_later_stages": true
+      },
+      "admission_mutation_policy": {
+        "secret_values_accessed": false,
+        "notary_submission_allowed": false,
+        "release_or_asset_mutation_allowed": false,
+        "deployment_allowed": false,
+        "publication_allowed": false
+      },
+      "rule": "The App-owned protected admission binds one exact Studio commit, tree, and tag to the ordered Developer ID, notarization, stapling, dedicated-repository publication, anonymous byte readback, and Studio release qualification plan. Admission is source evidence only: it does not create a Framework release operation, authorize publication, change the active shell, or make Studio the active release carrier."
+    }
   },
   "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
   "computer_use_distribution": {

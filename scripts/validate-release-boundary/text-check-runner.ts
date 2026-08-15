@@ -414,11 +414,30 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
 
   const jobs = workflowJobs(workflow);
   const authorityInputs = workflow.on?.workflow_dispatch?.inputs ?? {};
+  if (
+    authorityInputs.entry?.type !== 'choice'
+    || authorityInputs.entry?.required !== false
+    || authorityInputs.entry?.default !== 'framework_release'
+    || JSON.stringify(authorityInputs.entry?.options) !== JSON.stringify([
+      'framework_release',
+      'studio_carrier_admission',
+    ])
+  ) {
+    failures += reportFailure(id, 'Stable entry selector must separate Framework release from plan-only Studio admission');
+  }
   for (const name of ['authority_id', 'operation_id', 'authority_carrier', 'authority_digest']) {
     if (authorityInputs[name]?.required !== false || authorityInputs[name]?.default !== '') {
       failures += reportFailure(
         id,
         `${name} must remain an optional recovery input with an empty default; Standard admission enforces it conditionally`,
+      );
+    }
+  }
+  for (const name of ['studio_sha', 'studio_tree', 'studio_tag']) {
+    if (authorityInputs[name]?.required !== false || authorityInputs[name]?.default !== '') {
+      failures += reportFailure(
+        id,
+        `${name} must remain empty unless the protected Studio admission operation is selected`,
       );
     }
   }
@@ -432,6 +451,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   }
 
   const expectedJobs = [
+    'studio-protected-release-admission',
     'protected-operation-admission',
     'admission',
     'stable-admission-manifest',
@@ -456,7 +476,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   if (
     !admission
     || !needsExactly(admission, ['protected-operation-admission'])
-    || admission.if !== '${{ always() }}'
+    || admission.if !== "${{ always() && inputs.entry == 'framework_release' }}"
     || !exactObject(admission.permissions, exactReadPermissions)
   ) {
     failures += reportFailure(id, 'admission must have only contents:read/actions:read');
@@ -483,12 +503,51 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     failures += reportFailure(id, 'standard, bounded resume_standard, and append_full operations must resolve their controller window from Actions created_at');
   }
 
+  const studioAdmission = jobs['studio-protected-release-admission'];
+  const studioAdmissionRun = jobRuns(studioAdmission);
+  const studioAdmissionEvidence = jobEvidenceText(studioAdmission);
+  if (
+    !studioAdmission
+    || studioAdmission.if !== "${{ inputs.entry == 'studio_carrier_admission' }}"
+    || Object.prototype.hasOwnProperty.call(studioAdmission, 'needs')
+    || studioAdmission.environment !== 'release-stable'
+    || !exactObject(studioAdmission.permissions, exactReadPermissions)
+  ) {
+    failures += reportFailure(
+      id,
+      'studio-protected-release-admission must remain one initial read-only release-stable source gate',
+    );
+  }
+  if (workflowMutationCommandPattern.test(studioAdmissionRun) || /openssl\s+rand/.test(studioAdmissionRun)) {
+    failures += reportFailure(id, 'Studio protected source admission must not perform release or public mutation');
+  }
+  if (/secrets\./.test(JSON.stringify(studioAdmission)) || /\$\{\{\s*inputs\./.test(studioAdmissionRun)) {
+    failures += reportFailure(id, 'Studio protected source admission must not map or read protected secret values');
+  }
+  for (const binding of [
+    'Reject mutable or mixed Studio admission request',
+    'test "$GITHUB_EVENT_NAME" = workflow_dispatch',
+    'test "$GITHUB_REF" = refs/heads/main',
+    '[[ "$STUDIO_SHA" =~ ^[0-9a-f]{40}$ ]]',
+    '[[ "$STUDIO_TREE" =~ ^[0-9a-f]{40}$ ]]',
+    '"repository":"gaofeng21cn/opl-studio"',
+    '"persist-credentials":false',
+    'studio-protected-release-admission.ts plan',
+    '.public_mutation_authorized == false',
+    '.external_mutation_attempted == false',
+    'Upload immutable Studio protected admission receipt',
+  ]) {
+    if (!studioAdmissionEvidence.includes(binding)) {
+      failures += reportFailure(id, `Studio protected source admission is missing ${binding}`);
+    }
+  }
+
   const protectedAdmission = jobs['protected-operation-admission'];
   const protectedAdmissionRun = jobRuns(protectedAdmission);
   const protectedAdmissionEvidence = jobEvidenceText(protectedAdmission);
   if (
     !protectedAdmission
-    || protectedAdmission.if !== "${{ inputs.operation == 'standard' }}"
+    || protectedAdmission.if !== "${{ inputs.entry == 'framework_release' && inputs.operation == 'standard' }}"
     || Object.prototype.hasOwnProperty.call(protectedAdmission, 'needs')
     || protectedAdmission.environment !== 'release-stable'
     || !exactObject(protectedAdmission.permissions, exactReadPermissions)
