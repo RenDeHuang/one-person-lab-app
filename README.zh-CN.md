@@ -70,7 +70,7 @@ App 负责把入口、进度、文件和交付体验做好；医学研究、基�
 
 ## 设计理念
 
-想了解 OPL App 为什么从工作目的开始、如何让成果带着来路，以及为什么把内部诊断留在需要时才展开，请阅读 [OPL App 白皮书（HTML）](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html) 或 [PDF 版本](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.pdf)。
+想了解 OPL App 为什么从工作目的开始、如何让成果带着来路，以及为什么把内部诊断留在需要时才展开，请阅读 [OPL App 白皮书（HTML）](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.html) 或 [PDF 版本](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.pdf)。
 
 ## 下载与安装
 

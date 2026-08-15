@@ -58,8 +58,9 @@ Enter general work, medical research, grant writing, presentation preparation, a
 Use the same OPL task, artifact, progress, and receipt language in a Desktop
 window or through the WebUI packaged in macOS/Linux Desktop. Docker WebUI is a
 separately versioned container product line for server and isolated deployment.
-A hosted Workspace may reuse this surface only after its X0 owner/backend gates
-are met.
+OPL Cloud online workspaces share the same task, artifact, progress, and
+responsibility language, entering the App through real product and runtime
+projections.
 
 **Visible progress for long tasks**<br/>
 The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
@@ -78,7 +79,7 @@ The app is not just for one chat. It supports work that needs multiple rounds, b
 
 ## Design Rationale
 
-Read the [OPL App whitepaper (HTML)](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.html) or [PDF edition](https://gaofeng21cn.github.io/one-person-lab-app/latest/whitepapers/opl-app-whitepaper.pdf) to understand why the App starts from the user's purpose, keeps results traceable, and reveals internal diagnostics only when they help a decision.
+Read the [OPL App whitepaper (HTML)](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.html) or [PDF edition](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.pdf) to understand why the App starts from the user's purpose, keeps results traceable, and reveals internal diagnostics only when they help a decision.
 
 ## Download And Install
 
