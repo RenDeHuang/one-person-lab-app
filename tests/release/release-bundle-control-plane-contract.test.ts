@@ -72,6 +72,22 @@ test("Framework owns the live immutable Release Bundle and App remains a product
     rule: control.framework_authority.rule,
     portable_checkpoint_authority_first_landed_sha: "f785cda96",
     consumed_abi_sha: "bee837d46a3695710c93c3acc69c10eb1d900167",
+    cordis_composition: {
+      host_owner: "OPL Framework",
+      host_count: 1,
+      app_host_created: false,
+      release_operation_plugin: "opl-connect-release-operation",
+      release_operation_scope: "request",
+      app_role: "read_only_framework_cli_consumer_and_product_policy_adapter",
+      gui_role: "AionUI_or_Electron_Shell_renderer_consumer_not_a_Framework_plugin_host",
+      canary: {
+        script: "scripts/validate-framework-release-cli-consumer.ts",
+        mode: "read_only_missing_bundle_status",
+        external_write_allowed: false,
+        expected_exit_code: 3,
+        expected_error_code: "contract_file_missing",
+      },
+    },
   });
   assert.deepEqual(control.app_authority.owns, [
     "product_release_adapter",

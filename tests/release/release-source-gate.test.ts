@@ -173,7 +173,7 @@ test('Framework release CLI consumer runs direct executable specs after an isola
   fs.writeFileSync(path.join(frameworkRoot, 'scripts', 'prepare.mjs'), "import fs from 'node:fs'; fs.writeFileSync('prepare-ran', 'unexpected\\n');\n");
   fs.writeFileSync(
     path.join(frameworkRoot, 'bin', 'opl'),
-    '#!/bin/sh\nset -eu\ntest ! -e prepare-ran\ntest ! -e src/entrypoints/cli/command-surface-manifest.ts\ntest "$1 $2 $3 $4" = "release checkpoint import --help"\nprintf "checkpoint import help\\n"\n',
+    '#!/bin/sh\nset -eu\ntest ! -e prepare-ran\ntest ! -e src/entrypoints/cli/command-surface-manifest.ts\nif test "$1 $2 $3 $4" = "release checkpoint import --help"; then\n  printf "checkpoint import help\\n"\n  exit 0\nfi\ntest "$1 $2" = "release status"\ntest "$7" = "--json"\nprintf \'{"version":"g2","error":{"code":"contract_file_missing"}}\\n\'\nexit 3\n',
     { mode: 0o755 },
   );
 
@@ -200,6 +200,9 @@ test('Framework release CLI consumer runs direct executable specs after an isola
     assert.equal(report.command_surface_source, 'executable_command_specs');
     assert.equal(report.surface_generation, 'not_invoked');
     assert.equal(report.release_cli_command, 'bin/opl release checkpoint import --help');
+    assert.equal(report.release_status_canary, 'bin/opl release status --bundle <zero-digest> --store <temporary-store> --json');
+    assert.equal(report.release_status_exit_code, 3);
+    assert.equal(report.release_status_surface, 'typed_contract_file_missing');
     assert.equal(git('status', '--porcelain', '--untracked-files=normal'), '');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

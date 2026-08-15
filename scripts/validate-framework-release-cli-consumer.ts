@@ -30,6 +30,9 @@ export type FrameworkReleaseCliConsumerReport = {
   command_surface_source: 'executable_command_specs';
   surface_generation: 'not_invoked';
   release_cli_command: 'bin/opl release checkpoint import --help';
+  release_status_canary: 'bin/opl release status --bundle <zero-digest> --store <temporary-store> --json';
+  release_status_exit_code: 3;
+  release_status_surface: 'typed_contract_file_missing';
   projection: 'temporary_exact_framework_archive';
   source_framework_mutated: false;
 };
@@ -57,6 +60,10 @@ function commandOutput(command: string, args: readonly string[], cwd: string, ti
     throw new Error(`${command} ${args.join(' ')} failed${detail ? `:\n${detail}` : ''}`);
   }
   return result.stdout;
+}
+
+function commandResult(command: string, args: readonly string[], cwd: string, timeoutMs?: number): CommandResult {
+  return run(command, args, cwd, timeoutMs);
 }
 
 export function runFrameworkReleaseCliConsumerGate(
@@ -91,6 +98,30 @@ export function runFrameworkReleaseCliConsumerGate(
     commandOutput('tar', ['-xf', archivePath, '-C', archiveRoot], frameworkRoot);
     commandOutput('npm', ['ci', '--ignore-scripts'], archiveRoot);
     commandOutput(path.join(archiveRoot, 'bin', 'opl'), releaseCliArgs, archiveRoot);
+    const statusStore = path.join(temporaryRoot, 'release-status-store');
+    const status = commandResult(
+      path.join(archiveRoot, 'bin', 'opl'),
+      [
+        'release',
+        'status',
+        '--bundle',
+        `sha256:${'0'.repeat(64)}`,
+        '--store',
+        statusStore,
+        '--json',
+      ],
+      archiveRoot,
+    );
+    if (status.status !== 3) {
+      throw new Error(`Framework release status canary must return typed read-only exit 3, got ${String(status.status)}: ${status.stderr || status.stdout}`);
+    }
+    const statusPayload = JSON.parse(status.stdout) as { error?: { code?: string } };
+    if (statusPayload.error?.code !== 'contract_file_missing') {
+      throw new Error(`Framework release status canary returned an unexpected error: ${status.stdout}`);
+    }
+    if (fs.existsSync(statusStore)) {
+      throw new Error('Framework release status canary must not create a release store for a missing Bundle.');
+    }
   } catch (error) {
     consumerFailure = error;
   } finally {
@@ -115,6 +146,9 @@ export function runFrameworkReleaseCliConsumerGate(
     command_surface_source: 'executable_command_specs',
     surface_generation: 'not_invoked',
     release_cli_command: 'bin/opl release checkpoint import --help',
+    release_status_canary: 'bin/opl release status --bundle <zero-digest> --store <temporary-store> --json',
+    release_status_exit_code: 3,
+    release_status_surface: 'typed_contract_file_missing',
     projection: 'temporary_exact_framework_archive',
     source_framework_mutated: false,
   };
