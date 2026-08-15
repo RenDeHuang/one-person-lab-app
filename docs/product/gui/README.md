@@ -35,8 +35,8 @@ OPL Cloud 通过同一 App/Framework ABI 提供在线产品 projection，
 但保留独立服务与数据 authority。
 ```
 
-历史十大品牌名在这里按跨 Framework、App、Cloud 与 domain owner 的 capability domains
-读取，不与 Package、源码目录、Cordis plugin 或 release artifact 一一对应。App 只持有唯一
+历史品牌名在这里按跨 Framework、App、Cloud 与 domain owner 的动态 capability domains
+读取，不构成固定数量的品牌、Package、源码目录、Cordis plugin 或 release artifact 清单。App 只持有唯一
 product/profile/GUI ABI/active-shell/release authority，不接管各 capability domain 的业务真相。
 
 `active_shell = aionui` 只由 [`contracts/app-shell-adapter.json`](../../../contracts/app-shell-adapter.json)
@@ -73,6 +73,12 @@ AionUI 可以通过薄 bridge 实现这条协议；Studio 可以原生采用 DSH
 形态。两个 Shell 都只能执行 Framework Host projection 与 App allowlist/profile 派生的
 graph；不能建立第二套 OPL Host，自行发现或安装 plugin，维护 Package registry/currentness，
 获得 release-operation，或拥有 task、Package、product、thread/history truth。
+
+“可替换”由 [`contracts/app-product-profile.json#client_renderer_compatibility`](../../../contracts/app-product-profile.json)
+和各 adapter 的 `client_renderer_admission` 共同证明。所有 App wrapper 在启动 Shell 命令前校验
+同一 Host graph source、App allowlist、typed slots/actions、state/action RPC、Client event、state
+semantics 与动态品牌能力投影；选择失败时不启动目标进程。该机制是显式 adapter 选择后的重新
+准入，不承诺未验证热切换，也不把 Studio candidate 提升为 active/release-ready。
 
 Host projection 是 App schema 约束的 closed allowlisted graph：Package 只提交 schema
 允许的 declarative view/command/badge 与 product-profile typed slots，再由 Framework Host

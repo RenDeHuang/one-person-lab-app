@@ -92,6 +92,14 @@ natively in the DSH style. The Framework Host producer and
 runtime conformance remains source- and test-proven; this App contract cannot
 substitute for either implementation's evidence.
 
+The adapter selected for any App command must first pass
+`client_renderer_compatibility`: the same Host graph source, App allowlist,
+contribution ABI, typed slots, state/action RPCs, Client event, state semantics,
+and dynamic brand-capability projection are checked before the Shell process is
+spawned. This is explicit adapter selection with compatibility admission, not
+an unvalidated in-process hot switch. Studio remains candidate-only until its
+separate adoption and release gates are complete.
+
 That Host projection is a closed allowlisted graph, not a browser-side Package
 discovery feed. `contracts/opl-app-contributions.schema.json` admits only the
 App-owned declarative fields and product-profile slots before the Framework Host

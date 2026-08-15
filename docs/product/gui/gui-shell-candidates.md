@@ -103,6 +103,11 @@ canonical thread history。迁移计划见
 | `local GUI launch target` | 本机本次打开 AionUI 或 Native | 每次 launch 局部选择；不得修改 active adapter、release role 或 updater channel。 |
 | `adoption / promotion` | 候选正式替换默认发布 GUI | 显式修改 active adapter，并完成完整 adoption/release/owner gates。 |
 
+每次 App wrapper 解析 active 或显式 candidate adapter 时，都必须先通过 App-owned
+`client_renderer_compatibility` / `client_renderer_admission`。该门禁验证两条 renderer 共享
+Host-derived graph、App allowlist、typed slots/actions、RPC/events 和 state semantics 后才允许
+启动命令；它不改变 active release shell，也不构成无验证热切换或 Studio release admission。
+
 本地启动 candidate 只证明该 bundle 可被选择和打开，不证明 adoption、release readiness
 或与 AionUI 的 Runtime/session parity。两个 bundle 可并存，但在 host coordination 与并发
 负向证据完成前，只承诺快速顺序切换，不承诺两个 GUI 同时写同一 workspace/thread 的安全性。

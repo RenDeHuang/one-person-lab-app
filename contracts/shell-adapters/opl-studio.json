@@ -107,6 +107,14 @@
     ],
     "upstream_intake_policy": "check_against_app_owned_gui_contracts_before_acceptance"
   },
+  "client_renderer_admission": {
+    "profile_ref": "contracts/app-product-profile.json#client_renderer_compatibility",
+    "renderer_id": "opl-studio",
+    "implementation_repo": "gaofeng21cn/opl-studio",
+    "implementation_role": "foreground_alternative_candidate_renderer",
+    "status": "candidate_validation_only_not_active_shell_admitted",
+    "hot_switch_without_revalidation_allowed": false
+  },
   "shell_replacement_policy": {
     "candidate_root_pattern": "shells/<candidate>",
     "candidate_state": "active_product_development_pre_adoption",

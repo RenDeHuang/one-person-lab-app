@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
-import { readAppShellAdapterContract } from '../../scripts/app-shell-adapter.ts';
+import {
+  readAppShellAdapterContract,
+  resolveClientRendererAdmission,
+} from '../../scripts/app-shell-adapter.ts';
 import { appOwnedOplStandardAgentMembershipPolicy } from '../../scripts/validate-active-shell/app-contract-constants.ts';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
 import {
@@ -39,15 +42,24 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
 });
 
 test('explicit Studio adapter keeps its candidate implementation role', () => {
-  assert.doesNotThrow(() =>
-    readAppShellAdapterContract('contracts/shell-adapters/opl-studio.json'),
-  );
+  const contract = readAppShellAdapterContract('contracts/shell-adapters/opl-studio.json');
+  const admission = resolveClientRendererAdmission(contract);
 
   const adapter = readJson<any>('contracts/shell-adapters/opl-studio.json');
   assert.equal(
     adapter.gui_authority.implementation_role,
     'foreground_alternative_candidate_implementation_carrier',
   );
+  assert.deepEqual(admission && {
+    rendererId: admission.rendererId,
+    status: admission.status,
+    selectionMode: admission.selectionMode,
+  }, {
+    rendererId: 'opl-studio',
+    status: 'candidate_validation_only_not_active_shell_admitted',
+    selectionMode: 'candidate_validation_only',
+  });
+  assert.equal(admission?.compatibility.hot_switch_without_revalidation_allowed, false);
 });
 
 test('archived Hermes replay requires an explicit user-requested historical replay', () => {

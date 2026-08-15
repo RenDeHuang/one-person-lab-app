@@ -46,6 +46,12 @@ carrier-neutral B0/R1/U1/X0 目标和 carrier contract，再落 source/behavior�
 source/package 的 pixels、安装后 readback 和 release-owner cohort。各 lane 可以并行准备，但后轴
 不能回填前轴，前轴通过也不能外推后轴；任何摘要都必须保留五轴原状态。
 
+Renderer replacement 另有一个前置 compatibility/admission 轴：App wrapper 必须在启动命令前
+验证 Host-derived graph、App allowlist、Contribution ABI、typed slots/actions、RPC/events 和
+state semantics。当前 AionUI 是 `admitted_current_active_shell`；Studio 仍是
+`candidate_validation_only_not_active_shell_admitted`。通过该轴只允许显式选择并启动相应 adapter，
+不能回填 Pixel、Install、Release，也不等于运行中无验证热切换。
+
 R1/U1 功能实现程度不得再用 `2/4`、`3/4` 等单一分数表示；这种写法会把 contract、source、
 pixel、install 和 release 混成一个不可审计结论。需要功能摘要时仍逐轴报告，不能把
 `source_implemented` 外推为 installed 或 released。

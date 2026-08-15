@@ -91,12 +91,36 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.package_gui_contribution_policy, 'app_schema_admitted_declarative_only_then_framework_host_projected');
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_authority_policy, 'render_and_dispatch_only_no_plugin_discovery_install_registry_currentness_release_operation_task_package_or_product_truth');
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_cordis_graph, 'derived_from_framework_host_graph_and_app_product_profile_slot_policy');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_renderer_compatibility_profile, 'client_renderer_compatibility');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_renderer_switch_policy, 'explicit_adapter_selection_after_compatibility_admission_never_unverified_hot_switch');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.brand_capability_projection_policy, 'dynamic_framework_host_projection_no_fixed_brand_or_domain_registry_in_app_or_client');
   assert.deepEqual(profile.delivery_topology.minimum_complete_product.composition_model.shared_shell_consumers, ['opl-aion-shell', 'opl-studio']);
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.independent_host_truth_allowed, false);
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.second_client_composition_graph_allowed, false);
   assert.equal(profile.delivery_topology.minimum_complete_product.update_ownership.agent_packages, 'part_of_opl_packages_never_a_fourth_updater');
   assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.strategy, 'establish_then_replace');
   assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.aionui_remains_only_mainline_until_cutover, true);
+  assert.deepEqual(profile.client_renderer_compatibility, {
+    schema: 'opl_app_client_renderer_compatibility.v1',
+    owner: 'one-person-lab-app',
+    host_composition_authority: 'one-person-lab-framework',
+    host_graph_source: 'app_state.ui_contributions',
+    host_projection_schema: 'opl_app_ui_contributions_projection.v1',
+    contribution_abi: 'opl_app_client_contributions.v1',
+    allowlist_contract: 'contracts/opl-app-contributions.schema.json',
+    typed_slots: ['settings.section', 'runtime.detail', 'composer.palette'],
+    typed_state_rpc: 'opl app state --profile fast --json',
+    typed_action_rpc: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',
+    typed_client_event: 'opl/app-client-contributions/updated',
+    state_semantics_contract: 'contracts/app-runtime-bridge.json',
+    client_authority_policy: 'render_and_dispatch_only_no_plugin_discovery_install_registry_currentness_release_operation_task_package_or_product_truth',
+    switch_policy: 'explicit_adapter_selection_after_compatibility_admission_never_unverified_hot_switch',
+    hot_switch_without_revalidation_allowed: false,
+    brand_capability_projection_policy: 'dynamic_framework_host_projection_no_fixed_brand_or_domain_registry_in_app_or_client',
+    app_fixed_brand_registry_allowed: false,
+    client_fixed_brand_registry_allowed: false,
+    display_and_allowlist_owner: 'one-person-lab-app',
+  });
   assert.equal(candidates.active_shell_unchanged, 'aionui');
   const studio = candidates.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(studio);

@@ -279,6 +279,14 @@
     ],
     "upstream_intake_policy": "check_against_app_owned_gui_contracts_before_acceptance"
   },
+  "client_renderer_admission": {
+    "profile_ref": "contracts/app-product-profile.json#client_renderer_compatibility",
+    "renderer_id": "aionui",
+    "implementation_repo": "gaofeng21cn/opl-aion-shell",
+    "implementation_role": "active_release_renderer",
+    "status": "admitted_current_active_shell",
+    "hot_switch_without_revalidation_allowed": false
+  },
   "shell_replacement_policy": {
     "candidate_root_pattern": "shells/<candidate>",
     "candidate_state": "candidate_until_contracts_and_tests_complete",
