@@ -40,8 +40,8 @@ OPL App 也不是只能装在一台 Mac 上的本地工具。对用户发布的 
 Desktop，提供 Standard 与 Full 两种载荷密度。macOS 与 Linux Desktop 可在 headless
 host 上运行，并通过浏览器访问同一个内置 WebUI。Docker WebUI 是独立容器产品线，
 不是 Desktop follower，也不属于 Desktop GitHub Release。
-Hosted OPL Workspace 是 X0-03 条件 route，只有真实账号、存储、隔离、backend
-和 owner policy 就绪后才出现，不是当前普通产品承诺。
+OPL Cloud 是与 Base、App、Packages 并列的第四层产品，正在建设和持续交付。
+OPL Cloud 在线工作空间按照真实产品与运行证据接入同一套工作台语义。
 
 ## 核心亮点
 
@@ -51,7 +51,7 @@ Hosted OPL Workspace 是 X0-03 条件 route，只有真实账号、存储、隔�
 **桌面与浏览器共享一套工作台**<br/>
 用户可以在 Desktop 窗口中使用，也可以通过 macOS/Linux Desktop 自带的 WebUI 在
 浏览器中访问同一工作台。Docker WebUI 是面向服务器与隔离部署的独立容器产品线。
-Hosted Workspace 只有满足 X0 owner/backend gate 后才复用这套体验。
+OPL Cloud 在线工作空间与本机工作台共享任务、成果、进度和责任语言，并以真实的产品与运行投影进入 App。
 
 **看得见长任务进度**<br/>
 应用展示任务进展、文件、运行状态和可继续的上下文。用户回来时可以直接看到做到了哪一步、有哪些结果、是否需要人工处理。
@@ -246,7 +246,7 @@ Linux x64 使用 Latest Release 的 `.deb` 与
 One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 
 - 从一个桌面界面进入通用工作，以及科研、基金、演示、写书四个默认目的入口。
-- 在 macOS 桌面与本机/服务器浏览器 WebUI 之间保留同一套工作台语义；Hosted Workspace 仍是条件 X0-03。
+- 在 macOS 桌面、本机/服务器浏览器 WebUI 与 OPL Cloud 在线工作空间之间保留同一套工作台语义。
 - 默认提供科研、基金、演示和写书入口；更多专业能力由可扩展 Agent Packages 提供。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
 - 首次启动先完成最基本的可用准备，再让更完整的运行环境和专业 Agent 载荷在后台维护。
@@ -277,9 +277,8 @@ App 决定用户看到的安装形态、默认入口、首次启动体验和设�
 
 当前 OPL App 工作台发布为 Desktop Standard 或 Full；macOS/Linux Desktop 的内置
 WebUI 可从浏览器使用，包括 headless host。Docker WebUI 是独立容器产品线。
-Hosted OPL Workspace 是 X0-03，只有
-真实账号、存储、隔离、backend 和 owner policy 存在时才可复用这套语言；本仓不为
-它维护 placeholder state 或默认发布义务。
+OPL Cloud 在线工作空间沿用同一套任务、成果、进度和责任语言。
+App 根据当前的产品与运行投影呈现云端能力，OPL Cloud 持续交付在线服务并维护相应产品事实。
 
 GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；OPL Studio 是开发备选和 foreground candidate；Hermes Desktop / `hermes-codex` 保留为 prior-candidate reference。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 

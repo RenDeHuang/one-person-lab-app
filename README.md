@@ -45,9 +45,9 @@ The first-party successor target is one DSH-derived WebUI and shared Node host c
 Electron is the thin macOS/Windows/Linux desktop carrier, while standalone
 headless WebUI and Docker use HTTP/SSE without Electron. This is a target topology,
 not a claim that those successor carriers have been adopted or released.
-Hosted OPL Workspace is a conditional X0-03 route
-that appears only after account, storage, isolation, backend, and owner policy
-are available; it is not a current ordinary product promise.
+OPL Cloud is the fourth OPL product layer and is being built and delivered
+alongside Base, App, and Packages. Its online workspace capabilities enter the
+same workbench through current product and runtime projections.
 
 ## Core Highlights
 
@@ -290,7 +290,7 @@ artifact must not be represented as signed.
 One Person Lab App is the daily chat-first desktop entry point for users:
 
 - Enter general work, medical research, grant writing, presentation preparation, and book writing from one desktop interface.
-- Keep the same workbench semantics across the macOS App and local/server browser WebUI; hosted Workspace remains conditional X0-03.
+- Keep the same workbench semantics across the macOS App, local/server browser WebUI, and OPL Cloud online workspaces.
 - Enter Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
 - Complete the minimum first-run setup before the user starts, then let fuller runtime and professional-agent payloads continue as background maintenance.
@@ -321,10 +321,10 @@ The App decides what users see during install, first launch, task entry, and set
 
 The current OPL App workbench is released as Desktop Standard or Full. Its
 built-in WebUI can be used from a browser on macOS and Linux, including
-headless hosts. Docker WebUI is a separate container product line. Hosted OPL
-Workspace is X0-03 and may reuse that language only
-when its real account, storage, isolation, backend, and owner policy exist; no
-placeholder state or default release obligation follows from this repository.
+headless hosts. Docker WebUI is a separate container product line. OPL Cloud
+online workspaces extend the same task, artifact, progress, and responsibility
+language. The App presents capabilities supported by current product and
+runtime projections, while OPL Cloud owns delivery of the online services.
 
 OPL Book Forge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
