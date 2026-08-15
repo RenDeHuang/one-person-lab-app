@@ -78,8 +78,9 @@ Host projection 是 App schema 约束的 closed allowlisted graph：Package 只�
 允许的 declarative view/command/badge 与 product-profile typed slots，再由 Framework Host
 投影。GUI action 只能携带 `action_ref`，并经 canonical App action bridge 执行；组件代码、
 HTML、路径、URL、handler 或任意插件对象不得进入 Client graph。AionUI 与 Studio 必须实现
-同一规则，而不是各自维护 allowlist。Framework P7 的真实 producer/projection 与端到端
-conformance 尚未 landed；这里定义的是 App consumer contract，不是 live completion 证明。
+同一规则，而不是各自维护 allowlist。Framework Host producer 与
+`app_state.ui_contributions` projection 已 canonical；每个 Shell 的 Client runtime
+conformance 仍必须由其真实 source/tests 单独证明，App contract 本身不能代替该证据。
 
 OPL App GUI 使用三层设计体系：
 

@@ -51,8 +51,8 @@ OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模�
 两个 Shell 的 Client Cordis 必须消费同一 Host-projected allowlisted graph、typed
 slots/actions、RPC/events 与产品状态语义。Client 只渲染并经 canonical App action bridge
 派发：不得自行发现/安装 plugin、维护 registry/currentness、获得 release-operation，或拥有
-task、Package、product truth。Framework P7 producer/projection 尚未 landed，因此本节是
-统一目标与 consumer contract，不是双 GUI runtime conformance 完成声明。
+task、Package、product truth。Framework Host producer/projection 已 canonical；本节只冻结
+两个 Shell 的统一 consumer contract，不替代各 Shell 自己的 runtime conformance 证据。
 
 三仓的终态关系固定为“一个产品 authority、两个可替换 Shell 实现”：
 

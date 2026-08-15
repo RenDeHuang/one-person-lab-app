@@ -87,9 +87,10 @@ The Framework Host freezes the graph and projects bounded declarative client
 contributions. A Shell reads the App-owned boot/profile, creates its Client
 Cordis, loads only that Host-derived graph, and mounts contributions into typed
 slots. AionUI may implement this through a thin bridge; Studio may implement it
-natively in the DSH style. The Framework P7 producer/projection and end-to-end
-producer-consumer conformance are still pending; these App contracts do not
-claim that runtime path is already live.
+natively in the DSH style. The Framework Host producer and
+`app_state.ui_contributions` projection are canonical. Each Shell's Client
+runtime conformance remains source- and test-proven; this App contract cannot
+substitute for either implementation's evidence.
 
 That Host projection is a closed allowlisted graph, not a browser-side Package
 discovery feed. `contracts/opl-app-contributions.schema.json` admits only the

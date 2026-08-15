@@ -1529,7 +1529,7 @@
         "typed_action_policy": "action_refs_only_via_canonical_app_action_bridge",
         "framework_host_composition_authority": "one-person-lab-framework",
         "app_authority_policy": "one-person-lab-app_owns_product_profile_gui_abi_active_shell_and_release",
-        "framework_projection_runtime_status": "framework_p7_pending_producer_landing_and_conformance",
+        "framework_projection_runtime_status": "framework_host_projection_active",
         "shared_transport_policy": "framework_host_projected_typed_rpc_reads_typed_events_and_canonical_app_actions",
         "shared_product_state_semantics": true,
         "package_gui_contribution_policy": "app_schema_admitted_declarative_only_then_framework_host_projected",
