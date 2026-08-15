@@ -320,9 +320,18 @@
         "registration_lifecycle": "reuse_pinned_deepseek_harness_slot_registration_ordering_error_isolation_and_disposal",
         "spatial_scope": "contributions_mount_only_in_declared_slots",
         "temporal_scope": "contributions_register_and_dispose_with_package_session_or_page_scope",
-        "cordis_learning": "service_provider_consumer_and_lifecycle_composition_principles_only",
-        "second_plugin_runtime_allowed": false,
+        "app_client_contribution_abi": "opl_app_client_contributions.v1",
+        "framework_host_graph_source": "app_state.ui_contributions",
+        "client_cordis_graph": "derived_from_framework_host_graph_and_app_product_profile_slot_policy",
+        "shared_shell_consumers": [
+          "opl-aion-shell",
+          "opl-studio"
+        ],
+        "renderer_and_package_carrier_may_differ": true,
+        "independent_host_truth_allowed": false,
+        "second_client_composition_graph_allowed": false,
         "second_package_registry_allowed": false,
+        "second_currentness_authority_allowed": false,
         "second_state_or_action_truth_allowed": false
       },
       "explicit_non_goals": [

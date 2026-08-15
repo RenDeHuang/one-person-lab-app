@@ -42,6 +42,47 @@ any compliant package, shell, registry, or deployment carrier can be added,
 removed, or replaced without editing the App for every package. The same
 generic complexity must have one owner.
 
+The App repository is the single product and release authority above two
+replaceable Shell implementations:
+
+```text
+OPL Framework (single Host Cordis)
+  -> frozen Host graph and App state/action projection
+    -> one-person-lab-app product profile + Client Cordis/GUI ABI
+      -> opl-aion-shell (current Stable AionUI carrier)
+      -> opl-studio (DSH-derived candidate carrier)
+```
+
+Both Shells must implement the same product semantics, runtime bridge, typed
+slots/routes/actions, GUI contribution schema, accessibility policy, and release
+evidence categories. They may keep independent renderers, component trees,
+Electron/Node carriers, AionCore/Codex adapters, upstream intake, caches, build
+systems, Git histories, and implementation tests. Neither Shell may own a
+second OPL Host, Package registry/currentness, Codex thread history, domain
+truth, or release policy.
+
+The GUI is a Host/Client composition, not Node rendering React directly. The
+Framework freezes the Host graph and projects bounded declarative client
+contributions. A Shell reads the App-owned boot/profile, creates its Client
+Cordis, loads only that Host-derived graph, and mounts contributions into typed
+slots. AionUI may implement this through a thin bridge; Studio may implement it
+natively in the DSH style.
+
+Each App release freezes one composition tuple:
+
+```text
+App product version
+  + Framework compatibility
+  + selected Shell identity/version
+  + GUI ABI version
+  + Client composition snapshot
+  + contribution versions
+```
+
+Only `contracts/app-shell-adapter.json` selects the release Shell;
+`contracts/app-shell-candidates.json` records candidates. Candidate source or
+feature completion cannot promote itself into the release tuple.
+
 First-party OPL Packages currently publish their complete official bytes to
 independent GHCR repositories. Immutable version refs identify exact bytes,
 `candidate` carries Preview input, and each Package owner alone advances its

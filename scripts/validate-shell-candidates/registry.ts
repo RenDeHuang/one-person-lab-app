@@ -661,7 +661,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state',
     'slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation',
     'OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices',
-    'existing Framework modular-monolith and native Package lifecycle boundaries remain authoritative and are not replaced by Cordis',
+    'Framework remains the only authoritative Package Host graph; each GUI Client Cordis graph is derived from that Host projection plus the App product profile and slot policy',
   ], 'DeepSeek Harness opl_mapping');
   assertStringArrayIncludes(deepseekHarness.forbidden_reuse, [
     'do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority',

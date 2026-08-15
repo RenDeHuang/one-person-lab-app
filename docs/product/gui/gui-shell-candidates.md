@@ -43,6 +43,19 @@ OPL App 采用“同一逻辑基座、多个独立 GUI 客户端”的运行模�
 或构建链。这个关系类似同一个语言 Runtime 可以被多个 IDE 使用，而不是把两个 IDE
 合并进同一个依赖树。
 
+三仓的终态关系固定为“一个产品 authority、两个可替换 Shell 实现”：
+
+| 仓库 | 终态职责 | 明确不拥有 |
+| --- | --- | --- |
+| `one-person-lab-app` | 产品行为、导航、页面状态、GUI contribution ABI、Client Cordis profile、active shell、版本组合与发布门禁 | Electron/React 具体实现、AionUI/DSH 上游源码 |
+| `opl-aion-shell` | 当前 Stable 的 AionUI renderer、Electron/preload、AionCore/Codex 适配和安装实现 | OPL 产品定义、插件名单、发布策略 |
+| `opl-studio` | DSH 风格 Client Cordis、Codex App Server carrier 和 Studio renderer 的下一代候选实现 | 第二套 OPL 产品 authority、擅自声明 active/release-ready |
+
+共享产品逻辑只能沉淀为 App contracts/profile、Framework ABI、GUI contribution schema
+或独立 Package；不能从一个 Shell 复制到另一个。Shell 切换只需在 App 主仓通过
+`app-shell-adapter.json` 冻结新的 selected Shell 和组合版本，不需要迁移 Framework
+authority 或重写另一 Shell。
+
 | Surface | Owner / sharing rule | Current boundary |
 | --- | --- | --- |
 | GUI product truth、profile、page-state | `one-person-lab-app`，两个 shell 共用 | 已有 machine contracts。 |
@@ -93,7 +106,10 @@ requests that archived proof.
 DeepSeek Harness is not another shell role. It is a pinned design and bounded
 source dependency for the sole foreground candidate route, `opl-studio`.
 AionUI consumes only the OPL-owned contribution ABI through a thin adapter and
-does not import DeepSeek Harness, Cordis, or a second plugin runtime.
+does not import DeepSeek Harness GUI/runtime source. Both shells may run the
+single App-approved Client Cordis graph derived from the Framework Host graph;
+neither may create independent Host truth, Package discovery, registry,
+currentness, state, session, or action authority.
 The evaluation and controlled migration plan lives in
 [`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md).
 

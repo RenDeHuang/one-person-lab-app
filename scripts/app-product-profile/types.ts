@@ -212,9 +212,15 @@ export type AppDeliveryTopology = {
       registration_lifecycle: string;
       spatial_scope: string;
       temporal_scope: string;
-      cordis_learning: string;
-      second_plugin_runtime_allowed: false;
+      app_client_contribution_abi: 'opl_app_client_contributions.v1';
+      framework_host_graph_source: 'app_state.ui_contributions';
+      client_cordis_graph: string;
+      shared_shell_consumers: ['opl-aion-shell', 'opl-studio'];
+      renderer_and_package_carrier_may_differ: true;
+      independent_host_truth_allowed: false;
+      second_client_composition_graph_allowed: false;
       second_package_registry_allowed: false;
+      second_currentness_authority_allowed: false;
       second_state_or_action_truth_allowed: false;
     };
     explicit_non_goals: string[];

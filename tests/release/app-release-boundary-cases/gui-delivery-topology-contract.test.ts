@@ -77,6 +77,11 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
     'runtime.detail',
     'composer.palette',
   ]);
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.app_client_contribution_abi, 'opl_app_client_contributions.v1');
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_cordis_graph, 'derived_from_framework_host_graph_and_app_product_profile_slot_policy');
+  assert.deepEqual(profile.delivery_topology.minimum_complete_product.composition_model.shared_shell_consumers, ['opl-aion-shell', 'opl-studio']);
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.independent_host_truth_allowed, false);
+  assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.second_client_composition_graph_allowed, false);
   assert.equal(profile.delivery_topology.minimum_complete_product.update_ownership.agent_packages, 'part_of_opl_packages_never_a_fourth_updater');
   assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.strategy, 'establish_then_replace');
   assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.aionui_remains_only_mainline_until_cutover, true);

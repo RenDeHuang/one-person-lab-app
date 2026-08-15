@@ -1518,8 +1518,16 @@
         "ui_command_ids": "must_reference_local_commands_command_id"
       },
       "ui_composition": {
+        "app_client_contribution_abi": "opl_app_client_contributions.v1",
         "projection_source": "app_state.ui_contributions",
         "projection_schema": "opl_app_ui_contributions_projection.v1",
+        "framework_host_graph_owner": "one-person-lab-framework",
+        "client_cordis_graph_policy": "derive_from_framework_host_graph_projection_and_app_product_profile_slot_policy",
+        "shared_shell_consumers": [
+          "opl-aion-shell",
+          "opl-studio"
+        ],
+        "renderer_and_package_carrier_may_differ": true,
         "slots": [
           "composer.palette",
           "runtime.detail",
@@ -1541,9 +1549,14 @@
         "identity_policy": "package_id_colon_contribution_id",
         "unknown_kind_policy": "render_local_fallback_without_disabling_other_contributions",
         "lifecycle_policy": "register_from_current_projection_and_remove_immediately_when_package_is_disabled_or_uninstalled",
-        "shell_implementation_policy": "consume_projection_through_existing_shell_extension_surfaces_without_a_second_plugin_manager",
-        "native_candidate_host": "reuse_DeepSeek_Harness_SlotCore_createSlotRenderer_and_ui_primitives",
-        "active_aionui_host": "thin_OPL_owned_adapter_over_existing_AionUI_components_and_registries",
+        "shell_implementation_policy": "consume_the_host_derived_client_graph_through_renderer_native_extension_surfaces_without_independent_package_discovery_or_plugin_manager",
+        "native_candidate_host": "host_derived_Client_Cordis_via_DeepSeek_Harness_SlotCore_createSlotRenderer_and_ui_primitives",
+        "active_aionui_host": "host_derived_Client_Cordis_via_thin_OPL_owned_adapter_over_existing_AionUI_components",
+        "independent_host_truth_allowed": false,
+        "second_package_registry_allowed": false,
+        "second_currentness_authority_allowed": false,
+        "second_state_or_action_authority_allowed": false,
+        "second_client_composition_graph_allowed": false,
         "active_shell_adopted": true,
         "release_ready": false,
         "clean_vm_ready": false

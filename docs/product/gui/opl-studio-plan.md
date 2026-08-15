@@ -105,9 +105,11 @@ The product kernel owns navigation, Codex thread/turn transport, the Settings
 host, permissions, and the action broker. Packages may contribute only through
 declared `settings.section`, `runtime.detail`, and `composer.palette` slots.
 Studio reuses pinned DeepSeek Harness registration, ordering, error isolation,
-and disposal. Cordis contributes the service/provider/consumer and temporal
-lifecycle model only; neither Cordis nor DSH becomes a second Package registry,
-state store, updater, or runtime authority.
+and disposal. AionUI and Studio consume one App Client Contribution ABI and one
+App-owned profile/slot policy. Each shell's Client Cordis graph derives from the
+Framework Host graph projection; neither Cordis nor DSH becomes an independent
+Host, Package registry, currentness, state store, updater, session, action, or
+runtime authority.
 
 ## Current Boundary
 

@@ -11,6 +11,56 @@ Machine boundary: 本目录是人读产品设计与实现指引。GUI machine tr
 
 ## 结论
 
+### 一个 App 产品、两个可替换 Shell
+
+OPL App 不是两个 GUI 产品，而是一个产品 authority 配两个可替换实现：
+
+```text
+OPL Framework
+  Host Cordis、状态/动作服务、Package 与 runtime 能力
+          |
+          v
+one-person-lab-app
+  App 产品 SSOT、Client profile、GUI ABI、发布 authority
+          |
+          +-- opl-aion-shell   当前 Stable Shell，AionUI 薄适配
+          `-- opl-studio       DSH-native 下一代候选 Shell
+```
+
+`active_shell = aionui` 只由 [`contracts/app-shell-adapter.json`](../../../contracts/app-shell-adapter.json)
+决定；Studio 的候选身份由 [`contracts/app-shell-candidates.json`](../../../contracts/app-shell-candidates.json)
+管理。Studio 完成源码、功能或候选验证，不会自动改变 active shell、发布渠道或 release
+readiness。
+
+两种 Shell 必须统一产品语义、`opl app state/action` 与 runtime bridge、Client Cordis
+组合协议、GUI contribution ABI、设计/可访问性语义，以及 contract/功能/GUI/安装/安全/
+更新/release 证据类别。它们不需要统一 React 组件树、CSS、Electron/Node carrier、
+AionCore/Codex 适配、上游同步策略、缓存或 Git 分支。
+
+一次 App 发布冻结一组可回读的组合输入：
+
+```text
+App product version
+  + Framework compatibility
+  + selected Shell identity/version
+  + GUI ABI version
+  + Client composition snapshot
+  + contribution versions
+```
+
+GUI 的技术形态是 Host/Client 双运行面，而不是 Framework Node 直接渲染 React：
+
+```text
+读取 App-owned boot/profile
+  -> 创建 Client Cordis
+    -> 装载 Host projection 中的 GUI contributions
+      -> 投影到 typed slots/routes/actions
+```
+
+AionUI 可以通过薄 bridge 实现这条协议；Studio 可以原生采用 DSH 的 Client Cordis
+形态。两个 Shell 都不能建立第二套 OPL Host、Package registry、thread/history、
+currentness 或产品发布 authority。
+
 OPL App GUI 使用三层设计体系：
 
 1. **功能层**回答“产品必须具备什么能力”。
@@ -58,8 +108,11 @@ DeepSeek Harness 的 GUI 与“一切皆插件”理念已作为外部学习落�
 允许直接复用 DSH slot/renderer/primitives 的 foreground route；AionUI 只消费 OPL-owned
 contribution ABI。App contract、Framework projection/action ABI、Codex thread authority 和
 Package owner 边界不变；Studio 直接使用 DSH AppFrame/sidebar/conversation/composer/Settings/theme
-作为宿主，OPL 功能通过 slots 注入，不再仿写 Codex App 布局。DSH runtime、Cordis 和第二
-plugin manager 不进入 AionUI。
+作为宿主，OPL 功能通过 slots 注入，不再仿写 Codex App 布局。DSH GUI/runtime 源仍只属于
+Studio；AionUI 与 Studio 都消费同一个 App Client Contribution ABI、App product profile 和
+slot policy，并只允许运行由 Framework Host graph 投影派生的 Client Cordis。禁止的是独立
+Host truth、第二 Package registry/currentness/action authority 或第二 plugin manager，而不是
+GUI 侧 Cordis 本身。
 
 Successor 的交付拓扑由 `app-product-profile.json#delivery_topology` 单点定义：一套 DSH-derived
 React renderer 和 shared Node host core，Electron 薄壳承载 macOS/Windows/Linux，HTTP/SSE
