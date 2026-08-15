@@ -79,7 +79,16 @@ test("Framework owns the live immutable Release Bundle and App remains a product
       release_operation_plugin: "opl-connect-release-operation",
       release_operation_scope: "request",
       app_role: "read_only_framework_cli_consumer_and_product_policy_adapter",
-      gui_role: "AionUI_or_Electron_Shell_renderer_consumer_not_a_Framework_plugin_host",
+      gui_role: "host_projected_allowlisted_client_cordis_consumer",
+      client_cordis: {
+        composition_authority: "OPL Framework Host",
+        graph_source: "host_projected_allowlist",
+        independent_plugin_discovery_allowed: false,
+        package_install_authority: false,
+        package_currentness_authority: false,
+        app_product_truth_authority: false,
+        release_operation_service_exposed: false,
+      },
       canary: {
         script: "scripts/validate-framework-release-cli-consumer.ts",
         mode: "read_only_missing_bundle_status",
