@@ -74,10 +74,18 @@
     "implementation": "scripts/desktop-release-carrier.ts",
     "carrier_manifest_schema": "opl_app_desktop_release_carrier.v1",
     "carrier_manifest_adapter_path": "shell_contract.paths.desktop_release_carrier_manifest",
-    "toolchain": {
-      "electron": "37.10.3",
-      "electron_builder": "26.15.3",
-      "electron_updater": "6.8.3"
+    "toolchain_profile_selector": "carrier_id",
+    "toolchain_profiles": {
+      "aionui": {
+        "electron": "41.10.3",
+        "electron_builder": "26.15.3",
+        "electron_updater": "6.8.9"
+      },
+      "opl-studio": {
+        "electron": "43.4.0",
+        "electron_builder": "26.15.3",
+        "electron_updater": "6.8.9"
+      }
     },
     "macos": {
       "targets": [
@@ -106,7 +114,7 @@
     ],
     "app_owned": [
       "product_and_channel_policy",
-      "toolchain_floor",
+      "carrier_toolchain_profiles",
       "signing_notarization_and_stapling",
       "publication_compare_and_swap",
       "anonymous_public_readback",

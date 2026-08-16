@@ -296,9 +296,7 @@ function validateDesktopReleaseKernel(kernel) {
     || kernel?.implementation !== 'scripts/desktop-release-carrier.ts'
     || kernel?.carrier_manifest_schema !== 'opl_app_desktop_release_carrier.v1'
     || kernel?.carrier_manifest_adapter_path !== 'shell_contract.paths.desktop_release_carrier_manifest'
-    || kernel?.toolchain?.electron !== '37.10.3'
-    || kernel?.toolchain?.electron_builder !== '26.15.3'
-    || kernel?.toolchain?.electron_updater !== '6.8.3'
+    || kernel?.toolchain_profile_selector !== 'carrier_id'
     || kernel?.macos?.dmg_format !== 'ULFO'
     || kernel?.macos?.hardened_runtime_required !== true
     || kernel?.updater?.provider !== 'github'
@@ -310,6 +308,22 @@ function validateDesktopReleaseKernel(kernel) {
   ) {
     throw new Error('Desktop release kernel must remain App-owned with isolated active and preview product identities');
   }
+  assertDeepEqualJson(
+    kernel.toolchain_profiles,
+    {
+      aionui: {
+        electron: '41.10.3',
+        electron_builder: '26.15.3',
+        electron_updater: '6.8.9',
+      },
+      'opl-studio': {
+        electron: '43.4.0',
+        electron_builder: '26.15.3',
+        electron_updater: '6.8.9',
+      },
+    },
+    'Desktop release kernel carrier toolchain profiles',
+  );
   assertDeepEqualJson(kernel.macos.targets, ['dmg', 'zip'], 'Desktop release kernel macOS targets');
   assertDeepEqualJson(
     kernel.updater.metadata,

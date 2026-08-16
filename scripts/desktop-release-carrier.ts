@@ -10,6 +10,12 @@ import {
 
 type CarrierRole = 'active_stable' | 'candidate_preview';
 
+type DesktopReleaseToolchain = {
+  electron: string;
+  electron_builder: string;
+  electron_updater: string;
+};
+
 type DesktopReleaseCarrierManifest = {
   schema: 'opl_app_desktop_release_carrier.v1';
   owner_repo: string;
@@ -39,11 +45,8 @@ type DesktopReleaseKernelContract = {
   implementation: string;
   carrier_manifest_schema: 'opl_app_desktop_release_carrier.v1';
   carrier_manifest_adapter_path: string;
-  toolchain: {
-    electron: string;
-    electron_builder: string;
-    electron_updater: string;
-  };
+  toolchain_profile_selector: 'carrier_id';
+  toolchain_profiles: Record<string, DesktopReleaseToolchain>;
   macos: {
     targets: string[];
     dmg_format: string;
@@ -97,7 +100,7 @@ export type DesktopReleaseCarrier = {
   readonly packageVersion: string;
   readonly artifactNameTemplate: string;
   readonly commands: Readonly<DesktopReleaseCarrierManifest['commands']>;
-  readonly toolchain: Readonly<DesktopReleaseKernelContract['toolchain']>;
+  readonly toolchain: Readonly<DesktopReleaseToolchain>;
   readonly macos: Readonly<Omit<DesktopReleaseKernelContract['macos'], 'targets'> & {
     targets: readonly string[];
   }>;
@@ -150,11 +153,16 @@ function validateKernel(value: unknown): DesktopReleaseKernelContract {
       && kernel.carrier_manifest_adapter_path === 'shell_contract.paths.desktop_release_carrier_manifest',
     'Desktop release carrier manifest seam is invalid.',
   );
+  invariant(kernel.toolchain_profile_selector === 'carrier_id', 'Desktop release toolchain profiles must be selected by carrier id.');
   invariant(
-    kernel.toolchain?.electron === '37.10.3'
-      && kernel.toolchain.electron_builder === '26.15.3'
-      && kernel.toolchain.electron_updater === '6.8.3',
-    'Desktop release toolchain must use the App-owned exact versions.',
+    kernel.toolchain_profiles?.aionui?.electron === '41.10.3'
+      && kernel.toolchain_profiles.aionui.electron_builder === '26.15.3'
+      && kernel.toolchain_profiles.aionui.electron_updater === '6.8.9'
+      && kernel.toolchain_profiles['opl-studio']?.electron === '43.4.0'
+      && kernel.toolchain_profiles['opl-studio'].electron_builder === '26.15.3'
+      && kernel.toolchain_profiles['opl-studio'].electron_updater === '6.8.9'
+      && JSON.stringify(Object.keys(kernel.toolchain_profiles).sort()) === JSON.stringify(['aionui', 'opl-studio']),
+    'Desktop release toolchain profiles must use the App-owned exact carrier versions.',
   );
   invariant(
     JSON.stringify(kernel.macos?.targets) === JSON.stringify(['dmg', 'zip'])
@@ -226,6 +234,8 @@ export function resolveDesktopReleaseCarrier(options: {
     : kernel.active_product_bundle_id;
 
   invariant(manifest.carrier_id === carrierId, 'Desktop release carrier id does not match the selected shell adapter.');
+  const toolchain = kernel.toolchain_profiles[carrierId];
+  invariant(toolchain, `Desktop release carrier ${carrierId} has no App-admitted toolchain profile.`);
   invariant(manifest.owner_repo === shell.contract.shell_source.owner_repo, 'Desktop release carrier owner does not match the shell source.');
   invariant(manifest.release_role === expectedRole, 'Desktop release carrier role does not match shell adoption state.');
   invariant(manifest.bundle_id === expectedBundleId, 'Desktop release carrier bundle id does not match App product policy.');
@@ -237,10 +247,10 @@ export function resolveDesktopReleaseCarrier(options: {
     'electron-builder publish target does not match the App-admitted carrier feed.',
   );
   invariant(
-    dependencyVersion(pkg, 'electron') === kernel.toolchain.electron
-      && dependencyVersion(pkg, 'electron-builder') === kernel.toolchain.electron_builder
-      && dependencyVersion(pkg, 'electron-updater') === kernel.toolchain.electron_updater,
-    'Desktop release carrier Electron toolchain drifted from the App kernel.',
+    dependencyVersion(pkg, 'electron') === toolchain.electron
+      && dependencyVersion(pkg, 'electron-builder') === toolchain.electron_builder
+      && dependencyVersion(pkg, 'electron-updater') === toolchain.electron_updater,
+    'Desktop release carrier Electron toolchain drifted from its App-admitted profile.',
   );
   const targets = normalizedTargets(builder.mac?.target);
   invariant(kernel.macos.targets.every((target) => targets.includes(target)), 'Desktop release carrier must build DMG and ZIP on macOS.');
@@ -269,7 +279,7 @@ export function resolveDesktopReleaseCarrier(options: {
     packageVersion: pkg.version,
     artifactNameTemplate: manifest.artifact_name_template,
     commands: Object.freeze({ ...manifest.commands }),
-    toolchain: Object.freeze({ ...kernel.toolchain }),
+    toolchain: Object.freeze({ ...toolchain }),
     macos: Object.freeze({ ...kernel.macos, targets: Object.freeze([...kernel.macos.targets]) }),
     updater: Object.freeze({ ...kernel.updater, metadata: Object.freeze([...kernel.updater.metadata]) }),
     stageOrder: Object.freeze([...kernel.stage_order]),

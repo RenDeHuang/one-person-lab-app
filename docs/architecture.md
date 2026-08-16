@@ -588,8 +588,9 @@ does not import Framework runtime state or domain truth into the App repo.
 The active shell is an external checkout and an implementation carrier. `contracts/app-shell-adapter.json` requires the shell to implement the App GUI contract and declares that upstream AionUI behavior is implementation material only, never App product authority. Root release and validation scripts prepare App-owned payloads and call shell build/test commands, but shell implementation changes belong in `gaofeng21cn/opl-aion-shell` unless the App contract or wrapper itself changes.
 
 Desktop release policy follows the same split. `contracts/app-release-channel.json#desktop_release_kernel`
-owns the exact Electron toolchain, macOS artifact/update shape, ordered release stages, signing/notarization,
-publication, and public-readback policy. Each Shell exposes only
+owns the exact Electron toolchain profiles selected by `carrier_id`, macOS artifact/update shape, ordered
+release stages, signing/notarization, publication, and public-readback policy. AionUI and Studio may use
+different App-admitted Electron versions; neither carrier defines or selects its own release toolchain. Each Shell exposes only
 `contracts/desktop-release-carrier.json`: its bundle identity, artifact namespace, builder configuration,
 resources, and carrier-specific qualification commands. The Standard AionUI payload caller and the protected
 Studio admission caller both resolve that manifest through `scripts/desktop-release-carrier.ts`; neither Shell

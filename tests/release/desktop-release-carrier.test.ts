@@ -38,6 +38,9 @@ function carrierFixture(kind: 'aionui' | 'opl-studio') {
     ? 'one-person-lab-preview-${version}-${os}-${arch}.${ext}'
     : 'One-Person-Lab-${env.OPL_RELEASE_VERSION}-${os}-${arch}.${ext}';
   const packageManager = candidate ? 'npm' : 'bun';
+  const toolchain = candidate
+    ? { electron: '43.4.0', electronBuilder: '26.15.3', electronUpdater: '6.8.9' }
+    : { electron: '41.10.3', electronBuilder: '26.15.3', electronUpdater: '6.8.9' };
   const scripts = candidate
     ? {
         'dist:mac': 'electron-builder --mac --publish never',
@@ -67,8 +70,8 @@ function carrierFixture(kind: 'aionui' | 'opl-studio') {
     name: candidate ? 'opl-studio' : '@office-ai/aionui',
     version: candidate ? '0.1.0' : '1.5.9',
     scripts,
-    dependencies: { 'electron-updater': '6.8.3' },
-    devDependencies: { electron: '37.10.3', 'electron-builder': '26.15.3' },
+    dependencies: { 'electron-updater': toolchain.electronUpdater },
+    devDependencies: { electron: toolchain.electron, 'electron-builder': toolchain.electronBuilder },
   });
   writeText(path.join(root, paths.electron_builder_config), stringifyYaml({
     appId: bundleId,
@@ -126,7 +129,17 @@ test('App desktop release kernel resolves both admitted Electron carriers throug
     assert.equal(candidate.releaseRole, 'candidate_preview');
     assert.equal(candidate.bundleId, 'cn.onepersonlab.opl.studio.preview');
     assert.notEqual(active.bundleId, candidate.bundleId);
-    assert.deepEqual(active.toolchain, candidate.toolchain);
+    assert.deepEqual(active.toolchain, {
+      electron: '41.10.3',
+      electron_builder: '26.15.3',
+      electron_updater: '6.8.9',
+    });
+    assert.deepEqual(candidate.toolchain, {
+      electron: '43.4.0',
+      electron_builder: '26.15.3',
+      electron_updater: '6.8.9',
+    });
+    assert.notDeepEqual(active.toolchain, candidate.toolchain);
     assert.deepEqual(active.macos.targets, ['dmg', 'zip']);
     assert.deepEqual(candidate.stageOrder.at(-1), 'carrier_release_qualification');
   } finally {
@@ -151,7 +164,23 @@ test('App desktop release kernel fails closed on carrier identity or toolchain d
       ...pkg,
       devDependencies: { ...pkg.devDependencies, 'electron-builder': '26.8.1' },
     });
-    assert.throws(() => resolveFixture(fixture), /toolchain drifted from the App kernel/);
+    assert.throws(() => resolveFixture(fixture), /toolchain drifted from its App-admitted profile/);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('App desktop release kernel rejects a carrier using another admitted carrier profile', () => {
+  const fixture = carrierFixture('aionui');
+  const paths = fixture.contract.shell_contract.paths;
+  try {
+    const packagePath = path.join(fixture.root, paths.package_manifest);
+    const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    writeJson(packagePath, {
+      ...pkg,
+      devDependencies: { ...pkg.devDependencies, electron: '43.4.0' },
+    });
+    assert.throws(() => resolveFixture(fixture), /toolchain drifted from its App-admitted profile/);
   } finally {
     fixture.cleanup();
   }
