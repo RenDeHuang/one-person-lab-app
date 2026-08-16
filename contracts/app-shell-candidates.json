@@ -87,7 +87,7 @@
         "supported_modes": [
           "packaged"
         ],
-        "bundle_id": "cn.gflab.opl.studio.preview",
+        "bundle_id": "cn.onepersonlab.opl.studio.preview",
         "packaged_app_path": "/Applications/One Person Lab Preview.app",
         "bundle_relative_path": "out/mac-arm64/One Person Lab Preview.app",
         "launcher_env_abi": [

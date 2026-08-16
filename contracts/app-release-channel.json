@@ -46,7 +46,7 @@
         "staple_and_gatekeeper_validation",
         "exact_tag_publication",
         "anonymous_public_byte_readback",
-        "studio_release_qualification"
+        "carrier_release_qualification"
       ],
       "fail_closed_gates": {
         "exact_commit_tree_and_tag_required": true,
@@ -64,8 +64,64 @@
         "deployment_allowed": false,
         "publication_allowed": false
       },
-      "rule": "The App-owned protected admission binds one exact Studio commit, tree, and tag to the ordered Developer ID, notarization, stapling, dedicated-repository publication, anonymous byte readback, and Studio release qualification plan. Admission is source evidence only: it does not create a Framework release operation, authorize publication, change the active shell, or make Studio the active release carrier."
+      "rule": "The App-owned protected admission binds one exact Studio commit, tree, and tag to the shared desktop carrier stage order, dedicated Studio repository, and carrier-specific qualification. Admission is source evidence only: it does not create a Framework release operation, authorize publication, change the active shell, or make Studio the active release carrier."
     }
+  },
+  "desktop_release_kernel": {
+    "schema": "opl_app_desktop_release_kernel.v1",
+    "authority_owner": "one-person-lab-app",
+    "framework_durable_authority_ref": "release_bundle_control_plane.framework_authority",
+    "implementation": "scripts/desktop-release-carrier.ts",
+    "carrier_manifest_schema": "opl_app_desktop_release_carrier.v1",
+    "carrier_manifest_adapter_path": "shell_contract.paths.desktop_release_carrier_manifest",
+    "toolchain": {
+      "electron": "37.10.3",
+      "electron_builder": "26.15.3",
+      "electron_updater": "6.8.3"
+    },
+    "macos": {
+      "targets": [
+        "dmg",
+        "zip"
+      ],
+      "dmg_format": "ULFO",
+      "hardened_runtime_required": true
+    },
+    "updater": {
+      "provider": "github",
+      "metadata": [
+        "latest-mac.yml",
+        "latest-arm64-mac.yml"
+      ],
+      "compatibility_metadata_byte_identical": true
+    },
+    "stage_order": [
+      "exact_source_checkout",
+      "developer_id_signed_build",
+      "apple_notarization",
+      "staple_and_gatekeeper_validation",
+      "exact_tag_publication",
+      "anonymous_public_byte_readback",
+      "carrier_release_qualification"
+    ],
+    "app_owned": [
+      "product_and_channel_policy",
+      "toolchain_floor",
+      "signing_notarization_and_stapling",
+      "publication_compare_and_swap",
+      "anonymous_public_readback",
+      "release_receipts"
+    ],
+    "carrier_owned": [
+      "bundle_identity",
+      "artifact_namespace",
+      "builder_configuration",
+      "resources_and_native_payload",
+      "carrier_specific_smoke"
+    ],
+    "candidate_identity_policy": "branded_preview_bundle_until_explicit_active_shell_adoption",
+    "active_product_bundle_id": "cn.onepersonlab.opl",
+    "studio_preview_bundle_id": "cn.onepersonlab.opl.studio.preview"
   },
   "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
   "computer_use_distribution": {
@@ -2393,7 +2449,7 @@
     "dmg_compression": {
       "default_format": "ULFO",
       "format_owner": "shells/aionui/packages/desktop/electron-builder.yml#dmg.format",
-      "electron_builder_version": "26.8.1",
+      "electron_builder_version": "26.15.3",
       "electron_builder_supported_formats": [
         "UDBZ",
         "UDCO",
@@ -2405,7 +2461,7 @@
       "ulmo_standard_default_allowed": false,
       "ulmo_postprocess_status": "separate_experiment_required",
       "metadata_blockmap_gate": "node --experimental-strip-types scripts/validate-release.ts release-assets plus focused hdiutil imageinfo/verify readback from a standard macOS build artifact",
-      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.8.1 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves latest-mac.yml, the latest-arm64-mac.yml compatibility copy, and the ZIP blockmap still match the published assets before it can replace the default."
+      "rule": "Standard macOS DMG uses electron-builder-supported ULFO by default because electron-builder 26.15.3 does not accept ULMO in dmg.format. ULMO for standard assets requires a separate postprocess patch that proves latest-mac.yml, the latest-arm64-mac.yml compatibility copy, and the ZIP blockmap still match the published assets before it can replace the default."
     },
     "forbidden_asset_substrings": [
       "Full"

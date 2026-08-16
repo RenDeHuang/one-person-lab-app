@@ -367,7 +367,7 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   if (
     successor?.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
     successor.default_mode !== 'packaged' ||
-    successor.bundle_id !== 'cn.gflab.opl.studio.preview' ||
+    successor.bundle_id !== 'cn.onepersonlab.opl.studio.preview' ||
     successor.packaged_app_path !== '/Applications/One Person Lab Preview.app' ||
     successor.bundle_relative_path !== 'out/mac-arm64/One Person Lab Preview.app' ||
     successor.supported_modes?.join(',') !== 'packaged' ||

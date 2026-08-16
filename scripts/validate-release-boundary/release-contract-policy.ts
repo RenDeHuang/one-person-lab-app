@@ -1019,7 +1019,7 @@ function validateStandardUpdaterCompressionPolicy(appRoot: string, releaseContra
   if (
     compression?.default_format !== 'ULFO' ||
     compression?.format_owner !== 'shells/aionui/packages/desktop/electron-builder.yml#dmg.format' ||
-    compression?.electron_builder_version !== '26.8.1' ||
+    compression?.electron_builder_version !== '26.15.3' ||
     compression?.ulmo_standard_default_allowed !== false ||
     compression?.ulmo_postprocess_status !== 'separate_experiment_required' ||
     !sameStringSet(compression?.electron_builder_supported_formats, ['UDBZ', 'UDCO', 'UDRO', 'UDRW', 'UDZO', 'ULFO'])

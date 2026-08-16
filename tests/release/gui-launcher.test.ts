@@ -166,16 +166,16 @@ test("Candidate plan remains launch-scoped and cannot mutate release adoption", 
 
 test("OPL Studio install atomically replaces only the isolated bundle identity", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-native-install-"));
-  const source = fakeAppBundle(root, "source", "cn.gflab.opl.studio.preview", "new");
-  const installed = fakeAppBundle(root, "installed", "cn.gflab.opl.studio.preview", "old");
+  const source = fakeAppBundle(root, "source", "cn.onepersonlab.opl.studio.preview", "new");
+  const installed = fakeAppBundle(root, "installed", "cn.onepersonlab.opl.studio.preview", "old");
   try {
     installAppBundleAtomically({
       sourceAppPath: source,
       installedAppPath: installed,
-      expectedBundleId: "cn.gflab.opl.studio.preview",
+      expectedBundleId: "cn.onepersonlab.opl.studio.preview",
       appBundleOperations: fakeAppBundleOperations,
     });
-    assert.equal(fakeAppBundleOperations.readIdentifier(installed), "cn.gflab.opl.studio.preview");
+    assert.equal(fakeAppBundleOperations.readIdentifier(installed), "cn.onepersonlab.opl.studio.preview");
     assert.equal(fs.readFileSync(path.join(installed, "Contents", "cohort.txt"), "utf8"), "new\n");
     assert.equal(fs.existsSync(source), true);
   } finally {
@@ -185,14 +185,14 @@ test("OPL Studio install atomically replaces only the isolated bundle identity",
 
 test("OPL Studio install refuses to overwrite an unrelated application", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-native-install-"));
-  const source = fakeAppBundle(root, "source", "cn.gflab.opl.studio.preview", "new");
+  const source = fakeAppBundle(root, "source", "cn.onepersonlab.opl.studio.preview", "new");
   const installed = fakeAppBundle(root, "installed", "example.unrelated.app", "unrelated");
   try {
     assert.throws(
       () => installAppBundleAtomically({
         sourceAppPath: source,
         installedAppPath: installed,
-        expectedBundleId: "cn.gflab.opl.studio.preview",
+        expectedBundleId: "cn.onepersonlab.opl.studio.preview",
         appBundleOperations: fakeAppBundleOperations,
       }),
       /Refusing app bundle/,

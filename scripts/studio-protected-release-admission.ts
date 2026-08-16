@@ -5,54 +5,26 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { parse as parseYaml } from 'yaml';
+import { readAppShellAdapterContract } from './app-shell-adapter.ts';
+import {
+  resolveDesktopReleaseCarrier,
+  type DesktopReleaseCarrier,
+} from './desktop-release-carrier.ts';
 
 type GitIdentity = {
   commitSha: string;
   treeSha: string;
 };
 
-type StudioPackage = {
-  name?: string;
-  version?: string;
-  scripts?: Record<string, string>;
-};
-
-type StudioBuilder = {
-  appId?: string;
-  productName?: string;
-  artifactName?: string;
-  mac?: {
-    hardenedRuntime?: boolean;
-    target?: unknown[];
-  };
-  publish?: {
-    provider?: string;
-    owner?: string;
-    repo?: string;
-  };
-};
-
 type PlannerInput = {
   app: GitIdentity;
   studio: GitIdentity;
   requestedTag: string;
-  studioPackage: StudioPackage;
-  studioBuilder: StudioBuilder;
+  carrier: DesktopReleaseCarrier;
 };
 
 const shaPattern = /^[0-9a-f]{40}$/;
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
-const stageOrder = [
-  'exact_source_checkout',
-  'developer_id_signed_build',
-  'apple_notarization',
-  'staple_and_gatekeeper_validation',
-  'exact_tag_publication',
-  'anonymous_public_byte_readback',
-  'studio_release_qualification',
-] as const;
-
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -62,52 +34,29 @@ function assertGitIdentity(label: string, identity: GitIdentity): void {
   invariant(shaPattern.test(identity.treeSha), `${label} tree must be an exact lowercase 40-character SHA.`);
 }
 
-function normalizedTargets(targets: unknown[] | undefined): string[] {
-  if (!Array.isArray(targets)) return [];
-  return targets.map((target) => {
-    if (typeof target === 'string') return target;
-    if (target && typeof target === 'object' && 'target' in target) {
-      return String((target as { target?: unknown }).target ?? '');
-    }
-    return '';
-  }).filter(Boolean);
-}
-
 export function buildStudioProtectedReleaseAdmission(input: PlannerInput) {
   assertGitIdentity('App', input.app);
   assertGitIdentity('Studio', input.studio);
 
-  const packageVersion = input.studioPackage.version ?? '';
-  invariant(input.studioPackage.name === 'opl-studio', 'Studio package name must remain opl-studio.');
+  const packageVersion = input.carrier.packageVersion;
+  invariant(input.carrier.carrierId === 'opl-studio', 'Protected Studio admission requires the opl-studio carrier.');
+  invariant(input.carrier.ownerRepo === 'gaofeng21cn/opl-studio', 'Studio carrier owner must remain gaofeng21cn/opl-studio.');
+  invariant(input.carrier.releaseRole === 'candidate_preview', 'Studio must remain a candidate preview carrier before adoption.');
+  invariant(input.carrier.releaseRepository === 'gaofeng21cn/opl-studio', 'Studio must use its dedicated release repository.');
+  invariant(input.carrier.bundleId === 'cn.onepersonlab.opl.studio.preview', 'Studio preview must use the One Person Lab bundle namespace.');
+  invariant(
+    input.carrier.commands.qualify_prepublication ===
+      'node scripts/desktop/macos-distribution.mjs --require-release-trust',
+    'Studio prepublication qualification must require local release trust.',
+  );
+  invariant(
+    input.carrier.commands.qualify_public_release ===
+      'node scripts/desktop/macos-distribution.mjs --require-release-trust --require-public-feed',
+    'Studio public release qualification must require release trust and the public feed.',
+  );
   invariant(versionPattern.test(packageVersion), 'Studio package version must be SemVer.');
   invariant(input.requestedTag === `v${packageVersion}`, 'Protected Studio tag must equal package version.');
-
-  const publish = input.studioBuilder.publish;
-  invariant(
-    publish?.provider === 'github'
-      && publish.owner === 'gaofeng21cn'
-      && publish.repo === 'opl-studio',
-    'Studio must use the dedicated gaofeng21cn/opl-studio release repository.',
-  );
-  invariant(input.studioBuilder.mac?.hardenedRuntime === true, 'Studio macOS release must enable hardened runtime.');
-  const targets = normalizedTargets(input.studioBuilder.mac?.target);
-  invariant(targets.includes('dmg') && targets.includes('zip'), 'Studio macOS release must produce both DMG and ZIP targets.');
-  invariant(
-    input.studioBuilder.artifactName === 'one-person-lab-preview-${version}-${os}-${arch}.${ext}',
-    'Studio release artifact namespace drifted from the admitted carrier contract.',
-  );
-
-  const releaseQualification = input.studioPackage.scripts?.['qualify:desktop:mac:release'] ?? '';
-  invariant(
-    releaseQualification.includes('scripts/desktop/macos-distribution.mjs')
-      && releaseQualification.includes('--require-release-trust')
-      && releaseQualification.includes('--require-public-feed'),
-    'Studio release qualification must require trust and public feed.',
-  );
-  invariant(
-    (input.studioPackage.scripts?.['dist:mac'] ?? '').includes('qualify:desktop:mac'),
-    'Studio macOS distribution must run local distribution qualification.',
-  );
+  const stageOrder = input.carrier.stageOrder;
 
   return {
     schema: 'opl_studio_protected_release_admission.v1',
@@ -131,20 +80,20 @@ export function buildStudioProtectedReleaseAdmission(input: PlannerInput) {
       tree_sha: input.studio.treeSha,
       package_version: packageVersion,
       tag: input.requestedTag,
-      app_id: input.studioBuilder.appId,
-      product_name: input.studioBuilder.productName,
-      artifact_name_template: input.studioBuilder.artifactName,
-      macos_targets: targets,
+      app_id: input.carrier.bundleId,
+      product_name: input.carrier.productName,
+      artifact_name_template: input.carrier.artifactNameTemplate,
+      macos_targets: input.carrier.macos.targets,
       update_feed: 'https://github.com/gaofeng21cn/opl-studio/releases/download/<exact-tag>/',
     },
     admitted_plan: {
       carrier: 'electron_desktop',
       stage_order: stageOrder,
-      build_command: 'npm ci && npm run dist:mac',
+      build_command: `${input.carrier.commands.install} && ${input.carrier.commands.build_macos}`,
       notarizer: 'one-person-lab-app/scripts/notarize-macos-dmg.ts',
-      prepublication_qualification: 'node scripts/desktop/macos-distribution.mjs --require-release-trust',
+      prepublication_qualification: input.carrier.commands.qualify_prepublication,
       publication_target: 'gaofeng21cn/opl-studio GitHub Releases exact tag',
-      public_readback_command: 'npm run qualify:desktop:mac:release',
+      public_readback_command: input.carrier.commands.qualify_public_release,
     },
     gates: {
       exact_source_identity: 'passed',
@@ -237,12 +186,15 @@ function runCli(argv: string[]): void {
   invariant(studio.commitSha === values['studio-sha'], 'Studio commit does not match protected request.');
   invariant(studio.treeSha === values['studio-tree'], 'Studio tree does not match protected request.');
 
+  const studioAdapter = readAppShellAdapterContract(
+    path.join(appRoot, 'contracts', 'shell-adapters', 'opl-studio.json'),
+  );
+  const carrier = resolveDesktopReleaseCarrier({ contract: studioAdapter, shellRoot: studioRoot });
   const receipt = buildStudioProtectedReleaseAdmission({
     app,
     studio,
     requestedTag: values['studio-tag']!,
-    studioPackage: readJson(path.join(studioRoot, 'package.json')) as StudioPackage,
-    studioBuilder: parseYaml(fs.readFileSync(path.join(studioRoot, 'electron-builder.yml'), 'utf8')) as StudioBuilder,
+    carrier,
   });
   writeJsonAtomic(path.resolve(values.output!), receipt);
   process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);

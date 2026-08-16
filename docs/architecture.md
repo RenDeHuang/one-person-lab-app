@@ -587,6 +587,15 @@ does not import Framework runtime state or domain truth into the App repo.
 
 The active shell is an external checkout and an implementation carrier. `contracts/app-shell-adapter.json` requires the shell to implement the App GUI contract and declares that upstream AionUI behavior is implementation material only, never App product authority. Root release and validation scripts prepare App-owned payloads and call shell build/test commands, but shell implementation changes belong in `gaofeng21cn/opl-aion-shell` unless the App contract or wrapper itself changes.
 
+Desktop release policy follows the same split. `contracts/app-release-channel.json#desktop_release_kernel`
+owns the exact Electron toolchain, macOS artifact/update shape, ordered release stages, signing/notarization,
+publication, and public-readback policy. Each Shell exposes only
+`contracts/desktop-release-carrier.json`: its bundle identity, artifact namespace, builder configuration,
+resources, and carrier-specific qualification commands. The Standard AionUI payload caller and the protected
+Studio admission caller both resolve that manifest through `scripts/desktop-release-carrier.ts`; neither Shell
+creates a second release owner. Studio keeps `cn.onepersonlab.opl.studio.preview` while it is a side-by-side
+candidate. Reusing `cn.onepersonlab.opl` requires a later explicit active-shell adoption, not a local build.
+
 GUI operation has two independent axes. The **active release shell** chooses the
 Stable implementation carrier and remains owned by
 `contracts/app-shell-adapter.json`. A **local GUI launch target** chooses which

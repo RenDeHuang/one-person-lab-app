@@ -216,6 +216,7 @@ export function validateReleaseChannelContract(
   }
   validateReleaseCalendarGuard(releaseChannel.github_release_name);
   validateSuccessorProtectedReleaseAdmission(releaseChannel.successor_delivery_target);
+  validateDesktopReleaseKernel(releaseChannel.desktop_release_kernel);
   validateProviderConfigurationBoundary(releaseChannel.provider_configuration_boundary);
   const managedUpdatePlane = releaseChannel.managed_update_plane;
   validateStandardUpdater(releaseChannel.standard_updater);
@@ -281,9 +282,52 @@ function validateSuccessorProtectedReleaseAdmission(successor) {
       'staple_and_gatekeeper_validation',
       'exact_tag_publication',
       'anonymous_public_byte_readback',
-      'studio_release_qualification',
+      'carrier_release_qualification',
     ],
     'Studio protected release stage order',
+  );
+}
+
+function validateDesktopReleaseKernel(kernel) {
+  if (
+    kernel?.schema !== 'opl_app_desktop_release_kernel.v1'
+    || kernel?.authority_owner !== 'one-person-lab-app'
+    || kernel?.framework_durable_authority_ref !== 'release_bundle_control_plane.framework_authority'
+    || kernel?.implementation !== 'scripts/desktop-release-carrier.ts'
+    || kernel?.carrier_manifest_schema !== 'opl_app_desktop_release_carrier.v1'
+    || kernel?.carrier_manifest_adapter_path !== 'shell_contract.paths.desktop_release_carrier_manifest'
+    || kernel?.toolchain?.electron !== '37.10.3'
+    || kernel?.toolchain?.electron_builder !== '26.15.3'
+    || kernel?.toolchain?.electron_updater !== '6.8.3'
+    || kernel?.macos?.dmg_format !== 'ULFO'
+    || kernel?.macos?.hardened_runtime_required !== true
+    || kernel?.updater?.provider !== 'github'
+    || kernel?.updater?.compatibility_metadata_byte_identical !== true
+    || kernel?.candidate_identity_policy !== 'branded_preview_bundle_until_explicit_active_shell_adoption'
+    || kernel?.active_product_bundle_id !== 'cn.onepersonlab.opl'
+    || kernel?.studio_preview_bundle_id !== 'cn.onepersonlab.opl.studio.preview'
+    || kernel.active_product_bundle_id === kernel.studio_preview_bundle_id
+  ) {
+    throw new Error('Desktop release kernel must remain App-owned with isolated active and preview product identities');
+  }
+  assertDeepEqualJson(kernel.macos.targets, ['dmg', 'zip'], 'Desktop release kernel macOS targets');
+  assertDeepEqualJson(
+    kernel.updater.metadata,
+    ['latest-mac.yml', 'latest-arm64-mac.yml'],
+    'Desktop release kernel updater metadata',
+  );
+  assertDeepEqualJson(
+    kernel.stage_order,
+    [
+      'exact_source_checkout',
+      'developer_id_signed_build',
+      'apple_notarization',
+      'staple_and_gatekeeper_validation',
+      'exact_tag_publication',
+      'anonymous_public_byte_readback',
+      'carrier_release_qualification',
+    ],
+    'Desktop release kernel stage order',
   );
 }
 

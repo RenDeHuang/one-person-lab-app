@@ -13,6 +13,7 @@ export type ShellPathContract = {
   agents_guide: string;
   vitest_config: string;
   electron_builder_config: string;
+  desktop_release_carrier_manifest?: string;
   build_output_dir: string;
   product_profile_target: string;
   packaged_runtime_root: string;
@@ -435,6 +436,7 @@ export type ActiveShellPaths = {
   agentsGuidePath: string;
   vitestConfigPath: string;
   electronBuilderConfigPath: string;
+  desktopReleaseCarrierManifestPath: string | null;
   buildOutputDir: string;
   productProfileTargetPath: string;
   packagedRuntimeRoot: string;
@@ -942,6 +944,9 @@ export function resolveActiveShellPaths(options: { shellRoot?: string; contract?
     agentsGuidePath: path.join(shellRoot, paths.agents_guide),
     vitestConfigPath: path.join(shellRoot, paths.vitest_config),
     electronBuilderConfigPath: path.join(shellRoot, paths.electron_builder_config),
+    desktopReleaseCarrierManifestPath: paths.desktop_release_carrier_manifest
+      ? path.join(shellRoot, paths.desktop_release_carrier_manifest)
+      : null,
     buildOutputDir: path.join(shellRoot, paths.build_output_dir),
     productProfileTargetPath: path.join(shellRoot, paths.product_profile_target),
     packagedRuntimeRoot: path.join(shellRoot, paths.packaged_runtime_root),

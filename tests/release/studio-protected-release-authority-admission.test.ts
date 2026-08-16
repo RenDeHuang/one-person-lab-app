@@ -7,6 +7,7 @@ import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
 
 import { buildStudioProtectedReleaseAdmission } from '../../scripts/studio-protected-release-admission.ts';
+import type { DesktopReleaseCarrier } from '../../scripts/desktop-release-carrier.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
 const releaseContract = JSON.parse(
@@ -18,28 +19,51 @@ const stableWorkflowSource = fs.readFileSync(
 );
 const stableWorkflow = parseYaml(stableWorkflowSource);
 
-const studioPackage = {
-  name: 'opl-studio',
-  version: '0.1.0',
-  scripts: {
-    'dist:mac': 'npm run build:desktop && electron-builder --mac --config electron-builder.yml && npm run qualify:desktop:mac',
-    'qualify:desktop:mac:release': 'node scripts/desktop/macos-distribution.mjs --require-release-trust --require-public-feed',
-  },
-};
-
-const studioBuilder = {
-  appId: 'cn.gflab.opl.studio.preview',
+const studioCarrier: DesktopReleaseCarrier = {
+  schema: 'opl_app_desktop_release_carrier_resolution.v1',
+  authorityOwner: 'one-person-lab-app',
+  frameworkDurableAuthorityRef: 'release_bundle_control_plane.framework_authority',
+  carrierId: 'opl-studio',
+  ownerRepo: 'gaofeng21cn/opl-studio',
+  releaseRole: 'candidate_preview',
   productName: 'One Person Lab Preview',
-  mac: {
-    hardenedRuntime: true,
-    target: ['dmg', 'zip'],
+  bundleId: 'cn.onepersonlab.opl.studio.preview',
+  releaseRepository: 'gaofeng21cn/opl-studio',
+  packageVersion: '0.1.0',
+  artifactNameTemplate: 'one-person-lab-preview-${version}-${os}-${arch}.${ext}',
+  commands: {
+    install: 'npm ci',
+    build_macos: 'npm run dist:mac',
+    qualify_distribution: 'npm run qualify:desktop:mac',
+    qualify_updater: 'npm run qualify:desktop:updater:local',
+    qualify_prepublication: 'node scripts/desktop/macos-distribution.mjs --require-release-trust',
+    qualify_public_release: 'node scripts/desktop/macos-distribution.mjs --require-release-trust --require-public-feed',
   },
-  artifactName: 'one-person-lab-preview-${version}-${os}-${arch}.${ext}',
-  publish: {
+  toolchain: {
+    electron: '37.10.3',
+    electron_builder: '26.15.3',
+    electron_updater: '6.8.3',
+  },
+  macos: {
+    targets: ['dmg', 'zip'],
+    dmg_format: 'ULFO',
+    hardened_runtime_required: true,
+  },
+  updater: {
     provider: 'github',
-    owner: 'gaofeng21cn',
-    repo: 'opl-studio',
+    metadata: ['latest-mac.yml', 'latest-arm64-mac.yml'],
+    compatibility_metadata_byte_identical: true,
   },
+  stageOrder: [
+    'exact_source_checkout',
+    'developer_id_signed_build',
+    'apple_notarization',
+    'staple_and_gatekeeper_validation',
+    'exact_tag_publication',
+    'anonymous_public_byte_readback',
+    'carrier_release_qualification',
+  ],
+  manifestPath: '/fixture/contracts/desktop-release-carrier.json',
 };
 
 test('App contract keeps Studio candidate-only while defining one protected source admission', () => {
@@ -67,7 +91,7 @@ test('App contract keeps Studio candidate-only while defining one protected sour
     'staple_and_gatekeeper_validation',
     'exact_tag_publication',
     'anonymous_public_byte_readback',
-    'studio_release_qualification',
+    'carrier_release_qualification',
   ]);
 });
 
@@ -106,8 +130,7 @@ test('planner binds exact App and Studio identities without authorizing release 
     app: { commitSha: 'a'.repeat(40), treeSha: 'b'.repeat(40) },
     studio: { commitSha: 'c'.repeat(40), treeSha: 'd'.repeat(40) },
     requestedTag: 'v0.1.0',
-    studioPackage,
-    studioBuilder,
+    carrier: studioCarrier,
   });
 
   assert.equal(receipt.status, 'source_admitted_pending_protected_execution');
@@ -128,7 +151,7 @@ test('planner binds exact App and Studio identities without authorizing release 
     'staple_and_gatekeeper_validation',
     'exact_tag_publication',
     'anonymous_public_byte_readback',
-    'studio_release_qualification',
+    'carrier_release_qualification',
   ]);
 });
 
@@ -137,8 +160,7 @@ test('planner fails closed on tag, repository, trust, or qualification drift', (
     app: { commitSha: 'a'.repeat(40), treeSha: 'b'.repeat(40) },
     studio: { commitSha: 'c'.repeat(40), treeSha: 'd'.repeat(40) },
     requestedTag: 'v0.1.0',
-    studioPackage,
-    studioBuilder,
+    carrier: studioCarrier,
   };
 
   assert.throws(
@@ -148,23 +170,26 @@ test('planner fails closed on tag, repository, trust, or qualification drift', (
   assert.throws(
     () => buildStudioProtectedReleaseAdmission({
       ...base,
-      studioBuilder: { ...studioBuilder, publish: { ...studioBuilder.publish, repo: 'other' } },
+      carrier: { ...studioCarrier, releaseRepository: 'gaofeng21cn/other' },
     }),
-    /dedicated gaofeng21cn\/opl-studio release repository/,
+    /dedicated release repository/,
   );
   assert.throws(
     () => buildStudioProtectedReleaseAdmission({
       ...base,
-      studioBuilder: { ...studioBuilder, mac: { ...studioBuilder.mac, hardenedRuntime: false } },
+      carrier: { ...studioCarrier, bundleId: 'cn.onepersonlab.opl' },
     }),
-    /hardened runtime/,
+    /One Person Lab bundle namespace/,
   );
   assert.throws(
     () => buildStudioProtectedReleaseAdmission({
       ...base,
-      studioPackage: { ...studioPackage, scripts: { ...studioPackage.scripts, 'qualify:desktop:mac:release': 'echo pass' } },
+      carrier: {
+        ...studioCarrier,
+        commands: { ...studioCarrier.commands, qualify_public_release: 'echo pass' },
+      },
     }),
-    /release qualification must require trust and public feed/,
+    /must require release trust and the public feed/,
   );
 });
 
@@ -172,9 +197,9 @@ test('CLI rejects an observed Studio tree that differs from the protected reques
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-studio-release-admission-'));
   const studioRoot = path.join(root, 'studio');
   fs.mkdirSync(studioRoot);
-  fs.writeFileSync(path.join(studioRoot, 'package.json'), `${JSON.stringify(studioPackage, null, 2)}\n`);
+  fs.writeFileSync(path.join(studioRoot, 'package.json'), '{"name":"opl-studio","version":"0.1.0"}\n');
   fs.writeFileSync(path.join(studioRoot, 'electron-builder.yml'), [
-    'appId: cn.gflab.opl.studio.preview',
+    'appId: cn.onepersonlab.opl.studio.preview',
     'productName: One Person Lab Preview',
     'mac:',
     '  hardenedRuntime: true',

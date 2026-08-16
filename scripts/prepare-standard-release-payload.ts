@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { syncAppProductProfileToShell } from './app-product-profile.ts';
 import { resolveActiveShellPaths, resolveShellAdapterIdentity } from './app-shell-adapter.ts';
+import { resolveDesktopReleaseCarrier } from './desktop-release-carrier.ts';
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const runtimeRoot = path.join(appRoot, 'packaged-runtimes', 'opl-full-runtime');
@@ -113,6 +114,10 @@ export function prepareStandardReleasePayload(env: NodeJS.ProcessEnv = process.e
       candidate_shell: resolveShellAdapterIdentity(shellPaths.contract),
     };
   }
+  const releaseCarrier = resolveDesktopReleaseCarrier({
+    contract: shellPaths.contract,
+    shellRoot: shellPaths.shellRoot,
+  });
   fs.rmSync(path.join(runtimeRoot, 'runtime'), { recursive: true, force: true });
   fs.rmSync(path.join(runtimeRoot, 'manifest'), { recursive: true, force: true });
   fs.mkdirSync(runtimeRoot, { recursive: true });
@@ -145,6 +150,15 @@ export function prepareStandardReleasePayload(env: NodeJS.ProcessEnv = process.e
     runtime_root: runtimeRoot,
     shell_runtime_root: shellRuntimeRoot,
     shell_root: shellPaths.shellRootForDisplay,
+    desktop_release_carrier: {
+      carrier_id: releaseCarrier.carrierId,
+      owner_repo: releaseCarrier.ownerRepo,
+      release_role: releaseCarrier.releaseRole,
+      bundle_id: releaseCarrier.bundleId,
+      release_repository: releaseCarrier.releaseRepository,
+      toolchain: releaseCarrier.toolchain,
+      manifest_path: releaseCarrier.manifestPath,
+    },
   };
 }
 

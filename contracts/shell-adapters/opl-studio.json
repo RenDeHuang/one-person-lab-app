@@ -163,6 +163,7 @@
       "agents_guide": "AGENTS.md",
       "vitest_config": "vitest.config.ts",
       "electron_builder_config": "electron-builder.yml",
+      "desktop_release_carrier_manifest": "contracts/desktop-release-carrier.json",
       "build_output_dir": "out",
       "product_profile_target": "src/generated/oplProductProfile.generated.json",
       "packaged_runtime_root": "packaged-runtimes/opl-full-runtime",
