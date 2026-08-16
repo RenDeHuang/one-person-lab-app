@@ -15,6 +15,13 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
   assert.equal(policy.transport.public_desktop_address_required, false);
   assert.equal(policy.transport.payload_confidentiality.provider_plaintext_task_content, false);
   assert.equal(policy.transport.usage_guardrails.active_pair_seat_limit, 40);
+  assert.equal(policy.pairing.fallback_method, 'paste_full_pairing_payload');
+  assert.equal(policy.pairing.short_manual_code, 'deferred_not_implemented');
+  assert.equal(
+    policy.pairing.ios_pending_pairing_persistence.storage,
+    'ios_keychain_when_unlocked_this_device_only_until_activation_expiry_or_local_reset',
+  );
+  assert.ok(policy.pairing.capacity_lifecycle.allocated_states.includes('awaiting_desktop_confirmation'));
   assert.equal(policy.pairing.device_lifecycle.mvp_max_active_companion_pairs_per_desktop_installation, 1);
   assert.equal(policy.distribution_and_access.testflight_is_capacity_or_entitlement_authority, false);
   assert.equal(policy.product_identity.local_ios_runtime, false);
@@ -39,11 +46,16 @@ test('OPL Link validator rejects a second runtime, leaked provider authority, or
       candidate.distribution_and_access.testflight_is_capacity_or_entitlement_authority = true;
     },
     (candidate: Record<string, any>) => { candidate.pairing.qr_payload.push('provider_secret_or_api_key'); },
+    (candidate: Record<string, any>) => { candidate.pairing.fallback_method = 'short_lived_manual_pairing_code'; },
+    (candidate: Record<string, any>) => { candidate.pairing.ios_pending_pairing_persistence.material = []; },
     (candidate: Record<string, any>) => {
       candidate.pairing.broker_persistence.allowed.push('plaintext_qr_claim_secret');
     },
     (candidate: Record<string, any>) => {
       candidate.pairing.capacity_lifecycle.client_must_not_allocate_reclaim_or_infer_seats = false;
+    },
+    (candidate: Record<string, any>) => {
+      candidate.pairing.capacity_lifecycle.allocated_states = ['reserved', 'provisioning', 'active'];
     },
     (candidate: Record<string, any>) => {
       candidate.pairing.capacity_lifecycle.seat_release_condition = 'client_reports_logout';

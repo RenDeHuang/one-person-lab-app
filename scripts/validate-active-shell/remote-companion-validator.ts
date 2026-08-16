@@ -165,8 +165,10 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   );
   if (
     policy.pairing?.account_required !== false ||
-    policy.pairing?.manual_code_policy !==
-      '12_character_crockford_base32_random_code_server_keyed_hmac_sha256_storage_5_minute_expiry_max_5_attempts_then_atomic_pairing_invalidation' ||
+    policy.pairing?.fallback_method !== 'paste_full_pairing_payload' ||
+    policy.pairing?.fallback_payload_policy !==
+      'reuse_the_same_single_use_short_lived_payload_as_the_qr_without_adding_a_second_pairing_secret' ||
+    policy.pairing?.short_manual_code !== 'deferred_not_implemented' ||
     !policy.pairing?.claim_protocol?.includes(
       'broker_validates_one_time_invitation_and_atomically_reserves_one_pair_seat_with_a_5_minute_ttl',
     ) ||
@@ -174,18 +176,39 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       'desktop_reads_the_claim_and_both_devices_display_the_same_short_authentication_string_derived_from_pairing_id_and_both_public_keys',
     ) ||
     !policy.pairing?.claim_protocol?.includes(
-      'broker_issues_separate_one_time_pair_specific_device_credentials_and_persists_only_their_sha256_hashes_for_future_usersig_requests',
+      'desktop_pair_token_and_ios_claim_token_become_role_bound_active_device_credentials_after_activation_without_minting_second_bearers_and_the_broker_persists_only_their_sha256_hashes_for_future_usersig_requests',
     ) ||
     !policy.pairing?.broker_persistence?.allowed?.includes('provider_user_id_bindings') ||
     policy.pairing?.broker_persistence?.allowed?.includes('plaintext_qr_claim_secret') ||
     policy.pairing?.capacity_lifecycle?.owner !== 'one-person-lab-cloud' ||
     policy.pairing?.capacity_lifecycle?.reservation_ttl_minutes > 5 ||
+    !policy.pairing?.capacity_lifecycle?.allocated_states?.includes('awaiting_desktop_confirmation') ||
     policy.pairing?.capacity_lifecycle?.seat_release_condition !==
       'both_tencent_user_ids_deleted_and_provider_owner_readback_confirms_absence' ||
     policy.pairing?.capacity_lifecycle?.client_must_not_allocate_reclaim_or_infer_seats !== true ||
     policy.pairing?.device_lifecycle?.provider_account_delete_and_absence_readback_required_for_seat_reclaim !== true
   ) {
     throw new Error('OPL Link pairing must be invitation-gated, atomic, and release seats only after provider absence readback');
+  }
+
+  const pendingPairing = policy.pairing?.ios_pending_pairing_persistence;
+  assertIncludesAll(pendingPairing?.material, [
+    'opaque_pairing_id',
+    'broker_route',
+    'ios_pair_specific_private_key',
+    'desktop_pair_specific_public_key',
+    'ios_claim_token',
+    'short_lived_pairing_expiry',
+  ], 'OPL Link pending pairing material');
+  if (
+    pendingPairing?.owner !== 'opl-link' ||
+    pendingPairing.storage !== 'ios_keychain_when_unlocked_this_device_only_until_activation_expiry_or_local_reset' ||
+    pendingPairing.resume !==
+      'cold_start_restores_awaiting_desktop_confirmation_and_reads_broker_state_without_reclaiming_or_reminting_pair_credentials' ||
+    pendingPairing.activation !==
+      'persist_active_pair_material_with_the_existing_ios_claim_token_before_transport_connect_then_delete_the_pending_record'
+  ) {
+    throw new Error('OPL Link must persist pending pairing material for bounded cold-start recovery');
   }
 
   assertIncludesAll(policy.action_policy?.mvp_allowed_actions, requiredActions, 'OPL Link allowed actions');

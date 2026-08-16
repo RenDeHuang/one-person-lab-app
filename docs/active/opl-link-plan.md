@@ -38,6 +38,12 @@ Tencent Chat JavaScript SDK 在同一 Desktop 进程内共享单一实例，因�
 各实现仓可以使用本地类型和 provider adapter，但不得改写这套 wire、把令牌放进 URL，或让
 Cloud/provider 获得明文 task content。
 
+相机不可用时，iOS 粘贴二维码所承载的同一份完整、短时、单次配对内容；MVP 不实现第二套
+12 字符短码。iOS claim 成功后把 pending pairing ID、broker route、设备私钥、桌面公钥、
+claim token、认证短语和过期时间保存在 ThisDeviceOnly Keychain，冷启动可以继续等待桌面确认。
+激活时同一个 claim token 直接成为 role-bound active credential，不再生成第二套 bearer；先持久化
+active pair material，再连接 transport，成功或过期后清除 pending record。
+
 ## 邀请与席位
 
 腾讯体验版规划快照按 100 个注册 UserID、峰值 DAU 100 计算。一个 active pair seat 使用一对

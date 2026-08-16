@@ -134,8 +134,9 @@
     "user_flow": "obtain_invitation_then_desktop_start_pairing_then_ios_scan_one_time_qr_then_compare_authentication_string_then_desktop_confirm_then_provision_transport_then_ios_enters_companion",
     "account_required": false,
     "primary_method": "one_time_qr",
-    "fallback_method": "short_lived_manual_pairing_code",
-    "manual_code_policy": "12_character_crockford_base32_random_code_server_keyed_hmac_sha256_storage_5_minute_expiry_max_5_attempts_then_atomic_pairing_invalidation",
+    "fallback_method": "paste_full_pairing_payload",
+    "fallback_payload_policy": "reuse_the_same_single_use_short_lived_payload_as_the_qr_without_adding_a_second_pairing_secret",
+    "short_manual_code": "deferred_not_implemented",
     "qr_payload": [
       "broker_route",
       "opaque_pairing_id",
@@ -159,7 +160,7 @@
       "desktop_reads_the_claim_and_both_devices_display_the_same_short_authentication_string_derived_from_pairing_id_and_both_public_keys",
       "desktop_requires_local_confirmation_after_the_user_compares_the_short_authentication_string",
       "desktop_and_ios_derive_the_pair_master_key_locally_with_x25519_and_hkdf_without_transmitting_it",
-      "broker_issues_separate_one_time_pair_specific_device_credentials_and_persists_only_their_sha256_hashes_for_future_usersig_requests",
+      "desktop_pair_token_and_ios_claim_token_become_role_bound_active_device_credentials_after_activation_without_minting_second_bearers_and_the_broker_persists_only_their_sha256_hashes_for_future_usersig_requests",
       "broker_provisions_pair_specific_desktop_and_ios_tencent_user_ids_then_issues_separate_short_lived_usersig_credentials",
       "broker_marks_the_pair_active_only_after_both_provider_identities_and_clients_have_owner_readback"
     ],
@@ -186,12 +187,29 @@
       "atomic_claim_and_seat_reservation_required": true,
       "retention": "delete_unclaimed_records_after_expiry_and_delete_claim_metadata_after_pair_revocation_plus_bounded_security_retention"
     },
+    "ios_pending_pairing_persistence": {
+      "owner": "opl-link",
+      "storage": "ios_keychain_when_unlocked_this_device_only_until_activation_expiry_or_local_reset",
+      "material": [
+        "opaque_pairing_id",
+        "broker_route",
+        "ios_device_id",
+        "ios_pair_specific_private_key",
+        "desktop_pair_specific_public_key",
+        "ios_claim_token",
+        "authentication_string",
+        "short_lived_pairing_expiry"
+      ],
+      "resume": "cold_start_restores_awaiting_desktop_confirmation_and_reads_broker_state_without_reclaiming_or_reminting_pair_credentials",
+      "activation": "persist_active_pair_material_with_the_existing_ios_claim_token_before_transport_connect_then_delete_the_pending_record"
+    },
     "capacity_lifecycle": {
       "owner": "one-person-lab-cloud",
       "pair_seat_definition": "one_pair_specific_desktop_user_id_plus_one_pair_specific_ios_user_id",
       "reservation_ttl_minutes": 5,
       "allocated_states": [
         "reserved",
+        "awaiting_desktop_confirmation",
         "provisioning",
         "active",
         "revoking",
