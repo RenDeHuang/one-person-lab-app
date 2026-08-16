@@ -641,7 +641,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           OPL_RELEASE_NOTES_MODE: ai
           OPL_RELEASE_NOTES_PROVIDER: openai_compatible
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: https://gflabtoken.cn/v1
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: https://gateway.medopl.com/v1
           OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
           OPL_RELEASE_NOTES_MODEL: gpt-5.6-luna
           OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS: gpt-5.6-luna,gpt-5.4

@@ -487,7 +487,7 @@ writer runs the online provider probe first and fails closed when no usable
 provider is configured.
 Online release drafting uses
 `OPL_RELEASE_NOTES_PROVIDER=openai_compatible` with the existing
-`OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gflabtoken.cn/v1`,
+`OPL_RELEASE_NOTES_CODEX_BASE_URL=https://gateway.medopl.com/v1`,
 `OPL_RELEASE_NOTES_CODEX_API_KEY`, and
 `OPL_RELEASE_NOTES_MODEL=gpt-5.6-luna` route. Stable keeps Luna first and sets
 `OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS=gpt-5.6-luna,gpt-5.4` so a

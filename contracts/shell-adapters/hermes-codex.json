@@ -61,7 +61,7 @@
   "model_access_policy": {
     "ordinary_provider": "gflabtoken",
     "api_key_env": "OPENAI_API_KEY",
-    "provider_base_url": "https://gflabtoken.cn/v1",
+    "provider_base_url": "https://gateway.medopl.com/v1",
     "default_model": "gpt-5.6-sol",
     "reasoning_effort": "max",
     "ordinary_ui_surfaces": [
@@ -278,7 +278,7 @@
       "trigger": "missing_or_invalid_gflabtoken_api_key_or_model_access_unavailable",
       "api_key_provider": "gflabtoken",
       "api_key_command": "opl system configure-codex --api-key-stdin --json",
-      "provider_base_url": "https://gflabtoken.cn/v1",
+      "provider_base_url": "https://gateway.medopl.com/v1",
       "default_model": "gpt-5.6-sol",
       "api_key_env": "OPENAI_API_KEY",
       "ordinary_ui_policy": "show_only_model_access_api_key_no_base_url_provider_marketplace_or_oauth_accounts"

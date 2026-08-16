@@ -167,7 +167,7 @@ function validateTargetStateContracts(label: string, target: HermesTargetStateCo
   if (
     modelAccess?.ordinary_provider !== 'gflabtoken'
     || modelAccess.api_key_env !== 'OPENAI_API_KEY'
-    || modelAccess.provider_base_url !== 'https://gflabtoken.cn/v1'
+    || modelAccess.provider_base_url !== 'https://gateway.medopl.com/v1'
     || modelAccess.default_model !== 'gpt-5.6-sol'
     || modelAccess.reasoning_effort !== 'max'
   ) {
@@ -328,7 +328,7 @@ function validateFirstRunAndIconContracts(adapter: ReturnType<typeof readAppShel
       contract.model_access_wizard?.trigger !== 'missing_or_invalid_gflabtoken_api_key_or_model_access_unavailable'
       || contract.model_access_wizard.api_key_provider !== 'gflabtoken'
       || contract.model_access_wizard.api_key_command !== 'opl system configure-codex --api-key-stdin --json'
-      || contract.model_access_wizard.provider_base_url !== 'https://gflabtoken.cn/v1'
+      || contract.model_access_wizard.provider_base_url !== 'https://gateway.medopl.com/v1'
       || contract.model_access_wizard.default_model !== 'gpt-5.6-sol'
       || contract.model_access_wizard.api_key_env !== 'OPENAI_API_KEY'
       || contract.model_access_wizard.ordinary_ui_policy !== 'show_only_model_access_api_key_no_base_url_provider_marketplace_or_oauth_accounts'
@@ -436,7 +436,7 @@ function validateHermesImplementation(checkoutPath: string): void {
   }
   for (const snippet of [
     "'system', 'configure-codex', '--api-key-stdin', '--json'",
-    'https://gflabtoken.cn/v1',
+    'https://gateway.medopl.com/v1',
     'gpt-5.6-sol',
     'OPENAI_API_KEY',
     "'/api/profiles'",
