@@ -702,7 +702,31 @@ export function buildOplLayer(layerRoot, options) {
   const targetRoot = path.join(layerRoot, 'opl');
   copyTreeFiltered(options.frameworkRoot, targetRoot, 'opl');
   copyProductionNodeModules(options.frameworkRoot, targetRoot);
+  removePackagedSourceExportConditions(path.join(targetRoot, 'node_modules'));
   pruneTemporalCoreBridgeReleases(path.join(targetRoot, 'node_modules'));
+}
+
+function removeOplSourceCondition(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== 'opl-source')
+      .map(([key, child]) => [key, removeOplSourceCondition(child)]),
+  );
+}
+
+export function removePackagedSourceExportConditions(nodeModulesRoot) {
+  if (!fs.existsSync(nodeModulesRoot)) return [];
+  const rewritten = [];
+  for (const relativePackageJsonPath of fs.globSync('**/package.json', { cwd: nodeModulesRoot })) {
+    const packageJsonPath = path.join(nodeModulesRoot, relativePackageJsonPath);
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    if (!JSON.stringify(packageJson.exports ?? {}).includes('"opl-source"')) continue;
+    packageJson.exports = removeOplSourceCondition(packageJson.exports);
+    fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, 'utf8');
+    rewritten.push(path.relative(nodeModulesRoot, packageJsonPath).split(path.sep).join('/'));
+  }
+  return rewritten.sort();
 }
 
 export function buildSkillsLayer(layerRoot, options, resolvedSelectedBundleDescriptor: unknown = null) {
@@ -732,6 +756,8 @@ export function buildRuntimeLayerImplementationHash(layerId: FullRuntimeCacheLay
       pruneTemporalCoreBridgeReleases,
       copyTreeFiltered,
       copyProductionNodeModules,
+      removeOplSourceCondition,
+      removePackagedSourceExportConditions,
       buildOplLayer,
     ],
     skills: [materializeResolvedSelectedBundleDescriptor, buildSkillsLayer],

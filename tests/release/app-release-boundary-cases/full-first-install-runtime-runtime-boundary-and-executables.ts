@@ -158,6 +158,75 @@ test("Full runtime wrapper preserves the Shell Codex executable and labels only 
   }
 });
 
+test("Full runtime Framework packages resolve built JavaScript instead of TypeScript under node_modules", async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-runtime-package-exports-"));
+  const frameworkRoot = path.join(tempRoot, "framework");
+  const layerRoot = path.join(tempRoot, "layer");
+  const packageRoot = path.join(frameworkRoot, "node_modules", "@one-person-lab", "cordis-abi");
+  try {
+    writeJson(path.join(frameworkRoot, "package.json"), {
+      name: "fixture-framework",
+      version: "1.0.0",
+      type: "module",
+      dependencies: { "@one-person-lab/cordis-abi": "0.1.0" },
+    });
+    writeJson(path.join(frameworkRoot, "package-lock.json"), {
+      name: "fixture-framework",
+      lockfileVersion: 3,
+      packages: {
+        "": { dependencies: { "@one-person-lab/cordis-abi": "0.1.0" } },
+        "node_modules/@one-person-lab/cordis-abi": {},
+      },
+    });
+    writeFile(
+      path.join(frameworkRoot, "src", "runtime-smoke.ts"),
+      "import { runtimeValue } from '@one-person-lab/cordis-abi';\nconsole.log(runtimeValue);\n",
+    );
+    writeJson(path.join(packageRoot, "package.json"), {
+      name: "@one-person-lab/cordis-abi",
+      version: "0.1.0",
+      type: "module",
+      exports: {
+        ".": {
+          types: "./src/index.ts",
+          "opl-source": "./src/index.ts",
+          default: "./dist/index.js",
+        },
+      },
+    });
+    writeFile(path.join(packageRoot, "src", "index.ts"), "export const runtimeValue: string = 'source';\n");
+    writeFile(path.join(packageRoot, "dist", "index.js"), "export const runtimeValue = 'built';\n");
+
+    const { buildOplLayer } =
+      await import("../../../scripts/build-full-first-install-package/runtime-layers.ts");
+    buildOplLayer(layerRoot, { frameworkRoot });
+
+    const packagedRoot = path.join(layerRoot, "opl");
+    const packagedManifest = JSON.parse(
+      fs.readFileSync(
+        path.join(packagedRoot, "node_modules", "@one-person-lab", "cordis-abi", "package.json"),
+        "utf8",
+      ),
+    );
+    assert.equal("opl-source" in packagedManifest.exports["."], false);
+    assert.equal(packagedManifest.exports["."].default, "./dist/index.js");
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--conditions=opl-source",
+        "--experimental-strip-types",
+        path.join(packagedRoot, "src", "runtime-smoke.ts"),
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.equal(result.stdout.trim(), "built");
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("Full runtime executable discovery fails closed on duplicate Temporal or Python candidates", async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-runtime-duplicate-candidates-"));
   const runtimeRoot = path.join(tempRoot, "runtime");
