@@ -21,7 +21,10 @@ test('OPL Link wire contract has one versioned broker and encrypted transport sh
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_create_pairing'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'ios_claim_pairing'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_confirm_pairing'));
-  assert.ok(endpoints.some((endpoint) => endpoint.id === 'refresh_provider_credentials'));
+  const credentialEndpoint = endpoints.find((endpoint) => endpoint.id === 'refresh_provider_credentials');
+  assert.ok(credentialEndpoint);
+  assert.ok(credentialEndpoint.response_fields.includes('provider_user_id'));
+  assert.ok(credentialEndpoint.response_fields.includes('peer_provider_user_id'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'revoke_pair'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'read_revocation'));
 });
