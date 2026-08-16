@@ -16,11 +16,16 @@ const files = {
     ipcBridge.codexThreads.start.provider ipcBridge.codexThreads.resume.provider
     ipcBridge.codexThreads.fork.provider ipcBridge.codexThreads.archive.provider
     ipcBridge.codexThreads.unarchive.provider
-    app.on('before-quit', disposeCodexAppServerBridge)
   `,
   'packages/desktop/src/process/bridge/index.ts': `
     initCodexAppServerBridge
     initCodexAppServerBridge(deps.codexAppServerAdapter)
+  `,
+  'packages/desktop/src/index.ts': `
+    installQuitCleanup({
+    onBeforeQuit: (handler) => app.on('before-quit', (event) => handler(event))
+    stopBackend: async () => {
+    try { await disposeCodexAppServerBridge(); } finally { await backendManager.stop(); }
   `,
   'packages/desktop/src/renderer/components/layout/Sider/index.tsx': `
     ordinary navigation with the conversation directory only
@@ -67,6 +72,17 @@ test('active-shell validator rejects an unwired production adapter', () => {
     'utf8',
   );
   assert.throws(() => validateShellThreadCoordination(shellPaths), /Codex App Server IPC bridge/);
+});
+
+test('active-shell validator rejects fire-and-forget App Server shutdown', () => {
+  const { root, shellPaths } = fixture();
+  const desktopIndexPath = path.join(root, 'packages/desktop/src/index.ts');
+  fs.writeFileSync(
+    desktopIndexPath,
+    fs.readFileSync(desktopIndexPath, 'utf8').replace('await disposeCodexAppServerBridge();', 'void disposeCodexAppServerBridge();'),
+    'utf8',
+  );
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /awaited Codex App Server shutdown/);
 });
 
 test('active-shell validator rejects a missing user-triggered lifecycle method', () => {

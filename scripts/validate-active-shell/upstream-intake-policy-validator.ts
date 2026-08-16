@@ -203,7 +203,6 @@ const REQUIRED_MANAGED_AGENT_API_CONTRACT = {
       'packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/LarkConfigForm.tsx',
       'packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/WecomConfigForm.tsx',
       'packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/DingTalkConfigForm.tsx',
-      'packages/desktop/src/renderer/components/settings/SettingsModal/contents/channels/WeixinConfigForm.tsx',
     ],
     cron_create_dialog: 'packages/desktop/src/renderer/pages/cron/ScheduledTasksPage/CreateTaskDialog.tsx',
     cron_agent_config_resolver:

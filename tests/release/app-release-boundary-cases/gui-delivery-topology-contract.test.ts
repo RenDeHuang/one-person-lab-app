@@ -121,7 +121,7 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
     standard_view_types: ['list_detail', 'timeline', 'approval_diff', 'task_board', 'artifact_view', 'activity_log', 'channel_access'],
     transport_binding_source: 'app_state.transport_bindings',
     transport_binding_schema: 'opl_app_transport_bindings_projection.v1',
-    transport_binding_migration_state: 'producer_callback_pending',
+    transport_binding_migration_state: 'producer_callback_source_e2e_completed_projection_pending',
     transport_binding_event: 'opl/app-transport-bindings/updated',
     typed_state_rpc: 'opl app state --profile fast --json',
     typed_action_rpc: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',

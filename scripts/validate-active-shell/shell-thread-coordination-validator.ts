@@ -10,6 +10,7 @@ const paths = {
   adapter: 'packages/desktop/src/process/services/codexAppServer/adapter.ts',
   bridge: 'packages/desktop/src/process/bridge/codexAppServerBridge.ts',
   bridgeIndex: 'packages/desktop/src/process/bridge/index.ts',
+  desktopIndex: 'packages/desktop/src/index.ts',
   sider: 'packages/desktop/src/renderer/components/layout/Sider/index.tsx',
 };
 
@@ -68,7 +69,6 @@ export function validateShellThreadCoordination(shellPaths): void {
       'ipcBridge.codexThreads.fork.provider',
       'ipcBridge.codexThreads.archive.provider',
       'ipcBridge.codexThreads.unarchive.provider',
-      "app.on('before-quit', disposeCodexAppServerBridge)",
     ],
     'Codex App Server IPC bridge',
   );
@@ -77,6 +77,19 @@ export function validateShellThreadCoordination(shellPaths): void {
     paths.bridgeIndex,
     ['initCodexAppServerBridge', 'initCodexAppServerBridge(deps.codexAppServerAdapter)'],
     'Codex App Server bridge registration',
+  );
+  const desktopIndex = assertShellTextIncludesAll(
+    shellPaths,
+    paths.desktopIndex,
+    [
+      'installQuitCleanup({',
+      "onBeforeQuit: (handler) => app.on('before-quit', (event) => handler(event))",
+      'stopBackend: async () => {',
+      'await disposeCodexAppServerBridge();',
+      'finally {',
+      'await backendManager.stop();',
+    ],
+    'awaited Codex App Server shutdown',
   );
   const sider = readShellText(shellPaths, paths.sider);
 
@@ -87,7 +100,7 @@ export function validateShellThreadCoordination(shellPaths): void {
   }
 
   assertTextExcludesAll(
-    [adapter, bridge, bridgeIndex, sider].join('\n'),
+    [adapter, bridge, bridgeIndex, desktopIndex, sider].join('\n'),
     [
       'ThreadCoordinationSection',
       'threadCoordination.',

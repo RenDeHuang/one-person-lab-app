@@ -413,13 +413,14 @@ function validateResourcesPage(matrix, guiContract) {
     standard_view_type: 'channel_access',
     standard_view_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/channel_access_result',
     transport_binding_source: 'app_state.transport_bindings',
-    provider_absent_policy: 'omit_channel_access_contribution_without_placeholder_keep_transport_binding_projection_unavailable_and_allow_current_aion_legacy_fallback_until_shared_e2e_cutover',
+    provider_absent_policy:
+      'omit_channel_access_contribution_without_placeholder_keep_transport_binding_projection_unavailable_and_allow_current_aion_legacy_fallback_until_framework_transport_binding_projection_cutover',
     ordinary_controls: ['login_or_connection_status', 'pairing_requests', 'authorized_users'],
     forbidden_controls: [
       'agent_selector',
       'model_selector',
       'model_following_status',
-      'target_shell_owned_binding_or_workspace_inference_after_shared_e2e_cutover',
+      'target_shell_owned_binding_or_workspace_inference_after_framework_transport_binding_projection_cutover',
     ],
     navigation_policy: {
       close_connection_details: 'return_to_settings_resources',
@@ -452,7 +453,7 @@ function validateResourcesPage(matrix, guiContract) {
         'agent_selector',
         'model_selector',
         'model_following_status',
-        'target_shell_owned_binding_or_workspace_inference_after_shared_e2e_cutover',
+        'target_shell_owned_binding_or_workspace_inference_after_framework_transport_binding_projection_cutover',
       ],
       navigation_policy: {
         close_connection_details: 'return_to_settings_resources',

@@ -246,21 +246,36 @@ test('transport providers project a projectless canonical task binding without S
   assert.equal(channelAccess.provider_absent_policy, 'omit_channel_access_contribution_and_render_no_placeholder_or_fabricated_connection_state');
   assert.equal(projection.source, 'app_state.transport_bindings');
   assert.equal(projection.surface_kind, 'opl_app_transport_bindings_projection.v1');
-  assert.equal(projection.migration_state, 'producer_callback_pending');
+  assert.equal(projection.migration_state, 'producer_callback_source_e2e_completed_projection_pending');
   assert.equal(projection.projection_runtime_status, 'target_shared_abi_not_yet_produced');
   assert.equal(projection.binding_field_contract.project_affinity, 'projectless');
   assert.equal(projection.binding_field_contract.status, 'bound');
   assert.equal(projection.canonical_row_policy, 'one_visible_row_per_canonical_thread_identity_even_when_a_transport_binding_exists');
-  assert.match(projection.provider_absent_policy, /temporary_legacy_fallback_may_run_until_cutover/);
+  assert.match(
+    projection.provider_absent_policy,
+    /temporary_legacy_fallback_may_run_until_framework_transport_binding_projection_cutover/,
+  );
   assert.equal(projection.target_workspace_leaf_or_title_inference_allowed, false);
   assert.equal(projection.target_shell_writeback_allowed, false);
   assert.equal(projection.temporary_legacy_fallback.owner, 'opl-aion-shell');
-  assert.equal(projection.temporary_legacy_fallback.status, 'active_bounded_until_shared_callback_e2e');
+  assert.equal(
+    projection.temporary_legacy_fallback.status,
+    'active_bounded_until_framework_transport_binding_projection_cutover',
+  );
   assert.equal(projection.temporary_legacy_fallback.studio_may_copy_fallback, false);
-  assert.match(projection.temporary_legacy_fallback.retirement_gate, /aionui_and_studio_callback_e2e/);
+  assert.match(
+    projection.temporary_legacy_fallback.retirement_gate,
+    /framework_transport_binding_projection_plus_aionui_and_studio_consumption_e2e/,
+  );
   assert.equal('legacy_shell_read_compatibility' in projection, false);
-  assert.match(projection.post_cutover_legacy_read_compatibility, /after_shared_e2e_cutover/);
-  assert.match(pageChannelAccess.provider_absent_policy, /allow_current_aion_legacy_fallback_until_shared_e2e_cutover/);
+  assert.match(
+    projection.post_cutover_legacy_read_compatibility,
+    /after_framework_transport_binding_projection_cutover/,
+  );
+  assert.match(
+    pageChannelAccess.provider_absent_policy,
+    /allow_current_aion_legacy_fallback_until_framework_transport_binding_projection_cutover/,
+  );
   assert.match(projection.binding_unavailable_policy, /preserve_the_transport_row_fail_open/);
 });
 

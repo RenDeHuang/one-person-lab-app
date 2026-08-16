@@ -138,7 +138,7 @@ test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution A
   );
 });
 
-test('both GUI clients share channel_access while transport binding remains a pending Framework migration', () => {
+test('both GUI clients prove channel access source E2E while transport projection remains pending', () => {
   const gui = readJson<any>('contracts/app-gui-product-contract.json');
   const profile = readJson<any>('contracts/app-product-profile.json');
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
@@ -147,11 +147,23 @@ test('both GUI clients share channel_access while transport binding remains a pe
 
   assert.equal(
     gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.runtime_status,
-    'target_schema_defined_no_current_provider_contribution_proven',
+    'current_provider_contribution_source_e2e_proven',
+  );
+  assert.equal(
+    gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.migration_state,
+    'framework_channel_provider_host_source_e2e_completed',
   );
   assert.ok(profile.client_renderer_compatibility.standard_view_types.includes('channel_access'));
   assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');
-  assert.equal(profile.client_renderer_compatibility.transport_binding_migration_state, 'producer_callback_pending');
+  assert.equal(
+    profile.client_renderer_compatibility.transport_binding_migration_state,
+    'producer_callback_source_e2e_completed_projection_pending',
+  );
+  assert.equal(
+    runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
+      .projection_runtime_status,
+    'target_shared_abi_not_yet_produced',
+  );
   assert.equal(
     runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
       .temporary_legacy_fallback.studio_may_copy_fallback,
