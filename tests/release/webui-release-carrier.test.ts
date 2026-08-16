@@ -786,7 +786,7 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(buildRun, /find \/opt\/codex-cli -type l -print -quit/);
   assert.match(buildRun, /webui-executor-source\/scripts\/materialize-webui-seed-symlinks\.ts/);
   assert.match(buildRun, /COPY \.opl-frozen-inputs\/materialize-webui-seed-symlinks\.ts \/tmp\/materialize-webui-seed-symlinks\.ts/);
-  assert.match(buildRun, /materialize-webui-seed-symlinks\.ts --root node_modules/);
+  assert.match(buildRun, /materialize-webui-seed-symlinks\.ts --root node_modules --workspace-root \./);
   assert.match(buildRun, /find node_modules -type l -print -quit/);
   assert.match(buildRun, /framework-release-adapter\.ts webui-build-input/);
   assert.match(buildRun, /oras manifest fetch/);

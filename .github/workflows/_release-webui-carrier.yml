@@ -319,7 +319,7 @@ jobs:
           const materializedFrameworkInstall = [
             'COPY .opl-frozen-inputs/materialize-webui-seed-symlinks.ts /tmp/materialize-webui-seed-symlinks.ts',
             frameworkInstall,
-            'RUN node --experimental-strip-types /tmp/materialize-webui-seed-symlinks.ts --root node_modules \\',
+            'RUN node --experimental-strip-types /tmp/materialize-webui-seed-symlinks.ts --root node_modules --workspace-root . \\',
             '  && rm -f /tmp/materialize-webui-seed-symlinks.ts \\',
             '  && test -z "$(find node_modules -type l -print -quit)"',
           ].join('\n');

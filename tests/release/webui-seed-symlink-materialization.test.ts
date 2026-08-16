@@ -87,6 +87,60 @@ test('materializes only the exact global Codex bin symlink outside npm .bin', ()
   }
 });
 
+test('materializes exact OPL workspace package links as real directories', () => {
+  const current = fixture();
+  try {
+    const packageRoot = path.join(current.payload, 'packages', 'connect-discovery');
+    const scopeRoot = path.join(current.payload, 'node_modules', '@one-person-lab');
+    const link = path.join(scopeRoot, 'connect-discovery');
+    fs.mkdirSync(path.join(packageRoot, 'dist'), { recursive: true });
+    fs.mkdirSync(scopeRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageRoot, 'package.json'),
+      `${JSON.stringify({ name: '@one-person-lab/connect-discovery', version: '0.1.0' })}\n`,
+    );
+    fs.writeFileSync(path.join(packageRoot, 'dist', 'index.js'), 'export const ready = true;\n');
+    fs.symlinkSync('../../packages/connect-discovery', link);
+
+    const result = materializeWebuiSeedSymlinks(
+      path.join(current.payload, 'node_modules'),
+      { workspaceRoot: current.payload },
+    );
+
+    assert.equal(result.length, 1);
+    assert.equal(result[0].path, path.join('@one-person-lab', 'connect-discovery'));
+    assert.equal(fs.lstatSync(link).isSymbolicLink(), false);
+    assert.equal(fs.lstatSync(link).isDirectory(), true);
+    assert.equal(fs.readFileSync(path.join(link, 'dist', 'index.js'), 'utf8'), 'export const ready = true;\n');
+  } finally {
+    current.cleanup();
+  }
+});
+
+test('rejects an OPL workspace link whose package identity does not match', () => {
+  const current = fixture();
+  try {
+    const packageRoot = path.join(current.payload, 'packages', 'connect-discovery');
+    const scopeRoot = path.join(current.payload, 'node_modules', '@one-person-lab');
+    const link = path.join(scopeRoot, 'connect-discovery');
+    fs.mkdirSync(packageRoot, { recursive: true });
+    fs.mkdirSync(scopeRoot, { recursive: true });
+    fs.writeFileSync(path.join(packageRoot, 'package.json'), '{"name":"@one-person-lab/wrong"}\n');
+    fs.symlinkSync('../../packages/connect-discovery', link);
+
+    assert.throws(
+      () => materializeWebuiSeedSymlinks(
+        path.join(current.payload, 'node_modules'),
+        { workspaceRoot: current.payload },
+      ),
+      /workspace package identity does not match/,
+    );
+    assert.equal(fs.lstatSync(link).isSymbolicLink(), true);
+  } finally {
+    current.cleanup();
+  }
+});
+
 test('rejects executable symlinks outside npm .bin without partially materializing valid links', () => {
   const current = fixture();
   try {
@@ -104,7 +158,7 @@ test('rejects executable symlinks outside npm .bin without partially materializi
 
     assert.throws(
       () => materializeWebuiSeedSymlinks(current.payload),
-      /only npm \.bin or the exact global Codex bin symbolic link/,
+      /only npm \.bin, an exact OPL workspace package, or the exact global Codex bin symbolic link/,
     );
     assert.equal(fs.lstatSync(validLink).isSymbolicLink(), true);
     assert.equal(fs.lstatSync(invalidLink).isSymbolicLink(), true);

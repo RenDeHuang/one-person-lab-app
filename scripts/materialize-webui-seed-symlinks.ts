@@ -12,6 +12,14 @@ type MaterializedSymlink = {
   size_bytes: number;
 };
 
+type ValidatedSymlink = {
+  kind: 'executable_wrapper' | 'workspace_directory';
+  linkPath: string;
+  target: string;
+  targetPath: string;
+  mode: number;
+};
+
 function fail(message: string): never {
   throw new Error(message);
 }
@@ -59,7 +67,16 @@ function assertNoSymlinkTraversal(root: string, candidate: string, linkPath: str
   }
 }
 
-export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSymlink[] {
+function workspacePackageName(relativeLinkPath: string): string | undefined {
+  const parts = relativeLinkPath.split(path.sep);
+  if (parts.length !== 2 || parts[0] !== '@one-person-lab' || !parts[1]) return undefined;
+  return parts[1];
+}
+
+export function materializeWebuiSeedSymlinks(
+  rootInput: string,
+  options: { workspaceRoot?: string } = {},
+): MaterializedSymlink[] {
   const root = path.resolve(rootInput);
   let rootStat: fs.Stats;
   try {
@@ -72,29 +89,79 @@ export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSym
   }
 
   const realRoot = fs.realpathSync.native(root);
-  const validated = collectSymlinks(root).map((linkPath) => {
+  const workspaceRoot = options.workspaceRoot ? path.resolve(options.workspaceRoot) : undefined;
+  if (workspaceRoot) {
+    const workspaceStat = fs.lstatSync(workspaceRoot);
+    if (!workspaceStat.isDirectory() || workspaceStat.isSymbolicLink()) {
+      return fail(`WebUI seed workspace root must be a real directory: ${workspaceRoot}`);
+    }
+    if (root !== path.join(workspaceRoot, 'node_modules')) {
+      return fail('WebUI seed workspace materialization root must be <workspace-root>/node_modules');
+    }
+  }
+  const realWorkspaceRoot = workspaceRoot ? fs.realpathSync.native(workspaceRoot) : undefined;
+  const validated: ValidatedSymlink[] = collectSymlinks(root).map((linkPath) => {
     const relativeLinkPath = path.relative(root, linkPath);
     const isNpmBinLink = path.basename(path.dirname(linkPath)) === '.bin';
     const isCodexGlobalBinLink = relativeLinkPath === path.join('bin', 'codex');
-    if (!isNpmBinLink && !isCodexGlobalBinLink) {
-      return fail(`WebUI seed payload may materialize only npm .bin or the exact global Codex bin symbolic link: ${linkPath}`);
+    const workspacePackage = workspaceRoot ? workspacePackageName(relativeLinkPath) : undefined;
+    if (!isNpmBinLink && !isCodexGlobalBinLink && !workspacePackage) {
+      return fail(`WebUI seed payload may materialize only npm .bin, an exact OPL workspace package, or the exact global Codex bin symbolic link: ${linkPath}`);
     }
     const target = fs.readlinkSync(linkPath);
     if (path.isAbsolute(target)) {
       return fail(`WebUI seed payload contains an absolute symbolic link: ${linkPath}`);
     }
     const lexicalTarget = path.resolve(path.dirname(linkPath), target);
-    if (!isPathInside(root, lexicalTarget)) {
+    const targetBoundary = workspacePackage ? workspaceRoot! : root;
+    const realTargetBoundary = workspacePackage ? realWorkspaceRoot! : realRoot;
+    if (!isPathInside(targetBoundary, lexicalTarget)) {
       return fail(`WebUI seed symbolic link target escapes the payload root: ${linkPath}`);
     }
-    assertNoSymlinkTraversal(root, lexicalTarget, linkPath);
+    assertNoSymlinkTraversal(targetBoundary, lexicalTarget, linkPath);
     let targetStat: fs.Stats;
     try {
       targetStat = fs.lstatSync(lexicalTarget);
     } catch {
       return fail(`WebUI seed payload contains a broken symbolic link: ${linkPath}`);
     }
-    if (!targetStat.isFile() || targetStat.isSymbolicLink()) {
+    if (targetStat.isSymbolicLink()) {
+      return fail(`WebUI seed symbolic link must target a regular file: ${linkPath}`);
+    }
+    if (workspacePackage) {
+      const expectedTarget = path.join(workspaceRoot!, 'packages', workspacePackage);
+      if (lexicalTarget !== expectedTarget || !targetStat.isDirectory()) {
+        return fail(`WebUI seed workspace link must target packages/${workspacePackage}: ${linkPath}`);
+      }
+      const packageJsonPath = path.join(lexicalTarget, 'package.json');
+      let packageName: unknown;
+      try {
+        const packageJsonStat = fs.lstatSync(packageJsonPath);
+        if (!packageJsonStat.isFile() || packageJsonStat.isSymbolicLink()) throw new Error('not a regular file');
+        packageName = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')).name;
+      } catch {
+        return fail(`WebUI seed workspace link requires a regular package.json: ${linkPath}`);
+      }
+      if (packageName !== `@one-person-lab/${workspacePackage}`) {
+        return fail(`WebUI seed workspace package identity does not match its link: ${linkPath}`);
+      }
+      const nestedSymlinks = collectSymlinks(lexicalTarget);
+      if (nestedSymlinks.length > 0) {
+        return fail(`WebUI seed workspace package contains a nested symbolic link: ${nestedSymlinks[0]}`);
+      }
+      const realTarget = fs.realpathSync.native(lexicalTarget);
+      if (!isPathInside(realTargetBoundary, realTarget)) {
+        return fail(`WebUI seed symbolic link target escapes the physical payload root: ${linkPath}`);
+      }
+      return {
+        kind: 'workspace_directory',
+        linkPath,
+        target,
+        targetPath: lexicalTarget,
+        mode: targetStat.mode & 0o777,
+      };
+    }
+    if (!targetStat.isFile()) {
       return fail(`WebUI seed symbolic link must target a regular file: ${linkPath}`);
     }
     if ((targetStat.mode & 0o111) === 0) {
@@ -112,10 +179,11 @@ export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSym
       return fail(`WebUI seed executable target must declare an interpreter: ${linkPath}`);
     }
     const realTarget = fs.realpathSync.native(lexicalTarget);
-    if (!isPathInside(realRoot, realTarget)) {
+    if (!isPathInside(realTargetBoundary, realTarget)) {
       return fail(`WebUI seed symbolic link target escapes the physical payload root: ${linkPath}`);
     }
     return {
+      kind: 'executable_wrapper',
       linkPath,
       target,
       targetPath: lexicalTarget,
@@ -126,17 +194,38 @@ export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSym
   const materialized: MaterializedSymlink[] = [];
   for (const [index, entry] of validated.entries()) {
     const temporary = `${entry.linkPath}.opl-materialized-${process.pid}-${index}`;
-    const wrapper = `#!/bin/sh\nexec "$(dirname "$0")"/${shellSingleQuote(entry.target)} "$@"\n`;
     try {
-      fs.writeFileSync(temporary, wrapper, { flag: 'wx', mode: entry.mode });
-      fs.chmodSync(temporary, entry.mode);
-      fs.renameSync(temporary, entry.linkPath);
+      if (entry.kind === 'workspace_directory') {
+        fs.cpSync(entry.targetPath, temporary, {
+          recursive: true,
+          dereference: false,
+          errorOnExist: true,
+          force: false,
+          preserveTimestamps: true,
+        });
+        fs.chmodSync(temporary, entry.mode);
+        fs.unlinkSync(entry.linkPath);
+        try {
+          fs.renameSync(temporary, entry.linkPath);
+        } catch (error) {
+          fs.symlinkSync(entry.target, entry.linkPath);
+          throw error;
+        }
+      } else {
+        const wrapper = `#!/bin/sh\nexec "$(dirname "$0")"/${shellSingleQuote(entry.target)} "$@"\n`;
+        fs.writeFileSync(temporary, wrapper, { flag: 'wx', mode: entry.mode });
+        fs.chmodSync(temporary, entry.mode);
+        fs.renameSync(temporary, entry.linkPath);
+      }
     } finally {
-      fs.rmSync(temporary, { force: true });
+      fs.rmSync(temporary, { recursive: entry.kind === 'workspace_directory', force: true });
     }
     const resultStat = fs.lstatSync(entry.linkPath);
-    if (!resultStat.isFile() || resultStat.isSymbolicLink()) {
-      return fail(`WebUI seed symbolic link was not materialized as a regular file: ${entry.linkPath}`);
+    const expectedKindMatches = entry.kind === 'workspace_directory'
+      ? resultStat.isDirectory()
+      : resultStat.isFile();
+    if (!expectedKindMatches || resultStat.isSymbolicLink()) {
+      return fail(`WebUI seed symbolic link was not materialized to its required physical kind: ${entry.linkPath}`);
     }
     materialized.push({
       path: path.relative(root, entry.linkPath),
@@ -155,11 +244,16 @@ export function materializeWebuiSeedSymlinks(rootInput: string): MaterializedSym
 
 function main(): void {
   const { values } = parseArgs({
-    options: { root: { type: 'string' } },
+    options: {
+      root: { type: 'string' },
+      'workspace-root': { type: 'string' },
+    },
     strict: true,
   });
   if (!values.root) fail('Usage: materialize-webui-seed-symlinks.ts --root <payload-directory>');
-  const materialized = materializeWebuiSeedSymlinks(values.root);
+  const materialized = materializeWebuiSeedSymlinks(values.root, {
+    workspaceRoot: values['workspace-root'],
+  });
   process.stdout.write(`${JSON.stringify({
     schema: 'opl_app_webui_seed_symlink_materialization.v1',
     status: 'passed',
