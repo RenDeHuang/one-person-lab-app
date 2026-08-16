@@ -75,9 +75,27 @@ export function validatePackageAppContributionsProductContract(contract) {
     || channelAccess?.properties?.pending_pairings?.maxItems !== 100
     || channelAccess?.properties?.authorized_users?.maxItems !== 100
     || schema.$defs?.channel_access_qr_challenge?.properties?.payload?.maxLength !== 8192
+    || schema.$defs?.channel_access_qr_challenge?.properties?.expires_at_ms?.minimum !== 1
   ) {
     throw new Error('App contributions schema channel_access result must stay closed, bounded, and versioned');
   }
+  assertDeepEqualJson(
+    schema.$defs?.channel_access_connection?.oneOf,
+    [
+      {
+        properties: { state: { const: 'qr_ready' } },
+      },
+      {
+        properties: {
+          state: {
+            enum: ['disconnected', 'connecting', 'qr_scanned', 'connected', 'attention'],
+          },
+        },
+        not: { required: ['qr_challenge'] },
+      },
+    ],
+    'App contributions schema channel_access QR state boundary',
+  );
   assertDeepEqualJson(
     schema.$defs?.channel_access_action_input?.oneOf,
     [

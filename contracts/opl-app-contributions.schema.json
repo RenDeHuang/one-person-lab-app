@@ -248,7 +248,7 @@
       "required": ["payload", "expires_at_ms"],
       "properties": {
         "payload": { "type": "string", "minLength": 1, "maxLength": 8192 },
-        "expires_at_ms": { "type": "integer", "minimum": 0 }
+        "expires_at_ms": { "type": "integer", "minimum": 1 }
       },
       "additionalProperties": false
     },
@@ -263,6 +263,19 @@
         "reason_code": { "$ref": "#/$defs/stable_id" },
         "qr_challenge": { "$ref": "#/$defs/channel_access_qr_challenge" }
       },
+      "oneOf": [
+        {
+          "properties": { "state": { "const": "qr_ready" } }
+        },
+        {
+          "properties": {
+            "state": {
+              "enum": ["disconnected", "connecting", "qr_scanned", "connected", "attention"]
+            }
+          },
+          "not": { "required": ["qr_challenge"] }
+        }
+      ],
       "additionalProperties": false
     },
     "channel_access_pairing": {

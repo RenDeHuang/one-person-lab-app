@@ -468,7 +468,7 @@ test('unknown descriptor-neutral Package contributions route through the broker 
   ]);
 });
 
-test('channel_access standard view requires exact entity inputs and omits stale state when unavailable', () => {
+test('channel_access requires exact inputs, state-scoped QR challenges, and no stale unavailable state', () => {
   const schema = readJson('contracts/opl-app-contributions.schema.json');
   const ajv = new Ajv2020({ allErrors: true, strictSchema: true, strictTypes: false });
   ajv.addSchema(schema);
@@ -516,6 +516,23 @@ test('channel_access standard view requires exact entity inputs and omits stale 
     refresh_after_ms: 1000,
   };
   assert.equal(validate(available), true, JSON.stringify(validate.errors));
+
+  const connectedWithoutQr = structuredClone(available);
+  connectedWithoutQr.connection.state = 'connected';
+  delete (connectedWithoutQr.connection as any).qr_challenge;
+  assert.equal(validate(connectedWithoutQr), true, JSON.stringify(validate.errors));
+
+  const qrOnConnectedState = structuredClone(available);
+  qrOnConnectedState.connection.state = 'connected';
+  assert.equal(validate(qrOnConnectedState), false);
+
+  const zeroExpiryQr = structuredClone(available);
+  zeroExpiryQr.connection.qr_challenge.expires_at_ms = 0;
+  assert.equal(validate(zeroExpiryQr), false);
+
+  const qrReadyWithoutChallenge = structuredClone(available);
+  delete (qrReadyWithoutChallenge.connection as any).qr_challenge;
+  assert.equal(validate(qrReadyWithoutChallenge), true, JSON.stringify(validate.errors));
 
   const pairingWithoutEntityInput = structuredClone(available);
   pairingWithoutEntityInput.pending_pairings[0].actions[0].input = { channel_id: 'weixin' } as any;
