@@ -66,37 +66,50 @@ disambiguates Auto from a fixed model, presents effort values without a redundan
 and lists owner-projected OPL standard Agents separately in the composer palette. These are source and
 local visual results only; they do not prove installed, active-shell or release adoption.
 
-The App contract now defines the missing successor P1 binding without adding an Agent activation action.
-Selecting a standard Agent captures the owner-projected `package_id`, `shortcut_id`, `codex_visible_entry`,
-and `required_skill_ids`, then launches the canonical conversation through Codex `thread/start` and
-`turn/start`. During an active turn, accepted follow-up input uses `turn/steer`; otherwise it uses
-`turn/start`. Any visible queue is renderer-ephemeral until App Server acceptance and is never a persistent
-Shell queue. Studio source must still implement and freshly read back this contract before the capability is
-complete.
+The source implementation now includes the successor P1 skeleton without adding an Agent activation action.
+It projects the dynamic Agent catalog and lifecycle, captures the selected standard Agent's owner-projected
+`package_id`, `shortcut_id`, `codex_visible_entry`, and `required_skill_ids`, and routes new conversations
+through Codex `thread/start` plus `turn/start`. During an active turn, accepted follow-up input uses
+`turn/steer`; otherwise it uses `turn/start`. Any visible queue is renderer-ephemeral until App Server
+acceptance and is never a persistent Shell queue. The same source baseline includes the `runtime.detail`
+renderer skeleton. Electron Desktop and standalone Headless have App-updater callers, and Base/Package
+action entries exist, but those facts do not establish three complete update objects: Docker/OCI has no
+host-side updater caller, the fast App projection does not yet supply managed-update and OPL Flow dependency
+state, and currentness readback is incomplete. Dynamic Codex Skills/Plugins/Apps reading is canonical; the
+searchable Settings directory, onboarding, workspace/storage controls and updater UX remain in an active
+Studio lane rather than canonical source. `managed_companions` and other owner capability details are not
+yet preserved by the compact projection. Source presence does not replace canonical post-action readback,
+live producer evidence, interaction qualification, or user acceptance.
 
 ## Minimum Complete Product And Ordered Gaps
 
-Studio completion follows the App profile's minimum-complete contract, not AionUI feature parity.
+Studio completion follows the App profile's minimum-complete contract, not AionUI feature parity. The status
+labels below distinguish canonical source, an unabsorbed active lane, missing producer/caller work, and work
+intentionally deferred to release admission; none of them implies user acceptance.
 
-| Surface | Current Studio baseline | Required closure |
+| Surface | Current status | Current evidence and required closure |
 | --- | --- | --- |
-| Agent management | Dynamic catalog and projected installed/enabled state; OPL standard Agents are separated from Skills and connections; App P1 transport and lifecycle binding is canonical | Implement the contract-owned `thread/start` + `turn/start` launch, active-turn `turn/steer`, dynamic projected lifecycle actions, automatic-update policy and fresh readback; do not add an Agent activation action or Shell queue |
-| Run and research state | Thread turn state and `active_project_lines` are available | Project current Agent phase, queued/active work, hypotheses, roadmap and owner task modules through `runtime.detail`; never synthesize research state in the shell |
-| App update | One App-owned logical update contract is canonical | Implement Electron, standalone-service/package, and container-image adapters without turning them into separate product updaters; each route requires restart/recreate and running-version readback |
-| OPL Base update | Framework managed-update status/action/receipt authority and shared host-core binding are canonical | Render Base independently and invoke only the existing Framework managed-update bridge with terminal readback |
-| OPL Packages and Agent updates | Dynamic Package actions, managed automatic-update policy and shared host-core binding are canonical | Render aggregate currentness and projected per-Package lifecycle independently from App/Base; Agent Packages never become a fourth updater |
-| Capabilities | Composer skill picker and `settings.section` contributions exist | Replace counts-only Settings content with the dynamic Skill/Plugin/MCP/managed-companion directory |
-| Channel access | App-owned `channel_access` view schema and target `app_state.transport_bindings` ABI are canonical; provider callback source E2E is complete and the Framework binding projection is pending | Render provider-projected connection, QR, pairing, and authorized-user state with exact action inputs; treat absence as normal, never persist QR payloads, infer bindings, or copy AionUI's temporary legacy fallback |
-| Workspace and storage | Owner state is readable | Add owner-projected select/rebind and cleanup actions; never create a second store |
-| Account and access | Gateway projection, projected non-secret actions and dedicated login secret bridge are canonical | Implement Settings controls and post-action readback; never place password material in generic App actions or renderer persistence |
-| Preferences and diagnostics | DSH System/Light/Dark is wired to the real renderer theme | Add necessary language, notifications and local behavior controls, service diagnostics/export and About/notices without copying DSH runtime settings |
+| Agent management | Canonical source-complete skeleton; correctness gaps open | Dynamic catalog, projected installed/enabled/readiness lifecycle, standard-Agent selection, `thread/start` + `turn/start`, and active-turn `turn/steer` are present. Still prove post-launch `thread/read(includeTurns=true)` against the returned canonical thread, restore `activeTurnId` when an active thread is reopened, and hard-block launch when `launch_allowed` or `operational_ready` is false. Lifecycle and automatic-update outcomes require fresh owner readback; do not add an Agent activation action or Shell queue. |
+| Run and research state | Canonical renderer skeleton; producer missing | Thread/turn status, `active_project_lines`, and scoped `runtime.detail` rendering exist. A real owner producer for phase, hypotheses, roadmap and task modules plus an authoritative thread-to-`work_item` identity ABI are still required before work-item-scoped data may render; never synthesize research state in the shell. |
+| App update | Desktop/Headless callers canonical; Docker/OCI caller missing; UX active lane; release deferred | Electron and standalone Headless status/check/apply/restart callers exist. Add the Docker/OCI host-side caller, then qualify restart or recreate and running-version readback. The Settings/Updater interaction and failure-state flow is pending in the active Studio lane. Signing, publication and public-feed mutation remain release work. |
+| OPL Base update | Action entry canonical; producer/readback missing | The Settings action entry exists, but the fast App projection does not yet provide managed-update state. Add that producer projection and qualify terminal post-action readback through the Framework-managed authority. |
+| OPL Packages and Agent updates | Action entries canonical; producer/readback missing | Dynamic action entries exist, but OPL Flow dependency/currentness state is absent from the fast projection. Preserve Package and Agent Package identity, version, policy and terminal outcomes in the owner projection; Agent Packages remain part of this object and never become a fourth updater. |
+| Capabilities | Codex catalog canonical; Settings directory active lane; projection producer incomplete | Dynamic Codex Skills/Plugins/Apps reading and composer selection exist. The searchable Settings directory is pending in the active Studio lane. Preserve `managed_companions`, Flow dependencies, MCP, image/voice capability, owner, version and actions through the compact projection, then qualify empty, loading, partial and error states. |
+| Channel access | App schema canonical; Framework projection and Studio consumption open | Provider callback source E2E exists, while `app_state.transport_bindings` production and the Studio consumer remain open. Render projected connection, QR, pairing and authorized-user state with exact action inputs; treat absence as normal and never persist QR payloads, infer bindings, or copy AionUI's temporary legacy fallback. |
+| Computer Use | Shared ABI canonical; Studio consumption active lane | Complete and qualify the Host-projected Computer Use contribution consumer without granting the renderer a second capability authority. |
+| Workspace and storage | Active Studio lane; carrier-host producer missing | Workspace chooser/rebind, storage inventory and related Settings/Onboarding UX are pending outside canonical main. The carrier host also needs a cleanup plan/execute/restore ABI and terminal owner readback; never create a second store. |
+| Account and access | Core Gateway bridge canonical; UX active lane | Gateway projection, cache, non-secret action path and dedicated login secret bridge exist. First-run/startup and stale/error/post-action Settings behavior remains pending interaction qualification; never place password material in generic App actions or renderer persistence. |
+| Preferences and diagnostics | Basic canonical settings; expanded UX active lane; recovery projection incomplete | Theme and basic local preferences exist. Top-level Runtime Overview, first-run/onboarding, updater UX and macOS tray/menu are in the active Studio lane. Service recovery must preserve root cause, mutation guard, repair/restart/recheck actions and terminal readback before acceptance. |
 
 P1 contract closure is now explicit in `app-runtime-bridge.json#native_minimum_product_bridge`, the Studio
-adapter, candidate requirements and focused validation. Source implementation remains open for Agent launch,
-active-turn submission, Gateway Settings actions, dynamic lifecycle and the three update objects. P1 closes
-only after those paths execute and freshly read back in Studio alongside live run status and `runtime.detail`.
-P2 adds connections, notifications,
-storage maintenance, diagnostic export and repeatable DSH upstream intake. AionUI-only provider, Team,
+adapter, candidate requirements and focused validation. Agent launch/steer and dynamic lifecycle have a
+canonical source skeleton; the other rows above remain either active-lane work or producer/caller gaps and
+must not be summarized as three complete update objects, a complete capability directory, or accepted
+Settings. The functional baseline remains open until canonical Agent thread/turn readback and active-turn
+restoration, readiness false-gates, a real `runtime.detail` producer with authoritative `work_item` identity,
+current Settings/Onboarding/Updater interaction qualification, Channel Access and Computer Use consumption,
+and end-to-end user acceptance are complete. Connections, notifications, storage maintenance, diagnostic
+export and repeatable DSH upstream intake follow the same evidence boundary. AionUI-only provider, Team,
 scheduler or AionCore surfaces are not parity requirements unless a current OPL user outcome independently
 requires them.
 
@@ -149,6 +162,10 @@ Successor development follows the minimum-complete product contract. It does not
 parity plan. Active-shell adoption, installed-App replacement, platform updater
 participation, and release promotion still require separate App-owner qualification and evidence. App release
 validators must not infer those states from source, local package, or candidate evidence.
+
+The current objective stops at the functional baseline and local user acceptance. AionUI active-shell
+replacement or retirement, protected release admission, signing/notarization, publication, deployment and
+public update-feed mutation are deferred to separate App-owner decisions after that baseline is accepted.
 
 ## Optional Design Evaluation Tooling
 
