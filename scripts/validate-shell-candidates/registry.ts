@@ -45,18 +45,18 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay' ||
     alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
   ) {
-    throw new Error('candidate registry must keep OPL Studio as the only foreground alternative and Hermes/AGUI as explicit-only archived proofs');
+    throw new Error('candidate registry must keep OPL Studio as the only foreground alternative and AGUI as an explicit-only archived proof');
   }
   if (alternative.default_candidate_validation_scope.length !== 0) {
     throw new Error('default candidate validation scope must stay empty; default gates validate role registry only');
   }
   assertStringArrayIncludes(
     alternative.explicit_candidate_validation_scope,
-    ['opl-studio', 'hermes-codex', 'agui-codex'],
+    ['opl-studio', 'agui-codex'],
     'alternative_gui_policy.explicit_candidate_validation_scope',
   );
-  if (alternative.explicit_candidate_validation_scope.length !== 3) {
-    throw new Error('explicit candidate validation scope must contain exactly Native, Hermes, and AGUI');
+  if (alternative.explicit_candidate_validation_scope.length !== 2) {
+    throw new Error('explicit candidate validation scope must contain exactly Native and AGUI');
   }
   const archivedExecution = alternative.archived_proof_execution_policy;
   if (
@@ -77,7 +77,9 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'daily_patrol',
     'routine_validation',
   ], 'alternative_gui_policy.archived_proof_execution_policy.forbidden_automatic_triggers');
-  assertStringArrayIncludes(alternative.archived_technical_proofs, ['hermes-codex', 'agui-codex'], 'alternative_gui_policy.archived_technical_proofs');
+  if (JSON.stringify(alternative.archived_technical_proofs) !== JSON.stringify(['agui-codex'])) {
+    throw new Error('alternative_gui_policy.archived_technical_proofs must contain only agui-codex');
+  }
   const nativeCandidate = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
   const oplAgentPaletteOutcome = 'the separate OPL standard Agent composer group includes only producer-declared first-party OPL professional Agents with package_role=standard_agent, selectable readiness, and a real Codex route; generic Skills and plugins remain separate even when a descriptor defaults to standard_agent, without a package-id allowlist';
   if (
@@ -151,8 +153,8 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
 function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
   const entries = registry.candidates;
   const ids = entries.map((entry) => entry.id).sort();
-  if (JSON.stringify(ids) !== JSON.stringify(['agui-codex', 'hermes-codex', 'opl-studio'])) {
-    throw new Error('candidate role registry must contain exactly Native, Hermes, and AGUI');
+  if (JSON.stringify(ids) !== JSON.stringify(['agui-codex', 'opl-studio'])) {
+    throw new Error('candidate role registry must contain exactly Native and AGUI');
   }
 
   const native = entries.find((entry) => entry.id === 'opl-studio');
@@ -167,17 +169,6 @@ function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
     throw new Error('Native must remain the explicit foreground candidate and must not collapse into a role tombstone');
   }
 
-  validateRoleTombstone(
-    entries.find((entry) => entry.id === 'hermes-codex'),
-    {
-      state: 'archived_technical_proof',
-      releaseParticipation: 'explicit_user_requested_technical_replay_only',
-      adapterContract: 'contracts/shell-adapters/hermes-codex.json',
-      replayMode: 'explicit_user_request_only',
-      validatorCommand: 'npm run validate:candidate:hermes',
-      runbookRef: 'docs/product/shell-alternatives/hermes-first-run-flow.md',
-    },
-  );
   validateRoleTombstone(
     entries.find((entry) => entry.id === 'agui-codex'),
     {

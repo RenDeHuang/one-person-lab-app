@@ -283,6 +283,10 @@ http://localhost:3000/
 
 登录成功后，如果页面出现“设为模型访问方式”，再点击一次确认。账户连接和切换模型访问方式是两个明确步骤，只有需要确认时页面才会显示第二个按钮。
 
+当前版本只把 `gateway.medopl.com` 作为 OPL Gateway 的可信服务主机：账户登录、账户信息和用量查看使用 `https://gateway.medopl.com/api/v1`，模型访问使用 `https://gateway.medopl.com/v1`。新配置会由 App 自动写入 provider ID `oplgateway` 和上述模型地址，无需手工填写 Base URL。
+
+旧配置不会隐式迁移。`OnePersonLab/data` 中已有 OPL Gateway Codex 配置时，App 会按 Gateway 地址原位复用，不改写原 provider ID、名称或 Base URL，以保留既有会话和配置关联。
+
 “重新检测已有配置”只检查同一 `OnePersonLab/data` 持久目录中已有的 WebUI/Codex 配置。Windows 宿主机原有的 `%USERPROFILE%\.codex` 登录或配置不会自动挂载进容器。
 
 暂时没有 Gateway 账户或 API Key 时可以先进入工作台。准备好后，打开：

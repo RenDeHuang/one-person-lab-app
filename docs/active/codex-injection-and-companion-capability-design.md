@@ -35,7 +35,7 @@ and Screen Recording remain real TCC permissions and cannot be silently granted.
 - A missing Codex config receives the current OPL provider, model, reasoning effort, and submitted Gateway credential.
 - An active provider that points to the direct OPL Gateway is OPL-managed regardless of its local provider alias. Auto-managed model and reasoning values follow the current App profile while unowned provider-table keys remain intact.
 - A user edit that differs from the last OPL-applied model or reasoning value becomes a local override and is preserved.
-- A non-OPL active provider remains active. OPL may register or refresh an inactive OPL Gateway provider entry without replacing the user's root provider, model, or reasoning values, and must choose a non-conflicting provider ID when `gflab` is already user-owned.
+- A non-OPL active provider remains active. OPL may register or refresh an inactive OPL Gateway provider entry without replacing the user's root provider, model, or reasoning values. New entries use `oplgateway`; an existing Gateway entry is reused in place by recognized endpoint, and a third-party `oplgateway` entry forces the next `oplgateway_<n>` suffix.
 - Every preference/config mutation uses stale-write protection and atomic
   replacement, creates a backup, and may emit an OPL-owned audit receipt with
   the managed keys, last applied values, route, and selection mode. This is

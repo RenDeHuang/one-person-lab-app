@@ -113,8 +113,6 @@ product/history ownership:
   audit, Codex-to-OPL product delta, `opl-studio` foreground
   alternative plan, Claude Science
   Runtime task-awareness landing plan, and GUI feature inventory.
-- [`product/shell-alternatives/`](product/shell-alternatives/) holds Hermes
-  Desktop prior foreground-alternative material.
 - [`history/shell-candidates/`](history/shell-candidates/) holds archived
   AG-UI/CopilotKit technical-proof replay material for explicit AGUI replay or
   historical audit.

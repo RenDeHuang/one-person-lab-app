@@ -62,17 +62,28 @@ test('explicit Studio adapter keeps its candidate implementation role', () => {
   assert.equal(admission?.compatibility.hot_switch_without_revalidation_allowed, false);
 });
 
-test('archived Hermes replay requires an explicit user-requested historical replay', () => {
+test('Hermes is retired while archived AGUI replay remains explicit', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
-  const hermes = registry.candidates.find((candidate) => candidate.id === 'hermes-codex');
-  assert.equal(hermes?.state, 'archived_technical_proof');
-  assert.equal(hermes?.release_participation, 'explicit_user_requested_technical_replay_only');
+  assert.equal(registry.candidates.some((candidate) => candidate.id === 'hermes-codex'), false);
+  assert.equal(registry.alternative_gui_policy?.archived_technical_proofs.includes('hermes-codex'), false);
+  for (const retiredPath of [
+    'contracts/shell-adapters/hermes-codex.json',
+    'scripts/validate-hermes-candidate.ts',
+    'scripts/smoke-hermes-candidate-tart.ts',
+    'docs/product/shell-alternatives/hermes-first-run-flow.md',
+    'docs/product/shell-alternatives/hermes-gui-adaptation-plan.md',
+  ]) {
+    assert.equal(fs.existsSync(retiredPath), false, `${retiredPath} must stay retired`);
+  }
+  const agui = registry.candidates.find((candidate) => candidate.id === 'agui-codex');
+  assert.equal(agui?.state, 'archived_technical_proof');
+  assert.equal(agui?.release_participation, 'explicit_user_requested_technical_replay_only');
   assert.throws(
-    () => assertArchivedProofCommandExecutionAllowed(registry, ['hermes-codex'], false),
+    () => assertArchivedProofCommandExecutionAllowed(registry, ['agui-codex'], false),
     /add --archived-proof-replay only when the user explicitly requests that exact archived proof/,
   );
   assert.doesNotThrow(
-    () => assertArchivedProofCommandExecutionAllowed(registry, ['hermes-codex'], true),
+    () => assertArchivedProofCommandExecutionAllowed(registry, ['agui-codex'], true),
   );
   assert.doesNotThrow(
     () => assertArchivedProofCommandExecutionAllowed(registry, ['opl-studio'], false),
@@ -86,8 +97,8 @@ test('archived Hermes replay requires an explicit user-requested historical repl
   );
 
   const restoredSnapshot = structuredClone(registry);
-  const restoredHermes = restoredSnapshot.candidates.find((candidate) => candidate.id === 'hermes-codex') as any;
-  restoredHermes.first_run_contract = { duplicated: true };
+  const restoredAgui = restoredSnapshot.candidates.find((candidate) => candidate.id === 'agui-codex') as any;
+  restoredAgui.first_run_contract = { duplicated: true };
   assert.throws(
     () => validateRegistryShape(restoredSnapshot),
     /role tombstone must not duplicate detailed field first_run_contract/,

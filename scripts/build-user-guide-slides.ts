@@ -218,7 +218,7 @@ function escapeHtml(value: string) {
 
 function inlineHtml(value: string) {
   const escaped = escapeHtml(value);
-  const linked = escaped.replace(/(https:\/\/[^\s<&]+)/g, '<a href="$1">$1</a>');
+  const linked = escaped.replace(/(https:\/\/[^\s<&，。；：！？、（）【】《》]+)/g, '<a href="$1">$1</a>');
   return linked;
 }
 

@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_gui_route_policy",
-  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Studio is the only foreground alternative candidate. Hermes Desktop and AGUI/CopilotKit are archived technical proofs: they stay selectable only for an explicitly requested historical replay and must not receive routine maintenance or product consideration.",
+  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Studio is the only foreground alternative candidate. AGUI/CopilotKit remains an archived technical proof selectable only for an explicitly requested historical replay.",
   "active_shell_unchanged": "aionui",
   "active_gui_mainline": {
     "shell": "aionui",
@@ -17,7 +17,6 @@
     "basis": "OPL Studio DSH-derived composition workbench",
     "default_candidate_validation_scope": [],
     "archived_technical_proofs": [
-      "hermes-codex",
       "agui-codex"
     ],
     "archived_proof_policy": "do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay",
@@ -40,7 +39,6 @@
     "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell",
     "explicit_candidate_validation_scope": [
       "opl-studio",
-      "hermes-codex",
       "agui-codex"
     ]
   },
@@ -1175,28 +1173,6 @@
         "ordinary_product_copy_source": "contracts/app-gui-product-contract.json",
         "implementation_roadmap_role": "candidate_shell_private_execution_plan_only",
         "adoption_policy": "no_default_release_authority_until_contracts_app_shell_adapter_changes"
-      }
-    },
-    {
-      "id": "hermes-codex",
-      "state": "archived_technical_proof",
-      "archived_reason": "Hermes Desktop is no longer under product consideration. Its prior GUI and first-run experiments are retained only as historical technical evidence and explicit replay material.",
-      "default_update_policy": "do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay",
-      "candidate_root": "shells/hermes",
-      "adapter_contract": "contracts/shell-adapters/hermes-codex.json",
-      "source_topology": "external_checkout_linked_shell_repo",
-      "release_participation": "explicit_user_requested_technical_replay_only",
-      "role_tombstone": true,
-      "checkout_policy": {
-        "primary_path": "shells/hermes",
-        "accepted_alternate_path": "../opl-hermes-shell",
-        "missing_checkout_status": "blocked_missing_checkout"
-      },
-      "replay": {
-        "mode": "explicit_user_request_only",
-        "validator_command": "npm run validate:candidate:hermes",
-        "runbook_ref": "docs/product/shell-alternatives/hermes-first-run-flow.md",
-        "source_checkout_policy": "optional_until_explicit_replay"
       }
     }
   ]

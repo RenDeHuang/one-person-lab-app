@@ -21,7 +21,7 @@
   },
   "rendered_pages": 7,
   "rendered_dir": "tmp/quarto-guides/windows-app-install/rendered",
-  "html_bytes": 2208676,
+  "html_bytes": 2209039,
   "html_pdf_download": {
     "href": "windows-app-install-detailed-guide.pdf",
     "status": "present"
@@ -38,6 +38,11 @@
     "code_signing.status",
     "Gateway 账户",
     "模型访问",
+    "gateway.medopl.com",
+    "https://gateway.medopl.com/v1",
+    "oplgateway",
+    "无需手工填写 Base URL",
+    "不会隐式迁移",
     "WSL 2",
     "OPL-Linux",
     "Docker Desktop",

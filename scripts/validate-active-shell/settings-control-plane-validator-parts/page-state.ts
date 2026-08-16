@@ -391,7 +391,7 @@ export function validateSettingsModelReasoningPolicy(
   }
   if (
     policy.adapter_policy !==
-    "Aion/Hermes/shell render App-derived model and reasoning policy only"
+    "GUI shells render App-derived model and reasoning policy only"
   ) {
     throw new Error(
       "Settings model/reasoning policy must keep shells as adapters only",

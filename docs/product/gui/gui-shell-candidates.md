@@ -14,25 +14,23 @@ package scripts, validation output, and candidate package artifacts.
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable plus Dev/Nightly Preview wrapper commands |
 | Foreground candidate | `opl-studio` | `shells/opl-studio` or `../opl-studio` | `contracts/shell-adapters/opl-studio.json` | Explicit Native validation/build only |
-| Archived proof | `hermes-codex` | `shells/hermes` or `../opl-hermes-shell` | `contracts/shell-adapters/hermes-codex.json` | Explicit user-requested historical replay only |
 | Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit user-requested historical replay only |
 
 Stable role marker:
-`gui_shell_roles: active=aionui; foreground=opl-studio; archived=hermes-codex,agui-codex`.
+`gui_shell_roles: active=aionui; foreground=opl-studio; archived=agui-codex`.
 
-Default maintenance validates only this four-role registry. Detailed candidate
+Default maintenance validates only this three-role registry. Detailed candidate
 contracts are intentionally carrier-owned and explicit:
 
 | Validation scope | Owner entry | Default/release participation |
 | --- | --- | --- |
 | Fixed role registry | `npm run validate:shell-candidates` | Included in default structural gates; does not inspect candidate implementation detail. |
 | OPL Studio foreground detail | `npm run validate:candidate:studio` / `npm run test:candidate:studio` | Explicit on demand; full candidate evidence is Studio-only. |
-| Hermes archived proof | `npm run validate:candidate:hermes` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
 | AGUI archived proof | `npm run validate:candidate:agui` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
 
-Hermes and AGUI are role tombstones in the active registry. Their detailed
-commands and source/package expectations live in their adapter contracts and
-replay runbooks, so changes to dormant candidate detail cannot block AionUI,
+AGUI is a role tombstone in the active registry. Its detailed commands and
+source/package expectations live in its adapter contract and replay runbook,
+so changes to dormant candidate detail cannot block AionUI,
 model-policy, design-system, full, or release-boundary maintenance.
 
 ## 双 GUI、单控制面
@@ -111,13 +109,6 @@ Host-derived graph、App allowlist、typed slots/actions、RPC/events 和 state 
 本地启动 candidate 只证明该 bundle 可被选择和打开，不证明 adoption、release readiness
 或与 AionUI 的 Runtime/session parity。两个 bundle 可并存，但在 host coordination 与并发
 负向证据完成前，只承诺快速顺序切换，不承诺两个 GUI 同时写同一 workspace/thread 的安全性。
-
-Hermes Desktop / `hermes-codex` is archived and no longer under product
-consideration. Its role tombstone, adapter and runbooks preserve historical
-technical evidence only. Push, pull-request, scheduled, watch/on-save,
-daily-patrol, routine-validation and adoption paths must not compile or improve
-it. Source, package or smoke replay is allowed only when the user explicitly
-requests that archived proof.
 
 DeepSeek Harness is not another shell role. It is a pinned design and bounded
 source dependency for the sole foreground candidate route, `opl-studio`.
@@ -207,25 +198,22 @@ without changing the active GUI:
 ```bash
 npm run validate:shell-candidates
 npm run validate:candidate:studio
-npm run validate:candidate:hermes
 npm run validate:candidate:agui
 ```
 
 Build the foreground candidate through the App wrapper. Full Studio evidence is
-owned by the OPL Studio candidate path. Hermes/AGUI command chains are read from
-their adapters; Hermes packaging remains a separate manual replay justified by
-an actual Hermes development need:
+owned by the OPL Studio candidate path. AGUI command replay remains isolated in
+its explicit adapter:
 
 ```bash
 npm run package:candidate:studio
-npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
+npm run validate:shell-candidates -- --candidate agui-codex --run-candidate-commands --archived-proof-replay
 ```
 
 If the candidate checkout is a sibling repo instead of `shells/<candidate>`,
 set `OPL_APP_SHELL_ROOT` for that command:
 
 ```bash
-OPL_APP_SHELL_ROOT=../opl-hermes-shell npm run validate:shell-candidates -- --candidate hermes-codex --run-candidate-commands --archived-proof-replay
 OPL_APP_SHELL_ROOT=../opl-studio npm run package:candidate:studio
 ```
 

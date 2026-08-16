@@ -1,7 +1,7 @@
-const expectedProvider = 'gflab';
+const expectedProvider = 'oplgateway';
 const expectedProviderName = 'OPL Gateway';
 const expectedExistingProviderNamePolicy = 'preserve_existing_provider_name_no_migration';
-const expectedBaseUrl = 'https://gflabtoken.cn/v1';
+const expectedBaseUrl = 'https://gateway.medopl.com/v1';
 const expectedExecutor = 'codex_cli';
 
 export function assertDefaultCodexSessionProfile(profile, options = {}) {

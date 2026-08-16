@@ -240,19 +240,13 @@ function validateCandidateRoleTombstone(
   candidate: ShellCandidateRoleTombstone,
   policy: CandidateValidationPolicy,
 ): void {
-  const expected = candidate.id === 'hermes-codex'
+  const expected = candidate.id === 'agui-codex'
     ? {
         state: 'archived_technical_proof',
         mode: 'explicit_user_request_only',
-        command: 'npm run validate:candidate:hermes',
+        command: 'npm run validate:candidate:agui',
       }
-    : candidate.id === 'agui-codex'
-      ? {
-          state: 'archived_technical_proof',
-          mode: 'explicit_user_request_only',
-          command: 'npm run validate:candidate:agui',
-        }
-      : undefined;
+    : undefined;
   if (!expected) {
     throw new Error(`${candidate.id} must not use the archived-proof role tombstone schema`);
   }

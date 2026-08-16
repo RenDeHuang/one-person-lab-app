@@ -121,6 +121,10 @@ $receipt.code_signing | Format-List
 Gateway 密码、token 和 API Key 不应进入 PowerShell、命令行参数、日志、截图或
 问题报告。
 
+当前版本只把 `gateway.medopl.com` 作为 OPL Gateway 的可信服务主机：账户登录、账户信息和用量查看使用 `https://gateway.medopl.com/api/v1`，模型访问使用 `https://gateway.medopl.com/v1`。新配置会由 App 自动写入 provider ID `oplgateway` 和上述模型地址，无需手工填写 Base URL。
+
+已有 OPL Gateway Codex 配置会按 Gateway 地址原位复用，不会隐式迁移旧配置，也不会改写原 provider ID、名称或 Base URL，以保留既有会话和配置关联。
+
 ## 5. WSL 2 与 OPL-Linux
 
 App contract 要求 Windows 上的 agent 和 Framework 执行边界使用专用

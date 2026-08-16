@@ -21,7 +21,7 @@
   },
   "rendered_pages": 8,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 2635708,
+  "html_bytes": 2636086,
   "screenshot_assets": [
     {
       "role": "download_release",
@@ -143,6 +143,11 @@
     "登录并继续",
     "API Key",
     "重新检测已有配置",
+    "gateway.medopl.com",
+    "https://gateway.medopl.com/v1",
+    "oplgateway",
+    "无需手工填写 Base URL",
+    "不会隐式迁移",
     "Homebrew Cask",
     "open -a",
     "Full DMG",

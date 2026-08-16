@@ -787,10 +787,10 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   }
   for (const [field, expected] of Object.entries({
     full_readiness_blocks_launch: false,
-    default_provider: 'gflab',
+    default_provider: 'oplgateway',
     default_provider_name: 'OPL Gateway',
     existing_provider_name_policy: 'preserve_existing_provider_name_no_migration',
-    default_base_url: 'https://gflabtoken.cn/v1',
+    default_base_url: 'https://gateway.medopl.com/v1',
     default_model: productProfile.codex.default_model,
     default_reasoning_effort: productProfile.codex.default_reasoning_effort,
     default_executor: 'codex_cli',

@@ -14,14 +14,14 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 17,
+  "pdf_pages": 18,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 17,
+  "rendered_pages": 18,
   "rendered_dir": "tmp/quarto-guides/docker-webui-install/rendered",
-  "html_bytes": 3008393,
+  "html_bytes": 3008792,
   "html_pdf_download": {
     "href": "docker-webui-install-detailed-guide.pdf",
     "status": "present"
@@ -160,6 +160,11 @@
     "Gateway 账户",
     "登录并继续",
     "API Key",
+    "gateway.medopl.com",
+    "https://gateway.medopl.com/v1",
+    "oplgateway",
+    "无需手工填写 Base URL",
+    "不会隐式迁移",
     "OnePersonLab/data",
     "OnePersonLab/projects",
     "账户与访问",

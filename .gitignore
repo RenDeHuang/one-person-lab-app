@@ -106,8 +106,6 @@ release-session-v*.json
 shells/aionui/
 shells/agui-codex
 shells/agui-codex/
-shells/hermes
-shells/hermes/
 shells/opl-studio
 shells/opl-studio/
 !shells/.gitkeep

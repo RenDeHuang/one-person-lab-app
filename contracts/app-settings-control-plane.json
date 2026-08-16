@@ -1341,7 +1341,7 @@
     "configured_default_role": "App fallback used only when no valid installed Flow projection and no usable live catalog resolution exists",
     "ordinary_surface": "home_and_conversation_shared_session_configuration_menu_with_model_reasoning_and_reset_rows",
     "settings_surface": "settings_access.model_access",
-    "adapter_policy": "Aion/Hermes/shell render App-derived model and reasoning policy only",
+    "adapter_policy": "GUI shells render App-derived model and reasoning policy only",
     "shell_must_not_own": [
       "default model",
       "frontier model preference order",

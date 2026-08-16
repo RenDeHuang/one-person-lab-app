@@ -151,21 +151,23 @@ test('new OPL Gateway configs use the branded provider name without renaming exi
   const productProfile = readJson('contracts/app-product-profile.json');
   const guiContract = readJson('contracts/app-gui-product-contract.json');
 
-  assert.equal(productProfile.default_session_profile.provider, 'gflab');
+  assert.equal(productProfile.default_session_profile.provider, 'oplgateway');
   assert.equal(productProfile.default_session_profile.provider_name, 'OPL Gateway');
+  assert.equal(productProfile.default_session_profile.base_url, 'https://gateway.medopl.com/v1');
   assert.equal(
     productProfile.default_session_profile.existing_provider_name_policy,
     'preserve_existing_provider_name_no_migration',
   );
-  assert.equal(guiContract.first_launch_readiness_policy.default_provider, 'gflab');
+  assert.equal(guiContract.first_launch_readiness_policy.default_provider, 'oplgateway');
   assert.equal(guiContract.first_launch_readiness_policy.default_provider_name, 'OPL Gateway');
+  assert.equal(guiContract.first_launch_readiness_policy.default_base_url, 'https://gateway.medopl.com/v1');
   assert.equal(
     guiContract.first_launch_readiness_policy.existing_provider_name_policy,
     'preserve_existing_provider_name_no_migration',
   );
 
   const providerNameDrift = structuredClone(productProfile);
-  providerNameDrift.default_session_profile.provider_name = 'gflab';
+  providerNameDrift.default_session_profile.provider_name = 'Legacy provider label';
   assert.throws(
     () => validateProductProfile(providerNameDrift, installExposure),
     /provider name/,

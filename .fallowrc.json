@@ -1,8 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
   "entry": [
-    "scripts/assert-full-runtime-currentness.ts",
-    "scripts/validate-hermes-candidate.ts"
+    "scripts/assert-full-runtime-currentness.ts"
   ],
   "ignorePatterns": [
     "docs/delivery/user-guides/macos-app-install/generated/macos-app-install-marp-theme.css",

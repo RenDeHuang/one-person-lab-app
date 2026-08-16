@@ -1006,7 +1006,7 @@
                 "next_action": "plan_approve_execute_collect_receipt"
               }
             ],
-            "gateway_status_ref": "opl://gateway/status/gflabtoken",
+            "gateway_status_ref": "opl://gateway/status/oplgateway",
             "resource_source_refs": [
               "opl://resource-source/local-app",
               "opl://resource-source/opl-workspace",
@@ -1472,9 +1472,9 @@
                   "resource_kind": "workspace",
                   "owner": "opl_framework",
                   "title": "local_app",
-                  "summary": "opl://gateway/status/gflabtoken",
+                  "summary": "opl://gateway/status/oplgateway",
                   "ref": "opl://resource-receipt/medautoscience/module-runtime-repair",
-                  "status_ref": "opl://gateway/status/gflabtoken",
+                  "status_ref": "opl://gateway/status/oplgateway",
                   "usage_ref": "opl://resource-usage/medautoscience/module-runtime-repair",
                   "quota_ref": "opl://quota/medautoscience/module-runtime-repair",
                   "permission_ref": "opl://permission/medautoscience/module-runtime-repair",

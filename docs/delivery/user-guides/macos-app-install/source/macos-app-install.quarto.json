@@ -34,6 +34,11 @@
     "登录并继续",
     "API Key",
     "重新检测已有配置",
+    "gateway.medopl.com",
+    "https://gateway.medopl.com/v1",
+    "oplgateway",
+    "无需手工填写 Base URL",
+    "不会隐式迁移",
     "Homebrew Cask",
     "open -a",
     "Full DMG",
@@ -44,8 +49,6 @@
     "检查更新"
   ],
   "forbidden_phrases": [
-    "联系 gflabtoken 管理员",
-    "gflabtoken 管理员",
     "必须配置 OPL Gateway",
     "强制配置 OPL Gateway",
     "请输入管理员提供的访问密钥",

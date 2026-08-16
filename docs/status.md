@@ -116,7 +116,6 @@ or public release; those release readbacks remain `unverified`.
 - Active shell root: `shells/aionui` as an external checkout.
 - Active shell source repo: `gaofeng21cn/opl-aion-shell`.
 - Foreground alternative GUI candidate: `opl-studio`, an independent shell checkout governed by the App candidate registry and adapter contract.
-- Archived GUI proof: `hermes-codex`, based on Hermes Desktop. Its registry entry is a role tombstone; adapter and runbook remain only for an explicit user-requested historical replay and receive no routine maintenance or adoption work.
 - Archived technical GUI proof: `agui-codex`; do not update or improve it unless AGUI is explicitly requested.
 - App product profile: `contracts/app-product-profile.json`.
 - Framework dependency: `gaofeng21cn/one-person-lab`.
@@ -126,12 +125,13 @@ upstream-following work stays in `opl-aion-shell`; App product release and user
 docs stay in `one-person-lab-app`.
 
 Current GUI development follows one active mainline plus explicit alternative
-routes: AionUI is the stable App GUI mainline, `opl-studio` is the
-foreground alternative candidate, and Hermes Desktop / `hermes-codex` plus AGUI
-are archived technical proofs. Default shell-candidate validation checks only the
-fixed role registry. Native detail remains explicit; archived proof detail lives
-in adapter and replay-runbook owners rather than duplicated active-registry
-snapshots, and replay is user-requested only. See
+routes: AionUI is the stable App GUI mainline, `opl-studio` is the foreground
+alternative candidate, and AGUI is the archived technical proof. The retired
+Hermes GUI candidate has no current registry, adapter, validator, command, or
+runbook. Default shell-candidate validation checks only the fixed role registry.
+Studio detail remains explicit; archived proof detail lives in the AGUI adapter
+and replay-runbook owner rather than a duplicated active-registry snapshot, and
+replay is user-requested only. See
 `docs/product/gui/gui-shell-candidates.md` for the topology and commands. Archived
 proofs receive no routine builds, updates, or polish. Treat
 `candidate` in AGUI filenames, manifests, scripts, and adapter contracts as a
@@ -473,16 +473,14 @@ requirements, literal labels, forbidden-display lists, or test matrices.
 
 Shell alternative work is separated from the active release adapter.
 `contracts/app-shell-candidates.json` owns the registry,
-`contracts/shell-adapters/opl-studio.json` owns the foreground
-alternative adapter when selected, while Hermes and AGUI active-registry entries
-are role tombstones whose detailed truth stays in their adapters and runbooks.
+`contracts/shell-adapters/opl-studio.json` owns the foreground alternative
+adapter when selected, while AGUI is the sole active-registry role tombstone and
+its detailed truth stays in its adapter and runbook.
 `npm run validate:shell-convergence` is the thin aggregate gate for that policy:
 it runs the active-shell quick guard and the role-registry-only candidate validator
 without maintaining a second JSON readback surface or pulling dormant candidate
-detail into default maintenance. `docs/product/gui/opl-studio-plan.md`
-owns the active candidate plan. Hermes docs remain archived replay context:
-`docs/product/shell-alternatives/hermes-gui-adaptation-plan.md` and
-`docs/product/shell-alternatives/hermes-first-run-flow.md`.
+detail into default maintenance. `docs/product/gui/opl-studio-plan.md` owns the
+active candidate plan.
 `docs/history/shell-candidates/agui-codex-candidate-verification.md` is read only
 for explicit AGUI replay or historical audit. Default Stable packaging continues
 to resolve `contracts/app-shell-adapter.json` and the active `aionui` shell until
@@ -550,7 +548,6 @@ npm run hygiene:fallow -- --format json --summary
 npm run validate:gui-shell
 npm run validate:shell-candidates
 npm run test:candidate:studio
-npm run validate:candidate:hermes
 npm run validate:candidate:agui
 bun run i18n:types
 bun run test

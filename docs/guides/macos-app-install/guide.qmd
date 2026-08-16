@@ -90,6 +90,10 @@ DMG 的摘要。
 
 ![默认使用账户登录，也可切换 API Key 或重新检测已有配置](screenshots/03-codex-config-needed.png){width=96% fig-align="center"}
 
+当前版本只把 `gateway.medopl.com` 作为 OPL Gateway 的可信服务主机：账户登录、账户信息和用量查看使用 `https://gateway.medopl.com/api/v1`，模型访问使用 `https://gateway.medopl.com/v1`。新配置会由 App 自动写入 provider ID `oplgateway` 和上述模型地址，无需手工填写 Base URL。
+
+本机已有 OPL Gateway Codex 配置时，App 会按 Gateway 地址原位复用现有条目，不会隐式迁移旧配置，也不会改写原 provider ID、名称或 Base URL；这是为了保留既有会话和配置关联。
+
 请勿把密码或完整 API Key 发送到群聊、公开文档或代码仓库，也不要在截图中展示。
 
 ## 5. 开始第一项工作

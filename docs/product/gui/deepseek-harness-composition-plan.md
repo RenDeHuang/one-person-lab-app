@@ -254,11 +254,11 @@ Studio 把 DSH 当作可跟随的 GUI upstream，而不是一次性截图参考�
 
 ### Wave 0: role cleanup
 
-- Hermes 进入 `archived_technical_proof`，与 AGUI 一样只保留用户明确要求的历史 replay。
+- Hermes GUI candidate 的 registry、adapter、validator、命令和 runbook 已物理退役；AGUI 仍是唯一 archived technical proof。
 - DSH 不登记为新 shell；它是 One Person Lab App successor 的 design/source reuse candidate。
 
-完成条件：默认 registry 和 GUI design validator 只输出 active、foreground、archived；Hermes
-不再出现在 retained、adoption 或 routine validation 语义中。
+完成条件：默认 registry 和 GUI design validator 只输出 active、foreground、archived；已退役 GUI
+candidate 不再存在可执行合同、adapter、命令或 replay 文档。
 
 ### Wave 1: Successor vertical spike
 

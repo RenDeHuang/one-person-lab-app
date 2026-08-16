@@ -1,6 +1,5 @@
 import type {
   FirstRunContract,
-  HermesTargetStateContract,
   IconContract,
   ValidationCommand,
 } from '../app-shell-adapter.ts';
@@ -116,7 +115,7 @@ export type DSHSourceReuseContract = {
   docs_or_contract_only_completion_allowed: boolean;
 };
 
-export type ShellCandidate = HermesTargetStateContract & {
+export type ShellCandidate = {
   id: string;
   state: string;
   archived_reason?: string;

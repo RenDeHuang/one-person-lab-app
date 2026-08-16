@@ -86,20 +86,19 @@ through the shell `bun run package` entry.
 ```bash
 npm run validate:shell-candidates
 npm run test:candidate:studio
-npm run validate:candidate:hermes
 npm run validate:candidate:agui
 ```
 
 The command without `--candidate` validates only the fixed role registry:
 `active=aionui`, `foreground=opl-studio`, and
-`archived=hermes-codex,agui-codex`. It intentionally does not read candidate implementation
+`archived=agui-codex`. It intentionally does not read candidate implementation
 detail, build a candidate, or turn dormant candidate drift into an AionUI/full/
 release blocker.
 
-Native remains the only full foreground-candidate contract and evidence path.
+Studio remains the only full foreground-candidate contract and evidence path.
 Its optional focused test lives under `tests/optional/` and runs only through
-`test:candidate:studio`. Hermes and AGUI are role tombstones in the active
-registry; their explicit checks consume adapter and replay-runbook truth.
+`test:candidate:studio`. AGUI is the only role tombstone in the active registry;
+its explicit check consumes adapter and replay-runbook truth.
 Archived package/smoke replay additionally requires
 `--run-candidate-commands --archived-proof-replay`. None of these commands
 proves active-shell adoption, Pixel, Install, Release, or owner acceptance.

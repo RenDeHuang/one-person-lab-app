@@ -29,63 +29,6 @@ export type ValidationCommand = {
   optional?: boolean;
 };
 
-export type HermesAppServerAdapterContract = {
-  owner: string;
-  gateway_route: string;
-  ordinary_chat_route: string;
-  required_events: string[];
-  forbidden_backends: string[];
-};
-
-export type HermesModelAccessPolicy = {
-  ordinary_provider: string;
-  api_key_env: string;
-  provider_base_url: string;
-  default_model: string;
-  reasoning_effort: string;
-  ordinary_ui_surfaces: string[];
-  forbidden_ordinary_controls: string[];
-};
-
-export type HermesAgentRouteContract = {
-  owner: string;
-  route_authority: string;
-  ordinary_entries: Array<{
-    id: string;
-    label: string;
-    route: string;
-    authority: string;
-  }>;
-  required_surface: string;
-  forbidden_claims: string[];
-};
-
-export type HermesSettingsInformationArchitecture = {
-  ordinary_tabs: string[];
-  opl_semantics: string[];
-  hidden_or_advanced: string[];
-  ordinary_access_policy: string;
-};
-
-export type HermesVisualParityContract = {
-  comparison_baseline: string;
-  visual_style_baseline?: string;
-  visual_style_scope?: string;
-  visual_token_source?: string;
-  font_asset_policy?: string;
-  minimum_bar: string;
-  required_evidence: string[];
-  docs_or_contract_only_completion_allowed: boolean;
-};
-
-export type HermesTargetStateContract = {
-  app_server_adapter_contract?: HermesAppServerAdapterContract;
-  model_access_policy?: HermesModelAccessPolicy;
-  agent_route_contract?: HermesAgentRouteContract;
-  settings_information_architecture?: HermesSettingsInformationArchitecture;
-  visual_parity_contract?: HermesVisualParityContract;
-};
-
 export type FirstRunContract = {
   owner: string;
   ui_reuse_policy: string;
@@ -425,7 +368,7 @@ export type ShellAdapterContract = {
   };
   validation_commands: ValidationCommand[];
   manual_verification_commands?: Array<ValidationCommand & { policy?: string }>;
-} & HermesTargetStateContract;
+};
 
 export type ActiveShellPaths = {
   contract: ShellAdapterContract;

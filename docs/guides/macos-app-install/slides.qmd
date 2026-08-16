@@ -59,10 +59,11 @@ lang: zh-CN
 
 ![](screenshots/03-codex-config-needed.png){width=78%}
 
-- 默认方式：账户登录。
-- 已有配置：点击“重新检测已有配置”，它不是第三种登录方式。
-- 兼容方式：切换到“API Key”。
-- 暂不配置：先“进入 OPL”，之后从“设置 -> 账户与访问”继续。
+- 默认方式：账户登录；可信服务主机是 `gateway.medopl.com`。
+- App 自动写入 `oplgateway` 和 `https://gateway.medopl.com/v1`，无需手工填写 Base URL。
+- 已有 Gateway 配置会原位复用，不会隐式迁移旧配置。
+- 已有 Codex 配置可“重新检测”；API Key 只作为兼容方式。
+- 暂不配置时可先“进入 OPL”，之后从“设置 -> 账户与访问”继续。
 
 ## 5. 开始第一项工作
 
