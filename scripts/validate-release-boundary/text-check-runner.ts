@@ -2022,6 +2022,19 @@ export function validateWorkflowDispatchWriteAuthority(appRoot: string): number 
       }
       if (
         workflowPath === webuiDevelopmentWorkflowPath
+        && jobId === 'webui-carrier-qualification'
+        && job.uses === './.github/workflows/_release-webui-carrier.yml'
+        && needsExactly(job, ['source-authority'])
+        && exactObject(job.permissions, exactWebUiCompileCeilingPermissions)
+        && job.if === "${{ inputs.operation == 'qualify' }}"
+        && job.with?.mode === 'qualify'
+        && job.with?.authority_mode === '${{ needs.source-authority.outputs.authority_mode }}'
+        && steps.length === 0
+      ) {
+        continue;
+      }
+      if (
+        workflowPath === webuiDevelopmentWorkflowPath
         && jobId === 'webui-carrier'
         && job.uses === './.github/workflows/_release-webui-carrier.yml'
         && needsExactly(job, ['source-authority'])
@@ -2133,13 +2146,13 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
     || !qualification
     || !needsExactly(qualification, ['source-authority'])
     || qualification.uses !== './.github/workflows/_release-webui-carrier.yml'
-    || !exactObject(qualification.permissions, exactWebUiReadPermissions)
+    || !exactObject(qualification.permissions, exactWebUiCompileCeilingPermissions)
     || qualification.if !== "${{ inputs.operation == 'qualify' }}"
     || !exactObject(qualification.with, { ...expectedCarrierWith, mode: 'qualify' })
   ) {
     failures += reportFailure(
       id,
-      'independent WebUI entry must bind one source authority into mutually exclusive read-only qualification and protected publication jobs',
+      'independent WebUI entry must bind one source authority into mutually exclusive qualification and protected publication calls while the nested qualification job remains read-only',
     );
   }
   if (

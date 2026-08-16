@@ -897,7 +897,7 @@ test('manual WebUI entry separates read-only qualification from protected public
   assert.equal(operation.default, 'qualify');
   assert.equal(qualification.if, "${{ inputs.operation == 'qualify' }}");
   assert.equal(qualification.with.mode, 'qualify');
-  assert.equal(qualification.permissions.packages, 'read');
+  assert.equal(qualification.permissions.packages, 'write');
   assert.equal(publication.if, "${{ inputs.operation == 'publish' }}");
   assert.equal(publication.with.mode, 'execute');
   assert.equal(publication.permissions.packages, 'write');

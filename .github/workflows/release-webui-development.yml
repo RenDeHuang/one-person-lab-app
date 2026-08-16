@@ -161,7 +161,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-      packages: read
+      packages: write
     uses: ./.github/workflows/_release-webui-carrier.yml
     with:
       mode: qualify
