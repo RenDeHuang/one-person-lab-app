@@ -506,7 +506,7 @@ export function resolveClientRendererAdmission(
     compatibility.transport_binding_source !== 'app_state.transport_bindings' ||
     compatibility.transport_binding_schema !== 'opl_app_transport_bindings_projection.v1' ||
     compatibility.transport_binding_migration_state !==
-      'producer_callback_source_e2e_completed_projection_pending' ||
+      'framework_transport_binding_projection_and_dual_shell_source_e2e_completed' ||
     compatibility.transport_binding_event !== 'opl/app-transport-bindings/updated' ||
     compatibility.typed_state_rpc !== 'opl app state --profile fast --json' ||
     compatibility.typed_action_rpc !==
@@ -605,7 +605,7 @@ export function validateChannelThreadBindingBoundary(
     'unknown_binding_policy',
   ];
   const expectedImplementationStatus = shellIdentity === 'aionui'
-    ? 'legacy_inference_compatibility_present_exact_binding_migration_pending'
+    ? 'framework_projection_consumer_and_exact_canonical_thread_id_read_compatibility_source_e2e_completed'
     : shellIdentity === 'opl-studio'
       ? 'exact_binding_implementation_pending'
       : null;

@@ -1353,9 +1353,9 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     {
       source: 'app_state.transport_bindings',
       surface_kind: 'opl_app_transport_bindings_projection.v1',
-      migration_state: 'producer_callback_source_e2e_completed_projection_pending',
-      projection_runtime_status: 'target_shared_abi_not_yet_produced',
-      raw_fact_owner: 'installed_transport_provider_or_native_carrier',
+      migration_state: 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed',
+      projection_runtime_status: 'current_framework_projection_proven',
+      raw_fact_owner: 'current_shell_exact_binding_store',
       projection_owner: 'one-person-lab-framework',
       consumer_role: 'render_and_join_only',
       required_projection_fields: ['surface_kind', 'status', 'bindings', 'authority_boundary'],
@@ -1386,7 +1386,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       available_empty_policy: 'valid_no_current_bindings',
       unavailable_policy: 'bindings_must_be_empty_and_unavailable_reason_required',
       provider_absent_policy:
-        'status_unavailable_reason_producer_absent_and_temporary_legacy_fallback_may_run_until_framework_transport_binding_projection_cutover',
+        'status_unavailable_reason_producer_absent_without_shell_inference_or_writeback',
       binding_identity_policy: 'one_entry_per_exact_provider_id_account_id_channel_session_id_tuple',
       binding_key_normalization_or_inference_allowed: false,
       canonical_join_policy: 'join_only_by_exact_canonical_thread_host_and_canonical_thread_id',
@@ -1432,21 +1432,10 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
         shell_thread_id_inference_allowed: false,
         shell_thread_or_turn_truth_allowed: false,
       },
-      current_missing_surface_policy: 'treat_as_unavailable_without_blocking_the_current_mainline',
-      temporary_legacy_fallback: {
-        status: 'active_bounded_until_framework_transport_binding_projection_cutover',
-        owner: 'opl-aion-shell',
-        trigger: 'shared_projection_missing_or_unavailable',
-        inference_key: 'unique_channel_temporary_workspace_identity',
-        write_role: 'rebuildable_shell_projection_canonical_thread_id_only',
-        authority: 'compatibility_projection_not_binding_truth',
-        shared_projection_precedence: 'current_valid_framework_binding_wins_and_conflicting_legacy_binding_is_ignored',
-        studio_may_copy_fallback: false,
-        retirement_gate:
-          'framework_transport_binding_projection_plus_aionui_and_studio_consumption_e2e_plus_legacy_inference_caller_zero',
-      },
-      post_cutover_legacy_read_compatibility:
-        'after_framework_transport_binding_projection_cutover_may_read_an_existing_local_canonical_thread_id_only_when_the_exact_canonical_directory_identity_still_exists_and_no_current_framework_binding_conflicts_never_infer_or_write_a_new_binding',
+      current_missing_surface_policy:
+        'treat_as_unavailable_without_blocking_the_current_mainline_or_enabling_shell_inference_or_writeback',
+      existing_exact_canonical_thread_id_read_compatibility:
+        'may_read_an_existing_local_canonical_thread_id_only_when_the_exact_canonical_directory_identity_still_exists_and_no_current_framework_binding_conflicts_never_infer_or_write_a_new_binding',
       binding_unavailable_policy: 'preserve_the_transport_row_fail_open_without_duplicate_canonical_row_or_fabricated_binding',
       typed_client_event: 'opl/app-transport-bindings/updated',
     },

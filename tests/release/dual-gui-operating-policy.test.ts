@@ -138,10 +138,11 @@ test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution A
   );
 });
 
-test('both GUI clients prove channel access source E2E while transport projection remains pending', () => {
+test('Framework transport binding projection and both GUI consumers are source E2E complete', () => {
   const gui = readJson<any>('contracts/app-gui-product-contract.json');
   const profile = readJson<any>('contracts/app-product-profile.json');
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
+  const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const studio = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
 
@@ -157,17 +158,26 @@ test('both GUI clients prove channel access source E2E while transport projectio
   assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');
   assert.equal(
     profile.client_renderer_compatibility.transport_binding_migration_state,
-    'producer_callback_source_e2e_completed_projection_pending',
+    'framework_transport_binding_projection_and_dual_shell_source_e2e_completed',
   );
   assert.equal(
     runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
       .projection_runtime_status,
-    'target_shared_abi_not_yet_produced',
+    'current_framework_projection_proven',
   );
   assert.equal(
-    runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
-      .temporary_legacy_fallback.studio_may_copy_fallback,
+    'temporary_legacy_fallback' in
+      runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection,
     false,
+  );
+  assert.match(
+    runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
+      .existing_exact_canonical_thread_id_read_compatibility,
+    /never_infer_or_write_a_new_binding/,
+  );
+  assert.equal(
+    activeAdapter.channel_thread_binding_boundary.implementation_status,
+    'framework_projection_consumer_and_exact_canonical_thread_id_read_compatibility_source_e2e_completed',
   );
   assert.ok(studio?.required_capabilities.includes('channel_access_standard_view'));
   assert.ok(studio?.required_capabilities.includes('framework_transport_bindings_projection'));

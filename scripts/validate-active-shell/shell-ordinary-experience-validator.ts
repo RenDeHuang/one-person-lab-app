@@ -1669,19 +1669,31 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'projectedBinding?.canonicalThreadHost === directory.host ? projectedBinding : null',
       '!hasProjectedBinding && isWeixinCodexTransportConversation(conversation)',
       'const temporaryTransportThreadIds = new Set<string>()',
-      'inferLegacyWeixinCanonicalThreadBindings',
-      'Temporary migration fallback until the shared provider callback produces transport bindings end to end.',
-      'canonical_thread_id: binding.threadId',
       'const projected = projectCanonicalCodexThread(thread, cachedByThreadId.get(thread.id))',
       'if (!temporaryTransportThreadIds.has(thread.id)) return projected',
       'is_temporary_workspace: true',
       "ipcBridge.oplRuntime.getAppState.invoke({ profile: 'fast' })",
       "transportBindingsProjection.status === 'available'",
-      'projectedTransportBindingsState.map((binding) => binding.conversationId)',
     ],
-    'Active shell canonical App Server session directory projection',
+    'Active shell canonical App Server session directory projection and exact legacy read compatibility',
   );
-  assertShellTextIncludesAll(
+  assertTextExcludesAll(
+    readShellText(
+      shellPaths,
+      'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
+    ),
+    [
+      'const workspaceLeaf =',
+      'inferLegacyWeixinCanonicalThreadBindings',
+      'Temporary migration fallback until the shared provider callback produces transport bindings end to end.',
+      'const legacyBindings =',
+      'projectedTransportBindingsState.map((binding) => binding.conversationId)',
+      'ipcBridge.conversation.update.invoke({',
+      'canonical_thread_id: binding.threadId',
+    ],
+    'Active shell retired workspace inference and canonical thread binding writeback callers',
+  );
+  const conversationListSyncTests = assertShellTextIncludesAll(
     shellPaths,
     'tests/unit/conversation/runtime/conversationListSyncGuard.test.ts',
     [
@@ -1689,7 +1701,6 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'retains unmatched non-Codex local rows without title or workspace deduplication',
       'deduplicates local canonical rows only when the App Server returns',
       'prefers a valid shared transport projection over legacy canonical_thread_id',
-      'uses workspace inference only as a migration fallback when the shared projection is unavailable',
       'ignores a conflicting legacy binding when a current shared binding exists',
       'fails open when projected transport bindings are ambiguous',
       'keeps a transport row visible when no projected or legacy binding is available',
@@ -1697,6 +1708,11 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'falls back to shell cache when the canonical directory is unavailable',
     ],
     'Active shell canonical session directory regressions',
+  );
+  assertTextExcludesAll(
+    conversationListSyncTests,
+    ['uses workspace inference only as a migration fallback when the shared projection is unavailable'],
+    'Active shell retired workspace inference regression',
   );
 
   const threadAdapter = assertShellTextIncludesAll(

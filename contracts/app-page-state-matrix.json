@@ -3544,7 +3544,7 @@
         "standard_view_type": "channel_access",
         "standard_view_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/channel_access_result",
         "transport_binding_source": "app_state.transport_bindings",
-        "provider_absent_policy": "omit_channel_access_contribution_without_placeholder_keep_transport_binding_projection_unavailable_and_allow_current_aion_legacy_fallback_until_framework_transport_binding_projection_cutover",
+        "provider_absent_policy": "omit_channel_access_contribution_without_placeholder_keep_transport_binding_projection_unavailable_and_transport_row_visible_fail_open_without_shell_inference_or_writeback",
         "ordinary_controls": [
           "login_or_connection_status",
           "pairing_requests",
