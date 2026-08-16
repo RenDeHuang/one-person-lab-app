@@ -632,7 +632,7 @@ jobs:
           npm run typecheck
           npm run validate:release-boundary
           node --experimental-strip-types --test tests/release/release-bundle-workflow-cutover.test.ts
-          node --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts
+          node --conditions=opl-source --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts
           npm --prefix framework-source run typecheck
 
       - name: Prepare and validate online AI notes

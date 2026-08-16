@@ -280,12 +280,19 @@ test("Bundle freeze gate installs frozen App and Framework dependencies before v
   const install = job.indexOf("npm ci --ignore-scripts");
   const installFramework = job.indexOf("npm --prefix framework-source ci --ignore-scripts");
   const validation = job.indexOf("- name: Validate Bundle contracts before paid work");
+  const frameworkSourceTest = job.indexOf(
+    "node --conditions=opl-source --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts",
+  );
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing Bundle freeze job");
   assert.ok(setup >= 0 && install > setup, "Bundle cold gate must install with pinned Node");
   assert.ok(
     installFramework > install && validation > installFramework,
     "Bundle cold gate must install frozen App and Framework dependencies before validation",
+  );
+  assert.ok(
+    frameworkSourceTest > validation,
+    "Bundle cold gate must resolve Framework workspace packages through source exports",
   );
 });
 
