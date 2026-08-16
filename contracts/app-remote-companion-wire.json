@@ -26,9 +26,9 @@
     "mutation_idempotency_header": "Idempotency-Key",
     "authorization_header": "Authorization: Bearer <opaque_token>",
     "tokens": {
-      "desktop_pair_token": "single_pairing_desktop_poll_and_confirmation_only_until_activation",
-      "ios_claim_token": "single_pairing_ios_poll_only_until_activation",
-      "device_credential": "pair_and_device_scoped_256_bit_random_secret_for_usersig_refresh_and_revoke",
+      "desktop_pair_token": "single_pairing_desktop_poll_and_confirmation_then_desktop_active_device_credential_after_activation",
+      "ios_claim_token": "single_pairing_ios_poll_then_ios_active_device_credential_after_activation",
+      "active_device_credential": "role_bound_to_the_callers_existing_desktop_pair_token_or_ios_claim_token_after_activation_without_minting_a_second_bearer",
       "revocation_receipt_token": "single_revocation_status_read_only_until_terminal_or_expiry",
       "storage": "store_only_sha256_or_stronger_salted_hashes_and_return_plaintext_once",
       "transport": "bearer_header_only_never_url_query_or_qr"
@@ -125,7 +125,6 @@
           "device_label",
           "peer_device_id",
           "peer_device_label",
-          "device_credential",
           "provider_user_id",
           "peer_provider_user_id",
           "peer_public_key",
@@ -133,8 +132,8 @@
           "usersig",
           "usersig_expires_at"
         ],
-        "device_credential_transition": "desktop_pair_token_and_ios_claim_token_become_their_callers_active_device_credentials_after_pair_activation_and_no_second_plaintext_credential_is_minted_or_persisted",
-        "device_activation_policy": "return_only_the_calling_devices_own_activation_and_the_minimum_peer_route_identity_device_label_and_public_key_required_for_e2ee; device_credential_echoes_only_the_callers_already_held_bearer"
+        "active_device_credential_source": "desktop_pair_token_for_desktop_and_ios_claim_token_for_ios_become_active_after_pair_activation",
+        "device_activation_policy": "return_only_the_calling_devices_own_activation_and_the_minimum_peer_route_identity_device_label_and_public_key_required_for_e2ee; never_return_or_echo_a_bearer_in_device_activation"
       },
       {
         "id": "desktop_confirm_pairing",
