@@ -1640,7 +1640,9 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       "binding.project_affinity !== 'projectless'",
       "binding.status !== 'bound'",
       'if (bindings.length !== projection.bindings.length) return unavailableTransportBindingsProjection()',
-      'if (current && current !== target) return unavailableTransportBindingsProjection()',
+      'const bindingIdentities = bindings.map(',
+      '`${binding.providerId}:${binding.accountId}:${binding.channelSessionId}`',
+      'if (new Set(bindingIdentities).size !== bindingIdentities.length) return unavailableTransportBindingsProjection()',
     ],
     'Active shell Framework transport binding projection reader',
   );
