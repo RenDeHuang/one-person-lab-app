@@ -607,7 +607,7 @@ export function validateChannelThreadBindingBoundary(
   const expectedImplementationStatus = shellIdentity === 'aionui'
     ? 'framework_projection_consumer_and_exact_canonical_thread_id_read_compatibility_source_e2e_completed'
     : shellIdentity === 'opl-studio'
-      ? 'exact_binding_implementation_pending'
+      ? 'framework_projection_consumer_and_exact_binding_source_e2e_completed'
       : null;
   if (
     !boundary
