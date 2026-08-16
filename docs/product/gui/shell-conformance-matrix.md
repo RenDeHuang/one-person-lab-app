@@ -113,9 +113,10 @@ B0-11 的 execution、metadata intake、canonical discovery 与 ordinary activit
 
 微信/频道接入不作为 AionUI 私有功能复制到 Native。两端共享 App-owned `channel_access` 标准 view
 和目标 `app_state.transport_bindings` ABI：provider 缺失时不显示占位，Studio 不得推断或写入绑定。
-当前 producer callback 尚未完成；AionUI 的 workspace inference 与 SQLite write 仍是有界 legacy
-fallback，只有 Framework 当前 binding 不可用时才运行，且不得把该现态外推为 Studio 的实现要求。
-因此本次只关闭 Contract 轴；两端 Source/Pixel/Install/Release 仍须由各 owner 的 fresh evidence 独立更新。
+Framework producer callback、Shell-owned exact binding readback 与 AionUI/Studio 双 Shell source E2E
+已经完成；AionUI 的 workspace inference 与 SQLite binding writeback 生产 caller 已退役。该完成度只关闭
+频道链路的 Contract 与 Source 轴，不批准 AionUI retirement、carrier cutover 或 release adoption；两端
+Pixel、Install、Release 仍须由各 owner 的 fresh evidence 独立更新。
 
 Source 状态说明：AionUI `R1-01..06`、`U1-01..06` 均为 `source_implemented`。Native 的 `R1-03`、
 `U1-03`、`U1-06` 为 `source_missing`，其余为 `source_partial`。这里的 `source_implemented`
