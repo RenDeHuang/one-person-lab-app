@@ -126,6 +126,7 @@ function validateProductProfileContractRefs(profile) {
     first_run: firstRunMatrixPath,
     install_exposure: installExposurePolicyPath,
     settings_control_plane: settingsControlPlanePath,
+    remote_companion: path.join(root, 'contracts', 'app-remote-companion.json'),
   })) {
     const value = profile.contract_refs?.[label];
     if (typeof value !== 'string' || !value.trim()) {
@@ -349,9 +350,14 @@ function validateDeliveryTopology(profile) {
   assertDeepEqualJson(
     topology.mobile,
     {
-      initial_surface: 'responsive_web_pwa',
-      optional_native_wrapper: 'capacitor_after_separate_adoption_decision',
+      initial_surface: 'native_ios_remote_companion',
+      product_name: 'One Person Lab: AI Companion',
+      home_screen_name: 'OPL',
+      companion_policy_ref: 'contracts/app-remote-companion.json',
+      transport: 'ably_outbound_wss_with_short_lived_token_auth',
+      optional_web_fallback: 'desktop_webui_remains_available_but_is_not_the_ios_product',
       separate_product_renderer_allowed: false,
+      full_workbench_surface: false,
     },
     'Product profile mobile topology',
   );

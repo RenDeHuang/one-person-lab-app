@@ -233,6 +233,7 @@ const expectedStack = [
       'contracts/app-gui-product-contract.json',
       'contracts/app-product-profile.json',
       'contracts/app-page-state-matrix.json',
+      'contracts/app-remote-companion.json',
     ],
   },
   {

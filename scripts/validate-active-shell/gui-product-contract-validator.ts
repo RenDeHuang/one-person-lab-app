@@ -624,6 +624,40 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   validateDesktopTrayPolicy(guiContract);
   validateDesktopApplicationIconPolicy(guiContract);
 
+  const remoteCompanion = guiContract.remote_companion;
+  if (
+    JSON.stringify(remoteCompanion) !== JSON.stringify({
+      policy_ref: 'contracts/app-remote-companion.json',
+      surface_id: 'remote_companion',
+      app_store_name: 'One Person Lab: AI Companion',
+      home_screen_name: 'OPL',
+      product_role: 'remote_companion_channel_not_a_runtime_or_third_workbench',
+      desktop_workbench_remains_canonical: true,
+      transport: 'ably_outbound_wss_with_short_lived_token_auth',
+      pairing_surface: 'settings_resources_desktop_pairing_qr_and_ios_scan',
+      ordinary_ios_actions: [
+        'canonical_task.list',
+        'canonical_task.read',
+        'canonical_task.refresh',
+        'canonical_task.start',
+        'canonical_task.send_text',
+        'canonical_turn.stop',
+        'canonical_approval.respond',
+        'pair.revoke',
+      ],
+      forbidden_ios_controls: [
+        'provider_or_model_editor',
+        'permission_policy_editor',
+        'package_lifecycle_editor',
+        'arbitrary_shell_or_file_command',
+        'offline_command_queue',
+      ],
+      missing_provider_or_transport_policy: 'show_unavailable_without_fabricated_online_or_task_state_and_keep_desktop_workbench_usable',
+    })
+  ) {
+    throw new Error('App GUI remote companion contract must match the App-owned companion policy');
+  }
+
   const startupReadModelPolicy = guiContract.framework_surfaces?.canonical_state?.startup_read_model_policy;
   if (
     startupReadModelPolicy?.blocking_policy !==

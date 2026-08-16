@@ -15,6 +15,7 @@ import { validateFirstRunCompiledExpectations } from './validate-active-shell/fi
 import { validateInstallExposurePolicy } from './validate-active-shell/install-exposure-policy-validator.ts';
 import { validatePageStateMatrix } from './validate-active-shell/page-state-matrix-validator.ts';
 import { validateProductProfile } from './validate-active-shell/product-profile-validator.ts';
+import { validateRemoteCompanionContract } from './validate-active-shell/remote-companion-validator.ts';
 import { validateReleaseChannelContract } from './validate-active-shell/release-contract-validator.ts';
 import { activeShellReleaseValidationProfile } from './validate-release-boundary/release-checks.ts';
 import { validateReleaseEvidenceBundle } from './validate-active-shell/release-evidence-bundle-validator.ts';
@@ -33,6 +34,7 @@ import {
   productProfilePath,
   releaseChannelPath,
   runtimeBridgePath,
+  remoteCompanionPath,
   settingsControlPlanePath,
 } from './validate-active-shell/validation-config.ts';
 
@@ -57,9 +59,11 @@ const firstRunMatrix = readJson(firstRunMatrixPath);
 const releaseChannel = readJson(releaseChannelPath);
 const installExposurePolicy = readJson(installExposurePolicyPath);
 const productProfile = readJson(productProfilePath);
+const remoteCompanion = readJson(remoteCompanionPath);
 
 validateContractShape(contract);
 validateRuntimeBridgeContract(runtimeBridge, contract);
+validateRemoteCompanionContract(remoteCompanion);
 validateInstallExposurePolicy(installExposurePolicy);
 validateDistributionInstallSsot(releaseChannel, installExposurePolicy);
 validateAppGuiProductContract(guiProductContract, releaseChannel, installExposurePolicy);

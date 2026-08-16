@@ -6,7 +6,8 @@ State: `active`
 Machine boundary: 本目录是人读产品设计与实现指引。GUI machine truth 仍归
 `contracts/app-gui-product-contract.json`、
 `contracts/app-product-profile.json`、
-`contracts/app-page-state-matrix.json`、adapter contracts、validators、shell source/tests
+`contracts/app-page-state-matrix.json`、
+`contracts/app-remote-companion.json`、adapter contracts、validators、shell source/tests
 和 release/user-path evidence；本文不创建第二套 authority。
 
 ## 结论
@@ -171,10 +172,18 @@ AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。�
 双 carrier 当前实现证据见
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
 
-手机远程访问当前复用 AionUI 已有 WebUI 与频道能力，不建立第二套控制面。App 只定义
-`channel_access` 标准 view；安装后的 transport provider/native carrier 持有连接、QR、配对与授权
-用户事实，Framework 投影到 `settings.section`，AionUI 与 Studio 只渲染和派发 provider-projected
-actions。QR 仅是临时 challenge，不得持久化或写日志。贡献缺失时不显示占位或伪造连接状态。
+手机远程访问采用原生 iOS 产品 **One Person Lab: AI Companion**，主屏幕短名为 **OPL**；
+`remote_companion` 只作为内部 surface ID。它通过 Ably 的 pair-scoped 出站 `WSS:443` 连接投影
+桌面 canonical task，Cloudflare Workers/D1 只持有短期 token、一次性配对和撤销元数据。用户不需要
+公网 IP、端口转发、VPN、Tailscale 或局域网配置。iOS 不运行 OPL/Codex runtime、不保存第二份任务
+历史，也不拥有模型、权限、Package 或 cloud workspace authority。
+
+桌面 WebUI 仍是完整工作台 carrier，但不是 iOS 产品或自动 fallback；旧 LAN QR 登录、
+`http://host:port` / `ws://host:port` 不能被提升为公网远程路径。桌面 Shell 持有配对设置与 canonical
+App action consumer，iOS 只允许合同列出的任务读取、文本发送、停止、低/中影响审批和撤销。
+具体 scope、E2EE、owner、成本与 Phase 0-5 路线见
+[`../../active/opl-ai-companion-plan.md`](../../active/opl-ai-companion-plan.md)。合同或文档不证明 Shell、
+Cloud、iOS、TestFlight 或三网实现完成。
 
 频道到 canonical Codex task 的目标绑定来自 `app_state.transport_bindings`，按 exact App Server host
 和 thread id join，且始终保持 `projectless`，不会由 cwd 建立 Project affinity。Framework
@@ -333,7 +342,7 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `ideal_target.advanced_workspace_surfaces=files_changes,preview,terminal,browser`
 - `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
 - `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
-- `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
+- `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-remote-companion.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
 
 ## 当前目标与实现边界
 
