@@ -2,11 +2,11 @@
 
 Owner: `one-person-lab-app`
 Purpose: `opl_link_cross_surface_product_and_delivery_plan`
-State: `approved_design_repository_initialized_source_not_implemented`
+State: `source_implemented_external_configuration_pending`
 
 Machine truth 归本文件引用的 App contracts、OPL Link/Cloud/Shell owner source 与 tests、Apple
-carrier、provider readback 和运行时证据。本文件组织跨仓依赖，不证明 iOS、Cloud、腾讯 IM、
-TestFlight 或公开发布已经完成。
+carrier、provider readback 和运行时证据。本文件组织跨仓依赖。三端与 Cloud source 已进入各自
+canonical `main`；这不证明腾讯 IM 应用已配置、真实跨端配对已通过、TestFlight 可用或公开发布完成。
 
 ## 当前结论
 
@@ -69,9 +69,9 @@ TestFlight 只用于 Beta 载体，不承担长期容量控制；正式版可上
 | `one-person-lab-cloud` | invite、原子 seat、UserSig、腾讯 UserID provisioning/delete/readback、revoke | task content/history、iOS UI、desktop action |
 | `opl-aion-shell` 或已准入 successor | desktop QR/pairing Settings、Tencent desktop adapter、canonical read/action bridge | 第二任务库、Cloud product truth、iOS release |
 
-各仓独立完成 source、focused tests 和 checkpoint；最终集成前从最新 canonical main 重放，
-重新跑受影响 contract/aggregate gates，再普通推送唯一 canonical main。候选分支、测试通过或
-callback 不是完成证据。
+各仓 source 已从最新 canonical main 重放并通过各自受影响 contract/aggregate gates，再进入唯一
+canonical main。后续真实 provider、签名、TestFlight 和发布仍必须由对应 owner readback；源码、
+候选分支、测试通过或 callback 不能替代这些证据。
 
 ## 阶段
 
@@ -79,26 +79,26 @@ callback 不是完成证据。
 
 - 建立独立 `opl-link` repo、OPL Doc、iOS profile、transport adapter 和 pairing-client contracts。
 - App contracts 改为 OPL Link/Tencent/邀请制 40 席语义，并指向新仓。
-- 只声明“设计仓已建立”；iOS/Cloud/Shell source、provider 配置和发布仍为 active gap。
+- iOS/Cloud/Shell source 已在各自 canonical main 落地；provider 配置、安装生效、三网和发布仍为 active gap。
 
-### Phase 1：iOS 本地纵向链路（`opl-link`）
+### Phase 1：iOS 本地纵向链路（source 已完成）
 
 创建 SwiftUI project、provider-neutral reducer、E2EE envelope、Keychain/storage、fake transport、
-pair/task/conversation/settings 页面和 accessibility/unit tests。先证明真实 UI action → encrypted
-request → fake desktop event → state projection 的链路；不把 mock 通过写成 Tencent 可用。
+pair/task/conversation/settings 页面和 accessibility/unit/UI tests 已落地，UI action → encrypted
+request → deterministic desktop event → state projection 已验证；这些本地证据不表示 Tencent 可用。
 
-### Phase 2：腾讯 IM adapter（`opl-link` + Cloud fixture）
+### Phase 2：腾讯 IM adapter（source 已完成，真实配置待验证）
 
-在 adapter 内实现 pair-specific login、短时 UserSig refresh、C2C custom encrypted message、
-reconnect、heartbeat/timeout 和 generic push signal。禁止 SecretKey 入 client/binary/log，禁止
-provider 类型泄漏到 domain/UI，未知发送终态先 refresh，不重发。
+adapter 已实现 pair-specific login、短时 UserSig refresh、C2C custom encrypted message、
+reconnect 和 heartbeat/timeout，并保持 SecretKey 不进入 client/binary/log、provider 类型不泄漏到
+domain/UI、未知发送终态只 refresh 不重发。真实 Tencent SDKApp 与 push 尚未配置或回读。
 
-### Phase 3：真实跨仓 pair（Cloud + Shell + iOS）
+### Phase 3：跨仓 owner source（已完成）与真实 pair（待验证）
 
-Cloud 落地 invite/seat/UserSig/Tencent identity/revoke；Shell 落地 desktop connector 和既有
-App read/action bridge；iOS 跑通邀请、扫码、SAS、本地确认、首同步、发送/流式输出、停止、
-允许审批、断网恢复、撤销与 seat reclaim。各 owner 的 mock/loopback 必须再由真实 owner
-runtime/readback 取代。
+Cloud 已落地 invite/seat/UserSig/Tencent identity/revoke source，Shell 已落地 desktop connector、
+Settings 与既有 App read/action bridge，iOS 已落地邀请、扫码、SAS、确认、同步、命令、恢复与撤销
+client source。下一步必须用真实腾讯应用和安装后的桌面/iPhone 证明完整 pair、流式输出、断网恢复、
+revoke 与 seat reclaim；fixture/loopback 不替代 owner runtime/readback。
 
 ### Phase 4：TestFlight Beta
 
@@ -120,11 +120,10 @@ mirror 或隐式 fallback。
 
 ## 当前 active gaps
 
-- `opl-link`：Xcode project、Swift source、真实 iOS tests、签名和 carrier 尚未实现。
-- Cloud：invite、40-seat ledger、UserSig、Tencent identity/reclaim/revoke 尚未实现。
-- Shell：desktop connector、Settings pairing、Tencent desktop adapter 尚未实现。
-- External：腾讯 IM app、Apple namespace、APNs/TestFlight/App Store 尚未配置。
-- Evidence：三网、App Review、安装生效、远端 provider quota 和 public readback 均未知。
+- Provider：腾讯 IM app、真实 SDKAppID/SecretKey owner 配置、UserSig 和 UserID owner readback 尚未完成。
+- Apple carrier：bundle/signing、Apple namespace、APNs、TestFlight、App Review 和 App Store 尚未完成。
+- Runtime：安装后的 Desktop 与 iPhone 真实配对、canonical action、断网恢复、撤销和 seat reclaim 未验证。
+- Evidence：中国三网、隐私日志、远端 provider quota、clean install/update 和 public readback 均未知。
 
 ## 参考
 

@@ -28,7 +28,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   if (
     policy?.schema !== 'opl_app_remote_companion.v2' ||
     policy.owner !== 'one-person-lab-app' ||
-    policy.state !== 'approved_product_plan_client_repository_initialized_source_not_implemented'
+    policy.state !== 'approved_product_plan_source_implemented_external_configuration_pending'
   ) {
     throw new Error('OPL Link contract identity or implementation state is invalid');
   }
@@ -84,6 +84,8 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   if (
     authentication?.mode !== 'pair_specific_user_id_with_short_lived_usersig' ||
     authentication.credential_issuer !== 'opl_cloud_remote_companion_broker' ||
+    authentication.active_credential_policy !==
+      'existing_desktop_pair_token_or_ios_claim_token_becomes_active_device_credential_after_pair_activation_without_minting_a_second_bearer' ||
     authentication.usersig_ttl_minutes > 60 ||
     authentication.automatic_refresh !== true ||
     authentication.tencent_sdkapp_secret_in_client !== false ||
@@ -169,6 +171,9 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.pairing?.fallback_payload_policy !==
       'reuse_the_same_single_use_short_lived_payload_as_the_qr_without_adding_a_second_pairing_secret' ||
     policy.pairing?.short_manual_code !== 'deferred_not_implemented' ||
+    policy.pairing?.legacy_manual_code?.status !== 'compatibility_response_only' ||
+    policy.pairing?.legacy_manual_code?.user_fallback !== false ||
+    policy.pairing?.legacy_manual_code?.client_behavior !== 'use_claim_secret_from_full_pairing_payload' ||
     !policy.pairing?.claim_protocol?.includes(
       'broker_validates_one_time_invitation_and_atomically_reserves_one_pair_seat_with_a_5_minute_ttl',
     ) ||
@@ -206,7 +211,13 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     pendingPairing.resume !==
       'cold_start_restores_awaiting_desktop_confirmation_and_reads_broker_state_without_reclaiming_or_reminting_pair_credentials' ||
     pendingPairing.activation !==
-      'persist_active_pair_material_with_the_existing_ios_claim_token_before_transport_connect_then_delete_the_pending_record'
+      'persist_active_pair_material_with_the_existing_ios_claim_token_before_transport_connect_then_delete_the_pending_record' ||
+    JSON.stringify(pendingPairing.clear_on) !== JSON.stringify([
+      'active_pair_material_persisted_after_activation',
+      'pairing_expiry',
+      'failed_claim',
+      'terminal_revocation',
+    ])
   ) {
     throw new Error('OPL Link must persist pending pairing material for bounded cold-start recovery');
   }
@@ -265,9 +276,15 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.implementation_status?.product_name_decided !== true ||
     policy.implementation_status?.transport_decided !== true ||
     policy.implementation_status?.ios_repository_initialized !== true ||
-    policy.implementation_status?.ios_source_implemented !== false ||
+    policy.implementation_status?.protocol_source_implemented !== true ||
+    policy.implementation_status?.desktop_connector_source_implemented !== true ||
+    policy.implementation_status?.ios_source_implemented !== true ||
+    policy.implementation_status?.cloud_broker_source_implemented !== true ||
+    policy.implementation_status?.tencent_cloud_application_configured !== false ||
+    policy.implementation_status?.testflight_or_app_store_release !== false ||
+    policy.implementation_status?.china_three_network_qualification !== false ||
     policy.implementation_status?.release_ready_claim_allowed !== false
   ) {
-    throw new Error('OPL Link implementation status must distinguish repository design from delivered source');
+    throw new Error('OPL Link implementation status must distinguish delivered source from external release evidence');
   }
 }

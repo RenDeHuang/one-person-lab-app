@@ -31,6 +31,11 @@ test('OPL Link wire contract has one versioned broker and encrypted transport sh
   assert.equal(wire.schema, 'opl_app_remote_companion_wire.v1');
   assert.equal(wire.protocol_version, product.transport.protocol);
   assert.equal(product.source_refs.wire_contract, 'contracts/app-remote-companion-wire.json');
+  assert.deepEqual(wire.compatibility.legacy_response_fields.manual_code, {
+    status: 'compatibility_response_only',
+    user_fallback: false,
+    client_behavior: 'use_claim_secret_from_full_pairing_payload',
+  });
   assert.deepEqual(
     wire.transport_envelope.encrypted_payload_variants.command.allowed_action_ids,
     product.action_policy.mvp_allowed_actions,
