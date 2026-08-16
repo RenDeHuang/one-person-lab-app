@@ -264,7 +264,7 @@ Legacy/upstream routes 只作为 compatibility redirects，不构成功能目录
 
 ## 功能层 Non-goals
 
-- 不定义 AionUI、OPL Studio 或 AGUI 的组件/目录结构。
+- 不定义 AionUI 或 OPL Studio 的组件/目录结构。
 - 不记录 candidate/release 完成度、截图 proof、commit 或 run id。
 - 不复制模型 allowlist、Settings route registry、action catalog 或 page-state payload。
 - 不把 runtime、domain、artifact、memory、owner receipt 或 release truth 移入 App GUI。

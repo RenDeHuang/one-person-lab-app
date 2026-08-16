@@ -72,9 +72,9 @@ result requires it. A defect confined to Team, another rejected surface, or
 retired/private legacy does not enter the ordinary product repair line.
 
 The GUI role boundary remains fixed: AionUI is active, `opl-studio` is the
-foreground alternative, and AGUI is the archived technical proof. The retired
-Hermes GUI candidate has no current registry, adapter, validator, command, or
-runbook and must not be recreated by documentation cleanup.
+foreground alternative. The retired AGUI and Hermes GUI candidate chains have
+no current registry, adapter, validator, command or runbook and must not be
+recreated by documentation cleanup.
 
 ## Current risk boundaries
 
@@ -112,7 +112,7 @@ is never delete authority.
 | 7 - medium (`P1a`) | Dynamic Agent Runtime promotion | **Producer and App contract canonical:** Framework discovers installed Agent descriptors and projects generic task/views; App Runtime is a core dynamic Agent surface with generic typed views and local unknown-view degradation. Shell end-to-end consumer, live installed proof and remaining fixed compatibility consumers are still open. | Agent owns business lifecycle, Temporal owns execution, Framework joins, App renders by generic fields/`view_kind`. Delete remaining fixed ids and compatibility schema only after Shell consumer and installed proofs. |
 | 8 - medium (`P1c`) | X0-05 private cross-thread pruning | App machine truth and Native Source implement the intended boundary; later evidence axes remain independent. | Preserve one App Server directory/user-action adapter, standard thread lifecycle, and read-only Codex subagent metadata/source kinds/thread items. Keep the private host, model-triggered tools, OPL queue, ledger/receipts, advisory/idempotency, and cross-host layer absent. |
 | 9 - low (`P1b`) | X0-03/X0-04 Workspace/Fabric/HPC/Console literal-gate pruning | App Contract is aligned; carrier evidence remains independently owned. | Optional owner refs appear only with a canonical projection and absent projections create no placeholder. Keep App-owned scheduling, billing, credentials, storage execution, and provider truth absent. |
-| 10 - low (`legacy-cleanup-alt-carrier-gate`) | Alternative-carrier default-gate decoupling | Implemented: default scope is `role_registry_only`; Studio detail is explicit; AGUI is the sole archived role tombstone; the retired Hermes GUI chain is absent. | Keep default AionUI/full/release/model-policy/design-system maintenance independent of untouched candidate detail. Preserve the remaining explicit candidate validators; do not turn Source validation into Pixel, Install, Release, or adoption evidence. |
+| 10 - low (`legacy-cleanup-alt-carrier-gate`) | Alternative-carrier default-gate decoupling | Implemented: default scope is `role_registry_only`; Studio detail is explicit; retired GUI candidate chains are absent. | Keep default AionUI/full/release/model-policy/design-system maintenance independent of untouched candidate detail. Preserve the remaining explicit candidate validators; do not turn Source validation into Pixel, Install, Release, or adoption evidence. |
 | 11 - low (`legacy-cleanup-literal-gates`) | Implementation-literal acceptance pruning | Partially implemented: three narrow obsolete meta-test probes are absent from canonical Source; all remaining literal-gate pruning stays candidate-only, with no bulk test deletion authorized. | Replace source strings, function names, CSS literals, and exact callsite counts as primary acceptance with behavior, accessibility, owner readback, and installed-pixel evidence. Retain only narrow structural smoke checks that detect a real unsupported integration boundary. |
 | 12 - low (`legacy-cleanup-copied-version-truth`) | Hand-copied upstream/version truth pruning | Partially implemented: the first static runtime-version copy is absent from canonical Source; all remaining copied-version cleanup stays candidate-only. Exact refs remain required only for bytes already installed, qualified, or built, never as a composition prerequisite. | Generate App-facing projections from owner manifests and Framework state. Record exact source refs in the operation or artifact that actually selected them; do not require a family Release Set or pre-existing lock. |
 

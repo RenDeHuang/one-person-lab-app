@@ -279,7 +279,7 @@ WebUI 可从浏览器使用，包括 headless host。Docker WebUI 是独立容�
 OPL Cloud 在线工作空间沿用同一套任务、成果、进度和责任语言。
 App 根据当前的产品与运行投影呈现云端能力，OPL Cloud 持续交付在线服务并维护相应产品事实。
 
-GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；OPL Studio 是开发备选和 foreground candidate。`agui-codex`、PilotDeck 等只作为已归档技术验证或参考材料，不再作为日常实现、默认验证或抛光路线；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
+GUI 产品事实也由 App 仓维护。当前 GUI 主线是基于 AionUI 的 OPL 品牌壳；OPL Studio 是唯一开发备选和 foreground candidate。PilotDeck 等外部项目只作为参考材料；真正进入产品的界面、默认行为和发布体验，以 App 仓的产品文档、合同和验证结果为准。
 
 需要框架、运行时和合同信息时，请进入 [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab)。
 
@@ -300,7 +300,7 @@ one-person-lab-app/
     aionui/             gaofeng21cn/opl-aion-shell 的外部检出目录
 ```
 
-`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。OPL Studio 作为开发备选候选，同样以 `shells/opl-studio` 外部检出承载。`shells/agui-codex/` 只保留到 `gaofeng21cn/opl-agui-codex-shell` 的已归档技术验证链接；除非明确要求 AGUI replay，不再默认更新、完善或抛光。
+`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。OPL Studio 作为唯一开发备选候选，同样以 `shells/opl-studio` 外部检出承载。
 
 ### 常用验证命令
 
@@ -336,14 +336,6 @@ bun run validate-release -- release-assets
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package
 ```
 
-已归档 AGUI 技术验证只在明确要求 AGUI replay 时回放，不属于正常 GUI 开发路径：
-
-```bash
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
-```
-
-显式回放 package validation 要求 manifest 声明 `candidate_app_bundle_ready`、`explicit_candidate_app_bundle`，以及相对路径形式的 `.app` bundle；该 bundle 必须包含 `Contents/Info.plist` 和 `Contents/MacOS` 可执行文件。纯文本 smoke artifact 不算可回放 App package。
-
 当前迁移与发布状态见 [`docs/status.md`](docs/status.md)。
 
 ### 产品与安装合同
@@ -371,7 +363,7 @@ gates 见 [App release guide](docs/delivery/release/README.md)。当前 App 产�
 gap 见 [`docs/status.md`](docs/status.md) 与
 [`docs/active/app-ideal-state-gap-plan.md`](docs/active/app-ideal-state-gap-plan.md)。
 
-GUI 定义栈按顺序阅读：[`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI 是当前实现主线，OPL Studio 是开发备选和 foreground candidate，`agui-codex` 和 PilotDeck 只提供已归档技术验证或参考材料，不能反过来定义 OPL App 产品事实。
+GUI 定义栈按顺序阅读：[`docs/product/gui/ideal-interaction-spec.md`](docs/product/gui/ideal-interaction-spec.md) 定义不绑定具体 shell 的理想交互形态，[`docs/product/gui/codex-to-opl-app-delta.md`](docs/product/gui/codex-to-opl-app-delta.md) 定义 Codex App 变成 OPL App 需要追加、隐藏和治理的产品增量，[`docs/product/gui/feature-inventory.md`](docs/product/gui/feature-inventory.md) 维护跨 shell 的能力清单。后续设计或评审 GUI 时先看这三份，再看 contracts 和 page-state 矩阵；AionUI 是当前实现主线，OPL Studio 是唯一开发备选和 foreground candidate，PilotDeck 等外部项目只提供参考材料，不能反过来定义 OPL App 产品事实。
 
 ### Agent / Framework Boundary
 

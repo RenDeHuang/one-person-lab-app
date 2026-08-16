@@ -6,9 +6,7 @@ import type {
   NativeThreadAdapterBoundary,
   OPLStudioCarrierEvidenceContract,
   ShellCandidate,
-  ShellCandidateEntry,
   ShellCandidateRegistry,
-  ShellCandidateRoleTombstone,
   ValidationCommand,
 } from './types.ts';
 import {
@@ -164,8 +162,6 @@ export type CandidateValidationPolicy = {
   onlyForegroundAlternative: string;
   defaultCandidateValidationScope: string[];
   explicitCandidateValidationScope: string[];
-  archivedTechnicalProofs: string[];
-  archivedProofUpdatePolicy: string;
 };
 
 export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRegistry): CandidateValidationPolicy {
@@ -177,95 +173,37 @@ export function candidateValidationPolicyFromRegistry(registry: ShellCandidateRe
     onlyForegroundAlternative: alternative.only_foreground_alternative,
     defaultCandidateValidationScope: alternative.default_candidate_validation_scope,
     explicitCandidateValidationScope: alternative.explicit_candidate_validation_scope,
-    archivedTechnicalProofs: alternative.archived_technical_proofs,
-    archivedProofUpdatePolicy: alternative.archived_proof_policy,
   };
 }
 
-function validateCandidateRegistryEntry(candidate: ShellCandidateEntry, policy: CandidateValidationPolicy): void {
+function validateCandidateRegistryEntry(candidate: ShellCandidate, policy: CandidateValidationPolicy): void {
   if (!candidate.id || !candidate.candidate_root) {
     throw new Error(`Invalid candidate entry: ${JSON.stringify(candidate)}`);
   }
-  const isArchivedProof = policy.archivedTechnicalProofs.includes(candidate.id);
   const isForegroundAlternative = candidate.id === policy.onlyForegroundAlternative;
   const isDefaultCandidate = policy.defaultCandidateValidationScope.includes(candidate.id);
   const isExplicitCandidate = policy.explicitCandidateValidationScope.includes(candidate.id);
-  const expectedState = isArchivedProof
-    ? 'archived_technical_proof'
-    : 'active_product_development';
-  if (candidate.state !== expectedState) {
-    throw new Error(`${candidate.id} must stay in ${expectedState} according to app-shell-candidates alternative_gui_policy`);
+  if (candidate.state !== 'active_product_development') {
+    throw new Error(`${candidate.id} must stay in active_product_development according to app-shell-candidates alternative_gui_policy`);
   }
-  if (!isArchivedProof && !isForegroundAlternative) {
-    throw new Error(`${candidate.id} must be the foreground alternative or an archived technical proof`);
+  if (!isForegroundAlternative) {
+    throw new Error(`${candidate.id} must be the foreground alternative`);
   }
   if (!isExplicitCandidate) {
     throw new Error(`${candidate.id} must be listed in explicit_candidate_validation_scope`);
   }
-  if (isArchivedProof && isDefaultCandidate) {
-    throw new Error(`${candidate.id} archived technical proof must not enter default candidate validation scope`);
-  }
   if (isForegroundAlternative && isDefaultCandidate) {
     throw new Error(`${candidate.id} foreground alternative detail must stay out of default candidate validation scope`);
-  }
-  if (isArchivedProof) {
-    if (!candidate.archived_reason || candidate.archived_reason.trim().length < 40) {
-      throw new Error(`${candidate.id} archived technical proof must record a meaningful retirement reason`);
-    }
-    if (candidate.default_update_policy !== policy.archivedProofUpdatePolicy) {
-      throw new Error(`${candidate.id} archived proof update policy must match alternative_gui_policy.archived_proof_policy`);
-    }
   }
   if (!candidate.candidate_root.startsWith('shells/') || candidate.candidate_root.split(/[\\/]+/).includes('..')) {
     throw new Error(`${candidate.id} candidate_root must be under shells/<candidate>`);
   }
-  const expectedReleaseParticipation = isArchivedProof
-    ? 'explicit_user_requested_technical_replay_only'
-    : 'pre_adoption_explicit_build_only';
-  if (candidate.release_participation !== expectedReleaseParticipation) {
-    throw new Error(`${candidate.id} release participation must be ${expectedReleaseParticipation}`);
+  if (candidate.release_participation !== 'pre_adoption_explicit_build_only') {
+    throw new Error(`${candidate.id} release participation must be pre_adoption_explicit_build_only`);
   }
   if (candidate.source_topology !== 'external_checkout_linked_shell_repo') {
     throw new Error(`${candidate.id} must declare external_checkout_linked_shell_repo topology`);
   }
-}
-
-export function isCandidateRoleTombstone(
-  candidate: ShellCandidateEntry,
-): candidate is ShellCandidateRoleTombstone {
-  return 'role_tombstone' in candidate && candidate.role_tombstone === true;
-}
-
-function validateCandidateRoleTombstone(
-  candidate: ShellCandidateRoleTombstone,
-  policy: CandidateValidationPolicy,
-): void {
-  const expected = candidate.id === 'agui-codex'
-    ? {
-        state: 'archived_technical_proof',
-        mode: 'explicit_user_request_only',
-        command: 'npm run validate:candidate:agui',
-      }
-    : undefined;
-  if (!expected) {
-    throw new Error(`${candidate.id} must not use the archived-proof role tombstone schema`);
-  }
-  if (
-    candidate.state !== expected.state ||
-    candidate.replay.mode !== expected.mode ||
-    candidate.replay.validator_command !== expected.command ||
-    candidate.replay.source_checkout_policy !== 'optional_until_explicit_replay'
-  ) {
-    throw new Error(`${candidate.id} role tombstone must preserve its explicit replay route`);
-  }
-  if (
-    candidate.id === policy.onlyForegroundAlternative ||
-    policy.defaultCandidateValidationScope.includes(candidate.id)
-  ) {
-    throw new Error(`${candidate.id} role tombstone must never enter foreground or default detail validation`);
-  }
-  assertFile(path.join(root, candidate.adapter_contract), `${candidate.id} adapter contract`);
-  assertFile(path.join(root, candidate.replay.runbook_ref), `${candidate.id} replay runbook`);
 }
 
 function readCandidateAdapterContract(candidate: ShellCandidate): CandidateAdapterContract {
@@ -763,7 +701,6 @@ function validateCandidateAuthorityBoundaries(candidate: ShellCandidate): void {
     'do not switch active_shell away from aionui',
     'do not enter default stable or nightly release packaging',
     'do not introduce runtime or domain truth into the App repo',
-    'do not continue AGUI/CopilotKit implementation as the OPL Studio route',
     'do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer',
     'do not claim release-ready from contract-only evidence',
   ], `${candidate.id}.non_goals`);
@@ -827,12 +764,8 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
   ], 'package scripts for the shared renderer, Electron desktop, and headless WebUI');
 }
 
-export function validateCandidate(candidate: ShellCandidateEntry, policy: CandidateValidationPolicy): void {
+export function validateCandidate(candidate: ShellCandidate, policy: CandidateValidationPolicy): void {
   validateCandidateRegistryEntry(candidate, policy);
-  if (isCandidateRoleTombstone(candidate)) {
-    validateCandidateRoleTombstone(candidate, policy);
-    return;
-  }
   if (candidate.id !== policy.onlyForegroundAlternative) {
     throw new Error(`${candidate.id} detailed candidate entry must be the explicit foreground alternative`);
   }

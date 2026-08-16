@@ -327,7 +327,7 @@ runtime projections, while OPL Cloud owns delivery of the online services.
 
 OPL Book Forge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
-GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. The internal `opl-studio` candidate is the first-party App successor under active development and the only foreground alternative; it does not become mainline until minimum completion, release admission, and an explicit App carrier switch. `agui-codex`, PilotDeck, and similar references are archived technical verification or inspiration material; they are not routine implementation, validation, or polish lanes. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
+GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. The internal `opl-studio` candidate is the first-party App successor under active development and the only foreground alternative; it does not become mainline until minimum completion, release admission, and an explicit App carrier switch. PilotDeck and similar external projects are inspiration only. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
 
@@ -348,7 +348,7 @@ one-person-lab-app/
     aionui/             External checkout of gaofeng21cn/opl-aion-shell
 ```
 
-`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. The first-party successor follows the same external-checkout rule under its internal `opl-studio` repo/candidate id at `shells/opl-studio`. `shells/agui-codex/` remains an archived technical-proof link to `gaofeng21cn/opl-agui-codex-shell` and is selected only when AGUI replay is explicitly requested.
+`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. The first-party successor follows the same external-checkout rule under its internal `opl-studio` repo/candidate id at `shells/opl-studio`.
 
 ### Validation Commands
 
@@ -386,14 +386,6 @@ The first-party successor candidate (`opl-studio`) can be selected without chang
 ```bash
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package
 ```
-
-The archived AGUI technical proof remains replayable only when explicitly requested; it is not part of the normal GUI development path:
-
-```bash
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
-```
-
-Explicit replay package validation requires the manifest to declare `candidate_app_bundle_ready`, `explicit_candidate_app_bundle`, and a relative `.app` bundle path with `Contents/Info.plist` plus a `Contents/MacOS` executable. Text-only smoke artifacts are not accepted as replayable App packages.
 
 See [`docs/status.md`](docs/status.md) for the current migration and release state.
 

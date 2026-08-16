@@ -964,7 +964,7 @@ test('GUI design-system validator rejects a stale foreground role marker in the 
     candidatesPath,
     fs
       .readFileSync(candidatesPath, 'utf8')
-      .replace('foreground=opl-studio', 'foreground=agui-codex'),
+      .replace('foreground=opl-studio', 'foreground=removed-shell'),
     'utf8',
   );
   assert.throws(() => validateGuiDesignSystem(root), /gui-shell-candidates\.md must include gui_shell_roles/);

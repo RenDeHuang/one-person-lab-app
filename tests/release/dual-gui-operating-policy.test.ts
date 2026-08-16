@@ -8,7 +8,6 @@ import {
 import { appOwnedOplStandardAgentMembershipPolicy } from '../../scripts/validate-active-shell/app-contract-constants.ts';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
 import {
-  assertArchivedProofCommandExecutionAllowed,
   validateRegistryShape,
 } from '../../scripts/validate-shell-candidates/registry.ts';
 import type { ShellCandidateRegistry } from '../../scripts/validate-shell-candidates/types.ts';
@@ -26,16 +25,16 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
     /selection_mutates_release_adoption must remain false/,
   );
 
-  const archivedTarget = structuredClone(registry);
-  archivedTarget.interactive_launcher_policy.selectable_shells.push('agui-codex');
+  const removedTarget = structuredClone(registry);
+  removedTarget.interactive_launcher_policy.selectable_shells.push('removed-shell');
   assert.throws(
-    () => validateRegistryShape(archivedTarget),
+    () => validateRegistryShape(removedTarget),
     /selectable_shells must be exactly the active mainline and foreground alternative/,
   );
 
   const candidateDetailDrift = structuredClone(registry);
   const native = candidateDetailDrift.candidates.find((candidate) => candidate.id === 'opl-studio');
-  assert.ok(native && !('role_tombstone' in native));
+  assert.ok(native);
   native.required_capabilities = [];
   native.dsh_source_reuse_contract!.default_model = 'candidate-only-drift';
   assert.doesNotThrow(() => validateRegistryShape(candidateDetailDrift));
@@ -62,47 +61,30 @@ test('explicit Studio adapter keeps its candidate implementation role', () => {
   assert.equal(admission?.compatibility.hot_switch_without_revalidation_allowed, false);
 });
 
-test('Hermes is retired while archived AGUI replay remains explicit', () => {
+test('retired Hermes and AGUI GUI candidate chains stay physically absent', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
-  assert.equal(registry.candidates.some((candidate) => candidate.id === 'hermes-codex'), false);
-  assert.equal(registry.alternative_gui_policy?.archived_technical_proofs.includes('hermes-codex'), false);
+  assert.deepEqual(registry.candidates.map((candidate) => candidate.id), ['opl-studio']);
+  for (const retiredField of ['archived_reason', 'default_update_policy', 'role_tombstone', 'replay']) {
+    const restoredField = structuredClone(registry) as any;
+    restoredField.candidates[0][retiredField] = 'restored';
+    assert.throws(
+      () => validateRegistryShape(restoredField),
+      new RegExp(`must not declare retired candidate field ${retiredField}`),
+    );
+  }
   for (const retiredPath of [
     'contracts/shell-adapters/hermes-codex.json',
+    'contracts/shell-adapters/agui-codex.json',
     'scripts/validate-hermes-candidate.ts',
     'scripts/smoke-hermes-candidate-tart.ts',
     'docs/product/shell-alternatives/hermes-first-run-flow.md',
     'docs/product/shell-alternatives/hermes-gui-adaptation-plan.md',
+    'docs/history/shell-candidates/agui-codex-candidate-verification.md',
   ]) {
     assert.equal(fs.existsSync(retiredPath), false, `${retiredPath} must stay retired`);
   }
-  const agui = registry.candidates.find((candidate) => candidate.id === 'agui-codex');
-  assert.equal(agui?.state, 'archived_technical_proof');
-  assert.equal(agui?.release_participation, 'explicit_user_requested_technical_replay_only');
-  assert.throws(
-    () => assertArchivedProofCommandExecutionAllowed(registry, ['agui-codex'], false),
-    /add --archived-proof-replay only when the user explicitly requests that exact archived proof/,
-  );
-  assert.doesNotThrow(
-    () => assertArchivedProofCommandExecutionAllowed(registry, ['agui-codex'], true),
-  );
-  assert.doesNotThrow(
-    () => assertArchivedProofCommandExecutionAllowed(registry, ['opl-studio'], false),
-  );
-
-  const automaticBuild = structuredClone(registry);
-  automaticBuild.alternative_gui_policy!.archived_proof_execution_policy.automatic_build_allowed = true;
-  assert.throws(
-    () => validateRegistryShape(automaticBuild),
-    /archived proof replay must stay explicit, historical, and outside release channels/,
-  );
-
-  const restoredSnapshot = structuredClone(registry);
-  const restoredAgui = restoredSnapshot.candidates.find((candidate) => candidate.id === 'agui-codex') as any;
-  restoredAgui.first_run_contract = { duplicated: true };
-  assert.throws(
-    () => validateRegistryShape(restoredSnapshot),
-    /role tombstone must not duplicate detailed field first_run_contract/,
-  );
+  const packageScripts = readJson<{ scripts: Record<string, string> }>('package.json').scripts;
+  assert.equal(packageScripts['validate:candidate:agui'], undefined);
 });
 
 test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution ABI remains shell-neutral', () => {

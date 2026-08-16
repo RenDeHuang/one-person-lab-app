@@ -4,13 +4,9 @@ The root `scripts/` directory exposes App-level wrappers. The active Electron
 shell implementation is checked out from `gaofeng21cn/opl-aion-shell` and
 exposes its shell-specific helpers under `shells/aionui/scripts/`.
 By default wrappers read `contracts/app-shell-adapter.json`. AionUI is the
-active GUI carrier, `opl-studio` is the foreground alternative, and AGUI /
-`agui-codex` is the archived technical proof rather than a routine
-implementation, validation, or polish lane. Source-only technical validation
-can select a different linked shell repo with
-`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`;
-Archived proof command execution additionally requires
-`--archived-proof-replay` and an explicit user request for that exact replay.
+active GUI carrier and `opl-studio` is the only foreground alternative.
+Source-only technical validation can select a different linked shell repo with
+`OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/<candidate>.json`.
 
 Computer Use 当前的 focused contract gate 是：
 
@@ -30,7 +26,7 @@ installed readback。
 | `verify.sh` | App-root verification wrapper for smoke, active-shell, release-boundary, candidate-shell, structure, and full lanes without running release packaging by default. |
 | `validate-active-shell.ts` | Validates the selected shell adapter contract and runs selected validation commands. |
 | `validate-runtime-route.ts` | Explicitly validates the core dynamic Agent Runtime route, including its product contract, page-state matrix, generic typed-view envelope, and required Framework producer. Runtime is required for an adopted shell, while Stable release admission remains independently scoped. |
-| `validate-shell-candidates.ts` | Validates only the fixed active/foreground/archived role registry by default. `--candidate opl-studio` enables Studio detail validation; AGUI remains the archived role tombstone whose explicit validation/replay detail is owned by its adapter and runbook. Archived command execution requires `--archived-proof-replay` for an explicit historical replay. |
+| `validate-shell-candidates.ts` | Validates only the fixed active/foreground role registry by default. `--candidate opl-studio` enables Studio detail validation. |
 | `validate-gui-design-system.ts` | Validates the three-layer GUI definition stack, the 16-scene Codex visual reference cohort, exact mask/pixel/review semantics, shell roles, ideal/native versus active AionUI state markers, profile-owned model defaults, and the non-release evidence boundary. It fails closed when foundation docs or cohort bindings are absent and never promotes docs or visual QA into installed or release readiness. |
 | `app-product-profile.ts` | Projects the exact App product profile and App-owned Official Profile apply helper into the selected shell. `--check` rejects profile or helper byte drift so Standard and Full cannot acquire separate root lists or helper behavior. |
 | `validate-shell-product-profile-consumer.ts` | Projects the current App profile into a temporary archive of the exact clean Shell commit and runs the real Shell consumer test without writing the source Shell checkout. |
@@ -84,7 +80,7 @@ files remain thin App-owned wrappers around contracts and release artifacts.
 The core Runtime route uses the explicit `validate:runtime-route` and
 `test:runtime-route` entries for focused validation. Its product requirement does not by itself make it a Stable release gate.
 App-root fallow config excludes
-`shells/aionui/**` and `shells/agui-codex/**` because those paths are ignored
+`shells/aionui/**` because that path is ignored
 external shell checkouts.
 `hygiene:fallow` is not GUI shell build or runtime evidence; `validate:gui-shell`
 runs the full active shell validation list and the shell GUI compile path
@@ -144,9 +140,6 @@ npm run validate:shell-candidates
 npm run test:candidate:studio
 npm run validate:shell-candidates -- --candidate opl-studio --run-candidate-commands
 OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package
-# Explicit AGUI replay only:
-npm run validate:candidate:agui
-OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/agui-codex.json npm run package
 npm run release:framework-adapter -- freeze-request --channel stable --version <version> --updater-version <updater-version> --app-root <app-checkout> --shell-root <shell-checkout> --framework-root <framework-checkout> --notes <prepared-notes.md> --notes-evidence <notes-evidence.json> --include-full-package false --package-compatibility-abi opl_packages.v1 --package-compatibility-version-range '>=1 <2' --source-cutoff-observed-at <iso8601> --base-image-index <base-image-index.json> --codex-npm-metadata <codex-npm-metadata.json> --output freeze-request.json
 opl release freeze --request freeze-request.json --source-root <release-checkout> --store <bundle-store>
 opl release status --bundle <sha256:digest> --store <bundle-store>
@@ -221,11 +214,8 @@ For shell alternatives, `npm run validate:shell-candidates` covers only the
 minimal fixed-role registry by default. The current foreground candidate is
 `opl-studio`; its full contract/evidence path is explicit through
 `validate:candidate:studio`, `test:candidate:studio`, or
-`--candidate opl-studio --run-candidate-commands`. AGUI is the sole
-active-registry tombstone: `validate:candidate:agui` validates its explicit
-route, while command replay reads the detailed commands from the selected
-adapter. Generic App validation does not duplicate or reinterpret its package
-manifest.
+`--candidate opl-studio --run-candidate-commands`.
+Generic App validation does not duplicate or reinterpret its package manifest.
 
 Candidate validation remains non-release: an explicit command chain may build
 the selected `.app` and run its adapter-owned smoke, but it must not switch the

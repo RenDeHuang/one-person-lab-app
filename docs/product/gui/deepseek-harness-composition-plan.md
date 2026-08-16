@@ -254,7 +254,7 @@ Studio 把 DSH 当作可跟随的 GUI upstream，而不是一次性截图参考�
 
 ### Wave 0: role cleanup
 
-- Hermes GUI candidate 的 registry、adapter、validator、命令和 runbook 已物理退役；AGUI 仍是唯一 archived technical proof。
+- Hermes 与 AGUI GUI candidate 的 registry、adapter、validator、命令和 runbook 均已物理退役。
 - DSH 不登记为新 shell；它是 One Person Lab App successor 的 design/source reuse candidate。
 
 完成条件：默认 registry 和 GUI design validator 只输出 active、foreground、archived；已退役 GUI

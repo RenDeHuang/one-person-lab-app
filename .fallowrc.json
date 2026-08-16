@@ -9,7 +9,6 @@
     "docs/publishing/templates/opl-guide/styles.scss",
     "docs/publishing/templates/opl-quickstart/styles.scss",
     "docs/publishing/templates/opl-whitepaper/styles.scss",
-    "shells/aionui/**",
-    "shells/agui-codex/**"
+    "shells/aionui/**"
   ]
 }

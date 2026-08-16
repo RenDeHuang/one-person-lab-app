@@ -106,16 +106,12 @@ signing, supported-platform completion, or release-wide readiness.
 
 ## GUI And Candidate Docs
 
-GUI definition and candidate verification material is separated into
-product/history ownership:
+GUI definition and candidate verification material is App-owned:
 
 - [`product/gui/`](product/gui/) holds the ideal interaction spec, element
   audit, Codex-to-OPL product delta, `opl-studio` foreground
-  alternative plan, Claude Science
-  Runtime task-awareness landing plan, and GUI feature inventory.
-- [`history/shell-candidates/`](history/shell-candidates/) holds archived
-  AG-UI/CopilotKit technical-proof replay material for explicit AGUI replay or
-  historical audit.
+  alternative plan, Claude Science Runtime task-awareness landing plan, and GUI
+  feature inventory. Retired candidate bytes are available only from Git history.
 
 Executable acceptance for GUI/candidate work stays in contracts, adapter
 manifests, validators, shell artifacts, tests, release artifacts, workflows, and

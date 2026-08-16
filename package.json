@@ -56,7 +56,6 @@
     "validate:gui-design-system": "node --experimental-strip-types scripts/validate-gui-design-system.ts",
     "validate:runtime-route": "node --experimental-strip-types scripts/validate-runtime-route.ts",
     "validate:windows-platform-factory": "node --experimental-strip-types scripts/validate-windows-platform-factory.ts",
-    "validate:candidate:agui": "npm run validate:shell-candidates -- --candidate agui-codex",
     "validate:candidate:studio": "npm run validate:shell-candidates -- --candidate opl-studio",
     "validate:shell-convergence": "npm run validate:gui-design-system && npm run validate:active-shell -- --quick && npm run validate:shell-candidates",
     "package:candidate:studio": "OPL_APP_SHELL_ADAPTER_CONTRACT=contracts/shell-adapters/opl-studio.json npm run package",

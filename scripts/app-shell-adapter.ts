@@ -97,16 +97,6 @@ export const FORBIDDEN_SHELL_OWNED_SURFACES = [
   'provider implementation',
 ] as const;
 
-const ARCHIVED_REPLAY_ADOPTION_GATES = [
-  'declare archived replay surface in contracts/app-shell-candidates.json',
-  'consume contracts/app-gui-product-contract.json as replay acceptance input only',
-  'sync App product profile into the archived replay shell target',
-  'preserve archived page-state and first-run replay boundaries without default release claims',
-  'pass App-root explicit adapter validation only when AGUI replay is requested',
-  'pass explicit AGUI replay package compile through App wrapper',
-  'preserve external checkout history policy and release isolation',
-] as const;
-
 const CANDIDATE_ADOPTION_GATES = [
   'declare candidate in contracts/app-shell-candidates.json',
   'implement contracts/app-gui-product-contract.json',
@@ -123,10 +113,7 @@ export function assertShellReplacementAdoptionGates(
   missingGateMessage: (gate: string) => string,
   forbiddenAdapterCandidateMessage = 'Shell replacement policy must not declare candidates inside contracts/app-shell-adapter.json',
 ): void {
-  const requiredGates = releaseRole === 'archived_technical_verification_shell'
-    ? ARCHIVED_REPLAY_ADOPTION_GATES
-    : CANDIDATE_ADOPTION_GATES;
-  for (const gate of requiredGates) {
+  for (const gate of CANDIDATE_ADOPTION_GATES) {
     if (!adoptionGate?.includes(gate)) {
       throw new Error(missingGateMessage(gate));
     }
@@ -463,8 +450,6 @@ export function resolveClientRendererAdmission(
   contract: ShellAdapterContract,
   productProfile: Record<string, unknown> = readClientRendererProductProfile(),
 ): ClientRendererAdmission | null {
-  if (contract.release_role === 'archived_technical_verification_shell') return null;
-
   const declaration = contract.client_renderer_admission;
   const compatibility = productProfile.client_renderer_compatibility as ClientRendererCompatibilityProfile | undefined;
   const deliveryTopology = productProfile.delivery_topology as Record<string, unknown> | undefined;
@@ -790,8 +775,7 @@ function assertAdapterContractIdentity(contract: ShellAdapterContract, options: 
   if (contract.purpose !== 'active_shell_adapter') {
     throw new Error(`Unexpected active shell purpose: ${contract.purpose}`);
   }
-  const allowedStates = options.explicitOverride ? ['active', 'archived_technical_proof'] : ['active'];
-  if (!allowedStates.includes(contract.state)) {
+  if (contract.state !== 'active') {
     throw new Error(`Unexpected active shell state: ${contract.state}`);
   }
   if (contract.app_repo !== 'gaofeng21cn/one-person-lab-app') {
@@ -822,9 +806,7 @@ function assertAdapterGuiAuthority(contract: ShellAdapterContract): void {
   if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
     throw new Error('active shell GUI authority must stay in one-person-lab-app');
   }
-  const expectedImplementationRole = contract.release_role === 'archived_technical_verification_shell'
-    ? 'archived_technical_proof_replay_carrier'
-    : contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
+  const expectedImplementationRole = contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
       ? 'foreground_alternative_candidate_implementation_carrier'
       : 'active_shell_implementation_carrier';
   if (contract.gui_authority.implementation_role !== expectedImplementationRole) {
@@ -866,11 +848,9 @@ function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
   if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('active shell replacement policy must keep candidates under shells/<candidate>');
   }
-  const allowedCandidateStates = contract.release_role === 'archived_technical_verification_shell'
-    ? ['archived_technical_proof_replay_only']
-    : contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
+  const allowedCandidateStates = contract.candidate_shell && contract.adapter_role === 'foreground_alternative_candidate_adapter'
       ? ['active_product_development_pre_adoption']
-      : ['candidate_until_contracts_and_tests_complete', 'foreground_alternative_or_archived_technical_proof'];
+      : ['candidate_until_contracts_and_tests_complete'];
   if (!allowedCandidateStates.includes(contract.shell_replacement_policy.candidate_state)) {
     throw new Error(`Unexpected shell candidate state: ${contract.shell_replacement_policy.candidate_state}`);
   }
@@ -902,7 +882,7 @@ function assertShellContractPathsAndCapabilities(contract: ShellAdapterContract)
     assertRelativePath(value, `shell_contract.paths.${label}`);
   }
   assertStringArray(contract.shell_contract.capabilities, 'shell_contract.capabilities');
-  if (['experimental_candidate_shell', 'archived_technical_verification_shell'].includes(contract.release_role)) {
+  if (contract.release_role === 'experimental_candidate_shell') {
     if (!contract.shell_contract.capabilities.includes('candidate_app_bundle_package')) {
       throw new Error('candidate shell capabilities must include candidate_app_bundle_package');
     }

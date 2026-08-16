@@ -89,7 +89,7 @@ test("GUI launcher parses the explicit candidate safety controls", () => {
       allowActions: true,
     },
   );
-  assert.throws(() => parseGuiLauncherArgs(["--shell", "agui-codex"]), /Unsupported GUI shell/);
+  assert.throws(() => parseGuiLauncherArgs(["--shell", "removed-shell"]), /Unsupported GUI shell/);
 });
 
 test("GUI Runtime resolver returns absolute executable identity and a stable cohort ref", () => {

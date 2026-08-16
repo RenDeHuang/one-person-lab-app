@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_gui_route_policy",
-  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Studio is the only foreground alternative candidate. AGUI/CopilotKit remains an archived technical proof selectable only for an explicitly requested historical replay.",
+  "machine_boundary": "GUI shell candidate registry. The active App GUI shell is AionUI. OPL Studio is the only foreground alternative candidate.",
   "active_shell_unchanged": "aionui",
   "active_gui_mainline": {
     "shell": "aionui",
@@ -16,30 +16,9 @@
     "only_foreground_alternative": "opl-studio",
     "basis": "OPL Studio DSH-derived composition workbench",
     "default_candidate_validation_scope": [],
-    "archived_technical_proofs": [
-      "agui-codex"
-    ],
-    "archived_proof_policy": "do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay",
-    "archived_proof_execution_policy": {
-      "scope": "historical_technical_replay_only",
-      "trigger": "explicit_user_request_only",
-      "automatic_build_allowed": false,
-      "default_validation_includes_build": false,
-      "release_channel_participation": [],
-      "candidate_command_chain_opt_in": "--archived-proof-replay",
-      "forbidden_automatic_triggers": [
-        "push",
-        "pull_request",
-        "schedule",
-        "watch_or_on_save",
-        "daily_patrol",
-        "routine_validation"
-      ]
-    },
     "active_shell_switch_policy": "only_contracts/app-shell-adapter.json_can_switch_default_release_shell",
     "explicit_candidate_validation_scope": [
-      "opl-studio",
-      "agui-codex"
+      "opl-studio"
     ]
   },
   "interactive_launcher_policy": {
@@ -217,7 +196,7 @@
   },
   "candidate_policy": {
     "candidate_root_pattern": "shells/<candidate>",
-    "candidate_state": "foreground_alternative_or_role_tombstone",
+    "candidate_state": "foreground_alternative",
     "release_participation_until_adopted": "explicit_candidate_build_only",
     "authority_transfer_allowed": false,
     "release_scripts_must_use_active_shell_adapter": true,
@@ -242,26 +221,6 @@
       "candidate evidence remains technical verification until explicit active-shell adoption decision"
     ],
     "default_validation_scope": "role_registry_only",
-    "archived_technical_proof_policy": "explicit_user_request_only",
-    "no_resurrection_policy": {
-      "policy_id": "app.shell_candidate.no_resurrection.v1",
-      "default_validation_scope_must_exclude_archived_proofs": true,
-      "candidate_label_does_not_imply_foreground_status": true,
-      "archived_proof_update_requires_explicit_user_request": true,
-      "archived_proof_release_participation": "explicit_user_requested_technical_replay_only",
-      "archived_proof_must_not_appear_in_adoption_gate": true,
-      "foreground_adoption_gate_must_be_shell_agnostic": true,
-      "active_shell_switch_contract": "contracts/app-shell-adapter.json",
-      "forbidden_default_routes": [
-        "agui-codex in alternative_gui_policy.default_candidate_validation_scope",
-        "agui-codex in candidate_policy.adoption_gate",
-        "candidate filename label treated as foreground alternative",
-        "archived proof validation run by default",
-        "candidate implementation detail validated without explicit --candidate",
-        "reference or archived snapshot copied into default App gates",
-        "release wrapper default switched without contracts/app-shell-adapter.json"
-      ]
-    },
     "entry_route": "App_contract_gate_only",
     "forbidden_entry_routes": [
       "shell implementation roadmap copied into App truth",
@@ -269,34 +228,7 @@
       "candidate package evidence treated as active release adoption",
       "release wrapper default switched without contracts/app-shell-adapter.json change"
     ],
-    "default_validation_contract": "minimal_role_registry_only",
-    "role_tombstone_contract": {
-      "applies_to_states": [
-        "archived_technical_proof"
-      ],
-      "required_fields": [
-        "id",
-        "state",
-        "candidate_root",
-        "adapter_contract",
-        "source_topology",
-        "release_participation",
-        "role_tombstone",
-        "replay"
-      ],
-      "detail_owner": "candidate_adapter_contract_and_replay_runbook",
-      "forbidden_detailed_fields": [
-        "target_product_shape",
-        "framework_surfaces",
-        "required_capabilities",
-        "technical_verification",
-        "validation_commands",
-        "visual_parity_contract",
-        "first_run_contract",
-        "icon_contract",
-        "implementation_evidence"
-      ]
-    }
+    "default_validation_contract": "minimal_role_registry_only"
   },
   "design_reference_policy": {
     "purpose": "External agent UI projects can inform OPL-owned information organization without becoming shell candidates, runtime sources, copied code, or default split-screen workbench assumptions.",
@@ -548,23 +480,6 @@
     }
   ],
   "candidates": [
-    {
-      "id": "agui-codex",
-      "state": "archived_technical_proof",
-      "archived_reason": "AG-UI/CopilotKit work served its technical verification purpose. AionUI is the App GUI mainline and OPL Studio is the foreground alternative; AGUI stays explicit replay only.",
-      "default_update_policy": "do_not_update_or_improve_unless_user_explicitly_requests_agui",
-      "candidate_root": "shells/agui-codex",
-      "adapter_contract": "contracts/shell-adapters/agui-codex.json",
-      "source_topology": "external_checkout_linked_shell_repo",
-      "release_participation": "explicit_user_requested_technical_replay_only",
-      "role_tombstone": true,
-      "replay": {
-        "mode": "explicit_user_request_only",
-        "validator_command": "npm run validate:candidate:agui",
-        "runbook_ref": "docs/history/shell-candidates/agui-codex-candidate-verification.md",
-        "source_checkout_policy": "optional_until_explicit_replay"
-      }
-    },
     {
       "id": "opl-studio",
       "state": "active_product_development",
@@ -1163,7 +1078,6 @@
         "do not switch active_shell away from aionui",
         "do not enter default stable or nightly release packaging",
         "do not introduce runtime or domain truth into the App repo",
-        "do not continue AGUI/CopilotKit implementation as the OPL Studio route",
         "do not use same-agent-tree send_input as a cross-top-level message bus",
         "do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer",
         "do not claim release-ready from contract-only evidence"

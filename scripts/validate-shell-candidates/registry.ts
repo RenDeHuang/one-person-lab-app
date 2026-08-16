@@ -1,9 +1,7 @@
 import path from 'node:path';
 import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 import type {
-  ShellCandidateEntry,
   ShellCandidateRegistry,
-  ShellCandidateRoleTombstone,
 } from './types.ts';
 import {
   activeAdapterPath,
@@ -42,43 +40,20 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (
     alternative?.only_foreground_alternative !== 'opl-studio' ||
     alternative.basis !== 'OPL Studio DSH-derived composition workbench' ||
-    alternative.archived_proof_policy !== 'do_not_update_or_improve_unless_user_explicitly_requests_archived_proof_replay' ||
     alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
   ) {
-    throw new Error('candidate registry must keep OPL Studio as the only foreground alternative and AGUI as an explicit-only archived proof');
+    throw new Error('candidate registry must keep OPL Studio as the only foreground alternative');
   }
   if (alternative.default_candidate_validation_scope.length !== 0) {
     throw new Error('default candidate validation scope must stay empty; default gates validate role registry only');
   }
   assertStringArrayIncludes(
     alternative.explicit_candidate_validation_scope,
-    ['opl-studio', 'agui-codex'],
+    ['opl-studio'],
     'alternative_gui_policy.explicit_candidate_validation_scope',
   );
-  if (alternative.explicit_candidate_validation_scope.length !== 2) {
-    throw new Error('explicit candidate validation scope must contain exactly Native and AGUI');
-  }
-  const archivedExecution = alternative.archived_proof_execution_policy;
-  if (
-    archivedExecution?.scope !== 'historical_technical_replay_only' ||
-    archivedExecution.trigger !== 'explicit_user_request_only' ||
-    archivedExecution.automatic_build_allowed !== false ||
-    archivedExecution.default_validation_includes_build !== false ||
-    archivedExecution.release_channel_participation.length !== 0 ||
-    archivedExecution.candidate_command_chain_opt_in !== '--archived-proof-replay'
-  ) {
-    throw new Error('archived proof replay must stay explicit, historical, and outside release channels');
-  }
-  assertStringArrayIncludes(archivedExecution.forbidden_automatic_triggers, [
-    'push',
-    'pull_request',
-    'schedule',
-    'watch_or_on_save',
-    'daily_patrol',
-    'routine_validation',
-  ], 'alternative_gui_policy.archived_proof_execution_policy.forbidden_automatic_triggers');
-  if (JSON.stringify(alternative.archived_technical_proofs) !== JSON.stringify(['agui-codex'])) {
-    throw new Error('alternative_gui_policy.archived_technical_proofs must contain only agui-codex');
+  if (alternative.explicit_candidate_validation_scope.length !== 1) {
+    throw new Error('explicit candidate validation scope must contain exactly OPL Studio');
   }
   const nativeCandidate = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
   const oplAgentPaletteOutcome = 'the separate OPL standard Agent composer group includes only producer-declared first-party OPL professional Agents with package_role=standard_agent, selectable readiness, and a real Codex route; generic Skills and plugins remain separate even when a descriptor defaults to standard_agent, without a package-id allowlist';
@@ -107,7 +82,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   if (policy.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('candidate roots must stay under shells/<candidate>');
   }
-  if (policy.candidate_state !== 'foreground_alternative_or_role_tombstone') {
+  if (policy.candidate_state !== 'foreground_alternative') {
     throw new Error(`Unexpected candidate policy state: ${policy.candidate_state}`);
   }
   if (policy.release_participation_until_adopted !== 'explicit_candidate_build_only') {
@@ -142,10 +117,6 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   ) {
     throw new Error('candidate policy default validation must stay minimal role registry only');
   }
-  if (policy.archived_technical_proof_policy !== 'explicit_user_request_only') {
-    throw new Error('candidate policy archived technical proof validation must be explicit_user_request_only');
-  }
-  validateCandidateNoResurrectionPolicy(registry);
   validateCandidateRoleEntries(registry);
   validateDesignReferences(registry);
 }
@@ -153,143 +124,24 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
 function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {
   const entries = registry.candidates;
   const ids = entries.map((entry) => entry.id).sort();
-  if (JSON.stringify(ids) !== JSON.stringify(['agui-codex', 'opl-studio'])) {
-    throw new Error('candidate role registry must contain exactly Native and AGUI');
+  if (JSON.stringify(ids) !== JSON.stringify(['opl-studio'])) {
+    throw new Error('candidate role registry must contain exactly OPL Studio');
   }
 
   const native = entries.find((entry) => entry.id === 'opl-studio');
+  for (const field of ['archived_reason', 'default_update_policy', 'role_tombstone', 'replay']) {
+    if (native && field in native) {
+      throw new Error(`OPL Studio must not declare retired candidate field ${field}`);
+    }
+  }
   if (
     !native ||
-    'role_tombstone' in native ||
     native.state !== 'active_product_development' ||
     native.foreground_alternative_role !== 'only_foreground_alternative' ||
     native.adapter_contract !== 'contracts/shell-adapters/opl-studio.json' ||
     native.release_participation !== 'pre_adoption_explicit_build_only'
   ) {
-    throw new Error('Native must remain the explicit foreground candidate and must not collapse into a role tombstone');
-  }
-
-  validateRoleTombstone(
-    entries.find((entry) => entry.id === 'agui-codex'),
-    {
-      state: 'archived_technical_proof',
-      releaseParticipation: 'explicit_user_requested_technical_replay_only',
-      adapterContract: 'contracts/shell-adapters/agui-codex.json',
-      replayMode: 'explicit_user_request_only',
-      validatorCommand: 'npm run validate:candidate:agui',
-      runbookRef: 'docs/history/shell-candidates/agui-codex-candidate-verification.md',
-    },
-  );
-
-  const tombstoneContract = registry.candidate_policy.role_tombstone_contract;
-  if (
-    !tombstoneContract ||
-    tombstoneContract.detail_owner !== 'candidate_adapter_contract_and_replay_runbook' ||
-    JSON.stringify(tombstoneContract.applies_to_states) !==
-      JSON.stringify(['archived_technical_proof'])
-  ) {
-    throw new Error('candidate policy must keep archived detail in adapters and replay runbooks');
-  }
-  const requiredFields = [
-    'id',
-    'state',
-    'candidate_root',
-    'adapter_contract',
-    'source_topology',
-    'release_participation',
-    'role_tombstone',
-    'replay',
-  ];
-  assertStringArrayIncludes(
-    tombstoneContract.required_fields,
-    requiredFields,
-    'candidate_policy.role_tombstone_contract.required_fields',
-  );
-  const forbiddenDetailedFields = [
-    'target_product_shape',
-    'framework_surfaces',
-    'required_capabilities',
-    'technical_verification',
-    'validation_commands',
-    'visual_parity_contract',
-    'first_run_contract',
-    'icon_contract',
-    'implementation_evidence',
-  ];
-  assertStringArrayIncludes(
-    tombstoneContract.forbidden_detailed_fields,
-    forbiddenDetailedFields,
-    'candidate_policy.role_tombstone_contract.forbidden_detailed_fields',
-  );
-}
-
-function validateRoleTombstone(
-  entry: ShellCandidateEntry | undefined,
-  expected: {
-    state: ShellCandidateRoleTombstone['state'];
-    releaseParticipation: ShellCandidateRoleTombstone['release_participation'];
-    adapterContract: string;
-    replayMode: ShellCandidateRoleTombstone['replay']['mode'];
-    validatorCommand: string;
-    runbookRef: string;
-  },
-): void {
-  if (!entry || !('role_tombstone' in entry) || entry.role_tombstone !== true) {
-    throw new Error('archived candidates must be role tombstones');
-  }
-  if (
-    entry.state !== expected.state ||
-    entry.release_participation !== expected.releaseParticipation ||
-    entry.adapter_contract !== expected.adapterContract ||
-    entry.replay.mode !== expected.replayMode ||
-    entry.replay.validator_command !== expected.validatorCommand ||
-    entry.replay.runbook_ref !== expected.runbookRef ||
-    entry.replay.source_checkout_policy !== 'optional_until_explicit_replay'
-  ) {
-    throw new Error(`${entry.id} role tombstone must preserve its adapter and explicit replay route`);
-  }
-  if (!entry.candidate_root.startsWith('shells/') || entry.candidate_root.split(/[\\/]+/).includes('..')) {
-    throw new Error(`${entry.id} candidate_root must stay under shells/<candidate>`);
-  }
-  assertFile(path.join(root, entry.adapter_contract), `${entry.id} adapter contract`);
-  assertFile(path.join(root, entry.replay.runbook_ref), `${entry.id} replay runbook`);
-
-  const forbiddenFields = [
-    'target_product_shape',
-    'framework_surfaces',
-    'required_capabilities',
-    'technical_verification',
-    'validation_commands',
-    'visual_parity_contract',
-    'first_run_contract',
-    'icon_contract',
-    'local_p0_p1_implementation_evidence',
-  ];
-  for (const field of forbiddenFields) {
-    if (field in entry) {
-      throw new Error(`${entry.id} role tombstone must not duplicate detailed field ${field}`);
-    }
-  }
-}
-
-export function assertArchivedProofCommandExecutionAllowed(
-  registry: ShellCandidateRegistry,
-  candidateIds: string[],
-  archivedProofReplay: boolean,
-): void {
-  const alternative = registry.alternative_gui_policy;
-  const archivedProofs = alternative?.archived_technical_proofs ?? [];
-  const selectedArchivedProofs = candidateIds.filter((id) => archivedProofs.includes(id));
-  if (selectedArchivedProofs.length === 0) {
-    return;
-  }
-  if (
-    archivedProofReplay !== true ||
-    alternative?.archived_proof_execution_policy.candidate_command_chain_opt_in !== '--archived-proof-replay'
-  ) {
-    throw new Error(
-      `${selectedArchivedProofs.join(', ')} command execution is historical replay only; add --archived-proof-replay only when the user explicitly requests that exact archived proof`,
-    );
+    throw new Error('OPL Studio must remain the explicit foreground candidate');
   }
 }
 
@@ -370,62 +222,6 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   }
   if (aionui.bundle_id === successor.bundle_id) {
     throw new Error('interactive launcher mainline and candidate bundle identities must differ');
-  }
-}
-
-function validateCandidateNoResurrectionPolicy(registry: ShellCandidateRegistry): void {
-  const policy = registry.candidate_policy;
-  const noResurrection = policy.no_resurrection_policy;
-  const alternative = registry.alternative_gui_policy;
-  if (!noResurrection || !alternative) {
-    throw new Error('candidate registry must declare candidate_policy.no_resurrection_policy and alternative_gui_policy');
-  }
-  if (noResurrection.policy_id !== 'app.shell_candidate.no_resurrection.v1') {
-    throw new Error(`unexpected shell candidate no-resurrection policy id: ${noResurrection.policy_id}`);
-  }
-  if (noResurrection.default_validation_scope_must_exclude_archived_proofs !== true) {
-    throw new Error('candidate no-resurrection policy must exclude archived proofs from default validation scope');
-  }
-  if (noResurrection.candidate_label_does_not_imply_foreground_status !== true) {
-    throw new Error('candidate label must not imply foreground candidate status');
-  }
-  if (noResurrection.archived_proof_update_requires_explicit_user_request !== true) {
-    throw new Error('archived proof updates must require explicit user request');
-  }
-  if (noResurrection.archived_proof_release_participation !== 'explicit_user_requested_technical_replay_only') {
-    throw new Error('archived proof release participation must stay explicit replay only');
-  }
-  if (noResurrection.archived_proof_must_not_appear_in_adoption_gate !== true) {
-    throw new Error('archived proofs must not appear in foreground adoption gates');
-  }
-  if (noResurrection.foreground_adoption_gate_must_be_shell_agnostic !== true) {
-    throw new Error('foreground adoption gates must stay shell agnostic');
-  }
-  if (noResurrection.active_shell_switch_contract !== 'contracts/app-shell-adapter.json') {
-    throw new Error('active shell switch contract must stay contracts/app-shell-adapter.json');
-  }
-  assertStringArrayIncludes(noResurrection.forbidden_default_routes, [
-    'agui-codex in alternative_gui_policy.default_candidate_validation_scope',
-    'agui-codex in candidate_policy.adoption_gate',
-    'candidate filename label treated as foreground alternative',
-    'archived proof validation run by default',
-    'candidate implementation detail validated without explicit --candidate',
-    'reference or archived snapshot copied into default App gates',
-    'release wrapper default switched without contracts/app-shell-adapter.json',
-  ], 'candidate_policy.no_resurrection_policy.forbidden_default_routes');
-
-  const archivedProofs = new Set(alternative.archived_technical_proofs);
-  const defaultScopeArchivedProofs = alternative.default_candidate_validation_scope.filter((id) => (
-    archivedProofs.has(id)
-  ));
-  if (defaultScopeArchivedProofs.length > 0) {
-    throw new Error(`default candidate validation scope must not include archived proofs: ${defaultScopeArchivedProofs.join(', ')}`);
-  }
-  const adoptionGateText = policy.adoption_gate.join('\n');
-  for (const archivedProof of archivedProofs) {
-    if (adoptionGateText.includes(archivedProof)) {
-      throw new Error(`${archivedProof} must not appear in foreground adoption gates`);
-    }
   }
 }
 

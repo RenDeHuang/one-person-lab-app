@@ -625,7 +625,7 @@ for Native Candidate launches; active AionUI parity and direct Native bundle
 launches remain current deviations. Side-by-side installation and sequential launch selection
 therefore do not imply safe simultaneous writes to one workspace or thread.
 
-Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit pre-adoption builds. `contracts/app-shell-candidates.json` declares `opl-studio` as the foreground alternative and first-party Native successor, with its adapter under `contracts/shell-adapters/opl-studio.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell until Studio completes its minimum product and release-admission gates. `agui-codex` is an archived technical proof, replayable only through its explicit adapter when the user requests historical evidence; it is not a routine candidate lane or adoption input. The OPL Studio route is the shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and bounded DSH composition reuse without importing external runtime authority. Source, install, and readback evidence qualify the eventual explicit cutover; they do not make local candidate bytes the active shell by themselves.
+Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit pre-adoption builds. `contracts/app-shell-candidates.json` declares `opl-studio` as the only foreground alternative and first-party Native successor, with its adapter under `contracts/shell-adapters/opl-studio.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell until Studio completes its minimum product and release-admission gates. The OPL Studio route is the shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and bounded DSH composition reuse without importing external runtime authority. Source, install, and readback evidence qualify the eventual explicit cutover; they do not make local candidate bytes the active shell by themselves.
 
 A candidate enters App product truth only through App-owned contract updates and validation gates; implementation roadmaps and candidate package evidence remain technical verification until an explicit active-shell adoption decision changes `contracts/app-shell-adapter.json`. A candidate becomes the default release shell only when `contracts/app-shell-adapter.json` is updated deliberately and the runtime bridge remains satisfied, App product profile syncs into its configured target, App page-state and first-run matrices pass, shared desktop/WebUI evidence passes when claimed, App-root active-shell validation passes, GUI package compile succeeds through the App wrapper, and the external checkout history policy is preserved.
 
@@ -634,9 +634,7 @@ authority. A candidate that claims WebUI support must use the same App-owned
 product semantics as its desktop shell, preserve the App-owned
 `window.oplCandidate` API shape or an explicitly equivalent browser bridge, and
 route browser actions/events through a local transport bridge to Codex app-server
-and `opl app state/action`. Renderer technology is candidate-specific: AGUI's
-React/CopilotKit shared renderer belongs only to its explicit archived-proof
-replay and cannot count as foreground-alternative evidence.
+and `opl app state/action`.
 Electron may use native preload/IPC and native directory picking; browser WebUI
 may use HTTP actions and SSE event streams. Neither path may introduce a
 separate product profile, runtime truth source, provider selector, memory body

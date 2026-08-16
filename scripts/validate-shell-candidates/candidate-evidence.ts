@@ -4,16 +4,10 @@ import type {
   OPLStudioCarrierEvidenceExpectation,
   OPLStudioCarrierId,
   ShellCandidate,
-  ShellCandidateEntry,
-  ShellCandidateRoleTombstone,
   ValidationCommand,
 } from './types.ts';
 import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
-import {
-  isCandidateRoleTombstone,
-  requiredDSHSourceReuseSurfaces,
-  validateCandidateImplementationFiles,
-} from './candidate-contract.ts';
+import { requiredDSHSourceReuseSurfaces, validateCandidateImplementationFiles } from './candidate-contract.ts';
 import {
   assertDirectory,
   assertFile,
@@ -79,11 +73,7 @@ export type OPLStudioCarrierEvidenceManifest = {
   carriers: Record<OPLStudioCarrierId, OPLStudioCarrierEvidenceEntry>;
 };
 
-export function runCandidateCommands(candidate: ShellCandidateEntry): void {
-  if (isCandidateRoleTombstone(candidate)) {
-    runRoleTombstoneReplayCommands(candidate);
-    return;
-  }
+export function runCandidateCommands(candidate: ShellCandidate): void {
   if (candidate.id !== 'opl-studio') {
     throw new Error(`Only the foreground Native candidate may own full candidate evidence: ${candidate.id}`);
   }
@@ -101,19 +91,6 @@ export function runCandidateCommands(candidate: ShellCandidateEntry): void {
 
   validateCandidateImplementationFiles(candidate);
   validateOPLStudioImplementationEvidenceFile(candidate);
-}
-
-function runRoleTombstoneReplayCommands(candidate: ShellCandidateRoleTombstone): void {
-  const adapter = readJson<{ validation_commands?: ValidationCommand[] }>(
-    path.join(root, candidate.adapter_contract),
-  );
-  const commands = adapter.validation_commands ?? [];
-  if (commands.length === 0) {
-    throw new Error(`${candidate.id} replay adapter must expose validation_commands`);
-  }
-  for (const entry of commands) {
-    if (!entry.optional) runRequiredCommand(candidate.id, 'adapter replay', entry);
-  }
 }
 
 function runRequiredCommand(candidateId: string, commandKind: string, entry: ValidationCommand): void {
@@ -446,12 +423,6 @@ function validateOPLStudioImplementationEvidence(
     forbiddenSeriesDomainFields,
     `${candidate.id} evidence foundry_agent_series_display_contract.forbidden_domain_fields`,
   );
-  if (
-    evidence.user_visible_protocol_copy?.agui !== false
-    || evidence.user_visible_protocol_copy?.copilotkit_surface !== false
-  ) {
-    throw new Error(`${candidate.id} evidence must not present AGUI/CopilotKit as the native ordinary UI surface`);
-  }
   for (const [surface, expected] of Object.entries(expectedFrameworkSurfaces)) {
     if (evidence.framework_surfaces?.[surface] !== expected) {
       throw new Error(`${candidate.id} evidence framework_surfaces.${surface} must be ${expected}`);

@@ -15,11 +15,7 @@ export const requiredHomeEntries = ['research', 'grant', 'ppt'];
 export const requiredCapabilities = [
   'codex_cli_fixed_executor_home',
   'codex_app_server_thread_turn_backend',
-  'copilotkit_visible_ui_runtime_layer',
-  'agui_internal_protocol_not_user_visible',
   'purpose_first_home_entries',
-  'agui_event_contract_map',
-  'app_server_event_to_agui_stream_mapping',
   'workspace_directory_picker',
   'new_conversation_thread_reset',
   'pixel_visible_ui_smoke',

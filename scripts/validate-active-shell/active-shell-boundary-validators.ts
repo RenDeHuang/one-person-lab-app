@@ -18,9 +18,7 @@ export function validateGuiAuthority(contract, isDefaultReleaseAdapter) {
   if (contract.gui_authority?.source_of_truth !== 'one-person-lab-app') {
     throw new Error('Active shell GUI authority must stay in one-person-lab-app');
   }
-  const expectedImplementationRole = contract.release_role === 'archived_technical_verification_shell'
-    ? 'archived_technical_proof_replay_carrier'
-    : contract.release_role === 'experimental_candidate_shell'
+  const expectedImplementationRole = contract.release_role === 'experimental_candidate_shell'
       ? 'foreground_alternative_candidate_implementation_carrier'
       : 'active_shell_implementation_carrier';
   if (contract.gui_authority.implementation_role !== expectedImplementationRole) {
@@ -55,9 +53,7 @@ export function validateShellReplacementPolicy(contract) {
   if (contract.shell_replacement_policy?.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('Shell replacement policy must keep candidates under shells/<candidate>');
   }
-  const expectedCandidateState = contract.release_role === 'archived_technical_verification_shell'
-    ? 'archived_technical_proof_replay_only'
-    : contract.release_role === 'experimental_candidate_shell'
+  const expectedCandidateState = contract.release_role === 'experimental_candidate_shell'
       ? 'active_product_development_pre_adoption'
       : 'candidate_until_contracts_and_tests_complete';
   if (contract.shell_replacement_policy.candidate_state !== expectedCandidateState) {
@@ -74,7 +70,7 @@ export function validateShellReplacementPolicy(contract) {
 }
 
 export function validateShellContractCapabilities(contract) {
-  if (['experimental_candidate_shell', 'archived_technical_verification_shell'].includes(contract.release_role)) {
+  if (contract.release_role === 'experimental_candidate_shell') {
     for (const capability of [
       'candidate_app_bundle_package',
       'app_owned_gui_product_contract',

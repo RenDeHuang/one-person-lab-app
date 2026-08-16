@@ -172,7 +172,6 @@ Active AionUI 默认状态通过 README 治理段声明的动态 state source �
 | `N3` | Candidate repo `npm run validate:candidate` 和 `npm run validate:state-model` | Candidate source 与 state-model consumption。 |
 | `N4` | Candidate repo `npm run smoke:visual` | Manual/foreground visual smoke；不等于 packaged acceptance。 |
 | `N5` | `npm run package:candidate:studio` | Explicit candidate package path；不改变 active release shell。 |
-| `G1` | `npm run validate:candidate:agui` | AGUI archived role tombstone 与显式 replay route；不恢复 routine lane。 |
 | `V1` | Route/viewport/ref-bound screenshots、pixel checks、packaged/VM evidence | 对应视觉、package 或用户路径；每层 evidence 只证明自身。 |
 
 ## Active AionUI Priority Matrix

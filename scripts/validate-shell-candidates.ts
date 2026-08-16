@@ -7,7 +7,6 @@ import {
 } from './validate-shell-candidates/candidate-contract.ts';
 import { runCandidateCommands } from './validate-shell-candidates/candidate-evidence.ts';
 import {
-  assertArchivedProofCommandExecutionAllowed,
   validateActiveShellUnaffected,
   validateRegistryShape,
 } from './validate-shell-candidates/registry.ts';
@@ -17,14 +16,12 @@ import type { ShellCandidateRegistry } from './validate-shell-candidates/types.t
 export function parseArgs(argv: string[]): {
   candidate?: string;
   runCandidateCommands: boolean;
-  archivedProofReplay: boolean;
 } {
   const { values } = parseNodeArgs({
     args: argv.slice(2),
     options: {
       candidate: { type: 'string' },
       'run-candidate-commands': { type: 'boolean' },
-      'archived-proof-replay': { type: 'boolean' },
     } as const,
     allowPositionals: false,
     strict: true,
@@ -32,7 +29,6 @@ export function parseArgs(argv: string[]): {
   return {
     candidate: values.candidate,
     runCandidateCommands: values['run-candidate-commands'] === true,
-    archivedProofReplay: values['archived-proof-replay'] === true,
   };
 }
 
@@ -48,13 +44,6 @@ function main(): void {
     : [];
   if (args.candidate && candidates.length === 0) {
     throw new Error(`No shell candidate matched ${args.candidate}`);
-  }
-  if (args.runCandidateCommands) {
-    assertArchivedProofCommandExecutionAllowed(
-      registry,
-      candidates.map((candidate) => candidate.id),
-      args.archivedProofReplay,
-    );
   }
   for (const candidate of candidates) {
     validateCandidate(candidate, validationPolicy);
@@ -76,7 +65,6 @@ function main(): void {
     role_registry: {
       active: registry.active_gui_mainline?.shell,
       foreground: registry.alternative_gui_policy?.only_foreground_alternative,
-      archived: registry.alternative_gui_policy?.archived_technical_proofs,
     },
     default_validation_scope: args.candidate ? 'explicit_candidate' : 'role_registry_only',
     command_execution: args.runCandidateCommands
@@ -84,7 +72,6 @@ function main(): void {
       : args.candidate
         ? 'explicit_source_and_contract_validation_only'
         : 'none_role_registry_only',
-    archived_proof_replay: args.archivedProofReplay,
     release_participation: 'explicit_candidate_build_only_until_adopted',
   }, null, 2));
 }

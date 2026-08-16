@@ -14,24 +14,17 @@ package scripts, validation output, and candidate package artifacts.
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable plus Dev/Nightly Preview wrapper commands |
 | Foreground candidate | `opl-studio` | `shells/opl-studio` or `../opl-studio` | `contracts/shell-adapters/opl-studio.json` | Explicit Native validation/build only |
-| Archived proof | `agui-codex` | `shells/agui-codex` | `contracts/shell-adapters/agui-codex.json` | Explicit user-requested historical replay only |
 
 Stable role marker:
-`gui_shell_roles: active=aionui; foreground=opl-studio; archived=agui-codex`.
+`gui_shell_roles: active=aionui; foreground=opl-studio`.
 
-Default maintenance validates only this three-role registry. Detailed candidate
+Default maintenance validates this two-role registry. Detailed candidate
 contracts are intentionally carrier-owned and explicit:
 
 | Validation scope | Owner entry | Default/release participation |
 | --- | --- | --- |
 | Fixed role registry | `npm run validate:shell-candidates` | Included in default structural gates; does not inspect candidate implementation detail. |
 | OPL Studio foreground detail | `npm run validate:candidate:studio` / `npm run test:candidate:studio` | Explicit on demand; full candidate evidence is Studio-only. |
-| AGUI archived proof | `npm run validate:candidate:agui` | Explicit source check; command replay additionally requires `--archived-proof-replay`. |
-
-AGUI is a role tombstone in the active registry. Its detailed commands and
-source/package expectations live in its adapter contract and replay runbook,
-so changes to dormant candidate detail cannot block AionUI,
-model-policy, design-system, full, or release-boundary maintenance.
 
 ## 双 GUI、单控制面
 
@@ -198,16 +191,13 @@ without changing the active GUI:
 ```bash
 npm run validate:shell-candidates
 npm run validate:candidate:studio
-npm run validate:candidate:agui
 ```
 
 Build the foreground candidate through the App wrapper. Full Studio evidence is
-owned by the OPL Studio candidate path. AGUI command replay remains isolated in
-its explicit adapter:
+owned by the OPL Studio candidate path:
 
 ```bash
 npm run package:candidate:studio
-npm run validate:shell-candidates -- --candidate agui-codex --run-candidate-commands --archived-proof-replay
 ```
 
 If the candidate checkout is a sibling repo instead of `shells/<candidate>`,

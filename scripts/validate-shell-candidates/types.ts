@@ -118,8 +118,6 @@ export type DSHSourceReuseContract = {
 export type ShellCandidate = {
   id: string;
   state: string;
-  archived_reason?: string;
-  default_update_policy?: string;
   candidate_root: string;
   adapter_contract: string;
   source_topology: string;
@@ -268,31 +266,6 @@ export type ShellCandidate = {
   non_goals: string[];
 };
 
-export type ShellCandidateRoleTombstone = {
-  id: string;
-  state: 'archived_technical_proof';
-  archived_reason?: string;
-  default_update_policy?: string;
-  candidate_root: string;
-  adapter_contract: string;
-  source_topology: 'external_checkout_linked_shell_repo';
-  release_participation: 'explicit_user_requested_technical_replay_only';
-  role_tombstone: true;
-  checkout_policy?: {
-    primary_path: string;
-    accepted_alternate_path: string;
-    missing_checkout_status: string;
-  };
-  replay: {
-    mode: 'explicit_user_request_only';
-    validator_command: string;
-    runbook_ref: string;
-    source_checkout_policy: 'optional_until_explicit_replay';
-  };
-};
-
-export type ShellCandidateEntry = ShellCandidate | ShellCandidateRoleTombstone;
-
 export type ShellCandidateRegistry = {
   schema_version: number;
   owner: string;
@@ -311,17 +284,6 @@ export type ShellCandidateRegistry = {
     basis: string;
     default_candidate_validation_scope: string[];
     explicit_candidate_validation_scope: string[];
-    archived_technical_proofs: string[];
-    archived_proof_policy: string;
-    archived_proof_execution_policy: {
-      scope: string;
-      trigger: string;
-      automatic_build_allowed: boolean;
-      default_validation_includes_build: boolean;
-      release_channel_participation: string[];
-      candidate_command_chain_opt_in: string;
-      forbidden_automatic_triggers: string[];
-    };
     active_shell_switch_policy: string;
   };
   interactive_launcher_policy: {
@@ -370,24 +332,6 @@ export type ShellCandidateRegistry = {
     adoption_gate: string[];
     default_validation_scope?: string;
     default_validation_contract?: string;
-    archived_technical_proof_policy?: string;
-    role_tombstone_contract?: {
-      applies_to_states: string[];
-      required_fields: string[];
-      detail_owner: string;
-      forbidden_detailed_fields: string[];
-    };
-    no_resurrection_policy?: {
-      policy_id: string;
-      default_validation_scope_must_exclude_archived_proofs: boolean;
-      candidate_label_does_not_imply_foreground_status: boolean;
-      archived_proof_update_requires_explicit_user_request: boolean;
-      archived_proof_release_participation: string;
-      archived_proof_must_not_appear_in_adoption_gate: boolean;
-      foreground_adoption_gate_must_be_shell_agnostic: boolean;
-      active_shell_switch_contract: string;
-      forbidden_default_routes: string[];
-    };
   };
   design_reference_policy?: {
     purpose: string;
@@ -427,5 +371,5 @@ export type ShellCandidateRegistry = {
     opl_mapping: string[];
     forbidden_reuse: string[];
   }>;
-  candidates: ShellCandidateEntry[];
+  candidates: ShellCandidate[];
 };

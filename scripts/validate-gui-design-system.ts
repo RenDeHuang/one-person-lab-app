@@ -34,7 +34,6 @@ export type GuiDesignSystemValidation = {
   shell_roles: {
     active: 'aionui';
     foreground: 'opl-studio';
-    archived: ['agui-codex'];
   };
   codex_reference: string;
   codex_pixel_reference: string;
@@ -91,7 +90,7 @@ export type GuiDesignSystemValidation = {
 };
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-studio; archived=agui-codex';
+const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-studio';
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
@@ -618,7 +617,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const alternatives = record(registry.alternative_gui_policy);
   const candidates = Array.isArray(registry.candidates) ? registry.candidates.map(record) : [];
   const nativeCandidate = candidates.find((candidate) => candidate.id === 'opl-studio') ?? {};
-  const aguiCandidate = candidates.find((candidate) => candidate.id === 'agui-codex') ?? {};
   if (mainline.shell !== 'aionui' || registry.active_shell_unchanged !== 'aionui') {
     issues.add('candidate registry must keep AionUI active');
   }
@@ -628,12 +626,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (stringArray(alternatives.default_candidate_validation_scope).length !== 0) {
     issues.add('default GUI design validation must use role registry only, not candidate detail');
   }
-  if (
-    !sameStrings(alternatives.archived_technical_proofs, ['agui-codex']) ||
-    aguiCandidate.state !== 'archived_technical_proof' ||
-    aguiCandidate.role_tombstone !== true
-  ) {
-    issues.add('candidate registry must keep agui-codex as archived technical proof');
+  if (candidates.length !== 1 || nativeCandidate.state !== 'active_product_development') {
+    issues.add('candidate registry must contain only the active OPL Studio foreground candidate');
   }
   if (nativeCandidate.foreground_alternative_role !== 'only_foreground_alternative') {
     issues.add('opl-studio must carry only_foreground_alternative role');
@@ -2102,7 +2096,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     shell_roles: {
       active: 'aionui',
       foreground: 'opl-studio',
-      archived: ['agui-codex'],
     },
     codex_reference: codexReference,
     codex_pixel_reference: codexPixelReference,
