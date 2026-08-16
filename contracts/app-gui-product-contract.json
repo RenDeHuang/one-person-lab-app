@@ -1434,11 +1434,13 @@
   "remote_companion": {
     "policy_ref": "contracts/app-remote-companion.json",
     "surface_id": "remote_companion",
-    "app_store_name": "One Person Lab: AI Companion",
-    "home_screen_name": "OPL",
+    "app_store_name": "OPL Link",
+    "home_screen_name": "OPL Link",
+    "implementation_owner": "opl-link",
     "product_role": "remote_companion_channel_not_a_runtime_or_third_workbench",
     "desktop_workbench_remains_canonical": true,
-    "transport": "ably_outbound_wss_with_short_lived_token_auth",
+    "transport": "tencent_cloud_im_outbound_tls_with_short_lived_usersig",
+    "pairing_access_gate": "one_time_invitation_and_cloud_active_pair_seat",
     "pairing_surface": "settings_resources_desktop_pairing_qr_and_ios_scan",
     "ordinary_ios_actions": [
       "canonical_task.list",

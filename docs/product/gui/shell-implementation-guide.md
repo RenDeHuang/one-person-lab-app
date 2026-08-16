@@ -92,12 +92,13 @@ contract/实现收敛 lane 处理。
 - 三类 carrier 暴露同一 `opl_app_host_bridge.v1` 语义。Windows 的 Node/Codex 物理位置由 platform
   execution adapter 与后续实机证据决定，不预设 native 或 WSL。任一平台支持仍需独立 package、sign、
   update、install 和 runtime admission，目标合同与 source build 都不能提前宣称支持。
-- 移动端使用原生 iOS **One Person Lab: AI Companion**。它是 bounded remote projection，不复用完整
+- 移动端使用原生 iOS **OPL Link**。它是 bounded remote projection，不复用完整
   responsive renderer，也不通过 Capacitor 包装 WebUI；iOS 不能成为第二 runtime、第二 history store
   或第二 action authority。
 - Desktop/WebUI carrier 仍共享同一 host core 和 renderer，但旧 LAN WebUI 登录不能成为 Companion
-  的公网 fallback。桌面 connector 与 iOS 只能通过 `opl_remote_transport.v1` 消费 pair-scoped Ably
-  transport，所有业务动作仍回到 desktop canonical App action bridge。
+  的公网 fallback。桌面 connector 与 iOS 通过 `opl_remote_transport.v1` 消费单一 provider
+  adapter；MVP 为腾讯云 IM，Ably 只保留替换边界。所有业务动作仍回到 desktop canonical App
+  action bridge。
 
 外部项目只能帮助验证这一分层或提供 bounded component technique。OpenChamber 的 Electron +
 Web server/Docker 组合可作为桌面/WebUI 拓扑证据；其 PWA/Capacitor 路线、OpenCode runtime、
@@ -108,12 +109,13 @@ runtime 或 renderer dependency；仅在单独 reuse decision 后把必要技术
 
 - Shell 只实现一个 `RemoteTransport` adapter：将 owner-projected task reads/events 与 allowlisted App
   actions 映射到加密 envelope，不复制 Codex App Server 或维护私有 thread truth。
-- Pairing UI 只显示一次性 QR、相同确认码、过期、设备和撤销。QR、device credential、pair key、
+- Pairing UI 只显示邀请、容量、一次性 QR、相同确认码、provisioning、设备和撤销。席位与腾讯
+  UserID 生命周期归 Cloud；Shell 不在本地分配或释放。QR、UserSig、device credential、pair key、
   任务正文与 workspace path 不得写日志。
 - Transport unavailable 只降级 Companion；桌面工作台保持可用，也不自动改走 LAN WebUI。
 - `request_id` 去重、key epoch/sequence、回前台 canonical refresh 和 high-impact approval desktop-only
   是实现门槛，不是 renderer 自选策略。
-- 完整协议和阶段门槛见 [`../../active/opl-ai-companion-plan.md`](../../active/opl-ai-companion-plan.md)；
+- 完整协议和阶段门槛见 [`../../active/opl-link-plan.md`](../../active/opl-link-plan.md)；
   App 合同通过不能替代 Shell/Cloud/iOS source 与安装证据。
 
 ## 多 GUI 运行边界
