@@ -114,7 +114,8 @@
             "approval_diff",
             "task_board",
             "artifact_view",
-            "activity_log"
+            "activity_log",
+            "channel_access"
           ]
         },
         "title_i18n": { "$ref": "#/$defs/localized_text" },
@@ -157,6 +158,182 @@
           "enum": ["neutral", "info", "success", "warning", "critical"]
         }
       },
+      "additionalProperties": false
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "channel_action_input": {
+      "type": "object",
+      "required": ["channel_id"],
+      "properties": {
+        "channel_id": { "$ref": "#/$defs/stable_id" }
+      },
+      "additionalProperties": false
+    },
+    "channel_pairing_action_input": {
+      "type": "object",
+      "required": ["channel_id", "pairing_id"],
+      "properties": {
+        "channel_id": { "$ref": "#/$defs/stable_id" },
+        "pairing_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "additionalProperties": false
+    },
+    "channel_user_action_input": {
+      "type": "object",
+      "required": ["channel_id", "user_id"],
+      "properties": {
+        "channel_id": { "$ref": "#/$defs/stable_id" },
+        "user_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "additionalProperties": false
+    },
+    "channel_access_action_input": {
+      "oneOf": [
+        { "$ref": "#/$defs/channel_action_input" },
+        { "$ref": "#/$defs/channel_pairing_action_input" },
+        { "$ref": "#/$defs/channel_user_action_input" }
+      ]
+    },
+    "channel_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/stable_id" },
+        "input": { "$ref": "#/$defs/channel_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "channel_pairing_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/stable_id" },
+        "input": { "$ref": "#/$defs/channel_pairing_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "channel_user_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/stable_id" },
+        "input": { "$ref": "#/$defs/channel_user_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "channel_action_list": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/channel_action" }
+    },
+    "channel_pairing_action_list": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/channel_pairing_action" }
+    },
+    "channel_user_action_list": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/channel_user_action" }
+    },
+    "channel_access_qr_challenge": {
+      "type": "object",
+      "required": ["payload", "expires_at_ms"],
+      "properties": {
+        "payload": { "type": "string", "minLength": 1, "maxLength": 8192 },
+        "expires_at_ms": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "channel_access_connection": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "enum": ["disconnected", "connecting", "qr_ready", "qr_scanned", "connected", "attention"]
+        },
+        "account_display_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "reason_code": { "$ref": "#/$defs/stable_id" },
+        "qr_challenge": { "$ref": "#/$defs/channel_access_qr_challenge" }
+      },
+      "additionalProperties": false
+    },
+    "channel_access_pairing": {
+      "type": "object",
+      "required": ["pairing_id", "requested_at_ms", "expires_at_ms", "actions"],
+      "properties": {
+        "pairing_id": { "$ref": "#/$defs/opaque_id" },
+        "platform_user_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "requested_at_ms": { "type": "integer", "minimum": 0 },
+        "expires_at_ms": { "type": "integer", "minimum": 0 },
+        "actions": { "$ref": "#/$defs/channel_pairing_action_list" }
+      },
+      "additionalProperties": false
+    },
+    "channel_access_user": {
+      "type": "object",
+      "required": ["user_id", "authorized_at_ms", "actions"],
+      "properties": {
+        "user_id": { "$ref": "#/$defs/opaque_id" },
+        "platform_user_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "authorized_at_ms": { "type": "integer", "minimum": 0 },
+        "last_active_at_ms": { "type": "integer", "minimum": 0 },
+        "actions": { "$ref": "#/$defs/channel_user_action_list" }
+      },
+      "additionalProperties": false
+    },
+    "channel_access_result": {
+      "type": "object",
+      "required": ["schema_version", "status", "channel_id"],
+      "properties": {
+        "schema_version": { "const": "opl-app-channel-access.v1" },
+        "status": { "enum": ["available", "unavailable"] },
+        "channel_id": { "$ref": "#/$defs/stable_id" },
+        "unavailable_reason": { "$ref": "#/$defs/stable_id" },
+        "connection": { "$ref": "#/$defs/channel_access_connection" },
+        "actions": { "$ref": "#/$defs/channel_action_list" },
+        "pending_pairings": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/channel_access_pairing" }
+        },
+        "authorized_users": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/channel_access_user" }
+        },
+        "refresh_after_ms": { "type": "integer", "minimum": 250, "maximum": 60000 }
+      },
+      "oneOf": [
+        {
+          "properties": { "status": { "const": "available" } },
+          "required": ["connection", "actions", "pending_pairings", "authorized_users"],
+          "not": { "required": ["unavailable_reason"] }
+        },
+        {
+          "properties": { "status": { "const": "unavailable" } },
+          "required": ["unavailable_reason"],
+          "not": {
+            "anyOf": [
+              { "required": ["connection"] },
+              { "required": ["actions"] },
+              { "required": ["pending_pairings"] },
+              { "required": ["authorized_users"] }
+            ]
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "ui_placement": {

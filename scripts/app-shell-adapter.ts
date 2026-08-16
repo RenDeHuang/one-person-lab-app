@@ -524,8 +524,13 @@ export function resolveClientRendererAdmission(
     'hot_switch_without_revalidation_allowed',
     'owner',
     'schema',
+    'standard_view_types',
     'state_semantics_contract',
     'switch_policy',
+    'transport_binding_event',
+    'transport_binding_migration_state',
+    'transport_binding_schema',
+    'transport_binding_source',
     'typed_action_rpc',
     'typed_client_event',
     'typed_slots',
@@ -543,6 +548,20 @@ export function resolveClientRendererAdmission(
     compatibility.allowlist_contract !== 'contracts/opl-app-contributions.schema.json' ||
     JSON.stringify(compatibility.typed_slots) !==
       JSON.stringify(['settings.section', 'runtime.detail', 'composer.palette']) ||
+    JSON.stringify(compatibility.standard_view_types) !==
+      JSON.stringify([
+        'list_detail',
+        'timeline',
+        'approval_diff',
+        'task_board',
+        'artifact_view',
+        'activity_log',
+        'channel_access',
+      ]) ||
+    compatibility.transport_binding_source !== 'app_state.transport_bindings' ||
+    compatibility.transport_binding_schema !== 'opl_app_transport_bindings_projection.v1' ||
+    compatibility.transport_binding_migration_state !== 'producer_callback_pending' ||
+    compatibility.transport_binding_event !== 'opl/app-transport-bindings/updated' ||
     compatibility.typed_state_rpc !== 'opl app state --profile fast --json' ||
     compatibility.typed_action_rpc !==
       'opl app action execute --action <action_id> [--payload json] [--dry-run] --json' ||

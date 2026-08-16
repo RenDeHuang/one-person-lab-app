@@ -162,7 +162,6 @@ export function assertCanonicalThreadDirectoryGroupingSources({
       'keeps a canonical task without cwd projectless and ungrouped',
       'keeps Linux, Windows, and WSL managed Codex scratch paths ungrouped',
       'groups a canonical recorded cwd without rebuilding project affinity',
-      'binds a WeChat transport conversation to one canonical task row',
     ],
     'Active shell canonical cwd directory grouping focused regressions',
   );
@@ -1630,6 +1629,16 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
 
   assertShellTextIncludesAll(
     shellPaths,
+    'packages/desktop/src/common/types/opl/uiContributions.ts',
+    [
+      'readOplTransportBindingsProjection',
+      'app_state.transport_bindings',
+      'opl_app_transport_bindings_projection.v1',
+    ],
+    'Active shell Framework transport binding projection reader',
+  );
+  assertShellTextIncludesAll(
+    shellPaths,
     'packages/desktop/src/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync.ts',
     [
       'export const mergeCanonicalThreadDirectory',
@@ -1637,7 +1646,8 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'const returnedThreadIds = new Set(directory.threads.map((thread) => thread.id))',
       'const threadId = canonicalCodexThreadId(conversation)',
       "return conversation.type !== 'acp' || conversation.extra.backend !== 'codex'",
-      'export const inferWeixinCanonicalThreadBindings',
+      'inferLegacyWeixinCanonicalThreadBindings',
+      'Temporary migration fallback until the shared provider callback produces transport bindings end to end.',
       'canonical_thread_id: binding.threadId',
       'const projected = projectCanonicalCodexThread(thread, cachedByThreadId.get(thread.id))',
       'if (!weixinTransportThreadIds.has(thread.id)) return projected',
@@ -1652,7 +1662,9 @@ function validateSessionFirstDirectoryImplementation(shellPaths) {
       'drops unmatched stale Codex cache rows when the complete App Server overview is available',
       'retains unmatched non-Codex local rows without title or workspace deduplication',
       'deduplicates local canonical rows only when the App Server returns',
-      'binds a WeChat transport conversation to one canonical task row',
+      'prefers a valid shared transport projection over legacy canonical_thread_id',
+      'uses workspace inference only as a migration fallback when the shared projection is unavailable',
+      'ignores a conflicting legacy binding when a current shared binding exists',
       'does not bind a WeChat transport row when the temporary workspace match is ambiguous',
       'falls back to shell cache when the canonical directory is unavailable',
     ],

@@ -86,6 +86,7 @@ Studio completion follows the App profile's minimum-complete contract, not AionU
 | OPL Base update | Framework managed-update status/action/receipt authority and shared host-core binding are canonical | Render Base independently and invoke only the existing Framework managed-update bridge with terminal readback |
 | OPL Packages and Agent updates | Dynamic Package actions, managed automatic-update policy and shared host-core binding are canonical | Render aggregate currentness and projected per-Package lifecycle independently from App/Base; Agent Packages never become a fourth updater |
 | Capabilities | Composer skill picker and `settings.section` contributions exist | Replace counts-only Settings content with the dynamic Skill/Plugin/MCP/managed-companion directory |
+| Channel access | App-owned `channel_access` view schema and target `app_state.transport_bindings` ABI are canonical; the producer callback is still pending | Render provider-projected connection, QR, pairing, and authorized-user state with exact action inputs; treat absence as normal, never persist QR payloads, infer bindings, or copy AionUI's temporary legacy fallback |
 | Workspace and storage | Owner state is readable | Add owner-projected select/rebind and cleanup actions; never create a second store |
 | Account and access | Gateway projection, projected non-secret actions and dedicated login secret bridge are canonical | Implement Settings controls and post-action readback; never place password material in generic App actions or renderer persistence |
 | Preferences and diagnostics | DSH System/Light/Dark is wired to the real renderer theme | Add necessary language, notifications and local behavior controls, service diagnostics/export and About/notices without copying DSH runtime settings |
@@ -103,7 +104,10 @@ requires them.
 
 The product kernel owns navigation, Codex thread/turn transport, the Settings
 host, permissions, and the action broker. Packages may contribute only through
-declared `settings.section`, `runtime.detail`, and `composer.palette` slots.
+declared `settings.section`, `runtime.detail`, and `composer.palette` slots, including the App-owned
+`channel_access` standard view. Canonical channel-to-task bindings come only from Framework-projected
+`app_state.transport_bindings`; Studio joins them by exact host and thread identity and never infers or writes
+bindings from workspace/title state.
 Studio reuses pinned DeepSeek Harness registration, ordering, error isolation,
 and disposal. AionUI and Studio consume one App Client Contribution ABI and one
 App-owned profile/slot policy. Each shell's Client Cordis graph derives from the

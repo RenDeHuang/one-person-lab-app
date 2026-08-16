@@ -39,10 +39,15 @@ test('active AionUI and candidate Studio resolve through one App-owned Client re
   assert.equal(resolveActiveShellPaths({ contract: studioContract, shellRoot: '/tmp/opl-studio' }).clientRendererAdmission?.selectionMode, 'candidate_validation_only');
 });
 
-test('Client renderer admission rejects ABI, RPC, event, switch, and fixed-brand drift', () => {
+test('Client renderer admission rejects shared ABI and renderer-local authority drift', () => {
   const contract = readJson('contracts/app-shell-adapter.json');
   const mutations = [
     (profile: any) => { profile.client_renderer_compatibility.contribution_abi = 'renderer_local.v1'; },
+    (profile: any) => { profile.client_renderer_compatibility.standard_view_types = ['list_detail']; },
+    (profile: any) => { profile.client_renderer_compatibility.transport_binding_source = 'renderer.transport_bindings'; },
+    (profile: any) => { profile.client_renderer_compatibility.transport_binding_schema = 'renderer_transport_bindings.v1'; },
+    (profile: any) => { profile.client_renderer_compatibility.transport_binding_migration_state = 'complete'; },
+    (profile: any) => { profile.client_renderer_compatibility.transport_binding_event = 'renderer/transport-bindings'; },
     (profile: any) => { profile.client_renderer_compatibility.typed_state_rpc = 'renderer state'; },
     (profile: any) => { profile.client_renderer_compatibility.typed_action_rpc = 'renderer action'; },
     (profile: any) => { profile.client_renderer_compatibility.typed_client_event = 'renderer/event'; },

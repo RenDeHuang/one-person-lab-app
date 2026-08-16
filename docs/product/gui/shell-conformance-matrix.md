@@ -111,6 +111,12 @@ B0-11 的 execution、metadata intake、canonical discovery 与 ordinary activit
 | `U1-05` | Docker/WebUI 同产品语义。WebUI 是 OPL 的部署入口，不能成为另一个产品。 | `aligned_contract` | `upstream reuse + L2 transport adapter` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_partial` | `pixel_unverified` | `install_unverified` | `release_unverified` | AionUI Web Storage 使用同一 `/settings/storage` route；Desktop 保留 Electron local lifecycle，WebUI 不调用该 bridge，只消费有效 owner projections并在 refresh 单项失败时 fail-open。浏览器态 DOM 与 Web host SPA fallback 已锁测；exact Docker cohort、Pixel、Install、Release 仍独立未验证。 |
 | `U1-06` | OPL 数据、缓存、包体空间与安全清理。长期使用必须可预览、可确认、可恢复。 | `aligned_contract` | `L2 bridge/adapter + L3 composition` | `source_implemented` | `pixel_unverified` | `install_unverified` | `release_unverified` | `source_missing` | `pixel_unverified` | `install_unverified` | Framework 已投影 owner inventory；Web host 已实现认证且有界的 capability/plan/execute/restore、单次确认、opaque archive/manifest/receipt refs、幂等终态回读或 typed conflict 及恢复；薄 Shell/Web consumer 在 owner 或 host capability 缺失时保持 fail-open。Package lifecycle 仍在 Agents，Shell 不得直接改 raw package/path state 或调用 generic prune。 |
 
+微信/频道接入不作为 AionUI 私有功能复制到 Native。两端共享 App-owned `channel_access` 标准 view
+和目标 `app_state.transport_bindings` ABI：provider 缺失时不显示占位，Studio 不得推断或写入绑定。
+当前 producer callback 尚未完成；AionUI 的 workspace inference 与 SQLite write 仍是有界 legacy
+fallback，只有 Framework 当前 binding 不可用时才运行，且不得把该现态外推为 Studio 的实现要求。
+因此本次只关闭 Contract 轴；两端 Source/Pixel/Install/Release 仍须由各 owner 的 fresh evidence 独立更新。
+
 Source 状态说明：AionUI `R1-01..06`、`U1-01..06` 均为 `source_implemented`。Native 的 `R1-03`、
 `U1-03`、`U1-06` 为 `source_missing`，其余为 `source_partial`。这里的 `source_implemented`
 只证明主要源码路径和专项测试存在，不等于后续 fresh test pass，更不等于 pixels、install 或 release。

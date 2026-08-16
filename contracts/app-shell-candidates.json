@@ -535,7 +535,8 @@
         "Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state",
         "slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation",
         "OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices",
-        "Framework remains the only authoritative Package Host graph; each GUI Client Cordis graph is derived from that Host projection plus the App product profile and slot policy"
+        "Framework remains the only authoritative Package Host graph; each GUI Client Cordis graph is derived from that Host projection plus the App product profile and slot policy",
+        "channel_access is one App-owned declarative standard view consumed by both GUI clients while provider bindings and channel facts remain Framework-projected owner data"
       ],
       "forbidden_reuse": [
         "do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority",
@@ -1038,7 +1039,9 @@
         "electron_desktop_adapter",
         "http_sse_web_adapter",
         "dsh_slot_core_composition_host",
-        "framework_ui_contributions_projection"
+        "framework_ui_contributions_projection",
+        "framework_transport_bindings_projection",
+        "channel_access_standard_view"
       ],
       "technical_verification": {
         "app_root_commands": [
@@ -1096,6 +1099,7 @@
           "OPL injects only brand text App-owned data capability classification and host behavior through public slots props typed contributions and external adapters without a parallel visual system or unearned CSS overrides",
           "ordinary UI keeps only projects, conversations, search, and Settings in the left rail and opens run status, files and results, or agents and capabilities in the DSH details column on demand",
           "runtime status consumes the current Codex thread and active_project_lines while hypotheses and roadmaps come from owner-projected runtime.detail contributions",
+          "channel access renders only from a current channel_access contribution and treats its absence as normal while transport binding remains producer_callback_pending",
           "in-app identity is text-only One Person Lab while platform bundle icons remain allowed",
           "WebUI parity evidence proves the same renderer host core and product semantics as Electron desktop",
           "one Codex App Server adapter exposes canonical thread list, read, start, resume, fork, archive, unarchive, and ordinary turn start and steer",

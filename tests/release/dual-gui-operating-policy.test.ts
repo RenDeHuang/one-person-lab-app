@@ -145,6 +145,29 @@ test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution A
   );
 });
 
+test('both GUI clients share channel_access while transport binding remains a pending Framework migration', () => {
+  const gui = readJson<any>('contracts/app-gui-product-contract.json');
+  const profile = readJson<any>('contracts/app-product-profile.json');
+  const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
+  const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
+  const studio = registry.candidates.find((candidate) => candidate.id === 'opl-studio');
+
+  assert.equal(
+    gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.runtime_status,
+    'target_schema_defined_no_current_provider_contribution_proven',
+  );
+  assert.ok(profile.client_renderer_compatibility.standard_view_types.includes('channel_access'));
+  assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');
+  assert.equal(profile.client_renderer_compatibility.transport_binding_migration_state, 'producer_callback_pending');
+  assert.equal(
+    runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
+      .temporary_legacy_fallback.studio_may_copy_fallback,
+    false,
+  );
+  assert.ok(studio?.required_capabilities.includes('channel_access_standard_view'));
+  assert.ok(studio?.required_capabilities.includes('framework_transport_bindings_projection'));
+});
+
 test('dual GUI runtime parity admits compatible capabilities and treats exact source identity as provenance', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');

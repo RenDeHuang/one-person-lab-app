@@ -722,6 +722,74 @@
     "duplicate_row_per_canonical_thread_allowed": false,
     "title_based_deduplication_allowed": false,
     "e2e_fixture_storage_policy": "isolated_storage_root_never_production_user_data",
+    "transport_binding_projection": {
+      "source": "app_state.transport_bindings",
+      "surface_kind": "opl_app_transport_bindings_projection.v1",
+      "migration_state": "producer_callback_pending",
+      "projection_runtime_status": "target_shared_abi_not_yet_produced",
+      "raw_fact_owner": "installed_transport_provider_or_native_carrier",
+      "projection_owner": "one-person-lab-framework",
+      "consumer_role": "render_and_join_only",
+      "required_projection_fields": [
+        "surface_kind",
+        "status",
+        "bindings",
+        "authority_boundary"
+      ],
+      "status_values": [
+        "available",
+        "unavailable"
+      ],
+      "unavailable_reason_values": [
+        "producer_absent",
+        "projection_unavailable",
+        "invalid_projection"
+      ],
+      "required_binding_fields": [
+        "binding_id",
+        "package_id",
+        "transport_id",
+        "transport_conversation_id",
+        "canonical_thread_host",
+        "canonical_thread_id",
+        "project_affinity",
+        "status"
+      ],
+      "binding_field_contract": {
+        "binding_id": "opaque_provider_stable_binding_identity",
+        "package_id": "installed_provider_package_identity",
+        "transport_id": "stable_transport_identity_such_as_weixin",
+        "transport_conversation_id": "opaque_provider_owned_transport_conversation_identity",
+        "canonical_thread_host": "canonical_codex_app_server_host_identity",
+        "canonical_thread_id": "opaque_codex_app_server_thread_identity",
+        "project_affinity": "projectless",
+        "status": "bound"
+      },
+      "available_empty_policy": "valid_no_current_bindings",
+      "unavailable_policy": "bindings_must_be_empty_and_unavailable_reason_required",
+      "provider_absent_policy": "status_unavailable_reason_producer_absent_and_temporary_legacy_fallback_may_run_until_cutover",
+      "binding_identity_policy": "one_entry_per_package_id_transport_id_transport_conversation_id",
+      "canonical_join_policy": "join_only_by_exact_canonical_thread_host_and_canonical_thread_id",
+      "canonical_row_policy": "one_visible_row_per_canonical_thread_identity_even_when_a_transport_binding_exists",
+      "projectless_policy": "binding_never_creates_project_affinity_and_recorded_cwd_is_execution_metadata_only_not_a_binding_key",
+      "target_shell_writeback_allowed": false,
+      "target_workspace_leaf_or_title_inference_allowed": false,
+      "current_missing_surface_policy": "treat_as_unavailable_without_blocking_the_current_mainline",
+      "temporary_legacy_fallback": {
+        "status": "active_bounded_until_shared_callback_e2e",
+        "owner": "opl-aion-shell",
+        "trigger": "shared_projection_missing_or_unavailable",
+        "inference_key": "unique_channel_temporary_workspace_identity",
+        "write_role": "rebuildable_shell_projection_canonical_thread_id_only",
+        "authority": "compatibility_projection_not_binding_truth",
+        "shared_projection_precedence": "current_valid_framework_binding_wins_and_conflicting_legacy_binding_is_ignored",
+        "studio_may_copy_fallback": false,
+        "retirement_gate": "provider_callback_plus_aionui_and_studio_callback_e2e_plus_legacy_caller_zero"
+      },
+      "post_cutover_legacy_read_compatibility": "after_shared_e2e_cutover_may_read_an_existing_local_canonical_thread_id_only_when_the_exact_canonical_directory_identity_still_exists_and_no_current_framework_binding_conflicts_never_infer_or_write_a_new_binding",
+      "binding_unavailable_policy": "preserve_the_transport_row_fail_open_without_duplicate_canonical_row_or_fabricated_binding",
+      "typed_client_event": "opl/app-transport-bindings/updated"
+    },
     "directory_group_policy": {
       "source": "explicit_project_affinity_else_non_managed_scratch_canonical_recorded_cwd_joined_by_canonical_thread_id",
       "role": "presentation_new_session_cwd_shortcut_and_projectless_adoption_only",

@@ -408,6 +408,59 @@ function validateResourcesPage(matrix, guiContract) {
     appOwnedSettingsResourceActionBehavior,
     'App GUI Resources action behavior',
   );
+  const remoteChannelAccess = {
+    source: 'app_state.ui_contributions.slots.settings.section',
+    standard_view_type: 'channel_access',
+    standard_view_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/channel_access_result',
+    transport_binding_source: 'app_state.transport_bindings',
+    provider_absent_policy: 'omit_channel_access_contribution_without_placeholder_keep_transport_binding_projection_unavailable_and_allow_current_aion_legacy_fallback_until_shared_e2e_cutover',
+    ordinary_controls: ['login_or_connection_status', 'pairing_requests', 'authorized_users'],
+    forbidden_controls: [
+      'agent_selector',
+      'model_selector',
+      'model_following_status',
+      'target_shell_owned_binding_or_workspace_inference_after_shared_e2e_cutover',
+    ],
+    navigation_policy: {
+      close_connection_details: 'return_to_settings_resources',
+      return_to_app: 'use_settings_return_to_app_action',
+    },
+  };
+  assertDeepEqualJson(
+    resourcesPage.remote_channel_access,
+    remoteChannelAccess,
+    'Resources page remote channel access contribution',
+  );
+  assertIncludesAll(
+    resourcesPage.state_sections,
+    ['ui_contributions.slots.settings.section', 'transport_bindings'],
+    'Resources page remote channel state sections',
+  );
+  assertDeepEqualJson(
+    guiContract.pages?.settings_resources?.remote_channel_access,
+    {
+      source: 'app_state.ui_contributions.slots.settings.section',
+      standard_view_type: 'channel_access',
+      standard_view_contract_ref:
+        'framework_surfaces.package_app_contributions.standard_view_contracts.channel_access',
+      transport_binding_projection_ref:
+        'contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection',
+      provider_absent_policy:
+        'omit_channel_access_contribution_and_render_no_placeholder_or_fabricated_connection_state',
+      ordinary_controls: ['login_or_connection_status', 'pairing_requests', 'authorized_users'],
+      forbidden_controls: [
+        'agent_selector',
+        'model_selector',
+        'model_following_status',
+        'target_shell_owned_binding_or_workspace_inference_after_shared_e2e_cutover',
+      ],
+      navigation_policy: {
+        close_connection_details: 'return_to_settings_resources',
+        return_to_app: 'use_settings_return_to_app_action',
+      },
+    },
+    'App GUI Resources remote channel access contribution',
+  );
 }
 
 function expectedCapabilityDetailPresentationPolicy() {

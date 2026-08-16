@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
+import Ajv2020 from 'ajv/dist/2020.js';
 import { readAppProductProfile } from '../../scripts/app-product-profile/profile-contract.ts';
 import { appOwnedOplStandardAgentMembershipPolicy } from '../../scripts/validate-active-shell/app-contract-constants.ts';
 import { validatePackageAppContributionsProductContract } from '../../scripts/validate-active-shell/gui-framework-surfaces-validator.ts';
@@ -222,6 +223,7 @@ test('any Package role may project one closed standard App contribution block', 
     'task_board',
     'artifact_view',
     'activity_log',
+    'channel_access',
   ];
   const shellWriteActionBridge = {
     action_id: 'package_contribution_execute',
@@ -281,6 +283,11 @@ test('any Package role may project one closed standard App contribution block', 
   assert.equal(schema.$defs.view.properties.command_ids.maxItems, 100);
   assert.equal(schema.$defs.view.properties.badge_ids.maxItems, 100);
   assert.deepEqual(schema.$defs.view.properties.view_type.enum, viewTypes);
+  assert.deepEqual(schema.$defs.channel_access_action_input.oneOf, [
+    { $ref: '#/$defs/channel_action_input' },
+    { $ref: '#/$defs/channel_pairing_action_input' },
+    { $ref: '#/$defs/channel_user_action_input' },
+  ]);
   for (const entry of ['navigation', 'view', 'command', 'badge', 'ui_placement']) {
     assert.equal(schema.$defs[entry].additionalProperties, false);
     for (const forbiddenField of ['component', 'code', 'html', 'path', 'url']) {
@@ -306,6 +313,22 @@ test('any Package role may project one closed standard App contribution block', 
     'reject_entire_package_app_contributions_block_and_preserve_other_packages',
   );
   assert.deepEqual(contributionContract.supported_view_types, viewTypes);
+  assert.deepEqual(contributionContract.standard_view_contracts.channel_access, {
+    result_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/channel_access_result',
+    placement: 'settings.section',
+    trust_tier: 'declarative',
+    owner: 'one-person-lab-app',
+    data_truth_owner: 'installed_transport_provider_or_native_carrier',
+    projection_owner: 'one-person-lab-framework',
+    migration_state: 'producer_callback_pending',
+    runtime_status: 'target_schema_defined_no_current_provider_contribution_proven',
+    command_input_source: 'validated_channel_access_result_entity_actions',
+    command_resolution: 'resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_entity_input',
+    post_action_readback: 'fresh_contribution_read_required_after_action_success_and_while_refresh_after_ms_is_projected',
+    qr_payload_policy: 'ephemeral_login_challenge_render_only_never_persist_log_or_copy_into_shell_state',
+    provider_absent_policy: 'no_contribution_entry_is_a_normal_unavailable_state_and_must_not_block_the_current_mainline',
+    arbitrary_renderer_code_allowed: false,
+  });
   assert.deepEqual(contributionContract.reference_integrity, {
     navigation_view_id: 'must_reference_local_views_view_id',
     view_command_ids: 'must_reference_local_commands_command_id',
@@ -443,6 +466,75 @@ test('unknown descriptor-neutral Package contributions route through the broker 
     'plugin_path',
     'plugin_url',
   ]);
+});
+
+test('channel_access standard view requires exact entity inputs and omits stale state when unavailable', () => {
+  const schema = readJson('contracts/opl-app-contributions.schema.json');
+  const ajv = new Ajv2020({ allErrors: true, strictSchema: true, strictTypes: false });
+  ajv.addSchema(schema);
+  const validate = ajv.getSchema(`${schema.$id}#/$defs/channel_access_result`);
+  assert.ok(validate);
+
+  const available = {
+    schema_version: 'opl-app-channel-access.v1',
+    status: 'available',
+    channel_id: 'weixin',
+    connection: {
+      state: 'qr_ready',
+      qr_challenge: { payload: 'temporary-qr-ticket', expires_at_ms: 1_800_000_000_000 },
+    },
+    actions: [
+      { command_id: 'channel.disconnect', input: { channel_id: 'weixin' } },
+    ],
+    pending_pairings: [
+      {
+        pairing_id: 'PAIR-123',
+        display_name: 'Pending user',
+        requested_at_ms: 1_700_000_000_000,
+        expires_at_ms: 1_800_000_000_000,
+        actions: [
+          {
+            command_id: 'channel.pairing.approve',
+            input: { channel_id: 'weixin', pairing_id: 'PAIR-123' },
+          },
+        ],
+      },
+    ],
+    authorized_users: [
+      {
+        user_id: 'user/123',
+        display_name: 'Authorized user',
+        authorized_at_ms: 1_700_000_000_000,
+        actions: [
+          {
+            command_id: 'channel.user.revoke',
+            input: { channel_id: 'weixin', user_id: 'user/123' },
+          },
+        ],
+      },
+    ],
+    refresh_after_ms: 1000,
+  };
+  assert.equal(validate(available), true, JSON.stringify(validate.errors));
+
+  const pairingWithoutEntityInput = structuredClone(available);
+  pairingWithoutEntityInput.pending_pairings[0].actions[0].input = { channel_id: 'weixin' } as any;
+  assert.equal(validate(pairingWithoutEntityInput), false);
+
+  const unavailableWithStaleState = {
+    schema_version: 'opl-app-channel-access.v1',
+    status: 'unavailable',
+    channel_id: 'weixin',
+    unavailable_reason: 'producer_absent',
+    pending_pairings: [],
+  };
+  assert.equal(validate(unavailableWithStaleState), false);
+  assert.equal(validate({
+    schema_version: 'opl-app-channel-access.v1',
+    status: 'unavailable',
+    channel_id: 'weixin',
+    unavailable_reason: 'producer_absent',
+  }), true, JSON.stringify(validate.errors));
 });
 
 test('App contribution product contract rejects role filters, executable UI, and view-type drift', () => {

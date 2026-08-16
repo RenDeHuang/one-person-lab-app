@@ -3471,8 +3471,8 @@
     },
     {
       "id": "settings_resources",
-      "expected_source": "OPL App state resource-source and Docker WebUI action projection",
-      "machine_source": "opl app state --profile fast --json#settings_control_center.connection_registry + settings_control_center.app_settings_read_model.resource_sources + docker_webui",
+      "expected_source": "OPL App state resource-source, Framework-projected channel_access contribution, transport binding, and Docker WebUI action projection",
+      "machine_source": "opl app state --profile fast --json#settings_control_center.connection_registry + settings_control_center.app_settings_read_model.resource_sources + docker_webui + ui_contributions.slots.settings.section + transport_bindings",
       "refresh_source": "opl app state --profile fast --json",
       "page_contract": "settings_resources",
       "sections": [
@@ -3494,13 +3494,15 @@
       "state_sections": [
         "settings_control_center.app_settings_read_model.docker_webui",
         "settings_control_center.app_settings_read_model.resource_sources",
+        "ui_contributions.slots.settings.section",
+        "transport_bindings",
         "access",
         "provider",
         "core.codex"
       ],
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
-        "WeChat account, pairing, and authorized-user management with an implicit fixed Codex CLI binding",
+        "provider-projected channel account, pairing, and authorized-user management through the standard channel_access contribution",
         "remote connection details close back to Resources & Connections, and Settings retains an explicit return-to-app action",
         "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
@@ -3514,7 +3516,7 @@
       ],
       "must_not_show": [
         "built-in OPL Gateway connection or Gateway count owned by Account & Access",
-        "WeChat Agent selector, model selector, or CLI-model-following status",
+        "channel Agent selector, model selector, CLI-model-following status, or Shell-inferred canonical binding",
         "selected local workspace path, change-workspace controls, or permission summary duplicated from Workspace",
         "empty optional resource group, placeholder state, or hosted platform promise without a canonical owner projection",
         "App-owned resource scheduling, billing, credential ownership, storage execution, or provider truth",
@@ -3532,19 +3534,22 @@
         "implementation_provenance_visibility": "technical_details_only"
       },
       "remote_channel_access": {
-        "wechat": {
-          "binding_policy": "implicit_fixed_codex_cli",
-          "ordinary_controls": [
-            "login_or_connection_status",
-            "pairing_requests",
-            "authorized_users"
-          ],
-          "forbidden_controls": [
-            "agent_selector",
-            "model_selector",
-            "model_following_status"
-          ]
-        },
+        "source": "app_state.ui_contributions.slots.settings.section",
+        "standard_view_type": "channel_access",
+        "standard_view_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/channel_access_result",
+        "transport_binding_source": "app_state.transport_bindings",
+        "provider_absent_policy": "omit_channel_access_contribution_without_placeholder_keep_transport_binding_projection_unavailable_and_allow_current_aion_legacy_fallback_until_shared_e2e_cutover",
+        "ordinary_controls": [
+          "login_or_connection_status",
+          "pairing_requests",
+          "authorized_users"
+        ],
+        "forbidden_controls": [
+          "agent_selector",
+          "model_selector",
+          "model_following_status",
+          "target_shell_owned_binding_or_workspace_inference_after_shared_e2e_cutover"
+        ],
         "navigation_policy": {
           "close_connection_details": "return_to_settings_resources",
           "return_to_app": "use_settings_return_to_app_action"

@@ -76,8 +76,9 @@ graph；不能建立第二套 OPL Host，自行发现或安装 plugin，维护 P
 
 “可替换”由 [`contracts/app-product-profile.json#client_renderer_compatibility`](../../../contracts/app-product-profile.json)
 和各 adapter 的 `client_renderer_admission` 共同证明。所有 App wrapper 在启动 Shell 命令前校验
-同一 Host graph source、App allowlist、typed slots/actions、state/action RPC、Client event、state
-semantics 与动态品牌能力投影；选择失败时不启动目标进程。该机制是显式 adapter 选择后的重新
+同一 Host graph source、App allowlist、typed slots/actions、标准 view types、state/action RPC、
+Client event、transport-binding projection/event、state semantics 与动态品牌能力投影；选择失败时
+不启动目标进程。该机制是显式 adapter 选择后的重新
 准入，不承诺未验证热切换，也不把 Studio candidate 提升为 active/release-ready。
 
 Host projection 是 App schema 约束的 closed allowlisted graph：Package 只提交 schema
@@ -170,14 +171,17 @@ AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。�
 双 carrier 当前实现证据见
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
 
-手机远程访问当前复用 AionUI 已有 WebUI 与频道能力，不建立第二套控制面。微信频道固定
-使用 Codex CLI；设置中只保留登录/连接、配对请求和已授权用户管理，不提供 Agent 或模型
-选择，也不展示“自动跟随 CLI 模型”。连接详情关闭后回到“资源与连接”，再由“返回应用”
-进入主界面。微信频道 session 只承担内部 transport 绑定；首次识别 canonical Codex thread 后，
-Shell 将 `canonical_thread_id` 写入可重建投影并隐藏 transport row，侧栏和 Codex App 都只显示
-同一个 canonical task。频道生成的临时 cwd 保留用于执行，但在用户显式选择 Project 前按
-projectless 展示。Canonical overview 暂不可用时保留 transport row 作为 fail-open 回退；当前不增加
-指定桌面 thread 绑定、原生手机客户端或额外并发状态机。
+手机远程访问当前复用 AionUI 已有 WebUI 与频道能力，不建立第二套控制面。App 只定义
+`channel_access` 标准 view；安装后的 transport provider/native carrier 持有连接、QR、配对与授权
+用户事实，Framework 投影到 `settings.section`，AionUI 与 Studio 只渲染和派发 provider-projected
+actions。QR 仅是临时 challenge，不得持久化或写日志。贡献缺失时不显示占位或伪造连接状态。
+
+频道到 canonical Codex task 的目标绑定来自 `app_state.transport_bindings`，按 exact App Server host
+和 thread id join，且始终保持 `projectless`，不会由 cwd 建立 Project affinity。当前迁移状态仍是
+`producer_callback_pending`：AionUI 已有 workspace inference 与 SQLite write 只作为共享 projection
+缺失时的有界 legacy fallback，Framework 当前 binding 优先；Studio 不得复制该 fallback。只有
+provider callback、AionUI/Studio callback E2E 与 legacy caller-zero 同时成立后，才进入禁止 Shell
+inference/write 的切换后状态并删除旧路径。
 
 视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
 品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态参考

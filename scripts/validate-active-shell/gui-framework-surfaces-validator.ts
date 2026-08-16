@@ -18,6 +18,7 @@ const appContributionViewTypes = [
   'task_board',
   'artifact_view',
   'activity_log',
+  'channel_access',
 ];
 const appContributionSchemaPath = path.join(root, 'contracts', 'opl-app-contributions.schema.json');
 
@@ -65,6 +66,26 @@ export function validatePackageAppContributionsProductContract(contract) {
     schema.$defs?.view?.properties?.view_type?.enum,
     appContributionViewTypes,
     'App contributions schema view types',
+  );
+  const channelAccess = schema.$defs?.channel_access_result;
+  if (
+    channelAccess?.additionalProperties !== false
+    || channelAccess?.properties?.schema_version?.const !== 'opl-app-channel-access.v1'
+    || JSON.stringify(channelAccess?.properties?.status?.enum) !== JSON.stringify(['available', 'unavailable'])
+    || channelAccess?.properties?.pending_pairings?.maxItems !== 100
+    || channelAccess?.properties?.authorized_users?.maxItems !== 100
+    || schema.$defs?.channel_access_qr_challenge?.properties?.payload?.maxLength !== 8192
+  ) {
+    throw new Error('App contributions schema channel_access result must stay closed, bounded, and versioned');
+  }
+  assertDeepEqualJson(
+    schema.$defs?.channel_access_action_input?.oneOf,
+    [
+      { $ref: '#/$defs/channel_action_input' },
+      { $ref: '#/$defs/channel_pairing_action_input' },
+      { $ref: '#/$defs/channel_user_action_input' },
+    ],
+    'App contributions schema channel_access action inputs',
   );
   for (const [entry, requiredFields] of Object.entries({
     navigation: ['navigation_id', 'label_i18n', 'view_id'],
@@ -127,6 +148,26 @@ export function validatePackageAppContributionsProductContract(contract) {
     contract.supported_view_types,
     appContributionViewTypes,
     'App GUI Package contribution view types',
+  );
+  assertDeepEqualJson(
+    contract.standard_view_contracts?.channel_access,
+    {
+      result_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/channel_access_result',
+      placement: 'settings.section',
+      trust_tier: 'declarative',
+      owner: 'one-person-lab-app',
+      data_truth_owner: 'installed_transport_provider_or_native_carrier',
+      projection_owner: 'one-person-lab-framework',
+      migration_state: 'producer_callback_pending',
+      runtime_status: 'target_schema_defined_no_current_provider_contribution_proven',
+      command_input_source: 'validated_channel_access_result_entity_actions',
+      command_resolution: 'resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_entity_input',
+      post_action_readback: 'fresh_contribution_read_required_after_action_success_and_while_refresh_after_ms_is_projected',
+      qr_payload_policy: 'ephemeral_login_challenge_render_only_never_persist_log_or_copy_into_shell_state',
+      provider_absent_policy: 'no_contribution_entry_is_a_normal_unavailable_state_and_must_not_block_the_current_mainline',
+      arbitrary_renderer_code_allowed: false,
+    },
+    'App GUI channel_access standard view contract',
   );
   assertDeepEqualJson(
     contract.stable_id_fields,

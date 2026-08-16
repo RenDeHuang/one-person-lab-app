@@ -168,7 +168,6 @@ test('active-shell source gate requires presentation-only canonical cwd director
     'keeps a canonical task without cwd projectless and ungrouped',
     'keeps Linux, Windows, and WSL managed Codex scratch paths ungrouped',
     'groups a canonical recorded cwd without rebuilding project affinity',
-    'binds a WeChat transport conversation to one canonical task row',
   ];
   const groupingHelpers = groupingMarkers.join('\n');
   const focusedTests = focusedTestNames.join('\n');
@@ -227,20 +226,36 @@ test('recorded cwd compatibility auto-loads a directory group without creating p
   assert.match(JSON.stringify(pageStateMatrix), /recorded cwd alone treated as explicit Project affinity/);
 });
 
-test('WeChat transport projects exactly one projectless canonical Codex task', () => {
+test('transport providers project a projectless canonical task binding without Shell inference', () => {
   const contract = readJson('contracts/app-gui-product-contract.json');
-  const projection = contract.pages.settings_resources.remote_channel_access.wechat.conversation_projection;
+  const channelAccess = contract.pages.settings_resources.remote_channel_access;
+  const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
+  const projection = runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection;
+  const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
+  const pageChannelAccess = pageStateMatrix.pages.find((page: any) => page.id === 'settings_resources')
+    .remote_channel_access;
 
-  assert.deepEqual(projection, {
-    canonical_identity: 'codex_app_server_thread_id',
-    channel_session_role: 'internal_transport_binding_only',
-    binding_storage: 'rebuildable_shell_projection_canonical_thread_id',
-    legacy_binding_recovery: 'unique_channel_temporary_workspace_identity_only',
-    transport_row_visibility_after_binding: 'hidden',
-    temporary_workspace_presentation: 'projectless_until_explicit_project_affinity',
-    sidebar_cardinality: 'one_visible_row_per_canonical_thread_id',
-    canonical_overview_unavailable_policy: 'keep_transport_row_as_fail_open_fallback',
-  });
+  assert.equal(channelAccess.source, 'app_state.ui_contributions.slots.settings.section');
+  assert.equal(channelAccess.standard_view_type, 'channel_access');
+  assert.equal(channelAccess.provider_absent_policy, 'omit_channel_access_contribution_and_render_no_placeholder_or_fabricated_connection_state');
+  assert.equal(projection.source, 'app_state.transport_bindings');
+  assert.equal(projection.surface_kind, 'opl_app_transport_bindings_projection.v1');
+  assert.equal(projection.migration_state, 'producer_callback_pending');
+  assert.equal(projection.projection_runtime_status, 'target_shared_abi_not_yet_produced');
+  assert.equal(projection.binding_field_contract.project_affinity, 'projectless');
+  assert.equal(projection.binding_field_contract.status, 'bound');
+  assert.equal(projection.canonical_row_policy, 'one_visible_row_per_canonical_thread_identity_even_when_a_transport_binding_exists');
+  assert.match(projection.provider_absent_policy, /temporary_legacy_fallback_may_run_until_cutover/);
+  assert.equal(projection.target_workspace_leaf_or_title_inference_allowed, false);
+  assert.equal(projection.target_shell_writeback_allowed, false);
+  assert.equal(projection.temporary_legacy_fallback.owner, 'opl-aion-shell');
+  assert.equal(projection.temporary_legacy_fallback.status, 'active_bounded_until_shared_callback_e2e');
+  assert.equal(projection.temporary_legacy_fallback.studio_may_copy_fallback, false);
+  assert.match(projection.temporary_legacy_fallback.retirement_gate, /aionui_and_studio_callback_e2e/);
+  assert.equal('legacy_shell_read_compatibility' in projection, false);
+  assert.match(projection.post_cutover_legacy_read_compatibility, /after_shared_e2e_cutover/);
+  assert.match(pageChannelAccess.provider_absent_policy, /allow_current_aion_legacy_fallback_until_shared_e2e_cutover/);
+  assert.match(projection.binding_unavailable_policy, /preserve_the_transport_row_fail_open/);
 });
 
 test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {
