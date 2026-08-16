@@ -301,7 +301,7 @@ test('Homebrew generator keeps Standard on Formula Base and Full on embedded Bas
       '  url "https://github.com/gaofeng21cn/one-person-lab-app/releases/download/v26.7.23/One-Person-Lab-Full-26.7.23-mac-arm64.dmg"',
       '  conflicts_with cask: ["one-person-lab", "one-person-lab-nightly"]',
       '  depends_on formula: "gaofeng21cn/one-person-lab/opl"',
-      '  depends_on macos: :big_sur',
+      '  depends_on macos: :monterey',
       '  depends_on arch: :arm64',
       '  app "One Person Lab.app"',
       'end',
