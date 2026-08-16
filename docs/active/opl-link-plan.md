@@ -30,6 +30,11 @@ adapter 边界；Ably 是替换候选，不在 MVP 双写、镜像 history 或�
   生命周期状态。provider history 不是业务 truth。
 - 连接成功不等于任务或桌面 readiness；前台恢复/重连后必须先读取 desktop canonical state。
 
+跨仓 broker HTTP、配对 QR、令牌作用域、加密 envelope、action/event 和 revoke 回读的唯一 wire
+owner 是 [`contracts/app-remote-companion-wire.json`](../../contracts/app-remote-companion-wire.json)。
+各实现仓可以使用本地类型和 provider adapter，但不得改写这套 wire、把令牌放进 URL，或让
+Cloud/provider 获得明文 task content。
+
 ## 邀请与席位
 
 腾讯体验版规划快照按 100 个注册 UserID、峰值 DAU 100 计算。一个 active pair seat 使用一对
@@ -116,4 +121,5 @@ mirror 或隐式 fallback。
 
 - [OPL Link iOS 仓库](https://github.com/gaofeng21cn/opl-link)
 - [App remote companion contract](../../contracts/app-remote-companion.json)
+- [OPL Link wire contract](../../contracts/app-remote-companion-wire.json)
 - [腾讯云 IM 文档](https://cloud.tencent.com/document/product/269)

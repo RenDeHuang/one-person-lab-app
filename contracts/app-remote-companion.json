@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_owned_opl_link_product_and_cross_surface_transport_contract",
   "state": "approved_product_plan_client_repository_initialized_source_not_implemented",
-  "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. It does not own iOS implementation, desktop connector implementation, cloud broker implementation, provider runtime state, Codex runtime, task history, domain state, or a cloud workspace.",
+  "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, cloud broker implementation, provider runtime state, Codex runtime, task history, domain state, or a cloud workspace.",
   "product_identity": {
     "app_store_name": "OPL Link",
     "home_screen_name": "OPL Link",
@@ -334,6 +334,7 @@
     "evidence_boundary": "contracts_docs_or_unit_tests_do_not_prove_installed_behavior_provider_configuration_public_reachability_testflight_or_release_completion"
   },
   "source_refs": {
+    "wire_contract": "contracts/app-remote-companion-wire.json",
     "tencent_cloud_im_product": "https://cloud.tencent.com/document/product/269",
     "tencent_cloud_im_plans": "https://cloud.tencent.com/document/product/269/11673",
     "tencent_usersig": "https://cloud.tencent.com/document/product/269/32688",

@@ -1,0 +1,384 @@
+{
+  "schema": "opl_app_remote_companion_wire.v1",
+  "owner": "one-person-lab-app",
+  "state": "approved_mvp_wire_contract",
+  "protocol_version": "opl_remote_transport.v1",
+  "contract_boundary": "This contract owns the cross-repository broker HTTP and encrypted transport wire shape. It does not make Cloud a task store, prescribe provider SDK types, or prove a deployed Tencent application.",
+  "compatibility": {
+    "version_field_required": true,
+    "supported_versions": [
+      "opl_remote_transport.v1"
+    ],
+    "unknown_version_policy": "reject_before_decryption_or_action_dispatch",
+    "unknown_action_policy": "reject_without_forwarding_to_the_canonical_action_bridge"
+  },
+  "serialization": {
+    "media_type": "application/json",
+    "field_names": "lower_snake_case",
+    "binary_encoding": "unpadded_base64url",
+    "timestamp_encoding": "rfc3339_utc",
+    "opaque_identifier_encoding": "uuid_v4_or_128_bit_random_base64url",
+    "maximum_encrypted_transport_message_bytes": 65536
+  },
+  "broker_http": {
+    "base_path": "/v1/remote-companion",
+    "tls_required": true,
+    "mutation_idempotency_header": "Idempotency-Key",
+    "authorization_header": "Authorization: Bearer <opaque_token>",
+    "tokens": {
+      "desktop_pair_token": "single_pairing_desktop_poll_and_confirmation_only_until_activation",
+      "ios_claim_token": "single_pairing_ios_poll_only_until_activation",
+      "device_credential": "pair_and_device_scoped_256_bit_random_secret_for_usersig_refresh_and_revoke",
+      "revocation_receipt_token": "single_revocation_status_read_only_until_terminal_or_expiry",
+      "storage": "store_only_sha256_or_stronger_salted_hashes_and_return_plaintext_once",
+      "transport": "bearer_header_only_never_url_query_or_qr"
+    },
+    "endpoints": [
+      {
+        "id": "operator_create_invitation",
+        "method": "POST",
+        "path": "/v1/remote-companion/invitations",
+        "auth": "existing_opl_cloud_operator_session",
+        "idempotency_required": true,
+        "request_fields": [
+          "label",
+          "expires_at"
+        ],
+        "response_fields": [
+          "invitation_code",
+          "expires_at"
+        ],
+        "secret_response_fields": [
+          "invitation_code"
+        ]
+      },
+      {
+        "id": "desktop_create_pairing",
+        "method": "POST",
+        "path": "/v1/remote-companion/pairings",
+        "auth": "one_time_invitation_code_in_body",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "invitation_code",
+          "desktop_device_id",
+          "desktop_device_label",
+          "desktop_public_key"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "desktop_pair_token",
+          "claim_secret",
+          "manual_code",
+          "expires_at",
+          "broker_url"
+        ],
+        "secret_response_fields": [
+          "desktop_pair_token",
+          "claim_secret",
+          "manual_code"
+        ]
+      },
+      {
+        "id": "ios_claim_pairing",
+        "method": "POST",
+        "path": "/v1/remote-companion/pairings/claim",
+        "auth": "claim_secret_or_manual_code_in_body",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "pairing_id",
+          "claim_secret_or_manual_code",
+          "ios_device_id",
+          "ios_device_label",
+          "ios_public_key"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "ios_claim_token",
+          "state",
+          "authentication_string",
+          "expires_at"
+        ],
+        "secret_response_fields": [
+          "ios_claim_token"
+        ]
+      },
+      {
+        "id": "read_pairing",
+        "method": "GET",
+        "path": "/v1/remote-companion/pairings/{pairing_id}",
+        "auth": "desktop_pair_token_or_ios_claim_token_or_active_device_credential",
+        "idempotency_required": false,
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "state",
+          "authentication_string",
+          "expires_at",
+          "device_activation"
+        ],
+        "device_activation_policy": "return_only_the_calling_devices_own_device_id_device_credential_provider_user_id_sdk_app_id_usersig_and_usersig_expires_at_and_return_each_plaintext_device_credential_once"
+      },
+      {
+        "id": "desktop_confirm_pairing",
+        "method": "POST",
+        "path": "/v1/remote-companion/pairings/{pairing_id}/confirm",
+        "auth": "desktop_pair_token",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "authentication_string"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "state"
+        ]
+      },
+      {
+        "id": "refresh_provider_credentials",
+        "method": "POST",
+        "path": "/v1/remote-companion/pairings/{pairing_id}/credentials",
+        "auth": "active_device_credential",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "device_id"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "provider",
+          "sdk_app_id",
+          "provider_user_id",
+          "usersig",
+          "usersig_expires_at"
+        ],
+        "secret_response_fields": [
+          "usersig"
+        ]
+      },
+      {
+        "id": "revoke_pair",
+        "method": "DELETE",
+        "path": "/v1/remote-companion/pairings/{pairing_id}",
+        "auth": "active_device_credential_or_desktop_pair_token",
+        "idempotency_required": true,
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "state",
+          "revocation_receipt_id",
+          "revocation_receipt_token"
+        ],
+        "secret_response_fields": [
+          "revocation_receipt_token"
+        ]
+      },
+      {
+        "id": "read_revocation",
+        "method": "GET",
+        "path": "/v1/remote-companion/revocations/{revocation_receipt_id}",
+        "auth": "revocation_receipt_token",
+        "idempotency_required": false,
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "state",
+          "desktop_provider_identity_absent",
+          "ios_provider_identity_absent",
+          "seat_released"
+        ],
+        "terminal_rule": "state_is_revoked_and_seat_released_is_true_only_after_both_provider_identities_are_absent_by_provider_owner_readback"
+      }
+    ],
+    "pairing_states": [
+      "reserved",
+      "claimed",
+      "awaiting_desktop_confirmation",
+      "provisioning",
+      "active",
+      "revoking",
+      "provider_reclaim_pending",
+      "revoked",
+      "expired"
+    ],
+    "error_envelope": {
+      "fields": [
+        "protocol_version",
+        "error_code",
+        "retryable",
+        "request_id"
+      ],
+      "allowed_error_codes": [
+        "invalid_request",
+        "unsupported_protocol",
+        "invitation_invalid",
+        "invitation_expired",
+        "invitation_consumed",
+        "capacity_unavailable",
+        "pairing_not_found",
+        "pairing_expired",
+        "claim_invalid",
+        "claim_attempts_exhausted",
+        "authentication_mismatch",
+        "pairing_not_ready",
+        "credential_invalid",
+        "pair_revoked",
+        "provider_unavailable",
+        "conflict",
+        "rate_limited",
+        "internal_error"
+      ],
+      "must_not_include": [
+        "task_text",
+        "workspace_path",
+        "provider_secret",
+        "invitation_code",
+        "claim_secret",
+        "device_credential",
+        "usersig"
+      ]
+    }
+  },
+  "pairing_qr": {
+    "url_scheme": "opllink",
+    "host": "pair",
+    "fields": [
+      "protocol_version",
+      "broker_url",
+      "pairing_id",
+      "claim_secret",
+      "desktop_public_key",
+      "expires_at"
+    ],
+    "forbidden_fields": [
+      "desktop_pair_token",
+      "invitation_code",
+      "provider_secret",
+      "device_credential",
+      "usersig",
+      "workspace_path",
+      "task_text"
+    ],
+    "single_use": true
+  },
+  "transport_envelope": {
+    "outer_fields": [
+      "protocol_version",
+      "pair_id",
+      "sender_device_id",
+      "recipient_device_id",
+      "key_epoch",
+      "sender_sequence",
+      "nonce",
+      "ciphertext"
+    ],
+    "outer_plaintext_must_not_include": [
+      "action_id",
+      "thread_id",
+      "task_text",
+      "workspace_path",
+      "approval_text",
+      "model",
+      "permission"
+    ],
+    "associated_data_fields": [
+      "protocol_version",
+      "pair_id",
+      "sender_device_id",
+      "recipient_device_id",
+      "key_epoch",
+      "channel_direction"
+    ],
+    "nonce_bytes": 12,
+    "cipher": "aes_256_gcm",
+    "key_agreement": "x25519",
+    "key_derivation": "hkdf_sha256",
+    "directional_keys": true,
+    "encrypted_payload_variants": {
+      "command": {
+        "fields": [
+          "kind",
+          "request_id",
+          "action_id",
+          "canonical_thread_id",
+          "payload"
+        ],
+        "kind": "command",
+        "allowed_action_ids": [
+          "canonical_task.list",
+          "canonical_task.read",
+          "canonical_task.refresh",
+          "canonical_task.start",
+          "canonical_task.send_text",
+          "canonical_turn.stop",
+          "canonical_approval.respond",
+          "pair.revoke"
+        ]
+      },
+      "event": {
+        "fields": [
+          "kind",
+          "event_id",
+          "request_id",
+          "event_type",
+          "canonical_revision",
+          "payload"
+        ],
+        "kind": "event",
+        "allowed_event_types": [
+          "task.snapshot",
+          "task.list_snapshot",
+          "thread.snapshot",
+          "turn.delta",
+          "turn.completed",
+          "turn.stopped",
+          "approval.requested",
+          "approval.resolved",
+          "action.accepted",
+          "action.rejected",
+          "desktop.heartbeat",
+          "pair.revoked"
+        ]
+      }
+    },
+    "ordering": {
+      "sender_sequence_starts_at": 1,
+      "sender_sequence_monotonic_per_pair_key_epoch_and_sender": true,
+      "duplicate_nonce_rejected": true,
+      "duplicate_or_regressed_sequence_rejected": true,
+      "duplicate_request_id_is_idempotent": true,
+      "gap_policy": "mark_projection_stale_and_refresh_canonical_state_before_new_commands",
+      "unknown_send_result_policy": "do_not_resend_refresh_canonical_state"
+    }
+  },
+  "desktop_dispatch": {
+    "canonical_bridge": "opl_app_state_and_action_bridge",
+    "command_allowlist_source": "contracts/app-remote-companion.json#action_policy.mvp_allowed_actions",
+    "request_dedupe_scope": "pair_id_key_epoch_request_id",
+    "high_impact_approval_policy": "reject_and_keep_desktop_only",
+    "provider_history_read_for_business_state": false,
+    "cloud_task_store": false
+  },
+  "secret_and_log_policy": {
+    "never_log": [
+      "task_content",
+      "workspace_path",
+      "invitation_code",
+      "claim_secret",
+      "manual_code",
+      "desktop_pair_token",
+      "ios_claim_token",
+      "device_credential",
+      "private_key",
+      "pair_master_key",
+      "usersig",
+      "tencent_sdkapp_secret"
+    ],
+    "push_payload": "generic_pair_scoped_update_signal_only",
+    "provider_or_cloud_plaintext_task_content": false
+  }
+}
