@@ -120,7 +120,20 @@
           "expires_at",
           "device_activation"
         ],
-        "device_activation_policy": "return_only_the_calling_devices_own_device_id_device_credential_provider_user_id_peer_provider_user_id_sdk_app_id_usersig_and_usersig_expires_at_and_return_each_plaintext_device_credential_once"
+        "device_activation_fields": [
+          "device_id",
+          "device_label",
+          "peer_device_id",
+          "peer_device_label",
+          "device_credential",
+          "provider_user_id",
+          "peer_provider_user_id",
+          "peer_public_key",
+          "sdk_app_id",
+          "usersig",
+          "usersig_expires_at"
+        ],
+        "device_activation_policy": "return_only_the_calling_devices_own_activation_and_the_minimum_peer_route_identity_device_label_and_public_key_required_for_e2ee_and_return_each_plaintext_device_credential_once"
       },
       {
         "id": "desktop_confirm_pairing",
@@ -342,7 +355,50 @@
           "canonical_turn.stop",
           "canonical_approval.respond",
           "pair.revoke"
-        ]
+        ],
+        "payload_contracts": {
+          "canonical_task.list": {
+            "canonical_thread_id_required": false,
+            "payload_fields": []
+          },
+          "canonical_task.read": {
+            "canonical_thread_id_required": true,
+            "payload_fields": []
+          },
+          "canonical_task.refresh": {
+            "canonical_thread_id_required": false,
+            "payload_fields": []
+          },
+          "canonical_task.start": {
+            "canonical_thread_id_required": false,
+            "payload_fields": [
+              "text"
+            ]
+          },
+          "canonical_task.send_text": {
+            "canonical_thread_id_required": true,
+            "payload_fields": [
+              "text"
+            ]
+          },
+          "canonical_turn.stop": {
+            "canonical_thread_id_required": true,
+            "payload_fields": [],
+            "turn_selection": "desktop_resolves_and_validates_the_current_canonical_active_turn"
+          },
+          "canonical_approval.respond": {
+            "canonical_thread_id_required": true,
+            "payload_fields": [
+              "approval_id",
+              "decision"
+            ],
+            "impact_policy": "desktop_must_revalidate_the_owner_projected_low_or_medium_impact_and_allowed_decision_without_trusting_client_impact"
+          },
+          "pair.revoke": {
+            "canonical_thread_id_required": false,
+            "payload_fields": []
+          }
+        }
       },
       "event": {
         "fields": [
@@ -367,7 +423,78 @@
           "action.rejected",
           "desktop.heartbeat",
           "pair.revoked"
-        ]
+        ],
+        "payload_contracts": {
+          "task.list_snapshot": [
+            "tasks",
+            "complete"
+          ],
+          "task.snapshot": [
+            "task"
+          ],
+          "thread.snapshot": [
+            "thread_id",
+            "messages",
+            "approval"
+          ],
+          "turn.delta": [
+            "thread_id",
+            "turn_id",
+            "delta"
+          ],
+          "turn.completed": [
+            "thread_id",
+            "turn_id"
+          ],
+          "turn.stopped": [
+            "thread_id",
+            "turn_id"
+          ],
+          "approval.requested": [
+            "thread_id",
+            "approval"
+          ],
+          "approval.resolved": [
+            "thread_id",
+            "approval_id",
+            "decision"
+          ],
+          "action.accepted": [
+            "action_id"
+          ],
+          "action.rejected": [
+            "action_id",
+            "error_code",
+            "refresh_required"
+          ],
+          "desktop.heartbeat": [
+            "sent_at"
+          ],
+          "pair.revoked": [
+            "pairing_id"
+          ]
+        },
+        "projection_shapes": {
+          "task": [
+            "id",
+            "title",
+            "status",
+            "updated_at",
+            "needs_user_action",
+            "active_turn_id"
+          ],
+          "message": [
+            "id",
+            "role",
+            "text",
+            "created_at"
+          ],
+          "approval": [
+            "id",
+            "summary",
+            "impact"
+          ]
+        }
       }
     },
     "ordering": {

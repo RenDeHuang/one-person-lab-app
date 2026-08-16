@@ -32,6 +32,9 @@ adapter 边界；Ably 是替换候选，不在 MVP 双写、镜像 history 或�
 
 跨仓 broker HTTP、配对 QR、令牌作用域、加密 envelope、action/event 和 revoke 回读的唯一 wire
 owner 是 [`contracts/app-remote-companion-wire.json`](../../contracts/app-remote-companion-wire.json)。
+Tencent Chat JavaScript SDK 在同一 Desktop 进程内共享单一实例，因此 MVP 每台 Desktop 只允许
+一个 active companion pair；这与 Cloud 全局 40 席上限是两个独立约束。扩展到一台 Desktop
+多 pair 需要独立 SDK host 或 provider 能力证明，不纳入本轮 MVP。
 各实现仓可以使用本地类型和 provider adapter，但不得改写这套 wire、把令牌放进 URL，或让
 Cloud/provider 获得明文 task content。
 

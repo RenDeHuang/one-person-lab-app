@@ -25,6 +25,10 @@ test('OPL Link wire contract has one versioned broker and encrypted transport sh
   assert.ok(credentialEndpoint);
   assert.ok(credentialEndpoint.response_fields.includes('provider_user_id'));
   assert.ok(credentialEndpoint.response_fields.includes('peer_provider_user_id'));
+  const readPairingEndpoint = endpoints.find((endpoint) => endpoint.id === 'read_pairing');
+  assert.ok(readPairingEndpoint);
+  assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_device_id'));
+  assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_public_key'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'revoke_pair'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'read_revocation'));
 });
@@ -51,6 +55,26 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
   assert.equal(wire.transport_envelope.ordering.duplicate_nonce_rejected, true);
   assert.equal(wire.transport_envelope.ordering.duplicate_or_regressed_sequence_rejected, true);
   assert.equal(wire.transport_envelope.ordering.unknown_send_result_policy, 'do_not_resend_refresh_canonical_state');
+
+  const command = wire.transport_envelope.encrypted_payload_variants.command;
+  assert.deepEqual(command.payload_contracts['canonical_turn.stop'].payload_fields, []);
+  assert.match(command.payload_contracts['canonical_turn.stop'].turn_selection, /desktop_resolves/);
+  assert.deepEqual(command.payload_contracts['canonical_approval.respond'].payload_fields, [
+    'approval_id',
+    'decision',
+  ]);
+
+  const event = wire.transport_envelope.encrypted_payload_variants.event;
+  assert.deepEqual(event.payload_contracts['task.list_snapshot'], ['tasks', 'complete']);
+  assert.deepEqual(event.payload_contracts['thread.snapshot'], ['thread_id', 'messages', 'approval']);
+  assert.deepEqual(event.projection_shapes.task, [
+    'id',
+    'title',
+    'status',
+    'updated_at',
+    'needs_user_action',
+    'active_turn_id',
+  ]);
 });
 
 test('crypto and pairing test vectors pin cross-language byte compatibility', () => {

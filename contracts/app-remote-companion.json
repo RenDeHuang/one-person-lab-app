@@ -201,7 +201,7 @@
       "client_must_not_allocate_reclaim_or_infer_seats": true
     },
     "device_lifecycle": {
-      "mvp_max_active_companion_pairs_per_desktop_installation": 3,
+      "mvp_max_active_companion_pairs_per_desktop_installation": 1,
       "device_label_user_editable": true,
       "revoke_action": "desktop_or_ios_explicit_revoke_pair",
       "revoke_effect": "mark_pair_revoked_deny_future_usersig_kick_provider_sessions_detach_desktop_delete_pair_keys_delete_both_provider_user_ids_then_release_seat_after_absence_readback",

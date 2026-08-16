@@ -15,6 +15,7 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
   assert.equal(policy.transport.public_desktop_address_required, false);
   assert.equal(policy.transport.payload_confidentiality.provider_plaintext_task_content, false);
   assert.equal(policy.transport.usage_guardrails.active_pair_seat_limit, 40);
+  assert.equal(policy.pairing.device_lifecycle.mvp_max_active_companion_pairs_per_desktop_installation, 1);
   assert.equal(policy.distribution_and_access.testflight_is_capacity_or_entitlement_authority, false);
   assert.equal(policy.product_identity.local_ios_runtime, false);
 });
