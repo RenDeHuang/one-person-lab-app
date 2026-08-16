@@ -392,6 +392,14 @@
               "approval_id",
               "decision"
             ],
+            "decision_values": [
+              "approve",
+              "reject"
+            ],
+            "decision_mapping": {
+              "approve": "desktop_may_map_only_to_the_owner_allowed_one_shot_accept_decision",
+              "reject": "desktop_may_map_only_to_the_owner_allowed_decline_decision"
+            },
             "impact_policy": "desktop_must_revalidate_the_owner_projected_low_or_medium_impact_and_allowed_decision_without_trusting_client_impact"
           },
           "pair.revoke": {

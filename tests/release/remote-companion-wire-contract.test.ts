@@ -63,6 +63,8 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
     'approval_id',
     'decision',
   ]);
+  assert.deepEqual(command.payload_contracts['canonical_approval.respond'].decision_values, ['approve', 'reject']);
+  assert.match(command.payload_contracts['canonical_approval.respond'].decision_mapping.approve, /one_shot_accept/);
 
   const event = wire.transport_envelope.encrypted_payload_variants.event;
   assert.deepEqual(event.payload_contracts['task.list_snapshot'], ['tasks', 'complete']);
