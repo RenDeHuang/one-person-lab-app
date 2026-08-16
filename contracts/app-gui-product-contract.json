@@ -587,7 +587,10 @@
           "project_affinity_presentation": {
             "recorded_cwd_role": "canonical_runtime_workspace_and_unregistered_directory_group_fallback_when_explicit_project_id_absent",
             "project_affinity_role": "explicit_project_id_wins_for_sidebar_grouping_otherwise_non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_identity_writeback",
-            "managed_projectless_workspace_root": "user_documents_codex_subtree",
+            "managed_projectless_workspace_roots": [
+              "user_documents_codex_subtree",
+              "user_codex_worktrees_subtree"
+            ],
             "managed_root_grouping_policy": "preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups",
             "unregistered_directory_grouping_policy": "auto_load_one_read_only_directory_group_and_new_session_cwd_shortcut_from_non_managed_scratch_recorded_cwd_without_project_id_assignment_or_registered_workspace_mutation",
             "projectless_adoption_eligibility": "explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd"
@@ -667,11 +670,11 @@
         "project_affinity_states": ["unbound", "bound"],
         "project_affinity_cardinality": "zero_or_one",
         "projectless_session_semantics": "no_user_selected_project_affinity_not_no_runtime_cwd",
-        "projectless_detection": "explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_never_creates_directory_group",
+        "projectless_detection": "explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_including_user_documents_codex_and_user_codex_worktrees_never_creates_directory_group",
         "recorded_cwd_role": "canonical_runtime_workspace_and_derived_directory_group_fallback_when_explicit_project_id_absent_and_not_managed_scratch",
         "project_affinity_source": "explicit_project_id_projection",
         "project_affinity_role": "explicit_project_id_wins_for_sidebar_grouping_non_managed_scratch_recorded_cwd_only_supplies_derived_directory_group",
-        "managed_scratch_presentation": "user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups",
+        "managed_scratch_presentation": "user_documents_codex_and_user_codex_worktrees_subtrees_preserve_recorded_cwd_and_render_unbound_without_leaf_directory_project_groups",
         "workspace_binding_role": "new_session_initial_cwd_and_explicit_project_affinity_assignment_are_distinct",
         "workspace_path_projection": {
           "picker_result": "host_path_and_canonical_runtime_path",
@@ -3191,11 +3194,11 @@
       "project_affinity_states": ["unbound", "bound"],
       "project_affinity_cardinality": "zero_or_one",
       "projectless_session_semantics": "no_user_selected_project_affinity_not_no_runtime_cwd",
-      "projectless_detection": "explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_never_creates_directory_group",
+      "projectless_detection": "explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_including_user_documents_codex_and_user_codex_worktrees_never_creates_directory_group",
       "recorded_cwd_role": "canonical_runtime_workspace_and_derived_directory_group_fallback_when_explicit_project_id_absent_and_not_managed_scratch",
       "project_affinity_source": "explicit_project_id_projection",
       "project_affinity_role": "explicit_project_id_wins_for_sidebar_grouping_non_managed_scratch_recorded_cwd_only_supplies_derived_directory_group",
-      "managed_scratch_presentation": "user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups",
+      "managed_scratch_presentation": "user_documents_codex_and_user_codex_worktrees_subtrees_preserve_recorded_cwd_and_render_unbound_without_leaf_directory_project_groups",
       "workspace_binding_role": "new_session_initial_cwd_and_explicit_project_affinity_assignment_are_distinct",
       "workspace_path_projection": {
         "picker_result": "host_path_and_canonical_runtime_path",
@@ -5734,6 +5737,7 @@
         "active AionUI primary navigation shows 运行状态 after New task and before Scheduled tasks in expanded, collapsed, and narrow drawer modes",
         "each canonical thread ID rendered as at most one conversation row regardless of title",
         "canonical App Server thread overview overrides Codex ACP cache rows while preserving non-Codex local rows",
+        "managed user Documents Codex and user .codex/worktrees workspaces preserve recorded cwd while rendering as projectless without leaf-directory Project groups",
         "non-managed-scratch canonical recorded cwd auto-loads a directory group and new-session cwd shortcut without creating explicit project affinity or mutating registered workspaces",
         "advanced work surfaces closed by default with no third column",
         "runtime/task progress available from Runtime page, not Home activity grid"

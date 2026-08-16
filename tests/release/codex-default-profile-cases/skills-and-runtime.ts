@@ -82,7 +82,10 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
       'canonical_runtime_workspace_and_unregistered_directory_group_fallback_when_explicit_project_id_absent',
     project_affinity_role:
       'explicit_project_id_wins_for_sidebar_grouping_otherwise_non_managed_scratch_recorded_cwd_supplies_derived_directory_group_without_identity_writeback',
-    managed_projectless_workspace_root: 'user_documents_codex_subtree',
+    managed_projectless_workspace_roots: [
+      'user_documents_codex_subtree',
+      'user_codex_worktrees_subtree',
+    ],
     managed_root_grouping_policy:
       'preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups',
     unregistered_directory_grouping_policy:
@@ -104,7 +107,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(
     guiWorkspaceModel.projectless_detection,
-    'explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_never_creates_directory_group',
+    'explicit_project_id_absent_defines_unbound_identity_while_managed_scratch_recorded_cwd_including_user_documents_codex_and_user_codex_worktrees_never_creates_directory_group',
   );
   assert.equal(
     guiWorkspaceModel.recorded_cwd_role,
@@ -117,7 +120,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(
     guiWorkspaceModel.managed_scratch_presentation,
-    'user_documents_codex_subtree_preserves_recorded_cwd_and_renders_unbound_without_leaf_directory_project_groups',
+    'user_documents_codex_and_user_codex_worktrees_subtrees_preserve_recorded_cwd_and_render_unbound_without_leaf_directory_project_groups',
   );
   assert.equal(
     guiWorkspaceModel.core_workspace_application,
@@ -145,7 +148,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     archived: 'independent_canonical_archived_thread_directory',
     all_search: 'explicit_canonical_historical_search_never_default_rail',
     project_affinity_presentation:
-      'recorded_cwd_preserved_explicit_project_id_wins_non_managed_scratch_cwd_auto_groups_managed_user_documents_codex_unbound',
+      'recorded_cwd_preserved_explicit_project_id_wins_non_managed_scratch_cwd_auto_groups_managed_user_documents_codex_and_user_codex_worktrees_unbound',
     visible_id_consumers: ['default_rail', 'archived', 'pinned', 'workspace_groups', 'timeline'],
     fixed_count_acceptance_allowed: false,
   });

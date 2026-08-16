@@ -215,7 +215,8 @@ Composer 的 `+` 始终打开可搜索、分组、可滚动 palette，承载文�
 capability allowlist，已选项只显示紧凑 chip。
 Environment 只读显示 recorded workspace 与 live Git context；Shell 不自建 managed Worktree/Handoff，
 也不允许已绑定 session 在 Project 之间任意重分组。Recorded cwd 是运行上下文，不等于用户显式 Project affinity；
-`~/Documents/Codex/**` managed scratch 保留真实 recorded cwd，但在侧栏投影为 projectless，不按叶子目录拆成 Project。
+`~/Documents/Codex/**` 与 `~/.codex/worktrees/<id>/**` managed scratch 保留真实 recorded cwd，但在侧栏投影为
+projectless，不按叶子目录拆成 Project。显式 `projectId` 仍优先于 managed-scratch 路径分类。
 侧栏目录分组优先采用显式 `projectId`；没有 `projectId` 时，canonical App Server thread 的非 managed-scratch
 recorded cwd 自动生成只读目录组和“使用此工作目录新建对话”入口，不写回 `projectId`，也不修改注册目录集合。
 空 cwd 与 managed scratch 仍保持未分组。turn 或 command `pwd` 不参与分组，也不反写 affinity。

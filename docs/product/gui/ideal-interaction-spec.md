@@ -106,10 +106,11 @@ Rail 负责 navigation，不承担 dashboard：
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
   其它全局入口仅在 OPL 有真实对应能力时保留。
-- 中段按显式 Project-affinity marker 分组 App Server threads，并以 canonical thread ID join。App Server overview
+- 中段优先按显式 Project-affinity marker 分组 App Server threads，并以 canonical thread ID join。App Server overview
   可用时是 Codex session directory authority；carrier 只持有 affinity、draft、preference 和可重建 cache，不拥有 history。
-  Git origin URL、recorded runtime cwd 与 turn/command runtime `pwd` 只进入 Environment，不作为 Project identity；
-  缺显式 `projectId` 的 legacy thread 保持 projectless，不从 recorded cwd 水合，也不按 Git origin 合并。
+  缺显式 `projectId` 时，普通 recorded cwd 可生成不写回 affinity 的只读目录组；`~/Documents/Codex/**` 与
+  `~/.codex/worktrees/<id>/**` managed scratch 保持 projectless，不按叶目录生成同名 Project。Git origin URL 与
+  turn/command runtime `pwd` 只进入 Environment，不作为 Project identity，也不参与分组。
   Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary projection；仅 overview
   unavailable 时 fallback cache，非 Codex local row 保留。每个 canonical thread ID 最多一行，
   不按标题或 workspace 去重。
