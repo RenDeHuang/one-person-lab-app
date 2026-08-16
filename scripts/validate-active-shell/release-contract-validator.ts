@@ -1396,7 +1396,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       JSON.stringify(['linux/amd64', 'linux/arm64'])
     || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.single_multi_arch_manifest_required !== true
     || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.native_runner_qualification_required !== true
-    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.qualification_trigger !== 'manual_protected_release_workflow'
+    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.qualification_trigger !== 'manual_non_public_qualification_or_protected_publication'
     || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.included_in_pr_or_main_ci !== false
     || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.blocks_desktop_macos_arm64 !== false
     || capabilities?.['macos-arm64']?.default_enabled !== true
@@ -1567,7 +1567,7 @@ function validateWebuiGhcrImage(webuiImage) {
     contract?.platform_matrix?.runner_by_architecture?.amd64 !== 'ubuntu-24.04' ||
     contract?.platform_matrix?.runner_by_architecture?.arm64 !== 'ubuntu-24.04-arm' ||
     contract?.platform_matrix?.native_runtime_qualification_required !== true ||
-    contract?.platform_matrix?.qualification_trigger !== 'manual_protected_release_workflow' ||
+    contract?.platform_matrix?.qualification_trigger !== 'manual_non_public_qualification_or_protected_publication' ||
     contract?.platform_matrix?.included_in_pr_or_main_ci !== false ||
     contract?.platform_matrix?.qemu_or_other_emulation_counts_as_runtime_qualification !== false ||
     contract?.platform_matrix?.version_tag_shape !== 'one_oci_index_with_exact_amd64_and_arm64_children' ||
@@ -1647,6 +1647,7 @@ function validateWebuiGhcrImage(webuiImage) {
       'image_manifest',
       'seed_metadata',
       'runtime_cli_shims',
+      'persistent_volume_restart_readback',
       'preheated_payload_files',
       'declared_volumes',
       'runtime_env',

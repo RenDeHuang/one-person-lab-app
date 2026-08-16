@@ -617,7 +617,7 @@
           ],
           "single_multi_arch_manifest_required": true,
           "native_runner_qualification_required": true,
-          "qualification_trigger": "manual_protected_release_workflow",
+          "qualification_trigger": "manual_non_public_qualification_or_protected_publication",
           "included_in_pr_or_main_ci": false,
           "blocks_desktop_macos_arm64": false
         }
@@ -2968,7 +2968,7 @@
           "arm64": "ubuntu-24.04-arm"
         },
         "native_runtime_qualification_required": true,
-        "qualification_trigger": "manual_protected_release_workflow",
+        "qualification_trigger": "manual_non_public_qualification_or_protected_publication",
         "included_in_pr_or_main_ci": false,
         "qemu_or_other_emulation_counts_as_runtime_qualification": false,
         "version_tag_shape": "one_oci_index_with_exact_amd64_and_arm64_children",
@@ -3067,6 +3067,7 @@
           "image_manifest",
           "seed_metadata",
           "runtime_cli_shims",
+          "persistent_volume_restart_readback",
           "preheated_payload_files",
           "declared_volumes",
           "runtime_env",

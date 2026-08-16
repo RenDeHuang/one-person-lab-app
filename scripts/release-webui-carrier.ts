@@ -422,6 +422,17 @@ function validateRuntimeSummary(raw: unknown, image: JsonRecord, appSha: string)
   exactString(summary.expected_profile, 'webui-full', 'runtime summary.expected_profile');
   exactString(summary.image_id, stringValue(image.Id, 'image inspect Id'), 'runtime summary.image_id');
   exactString(summary.oci_revision, appSha, 'runtime summary.oci_revision');
+  const httpHealth = record(summary.http_health, 'runtime summary.http_health');
+  exactString(httpHealth.status, 'passed', 'runtime summary.http_health.status');
+  const runtimeCliShims = record(summary.runtime_cli_shims, 'runtime summary.runtime_cli_shims');
+  exactString(runtimeCliShims.opl, 'passed', 'runtime summary.runtime_cli_shims.opl');
+  exactString(runtimeCliShims.codex, 'passed', 'runtime summary.runtime_cli_shims.codex');
+  const persistenceRestart = record(summary.persistence_restart, 'runtime summary.persistence_restart');
+  exactString(persistenceRestart.status, 'passed', 'runtime summary.persistence_restart.status');
+  const expectedPersistenceSurfaces = ['/data', '/projects', '/data/opl/state/install-manifest.json'];
+  if (canonicalJson(persistenceRestart.surfaces) !== canonicalJson(expectedPersistenceSurfaces)) {
+    fail('runtime summary.persistence_restart.surfaces must bind /data, /projects, and the install manifest');
+  }
   return summary;
 }
 

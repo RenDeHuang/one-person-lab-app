@@ -209,6 +209,10 @@ function platformFixture(root: string, architecture: Architecture, overrides: {
     oci_revision: appSha,
     http_health: { status: 'passed' },
     runtime_cli_shims: { opl: 'passed', codex: 'passed' },
+    persistence_restart: {
+      status: 'passed',
+      surfaces: ['/data', '/projects', '/data/opl/state/install-manifest.json'],
+    },
     ...overrides.runtime,
   });
   fs.writeFileSync(path.join(platformRoot, 'image-size.txt'), '123456\n');
@@ -406,6 +410,25 @@ test('WebUI carrier receipt binds one dual-platform OCI index and both native qu
     receipt.qualification.platform_qualifications.map((platform: { architecture: string }) => platform.architecture),
     ['amd64', 'arm64'],
   );
+});
+
+test('WebUI carrier rejects a platform without persisted restart evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-persistence-'));
+  const { platformEvidenceRoot, registryReadbackPath } = carrierFixture(root);
+  const runtimeSummaryPath = path.join(platformEvidenceRoot, 'arm64', 'runtime-summary.json');
+  const runtimeSummary = JSON.parse(fs.readFileSync(runtimeSummaryPath, 'utf8'));
+  delete runtimeSummary.persistence_restart;
+  fs.writeFileSync(runtimeSummaryPath, `${JSON.stringify(runtimeSummary)}\n`);
+
+  const result = runCli([
+    'write-carrier-receipt',
+    '--platform-evidence-root', platformEvidenceRoot,
+    '--registry-readback', registryReadbackPath,
+    '--image-ref', `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
+    '--output', path.join(root, 'must-not-exist.json'),
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /runtime summary\.persistence_restart must be an object/);
 });
 
 test('frozen Codex artifact verification binds exact tgz bytes and package identity', () => {
@@ -842,6 +865,9 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(qualification.run, /docker inspect "\$container_name" > webui-carrier\/container-inspect\.json/);
   assert.match(qualification.run, /docker logs "\$container_name" > webui-carrier\/container\.log/);
   assert.match(qualification.run, /docker inspect --format '\{\{\.State\.Running\}\}'/);
+  assert.match(qualification.run, /qualification-persistence-marker/);
+  assert.match(qualification.run, /persisted_restart/);
+  assert.match(qualification.run, /persistence_restart/);
   assert.equal(failureEvidence.if, "${{ failure() && steps.qualify.outcome == 'failure' }}");
   assert.equal(failureEvidence.uses, 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a');
   assert.equal(

@@ -12,10 +12,11 @@ notarized macOS arm64 primary release passes publication and public readback. Th
 Release/tag then receives Full macOS, Linux x64, Windows x64 and installer deliveries additively.
 Independent WebUI archives, qualification archives and follower Releases are retired.
 Docker WebUI is a separate GHCR product line and never consumes Desktop Stable authority.
-It is a manual, non-blocking additional release line: its protected carrier workflow builds and
-runs `linux/amd64` and `linux/arm64` on native GitHub runners, then publishes one OCI index only
-when both platform qualifications pass. It is not part of PR/main CI and cannot block the primary
-macOS arm64 Desktop release.
+It is a manual, non-blocking additional release line. The default `qualify` operation builds and
+runs `linux/amd64` and `linux/arm64` on native GitHub runners without registry mutation, including
+same-volume container restart and state readback. The separately protected `publish` operation may
+create one OCI index only when both platform qualifications pass. Neither operation is part of
+PR/main CI or blocks the primary macOS arm64 Desktop release.
 
 ## Stable Operations
 

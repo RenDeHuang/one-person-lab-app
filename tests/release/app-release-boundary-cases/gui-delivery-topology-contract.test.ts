@@ -58,9 +58,9 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   assert.equal(profile.delivery_topology.docker_webui.image_update_adapter_source_implemented, true);
   assert.equal(profile.delivery_topology.docker_webui.image_update_command_wiring_complete, false);
   assert.equal(profile.delivery_topology.docker_webui.multi_arch_build_plan_source_implemented, true);
-  assert.equal(profile.delivery_topology.docker_webui.multi_arch_qualification_complete, false);
+  assert.equal(profile.delivery_topology.docker_webui.multi_arch_qualification_complete, true);
   assert.equal(profile.delivery_topology.docker_webui.release_tier, 'additional_nonblocking');
-  assert.equal(profile.delivery_topology.docker_webui.qualification_trigger, 'manual_protected_release_workflow');
+  assert.equal(profile.delivery_topology.docker_webui.qualification_trigger, 'manual_non_public_qualification_or_protected_publication');
   assert.equal(profile.delivery_topology.docker_webui.included_in_pr_or_main_ci, false);
   assert.deepEqual(profile.delivery_topology.docker_webui.required_oci_platforms, ['linux/amd64', 'linux/arm64']);
   assert.deepEqual(profile.delivery_topology.docker_webui.native_runner_qualification, {
@@ -199,7 +199,7 @@ test('delivery topology validator rejects runtime duplication, host drift, or pr
     },
     {
       error: /Docker WebUI topology/,
-      mutate: (profile) => { profile.delivery_topology.docker_webui.multi_arch_qualification_complete = true; },
+      mutate: (profile) => { profile.delivery_topology.docker_webui.multi_arch_qualification_complete = false; },
     },
     {
       error: /successor product policy/,

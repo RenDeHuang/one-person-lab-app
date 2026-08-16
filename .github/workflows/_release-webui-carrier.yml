@@ -409,26 +409,57 @@ jobs:
             -v "$projects_dir:/projects" \
             "$local_image" > webui-carrier/container-id.txt
           trap 'capture_runtime_diagnostics; docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT
-          port="$(docker port "$container_name" 3000/tcp | sed -n 's/.*://p' | tail -1)"
-          test -n "$port"
-          for attempt in $(seq 1 90); do
-            if curl --fail --silent --show-error "http://127.0.0.1:${port}/" >/dev/null; then
-              printf '%s\n' passed > webui-carrier/http-health.txt
-              break
-            fi
-            if [ "$(docker inspect --format '{{.State.Running}}' "$container_name" 2>/dev/null || true)" != true ]; then
-              exit 1
-            fi
-            if [ "$attempt" -eq 90 ]; then
-              exit 1
-            fi
-            sleep 2
-          done
+          wait_for_http() {
+            local port
+            port="$(docker port "$container_name" 3000/tcp | sed -n 's/.*://p' | tail -1)"
+            test -n "$port"
+            for attempt in $(seq 1 90); do
+              if curl --fail --silent --show-error "http://127.0.0.1:${port}/" >/dev/null; then
+                return 0
+              fi
+              if [ "$(docker inspect --format '{{.State.Running}}' "$container_name" 2>/dev/null || true)" != true ]; then
+                return 1
+              fi
+              if [ "$attempt" -eq 90 ]; then
+                return 1
+              fi
+              sleep 2
+            done
+          }
+          printf '%s\n' initial_start > webui-carrier/container-phase.txt
+          wait_for_http
+          printf '%s\n' passed > webui-carrier/http-health.txt
+
+          persistence_marker="${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}:${{ matrix.architecture }}"
+          docker exec "$container_name" sh -c \
+            'printf "%s\n" "$1" > /data/opl/qualification-persistence-marker.txt' \
+            sh "$persistence_marker"
+          docker exec "$container_name" sh -c \
+            'printf "%s\n" "$1" > /projects/.opl-qualification-persistence-marker' \
+            sh "$persistence_marker"
+          docker exec "$container_name" test -s /data/opl/state/install-manifest.json
+
+          docker rm -f "$container_name" >/dev/null
+          docker run -d --name "$container_name" \
+            -p 127.0.0.1::3000 \
+            -v "$data_dir:/data" \
+            -v "$projects_dir:/projects" \
+            "$local_image" > webui-carrier/restarted-container-id.txt
+          printf '%s\n' persisted_restart > webui-carrier/container-phase.txt
+          wait_for_http
+          test "$(docker exec "$container_name" cat /data/opl/qualification-persistence-marker.txt)" = "$persistence_marker"
+          test "$(docker exec "$container_name" cat /projects/.opl-qualification-persistence-marker)" = "$persistence_marker"
+          docker exec "$container_name" test -s /data/opl/state/install-manifest.json
+          printf '%s\n' passed > webui-carrier/persistence-restart.txt
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const summary = JSON.parse(fs.readFileSync('webui-carrier/runtime-summary.json', 'utf8'));
           summary.http_health = { status: fs.readFileSync('webui-carrier/http-health.txt', 'utf8').trim() };
           summary.runtime_cli_shims = { opl: 'passed', codex: 'passed' };
+          summary.persistence_restart = {
+            status: fs.readFileSync('webui-carrier/persistence-restart.txt', 'utf8').trim(),
+            surfaces: ['/data', '/projects', '/data/opl/state/install-manifest.json'],
+          };
           fs.writeFileSync('webui-carrier/runtime-summary.json', `${JSON.stringify(summary)}\n`);
           NODE
           docker rm -f "$container_name" >/dev/null
@@ -444,6 +475,7 @@ jobs:
             webui-carrier/container-inspect.json
             webui-carrier/container-inspect.stderr
             webui-carrier/container.log
+            webui-carrier/container-phase.txt
             webui-carrier/container-status.txt
             webui-carrier/image-inspect.json
             webui-carrier/image-manifest.json
