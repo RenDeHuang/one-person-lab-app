@@ -265,6 +265,21 @@
     ],
     "single_use": true
   },
+  "pairing_authentication_string": {
+    "input_serialization": "utf8_length_prefixed_fields_in_exact_order_pair_id_desktop_public_key_ios_public_key_joined_by_ascii_pipe",
+    "field_encoding": "name_equals_utf8_byte_count_colon_value",
+    "digest": "sha256",
+    "decimal_derivation": "unsigned_big_endian_first_4_digest_bytes_modulo_1000000",
+    "display_format": "zero_padded_6_digits_grouped_as_3_space_3",
+    "test_vector": {
+      "pair_id": "pair-test-001",
+      "desktop_public_key": "3p7bfXt9wbTTW2HC7OQ1Nz-DQ8hbeGdNrfx-FG-IK08",
+      "ios_public_key": "hSDwCYkwp1R0i33ctD73Wg2_Og0mOBr066SpjqqbTmo",
+      "serialized_input": "pair_id=13:pair-test-001|desktop_public_key=43:3p7bfXt9wbTTW2HC7OQ1Nz-DQ8hbeGdNrfx-FG-IK08|ios_public_key=43:hSDwCYkwp1R0i33ctD73Wg2_Og0mOBr066SpjqqbTmo",
+      "sha256_hex": "4c0c31d417933196080996b1ac1012c4a5d1b890bf722c07b49f45f6cc794b53",
+      "authentication_string": "867 604"
+    }
+  },
   "transport_envelope": {
     "outer_fields": [
       "protocol_version",
@@ -298,6 +313,15 @@
     "key_agreement": "x25519",
     "key_derivation": "hkdf_sha256",
     "directional_keys": true,
+    "direction_values": [
+      "ios_to_desktop",
+      "desktop_to_ios"
+    ],
+    "x25519_key_encoding": "raw_32_bytes_then_unpadded_base64url_on_wire",
+    "hkdf_salt": "utf8_pair_id",
+    "hkdf_info": "utf8_opl_remote_transport.v1_pipe_key_epoch_equals_decimal_pipe_direction_equals_direction_value",
+    "associated_data_serialization": "utf8_name_equals_utf8_byte_count_colon_value_fields_in_declared_order_joined_by_ascii_pipe",
+    "ciphertext_encoding": "aes_gcm_ciphertext_followed_by_16_byte_tag_then_unpadded_base64url",
     "encrypted_payload_variants": {
       "command": {
         "fields": [
@@ -353,6 +377,25 @@
       "duplicate_request_id_is_idempotent": true,
       "gap_policy": "mark_projection_stale_and_refresh_canonical_state_before_new_commands",
       "unknown_send_result_policy": "do_not_resend_refresh_canonical_state"
+    },
+    "test_vector": {
+      "source": "rfc7748_x25519_alice_and_bob_keys_plus_opl_wire_parameters",
+      "sender_role": "ios",
+      "ios_private_key_hex": "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a",
+      "ios_public_key_hex": "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a",
+      "desktop_private_key_hex": "5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb",
+      "desktop_public_key_hex": "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f",
+      "shared_secret_hex": "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742",
+      "pair_id": "pair-test-001",
+      "sender_device_id": "ios-test-device",
+      "recipient_device_id": "desktop-test-device",
+      "key_epoch": 1,
+      "direction": "ios_to_desktop",
+      "derived_key_hex": "6017bf36ae1274c1168a217e69737e9792226ab555e0447dddec1b278f15de59",
+      "associated_data_utf8": "protocol_version=23:opl_remote_transport.v1|pair_id=13:pair-test-001|sender_device_id=15:ios-test-device|recipient_device_id=19:desktop-test-device|key_epoch=1:1|channel_direction=14:ios_to_desktop",
+      "nonce_hex": "000102030405060708090a0b",
+      "plaintext_utf8": "OPL Link wire vector v1",
+      "ciphertext_and_tag_hex": "c90ce480a4b58bf4d5c076ee419a3661510728dcf87443d9c258b16492e6dc1c57c856cced4851"
     }
   },
   "desktop_dispatch": {

@@ -42,9 +42,21 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
     assert.equal(outer.has(field), false, `${field} must remain encrypted`);
   }
   assert.equal(wire.transport_envelope.nonce_bytes, 12);
+  assert.deepEqual(wire.transport_envelope.direction_values, ['ios_to_desktop', 'desktop_to_ios']);
+  assert.equal(wire.transport_envelope.hkdf_salt, 'utf8_pair_id');
+  assert.match(wire.transport_envelope.associated_data_serialization, /declared_order/);
   assert.equal(wire.transport_envelope.ordering.duplicate_nonce_rejected, true);
   assert.equal(wire.transport_envelope.ordering.duplicate_or_regressed_sequence_rejected, true);
   assert.equal(wire.transport_envelope.ordering.unknown_send_result_policy, 'do_not_resend_refresh_canonical_state');
+});
+
+test('crypto and pairing test vectors pin cross-language byte compatibility', () => {
+  const wire = readJson('contracts/app-remote-companion-wire.json');
+  const crypto = wire.transport_envelope.test_vector;
+  assert.equal(crypto.shared_secret_hex, '4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742');
+  assert.equal(crypto.derived_key_hex, '6017bf36ae1274c1168a217e69737e9792226ab555e0447dddec1b278f15de59');
+  assert.equal(crypto.ciphertext_and_tag_hex, 'c90ce480a4b58bf4d5c076ee419a3661510728dcf87443d9c258b16492e6dc1c57c856cced4851');
+  assert.equal(wire.pairing_authentication_string.test_vector.authentication_string, '867 604');
 });
 
 test('seat reclaim stays tied to provider absence readback', () => {
