@@ -265,7 +265,7 @@ test('Playwright MCP is the one default structured browser provider on the exist
       upstream_owner: 'microsoft/playwright-mcp',
       lifecycle_owner: 'one-person-lab',
       registry_authority: 'existing_codex_mcp_registry',
-      registry_writer_ref: 'one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer',
+      registry_writer_ref: 'one-person-lab/src/adapters/integration/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer',
       shell_role: 'configured_codex_mcp_registry_consumer_only',
       default_register: true,
       default_enabled: true,

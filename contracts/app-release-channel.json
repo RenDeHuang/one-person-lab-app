@@ -184,7 +184,7 @@
       "runtime_carrier": "framework_pinned_dependency",
       "host_browser_requirement": "Google Chrome",
       "registry_authority": "existing_codex_mcp_registry",
-      "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
+      "registry_writer_ref": "one-person-lab/src/adapters/integration/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
       "standard": {
         "payload_density": "standard",
         "registry_source": "existing_codex_mcp_registry",

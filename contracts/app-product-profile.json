@@ -78,7 +78,7 @@
       "lifecycle_owner": "one-person-lab",
       "delivery_status": "source_implementation_complete_installed_qualification_pending",
       "registry_authority": "existing_codex_mcp_registry",
-      "registry_writer_ref": "one-person-lab/src/modules/connect/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
+      "registry_writer_ref": "one-person-lab/src/adapters/integration/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
       "default_register": true,
       "default_enabled": true,
       "structured_default": true,
