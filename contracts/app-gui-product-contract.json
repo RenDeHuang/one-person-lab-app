@@ -593,7 +593,14 @@
             ],
             "managed_root_grouping_policy": "preserve_runtime_cwd_and_render_unbound_without_leaf_directory_project_groups",
             "unregistered_directory_grouping_policy": "auto_load_one_read_only_directory_group_and_new_session_cwd_shortcut_from_non_managed_scratch_recorded_cwd_without_project_id_assignment_or_registered_workspace_mutation",
-            "projectless_adoption_eligibility": "explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd"
+            "projectless_adoption_eligibility": "explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd",
+            "managed_worktree_row_indicator": {
+              "source": "canonical_recorded_cwd_under_user_codex_worktrees",
+              "presentation": "inline_branch_icon_with_localized_tooltip_and_accessible_name",
+              "explicit_project_affinity_behavior": "preserve_indicator_while_project_id_remains_grouping_authority",
+              "changes_project_affinity": false,
+              "mutation_action": "none"
+            }
           },
           "visible_id_set_policy": {
             "source": "surface_filtered_canonical_visible_id_set",

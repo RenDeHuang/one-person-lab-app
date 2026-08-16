@@ -111,6 +111,8 @@ Rail 负责 navigation，不承担 dashboard：
   缺显式 `projectId` 时，普通 recorded cwd 可生成不写回 affinity 的只读目录组；`~/Documents/Codex/**` 与
   `~/.codex/worktrees/<id>/**` managed scratch 保持 projectless，不按叶目录生成同名 Project。Git origin URL 与
   turn/command runtime `pwd` 只进入 Environment，不作为 Project identity，也不参与分组。
+  这类 Codex 对话行在标题右侧保留一个低权重分支图标，tooltip 和 accessible name 使用本地化“隔离工作树”；
+  图标是只读运行环境提示，不改变 Project affinity、排序、拖放或生命周期。
   Canonical overview 未返回的 stale Codex ACP cache row 不进入 ordinary projection；仅 overview
   unavailable 时 fallback cache，非 Codex local row 保留。每个 canonical thread ID 最多一行，
   不按标题或 workspace 去重。

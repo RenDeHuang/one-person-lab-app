@@ -249,6 +249,8 @@ Composer 是底部唯一主 command surface：
   typed affinity assignment 与 exact projectId/recorded-cwd-unchanged readback 一次归入一个目录组；
   已绑定 row 不任意换组。Recorded cwd、命令或 turn
   的实际 `pwd` 变化不移动 canonical-thread row，也不复制 row/history 或按标题/workspace 去重。
+  `.codex/worktrees/<id>/**` 的 Codex row 在标题尾部显示固定 15px 的低权重 BranchOne 标志；使用本地化
+  tooltip/accessible name“隔离工作树”，不显示 worktree ID，不占用额外行高，也不覆盖右侧菜单。
 - Directory group 展开后显示 conversations、“使用此工作目录新建对话”，并作为 projectless adoption 的拖动目标；
   同一动作必须有键盘可达等价入口。失败时 row 留在 projectless 组。不显示“添加上下文”或组级删除，
   更不得级联删除分组内 sessions。Canonical App Server overview 可用时排除未返回的 stale Codex ACP

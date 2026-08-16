@@ -92,6 +92,13 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
       'auto_load_one_read_only_directory_group_and_new_session_cwd_shortcut_from_non_managed_scratch_recorded_cwd_without_project_id_assignment_or_registered_workspace_mutation',
     projectless_adoption_eligibility:
       'explicit_project_id_absent_and_canonical_thread_read_confirms_project_id_absent_independent_of_recorded_cwd',
+    managed_worktree_row_indicator: {
+      source: 'canonical_recorded_cwd_under_user_codex_worktrees',
+      presentation: 'inline_branch_icon_with_localized_tooltip_and_accessible_name',
+      explicit_project_affinity_behavior: 'preserve_indicator_while_project_id_remains_grouping_authority',
+      changes_project_affinity: false,
+      mutation_action: 'none',
+    },
   });
   assert.equal(
     threadDirectoryPolicy.directory_group_policy_authority,
@@ -148,7 +155,13 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     archived: 'independent_canonical_archived_thread_directory',
     all_search: 'explicit_canonical_historical_search_never_default_rail',
     project_affinity_presentation:
-      'recorded_cwd_preserved_explicit_project_id_wins_non_managed_scratch_cwd_auto_groups_managed_user_documents_codex_and_user_codex_worktrees_unbound',
+      'recorded_cwd_preserved_explicit_project_id_wins_non_managed_scratch_cwd_auto_groups_managed_user_documents_codex_and_user_codex_worktrees_unbound_with_inline_managed_worktree_indicator',
+    managed_worktree_row_indicator: {
+      source: 'canonical_recorded_cwd_under_user_codex_worktrees',
+      presentation: 'inline_branch_icon_with_localized_tooltip_and_accessible_name',
+      changes_project_affinity: false,
+      mutation_action: 'none',
+    },
     visible_id_consumers: ['default_rail', 'archived', 'pinned', 'workspace_groups', 'timeline'],
     fixed_count_acceptance_allowed: false,
   });
