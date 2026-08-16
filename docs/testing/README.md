@@ -62,10 +62,12 @@ bun run --cwd shells/aionui validate:opl-package
 npm run validate:gui-shell
 ```
 
-`npm test` and `npm run test:smoke` are the default App development test path.
-They run the App-owned active-shell quick validator only; this catches contract,
-page-state, product-profile, release-channel, and active shell structural drift
-without running the full shell Vitest portfolio.
+`npm test` is the default App source-development path. It runs App TypeScript,
+product-policy, root-boundary, and local Shell-materialization fixture checks
+without cloning or installing the active Shell. `npm run test:smoke` is the
+explicit cross-repository active-shell quick validator; it catches contract,
+page-state, product-profile, release-channel, and active Shell structural drift
+without running the full Shell Vitest portfolio.
 
 `npm run test:full` is the App-level full active-shell Vitest runner. It reads
 `contracts/app-shell-adapter.json`, enumerates the active shell Vitest suites,

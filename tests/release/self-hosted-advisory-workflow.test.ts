@@ -210,9 +210,7 @@ process.exit(2);
 }
 
 test('hosted admission accepts only trusted main-push sources and exact advisory pools', () => {
-  assert.deepEqual(Object.keys(workflow.on).sort(), ['workflow_dispatch', 'workflow_run']);
-  assert.deepEqual(workflow.on.workflow_run.workflows, ['OPL Non-Release Validation']);
-  assert.deepEqual(workflow.on.workflow_run.types, ['completed']);
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
   assert.equal(workflow.on.schedule, undefined);
   assert.equal(workflow.jobs.admit['runs-on'], 'ubuntu-latest');
   assert.equal(workflow.permissions.contents, 'read');

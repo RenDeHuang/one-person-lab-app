@@ -1,0 +1,84 @@
+name: OPL Release Qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opl-release-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  windows-installer:
+    name: Windows installer behavior
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install App root validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run Windows installer behavior tests with Windows PowerShell 5.1
+        env:
+          PWSH: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+        run: >-
+          node --experimental-strip-types --test --test-timeout=120000
+          tests/release/docker-webui-windows-installer.test.ts
+          tests/release/windows-stable-surface.test.ts
+          tests/release/windows-updater-upgrade-vm.test.ts
+
+  release-boundary:
+    name: App release-boundary tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout App repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout OPL Flow policy source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gaofeng21cn/opl-flow
+          ref: 2c7fad262938fb4295d2bb866f6b955c0aa2361a
+          path: opl-flow
+
+      - name: Setup active shell
+        uses: ./.github/actions/setup-active-shell-deps
+        with:
+          shell-ref: main
+          install-dependencies: 'true'
+
+      - name: Install App root validation dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Probe release-note online AI provider
+        env:
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_BASE_URL }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_API_KEY }}
+          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL: ${{ vars.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODEL }}
+          OPL_RELEASE_NOTES_CODEX_BASE_URL: ${{ vars.OPL_RELEASE_NOTES_CODEX_BASE_URL }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
+          OPL_RELEASE_NOTES_MODEL: ${{ vars.OPL_RELEASE_NOTES_MODEL }}
+        run: node --experimental-strip-types scripts/release-notes-ai-writer.ts --probe-openai-compatible
+
+      - name: Run release-boundary tests
+        env:
+          OPL_FLOW_WORKFLOW_POLICY: ${{ github.workspace }}/opl-flow/contracts/workflow-policy.json
+          OPL_FULL_OPL_FLOW_ROOT: ${{ github.workspace }}/opl-flow
+        run: npm run test:release-boundary
+
+      - name: Validate release-boundary contract
+        run: npm run validate:release-boundary

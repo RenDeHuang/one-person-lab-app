@@ -71,9 +71,10 @@ installed readback。
 Stable App-root npm entries are `verify`, `typecheck`, `validate:release-boundary`,
 `validate:gui-design-system`, `validate:gui-shell`, `validate:shell-candidates`,
 `test:smoke`, `test:full`, `release:evidence:manifest`,
-`release:evidence:validate`, and `hygiene:fallow`. `npm test` aliases the smoke
-entry so ordinary development does not run the full active-shell DOM portfolio;
-full shell Vitest evidence remains explicit through `npm run test:full`,
+`release:evidence:validate`, and `hygiene:fallow`. `npm test` aliases the
+App-local source entry so ordinary development neither clones the active Shell
+nor runs its DOM portfolio. Cross-repository smoke and full Shell Vitest evidence
+remain explicit through `npm run test:smoke`, `npm run test:full`,
 `scripts/verify.sh full`, and the active-shell validation contract. These keep
 release boundary/evidence scripts visible as production entrypoints while the
 files remain thin App-owned wrappers around contracts and release artifacts.

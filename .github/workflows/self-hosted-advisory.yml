@@ -2,15 +2,10 @@ name: OPL Self-Hosted Advisory
 run-name: Self-hosted advisory for ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
 on:
-  workflow_run:
-    workflows:
-      - OPL Non-Release Validation
-    types:
-      - completed
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: Optional successful main OPL Non-Release Validation run ID to re-admit.
+        description: Optional successful main OPL Source Validation run ID to re-admit.
         required: false
         default: ''
         type: string
@@ -43,17 +38,13 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
-  group: opl-self-hosted-advisory-${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.ref }}
+  group: opl-self-hosted-advisory-${{ inputs.source_run_id || github.ref }}
   cancel-in-progress: true
 
 jobs:
   admit:
     name: Admit advisory runner pools
-    if: >-
-      ${{
-        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
-      }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -238,7 +229,7 @@ jobs:
                 } catch {
                   labels = [];
                 }
-                unavailable(target, labels, 'operator_deferred', 'No successful trusted main OPL Non-Release Validation source was available for re-admission.');
+                unavailable(target, labels, 'operator_deferred', 'No successful trusted main OPL Source Validation source was available for re-admission.');
               }
               finishNotRun();
               process.exit(0);

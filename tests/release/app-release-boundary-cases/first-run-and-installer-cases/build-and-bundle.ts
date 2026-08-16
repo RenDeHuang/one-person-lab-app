@@ -191,7 +191,7 @@ test("reusable release-boundary job validates the App projection without requiri
 test("fresh-runner release-boundary jobs install App root dependencies before validation", () => {
   const cases = [
     {
-      path: ".github/workflows/non-release-validation.yml",
+      path: ".github/workflows/release-qualification.yml",
       start: "  release-boundary:",
       end: null,
       validation: "npm run test:release-boundary",
@@ -233,7 +233,7 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
 test("fresh-runner release-boundary jobs install active Shell dependencies before W6 validation", () => {
   const cases = [
     {
-      path: ".github/workflows/non-release-validation.yml",
+      path: ".github/workflows/release-qualification.yml",
       start: "  release-boundary:",
       end: null,
       validation: "npm run test:release-boundary",
