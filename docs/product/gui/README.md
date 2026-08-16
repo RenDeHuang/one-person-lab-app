@@ -177,11 +177,11 @@ AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。�
 actions。QR 仅是临时 challenge，不得持久化或写日志。贡献缺失时不显示占位或伪造连接状态。
 
 频道到 canonical Codex task 的目标绑定来自 `app_state.transport_bindings`，按 exact App Server host
-和 thread id join，且始终保持 `projectless`，不会由 cwd 建立 Project affinity。当前迁移状态仍是
-`producer_callback_pending`：AionUI 已有 workspace inference 与 SQLite write 只作为共享 projection
-缺失时的有界 legacy fallback，Framework 当前 binding 优先；Studio 不得复制该 fallback。只有
-provider callback、AionUI/Studio callback E2E 与 legacy caller-zero 同时成立后，才进入禁止 Shell
-inference/write 的切换后状态并删除旧路径。
+和 thread id join，且始终保持 `projectless`，不会由 cwd 建立 Project affinity。当前 provider callback
+源码 E2E 已完成，`app_state.transport_bindings` projection 仍待 Framework 产出：AionUI 已有 workspace
+inference 与 SQLite write 只作为共享 projection 缺失时的有界 legacy fallback，Framework 当前 binding
+优先；Studio 不得复制该 fallback。只有 Framework transport binding projection、AionUI/Studio 消费
+E2E 与 legacy caller-zero 同时成立后，才进入禁止 Shell inference/write 的切换后状态并删除旧路径。
 
 视觉执行与验收以 [`codex-app-visual-parity.md`](codex-app-visual-parity.md) 为准：除 OPL
 品牌与 OPL-owned 产品能力外，字体、颜色、图标、密度、阴影、圆角、布局和交互状态参考

@@ -85,6 +85,22 @@ test('active-shell validator rejects fire-and-forget App Server shutdown', () =>
   assert.throws(() => validateShellThreadCoordination(shellPaths), /awaited Codex App Server shutdown/);
 });
 
+test('active-shell validator rejects backend-first shutdown', () => {
+  const { root, shellPaths } = fixture();
+  const desktopIndexPath = path.join(root, 'packages/desktop/src/index.ts');
+  fs.writeFileSync(
+    desktopIndexPath,
+    fs
+      .readFileSync(desktopIndexPath, 'utf8')
+      .replace(
+        'try { await disposeCodexAppServerBridge(); } finally { await backendManager.stop(); }',
+        'try { await backendManager.stop(); } finally { await disposeCodexAppServerBridge(); }',
+      ),
+    'utf8',
+  );
+  assert.throws(() => validateShellThreadCoordination(shellPaths), /dispose the Cordis channel Host before stopping the backend/);
+});
+
 test('active-shell validator rejects a missing user-triggered lifecycle method', () => {
   const { root, shellPaths } = fixture();
   const adapterPath = path.join(root, 'packages/desktop/src/process/services/codexAppServer/adapter.ts');

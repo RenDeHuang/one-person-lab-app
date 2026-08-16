@@ -91,6 +91,11 @@ export function validateShellThreadCoordination(shellPaths): void {
     ],
     'awaited Codex App Server shutdown',
   );
+  const hostDisposeIndex = desktopIndex.indexOf('await disposeCodexAppServerBridge();');
+  const backendStopIndex = desktopIndex.indexOf('await backendManager.stop();');
+  if (hostDisposeIndex >= backendStopIndex) {
+    throw new Error('Active shell shutdown must dispose the Cordis channel Host before stopping the backend');
+  }
   const sider = readShellText(shellPaths, paths.sider);
 
   for (const retiredPath of retiredPaths) {
