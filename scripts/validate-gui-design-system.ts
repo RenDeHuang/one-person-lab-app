@@ -1605,6 +1605,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'cross_host_policy',
     'audit_fields',
   ];
+  const channelThreadBinding = record(threadCoordination.channel_thread_binding);
   if (
     threadCoordination.product_role !== 'user_initiated_codex_app_server_thread_operations' ||
     threadCoordination.adapter !== 'single_codex_app_server_adapter' ||
@@ -1614,6 +1615,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadCoordination.user_initiated_only !== true ||
     threadCoordination.protocol_owner !== 'codex_core_app_server' ||
     threadCoordination.thread_store_owner !== 'codex_core_app_server' ||
+    threadCoordination.thread_turn_authority !== 'codex_core_app_server' ||
     !requiredThreadProtocols.every((protocol) => stringArray(threadCoordination.supported_protocols).includes(protocol)) ||
     threadCoordination.state_authority !== 'codex_app_server' ||
     threadCoordination.plain_conversation_policy !== 'existing_aionui_acp_unchanged' ||
@@ -1627,6 +1629,45 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'independent_coordination_page',
       'cross_host_task_handoff',
     ]) ||
+    JSON.stringify(Object.keys(channelThreadBinding).sort()) !== JSON.stringify([
+      'binding_key_fields',
+      'binding_key_normalization_or_inference_allowed',
+      'binding_value_fields',
+      'initial_binding_transport',
+      'mismatch_policy',
+      'restart_recovery_transport',
+      'second_session_truth_allowed',
+      'shell_persistence_role',
+      'shell_thread_id_inference_allowed',
+      'source_ref',
+      'thread_turn_authority',
+      'unknown_binding_policy',
+    ]) ||
+    !sameStrings(channelThreadBinding.binding_key_fields, [
+      'provider_id',
+      'account_id',
+      'channel_session_id',
+    ]) ||
+    !sameStrings(channelThreadBinding.binding_value_fields, [
+      'canonical_thread_host',
+      'canonical_thread_id',
+    ]) ||
+    channelThreadBinding.source_ref !==
+      'contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection' ||
+    channelThreadBinding.initial_binding_transport !==
+      'thread_start_then_exact_thread_read_then_persist_binding' ||
+    channelThreadBinding.restart_recovery_transport !==
+      'exact_binding_lookup_then_thread_read_then_thread_resume_same_threadId' ||
+    channelThreadBinding.thread_turn_authority !== 'codex_core_app_server' ||
+    channelThreadBinding.shell_persistence_role !==
+      'exact_binding_only_not_thread_history_turn_state_or_session_truth' ||
+    channelThreadBinding.unknown_binding_policy !==
+      'fail_closed_without_thread_start_or_thread_id_inference_during_recovery' ||
+    channelThreadBinding.mismatch_policy !==
+      'fail_closed_without_rebind_merge_overwrite_or_turn_start' ||
+    channelThreadBinding.binding_key_normalization_or_inference_allowed !== false ||
+    channelThreadBinding.shell_thread_id_inference_allowed !== false ||
+    channelThreadBinding.second_session_truth_allowed !== false ||
     forbiddenThreadKeys.some((key) => key in threadCoordination) ||
     pageStates.some((page) => page.id === 'thread_coordination')
   ) {

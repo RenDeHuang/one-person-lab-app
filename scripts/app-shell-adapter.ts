@@ -209,6 +209,22 @@ export type ClientRendererAdmission = {
   compatibility: ClientRendererCompatibilityProfile;
 };
 
+export type ChannelThreadBindingBoundary = {
+  source_ref: string;
+  binding_schema: string;
+  binding_key_fields: string[];
+  binding_value_fields: string[];
+  thread_turn_authority: string;
+  persistence_role: string;
+  restart_recovery_transport: string;
+  unknown_binding_policy: string;
+  mismatch_policy: string;
+  binding_key_normalization_or_inference_allowed: boolean;
+  shell_thread_id_inference_allowed: boolean;
+  second_session_truth_allowed: boolean;
+  implementation_status: string;
+};
+
 export type ShellAdapterContract = {
   schema_version: number;
   owner: string;
@@ -274,6 +290,7 @@ export type ShellAdapterContract = {
   upstream_family: string;
   release_role: string;
   candidate_stage?: string;
+  channel_thread_binding_boundary?: ChannelThreadBindingBoundary;
   shell_source: {
     owner_repo: string;
     default_ref: string;
@@ -568,6 +585,10 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   assertAdapterContractIdentity(contract, { explicitOverride: isExplicitAdapterOverride(filePath) });
   resolveClientRendererAdmission(contract);
   validateCodexExecutableContract(contract);
+  const shellIdentity = contract.active_shell ?? contract.candidate_shell ?? contract.adapter_id;
+  if (shellIdentity === 'aionui' || shellIdentity === 'opl-studio') {
+    validateChannelThreadBindingBoundary(contract.channel_thread_binding_boundary, shellIdentity);
+  }
   assertAdapterGuiAuthority(contract);
   assertActiveShellSpecificPolicy(contract);
   assertShellReplacementPolicy(contract);
@@ -576,6 +597,61 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   assertStateSurfaceContract(contract);
   assertValidationCommandPaths(contract);
   return contract;
+}
+
+export function validateChannelThreadBindingBoundary(
+  boundary: ChannelThreadBindingBoundary | undefined,
+  shellIdentity: string | undefined,
+): void {
+  const expectedKeys = [
+    'binding_key_fields',
+    'binding_key_normalization_or_inference_allowed',
+    'binding_schema',
+    'binding_value_fields',
+    'implementation_status',
+    'mismatch_policy',
+    'persistence_role',
+    'restart_recovery_transport',
+    'second_session_truth_allowed',
+    'shell_thread_id_inference_allowed',
+    'source_ref',
+    'thread_turn_authority',
+    'unknown_binding_policy',
+  ];
+  const expectedImplementationStatus = shellIdentity === 'aionui'
+    ? 'legacy_inference_compatibility_present_exact_binding_migration_pending'
+    : shellIdentity === 'opl-studio'
+      ? 'exact_binding_implementation_pending'
+      : null;
+  if (
+    !boundary
+    || !expectedImplementationStatus
+    || JSON.stringify(Object.keys(boundary).sort()) !== JSON.stringify(expectedKeys)
+    || boundary.source_ref !==
+      'contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection'
+    || boundary.binding_schema !== 'opl_app_transport_bindings_projection.v1'
+    || JSON.stringify(boundary.binding_key_fields) !==
+      JSON.stringify(['provider_id', 'account_id', 'channel_session_id'])
+    || JSON.stringify(boundary.binding_value_fields) !==
+      JSON.stringify(['canonical_thread_host', 'canonical_thread_id'])
+    || boundary.thread_turn_authority !== 'codex_core_app_server'
+    || boundary.persistence_role !==
+      'exact_binding_adapter_state_only_not_thread_history_turn_state_or_session_truth'
+    || boundary.restart_recovery_transport !==
+      'exact_binding_lookup_then_thread_read_then_thread_resume_same_threadId'
+    || boundary.unknown_binding_policy !==
+      'fail_closed_without_thread_start_or_thread_id_inference_during_recovery'
+    || boundary.mismatch_policy !==
+      'fail_closed_without_rebind_merge_overwrite_or_turn_start'
+    || boundary.binding_key_normalization_or_inference_allowed !== false
+    || boundary.shell_thread_id_inference_allowed !== false
+    || boundary.second_session_truth_allowed !== false
+    || boundary.implementation_status !== expectedImplementationStatus
+  ) {
+    throw new Error(
+      'shell channel thread binding must recover only an exact provider/account/session binding through the canonical Codex App Server',
+    );
+  }
 }
 
 export function validateCodexExecutableContract(contract: ShellAdapterContract): void {

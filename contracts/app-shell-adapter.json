@@ -242,6 +242,28 @@
     "main_branch": "main"
   },
   "release_role": "stable_app_shell",
+  "channel_thread_binding_boundary": {
+    "source_ref": "contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection",
+    "binding_schema": "opl_app_transport_bindings_projection.v1",
+    "binding_key_fields": [
+      "provider_id",
+      "account_id",
+      "channel_session_id"
+    ],
+    "binding_value_fields": [
+      "canonical_thread_host",
+      "canonical_thread_id"
+    ],
+    "thread_turn_authority": "codex_core_app_server",
+    "persistence_role": "exact_binding_adapter_state_only_not_thread_history_turn_state_or_session_truth",
+    "restart_recovery_transport": "exact_binding_lookup_then_thread_read_then_thread_resume_same_threadId",
+    "unknown_binding_policy": "fail_closed_without_thread_start_or_thread_id_inference_during_recovery",
+    "mismatch_policy": "fail_closed_without_rebind_merge_overwrite_or_turn_start",
+    "binding_key_normalization_or_inference_allowed": false,
+    "shell_thread_id_inference_allowed": false,
+    "second_session_truth_allowed": false,
+    "implementation_status": "legacy_inference_compatibility_present_exact_binding_migration_pending"
+  },
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
     "implementation_role": "active_shell_implementation_carrier",
