@@ -133,8 +133,24 @@ function validateWebuiCarrierBinding(app: JsonRecord, carrierReceiptPath: string
     carrier.carrier_id !== 'docker_webui'
     || carrier.carrier_kind !== 'oci_image'
     || carrier.package_profile !== 'webui-full'
+    || carrier.os !== 'linux'
+    || carrier.architecture !== 'multiarch'
   ) {
     throw new Error('WebUI carrier receipt does not identify the qualified docker_webui carrier.');
+  }
+  if (!Array.isArray(carrier.platforms) || carrier.platforms.length !== 2) {
+    throw new Error('WebUI carrier receipt must contain exactly amd64 and arm64 platform descriptors.');
+  }
+  for (const [index, value] of carrier.platforms.entries()) {
+    const platform = record(value, `WebUI carrier receipt.carrier.platforms[${index}]`);
+    const architecture = index === 0 ? 'amd64' : 'arm64';
+    if (platform.os !== 'linux' || platform.architecture !== architecture) {
+      throw new Error(`WebUI carrier platform ${index} must be linux/${architecture}.`);
+    }
+    const platformDigest = digest(platform.digest, `WebUI carrier platform ${index} digest`);
+    if (platform.ref !== `ghcr.io/gaofeng21cn/one-person-lab-webui@${platformDigest}`) {
+      throw new Error(`WebUI carrier platform ${index} ref must pin its exact digest.`);
+    }
   }
   if (
     carrier.ref !== webuiRef

@@ -274,7 +274,8 @@ jobs:
               size_bytes:.image.size_bytes,
               content_fingerprint:.image.content_fingerprint,
               os:"linux",
-              architecture:"amd64"
+              architecture:"multiarch",
+              platforms:.image.platforms
             },
             qualification:.qualification_disclosure.runtime_qualification
           }' evidence/publication-record.json > evidence/carrier-receipt.json
@@ -339,25 +340,26 @@ jobs:
           oras manifest fetch --output evidence/version-manifest.json "$version_ref"
           version_manifest_digest="sha256:$(shasum -a 256 evidence/version-manifest.json | awk '{print $1}')"
           test "$version_manifest_digest" = "$(jq -er .digest evidence/version-readback.json)"
-          child_digest="$(jq -er '
+          expected_platforms="$(jq -c '.carrier.platforms | map({os,architecture,digest})' evidence/carrier-receipt.json)"
+          jq -e --argjson expected "$expected_platforms" '
             select(
               .mediaType == "application/vnd.oci.image.index.v1+json"
               or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json"
             )
             | .manifests
-            | select(length == 1)
-            | .[0]
-            | select(.platform.os == "linux" and .platform.architecture == "amd64")
-            | .digest
-            | select(test("^sha256:[0-9a-f]{64}$"))
-          ' evidence/version-manifest.json)"
-          test "$child_digest" = "$(jq -er .carrier.digest evidence/carrier-receipt.json)"
-          jq --arg child_digest "$child_digest" \
+            | select(length == 2)
+            | sort_by(.platform.architecture)
+            | map({os:.platform.os,architecture:.platform.architecture,digest})
+            | select(. == $expected)
+          ' evidence/version-manifest.json > evidence/version-platforms.json
+          jq --arg child_digest "$(jq -er .carrier.digest evidence/carrier-receipt.json)" \
             --arg media_type "$(jq -er .mediaType evidence/version-manifest.json)" \
+            --argjson platforms "$expected_platforms" \
             '. + {
               child_digest:$child_digest,
-              manifest_count:1,
-              media_type:$media_type
+              manifest_count:2,
+              media_type:$media_type,
+              platforms:$platforms
             }' evidence/version-readback.json > evidence/version-readback.tmp
           mv evidence/version-readback.tmp evidence/version-readback.json
           observe_descriptor "${repository}:stable" \
@@ -630,9 +632,9 @@ jobs:
           stable_ref="$(jq -er .target.stable_ref "$admission")"
           latest_ref="$(jq -er .target.latest_ref "$admission")"
           target_digest="$(jq -er .target.digest "$admission")"
-          child_digest="$(jq -er .target.child_digest "$admission")"
+          target_platforms="$(jq -c '.target.platforms' "$admission")"
           authority_mode="$(jq -er .authority_mode "$admission")"
-          mkdir -p terminal/public-oci/blobs
+          mkdir -p terminal/public-oci/blobs terminal/public-oci/children
           read_manifest() {
             local ref="$1" name="$2" expected_digest="$3"
             oras manifest fetch --descriptor "$ref" > "terminal/public-oci/${name}-descriptor.json"
@@ -669,44 +671,30 @@ jobs:
               test "$stable_status" = absent
             fi
           fi
-          jq -e --arg child "$child_digest" '
+          jq -e --argjson expected "$target_platforms" '
             select(
               .mediaType == "application/vnd.oci.image.index.v1+json"
               or .mediaType == "application/vnd.docker.distribution.manifest.list.v2+json"
             )
             | .manifests
-            | select(length == 1)
-            | .[0]
-            | select(
-              .digest == $child
-              and .size > 0
-              and .platform.os == "linux"
-              and .platform.architecture == "amd64"
-            )
-          ' terminal/public-oci/version-index.json > terminal/public-oci/child-index-descriptor.json
-          child_size="$(jq -er .size terminal/public-oci/child-index-descriptor.json)"
-          read_manifest "${repository}@${child_digest}" child-manifest "$child_digest"
-          test "$(wc -c < terminal/public-oci/child-manifest.json | tr -d ' ')" = "$child_size"
-          jq -e '
-            select(
-              .mediaType == "application/vnd.oci.image.manifest.v1+json"
-              or .mediaType == "application/vnd.docker.distribution.manifest.v2+json"
-            )
-            | .config
-            | select(.digest | test("^sha256:[0-9a-f]{64}$"))
-            | select(.size > 0)
-          ' terminal/public-oci/child-manifest.json > terminal/public-oci/config-descriptor.json
-          jq -e '
-            .layers
-            | select(length > 0)
-            | all(
-              (.digest | test("^sha256:[0-9a-f]{64}$"))
-              and .size > 0
-              and (.mediaType | type == "string")
-            )
-          ' terminal/public-oci/child-manifest.json >/dev/null
-          jq -c '.layers' terminal/public-oci/child-manifest.json \
-            > terminal/public-oci/layer-descriptors.json
+            | select(length == 2)
+            | sort_by(.platform.architecture)
+            | map({
+                os:.platform.os,
+                architecture:.platform.architecture,
+                digest,
+                size_bytes:.size,
+                media_type:.mediaType
+              })
+            | . as $actual
+            | ($expected | map({os,architecture,digest})) as $wanted
+            | select(($actual | map({os,architecture,digest})) == $wanted)
+            | select(all(.[];
+                (.digest | test("^sha256:[0-9a-f]{64}$"))
+                and .size_bytes > 0
+                and (.media_type | type == "string")
+              ))
+          ' terminal/public-oci/version-index.json > terminal/public-oci/platform-descriptors.json
           verify_blob_descriptor() {
             local descriptor="$1" name="$2"
             local digest size
@@ -718,13 +706,62 @@ jobs:
               .digest == $digest and .size == $size
             ' "terminal/public-oci/blobs/${name}.json" >/dev/null
           }
-          verify_blob_descriptor "$(cat terminal/public-oci/config-descriptor.json)" config
-          layer_count="$(jq -er length terminal/public-oci/layer-descriptors.json)"
-          for index in $(seq 0 $((layer_count - 1))); do
+          for architecture in amd64 arm64; do
+            descriptor="$(jq -cer --arg architecture "$architecture" '.[] | select(.architecture == $architecture)' \
+              terminal/public-oci/platform-descriptors.json)"
+            child_digest="$(jq -er .digest <<<"$descriptor")"
+            child_size="$(jq -er .size_bytes <<<"$descriptor")"
+            child_name="${architecture}-child-manifest"
+            read_manifest "${repository}@${child_digest}" "$child_name" "$child_digest"
+            test "$(wc -c < "terminal/public-oci/${child_name}.json" | tr -d ' ')" = "$child_size"
+            jq -e '
+              select(
+                .mediaType == "application/vnd.oci.image.manifest.v1+json"
+                or .mediaType == "application/vnd.docker.distribution.manifest.v2+json"
+              )
+              | .config
+              | select(.digest | test("^sha256:[0-9a-f]{64}$"))
+              | select(.size > 0)
+            ' "terminal/public-oci/${child_name}.json" \
+              > "terminal/public-oci/children/${architecture}-config-descriptor.json"
+            jq -e '
+              .layers
+              | select(length > 0)
+              | all(
+                (.digest | test("^sha256:[0-9a-f]{64}$"))
+                and .size > 0
+                and (.mediaType | type == "string")
+              )
+            ' "terminal/public-oci/${child_name}.json" >/dev/null
+            jq -c '.layers' "terminal/public-oci/${child_name}.json" \
+              > "terminal/public-oci/children/${architecture}-layer-descriptors.json"
             verify_blob_descriptor \
-              "$(jq -c ".[$index]" terminal/public-oci/layer-descriptors.json)" \
-              "layer-${index}"
+              "$(cat "terminal/public-oci/children/${architecture}-config-descriptor.json")" \
+              "${architecture}-config"
+            layer_count="$(jq -er length "terminal/public-oci/children/${architecture}-layer-descriptors.json")"
+            for index in $(seq 0 $((layer_count - 1))); do
+              verify_blob_descriptor \
+                "$(jq -c ".[$index]" "terminal/public-oci/children/${architecture}-layer-descriptors.json")" \
+                "${architecture}-layer-${index}"
+            done
+            jq -n \
+              --arg architecture "$architecture" \
+              --arg digest "$child_digest" \
+              --argjson size_bytes "$child_size" \
+              --argjson layer_count "$layer_count" \
+              '{
+                platform:("linux/" + $architecture),
+                digest:$digest,
+                size_bytes:$size_bytes,
+                config_descriptor_verified:true,
+                layer_descriptors_verified:true,
+                layer_count:$layer_count
+              }' > "terminal/public-oci/children/${architecture}-readback.json"
           done
+          jq -s '.' \
+            terminal/public-oci/children/amd64-readback.json \
+            terminal/public-oci/children/arm64-readback.json \
+            > terminal/public-oci/children-readback.json
           jq -n \
             --arg version_ref "$version_ref" \
             --arg stable_ref "$stable_ref" \
@@ -733,14 +770,12 @@ jobs:
             --arg digest "$target_digest" \
             --arg stable_status "$stable_status" \
             --argjson stable_digest "$(if [ "$stable_digest" = null ]; then printf null; else jq -Rn --arg value "$stable_digest" '$value'; fi)" \
-            --arg child_digest "$child_digest" \
             --argjson stable_matches_target "$stable_matches_target" \
             --argjson stable_unchanged "$stable_unchanged" \
             --argjson index_size "$(wc -c < terminal/public-oci/version-index.json | tr -d ' ')" \
-            --argjson child_size "$child_size" \
-            --argjson layer_count "$layer_count" \
+            --argjson children "$(cat terminal/public-oci/children-readback.json)" \
             '{
-              schema:"opl_app_webui_public_oci_readback.v1",
+              schema:"opl_app_webui_public_oci_readback.v2",
               status:"passed",
               anonymous:true,
               authority_mode:$authority_mode,
@@ -749,10 +784,7 @@ jobs:
               latest_ref:$latest_ref,
               manifest_list:{digest:$digest,size_bytes:$index_size,version_and_latest_identical_bytes:true},
               stable:{status:$stable_status,digest:$stable_digest,matches_target:$stable_matches_target,unchanged:$stable_unchanged},
-              child:{digest:$child_digest,size_bytes:$child_size,platform:"linux/amd64"},
-              config_descriptor_verified:true,
-              layer_descriptors_verified:true,
-              layer_count:$layer_count
+              children:$children
             }' > terminal/public-oci-readback.json
 
       - name: Write terminal WebUI Stable receipt

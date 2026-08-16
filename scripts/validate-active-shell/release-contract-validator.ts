@@ -1387,6 +1387,18 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   if (
     platformMatrix?.schema !== 'opl_app_release_platform_matrix.v1'
     || platformMatrix?.resolver !== 'scripts/resolve-release-platform-matrix.ts'
+    || platformMatrix?.release_tiers?.primary?.carrier !== 'desktop_macos_arm64'
+    || JSON.stringify(platformMatrix?.release_tiers?.primary?.platforms) !== JSON.stringify(['macos-arm64'])
+    || platformMatrix?.release_tiers?.primary?.blocks_base_terminal !== true
+    || JSON.stringify(platformMatrix?.release_tiers?.additional_nonblocking?.desktop_platforms) !==
+      JSON.stringify(['linux-x64', 'windows-x64'])
+    || JSON.stringify(platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.platforms) !==
+      JSON.stringify(['linux/amd64', 'linux/arm64'])
+    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.single_multi_arch_manifest_required !== true
+    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.native_runner_qualification_required !== true
+    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.qualification_trigger !== 'manual_protected_release_workflow'
+    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.included_in_pr_or_main_ci !== false
+    || platformMatrix?.release_tiers?.additional_nonblocking?.container_webui?.blocks_desktop_macos_arm64 !== false
     || capabilities?.['macos-arm64']?.default_enabled !== true
     || capabilities?.['macos-arm64']?.blocks_stable !== true
     || capabilities?.['linux-x64']?.default_enabled !== true
@@ -1550,6 +1562,16 @@ function validateWebuiGhcrImage(webuiImage) {
     webuiImage?.owner !== 'one-person-lab-app' ||
     webuiImage?.distribution_role !== 'preheated_webui_runtime_image_not_desktop_app_gui_shell' ||
     contract?.image_role !== 'browser_entrypoint_for_opl_on_linux_container' ||
+    contract?.platform_matrix?.release_tier !== 'additional_nonblocking' ||
+    JSON.stringify(contract?.platform_matrix?.required_platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64']) ||
+    contract?.platform_matrix?.runner_by_architecture?.amd64 !== 'ubuntu-24.04' ||
+    contract?.platform_matrix?.runner_by_architecture?.arm64 !== 'ubuntu-24.04-arm' ||
+    contract?.platform_matrix?.native_runtime_qualification_required !== true ||
+    contract?.platform_matrix?.qualification_trigger !== 'manual_protected_release_workflow' ||
+    contract?.platform_matrix?.included_in_pr_or_main_ci !== false ||
+    contract?.platform_matrix?.qemu_or_other_emulation_counts_as_runtime_qualification !== false ||
+    contract?.platform_matrix?.version_tag_shape !== 'one_oci_index_with_exact_amd64_and_arm64_children' ||
+    contract?.platform_matrix?.docker_client_selection !== 'automatic_by_host_architecture' ||
     contract?.profiles?.webui_full?.default_for_beginner_and_latest_channel !== true ||
     contract?.profiles?.webui_full?.metadata_only_allowed !== false ||
     contract?.profiles?.webui_slim?.version_tag !== '<app_or_opl_version>-slim' ||

@@ -477,6 +477,7 @@ function parseCommon(argv: string[]) {
       'package-compatibility-version-range': { type: 'string' },
       'source-cutoff-observed-at': { type: 'string' },
       'base-image-index': { type: 'string' },
+      architecture: { type: 'string' },
       'frozen-codex-tarball': { type: 'string' },
       'standard-identity': { type: 'string' },
       'source-authority': { type: 'string' },
@@ -525,22 +526,29 @@ function parseCommon(argv: string[]) {
   });
 }
 
-function frozenBaseImageDescriptor(indexPath: string): JsonRecord {
+function webuiArchitecture(values: AdapterOptionValues): 'amd64' | 'arm64' {
+  const architecture = requireOption(values, 'architecture');
+  if (architecture !== 'amd64' && architecture !== 'arm64') {
+    throw new Error('--architecture must be amd64 or arm64.');
+  }
+  return architecture;
+}
+
+function frozenBaseImageDescriptor(indexPath: string, architecture: 'amd64' | 'arm64'): JsonRecord {
   const index = readJson(path.resolve(indexPath));
   const manifests = Array.isArray(index.manifests) ? index.manifests : [];
-  const linuxAmd64 = manifests.filter((descriptor: JsonRecord) => (
+  const matchingDescriptors = manifests.filter((descriptor: JsonRecord) => (
     descriptor?.platform?.os === 'linux'
-    && descriptor?.platform?.architecture === 'amd64'
-    && (descriptor?.platform?.variant === undefined || descriptor.platform.variant === '')
+    && descriptor?.platform?.architecture === architecture
   ));
-  if (linuxAmd64.length !== 1) {
-    throw new Error('Frozen node base index must contain exactly one linux/amd64 descriptor without a variant.');
+  if (matchingDescriptors.length !== 1) {
+    throw new Error(`Frozen node base index must contain exactly one linux/${architecture} descriptor.`);
   }
-  const descriptor = linuxAmd64[0];
+  const descriptor = matchingDescriptors[0];
   if (!digestPattern.test(String(descriptor.digest ?? ''))
     || !Number.isSafeInteger(descriptor.size)
     || Number(descriptor.size) <= 0) {
-    throw new Error('Frozen node base linux/amd64 descriptor has no exact digest and positive manifest size.');
+    throw new Error(`Frozen node base linux/${architecture} descriptor has no exact digest and positive manifest size.`);
   }
   return {
     id: 'base_image',
@@ -558,6 +566,7 @@ function frozenBuildInputs(input: {
   shellRef: string;
   frameworkRoot: string;
   frameworkRef: string;
+  architecture: 'amd64' | 'arm64';
 }): JsonRecord[] {
   const dockerfileRef = 'Dockerfile';
   const dockerfileBytes = gitFileBytes(input.shellRoot, input.shellRef, dockerfileRef, 'Shell Dockerfile');
@@ -592,7 +601,7 @@ function frozenBuildInputs(input: {
   );
   const descriptors = [
     gitArchiveDescriptor(input.appRoot, input.appRef, 'app_source'),
-    frozenBaseImageDescriptor(requireOption(input.values, 'base-image-index')),
+    frozenBaseImageDescriptor(requireOption(input.values, 'base-image-index'), input.architecture),
     fileDescriptor('codex_cli', `@openai/codex@${codexVersion}`, codexBytes),
     fileDescriptor('dockerfile', 'shells/aionui/Dockerfile', dockerfileBytes),
     gitArchiveDescriptor(input.frameworkRoot, input.frameworkRef, 'framework_seed'),
@@ -752,6 +761,7 @@ function buildWebuiBuildInputFromSourceAuthority(values: AdapterOptionValues): J
     throw new Error('WebUI source cutoff observed_at must be a canonical UTC timestamp with milliseconds.');
   }
   const sourceAuthorityDigest = authority.source_authority_digest;
+  const architecture = webuiArchitecture(values);
   return {
     schema: 'opl_app_webui_build_input.v1',
     release: {
@@ -767,7 +777,7 @@ function buildWebuiBuildInputFromSourceAuthority(values: AdapterOptionValues): J
       later_authority_advancement_invalidates_bundle: false,
     },
     cohort,
-    platform: { os: 'linux', architecture: 'amd64' },
+    platform: { os: 'linux', architecture },
     inputs: frozenBuildInputs({
       values,
       appRoot,
@@ -776,6 +786,7 @@ function buildWebuiBuildInputFromSourceAuthority(values: AdapterOptionValues): J
       shellRef: cohort.shell_sha,
       frameworkRoot,
       frameworkRef: cohort.framework_sha,
+      architecture,
     }),
   };
 }

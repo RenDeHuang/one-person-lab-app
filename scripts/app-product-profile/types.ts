@@ -153,6 +153,15 @@ export type AppDeliveryTopology = {
     image_update_command_wiring_complete: false;
     multi_arch_build_plan_source_implemented: true;
     multi_arch_qualification_complete: false;
+    release_tier: 'additional_nonblocking';
+    qualification_trigger: 'manual_protected_release_workflow';
+    included_in_pr_or_main_ci: false;
+    required_oci_platforms: Array<'linux/amd64' | 'linux/arm64'>;
+    native_runner_qualification: {
+      amd64: 'ubuntu-24.04';
+      arm64: 'ubuntu-24.04-arm';
+      emulation_allowed_as_runtime_qualification: false;
+    };
     signature_verification_implemented: false;
     security_admission_complete: false;
     release_admission_complete: false;

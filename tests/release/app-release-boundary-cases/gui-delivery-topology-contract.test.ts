@@ -59,6 +59,15 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   assert.equal(profile.delivery_topology.docker_webui.image_update_command_wiring_complete, false);
   assert.equal(profile.delivery_topology.docker_webui.multi_arch_build_plan_source_implemented, true);
   assert.equal(profile.delivery_topology.docker_webui.multi_arch_qualification_complete, false);
+  assert.equal(profile.delivery_topology.docker_webui.release_tier, 'additional_nonblocking');
+  assert.equal(profile.delivery_topology.docker_webui.qualification_trigger, 'manual_protected_release_workflow');
+  assert.equal(profile.delivery_topology.docker_webui.included_in_pr_or_main_ci, false);
+  assert.deepEqual(profile.delivery_topology.docker_webui.required_oci_platforms, ['linux/amd64', 'linux/arm64']);
+  assert.deepEqual(profile.delivery_topology.docker_webui.native_runner_qualification, {
+    amd64: 'ubuntu-24.04',
+    arm64: 'ubuntu-24.04-arm',
+    emulation_allowed_as_runtime_qualification: false,
+  });
   assert.equal(profile.delivery_topology.docker_webui.signature_verification_implemented, false);
   assert.equal(profile.delivery_topology.docker_webui.same_renderer_host_core_and_bridge_abi_required, true);
   assert.equal(profile.delivery_topology.docker_webui.existing_aionui_container_counts_as_successor_implementation, false);

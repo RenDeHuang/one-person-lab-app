@@ -9,6 +9,7 @@ import YAML from 'yaml';
 
 const appRoot = process.cwd();
 const cliPath = path.join(appRoot, 'scripts', 'release-webui-carrier.ts');
+const runtimeValidatorPath = path.join(appRoot, 'scripts', 'validate-webui-runtime-image.ts');
 const schemaPath = path.join(appRoot, 'contracts', 'app-webui-release-carrier.schema.json');
 const workflowPath = path.join(appRoot, '.github', 'workflows', '_release-webui-carrier.yml');
 const appSha = 'a'.repeat(40);
@@ -17,6 +18,11 @@ const frameworkSha = 'c'.repeat(40);
 const bundleDigest = `sha256:${'1'.repeat(64)}`;
 const cohortRef = `sha256:${'2'.repeat(64)}`;
 const imageDigest = `sha256:${'f'.repeat(64)}`;
+const childDigests = {
+  amd64: `sha256:${'d'.repeat(64)}`,
+  arm64: `sha256:${'e'.repeat(64)}`,
+} as const;
+type Architecture = keyof typeof childDigests;
 
 function digest(character: string): string {
   return `sha256:${character.repeat(64)}`;
@@ -36,14 +42,15 @@ function extractHeredoc(source: string, marker: string): string {
   return source.slice(bodyStart, end);
 }
 
-function draftBuildInput() {
+function draftBuildInput(architecture: Architecture = 'amd64') {
+  const baseDigest = digest(architecture === 'amd64' ? '7' : '8');
   const refs: Record<string, string> = {
     app_source: appSha,
     shell_webui_source: shellSha,
     dockerfile: 'shells/aionui/Dockerfile',
     framework_seed: frameworkSha,
     codex_cli: '@openai/codex@1.2.3',
-    base_image: `docker.io/library/node@${digest('7')}`,
+    base_image: `docker.io/library/node@${baseDigest}`,
     qualification_harness: 'scripts/validate-webui-runtime-image.ts',
   };
   return {
@@ -65,11 +72,11 @@ function draftBuildInput() {
       shell_sha: shellSha,
       framework_sha: frameworkSha,
     },
-    platform: { os: 'linux', architecture: 'amd64' },
+    platform: { os: 'linux', architecture },
     inputs: Object.entries(refs).map(([id, ref], index) => ({
       id,
       ref,
-      digest: id === 'base_image' ? digest('7') : digest('3456789ab'[index]),
+      digest: id === 'base_image' ? baseDigest : digest('3456789ab'[index]),
       size_bytes: index + 1,
     })),
   };
@@ -144,7 +151,7 @@ function verifyDockerContextPolicy(root: string, rules: readonly string[]) {
   return runCli(['verify-docker-context-policy', '--dockerignore', dockerIgnorePath]);
 }
 
-function expectedIdentityArgs() {
+function expectedIdentityArgs(architecture?: Architecture) {
   return [
     '--expected-version',
     '26.7.23',
@@ -158,19 +165,21 @@ function expectedIdentityArgs() {
     shellSha,
     '--expected-framework-sha',
     frameworkSha,
-    '--expected-architecture',
-    'amd64',
+    ...(architecture ? ['--expected-architecture', architecture] : []),
   ];
 }
 
-function carrierFixture(root: string, buildInputPath: string, overrides: {
-  architecture?: string;
+function platformFixture(root: string, architecture: Architecture, overrides: {
+  imageArchitecture?: string;
   labels?: Record<string, string>;
   runtime?: Record<string, unknown>;
 } = {}) {
+  const platformRoot = path.join(root, architecture);
+  fs.mkdirSync(platformRoot, { recursive: true });
+  const buildInputPath = sealBuildInput(platformRoot, draftBuildInput(architecture));
   const buildInput = JSON.parse(fs.readFileSync(buildInputPath, 'utf8'));
   const manifestDigest = sha256(fs.readFileSync(buildInputPath));
-  const imageId = `sha256:${'e'.repeat(64)}`;
+  const imageId = digest(architecture === 'amd64' ? 'a' : 'b');
   const labels = {
     'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
     'org.opencontainers.image.revision': appSha,
@@ -183,16 +192,16 @@ function carrierFixture(root: string, buildInputPath: string, overrides: {
     'dev.onepersonlab.release.framework-revision': frameworkSha,
     ...overrides.labels,
   };
-  const imageInspectPath = writeJson(root, 'image-inspect.json', [
+  const imageInspectPath = writeJson(platformRoot, 'image-inspect.json', [
     {
       Id: imageId,
       Os: 'linux',
-      Architecture: overrides.architecture ?? 'amd64',
+      Architecture: overrides.imageArchitecture ?? architecture,
       Size: 123456,
       Config: { Labels: labels },
     },
   ]);
-  const runtimeSummaryPath = writeJson(root, 'runtime-summary.json', {
+  const runtimeSummaryPath = writeJson(platformRoot, 'runtime-summary.json', {
     status: 'passed',
     expected_profile: 'webui-full',
     image_id: imageId,
@@ -201,15 +210,47 @@ function carrierFixture(root: string, buildInputPath: string, overrides: {
     runtime_cli_shims: { opl: 'passed', codex: 'passed' },
     ...overrides.runtime,
   });
+  fs.writeFileSync(path.join(platformRoot, 'image-size.txt'), '123456\n');
+  const registryReadbackPath = writeJson(platformRoot, 'registry-readback.json', {
+    schema: 'opl_app_webui_platform_registry_readback.v1',
+    status: 'passed',
+    platform: { os: 'linux', architecture },
+    ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${childDigests[architecture]}`,
+    digest: childDigests[architecture],
+  });
+  return { buildInputPath, imageInspectPath, runtimeSummaryPath, registryReadbackPath };
+}
+
+function carrierFixture(root: string, overrides: {
+  architecture?: Architecture;
+  imageArchitecture?: string;
+  labels?: Record<string, string>;
+  runtime?: Record<string, unknown>;
+} = {}) {
+  const platformEvidenceRoot = path.join(root, 'platform-evidence');
+  for (const architecture of ['amd64', 'arm64'] as const) {
+    platformFixture(
+      platformEvidenceRoot,
+      architecture,
+      architecture === overrides.architecture ? overrides : {},
+    );
+  }
   const registryReadbackPath = writeJson(root, 'registry-readback.json', {
-    schema: 'opl_app_webui_registry_readback.v1',
+    schema: 'opl_app_webui_registry_readback.v2',
     status: 'passed',
     ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
     digest: imageDigest,
     version_tag: 'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
     version_tag_digest: imageDigest,
+    size_bytes: 246912,
+    platforms: (['amd64', 'arm64'] as const).map((architecture) => ({
+      os: 'linux',
+      architecture,
+      ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${childDigests[architecture]}`,
+      digest: childDigests[architecture],
+    })),
   });
-  return { imageInspectPath, runtimeSummaryPath, registryReadbackPath };
+  return { platformEvidenceRoot, registryReadbackPath };
 }
 
 test('WebUI build input sealing is canonical, repeatable, and identity-bound', () => {
@@ -254,25 +295,81 @@ test('WebUI build input sealing is canonical, repeatable, and identity-bound', (
   assert.equal(sealed.inputs.some((input: { id: string }) => input.id === 'opl_flow'), false);
 });
 
-test('WebUI carrier receipt binds immutable OCI digest, qualification, and frozen identity', () => {
+test('WebUI runtime validation binds each native image to its matching AionCore payload', () => {
+  for (const [architecture, runtimeKey] of [
+    ['amd64', 'linux-x64'],
+    ['arm64', 'linux-arm64'],
+  ] as const) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `opl-webui-runtime-${architecture}-`));
+    const imageInspectPath = writeJson(root, 'image-inspect.json', [{
+      Id: digest(architecture === 'amd64' ? 'a' : 'b'),
+      Os: 'linux',
+      Architecture: architecture,
+      Config: {
+        Labels: {
+          'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
+          'org.opencontainers.image.revision': appSha,
+        },
+        Env: [
+          'HOME=/data',
+          'AIONUI_DATA_DIR=/data',
+          'OPL_DATA_DIR=/data',
+          'OPL_PROJECTS_DIR=/projects',
+          'OPL_WORKSPACE_ROOT=/projects',
+          'OPL_IMAGE_MANIFEST_PATH=/opt/opl/image-manifest.json',
+          'OPL_IMAGE_SEED_DIR=/opt/opl/seed',
+        ],
+        Volumes: { '/data': {}, '/projects': {} },
+      },
+    }]);
+    const imageManifestPath = writeJson(root, 'image-manifest.json', {
+      schema: 'dev.onepersonlab.opl-webui-image-manifest.v1',
+      image_role: 'opl_webui_runtime_image',
+      image_profile: 'webui-slim',
+      base_image_family: 'node:22-bookworm-slim',
+      webui_package: { name: '@aionui/web-cli', version: '1.9.25' },
+      bundled_aioncore: { platforms: [runtimeKey], path: 'bundled-aioncore' },
+      data_dir: '/data',
+      projects_dir: '/projects',
+      seed_strategy: 'metadata_only',
+      seed_dir: '/opt/opl/seed',
+      seed_metadata: '/opt/opl/seed/metadata.json',
+    });
+    const seedMetadataPath = writeJson(root, 'seed-metadata.json', {
+      schema: 'dev.onepersonlab.opl-webui-image-seed.v1',
+      strategy: 'metadata_only',
+      data_dir: '/data',
+      projects_dir: '/projects',
+    });
+    const summaryPath = path.join(root, 'summary.json');
+    const result = spawnSync(process.execPath, [
+      '--experimental-strip-types',
+      runtimeValidatorPath,
+      '--image-inspect', imageInspectPath,
+      '--image-manifest', imageManifestPath,
+      '--seed-metadata', seedMetadataPath,
+      '--expected-profile', 'webui-slim',
+      '--summary-path', summaryPath,
+    ], { cwd: appRoot, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+    assert.deepEqual(summary.platform, { os: 'linux', architecture });
+    assert.equal(summary.bundled_aioncore_runtime_key, runtimeKey);
+  }
+});
+
+test('WebUI carrier receipt binds one dual-platform OCI index and both native qualifications', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-carrier-'));
-  const buildInputPath = sealBuildInput(root);
-  const { imageInspectPath, runtimeSummaryPath, registryReadbackPath } = carrierFixture(root, buildInputPath);
+  const { platformEvidenceRoot, registryReadbackPath } = carrierFixture(root);
   const receiptPath = path.join(root, 'carrier-receipt.json');
   const write = runCli([
     'write-carrier-receipt',
-    '--build-input',
-    buildInputPath,
-    '--image-inspect',
-    imageInspectPath,
-    '--runtime-summary',
-    runtimeSummaryPath,
+    '--platform-evidence-root',
+    platformEvidenceRoot,
     '--registry-readback',
     registryReadbackPath,
     '--image-ref',
     `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
-    '--image-size',
-    '123456',
     '--output',
     receiptPath,
   ]);
@@ -280,16 +377,14 @@ test('WebUI carrier receipt binds immutable OCI digest, qualification, and froze
 
   const verify = runCli([
     'verify-carrier-receipt',
-    '--build-input',
-    buildInputPath,
+    '--platform-evidence-root',
+    platformEvidenceRoot,
     '--receipt',
     receiptPath,
-    '--image-inspect',
-    imageInspectPath,
-    '--runtime-summary',
-    runtimeSummaryPath,
     '--registry-readback',
     registryReadbackPath,
+    '--image-ref',
+    `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
     ...expectedIdentityArgs(),
   ]);
   assert.equal(verify.status, 0, verify.stderr || verify.stdout);
@@ -298,9 +393,18 @@ test('WebUI carrier receipt binds immutable OCI digest, qualification, and froze
   assert.equal(receipt.carrier.carrier_kind, 'oci_image');
   assert.equal(receipt.carrier.package_profile, 'webui-full');
   assert.equal(receipt.carrier.digest, imageDigest);
-  assert.equal(receipt.carrier.content_fingerprint, receipt.build_input.content_fingerprint);
+  assert.equal(receipt.carrier.architecture, 'multiarch');
+  assert.deepEqual(
+    receipt.carrier.platforms.map((platform: { architecture: string }) => platform.architecture),
+    ['amd64', 'arm64'],
+  );
+  assert.equal(receipt.carrier.content_fingerprint, receipt.qualification.content_fingerprint);
   assert.equal(receipt.qualification.build_stage, 'webui_built');
   assert.equal(receipt.qualification.qualification_stage, 'webui_qualified');
+  assert.deepEqual(
+    receipt.qualification.platform_qualifications.map((platform: { architecture: string }) => platform.architecture),
+    ['amd64', 'arm64'],
+  );
 });
 
 test('frozen Codex artifact verification binds exact tgz bytes and package identity', () => {
@@ -449,24 +553,18 @@ test('WebUI carrier fails closed for stale digest and OCI label drift', () => {
   assert.notEqual(stale.status, 0);
   assert.match(stale.stderr, /content_fingerprint expected/);
 
-  const cleanInputPath = sealBuildInput(root);
-  const fixture = carrierFixture(root, cleanInputPath, {
+  const fixture = carrierFixture(root, {
+    architecture: 'amd64',
     labels: { 'dev.onepersonlab.release.bundle-digest': digest('6') },
   });
   const mismatchedLabel = runCli([
     'write-carrier-receipt',
-    '--build-input',
-    cleanInputPath,
-    '--image-inspect',
-    fixture.imageInspectPath,
-    '--runtime-summary',
-    fixture.runtimeSummaryPath,
+    '--platform-evidence-root',
+    fixture.platformEvidenceRoot,
     '--registry-readback',
     fixture.registryReadbackPath,
     '--image-ref',
     `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
-    '--image-size',
-    '123456',
     '--output',
     path.join(root, 'must-not-exist.json'),
   ]);
@@ -474,7 +572,7 @@ test('WebUI carrier fails closed for stale digest and OCI label drift', () => {
   assert.match(mismatchedLabel.stderr, /image label dev\.onepersonlab\.release\.bundle-digest expected/);
 });
 
-test('WebUI carrier fails closed for wrong cohort, wrong architecture, and incomplete Bundle identity', () => {
+test('WebUI carrier accepts both required architectures and fails closed for unsupported architecture or incomplete identity', () => {
   const cohortRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-cohort-'));
   const cohortPath = sealBuildInput(cohortRoot);
   const wrongCohort = runCli([
@@ -488,8 +586,19 @@ test('WebUI carrier fails closed for wrong cohort, wrong architecture, and incom
   assert.match(wrongCohort.stderr, /release\.cohort_ref expected/);
 
   const archRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-arch-'));
-  const wrongArchDraft = draftBuildInput();
-  wrongArchDraft.platform.architecture = 'arm64';
+  const arm64Path = sealBuildInput(archRoot, draftBuildInput('arm64'));
+  const acceptedArm64 = runCli([
+    'verify-build-input',
+    '--input',
+    arm64Path,
+    ...expectedIdentityArgs('arm64'),
+  ]);
+  assert.equal(acceptedArm64.status, 0, acceptedArm64.stderr || acceptedArm64.stdout);
+
+  const wrongArchDraft = draftBuildInput() as ReturnType<typeof draftBuildInput> & {
+    platform: { os: string; architecture: string };
+  };
+  wrongArchDraft.platform.architecture = 's390x';
   const archDraftPath = writeJson(archRoot, 'draft.json', wrongArchDraft);
   const wrongArch = runCli([
     'seal-build-input',
@@ -499,7 +608,7 @@ test('WebUI carrier fails closed for wrong cohort, wrong architecture, and incom
     path.join(archRoot, 'output.json'),
   ]);
   assert.notEqual(wrongArch.status, 0);
-  assert.match(wrongArch.stderr, /platform\.architecture expected amd64/);
+  assert.match(wrongArch.stderr, /platform\.architecture must be amd64 or arm64/);
 
   const incompleteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-incomplete-'));
   const incomplete = draftBuildInput();
@@ -530,24 +639,17 @@ test('WebUI carrier fails closed for wrong cohort, wrong architecture, and incom
   assert.match(rejectedReleaseSet.stderr, /frozen_base_release_set must be null/);
 });
 
-test('WebUI carrier rejects a runtime image for the wrong architecture', () => {
+test('WebUI carrier rejects one platform image whose architecture does not match its evidence lane', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-image-arch-'));
-  const buildInputPath = sealBuildInput(root);
-  const fixture = carrierFixture(root, buildInputPath, { architecture: 'arm64' });
+  const fixture = carrierFixture(root, { architecture: 'amd64', imageArchitecture: 'arm64' });
   const result = runCli([
     'write-carrier-receipt',
-    '--build-input',
-    buildInputPath,
-    '--image-inspect',
-    fixture.imageInspectPath,
-    '--runtime-summary',
-    fixture.runtimeSummaryPath,
+    '--platform-evidence-root',
+    fixture.platformEvidenceRoot,
     '--registry-readback',
     fixture.registryReadbackPath,
     '--image-ref',
     `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`,
-    '--image-size',
-    '123456',
     '--output',
     path.join(root, 'receipt.json'),
   ]);
@@ -564,7 +666,9 @@ test('WebUI carrier schema closes both sealed artifacts', () => {
   assert.equal(schema.$defs.carrier.properties.carrier_id.const, 'docker_webui');
   assert.equal(schema.$defs.carrier.properties.carrier_kind.const, 'oci_image');
   assert.equal(schema.$defs.carrier.properties.package_profile.const, 'webui-full');
-  assert.equal(schema.$defs.platform.properties.architecture.const, 'amd64');
+  assert.deepEqual(schema.$defs.platform.properties.architecture.enum, ['amd64', 'arm64']);
+  assert.equal(schema.$defs.carrier.properties.architecture.const, 'multiarch');
+  assert.equal(schema.$defs.carrier.properties.platforms.minItems, 2);
   assert.equal(schema.$defs.source_cutoff.properties.frozen_base_release_set.type, 'null');
   assert.match(
     schema.$defs.release_version.pattern,
@@ -634,6 +738,12 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.equal(publish.permissions.actions, 'read');
   assert.equal(build.permissions.actions, 'read');
   assert.equal(build.permissions.packages, 'read');
+  assert.equal(build['runs-on'], '${{ matrix.runner }}');
+  assert.equal(build.strategy['fail-fast'], false);
+  assert.deepEqual(build.strategy.matrix.include, [
+    { architecture: 'amd64', native_machine: 'x86_64', runner: 'ubuntu-24.04' },
+    { architecture: 'arm64', native_machine: 'aarch64', runner: 'ubuntu-24.04-arm' },
+  ]);
   const previewPublishCheckout = publish.steps.find(
     (step: { name?: string }) => step.name === 'Checkout canonical publication executor',
   );
@@ -644,16 +754,25 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
     publish.steps.some((step: { name?: string }) => step.name === 'Validate exact qualified artifact recovery authority'),
     false,
   );
-  const qualifiedDownload = publish.steps.find(
-    (step: { name?: string }) => step.name === 'Download exact qualified image evidence',
-  );
-  assert.equal(qualifiedDownload.with.name, '${{ needs.build-and-qualify.outputs.image_artifact_name }}');
-  assert.equal(qualifiedDownload.with['run-id'], '${{ github.run_id }}');
-  assert.equal(qualifiedDownload.with['github-token'], '${{ github.token }}');
+  for (const architecture of ['amd64', 'arm64']) {
+    const qualifiedDownload = publish.steps.find(
+      (step: { name?: string }) => step.name === `Download exact qualified ${architecture} image evidence`,
+    );
+    assert.equal(
+      qualifiedDownload.with.name,
+      `webui-qualified-${'${{ inputs.opl_version }}'}-${'${{ github.run_id }}'}-${'${{ github.run_attempt }}'}-${architecture}`,
+    );
+    assert.equal(qualifiedDownload.with['run-id'], '${{ github.run_id }}');
+    assert.equal(qualifiedDownload.with['github-token'], '${{ github.token }}');
+    assert.equal(qualifiedDownload.with.path, `webui-platforms/${architecture}`);
+  }
   assert.doesNotMatch(source, /one-person-lab-webui:stable/);
   assert.doesNotMatch(source, /latest-stable|homebrew|releases\/latest/i);
 
   const buildRun = build.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
+  assert.match(buildRun, /test "\$\(uname -m\)" = '\$\{\{ matrix\.native_machine \}\}'/);
+  assert.match(buildRun, /--architecture '\$\{\{ matrix\.architecture \}\}'/);
+  assert.match(buildRun, /--platform 'linux\/\$\{\{ matrix\.architecture \}\}'/);
   assert.match(buildRun, /seal-build-input/);
   assert.match(buildRun, /verify-codex-artifact/);
   assert.match(buildRun, /codex-artifact-verification\.json/);
@@ -726,7 +845,7 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.equal(failureEvidence.uses, 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a');
   assert.equal(
     failureEvidence.with.name,
-    'webui-runtime-failure-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}',
+    'webui-runtime-failure-${{ inputs.opl_version }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.architecture }}',
   );
   for (const path of [
     'webui-carrier/container-inspect.json',
@@ -754,7 +873,8 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(publishRun, /child/);
   assert.match(publishRun, /preexisting_idempotent/);
   assert.match(publishRun, /reconciled_after_unknown_write/);
-  assert.match(publishRun, /expected unique linux\/amd64 child digest/);
+  assert.match(publishRun, /exact native linux\/amd64 and linux\/arm64 children/);
+  assert.match(publishRun, /imagetools create --tag "\$version_tag" "\$\{image_refs\[@\]\}"/);
   assert.match(publishRun, /Could not safely distinguish an absent version tag from a registry read failure/);
   assert.match(publishRun, /bounded read-only reconcile did not prove a readable target/);
   assert.equal(publishRun.match(/imagetools create --tag/g)?.length, 1);
@@ -864,7 +984,7 @@ test('WebUI carrier publishes one idempotent durable receipt sidecar only after 
   }
 });
 
-test('WebUI version tag authority accepts only one exact linux/amd64 child', () => {
+test('WebUI version tag authority accepts only exact linux/amd64 and linux/arm64 children', () => {
   const workflow = YAML.parse(fs.readFileSync(workflowPath, 'utf8'));
   const publish = workflow.jobs['publish-immutable-carrier'];
   const publishRun = publish.steps.map((step: { run?: string }) => step.run ?? '').join('\n');
@@ -873,25 +993,46 @@ test('WebUI version tag authority accepts only one exact linux/amd64 child', () 
   const validatorPath = path.join(root, 'verify-version-tag-authority.mjs');
   fs.writeFileSync(validatorPath, validator);
 
-  const descriptor = {
+  const amd64Descriptor = {
     mediaType: 'application/vnd.oci.image.manifest.v1+json',
-    digest: imageDigest,
+    digest: childDigests.amd64,
     size: 123456,
     platform: { os: 'linux', architecture: 'amd64' },
+  };
+  const arm64Descriptor = {
+    mediaType: 'application/vnd.oci.image.manifest.v1+json',
+    digest: childDigests.arm64,
+    size: 123457,
+    platform: { os: 'linux', architecture: 'arm64' },
   };
   const valid = {
     schemaVersion: 2,
     mediaType: 'application/vnd.oci.image.index.v1+json',
-    manifests: [descriptor],
+    manifests: [arm64Descriptor, amd64Descriptor],
   };
   const validRaw = Buffer.from(JSON.stringify(valid));
   const validPath = path.join(root, 'valid.json');
+  const expectedPlatformsPath = path.join(root, 'expected-platforms.json');
   const receiptPath = path.join(root, 'receipt.json');
   fs.writeFileSync(validPath, validRaw);
+  writeJson(root, 'expected-platforms.json', [
+    {
+      os: 'linux',
+      architecture: 'amd64',
+      ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${childDigests.amd64}`,
+      digest: childDigests.amd64,
+    },
+    {
+      os: 'linux',
+      architecture: 'arm64',
+      ref: `ghcr.io/gaofeng21cn/one-person-lab-webui@${childDigests.arm64}`,
+      digest: childDigests.arm64,
+    },
+  ]);
   const accepted = spawnSync(process.execPath, [
     validatorPath,
     validPath,
-    imageDigest,
+    expectedPlatformsPath,
     'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
     'preexisting_idempotent',
     receiptPath,
@@ -901,15 +1042,18 @@ test('WebUI version tag authority accepts only one exact linux/amd64 child', () 
   assert.equal(receipt.schema, 'opl_app_webui_version_tag_authority.v1');
   assert.equal(receipt.outcome, 'preexisting_idempotent');
   assert.equal(receipt.top_level.digest, sha256(validRaw));
-  assert.equal(receipt.top_level.manifest_count, 1);
-  assert.equal(receipt.child.digest, imageDigest);
-  assert.deepEqual(receipt.child.platform, { os: 'linux', architecture: 'amd64' });
+  assert.equal(receipt.top_level.manifest_count, 2);
+  assert.deepEqual(
+    receipt.children.map((child: { platform: { architecture: string } }) => child.platform.architecture),
+    ['amd64', 'arm64'],
+  );
 
   const invalidManifests = [
     { ...valid, manifests: [] },
-    { ...valid, manifests: [descriptor, { ...descriptor }] },
-    { ...valid, manifests: [{ ...descriptor, digest: digest('0') }] },
-    { ...valid, manifests: [{ ...descriptor, platform: { os: 'linux', architecture: 'arm64' } }] },
+    { ...valid, manifests: [amd64Descriptor] },
+    { ...valid, manifests: [amd64Descriptor, { ...amd64Descriptor }] },
+    { ...valid, manifests: [{ ...amd64Descriptor, digest: digest('0') }, arm64Descriptor] },
+    { ...valid, manifests: [amd64Descriptor, { ...arm64Descriptor, platform: { os: 'linux', architecture: 's390x' } }] },
     { ...valid, mediaType: 'application/vnd.oci.image.manifest.v1+json' },
   ];
   for (const [index, manifest] of invalidManifests.entries()) {
@@ -919,7 +1063,7 @@ test('WebUI version tag authority accepts only one exact linux/amd64 child', () 
     const rejected = spawnSync(process.execPath, [
       validatorPath,
       rawPath,
-      imageDigest,
+      expectedPlatformsPath,
       'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
       'created',
       outputPath,
@@ -934,7 +1078,7 @@ test('WebUI version tag authority accepts only one exact linux/amd64 child', () 
   const unknown = spawnSync(process.execPath, [
     validatorPath,
     unknownPath,
-    imageDigest,
+    expectedPlatformsPath,
     'ghcr.io/gaofeng21cn/one-person-lab-webui:26.7.23',
     'reconciled_after_unknown_write',
     unknownReceiptPath,

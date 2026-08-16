@@ -130,6 +130,7 @@ function validateCarrierReceipt(
   cohort: JsonRecord;
   carrier: JsonRecord;
   qualification: JsonRecord;
+  platforms: JsonRecord[];
 } {
   const receipt = record(value, 'WebUI carrier receipt');
   exact(receipt.schema, 'opl_app_webui_release_carrier.v1', 'carrier receipt.schema');
@@ -150,6 +151,22 @@ function validateCarrierReceipt(
   exact(carrier.ref, `${imageRepository}@${childDigest}`, 'carrier receipt.carrier.ref');
   positiveInteger(carrier.size_bytes, 'carrier receipt.carrier.size_bytes');
   digest(carrier.content_fingerprint, 'carrier receipt.carrier.content_fingerprint');
+  exact(carrier.os, 'linux', 'carrier receipt.carrier.os');
+  exact(carrier.architecture, 'multiarch', 'carrier receipt.carrier.architecture');
+  if (!Array.isArray(carrier.platforms) || carrier.platforms.length !== 2) {
+    throw new Error('carrier receipt.carrier.platforms must contain exactly amd64 and arm64.');
+  }
+  const platforms = carrier.platforms.map((value, index) => {
+    const platform = record(value, `carrier receipt.carrier.platforms[${index}]`);
+    const architecture = index === 0 ? 'amd64' : 'arm64';
+    exact(platform.os, 'linux', `carrier receipt.carrier.platforms[${index}].os`);
+    exact(platform.architecture, architecture, `carrier receipt.carrier.platforms[${index}].architecture`);
+    const platformDigest = digest(platform.digest, `carrier receipt.carrier.platforms[${index}].digest`);
+    exact(platform.ref, `${imageRepository}@${platformDigest}`, `carrier receipt.carrier.platforms[${index}].ref`);
+    positiveInteger(platform.size_bytes, `carrier receipt.carrier.platforms[${index}].size_bytes`);
+    digest(platform.content_fingerprint, `carrier receipt.carrier.platforms[${index}].content_fingerprint`);
+    return platform;
+  });
   const qualification = record(receipt.qualification, 'carrier receipt.qualification');
   exact(qualification.schema, 'opl_app_webui_runtime_qualification.v1', 'carrier receipt.qualification.schema');
   exact(qualification.status, 'passed', 'carrier receipt.qualification.status');
@@ -165,7 +182,20 @@ function validateCarrierReceipt(
   digest(qualification.runtime_summary_sha256, 'carrier receipt.qualification.runtime_summary_sha256');
   digest(qualification.registry_readback_sha256, 'carrier receipt.qualification.registry_readback_sha256');
   text(qualification.runtime_image_id, 'carrier receipt.qualification.runtime_image_id');
-  return { release, cohort, carrier, qualification };
+  if (!Array.isArray(qualification.platform_qualifications) || qualification.platform_qualifications.length !== 2) {
+    throw new Error('carrier receipt qualification must contain exactly amd64 and arm64 runtime qualifications.');
+  }
+  for (const [index, value] of qualification.platform_qualifications.entries()) {
+    const platform = record(value, `carrier receipt.qualification.platform_qualifications[${index}]`);
+    exact(platform.os, 'linux', `platform qualification ${index} os`);
+    exact(platform.architecture, index === 0 ? 'amd64' : 'arm64', `platform qualification ${index} architecture`);
+    exact(platform.image_digest, platforms[index].digest, `platform qualification ${index} image digest`);
+    digest(platform.build_input_digest, `platform qualification ${index} build input digest`);
+    exact(platform.content_fingerprint, platforms[index].content_fingerprint, `platform qualification ${index} fingerprint`);
+    digest(platform.runtime_summary_sha256, `platform qualification ${index} runtime summary`);
+    text(platform.runtime_image_id, `platform qualification ${index} runtime image id`);
+  }
+  return { release, cohort, carrier, qualification, platforms };
 }
 
 function validateVersionReadback(
@@ -173,6 +203,7 @@ function validateVersionReadback(
   version: string,
   childDigest: string,
   imageRepository: string,
+  carrierPlatforms: JsonRecord[],
 ): JsonRecord {
   const readback = record(value, 'version readback');
   exact(readback.schema, 'opl_app_webui_descriptor_readback.v1', 'version readback.schema');
@@ -180,12 +211,21 @@ function validateVersionReadback(
   exact(readback.status, 'present', 'version readback.status');
   digest(readback.digest, 'version readback.digest');
   exact(readback.child_digest, childDigest, 'version readback.child_digest');
-  exact(readback.manifest_count, 1, 'version readback.manifest_count');
+  exact(readback.manifest_count, 2, 'version readback.manifest_count');
   if (![
     'application/vnd.oci.image.index.v1+json',
     'application/vnd.docker.distribution.manifest.list.v2+json',
   ].includes(text(readback.media_type, 'version readback.media_type'))) {
     throw new Error('version readback.media_type must be an OCI index or Docker manifest list.');
+  }
+  if (!Array.isArray(readback.platforms) || readback.platforms.length !== 2) {
+    throw new Error('version readback.platforms must contain exactly amd64 and arm64.');
+  }
+  for (const [index, value] of readback.platforms.entries()) {
+    const platform = record(value, `version readback.platforms[${index}]`);
+    exact(platform.os, 'linux', `version readback.platforms[${index}].os`);
+    exact(platform.architecture, index === 0 ? 'amd64' : 'arm64', `version readback.platforms[${index}].architecture`);
+    exact(platform.digest, carrierPlatforms[index].digest, `version readback.platforms[${index}].digest`);
   }
   return readback;
 }
@@ -252,13 +292,14 @@ export type CreateWebuiPublicationRecordInput = {
 export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecordInput): JsonRecord {
   const mode = authorityMode(input.authorityMode);
   const imageRepository = validateWebuiImageRepository(input.imageRepository);
-  const { release, cohort, carrier, qualification } = validateCarrierReceipt(input.carrierReceipt, imageRepository);
+  const { release, cohort, carrier, qualification, platforms } = validateCarrierReceipt(input.carrierReceipt, imageRepository);
   const version = text(release.version, 'carrier receipt.release.version');
   const versionReadback = validateVersionReadback(
     input.versionReadback,
     version,
     String(carrier.digest),
     imageRepository,
+    platforms,
   );
   const publicationRun = runId(input.publicationRunId, 'publication run id');
   const publicationRunAttempt = positiveInteger(input.publicationRunAttempt, 'publication run attempt');
@@ -310,6 +351,7 @@ export function createWebuiPublicationRecord(input: CreateWebuiPublicationRecord
       child_digest: digest(carrier.digest, 'carrier receipt.carrier.digest'),
       size_bytes: positiveInteger(carrier.size_bytes, 'carrier receipt.carrier.size_bytes'),
       content_fingerprint: digest(carrier.content_fingerprint, 'carrier receipt.carrier.content_fingerprint'),
+      platforms,
     },
     authority: {
       mode,
@@ -353,6 +395,9 @@ export function validateWebuiPublicationRecord(value: unknown): JsonRecord {
         digest: image.child_digest,
         size_bytes: image.size_bytes,
         content_fingerprint: image.content_fingerprint,
+        os: 'linux',
+        architecture: 'multiarch',
+        platforms: image.platforms,
       },
       qualification: record(disclosure.runtime_qualification, 'qualification disclosure.runtime_qualification'),
     },
@@ -363,8 +408,13 @@ export function validateWebuiPublicationRecord(value: unknown): JsonRecord {
       ref: image.version_ref,
       digest: image.version_digest,
       child_digest: image.child_digest,
-      manifest_count: 1,
+      manifest_count: 2,
       media_type: 'application/vnd.oci.image.index.v1+json',
+      platforms: (image.platforms as JsonRecord[]).map((platform) => ({
+        os: platform.os,
+        architecture: platform.architecture,
+        digest: platform.digest,
+      })),
     },
     versionReadbackSha256: evidence.version_readback_sha256,
     publicationRunId: authority.publication_run_id,

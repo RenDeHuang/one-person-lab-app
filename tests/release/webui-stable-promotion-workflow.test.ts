@@ -25,6 +25,8 @@ const promotionExecutorSha = 'e'.repeat(40);
 const imageDigest = digest('3');
 const versionDigest = digest('4');
 const predecessorDigest = digest('5');
+const amd64Digest = digest('6');
+const arm64Digest = digest('7');
 
 function digest(character: string): string {
   return `sha256:${character.repeat(64)}`;
@@ -80,7 +82,25 @@ function fixture(mode: 'independent_stable' | 'independent_preview') {
       size_bytes: 123456,
       content_fingerprint: digest('6'),
       os: 'linux',
-      architecture: 'amd64',
+      architecture: 'multiarch',
+      platforms: [
+        {
+          os: 'linux',
+          architecture: 'amd64',
+          ref: `${imageRepository}@${amd64Digest}`,
+          digest: amd64Digest,
+          size_bytes: 61234,
+          content_fingerprint: digest('8'),
+        },
+        {
+          os: 'linux',
+          architecture: 'arm64',
+          ref: `${imageRepository}@${arm64Digest}`,
+          digest: arm64Digest,
+          size_bytes: 62222,
+          content_fingerprint: digest('9'),
+        },
+      ],
     },
     qualification: {
       schema: 'opl_app_webui_runtime_qualification.v1',
@@ -92,14 +112,38 @@ function fixture(mode: 'independent_stable' | 'independent_preview') {
       content_fingerprint: digest('6'),
       runtime_summary_sha256: digest('8'),
       registry_readback_sha256: digest('9'),
-      runtime_image_id: 'qualified-image',
+      runtime_image_id: `oci-index:${imageDigest}`,
+      platform_qualifications: [
+        {
+          os: 'linux',
+          architecture: 'amd64',
+          image_digest: amd64Digest,
+          build_input_digest: digest('a'),
+          content_fingerprint: digest('8'),
+          runtime_summary_sha256: digest('b'),
+          runtime_image_id: 'qualified-amd64-image',
+        },
+        {
+          os: 'linux',
+          architecture: 'arm64',
+          image_digest: arm64Digest,
+          build_input_digest: digest('c'),
+          content_fingerprint: digest('9'),
+          runtime_summary_sha256: digest('d'),
+          runtime_image_id: 'qualified-arm64-image',
+        },
+      ],
     },
   };
   const versionReadback = {
     ...observation(`${imageRepository}:${version}`, 'present', versionDigest),
     child_digest: imageDigest,
-    manifest_count: 1,
+    manifest_count: 2,
     media_type: 'application/vnd.oci.image.index.v1+json',
+    platforms: [
+      { os: 'linux', architecture: 'amd64', digest: amd64Digest },
+      { os: 'linux', architecture: 'arm64', digest: arm64Digest },
+    ],
   };
   const carrierRun = {
     id: Number(carrierRunId),
@@ -196,10 +240,25 @@ function fixture(mode: 'independent_stable' | 'independent_preview') {
 test('Docker WebUI workflows expose one independent Stable and Preview lane with no Desktop follower', () => {
   const publication = YAML.parse(fs.readFileSync(path.join(appRoot, '.github/workflows/release-webui-development.yml'), 'utf8'));
   const promotion = YAML.parse(fs.readFileSync(path.join(appRoot, '.github/workflows/release-webui-development-promote.yml'), 'utf8'));
+  const stable = YAML.parse(fs.readFileSync(path.join(appRoot, '.github/workflows/release-webui-stable.yml'), 'utf8'));
   assert.deepEqual(publication.on.workflow_dispatch.inputs.channel.options, ['stable', 'preview']);
   assert.equal(publication.jobs['webui-carrier'].with.authority_mode, '${{ needs.source-authority.outputs.authority_mode }}');
   assert.deepEqual(promotion.on.workflow_dispatch.inputs.channel.options, ['stable', 'preview']);
   assert.match(promotion.jobs['promote-webui-latest'].with.authority_mode, /independent_stable/);
+  const admissionSteps = stable.jobs.admission.steps as Array<{ name: string; run?: string }>;
+  const materialize = admissionSteps.find((step) => step.name.startsWith('Materialize carrier'))?.run ?? '';
+  const authorityRead = admissionSteps.find((step) => step.name.startsWith('Read immutable'))?.run ?? '';
+  assert.match(materialize, /architecture:"multiarch"/);
+  assert.match(materialize, /platforms:.image.platforms/);
+  assert.match(authorityRead, /select\(length == 2\)/);
+  assert.match(authorityRead, /platforms:\$platforms/);
+  assert.doesNotMatch(authorityRead, /select\(length == 1\)/);
+  const terminalSteps = stable.jobs['promote-webui-stable'].steps as Array<{ name: string; run?: string }>;
+  const publicReadback = terminalSteps.find((step) => step.name.startsWith('Read back the complete public OCI'))?.run ?? '';
+  assert.match(publicReadback, /for architecture in amd64 arm64/);
+  assert.match(publicReadback, /opl_app_webui_public_oci_readback\.v2/);
+  assert.match(publicReadback, /children:\$children/);
+  assert.doesNotMatch(publicReadback, /child:\{/);
   assert.equal(fs.existsSync(path.join(appRoot, '.github/workflows/release-webui-follower.yml')), false);
 });
 
@@ -209,6 +268,10 @@ test('independent Stable admission binds a durable Docker record and moves stabl
   assert.equal('stable_authority' in admission, false);
   assert.equal(admission.source_authority.source_authority_digest, input.carrierReceipt.release.bundle_digest);
   assert.deepEqual(admission.target.promotion_tags, ['stable', 'latest']);
+  assert.deepEqual(
+    admission.target.platforms.map((platform: { architecture: string }) => platform.architecture),
+    ['amd64', 'arm64'],
+  );
   const decision = decideWebuiStablePromotion(admission, input.stablePrestate, input.latestPrestate);
   assert.equal(decision.decision, 'write_once');
   assert.equal(decision.authorized_tag_attempts, 1);

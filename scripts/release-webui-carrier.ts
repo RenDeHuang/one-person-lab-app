@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
 type JsonRecord = Record<string, unknown>;
+type WebuiArchitecture = 'amd64' | 'arm64';
 
 type ExpectedIdentity = {
   version?: string;
@@ -22,6 +23,7 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const gitShaPattern = /^[0-9a-f]{40}$/;
 const versionPattern = /^[0-9]{2}\.(?:[1-9]|1[0-2])\.(?:[1-9]|[12][0-9]|3[01])(?:-r[1-9][0-9]*|-preview\.r[1-9][0-9]*|-nightly(?:\.r[1-9][0-9]*)?)?$/;
 const immutableImagePattern = /^[a-z0-9.-]+(?::[0-9]+)?\/[a-z0-9._/-]+@(sha256:[0-9a-f]{64})$/;
+const requiredArchitectures = ['amd64', 'arm64'] as const;
 const requiredInputIds = [
   'app_source',
   'base_image',
@@ -60,6 +62,14 @@ function exactString(value: unknown, expected: string, label: string): string {
   const actual = stringValue(value, label);
   if (actual !== expected) fail(`${label} expected ${expected}, got ${actual}`);
   return actual;
+}
+
+function architectureValue(value: unknown, label: string): WebuiArchitecture {
+  const architecture = stringValue(value, label);
+  if (!requiredArchitectures.includes(architecture as WebuiArchitecture)) {
+    fail(`${label} must be amd64 or arm64`);
+  }
+  return architecture as WebuiArchitecture;
 }
 
 function digestValue(value: unknown, label: string): string {
@@ -274,8 +284,7 @@ function validatePlatform(value: unknown): JsonRecord {
   const platform = record(value, 'platform');
   exactKeys(platform, ['os', 'architecture'], 'platform');
   exactString(platform.os, 'linux', 'platform.os');
-  exactString(platform.architecture, 'amd64', 'platform.architecture');
-  return { os: 'linux', architecture: 'amd64' };
+  return { os: 'linux', architecture: architectureValue(platform.architecture, 'platform.architecture') };
 }
 
 function validateInputs(value: unknown, cohort: JsonRecord): JsonRecord[] {
@@ -403,7 +412,8 @@ function assertBuildLabels(image: JsonRecord, input: JsonRecord, manifestDigest:
     exactString(labels[key], wanted, `image label ${key}`);
   }
   exactString(image.Os, 'linux', 'image inspect Os');
-  exactString(image.Architecture, 'amd64', 'image inspect Architecture');
+  const platform = record(input.platform, 'build input platform');
+  exactString(image.Architecture, String(platform.architecture), 'image inspect Architecture');
 }
 
 function validateRuntimeSummary(raw: unknown, image: JsonRecord, appSha: string): JsonRecord {
@@ -415,14 +425,105 @@ function validateRuntimeSummary(raw: unknown, image: JsonRecord, appSha: string)
   return summary;
 }
 
-function validateRegistryReadback(raw: unknown, imageRef: string, version: string): JsonRecord {
+type PlatformEvidence = {
+  architecture: WebuiArchitecture;
+  input: JsonRecord;
+  inputDigest: string;
+  imageSize: number;
+  runtimeSummary: JsonRecord;
+  childRef: string;
+  childDigest: string;
+  runtimeSummaryDigest: string;
+};
+
+function validatePlatformRegistryReadback(raw: unknown, architecture: WebuiArchitecture): JsonRecord {
+  const readback = record(raw, `${architecture} registry readback`);
+  exactKeys(readback, ['schema', 'status', 'platform', 'ref', 'digest'], `${architecture} registry readback`);
+  exactString(readback.schema, 'opl_app_webui_platform_registry_readback.v1', 'platform registry readback.schema');
+  exactString(readback.status, 'passed', 'platform registry readback.status');
+  const platform = record(readback.platform, 'platform registry readback.platform');
+  exactKeys(platform, ['os', 'architecture'], 'platform registry readback.platform');
+  exactString(platform.os, 'linux', 'platform registry readback.platform.os');
+  exactString(platform.architecture, architecture, 'platform registry readback.platform.architecture');
+  const ref = stringValue(readback.ref, 'platform registry readback.ref');
+  exactString(readback.digest, immutableImageDigest(ref), 'platform registry readback.digest');
+  return readback;
+}
+
+function platformEvidence(root: string): PlatformEvidence[] {
+  const resolvedRoot = path.resolve(root);
+  const directories = fs.readdirSync(resolvedRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  if (canonicalJson(directories) !== canonicalJson(requiredArchitectures)) {
+    fail(`platform evidence root must contain exactly ${requiredArchitectures.join(', ')}`);
+  }
+  const evidence = requiredArchitectures.map((architecture) => {
+    const platformRoot = path.join(resolvedRoot, architecture);
+    const inputPath = path.join(platformRoot, 'build-input.json');
+    const imageInspectPath = path.join(platformRoot, 'image-inspect.json');
+    const runtimeSummaryPath = path.join(platformRoot, 'runtime-summary.json');
+    const registryReadbackPath = path.join(platformRoot, 'registry-readback.json');
+    const imageSizePath = path.join(platformRoot, 'image-size.txt');
+    const input = validateBuildInput(readJson(inputPath, `${architecture} build input`));
+    const platform = record(input.platform, `${architecture} build input platform`);
+    exactString(platform.architecture, architecture, `${architecture} build input platform.architecture`);
+    const inputDigest = fileDigest(inputPath);
+    const image = imageInspectRecord(readJson(imageInspectPath, `${architecture} image inspect`));
+    assertBuildLabels(image, input, inputDigest);
+    const cohort = record(input.cohort, `${architecture} cohort`);
+    const runtimeSummary = validateRuntimeSummary(
+      readJson(runtimeSummaryPath, `${architecture} runtime summary`),
+      image,
+      String(cohort.app_sha),
+    );
+    const registry = validatePlatformRegistryReadback(
+      readJson(registryReadbackPath, `${architecture} registry readback`),
+      architecture,
+    );
+    const imageSize = Number(fs.readFileSync(imageSizePath, 'utf8').trim());
+    positiveInteger(imageSize, `${architecture} image size`);
+    return {
+      architecture,
+      input,
+      inputDigest,
+      imageSize,
+      runtimeSummary,
+      childRef: String(registry.ref),
+      childDigest: String(registry.digest),
+      runtimeSummaryDigest: fileDigest(runtimeSummaryPath),
+    };
+  });
+  const [first, ...rest] = evidence;
+  for (const item of rest) {
+    for (const field of ['release', 'source_cutoff', 'cohort'] as const) {
+      if (canonicalJson(item.input[field]) !== canonicalJson(first.input[field])) {
+        fail(`platform build inputs must share the same ${field}`);
+      }
+    }
+    const stableInputs = (input: JsonRecord) => (input.inputs as JsonRecord[])
+      .filter((entry) => entry.id !== 'base_image');
+    if (canonicalJson(stableInputs(item.input)) !== canonicalJson(stableInputs(first.input))) {
+      fail('platform build inputs may differ only by platform and base_image');
+    }
+  }
+  return evidence;
+}
+
+function validateRegistryReadback(
+  raw: unknown,
+  imageRef: string,
+  version: string,
+  platforms: PlatformEvidence[],
+): JsonRecord {
   const readback = record(raw, 'registry readback');
   exactKeys(
     readback,
-    ['schema', 'status', 'ref', 'digest', 'version_tag', 'version_tag_digest'],
+    ['schema', 'status', 'ref', 'digest', 'version_tag', 'version_tag_digest', 'size_bytes', 'platforms'],
     'registry readback',
   );
-  exactString(readback.schema, 'opl_app_webui_registry_readback.v1', 'registry readback.schema');
+  exactString(readback.schema, 'opl_app_webui_registry_readback.v2', 'registry readback.schema');
   exactString(readback.status, 'passed', 'registry readback.status');
   exactString(readback.ref, imageRef, 'registry readback.ref');
   const imageDigest = immutableImageDigest(imageRef);
@@ -430,43 +531,72 @@ function validateRegistryReadback(raw: unknown, imageRef: string, version: strin
   const repository = imageRef.slice(0, imageRef.lastIndexOf('@'));
   exactString(readback.version_tag, `${repository}:${version}`, 'registry readback.version_tag');
   exactString(readback.version_tag_digest, imageDigest, 'registry readback.version_tag_digest');
+  positiveInteger(readback.size_bytes, 'registry readback.size_bytes');
+  if (!Array.isArray(readback.platforms) || readback.platforms.length !== requiredArchitectures.length) {
+    fail('registry readback.platforms must contain exactly amd64 and arm64');
+  }
+  for (const [index, expected] of platforms.entries()) {
+    const platform = record(readback.platforms[index], `registry readback.platforms[${index}]`);
+    exactKeys(platform, ['os', 'architecture', 'ref', 'digest'], `registry readback.platforms[${index}]`);
+    exactString(platform.os, 'linux', `registry readback.platforms[${index}].os`);
+    exactString(platform.architecture, expected.architecture, `registry readback.platforms[${index}].architecture`);
+    exactString(platform.ref, expected.childRef, `registry readback.platforms[${index}].ref`);
+    exactString(platform.digest, expected.childDigest, `registry readback.platforms[${index}].digest`);
+  }
   return readback;
 }
 
 function buildCarrierReceipt(options: {
-  buildInputPath: string;
-  imageInspectPath: string;
-  runtimeSummaryPath: string;
+  platformEvidenceRoot: string;
   registryReadbackPath: string;
   imageRef: string;
-  imageSize: number;
+  expected?: ExpectedIdentity;
 }): JsonRecord {
-  const input = validateBuildInput(readJson(options.buildInputPath, 'build input'));
-  const manifestDigest = fileDigest(options.buildInputPath);
-  const image = imageInspectRecord(readJson(options.imageInspectPath, 'image inspect'));
-  assertBuildLabels(image, input, manifestDigest);
-  const cohort = record(input.cohort, 'cohort');
-  const runtimeSummary = validateRuntimeSummary(
-    readJson(options.runtimeSummaryPath, 'runtime summary'),
-    image,
-    String(cohort.app_sha),
-  );
-  const imageDigest = immutableImageDigest(options.imageRef);
-  const release = record(input.release, 'release');
-  validateRegistryReadback(
+  const platforms = platformEvidence(options.platformEvidenceRoot);
+  for (const platform of platforms) validateExpectedIdentity(platform.input, options.expected ?? {});
+  const first = platforms[0];
+  const release = record(first.input.release, 'release');
+  const registryReadback = validateRegistryReadback(
     readJson(options.registryReadbackPath, 'registry readback'),
     options.imageRef,
     String(release.version),
+    platforms,
   );
+  const buildInputs = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    manifest_digest: platform.inputDigest,
+    content_fingerprint: platform.input.content_fingerprint,
+  }));
+  const buildInputDigest = sha256(canonicalJson(buildInputs));
+  const carrierPlatforms = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    ref: platform.childRef,
+    digest: platform.childDigest,
+    size_bytes: platform.imageSize,
+    content_fingerprint: platform.input.content_fingerprint,
+  }));
+  const contentFingerprint = sha256(canonicalJson(carrierPlatforms));
+  const platformQualifications = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    image_digest: platform.childDigest,
+    build_input_digest: platform.inputDigest,
+    content_fingerprint: platform.input.content_fingerprint,
+    runtime_summary_sha256: platform.runtimeSummaryDigest,
+    runtime_image_id: platform.runtimeSummary.image_id,
+  }));
+  const imageDigest = immutableImageDigest(options.imageRef);
   return {
     schema: 'opl_app_webui_release_carrier.v1',
-    release: input.release,
-    source_cutoff: input.source_cutoff,
-    cohort: input.cohort,
+    release: first.input.release,
+    source_cutoff: first.input.source_cutoff,
+    cohort: first.input.cohort,
     build_input: {
-      schema: 'opl_app_webui_build_input.v1',
-      manifest_digest: manifestDigest,
-      content_fingerprint: input.content_fingerprint,
+      schema: 'opl_app_webui_multiarch_build_input.v1',
+      manifest_digest: buildInputDigest,
+      platforms: buildInputs,
     },
     carrier: {
       carrier_id: 'docker_webui',
@@ -474,10 +604,11 @@ function buildCarrierReceipt(options: {
       package_profile: 'webui-full',
       ref: options.imageRef,
       digest: imageDigest,
-      size_bytes: options.imageSize,
-      content_fingerprint: input.content_fingerprint,
+      size_bytes: positiveInteger(registryReadback.size_bytes, 'registry readback.size_bytes'),
+      content_fingerprint: contentFingerprint,
       os: 'linux',
-      architecture: 'amd64',
+      architecture: 'multiarch',
+      platforms: carrierPlatforms,
     },
     qualification: {
       schema: 'opl_app_webui_runtime_qualification.v1',
@@ -485,121 +616,27 @@ function buildCarrierReceipt(options: {
       build_stage: 'webui_built',
       qualification_stage: 'webui_qualified',
       image_digest: imageDigest,
-      build_input_digest: manifestDigest,
-      content_fingerprint: input.content_fingerprint,
-      runtime_summary_sha256: fileDigest(options.runtimeSummaryPath),
+      build_input_digest: buildInputDigest,
+      content_fingerprint: contentFingerprint,
+      runtime_summary_sha256: sha256(canonicalJson(platformQualifications)),
       registry_readback_sha256: fileDigest(options.registryReadbackPath),
-      runtime_image_id: runtimeSummary.image_id,
+      runtime_image_id: `oci-index:${imageDigest}`,
+      platform_qualifications: platformQualifications,
     },
   };
 }
 
-function validateCarrierReceipt(
-  raw: unknown,
-  input: JsonRecord,
-  inputDigest: string,
-  evidence: { imageInspectPath: string; runtimeSummaryPath: string; registryReadbackPath: string },
-): JsonRecord {
+function validateCarrierReceipt(raw: unknown, options: {
+  platformEvidenceRoot: string;
+  registryReadbackPath: string;
+  imageRef: string;
+  expected?: ExpectedIdentity;
+}): JsonRecord {
   const receipt = record(raw, 'carrier receipt');
-  exactKeys(
-    receipt,
-    ['schema', 'release', 'source_cutoff', 'cohort', 'build_input', 'carrier', 'qualification'],
-    'carrier receipt',
-  );
-  exactString(receipt.schema, 'opl_app_webui_release_carrier.v1', 'carrier receipt.schema');
-  for (const field of ['release', 'source_cutoff', 'cohort'] as const) {
-    if (canonicalJson(receipt[field]) !== canonicalJson(input[field])) {
-      fail(`carrier receipt ${field} must exactly match the frozen build input`);
-    }
+  const expected = buildCarrierReceipt(options);
+  if (canonicalJson(receipt) !== canonicalJson(expected)) {
+    fail('carrier receipt does not match the exact dual-platform evidence and OCI index readback');
   }
-  const buildInput = record(receipt.build_input, 'carrier receipt.build_input');
-  exactKeys(buildInput, ['schema', 'manifest_digest', 'content_fingerprint'], 'carrier receipt.build_input');
-  exactString(buildInput.schema, 'opl_app_webui_build_input.v1', 'carrier receipt.build_input.schema');
-  exactString(buildInput.manifest_digest, inputDigest, 'carrier receipt.build_input.manifest_digest');
-  exactString(
-    buildInput.content_fingerprint,
-    String(input.content_fingerprint),
-    'carrier receipt.build_input.content_fingerprint',
-  );
-  const carrier = record(receipt.carrier, 'carrier receipt.carrier');
-  exactKeys(
-    carrier,
-    [
-      'carrier_id',
-      'carrier_kind',
-      'package_profile',
-      'ref',
-      'digest',
-      'size_bytes',
-      'content_fingerprint',
-      'os',
-      'architecture',
-    ],
-    'carrier receipt.carrier',
-  );
-  exactString(carrier.carrier_id, 'docker_webui', 'carrier.carrier_id');
-  exactString(carrier.carrier_kind, 'oci_image', 'carrier.carrier_kind');
-  exactString(carrier.package_profile, 'webui-full', 'carrier.package_profile');
-  const imageRef = stringValue(carrier.ref, 'carrier.ref');
-  const imageDigest = immutableImageDigest(imageRef);
-  exactString(carrier.digest, imageDigest, 'carrier.digest');
-  positiveInteger(carrier.size_bytes, 'carrier.size_bytes');
-  exactString(carrier.content_fingerprint, String(input.content_fingerprint), 'carrier.content_fingerprint');
-  exactString(carrier.os, 'linux', 'carrier.os');
-  exactString(carrier.architecture, 'amd64', 'carrier.architecture');
-  const qualification = record(receipt.qualification, 'carrier receipt.qualification');
-  exactKeys(
-    qualification,
-    [
-      'schema',
-      'status',
-      'build_stage',
-      'qualification_stage',
-      'image_digest',
-      'build_input_digest',
-      'content_fingerprint',
-      'runtime_summary_sha256',
-      'registry_readback_sha256',
-      'runtime_image_id',
-    ],
-    'carrier receipt.qualification',
-  );
-  exactString(qualification.schema, 'opl_app_webui_runtime_qualification.v1', 'qualification.schema');
-  exactString(qualification.status, 'passed', 'qualification.status');
-  exactString(qualification.build_stage, 'webui_built', 'qualification.build_stage');
-  exactString(qualification.qualification_stage, 'webui_qualified', 'qualification.qualification_stage');
-  exactString(qualification.image_digest, imageDigest, 'qualification.image_digest');
-  exactString(qualification.build_input_digest, inputDigest, 'qualification.build_input_digest');
-  exactString(
-    qualification.content_fingerprint,
-    String(input.content_fingerprint),
-    'qualification.content_fingerprint',
-  );
-  exactString(
-    qualification.runtime_summary_sha256,
-    fileDigest(evidence.runtimeSummaryPath),
-    'qualification.runtime_summary_sha256',
-  );
-  exactString(
-    qualification.registry_readback_sha256,
-    fileDigest(evidence.registryReadbackPath),
-    'qualification.registry_readback_sha256',
-  );
-  const image = imageInspectRecord(readJson(evidence.imageInspectPath, 'image inspect'));
-  assertBuildLabels(image, input, inputDigest);
-  const cohort = record(input.cohort, 'cohort');
-  const runtimeSummary = validateRuntimeSummary(
-    readJson(evidence.runtimeSummaryPath, 'runtime summary'),
-    image,
-    String(cohort.app_sha),
-  );
-  exactString(qualification.runtime_image_id, String(runtimeSummary.image_id), 'qualification.runtime_image_id');
-  const release = record(input.release, 'release');
-  validateRegistryReadback(
-    readJson(evidence.registryReadbackPath, 'registry readback'),
-    imageRef,
-    String(release.version),
-  );
   return receipt;
 }
 
@@ -640,13 +677,13 @@ function main(): void {
       input: { type: 'string' },
       output: { type: 'string' },
       'build-input': { type: 'string' },
+      'platform-evidence-root': { type: 'string' },
       'artifact-dir': { type: 'string' },
       dockerignore: { type: 'string' },
       'image-inspect': { type: 'string' },
       'runtime-summary': { type: 'string' },
       'registry-readback': { type: 'string' },
       'image-ref': { type: 'string' },
-      'image-size': { type: 'string' },
       receipt: { type: 'string' },
       'expected-version': { type: 'string' },
       'expected-bundle-digest': { type: 'string' },
@@ -713,14 +750,10 @@ function main(): void {
 
   if (command === 'write-carrier-receipt') {
     const outputPath = requiredOption(values, 'output');
-    const imageSize = Number(requiredOption(values, 'image-size'));
     const receipt = buildCarrierReceipt({
-      buildInputPath: requiredOption(values, 'build-input'),
-      imageInspectPath: requiredOption(values, 'image-inspect'),
-      runtimeSummaryPath: requiredOption(values, 'runtime-summary'),
+      platformEvidenceRoot: requiredOption(values, 'platform-evidence-root'),
       registryReadbackPath: requiredOption(values, 'registry-readback'),
       imageRef: requiredOption(values, 'image-ref'),
-      imageSize: positiveInteger(imageSize, 'image-size'),
     });
     writeCanonical(outputPath, receipt);
     printSummary({
@@ -734,14 +767,12 @@ function main(): void {
   }
 
   if (command === 'verify-carrier-receipt') {
-    const inputPath = requiredOption(values, 'build-input');
     const receiptPath = requiredOption(values, 'receipt');
-    const input = validateBuildInput(readJson(inputPath, 'build input'));
-    validateExpectedIdentity(input, expectedIdentity(values));
-    const receipt = validateCarrierReceipt(readJson(receiptPath, 'carrier receipt'), input, fileDigest(inputPath), {
-      imageInspectPath: requiredOption(values, 'image-inspect'),
-      runtimeSummaryPath: requiredOption(values, 'runtime-summary'),
+    const receipt = validateCarrierReceipt(readJson(receiptPath, 'carrier receipt'), {
+      platformEvidenceRoot: requiredOption(values, 'platform-evidence-root'),
       registryReadbackPath: requiredOption(values, 'registry-readback'),
+      imageRef: requiredOption(values, 'image-ref'),
+      expected: expectedIdentity(values),
     });
     printSummary({
       schema: 'opl_app_webui_release_carrier_verification.v1',

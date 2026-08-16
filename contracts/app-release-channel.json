@@ -597,6 +597,32 @@
     "schema": "opl_app_release_platform_matrix.v1",
     "resolver": "scripts/resolve-release-platform-matrix.ts",
     "selection_boundary": "workflow callers pass only audited Desktop platform IDs; the pre-issued Stable authority, run-bound control, Standard checkpoint, and same-Release post-success append preserve the exact selection",
+    "release_tiers": {
+      "primary": {
+        "carrier": "desktop_macos_arm64",
+        "platforms": [
+          "macos-arm64"
+        ],
+        "blocks_base_terminal": true
+      },
+      "additional_nonblocking": {
+        "desktop_platforms": [
+          "linux-x64",
+          "windows-x64"
+        ],
+        "container_webui": {
+          "platforms": [
+            "linux/amd64",
+            "linux/arm64"
+          ],
+          "single_multi_arch_manifest_required": true,
+          "native_runner_qualification_required": true,
+          "qualification_trigger": "manual_protected_release_workflow",
+          "included_in_pr_or_main_ci": false,
+          "blocks_desktop_macos_arm64": false
+        }
+      }
+    },
     "capabilities": {
       "macos-arm64": {
         "default_enabled": true,
@@ -2931,6 +2957,23 @@
     "runtime_image_contract": {
       "image_role": "browser_entrypoint_for_opl_on_linux_container",
       "startup_goal": "open_webui_quickly_then_let_opl_reconcile_persisted_runtime_state",
+      "platform_matrix": {
+        "release_tier": "additional_nonblocking",
+        "required_platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ],
+        "runner_by_architecture": {
+          "amd64": "ubuntu-24.04",
+          "arm64": "ubuntu-24.04-arm"
+        },
+        "native_runtime_qualification_required": true,
+        "qualification_trigger": "manual_protected_release_workflow",
+        "included_in_pr_or_main_ci": false,
+        "qemu_or_other_emulation_counts_as_runtime_qualification": false,
+        "version_tag_shape": "one_oci_index_with_exact_amd64_and_arm64_children",
+        "docker_client_selection": "automatic_by_host_architecture"
+      },
       "base_os_policy": "slim_lts_linux_base_with_only_runtime_required_packages",
       "required_runtime_contents": [
         "webui_static_assets",

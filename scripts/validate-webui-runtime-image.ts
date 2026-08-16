@@ -95,6 +95,12 @@ function requiredComponentIds(seedMetadata: Record<string, unknown>) {
 const args = parseArgs();
 const imageInspect = readJsonFile<unknown>(args.imageInspectPath);
 const image = Array.isArray(imageInspect) ? asRecord(imageInspect[0], 'Docker image inspect[0]') : asRecord(imageInspect, 'Docker image inspect');
+const imageOs = image.Os;
+const imageArchitecture = image.Architecture;
+if (imageOs !== 'linux' || (imageArchitecture !== 'amd64' && imageArchitecture !== 'arm64')) {
+  throw new Error(`Docker/WebUI image platform must be linux/amd64 or linux/arm64, got ${String(imageOs)}/${String(imageArchitecture)}.`);
+}
+const expectedAioncoreRuntimeKey = imageArchitecture === 'amd64' ? 'linux-x64' : 'linux-arm64';
 const config = asRecord(image.Config, 'Docker image inspect Config');
 const labels = asRecord(config.Labels, 'Docker image inspect labels');
 const env = envMap(config.Env);
@@ -165,7 +171,7 @@ if (webuiPackage.name !== '@aionui/web-cli' || typeof webuiPackage.version !== '
   throw new Error('Image manifest must identify the bundled @aionui/web-cli package.');
 }
 const bundledAioncore = asRecord(imageManifest.bundled_aioncore, 'image manifest bundled_aioncore');
-assertStringArrayIncludes(bundledAioncore.platforms, ['linux-x64'], 'bundled AionCore platforms');
+assertStringArrayIncludes(bundledAioncore.platforms, [expectedAioncoreRuntimeKey], 'bundled AionCore platforms');
 
 assertExpectedFields(
   [
@@ -197,6 +203,8 @@ if (args.expectedProfile === 'webui-full') {
 const summary = {
   status: 'passed',
   expected_profile: args.expectedProfile,
+  platform: { os: imageOs, architecture: imageArchitecture },
+  bundled_aioncore_runtime_key: expectedAioncoreRuntimeKey,
   image_id: image.Id,
   created: image.Created,
   oci_revision: labels['org.opencontainers.image.revision'],

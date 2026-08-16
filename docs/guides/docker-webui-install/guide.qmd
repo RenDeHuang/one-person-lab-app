@@ -6,7 +6,7 @@ lang: zh-CN
 
 适用对象：希望在 Windows、macOS 或 Linux 电脑上通过浏览器使用 One Person Lab 的用户；默认不要求 Docker 经验。
 
-本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要路径。安装完成后，浏览器会建立本机 WebUI 会话。页面会在后台检查本机助手和模型访问；确认尚未配置时会尝试自动打开首次设置。如果没有自动跳转，不代表安装失败，直接点击工作台左下角的“完成首次设置”即可继续。普通启动不会被这项检查长时间阻塞。
+本文以 **Windows x64 + Docker Desktop + WSL 2** 为主要安装示例。公开 Docker 镜像同时提供 `linux/amd64` 和 `linux/arm64`，Docker 会按宿主架构自动选择对应镜像；这条 Container WebUI 发行线独立于 macOS arm64 Desktop 主发行物。安装完成后，浏览器会建立本机 WebUI 会话。页面会在后台检查本机助手和模型访问；确认尚未配置时会尝试自动打开首次设置。如果没有自动跳转，不代表安装失败，直接点击工作台左下角的“完成首次设置”即可继续。普通启动不会被这项检查长时间阻塞。
 
 ```{=html}
 <p><a class="btn btn-primary" href="{{download.pdf_href}}" download>下载 PDF 版（适合打印和离线阅读）</a></p>
@@ -32,7 +32,7 @@ lang: zh-CN
 
 ### Windows
 
-- 64 位 x64 电脑。当前 WebUI 镜像与 Windows 验证路径以 `linux/amd64`、Windows X64 为准；Windows ARM 暂不作为本教程的验证路径。
+- 64 位 x64 电脑。本教程的 Windows 安装步骤按 Windows X64 验证；Windows ARM 暂不作为本教程的验证路径。
 - Docker Desktop 当前支持的 Windows 版本。请以 [Docker Desktop Windows 安装页]({{download.docker_desktop_windows_url}}) 的最新系统要求为准。
 - WSL 2、硬件虚拟化和 Linux containers 模式。
 - 能够安装 Docker Desktop；单位管理的电脑可能需要管理员协助。
@@ -40,7 +40,7 @@ lang: zh-CN
 
 ### Linux
 
-- 能够运行 Docker Engine 的 x64 Linux 电脑或服务器。
+- 能够运行 Docker Engine 的 x64 或 arm64 Linux 电脑或服务器。
 - 当前用户可以运行 `docker` 和 `docker compose`。
 - 公网服务器不要使用本机免密码路径，参见本文末尾的“服务器部署”。
 
@@ -48,6 +48,7 @@ lang: zh-CN
 
 - 已安装并启动 Docker Desktop、OrbStack 或 Colima。
 - 当前用户可以运行 `docker` 和 `docker compose`。
+- Intel 与 Apple Silicon 会分别选择 `linux/amd64` 与 `linux/arm64` 镜像。
 - Docker WebUI 与 macOS Desktop App 是两种独立使用形态；这里安装的是浏览器 WebUI。
 
 ### 模型访问

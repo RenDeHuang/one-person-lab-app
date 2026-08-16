@@ -196,6 +196,11 @@ function bridgeFixture() {
         size: 1234,
         platform: { os: 'linux', architecture: 'amd64' },
       },
+      {
+        digest: `sha256:${'c'.repeat(64)}`,
+        size: 1235,
+        platform: { os: 'linux', architecture: 'arm64' },
+      },
     ],
   });
   const codexSource = path.join(root, 'codex-source', 'package');
@@ -363,6 +368,7 @@ test('WebUI build input derives only from independent source authority', () => {
     '--source-cutoff-observed-at', '2026-07-24T00:00:00.000Z',
     '--base-image-index', fixture.baseImageIndex,
     '--frozen-codex-tarball', fixture.codexTarball,
+    '--architecture', 'amd64',
     '--output', output,
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -382,6 +388,43 @@ test('WebUI build input derives only from independent source authority', () => {
     buildInput.inputs.map((input: { id: string }) => input.id),
     ['app_source', 'base_image', 'codex_cli', 'dockerfile', 'framework_seed', 'qualification_harness', 'shell_webui_source'],
   );
+  assert.deepEqual(buildInput.platform, { os: 'linux', architecture: 'amd64' });
+
+  const arm64Output = path.join(fixture.root, 'webui-build-input-arm64-draft.json');
+  const arm64 = runAdapter([
+    'webui-build-input',
+    '--source-authority', authorityPath,
+    '--app-root', fixture.app.root,
+    '--shell-root', fixture.shell.root,
+    '--framework-root', fixture.framework.root,
+    '--source-cutoff-observed-at', '2026-07-24T00:00:00.000Z',
+    '--base-image-index', fixture.baseImageIndex,
+    '--frozen-codex-tarball', fixture.codexTarball,
+    '--architecture', 'arm64',
+    '--output', arm64Output,
+  ]);
+  assert.equal(arm64.status, 0, arm64.stderr || arm64.stdout);
+  const arm64BuildInput = JSON.parse(fs.readFileSync(arm64Output, 'utf8'));
+  assert.deepEqual(arm64BuildInput.platform, { os: 'linux', architecture: 'arm64' });
+  assert.equal(
+    arm64BuildInput.inputs.find((input: { id: string }) => input.id === 'base_image').digest,
+    `sha256:${'c'.repeat(64)}`,
+  );
+
+  const unsupported = runAdapter([
+    'webui-build-input',
+    '--source-authority', authorityPath,
+    '--app-root', fixture.app.root,
+    '--shell-root', fixture.shell.root,
+    '--framework-root', fixture.framework.root,
+    '--source-cutoff-observed-at', '2026-07-24T00:00:00.000Z',
+    '--base-image-index', fixture.baseImageIndex,
+    '--frozen-codex-tarball', fixture.codexTarball,
+    '--architecture', 's390x',
+    '--output', path.join(fixture.root, 'unsupported.json'),
+  ]);
+  assert.notEqual(unsupported.status, 0);
+  assert.match(unsupported.stderr, /--architecture must be amd64 or arm64/);
 });
 
 test('WebUI bridge rejects Desktop authority and Framework WebUI track receipts', () => {

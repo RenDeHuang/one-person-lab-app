@@ -12,7 +12,9 @@ const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
 const executorSha = 'd'.repeat(40);
-const childDigest = `sha256:${'e'.repeat(64)}`;
+const indexDigest = `sha256:${'e'.repeat(64)}`;
+const amd64Digest = `sha256:${'a'.repeat(64)}`;
+const arm64Digest = `sha256:${'b'.repeat(64)}`;
 const versionDigest = `sha256:${'f'.repeat(64)}`;
 const imageRepository = 'ghcr.io/gaofeng21cn/one-person-lab-webui';
 const evidenceDigest = (value: string) => `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`;
@@ -38,22 +40,62 @@ function carrierReceipt(
       carrier_id: 'docker_webui',
       carrier_kind: 'oci_image',
       package_profile: 'webui-full',
-      ref: `${repository}@${childDigest}`,
-      digest: childDigest,
+      ref: `${repository}@${indexDigest}`,
+      digest: indexDigest,
       size_bytes: 123,
       content_fingerprint: `sha256:${'2'.repeat(64)}`,
+      os: 'linux',
+      architecture: 'multiarch',
+      platforms: [
+        {
+          os: 'linux',
+          architecture: 'amd64',
+          ref: `${repository}@${amd64Digest}`,
+          digest: amd64Digest,
+          size_bytes: 61,
+          content_fingerprint: `sha256:${'6'.repeat(64)}`,
+        },
+        {
+          os: 'linux',
+          architecture: 'arm64',
+          ref: `${repository}@${arm64Digest}`,
+          digest: arm64Digest,
+          size_bytes: 62,
+          content_fingerprint: `sha256:${'7'.repeat(64)}`,
+        },
+      ],
     },
     qualification: {
       schema: 'opl_app_webui_runtime_qualification.v1',
       status: 'passed',
       build_stage: 'webui_built',
       qualification_stage: 'webui_qualified',
-      image_digest: childDigest,
+      image_digest: indexDigest,
       build_input_digest: `sha256:${'3'.repeat(64)}`,
       content_fingerprint: `sha256:${'2'.repeat(64)}`,
       runtime_summary_sha256: `sha256:${'4'.repeat(64)}`,
       registry_readback_sha256: `sha256:${'5'.repeat(64)}`,
-      runtime_image_id: 'webui-test-image',
+      runtime_image_id: `oci-index:${indexDigest}`,
+      platform_qualifications: [
+        {
+          os: 'linux',
+          architecture: 'amd64',
+          image_digest: amd64Digest,
+          build_input_digest: `sha256:${'8'.repeat(64)}`,
+          content_fingerprint: `sha256:${'6'.repeat(64)}`,
+          runtime_summary_sha256: `sha256:${'9'.repeat(64)}`,
+          runtime_image_id: 'webui-amd64-image',
+        },
+        {
+          os: 'linux',
+          architecture: 'arm64',
+          image_digest: arm64Digest,
+          build_input_digest: `sha256:${'a'.repeat(64)}`,
+          content_fingerprint: `sha256:${'7'.repeat(64)}`,
+          runtime_summary_sha256: `sha256:${'b'.repeat(64)}`,
+          runtime_image_id: 'webui-arm64-image',
+        },
+      ],
     },
   };
 }
@@ -64,9 +106,13 @@ function versionReadback(version: string, repository = imageRepository) {
     status: 'present',
     ref: `${repository}:${version}`,
     digest: versionDigest,
-    child_digest: childDigest,
-    manifest_count: 1,
+    child_digest: indexDigest,
+    manifest_count: 2,
     media_type: 'application/vnd.oci.image.index.v1+json',
+    platforms: [
+      { os: 'linux', architecture: 'amd64', digest: amd64Digest },
+      { os: 'linux', architecture: 'arm64', digest: arm64Digest },
+    ],
   };
 }
 
@@ -110,7 +156,11 @@ test('durable WebUI Preview record binds a selector to exact immutable carrier b
   assert.equal(publication.classification.quality_status, 'preview');
   assert.equal(publication.classification.preview_kind, 'dev');
   assert.equal(publication.image.receipt_ref, 'ghcr.io/gaofeng21cn/one-person-lab-webui:receipt-26.7.28-preview.r1');
-  assert.equal(publication.image.immutable_ref, `ghcr.io/gaofeng21cn/one-person-lab-webui@${childDigest}`);
+  assert.equal(publication.image.immutable_ref, `ghcr.io/gaofeng21cn/one-person-lab-webui@${indexDigest}`);
+  assert.deepEqual(
+    publication.image.platforms.map((platform: { architecture: string }) => platform.architecture),
+    ['amd64', 'arm64'],
+  );
   assert.equal(publication.qualification_disclosure.stable_qualification, null);
   assert.equal(
     publication.qualification_disclosure.non_stable_gate_disclosure.reason,

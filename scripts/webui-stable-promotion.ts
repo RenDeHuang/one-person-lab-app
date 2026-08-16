@@ -252,7 +252,17 @@ function appWebuiCarrier(receipt: JsonRecord): {
   positiveInteger(carrier.size_bytes, 'carrier receipt.carrier.size_bytes');
   digest(carrier.content_fingerprint, 'carrier receipt.carrier.content_fingerprint');
   exact(carrier.os, 'linux', 'carrier receipt.carrier.os');
-  exact(carrier.architecture, 'amd64', 'carrier receipt.carrier.architecture');
+  exact(carrier.architecture, 'multiarch', 'carrier receipt.carrier.architecture');
+  if (!Array.isArray(carrier.platforms) || carrier.platforms.length !== 2) {
+    throw new Error('carrier receipt must contain exactly amd64 and arm64 platforms.');
+  }
+  for (const [index, value] of carrier.platforms.entries()) {
+    const platform = record(value, `carrier receipt.carrier.platforms[${index}]`);
+    exact(platform.os, 'linux', `carrier platform ${index} os`);
+    exact(platform.architecture, index === 0 ? 'amd64' : 'arm64', `carrier platform ${index} architecture`);
+    const platformDigest = digest(platform.digest, `carrier platform ${index} digest`);
+    exact(platform.ref, `${repository}@${platformDigest}`, `carrier platform ${index} ref`);
+  }
   const qualification = record(receipt.qualification, 'carrier receipt.qualification');
   exact(qualification.status, 'passed', 'carrier receipt.qualification.status');
   exact(qualification.image_digest, carrierDigest, 'carrier receipt.qualification.image_digest');
@@ -323,6 +333,9 @@ function validateIndependentPublicationRecord(
   exact(image.repository, repository, 'durable publication image repository');
   exact(image.immutable_ref, carrier.ref, 'durable publication immutable ref');
   exact(image.child_digest, carrier.digest, 'durable publication child digest');
+  if (JSON.stringify(image.platforms) !== JSON.stringify(carrier.platforms)) {
+    throw new Error('durable publication platforms must match the exact carrier platform descriptors.');
+  }
   exact(image.size_bytes, carrier.size_bytes, 'durable publication image size');
   exact(
     image.content_fingerprint,
@@ -465,12 +478,25 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
   exact(version.status, 'present', 'version readback.status');
   const versionDigest = digest(version.digest, 'version readback.digest');
   exact(version.child_digest, carrier.digest, 'version readback.child_digest');
-  exact(version.manifest_count, 1, 'version readback.manifest_count');
+  exact(version.manifest_count, 2, 'version readback.manifest_count');
   if (![
     'application/vnd.oci.image.index.v1+json',
     'application/vnd.docker.distribution.manifest.list.v2+json',
   ].includes(text(version.media_type, 'version readback.media_type'))) {
     throw new Error('version readback.media_type must be an OCI index or Docker manifest list.');
+  }
+  if (!Array.isArray(version.platforms) || version.platforms.length !== 2) {
+    throw new Error('version readback.platforms must contain exactly amd64 and arm64.');
+  }
+  for (const [index, value] of version.platforms.entries()) {
+    const platform = record(value, `version readback.platforms[${index}]`);
+    const carrierPlatform = record(
+      (carrier.platforms as JsonRecord[])[index],
+      `carrier receipt.carrier.platforms[${index}]`,
+    );
+    exact(platform.os, 'linux', `version readback.platforms[${index}].os`);
+    exact(platform.architecture, index === 0 ? 'amd64' : 'arm64', `version readback.platforms[${index}].architecture`);
+    exact(platform.digest, carrierPlatform.digest, `version readback.platforms[${index}].digest`);
   }
   const stableRef = `${repository}:stable`;
   const latestRef = `${repository}:latest`;
@@ -550,6 +576,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       latest_ref: latestRef,
       digest: versionDigest,
       child_digest: carrier.digest,
+      platforms: carrier.platforms,
       size_bytes: carrier.size_bytes,
       content_fingerprint: carrier.content_fingerprint,
       promotion_tags: promotionTags(mode),
@@ -583,6 +610,23 @@ function validateWebuiStablePromotionAdmission(value: unknown): JsonRecord {
   exact(admission.mutation_admitted, true, 'admission mutation authorization');
   const mode = authorityMode(admission.authority_mode);
   const release = record(admission.release, 'admission.release');
+  const target = record(admission.target, 'admission.target');
+  const repository = validateWebuiImageRepository(target.repository);
+  digest(target.digest, 'admission.target.digest');
+  digest(target.child_digest, 'admission.target.child_digest');
+  if (!Array.isArray(target.platforms) || target.platforms.length !== 2) {
+    throw new Error('admission.target.platforms must contain exactly amd64 and arm64.');
+  }
+  for (const [index, value] of target.platforms.entries()) {
+    const platform = record(value, `admission.target.platforms[${index}]`);
+    const architecture = index === 0 ? 'amd64' : 'arm64';
+    exact(platform.os, 'linux', `admission target platform ${index} os`);
+    exact(platform.architecture, architecture, `admission target platform ${index} architecture`);
+    const platformDigest = digest(platform.digest, `admission target platform ${index} digest`);
+    exact(platform.ref, `${repository}@${platformDigest}`, `admission target platform ${index} ref`);
+    positiveInteger(platform.size_bytes, `admission target platform ${index} size`);
+    digest(platform.content_fingerprint, `admission target platform ${index} fingerprint`);
+  }
   const latestOperatorAuthorization = operatorAuthorization(
     mode,
     text(release.version, 'admission.release.version'),
