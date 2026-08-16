@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       mode:
-        description: execute or canary validation-only startup.
+        description: execute, qualify without publication, or canary startup.
         type: string
         default: execute
       authority_mode:
@@ -86,7 +86,7 @@ jobs:
           test '${{ inputs.source_authority_artifact_name }}' != ''
 
   build-and-qualify:
-    if: ${{ inputs.mode == 'execute' }}
+    if: ${{ inputs.mode == 'execute' || inputs.mode == 'qualify' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 75
     strategy:

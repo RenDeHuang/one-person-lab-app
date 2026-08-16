@@ -12,6 +12,7 @@ const cliPath = path.join(appRoot, 'scripts', 'release-webui-carrier.ts');
 const runtimeValidatorPath = path.join(appRoot, 'scripts', 'validate-webui-runtime-image.ts');
 const schemaPath = path.join(appRoot, 'contracts', 'app-webui-release-carrier.schema.json');
 const workflowPath = path.join(appRoot, '.github', 'workflows', '_release-webui-carrier.yml');
+const developmentWorkflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-development.yml');
 const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
@@ -724,7 +725,7 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.equal(inputs.frozen_codex_artifact_name, undefined);
   assert.equal(inputs.frozen_build_input_json, undefined);
   assert.equal(build.needs, undefined, 'WebUI build must not depend on Desktop');
-  assert.equal(build.if, "${{ inputs.mode == 'execute' }}");
+  assert.equal(build.if, "${{ inputs.mode == 'execute' || inputs.mode == 'qualify' }}");
   assert.equal(publish.needs, 'build-and-qualify');
   assert.equal(
     publish.if,
@@ -884,6 +885,22 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(publishRun, /source-authority-final-verification\.json/);
   assert.match(publishRun, /carrier-artifact/);
   assert.match(publishRun, /source-authority\.json/);
+});
+
+test('manual WebUI entry separates read-only qualification from protected publication', () => {
+  const workflow = YAML.parse(fs.readFileSync(developmentWorkflowPath, 'utf8'));
+  const operation = workflow.on.workflow_dispatch.inputs.operation;
+  const qualification = workflow.jobs['webui-carrier-qualification'];
+  const publication = workflow.jobs['webui-carrier'];
+
+  assert.deepEqual(operation.options, ['qualify', 'publish']);
+  assert.equal(operation.default, 'qualify');
+  assert.equal(qualification.if, "${{ inputs.operation == 'qualify' }}");
+  assert.equal(qualification.with.mode, 'qualify');
+  assert.equal(qualification.permissions.packages, 'read');
+  assert.equal(publication.if, "${{ inputs.operation == 'publish' }}");
+  assert.equal(publication.with.mode, 'execute');
+  assert.equal(publication.permissions.packages, 'write');
 });
 
 test('WebUI carrier publishes one idempotent durable receipt sidecar only after exact immutable tag readback', () => {

@@ -27,7 +27,7 @@ const webuiStablePromotionWorkflowPath = '.github/workflows/release-webui-stable
 const webuiStablePromotionMutationJob = 'promote-webui-stable';
 const webuiCarrierPublishEnvironment =
   "${{ inputs.authority_mode == 'independent_preview' && 'release-preview-publication' || 'release-stable' }}";
-const webuiCarrierBuildIf = "${{ inputs.mode == 'execute' }}";
+const webuiCarrierBuildIf = "${{ inputs.mode == 'execute' || inputs.mode == 'qualify' }}";
 const webuiCarrierPublishIf =
   "${{ always() && inputs.mode == 'execute' && needs.build-and-qualify.result == 'success' }}";
 const webuiPromotionPublishEnvironment =
@@ -1628,7 +1628,7 @@ function validateWebUiCarrierCallee(
   }
   if (!build || build.if !== webuiCarrierBuildIf ||
       !exactObject(build.permissions, exactWebUiReadPermissions)) {
-    failures += reportFailure(id, 'WebUI build/qualification must be execute-only with exact read permissions');
+    failures += reportFailure(id, 'WebUI build/qualification must be reachable only from execute or qualify with exact read permissions');
   }
   if (!publish || publish.if !== webuiCarrierPublishIf ||
       publish.needs !== 'build-and-qualify' ||
@@ -2088,7 +2088,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   let failures = 0;
   const publicationWorkflow = publication.workflow;
   const publicationJobs = workflowJobs(publicationWorkflow);
-  const expectedPublicationInputs = ['channel', 'version', 'app_ref', 'shell_ref', 'framework_ref'].sort();
+  const expectedPublicationInputs = ['operation', 'channel', 'version', 'app_ref', 'shell_ref', 'framework_ref'].sort();
   const expectedCarrierWith = {
     mode: 'execute',
     authority_mode: '${{ needs.source-authority.outputs.authority_mode }}',
@@ -2110,7 +2110,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
       'cancel-in-progress': false,
     })
     || JSON.stringify(Object.keys(publicationJobs).sort()) !==
-      JSON.stringify(['source-authority', 'webui-carrier'])
+      JSON.stringify(['source-authority', 'webui-carrier', 'webui-carrier-qualification'])
   ) {
     failures += reportFailure(
       id,
@@ -2119,6 +2119,7 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   }
   const sourceAuthority = publicationJobs['source-authority'];
   const carrier = publicationJobs['webui-carrier'];
+  const qualification = publicationJobs['webui-carrier-qualification'];
   if (
     !sourceAuthority
     || Object.prototype.hasOwnProperty.call(sourceAuthority, 'needs')
@@ -2128,10 +2129,17 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
     || carrier.uses !== './.github/workflows/_release-webui-carrier.yml'
     || !exactObject(carrier.permissions, exactWebUiCompileCeilingPermissions)
     || !exactObject(carrier.with, expectedCarrierWith)
+    || carrier.if !== "${{ inputs.operation == 'publish' }}"
+    || !qualification
+    || !needsExactly(qualification, ['source-authority'])
+    || qualification.uses !== './.github/workflows/_release-webui-carrier.yml'
+    || !exactObject(qualification.permissions, exactWebUiReadPermissions)
+    || qualification.if !== "${{ inputs.operation == 'qualify' }}"
+    || !exactObject(qualification.with, { ...expectedCarrierWith, mode: 'qualify' })
   ) {
     failures += reportFailure(
       id,
-      'independent WebUI publication must bind source authority directly into the immutable carrier without a pointer writer',
+      'independent WebUI entry must bind one source authority into mutually exclusive read-only qualification and protected publication jobs',
     );
   }
   if (

@@ -275,7 +275,7 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(webui.jobs['startup-canary'].if, "${{ inputs.mode == 'canary' }}");
   assert.equal(
     webui.jobs['build-and-qualify'].if,
-    "${{ inputs.mode == 'execute' }}",
+    "${{ inputs.mode == 'execute' || inputs.mode == 'qualify' }}",
   );
   assert.equal(
     webui.jobs['publish-immutable-carrier'].if,

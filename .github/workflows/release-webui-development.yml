@@ -1,9 +1,17 @@
 name: OPL WebUI Independent Publication
-run-name: WebUI ${{ inputs.channel }} ${{ inputs.version }}
+run-name: WebUI ${{ inputs.operation }} ${{ inputs.channel }} ${{ inputs.version }}
 
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Qualify exact native images without publication, or publish them through the protected carrier.
+        required: true
+        default: qualify
+        type: choice
+        options:
+          - qualify
+          - publish
       channel:
         description: Independent Docker channel to publish.
         required: true
@@ -128,6 +136,7 @@ jobs:
           retention-days: 90
 
   webui-carrier:
+    if: ${{ inputs.operation == 'publish' }}
     needs: source-authority
     permissions:
       contents: read
@@ -136,6 +145,26 @@ jobs:
     uses: ./.github/workflows/_release-webui-carrier.yml
     with:
       mode: execute
+      authority_mode: ${{ needs.source-authority.outputs.authority_mode }}
+      app_ref: ${{ needs.source-authority.outputs.app_ref }}
+      shell_ref: ${{ needs.source-authority.outputs.shell_ref }}
+      framework_ref: ${{ needs.source-authority.outputs.framework_ref }}
+      opl_version: ${{ needs.source-authority.outputs.version }}
+      release_bundle_digest: ${{ needs.source-authority.outputs.source_authority_digest }}
+      release_cohort_ref: ${{ needs.source-authority.outputs.source_authority_digest }}
+      source_artifact_run_id: ${{ needs.source-authority.outputs.source_run_id }}
+      source_authority_artifact_name: ${{ needs.source-authority.outputs.source_authority_artifact_name }}
+
+  webui-carrier-qualification:
+    if: ${{ inputs.operation == 'qualify' }}
+    needs: source-authority
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+    uses: ./.github/workflows/_release-webui-carrier.yml
+    with:
+      mode: qualify
       authority_mode: ${{ needs.source-authority.outputs.authority_mode }}
       app_ref: ${{ needs.source-authority.outputs.app_ref }}
       shell_ref: ${{ needs.source-authority.outputs.shell_ref }}
