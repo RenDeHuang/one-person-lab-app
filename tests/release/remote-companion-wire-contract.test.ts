@@ -29,7 +29,12 @@ test('OPL Link wire contract has one versioned broker and encrypted transport sh
   assert.ok(readPairingEndpoint);
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_device_id'));
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_public_key'));
-  assert.match(readPairingEndpoint.device_credential_transition, /no_second_plaintext_credential/);
+  assert.ok(!readPairingEndpoint.device_activation_fields.includes('device_credential'));
+  assert.match(readPairingEndpoint.active_device_credential_source, /desktop_pair_token/);
+  assert.equal('device_credential' in wire.broker_http.tokens, false);
+  assert.match(wire.broker_http.tokens.desktop_pair_token, /active_device_credential_after_activation/);
+  assert.match(wire.broker_http.tokens.ios_claim_token, /active_device_credential_after_activation/);
+  assert.match(wire.broker_http.tokens.active_device_credential, /without_minting_a_second_bearer/);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'revoke_pair'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'read_revocation'));
 });
