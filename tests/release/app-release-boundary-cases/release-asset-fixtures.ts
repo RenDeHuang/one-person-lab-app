@@ -290,13 +290,8 @@ export function writeStandardRemoteAssets(outDir, version, options = {}) {
         sha256: componentIdentity.digest,
         size_bytes: componentIdentity.size_bytes,
       },
-      repository_immutability_window: {
-        preflight: { phase: "preflight", setting: { enabled: true, enforced_by_owner: false } },
-        disabled: { phase: "disabled", setting: { enabled: false, enforced_by_owner: false } },
-      },
       protection: {
         github_native_immutable: false,
-        repository_setting_restore_required: true,
         retroactive_lock_claimed: false,
         standard_asset_policy: "sealed_name_size_digest_set_no_overwrite_or_delete",
         full_binding: "full_manifest_binds_this_attestation_and_exact_full_assets",

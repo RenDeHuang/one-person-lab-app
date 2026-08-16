@@ -173,11 +173,10 @@ chmod 0755 opl-install.sh
 选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`；Full 后续出现不会改变哪个
 Standard 是 Latest。
 
-下一真实 Stable 的 Standard 由唯一 Release owner 使用受控 GitHub repository
-setting window：创建 Release 前关闭 release immutability，Standard 公开并完成 Latest
-回读后立即恢复。恢复 setting 只保护后续 releases，不会追溯锁定该 Standard；其信任
-边界是 asset name/size/digest CAS 与统一 `opl-release-attestation.json`。现有 immutable
-r5 仅作历史证据，不迁移、不 unseal。
+Stable 发布不依赖 GitHub 仓库级 Immutable Releases。Standard 资产通过精确的
+name/size/digest CAS 与统一 `opl-release-attestation.json` 保护；Full 后续只能向同一
+Release/tag 追加其精确 DMG 和 manifest。已有 immutable Release 仅作只读历史证据，
+不迁移、不改写。
 
 支持的 App 产品是 Desktop Standard/Full。DMG、Homebrew 与平台 package 是 Desktop
 carrier；Docker WebUI 通过 GHCR 独立发布。矩阵本身不声明

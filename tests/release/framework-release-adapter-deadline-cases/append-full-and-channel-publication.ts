@@ -31,12 +31,9 @@ import {
   isTagRefReadFor,
   isTagRefCreateFor,
   tagRefResponse,
-  isImmutableCapabilityRead,
-  immutableCapabilityResponse,
   fullPublicationRuntime,
   sha256Evidence,
 } from "./fixtures.ts";
-import { buildSettingReceipt } from '../../../scripts/github-release-immutability-setting.ts';
 import type {
   GitHubAdapterRuntime,
   Asset,
@@ -322,7 +319,6 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
     now: () => deadlineMs - 60_000,
     run(_command, args, options) {
       calls.push({ args, stdin: options.input });
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/v${nightlyVersion}`) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success({
@@ -333,7 +329,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
           prerelease: true,
           target_commitish: sourceCommit,
           body: notes,
-          immutable: published,
+          immutable: false,
           assets: [],
         });
       }
@@ -346,7 +342,7 @@ test('github-apply publishes a Nightly Bundle as prerelease and never as Latest'
           prerelease: true,
           target_commitish: sourceCommit,
           body: notes,
-          immutable: published,
+          immutable: false,
           assets: [],
         });
       }
@@ -409,7 +405,6 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
     now: () => deadlineMs - 60_000,
     run(_command, args, options) {
       calls.push({ args, stdin: options.input });
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${files.previewTag}`) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success({
@@ -420,7 +415,7 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
           prerelease: false,
           target_commitish: sourceCommit,
           body: notes,
-          immutable: published,
+          immutable: false,
           assets: [],
         });
       }
@@ -433,7 +428,7 @@ test('github-apply publishes a qualified Preview as a non-prerelease without imp
           prerelease: false,
           target_commitish: sourceCommit,
           body: notes,
-          immutable: published,
+          immutable: false,
           assets: [],
         });
       }
@@ -499,7 +494,7 @@ test('release inspection treats an absent immutable field as false, never true',
   assert.equal(inspectRelease(repo, tag, runtime).release.immutable, false);
 });
 
-test('canonical Stable publication fails closed without bound capability evidence and never calls the admin API', () => {
+test('canonical Stable publication fails closed without its bound publication record', () => {
   const files = fixture([asset('first.zip', '1')]);
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
   bundle.sources.app.repo = canonicalRepo;
@@ -522,14 +517,14 @@ test('canonical Stable publication fails closed without bound capability evidenc
     }, runtime),
     (error: any) => {
       assert.equal(error.result.status, 'failed');
-      assert.equal(error.result.failure.failure_taxonomy, 'github_immutable_releases_evidence_invalid');
+      assert.equal(error.result.failure.failure_taxonomy, 'github_publication_record_invalid');
       return true;
     },
   );
   assert.equal(calls, 2, 'only bounded tag and draft discovery reads are allowed before evidence rejection');
 });
 
-test('canonical Stable publication consumes internal authority evidence and publishes under a disabled setting', () => {
+test('canonical Stable publication consumes internal authority evidence without a repository setting dependency', () => {
   const first = asset('first.zip', '2');
   const files = fixture([first]);
   const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
@@ -577,43 +572,15 @@ test('canonical Stable publication consumes internal authority evidence and publ
     schema: 'opl_app_release_upload_actions.v1',
     upload_actions: [attestationAction, ...installerSidecarActions],
   })}\n`);
-  const preflight = buildSettingReceipt({
-    phase: 'preflight',
-    setting: { enabled: true, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:00.000Z',
-  });
-  const disabled = buildSettingReceipt({
-    phase: 'disabled',
-    setting: { enabled: false, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:01.000Z',
-    priorReceipt: preflight,
-  });
-  const preflightPath = path.join(files.root, 'setting-preflight.json');
-  const disabledPath = path.join(files.root, 'setting-disabled.json');
-  fs.writeFileSync(preflightPath, `${JSON.stringify(preflight)}\n`);
-  fs.writeFileSync(disabledPath, `${JSON.stringify(disabled)}\n`);
-
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
   let tagReserved = false;
   let exists = false;
   let published = false;
-  let settingReadAttempts = 0;
-  const settingReadWaits: number[] = [];
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 60_000,
-    wait(milliseconds) {
-      settingReadWaits.push(milliseconds);
-    },
     run(_command, args) {
       calls.push(args);
-      if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`) {
-        settingReadAttempts += 1;
-        if (settingReadAttempts < 3) {
-          return { status: 1, stdout: '', stderr: 'HTTP 502 Bad Gateway' };
-        }
-        return success({ enabled: false, enforced_by_owner: false });
-      }
       if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/releases/tags/${tag}`) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success(releaseResponse(remoteAssets, {
@@ -672,8 +639,6 @@ test('canonical Stable publication consumes internal authority evidence and publ
       plan: files.planPath,
       'additional-upload-actions': additionalPath,
       'publication-record': durable.recordPath,
-      'preflight-setting-receipt': preflightPath,
-      'disabled-setting-receipt': disabledPath,
       'operation-deadline-at': deadlineAt,
     }, runtime),
     (error: any) => {
@@ -694,8 +659,6 @@ test('canonical Stable publication consumes internal authority evidence and publ
     plan: files.planPath,
     'additional-upload-actions': additionalPath,
     'publication-record': durable.recordPath,
-    'preflight-setting-receipt': preflightPath,
-    'disabled-setting-receipt': disabledPath,
     'operation-deadline-at': deadlineAt,
   }, runtime);
 
@@ -705,110 +668,10 @@ test('canonical Stable publication consumes internal authority evidence and publ
     attestationAction.name,
     ...installerSidecarActions.map((action) => action.name),
   ]);
-  assert.equal(settingReadAttempts, 4);
-  assert.deepEqual(settingReadWaits, [500, 1_500]);
   assert.equal(
     calls.some((args) => args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`),
-    true,
+    false,
   );
   assert.equal(result.inspection.release.immutable, false);
   assert.equal(result.github_native_immutable, false);
-});
-
-test('canonical Stable publication preserves bounded disabled-setting read failures without mutation', () => {
-  const first = asset('first.zip', '3');
-  const files = fixture([first]);
-  const bundle = JSON.parse(fs.readFileSync(files.bundlePath, 'utf8'));
-  bundle.sources.app.repo = canonicalRepo;
-  fs.writeFileSync(files.bundlePath, `${JSON.stringify(bundle)}\n`);
-  const durable = durablePublicationRecord(files.root, [first]);
-  const attestationPath = path.join(files.root, 'opl-release-attestation.json');
-  const attestationBytes = Buffer.from(`${JSON.stringify({
-    schema: 'opl_app_release_attestation.v1',
-    status: 'passed',
-    release: { repository: canonicalRepo, tag, version, bundle_digest: bundle.bundle_digest },
-    publication_record: JSON.parse(fs.readFileSync(durable.recordPath, 'utf8')),
-    protection: {
-      github_native_immutable: false,
-      retroactive_lock_claimed: false,
-      standard_asset_policy: 'sealed_name_size_digest_set_no_overwrite_or_delete',
-    },
-  })}\n`);
-  fs.writeFileSync(attestationPath, attestationBytes);
-  const additionalPath = path.join(files.root, 'additional-upload-actions.json');
-  fs.writeFileSync(additionalPath, `${JSON.stringify({
-    schema: 'opl_app_release_upload_actions.v1',
-    upload_actions: [{
-      action: 'upload',
-      name: 'opl-release-attestation.json',
-      source_path: attestationPath,
-      size_bytes: attestationBytes.length,
-      sha256: sha256Evidence(attestationBytes),
-    }],
-  })}\n`);
-  const preflight = buildSettingReceipt({
-    phase: 'preflight',
-    setting: { enabled: true, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:00.000Z',
-  });
-  const disabled = buildSettingReceipt({
-    phase: 'disabled',
-    setting: { enabled: false, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:01.000Z',
-    priorReceipt: preflight,
-  });
-  const preflightPath = path.join(files.root, 'setting-preflight.json');
-  const disabledPath = path.join(files.root, 'setting-disabled.json');
-  fs.writeFileSync(preflightPath, `${JSON.stringify(preflight)}\n`);
-  fs.writeFileSync(disabledPath, `${JSON.stringify(disabled)}\n`);
-
-  const calls: string[][] = [];
-  const waits: number[] = [];
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 60_000,
-    wait(milliseconds) {
-      waits.push(milliseconds);
-    },
-    run(_command, args) {
-      calls.push(args);
-      if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/immutable-releases`) {
-        return { status: 1, stdout: '', stderr: 'HTTP 502 Bad Gateway' };
-      }
-      if (args[0] === 'api' && args[1] === `repos/${canonicalRepo}/releases/tags/${tag}`) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isReleaseViewFor(args, tag, canonicalRepo) || isTagRefReadFor(args, tag, canonicalRepo)) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      throw new Error(`Unexpected GitHub mutation call: ${args.join(' ')}`);
-    },
-  };
-
-  assert.throws(
-    () => applyPublishPlan({
-      ...mutationAdmission(),
-      'authority-run-id': stableAuthorityRunId,
-      bundle: files.bundlePath,
-      plan: files.planPath,
-      'additional-upload-actions': additionalPath,
-      'publication-record': durable.recordPath,
-      'preflight-setting-receipt': preflightPath,
-      'disabled-setting-receipt': disabledPath,
-      'operation-deadline-at': deadlineAt,
-    }, runtime),
-    (error: any) => {
-      assert.equal(error.result.failure.failure_taxonomy, 'github_immutability_disabled_readback_unavailable');
-      assert.equal(error.result.failure.read_failure.attempt_count, 3);
-      assert.deepEqual(
-        error.result.failure.read_failure.attempts.map((attempt: any) => attempt.stderr),
-        ['HTTP 502 Bad Gateway', 'HTTP 502 Bad Gateway', 'HTTP 502 Bad Gateway'],
-      );
-      return true;
-    },
-  );
-  assert.deepEqual(waits, [500, 1_500]);
-  assert.equal(calls.filter((args) => args[1] === `repos/${canonicalRepo}/immutable-releases`).length, 3);
-  assert.equal(calls.some((args) => isTagRefCreateFor(args, canonicalRepo)), false);
-  assert.equal(calls.some((args) => args[0] === 'release' && args[1] === 'upload'), false);
-  assert.equal(calls.some((args) => args.includes('PATCH')), false);
 });

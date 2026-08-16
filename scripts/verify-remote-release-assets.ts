@@ -503,7 +503,6 @@ function assertStandardDistributionTrust(downloadDir, options, verifiedAssets) {
     || !/^sha256:[0-9a-f]{64}$/.test(attestation.release?.bundle_digest ?? "")
     || attestation.protection?.github_native_immutable !== false
     || attestation.protection?.retroactive_lock_claimed !== false
-    || attestation.protection?.repository_setting_restore_required !== true
     || attestation.protection?.standard_asset_policy !== "sealed_name_size_digest_set_no_overwrite_or_delete"
     || JSON.stringify(attestation.superseded_public_assets) !== JSON.stringify([
       "stable-operation-publication-record.json",

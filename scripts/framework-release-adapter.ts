@@ -20,9 +20,7 @@ import {
 import { assertLatestPointerOperationAdmissionReceipt } from './validate-latest-pointer-operation.ts';
 import { assertStandardLatestAdmissionReceipt } from './validate-standard-latest-admission.ts';
 import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
-import { validateGithubImmutableReleaseCapabilityEvidence } from './stable-operation-control.ts';
 import { validateStableOperationPublicationRecord } from './stable-operation-publication-record.ts';
-import { assertImmutabilitySettingReceipt } from './github-release-immutability-setting.ts';
 
 type JsonRecord = Record<string, any>;
 type Track = 'standard' | 'full';
@@ -511,8 +509,6 @@ function parseCommon(argv: string[]) {
       'operation-deadline-at': { type: 'string' },
       'additional-upload-actions': { type: 'string' },
       'publication-record': { type: 'string' },
-      'disabled-setting-receipt': { type: 'string' },
-      'preflight-setting-receipt': { type: 'string' },
       'standard-attestation': { type: 'string' },
       'authority-run-id': { type: 'string' },
       'latest-admission': { type: 'string' },
@@ -1106,7 +1102,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
 const githubReadTimeoutMs = 30_000;
 const githubMutationTimeoutMs = 10 * 60_000;
 const acceptedTagReadbackDelaysMs = [0, 500, 1_500] as const;
-const immutabilitySettingReadbackDelaysMs = [0, 500, 1_500] as const;
 
 export interface GitHubCommandResult {
   status: number | null;
@@ -1131,31 +1126,12 @@ export interface GitHubAdapterRuntime {
   mutationTimeoutMs?: number;
 }
 
-export function githubCommandEnvironment(
-  command: string,
-  args: string[],
-  baseEnvironment: NodeJS.ProcessEnv = process.env,
-): NodeJS.ProcessEnv {
-  const endpoint = args[0] === 'api' && typeof args[1] === 'string' ? args[1] : '';
-  const adminToken = baseEnvironment.OPL_GITHUB_RELEASE_ADMIN_TOKEN?.trim();
-  if (
-    command === 'gh'
-    && args[0] === 'api'
-    && /^repos\/[^/]+\/[^/]+\/immutable-releases$/.test(endpoint)
-    && !args.includes('--method')
-    && adminToken
-  ) {
-    return { ...baseEnvironment, GH_TOKEN: adminToken };
-  }
-  return baseEnvironment;
-}
-
 const defaultGitHubRuntime: GitHubAdapterRuntime = {
   run(command, args, options) {
     const result = spawnSync(command, args, {
       encoding: 'utf8',
       input: options.input,
-      env: githubCommandEnvironment(command, args),
+      env: process.env,
       maxBuffer: 64 * 1024 * 1024,
       timeout: options.timeout,
       killSignal: options.killSignal,
@@ -1476,44 +1452,6 @@ function ghRead(
   }
 }
 
-function readDisabledImmutabilitySetting(
-  repo: string,
-  operationDeadlineAt: string,
-  runtime: GitHubAdapterRuntime,
-): JsonRecord | string | null {
-  const attempts: JsonRecord[] = [];
-  for (const delayMs of immutabilitySettingReadbackDelaysMs) {
-    if (delayMs > 0) {
-      const remainingMs = remainingReleaseOperationMilliseconds({
-        deadlineAt: operationDeadlineAt,
-        nowMs: runtime.now(),
-      });
-      if (remainingMs <= delayMs) break;
-      runtime.wait?.(delayMs);
-    }
-    try {
-      return ghRead([
-        'api',
-        `repos/${repo}/immutable-releases`,
-        '-H',
-        'X-GitHub-Api-Version: 2026-03-10',
-      ], runtime);
-    } catch (error) {
-      if (!(error instanceof GitHubReadError)) throw error;
-      attempts.push(error.evidence);
-    }
-  }
-  throw new GitHubReadError(
-    'Repository immutability disabled-state readback exhausted its bounded attempts.',
-    {
-      schema: 'opl_app_github_read_failure_evidence.v1',
-      endpoint: `repos/${repo}/immutable-releases`,
-      attempt_count: attempts.length,
-      attempts,
-    },
-  );
-}
-
 export function inspectRelease(
   repo: string,
   tag: string,
@@ -1624,10 +1562,9 @@ function inspectReleaseById(
   };
 }
 
-function assertImmutableReleasesEnabled(
+function assertPublicationAuthority(
   values: AdapterOptionValues,
   repo: string,
-  runtime: GitHubAdapterRuntime,
   bundle: JsonRecord,
   admission: { operationId: string; track: Track },
   actions: JsonRecord[],
@@ -1650,17 +1587,6 @@ function assertImmutableReleasesEnabled(
         || authority.cohort.framework_sha !== bundle.sources?.framework?.source_commit
       ) {
         throw new Error('Publication record repository, base tag, or cohort does not match the exact Bundle.');
-      }
-      const sourceGateEvidence = publicationRecord.operation.pre_dispatch_evidence.source_gate;
-      const sourceGate = JSON.parse(
-        Buffer.from(sourceGateEvidence.bytes_base64, 'base64').toString('utf8'),
-      ) as JsonRecord;
-      const capability = validateGithubImmutableReleaseCapabilityEvidence(
-        sourceGate.immutable_release_capability,
-        repo,
-      );
-      if (capability.checked_at !== sourceGate.generated_at) {
-        throw new Error('Immutable release capability time does not match the bound source gate.');
       }
       if (admission.track === 'standard') {
         // Stable authority and Framework Bundle publication are distinct operation domains.
@@ -1706,8 +1632,8 @@ function assertImmutableReleasesEnabled(
       rejectGitHubMutation(
         'github-apply',
         values,
-        'github_immutable_releases_evidence_invalid',
-        'Bound GitHub immutable Releases capability evidence is invalid.',
+        'github_publication_record_invalid',
+        'Bound Stable publication authority is invalid.',
         {
           repository: repo,
           publication_record: publicationRecordPath,
@@ -1720,65 +1646,21 @@ function assertImmutableReleasesEnabled(
     rejectGitHubMutation(
       'github-apply',
       values,
-      'github_immutable_releases_evidence_invalid',
-      'Canonical Stable publication requires the source-gate-bound immutable Releases capability record.',
+      'github_publication_record_invalid',
+      'Canonical Stable publication requires the source-gate-bound publication record.',
       { repository: repo, publication_record: null },
-    );
-  }
-  let capability: JsonRecord | string | null;
-  try {
-    capability = ghRead([
-      'api',
-      `repos/${repo}/immutable-releases`,
-      '-H',
-      'X-GitHub-Api-Version: 2026-03-10',
-    ], runtime);
-  } catch (error) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_immutable_releases_capability_unavailable',
-      'GitHub immutable Releases capability could not be verified before publication.',
-      {
-        repository: repo,
-        read_failure: error instanceof GitHubReadError
-          ? error.evidence
-          : { error_message: error instanceof Error ? error.message : String(error) },
-      },
-    );
-  }
-  if (
-    capability === null
-    || typeof capability !== 'object'
-    || capability.enabled !== true
-  ) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_immutable_releases_disabled',
-      'GitHub immutable Releases must be enabled before creating or publishing a release carrier.',
-      {
-        repository: repo,
-        enabled: typeof capability === 'object' && capability !== null
-          ? capability.enabled ?? null
-          : null,
-        enforced_by_owner: typeof capability === 'object' && capability !== null
-          ? capability.enforced_by_owner ?? null
-          : null,
-      },
     );
   }
 }
 
-function assertCanonicalMutableStandardWindow(
+function assertCanonicalStandardPublicationBoundary(
   values: AdapterOptionValues,
   repo: string,
-  runtime: GitHubAdapterRuntime,
   bundle: JsonRecord,
   admission: { operationId: string; track: Track },
   actions: JsonRecord[],
 ): void {
-  assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, actions);
+  assertPublicationAuthority(values, repo, bundle, admission, actions);
   const attestationActions = actions.filter((action) => action.name === 'opl-release-attestation.json');
   if (attestationActions.length !== 1) {
     rejectGitHubMutation(
@@ -1801,66 +1683,6 @@ function assertCanonicalMutableStandardWindow(
       values,
       'github_standard_attestation_mismatch',
       'Unified public attestation upload action does not match its exact bytes.',
-    );
-  }
-  let receipt: JsonRecord;
-  try {
-    const preflight = readJson(path.resolve(requireOption(values, 'preflight-setting-receipt')));
-    receipt = assertImmutabilitySettingReceipt(
-      readJson(path.resolve(requireOption(values, 'disabled-setting-receipt'))),
-      'disabled',
-      preflight,
-    );
-  } catch (error) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_immutability_disabled_receipt_invalid',
-      'Canonical Stable publication requires the exact disabled-setting receipt.',
-      { validation_error: error instanceof Error ? error.message : String(error) },
-    );
-  }
-  if (receipt.repository !== repo || receipt.setting?.enabled !== false) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_immutability_disabled_receipt_invalid',
-      'Disabled-setting receipt does not bind the canonical Stable repository.',
-      { repository: repo, receipt_repository: receipt.repository ?? null },
-    );
-  }
-  let setting: JsonRecord | string | null;
-  try {
-    setting = readDisabledImmutabilitySetting(
-      repo,
-      requireOption(values, 'operation-deadline-at'),
-      runtime,
-    );
-  } catch (error) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_immutability_disabled_readback_unavailable',
-      'Repository immutability disabled-state readback failed before Standard publication.',
-      {
-        read_failure: error instanceof GitHubReadError
-          ? error.evidence
-          : { error_message: error instanceof Error ? error.message : String(error) },
-      },
-    );
-  }
-  if (
-    !setting
-    || typeof setting !== 'object'
-    || setting.enabled !== false
-    || setting.enforced_by_owner !== false
-  ) {
-    rejectGitHubMutation(
-      'github-apply',
-      values,
-      'github_immutability_disabled_readback_mismatch',
-      'Repository immutability must read back disabled and not owner-enforced before Standard publication.',
-      { observed_setting: setting ?? null },
     );
   }
 }
@@ -2312,42 +2134,6 @@ function assertSameTagFullAssetPolicy(
   }
 }
 
-function publishedMutablePolicyViolation(input: {
-  repo: string;
-  tag: string;
-  attemptEvidence?: JsonRecord;
-  inspection: JsonRecord;
-}): JsonRecord {
-  return {
-    surface_kind: 'opl_app_github_mutation_result.v1',
-    status: 'failed',
-    repository: input.repo,
-    tag: input.tag,
-    uploaded: [],
-    mutation_attempt_id: input.attemptEvidence?.mutation_attempt_id ?? null,
-    remote_target: input.attemptEvidence?.remote_target
-      ?? `github-release:${input.repo}@${input.tag}`,
-    retry_disposition: 'read_only_reconcile_only_no_retry',
-    failure: {
-      schema: 'opl_release_mutation_failure_receipt.v1',
-      failure_taxonomy: 'published_mutable_policy_violation',
-      mutation: 'release_publish',
-      mutation_attempt_id: input.attemptEvidence?.mutation_attempt_id ?? null,
-      remote_target: input.attemptEvidence?.remote_target
-        ?? `github-release:${input.repo}@${input.tag}`,
-      reason: input.attemptEvidence
-        ? 'GitHub accepted publication but did not report immutable=true.'
-        : 'The existing published carrier does not report immutable=true.',
-      mutation_attempt: input.attemptEvidence ?? null,
-      observed_release: input.inspection.release,
-    },
-    reconciliation: {
-      status: 'complete',
-      observation: input.inspection,
-    },
-  };
-}
-
 function ensureRelease(options: {
   baseAttemptId: string;
   repo: string;
@@ -2512,33 +2298,28 @@ function publishDraftRelease(options: {
   operationDeadlineAt: string;
   runtime: GitHubAdapterRuntime;
   bundle: JsonRecord;
-  nativeImmutableRequired: boolean;
 }): JsonRecord {
   const before = inspectReleaseById(options.repo, options.tag, options.releaseId, options.runtime);
   assertReleaseIdentity(before, { ...options, draft: true });
   assertReleaseAssetSet(before, options.actions, true);
-  if (options.nativeImmutableRequired) {
-    assertImmutableReleasesEnabled(
+  const admission = {
+    operationId: requireOption(options.values, 'operation-id'),
+    track: requireOption(options.values, 'track') as Track,
+  };
+  if (options.repo === canonicalStableRepository && options.bundle.release?.channel === 'stable') {
+    assertCanonicalStandardPublicationBoundary(
       options.values,
       options.repo,
-      options.runtime,
       options.bundle,
-      {
-        operationId: requireOption(options.values, 'operation-id'),
-        track: requireOption(options.values, 'track') as Track,
-      },
+      admission,
       options.actions,
     );
   } else {
-    assertCanonicalMutableStandardWindow(
+    assertPublicationAuthority(
       options.values,
       options.repo,
-      options.runtime,
       options.bundle,
-      {
-        operationId: requireOption(options.values, 'operation-id'),
-        track: requireOption(options.values, 'track') as Track,
-      },
+      admission,
       options.actions,
     );
   }
@@ -2595,23 +2376,15 @@ function publishDraftRelease(options: {
     });
   }
   const published = reconciliation.observation;
-  if (published.release.immutable !== options.nativeImmutableRequired) {
-    if (!options.nativeImmutableRequired) {
-      return unknownAfterAcceptedMutation({
-        mutation: 'release_publish',
-        operationDeadlineAt: options.operationDeadlineAt,
-        attemptEvidence: attempt.evidence,
-        repo: options.repo,
-        tag: options.tag,
-        reconciliation,
-        reason: 'GitHub accepted the controlled mutable Standard publication but readback reported immutable=true.',
-      });
-    }
-    return publishedMutablePolicyViolation({
+  if (published.release.immutable !== false) {
+    return unknownAfterAcceptedMutation({
+      mutation: 'release_publish',
+      operationDeadlineAt: options.operationDeadlineAt,
+      attemptEvidence: attempt.evidence,
       repo: options.repo,
       tag: options.tag,
-      attemptEvidence: attempt.evidence,
-      inspection: published,
+      reconciliation,
+      reason: 'GitHub accepted publication but readback unexpectedly reported immutable=true.',
     });
   }
   try {
@@ -2637,10 +2410,10 @@ function publishDraftRelease(options: {
     uploaded: [],
     release_publish: attempt.evidence,
     inspection: published,
-    github_native_immutable: options.nativeImmutableRequired,
-    mutable_standard_protection: options.nativeImmutableRequired
-      ? null
-      : 'workflow_asset_name_digest_cas_and_unified_attestation',
+    github_native_immutable: false,
+    mutable_release_protection: options.bundle.release?.channel === 'stable'
+      ? 'workflow_asset_name_digest_cas_and_unified_attestation'
+      : 'workflow_asset_name_digest_cas',
   };
 }
 
@@ -2939,15 +2712,15 @@ function applyPublishPlanInternal(
   const name = `One Person Lab v${bundle.release.version}`;
   const notes = bundlePublicReleaseBody(bundle);
   const preexisting = inspectReleaseForReconcile(repo, tag, runtime);
-  const canonicalMutableStandard = repo === canonicalStableRepository && publicationChannel === 'stable';
+  const canonicalStableStandard = repo === canonicalStableRepository && publicationChannel === 'stable';
   const exactPublishedCarrier = preexisting.status === 'complete'
     && preexisting.observation.release.exists === true
     && preexisting.observation.release.draft === false;
   if (!exactPublishedCarrier) {
-    if (canonicalMutableStandard) {
-      assertCanonicalMutableStandardWindow(values, repo, runtime, bundle, admission, uploadActions);
+    if (canonicalStableStandard) {
+      assertCanonicalStandardPublicationBoundary(values, repo, bundle, admission, uploadActions);
     } else {
-      assertImmutableReleasesEnabled(values, repo, runtime, bundle, admission, uploadActions);
+      assertPublicationAuthority(values, repo, bundle, admission, uploadActions);
     }
   }
   if (mutationMode === 'rehearsal') {
@@ -2971,7 +2744,7 @@ function applyPublishPlanInternal(
       preexisting_release: preexisting.status === 'complete'
         ? preexisting.observation.release
         : null,
-      github_native_immutable_expected: !canonicalMutableStandard,
+      github_native_immutable_expected: false,
     };
   }
   const releaseResult = ensureRelease({
@@ -2989,23 +2762,13 @@ function applyPublishPlanInternal(
   if (releaseResult.status !== 'complete') return releaseResult;
   if (releaseResult.inspection.release.draft === false) {
     assertReleaseAssetSet(releaseResult.inspection, uploadActions, true);
-    if (releaseResult.inspection.release.immutable !== !canonicalMutableStandard) {
-      if (canonicalMutableStandard) {
-        throw new Error('Controlled mutable Standard readback unexpectedly reports immutable=true.');
-      }
-      return publishedMutablePolicyViolation({
-        repo,
-        tag,
-        inspection: releaseResult.inspection,
-      });
-    }
     return {
       status: 'complete',
       repository: repo,
       tag,
       uploaded: [],
       inspection: releaseResult.inspection,
-      github_native_immutable: !canonicalMutableStandard,
+      github_native_immutable: releaseResult.inspection.release.immutable === true,
     };
   }
   assertReleaseAssetSet(releaseResult.inspection, uploadActions, false);
@@ -3108,7 +2871,6 @@ function applyPublishPlanInternal(
     operationDeadlineAt,
     runtime,
     bundle,
-    nativeImmutableRequired: !canonicalMutableStandard,
   });
   if (publicationResult.status !== 'complete') {
     return { ...publicationResult, uploaded };

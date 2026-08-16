@@ -4,7 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { buildSettingReceipt } from '../../scripts/github-release-immutability-setting.ts';
 import { createReleaseAttestation } from '../../scripts/write-release-attestation.ts';
 import {
   asset,
@@ -52,17 +51,6 @@ test('unified Standard attestation embeds trust and declares mutable CAS protect
   const publicationRecord = JSON.parse(fs.readFileSync(durable.recordPath, 'utf8'));
   const componentPath = path.join(root, 'opl-app-component-manifest.json');
   fs.writeFileSync(componentPath, '{"surface_kind":"opl_app_component_manifest.v1"}\n');
-  const preflight = buildSettingReceipt({
-    phase: 'preflight',
-    setting: { enabled: true, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:00.000Z',
-  });
-  const disabled = buildSettingReceipt({
-    phase: 'disabled',
-    setting: { enabled: false, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:01.000Z',
-    priorReceipt: preflight,
-  });
   const trust = trustEvidence();
   const attestation = createReleaseAttestation({
     publicationRecord,
@@ -70,8 +58,6 @@ test('unified Standard attestation embeds trust and declares mutable CAS protect
     notarizationReceipt: trust.notarization,
     notarizationReceiptSha256: 'a'.repeat(64),
     componentManifestPath: componentPath,
-    preflightSettingReceipt: preflight,
-    disabledSettingReceipt: disabled,
     bundleDigest: `sha256:${'c'.repeat(64)}`,
   });
 
@@ -80,8 +66,7 @@ test('unified Standard attestation embeds trust and declares mutable CAS protect
   assert.equal(attestation.release.tag, tag);
   assert.equal(attestation.protection.github_native_immutable, false);
   assert.equal(attestation.protection.retroactive_lock_claimed, false);
-  assert.equal(attestation.repository_immutability_window.preflight.phase, 'preflight');
-  assert.equal(attestation.repository_immutability_window.disabled.phase, 'disabled');
+  assert.equal('repository_immutability_window' in attestation, false);
   assert.equal(attestation.protection.full_binding, 'full_manifest_binds_this_attestation_and_exact_full_assets');
   assert.deepEqual(attestation.superseded_public_assets, [
     'stable-operation-publication-record.json',
@@ -96,17 +81,6 @@ test('unified Standard attestation rejects a notarization receipt byte-chain mis
   const durable = durablePublicationRecord(root, [payload]);
   const componentPath = path.join(root, 'opl-app-component-manifest.json');
   fs.writeFileSync(componentPath, '{"surface_kind":"opl_app_component_manifest.v1"}\n');
-  const preflight = buildSettingReceipt({
-    phase: 'preflight',
-    setting: { enabled: true, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:00.000Z',
-  });
-  const disabled = buildSettingReceipt({
-    phase: 'disabled',
-    setting: { enabled: false, enforced_by_owner: false },
-    observedAt: '2026-08-03T08:00:01.000Z',
-    priorReceipt: preflight,
-  });
   const trust = trustEvidence();
   assert.throws(() => createReleaseAttestation({
     publicationRecord: JSON.parse(fs.readFileSync(durable.recordPath, 'utf8')),
@@ -114,8 +88,6 @@ test('unified Standard attestation rejects a notarization receipt byte-chain mis
     notarizationReceipt: trust.notarization,
     notarizationReceiptSha256: '0'.repeat(64),
     componentManifestPath: componentPath,
-    preflightSettingReceipt: preflight,
-    disabledSettingReceipt: disabled,
     bundleDigest: `sha256:${'c'.repeat(64)}`,
   }), /exact notarization receipt bytes/);
 });

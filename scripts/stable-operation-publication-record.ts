@@ -13,7 +13,6 @@ import {
   validateStableOperationAuthority,
   validateStableOperationConsumption,
   validateStableOperationControl,
-  validateGithubImmutableReleaseCapabilityEvidence,
 } from './stable-operation-control.ts';
 
 type JsonRecord = Record<string, unknown>;
@@ -228,12 +227,6 @@ function assertSourceGateBinding(
     || sourceGate.typed_blocker !== null
   ) {
     throw new Error('source_gate must be one passed, unblocked source-gate report.');
-  }
-  const immutableReleaseCapability = validateGithubImmutableReleaseCapabilityEvidence(
-    sourceGate.immutable_release_capability,
-  );
-  if (immutableReleaseCapability.checked_at !== sourceGate.generated_at) {
-    throw new Error('source_gate immutable release capability readback time does not match source-gate generation.');
   }
   if (
     cohort.app_sha !== authority.cohort.app_sha

@@ -10,7 +10,6 @@ import {
   canonicalJson,
   consumeStableOperationControl,
   createStableOperationAuthority,
-  createGithubImmutableReleaseCapabilityEvidence,
   stableOperationIdForFrozenCohort,
 } from '../../scripts/stable-operation-control.ts';
 import {
@@ -59,12 +58,6 @@ function sourceGate(): Record<string, unknown> {
     status: 'passed',
     operation_fingerprint: objectiveFingerprint,
     typed_blocker: null,
-    immutable_release_capability: createGithubImmutableReleaseCapabilityEvidence({
-      repository,
-      checkedAt: '2026-07-28T00:15:00.000Z',
-      enabled: true,
-      enforcedByOwner: false,
-    }),
     admission: {
       status: 'passed',
       immutable_cohort: {

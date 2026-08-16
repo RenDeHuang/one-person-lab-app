@@ -410,18 +410,6 @@ function sameStringSet(actual: unknown, expected: string[]) {
   );
 }
 
-export function hasExactImmutabilityWindowPhases(actual: unknown): boolean {
-  const expected = [
-    'preflight_enabled_not_owner_enforced',
-    'disable_before_release_creation',
-    'publish_standard_and_activate_latest',
-    'restore_enabled_and_read_back',
-  ];
-  return Array.isArray(actual)
-    && actual.length === expected.length
-    && actual.every((entry, index) => entry === expected[index]);
-}
-
 function stringArrayIncludesAll(actual: unknown, expected: string[]) {
   return Array.isArray(actual) && expected.every((entry) => actual.includes(entry));
 }
@@ -521,15 +509,13 @@ function validateGithubReleaseName(releaseContract: Record<string, any>): number
   return 0;
 }
 
-function validateReleaseImmutability(releaseContract: Record<string, any>): number {
+function validateReleaseAssetIntegrity(releaseContract: Record<string, any>): number {
   const standardDraft = releaseContract.standard_updater?.draft_refresh;
   const fullDraft = releaseContract.full_first_install?.draft_refresh;
   const fullAddon = releaseContract.full_first_install?.published_addon;
   const fullAddonAssetPolicy = fullAddon?.asset_policy;
   const fullNotarizationRecovery = releaseContract.full_first_install?.production_macos_trust
     ?.unknown_submission_recovery;
-  const immutabilityWindow = releaseContract.release_bundle_control_plane?.publication?.stable
-    ?.repository_immutability_window;
   const nightly = releaseContract.nightly_standard;
   const sameDayRebuild = nightly?.same_day_rebuild;
   if (
@@ -554,17 +540,6 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     fullNotarizationRecovery?.identity_incomplete_status !== 'diagnostic_only' ||
     fullNotarizationRecovery?.resume_policy !==
       'same_submission_finalize_only_after_owner_authoritative_reconcile' ||
-    immutabilityWindow?.owner !== 'release-stable protected environment unique Release owner' ||
-    immutabilityWindow?.token_secret !== 'OPL_GITHUB_RELEASE_ADMIN_TOKEN' ||
-    immutabilityWindow?.receipt_schema !== 'opl_app_github_immutability_setting_receipt.v1' ||
-    !hasExactImmutabilityWindowPhases(immutabilityWindow?.ordered_phases) ||
-    immutabilityWindow?.setting_changes_apply_to !== 'future_releases_only' ||
-    immutabilityWindow?.candidate_release_expected_immutable !== false ||
-    immutabilityWindow?.candidate_release_retroactively_locked_after_restore !== false ||
-    immutabilityWindow?.restore_required_on_failure !== true ||
-    immutabilityWindow?.unknown_result_policy !==
-      'bounded_owner_authoritative_read_only_reconcile_no_retry_rerun_redispatch_or_cancel' ||
-    immutabilityWindow?.existing_immutable_release_migration_allowed !== false ||
     fullAddon?.operation !== 'append_full' ||
     fullAddon?.workflow !== '.github/workflows/_release-full-addon.yml' ||
     fullAddon?.checkpoint_minimum_stage !== 'standard_built' ||
@@ -667,7 +642,7 @@ function validateReleaseImmutability(releaseContract: Record<string, any>): numb
     nightly?.scheduled_latest_release_allowed !== false ||
     nightly?.explicit_user_override_may_move_latest !== true
   ) {
-    console.error('FAIL release_immutability: Stable must use a restored future-release setting window while same-tag Full remains CAS-only and Nightly stays immutable non-Latest');
+    console.error('FAIL release_asset_integrity: Stable and same-tag Full must preserve digest-bound assets while Nightly remains non-Latest');
     return 1;
   }
   return 0;
@@ -1325,24 +1300,6 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     || preflight?.apple_credentials_diagnostic?.existing_submission_reconcile?.public_asset_write_allowed !== false
   ) {
     console.error('FAIL release_preflight_contract: standalone Apple credential preflight must be diagnostic-only');
-    failures += 1;
-  }
-  const githubAdminCredentials = preflight?.github_release_admin_credentials_diagnostic;
-  if (
-    githubAdminCredentials?.schema !== 'opl_app_github_release_admin_credential_preflight.v1'
-    || githubAdminCredentials?.workflow !== '.github/workflows/release-github-admin-credentials-preflight.yml'
-    || githubAdminCredentials?.script !== 'scripts/verify-github-release-admin-credential.ts'
-    || githubAdminCredentials?.protected_environment !== 'release-stable'
-    || githubAdminCredentials?.secret_name !== 'OPL_GITHUB_RELEASE_ADMIN_TOKEN'
-    || githubAdminCredentials?.endpoint !== 'GET repos/gaofeng21cn/one-person-lab-app/immutable-releases'
-    || githubAdminCredentials?.authority !== 'diagnostic_only'
-    || githubAdminCredentials?.canonical_main_first_attempt_required !== true
-    || githubAdminCredentials?.required_after_credential_replacement_before_new_stable_operation !== true
-    || githubAdminCredentials?.raw_secret_response_or_error_persistence_allowed !== false
-    || githubAdminCredentials?.repository_setting_mutation_allowed !== false
-    || githubAdminCredentials?.release_or_dispatch_mutation_allowed !== false
-  ) {
-    console.error('FAIL release_preflight_contract: GitHub release-admin credential recovery requires one sanitized read-only protected diagnostic before a new Stable operation');
     failures += 1;
   }
   const observability = preflight?.attempt_observability;
@@ -2557,7 +2514,7 @@ export function validateReleaseContractPolicies(
   let failures = 0;
 
   failures += validateGithubReleaseName(releaseContract);
-  failures += validateReleaseImmutability(releaseContract);
+  failures += validateReleaseAssetIntegrity(releaseContract);
   failures += validateLocalInstallReleaseProfile(releaseContract);
   failures += validateReleaseExecutionTracks(releaseContract);
   failures += validatePreparedNotesTransportPolicy(releaseContract);

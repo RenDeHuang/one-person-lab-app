@@ -932,26 +932,9 @@ jobs:
             --expected-shell-sha '${{ needs.restore.outputs.shell_ref }}' \
             --expected-framework-sha '${{ needs.restore.outputs.framework_source_ref }}'
 
-      - name: Preflight and disable future-release immutability for Stable
-        if: ${{ needs.restore.outputs.channel == 'stable' }}
-        env:
-          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$GH_TOKEN"
-          node --experimental-strip-types app-executor/scripts/github-release-immutability-setting.ts preflight \
-            --repository "$GITHUB_REPOSITORY" \
-            --output github-immutability-preflight.json
-          node --experimental-strip-types app-executor/scripts/github-release-immutability-setting.ts disable \
-            --repository "$GITHUB_REPOSITORY" \
-            --preflight github-immutability-preflight.json \
-            --output github-immutability-disabled.json
-
       - name: Publish only missing Standard bytes
         env:
           GH_TOKEN: ${{ github.token }}
-          OPL_GITHUB_RELEASE_ADMIN_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
           BUNDLE_DIGEST: ${{ needs.restore.outputs.bundle_digest }}
         shell: bash
         run: |
@@ -995,7 +978,6 @@ jobs:
             --store "$store" --json > publish-plan.json
           additional_upload_args=()
           publication_record_args=()
-          setting_receipt_args=()
           if [ '${{ needs.restore.outputs.channel }}' = stable ]; then
             controls=()
             consumptions=()
@@ -1114,8 +1096,6 @@ jobs:
                   --gatekeeper-policy "$gatekeeper_policy" \
                   --notarization-receipt "$notarization_receipt" \
                   --component-manifest "$component_manifest" \
-                  --preflight-setting-receipt github-immutability-preflight.json \
-                  --disabled-setting-receipt github-immutability-disabled.json \
                   --bundle-digest "$BUNDLE_DIGEST" \
                   --output opl-release-attestation.json
                 ;;
@@ -1176,10 +1156,6 @@ jobs:
             # A resume run transports the frozen checkpoint; the original Standard
             # producer remains the authority bound by the publication record.
             publication_record_args+=(--authority-run-id '${{ needs.restore.outputs.standard_bound_artifact_run_id }}')
-            setting_receipt_args=(
-              --preflight-setting-receipt github-immutability-preflight.json
-              --disabled-setting-receipt github-immutability-disabled.json
-            )
           fi
           node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
@@ -1189,7 +1165,6 @@ jobs:
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
             "${publication_record_args[@]}" \
-            "${setting_receipt_args[@]}" \
             "${additional_upload_args[@]}" \
             --mutation-mode rehearsal \
             --output publication-contract-rehearsal.json
@@ -1203,7 +1178,6 @@ jobs:
             --operation-started-at '${{ needs.restore.outputs.operation_started_at }}' \
             --operation-deadline-at '${{ needs.restore.outputs.operation_deadline_at }}' \
             "${publication_record_args[@]}" \
-            "${setting_receipt_args[@]}" \
             "${additional_upload_args[@]}" \
             --mutation-mode execute \
             --output publish-apply.json
@@ -1326,8 +1300,6 @@ jobs:
             docker-webui-installer-sidecar-actions.json
             standard-publication-upload-actions.json
             opl-release-attestation.json
-            github-immutability-preflight.json
-            github-immutability-disabled.json
             unknown-persisted.json
             unknown-checkpoint-export.json
             standard-github-unknown-checkpoint
@@ -2275,119 +2247,5 @@ jobs:
             latest-reconcile-status.json
             latest-reconcile.receipt.json
             release-failure-evidence
-          if-no-files-found: warn
-          retention-days: 30
-
-  restore-repository-immutability:
-    if: ${{ always() && needs.restore.result == 'success' && needs.restore.outputs.channel == 'stable' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: release-stable
-    permissions:
-      contents: read
-      actions: read
-    needs:
-      - restore
-      - publish-standard-nonlatest
-      - remote-digest-verify
-      - publish-homebrew-standard
-      - homebrew-standard-readback
-      - activate-latest
-    steps:
-      - name: Checkout canonical App executor
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: '${{ github.sha }}', path: app-executor }
-
-      - name: Download Standard publication evidence
-        id: download-publication-evidence
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: opl-release-standard-published-${{ github.run_id }}
-          path: standard-publication-evidence
-
-      - name: Restore and read back future-release immutability
-        env:
-          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$GH_TOKEN"
-          mkdir -p immutability-restore-evidence
-          preflight_receipts=()
-          disabled_receipts=()
-          while IFS= read -r item; do preflight_receipts+=("$item"); done < <(
-            find standard-publication-evidence -type f -name github-immutability-preflight.json -print 2>/dev/null | LC_ALL=C sort
-          )
-          while IFS= read -r item; do disabled_receipts+=("$item"); done < <(
-            find standard-publication-evidence -type f -name github-immutability-disabled.json -print 2>/dev/null | LC_ALL=C sort
-          )
-          if [ "${#preflight_receipts[@]}" -eq 0 ] && [ "${#disabled_receipts[@]}" -eq 0 ]; then
-            gh api "repos/$GITHUB_REPOSITORY/immutable-releases" \
-              -H 'X-GitHub-Api-Version: 2026-03-10' > immutability-restore-evidence/current-setting.json
-            jq -e '.enabled == true and .enforced_by_owner == false' \
-              immutability-restore-evidence/current-setting.json >/dev/null || {
-                echo "::error::Repository setting is not safely enabled, but no exact disabled receipt chain exists."
-                exit 1
-              }
-            jq -n \
-              '{schema:"opl_app_github_immutability_restore_not_required.v1",status:"passed",reason:"stable_publication_never_entered_disabled_window"}' \
-              > immutability-restore-evidence/restore-not-required.json
-            exit 0
-          fi
-          test "${#preflight_receipts[@]}" -eq 1
-          test "${#disabled_receipts[@]}" -eq 1
-          preflight="${preflight_receipts[0]}"
-          disabled="${disabled_receipts[0]}"
-          cp "$preflight" immutability-restore-evidence/github-immutability-preflight.json
-          cp "$disabled" immutability-restore-evidence/github-immutability-disabled.json
-
-          release_id=''
-          publication_outcome=unknown
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ needs.restore.outputs.tag }}" \
-            -H 'X-GitHub-Api-Version: 2026-03-10' \
-            > immutability-restore-evidence/candidate-release.json \
-            2> immutability-restore-evidence/candidate-release.stderr; then
-            if jq -e \
-              --arg tag '${{ needs.restore.outputs.tag }}' '
-                .tag_name == $tag
-                and .draft == false
-                and .immutable == false
-                and (.id | type == "number" and . > 0)
-              ' immutability-restore-evidence/candidate-release.json >/dev/null; then
-              release_id="$(jq -er '.id | tostring' immutability-restore-evidence/candidate-release.json)"
-              publication_outcome=published_mutable_standard
-            fi
-          elif rg -q 'HTTP 404|Not Found' immutability-restore-evidence/candidate-release.stderr; then
-            publication_outcome=not_published
-          fi
-
-          restore_args=(
-            --repository "$GITHUB_REPOSITORY"
-            --preflight "$preflight"
-            --disabled "$disabled"
-            --output immutability-restore-evidence/github-immutability-restored.json
-          )
-          if [ -n "$release_id" ]; then
-            restore_args+=(--release-id "$release_id" --tag '${{ needs.restore.outputs.tag }}')
-          else
-            restore_args+=(--publication-outcome "$publication_outcome")
-          fi
-          node --experimental-strip-types app-executor/scripts/github-release-immutability-setting.ts restore \
-            "${restore_args[@]}"
-          jq -e '
-            .phase == "restored"
-            and .setting.enabled == true
-            and .setting.enforced_by_owner == false
-            and .applies_to == "future_releases_only"
-            and .retroactive_lock_claimed == false
-          ' immutability-restore-evidence/github-immutability-restored.json >/dev/null
-
-      - name: Upload repository immutability restoration evidence
-        if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: opl-release-immutability-restored-${{ github.run_id }}
-          path: immutability-restore-evidence
           if-no-files-found: warn
           retention-days: 30

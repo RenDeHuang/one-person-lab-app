@@ -197,13 +197,11 @@ For a first-time macOS arm64 install without Homebrew, choose
 Standard Release page. Its later availability does not change which Standard
 release is Latest.
 
-The next Stable Standard uses an owner-controlled GitHub repository setting
-window: repository release immutability is disabled before that Release is
-created, then restored immediately after Standard publication and Latest
-readback. Restoring the setting protects future releases; it does not
-retroactively lock this Standard. Its trust boundary is exact asset
-name/size/digest CAS plus the unified `opl-release-attestation.json`. Existing
-immutable r5 releases are historical evidence and are not migrated or unsealed.
+Stable publication does not depend on GitHub repository-level Immutable
+Releases. Standard assets are protected by exact name/size/digest CAS and the
+unified `opl-release-attestation.json`; Full may later append only its exact
+DMG and manifest to the same Release/tag. Existing immutable releases remain
+read-only historical evidence and are not migrated or rewritten.
 
 The supported App product is Desktop Standard/Full. DMG, Homebrew and platform
 packages are Desktop carriers; Docker WebUI is independently released through

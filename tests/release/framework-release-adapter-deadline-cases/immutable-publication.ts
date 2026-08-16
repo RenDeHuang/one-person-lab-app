@@ -20,43 +20,11 @@ import {
   isTagRefReadFor,
   isTagRefCreateFor,
   tagRefResponse,
-  isImmutableCapabilityRead,
-  immutableCapabilityResponse,
 } from "./fixtures.ts";
 import type {
   GitHubAdapterRuntime,
   Asset,
 } from "./fixtures.ts";
-
-test('immutable capability disabled fails closed before every public mutation', () => {
-  const files = fixture([asset('first.zip', '1')]);
-  const calls: string[][] = [];
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 60_000,
-    run(_command, args) {
-      calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse(false);
-      throw new Error(`Unexpected GitHub call after disabled capability: ${args.join(' ')}`);
-    },
-  };
-
-  assert.throws(
-    () => applyPublishPlan({
-      ...mutationAdmission(),
-      bundle: files.bundlePath,
-      plan: files.planPath,
-      'operation-deadline-at': deadlineAt,
-    }, runtime),
-    (error: any) => {
-      assert.equal(error.result.status, 'failed');
-      assert.equal(error.result.failure.failure_taxonomy, 'github_immutable_releases_disabled');
-      return true;
-    },
-  );
-  assert.equal(calls.filter((args) => args.includes('POST')).length, 0);
-  assert.equal(calls.filter((args) => args.includes('PATCH')).length, 0);
-  assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
-});
 
 test('standard publication projects legacy frozen notes before creating the GitHub Release', () => {
   const files = fixture([]);
@@ -71,12 +39,11 @@ test('standard publication projects legacy frozen notes before creating the GitH
     now: () => deadlineMs - 60_000,
     run(_command, args, options) {
       calls.push({ args, stdin: options.input });
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success(releaseResponse([], {
           draft: !published,
-          immutable: published,
+          immutable: false,
           body: projectedLegacyNotes,
         }));
       }
@@ -154,7 +121,6 @@ test('unexpected remote assets fail before immutable publication', () => {
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         return success(releaseResponse([unexpected], { draft: true, immutable: false }));
       }
@@ -226,10 +192,9 @@ test('supplemental immutable carrier receipt joins the exact draft asset set onc
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-        return success(releaseResponse(remoteAssets, { draft: !published, immutable: published }));
+        return success(releaseResponse(remoteAssets, { draft: !published, immutable: false }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {
@@ -312,7 +277,6 @@ test('duplicate remote asset names fail before immutable publication', () => {
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         return success(releaseResponse([first, first], { draft: true, immutable: false }));
       }
@@ -341,7 +305,6 @@ test('an incomplete published immutable carrier is read-only and cannot receive 
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return success(releaseResponse([]));
       throw new Error(`Unexpected GitHub call: ${args.join(' ')}`);
     },
@@ -360,7 +323,7 @@ test('an incomplete published immutable carrier is read-only and cannot receive 
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
 });
 
-test('immutable=false after accepted draft publication returns typed terminal evidence', () => {
+test('immutable=true after accepted draft publication returns outcome_unknown', () => {
   const first = asset('first.zip', '7');
   const files = fixture([first]);
   const calls: string[][] = [];
@@ -372,12 +335,11 @@ test('immutable=false after accepted draft publication returns typed terminal ev
     now: () => deadlineMs - 60_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         if (!exists) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
         return success(releaseResponse(remoteAssets, {
           draft: !published,
-          immutable: false,
+          immutable: published,
         }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
@@ -412,10 +374,11 @@ test('immutable=false after accepted draft publication returns typed terminal ev
     plan: files.planPath,
     'operation-deadline-at': deadlineAt,
   }, runtime);
-  assert.equal(result.status, 'failed');
-  assert.equal(result.failure.failure_taxonomy, 'published_mutable_policy_violation');
+  assert.equal(result.status, 'outcome_unknown');
+  assert.equal(result.failure.failure_taxonomy, 'github_mutation_readback_unknown');
   assert.equal(result.failure.mutation, 'release_publish');
-  assert.equal(result.retry_disposition, 'read_only_reconcile_only_no_retry');
+  assert.match(result.failure.reason, /unexpectedly reported immutable=true/);
+  assert.equal(result.retry_disposition, 'read_only_reconcile_only');
   assert.deepEqual(result.uploaded, [first.name]);
   assert.equal(calls.filter((args) => args.includes('PATCH')).length, 1);
 });

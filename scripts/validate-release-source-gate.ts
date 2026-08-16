@@ -8,10 +8,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs as parseNodeArgs } from 'node:util';
 import { ensureActiveShellCheckout, isGitCheckout } from './active-shell-checkout.ts';
 import { parseStrictBoolean } from './release-readiness-args.ts';
-import {
-  createGithubImmutableReleaseCapabilityEvidence,
-  type GithubImmutableReleaseCapabilityEvidence,
-} from './stable-operation-control.ts';
 
 const defaultRepoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const canonicalAppRepository = 'gaofeng21cn/one-person-lab-app';
@@ -182,7 +178,6 @@ export type ReleaseSourceGateReport = {
   framework_root: string;
   require_shell_format: boolean;
   run_shell_tests: boolean;
-  immutable_release_capability: GithubImmutableReleaseCapabilityEvidence | null;
   owner_release_namespace: GithubOwnerReleaseNamespaceEvidence | null;
   admission: {
     status: 'passed' | 'blocked';
@@ -856,7 +851,6 @@ export function buildReleaseSourceGateReport(
   let appHead = '';
   let shellSha: string | null = null;
   let frameworkSha: string | null = null;
-  let immutableReleaseCapability: GithubImmutableReleaseCapabilityEvidence | null = null;
   let ownerReleaseNamespace: GithubOwnerReleaseNamespaceEvidence | null = null;
   const checks: Check[] = [];
   const requiredGates: RequiredGate[] = [
@@ -932,7 +926,6 @@ export function buildReleaseSourceGateReport(
       framework_root: frameworkRoot,
       require_shell_format: options.requireShellFormat,
       run_shell_tests: options.runShellTests,
-      immutable_release_capability: immutableReleaseCapability,
       owner_release_namespace: ownerReleaseNamespace,
       admission: {
         status: admissionFailedCheckIds.length === 0 ? 'passed' : 'blocked',
@@ -999,51 +992,6 @@ export function buildReleaseSourceGateReport(
     actual: originUrl || undefined,
     command: commandText('git', ['remote', 'get-url', 'origin']),
   });
-
-  const immutableCapabilityArgs = [
-    'api',
-    `repos/${canonicalAppRepository}/immutable-releases`,
-    '-H',
-    'X-GitHub-Api-Version: 2026-03-10',
-  ];
-  const immutableCapabilityResult = originRepository === canonicalAppRepository
-    ? runner('gh', immutableCapabilityArgs, { cwd: options.repoRoot, env: commandEnvironment })
-    : {
-        status: 1,
-        stdout: '',
-        stderr: 'canonical App origin is not established',
-      };
-  try {
-    const response = immutableCapabilityResult.status === 0
-      ? JSON.parse(immutableCapabilityResult.stdout)
-      : null;
-    immutableReleaseCapability = createGithubImmutableReleaseCapabilityEvidence({
-      repository: canonicalAppRepository,
-      checkedAt: generatedAt,
-      enabled: response?.enabled,
-      enforcedByOwner: response?.enforced_by_owner,
-    });
-    addCheck(checks, {
-      id: 'github_immutable_release_capability',
-      status: 'passed',
-      message: 'Owner-authenticated controller readback proves GitHub immutable Releases are enabled before nonce issuance.',
-      expected: 'enabled=true',
-      actual: `enabled=true; evidence=${immutableReleaseCapability.evidence_digest}`,
-      command: commandText('gh', immutableCapabilityArgs),
-    });
-  } catch (error) {
-    immutableReleaseCapability = null;
-    addCheck(checks, {
-      id: 'github_immutable_release_capability',
-      status: 'failed',
-      message: `GitHub immutable Releases capability must be owner-read and digest-bound before nonce issuance. ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-      expected: 'enabled=true',
-      actual: commandDetail(immutableCapabilityResult) || undefined,
-      command: commandText('gh', immutableCapabilityArgs),
-    });
-  }
 
   const ownerIdentityArgs = ['api', 'user'];
   const ownerRepositoryArgs = ['api', `repos/${canonicalAppRepository}`];

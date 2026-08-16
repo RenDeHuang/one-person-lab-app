@@ -10,7 +10,6 @@ import {
   bindStableOperationAuthority,
   createStableOperationAuthority,
   createStableOperationControl,
-  createGithubImmutableReleaseCapabilityEvidence,
   canonicalJson,
   decodeStableOperationAuthorityCarrier,
   encodeStableOperationAuthorityCarrier,
@@ -19,7 +18,6 @@ import {
   validateStableOperationAuthorityExecutorBinding,
   validateStableOperationConsumption,
   validateStableOperationControl,
-  validateGithubImmutableReleaseCapabilityEvidence,
   validateStableOperationRuntimeBinding,
 } from '../../scripts/stable-operation-control.ts';
 
@@ -77,12 +75,6 @@ function sourceGate(input: {
       },
     },
     typed_blocker: null,
-    immutable_release_capability: createGithubImmutableReleaseCapabilityEvidence({
-      repository: 'gaofeng21cn/one-person-lab-app',
-      checkedAt: input.generatedAt ?? '2026-07-28T00:10:00.000Z',
-      enabled: true,
-      enforcedByOwner: false,
-    }),
     checks: [{ id: 'app_frozen_commit_reachable', status: 'passed' }],
   };
 }
@@ -282,39 +274,6 @@ test('Stable authority fixes pre-submit bytes while later generated_at and obser
   );
   assert.throws(
     () => issuedAuthority({ sourceGate: sourceGate({ shellSha: '5'.repeat(40) }) }),
-    /Pre-dispatch authority evidence must contain one passed zero-consumer pre-nonce guard/,
-  );
-});
-
-test('Stable authority rejects missing, tampered, or source-gate-time-drifted immutable capability evidence', () => {
-  const missing = sourceGate() as Record<string, unknown>;
-  delete missing.immutable_release_capability;
-  assert.throws(
-    () => issuedAuthority({ sourceGate: missing }),
-    /immutable release capability evidence must be one JSON object/i,
-  );
-
-  const tampered = createGithubImmutableReleaseCapabilityEvidence({
-    repository: 'gaofeng21cn/one-person-lab-app',
-    checkedAt: '2026-07-28T00:10:00.000Z',
-    enabled: true,
-    enforcedByOwner: false,
-  });
-  tampered.evidence_digest = `sha256:${'0'.repeat(64)}`;
-  assert.throws(
-    () => validateGithubImmutableReleaseCapabilityEvidence(tampered),
-    /exact expected digest-bound proof/,
-  );
-
-  const drifted = sourceGate() as Record<string, any>;
-  drifted.immutable_release_capability = createGithubImmutableReleaseCapabilityEvidence({
-    repository: 'gaofeng21cn/one-person-lab-app',
-    checkedAt: '2026-07-28T00:11:00.000Z',
-    enabled: true,
-    enforcedByOwner: false,
-  });
-  assert.throws(
-    () => issuedAuthority({ sourceGate: drifted }),
     /Pre-dispatch authority evidence must contain one passed zero-consumer pre-nonce guard/,
   );
 });

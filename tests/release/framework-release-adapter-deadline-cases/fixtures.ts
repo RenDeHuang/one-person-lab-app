@@ -18,7 +18,6 @@ import {
   bindStableOperationAuthority,
   canonicalJson,
   consumeStableOperationControl,
-  createGithubImmutableReleaseCapabilityEvidence,
   createStableOperationAuthority,
   stableOperationIdForFrozenCohort,
 } from "../../../scripts/stable-operation-control.ts";
@@ -41,7 +40,6 @@ export {
   bindStableOperationAuthority,
   canonicalJson,
   consumeStableOperationControl,
-  createGithubImmutableReleaseCapabilityEvidence,
   createStableOperationAuthority,
   stableOperationIdForFrozenCohort,
   createStableOperationPublicationRecord,
@@ -195,12 +193,6 @@ export function durablePublicationRecord(root: string, payloadAssets: Asset[]) {
     status: 'passed',
     operation_fingerprint: stableObjectiveFingerprint,
     typed_blocker: null,
-    immutable_release_capability: createGithubImmutableReleaseCapabilityEvidence({
-      repository: canonicalRepo,
-      checkedAt: generatedAt,
-      enabled: true,
-      enforcedByOwner: false,
-    }),
     admission: {
       status: 'passed',
       immutable_cohort: {
@@ -881,18 +873,6 @@ export function tagRefResponse(releaseTag: string, targetCommitish = sourceCommi
       sha: targetCommitish,
     },
   });
-}
-
-
-
-export function isImmutableCapabilityRead(args: string[]): boolean {
-  return args[0] === 'api' && args[1] === `repos/${repo}/immutable-releases`;
-}
-
-
-
-export function immutableCapabilityResponse(enabled = true): GitHubCommandResult {
-  return success({ enabled, enforced_by_owner: false });
 }
 
 

@@ -16,7 +16,6 @@ import {
   assertPromotionTargetIsNewerThanPublishedStable,
   type PublishedRelease,
 } from './stable-release-version-order.ts';
-import { validateGithubImmutableReleaseCapabilityEvidence } from './stable-operation-control.ts';
 import { validateGithubOwnerReleaseNamespaceEvidence } from './validate-release-source-gate.ts';
 import { validateReleaseHomebrewDistribution } from './validate-active-shell/release-homebrew-distribution-validator.ts';
 
@@ -436,10 +435,6 @@ function validateFrozenSourceGate(
       && (check as JsonRecord).status === 'passed',
   );
   const operationFingerprint = requiredString(value.operation_fingerprint, 'Frozen source-gate operation fingerprint');
-  const immutableReleaseCapability = validateGithubImmutableReleaseCapabilityEvidence(
-    value.immutable_release_capability,
-    appRepository,
-  );
   const ownerReleaseNamespace = validateGithubOwnerReleaseNamespaceEvidence(
     value.owner_release_namespace,
     appRepository,
@@ -453,7 +448,6 @@ function validateFrozenSourceGate(
     || cohort.shell_sha !== expected.shellRef
     || cohort.framework_sha !== expected.frameworkRef
     || !frozenAppReachable
-    || immutableReleaseCapability.checked_at !== value.generated_at
     || ownerReleaseNamespace.checked_at !== value.generated_at
   ) {
     throw new Error('Frozen source-gate evidence does not prove the exact reachable Stable cohort.');

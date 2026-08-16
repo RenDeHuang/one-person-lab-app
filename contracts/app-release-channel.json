@@ -1738,23 +1738,6 @@
           ],
           "failure_mode": "fail_closed_before_public_release_creation"
         },
-        "repository_immutability_window": {
-          "owner": "release-stable protected environment unique Release owner",
-          "token_secret": "OPL_GITHUB_RELEASE_ADMIN_TOKEN",
-          "receipt_schema": "opl_app_github_immutability_setting_receipt.v1",
-          "ordered_phases": [
-            "preflight_enabled_not_owner_enforced",
-            "disable_before_release_creation",
-            "publish_standard_and_activate_latest",
-            "restore_enabled_and_read_back"
-          ],
-          "setting_changes_apply_to": "future_releases_only",
-          "candidate_release_expected_immutable": false,
-          "candidate_release_retroactively_locked_after_restore": false,
-          "restore_required_on_failure": true,
-          "unknown_result_policy": "bounded_owner_authoritative_read_only_reconcile_no_retry_rerun_redispatch_or_cancel",
-          "existing_immutable_release_migration_allowed": false
-        },
         "latest_admission": {
           "validator": "scripts/validate-standard-latest-admission.ts",
           "receipt_schema": "opl_standard_latest_admission_receipt.v1",
@@ -4264,20 +4247,6 @@
         "release_or_dispatch_mutation_allowed": false,
         "public_asset_write_allowed": false
       }
-    },
-    "github_release_admin_credentials_diagnostic": {
-      "schema": "opl_app_github_release_admin_credential_preflight.v1",
-      "workflow": ".github/workflows/release-github-admin-credentials-preflight.yml",
-      "script": "scripts/verify-github-release-admin-credential.ts",
-      "protected_environment": "release-stable",
-      "secret_name": "OPL_GITHUB_RELEASE_ADMIN_TOKEN",
-      "endpoint": "GET repos/gaofeng21cn/one-person-lab-app/immutable-releases",
-      "authority": "diagnostic_only",
-      "canonical_main_first_attempt_required": true,
-      "required_after_credential_replacement_before_new_stable_operation": true,
-      "raw_secret_response_or_error_persistence_allowed": false,
-      "repository_setting_mutation_allowed": false,
-      "release_or_dispatch_mutation_allowed": false
     },
     "attempt_observability": {
       "schema": "opl_release_attempt_observation.v1",

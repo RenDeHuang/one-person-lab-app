@@ -6,7 +6,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { assertImmutabilitySettingReceipt } from './github-release-immutability-setting.ts';
 import { assertAppleNotarizationReceipt, assertGatekeeperLaunchPolicy } from './macos-gatekeeper-policy.ts';
 import { validateStableOperationPublicationRecord } from './stable-operation-publication-record.ts';
 
@@ -32,19 +31,11 @@ export function createReleaseAttestation(input: {
   notarizationReceipt: unknown;
   notarizationReceiptSha256: string;
   componentManifestPath: string;
-  preflightSettingReceipt: unknown;
-  disabledSettingReceipt: unknown;
   bundleDigest: string;
 }): JsonRecord {
   const publication = validateStableOperationPublicationRecord(input.publicationRecord);
   const gatekeeper = assertGatekeeperLaunchPolicy(input.gatekeeperPolicy, 'app_standard');
   const notarization = assertAppleNotarizationReceipt(input.notarizationReceipt);
-  const preflightSetting = assertImmutabilitySettingReceipt(input.preflightSettingReceipt, 'preflight');
-  const disabledSetting = assertImmutabilitySettingReceipt(
-    input.disabledSettingReceipt,
-    'disabled',
-    preflightSetting,
-  );
   if (!/^sha256:[0-9a-f]{64}$/.test(input.bundleDigest)) {
     throw new Error('Attestation requires the exact Framework Bundle digest.');
   }
@@ -79,13 +70,8 @@ export function createReleaseAttestation(input: {
       apple_notarization_receipt: notarization,
     },
     component_manifest: component,
-    repository_immutability_window: {
-      preflight: preflightSetting,
-      disabled: disabledSetting,
-    },
     protection: {
       github_native_immutable: false,
-      repository_setting_restore_required: true,
       retroactive_lock_claimed: false,
       standard_asset_policy: 'sealed_name_size_digest_set_no_overwrite_or_delete',
       full_binding: 'full_manifest_binds_this_attestation_and_exact_full_assets',
@@ -107,8 +93,6 @@ function main(argv: string[]): void {
       'gatekeeper-policy': { type: 'string' },
       'notarization-receipt': { type: 'string' },
       'component-manifest': { type: 'string' },
-      'disabled-setting-receipt': { type: 'string' },
-      'preflight-setting-receipt': { type: 'string' },
       'bundle-digest': { type: 'string' },
       output: { type: 'string' },
     },
@@ -125,8 +109,6 @@ function main(argv: string[]): void {
     notarizationReceipt: readJson(notarizationReceiptPath),
     notarizationReceiptSha256: fileIdentity(notarizationReceiptPath).sha256.replace(/^sha256:/, ''),
     componentManifestPath: required('component-manifest'),
-    preflightSettingReceipt: readJson(required('preflight-setting-receipt')),
-    disabledSettingReceipt: readJson(required('disabled-setting-receipt')),
     bundleDigest: required('bundle-digest'),
   });
   const output = path.resolve(required('output'));

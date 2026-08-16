@@ -323,14 +323,15 @@ test('Standard moving pointers require exact Desktop readback and hosted admissi
   assert.doesNotMatch(source, /oras tag[^\n]+stable|docker buildx imagetools create[^\n]+stable/);
 });
 
-test('Stable and Full publication consume one mutable-Standard attestation and controlled setting receipt chain', () => {
+test('Stable and Full publication consume one mutable-Standard attestation without repository setting control', () => {
   const standard = readWorkflow('_release-standard-publish.yml');
   const full = readWorkflow('_release-full-addon.yml');
   const adapter = readAdapter();
 
-  assert.match(standard, /github-release-immutability-setting\.ts preflight/);
-  assert.match(standard, /github-release-immutability-setting\.ts disable/);
-  assert.match(standard, /github-release-immutability-setting\.ts restore/);
+  assert.doesNotMatch(
+    standard,
+    /immutable-releases|github-release-immutability-setting|OPL_GITHUB_RELEASE_ADMIN_TOKEN|preflight-setting-receipt|disabled-setting-receipt/,
+  );
   assert.match(standard, /write-release-attestation\.ts/);
   assert.match(
     full,
@@ -340,8 +341,8 @@ test('Stable and Full publication consume one mutable-Standard attestation and c
   assert.match(full, /--standard-attestation "\$standard_attestation"/);
   assert.match(adapter, /standardAttestationIdentity/);
   assert.match(adapter, /Canonical Stable publication requires exactly one unified public attestation/);
-  assert.match(adapter, /nativeImmutableRequired: !canonicalMutableStandard/);
-  assert.match(adapter, /Controlled mutable Standard readback unexpectedly reports immutable=true/);
+  assert.match(adapter, /assertCanonicalStandardPublicationBoundary/);
+  assert.match(adapter, /github_native_immutable_expected: false/);
   assert.match(full, /index\("stable-operation-publication-record\.json"\) \| not/);
   assert.doesNotMatch(full, /--publication-record|--pattern stable-operation-publication-record\.json/);
 });

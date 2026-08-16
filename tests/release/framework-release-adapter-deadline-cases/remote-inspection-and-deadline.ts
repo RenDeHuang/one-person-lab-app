@@ -28,8 +28,6 @@ import {
   isTagRefReadFor,
   isTagRefCreateFor,
   tagRefResponse,
-  isImmutableCapabilityRead,
-  immutableCapabilityResponse,
 } from "./fixtures.ts";
 import type {
   GitHubAdapterRuntime,
@@ -304,7 +302,6 @@ test('deadline expiry before asset N prevents asset N and every later mutation',
     run(command, args, options) {
       assert.equal(command, 'gh');
       assert.equal(options.killSignal, 'SIGTERM');
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         assert.equal(options.timeout, 1_234);
         return success(releaseResponse(remoteAssets, { draft: true, immutable: false }));
@@ -354,7 +351,6 @@ test('a timed out asset upload stops all mutation and performs only fresh read-o
     readTimeoutMs: 2_345,
     run(_command, args, options) {
       calls.push({ args, options });
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         inspections += 1;
         return success(releaseResponse([], { draft: true, immutable: false }));
@@ -407,7 +403,6 @@ test('a timed out tag reservation performs one mutation and never creates a Rele
     readTimeoutMs: 2_111,
     run(_command, args, options) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {
@@ -464,15 +459,14 @@ test('an accepted tag reservation tolerates bounded eventual-consistency readbac
     },
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
         if (!published) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
       }
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
         return success(releaseResponse(remoteAssets, {
           draft: !published,
-          immutable: published,
+          immutable: false,
         }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
@@ -495,7 +489,7 @@ test('an accepted tag reservation tolerates bounded eventual-consistency readbac
       }
       if (args.includes('PATCH')) {
         published = true;
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
@@ -527,7 +521,6 @@ test('an accepted tag reservation remains outcome unknown after bounded read-onl
     },
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {
@@ -563,7 +556,6 @@ test('a timed out Release create performs one Release mutation and then read-onl
     readTimeoutMs: 2_222,
     run(_command, args, options) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) {
         assert.equal(options.timeout, 2_222);
         return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
@@ -627,18 +619,17 @@ test('accepted Release create uses its exact id while the draft remains absent b
     readTimeoutMs: 2_333,
     run(_command, args, options) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
         assert.equal(options.timeout, 2_333);
         if (!published) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
       }
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
         assert.equal(created, true);
         assert.equal(options.timeout, 2_333);
         return success(releaseResponse(remoteAssets, {
           draft: !published,
-          immutable: published,
+          immutable: false,
         }));
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
@@ -661,7 +652,7 @@ test('accepted Release create uses its exact id while the draft remains absent b
       }
       if (args.includes('PATCH')) {
         published = true;
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
@@ -677,7 +668,7 @@ test('accepted Release create uses its exact id while the draft remains absent b
   assert.equal(result.status, 'complete');
   assert.deepEqual(result.uploaded, [first.name]);
   assert.equal(result.inspection.release.id, 12345);
-  assert.equal(result.inspection.release.immutable, true);
+  assert.equal(result.inspection.release.immutable, false);
   assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
   assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
   const tagReadIndexes = calls.flatMap((args, index) => (
@@ -711,7 +702,6 @@ test('a conflicting reserved tag fails closed before Release creation', () => {
     now: () => deadlineMs - 90_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) return tagRefResponse(tag, conflictingCommit);
@@ -744,10 +734,9 @@ test('an existing draft hidden from the by-tag endpoint is bound by id before an
     now: () => deadlineMs - 90_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
         if (!published) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
       }
       if (isReleaseView(args)) {
         return success({ databaseId: 12345, tagName: tag });
@@ -755,7 +744,7 @@ test('an existing draft hidden from the by-tag endpoint is bound by id before an
       if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
         return success(releaseResponse(remoteAssets, {
           draft: !published,
-          immutable: published,
+          immutable: false,
         }));
       }
       if (args[0] === 'release' && args[1] === 'upload') {
@@ -764,7 +753,7 @@ test('an existing draft hidden from the by-tag endpoint is bound by id before an
       }
       if (args.includes('PATCH')) {
         published = true;
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: true }));
+        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
       }
       throw new Error(`Unexpected gh call: ${args.join(' ')}`);
     },
@@ -796,7 +785,6 @@ test('accepted Release create with a mismatched response identity fails closed w
     now: () => deadlineMs - 90_000,
     run(_command, args) {
       calls.push(args);
-      if (isImmutableCapabilityRead(args)) return immutableCapabilityResponse();
       if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {

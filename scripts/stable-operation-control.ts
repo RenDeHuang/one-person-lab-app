@@ -14,8 +14,6 @@ const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const runIdPattern = /^[1-9][0-9]*$/;
 const noncePattern = /^[0-9a-f]{32}$/;
 const operationIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const canonicalStableRepository = 'gaofeng21cn/one-person-lab-app';
-const immutableReleaseApiVersion = '2026-03-10';
 const stableDesktopAdditionalPlatformIds = [
   'linux-x64',
   'windows-x64',
@@ -105,22 +103,6 @@ export type StableOperationConsumption = {
   consumption_digest: string;
 };
 
-export type GithubImmutableReleaseCapabilityEvidence = {
-  schema: 'opl_github_immutable_release_capability_evidence.v1';
-  status: 'verified_enabled';
-  repository: string;
-  endpoint: string;
-  api_version: typeof immutableReleaseApiVersion;
-  checked_at: string;
-  read_context: 'controller_source_gate_pre_nonce';
-  capability: {
-    enabled: true;
-    enforced_by_owner: boolean;
-  };
-  capability_response_digest: string;
-  evidence_digest: string;
-};
-
 function record(value: unknown, label: string): JsonRecord {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be one JSON object.`);
@@ -176,11 +158,6 @@ function isoInstant(value: unknown, label: string): string {
   return normalized;
 }
 
-function booleanValue(value: unknown, label: string): boolean {
-  if (typeof value !== 'boolean') throw new Error(`${label} must be boolean.`);
-  return value;
-}
-
 function objectiveFingerprint(value: unknown): string {
   const normalized = text(value, 'objective_fingerprint');
   if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/.test(normalized)) {
@@ -200,65 +177,6 @@ function objectDigest(value: unknown): string {
   return `sha256:${crypto.createHash('sha256').update(canonicalJson(value)).digest('hex')}`;
 }
 
-export function createGithubImmutableReleaseCapabilityEvidence(input: {
-  repository: string;
-  checkedAt: string;
-  enabled: unknown;
-  enforcedByOwner: unknown;
-}): GithubImmutableReleaseCapabilityEvidence {
-  const repository = text(input.repository, 'immutable release capability repository');
-  if (repository !== canonicalStableRepository) {
-    throw new Error(`Immutable release capability must target ${canonicalStableRepository}.`);
-  }
-  if (input.enabled !== true) {
-    throw new Error('GitHub immutable Releases must be enabled.');
-  }
-  const capability = {
-    enabled: true as const,
-    enforced_by_owner: booleanValue(
-      input.enforcedByOwner,
-      'immutable release capability enforced_by_owner',
-    ),
-  };
-  const core = {
-    schema: 'opl_github_immutable_release_capability_evidence.v1' as const,
-    status: 'verified_enabled' as const,
-    repository,
-    endpoint: `repos/${repository}/immutable-releases`,
-    api_version: immutableReleaseApiVersion,
-    checked_at: isoInstant(input.checkedAt, 'immutable release capability checked_at'),
-    read_context: 'controller_source_gate_pre_nonce' as const,
-    capability,
-    capability_response_digest: objectDigest(capability),
-  };
-  return { ...core, evidence_digest: objectDigest(core) };
-}
-
-export function validateGithubImmutableReleaseCapabilityEvidence(
-  value: unknown,
-  expectedRepository = canonicalStableRepository,
-): GithubImmutableReleaseCapabilityEvidence {
-  const evidence = record(value, 'GitHub immutable release capability evidence');
-  const capability = record(
-    evidence.capability,
-    'GitHub immutable release capability evidence.capability',
-  );
-  const expected = createGithubImmutableReleaseCapabilityEvidence({
-    repository: text(evidence.repository, 'immutable release capability repository'),
-    checkedAt: isoInstant(evidence.checked_at, 'immutable release capability checked_at'),
-    enabled: capability.enabled,
-    enforcedByOwner: capability.enforced_by_owner,
-  });
-  if (
-    expected.repository !== expectedRepository
-    || evidence.evidence_digest !== expected.evidence_digest
-    || canonicalJson(evidence) !== canonicalJson(expected)
-  ) {
-    throw new Error('GitHub immutable release capability evidence is not the exact expected digest-bound proof.');
-  }
-  return expected;
-}
-
 function preDispatchEvidence(input: {
   sourceGate: unknown;
   preNonceGuard: unknown;
@@ -271,9 +189,6 @@ function preDispatchEvidence(input: {
   const sourceGate = record(input.sourceGate, 'source_gate');
   const preNonceGuard = record(input.preNonceGuard, 'pre_nonce_guard');
   const sourceGateCohort = record(sourceGate.admission, 'source_gate.admission').immutable_cohort;
-  const immutableReleaseCapability = validateGithubImmutableReleaseCapabilityEvidence(
-    sourceGate.immutable_release_capability,
-  );
   if (
     sourceGate.schema !== 'opl_app_release_source_gate.v1'
     || sourceGate.status !== 'passed'
@@ -284,7 +199,6 @@ function preDispatchEvidence(input: {
     || (sourceGateCohort as JsonRecord).app_sha !== exactSha(input.appSha, 'cohort.app_sha')
     || (sourceGateCohort as JsonRecord).shell_sha !== exactSha(input.shellSha, 'cohort.shell_sha')
     || (sourceGateCohort as JsonRecord).framework_sha !== exactSha(input.frameworkSha, 'cohort.framework_sha')
-    || immutableReleaseCapability.checked_at !== sourceGate.generated_at
     || preNonceGuard.schema !== 'opl_release_dispatch_guard.v1'
     || preNonceGuard.phase !== 'pre_nonce'
     || preNonceGuard.status !== 'passed'

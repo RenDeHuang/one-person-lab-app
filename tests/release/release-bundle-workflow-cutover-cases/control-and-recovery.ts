@@ -362,15 +362,6 @@ test('resume admission preserves Standard identity and rotates only an expired e
   assert.match(controlVerification, /--app-root app-source/);
   assert.doesNotMatch(controlVerification, /app-source\/scripts\//);
 
-  const settingControl = String(workflowStep(
-    '_release-standard-publish.yml',
-    'publish-standard-nonlatest',
-    'Preflight and disable future-release immutability for Stable',
-  ).run);
-  assert.match(settingControl, /app-executor\/scripts\/github-release-immutability-setting\.ts preflight/);
-  assert.match(settingControl, /app-executor\/scripts\/github-release-immutability-setting\.ts disable/);
-  assert.doesNotMatch(settingControl, /app-source\/scripts\//);
-
   const publicationControl = String(workflowStep(
     '_release-standard-publish.yml',
     'publish-standard-nonlatest',
@@ -411,20 +402,12 @@ test('resume admission preserves Standard identity and rotates only an expired e
     /standard-recovery-payload-actions\.json[^]*standard-publication-upload-actions\.json/,
   );
 
-  const restoreSettingCheckout = workflowStep(
-    '_release-standard-publish.yml',
-    'restore-repository-immutability',
-    'Checkout canonical App executor',
+  const standardPublicationSource = readWorkflow('_release-standard-publish.yml');
+  assert.doesNotMatch(
+    standardPublicationSource,
+    /immutable-releases|github-release-immutability-setting|OPL_GITHUB_RELEASE_ADMIN_TOKEN|restore-repository-immutability/,
   );
-  assert.equal(restoreSettingCheckout.with.ref, '${{ github.sha }}');
-  assert.equal(restoreSettingCheckout.with.path, 'app-executor');
-  const restoreSettingControl = String(workflowStep(
-    '_release-standard-publish.yml',
-    'restore-repository-immutability',
-    'Restore and read back future-release immutability',
-  ).run);
-  assert.match(restoreSettingControl, /app-executor\/scripts\/github-release-immutability-setting\.ts restore/);
-  assert.doesNotMatch(restoreSettingControl, /app-source\/scripts\//);
+  assert.equal(parseWorkflow('_release-standard-publish.yml').jobs['restore-repository-immutability'], undefined);
 
   const boundEvidenceDownload = (publish.steps ?? []).find(
     (step: Record<string, unknown>) => step.name === 'Download internal Standard trust evidence',
