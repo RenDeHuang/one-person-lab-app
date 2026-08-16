@@ -114,7 +114,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     confidentiality.provider_plaintext_task_content !== false ||
     confidentiality.cloud_plaintext_task_content !== false ||
     confidentiality.aead_associated_data !==
-      'protocol_version_pair_id_device_id_key_epoch_and_channel_direction' ||
+      'protocol_version_pair_id_sender_device_id_recipient_device_id_key_epoch_sender_sequence_and_channel_direction' ||
     confidentiality.nonce_policy !==
       'cryptographically_random_96_bit_nonce_with_duplicate_rejection_per_directional_key' ||
     confidentiality.replay_protection !==

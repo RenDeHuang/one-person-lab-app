@@ -320,6 +320,7 @@
       "sender_device_id",
       "recipient_device_id",
       "key_epoch",
+      "sender_sequence",
       "channel_direction"
     ],
     "nonce_bytes": 12,
@@ -526,12 +527,13 @@
       "sender_device_id": "ios-test-device",
       "recipient_device_id": "desktop-test-device",
       "key_epoch": 1,
+      "sender_sequence": 1,
       "direction": "ios_to_desktop",
       "derived_key_hex": "6017bf36ae1274c1168a217e69737e9792226ab555e0447dddec1b278f15de59",
-      "associated_data_utf8": "protocol_version=23:opl_remote_transport.v1|pair_id=13:pair-test-001|sender_device_id=15:ios-test-device|recipient_device_id=19:desktop-test-device|key_epoch=1:1|channel_direction=14:ios_to_desktop",
+      "associated_data_utf8": "protocol_version=23:opl_remote_transport.v1|pair_id=13:pair-test-001|sender_device_id=15:ios-test-device|recipient_device_id=19:desktop-test-device|key_epoch=1:1|sender_sequence=1:1|channel_direction=14:ios_to_desktop",
       "nonce_hex": "000102030405060708090a0b",
       "plaintext_utf8": "OPL Link wire vector v1",
-      "ciphertext_and_tag_hex": "c90ce480a4b58bf4d5c076ee419a3661510728dcf87443d9c258b16492e6dc1c57c856cced4851"
+      "ciphertext_and_tag_hex": "c90ce480a4b58bf4d5c076ee419a3661510728dcf874430328912093e560fccc293cd3535ea01c"
     }
   },
   "desktop_dispatch": {

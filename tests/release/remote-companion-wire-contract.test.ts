@@ -1,8 +1,29 @@
 import assert from 'node:assert/strict';
+import { createDecipheriv } from 'node:crypto';
 import fs from 'node:fs';
 import test from 'node:test';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as Record<string, any>;
+
+const serializeAssociatedData = (fields: string[], values: Record<string, string | number>) =>
+  fields
+    .map((field) => {
+      const value = String(values[field]);
+      return `${field}=${Buffer.byteLength(value, 'utf8')}:${value}`;
+    })
+    .join('|');
+
+const decryptVector = (vector: Record<string, any>, associatedData: string) => {
+  const ciphertextAndTag = Buffer.from(vector.ciphertext_and_tag_hex, 'hex');
+  const decipher = createDecipheriv(
+    'aes-256-gcm',
+    Buffer.from(vector.derived_key_hex, 'hex'),
+    Buffer.from(vector.nonce_hex, 'hex'),
+  );
+  decipher.setAAD(Buffer.from(associatedData, 'utf8'));
+  decipher.setAuthTag(ciphertextAndTag.subarray(-16));
+  return Buffer.concat([decipher.update(ciphertextAndTag.subarray(0, -16)), decipher.final()]).toString('utf8');
+};
 
 test('OPL Link wire contract has one versioned broker and encrypted transport shape', () => {
   const product = readJson('contracts/app-remote-companion.json');
@@ -87,11 +108,46 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
 
 test('crypto and pairing test vectors pin cross-language byte compatibility', () => {
   const wire = readJson('contracts/app-remote-companion-wire.json');
-  const crypto = wire.transport_envelope.test_vector;
-  assert.equal(crypto.shared_secret_hex, '4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742');
-  assert.equal(crypto.derived_key_hex, '6017bf36ae1274c1168a217e69737e9792226ab555e0447dddec1b278f15de59');
-  assert.equal(crypto.ciphertext_and_tag_hex, 'c90ce480a4b58bf4d5c076ee419a3661510728dcf87443d9c258b16492e6dc1c57c856cced4851');
+  const vector = wire.transport_envelope.test_vector;
+  assert.equal(vector.shared_secret_hex, '4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742');
+  assert.equal(vector.derived_key_hex, '6017bf36ae1274c1168a217e69737e9792226ab555e0447dddec1b278f15de59');
+  assert.equal(vector.sender_sequence, 1);
+  assert.equal(vector.ciphertext_and_tag_hex, 'c90ce480a4b58bf4d5c076ee419a3661510728dcf874430328912093e560fccc293cd3535ea01c');
   assert.equal(wire.pairing_authentication_string.test_vector.authentication_string, '867 604');
+});
+
+test('sender_sequence is AEAD-bound and a sequence-only mutation fails decryption', () => {
+  const wire = readJson('contracts/app-remote-companion-wire.json');
+  const vector = wire.transport_envelope.test_vector;
+  const fields = wire.transport_envelope.associated_data_fields as string[];
+  assert.deepEqual(fields, [
+    'protocol_version',
+    'pair_id',
+    'sender_device_id',
+    'recipient_device_id',
+    'key_epoch',
+    'sender_sequence',
+    'channel_direction',
+  ]);
+
+  const values = {
+    protocol_version: wire.protocol_version,
+    pair_id: vector.pair_id,
+    sender_device_id: vector.sender_device_id,
+    recipient_device_id: vector.recipient_device_id,
+    key_epoch: vector.key_epoch,
+    sender_sequence: vector.sender_sequence,
+    channel_direction: vector.direction,
+  };
+  const associatedData = serializeAssociatedData(fields, values);
+  assert.equal(associatedData, vector.associated_data_utf8);
+  assert.equal(decryptVector(vector, associatedData), vector.plaintext_utf8);
+
+  const mutatedSequenceData = serializeAssociatedData(fields, {
+    ...values,
+    sender_sequence: vector.sender_sequence + 1,
+  });
+  assert.throws(() => decryptVector(vector, mutatedSequenceData));
 });
 
 test('seat reclaim stays tied to provider absence readback', () => {

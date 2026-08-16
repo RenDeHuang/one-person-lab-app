@@ -100,7 +100,7 @@
       "provider_plaintext_task_content": false,
       "cloud_plaintext_task_content": false,
       "key_rotation": "new_pair_specific_device_keypairs_on_repair_or_explicit_rekey",
-      "aead_associated_data": "protocol_version_pair_id_device_id_key_epoch_and_channel_direction",
+      "aead_associated_data": "protocol_version_pair_id_sender_device_id_recipient_device_id_key_epoch_sender_sequence_and_channel_direction",
       "nonce_policy": "cryptographically_random_96_bit_nonce_with_duplicate_rejection_per_directional_key",
       "replay_protection": "pair_key_epoch_plus_per_sender_monotonic_sequence_and_request_id"
     },
