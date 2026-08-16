@@ -99,6 +99,7 @@
     "implementation_role": "foreground_alternative_candidate_implementation_carrier",
     "product_contracts": [
       "contracts/app-gui-product-contract.json",
+      "contracts/app-remote-companion.json",
       "contracts/app-runtime-bridge.json",
       "contracts/app-product-profile.json",
       "contracts/app-install-exposure-policy.json",

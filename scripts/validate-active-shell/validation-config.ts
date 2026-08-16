@@ -11,6 +11,7 @@ export const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-te
 export const firstRunCompiledExpectationsPath = path.join(root, 'contracts', 'app-first-run-compiled-expectations.json');
 export const productProfilePath = path.join(root, 'contracts', 'app-product-profile.json');
 export const settingsControlPlanePath = path.join(root, 'contracts', 'app-settings-control-plane.json');
+export const remoteCompanionPath = path.join(root, 'contracts', 'app-remote-companion.json');
 export const installExposurePolicyPath = path.join(root, 'contracts', 'app-install-exposure-policy.json');
 export const releaseChannelPath = path.join(root, 'contracts', 'app-release-channel.json');
 export const defaultActiveShellContractPath = path.join(root, 'contracts', 'app-shell-adapter.json');

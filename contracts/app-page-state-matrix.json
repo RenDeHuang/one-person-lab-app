@@ -60,6 +60,36 @@
     "runtime_contract_implies_shell_consumer_complete": false,
     "runtime_contract_implies_live_evidence_complete": false
   },
+  "remote_companion": {
+    "policy_ref": "contracts/app-remote-companion.json",
+    "surface_id": "remote_companion",
+    "page_entry": "settings_resources",
+    "ios_surface": "native_ios_companion",
+    "states": [
+      "unpaired",
+      "pairing_pending_confirmation",
+      "paired_desktop_unavailable",
+      "paired_syncing",
+      "paired_ready",
+      "stale_projection",
+      "revoked"
+    ],
+    "state_rules": {
+      "unpaired": "show_one_pair_action_and_no_task_data",
+      "pairing_pending_confirmation": "show_confirmation_code_and_expiry_without_exposing_secrets",
+      "paired_desktop_unavailable": "show_last_read_projection_as_stale_and_offer_reconnect",
+      "paired_syncing": "disable_duplicate_send_until_canonical_read_completes",
+      "paired_ready": "show_canonical_tasks_and_allow_only_projected_actions",
+      "stale_projection": "refresh_from_desktop_before_accepting_new_command",
+      "revoked": "clear_pair_credentials_and_require_new_pairing"
+    },
+    "forbidden_in_page_state": [
+      "ably_history_as_task_truth",
+      "cloud_queued_command",
+      "phone_local_runtime_ready_claim",
+      "shell_inferred_canonical_thread_binding"
+    ]
+  },
   "active_shell": "aionui",
   "shell_root": "shells/aionui",
   "pages": [

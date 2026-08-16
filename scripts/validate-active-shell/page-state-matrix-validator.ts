@@ -193,6 +193,40 @@ export function validatePageStateMatrix(matrix, contract, guiProductContract) {
   if (requiredPages.size > 0) {
     throw new Error(`Page-state matrix is missing required page(s): ${[...requiredPages].join(', ')}`);
   }
+  if (
+    JSON.stringify(matrix.remote_companion) !== JSON.stringify({
+      policy_ref: 'contracts/app-remote-companion.json',
+      surface_id: 'remote_companion',
+      page_entry: 'settings_resources',
+      ios_surface: 'native_ios_companion',
+      states: [
+        'unpaired',
+        'pairing_pending_confirmation',
+        'paired_desktop_unavailable',
+        'paired_syncing',
+        'paired_ready',
+        'stale_projection',
+        'revoked',
+      ],
+      state_rules: {
+        unpaired: 'show_one_pair_action_and_no_task_data',
+        pairing_pending_confirmation: 'show_confirmation_code_and_expiry_without_exposing_secrets',
+        paired_desktop_unavailable: 'show_last_read_projection_as_stale_and_offer_reconnect',
+        paired_syncing: 'disable_duplicate_send_until_canonical_read_completes',
+        paired_ready: 'show_canonical_tasks_and_allow_only_projected_actions',
+        stale_projection: 'refresh_from_desktop_before_accepting_new_command',
+        revoked: 'clear_pair_credentials_and_require_new_pairing',
+      },
+      forbidden_in_page_state: [
+        'ably_history_as_task_truth',
+        'cloud_queued_command',
+        'phone_local_runtime_ready_claim',
+        'shell_inferred_canonical_thread_binding',
+      ],
+    })
+  ) {
+    throw new Error('Page-state remote companion contract must match the App-owned companion policy');
+  }
   const runtimePage = (matrix.pages ?? []).find((page) => page.id === 'runtime');
   for (const [field, expected] of Object.entries({
     route_classification: 'core_dynamic_agent_runtime',

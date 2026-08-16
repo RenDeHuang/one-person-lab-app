@@ -69,6 +69,7 @@ export type IconContract = {
 
 export const REQUIRED_GUI_AUTHORITY_PRODUCT_CONTRACTS = [
   'contracts/app-gui-product-contract.json',
+  'contracts/app-remote-companion.json',
   'contracts/app-runtime-bridge.json',
   'contracts/app-product-profile.json',
   'contracts/app-install-exposure-policy.json',
