@@ -1,5 +1,8 @@
 import { validateGuiDesignSystem } from '../../../scripts/validate-gui-design-system.ts';
-import { validateShellDshVisualSource } from '../../../scripts/validate-active-shell/shell-implementation-validator.ts';
+import {
+  resolveShellDshVisualSourceMode,
+  validateShellDshVisualSource,
+} from '../../../scripts/validate-active-shell/shell-implementation-validator.ts';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assert, fs, os, path, test, appRoot } from './helpers.ts';
@@ -347,6 +350,20 @@ test('active-shell DSH source gate reads the manifest, LICENSE, and normalized v
 
   const valid = makeFixture();
   assert.doesNotThrow(() => validateShellDshVisualSource({ shellRoot: valid.shellRoot }, valid.sourceContract));
+  assert.equal(resolveShellDshVisualSourceMode({ shellRoot: valid.shellRoot }, valid.sourceContract), true);
+
+  const absentShellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-dsh-source-absent-'));
+  assert.equal(resolveShellDshVisualSourceMode({ shellRoot: absentShellRoot }, valid.sourceContract), false);
+  assert.throws(
+    () => resolveShellDshVisualSourceMode(
+      { shellRoot: absentShellRoot },
+      {
+        ...valid.sourceContract,
+        evidence_boundary: { shell_source_implemented: true },
+      },
+    ),
+    /Missing active shell implementation file/,
+  );
 
   const hashMutations = [
     ['vendored source hash', (fixture: ReturnType<typeof makeFixture>) => fs.writeFileSync(fixture.iconPath, 'tampered\n', 'utf8'), /must match its SHA-256/],

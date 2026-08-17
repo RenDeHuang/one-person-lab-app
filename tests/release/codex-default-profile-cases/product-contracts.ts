@@ -124,6 +124,20 @@ test('active-shell visual token gate protects the rail and semantic text bridges
   };
   assert.doesNotThrow(() => validateShellVisualTokenBindings(validSources));
 
+  const legacySources = {
+    ...validSources,
+    productBaseline: `
+      :root {
+        --opl-sidebar-bg: #fcfcfc;
+        --text-primary: var(--color-text-1);
+      }
+      body[data-theme='dark'] { --opl-sidebar-bg: #1b1c1e; }
+      body { color: var(--text-primary); }
+      .layout-sider.arco-layout-sider { background: var(--opl-sidebar-bg); }
+    `,
+  };
+  assert.doesNotThrow(() => validateShellVisualTokenBindings(legacySources, false));
+
   assert.throws(
     () => validateShellVisualTokenBindings({
       ...validSources,

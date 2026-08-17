@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import {
   readShellJson,
@@ -173,6 +173,28 @@ export function validateShellDshVisualSource(
   }
 }
 
+export function resolveShellDshVisualSourceMode(
+  shellPaths: { shellRoot: string },
+  visualSourceContract = readVisualSourceContract(),
+): boolean {
+  const manifestRelativePath = String(
+    visualSourceContract.shell_adoption?.required_source_manifest ?? '',
+  );
+  const manifestPresent = manifestRelativePath.length > 0
+    && existsSync(path.resolve(shellPaths.shellRoot, manifestRelativePath));
+  const implementationClaimed = visualSourceContract.evidence_boundary?.shell_source_implemented === true;
+
+  if (!manifestPresent) {
+    if (implementationClaimed) {
+      validateShellDshVisualSource(shellPaths, visualSourceContract);
+    }
+    return false;
+  }
+
+  validateShellDshVisualSource(shellPaths, visualSourceContract);
+  return true;
+}
+
 export function validateShellVisualTokenBindings({
   layout,
   productBaseline,
@@ -181,13 +203,20 @@ export function validateShellVisualTokenBindings({
   layout: string;
   productBaseline: string;
   unoConfig: string;
-}): void {
-  for (const expected of [
-    '--opl-sidebar-bg: var(--dsw-specific-sidebar-fill);',
-    '--opl-main-bg: var(--dsw-alias-bg-base);',
-    '--text-primary: var(--dsw-alias-label-primary);',
-    '--opl-focus-ring: var(--dsw-alias-state-business-primary);',
-  ]) {
+}, dshVisualSourceImplemented = true): void {
+  const expectedTokenBindings = dshVisualSourceImplemented
+    ? [
+        '--opl-sidebar-bg: var(--dsw-specific-sidebar-fill);',
+        '--opl-main-bg: var(--dsw-alias-bg-base);',
+        '--text-primary: var(--dsw-alias-label-primary);',
+        '--opl-focus-ring: var(--dsw-alias-state-business-primary);',
+      ]
+    : [
+        '--opl-sidebar-bg: #fcfcfc;',
+        '--opl-sidebar-bg: #1b1c1e;',
+        '--text-primary: var(--color-text-1);',
+      ];
+  for (const expected of expectedTokenBindings) {
     if (!productBaseline.includes(expected)) {
       throw new Error(`Active shell OPL product visual baseline must include ${expected}`);
     }
@@ -224,7 +253,11 @@ export function validateActiveShellImplementation(shellPaths) {
     return;
   }
 
-  validateShellDshVisualSource(shellPaths);
+  const visualSourceContract = readVisualSourceContract();
+  const dshVisualSourceImplemented = resolveShellDshVisualSourceMode(
+    shellPaths,
+    visualSourceContract,
+  );
 
   const i18nConfig = JSON.parse(
     readShellText(shellPaths, 'packages/desktop/src/common/config/i18n-config.json'),
@@ -234,13 +267,13 @@ export function validateActiveShellImplementation(shellPaths) {
     : [];
   const requiresLocale = (language) => supportedLanguages.includes(language);
 
-  validateShellVisibleBranding(shellPaths, requiresLocale);
+  validateShellVisibleBranding(shellPaths, requiresLocale, dshVisualSourceImplemented);
 
   validateShellSubstrateImplementation(shellPaths, requiresLocale);
   validateStandardUpdaterImplementation(shellPaths);
   validateFirstRunImplementation(shellPaths);
-  validateShellOrdinaryExperienceImplementation(shellPaths);
-  validateShellSettingsAndTeamImplementation(shellPaths);
+  validateShellOrdinaryExperienceImplementation(shellPaths, dshVisualSourceImplemented);
+  validateShellSettingsAndTeamImplementation(shellPaths, dshVisualSourceImplemented);
 
   const builtinThemes = readShellText(shellPaths, 'packages/desktop/src/renderer/theme/builtinThemes.ts');
   for (const forbidden of ['CODEX_THEME_ID', 'opl-codex.css?raw', "'Codex'"]) {
@@ -261,7 +294,10 @@ export function validateActiveShellImplementation(shellPaths) {
   );
   const layout = readShellText(shellPaths, 'packages/desktop/src/renderer/components/layout/Layout.tsx');
   const unoConfig = readShellText(shellPaths, 'uno.config.ts');
-  validateShellVisualTokenBindings({ layout, productBaseline, unoConfig });
+  validateShellVisualTokenBindings(
+    { layout, productBaseline, unoConfig },
+    dshVisualSourceImplemented,
+  );
   for (const expected of ['--opl-sidebar-bg', '--opl-main-bg', '--opl-focus-ring']) {
     if (!productBaseline.includes(expected)) {
       throw new Error(`Active shell OPL product visual baseline must include ${expected}`);

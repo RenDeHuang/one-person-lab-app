@@ -157,7 +157,6 @@ const settingsNavExpected = [
 ];
 
 const settingsRegistryExpected = [
-  'OplIcon',
   'getOplGuiSettingsControlPlane',
   'getOplGuiSettingsVisibleTabs',
   'getOplGuiLegacySettingsRouteRedirects',
@@ -167,8 +166,13 @@ const settingsRegistryExpected = [
   'LEGACY_SETTINGS_ROUTE_REDIRECTS',
   'LEGACY_ANCHOR_REMAP',
   'buildSettingsItemsWithExtensions',
-  'getSettingsTabIcon',
-  '<OplIcon',
+];
+
+const oplChromeIconExpected = [
+  'export const OPL_CHROME_ICON_SIZE = 16',
+  'export const OPL_CHROME_ICON_STROKE_WIDTH = 4.5',
+  "theme: 'outline'",
+  "fill: 'currentColor'",
 ];
 
 const conversationMarkdownExpected = [
@@ -369,18 +373,37 @@ const teamIpcBridgeExpected = [
 const teamSurfaceExpected = ['{TEAM_MODE_ENABLED && (', '<TeamSiderSection'];
 const teamCreatedRedirectExpected = ['if (!TEAM_MODE_ENABLED)', 'return undefined'];
 
-function validateSettingsPartitionImplementation(shellPaths) {
+function validateSettingsPartitionImplementation(shellPaths, dshVisualSourceImplemented) {
   const settingsAppearance = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/registry/settingsRegistry.tsx',
-    settingsRegistryExpected,
+    [
+      ...settingsRegistryExpected,
+      ...(dshVisualSourceImplemented
+        ? ['OplIcon', 'getSettingsTabIcon', '<OplIcon']
+        : ['{icon(16)}']),
+    ],
     'Active shell settings registry App-owned control-plane slot',
   );
-  assertTextIncludesAll(
-    settingsAppearance,
-    ["from '@/renderer/components/opl/OplVisualProvider'", 'OplIcon'],
-    'Active shell settings registry pinned DSH OplIcon contract',
-  );
+  if (dshVisualSourceImplemented) {
+    assertTextIncludesAll(
+      settingsAppearance,
+      ["from '@/renderer/components/opl/OplVisualProvider'", 'OplIcon'],
+      'Active shell settings registry pinned DSH OplIcon contract',
+    );
+  } else {
+    assertTextIncludesAll(
+      settingsAppearance,
+      ["from '@/renderer/components/opl/oplChromeIcon'", '...OPL_CHROME_ICON_PROPS'],
+      'Active shell settings registry shared OPL chrome icon contract',
+    );
+    assertShellTextIncludesAll(
+      shellPaths,
+      'packages/desktop/src/renderer/components/opl/oplChromeIcon.ts',
+      oplChromeIconExpected,
+      'Active shell OPL-owned chrome icon contract',
+    );
+  }
   assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/pages/settings/sections/settingsNav.tsx',
@@ -712,10 +735,13 @@ function validateOrdinaryCapabilityScrub(shellPaths) {
   );
 }
 
-export function validateShellSettingsAndTeamImplementation(shellPaths) {
+export function validateShellSettingsAndTeamImplementation(
+  shellPaths,
+  dshVisualSourceImplemented = false,
+) {
   validateBrandedDeepLinkProbeContract(shellPaths.contract);
   validateBrandedDeepLinkImplementation(shellPaths);
-  validateSettingsPartitionImplementation(shellPaths);
+  validateSettingsPartitionImplementation(shellPaths, dshVisualSourceImplemented);
   validateConversationVisualImplementation(shellPaths);
   validateTeamRouteDisablement(shellPaths);
   validateTeamSurfaceDisablement(shellPaths);

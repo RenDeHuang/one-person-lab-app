@@ -1110,7 +1110,10 @@ function validateGuidAssistantsAndSkills(shellPaths, guidPage) {
   validateGuidSkillRules(shellPaths, guidPage);
 }
 
-function validateCodexSessionConfigurationMenuImplementation(shellPaths) {
+function validateCodexSessionConfigurationMenuImplementation(
+  shellPaths,
+  dshVisualSourceImplemented,
+) {
   const sessionMenu = assertShellTextIncludesAll(
     shellPaths,
     'packages/desktop/src/renderer/components/agent/OplCodexSessionMenu.tsx',
@@ -1122,7 +1125,9 @@ function validateCodexSessionConfigurationMenuImplementation(shellPaths) {
       "'reasoning'",
       "role='separator'",
       'onReset();',
-      "<OplIcon name='refresh'",
+      dshVisualSourceImplemented
+        ? "<OplIcon name='refresh'"
+        : '<Refresh {...OPL_CHROME_ICON_PROPS} size={16}',
       "event.key === 'ArrowLeft'",
       "event.key === 'Escape'",
       "['ArrowDown', 'ArrowUp', 'Home', 'End']",
@@ -1203,8 +1208,8 @@ function validateCodexSessionConfigurationMenuImplementation(shellPaths) {
   }
 }
 
-function validateCodexModelControls(shellPaths) {
-  validateCodexSessionConfigurationMenuImplementation(shellPaths);
+function validateCodexModelControls(shellPaths, dshVisualSourceImplemented) {
+  validateCodexSessionConfigurationMenuImplementation(shellPaths, dshVisualSourceImplemented);
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/pages/guid/utils/composerSurface.ts', ['getOplHomeComposerStateContract', 'resolveOplHomeComposerSurface', 'contract.executor', 'contract.invariants.model_reasoning_visible', 'contract.invariants.permission_access_visible', 'contract.invariants.executor_selector_visible'], 'Active shell Home composer App-contract decision surface');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/components/agent/AcpModelSelector.tsx', ['useAcpModelInfo', 'canSwitch', 'if (!canSwitch)', 'selectAutoModel()', 'onSelect: handleAutoSelect'], 'Active shell ACP model selector fixed Codex model guard');
   assertShellTextIncludesAll(shellPaths, 'packages/desktop/src/renderer/hooks/agent/useAcpModelInfo.ts', ['isOplCodexCliFixedExecutor', 'shouldShowOplCodexModelList', "backend === 'codex'", 'shouldShowOplCodexModelList()', "backend === 'codex' ? normalizeCodexModelInfo(nextModelInfo) : nextModelInfo", 'reportedCodexCurrentModelIdRef', 'reportedCodexCurrentModelIdRef.current ?? model_info.current_model_id', 'updateModelInfo(info)', 'updateModelInfo(incoming)', 'updateModelInfo(confirmedModelInfo)', 'selectAutoModel', 'selectReasoningEffort', 'savePreferredCodexSelection(backend, null, null)', 'savePreferredCodexSelection(backend, currentModelId, value)', 'canSwitch'], 'Active shell ACP model hook App-owned Codex model controls');
@@ -1382,8 +1387,8 @@ function validateSendFailureDraftPreservation(shellPaths) {
   );
 }
 
-function validateCodexConversationImplementation(shellPaths) {
-  validateCodexModelControls(shellPaths);
+function validateCodexConversationImplementation(shellPaths, dshVisualSourceImplemented) {
+  validateCodexModelControls(shellPaths, dshVisualSourceImplemented);
   validateCodexConversationSurfaces(shellPaths);
   validateSendFailureDraftPreservation(shellPaths);
 }
@@ -2252,14 +2257,17 @@ function validateStorageCarrierImplementation(shellPaths) {
   );
 }
 
-export function validateShellOrdinaryExperienceImplementation(shellPaths) {
+export function validateShellOrdinaryExperienceImplementation(
+  shellPaths,
+  dshVisualSourceImplemented = false,
+) {
   const guidPage = validateGuidHomeImplementation(shellPaths);
   validateGuidAgentSelection(shellPaths);
   validateProductProfileDefaults(shellPaths);
   validateStaticAuthorityConsumerRemoval(shellPaths);
   validateExistingConversationAgentRebindRemoval(shellPaths);
   validateGuidAssistantsAndSkills(shellPaths, guidPage);
-  validateCodexConversationImplementation(shellPaths);
+  validateCodexConversationImplementation(shellPaths, dshVisualSourceImplemented);
   validateComposerCapabilityPaletteImplementation(shellPaths);
   validateSessionFirstDirectoryImplementation(shellPaths);
   validateReadOnlySessionEnvironmentImplementation(shellPaths);

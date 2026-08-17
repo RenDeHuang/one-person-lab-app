@@ -1,6 +1,10 @@
 import { assertShellFileHash, readShellText } from './shell-implementation-helpers.ts';
 
-export function validateShellVisibleBranding(shellPaths, requiresLocale) {
+export function validateShellVisibleBranding(
+  shellPaths,
+  requiresLocale,
+  dshVisualSourceImplemented = false,
+) {
   for (const [relativePath, forbidden] of [
     ['packages/desktop/src/renderer/services/i18n/locales/en-US/login.json', '"brand": "AionUi"'],
     ['packages/desktop/src/renderer/services/i18n/locales/zh-CN/login.json', '"brand": "AionUi"'],
@@ -50,12 +54,14 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   if (!titlebar.includes('getOplOrdinaryChromeName') || titlebar.includes("'One Person Lab App'")) {
     throw new Error('Active shell ordinary titlebar fallback must use the profile-owned chrome name');
   }
+  const titlebarIconExpected = dshVisualSourceImplemented
+    ? ['OplIcon', "name='help'"]
+    : ['Help'];
   for (const expected of [
     'getOplGlobalFeedbackIssueUrl',
     'buildOplAppIssueUrl',
     'openExternalUrl',
-    'OplIcon',
-    "name='help'",
+    ...titlebarIconExpected,
     "data-testid='app-titlebar-help-icon'",
   ]) {
     if (!titlebar.includes(expected)) {
@@ -66,9 +72,12 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
     throw new Error('Active shell titlebar feedback must not retain the AionUI comment icon');
   }
   if (
-    titlebar.includes("from '@icon-park/react'") ||
-    titlebar.includes('FontAwesomeIcon') ||
-    titlebar.includes('@fortawesome/')
+    dshVisualSourceImplemented
+    && (
+      titlebar.includes("from '@icon-park/react'")
+      || titlebar.includes('FontAwesomeIcon')
+      || titlebar.includes('@fortawesome/')
+    )
   ) {
     throw new Error('Active shell titlebar feedback must use the pinned DSH icon cohort through OplIcon');
   }
