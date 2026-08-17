@@ -6953,9 +6953,11 @@
         "details"
       ],
       "entity_kinds": [
+        "capability_package",
         "skill",
         "plugin",
         "mcp_server",
+        "connection_application",
         "image_generation",
         "voice_input"
       ],

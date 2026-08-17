@@ -309,10 +309,13 @@ It no longer owns or renders the App log-directory control.
 The following is the `target/planned` product surface. During migration the
 current directory/status/action contract remains a compatibility reader.
 
-Agents is a compact installed/discoverable Package list. It renders the generic
-Framework projection produced from native platforms; it does not parse registry
-entries, manifests, checkouts, locks, payloads, receipts, physical paths, LKG,
-or rollback state to create rows.
+Agents is a compact installed/discoverable list for Agent and workflow Packages.
+It renders Framework entries projected as `standard_agent` or
+`workflow_profile`; it does not parse registry entries, manifests, checkouts,
+locks, payloads, receipts, physical paths, LKG, or rollback state to create rows.
+Standard Agents and Agent workflows are separate catalog sections. Skills,
+Plugins, connection applications, managed companions, and capability Packages
+remain visible under Capabilities rather than being mixed into this list.
 
 The current App Official Profile is also the first-install product requirement:
 its desired roots contain five OPL standard Agents, MAG, MAS, OBF, OMA, and RCA.
@@ -342,8 +345,8 @@ independent cache, fallback registry, or inferred green state.
 Every OPL-owned row carries a compact `OPL` brand mark immediately after its
 name. Ownership comes only from the projected publisher and first-party source
 explanation, so future compliant OPL Packages inherit the same treatment without
-an App list. The catalog renders `OPL Managed` first, then non-OPL Agents and
-other capabilities. Availability remains a row state rather than a catalog
+an App list. Within each Agent section, OPL-managed entries render before
+third-party entries. Availability remains a row state rather than a catalog
 group, and third-party Packages never receive the OPL mark.
 
 OPL standard Agent names are invariant English brand names in every UI locale.
@@ -367,12 +370,13 @@ version, or rollback detail opens through its owner route; Settings does not
 reimplement it. Every mutation requires fresh installed/callable readback before
 success. One Package failure stays on that row.
 
-Dependency hierarchy comes from generic required identity edges. MAS Scholar
-Skills may appear under MAS because MAS declares the capability requirement;
-the App never encodes that relationship. Missing required identity makes only
-the dependent root unavailable and offers one owner-projected install action.
-No version, ABI, lock, payload, digest, receipt, or family cohort participates
-in the row status.
+Dependency hierarchy comes from generic required identity edges. MAS may link
+to MAS Scholar Skills because MAS declares the capability requirement, while
+the capability's canonical catalog row stays under Capabilities; the App never
+encodes that relationship. Missing required identity makes only the dependent
+root unavailable and offers one owner-projected install action. No version,
+ABI, lock, payload, digest, receipt, or family cohort participates in row
+status.
 
 The App Official Profile is visible only as first-install context and an
 explicit **Restore official combination** command. It does not continuously
@@ -391,10 +395,13 @@ Dirty or user-managed checkouts are never silently updated.
 
 ### Capabilities
 
-Capabilities renders capability discovery, not another installation catalog.
-Skill, Tool, Plugin, MCP, Agent task producer, and typed view identities come
-from installed Package/native-platform descriptors. Package remains the install
-unit.
+Capabilities is the user-visible directory for capability Packages, Skills,
+Tools, Plugins, MCP, connection applications, managed companions, Agent task
+producers, and typed views. These identities come from installed
+Package/native-platform and owner projections. Package remains the install unit;
+the page links to the owning Package instead of creating a second lifecycle
+registry. Credential connections and deployment resources remain under
+Resources & Connections.
 
 - There is no App-owned packaged-skill, tool, plugin, or MCP allowlist.
 - Required/optional edges check identity presence and callability only.

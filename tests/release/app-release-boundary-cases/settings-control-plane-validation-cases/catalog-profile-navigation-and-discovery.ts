@@ -290,9 +290,9 @@ test("Settings validator keeps generic projected Package actions on Agents", () 
 
 test("Settings binds the five current standard Agents to the Official Profile without a second runtime registry", () => {
   const values = contracts();
+  const ownership = values.controlPlane.agents_capabilities_ownership;
   const baseline =
-    values.controlPlane.agents_capabilities_ownership.agents
-      .official_installation_baseline;
+    ownership.agents.official_installation_baseline;
   const currentStandardAgentIds = ["mag", "mas", "obf", "oma", "rca"];
 
   assert.equal(baseline.requirement_owner, "one-person-lab-app");
@@ -361,9 +361,27 @@ test("Settings binds the five current standard Agents to the Official Profile wi
     false,
   );
   assert.equal(
-    values.controlPlane.agents_capabilities_ownership.agents.must_not_own.includes(
+    ownership.agents.must_not_own.includes(
       "standard_agent_runtime_registry_or_status_truth",
     ),
+    true,
+  );
+  assert.deepStrictEqual(ownership.agents.visible_package_roles, [
+    "standard_agent",
+    "workflow_profile",
+  ]);
+  assert.equal(
+    ownership.agents.catalog_partition_policy.app_owned_package_id_allowlist_allowed,
+    false,
+  );
+  assert.deepStrictEqual(ownership.capabilities.entity_kinds.slice(0, 4), [
+    "capability_package",
+    "skill",
+    "plugin",
+    "mcp_server",
+  ]);
+  assert.equal(
+    ownership.capabilities.entity_kinds.includes("connection_application"),
     true,
   );
 });

@@ -85,6 +85,17 @@
         "agent_home_visibility_and_order",
         "agent_launch_and_dependency_readiness"
       ],
+      "visible_package_roles": [
+        "standard_agent",
+        "workflow_profile"
+      ],
+      "catalog_partition_policy": {
+        "standard_agents": "Framework directory entries with package_role=standard_agent; the Official Profile summary is a separate first-install requirement and never defines membership",
+        "agent_workflows": "Framework directory entries with package_role=workflow_profile",
+        "capability_packages": "route to Capabilities using the Framework-projected package role and capability identities",
+        "unknown_roles": "do not guess from package_id, display name, local checkout, or App metadata; use only an owner-projected destination when available",
+        "app_owned_package_id_allowlist_allowed": false
+      },
       "official_installation_baseline": {
         "schema": "opl_standard_agent_installation_baseline.v1",
         "requirement_owner": "one-person-lab-app",
@@ -169,12 +180,15 @@
       "slot_id": "settings_capabilities",
       "component_key": "CapabilitiesSettingsContent",
       "entity_kinds": [
+        "capability_package",
         "skill",
         "plugin",
         "mcp_server",
+        "connection_application",
         "image_generation",
         "voice_input"
       ],
+      "presentation_scope_policy": "show Package-backed capabilities, Skills, Plugins, connection applications and managed companions from their canonical owner projections; credential connections and deployment resources remain under Resources & Connections",
       "groups": {
         "opl_flow_managed": {
           "label_zh": "OPL Flow 推荐",
@@ -1781,9 +1795,11 @@
           "manual_and_third_party"
         ],
         "entity_kinds": [
+          "capability_package",
           "skill",
           "plugin",
           "mcp_server",
+          "connection_application",
           "image_generation",
           "voice_input"
         ],
@@ -1836,7 +1852,13 @@
           "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
           "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
           "directory_collection_source": "app_state.agent_packages.directory.entries",
-          "directory_collection_policy": "render every canonical entry without an App-owned Package id allowlist or starter metadata catalog",
+          "directory_collection_policy": "render canonical entries whose Framework-projected package_role is standard_agent or workflow_profile without an App-owned Package id allowlist or starter metadata catalog; capability_package entries belong to Capabilities",
+          "visible_package_roles": [
+            "standard_agent",
+            "workflow_profile"
+          ],
+          "other_package_role_destination": "capabilities",
+          "app_owned_package_id_allowlist_allowed": false,
           "display_metadata_source": "app_state.agent_packages.directory.entries",
           "display_metadata_policy": "use owner-projected display metadata with a package-id fallback; App profile metadata must not define catalog membership, ordering, status, readiness, or actions",
           "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
@@ -2695,7 +2717,7 @@
             "scope": "user",
             "owner": "one-person-lab-app",
             "risk": "reversible",
-            "normal_summary": "Agents renders every Framework directory entry, keeps static professional package data as metadata only, and owns package search, role/status/source filters, dynamic directory reload from fresh App state, projected lifecycle actions, Developer Mode, and Home visibility.",
+            "normal_summary": "Agents renders Framework-projected standard Agent and workflow Package entries, keeps static professional package data as metadata only, and owns package search, role/status/source filters, dynamic directory reload from fresh App state, projected lifecycle actions, Developer Mode, and Home visibility.",
             "next_action": "search or filter the directory, reload its fresh App-state projection, or execute the package row action projected by Framework",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_agents",
             "editable_reason": "Framework owns directory and action truth; the App only renders canonical payloads and routes missing workspace activation to Workspace",
@@ -2711,7 +2733,7 @@
             "scope": "user",
             "owner": "one-person-lab-app",
             "risk": "reversible",
-            "normal_summary": "Capabilities groups OPL Flow, OPL-managed companions, and local Skills or Plugins by canonical owner without duplicating Agent package or Home shortcut lifecycle.",
+            "normal_summary": "Capabilities groups capability Packages, OPL Flow, OPL-managed companions, connection applications, and local Skills or Plugins by canonical owner without duplicating Agent or workflow Package lifecycle.",
             "next_action": "open capability details or Maintenance for owner-routed updates and repairs",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_capabilities",
             "editable_reason": "manual and third-party capability mutations require explicit user action; OPL Flow remains package-owned and OPL-managed companions follow owner-projected default lifecycle and permission actions",
