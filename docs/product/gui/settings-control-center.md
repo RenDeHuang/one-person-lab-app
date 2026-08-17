@@ -108,6 +108,15 @@ entry does not authorize deletion of AionUI-owned data.
 `settings_navigation.settings_ia` owns the visible hierarchy. Product groups express
 user intent; carrier route ids remain stable adapter identities.
 
+Each top-level group answers one user question and shows its title once. When a
+group has multiple second-level destinations, those destinations use one tab
+list; the selected destination then owns one page heading. The UI must not stack
+the same words as a group label, eyebrow, H1, and active-tab label. A group with
+one destination opens it directly without a one-item tab strip. Desktop and
+mobile may place navigation differently, but they preserve the same group,
+destination, and active-tab semantics and never concatenate every destination
+into one long page.
+
 | Primary group | Second-level destinations | Carrier route / anchor |
 | --- | --- | --- |
 | 概览 | 概览 | `general` |
@@ -305,6 +314,31 @@ Framework projection produced from native platforms; it does not parse registry
 entries, manifests, checkouts, locks, payloads, receipts, physical paths, LKG,
 or rollback state to create rows.
 
+The current App Official Profile is also the first-install product requirement:
+its desired roots contain five OPL standard Agents, MAG, MAS, OBF, OMA, and RCA.
+All five must be discoverable, installed, enabled, callable, and launchable after
+the first-install flow completes. This fixed installation outcome is not a
+Settings or Framework registry. App owns the Official Profile intent; Framework
+still owns dynamic `standard_agent` membership, directory rows, status and
+actions. A future Framework-projected Agent can therefore appear without an App
+change, while a missing required root remains a truthful installation gap.
+
+Settings presents those five axes separately. A desired root absent from the
+Framework directory is `Not discoverable`; its installed, enabled, callable and
+launchable axes remain unavailable or unknown rather than inheriting a green
+aggregate. The Official Profile summary may name that missing desired root, but
+it must not synthesize a manageable Package row or an install action. Directory
+rows and all mutations continue to come only from Framework projections. An
+Agent is selectable only through its projected Codex shortcut and is launchable
+only when Framework reports the launchable axis true.
+
+Directory statistics, each Package row, and the new-task Agent selector consume
+the same normalized Framework projection keyed by `package_id`. Statistics count
+discoverable standard Agents and report the other axes separately; rows show the
+five axes without a Shell aggregate override; the new-task selector requires all
+five axes plus the owner-projected Codex shortcut. None may maintain an
+independent cache, fallback registry, or inferred green state.
+
 Every OPL-owned row carries a compact `OPL` brand mark immediately after its
 name. Ownership comes only from the projected publisher and first-party source
 explanation, so future compliant OPL Packages inherit the same treatment without
@@ -454,6 +488,14 @@ management modal or overlaps it with diagnostics.
 Storage renders the last persisted inventory snapshot immediately. If no
 snapshot exists it shows a loading placeholder, never synthetic `0 B`. Each
 snapshot exposes `observed_at`, `scan_duration_ms`, and `stale`.
+
+`Not inventoried` and `Statistics are not available for this deployment` are
+neutral information states, not attention. They remain unavailable rather than
+zero and do not raise the Settings attention count. Refresh appears only when
+the owner projects an executable inventory action with mutable fresh readback;
+success requires the returned inventory identity or `observed_at` to reflect the
+completed action. A static reread, missing action, or unchanged unavailable state
+must not show success.
 
 A delayed startup scan, TTL refresh, and manual force refresh run in the
 background. Completion publishes
