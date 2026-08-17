@@ -13,7 +13,9 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
   assert.equal(policy.transport.provider_strategy.active_provider, 'tencent_cloud_im');
   assert.equal(policy.transport.provider_strategy.runtime_dual_write, false);
   assert.equal(policy.transport.public_desktop_address_required, false);
-  assert.equal(policy.transport.payload_confidentiality.provider_plaintext_task_content, false);
+  assert.equal(policy.transport.payload_confidentiality.provider_plaintext_conversation_content, false);
+  assert.equal(policy.surface_boundary.conversation_model.primary_object, 'canonical_codex_conversation');
+  assert.equal(policy.action_policy.wire_action_ids_are_internal_aliases, true);
   assert.equal(policy.transport.usage_guardrails.active_pair_seat_limit, 40);
   assert.equal(policy.pairing.fallback_method, 'paste_full_pairing_payload');
   assert.equal(policy.pairing.short_manual_code, 'deferred_not_implemented');
@@ -57,7 +59,7 @@ test('OPL Link validator rejects a second runtime, leaked provider authority, or
     (candidate: Record<string, any>) => { candidate.transport.provider_secret_embedded_in_client = true; },
     (candidate: Record<string, any>) => { candidate.transport.authentication.tencent_sdkapp_secret_in_client = true; },
     (candidate: Record<string, any>) => {
-      candidate.transport.payload_confidentiality.provider_plaintext_task_content = true;
+      candidate.transport.payload_confidentiality.provider_plaintext_conversation_content = true;
     },
     (candidate: Record<string, any>) => {
       candidate.transport.message_policy.provider_history_used_for_business_reads = true;

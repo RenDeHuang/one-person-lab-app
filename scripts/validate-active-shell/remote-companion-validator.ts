@@ -1,13 +1,13 @@
 import { assertDeepEqualJson, assertIncludesAll } from './assertions.ts';
 
 const requiredActions = [
-  'canonical_task.list',
-  'canonical_task.read',
-  'canonical_task.refresh',
-  'canonical_task.start',
-  'canonical_task.send_text',
-  'canonical_turn.stop',
-  'canonical_approval.respond',
+  'conversation.list',
+  'conversation.open',
+  'conversation.refresh',
+  'conversation.start',
+  'conversation.send_text',
+  'conversation.turn.stop',
+  'conversation.approval.respond',
   'pair.revoke',
 ];
 
@@ -26,9 +26,9 @@ const forbiddenActions = [
 
 export function validateRemoteCompanionContract(policy: Record<string, any>): void {
   if (
-    policy?.schema !== 'opl_app_remote_companion.v2' ||
+    policy?.schema !== 'opl_app_remote_companion.v3' ||
     policy.owner !== 'one-person-lab-app' ||
-    policy.state !== 'approved_product_plan_source_implemented_external_configuration_pending'
+    policy.state !== 'approved_conversation_first_product_baseline_source_realign_pending_external_configuration_pending'
   ) {
     throw new Error('OPL Link contract identity or implementation state is invalid');
   }
@@ -42,7 +42,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       internal_surface_id: identity?.internal_surface_id,
       product_role: identity?.product_role,
       local_ios_runtime: identity?.local_ios_runtime,
-      local_ios_task_history_authority: identity?.local_ios_task_history_authority,
+      local_ios_conversation_history_authority: identity?.local_ios_conversation_history_authority,
       local_ios_provider_or_model_authority: identity?.local_ios_provider_or_model_authority,
       local_ios_agent_package_authority: identity?.local_ios_agent_package_authority,
     },
@@ -53,7 +53,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       internal_surface_id: 'remote_companion',
       product_role: 'remote_companion_channel_not_a_runtime_or_third_workbench',
       local_ios_runtime: false,
-      local_ios_task_history_authority: false,
+      local_ios_conversation_history_authority: false,
       local_ios_provider_or_model_authority: false,
       local_ios_agent_package_authority: false,
     },
@@ -113,8 +113,8 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   if (
     confidentiality?.required !== true ||
     confidentiality.scheme !== 'x25519_key_agreement_hkdf_sha256_two_directional_aes_256_gcm_keys' ||
-    confidentiality.provider_plaintext_task_content !== false ||
-    confidentiality.cloud_plaintext_task_content !== false ||
+    confidentiality.provider_plaintext_conversation_content !== false ||
+    confidentiality.cloud_plaintext_conversation_content !== false ||
     confidentiality.aead_associated_data !==
       'protocol_version_pair_id_sender_device_id_recipient_device_id_key_epoch_sender_sequence_and_channel_direction' ||
     confidentiality.nonce_policy !==
@@ -122,7 +122,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     confidentiality.replay_protection !==
       'pair_key_epoch_plus_per_sender_monotonic_sequence_and_request_id'
   ) {
-    throw new Error('OPL Link encryption must keep task content opaque and reject nonce or sequence reuse');
+    throw new Error('OPL Link encryption must keep conversation content opaque and reject nonce or sequence reuse');
   }
 
   const guardrails = transport.usage_guardrails;
@@ -222,8 +222,46 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     throw new Error('OPL Link must persist pending pairing material for bounded cold-start recovery');
   }
 
-  assertIncludesAll(policy.action_policy?.mvp_allowed_actions, requiredActions, 'OPL Link allowed actions');
+  assertIncludesAll(policy.action_policy?.product_action_names, requiredActions, 'OPL Link product actions');
   assertIncludesAll(policy.action_policy?.forbidden_actions, forbiddenActions, 'OPL Link forbidden actions');
+  assertDeepEqualJson(
+    policy.surface_boundary?.conversation_model,
+    {
+      primary_object: 'canonical_codex_conversation',
+      canonical_identity: 'canonical_thread_id',
+      conversation_is: [
+        'the_user_visible_unit_in_the_opl_link_list',
+        'the_context_for_messages_streaming_output_and_turn_control',
+        'the_unit_that_can_be_started_opened_continued_and_stopped',
+      ],
+      task_is: [
+        'optional_desktop_metadata_or_grouping_label',
+        'an_external_opl_flow_ledger_or_linear_reference_when_present',
+      ],
+      opl_link_does_not_manage: [
+        'task_lifecycle',
+        'task_owner_deadline_dependency_or_workflow',
+        'ledger_receipts_or_linear_issue_state',
+      ],
+      task_management_authority:
+        'opl_flow_via_opl_ledger_and_linear_when_enabled; otherwise_task_is_desktop_conversation_grouping_metadata_only',
+    },
+    'OPL Link conversation and task boundary',
+  );
+  assertDeepEqualJson(
+    policy.action_policy?.wire_action_id_mapping,
+    {
+      'conversation.list': 'canonical_task.list',
+      'conversation.open': 'canonical_task.read',
+      'conversation.refresh': 'canonical_task.refresh',
+      'conversation.start': 'canonical_task.start',
+      'conversation.send_text': 'canonical_task.send_text',
+      'conversation.turn.stop': 'canonical_turn.stop',
+      'conversation.approval.respond': 'canonical_approval.respond',
+      'pair.revoke': 'pair.revoke',
+    },
+    'OPL Link product-to-wire action aliases',
+  );
   assertDeepEqualJson(
     policy.action_policy?.request_required_fields,
     ['protocol_version', 'pair_id', 'device_id', 'key_epoch', 'nonce', 'encrypted_payload'],
@@ -233,7 +271,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.action_policy?.encrypted_request_fields,
     [
       'request_id',
-      'canonical_thread_id_or_new_task_intent',
+      'canonical_thread_id_or_new_conversation_intent',
       'client_sequence',
       'action_id',
       'action_payload',
@@ -242,6 +280,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   );
   if (
     policy.action_policy?.action_authority !== 'desktop_canonical_app_action_bridge' ||
+    policy.action_policy?.wire_action_ids_are_internal_aliases !== true ||
     policy.action_policy?.idempotency?.send_and_start_requests_require_request_id !== true ||
     policy.action_policy?.idempotency?.desktop_deduplicates_within_pair_key_epoch !== true ||
     policy.action_policy?.idempotency?.offline_command_queue !== false
@@ -251,7 +290,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
 
   if (
     policy.state_sync?.canonical_state_owner !== 'codex_core_app_server_and_desktop_opl_app_projection' ||
-    policy.state_sync?.history_policy !== 'do_not_use_provider_history_as_business_truth' ||
+    policy.state_sync?.history_policy !== 'do_not_use_provider_history_as_canonical_conversation_truth' ||
     policy.notifications?.background_behavior !==
       'reconnect_and_resync_on_next_foreground; do_not_keep_a_permanent_background_socket'
   ) {
@@ -279,6 +318,8 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.implementation_status?.protocol_source_implemented !== true ||
     policy.implementation_status?.desktop_connector_source_implemented !== true ||
     policy.implementation_status?.ios_source_implemented !== true ||
+    policy.implementation_status?.ios_conversation_surface_implemented !== false ||
+    policy.implementation_status?.desktop_conversation_projection_implemented !== false ||
     policy.implementation_status?.cloud_broker_source_implemented !== true ||
     policy.implementation_status?.tencent_cloud_application_configured !== false ||
     policy.implementation_status?.testflight_or_app_store_release !== false ||

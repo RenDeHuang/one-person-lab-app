@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "state": "approved_mvp_wire_contract",
   "protocol_version": "opl_remote_transport.v1",
-  "contract_boundary": "This contract owns the cross-repository broker HTTP and encrypted transport wire shape. It does not make Cloud a task store, prescribe provider SDK types, or prove a deployed Tencent application.",
+  "contract_boundary": "This contract owns the cross-repository broker HTTP and encrypted transport wire shape. It does not make Cloud a conversation store or task control plane, prescribe provider SDK types, or prove a deployed Tencent application.",
   "compatibility": {
     "version_field_required": true,
     "supported_versions": [
@@ -17,6 +17,14 @@
         "user_fallback": false,
         "client_behavior": "use_claim_secret_from_full_pairing_payload"
       }
+    },
+    "legacy_transport_identifiers": {
+      "status": "v1_wire_aliases_only",
+      "action_prefix": "canonical_task",
+      "event_prefix": "task",
+      "product_object": "canonical_codex_conversation",
+      "product_semantics_source": "contracts/app-remote-companion.json#surface_boundary.conversation_model",
+      "must_not_be_interpreted_as": "opl_link_task_control_plane_or_task_lifecycle_authority"
     }
   },
   "serialization": {
@@ -254,6 +262,7 @@
         "internal_error"
       ],
       "must_not_include": [
+        "conversation_text",
         "task_text",
         "workspace_path",
         "provider_secret",
@@ -282,6 +291,7 @@
       "device_credential",
       "usersig",
       "workspace_path",
+      "conversation_text",
       "task_text"
     ],
     "single_use": true
@@ -315,6 +325,7 @@
     "outer_plaintext_must_not_include": [
       "action_id",
       "thread_id",
+      "conversation_text",
       "task_text",
       "workspace_path",
       "approval_text",
@@ -364,6 +375,16 @@
           "canonical_approval.respond",
           "pair.revoke"
         ],
+        "product_action_mapping": {
+          "canonical_task.list": "conversation.list",
+          "canonical_task.read": "conversation.open",
+          "canonical_task.refresh": "conversation.refresh",
+          "canonical_task.start": "conversation.start",
+          "canonical_task.send_text": "conversation.send_text",
+          "canonical_turn.stop": "conversation.turn.stop",
+          "canonical_approval.respond": "conversation.approval.respond",
+          "pair.revoke": "pair.revoke"
+        },
         "payload_contracts": {
           "canonical_task.list": {
             "canonical_thread_id_required": false,
@@ -440,6 +461,20 @@
           "desktop.heartbeat",
           "pair.revoked"
         ],
+        "product_event_mapping": {
+          "task.list_snapshot": "conversation.directory_snapshot",
+          "task.snapshot": "conversation.summary_snapshot",
+          "thread.snapshot": "conversation.snapshot",
+          "turn.delta": "conversation.turn_delta",
+          "turn.completed": "conversation.turn_completed",
+          "turn.stopped": "conversation.turn_stopped",
+          "approval.requested": "conversation.approval_requested",
+          "approval.resolved": "conversation.approval_resolved",
+          "action.accepted": "conversation.action_accepted",
+          "action.rejected": "conversation.action_rejected",
+          "desktop.heartbeat": "desktop.heartbeat",
+          "pair.revoked": "pair.revoked"
+        },
         "payload_contracts": {
           "task.list_snapshot": [
             "tasks",
@@ -546,13 +581,16 @@
   "desktop_dispatch": {
     "canonical_bridge": "opl_app_state_and_action_bridge",
     "command_allowlist_source": "contracts/app-remote-companion.json#action_policy.mvp_allowed_actions",
+    "product_action_mapping_source": "contracts/app-remote-companion.json#action_policy.wire_action_id_mapping",
     "request_dedupe_scope": "pair_id_key_epoch_request_id",
     "high_impact_approval_policy": "reject_and_keep_desktop_only",
     "provider_history_read_for_business_state": false,
-    "cloud_task_store": false
+    "cloud_conversation_store": false,
+    "task_management_authority": false
   },
   "secret_and_log_policy": {
     "never_log": [
+      "conversation_content",
       "task_content",
       "workspace_path",
       "invitation_code",
@@ -567,6 +605,6 @@
       "tencent_sdkapp_secret"
     ],
     "push_payload": "generic_pair_scoped_update_signal_only",
-    "provider_or_cloud_plaintext_task_content": false
+    "provider_or_cloud_plaintext_conversation_content": false
   }
 }

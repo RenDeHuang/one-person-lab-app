@@ -5,6 +5,17 @@ import test from 'node:test';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as Record<string, any>;
 
+const productActionMapping = () => ({
+  'canonical_task.list': 'conversation.list',
+  'canonical_task.read': 'conversation.open',
+  'canonical_task.refresh': 'conversation.refresh',
+  'canonical_task.start': 'conversation.start',
+  'canonical_task.send_text': 'conversation.send_text',
+  'canonical_turn.stop': 'conversation.turn.stop',
+  'canonical_approval.respond': 'conversation.approval.respond',
+  'pair.revoke': 'pair.revoke',
+});
+
 const serializeAssociatedData = (fields: string[], values: Record<string, string | number>) =>
   fields
     .map((field) => {
@@ -35,6 +46,14 @@ test('OPL Link wire contract has one versioned broker and encrypted transport sh
     status: 'compatibility_response_only',
     user_fallback: false,
     client_behavior: 'use_claim_secret_from_full_pairing_payload',
+  });
+  assert.deepEqual(wire.compatibility.legacy_transport_identifiers, {
+    status: 'v1_wire_aliases_only',
+    action_prefix: 'canonical_task',
+    event_prefix: 'task',
+    product_object: 'canonical_codex_conversation',
+    product_semantics_source: 'contracts/app-remote-companion.json#surface_boundary.conversation_model',
+    must_not_be_interpreted_as: 'opl_link_task_control_plane_or_task_lifecycle_authority',
   });
   assert.deepEqual(
     wire.transport_envelope.encrypted_payload_variants.command.allowed_action_ids,
@@ -72,9 +91,10 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
     assert.equal(qrFields.has(field), false, `${field} must not be present in pairing QR`);
   }
   assert.equal(wire.broker_http.tokens.transport, 'bearer_header_only_never_url_query_or_qr');
-  assert.equal(wire.secret_and_log_policy.provider_or_cloud_plaintext_task_content, false);
+  assert.equal(wire.secret_and_log_policy.provider_or_cloud_plaintext_conversation_content, false);
   assert.equal(wire.desktop_dispatch.provider_history_read_for_business_state, false);
-  assert.equal(wire.desktop_dispatch.cloud_task_store, false);
+  assert.equal(wire.desktop_dispatch.cloud_conversation_store, false);
+  assert.equal(wire.desktop_dispatch.task_management_authority, false);
 
   const outer = new Set(wire.transport_envelope.outer_fields as string[]);
   for (const field of wire.transport_envelope.outer_plaintext_must_not_include as string[]) {
@@ -89,6 +109,7 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
   assert.equal(wire.transport_envelope.ordering.unknown_send_result_policy, 'do_not_resend_refresh_canonical_state');
 
   const command = wire.transport_envelope.encrypted_payload_variants.command;
+  assert.deepEqual(command.product_action_mapping, productActionMapping());
   assert.deepEqual(command.payload_contracts['canonical_turn.stop'].payload_fields, []);
   assert.match(command.payload_contracts['canonical_turn.stop'].turn_selection, /desktop_resolves/);
   assert.deepEqual(command.payload_contracts['canonical_approval.respond'].payload_fields, [
@@ -99,6 +120,7 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
   assert.match(command.payload_contracts['canonical_approval.respond'].decision_mapping.approve, /one_shot_accept/);
 
   const event = wire.transport_envelope.encrypted_payload_variants.event;
+  assert.equal(event.product_event_mapping['task.list_snapshot'], 'conversation.directory_snapshot');
   assert.deepEqual(event.payload_contracts['task.list_snapshot'], ['tasks', 'complete']);
   assert.deepEqual(event.payload_contracts['thread.snapshot'], ['thread_id', 'messages', 'approval']);
   assert.deepEqual(event.projection_shapes.task, [

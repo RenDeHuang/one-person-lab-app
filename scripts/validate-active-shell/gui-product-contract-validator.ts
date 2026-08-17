@@ -633,18 +633,22 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
       home_screen_name: 'OPL Link',
       implementation_owner: 'opl-link',
       product_role: 'remote_companion_channel_not_a_runtime_or_third_workbench',
+      primary_user_object: 'canonical_codex_conversation',
+      default_ios_surface: 'conversation_directory',
+      task_grouping_policy:
+        'optional_metadata_or_external_opl_flow_ledger_linear_reference_not_an_opl_link_control_plane',
       desktop_workbench_remains_canonical: true,
       transport: 'tencent_cloud_im_outbound_tls_with_short_lived_usersig',
       pairing_access_gate: 'one_time_invitation_and_cloud_active_pair_seat',
       pairing_surface: 'settings_resources_desktop_pairing_qr_and_ios_scan',
       ordinary_ios_actions: [
-        'canonical_task.list',
-        'canonical_task.read',
-        'canonical_task.refresh',
-        'canonical_task.start',
-        'canonical_task.send_text',
-        'canonical_turn.stop',
-        'canonical_approval.respond',
+        'conversation.list',
+        'conversation.open',
+        'conversation.refresh',
+        'conversation.start',
+        'conversation.send_text',
+        'conversation.turn.stop',
+        'conversation.approval.respond',
         'pair.revoke',
       ],
       forbidden_ios_controls: [
@@ -654,7 +658,8 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
         'arbitrary_shell_or_file_command',
         'offline_command_queue',
       ],
-      missing_provider_or_transport_policy: 'show_unavailable_without_fabricated_online_or_task_state_and_keep_desktop_workbench_usable',
+      missing_provider_or_transport_policy:
+        'show_unavailable_without_fabricated_online_or_conversation_state_and_keep_desktop_workbench_usable',
     })
   ) {
     throw new Error('App GUI remote companion contract must match the App-owned companion policy');

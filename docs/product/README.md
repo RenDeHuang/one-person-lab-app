@@ -21,6 +21,7 @@ engine.
 
 | Path | Role |
 | --- | --- |
+| [`opl-link.md`](opl-link.md) | OPL Link 对话优先产品基线、任务/对话边界、跨仓 authority 和当前实现缺口。 |
 | [`opl-persona-integration.md`](opl-persona-integration.md) | OPL Persona Package contribution, App consumer boundary, and production mount gates. |
 | [`gui/ideal-interaction-spec.md`](gui/ideal-interaction-spec.md) | Shell-independent target interaction model for the OPL App. |
 | [`gui/element-audit.md`](gui/element-audit.md) | Human review of ordinary user GUI elements, placement, gaps, and interaction logic. |

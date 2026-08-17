@@ -1,15 +1,15 @@
 {
-  "schema": "opl_app_remote_companion.v2",
+  "schema": "opl_app_remote_companion.v3",
   "owner": "one-person-lab-app",
   "purpose": "app_owned_opl_link_product_and_cross_surface_transport_contract",
-  "state": "approved_product_plan_source_implemented_external_configuration_pending",
-  "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, cloud broker implementation, provider runtime state, Codex runtime, task history, domain state, or a cloud workspace.",
+  "state": "approved_conversation_first_product_baseline_source_realign_pending_external_configuration_pending",
+  "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, cloud broker implementation, provider runtime state, Codex runtime, conversation history, OPL Flow task state, domain state, or a cloud workspace.",
   "product_identity": {
     "app_store_name": "OPL Link",
     "home_screen_name": "OPL Link",
     "in_app_brand_name": "One Person Lab",
-    "subtitle_en": "Your AI workbench, anywhere",
-    "subtitle_zh_cn": "随时连接你的桌面 AI 工作台",
+    "subtitle_en": "Your AI conversations, anywhere",
+    "subtitle_zh_cn": "随时继续桌面 AI 对话",
     "internal_surface_id": "remote_companion",
     "product_role": "remote_companion_channel_not_a_runtime_or_third_workbench",
     "full_workbench_surfaces": [
@@ -17,20 +17,40 @@
       "desktop_webui"
     ],
     "local_ios_runtime": false,
-    "local_ios_task_history_authority": false,
+    "local_ios_conversation_history_authority": false,
     "local_ios_provider_or_model_authority": false,
     "local_ios_agent_package_authority": false
   },
   "surface_boundary": {
+    "conversation_model": {
+      "primary_object": "canonical_codex_conversation",
+      "canonical_identity": "canonical_thread_id",
+      "conversation_is": [
+        "the_user_visible_unit_in_the_opl_link_list",
+        "the_context_for_messages_streaming_output_and_turn_control",
+        "the_unit_that_can_be_started_opened_continued_and_stopped"
+      ],
+      "task_is": [
+        "optional_desktop_metadata_or_grouping_label",
+        "an_external_opl_flow_ledger_or_linear_reference_when_present"
+      ],
+      "opl_link_does_not_manage": [
+        "task_lifecycle",
+        "task_owner_deadline_dependency_or_workflow",
+        "ledger_receipts_or_linear_issue_state"
+      ],
+      "task_management_authority": "opl_flow_via_opl_ledger_and_linear_when_enabled; otherwise_task_is_desktop_conversation_grouping_metadata_only"
+    },
     "primary_user_outcomes": [
       "pair_one_phone_with_one_running_desktop_installation",
-      "see_canonical_task_list_and_current_task_state",
-      "read_streaming_task_output",
-      "send_text_to_the_bound_canonical_task",
-      "start_a_new_canonical_task_with_desktop_defaults",
-      "stop_an_active_turn",
-      "respond_to_an_owner_projected_approval_request",
-      "receive_a_generic_task_update_notification"
+      "see_the_bound_desktop_conversation_list",
+      "open_a_canonical_conversation_and_read_its_history",
+      "read_streaming_conversation_output",
+      "continue_the_bound_canonical_conversation_with_text",
+      "start_a_new_canonical_conversation_with_desktop_defaults",
+      "stop_the_current_conversation_turn",
+      "respond_to_an_owner_projected_conversation_approval_request",
+      "receive_a_generic_conversation_update_notification"
     ],
     "deferred_outcomes": [
       "arbitrary_shell_or_terminal_commands",
@@ -38,14 +58,18 @@
       "provider_model_reasoning_or_permission_policy_editing",
       "package_install_update_or_uninstall",
       "offline_command_queueing",
-      "multi_user_shared_workspace_or_cloud_task_migration"
+      "multi_user_shared_workspace_or_cloud_task_migration",
+      "opl_flow_ledger_or_linear_task_management",
+      "conversation_search_archive_rename_or_delete_until_desktop_canonical_apis_are_admitted",
+      "multi_desktop_or_multi_phone_conversation_mirroring"
     ],
     "forbidden_claims": [
       "codex_runtime_is_running_on_the_iphone",
       "the_phone_is_a_second_codex_client_or_session_store",
-      "a_provider_message_is_the_canonical_task_history",
-      "a_connected_transport_proves_task_or_provider_readiness",
-      "a_push_notification_contains_or_confirms_sensitive_task_content"
+      "a_provider_message_is_the_canonical_conversation_history",
+      "a_connected_transport_proves_conversation_or_provider_readiness",
+      "a_push_notification_contains_or_confirms_sensitive_conversation_content",
+      "opl_link_is_a_linear_or_ledger_task_control_plane"
     ],
     "desktop_default_following_policy": "ios_follows_the_bound_desktop_canonical_thread_host_model_permission_and_agent_configuration_without_exposing_editors_in_mvp"
   },
@@ -98,8 +122,8 @@
       "required": true,
       "scheme": "x25519_key_agreement_hkdf_sha256_two_directional_aes_256_gcm_keys",
       "key_authority": "desktop_and_ios_pair_only",
-      "provider_plaintext_task_content": false,
-      "cloud_plaintext_task_content": false,
+      "provider_plaintext_conversation_content": false,
+      "cloud_plaintext_conversation_content": false,
       "key_rotation": "new_pair_specific_device_keypairs_on_repair_or_explicit_rekey",
       "aead_associated_data": "protocol_version_pair_id_sender_device_id_recipient_device_id_key_epoch_sender_sequence_and_channel_direction",
       "nonce_policy": "cryptographically_random_96_bit_nonce_with_duplicate_rejection_per_directional_key",
@@ -154,7 +178,7 @@
       "provider_secret_or_api_key",
       "desktop_public_ip_or_port",
       "workspace_path",
-      "task_text",
+      "conversation_text",
       "long_lived_access_token",
       "plaintext_pair_master_key"
     ],
@@ -182,8 +206,8 @@
         "revoked_device_hash"
       ],
       "forbidden": [
-        "task_history",
-        "task_content",
+        "conversation_history",
+        "conversation_content",
         "workspace_files",
         "provider_secret_or_api_key_in_client_records",
         "plaintext_pair_master_key",
@@ -237,7 +261,7 @@
       "revoke_effect": "mark_pair_revoked_deny_future_usersig_kick_provider_sessions_detach_desktop_delete_pair_keys_delete_both_provider_user_ids_then_release_seat_after_absence_readback",
       "existing_credential_policy": "a_previously_issued_usersig_may_remain_cryptographically_valid_until_expiry_but_the_deleted_or_revoked_pair_must_not_reconnect_publish_subscribe_or_execute_after_terminal_revoke",
       "provider_account_delete_and_absence_readback_required_for_seat_reclaim": true,
-      "revoke_does_not_delete_canonical_tasks": true
+      "revoke_does_not_delete_canonical_conversations": true
     }
   },
   "action_policy": {
@@ -250,9 +274,19 @@
       "nonce",
       "encrypted_payload"
     ],
+    "product_action_names": [
+      "conversation.list",
+      "conversation.open",
+      "conversation.refresh",
+      "conversation.start",
+      "conversation.send_text",
+      "conversation.turn.stop",
+      "conversation.approval.respond",
+      "pair.revoke"
+    ],
     "encrypted_request_fields": [
       "request_id",
-      "canonical_thread_id_or_new_task_intent",
+      "canonical_thread_id_or_new_conversation_intent",
       "client_sequence",
       "action_id",
       "action_payload"
@@ -267,12 +301,23 @@
       "canonical_approval.respond",
       "pair.revoke"
     ],
+    "wire_action_ids_are_internal_aliases": true,
+    "wire_action_id_mapping": {
+      "conversation.list": "canonical_task.list",
+      "conversation.open": "canonical_task.read",
+      "conversation.refresh": "canonical_task.refresh",
+      "conversation.start": "canonical_task.start",
+      "conversation.send_text": "canonical_task.send_text",
+      "conversation.turn.stop": "canonical_turn.stop",
+      "conversation.approval.respond": "canonical_approval.respond",
+      "pair.revoke": "pair.revoke"
+    },
     "action_requirements": {
-      "canonical_task.send_text": "desktop_validates_bound_thread_and_deduplicates_request_id_before_turn_start",
-      "canonical_task.start": "desktop_uses_current_default_workspace_model_permission_and_agent_projection",
-      "canonical_turn.stop": "desktop_routes_to_the_current_canonical_turn_only",
-      "canonical_approval.respond": "allow_only_owner_projected_low_or_medium_impact_approvals_with_explicit_confirmation_and_route_through_the_existing_app_action_bridge; high_impact_approvals_remain_desktop_only",
-      "pair.revoke": "invalidate_pair_and_confirm_terminal_revoked_readback_without_deleting_canonical_tasks"
+      "canonical_task.send_text": "product_action_conversation_send_text; desktop_validates_bound_thread_and_deduplicates_request_id_before_turn_start",
+      "canonical_task.start": "product_action_conversation_start; desktop_uses_current_default_workspace_model_permission_and_agent_projection",
+      "canonical_turn.stop": "product_action_conversation_turn_stop; desktop_routes_to_the_current_canonical_turn_only",
+      "canonical_approval.respond": "product_action_conversation_approval_respond; allow_only_owner_projected_low_or_medium_impact_approvals_with_explicit_confirmation_and_route_through_the_existing_app_action_bridge; high_impact_approvals_remain_desktop_only",
+      "pair.revoke": "invalidate_pair_and_confirm_terminal_revoked_readback_without_deleting_canonical_conversations"
     },
     "forbidden_actions": [
       "shell.exec",
@@ -295,20 +340,20 @@
   },
   "state_sync": {
     "canonical_state_owner": "codex_core_app_server_and_desktop_opl_app_projection",
-    "initial_read": "desktop_projects_bound_task_summaries_and_current_thread_state_after_pair_authentication",
-    "streaming": "foreground_ios_subscribes_to_encrypted_task_events_and_renders_partial_output",
+    "initial_read": "desktop_projects_bound_conversation_summaries_and_current_thread_state_after_pair_authentication",
+    "streaming": "foreground_ios_subscribes_to_encrypted_conversation_events_and_renders_partial_output",
     "resume": "on_foreground_or_reconnect_ios_refreshes_credentials_and_reads_canonical_thread_before_accepting_new_input",
     "local_cache": "encrypted_read_only_projection_and_user_draft_only",
     "draft_policy": "preserve_unsent_text_locally; never_send_a_draft_automatically",
     "stale_projection": "show_stale_state_and_refresh_action; do_not_infer_running_or_completed",
     "conflict_policy": "canonical_thread_and_request_id_are_authoritative; no_last_writer_merge_for_commands",
-    "history_policy": "do_not_use_provider_history_as_business_truth"
+    "history_policy": "do_not_use_provider_history_as_canonical_conversation_truth"
   },
   "notifications": {
     "foreground_transport": "selected_remote_transport_adapter",
     "background_transport": "optional_apns_or_tencent_push_generic_signal_adapter",
     "push_is_optional": true,
-    "push_payload": "generic_pair_scoped_task_update_signal_without_task_text_or_secrets",
+    "push_payload": "generic_pair_scoped_conversation_update_signal_without_conversation_text_or_secrets",
     "background_behavior": "reconnect_and_resync_on_next_foreground; do_not_keep_a_permanent_background_socket",
     "notification_permission_denied": "foreground_use_remains_available_and_settings_explain_optional_notifications"
   },
@@ -318,12 +363,12 @@
     "desktop_connector_and_canonical_action_consumer": "opl-aion-shell_or_admitted_successor_shell",
     "invitation_pair_seat_usersig_and_provider_account_lifecycle": "one-person-lab-cloud",
     "realtime_service": "tencent_cloud_im",
-    "task_history_and_execution": "codex_core_app_server_and_desktop_runtime",
+    "conversation_history_and_execution": "codex_core_app_server_and_desktop_runtime",
     "cloud_service_must_not_become": [
       "second_codex_runtime",
-      "second_task_store",
+      "second_conversation_store",
       "second_action_bus",
-      "cloud_file_store_for_local_tasks"
+      "cloud_file_store_for_local_conversations"
     ]
   },
   "implementation_status": {
@@ -334,6 +379,8 @@
     "protocol_source_implemented": true,
     "desktop_connector_source_implemented": true,
     "ios_source_implemented": true,
+    "ios_conversation_surface_implemented": false,
+    "desktop_conversation_projection_implemented": false,
     "cloud_broker_source_implemented": true,
     "tencent_cloud_application_configured": false,
     "testflight_or_app_store_release": false,
@@ -344,7 +391,7 @@
     "must_prove_before_beta": [
       "no_public_desktop_address_is_needed_for_pairing_or_reconnect",
       "pair_specific_user_ids_and_short_lived_usersig_keep_provider_secret_out_of_clients",
-      "provider_and_cloud_cannot_read_task_content",
+      "provider_and_cloud_cannot_read_conversation_content",
       "atomic_pair_seat_reservation_prevents_capacity_oversubscription",
       "duplicate_send_does_not_create_duplicate_turns",
       "revoked_device_cannot_reestablish_desktop_application_access",
@@ -370,7 +417,7 @@
     "tencent_usersig": "https://cloud.tencent.com/document/product/269/32688",
     "ably_replacement_candidate_pricing": "https://ably.com/pricing",
     "apple_app_information": "https://developer.apple.com/help/app-store-connect/reference/app-information/app-information",
-    "implementation_plan": "docs/active/opl-link-plan.md",
+    "implementation_baseline": "docs/product/opl-link.md",
     "ios_repository": "https://github.com/gaofeng21cn/opl-link",
     "ios_client_profile": "https://github.com/gaofeng21cn/opl-link/blob/main/contracts/opl-link-client-profile.json",
     "ios_transport_adapter": "https://github.com/gaofeng21cn/opl-link/blob/main/contracts/opl-link-transport.json",

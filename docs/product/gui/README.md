@@ -174,20 +174,19 @@ AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。�
 
 手机远程访问采用原生 iOS 产品 **OPL Link**，App Store 与主屏名称相同，应用内母品牌为
 **One Person Lab**；`remote_companion` 只作为内部 surface ID。它通过
-`opl_remote_transport.v1` 的单一 provider adapter 投影桌面 canonical task：MVP 选择腾讯云 IM
+`opl_remote_transport.v1` 的单一 provider adapter 投影桌面 canonical conversation：MVP 选择腾讯云 IM
 体验版，Ably 只保留替换边界，不双写或自动 fallback。Cloud 只拥有邀请、40 active pair seats、
 短时 UserSig、pair provisioning 和 revoke/reclaim；用户不需要公网 IP、端口转发、VPN、Tailscale
-或局域网配置。iOS 不运行 OPL/Codex runtime、不保存第二份任务历史，也不拥有模型、权限、Package
+或局域网配置。iOS 不运行 OPL/Codex runtime、不保存第二份对话历史，也不拥有模型、权限、Package
 或 cloud workspace authority。
 
 桌面 WebUI 仍是完整工作台 carrier，但不是 iOS 产品或自动 fallback；旧 LAN QR 登录、
 `http://host:port` / `ws://host:port` 不能被提升为公网远程路径。桌面 Shell 持有配对设置与 canonical
-App action consumer，iOS 只允许合同列出的任务读取、文本发送、停止、低/中影响审批和撤销。
-具体 scope、E2EE、owner、席位与 Phase 0-5 路线见
-[`../../active/opl-link-plan.md`](../../active/opl-link-plan.md)。合同或文档不证明 Shell、Cloud、
+App action consumer，iOS 只允许合同列出的对话读取、文本发送、停止、低/中影响审批和撤销。
+具体产品 scope、E2EE、owner 与实现缺口见 [`../opl-link.md`](../opl-link.md)。合同或文档不证明 Shell、Cloud、
 iOS、腾讯配置、TestFlight 或三网实现完成。
 
-频道到 canonical Codex task 的目标绑定来自 `app_state.transport_bindings`，按 exact App Server host
+频道到 canonical Codex conversation 的目标绑定来自 `app_state.transport_bindings`，按 exact App Server host
 和 thread id join，且始终保持 `projectless`，不会由 cwd 建立 Project affinity。Framework
 `app_state.transport_bindings` projection 与 AionUI/Studio 的源码消费链已经完成；AionUI 的 workspace
 inference 与 SQLite writeback caller 在当前 canonical source readback 中已不存在，Studio 从未复制该
