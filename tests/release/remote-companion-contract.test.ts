@@ -15,6 +15,16 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
   assert.equal(policy.transport.public_desktop_address_required, false);
   assert.equal(policy.transport.payload_confidentiality.provider_plaintext_conversation_content, false);
   assert.equal(policy.surface_boundary.conversation_model.primary_object, 'canonical_codex_conversation');
+  assert.ok(
+    policy.surface_boundary.primary_user_outcomes.includes(
+      'filter_the_currently_loaded_conversation_directory_locally_without_claiming_canonical_search',
+    ),
+  );
+  assert.ok(
+    policy.surface_boundary.deferred_outcomes.includes(
+      'canonical_conversation_search_archive_rename_or_delete_until_desktop_apis_are_admitted',
+    ),
+  );
   assert.equal(policy.action_policy.wire_action_ids_are_internal_aliases, true);
   assert.equal(policy.transport.usage_guardrails.active_pair_seat_limit, 40);
   assert.equal(policy.pairing.fallback_method, 'paste_full_pairing_payload');
@@ -45,6 +55,8 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
   assert.equal(policy.implementation_status.protocol_source_implemented, true);
   assert.equal(policy.implementation_status.desktop_connector_source_implemented, true);
   assert.equal(policy.implementation_status.ios_source_implemented, true);
+  assert.equal(policy.implementation_status.ios_conversation_surface_implemented, true);
+  assert.equal(policy.implementation_status.desktop_conversation_projection_implemented, true);
   assert.equal(policy.implementation_status.cloud_broker_source_implemented, true);
   assert.equal(policy.implementation_status.tencent_cloud_application_configured, false);
   assert.equal(policy.implementation_status.release_ready_claim_allowed, false);

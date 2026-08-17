@@ -2,7 +2,7 @@
   "schema": "opl_app_remote_companion.v3",
   "owner": "one-person-lab-app",
   "purpose": "app_owned_opl_link_product_and_cross_surface_transport_contract",
-  "state": "approved_conversation_first_product_baseline_source_realign_pending_external_configuration_pending",
+  "state": "approved_conversation_first_product_baseline_source_aligned_external_configuration_pending",
   "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, cloud broker implementation, provider runtime state, Codex runtime, conversation history, OPL Flow task state, domain state, or a cloud workspace.",
   "product_identity": {
     "app_store_name": "OPL Link",
@@ -44,6 +44,7 @@
     "primary_user_outcomes": [
       "pair_one_phone_with_one_running_desktop_installation",
       "see_the_bound_desktop_conversation_list",
+      "filter_the_currently_loaded_conversation_directory_locally_without_claiming_canonical_search",
       "open_a_canonical_conversation_and_read_its_history",
       "read_streaming_conversation_output",
       "continue_the_bound_canonical_conversation_with_text",
@@ -60,7 +61,7 @@
       "offline_command_queueing",
       "multi_user_shared_workspace_or_cloud_task_migration",
       "opl_flow_ledger_or_linear_task_management",
-      "conversation_search_archive_rename_or_delete_until_desktop_canonical_apis_are_admitted",
+      "canonical_conversation_search_archive_rename_or_delete_until_desktop_apis_are_admitted",
       "multi_desktop_or_multi_phone_conversation_mirroring"
     ],
     "forbidden_claims": [
@@ -379,8 +380,8 @@
     "protocol_source_implemented": true,
     "desktop_connector_source_implemented": true,
     "ios_source_implemented": true,
-    "ios_conversation_surface_implemented": false,
-    "desktop_conversation_projection_implemented": false,
+    "ios_conversation_surface_implemented": true,
+    "desktop_conversation_projection_implemented": true,
     "cloud_broker_source_implemented": true,
     "tencent_cloud_application_configured": false,
     "testflight_or_app_store_release": false,

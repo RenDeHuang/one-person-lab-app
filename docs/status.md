@@ -46,11 +46,11 @@ promoted into release-ready or family production-ready proof.
 
 OPL Link 的当前产品 SSOT 是 [`product/opl-link.md`](product/opl-link.md) 与
 `contracts/app-remote-companion.json`。它是桌面 OPL App 的原生 iOS 对话连接器，主对象是
-canonical Codex conversation，不是 OPL Flow、OPL Ledger 或 Linear 的任务控制面。与本轮产品边界
-直接相关的 source gap 是 iOS 与桌面 connector 仍使用 `TaskListView`、`TaskSummary`、
-`canonical_task.*` 和 `task.*` 等 v1 内部标识，尚未完成 conversation-first UI 与 projection
-重对齐；这些标识不能反向定义产品语义。腾讯生产配置、TestFlight、三网和发布证据继续独立
-未验证。
+canonical Codex conversation，不是 OPL Flow、OPL Ledger 或 Linear 的任务控制面。iOS 产品模型与
+双页签 UI 已完成 conversation-first source 对齐；desktop connector 和 iOS adapter 继续使用
+`canonical_task.*`、`task.*` 与 payload `task`/`tasks` 作为 `opl_remote_transport.v1` 兼容值，
+这些标识不能反向定义产品语义。列表搜索只过滤当前已加载的只读 projection，不宣称 canonical
+全历史搜索。腾讯生产配置、真实跨端 pair、推送、TestFlight、三网和发布证据继续独立未验证。
 
 ### Computer Use Implementation Ledger
 

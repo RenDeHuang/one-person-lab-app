@@ -28,7 +28,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   if (
     policy?.schema !== 'opl_app_remote_companion.v3' ||
     policy.owner !== 'one-person-lab-app' ||
-    policy.state !== 'approved_conversation_first_product_baseline_source_realign_pending_external_configuration_pending'
+    policy.state !== 'approved_conversation_first_product_baseline_source_aligned_external_configuration_pending'
   ) {
     throw new Error('OPL Link contract identity or implementation state is invalid');
   }
@@ -248,6 +248,12 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     },
     'OPL Link conversation and task boundary',
   );
+  assertIncludesAll(policy.surface_boundary?.primary_user_outcomes, [
+    'filter_the_currently_loaded_conversation_directory_locally_without_claiming_canonical_search',
+  ], 'OPL Link local conversation filtering');
+  assertIncludesAll(policy.surface_boundary?.deferred_outcomes, [
+    'canonical_conversation_search_archive_rename_or_delete_until_desktop_apis_are_admitted',
+  ], 'OPL Link canonical conversation operations');
   assertDeepEqualJson(
     policy.action_policy?.wire_action_id_mapping,
     {
@@ -318,8 +324,8 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.implementation_status?.protocol_source_implemented !== true ||
     policy.implementation_status?.desktop_connector_source_implemented !== true ||
     policy.implementation_status?.ios_source_implemented !== true ||
-    policy.implementation_status?.ios_conversation_surface_implemented !== false ||
-    policy.implementation_status?.desktop_conversation_projection_implemented !== false ||
+    policy.implementation_status?.ios_conversation_surface_implemented !== true ||
+    policy.implementation_status?.desktop_conversation_projection_implemented !== true ||
     policy.implementation_status?.cloud_broker_source_implemented !== true ||
     policy.implementation_status?.tencent_cloud_application_configured !== false ||
     policy.implementation_status?.testflight_or_app_store_release !== false ||
