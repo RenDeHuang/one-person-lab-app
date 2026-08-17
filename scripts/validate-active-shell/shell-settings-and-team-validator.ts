@@ -167,14 +167,8 @@ const settingsRegistryExpected = [
   'LEGACY_SETTINGS_ROUTE_REDIRECTS',
   'LEGACY_ANCHOR_REMAP',
   'buildSettingsItemsWithExtensions',
-  '{icon(16)}',
-];
-
-const oplChromeIconExpected = [
-  'export const OPL_CHROME_ICON_SIZE = 16',
-  'export const OPL_CHROME_ICON_STROKE_WIDTH = 4.5',
-  "theme: 'outline'",
-  "fill: 'currentColor'",
+  'getSettingsTabIcon',
+  '<OplIcon',
 ];
 
 const conversationMarkdownExpected = [
@@ -384,14 +378,8 @@ function validateSettingsPartitionImplementation(shellPaths) {
   );
   assertTextIncludesAll(
     settingsAppearance,
-    ["from '@/renderer/components/opl/oplChromeIcon'", '...OPL_CHROME_ICON_PROPS'],
-    'Active shell settings registry shared OPL chrome icon contract',
-  );
-  assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/renderer/components/opl/oplChromeIcon.ts',
-    oplChromeIconExpected,
-    'Active shell OPL-owned chrome icon contract',
+    ["from '@/renderer/components/opl/OplVisualProvider'", 'OplIcon'],
+    'Active shell settings registry pinned DSH OplIcon contract',
   );
   assertShellTextIncludesAll(
     shellPaths,

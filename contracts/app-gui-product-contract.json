@@ -1237,7 +1237,7 @@
         "selected_row": "var(--dsw-specific-sidebar-nav-item-active)",
         "text_primary": "var(--dsw-alias-label-primary)",
         "text_secondary": "var(--dsw-alias-label-secondary)",
-        "text_muted": "var(--dsw-alias-label-tertiary)",
+        "text_muted": "var(--dsw-alias-label-secondary)",
         "hairline_border": "var(--dsw-alias-border-l2)",
         "focus_ring": "var(--dsw-alias-state-business-primary)",
         "composer_shadow": "var(--dsw-shadow-lv2)"
@@ -1250,7 +1250,7 @@
         "selected_row": "var(--dsw-specific-sidebar-nav-item-active)",
         "text_primary": "var(--dsw-alias-label-primary)",
         "text_secondary": "var(--dsw-alias-label-secondary)",
-        "text_muted": "var(--dsw-alias-label-tertiary)",
+        "text_muted": "var(--dsw-alias-label-secondary)",
         "hairline_border": "var(--dsw-alias-border-l2)",
         "focus_ring": "var(--dsw-alias-state-business-primary)",
         "composer_shadow": "var(--dsw-shadow-lv2)"
@@ -1267,7 +1267,7 @@
         "text_semantics": {
           "uno_t_primary_value": "var(--text-primary)",
           "uno_t_tertiary_value": "var(--color-text-3)",
-          "text_primary_bridge_value": "var(--color-text-1)",
+        "text_primary_bridge_value": "var(--dsw-alias-label-primary)",
           "body_color_value": "var(--text-primary)"
         }
       },

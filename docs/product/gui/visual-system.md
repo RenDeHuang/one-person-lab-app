@@ -124,38 +124,38 @@ Light target：
 
 | Token | Value | 用途 |
 | --- | --- | --- |
-| `canvas` | `#FFFFFF` | Main canvas 与 conversation reading area。 |
-| `surface` | `#FFFFFF` | Composer、popover、drawer、Settings bounded group 和 active content。 |
-| `rail` | `#FCFCFC` | Navigation rail；与白色主画布形成极轻层级。 |
-| `surface-subtle` | `#F0F0F0` | Selected row、tool event、secondary controls。 |
-| `hover` | `rgba(0, 0, 0, 0.045)` | 普通 hover。 |
-| `border` | `rgba(0, 0, 0, 0.10)` | 1px 分隔和 outline。 |
-| `text-primary` | `#202124` | 正文和主标签。 |
-| `text-secondary` | `#5F6368` | 元信息和说明。 |
-| `text-muted` | `#70757A` | 低优先级 metadata；对白色 canvas 为 `4.65:1`，对 rail 为 `4.53:1`。 |
-| `focus` | `#2563EB` | Keyboard focus ring；对白色 canvas 为 `5.17:1`。 |
-| `success` | `#15803D` | 成功。 |
-| `warning` | `#B45309` | 需要注意。 |
-| `danger` | `#B42318` | 失败或破坏性动作。 |
+| `canvas` | `var(--dsw-alias-bg-base)` | Main canvas 与 conversation reading area。 |
+| `surface` | `var(--dsw-alias-bg-layer-1)` | Composer、popover、drawer、Settings bounded group 和 active content。 |
+| `rail` | `var(--dsw-specific-sidebar-fill)` | Navigation rail；由 DSH semantic token 提供层级。 |
+| `surface-subtle` | `var(--dsw-specific-sidebar-nav-item-active)` | Selected row、tool event、secondary controls。 |
+| `hover` | `var(--dsw-alias-interactive-bg-hover)` | 普通 hover。 |
+| `border` | `var(--dsw-alias-border-l2)` | 1px 分隔和 outline。 |
+| `text-primary` | `var(--dsw-alias-label-primary)` | 正文和主标签。 |
+| `text-secondary` | `var(--dsw-alias-label-secondary)` | 元信息和说明。 |
+| `text-muted` | `var(--dsw-alias-label-secondary)` | 低优先级 metadata；对白色 canvas 保持普通文字最低 `4.5:1` 对比度，由 App accessibility gate 验证。 |
+| `focus` | `var(--dsw-alias-state-business-primary)` | Keyboard focus ring；由 DSH semantic token 与 App accessibility gate 验证。 |
+| `success` | `var(--dsw-alias-state-success-primary)` | 成功。 |
+| `warning` | `var(--dsw-alias-state-warn-primary)` | 需要注意。 |
+| `danger` | `var(--dsw-alias-state-error-primary)` | 失败或破坏性动作。 |
 
 Dark target：
 
 | Token | Value | 用途 |
 | --- | --- | --- |
-| `canvas` | `#171819` | App 背景。 |
-| `surface` | `#202224` | Active content。 |
-| `rail` | `#1B1C1E` | Navigation rail。 |
-| `surface-subtle` | `rgba(255, 255, 255, 0.09)` | Selected row 和 tool event。 |
-| `hover` | `rgba(255, 255, 255, 0.06)` | 普通 hover。 |
-| `border` | `rgba(255, 255, 255, 0.12)` | 1px 分隔和 outline。 |
-| `text-primary` | `#F4F5F6` | 正文和主标签。 |
-| `text-secondary` | `#AEB4BC` | 元信息和说明。 |
-| `text-muted` | `#9298A1` | 低优先级 metadata；对 canvas、surface 和 rail 均高于 `5.4:1`。 |
-| `accent` | `#5EEAD4` | OPL 选中态和品牌动作。 |
-| `focus` | `#60A5FA` | Keyboard focus ring；对 canvas、surface 和 rail 均高于 `6.2:1`。 |
-| `success` | `#4ADE80` | 成功。 |
-| `warning` | `#FBBF24` | 需要注意。 |
-| `danger` | `#FB7185` | 失败或破坏性动作。 |
+| `canvas` | `var(--dsw-alias-bg-base)` | App 背景。 |
+| `surface` | `var(--dsw-alias-bg-layer-1)` | Active content。 |
+| `rail` | `var(--dsw-specific-sidebar-fill)` | Navigation rail。 |
+| `surface-subtle` | `var(--dsw-specific-sidebar-nav-item-active)` | Selected row 和 tool event。 |
+| `hover` | `var(--dsw-alias-interactive-bg-hover)` | 普通 hover。 |
+| `border` | `var(--dsw-alias-border-l2)` | 1px 分隔和 outline。 |
+| `text-primary` | `var(--dsw-alias-label-primary)` | 正文和主标签。 |
+| `text-secondary` | `var(--dsw-alias-label-secondary)` | 元信息和说明。 |
+| `text-muted` | `var(--dsw-alias-label-secondary)` | 低优先级 metadata；保持普通文字最低 `4.5:1` 对比度，由 App accessibility gate 验证。 |
+| `accent` | `var(--dsw-alias-brand-primary)` | OPL 选中态和品牌动作。 |
+| `focus` | `var(--dsw-alias-state-business-primary)` | Keyboard focus ring；由 DSH semantic token 与 App accessibility gate 验证。 |
+| `success` | `var(--dsw-alias-state-success-primary)` | 成功。 |
+| `warning` | `var(--dsw-alias-state-warn-primary)` | 需要注意。 |
+| `danger` | `var(--dsw-alias-state-error-primary)` | 失败或破坏性动作。 |
 
 状态不能只靠颜色表达；必须同时有文字、图标或可读形态。普通 surface 不使用彩色
 渐变、强投影或透明模糊作为主要分层手段。

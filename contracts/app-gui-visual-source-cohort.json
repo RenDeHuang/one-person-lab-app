@@ -58,6 +58,14 @@
     "theme_application_policy": "OplVisualProvider bridges current AionUI light and dark state to the pinned DSH body attributes and semantic tokens",
     "legacy_icon_policy": "IconPark remains only on explicitly unmigrated surfaces and is not visual authority for migrated surfaces",
     "vendor_file_modification_policy": "byte_identical_except_import_path_normalization_recorded_in_manifest",
+    "allowed_vendor_normalizations": [
+      {
+        "path": "packages/client/ui-primitives/src/icons/index.tsx",
+        "kind": "classic_react_jsx_runtime_import",
+        "change": "add import React from 'react' without changing glyph markup",
+        "reason": "AionUI compiles TSX with jsx=react while the pinned DSH package uses the automatic JSX runtime"
+      }
+    ],
     "app_product_authority_transfer_allowed": false,
     "framework_abi_change_allowed": false
   },

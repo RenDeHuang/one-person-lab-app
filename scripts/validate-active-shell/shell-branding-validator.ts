@@ -54,8 +54,8 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
     'getOplGlobalFeedbackIssueUrl',
     'buildOplAppIssueUrl',
     'openExternalUrl',
-    "Help",
     'OplIcon',
+    "name='help'",
     "data-testid='app-titlebar-help-icon'",
   ]) {
     if (!titlebar.includes(expected)) {

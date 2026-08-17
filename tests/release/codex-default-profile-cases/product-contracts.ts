@@ -108,8 +108,12 @@ test('active-shell visual token gate protects the rail and semantic text bridges
     >
       <ArcoLayout.Header />`,
     productBaseline: `
-      :root { --opl-sidebar-bg: #fcfcfc; --color-text-1: #202124; --text-primary: var(--color-text-1); }
-      [data-theme='dark'] { --opl-sidebar-bg: #1b1c1e; }
+      :root {
+        --opl-sidebar-bg: var(--dsw-specific-sidebar-fill);
+        --opl-main-bg: var(--dsw-alias-bg-base);
+        --opl-focus-ring: var(--dsw-alias-state-business-primary);
+        --text-primary: var(--dsw-alias-label-primary);
+      }
       body { color: var(--text-primary); }
       .layout-sider.arco-layout-sider { background: var(--opl-sidebar-bg); }
     `,
@@ -138,11 +142,11 @@ test('active-shell visual token gate protects the rail and semantic text bridges
     () => validateShellVisualTokenBindings({
       ...validSources,
       productBaseline: validSources.productBaseline.replace(
-        '--text-primary: var(--color-text-1);',
+        '--text-primary: var(--dsw-alias-label-primary);',
         '--text-primary: #202124;',
       ),
     }),
-    /--text-primary: var\(--color-text-1\)/,
+    /--text-primary: var\(--dsw-alias-label-primary\)/,
   );
 });
 

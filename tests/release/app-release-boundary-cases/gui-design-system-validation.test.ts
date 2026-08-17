@@ -1,4 +1,5 @@
 import { validateGuiDesignSystem } from '../../../scripts/validate-gui-design-system.ts';
+import { validateShellDshVisualSource } from '../../../scripts/validate-active-shell/shell-implementation-validator.ts';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { assert, fs, os, path, test, appRoot } from './helpers.ts';
@@ -220,6 +221,38 @@ test('GUI design-system validator accepts an approved App-owned baseline without
   assert.equal(summary.release_ready, false);
 });
 
+test('GUI design-system validator fail-closes the pinned DSH phase, deferred, upgrade, and normalization contract', () => {
+  const mutations = [
+    ['phase_one_behavior_invariants', (cohort: Record<string, unknown>) => {
+      (cohort.phase_one_behavior_invariants as string[]).pop();
+    }],
+    ['deferred_surfaces', (cohort: Record<string, unknown>) => {
+      (cohort.deferred_surfaces as string[]).reverse();
+    }],
+    ['upgrade_policy.required_evidence', (cohort: Record<string, unknown>) => {
+      const policy = cohort.upgrade_policy as Record<string, unknown>;
+      (policy.required_evidence as string[]).shift();
+    }],
+    ['shell_adoption.allowed_vendor_normalizations', (cohort: Record<string, unknown>) => {
+      (cohort.shell_adoption as Record<string, unknown>).allowed_vendor_normalizations = [];
+    }],
+  ] as const;
+
+  for (const [label, mutate] of mutations) {
+    const root = createFixture();
+    const cohortPath = path.join(root, 'contracts/app-gui-visual-source-cohort.json');
+    const cohort = JSON.parse(fs.readFileSync(cohortPath, 'utf8')) as Record<string, unknown>;
+    mutate(cohort);
+    writeJson(root, 'contracts/app-gui-visual-source-cohort.json', cohort);
+
+    assert.throws(
+      () => validateGuiDesignSystem(root),
+      /visual source cohort must pin the DSH commit and keep AionUI limited to visual adapters without runtime or release authority/,
+      label,
+    );
+  }
+});
+
 test('GUI design-system validator rejects a weakened visual threshold or undeclared mask reason', () => {
   const root = createFixture();
   const cohortPath = path.join(root, 'contracts/app-gui-visual-reference-cohort.json');
@@ -238,6 +271,115 @@ test('GUI design-system validator rejects a weakened visual threshold or undecla
     () => validateGuiDesignSystem(root),
     /must fail closed on dimensions, pixel thresholds, masks, and exact human review|contains an invalid mask/,
   );
+});
+
+test('active-shell DSH source gate reads the manifest, LICENSE, and normalized vendored hashes', () => {
+  const normalization = {
+    path: 'packages/client/icon.txt',
+    kind: 'classic_react_jsx_runtime_import',
+    change: "add import React from 'react' without changing glyph markup",
+    reason: 'fixture compatibility normalization',
+  };
+  const makeFixture = () => {
+    const shellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-dsh-source-gate-'));
+    const manifestPath = path.join(shellRoot, 'vendor/visual-source-manifest.json');
+    const licensePath = path.join(shellRoot, 'vendor/LICENSE');
+    const iconPath = path.join(shellRoot, 'vendor/packages/client/icon.txt');
+    const license = 'MIT\n';
+    const icon = 'normalized icon source\n';
+    fs.mkdirSync(path.dirname(iconPath), { recursive: true });
+    fs.writeFileSync(licensePath, license, 'utf8');
+    fs.writeFileSync(iconPath, icon, 'utf8');
+
+    const sourceContract = {
+      upstream: {
+        repository: 'https://github.com/deepseek-ai/deepseek-harness.git',
+        commit: '4'.repeat(40),
+        license: 'MIT',
+        license_source_path: 'LICENSE',
+      },
+      runtime_vendored_source_paths: ['packages/client/icon.txt'],
+      adapter_reference_source_paths: [],
+      deferred_reference_source_paths: [],
+      excluded_source_and_runtime: [],
+      shell_adoption: {
+        reuse_mode: 'bounded_vendored_visual_source_with_opl_adapters',
+        required_source_manifest: 'vendor/visual-source-manifest.json',
+        required_license_notice: 'vendor/LICENSE',
+        allowed_vendor_normalizations: [normalization],
+      },
+    };
+    const manifest = {
+      schema_version: 1,
+      schema: 'opl_aionui_dsh_visual_source_manifest.v1',
+      upstream: {
+        repository: sourceContract.upstream.repository,
+        commit: sourceContract.upstream.commit,
+        license: sourceContract.upstream.license,
+      },
+      source_policy: {
+        app_contract: 'contracts/app-gui-visual-source-cohort.json',
+        reuse_mode: sourceContract.shell_adoption.reuse_mode,
+        vendored_files_byte_identical: false,
+        import_path_normalizations: [],
+        toolchain_compatibility_normalizations: [normalization],
+        runtime_authority_imported: false,
+      },
+      vendored_files: [
+        {
+          path: 'LICENSE',
+          sha256: createHash('sha256').update(license).digest('hex'),
+          role: 'license_notice',
+        },
+        {
+          path: 'packages/client/icon.txt',
+          upstream_sha256: 'b'.repeat(64),
+          sha256: createHash('sha256').update(icon).digest('hex'),
+          normalization: normalization.kind,
+          role: 'runtime_icon_source',
+        },
+      ],
+      reference_files: [],
+    };
+    writeJson(shellRoot, 'vendor/visual-source-manifest.json', manifest);
+    return { shellRoot, manifestPath, licensePath, iconPath, sourceContract };
+  };
+
+  const valid = makeFixture();
+  assert.doesNotThrow(() => validateShellDshVisualSource({ shellRoot: valid.shellRoot }, valid.sourceContract));
+
+  const hashMutations = [
+    ['vendored source hash', (fixture: ReturnType<typeof makeFixture>) => fs.writeFileSync(fixture.iconPath, 'tampered\n', 'utf8'), /must match its SHA-256/],
+    ['LICENSE hash', (fixture: ReturnType<typeof makeFixture>) => fs.writeFileSync(fixture.licensePath, 'tampered license\n', 'utf8'), /must match its SHA-256/],
+    ['pinned commit', (fixture: ReturnType<typeof makeFixture>) => {
+      const manifest = JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8'));
+      manifest.upstream.commit = '5'.repeat(40);
+      writeJson(fixture.shellRoot, 'vendor/visual-source-manifest.json', manifest);
+    }, /must bind the App-pinned repository, commit, and MIT license/],
+    ['normalized upstream hash', (fixture: ReturnType<typeof makeFixture>) => {
+      const manifest = JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8'));
+      delete manifest.vendored_files[1].upstream_sha256;
+      writeJson(fixture.shellRoot, 'vendor/visual-source-manifest.json', manifest);
+    }, /must declare its normalization and upstream SHA-256/],
+    ['runtime authority policy', (fixture: ReturnType<typeof makeFixture>) => {
+      const manifest = JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8'));
+      manifest.source_policy.runtime_authority_imported = true;
+      writeJson(fixture.shellRoot, 'vendor/visual-source-manifest.json', manifest);
+    }, /must preserve the bounded adapter-only source policy and declared normalizations/],
+    ['vendor directory closure', (fixture: ReturnType<typeof makeFixture>) => {
+      fs.writeFileSync(path.join(fixture.shellRoot, 'vendor/unregistered.txt'), 'residue\n', 'utf8');
+    }, /must contain only the manifest, LICENSE, and declared source files/],
+  ] as const;
+
+  for (const [label, mutate, expectedError] of hashMutations) {
+    const fixture = makeFixture();
+    mutate(fixture);
+    assert.throws(
+      () => validateShellDshVisualSource({ shellRoot: fixture.shellRoot }, fixture.sourceContract),
+      expectedError,
+      label,
+    );
+  }
 });
 
 test('GUI design-system validator rejects a missing or reordered visual scene', () => {

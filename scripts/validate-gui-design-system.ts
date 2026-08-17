@@ -102,6 +102,39 @@ const visualSourceCohortPath = 'contracts/app-gui-visual-source-cohort.json';
 const visualSourceReference = 'pinned DeepSeek Harness visual source cohort (exact commit recorded in contracts/app-gui-visual-source-cohort.json)';
 const visualSourceCommit = '47f943859bef60e4160492346772ded9b24f765a';
 const visualSourceUsage = 'bounded_source_reuse_for_icons_theme_tokens_and_visual_primitive_geometry_only';
+const expectedVisualSourceNormalizations = [
+  {
+    path: 'packages/client/ui-primitives/src/icons/index.tsx',
+    kind: 'classic_react_jsx_runtime_import',
+    change: "add import React from 'react' without changing glyph markup",
+    reason: 'AionUI compiles TSX with jsx=react while the pinned DSH package uses the automatic JSX runtime',
+  },
+] as const;
+const expectedPhaseOneBehaviorInvariants = [
+  'routes_unchanged',
+  'handlers_unchanged',
+  'framework_state_and_action_abi_unchanged',
+  'app_state_ownership_unchanged',
+  'arco_control_semantics_unchanged',
+  'bilingual_copy_unchanged',
+  'keyboard_tooltip_focus_and_accessible_name_preserved',
+] as const;
+const expectedDeferredVisualSurfaces = [
+  'conversation_timeline',
+  'complete_settings_content',
+  'runtime_status_content',
+  'first_run',
+  'modal_and_drawer_body_inventory',
+] as const;
+const expectedVisualUpgradeEvidence = [
+  'exact_upstream_commit_and_license_readback',
+  'per_file_source_manifest_with_sha256',
+  'upstream_diff_for_all_vendored_and_reference_paths',
+  'focused_icon_theme_and_surface_tests',
+  'desktop_and_narrow_light_dark_zh_en_visual_review',
+  'keyboard_tooltip_focus_and_accessible_name_regression',
+  'app_and_shell_canonical_main_readback',
+] as const;
 const interactionReference = 'historical ChatGPT Codex macOS workflow and spatial interaction observation';
 const interactionReferenceUsage = 'historical_workflow_and_spatial_interaction_reference_only_no_code_brand_account_product_pixel_install_or_release_authority';
 const pixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
@@ -793,6 +826,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const sourceUpstream = record(visualSourceCohort.upstream);
   const sourceNoticeInventory = record(sourceUpstream.notice_inventory);
   const sourceShellAdoption = record(visualSourceCohort.shell_adoption);
+  const sourceUpgradePolicy = record(visualSourceCohort.upgrade_policy);
   const sourceEvidenceBoundary = record(visualSourceCohort.evidence_boundary);
   const cohortScenes = Array.isArray(visualReferenceCohort.scene_matrix)
     ? visualReferenceCohort.scene_matrix.map(record)
@@ -961,6 +995,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'packages/desktop/src/renderer/vendor/deepseek-harness/LICENSE' ||
     sourceShellAdoption.provider_component !== 'OplVisualProvider' ||
     sourceShellAdoption.icon_adapter_component !== 'OplIcon' ||
+    JSON.stringify(sourceShellAdoption.allowed_vendor_normalizations) !==
+      JSON.stringify(expectedVisualSourceNormalizations) ||
     sourceShellAdoption.app_product_authority_transfer_allowed !== false ||
     sourceShellAdoption.framework_abi_change_allowed !== false ||
     !stringArray(visualSourceCohort.excluded_source_and_runtime).includes('packages/client/ui-slots') ||
@@ -972,6 +1008,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'composer',
       'settings_navigation',
     ]) ||
+    !sameStrings(visualSourceCohort.phase_one_behavior_invariants, expectedPhaseOneBehaviorInvariants) ||
+    !sameStrings(visualSourceCohort.deferred_surfaces, expectedDeferredVisualSurfaces) ||
+    sourceUpgradePolicy.mode !== 'manual_pinned_cohort_promotion' ||
+    !sameStrings(sourceUpgradePolicy.required_evidence, expectedVisualUpgradeEvidence) ||
+    sourceUpgradePolicy.automatic_floating_update !== false ||
+    sourceUpgradePolicy.dsh_runtime_expansion_by_visual_upgrade !== false ||
     sourceEvidenceBoundary.source_cohort_pinned !== true ||
     sourceEvidenceBoundary.shell_source_implemented !== false ||
     sourceEvidenceBoundary.pixel_baseline_approved !== false ||
@@ -1937,7 +1979,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         selected_row: 'var(--dsw-specific-sidebar-nav-item-active)',
         text_primary: 'var(--dsw-alias-label-primary)',
         text_secondary: 'var(--dsw-alias-label-secondary)',
-        text_muted: 'var(--dsw-alias-label-tertiary)',
+        text_muted: 'var(--dsw-alias-label-secondary)',
         hairline_border: 'var(--dsw-alias-border-l2)',
         focus_ring: 'var(--dsw-alias-state-business-primary)',
         composer_shadow: 'var(--dsw-shadow-lv2)',
@@ -1951,7 +1993,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
         selected_row: 'var(--dsw-specific-sidebar-nav-item-active)',
         text_primary: 'var(--dsw-alias-label-primary)',
         text_secondary: 'var(--dsw-alias-label-secondary)',
-        text_muted: 'var(--dsw-alias-label-tertiary)',
+        text_muted: 'var(--dsw-alias-label-secondary)',
         hairline_border: 'var(--dsw-alias-border-l2)',
         focus_ring: 'var(--dsw-alias-state-business-primary)',
         composer_shadow: 'var(--dsw-shadow-lv2)',

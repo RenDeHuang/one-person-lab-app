@@ -73,8 +73,8 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
 - 对话历史空状态使用 DSH cohort 的单色 conversation glyph 与 `13/18` 次级文案，移除
   carrier 默认的大号抽屉插画和装饰性 empty-state frame；
 - rail 使用最新 reference 的中性 light/dark surface；项目组直接显示 sessions，source 与 DOM
-  均不存在 project-owned“上下文 / 添加上下文”层；Light rail 固定为 `#fcfcfc`、Dark rail 固定为
-  `#1b1c1e`，Shell Layout 不得用背景 utility 绕过 `--opl-sidebar-bg`；
+  均不存在 project-owned“上下文 / 添加上下文”层；Light/Dark rail 均绑定
+  `var(--dsw-specific-sidebar-fill)`，Shell Layout 不得用背景 utility 绕过 `--opl-sidebar-bg`；
 - Home 与 conversation composer 共用中性 border、resting/focus shadow 和 `14/20` textarea；
 - Home 与 conversation composer 共用单一 Codex 会话配置菜单；第一层依次以“模型”和“推理强度”
   摘要行显示当前值并进入二级选择，分隔线后提供“重置为默认设置”。摘要行不使用前置图标，
@@ -254,32 +254,32 @@ SHA-256。Receipt 固定记录 schema、owner、baseline ID、reviewer、reviewe
 
 | Token | Target |
 | --- | --- |
-| Canvas / active surface | `#FFFFFF` |
-| Rail | `#FCFCFC` |
-| Hover | `rgba(0, 0, 0, 0.045)` over rail/surface |
-| Selected row | `#F0F0F0` |
-| Primary text | `#202124` |
-| Secondary text | `#5F6368` |
-| Muted text | `#70757A` |
-| Hairline border | `rgba(0, 0, 0, 0.10)` |
-| Focus ring | `#2563EB` |
-| Composer shadow | `0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05)` |
+| Canvas / active surface | `var(--dsw-alias-bg-base)` / `var(--dsw-alias-bg-layer-1)` |
+| Rail | `var(--dsw-specific-sidebar-fill)` |
+| Hover | `var(--dsw-alias-interactive-bg-hover)` |
+| Selected row | `var(--dsw-specific-sidebar-nav-item-active)` |
+| Primary text | `var(--dsw-alias-label-primary)` |
+| Secondary text | `var(--dsw-alias-label-secondary)` |
+| Muted text | `var(--dsw-alias-label-secondary)` |
+| Hairline border | `var(--dsw-alias-border-l2)` |
+| Focus ring | `var(--dsw-alias-state-business-primary)` |
+| Composer shadow | `var(--dsw-shadow-lv2)` |
 
 ### Dark
 
 | Token | Target |
 | --- | --- |
-| Canvas | `#171819` |
-| Active surface | `#202224` |
-| Rail | `#1B1C1E` |
-| Hover | `rgba(255, 255, 255, 0.06)` |
-| Selected row | `rgba(255, 255, 255, 0.09)` |
-| Primary text | `#F4F5F6` |
-| Secondary text | `#AEB4BC` |
-| Muted text | `#9298A1` |
-| Hairline border | `rgba(255, 255, 255, 0.12)` |
-| Focus ring | `#60A5FA` |
-| Composer shadow | `0 1px 2px rgba(0,0,0,.28), 0 4px 12px rgba(0,0,0,.18)` |
+| Canvas | `var(--dsw-alias-bg-base)` |
+| Active surface | `var(--dsw-alias-bg-layer-1)` |
+| Rail | `var(--dsw-specific-sidebar-fill)` |
+| Hover | `var(--dsw-alias-interactive-bg-hover)` |
+| Selected row | `var(--dsw-specific-sidebar-nav-item-active)` |
+| Primary text | `var(--dsw-alias-label-primary)` |
+| Secondary text | `var(--dsw-alias-label-secondary)` |
+| Muted text | `var(--dsw-alias-label-secondary)` |
+| Hairline border | `var(--dsw-alias-border-l2)` |
+| Focus ring | `var(--dsw-alias-state-business-primary)` |
+| Composer shadow | `var(--dsw-shadow-lv2)` |
 
 OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Settings 导航或 composer chrome。
 

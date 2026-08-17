@@ -252,7 +252,7 @@ function validateVisualTokenBindings(guiContract) {
     {
       uno_t_primary_value: 'var(--text-primary)',
       uno_t_tertiary_value: 'var(--color-text-3)',
-      text_primary_bridge_value: 'var(--color-text-1)',
+      text_primary_bridge_value: 'var(--dsw-alias-label-primary)',
       body_color_value: 'var(--text-primary)',
     },
     'App GUI shell text semantic token binding',

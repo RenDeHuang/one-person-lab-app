@@ -1122,7 +1122,7 @@ function validateCodexSessionConfigurationMenuImplementation(shellPaths) {
       "'reasoning'",
       "role='separator'",
       'onReset();',
-      '<Refresh {...OPL_CHROME_ICON_PROPS} size={16}',
+      "<OplIcon name='refresh'",
       "event.key === 'ArrowLeft'",
       "event.key === 'Escape'",
       "['ArrowDown', 'ArrowUp', 'Home', 'End']",
