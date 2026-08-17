@@ -121,7 +121,7 @@
   },
   "evidence_boundary": {
     "source_cohort_pinned": true,
-    "shell_source_implemented": false,
+    "shell_source_implemented": true,
     "pixel_baseline_approved": false,
     "installed_current": false,
     "release_ready": false

@@ -1015,12 +1015,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     sourceUpgradePolicy.automatic_floating_update !== false ||
     sourceUpgradePolicy.dsh_runtime_expansion_by_visual_upgrade !== false ||
     sourceEvidenceBoundary.source_cohort_pinned !== true ||
-    sourceEvidenceBoundary.shell_source_implemented !== false ||
+    sourceEvidenceBoundary.shell_source_implemented !== true ||
     sourceEvidenceBoundary.pixel_baseline_approved !== false ||
     sourceEvidenceBoundary.installed_current !== false ||
     sourceEvidenceBoundary.release_ready !== false
   ) {
-    issues.add('visual source cohort must pin the DSH commit and keep AionUI limited to visual adapters without runtime or release authority');
+    issues.add('visual source cohort must pin the DSH commit, require the Shell source implementation, and keep AionUI limited to visual adapters without runtime or release authority');
   }
   if (
     visualReferenceCohort.schema_version !== 1 ||

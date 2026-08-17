@@ -250,7 +250,7 @@ test('GUI design-system validator fail-closes the pinned DSH phase, deferred, up
 
     assert.throws(
       () => validateGuiDesignSystem(root),
-      /visual source cohort must pin the DSH commit and keep AionUI limited to visual adapters without runtime or release authority/,
+      /visual source cohort must pin the DSH commit, require the Shell source implementation, and keep AionUI limited to visual adapters without runtime or release authority/,
       label,
     );
   }
@@ -311,6 +311,9 @@ test('active-shell DSH source gate reads the manifest, LICENSE, and normalized v
         required_license_notice: 'vendor/LICENSE',
         allowed_vendor_normalizations: [normalization],
       },
+      evidence_boundary: {
+        shell_source_implemented: true,
+      },
     };
     const manifest = {
       schema_version: 1,
@@ -353,15 +356,21 @@ test('active-shell DSH source gate reads the manifest, LICENSE, and normalized v
   assert.equal(resolveShellDshVisualSourceMode({ shellRoot: valid.shellRoot }, valid.sourceContract), true);
 
   const absentShellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-dsh-source-absent-'));
-  assert.equal(resolveShellDshVisualSourceMode({ shellRoot: absentShellRoot }, valid.sourceContract), false);
-  assert.throws(
-    () => resolveShellDshVisualSourceMode(
+  assert.equal(
+    resolveShellDshVisualSourceMode(
       { shellRoot: absentShellRoot },
       {
         ...valid.sourceContract,
-        evidence_boundary: { shell_source_implemented: true },
+        evidence_boundary: {
+          ...valid.sourceContract.evidence_boundary,
+          shell_source_implemented: false,
+        },
       },
     ),
+    false,
+  );
+  assert.throws(
+    () => resolveShellDshVisualSourceMode({ shellRoot: absentShellRoot }, valid.sourceContract),
     /Missing active shell implementation file/,
   );
 
