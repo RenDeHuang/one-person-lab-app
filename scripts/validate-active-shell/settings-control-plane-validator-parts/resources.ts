@@ -135,8 +135,13 @@ export function validateSettingsAgentsDirectoryProjection(agentsPage) {
       "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]" ||
     directory.directory_collection_source !==
       "app_state.agent_packages.directory.entries" ||
-    directory.directory_collection_policy !==
-      "render every canonical entry without an App-owned Package id allowlist or starter metadata catalog" ||
+    typeof directory.directory_collection_policy !== "string" ||
+    !Array.isArray(directory.visible_package_roles) ||
+    directory.visible_package_roles.length !== 2 ||
+    directory.visible_package_roles[0] !== "standard_agent" ||
+    directory.visible_package_roles[1] !== "workflow_profile" ||
+    directory.other_package_role_destination !== "capabilities" ||
+    directory.app_owned_package_id_allowlist_allowed !== false ||
     directory.display_metadata_source !==
       "app_state.agent_packages.directory.entries" ||
     directory.display_metadata_policy !==

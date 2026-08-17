@@ -9,6 +9,40 @@
   "product_profile_projection_target": "settings.control_plane",
   "active_shell": "aionui",
   "shell_adapter_role": "render_host_and_route_adapter_only",
+  "user_question_information_architecture": {
+    "schema": "opl_settings_user_question_information_architecture.v1",
+    "owner": "one-person-lab-app",
+    "primary_group_title_instance_count": 1,
+    "multiple_destination_navigation": "single_tab_list",
+    "repeated_heading_layers": [
+      "group_label",
+      "eyebrow",
+      "page_h1",
+      "active_tab_label"
+    ],
+    "same_title_may_repeat_across_heading_layers": false,
+    "single_destination_tab_list_allowed": false,
+    "concatenated_destination_page_allowed": false,
+    "responsive_semantics_must_match": true,
+    "runtime_extension": false
+  },
+  "neutral_information_state_policy": {
+    "schema": "opl_settings_neutral_information_state.v1",
+    "storage_inventory": {
+      "neutral_states": [
+        "not_inventoried",
+        "current_carrier_does_not_provide_statistics"
+      ],
+      "attention_allowed": false,
+      "unknown_bytes_policy": "unavailable_never_zero",
+      "refresh_requires_owner_projected_executable_action": true,
+      "refresh_requires_mutable_fresh_readback": true,
+      "success_requires_changed_inventory_identity_or_observed_at": true,
+      "static_reread_can_report_success": false,
+      "absent_action_can_report_success": false,
+      "unchanged_unavailable_state_can_report_success": false
+    }
+  },
   "managed_computer_use": {
     "schema": "opl_managed_computer_use_settings.v1",
     "product_policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy",
@@ -51,10 +85,93 @@
         "agent_home_visibility_and_order",
         "agent_launch_and_dependency_readiness"
       ],
+      "visible_package_roles": [
+        "standard_agent",
+        "workflow_profile"
+      ],
+      "catalog_partition_policy": {
+        "standard_agents": "Framework directory entries with package_role=standard_agent; the Official Profile summary is a separate first-install requirement and never defines membership",
+        "agent_workflows": "Framework directory entries with package_role=workflow_profile",
+        "capability_packages": "route to Capabilities using the Framework-projected package role and capability identities",
+        "unknown_roles": "do not guess from package_id, display name, local checkout, or App metadata; use only an owner-projected destination when available",
+        "app_owned_package_id_allowlist_allowed": false
+      },
+      "official_installation_baseline": {
+        "schema": "opl_standard_agent_installation_baseline.v1",
+        "requirement_owner": "one-person-lab-app",
+        "runtime_status_owner": "one-person-lab",
+        "scope": "current_official_profile_first_install_acceptance_and_settings_status_summary",
+        "desired_roots_source_ref": "contracts/app-product-profile.json#official_profile.desired_root_package_ids",
+        "standard_agent_membership_source_ref": "opl app state --profile fast --json#app_state.agent_packages.directory.entries",
+        "standard_agent_membership_policy": "select desired roots whose Framework projection declares package_role=standard_agent and first-party OPL ownership; the current Official Profile requires five such roots",
+        "current_profile_required_standard_agent_count": 5,
+        "app_owned_runtime_registry_allowed": false,
+        "required_state_axes": [
+          "discoverable",
+          "installed",
+          "enabled",
+          "callable",
+          "launchable"
+        ],
+        "state_axis_sources": {
+          "discoverable": "Framework directory contains the desired package_id with package_role=standard_agent and first-party OPL ownership",
+          "installed": "app_state.agent_packages.directory.entries[package_id].installed",
+          "enabled": "app_state.agent_packages.directory.entries[package_id].exposure.enabled",
+          "callable": "app_state.agent_packages.status_index.packages[package_id].presence.callable from fresh Framework carrier readback",
+          "launchable": "Framework-projected directory readiness.launch_allowed with a selectable Codex agent_package_shortcut route"
+        },
+        "first_install_acceptance_policy": "every required standard-agent root in the current Official Profile must be discoverable, installed, enabled, callable, and launchable; package-local failure remains visible and does not become success",
+        "settings_presentation_policy": {
+          "axes_must_remain_separate": true,
+          "missing_required_root_policy": "show discoverable=false and the remaining axes as unavailable or unknown in the Official Profile status summary; do not synthesize a manageable directory row or action",
+          "missing_required_root_discoverable": false,
+          "missing_required_root_other_axes": "unavailable_or_unknown",
+          "synthetic_directory_row_allowed": false,
+          "synthetic_action_allowed": false,
+          "directory_row_policy": "render manageable rows only from Framework directory entries",
+          "action_policy": "execute only owner-projected Settings actions and remain read-only when no action is projected",
+          "selectable_policy": "a standard Agent is selectable only through its owner-projected Codex shortcut and is launchable only when the launchable axis is true"
+        },
+        "shared_consumer_projection_policy": {
+          "source_owner": "one-person-lab",
+          "identity_key": "package_id",
+          "directory_statistics_source_axes": [
+            "discoverable",
+            "installed",
+            "enabled",
+            "callable",
+            "launchable"
+          ],
+          "directory_row_status_source_axes": [
+            "discoverable",
+            "installed",
+            "enabled",
+            "callable",
+            "launchable"
+          ],
+          "new_task_selectability_required_axes": [
+            "discoverable",
+            "installed",
+            "enabled",
+            "callable",
+            "launchable"
+          ],
+          "new_task_selectability_requires_projected_codex_shortcut": true,
+          "independent_shell_fallback_allowed": false
+        },
+        "ordinary_maintenance_policy": "after first install, explicit user disable or uninstall persists until an explicit projected action or Official Profile restore; startup, background update, and App update do not silently restore it",
+        "not_proven_by": [
+          "App contract validation",
+          "directory row rendering",
+          "source-only shell tests",
+          "release artifact existence"
+        ]
+      },
       "must_not_own": [
         "skill_or_plugin_catalog",
         "opl_flow_recommendation_policy",
-        "cli_currentness"
+        "cli_currentness",
+        "standard_agent_runtime_registry_or_status_truth"
       ]
     },
     "capabilities": {
@@ -63,12 +180,15 @@
       "slot_id": "settings_capabilities",
       "component_key": "CapabilitiesSettingsContent",
       "entity_kinds": [
+        "capability_package",
         "skill",
         "plugin",
         "mcp_server",
+        "connection_application",
         "image_generation",
         "voice_input"
       ],
+      "presentation_scope_policy": "show Package-backed capabilities, Skills, Plugins, connection applications and managed companions from their canonical owner projections; credential connections and deployment resources remain under Resources & Connections",
       "groups": {
         "opl_flow_managed": {
           "label_zh": "OPL Flow 推荐",
@@ -1675,9 +1795,11 @@
           "manual_and_third_party"
         ],
         "entity_kinds": [
+          "capability_package",
           "skill",
           "plugin",
           "mcp_server",
+          "connection_application",
           "image_generation",
           "voice_input"
         ],
@@ -1730,7 +1852,13 @@
           "home_shortcut_integration": "inline_visibility_and_order_controls_on_package_rows",
           "canonical_projection": "opl app state --profile fast --json#app_state.agent_packages.directory.entries + app_state.agent_packages.status_index + app_state.runtime_source_carriers.items[]",
           "directory_collection_source": "app_state.agent_packages.directory.entries",
-          "directory_collection_policy": "render every canonical entry without an App-owned Package id allowlist or starter metadata catalog",
+          "directory_collection_policy": "render canonical entries whose Framework-projected package_role is standard_agent or workflow_profile without an App-owned Package id allowlist or starter metadata catalog; capability_package entries belong to Capabilities",
+          "visible_package_roles": [
+            "standard_agent",
+            "workflow_profile"
+          ],
+          "other_package_role_destination": "capabilities",
+          "app_owned_package_id_allowlist_allowed": false,
           "display_metadata_source": "app_state.agent_packages.directory.entries",
           "display_metadata_policy": "use owner-projected display metadata with a package-id fallback; App profile metadata must not define catalog membership, ordering, status, readiness, or actions",
           "runtime_source_projection": "opl app state --profile fast --json#app_state.runtime_source_carriers.items[]",
@@ -2589,7 +2717,7 @@
             "scope": "user",
             "owner": "one-person-lab-app",
             "risk": "reversible",
-            "normal_summary": "Agents renders every Framework directory entry, keeps static professional package data as metadata only, and owns package search, role/status/source filters, dynamic directory reload from fresh App state, projected lifecycle actions, Developer Mode, and Home visibility.",
+            "normal_summary": "Agents renders Framework-projected standard Agent and workflow Package entries, keeps static professional package data as metadata only, and owns package search, role/status/source filters, dynamic directory reload from fresh App state, projected lifecycle actions, Developer Mode, and Home visibility.",
             "next_action": "search or filter the directory, reload its fresh App-state projection, or execute the package row action projected by Framework",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_agents",
             "editable_reason": "Framework owns directory and action truth; the App only renders canonical payloads and routes missing workspace activation to Workspace",
@@ -2605,7 +2733,7 @@
             "scope": "user",
             "owner": "one-person-lab-app",
             "risk": "reversible",
-            "normal_summary": "Capabilities groups OPL Flow, OPL-managed companions, and local Skills or Plugins by canonical owner without duplicating Agent package or Home shortcut lifecycle.",
+            "normal_summary": "Capabilities groups capability Packages, OPL Flow, OPL-managed companions, connection applications, and local Skills or Plugins by canonical owner without duplicating Agent or workflow Package lifecycle.",
             "next_action": "open capability details or Maintenance for owner-routed updates and repairs",
             "details_ref": "contracts/app-gui-product-contract.json#pages.settings_capabilities",
             "editable_reason": "manual and third-party capability mutations require explicit user action; OPL Flow remains package-owned and OPL-managed companions follow owner-projected default lifecycle and permission actions",

@@ -202,6 +202,23 @@ test("Settings exposes seven primary groups over ten stable carrier pages with b
       .unknown_route_policy,
     "redirect_to_overview_default_route",
   );
+  assert.deepStrictEqual(values.controlPlane.user_question_information_architecture, {
+    schema: "opl_settings_user_question_information_architecture.v1",
+    owner: "one-person-lab-app",
+    primary_group_title_instance_count: 1,
+    multiple_destination_navigation: "single_tab_list",
+    repeated_heading_layers: [
+      "group_label",
+      "eyebrow",
+      "page_h1",
+      "active_tab_label",
+    ],
+    same_title_may_repeat_across_heading_layers: false,
+    single_destination_tab_list_allowed: false,
+    concatenated_destination_page_allowed: false,
+    responsive_semantics_must_match: true,
+    runtime_extension: false,
+  });
   assert.deepStrictEqual(
     values.controlPlane.aionui_custom_assistant_boundary,
     {
@@ -269,6 +286,122 @@ test("Settings validator keeps generic projected Package actions on Agents", () 
     () => validate(missingPresenceAxis),
     /Settings Agents status axes/,
   );
+});
+
+test("Settings binds the five current standard Agents to the Official Profile without a second runtime registry", () => {
+  const values = contracts();
+  const ownership = values.controlPlane.agents_capabilities_ownership;
+  const baseline =
+    ownership.agents.official_installation_baseline;
+  const currentStandardAgentIds = ["mag", "mas", "obf", "oma", "rca"];
+
+  assert.equal(baseline.requirement_owner, "one-person-lab-app");
+  assert.equal(baseline.runtime_status_owner, "one-person-lab");
+  assert.equal(
+    baseline.desired_roots_source_ref,
+    "contracts/app-product-profile.json#official_profile.desired_root_package_ids",
+  );
+  assert.equal(
+    baseline.standard_agent_membership_source_ref,
+    "opl app state --profile fast --json#app_state.agent_packages.directory.entries",
+  );
+  assert.equal(baseline.current_profile_required_standard_agent_count, 5);
+  assert.equal(baseline.app_owned_runtime_registry_allowed, false);
+  assert.deepStrictEqual(baseline.required_state_axes, [
+    "discoverable",
+    "installed",
+    "enabled",
+    "callable",
+    "launchable",
+  ]);
+  assert.deepStrictEqual(
+    Object.keys(baseline.state_axis_sources),
+    baseline.required_state_axes,
+  );
+  for (const packageId of currentStandardAgentIds) {
+    assert.ok(
+      values.productProfile.official_profile.desired_root_package_ids.includes(packageId),
+      `${packageId} must remain a current Official Profile root`,
+    );
+  }
+  assert.equal(
+    baseline.settings_presentation_policy.axes_must_remain_separate,
+    true,
+  );
+  assert.equal(baseline.settings_presentation_policy.missing_required_root_discoverable, false);
+  assert.equal(
+    baseline.settings_presentation_policy.missing_required_root_other_axes,
+    "unavailable_or_unknown",
+  );
+  assert.equal(baseline.settings_presentation_policy.synthetic_directory_row_allowed, false);
+  assert.equal(baseline.settings_presentation_policy.synthetic_action_allowed, false);
+  assert.equal(
+    baseline.settings_presentation_policy.directory_row_policy,
+    "render manageable rows only from Framework directory entries",
+  );
+  assert.equal(baseline.shared_consumer_projection_policy.source_owner, "one-person-lab");
+  assert.equal(baseline.shared_consumer_projection_policy.identity_key, "package_id");
+  for (const field of [
+    "directory_statistics_source_axes",
+    "directory_row_status_source_axes",
+    "new_task_selectability_required_axes",
+  ]) {
+    assert.deepStrictEqual(
+      baseline.shared_consumer_projection_policy[field],
+      baseline.required_state_axes,
+    );
+  }
+  assert.equal(
+    baseline.shared_consumer_projection_policy
+      .new_task_selectability_requires_projected_codex_shortcut,
+    true,
+  );
+  assert.equal(
+    baseline.shared_consumer_projection_policy.independent_shell_fallback_allowed,
+    false,
+  );
+  assert.equal(
+    ownership.agents.must_not_own.includes(
+      "standard_agent_runtime_registry_or_status_truth",
+    ),
+    true,
+  );
+  assert.deepStrictEqual(ownership.agents.visible_package_roles, [
+    "standard_agent",
+    "workflow_profile",
+  ]);
+  assert.equal(
+    ownership.agents.catalog_partition_policy.app_owned_package_id_allowlist_allowed,
+    false,
+  );
+  assert.deepStrictEqual(ownership.capabilities.entity_kinds.slice(0, 4), [
+    "capability_package",
+    "skill",
+    "plugin",
+    "mcp_server",
+  ]);
+  assert.equal(
+    ownership.capabilities.entity_kinds.includes("connection_application"),
+    true,
+  );
+});
+
+test("Settings treats unavailable Storage statistics as neutral and never fabricates refresh success", () => {
+  const values = contracts();
+  const storage = values.controlPlane.neutral_information_state_policy.storage_inventory;
+
+  assert.deepStrictEqual(storage.neutral_states, [
+    "not_inventoried",
+    "current_carrier_does_not_provide_statistics",
+  ]);
+  assert.equal(storage.attention_allowed, false);
+  assert.equal(storage.unknown_bytes_policy, "unavailable_never_zero");
+  assert.equal(storage.refresh_requires_owner_projected_executable_action, true);
+  assert.equal(storage.refresh_requires_mutable_fresh_readback, true);
+  assert.equal(storage.success_requires_changed_inventory_identity_or_observed_at, true);
+  assert.equal(storage.static_reread_can_report_success, false);
+  assert.equal(storage.absent_action_can_report_success, false);
+  assert.equal(storage.unchanged_unavailable_state_can_report_success, false);
 });
 
 test("Settings exposes Official Profile restore only as an explicit App-owned secondary action", () => {

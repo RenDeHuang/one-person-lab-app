@@ -198,7 +198,15 @@ export function validateSettingsPageAdapterPolicy(controlPlane, productProfile) 
   );
   assertDeepEqualJson(
     requiredPages.capabilities?.entity_kinds,
-    ["skill", "plugin", "mcp_server", "image_generation", "voice_input"],
+    [
+      "capability_package",
+      "skill",
+      "plugin",
+      "mcp_server",
+      "connection_application",
+      "image_generation",
+      "voice_input",
+    ],
     "Settings Capabilities page adapter entity kinds",
   );
   if (

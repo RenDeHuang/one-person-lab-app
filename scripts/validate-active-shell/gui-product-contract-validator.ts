@@ -1116,7 +1116,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   assertDeepEqualJson(
     pages.settings_capabilities.entity_kinds,
-    ['skill', 'plugin', 'mcp_server', 'image_generation', 'voice_input'],
+    [
+      'capability_package',
+      'skill',
+      'plugin',
+      'mcp_server',
+      'connection_application',
+      'image_generation',
+      'voice_input',
+    ],
     'App GUI Settings Capabilities entity kinds',
   );
   if (!pages.settings_capabilities.must_show?.includes(
@@ -1489,7 +1497,15 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   assertDeepEqualJson(
     pages.settings_capabilities.entity_kinds,
-    ['skill', 'plugin', 'mcp_server', 'image_generation', 'voice_input'],
+    [
+      'capability_package',
+      'skill',
+      'plugin',
+      'mcp_server',
+      'connection_application',
+      'image_generation',
+      'voice_input',
+    ],
     'Settings Capabilities entity kinds',
   );
   if (

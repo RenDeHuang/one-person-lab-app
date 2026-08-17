@@ -406,7 +406,15 @@ export function validateSettingsControlPlane(
   }
   assertDeepEqualJson(
     capabilityOwnership?.entity_kinds,
-    ["skill", "plugin", "mcp_server", "image_generation", "voice_input"],
+    [
+      "capability_package",
+      "skill",
+      "plugin",
+      "mcp_server",
+      "connection_application",
+      "image_generation",
+      "voice_input",
+    ],
     "Settings capability entity kinds",
   );
   if (
