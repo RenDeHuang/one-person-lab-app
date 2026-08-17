@@ -5,6 +5,7 @@ Purpose: `app_gui_human_readable_design_system_index`
 State: `active`
 Machine boundary: 本目录是人读产品设计与实现指引。GUI machine truth 仍归
 `contracts/app-gui-product-contract.json`、
+`contracts/app-gui-visual-source-cohort.json`、
 `contracts/app-product-profile.json`、
 `contracts/app-page-state-matrix.json`、
 `contracts/app-remote-companion.json`、adapter contracts、validators、shell source/tests
@@ -135,15 +136,14 @@ Codex executable 也遵循该 shell-adapter 边界：当前 AionUI 仍从 bundle
 [`../../architecture/aioncore-codex-only-carrier.md`](../../architecture/aioncore-codex-only-carrier.md)。
 
 DeepSeek Harness 的 GUI 与“一切皆插件”理念已作为外部学习落点记录在
-[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md)：`opl-studio` 是唯一
-允许直接复用 DSH slot/renderer/primitives 的 foreground route；AionUI 只消费 OPL-owned
-contribution ABI。App contract、Framework projection/action ABI、Codex thread authority 和
-Package owner 边界不变；Studio 直接使用 DSH AppFrame/sidebar/conversation/composer/Settings/theme
-作为宿主，OPL 功能通过 slots 注入，不再仿写 Codex App 布局。DSH GUI/runtime 源仍只属于
-Studio；AionUI 与 Studio 都消费同一个 App Client Contribution ABI、App product profile 和
-slot policy，并只允许运行由 Framework Host graph 投影派生的 Client Cordis。禁止的是独立
-Host truth、第二 Package registry/currentness/action authority 或第二 plugin manager，而不是
-GUI 侧 Cordis 本身。
+[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md)。`opl-studio` 仍是唯一
+允许复用完整 DSH slot/renderer host 的 foreground route；AionUI 只通过 `OplVisualProvider` 与
+`OplIcon` 消费固定 cohort 中的 icon、theme token 和 visual primitive geometry，不引入 DSH
+runtime、session、router、provider、connection、完整 renderer 或 Client Cordis。App contract、
+Framework projection/action ABI、Codex thread authority、现有 AionUI handlers/Arco control semantics
+和 Package owner 边界不变。两种 Shell 都消费同一个 App Client Contribution ABI、App product
+profile 和 slot policy；禁止独立 Host truth、第二 Package registry/currentness/action authority
+或第二 plugin manager。
 
 Successor 的交付拓扑由 `app-product-profile.json#delivery_topology` 单点定义：一套 DSH-derived
 React renderer 和 shared Node host core，Electron 薄壳承载 macOS/Windows/Linux，HTTP/SSE
@@ -152,14 +152,16 @@ headless/Docker 不运行 Electron。旧 `--headless` 仍保持 Base-only，Wind
 进程位置也不在产品合同中预设为 native 或 WSL。目标拓扑不改变 AionUI 当前发布主线，也不
 构成任一 successor carrier 的平台准入或 release evidence。
 
-产品方向固定为：**先继承 ChatGPT Codex 的主工作流和空间关系，再增加 OPL
-专业能力**。Rail、单列 conversation、底部 composer 和按需环境详情构成基础壳；
+产品方向固定为：**保留 ChatGPT Codex 的历史主工作流与空间关系参考，以 pinned DeepSeek
+Harness visual cohort 承担普通视觉实现，再增加 OPL 专业能力**。Rail、单列 conversation、
+底部 composer 和按需环境详情构成基础壳；
 OPL capabilities、progress、evidence refs、artifacts 与 safe actions 必须
 嵌入这些稳定位置，不得把 Home 改造成 dashboard、launcher 或 card wall。
 
-该原则描述用户工作流，不要求 Studio 复制 Codex 视觉实现。OPL Studio 的具体视觉与排版基底
-直接来自 pinned DeepSeek Harness GUI source，AionUI 继续按自身 upstream 薄适配；两者都实现
-同一 App-owned 用户结果和 OPL contribution ABI。
+该原则描述用户工作流，不把 Codex 观察提升为视觉源码或 pixel authority。OPL Studio 的完整
+视觉与排版基底直接来自 pinned DeepSeek Harness GUI source；AionUI 在自身 upstream 薄适配内
+只复用同一固定 cohort 的最小视觉闭包。两者都实现同一 App-owned 用户结果和 OPL contribution
+ABI，正式像素回归继续只认 App-owned 16-scene baseline。
 
 Studio 的完整性由 `app-product-profile.json#delivery_topology.minimum_complete_product`
 定义：保留对话/线程、运行状态与 Agent 贡献的假设和路线图、按需文件与结果、动态 Agent/
@@ -318,7 +320,8 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 - `ideal_target.inspector_default_visible=false`
 - `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
 - `active_shell_switch_contract=contracts/app-shell-adapter.json`
-- `external_design_reference_policy=latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)`
+- `visual_source_policy=pinned DeepSeek Harness visual source cohort (exact commit recorded in contracts/app-gui-visual-source-cohort.json)`
+- `historical_interaction_reference=historical ChatGPT Codex macOS workflow and spatial interaction observation`
 - `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
 - `human_target.owner=one-person-lab-app`
 - `active_aionui.role=current_implementation_conformance_only`

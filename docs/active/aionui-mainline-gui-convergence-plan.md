@@ -6,7 +6,7 @@ State: `active_currentness_refresh`
 Machine boundary: 本文只组织 AionUI 主线薄壳的实施与验收边界。产品真相归 App
 contracts，当前实现归 Shell source/tests，pixel/install/release 结论归 exact-cohort
 evidence 与 owner readback；本文不创建第二套 authority。
-Updated: `2026-07-17`
+Updated: `2026-08-17`
 
 本文只记录 AionUI active shell 的薄壳执行边界和终态验收。产品行为归 App machine
 contract，Shell 只负责实现；本文不复制第二套 machine authority，也不把 source、focused tests
@@ -14,8 +14,9 @@ contract，Shell 只负责实现；本文不复制第二套 machine authority，
 
 ## 结论
 
-OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游私有 fork 的前提下，尽可能
-1:1 对齐 Codex App 的桌面交互和视觉。当前产品模型固定为：
+OPL App 是 AionUI 上的可信本机薄壳。AionUI stable currentness 先完成，再在不改变功能、
+Framework ABI 和上游 intake 边界的前提下，以 pinned DSH visual cohort 收敛普通视觉；
+Codex 只保留历史工作流和空间关系参考。当前产品模型固定为：
 
 1. session/thread 是唯一会话身份；
 2. project/directory 是零或一个 affinity，用于新会话初始 cwd、projectless 一次性 adoption、显式 `projectId` 分组和新会话快捷入口，不拥有会话或上下文；adoption 只允许 canonical `projectId` 缺失的 thread，经既有 adapter 的 typed affinity assignment 与 exact `thread/read.projectId` 回读后完成；
@@ -47,7 +48,7 @@ OPL App 是 AionUI 上的可信本机薄壳，目标是在不长期维护上游�
 | Agent Package | exact owner-projected action、`required_payload_fields`、`ready / degraded / package_unavailable`、最小 package identity/presence/callability/entrypoint/safe-target/permission 校验与 typed error | Shell 预解析 manifest、跨包版本 gate、普遍 Workspace 前提、完整 receipt/binding/closure 硬门槛、owner ledger、anti-replay |
 | Review | 复用普通 diff/files；上游无 typed 能力时 truthful unavailable | 私有行级 annotation、伪造成功、cross-host/model-delivery 依赖 |
 | Settings | 单一 Settings IA、System/Light/Dark、账户行复用现有 updater | 主题预设画廊、侧栏重复返回、第二 updater |
-| Visual | Codex App 的字体、颜色、图标、间距、排版和阴影作为 human target | 用合同或 source gate 代替 installed pixels |
+| Visual | DSH cohort 提供 icon/theme/primitive source；Codex 仅保留历史工作流/空间关系；App baseline 负责 pixel | DSH runtime/renderer/Client Cordis，或用 source gate 代替 installed pixels |
 
 动态跨顶层线程 tools、cross-host handoff、request replay ledger、write-set advisory、pending-server-request
 控制面和私有 delivery audit 均已撤销，不是 source、build、install 或 Stable blocker。
@@ -76,19 +77,15 @@ Agent Package 默认 fail-open：先执行 owner-projected 自修复/JIT action�
 
 ## 视觉收敛
 
-当前 Codex App 参考值固定为：
+Active source 固定为 `contracts/app-gui-visual-source-cohort.json`：AionUI 只 vendor icons、theme
+CSS 与必要 primitive CSS，并用单一 `OplVisualProvider` / `OplIcon` 适配现有 theme state 和组件。
+首批只迁移 Titlebar、navigation rail、Home、composer 和 Settings navigation；Conversation timeline、
+完整 Settings 内容、runtime status 内容、first-run 及 modal/drawer body inventory 延后。
 
-- navigation rail `#FCFCFC`；
-- main surface `#FFFFFF`；
-- selected row `#F0F0F0`；
-- hover `rgba(0, 0, 0, 0.045)`；
-- neutral 16px icons 与 13px rail labels；
-- composer 使用可见但克制的边框阴影，输入为 `14px/20px`；
-- 历史搜索位于“对话历史”标题右侧；
-- Settings 内容宽度、三态外观预览和窄窗层次对齐 Codex App。
-
-这些数值属于 App human target。只有同一 final cohort 的 light、dark、narrow installed screenshots
-和像素检查通过，才能声明视觉完成；历史截图、DOM 或 source check 只能证明局部实现。
+路由、handlers、Framework state/action ABI、App state ownership、Arco control semantics 与双语文案
+保持不变。IconPark 可暂留在明确未迁移 surface，但不再拥有已迁移 surface 的视觉。只有同一
+final cohort 的 light/dark、desktop/narrow、zh-CN/en-US screenshots、键盘/tooltip/focus 检查和
+像素验收通过，才能声明视觉完成；历史截图、DOM 或 source check 只能证明局部实现。
 
 ## Currentness and evidence
 

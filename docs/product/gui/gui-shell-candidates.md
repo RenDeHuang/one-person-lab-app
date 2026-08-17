@@ -103,10 +103,11 @@ Host-derived graph、App allowlist、typed slots/actions、RPC/events 和 state 
 或与 AionUI 的 Runtime/session parity。两个 bundle 可并存，但在 host coordination 与并发
 负向证据完成前，只承诺快速顺序切换，不承诺两个 GUI 同时写同一 workspace/thread 的安全性。
 
-DeepSeek Harness is not another shell role. It is a pinned design and bounded
-source dependency for the sole foreground candidate route, `opl-studio`.
-AionUI consumes only the OPL-owned contribution ABI through a thin adapter and
-does not import DeepSeek Harness GUI/runtime source. Both shells may run the
+DeepSeek Harness is not another shell role. Its complete renderer/slot host remains a
+pinned source dependency for the sole foreground candidate route, `opl-studio`.
+AionUI consumes the OPL-owned contribution ABI plus only the bounded visual source
+cohort through `OplVisualProvider` and `OplIcon`; it does not import DeepSeek Harness
+runtime, session, router, provider, connection, complete renderer, or Client Cordis. Both shells may run the
 single App-approved Client Cordis graph derived from the Framework Host graph
 and App profile/allowlist; neither may create independent Host truth, discover
 or install OPL plugins, maintain a Package registry/currentness view, receive

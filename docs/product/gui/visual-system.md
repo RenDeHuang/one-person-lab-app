@@ -11,13 +11,17 @@ shell source 承接；机器可读产品状态、模型策略、page-state 和 r
 
 ## 基准与例外
 
-外部设计参考使用**观察时最新可验证的官方 ChatGPT Codex macOS**；每次观察必须记录
-官方来源、精确版本/build 和日期，但不要求把该外部制品下载、安装或纳入 OPL 发布链。
-正式像素回归使用 OPL App 自有、经人工批准的 16-scene baseline，执行与验收细节见
+普通图标、theme token 和 visual primitive geometry 的 active source 是
+[`contracts/app-gui-visual-source-cohort.json`](../../../contracts/app-gui-visual-source-cohort.json)
+固定的 DeepSeek Harness commit。AionUI 只 vendor 该合同列出的最小闭包，并通过
+`OplVisualProvider` / `OplIcon` 适配现有 theme state、handlers 与 Arco controls；DSH runtime、
+session、router、provider、connection、完整 renderer 和 Client Cordis 均不进入 AionUI。
+
+ChatGPT Codex macOS 只保留历史工作流和空间关系参考。每次 observation 可以记录官方来源、
+精确版本/build 和日期，但不再拥有字体、颜色、图标、token 或 primitive 的 active visual
+authority。正式像素回归仍使用 OPL App 自有、经人工批准的 16-scene baseline，执行与验收细节见
 [`codex-app-visual-parity.md`](codex-app-visual-parity.md)。`26.707.72221` / build `5307`、
 `26.707.41301`、`26.707.31428` 与 `26.707.31123` 只保留为历史 observation。
-外部参考仅用于布局、密度、层级、时间线、composer、项目 rail 和按需环境详情交互；
-不得复制 ChatGPT/Codex 源码、品牌资产、文案、账户权限或产品 authority。
 
 OPL App 在基准上保留以下产品例外：
 
@@ -29,10 +33,11 @@ OPL App 在基准上保留以下产品例外：
   不复制 model/reasoning 值或模型 allowlist。
 - Runtime、Home capability starters、Settings → Agents / Capabilities、first-run、receipts 和 action refs 使用
   App-owned contracts 与 OPL authority boundary。
-- OPL accent、状态语义和双语 copy 可以偏离 Codex 品牌，但不能改变 Codex-based
-  chat-first composition。
+- OPL accent、状态语义和双语 copy 由 App 拥有；不得改变 chat-first composition，也不得
+  覆盖 DSH cohort 的普通视觉语法形成第二套私有风格。
 
-Codex baseline 是视觉参照，不是 machine truth。当前 carrier 的差异和证据状态见
+DSH cohort 是受限视觉源码，不是产品 machine truth；Codex observation 是历史交互参考，
+App-owned baseline 是 pixel authority。当前 carrier 的差异和证据状态见
 [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 
 ## 视觉原则
@@ -185,15 +190,16 @@ hairline divider。只有独立重复实体、确认或明确 bounded tool 才�
 
 ## Icons
 
-- OPL-owned Settings 导航、Overview 状态图标和 utility icon 统一使用 `@icon-park/react`
-  16px outline 图标；普通 utility/navigation icon 使用单色，不使用彩色图标底板或字母头像，
-  只有 typed warning、error、success 和品牌动作使用语义色。不手画 SVG，也不借此批量改写
-  upstream fork-body 图标。纯刷新动作只显示 refresh icon，并用
+- 首批迁移的 Titlebar、navigation rail、Home、composer 和 Settings navigation 统一通过
+  `OplIcon` 使用 pinned DSH icon cohort；普通 utility/navigation icon 使用 `currentColor`、
+  `14-16px` 稳定 slot，不使用彩色图标底板或字母头像。只有 typed warning、error、success
+  和品牌动作使用语义色。未迁移 surface 可暂留 IconPark，但它不再是已迁移 surface 的视觉
+  authority；vendor 外不手画平行 SVG，也不借此批量改写无关 upstream fork body。纯刷新动作只显示 refresh icon，并用
   tooltip 与 accessible name 提供文字。
-- 项目/对话 rail 的空状态使用同一套 IconPark 单色 outline 语法：`20px` `MessageOne` 配
+- 项目/对话 rail 的空状态使用同一 DSH 单色语法：稳定 conversation glyph 配
   `13/18` muted 文案。不得回退到 Arco 默认的大号插画、彩色 empty illustration、边框卡片
   或占据 rail 主体的装饰性图形。
-- 全局标题栏帮助/反馈入口使用同一 IconPark 单色 outline 圆形问号，保留 tooltip、
+- 全局标题栏帮助/反馈入口使用 `OplIcon` 的 DSH 单色帮助图标，保留 tooltip、
   accessible name 和既有 GitHub issue 路由；不再使用 AionUI 的对话气泡图标。
 - 已连接账户在 rail footer 使用绿色圆形 identity avatar。非中文姓名显示前两个词的首字母，
   连续中文姓名只显示第一个汉字；无姓名时回退到邮箱 local part 的前两个字符，再回退到 `OP`。

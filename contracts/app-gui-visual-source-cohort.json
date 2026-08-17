@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "schema": "opl_app_gui_visual_source_cohort.v1",
+  "owner": "one-person-lab-app",
+  "state": "pinned_for_aionui_visual_foundation",
+  "machine_boundary": "Defines the only external source cohort allowed to own ordinary AionUI icon glyphs, theme tokens, and visual primitive geometry. It does not own product behavior, routes, Framework ABI, App state/actions, runtime, sessions, connections, release authority, or pixel acceptance.",
+  "upstream": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "commit": "47f943859bef60e4160492346772ded9b24f765a",
+    "default_branch_at_review": "master",
+    "license": "MIT",
+    "license_source_path": "LICENSE",
+    "notice_inventory": {
+      "separate_notice_source_paths": [],
+      "policy": "pinned_commit_contains_no_separate_NOTICE_file; preserve_the_root_LICENSE_notice_with_every_vendored_substantial_copy"
+    },
+    "floating_ref_allowed": false
+  },
+  "runtime_vendored_source_paths": [
+    "packages/client/ui-primitives/src/icons/index.tsx",
+    "packages/client/ui-primitives/src/icons/props.ts",
+    "packages/client/ui-theme/src/styles/base.css",
+    "packages/client/ui-theme/src/styles/design-platform.css",
+    "packages/client/ui-theme/src/styles/gradient-shadow-text.css",
+    "packages/client/ui-theme/src/styles/scrollbar.css",
+    "packages/client/ui-primitives/src/Button.module.css",
+    "packages/client/ui-primitives/src/Input.module.css",
+    "packages/client/ui-primitives/src/Pill.module.css",
+    "packages/client/ui-primitives/src/StateDot.module.css",
+    "packages/client/ui-primitives/src/Tooltip.module.css",
+    "packages/client/ui-primitives/src/Menu.module.css"
+  ],
+  "adapter_reference_source_paths": [
+    "packages/client/ui-layout/src/client/AppFrame.module.css",
+    "packages/client/ui-sidebar/src/client/SidebarRoot.module.css",
+    "packages/client/ui-conversation/src/client/skeleton/InputBar.module.css",
+    "packages/client/ui-settings-general/src/client/chrome.module.css",
+    "packages/client/ui-primitives/src/Button.tsx",
+    "packages/client/ui-primitives/src/Input.tsx",
+    "packages/client/ui-primitives/src/Pill.tsx",
+    "packages/client/ui-primitives/src/StateDot.tsx",
+    "packages/client/ui-primitives/src/Tooltip.tsx",
+    "packages/client/ui-primitives/src/Menu.tsx"
+  ],
+  "deferred_reference_source_paths": [
+    "packages/client/ui-primitives/src/markdown/MessageText.tsx",
+    "packages/client/ui-primitives/src/markdown/MessageText.module.css"
+  ],
+  "shell_adoption": {
+    "active_shell": "aionui",
+    "reuse_mode": "bounded_vendored_visual_source_with_opl_adapters",
+    "required_source_manifest": "packages/desktop/src/renderer/vendor/deepseek-harness/visual-source-manifest.json",
+    "required_license_notice": "packages/desktop/src/renderer/vendor/deepseek-harness/LICENSE",
+    "provider_component": "OplVisualProvider",
+    "icon_adapter_component": "OplIcon",
+    "existing_control_library": "Arco controls remain behavior owners",
+    "existing_handler_policy": "reuse current AionUI handlers without DSH event or state imports",
+    "theme_application_policy": "OplVisualProvider bridges current AionUI light and dark state to the pinned DSH body attributes and semantic tokens",
+    "legacy_icon_policy": "IconPark remains only on explicitly unmigrated surfaces and is not visual authority for migrated surfaces",
+    "vendor_file_modification_policy": "byte_identical_except_import_path_normalization_recorded_in_manifest",
+    "app_product_authority_transfer_allowed": false,
+    "framework_abi_change_allowed": false
+  },
+  "excluded_source_and_runtime": [
+    "apps/web",
+    "packages/client/connection",
+    "packages/client/modules",
+    "packages/client/runtime",
+    "packages/client/ui-slots",
+    "DSH session log and conversation state",
+    "DSH router and route ownership",
+    "DSH provider model and credential stores",
+    "DSH actions handlers and connection lifecycle",
+    "DSH BrandWordmark and FishLogo",
+    "complete DSH Client Cordis host"
+  ],
+  "phase_one_surfaces": [
+    "titlebar",
+    "navigation_rail",
+    "home",
+    "composer",
+    "settings_navigation"
+  ],
+  "phase_one_behavior_invariants": [
+    "routes_unchanged",
+    "handlers_unchanged",
+    "framework_state_and_action_abi_unchanged",
+    "app_state_ownership_unchanged",
+    "arco_control_semantics_unchanged",
+    "bilingual_copy_unchanged",
+    "keyboard_tooltip_focus_and_accessible_name_preserved"
+  ],
+  "deferred_surfaces": [
+    "conversation_timeline",
+    "complete_settings_content",
+    "runtime_status_content",
+    "first_run",
+    "modal_and_drawer_body_inventory"
+  ],
+  "upgrade_policy": {
+    "mode": "manual_pinned_cohort_promotion",
+    "required_evidence": [
+      "exact_upstream_commit_and_license_readback",
+      "per_file_source_manifest_with_sha256",
+      "upstream_diff_for_all_vendored_and_reference_paths",
+      "focused_icon_theme_and_surface_tests",
+      "desktop_and_narrow_light_dark_zh_en_visual_review",
+      "keyboard_tooltip_focus_and_accessible_name_regression",
+      "app_and_shell_canonical_main_readback"
+    ],
+    "automatic_floating_update": false,
+    "dsh_runtime_expansion_by_visual_upgrade": false
+  },
+  "evidence_boundary": {
+    "source_cohort_pinned": true,
+    "shell_source_implemented": false,
+    "pixel_baseline_approved": false,
+    "installed_current": false,
+    "release_ready": false
+  }
+}

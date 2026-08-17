@@ -443,7 +443,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'dynamic plugin inventory and configuration rendered from installed deployment state',
   ], 'DeepSeek Harness reference_value');
   assertStringArrayIncludes(deepseekHarness.opl_mapping, [
-    'OPL Studio is the only GUI route allowed to import DeepSeek Harness renderer runtime or GUI source; AionUI may consume only the OPL-owned contribution ABI without a DeepSeek Harness dependency',
+    'OPL Studio may import the complete pinned DeepSeek Harness renderer and selected GUI source; AionUI may consume only the bounded visual source cohort through OplVisualProvider and OplIcon',
     'OPL App keeps product truth and slot policy while Framework projections and App actions remain the only runtime state and mutation ABI',
     'Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state',
     'slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation',
@@ -454,7 +454,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority',
     'do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane',
     'do not add DeepSeek Harness as a second foreground shell beside opl-studio',
-    'do not import DeepSeek Harness runtime or GUI source into the AionUI mainline',
+    'do not import DeepSeek Harness runtime, session, router, provider, credential, action, connection, complete renderer, product routes, or Framework ABI into the AionUI mainline; only the bounded visual source cohort may be consumed through OplVisualProvider and OplIcon',
     'do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes',
     'do not assume the repository root license covers every selected package or third-party payload without per-package notices review',
     'do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces',

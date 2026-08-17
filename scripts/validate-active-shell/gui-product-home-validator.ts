@@ -82,9 +82,9 @@ function validateHomeLayout(guiContract) {
     'App GUI interaction explicit session input policy',
   );
   if (
-    guiContract.utility_icon_policy?.library !== 'icon_park_react_for_opl_owned_utility_icons' ||
+    guiContract.utility_icon_policy?.library !== 'pinned_deepseek_harness_icon_cohort_via_opl_icon_adapter' ||
     guiContract.utility_icon_policy?.opl_owned_settings_navigation_and_overview !==
-      'icon_park_react_outline_16px_monochrome' ||
+      'dsh_icon_primitives_14_16px_currentcolor' ||
     guiContract.utility_icon_policy?.settings_icon_geometry !==
       'stable_16px_slot_1_5_to_1_75px_visual_stroke_no_colored_tile_or_letter_avatar' ||
     guiContract.utility_icon_policy?.upstream_fork_body_bulk_icon_rewrite !== 'forbidden' ||
@@ -234,7 +234,7 @@ function validateAiFirstInteractionModel(guiContract) {
   const model = guiContract.ai_first_interaction_model;
   if (
     !model ||
-    model.default_visual_basis !== 'codex_app_composer_first' ||
+    model.default_visual_basis !== 'chat_first_composer_layout_with_pinned_deepseek_harness_visual_source' ||
     model.primary_policy !== 'maximize_direct_ai_interaction_on_the_chat_canvas' ||
     model.default_failure_semantics !==
       'fail_open_with_bounded_self_repair_jit_preparation_degradation_or_fallback' ||

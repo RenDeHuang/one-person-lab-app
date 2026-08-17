@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 const appRoot = join(import.meta.dirname, '..', '..', '..');
 
-test('Codex visual parity policy is discoverable and keeps sessions primary', () => {
+test('DSH visual source policy is discoverable and keeps sessions primary', () => {
   const readme = readFileSync(join(appRoot, 'docs/product/gui/README.md'), 'utf8');
   const policy = readFileSync(join(appRoot, 'docs/product/gui/codex-app-visual-parity.md'), 'utf8');
   const delta = readFileSync(join(appRoot, 'docs/product/gui/codex-to-opl-app-delta.md'), 'utf8');
@@ -22,8 +22,8 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   );
 
   assert.match(readme, /codex-app-visual-parity\.md/);
-  assert.match(policy, /visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas/);
-  assert.match(policy, /external_design_reference=latest_verified_official_chatgpt_codex_macos_observation/);
+  assert.match(policy, /visual_source=pinned_deepseek_harness_visual_source_cohort/);
+  assert.match(policy, /historical_interaction_reference=chatgpt_codex_workflow_and_spatial_observation_only/);
   assert.match(policy, /pixel_reference=opl_app_owned_approved_visual_baseline/);
   assert.match(policy, /external_reference_artifact_required_for_release=false/);
   assert.match(policy, /project_owns_session=false/);
@@ -46,7 +46,8 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.match(policy, /candidate_webui_pixels=pending_on_clean_release_cohort/);
   assert.match(policy, /installed_pixel_acceptance=pending/);
   assert.match(policy, /visual_parity_complete=false/);
-  assert.match(visualSystem, /最新可验证的官方 ChatGPT Codex macOS/);
+  assert.match(visualSystem, /固定的 DeepSeek Harness commit/);
+  assert.match(visualSystem, /ChatGPT Codex macOS 只保留历史工作流和空间关系参考/);
   assert.match(visualSystem, /OPL App 自有、经人工批准的 16-scene baseline/);
   assert.match(visualSystem, /grouped-row Control Center/);
   assert.doesNotMatch(conformance, /默认 cwd、分组与 context hint/);
@@ -62,8 +63,9 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.equal(homeVisual.selected_starter_accessibility_state, 'aria_pressed_reflects_active_shortcut');
   assert.equal(homeVisual.selected_starter_layout_shift_allowed, false);
   assert.deepStrictEqual(guiContract.interaction_baseline.composer.visual_metrics, {
-    textarea_typography: '14/20/400',
-    bottom_control_typography: '12/18/400_or_500',
+    source_ref: 'contracts/app-gui-visual-source-cohort.json#adapter_reference_source_paths[InputBar.module.css]',
+    textarea_typography: 'var(--dsw-font-base-16)',
+    bottom_control_typography: 'var(--dsw-font-xxs-12)_or_var(--dsw-font-xxs-strong-12)',
     bottom_control_max_font_px: 12,
     icon_size_px: 16,
     action_height_px: 32,
@@ -75,11 +77,14 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
     },
     border_px: 1,
     corner_radius_px: 22,
-    resting_shadow_source:
-      'interaction_baseline.visual_target.light_surfaces.composer_shadow_or_dark_surfaces.composer_shadow',
+    resting_shadow_source: 'var(--dsw-shadow-lv2)',
     focus_geometry_policy:
       'enhance_border_or_ring_without_removing_resting_shadow_or_changing_size',
   });
+  assert.equal(
+    guiContract.utility_icon_policy.library,
+    'pinned_deepseek_harness_icon_cohort_via_opl_icon_adapter',
+  );
   assert.deepStrictEqual(guiContract.utility_icon_policy.icon_text_action_geometry, {
     icon_size_px: 16,
     icon_slot_px: 20,
@@ -189,11 +194,11 @@ test('Codex visual parity policy is discoverable and keeps sessions primary', ()
   assert.equal(catalogPolicy.dependency_hierarchy.duplicate_rows_allowed, false);
   assert.equal(
     guiContract.interaction_baseline.visual_target.light_surfaces.composer_shadow,
-    '0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)',
+    'var(--dsw-shadow-lv2)',
   );
   assert.equal(
     guiContract.interaction_baseline.visual_target.dark_surfaces.composer_shadow,
-    '0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)',
+    'var(--dsw-shadow-lv2)',
   );
   const settingsAudit =
     guiContract.settings_navigation.settings_ia.protocols.visual_qa_expectations

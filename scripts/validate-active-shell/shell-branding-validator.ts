@@ -55,7 +55,7 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
     'buildOplAppIssueUrl',
     'openExternalUrl',
     "Help",
-    "from '@icon-park/react'",
+    'OplIcon',
     "data-testid='app-titlebar-help-icon'",
   ]) {
     if (!titlebar.includes(expected)) {
@@ -65,8 +65,12 @@ export function validateShellVisibleBranding(shellPaths, requiresLocale) {
   if (titlebar.includes('<Comment')) {
     throw new Error('Active shell titlebar feedback must not retain the AionUI comment icon');
   }
-  if (titlebar.includes('FontAwesomeIcon') || titlebar.includes('@fortawesome/')) {
-    throw new Error('Active shell titlebar feedback must use the shared IconPark outline icon system');
+  if (
+    titlebar.includes("from '@icon-park/react'") ||
+    titlebar.includes('FontAwesomeIcon') ||
+    titlebar.includes('@fortawesome/')
+  ) {
+    throw new Error('Active shell titlebar feedback must use the pinned DSH icon cohort through OplIcon');
   }
   if (titlebar.includes('https://github.com/gaofeng21cn/one-person-lab-app/issues/new')) {
     throw new Error('Active shell titlebar feedback target must come from the App product profile');

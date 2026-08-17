@@ -4,8 +4,9 @@ import { createHash } from 'node:crypto';
 import { assert, fs, os, path, test, appRoot } from './helpers.ts';
 
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
-const codexPixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
+const visualSourceReference = 'pinned DeepSeek Harness visual source cohort (exact commit recorded in contracts/app-gui-visual-source-cohort.json)';
+const interactionReference = 'historical ChatGPT Codex macOS workflow and spatial interaction observation';
+const pixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
 const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
 const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
 const designRoot = 'docs/product/gui';
@@ -69,6 +70,7 @@ function createFixture(): string {
     'contracts/app-shell-candidates.json',
     'contracts/app-product-profile.json',
     'contracts/app-gui-product-contract.json',
+    'contracts/app-gui-visual-source-cohort.json',
     'contracts/app-remote-companion.json',
     'contracts/app-gui-visual-reference-cohort.json',
     'contracts/app-page-state-matrix.json',
@@ -95,7 +97,8 @@ function createFixture(): string {
     `entry_docs=${designRoot}/README.md,${designRoot}/feature-inventory.md,${designRoot}/ideal-interaction-spec.md,${designRoot}/visual-system.md,${designRoot}/codex-to-opl-app-delta.md,${designRoot}/element-audit.md,${designRoot}/shell-implementation-guide.md,${designRoot}/shell-conformance-matrix.md`,
     'contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-remote-companion.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json',
     shellAuthorityMarker,
-    `external_design_reference_policy=${codexReference}`,
+    `visual_source_policy=${visualSourceReference}`,
+    `historical_interaction_reference=${interactionReference}`,
     `superseded_interaction_observations=${supersededCodexReference},${earlierSupersededCodexReference}`,
     'human_target.owner=one-person-lab-app',
     'active_aionui.role=current_implementation_conformance_only',
@@ -152,9 +155,14 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     contract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha;
   assert.equal(summary.status, 'consistent');
   assert.equal(summary.release_ready, false);
-  assert.equal(summary.codex_reference, codexReference);
-  assert.equal(summary.codex_pixel_reference, codexPixelReference);
-  assert.equal(summary.superseded_codex_reference, supersededCodexReference);
+  assert.deepEqual(summary.visual_source_cohort, {
+    contract: 'contracts/app-gui-visual-source-cohort.json',
+    source_commit: '47f943859bef60e4160492346772ded9b24f765a',
+    source_usage: 'bounded_source_reuse_for_icons_theme_tokens_and_visual_primitive_geometry_only',
+  });
+  assert.equal(summary.interaction_reference, interactionReference);
+  assert.equal(summary.pixel_reference, pixelReference);
+  assert.equal(summary.superseded_interaction_reference, supersededCodexReference);
   assert.equal(summary.reference_boundary.app_contract_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.candidate_detail_validation, 'explicit_on_demand');
@@ -332,7 +340,7 @@ test('GUI design-system validator rejects prerelease upstream intake and unscope
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /GUI maintenance policy must version Codex reference promotion|GUI maintenance policy must follow stable AionUI tags/,
+    /GUI maintenance policy must version the pinned DSH visual source|GUI maintenance policy must follow stable AionUI tags/,
   );
 });
 
@@ -474,26 +482,25 @@ test('GUI design-system validator reports a collapsed active AionUI rail as a co
   assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
 });
 
-test('GUI design-system validator rejects a missing external design reference policy marker', () => {
+test('GUI design-system validator rejects a missing visual source policy marker', () => {
   const root = createFixture();
   const readmePath = path.join(root, designRoot, 'README.md');
   const readme = fs
     .readFileSync(readmePath, 'utf8')
-    .replace(`external_design_reference_policy=${codexReference}`, 'external_design_reference_policy=missing');
+    .replace(`visual_source_policy=${visualSourceReference}`, 'visual_source_policy=missing');
   fs.writeFileSync(readmePath, readme, 'utf8');
-  assert.throws(() => validateGuiDesignSystem(root), /must include exact marker external_design_reference_policy=/);
+  assert.throws(() => validateGuiDesignSystem(root), /must include exact marker visual_source_policy=/);
 });
 
-test('GUI design-system validator rejects pinning the design reference to a historical build', () => {
+test('GUI design-system validator rejects a floating visual source', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.interaction_baseline.external_design_reference.selection_policy =
-    'fixed_historical_build_26_707_72221_5307';
+  contract.interaction_baseline.visual_source.selection_policy = 'floating_master';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /external design reference policy must use the latest verified official observation/,
+    /visual source policy must bind the pinned DSH cohort/,
   );
 });
 
@@ -510,7 +517,7 @@ test('GUI design-system validator rejects an external-product pixel baseline', (
   );
 });
 
-test('GUI design-system validator rejects a superseded external design reference schema', () => {
+test('GUI design-system validator rejects a superseded visual source schema', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
@@ -519,7 +526,7 @@ test('GUI design-system validator rejects a superseded external design reference
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /external design reference policy must use the latest verified official observation/,
+    /visual source policy must bind the pinned DSH cohort/,
   );
 });
 
@@ -562,20 +569,20 @@ test('GUI design-system validator rejects making the core Runtime route optional
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /Codex reference alignment must preserve OPL-owned capabilities and same-change reachability/,
+    /historical interaction alignment must preserve OPL-owned capabilities and same-change reachability/,
   );
 });
 
-test('GUI design-system validator rejects an undeclared candidate-registry Codex baseline', () => {
+test('GUI design-system validator rejects an active Codex visual baseline in candidate governance', () => {
   const root = createFixture();
   const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
   const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-  registry.design_system_governance.codex_reference.comparison_baseline =
+  registry.design_system_governance.interaction_reference.comparison_baseline =
     'ChatGPT Codex macOS 26.707.72221 build 5307';
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /design-system governance Codex comparison baseline must be the rolling latest official observation/,
+    /Codex must remain only a historical workflow and spatial interaction reference/,
   );
 });
 

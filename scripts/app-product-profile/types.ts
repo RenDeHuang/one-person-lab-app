@@ -211,7 +211,9 @@ export type AppDeliveryTopology = {
     target_feature_inventory_owner: false;
     target_runtime_dependency: false;
     aioncore_target_runtime_dependency: false;
-    source_reuse_requires_separate_decision: true;
+    source_reuse_requires_separate_decision: false;
+    source_reuse_policy: string;
+    source_reuse_cohort_ref: string;
     active_release_shell_source_ref: string;
   };
   minimum_complete_product: {
@@ -379,6 +381,9 @@ export type AppProductProfile = {
       default_css_theme_id: string;
       default_css_theme_name: string;
       codex_theme_default_enabled: boolean;
+      visual_source_cohort_ref: string;
+      visual_reference_cohort_ref: string;
+      shared_visual_primitives: string[];
     };
     ui_locale_policy: {
       explicit_user_preference: string;

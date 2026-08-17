@@ -1,4 +1,4 @@
-# Codex App 视觉 1:1 对齐规范
+# DSH 视觉来源、Codex 历史交互参考与像素验收规范
 
 Owner: `one-person-lab-app`
 Purpose: `codex_app_visual_parity_execution_and_acceptance`
@@ -6,22 +6,25 @@ State: `active_visual_target_and_acceptance_protocol`
 Machine boundary: 本文是人读视觉目标与验收协议。机器真相归 App GUI contracts、
 validators、Shell source/tests 与 exact-cohort pixel/install/release evidence；source 或候选
 截图不能替代 installed pixels 或 release readback。
-External design reference: `latest verified official ChatGPT Codex macOS observation`
+Visual source: `pinned DeepSeek Harness visual source cohort`
+Historical interaction reference: `ChatGPT Codex macOS workflow and spatial observation only`
 Pixel baseline: `opl-app-approved-visual-baseline-v1` (App-owned, approval pending)
 
 ## 结论
 
-OPL App 的主界面以当前 Codex App 为 1:1 视觉目标。除 One Person Lab 品牌、OPL
-原生 Agent Package/Settings 能力、条件 X0-01 Runtime route 及其必要状态外，用户不应在第一眼从字体、颜色、
-图标、间距、阴影、圆角、排版或交互反馈上感知到另一套设计系统。
+OPL App 的普通图标、theme token 与 visual primitive geometry 以固定 DeepSeek Harness
+visual cohort 为 active source。One Person Lab 品牌、OPL 原生 Agent Package/Settings 能力、
+条件 X0-01 Runtime route 及其必要状态继续由 App 拥有；AionUI 不引入 DSH runtime 或完整 renderer。
 
-这里的 1:1 指同一机器、同一缩放、同一窗口尺寸和同一内容状态下，对稳定界面 chrome
-做可测量复刻。它不授权复制 Codex 的品牌、专有实现、云端能力或内部数据模型；OPL 只
-复用视觉语法、空间关系和交互位置。
+这里的像素验收指同一机器、同一缩放、同一窗口尺寸和同一内容状态下，对 App-owned
+16-scene baseline 的稳定 chrome 做可测量比较。它不授权复制 Codex 的品牌、专有实现、
+云端能力或内部数据模型；Codex 只保留工作流、空间关系和交互位置的历史参考。
 
-“当前 Codex App”指观察时最新可验证的官方版本，精确版本只存在于该次 observation receipt。
-ChatGPT App 安装包、ZIP、DMG 或历史 build 不进入 OPL Pixel、Install、Release 或 Stable
-依赖。稳定像素回归只使用 App-owned baseline；外部观察用于设计判断和 delta 分类。
+DSH source identity 只来自
+[`contracts/app-gui-visual-source-cohort.json`](../../../contracts/app-gui-visual-source-cohort.json)
+记录的 repository、exact commit、MIT license 和逐文件 manifest。ChatGPT App 安装包、ZIP、
+DMG 或历史 build 不进入 OPL Pixel、Install、Release 或 Stable 依赖；历史观察只用于工作流
+和空间关系判断。
 
 本规范与 [`visual-system.md`](visual-system.md) 都是
 `contracts/app-gui-product-contract.json#interaction_baseline.visual_target` 的人读投影；发生
@@ -29,9 +32,9 @@ ChatGPT App 安装包、ZIP、DMG 或历史 build 不进入 OPL Pixel、Install�
 
 ## 当前落实状态
 
-### 2026-07-27 visual convergence cohort
+### Pinned DSH visual convergence cohort
 
-本轮不再把 Codex 视觉复刻理解为零散页面各自调 CSS。Fresh source audit 证明主要 gap
+本轮不再把视觉收敛理解为零散页面各自调 CSS。Fresh source audit 证明主要 gap
 来自五类用户可见 primitive 没有共同实现边界：Home 与 Conversation composer 分叉，
 rail row、icon action、menu 和 Settings row 又各自维护几何与状态样式。结果是单页截图可以
 接近 reference，但跨 route、theme、locale 或窄窗后持续漂移。
@@ -49,8 +52,9 @@ rail row、icon action、menu 和 Settings row 又各自维护几何与状态样
 - pixel threshold 通过仍不等于验收。只有 exact SHA-256 绑定的人工 `accepted` review
   同时存在，才能对该 scene 写 `scene_bound_visual_parity=true`。
 
-Shell 只实现 `composer / rail_row / icon_button / menu / settings_row` 五个 OPL-owned
-primitive，并继续复用既有 React/Arco/IconPark 组件，不创建第二组件框架或转移 App
+Shell 只通过 `OplVisualProvider` / `OplIcon` 把 DSH cohort 映射到
+`composer / rail_row / icon_button / menu / settings_row` 五个共享 primitive；现有 React、
+Arco behavior、handlers 和 App state/action 保持不变，不创建第二组件框架或转移 App
 authority。`019fa0ef-9514-7293-ba5b-15cb8a509522` 只负责最终 same-cohort installed
 evidence，不拥有 App/Shell source。
 
@@ -66,7 +70,7 @@ candidate identity 必须在验证时从 active Shell checkout 读取，不能�
 
 - 对话搜索从独立一级 row 移至“对话历史”标题右侧，桌面与窄窗均为 `32x32px` icon action，
   保留 tooltip、accessible name 和原搜索交互；
-- 对话历史空状态使用 `20px` IconPark `MessageOne` 单色 outline 与 `13/18` 次级文案，移除
+- 对话历史空状态使用 DSH cohort 的单色 conversation glyph 与 `13/18` 次级文案，移除
   carrier 默认的大号抽屉插画和装饰性 empty-state frame；
 - rail 使用最新 reference 的中性 light/dark surface；项目组直接显示 sessions，source 与 DOM
   均不存在 project-owned“上下文 / 添加上下文”层；Light rail 固定为 `#fcfcfc`、Dark rail 固定为
@@ -110,7 +114,7 @@ conversation 的真实多状态、zh-CN/en-US 全矩阵、同尺寸 reference/ca
 
 ## 本轮细化合同
 
-用户验收暴露的差异不归类为零散 CSS 问题，而是进入同一 Codex visual parity 合同：
+用户验收暴露的差异不归类为零散 CSS 问题，而是进入同一 DSH source + App pixel 合同：
 
 - Home starter 使用 `13/18/500`，icon、label 与选中 check 共用同一垂直中心线；选中填充、
   focus outline 和未选中内容使用相同 line box 与 block inset，选中不能把文字推到边框顶部，
@@ -307,13 +311,13 @@ OPL accent 只用于品牌动作和必要状态，不参与普通 rail、Setting
   dark 使用 `0 1px 2px rgba(0,0,0,.28), 0 4px 12px rgba(0,0,0,.18)`。
 - Focus 只增强 border/ring，不删除 resting shadow，不改变尺寸。
 - Textarea 使用 `14/20`、正常字重、无私有字距；placeholder 与正文基线必须一致。
-- Model/reasoning 与 permission/access 底部控件使用 `12/18`，不能比 Codex reference 放大一档。
+- Model/reasoning 与 permission/access 底部控件使用 DSH `--dsw-font-xxs-*` token，不能另建字号。
 - Attachment、permission、model/reasoning 和 voice 使用稳定 action row；send/stop 使用 `28px`
   可见圆、至少 `32px` 命中区与 `16px` 图标，outline stroke 与同层 composer 控件视觉重量一致。
 
 ### Settings
 
-- Full-window、左 rail、单一顶部返回、search、右侧内容列与 Codex reference 保持同一空间
+- Full-window、左 rail、单一顶部返回、search、右侧内容列与历史 Codex 空间关系保持一致，
   关系；OPL IA 和 route 不变。
 - 导航图标统一中性色，不用不同品牌色区分类目；16px icon，13-14px label，34px row。
 - 主内容优先 section heading + grouped rows + hairline divider。只有确有边界的重复实体或
@@ -366,8 +370,8 @@ keyboard traversal、rendered contrast 和安装版 readback 仍分别由 Pixel/
 
 ## 机器治理标记
 
-- `visual_parity_target=codex_app_1_to_1_except_opl_owned_deltas`
-- `external_design_reference=latest_verified_official_chatgpt_codex_macos_observation`
+- `visual_source=pinned_deepseek_harness_visual_source_cohort`
+- `historical_interaction_reference=chatgpt_codex_workflow_and_spatial_observation_only`
 - `pixel_reference=opl_app_owned_approved_visual_baseline`
 - `external_reference_artifact_required_for_release=false`
 - `project_owns_session=false`

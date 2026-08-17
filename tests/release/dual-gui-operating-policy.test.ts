@@ -87,9 +87,11 @@ test('retired Hermes and AGUI GUI candidate chains stay physically absent', () =
   assert.equal(packageScripts['validate:candidate:agui'], undefined);
 });
 
-test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution ABI remains shell-neutral', () => {
+test('DeepSeek Harness full reuse stays Studio-only while AionUI gets only the bounded visual cohort', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const reference = registry.design_references?.find(({ id }) => id === 'deepseek-harness');
+  const visualCohort = readJson<any>('contracts/app-gui-visual-source-cohort.json');
+  const governance = (registry as any).design_system_governance;
 
   assert.equal(reference?.evaluated_ref, '47f943859bef60e4160492346772ded9b24f765a');
   assert.equal(reference?.license, 'MIT');
@@ -104,6 +106,19 @@ test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution A
   assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-theme/src/styles/design-platform.css'));
   assert.equal(reference?.upstream_intake?.floating_ref_allowed, false);
   assert.equal(reference?.upstream_intake?.automatic_promotion_allowed, false);
+  assert.equal(visualCohort.upstream.commit, reference?.evaluated_ref);
+  assert.deepEqual(visualCohort.phase_one_surfaces, [
+    'titlebar',
+    'navigation_rail',
+    'home',
+    'composer',
+    'settings_navigation',
+  ]);
+  assert.equal(governance.visual_source.cohort, 'contracts/app-gui-visual-source-cohort.json');
+  assert.equal(
+    governance.interaction_reference.comparison_baseline,
+    'historical ChatGPT Codex macOS workflow and spatial interaction observation',
+  );
   assert.doesNotThrow(() => validateRegistryShape(registry));
 
   const privateFork = structuredClone(registry);
@@ -119,11 +134,11 @@ test('DeepSeek Harness code reuse stays Studio-only while the OPL contribution A
   const driftedReference = secondShell.design_references?.find(({ id }) => id === 'deepseek-harness');
   assert.ok(driftedReference);
   driftedReference.opl_mapping = driftedReference.opl_mapping.filter(
-    (item) => !item.startsWith('OPL Studio is the only GUI route allowed to import'),
+    (item) => !item.startsWith('OPL Studio may import the complete pinned DeepSeek Harness renderer'),
   );
   assert.throws(
     () => validateRegistryShape(secondShell),
-    /DeepSeek Harness opl_mapping must include OPL Studio is the only GUI route allowed to import DeepSeek Harness renderer runtime or GUI source/,
+    /DeepSeek Harness opl_mapping must include OPL Studio may import the complete pinned DeepSeek Harness renderer/,
   );
 
   const runtimeTakeover = structuredClone(registry);

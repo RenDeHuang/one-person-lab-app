@@ -35,9 +35,14 @@ export type GuiDesignSystemValidation = {
     active: 'aionui';
     foreground: 'opl-studio';
   };
-  codex_reference: string;
-  codex_pixel_reference: string;
-  superseded_codex_reference: string;
+  visual_source_cohort: {
+    contract: 'contracts/app-gui-visual-source-cohort.json';
+    source_commit: '47f943859bef60e4160492346772ded9b24f765a';
+    source_usage: 'bounded_source_reuse_for_icons_theme_tokens_and_visual_primitive_geometry_only';
+  };
+  interaction_reference: string;
+  pixel_reference: string;
+  superseded_interaction_reference: string;
   reference_boundary: {
     app_contract_status: 'aligned_contract';
     page_state_status: 'aligned_contract';
@@ -93,11 +98,16 @@ const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-studio';
 const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
 const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
-const codexReference = 'latest verified official ChatGPT Codex macOS observation (exact version recorded per receipt)';
-const codexPixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
-const supersededCodexReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
-const earlierSupersededCodexReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
-const supersededCodexReferences = [supersededCodexReference, earlierSupersededCodexReference];
+const visualSourceCohortPath = 'contracts/app-gui-visual-source-cohort.json';
+const visualSourceReference = 'pinned DeepSeek Harness visual source cohort (exact commit recorded in contracts/app-gui-visual-source-cohort.json)';
+const visualSourceCommit = '47f943859bef60e4160492346772ded9b24f765a';
+const visualSourceUsage = 'bounded_source_reuse_for_icons_theme_tokens_and_visual_primitive_geometry_only';
+const interactionReference = 'historical ChatGPT Codex macOS workflow and spatial interaction observation';
+const interactionReferenceUsage = 'historical_workflow_and_spatial_interaction_reference_only_no_code_brand_account_product_pixel_install_or_release_authority';
+const pixelReference = 'opl-app-approved-visual-baseline-v1 (App-owned)';
+const supersededInteractionReference = 'ChatGPT Codex macOS 26.707.31428 (2026-07-10)';
+const earlierSupersededInteractionReference = 'ChatGPT Codex macOS 26.707.31123 (2026-07-10)';
+const supersededInteractionReferences = [supersededInteractionReference, earlierSupersededInteractionReference];
 
 const foundationDocs = {
   readme: 'docs/product/gui/README.md',
@@ -553,6 +563,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const pageStateMatrix = readJson(root, 'contracts/app-page-state-matrix.json', issues);
   const shellAdapter = readJson(root, 'contracts/app-shell-adapter.json', issues);
   const visualReferenceCohort = readJson(root, visualReferenceCohortPath, issues);
+  const visualSourceCohort = readJson(root, visualSourceCohortPath, issues);
   const packageJson = readJson(root, 'package.json', issues);
   const governance = record(registry.design_system_governance);
 
@@ -664,8 +675,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     requireExactMarkerLine(foundationReadme, `contract_refs=${contractRefs.join(',')}`, foundationDocs.readme, issues);
     requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
     for (const marker of [
-      `external_design_reference_policy=${codexReference}`,
-      `superseded_interaction_observations=${supersededCodexReferences.join(',')}`,
+      `visual_source_policy=${visualSourceReference}`,
+      `historical_interaction_reference=${interactionReference}`,
+      `superseded_interaction_observations=${supersededInteractionReferences.join(',')}`,
       'human_target.owner=one-person-lab-app',
       'active_aionui.role=current_implementation_conformance_only',
       'docs_or_contract_imply_source_complete=false',
@@ -682,46 +694,63 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
 
   const interactionBaseline = record(guiContract.interaction_baseline);
-  const currentReference = record(interactionBaseline.external_design_reference);
-  const pixelReference = record(interactionBaseline.pixel_baseline);
+  const visualSource = record(interactionBaseline.visual_source);
+  const currentReference = record(interactionBaseline.interaction_reference);
+  const pixelBaseline = record(interactionBaseline.pixel_baseline);
   if (
     guiContract.schema_version !== 2 ||
     profile.schema_version !== 2 ||
     pageStateMatrix.schema_version !== 2 ||
-    interactionBaseline.schema !== 'opl_app_external_design_reference_policy.v3' ||
-    currentReference.product !== 'ChatGPT Codex macOS' ||
-    currentReference.selection_policy !== 'latest_official_verified_at_observation_time' ||
-    currentReference.observation_ref !== 'docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary' ||
-    !sameStrings(currentReference.required_observation_identity, [
-      'official_source',
-      'bundle_version',
-      'build',
-      'observed_on',
+    interactionBaseline.schema !== 'opl_app_visual_source_policy.v4' ||
+    visualSource.product !== 'DeepSeek Harness GUI' ||
+    visualSource.selection_policy !== 'pinned_source_commit_only' ||
+    visualSource.source_cohort_ref !== visualSourceCohortPath ||
+    !sameStrings(visualSource.required_source_identity, [
+      'repository',
+      'commit',
+      'license',
+      'notice_inventory',
+      'source_inventory',
     ]) ||
-    currentReference.usage !==
-      'design_reference_only_no_code_brand_account_product_pixel_install_or_release_authority' ||
-    currentReference.external_artifact_required_for_release !== false
+    visualSource.usage !== visualSourceUsage ||
+    !sameStrings(visualSource.forbidden_authority, [
+      'product_behavior',
+      'routes',
+      'framework_abi',
+      'app_state_or_actions',
+      'runtime',
+      'sessions',
+      'connections',
+      'release',
+      'pixel_acceptance',
+    ]) ||
+    visualSource.external_artifact_required_for_release !== false ||
+    currentReference.product !== 'ChatGPT Codex macOS' ||
+    currentReference.status !== 'historical_workflow_and_spatial_reference_only' ||
+    currentReference.observation_ref !== 'docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary' ||
+    currentReference.visual_authority !== false ||
+    currentReference.source_code_reuse_allowed !== false
   ) {
-    issues.add(`external design reference policy must use the latest verified official observation without release authority`);
+    issues.add('visual source policy must bind the pinned DSH cohort while Codex remains historical interaction reference only');
   }
   if (
-    pixelReference.owner !== 'one-person-lab-app' ||
-    pixelReference.baseline_id !== 'opl-app-approved-visual-baseline-v1' ||
-    !['capture_and_human_approval_required', 'approved'].includes(String(pixelReference.state)) ||
-    !sameStrings(pixelReference.allowed_states, [
+    pixelBaseline.owner !== 'one-person-lab-app' ||
+    pixelBaseline.baseline_id !== 'opl-app-approved-visual-baseline-v1' ||
+    !['capture_and_human_approval_required', 'approved'].includes(String(pixelBaseline.state)) ||
+    !sameStrings(pixelBaseline.allowed_states, [
       'capture_and_human_approval_required',
       'approved',
     ]) ||
-    pixelReference.approval_receipt_schema !==
+    pixelBaseline.approval_receipt_schema !==
       'opl_app_gui_visual_baseline_approval_receipt.v1' ||
-    pixelReference.approval_receipt_required_for_approved_state !== true ||
-    pixelReference.reference_ref !== 'contracts/app-gui-visual-reference-cohort.json' ||
-    pixelReference.usage !== 'app_owned_pixel_regression_only' ||
-    pixelReference.external_product_artifact_required !== false ||
-    pixelReference.release_dependency !==
+    pixelBaseline.approval_receipt_required_for_approved_state !== true ||
+    pixelBaseline.reference_ref !== 'contracts/app-gui-visual-reference-cohort.json' ||
+    pixelBaseline.usage !== 'app_owned_pixel_regression_only' ||
+    pixelBaseline.external_product_artifact_required !== false ||
+    pixelBaseline.release_dependency !==
       'opl_contract_current_cohort_installed_evidence_and_human_acceptance_only'
   ) {
-    issues.add(`pixel regression must use the App-owned baseline ${codexPixelReference}`);
+    issues.add(`pixel regression must use the App-owned baseline ${pixelReference}`);
   }
   const supersededObservations = Array.isArray(interactionBaseline.superseded_observations)
     ? interactionBaseline.superseded_observations.map(record)
@@ -742,7 +771,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
 
   const maintenancePolicy = record(guiContract.gui_maintenance_policy);
   const maintenanceGoal = record(maintenancePolicy.goal);
-  const referencePromotion = record(maintenancePolicy.codex_reference_promotion);
+  const referencePromotion = record(maintenancePolicy.visual_source_promotion);
   const upstreamFollowing = record(maintenancePolicy.aionui_upstream_following);
   const classificationMeanings = record(upstreamFollowing.classification_meanings);
   const maintenanceBudgets = record(maintenancePolicy.maintenance_budgets);
@@ -761,6 +790,10 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const cohortMaskPolicy = record(cohortComparison.mask_policy);
   const cohortHumanReview = record(cohortComparison.human_review);
   const cohortEvidenceBoundary = record(visualReferenceCohort.evidence_boundary);
+  const sourceUpstream = record(visualSourceCohort.upstream);
+  const sourceNoticeInventory = record(sourceUpstream.notice_inventory);
+  const sourceShellAdoption = record(visualSourceCohort.shell_adoption);
+  const sourceEvidenceBoundary = record(visualSourceCohort.evidence_boundary);
   const cohortScenes = Array.isArray(visualReferenceCohort.scene_matrix)
     ? visualReferenceCohort.scene_matrix.map(record)
     : [];
@@ -772,26 +805,27 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !fs.existsSync(path.join(root, maintenancePolicyRef)) ||
     maintenanceGoal.upstream_following !== 'aionui_stable_tags_through_bounded_selective_intake' ||
     maintenanceGoal.visual_alignment !==
-      'latest_official_codex_design_observation_with_explicit_opl_deltas_and_app_owned_pixel_baselines' ||
+      'pinned_deepseek_harness_visual_source_with_opl_brand_and_app_owned_pixel_baselines' ||
     maintenanceGoal.one_to_one_claim_policy !== 'scene_bound_comparison_only_never_unqualified_product_wide_claim' ||
-    referencePromotion.active_design_reference_policy_ref !==
-      'contracts/app-gui-product-contract.json#interaction_baseline.external_design_reference' ||
+    referencePromotion.active_visual_source_policy_ref !==
+      'contracts/app-gui-product-contract.json#interaction_baseline.visual_source' ||
+    referencePromotion.active_visual_source_cohort_ref !== visualSourceCohortPath ||
     referencePromotion.active_pixel_baseline_ref !==
       'contracts/app-gui-product-contract.json#interaction_baseline.pixel_baseline' ||
     !sameStrings(referencePromotion.required_evidence, [
-      'latest_official_source_and_exact_observation_identity',
-      'literal_observation_notes_and_optional_design_screenshots',
-      'contract_delta_classification',
+      'exact_upstream_repository_commit_and_mit_license',
+      'per_file_source_inventory_and_vendor_sha256',
+      'runtime_import_versus_adapter_reference_classification',
       'protected_opl_surface_non_regression_review',
       'desktop_and_narrow_light_dark_zh_en_comparison_manifest',
     ]) ||
     referencePromotion.promotion_gate !== 'all_required_evidence_present_and_app_gui_validator_passes' ||
     referencePromotion.supersession_policy !==
-      'prior_exact_observations_remain_historical_provenance_only' ||
+      'prior_dsh_cohort_and_codex_visual_observations_remain_historical_provenance_only' ||
     referencePromotion.release_independence !== true ||
     referencePromotion.external_artifact_download_install_or_launch_required !== false
   ) {
-    issues.add('GUI maintenance policy must version Codex reference promotion without implying release completion');
+    issues.add('GUI maintenance policy must version the pinned DSH visual source without implying release completion');
   }
   if (
     upstreamFollowing.channel !== 'stable_tags_only' ||
@@ -877,6 +911,76 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('GUI maintenance visual comparison must bind exact cohorts and keep parity claims scene-scoped');
   }
   if (
+    visualSourceCohort.schema_version !== 1 ||
+    visualSourceCohort.schema !== 'opl_app_gui_visual_source_cohort.v1' ||
+    visualSourceCohort.owner !== 'one-person-lab-app' ||
+    visualSourceCohort.state !== 'pinned_for_aionui_visual_foundation' ||
+    sourceUpstream.repository !== 'https://github.com/deepseek-ai/deepseek-harness.git' ||
+    sourceUpstream.commit !== visualSourceCommit ||
+    sourceUpstream.license !== 'MIT' ||
+    sourceUpstream.license_source_path !== 'LICENSE' ||
+    !sameStrings(sourceNoticeInventory.separate_notice_source_paths, []) ||
+    sourceNoticeInventory.policy !==
+      'pinned_commit_contains_no_separate_NOTICE_file; preserve_the_root_LICENSE_notice_with_every_vendored_substantial_copy' ||
+    sourceUpstream.floating_ref_allowed !== false ||
+    !sameStrings(visualSourceCohort.runtime_vendored_source_paths, [
+      'packages/client/ui-primitives/src/icons/index.tsx',
+      'packages/client/ui-primitives/src/icons/props.ts',
+      'packages/client/ui-theme/src/styles/base.css',
+      'packages/client/ui-theme/src/styles/design-platform.css',
+      'packages/client/ui-theme/src/styles/gradient-shadow-text.css',
+      'packages/client/ui-theme/src/styles/scrollbar.css',
+      'packages/client/ui-primitives/src/Button.module.css',
+      'packages/client/ui-primitives/src/Input.module.css',
+      'packages/client/ui-primitives/src/Pill.module.css',
+      'packages/client/ui-primitives/src/StateDot.module.css',
+      'packages/client/ui-primitives/src/Tooltip.module.css',
+      'packages/client/ui-primitives/src/Menu.module.css',
+    ]) ||
+    !sameStrings(visualSourceCohort.adapter_reference_source_paths, [
+      'packages/client/ui-layout/src/client/AppFrame.module.css',
+      'packages/client/ui-sidebar/src/client/SidebarRoot.module.css',
+      'packages/client/ui-conversation/src/client/skeleton/InputBar.module.css',
+      'packages/client/ui-settings-general/src/client/chrome.module.css',
+      'packages/client/ui-primitives/src/Button.tsx',
+      'packages/client/ui-primitives/src/Input.tsx',
+      'packages/client/ui-primitives/src/Pill.tsx',
+      'packages/client/ui-primitives/src/StateDot.tsx',
+      'packages/client/ui-primitives/src/Tooltip.tsx',
+      'packages/client/ui-primitives/src/Menu.tsx',
+    ]) ||
+    !sameStrings(visualSourceCohort.deferred_reference_source_paths, [
+      'packages/client/ui-primitives/src/markdown/MessageText.tsx',
+      'packages/client/ui-primitives/src/markdown/MessageText.module.css',
+    ]) ||
+    sourceShellAdoption.active_shell !== 'aionui' ||
+    sourceShellAdoption.reuse_mode !== 'bounded_vendored_visual_source_with_opl_adapters' ||
+    sourceShellAdoption.required_source_manifest !==
+      'packages/desktop/src/renderer/vendor/deepseek-harness/visual-source-manifest.json' ||
+    sourceShellAdoption.required_license_notice !==
+      'packages/desktop/src/renderer/vendor/deepseek-harness/LICENSE' ||
+    sourceShellAdoption.provider_component !== 'OplVisualProvider' ||
+    sourceShellAdoption.icon_adapter_component !== 'OplIcon' ||
+    sourceShellAdoption.app_product_authority_transfer_allowed !== false ||
+    sourceShellAdoption.framework_abi_change_allowed !== false ||
+    !stringArray(visualSourceCohort.excluded_source_and_runtime).includes('packages/client/ui-slots') ||
+    !stringArray(visualSourceCohort.excluded_source_and_runtime).includes('complete DSH Client Cordis host') ||
+    !sameStrings(visualSourceCohort.phase_one_surfaces, [
+      'titlebar',
+      'navigation_rail',
+      'home',
+      'composer',
+      'settings_navigation',
+    ]) ||
+    sourceEvidenceBoundary.source_cohort_pinned !== true ||
+    sourceEvidenceBoundary.shell_source_implemented !== false ||
+    sourceEvidenceBoundary.pixel_baseline_approved !== false ||
+    sourceEvidenceBoundary.installed_current !== false ||
+    sourceEvidenceBoundary.release_ready !== false
+  ) {
+    issues.add('visual source cohort must pin the DSH commit and keep AionUI limited to visual adapters without runtime or release authority');
+  }
+  if (
     visualReferenceCohort.schema_version !== 1 ||
     visualReferenceCohort.schema !== 'opl_app_gui_visual_reference_cohort.v1' ||
     visualReferenceCohort.owner !== 'one-person-lab-app' ||
@@ -896,7 +1000,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     (cohortReference.state === 'approved' &&
       (cohortReference.approval_receipt_file !== 'baseline-approval-receipt.json' ||
         !/^[a-f0-9]{64}$/.test(String(cohortReference.approval_receipt_sha256)))) ||
-    pixelReference.state !== cohortReference.state ||
+    pixelBaseline.state !== cohortReference.state ||
     cohortReference.platform !== 'macos' ||
     cohortReference.reference_role !== 'app_owned_pixel_regression_baseline' ||
     cohortReference.external_product_artifact_required !== false ||
@@ -908,7 +1012,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     cohortCandidate.shell_source_ref !== 'active_shell_checkout_git_head' ||
     cohortCandidate.comparison_tool !== 'opl-aion-shell/scripts/compare-gui-visual-cohort.ts'
   ) {
-    issues.add('visual reference cohort must bind a reachable pending-or-approved App-owned baseline and thin AionUI candidate route');
+    issues.add('visual reference cohort must bind a reachable pending-or-approved App-owned pixel baseline and thin AionUI candidate route');
   }
   if (
     cohortPrimitiveContract.authority !== 'one-person-lab-app' ||
@@ -918,7 +1022,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     cohortPrimitiveContract.upstream_authority_transfer_allowed !== false ||
     visualPrimitiveIds.some((id) => cohortPrimitiveBindings[id] !== `opl-codex-${id.replace('_', '-')}`)
   ) {
-    issues.add('visual reference cohort must use the five App-owned Codex primitives without a new Shell framework');
+    issues.add('visual reference cohort must use the five App-owned visual primitives without a new Shell framework');
   }
   if (
     cohortCapture.reference_and_candidate_same_machine_required !== true ||
@@ -1072,7 +1176,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     appearanceMode.legacy_theme_data_policy !==
       'preserve_user_data_but_migrate_active_preset_to_default_theme' ||
     appearanceMode.legacy_codex_preset_policy !== 'not_selectable_not_applied' ||
-    appearanceMode.default_visual_baseline !== 'always_on_opl_codex_aligned_overlay_supporting_light_and_dark' ||
+    appearanceMode.default_visual_baseline !== 'always_on_pinned_dsh_visual_source_with_app_owned_pixel_baseline_supporting_light_and_dark' ||
     appearanceMode.navigation_rail_quick_toggle !== 'forbidden' ||
     footerUpdateEntry.placement !== 'account_footer_row_trailing_action' ||
     footerUpdateEntry.replaces !== 'navigation_rail_theme_quick_toggle' ||
@@ -1317,7 +1421,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'route_tests',
     ])
   ) {
-    issues.add('Codex reference alignment must preserve OPL-owned capabilities and same-change reachability');
+    issues.add('historical interaction alignment must preserve OPL-owned capabilities and same-change reachability');
   }
 
   const navigationRail = record(interactionBaseline.navigation_rail);
@@ -1688,8 +1792,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const visualTypography = record(visualTarget.typography);
   const conversationRendering = record(visualTarget.conversation_rendering);
   const targetDefinitionRole = 'opl_target_translation_not_literal_codex_observation';
-  if (oplTargetTranslation.some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole)) {
-    issues.add('each OPL target translation section must declare that it is not a literal Codex observation');
+  if (
+    oplTargetTranslation
+      .filter((key) => key !== 'visual_target')
+      .some((key) => record(interactionBaseline[key]).definition_role !== targetDefinitionRole) ||
+    visualTarget.definition_role !== 'opl_projection_of_pinned_deepseek_harness_visual_source'
+  ) {
+    issues.add('OPL interaction targets must remain separate from Codex observations and bind visual_target to the pinned DSH source');
   }
   if (
     'environment_workspace_handoff' in ordinaryConversationViewModel ||
@@ -1816,48 +1925,50 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     settingsShell.settings_objects_or_model_policy_changed_by_41301 !== false ||
     settingsShell.installer_or_runtime_truth_authority !== false ||
     visualTarget.machine_authority !== 'this_object_only_shell_and_human_docs_are_derived' ||
-    visualTarget.main_canvas !== 'white' ||
+    visualTarget.source_cohort_ref !== visualSourceCohortPath ||
+    visualTarget.theme_selector !== 'body[data-ds-dark-theme]' ||
+    visualTarget.main_canvas !== 'var(--dsw-alias-bg-base)' ||
     JSON.stringify(lightSurfaces) !==
       JSON.stringify({
-        main_canvas: '#FFFFFF',
-        navigation_rail: '#FCFCFC',
-        bounded_surface: '#FFFFFF',
-        hover_row: 'rgba(0, 0, 0, 0.045)',
-        selected_row: '#F0F0F0',
-        text_primary: '#202124',
-        text_secondary: '#5F6368',
-        text_muted: '#70757A',
-        hairline_border: 'rgba(0, 0, 0, 0.10)',
-        focus_ring: '#2563EB',
-        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)',
+        main_canvas: 'var(--dsw-alias-bg-base)',
+        navigation_rail: 'var(--dsw-specific-sidebar-fill)',
+        bounded_surface: 'var(--dsw-alias-bg-layer-1)',
+        hover_row: 'var(--dsw-alias-interactive-bg-hover)',
+        selected_row: 'var(--dsw-specific-sidebar-nav-item-active)',
+        text_primary: 'var(--dsw-alias-label-primary)',
+        text_secondary: 'var(--dsw-alias-label-secondary)',
+        text_muted: 'var(--dsw-alias-label-tertiary)',
+        hairline_border: 'var(--dsw-alias-border-l2)',
+        focus_ring: 'var(--dsw-alias-state-business-primary)',
+        composer_shadow: 'var(--dsw-shadow-lv2)',
       }) ||
     JSON.stringify(darkSurfaces) !==
       JSON.stringify({
-        main_canvas: '#171819',
-        navigation_rail: '#1B1C1E',
-        bounded_surface: '#202224',
-        hover_row: 'rgba(255, 255, 255, 0.06)',
-        selected_row: 'rgba(255, 255, 255, 0.09)',
-        text_primary: '#F4F5F6',
-        text_secondary: '#AEB4BC',
-        text_muted: '#9298A1',
-        hairline_border: 'rgba(255, 255, 255, 0.12)',
-        focus_ring: '#60A5FA',
-        composer_shadow: '0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)',
+        main_canvas: 'var(--dsw-alias-bg-base)',
+        navigation_rail: 'var(--dsw-specific-sidebar-fill)',
+        bounded_surface: 'var(--dsw-alias-bg-layer-1)',
+        hover_row: 'var(--dsw-alias-interactive-bg-hover)',
+        selected_row: 'var(--dsw-specific-sidebar-nav-item-active)',
+        text_primary: 'var(--dsw-alias-label-primary)',
+        text_secondary: 'var(--dsw-alias-label-secondary)',
+        text_muted: 'var(--dsw-alias-label-tertiary)',
+        hairline_border: 'var(--dsw-alias-border-l2)',
+        focus_ring: 'var(--dsw-alias-state-business-primary)',
+        composer_shadow: 'var(--dsw-shadow-lv2)',
       }) ||
     visualTarget.rail_and_subtle_surfaces !== 'neutral_gray' ||
     visualTarget.composer !== 'floating_or_bottom_safe_inset' ||
     visualTarget.composer_elevation !== 'single_outline_with_restrained_shadow' ||
     JSON.stringify(visualTypography) !==
       JSON.stringify({
-        ui_font_stack: 'platform_system_sf_pro_text_first',
-        app_chrome: '13/18/400_or_500',
-        conversation: '15/22/400',
-        body: '14/20/400',
-        label: '13/18/500',
-        page_title: '20/28/600',
-        metadata: '12/18/400',
-        code: '12/18/400',
+        ui_font_stack: 'var(--dsw-font-family)',
+        app_chrome: 'var(--dsw-font-xs-13)_or_var(--dsw-font-xs-strong-13)',
+        conversation: 'var(--dsw-font-markdown-base)',
+        body: 'var(--dsw-font-s-14)',
+        label: 'var(--dsw-font-xs-strong-13)',
+        page_title: 'var(--dsw-font-l-20)',
+        metadata: 'var(--dsw-font-xxs-12)',
+        code: 'var(--dsw-font-markdown-code-block-small)',
         letter_spacing_px: 0,
       }) ||
     JSON.stringify(conversationRendering) !==
@@ -1878,7 +1989,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     ordinaryConversationViewModel.conversation_rendering_ref !==
       'contracts/app-gui-product-contract.json#interaction_baseline.visual_target.conversation_rendering' ||
     visualTarget.settings_icon_policy !==
-      'icon_park_react_16px_monochrome_outline_with_color_reserved_for_typed_status' ||
+      'pinned_dsh_icon_cohort_14_16px_currentcolor_with_color_reserved_for_typed_status' ||
     visualTarget.settings_surface_policy !==
       'ordinary_pages_use_unframed_sections_flat_rows_and_hairline_dividers_bounded_cards_only_for_repeated_entities_or_confirmation' ||
     visualTarget.accent_scope !==
@@ -1967,6 +2078,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('GUI contract and product profile must detect system locale before first render and preserve explicit language preferences');
   }
   if (
+    profileAppearance.visual_source_cohort_ref !== visualSourceCohortPath ||
     profileAppearance.visual_reference_cohort_ref !== visualReferenceCohortPath ||
     !sameStrings(profileAppearance.shared_visual_primitives, visualPrimitiveIds)
   ) {
@@ -2044,17 +2156,31 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('governed GUI docs must not make a positive release or production readiness claim');
   }
 
-  const codexGovernance = record(governance.codex_reference);
-  if (codexGovernance.comparison_baseline !== codexReference.replace(
-    ' (exact version recorded per receipt)',
-    '',
-  )) {
-    issues.add('design-system governance Codex comparison baseline must be the rolling latest official observation');
+  const visualSourceGovernance = record(governance.visual_source);
+  const interactionGovernance = record(governance.interaction_reference);
+  if (
+    visualSourceGovernance.cohort !== visualSourceCohortPath ||
+    visualSourceGovernance.source_usage !== visualSourceUsage ||
+    visualSourceGovernance.authority !== 'one-person-lab-app' ||
+    !sameStrings(visualSourceGovernance.forbidden_authority, [
+      'product_behavior',
+      'routes',
+      'framework_abi',
+      'app_state_or_actions',
+      'runtime',
+      'sessions',
+      'connections',
+      'release',
+      'pixel_acceptance',
+    ])
+  ) {
+    issues.add('design-system governance must bind the pinned DSH visual source cohort without transferring product authority');
   }
   if (
-    codexGovernance.source_usage !== 'visual_and_interaction_reference_only_no_code_or_brand_copy'
+    interactionGovernance.comparison_baseline !== interactionReference ||
+    interactionGovernance.source_usage !== interactionReferenceUsage
   ) {
-    issues.add('Codex comparison baseline must remain a visual/interaction reference only');
+    issues.add('Codex must remain only a historical workflow and spatial interaction reference');
   }
 
   const evidenceBoundary = record(governance.evidence_boundary);
@@ -2098,9 +2224,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       active: 'aionui',
       foreground: 'opl-studio',
     },
-    codex_reference: codexReference,
-    codex_pixel_reference: codexPixelReference,
-    superseded_codex_reference: supersededCodexReference,
+    visual_source_cohort: {
+      contract: visualSourceCohortPath,
+      source_commit: visualSourceCommit,
+      source_usage: visualSourceUsage,
+    },
+    interaction_reference: interactionReference,
+    pixel_reference: pixelReference,
+    superseded_interaction_reference: supersededInteractionReference,
     reference_boundary: {
       app_contract_status: 'aligned_contract',
       page_state_status: 'aligned_contract',

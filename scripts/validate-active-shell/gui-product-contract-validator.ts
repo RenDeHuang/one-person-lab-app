@@ -239,8 +239,8 @@ function validateVisualTokenBindings(guiContract) {
     bindings?.navigation_rail,
     {
       css_variable: '--opl-sidebar-bg',
-      light_css_value: '#fcfcfc',
-      dark_css_value: '#1b1c1e',
+      light_css_value: 'var(--dsw-specific-sidebar-fill)',
+      dark_css_value: 'var(--dsw-specific-sidebar-fill)',
       surface_selector: '.layout-sider.arco-layout-sider',
       surface_background_value: 'var(--opl-sidebar-bg)',
       layout_background_utility_allowed: false,

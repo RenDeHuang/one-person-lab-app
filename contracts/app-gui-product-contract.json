@@ -333,19 +333,32 @@
     }
   },
   "interaction_baseline": {
-    "schema": "opl_app_external_design_reference_policy.v3",
-    "external_design_reference": {
-      "product": "ChatGPT Codex macOS",
-      "selection_policy": "latest_official_verified_at_observation_time",
-      "observation_ref": "docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary",
-      "required_observation_identity": [
-        "official_source",
-        "bundle_version",
-        "build",
-        "observed_on"
+    "schema": "opl_app_visual_source_policy.v4",
+    "visual_source": {
+      "product": "DeepSeek Harness GUI",
+      "selection_policy": "pinned_source_commit_only",
+      "source_cohort_ref": "contracts/app-gui-visual-source-cohort.json",
+      "required_source_identity": ["repository", "commit", "license", "notice_inventory", "source_inventory"],
+      "usage": "bounded_source_reuse_for_icons_theme_tokens_and_visual_primitive_geometry_only",
+      "forbidden_authority": [
+        "product_behavior",
+        "routes",
+        "framework_abi",
+        "app_state_or_actions",
+        "runtime",
+        "sessions",
+        "connections",
+        "release",
+        "pixel_acceptance"
       ],
-      "usage": "design_reference_only_no_code_brand_account_product_pixel_install_or_release_authority",
       "external_artifact_required_for_release": false
+    },
+    "interaction_reference": {
+      "product": "ChatGPT Codex macOS",
+      "status": "historical_workflow_and_spatial_reference_only",
+      "observation_ref": "docs/product/gui/codex-to-opl-app-delta.md#literal-observation-boundary",
+      "visual_authority": false,
+      "source_code_reuse_allowed": false
     },
     "pixel_baseline": {
       "owner": "one-person-lab-app",
@@ -849,7 +862,7 @@
         "single_centered_reading_lane_for_prompt_starters_and_composer": true,
         "desktop_composer_horizontal_inset": "responsive_and_visibly_narrower_than_main_canvas",
         "mobile_composer_horizontal_inset": "safe_area_aware",
-        "reference_density": "quiet_compact_codex_mac"
+        "reference_density": "pinned_deepseek_harness_visual_cohort"
       },
       "workspace_selector_policy": {
         "primary_scope": "active_workspace_only",
@@ -1008,8 +1021,9 @@
       "unified_context_menu_ref": "ordinary_conversation.unified_context_menu",
       "model_reasoning_control": "single_compact_menu",
       "visual_metrics": {
-        "textarea_typography": "14/20/400",
-        "bottom_control_typography": "12/18/400_or_500",
+        "source_ref": "contracts/app-gui-visual-source-cohort.json#adapter_reference_source_paths[InputBar.module.css]",
+        "textarea_typography": "var(--dsw-font-base-16)",
+        "bottom_control_typography": "var(--dsw-font-xxs-12)_or_var(--dsw-font-xxs-strong-12)",
         "bottom_control_max_font_px": 12,
         "icon_size_px": 16,
         "action_height_px": 32,
@@ -1021,7 +1035,7 @@
         },
         "border_px": 1,
         "corner_radius_px": 22,
-        "resting_shadow_source": "interaction_baseline.visual_target.light_surfaces.composer_shadow_or_dark_surfaces.composer_shadow",
+        "resting_shadow_source": "var(--dsw-shadow-lv2)",
         "focus_geometry_policy": "enhance_border_or_ring_without_removing_resting_shadow_or_changing_size"
       },
       "voice": "optional",
@@ -1210,40 +1224,42 @@
       "installer_or_runtime_truth_authority": false
     },
     "visual_target": {
-      "definition_role": "opl_target_translation_not_literal_codex_observation",
+      "definition_role": "opl_projection_of_pinned_deepseek_harness_visual_source",
       "machine_authority": "this_object_only_shell_and_human_docs_are_derived",
-      "main_canvas": "white",
+      "source_cohort_ref": "contracts/app-gui-visual-source-cohort.json",
+      "theme_selector": "body[data-ds-dark-theme]",
+      "main_canvas": "var(--dsw-alias-bg-base)",
       "light_surfaces": {
-        "main_canvas": "#FFFFFF",
-        "navigation_rail": "#FCFCFC",
-        "bounded_surface": "#FFFFFF",
-        "hover_row": "rgba(0, 0, 0, 0.045)",
-        "selected_row": "#F0F0F0",
-        "text_primary": "#202124",
-        "text_secondary": "#5F6368",
-        "text_muted": "#70757A",
-        "hairline_border": "rgba(0, 0, 0, 0.10)",
-        "focus_ring": "#2563EB",
-        "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.05)"
+        "main_canvas": "var(--dsw-alias-bg-base)",
+        "navigation_rail": "var(--dsw-specific-sidebar-fill)",
+        "bounded_surface": "var(--dsw-alias-bg-layer-1)",
+        "hover_row": "var(--dsw-alias-interactive-bg-hover)",
+        "selected_row": "var(--dsw-specific-sidebar-nav-item-active)",
+        "text_primary": "var(--dsw-alias-label-primary)",
+        "text_secondary": "var(--dsw-alias-label-secondary)",
+        "text_muted": "var(--dsw-alias-label-tertiary)",
+        "hairline_border": "var(--dsw-alias-border-l2)",
+        "focus_ring": "var(--dsw-alias-state-business-primary)",
+        "composer_shadow": "var(--dsw-shadow-lv2)"
       },
       "dark_surfaces": {
-        "main_canvas": "#171819",
-        "navigation_rail": "#1B1C1E",
-        "bounded_surface": "#202224",
-        "hover_row": "rgba(255, 255, 255, 0.06)",
-        "selected_row": "rgba(255, 255, 255, 0.09)",
-        "text_primary": "#F4F5F6",
-        "text_secondary": "#AEB4BC",
-        "text_muted": "#9298A1",
-        "hairline_border": "rgba(255, 255, 255, 0.12)",
-        "focus_ring": "#60A5FA",
-        "composer_shadow": "0 1px 2px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.18)"
+        "main_canvas": "var(--dsw-alias-bg-base)",
+        "navigation_rail": "var(--dsw-specific-sidebar-fill)",
+        "bounded_surface": "var(--dsw-alias-bg-layer-1)",
+        "hover_row": "var(--dsw-alias-interactive-bg-hover)",
+        "selected_row": "var(--dsw-specific-sidebar-nav-item-active)",
+        "text_primary": "var(--dsw-alias-label-primary)",
+        "text_secondary": "var(--dsw-alias-label-secondary)",
+        "text_muted": "var(--dsw-alias-label-tertiary)",
+        "hairline_border": "var(--dsw-alias-border-l2)",
+        "focus_ring": "var(--dsw-alias-state-business-primary)",
+        "composer_shadow": "var(--dsw-shadow-lv2)"
       },
       "shell_token_bindings": {
         "navigation_rail": {
           "css_variable": "--opl-sidebar-bg",
-          "light_css_value": "#fcfcfc",
-          "dark_css_value": "#1b1c1e",
+          "light_css_value": "var(--dsw-specific-sidebar-fill)",
+          "dark_css_value": "var(--dsw-specific-sidebar-fill)",
           "surface_selector": ".layout-sider.arco-layout-sider",
           "surface_background_value": "var(--opl-sidebar-bg)",
           "layout_background_utility_allowed": false
@@ -1276,14 +1292,14 @@
       "composer": "floating_or_bottom_safe_inset",
       "composer_elevation": "single_outline_with_restrained_shadow",
       "typography": {
-        "ui_font_stack": "platform_system_sf_pro_text_first",
-        "app_chrome": "13/18/400_or_500",
-        "conversation": "15/22/400",
-        "body": "14/20/400",
-        "label": "13/18/500",
-        "page_title": "20/28/600",
-        "metadata": "12/18/400",
-        "code": "12/18/400",
+        "ui_font_stack": "var(--dsw-font-family)",
+        "app_chrome": "var(--dsw-font-xs-13)_or_var(--dsw-font-xs-strong-13)",
+        "conversation": "var(--dsw-font-markdown-base)",
+        "body": "var(--dsw-font-s-14)",
+        "label": "var(--dsw-font-xs-strong-13)",
+        "page_title": "var(--dsw-font-l-20)",
+        "metadata": "var(--dsw-font-xxs-12)",
+        "code": "var(--dsw-font-markdown-code-block-small)",
         "letter_spacing_px": 0
       },
       "conversation_rendering": {
@@ -1299,7 +1315,7 @@
         "message_actions": "hover_or_focus_revealed_without_permanent_32px_blank_row",
         "loading_skeleton": "unframed_text_lines_without_bordered_message_bubbles"
       },
-      "settings_icon_policy": "icon_park_react_16px_monochrome_outline_with_color_reserved_for_typed_status",
+      "settings_icon_policy": "pinned_dsh_icon_cohort_14_16px_currentcolor_with_color_reserved_for_typed_status",
       "settings_surface_policy": "ordinary_pages_use_unframed_sections_flat_rows_and_hairline_dividers_bounded_cards_only_for_repeated_entities_or_confirmation",
       "accent_scope": "brand_typed_status_and_actions_only_not_ordinary_rail_selection_or_settings_icons",
       "opl_teal_and_brand_retained": true
@@ -1319,21 +1335,22 @@
     "human_policy_ref": "docs/product/gui/gui-maintenance-policy.md",
     "goal": {
       "upstream_following": "aionui_stable_tags_through_bounded_selective_intake",
-      "visual_alignment": "latest_official_codex_design_observation_with_explicit_opl_deltas_and_app_owned_pixel_baselines",
+      "visual_alignment": "pinned_deepseek_harness_visual_source_with_opl_brand_and_app_owned_pixel_baselines",
       "one_to_one_claim_policy": "scene_bound_comparison_only_never_unqualified_product_wide_claim"
     },
-    "codex_reference_promotion": {
-      "active_design_reference_policy_ref": "contracts/app-gui-product-contract.json#interaction_baseline.external_design_reference",
+    "visual_source_promotion": {
+      "active_visual_source_policy_ref": "contracts/app-gui-product-contract.json#interaction_baseline.visual_source",
+      "active_visual_source_cohort_ref": "contracts/app-gui-visual-source-cohort.json",
       "active_pixel_baseline_ref": "contracts/app-gui-product-contract.json#interaction_baseline.pixel_baseline",
       "required_evidence": [
-        "latest_official_source_and_exact_observation_identity",
-        "literal_observation_notes_and_optional_design_screenshots",
-        "contract_delta_classification",
+        "exact_upstream_repository_commit_and_mit_license",
+        "per_file_source_inventory_and_vendor_sha256",
+        "runtime_import_versus_adapter_reference_classification",
         "protected_opl_surface_non_regression_review",
         "desktop_and_narrow_light_dark_zh_en_comparison_manifest"
       ],
       "promotion_gate": "all_required_evidence_present_and_app_gui_validator_passes",
-      "supersession_policy": "prior_exact_observations_remain_historical_provenance_only",
+      "supersession_policy": "prior_dsh_cohort_and_codex_visual_observations_remain_historical_provenance_only",
       "release_independence": true,
       "external_artifact_download_install_or_launch_required": false
     },
@@ -2932,8 +2949,8 @@
     ]
   },
   "utility_icon_policy": {
-    "library": "icon_park_react_for_opl_owned_utility_icons",
-    "opl_owned_settings_navigation_and_overview": "icon_park_react_outline_16px_monochrome",
+    "library": "pinned_deepseek_harness_icon_cohort_via_opl_icon_adapter",
+    "opl_owned_settings_navigation_and_overview": "dsh_icon_primitives_14_16px_currentcolor",
     "settings_icon_geometry": "stable_16px_slot_1_5_to_1_75px_visual_stroke_no_colored_tile_or_letter_avatar",
     "icon_text_action_geometry": {
       "icon_size_px": 16,
@@ -2992,7 +3009,7 @@
     "scope": "opl_owned_overlay_surfaces_not_upstream_fork_body"
   },
   "ai_first_interaction_model": {
-    "default_visual_basis": "codex_app_composer_first",
+    "default_visual_basis": "chat_first_composer_layout_with_pinned_deepseek_harness_visual_source",
     "primary_policy": "maximize_direct_ai_interaction_on_the_chat_canvas",
     "default_failure_semantics": "fail_open_with_bounded_self_repair_jit_preparation_degradation_or_fallback",
     "progress_policy": "preserve_user_momentum_and_attempt_safe_progress_before_requesting_manual_repair",
@@ -3950,7 +3967,7 @@
       "theme_preset_surface": "not_exposed",
       "legacy_theme_data_policy": "preserve_user_data_but_migrate_active_preset_to_default_theme",
       "legacy_codex_preset_policy": "not_selectable_not_applied",
-      "default_visual_baseline": "always_on_opl_codex_aligned_overlay_supporting_light_and_dark",
+      "default_visual_baseline": "always_on_pinned_dsh_visual_source_with_app_owned_pixel_baseline_supporting_light_and_dark",
       "navigation_rail_quick_toggle": "forbidden"
     }
   },

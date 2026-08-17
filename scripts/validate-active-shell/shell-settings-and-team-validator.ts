@@ -157,7 +157,7 @@ const settingsNavExpected = [
 ];
 
 const settingsRegistryExpected = [
-  "from '@icon-park/react'",
+  'OplIcon',
   'getOplGuiSettingsControlPlane',
   'getOplGuiSettingsVisibleTabs',
   'getOplGuiLegacySettingsRouteRedirects',

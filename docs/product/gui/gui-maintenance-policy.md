@@ -1,4 +1,4 @@
-# GUI 主线升级与 Codex 视觉维护政策
+# GUI 主线升级与 DSH 视觉来源维护政策
 
 Owner: `one-person-lab-app`
 Purpose: `gui_upstream_and_visual_maintenance_policy`
@@ -10,19 +10,20 @@ Machine boundary: 机器约束归
 
 ## 结论
 
-OPL App 同时维持两条独立轨道：
+OPL App 同时维持三条独立轨道：
 
 1. AionUI 只跟随正式 stable tag，通过审计和选择性吸收持续升级；
-2. ChatGPT Codex 以观察时最新可验证的官方版本提供设计参考；OPL 自有 baseline 承担像素回归。
+2. DeepSeek Harness 只通过 exact commit、source manifest 和 MIT notice 手工推进受限视觉 cohort；
+3. ChatGPT Codex 只保留历史工作流/空间关系参考；OPL 自有 baseline 承担像素回归。
 
-两条轨道不能互相冒充。看到新 AionUI tag 不等于已经吸收；看到新 Codex 截图不等于
-自动替换产品合同；App 合同、Shell source、像素证据、package、安装与 release 继续分别
+三条轨道不能互相冒充。看到新 AionUI tag 不等于已经吸收；看到新 DSH commit 或 Codex
+截图不等于自动替换产品合同；App 合同、Shell source、像素证据、package、安装与 release 继续分别
 给出结论。
 
-Reference 内部分轴：外部 Codex observation 记录观察时最新官方版本的精确身份，只用于
-composition、placement、density 和 interaction 设计审查；OPL App 自有 baseline 绑定
-16-scene PNG SHA、审批 receipt 和人工 verdict，用于正式像素回归。历史外部 build 不再是
-active baseline，也不是下载、安装、Pixel、Release 或 Stable 前置条件。
+视觉来源与验收分轴：DSH cohort 只拥有普通 icon、theme token 和 visual primitive geometry；
+Codex observation 只用于 workflow、placement 和 interaction 审查；OPL App 自有 baseline 绑定
+16-scene PNG SHA、审批 receipt 和人工 verdict，用于正式像素回归。任何外部 build 都不是
+下载、安装、Pixel、Release 或 Stable 前置条件。
 
 “尽可能 1:1”解释为：对已声明 route/state、viewport、theme、locale 和 App-owned baseline
 做可重复比较，并显式记录 OPL 差异。没有 exact cohort 和比较 manifest 时，不使用无范围的
@@ -33,31 +34,31 @@ active baseline，也不是下载、安装、Pixel、Release 或 Stable 前置�
 - App repo 决定产品行为、OPL 保留能力、reference cohort、视觉协议和验收预算。
 - Shell repo 负责 AionUI upstream audit、OPL overlay、token 映射、组件适配和 focused tests。
 - AionUI upstream 提供实现材料，不覆盖 OPL Settings IA、Runtime、模型策略或 owner truth。
-- ChatGPT Codex 提供 composition、交互位置和视觉参考，不提供代码、品牌、账户或产品 authority。
+- DeepSeek Harness 提供固定 cohort 内的 icon、theme token 和 visual primitive geometry，不提供
+  AionUI runtime、session、router、provider、connection、完整 renderer 或产品 authority。
+- ChatGPT Codex 只提供历史 workflow、composition 与交互位置参考，不提供 active visual source、
+  代码、品牌、账户或产品 authority。
 - AionUI/AionCore 官方能力默认继承；只有 App contract 的 `adapt`、`redirect` 或 `reject`
   可以改变 ordinary surface。OPL allowlist 不得被解释为禁用无关上游能力的通用授权。
 - 上游没有且 B0/R1/U1 不要求的复杂功能默认不私有实现；只存在于 rejected、retired 或
   private legacy surface 的问题不进入主线修复。
 
-## Codex Reference Promotion
+## DSH Visual Source Promotion
 
-外部 design reference policy 由
-`contracts/app-gui-product-contract.json#interaction_baseline.external_design_reference` 指定；
-pixel baseline 由
-`contracts/app-gui-product-contract.json#interaction_baseline.pixel_baseline` 和
-`contracts/app-gui-visual-reference-cohort.json` 指定。发现更新的官方 Codex build 后按最新版本
-建立 observation receipt，不自动改变 OPL baseline；只有以下证据齐全才把观察转成产品 delta：
+Active visual source policy 由
+`contracts/app-gui-product-contract.json#interaction_baseline.visual_source` 指定；精确上游、许可、
+运行时 vendor、adapter reference、延后 surface 和首批迁移范围只在
+`contracts/app-gui-visual-source-cohort.json` 定义。一次 cohort 推进必须同时具备：
 
-1. 官方来源、精确 product/build 和观察日期；截图按本次设计审查需要选取；
-2. literal observation 与推断/OPL delta 分开记录；
-3. contract delta 按 `accept/adapt/redirect/reject` 分类；
-4. Runtime、Settings、双语、first-run、Agent Packages、用户触发的 canonical thread operations
-   与独立的 Codex subagent event/display 轴等 protected surfaces 完成非降级复核；
-5. 桌面与窄窗、light/dark、中文/英文比较 manifest 完整；
-6. App GUI validator 通过。
+1. 上游 repository、exact commit、MIT license 与 notice inventory 回读；
+2. 每个 vendored file 的 upstream path、SHA-256 和 import normalization 记录；
+3. runtime import 与 adapter-only reference 分类，确认不引入 DSH runtime/Client Cordis；
+4. Titlebar、rail、Home、composer、Settings navigation 的功能和 protected surface 非降级复核；
+5. desktop/narrow、light/dark、zh-CN/en-US 比较 manifest；
+6. keyboard、tooltip、focus、accessible name 与 App/Shell validators 通过。
 
-新观察不会自动替换 OPL pixel baseline。历史观察保留为 provenance；外部 reference、
-OPL baseline、Shell source、package、安装与 release 各自独立取证。
+Codex 新 observation 不会自动改变视觉 source 或 OPL pixel baseline，只能形成历史交互 delta。
+旧 DSH cohort、Codex observation、OPL baseline、Shell source、package、安装与 release 各自独立取证。
 
 ## AionUI Stable Intake
 

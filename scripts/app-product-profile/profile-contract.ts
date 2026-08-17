@@ -680,8 +680,16 @@ function assertHomeSelectionAndIconPolicy(profile: AppProductProfile): void {
     throw new Error('App product profile Home must require explicit professional-agent selection with a visible selected state');
   }
   if (
-    iconPolicy.library !== 'icon_park_react_for_opl_owned_utility_icons' ||
-    iconPolicy.opl_owned_settings_navigation_and_overview !== 'icon_park_react_outline_16px_monochrome' ||
+    profile.gui.appearance.visual_source_cohort_ref !== 'contracts/app-gui-visual-source-cohort.json' ||
+    profile.gui.appearance.visual_reference_cohort_ref !== 'contracts/app-gui-visual-reference-cohort.json' ||
+    JSON.stringify(profile.gui.appearance.shared_visual_primitives) !==
+      JSON.stringify(['composer', 'rail_row', 'icon_button', 'menu', 'settings_row'])
+  ) {
+    throw new Error('App product profile appearance must bind the pinned DSH visual source cohort and shared primitives');
+  }
+  if (
+    iconPolicy.library !== 'pinned_deepseek_harness_icon_cohort_via_opl_icon_adapter' ||
+    iconPolicy.opl_owned_settings_navigation_and_overview !== 'dsh_icon_primitives_14_16px_currentcolor' ||
     iconPolicy.settings_icon_geometry !==
       'stable_16px_slot_1_5_to_1_75px_visual_stroke_no_colored_tile_or_letter_avatar' ||
     JSON.stringify(iconPolicy.icon_text_action_geometry) !==
