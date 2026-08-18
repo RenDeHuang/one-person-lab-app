@@ -184,13 +184,19 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   );
   if (
     policy.pairing?.account_required !== false ||
-    policy.pairing?.fallback_method !== 'paste_full_pairing_payload' ||
+    policy.pairing?.fallback_method !== 'short_manual_code_or_paste_full_pairing_payload' ||
     policy.pairing?.fallback_payload_policy !==
-      'reuse_the_same_single_use_short_lived_payload_as_the_qr_without_adding_a_second_pairing_secret' ||
-    policy.pairing?.short_manual_code !== 'deferred_not_implemented' ||
-    policy.pairing?.legacy_manual_code?.status !== 'compatibility_response_only' ||
-    policy.pairing?.legacy_manual_code?.user_fallback !== false ||
-    policy.pairing?.legacy_manual_code?.client_behavior !== 'use_claim_secret_from_full_pairing_payload' ||
+      'both_entry_methods_bind_to_the_same_single_use_short_lived_pairing_record_without_creating_a_second_pairing_state' ||
+    policy.pairing?.short_manual_code !== 'implemented_via_configured_link_service_origin_then_normal_claim' ||
+    policy.pairing?.manual_code_resolution?.configured_origin !== 'signed_ios_carrier_configuration' ||
+    policy.pairing?.manual_code_resolution?.endpoint !== '/v1/remote-companion/pairings/resolve' ||
+    policy.pairing?.manual_code_resolution?.availability !== 'reserved_pairing_before_first_claim_only' ||
+    !Array.isArray(policy.pairing?.manual_code_resolution?.response_fields) ||
+    !policy.pairing?.manual_code_resolution?.response_fields.includes('desktop_public_key') ||
+    policy.pairing?.manual_code_resolution?.response_must_not_include?.join('|') !==
+      'claim_secret|desktop_pair_token|ios_claim_token|provider_credential' ||
+    policy.pairing?.manual_code_resolution?.claim_behavior !==
+      'reuse_the_same_manual_code_with_the_resolved_pairing_id_in_the_existing_claim_protocol' ||
     !policy.pairing?.claim_protocol?.includes(
       'broker_validates_one_time_invitation_and_atomically_reserves_one_pair_seat_with_a_5_minute_ttl',
     ) ||

@@ -42,12 +42,15 @@ test('OPL Link keeps the iOS product, Tencent MVP, service owner, and optional C
   );
   assert.equal(policy.action_policy.wire_action_ids_are_internal_aliases, true);
   assert.equal(policy.transport.usage_guardrails.active_pair_seat_limit, 40);
-  assert.equal(policy.pairing.fallback_method, 'paste_full_pairing_payload');
-  assert.equal(policy.pairing.short_manual_code, 'deferred_not_implemented');
-  assert.deepEqual(policy.pairing.legacy_manual_code, {
-    status: 'compatibility_response_only',
-    user_fallback: false,
-    client_behavior: 'use_claim_secret_from_full_pairing_payload',
+  assert.equal(policy.pairing.fallback_method, 'short_manual_code_or_paste_full_pairing_payload');
+  assert.equal(policy.pairing.short_manual_code, 'implemented_via_configured_link_service_origin_then_normal_claim');
+  assert.deepEqual(policy.pairing.manual_code_resolution, {
+    configured_origin: 'signed_ios_carrier_configuration',
+    endpoint: '/v1/remote-companion/pairings/resolve',
+    availability: 'reserved_pairing_before_first_claim_only',
+    response_fields: ['pairing_id', 'broker_url', 'desktop_public_key', 'expires_at'],
+    response_must_not_include: ['claim_secret', 'desktop_pair_token', 'ios_claim_token', 'provider_credential'],
+    claim_behavior: 'reuse_the_same_manual_code_with_the_resolved_pairing_id_in_the_existing_claim_protocol',
   });
   assert.equal(
     policy.transport.authentication.active_credential_policy,
@@ -106,8 +109,9 @@ test('OPL Link validator rejects a second runtime, leaked provider authority, or
       candidate.distribution_and_access.testflight_is_capacity_or_entitlement_authority = true;
     },
     (candidate: Record<string, any>) => { candidate.pairing.qr_payload.push('provider_secret_or_api_key'); },
-    (candidate: Record<string, any>) => { candidate.pairing.fallback_method = 'short_lived_manual_pairing_code'; },
-    (candidate: Record<string, any>) => { candidate.pairing.legacy_manual_code.user_fallback = true; },
+    (candidate: Record<string, any>) => { candidate.pairing.fallback_method = 'paste_full_pairing_payload'; },
+    (candidate: Record<string, any>) => { candidate.pairing.manual_code_resolution.availability = 'all_pending_states'; },
+    (candidate: Record<string, any>) => { candidate.pairing.manual_code_resolution.response_must_not_include = ['claim_secret']; },
     (candidate: Record<string, any>) => { candidate.transport.authentication.active_credential_policy = 'mint_a_second_bearer'; },
     (candidate: Record<string, any>) => { candidate.notifications.apns_business_id.client_must_not_choose = false; },
     (candidate: Record<string, any>) => { candidate.pairing.ios_pending_pairing_persistence.material = []; },

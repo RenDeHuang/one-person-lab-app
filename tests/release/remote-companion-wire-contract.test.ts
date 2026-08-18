@@ -43,10 +43,10 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
   assert.equal(wire.service_owner, 'opl-link/service');
   assert.equal(wire.protocol_version, product.transport.protocol);
   assert.equal(product.source_refs.wire_contract, 'contracts/app-remote-companion-wire.json');
-  assert.deepEqual(wire.compatibility.legacy_response_fields.manual_code, {
-    status: 'compatibility_response_only',
-    user_fallback: false,
-    client_behavior: 'use_claim_secret_from_full_pairing_payload',
+  assert.deepEqual(wire.compatibility.manual_code, {
+    status: 'short_code_user_fallback',
+    client_behavior: 'resolve_through_the_configured_ios_link_service_origin_then_reuse_the_same_code_in_the_existing_claim_request',
+    resolution_eligibility: 'reserved_pairing_before_first_claim_only',
   });
   assert.deepEqual(wire.compatibility.legacy_transport_identifiers, {
     status: 'v1_wire_aliases_only',
@@ -65,6 +65,18 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
   assert.equal(new Set(endpoints.map((endpoint) => endpoint.id)).size, endpoints.length);
   assert.equal(new Set(endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`)).size, endpoints.length);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_create_pairing'));
+  assert.deepEqual(endpoints.find((endpoint) => endpoint.id === 'ios_resolve_manual_pairing'), {
+    id: 'ios_resolve_manual_pairing',
+    method: 'POST',
+    path: '/v1/remote-companion/pairings/resolve',
+    auth: 'manual_code_in_body',
+    idempotency_required: false,
+    request_fields: ['protocol_version', 'manual_code'],
+    response_fields: ['protocol_version', 'pairing_id', 'broker_url', 'desktop_public_key', 'expires_at'],
+    secret_request_fields: ['manual_code'],
+    allowed_pairing_state: 'reserved',
+    response_must_not_include: ['claim_secret', 'desktop_pair_token', 'ios_claim_token', 'provider_credential'],
+  });
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'ios_claim_pairing'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_confirm_pairing'));
   const invitationEndpoint = endpoints.find((endpoint) => endpoint.id === 'operator_create_invitation');
