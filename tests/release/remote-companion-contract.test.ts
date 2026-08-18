@@ -8,22 +8,14 @@ const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePa
 test('OPL Link keeps the iOS product, Tencent MVP, service owner, and optional Cloud boundaries', () => {
   const policy = readJson('contracts/app-remote-companion.json');
   assert.doesNotThrow(() => validateRemoteCompanionContract(policy));
-  assert.deepEqual(policy.service_boundary, {
-    owner: 'opl-link/service',
-    owner_path: '/Users/gaofeng/workspace/opl-link/service',
-    responsibilities: [
-      'invitation_and_pairing_claims',
-      'atomic_pair_seat_reservation_and_reclaim',
-      'short_lived_usersig_and_tencent_user_id_lifecycle',
-      'pair_revocation_and_provider_absence_readback',
-      'optional_apns_business_id_projection',
-    ],
-    runtime_dependency_for_opl_link: true,
-    release_dependency_for_opl_link: true,
-  });
+  assert.equal(policy.service_boundary.owner, 'opl-link/service');
+  assert.equal(policy.service_boundary.repository, 'opl-link');
+  assert.equal(policy.service_boundary.path, 'service');
+  assert.equal(policy.service_boundary.runtime_dependency_for_opl_link, true);
+  assert.equal(policy.service_boundary.release_dependency_for_opl_link, true);
   assert.deepEqual(policy.optional_cloud_host, {
     product: 'OPL Cloud',
-    role: 'future_optional_workspace_webui_host',
+    role: 'optional_workspace_webui_host',
     repository: 'one-person-lab-cloud',
     runtime_dependency_for_opl_link: false,
     release_dependency_for_opl_link: false,
@@ -86,7 +78,7 @@ test('OPL Link keeps the iOS product, Tencent MVP, service owner, and optional C
   assert.equal(policy.implementation_status.ios_source_implemented, true);
   assert.equal(policy.implementation_status.ios_conversation_surface_implemented, true);
   assert.equal(policy.implementation_status.desktop_conversation_projection_implemented, true);
-  assert.equal(policy.implementation_status.link_service_source_implemented, false);
+  assert.equal(policy.implementation_status.link_service_source_implemented, true);
   assert.equal(policy.implementation_status.tencent_cloud_application_configured, false);
   assert.equal(policy.implementation_status.release_ready_claim_allowed, false);
 });

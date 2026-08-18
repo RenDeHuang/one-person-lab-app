@@ -67,6 +67,18 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_create_pairing'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'ios_claim_pairing'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_confirm_pairing'));
+  const invitationEndpoint = endpoints.find((endpoint) => endpoint.id === 'operator_create_invitation');
+  assert.equal(invitationEndpoint.auth, 'operator_bearer_from_OPL_LINK_OPERATOR_TOKEN');
+  assert.ok(invitationEndpoint.request_fields.includes('protocol_version'));
+  const capacityEndpoint = endpoints.find((endpoint) => endpoint.id === 'operator_read_capacity');
+  assert.deepEqual(capacityEndpoint, {
+    id: 'operator_read_capacity',
+    method: 'GET',
+    path: '/v1/remote-companion/capacity',
+    auth: 'operator_bearer_from_OPL_LINK_OPERATOR_TOKEN',
+    idempotency_required: false,
+    response_fields: ['protocol_version', 'seat_count', 'seat_limit', 'warning_threshold', 'warning'],
+  });
   const credentialEndpoint = endpoints.find((endpoint) => endpoint.id === 'refresh_provider_credentials');
   assert.ok(credentialEndpoint);
   assert.ok(credentialEndpoint.response_fields.includes('provider_user_id'));

@@ -12,7 +12,7 @@ Linear 的任务控制面。
 
 用户看到和操作的主对象是 **对话**。对话由桌面 OPL App/Codex App Server 持有，使用
 `canonical_thread_id` 作为跨端身份。OPL Link 只读取桌面投影并提交有限的对话操作；腾讯云 IM
-只负责实时密文传输，`/Users/gaofeng/workspace/opl-link/service` 负责配对、凭据、席位、撤销和
+只负责实时密文传输，`opl-link/service` 负责配对、凭据、席位、撤销和
 可选的 APNs business ID 投影，二者都不能成为对话历史或业务状态的 owner。
 
 ## 用户闭环
@@ -99,7 +99,7 @@ Link 发布前置。
 | 对话历史、turn、模型和执行 | Codex App Server + 桌面 OPL App | 只读投影和有限 action |
 | iOS UI、Keychain、E2EE、transport adapter | `opl-link` | 实现 |
 | 桌面 connector 与 canonical bridge | `opl-aion-shell` | 提供真实读/action |
-| 邀请、席位、UserSig、Tencent UserID、revoke、APNs business ID | `/Users/gaofeng/workspace/opl-link/service` | 提供 service 状态 |
+| 邀请、席位、UserSig、Tencent UserID、revoke、APNs business ID | `opl-link/service` | 提供 service 状态 |
 | OPL Cloud | 未来可选 Workspace/WebUI host | 不参与 OPL Link 运行或发布前置 |
 | OPL Flow、OPL Ledger、Linear 任务 | 对应产品/领域 owner | 可选外部引用 |
 | 实时消息投递 | Tencent Cloud IM（未来可替换 Ably） | 只传密文 |

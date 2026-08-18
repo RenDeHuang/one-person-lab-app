@@ -6,7 +6,8 @@
   "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository service broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, OPL Link service implementation, provider runtime state, Codex runtime, conversation history, OPL Flow task state, domain state, or a cloud workspace.",
   "service_boundary": {
     "owner": "opl-link/service",
-    "owner_path": "/Users/gaofeng/workspace/opl-link/service",
+    "repository": "opl-link",
+    "path": "service",
     "responsibilities": [
       "invitation_and_pairing_claims",
       "atomic_pair_seat_reservation_and_reclaim",
@@ -19,7 +20,7 @@
   },
   "optional_cloud_host": {
     "product": "OPL Cloud",
-    "role": "future_optional_workspace_webui_host",
+    "role": "optional_workspace_webui_host",
     "repository": "one-person-lab-cloud",
     "runtime_dependency_for_opl_link": false,
     "release_dependency_for_opl_link": false,
@@ -410,7 +411,7 @@
     "ios_source_implemented": true,
     "ios_conversation_surface_implemented": true,
     "desktop_conversation_projection_implemented": true,
-    "link_service_source_implemented": false,
+    "link_service_source_implemented": true,
     "tencent_cloud_application_configured": false,
     "testflight_or_app_store_release": false,
     "china_three_network_qualification": false,

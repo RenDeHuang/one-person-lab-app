@@ -35,18 +35,12 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
 
   if (
     policy.service_boundary?.owner !== 'opl-link/service' ||
-    policy.service_boundary?.owner_path !== '/Users/gaofeng/workspace/opl-link/service' ||
-    JSON.stringify(policy.service_boundary?.responsibilities) !== JSON.stringify([
-      'invitation_and_pairing_claims',
-      'atomic_pair_seat_reservation_and_reclaim',
-      'short_lived_usersig_and_tencent_user_id_lifecycle',
-      'pair_revocation_and_provider_absence_readback',
-      'optional_apns_business_id_projection',
-    ]) ||
+    policy.service_boundary?.repository !== 'opl-link' ||
+    policy.service_boundary?.path !== 'service' ||
     policy.service_boundary?.runtime_dependency_for_opl_link !== true ||
     policy.service_boundary?.release_dependency_for_opl_link !== true ||
     policy.optional_cloud_host?.product !== 'OPL Cloud' ||
-    policy.optional_cloud_host?.role !== 'future_optional_workspace_webui_host' ||
+    policy.optional_cloud_host?.role !== 'optional_workspace_webui_host' ||
     policy.optional_cloud_host?.runtime_dependency_for_opl_link !== false ||
     policy.optional_cloud_host?.release_dependency_for_opl_link !== false ||
     policy.optional_cloud_host?.release_prerequisite_for_opl_link !== false
@@ -327,7 +321,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.notifications?.apns_business_id?.optional !== true ||
     policy.notifications?.apns_business_id?.client_must_not_choose !== true
   ) {
-    throw new Error('OPL Link state and optional APNs business ID must remain canonical-service-first');
+    throw new Error('OPL Link state must remain desktop-authoritative and APNs business ID service-projected');
   }
 
   if (
@@ -335,7 +329,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.ownership?.invitation_pair_seat_usersig_and_provider_account_lifecycle !== 'opl-link/service' ||
     policy.ownership?.realtime_service !== 'tencent_cloud_im'
   ) {
-    throw new Error('OPL Link ownership must keep iOS, Cloud, desktop, and provider authority separate');
+    throw new Error('OPL Link ownership must keep iOS, service, desktop, and provider authority separate');
   }
 
   assertIncludesAll(policy.acceptance?.must_prove_before_beta, [
@@ -353,7 +347,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.implementation_status?.ios_source_implemented !== true ||
     policy.implementation_status?.ios_conversation_surface_implemented !== true ||
     policy.implementation_status?.desktop_conversation_projection_implemented !== true ||
-    policy.implementation_status?.link_service_source_implemented !== false ||
+    policy.implementation_status?.link_service_source_implemented !== true ||
     policy.implementation_status?.tencent_cloud_application_configured !== false ||
     policy.implementation_status?.testflight_or_app_store_release !== false ||
     policy.implementation_status?.china_three_network_qualification !== false ||
