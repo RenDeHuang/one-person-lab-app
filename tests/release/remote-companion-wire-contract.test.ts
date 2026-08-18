@@ -90,6 +90,8 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_public_key'));
   assert.ok(readPairingEndpoint.device_activation_fields.includes('push_business_id'));
   assert.ok(!readPairingEndpoint.device_activation_fields.includes('device_credential'));
+  assert.equal(readPairingEndpoint.pre_active_device_activation, null);
+  assert.match(readPairingEndpoint.device_activation_policy, /pre_active_pairing_returns_null/);
   assert.match(readPairingEndpoint.active_device_credential_source, /desktop_pair_token/);
   assert.equal('device_credential' in wire.broker_http.tokens, false);
   assert.match(wire.broker_http.tokens.desktop_pair_token, /active_device_credential_after_activation/);
