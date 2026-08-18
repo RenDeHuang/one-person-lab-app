@@ -3,7 +3,7 @@ export const managedUpdateMustShow = [
   'OPL App version, carrier status, and host update route when required',
   'OPL Packages lifecycle status and Framework-owned actions',
   'OPL Base dependency_status and integration_status only as collapsed transaction detail',
-  'OPL Packages projection_status and profile_migration_status only as collapsed transaction detail',
+  'OPL Packages currentness, conditions, owner route, and status detail only as collapsed transaction detail',
   'conditions and repair actions from App state or opl update status',
   'user-facing OPL Packages maintenance entry under Local Environment',
   'manual check/apply/repair/rollback action mapping for OPL Packages',

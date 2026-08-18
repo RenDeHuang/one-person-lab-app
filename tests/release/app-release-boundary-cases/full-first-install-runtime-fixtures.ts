@@ -285,11 +285,13 @@ export function writeFrameworkRuntimeSource(frameworkRoot) {
         {
           component_id: "opl_packages",
           provider_id: "capability_packages",
-          projection_status: { status: "current" },
-          profile_migration_status: {
-            semantic_merge_required: true,
-            silent_overwrite_allowed: false,
+          current: {
+            currentness_authority: "installed_owner_descriptor_and_native_carrier",
+            projection_source: "installed_owner_descriptor",
+            installed_package_count: 1,
           },
+          conditions: [{ type: "Ready", status: "True" }],
+          owner_route: { route_kind: "clean_managed_package_executor" },
         },
       ],
     },

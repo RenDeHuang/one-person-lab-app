@@ -5961,8 +5961,10 @@
           "app_mutation_allowed": false,
           "mutation_route": "framework_package_lifecycle_only",
           "optional_internal_fields": [
-            "projection_status",
-            "profile_migration_status"
+            "current",
+            "conditions",
+            "owner_route",
+            "status_detail"
           ],
           "internal_state_ids": [
             "capability_packages",

@@ -924,7 +924,7 @@ function validateInstallUpdateTaxonomy(profile) {
     {
       opl_base: ['dependency_status', 'integration_status'],
       opl_app: ['host_update_route', 'host_executor_required'],
-      opl_packages: ['projection_status', 'profile_migration_status'],
+      opl_packages: ['current', 'conditions', 'owner_route', 'status_detail'],
     },
     'Product profile managed update internal detail fields',
   );

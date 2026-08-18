@@ -7970,7 +7970,7 @@
         ],
         "state_inputs": [
           "app_state.modules",
-          "managed_update.components[opl_packages].projection_status"
+          "managed_update.components[opl_packages].current"
         ],
         "module_collection_source": "app_state.modules.items[]",
         "module_collection_policy": "render every Framework-projected Package module without an App Package-id allowlist",

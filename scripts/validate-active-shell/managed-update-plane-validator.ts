@@ -19,7 +19,7 @@ const managedUpdateStatusSources = [
   'opl app state --profile fast --json#managed_update',
   'opl update status --json#managed_update',
 ];
-const oplPackagesProjectionStatusSource = 'managed_update.components[opl_packages].projection_status';
+const oplPackagesCurrentSource = 'managed_update.components[opl_packages].current';
 const manualActionMapping = {
   refresh: 'opl update status --json',
   check: 'opl update check --json',
@@ -68,8 +68,8 @@ export function validateEnvironmentModuleMaintenanceEntry(entry, label) {
   assertDeepEqualJson(entry?.status_sources, managedUpdateStatusSources, `${label} lifecycle status sources`);
   assertIncludesAll(
     entry?.state_inputs,
-    [oplPackagesProjectionStatusSource],
-    `${label} OPL Packages projection status source`,
+    [oplPackagesCurrentSource],
+    `${label} OPL Packages currentness source`,
   );
   if (
     entry?.module_collection_source !== 'app_state.modules.items[]' ||

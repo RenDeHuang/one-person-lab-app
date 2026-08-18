@@ -233,22 +233,45 @@ export function assertManagedUpdateProbe(payload: unknown): Record<string, unkno
     "managed_update.components[opl_app].owner_route.route_kind",
   );
   const packages = componentMap.get("opl_packages")!;
-  objectValue(
-    packages.projection_status,
-    "managed_update.components[opl_packages].projection_status",
-  );
-  const profileMigration = objectValue(
-    packages.profile_migration_status,
-    "managed_update.components[opl_packages].profile_migration_status",
+  const packageCurrent = objectValue(
+    packages.current,
+    "managed_update.components[opl_packages].current",
   );
   if (
-    profileMigration.semantic_merge_required !== true ||
-    profileMigration.silent_overwrite_allowed !== false
+    packageCurrent.currentness_authority !==
+      "installed_owner_descriptor_and_native_carrier" ||
+    packageCurrent.projection_source !== "installed_owner_descriptor"
   ) {
     throw new Error(
-      "Full runtime managed update probe returned unsafe OPL Packages profile migration policy.",
+      "Full runtime managed update probe returned an unexpected OPL Packages currentness authority.",
     );
   }
+  if (
+    typeof packageCurrent.installed_package_count !== "number" ||
+    !Number.isInteger(packageCurrent.installed_package_count) ||
+    packageCurrent.installed_package_count < 0
+  ) {
+    throw new Error(
+      "Full runtime managed update probe returned an invalid OPL Packages installed package count.",
+    );
+  }
+  const packageConditions = arrayValue(
+    packages.conditions,
+    "managed_update.components[opl_packages].conditions",
+  );
+  if (packageConditions.length === 0) {
+    throw new Error(
+      "Full runtime managed update probe returned no OPL Packages readiness conditions.",
+    );
+  }
+  const packageOwnerRoute = objectValue(
+    packages.owner_route,
+    "managed_update.components[opl_packages].owner_route",
+  );
+  stringValue(
+    packageOwnerRoute.route_kind,
+    "managed_update.components[opl_packages].owner_route.route_kind",
+  );
   if (componentMap.size !== components.length) {
     throw new Error("Full runtime managed update probe contains duplicate component_id values.");
   }

@@ -2132,7 +2132,7 @@ function validateSoftwareLifecycle(lifecycle) {
   }
   assertDeepEqualJson(objects.opl_base.optional_internal_fields, ['dependency_status', 'integration_status'], 'OPL Base internal fields');
   assertDeepEqualJson(objects.opl_app.required_fields, ['host_update_route', 'host_executor_required'], 'OPL App route fields');
-  assertDeepEqualJson(objects.opl_packages.optional_internal_fields, ['projection_status', 'profile_migration_status'], 'OPL Packages internal fields');
+  assertDeepEqualJson(objects.opl_packages.optional_internal_fields, ['current', 'conditions', 'owner_route', 'status_detail'], 'OPL Packages internal fields');
   if (
     objects.opl_base.dependency_catalog_source !== 'opl update plan --json#managed_update.components.opl_base' ||
     objects.opl_base.app_dependency_catalog_allowed !== false ||
