@@ -284,7 +284,7 @@ jobs:
         run: |
           set -euo pipefail
           third_party="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-full-third-party-source-manifest.json"
-          for output in officecli mineru ui_ux_pro_max; do
+          for output in officecli mineru; do
             ref="$(jq -er --arg id "$output" '.sources[$id].ref' "$third_party")"
             [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Third-party $output ref is missing or invalid."; exit 1; }
             echo "${output}_ref=$ref" >> "$GITHUB_OUTPUT"
@@ -360,13 +360,6 @@ jobs:
           ref: ${{ steps.full-build-inputs.outputs.mineru_ref }}
           path: MinerU-Ecosystem
 
-      - name: Checkout UI UX Pro Max skill
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: nextlevelbuilder/ui-ux-pro-max-skill
-          ref: ${{ steps.full-build-inputs.outputs.ui_ux_pro_max_ref }}
-          path: ui-ux-pro-max-skill
-
       - name: Validate Full source roots
         shell: bash
         run: |
@@ -384,7 +377,6 @@ jobs:
             opl-flow/.codex-plugin/plugin.json
             OfficeCLI/README.md
             MinerU-Ecosystem/README.md
-            ui-ux-pro-max-skill/README.md
           )
           for required_path in "${required_paths[@]}"; do
             if [ ! -f "$GITHUB_WORKSPACE/$required_path" ]; then
@@ -395,7 +387,7 @@ jobs:
           for repo in \
             med-autoscience mas-scholar-skills med-autogrant redcube-ai \
             opl-meta-agent opl-bookforge opl-flow OfficeCLI \
-            MinerU-Ecosystem ui-ux-pro-max-skill; do
+            MinerU-Ecosystem; do
             commit="$(git -C "$GITHUB_WORKSPACE/$repo" rev-parse HEAD)"
             [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$repo resolved an invalid commit."; exit 1; }
           done
@@ -418,7 +410,6 @@ jobs:
           echo "OPL_FULL_OPL_FLOW_REF=$(git -C opl-flow rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "OPL_FULL_OFFICECLI_REF=$(git -C OfficeCLI rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "OPL_FULL_MINERU_REF=$(git -C MinerU-Ecosystem rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_UI_UX_PRO_MAX_REF=$(git -C ui-ux-pro-max-skill rev-parse HEAD)" >> "$GITHUB_ENV"
           echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
           echo "mas_scholar_skills_ref=$mas_scholar_skills_ref" >> "$GITHUB_OUTPUT"
 
@@ -751,7 +742,6 @@ jobs:
           export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
-          export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
           npm --silent run release:full -- \
             --version "$OPL_RELEASE_VERSION" \
             --gui-root "$GITHUB_WORKSPACE/one-person-lab-app/shells/aionui" \
@@ -963,7 +953,6 @@ jobs:
           export OPL_FULL_MINERU_ROOT="$GITHUB_WORKSPACE/MinerU-Ecosystem"
           export OPL_FULL_MINERU_OPEN_API_BIN="$(command -v mineru-open-api)"
           export OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT="$GITHUB_WORKSPACE/one-person-lab-app/assets/companion-skills/mineru-document-extractor"
-          export OPL_FULL_UI_UX_PRO_MAX_ROOT="$GITHUB_WORKSPACE/ui-ux-pro-max-skill"
           FULL_BUILD_CMD=(
             npm run release:full --
             --version "$OPL_RELEASE_VERSION"

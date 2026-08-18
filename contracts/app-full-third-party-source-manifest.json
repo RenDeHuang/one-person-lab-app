@@ -26,10 +26,6 @@
       "repository": "opendatalab/MinerU-Ecosystem",
       "ref": "5733c03b3d53cb01c0361bb6acecda3f554c8c12"
     },
-    "ui_ux_pro_max": {
-      "repository": "nextlevelbuilder/ui-ux-pro-max-skill",
-      "ref": "f8ac5e1266dba8354ea96e19994d9f4345e7ec31"
-    },
     "kimi_cu": {
       "product": "KimiCU",
       "version": "0.5.4",

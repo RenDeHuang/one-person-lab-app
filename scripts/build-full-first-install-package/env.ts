@@ -88,7 +88,6 @@ function defaultWorkspaceRoots() {
       'OPL_FULL_MINERU_DOCUMENT_EXTRACTOR_ROOT',
       path.join(appRepoRoot, 'assets', 'companion-skills', 'mineru-document-extractor'),
     ),
-    uiUxProMaxRoot: envValue('OPL_FULL_UI_UX_PRO_MAX_ROOT', path.join(workspaceRoot, 'ui-ux-pro-max-skill')),
   };
 }
 
@@ -134,7 +133,6 @@ function defaultRuntimeRefs() {
     oplFlowRef: defaultMainRef('OPL_FULL_OPL_FLOW_REF'),
     officeCliRef: envValue('OPL_FULL_OFFICECLI_REF', 'latest-stable'),
     mineruRef: defaultMainRef('OPL_FULL_MINERU_REF'),
-    uiUxProMaxRef: defaultMainRef('OPL_FULL_UI_UX_PRO_MAX_REF'),
   };
 }
 
@@ -188,7 +186,6 @@ const valueOptionSetters = {
   'mineru-document-extractor-root': (parsed, value) => {
     parsed.mineruDocumentExtractorRoot = path.resolve(value);
   },
-  'ui-ux-pro-max-root': (parsed, value) => { parsed.uiUxProMaxRoot = path.resolve(value); },
   'runtime-cache-dir': (parsed, value) => { parsed.runtimeCacheDir = path.resolve(value); },
   'runtime-cache-mode': (parsed, value) => { parsed.runtimeCacheMode = value; },
 };

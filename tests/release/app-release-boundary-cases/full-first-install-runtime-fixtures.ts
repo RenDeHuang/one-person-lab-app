@@ -16,10 +16,7 @@ import {
 } from "./helpers.ts";
 import { pathToFileURL } from "node:url";
 import { listFullRuntimeProductionNodeModulePaths } from "../../../scripts/full-first-install-package.ts";
-import {
-  copyOfficeCliUpstreamSkill,
-  copyUiUxProMaxSkill,
-} from "../../../scripts/build-full-first-install-package/skills.ts";
+import { copyOfficeCliUpstreamSkill } from "../../../scripts/build-full-first-install-package/skills.ts";
 
 export {
   assert,
@@ -39,7 +36,6 @@ export {
   pathToFileURL,
   listFullRuntimeProductionNodeModulePaths,
   copyOfficeCliUpstreamSkill,
-  copyUiUxProMaxSkill,
 };
 
 
@@ -461,8 +457,7 @@ export function createFullRuntimeFixture() {
   const officeCliRoot = path.join(tempRoot, "OfficeCLI");
   const mineruRoot = path.join(tempRoot, "MinerU-Ecosystem");
   const mineruDocumentExtractorRoot = path.join(tempRoot, "mineru-document-extractor");
-  const uiUxProMaxRoot = path.join(tempRoot, "ui-ux-pro-max-skill");
-  for (const root of [officeCliRoot, mineruRoot, mineruDocumentExtractorRoot, uiUxProMaxRoot]) {
+  for (const root of [officeCliRoot, mineruRoot, mineruDocumentExtractorRoot]) {
     fs.mkdirSync(root, { recursive: true });
   }
 
@@ -524,8 +519,6 @@ export function createFullRuntimeFixture() {
     mineruRoot,
     mineruRef: "mineru-fixture-ref",
     mineruDocumentExtractorRoot,
-    uiUxProMaxRoot,
-    uiUxProMaxRef: "ui-fixture-ref",
     includeBunRuntime: false,
     runtimeCacheDir: path.join(tempRoot, "cache"),
     runtimeCacheMode: "off",

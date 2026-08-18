@@ -381,4 +381,5 @@ test('Full source manifest supplies resolution hints without selecting capabilit
   assert.equal(manifest.authority_boundary.source_versions_are_default_selection_hints, true);
   assert.equal(manifest.authority_boundary.credential_values_may_be_bundled, false);
   assert.equal(manifest.authority_boundary.unknown_user_or_third_party_mcp_may_be_removed, false);
+  assert.equal('ui_ux_pro_max' in manifest.sources, false);
 });

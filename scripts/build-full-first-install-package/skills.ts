@@ -283,16 +283,6 @@ export function copyOfficeCliUpstreamSkill(skillId, targetRoot, options) {
   return source;
 }
 
-export function copyUiUxProMaxSkill(targetRoot, options) {
-  const target = path.join(targetRoot, 'ui-ux-pro-max');
-  const packagedSkillRoot = path.join(options.uiUxProMaxRoot, '.claude', 'skills', 'ui-ux-pro-max');
-  if (fs.existsSync(path.join(packagedSkillRoot, 'SKILL.md'))) {
-    copySkillDirectory(packagedSkillRoot, target, 'ui-ux-pro-max');
-    return options.uiUxProMaxRoot;
-  }
-  throw new Error('Required Full companion skill source not found: ui-ux-pro-max');
-}
-
 export const packagedSkillCopyHandlers = {
   'med-autoscience': (targetRoot, options) => copyFirstSkillSource('med-autoscience', targetRoot, masSkillCandidates(options)),
   'med-autogrant': (targetRoot, options) => copyFirstSkillSource('med-autogrant', targetRoot, magSkillCandidates(options)),
@@ -307,7 +297,6 @@ export const packagedSkillCopyHandlers = {
   'officecli-data-dashboard': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-data-dashboard', targetRoot, options),
   'officecli-financial-model': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-financial-model', targetRoot, options),
   'officecli-pitch-deck': (targetRoot, options) => copyOfficeCliUpstreamSkill('officecli-pitch-deck', targetRoot, options),
-  'ui-ux-pro-max': (targetRoot, options) => copyUiUxProMaxSkill(targetRoot, options),
   'mineru-document-extractor': (targetRoot, options) => copyFirstSkillSource(
     'mineru-document-extractor',
     targetRoot,

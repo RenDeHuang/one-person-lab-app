@@ -43,6 +43,10 @@ test('Full first-install args parse boolean and value options through one explic
   assert.equal(options.masScholarSkillsRef, 'scholar-ref-test');
   assert.equal(options.runtimeCacheMode, 'readonly');
   assert.equal(parseFullFirstInstallArgs(['--app-only']).appOnly, true);
+  assert.throws(
+    () => parseFullFirstInstallArgs(['--ui-ux-pro-max-root', '../ui-ux-pro-max-skill']),
+    /Unknown argument: --ui-ux-pro-max-root/,
+  );
 });
 
 test('Full first-install args consume the MAS Scholar Skills root and ref environment defaults', () => {

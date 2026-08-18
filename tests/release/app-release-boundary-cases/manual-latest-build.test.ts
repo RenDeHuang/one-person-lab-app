@@ -1072,11 +1072,10 @@ test('manual latest commands and operator guide remain discoverable', () => {
   );
 });
 
-test('manual latest build resolves UI UX Pro Max only from its owner checkout', () => {
+test('manual latest build does not require the retired UI UX Pro Max companion source', () => {
   const source = fs.readFileSync(
     path.join(appRoot, 'scripts', 'manual-latest-build.ts'),
     'utf8',
   );
-  assert.match(source, /path\.join\(workspaceRoot, 'ui-ux-pro-max-skill'\)/);
-  assert.doesNotMatch(source, new RegExp(['ai', 'skills', 'library'].join('-')));
+  assert.doesNotMatch(source, /ui-ux-pro-max|uiUxProMax|ui_ux_pro_max/);
 });

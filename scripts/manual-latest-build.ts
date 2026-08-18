@@ -635,7 +635,6 @@ function parseOptions(argv: string[]) {
       'updater-version': { type: 'string' },
       'workspace-root': { type: 'string' },
       'shell-root': { type: 'string' },
-      'ui-ux-pro-max-root': { type: 'string' },
       'cache-root': { type: 'string' },
       'out-dir': { type: 'string' },
       'install-path': { type: 'string' },
@@ -694,9 +693,6 @@ function parseOptions(argv: string[]) {
     updaterVersion,
     workspaceRoot,
     shellRoot: values['shell-root'] ? path.resolve(values['shell-root']) : null,
-    uiUxProMaxRoot: values['ui-ux-pro-max-root']
-      ? path.resolve(values['ui-ux-pro-max-root'])
-      : null,
     cacheRoot,
     outDir,
     installPath: path.resolve(values['install-path'] || '/Applications/One Person Lab.app'),
@@ -730,16 +726,6 @@ Options:
 Guide: docs/delivery/release/manual-latest-builds.md`);
 }
 
-function resolveUiUxRoot(workspaceRoot: string, explicit: string | null) {
-  const candidates = [
-    explicit,
-    path.join(workspaceRoot, 'ui-ux-pro-max-skill'),
-  ].filter((candidate): candidate is string => Boolean(candidate));
-  const found = candidates.find((candidate) => fs.statSync(candidate, { throwIfNoEntry: false })?.isDirectory());
-  if (!found) throw new Error(`UI UX Pro Max source is missing; checked: ${candidates.join(', ')}`);
-  return found;
-}
-
 function repoSnapshots(options: ReturnType<typeof parseOptions> & { help: false }) {
   const shellRoot = fs.realpathSync(
     options.shellRoot || resolveActiveShellPaths().shellRoot,
@@ -752,20 +738,12 @@ function repoSnapshots(options: ReturnType<typeof parseOptions> & { help: false 
     packageId,
     snapshotDevelopmentRepo(packageId, path.join(options.workspaceRoot, repoName)),
   ])) as Record<string, RepoSnapshot>;
-  const uiUxRoot = resolveUiUxRoot(options.workspaceRoot, options.uiUxProMaxRoot);
-  const uiUxRepoRoot = commandResult('git', ['-C', uiUxRoot, 'rev-parse', '--show-toplevel'], {
-    capture: true,
-    timeoutMs: 30_000,
-  }).stdout?.trim();
-  if (!uiUxRepoRoot) throw new Error(`Cannot resolve UI UX Pro Max repository: ${uiUxRoot}`);
   return {
     app: snapshotDevelopmentRepo('app', appRoot),
     shell: snapshotDevelopmentRepo('shell', shellRoot),
     framework,
     owners,
-    ui_ux_pro_max: snapshotDevelopmentRepo('ui-ux-pro-max', uiUxRepoRoot),
     shellRoot,
-    uiUxRoot,
   };
 }
 
@@ -789,7 +767,6 @@ function developmentRepoSnapshots(snapshots: ReturnType<typeof repoSnapshots>) {
     snapshots.shell,
     snapshots.framework,
     ...Object.values(snapshots.owners),
-    snapshots.ui_ux_pro_max,
   ];
 }
 
@@ -818,7 +795,6 @@ function runBuild(
     '--officecli-root', upstreams.officecli.source_root,
     '--officecli-bin', upstreams.officecli.binary,
     '--mineru-open-api-bin', upstreams.mineru_open_api.binary,
-    '--ui-ux-pro-max-root', snapshots.uiUxRoot,
     '--temporal-cli-bin', upstreams.temporal.binary,
     '--temporal-cli-archive', upstreams.temporal.archive,
   ];
@@ -909,7 +885,6 @@ function main() {
         shell: snapshots.shell,
         framework: snapshots.framework,
         ...snapshots.owners,
-        ui_ux_pro_max: snapshots.ui_ux_pro_max,
       },
       runtime_dependencies: buildManualRuntimeDependencyLock(aioncoreBinding),
       upstreams,

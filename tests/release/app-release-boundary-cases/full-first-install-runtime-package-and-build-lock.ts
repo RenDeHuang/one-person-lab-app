@@ -8,7 +8,6 @@ import {
   writeExecutable,
   listFullRuntimeProductionNodeModulePaths,
   copyOfficeCliUpstreamSkill,
-  copyUiUxProMaxSkill,
   flowCapabilityBuildLockFixture,
   writeVersionExecutable,
 } from "./full-first-install-runtime-fixtures.ts";
@@ -32,25 +31,11 @@ test("Full runtime keeps only macOS arm64 platform packages from optional produc
   ]);
 });
 
-test("Full companion skill packaging preserves resource closure and normalizes known upstream frontmatter", () => {
+test("Full companion skill packaging normalizes known OfficeCLI upstream frontmatter", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-companion-skills-"));
   const targetRoot = path.join(tempRoot, "packaged");
-  const uiUxProMaxRoot = path.join(tempRoot, "ui-ux-pro-max-skill");
-  const uiSkillRoot = path.join(uiUxProMaxRoot, ".claude", "skills", "ui-ux-pro-max");
   const officeCliRoot = path.join(tempRoot, "OfficeCLI");
   try {
-    writeFile(
-      path.join(uiSkillRoot, "SKILL.md"),
-      "---\nname: ui-ux-pro-max\ndescription: Fixture skill.\n---\n\nRead `references/pro-rules.md` and `references/quick-reference.md`.\n",
-    );
-    writeFile(path.join(uiSkillRoot, "references", "pro-rules.md"), "# Pro rules\n");
-    writeFile(path.join(uiSkillRoot, "references", "quick-reference.md"), "# Quick reference\n");
-    writeFile(path.join(uiSkillRoot, "scripts", "search.py"), "# fixture\n");
-    copyUiUxProMaxSkill(targetRoot, { uiUxProMaxRoot });
-    assert.equal(fs.existsSync(path.join(targetRoot, "ui-ux-pro-max", "references", "pro-rules.md")), true);
-    assert.equal(fs.existsSync(path.join(targetRoot, "ui-ux-pro-max", "references", "quick-reference.md")), true);
-    assert.equal(fs.existsSync(path.join(targetRoot, "ui-ux-pro-max", "scripts", "search.py")), true);
-
     writeFile(
       path.join(officeCliRoot, "skills", "officecli-data-dashboard", "SKILL.md"),
       "---\nname: officecli-data-dashboard\ndescription: Use for a weekly report with ≤ 1 chart and < 10 rows (use xlsx).\n---\n\n# Dashboard\n",
