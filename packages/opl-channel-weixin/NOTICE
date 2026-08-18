@@ -1,0 +1,15 @@
+OPL Channel Weixin
+Copyright 2026 One Person Lab
+
+This product contains an independent TypeScript adaptation of Weixin iLink Bot
+protocol semantics studied from AionCore, licensed under Apache License 2.0:
+
+  Source: https://github.com/iOfficeAI/AionCore
+  Tag: v0.1.57
+  Commit: 4452a3a72ebb612f3ddd4402aeb5542187a6fbdf
+  Tree: a20f8a6276966c681a8e3333949915bb1cddb2b3
+
+The adapted scope is limited to iLink QR/login, long-poll getupdates, and
+sendmessage protocol behavior. AionCore database/repository code,
+ConversationService, ACP/session ownership, Axum/auth/local-mode, and workspace
+inference are not copied or included.
