@@ -691,7 +691,6 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       OPL_FIRST_RUN_RUNNER_LABELS: '["self-hosted","macOS","ARM64","opl-cert-mac-tart"]'
       OPL_FIRST_RUN_TART_SOURCE: ${{ vars.OPL_FIRST_RUN_TART_SOURCE }}
-      OPL_FIRST_RUN_HOMEBREW_TART_SOURCE: ${{ vars.OPL_FIRST_RUN_HOMEBREW_TART_SOURCE }}
       OPL_FIRST_RUN_GUEST_USER: ${{ vars.OPL_FIRST_RUN_GUEST_USER }}
       OPL_FIRST_RUN_GUEST_SSH_KEY: ${{ vars.OPL_FIRST_RUN_GUEST_SSH_KEY }}
 
@@ -730,14 +729,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PROFILE="${{ needs.validate-vm-inputs.outputs.package_profile }}"
           SOURCE_VM="${{ inputs.tart_source_vm }}"
           if [ -z "$SOURCE_VM" ]; then
-            if [[ "$PROFILE" == homebrew-* ]]; then
-              SOURCE_VM="${OPL_FIRST_RUN_HOMEBREW_TART_SOURCE:-}"
-            else
-              SOURCE_VM="${OPL_FIRST_RUN_TART_SOURCE:-}"
-            fi
+            SOURCE_VM="${OPL_FIRST_RUN_TART_SOURCE:-}"
           fi
           if [ -z "$SOURCE_VM" ]; then
             {
@@ -745,17 +739,11 @@ jobs:
               echo
               echo "- Status: failed"
               echo "- Reason: no Tart source VM configured."
-              if [ "$PROFILE" = "homebrew-standard" ]; then
-                echo "- Configure repository variable \`OPL_FIRST_RUN_HOMEBREW_TART_SOURCE\` with a Homebrew-ready clean VM, or pass workflow input \`tart_source_vm\`."
-              else
-                echo "- Configure repository variable \`OPL_FIRST_RUN_TART_SOURCE\` or pass workflow input \`tart_source_vm\`."
-              fi
+              echo "- Configure repository variable \`OPL_FIRST_RUN_TART_SOURCE\` or pass workflow input \`tart_source_vm\`."
             } >> "$GITHUB_STEP_SUMMARY"
             if [ '${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}' = post_publication_optional_certification ]; then
               echo "source_vm=" >> "$GITHUB_OUTPUT"
               exit 0
-            elif [ "$PROFILE" = "homebrew-standard" ]; then
-              echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_HOMEBREW_TART_SOURCE for package_profile=homebrew-standard."
             else
               echo "::error::Set workflow input tart_source_vm or repository variable OPL_FIRST_RUN_TART_SOURCE."
             fi

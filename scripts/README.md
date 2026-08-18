@@ -156,7 +156,7 @@ npm run release:owner-candidate-record:verify -- --version <version> --owner-rec
 npm run release:full:size -- --markdown
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/opl-full-release/One-Person-Lab-Full-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile full --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
-npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-homebrew-ready-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
+npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --install-mode homebrew-cask --homebrew-cask gaofeng21cn/one-person-lab/one-person-lab --smoke-profile homebrew-standard-cask --display 1920x1080px --settings-smoke --assistant-route-smoke --runtime-profile standard --codex-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex.tgz --codex-platform-package-tarball artifacts/opl-first-run-vm/codex-package-tarballs/openai-codex-darwin-arm64.tgz --codex-npm-cache-dir artifacts/opl-first-run-vm/codex-npm-cache
 npm run test:opl-first-run-vm:tart -- --dry-run --source-vm opl-first-run-no-clt-clean-base --dmg dist/standard-release/One-Person-Lab-<version>-mac-arm64.dmg --smoke-profile no-clt-clean-vm --display 1920x1080px --runtime-profile standard
 OPL_INSTALL_SCRIPT_URL=file:///path/to/one-person-lab/install.sh ./install.sh --with-app --skip-packages
 docker build -t one-person-lab-webui:<version> shells/aionui
@@ -328,7 +328,8 @@ It supports `package_profile=standard`, `package_profile=full`, and
 `One-Person-Lab-*-mac-arm64.dmg` excluding Full assets and runs
 `--runtime-profile standard`; the Full profile resolves
 `One-Person-Lab-Full-*-mac-arm64.dmg` and runs `--runtime-profile full`. The
-Homebrew profile starts from a clean Homebrew-ready Tart base, runs
+Homebrew profile starts from the shared clean no-CLT Tart base, installs
+Command Line Tools and Homebrew inside the transient clone when missing, then runs
 `brew install --cask gaofeng21cn/one-person-lab/one-person-lab`, then opens
 `/Applications/One Person Lab.app` through the same packaged-app smoke. The
 fully qualified cask ref is the trust-scoped CI/user install path; do not
@@ -434,10 +435,9 @@ an exact 40-character `framework_ref`; the existing VM workflow checks out that
 commit and injects its local source archive into the guest.
 Scheduled GitHub Actions runs must have repository variable
 `OPL_FIRST_RUN_TART_SOURCE` set to a local Tart source VM on the self-hosted
-runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG
-profiles. The Homebrew profile must use `OPL_FIRST_RUN_HOMEBREW_TART_SOURCE`
-or an explicit `tart_source_vm` pointing at a clean VM that already has
-Homebrew installed; otherwise the gate fails before App installation.
+runner; this runner uses `opl-first-run-no-clt-clean-base-26-5-18` for DMG and
+Homebrew profiles. Homebrew is installed only in the transient clone, so the
+runner does not require or maintain a second Homebrew-ready source VM.
 The VM workflow keeps scheduled runs in a shared cancel-in-progress group, while
 release-called and manual runs include the caller run id and package profile in
 their concurrency key. Do not collapse standard, Homebrew, and Full VM gates

@@ -876,7 +876,7 @@
       "post_publication_optional_certification": true,
       "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
-        "source": "clean Homebrew-ready Tart base clone",
+        "source": "single clean no-CLT Tart base clone with transient Homebrew bootstrap",
         "display": "1920x1080px",
         "smoke_profile": "homebrew-standard-cask",
         "install_mode": "homebrew-cask",
@@ -889,7 +889,7 @@
           "gaofeng21cn/one-person-lab/one-person-lab-nightly"
         ],
         "homebrew_trust_scope": "explicit_standard_and_conflicting_cask_refs_not_whole_tap",
-        "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
+        "source_vm_variable": "OPL_FIRST_RUN_TART_SOURCE",
         "settings_smoke": true,
         "diagnostic_scope": "post_publication_optional_certification",
         "runtime_profile": "standard"

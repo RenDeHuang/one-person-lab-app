@@ -4963,13 +4963,13 @@
     "tart_base_prebake": {
       "status": "contracted_not_claimed_current",
       "standard_source_vm_variable": "OPL_FIRST_RUN_TART_SOURCE",
-      "homebrew_source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE",
+      "homebrew_source_vm_variable": "OPL_FIRST_RUN_TART_SOURCE",
       "allowed_prebaked_layers": [
         "macos_gui_session_ready",
-        "homebrew_for_homebrew_profile",
         "node_runtime_prerequisites",
         "codex_install_asset_cache_seed"
       ],
+      "homebrew_profile_bootstrap": "install_clt_and_homebrew_inside_transient_clone_when_missing",
       "forbidden_prebaked_layers": [
         "One Person Lab.app",
         "release_dmg",
@@ -5259,7 +5259,7 @@
       },
       {
         "id": "homebrew_standard_cask_clean_vm_smoke",
-        "source": "clean Homebrew-ready Tart base clone",
+        "source": "single clean no-CLT Tart base clone with transient Homebrew bootstrap",
         "artifact": "gaofeng21cn/one-person-lab/one-person-lab Homebrew cask",
         "smoke_profile": "homebrew-standard-cask",
         "install_mode": "homebrew-cask",
@@ -5283,8 +5283,8 @@
           "home_agent_shortcuts_visible_and_launch_blocked_with_repair_hint"
         ],
         "gate_policy": "optional_non_blocking_same_published_artifact",
-        "precondition": "VM image already has Homebrew installed",
-        "source_vm_variable": "OPL_FIRST_RUN_HOMEBREW_TART_SOURCE"
+        "precondition": "transient clone can install Command Line Tools and Homebrew with passwordless sudo",
+        "source_vm_variable": "OPL_FIRST_RUN_TART_SOURCE"
       },
       {
         "id": "full_dmg_clean_vm_smoke",

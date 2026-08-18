@@ -222,9 +222,9 @@ function validateReleaseHomebrewVmGate(releaseChannel) {
     homebrewVmGate?.install_mode !== 'homebrew-cask' ||
     homebrewVmGate?.homebrew_cask_install_ref !== 'gaofeng21cn/one-person-lab/one-person-lab' ||
     homebrewVmGate?.homebrew_trust_scope !== 'explicit_standard_and_conflicting_cask_refs_not_whole_tap' ||
-    homebrewVmGate?.source_vm_variable !== 'OPL_FIRST_RUN_HOMEBREW_TART_SOURCE'
+    homebrewVmGate?.source_vm_variable !== 'OPL_FIRST_RUN_TART_SOURCE'
   ) {
-    throw new Error('Release channel Homebrew VM smoke must use explicit cask trust refs and the dedicated Homebrew-ready Tart source variable');
+    throw new Error('Release channel Homebrew VM smoke must use explicit cask trust refs and the shared clean Tart source variable');
   }
   assertDeepEqualJson(
     homebrewVmGate?.homebrew_trusted_cask_refs,
