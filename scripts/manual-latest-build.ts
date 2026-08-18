@@ -57,6 +57,42 @@ const MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS = [
   'claude',
 ];
 
+type ShellBuildProjectionSnapshot = Array<{
+  path: string;
+  existed: boolean;
+  contents: Buffer | null;
+  mode: number | null;
+}>;
+
+export function captureShellBuildProjection(shellRoot: string): ShellBuildProjectionSnapshot {
+  const shellPaths = resolveActiveShellPaths({ shellRoot });
+  const paths = [
+    shellPaths.productProfileTargetPath,
+    path.join(shellRoot, 'resources', 'official-profile-package-apply.ts'),
+  ];
+  return paths.map((filePath) => {
+    const stat = fs.statSync(filePath, { throwIfNoEntry: false });
+    return {
+      path: filePath,
+      existed: Boolean(stat?.isFile()),
+      contents: stat?.isFile() ? fs.readFileSync(filePath) : null,
+      mode: stat?.isFile() ? stat.mode : null,
+    };
+  });
+}
+
+export function restoreShellBuildProjection(snapshot: ShellBuildProjectionSnapshot): void {
+  for (const file of snapshot) {
+    if (!file.existed) {
+      fs.rmSync(file.path, { force: true });
+      continue;
+    }
+    fs.mkdirSync(path.dirname(file.path), { recursive: true });
+    fs.writeFileSync(file.path, file.contents);
+    if (file.mode !== null) fs.chmodSync(file.path, file.mode);
+  }
+}
+
 function requiredString(value: unknown, label: string) {
   if (typeof value !== 'string' || !value.trim()) {
     throw new Error(`AionCore managed Codex binding is missing ${label}`);
@@ -918,12 +954,17 @@ function main() {
     }
 
     const buildOptions = { ...options, outDir: buildOutDir };
-    runBuild(
-      buildOptions,
-      snapshots,
-      upstreams,
-      stampedLocalAppIdentity,
-    );
+    const shellBuildProjection = captureShellBuildProjection(snapshots.shellRoot);
+    try {
+      runBuild(
+        buildOptions,
+        snapshots,
+        upstreams,
+        stampedLocalAppIdentity,
+      );
+    } finally {
+      restoreShellBuildProjection(shellBuildProjection);
+    }
     assertAioncoreManagedCodexBindingUnchanged(
       aioncoreBinding,
       resolveAioncoreManagedCodexBinding(snapshots.shellRoot),
