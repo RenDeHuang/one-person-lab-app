@@ -37,7 +37,10 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     ].join('\n'),
     guidInputCard: [
       'const DESKTOP_TEXTAREA_AUTO_SIZE = { minRows: 1, maxRows: 12 };',
-      '${styles.guidInputInner} opl-codex-composer',
+      "import { getOplVisualPrimitiveProps } from '@/renderer/components/opl/OplVisualProvider';",
+      'getOplVisualPrimitiveProps(',
+      "'composer',",
+      '${styles.guidInputInner} ${isInputActive',
       "isInputActive ? 'opl-codex-composer--focused' : ''",
       "fileDraggingActive ? 'opl-codex-composer--dragging' : ''",
       "data-composer-palette-boundary='true'",
@@ -178,7 +181,10 @@ test('active-shell source gate requires Home starters and Capabilities routing i
     }),
   );
   for (const marker of [
-    '${styles.guidInputInner} opl-codex-composer',
+    "from '@/renderer/components/opl/OplVisualProvider'",
+    'getOplVisualPrimitiveProps(',
+    "'composer',",
+    '${styles.guidInputInner} ${isInputActive',
     "isInputActive ? 'opl-codex-composer--focused' : ''",
     "fileDraggingActive ? 'opl-codex-composer--dragging' : ''",
     "data-composer-palette-boundary='true'",
