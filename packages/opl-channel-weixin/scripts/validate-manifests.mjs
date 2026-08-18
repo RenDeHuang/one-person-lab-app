@@ -71,7 +71,7 @@ assert.deepEqual(oplPackage.codex_surface.configured_codex_plugin_carrier, {
   plugin_selector: 'opl-channel-weixin@one-person-lab-app',
   executor_route: 'codex_cli',
   marketplace_source: 'gaofeng21cn/one-person-lab-app',
-  publication_ref: 'ghcr.io/gaofeng21cn/one-person-lab-packages/opl-channel-weixin:latest-stable',
+  publication_ref: null,
 });
 assert.equal(oplPackage.codex_surface.optional_install_policy, 'all_exported_skills');
 assert.deepEqual(oplPackage.codex_surface.required_skill_ids, []);

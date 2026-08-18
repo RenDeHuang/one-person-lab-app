@@ -88,10 +88,10 @@ codex plugin marketplace add gaofeng21cn/one-person-lab-app --json
 codex plugin add opl-channel-weixin@one-person-lab-app --json
 ```
 
-The stable OPL Package publication ref is
-`ghcr.io/gaofeng21cn/one-person-lab-packages/opl-channel-weixin:latest-stable`.
-Git source, OCI publication, installed Plugin bytes, active Host attachment,
-and live Weixin login are separate evidence surfaces.
+This App-owned Package has no separate GHCR publication. The Git-backed
+marketplace source and the configured Codex native carrier are the installation
+authority. Installed Plugin bytes, active Host attachment, and live Weixin login
+remain separate evidence surfaces.
 
 ## Verification status
 
