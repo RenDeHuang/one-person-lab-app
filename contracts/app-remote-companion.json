@@ -3,7 +3,28 @@
   "owner": "one-person-lab-app",
   "purpose": "app_owned_opl_link_product_and_cross_surface_transport_contract",
   "state": "approved_conversation_first_product_baseline_source_aligned_external_configuration_pending",
-  "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, cloud broker implementation, provider runtime state, Codex runtime, conversation history, OPL Flow task state, domain state, or a cloud workspace.",
+  "contract_boundary": "This contract defines the OPL Link product, cross-surface behavior, security boundary, and provider selection. The exact cross-repository service broker and encrypted transport shape is owned by contracts/app-remote-companion-wire.json. It does not own iOS implementation, desktop connector implementation, OPL Link service implementation, provider runtime state, Codex runtime, conversation history, OPL Flow task state, domain state, or a cloud workspace.",
+  "service_boundary": {
+    "owner": "opl-link/service",
+    "owner_path": "/Users/gaofeng/workspace/opl-link/service",
+    "responsibilities": [
+      "invitation_and_pairing_claims",
+      "atomic_pair_seat_reservation_and_reclaim",
+      "short_lived_usersig_and_tencent_user_id_lifecycle",
+      "pair_revocation_and_provider_absence_readback",
+      "optional_apns_business_id_projection"
+    ],
+    "runtime_dependency_for_opl_link": true,
+    "release_dependency_for_opl_link": true
+  },
+  "optional_cloud_host": {
+    "product": "OPL Cloud",
+    "role": "future_optional_workspace_webui_host",
+    "repository": "one-person-lab-cloud",
+    "runtime_dependency_for_opl_link": false,
+    "release_dependency_for_opl_link": false,
+    "release_prerequisite_for_opl_link": false
+  },
   "product_identity": {
     "app_store_name": "OPL Link",
     "home_screen_name": "OPL Link",
@@ -11,6 +32,7 @@
     "subtitle_en": "Your AI conversations, anywhere",
     "subtitle_zh_cn": "随时继续桌面 AI 对话",
     "internal_surface_id": "remote_companion",
+    "client_kind": "independent_ios_client",
     "product_role": "remote_companion_channel_not_a_runtime_or_third_workbench",
     "full_workbench_surfaces": [
       "desktop_app",
@@ -94,7 +116,7 @@
     "provider_secret_embedded_in_client": false,
     "authentication": {
       "mode": "pair_specific_user_id_with_short_lived_usersig",
-      "credential_issuer": "opl_cloud_remote_companion_broker",
+      "credential_issuer": "opl-link/service",
       "provider_identity": "one_pair_specific_desktop_user_id_and_one_pair_specific_ios_user_id",
       "identity_creation": "only_after_invitation_validation_atomic_seat_reservation_and_desktop_pair_confirmation",
       "active_credential_policy": "existing_desktop_pair_token_or_ios_claim_token_becomes_active_device_credential_after_pair_activation_without_minting_a_second_bearer",
@@ -241,7 +263,7 @@
       ]
     },
     "capacity_lifecycle": {
-      "owner": "one-person-lab-cloud",
+      "owner": "opl-link/service",
       "pair_seat_definition": "one_pair_specific_desktop_user_id_plus_one_pair_specific_ios_user_id",
       "reservation_ttl_minutes": 5,
       "allocated_states": [
@@ -356,13 +378,19 @@
     "push_is_optional": true,
     "push_payload": "generic_pair_scoped_conversation_update_signal_without_conversation_text_or_secrets",
     "background_behavior": "reconnect_and_resync_on_next_foreground; do_not_keep_a_permanent_background_socket",
-    "notification_permission_denied": "foreground_use_remains_available_and_settings_explain_optional_notifications"
+    "notification_permission_denied": "foreground_use_remains_available_and_settings_explain_optional_notifications",
+    "apns_business_id": {
+      "owner": "opl-link/service",
+      "wire_field": "push_business_id",
+      "optional": true,
+      "client_must_not_choose": true
+    }
   },
   "ownership": {
     "app_contract_product_identity_and_cross_surface_behavior": "one-person-lab-app",
     "ios_native_carrier_client_state_and_transport_adapter": "opl-link",
     "desktop_connector_and_canonical_action_consumer": "opl-aion-shell_or_admitted_successor_shell",
-    "invitation_pair_seat_usersig_and_provider_account_lifecycle": "one-person-lab-cloud",
+    "invitation_pair_seat_usersig_and_provider_account_lifecycle": "opl-link/service",
     "realtime_service": "tencent_cloud_im",
     "conversation_history_and_execution": "codex_core_app_server_and_desktop_runtime",
     "cloud_service_must_not_become": [
@@ -382,7 +410,7 @@
     "ios_source_implemented": true,
     "ios_conversation_surface_implemented": true,
     "desktop_conversation_projection_implemented": true,
-    "cloud_broker_source_implemented": true,
+    "link_service_source_implemented": false,
     "tencent_cloud_application_configured": false,
     "testflight_or_app_store_release": false,
     "china_three_network_qualification": false,

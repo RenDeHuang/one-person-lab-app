@@ -36,10 +36,11 @@ const decryptVector = (vector: Record<string, any>, associatedData: string) => {
   return Buffer.concat([decipher.update(ciphertextAndTag.subarray(0, -16)), decipher.final()]).toString('utf8');
 };
 
-test('OPL Link wire contract has one versioned broker and encrypted transport shape', () => {
+test('OPL Link wire contract has one versioned service broker and encrypted transport shape', () => {
   const product = readJson('contracts/app-remote-companion.json');
   const wire = readJson('contracts/app-remote-companion-wire.json');
   assert.equal(wire.schema, 'opl_app_remote_companion_wire.v1');
+  assert.equal(wire.service_owner, 'opl-link/service');
   assert.equal(wire.protocol_version, product.transport.protocol);
   assert.equal(product.source_refs.wire_contract, 'contracts/app-remote-companion-wire.json');
   assert.deepEqual(wire.compatibility.legacy_response_fields.manual_code, {
@@ -70,10 +71,12 @@ test('OPL Link wire contract has one versioned broker and encrypted transport sh
   assert.ok(credentialEndpoint);
   assert.ok(credentialEndpoint.response_fields.includes('provider_user_id'));
   assert.ok(credentialEndpoint.response_fields.includes('peer_provider_user_id'));
+  assert.ok(credentialEndpoint.response_fields.includes('push_business_id'));
   const readPairingEndpoint = endpoints.find((endpoint) => endpoint.id === 'read_pairing');
   assert.ok(readPairingEndpoint);
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_device_id'));
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_public_key'));
+  assert.ok(readPairingEndpoint.device_activation_fields.includes('push_business_id'));
   assert.ok(!readPairingEndpoint.device_activation_fields.includes('device_credential'));
   assert.match(readPairingEndpoint.active_device_credential_source, /desktop_pair_token/);
   assert.equal('device_credential' in wire.broker_http.tokens, false);

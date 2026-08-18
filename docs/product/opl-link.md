@@ -6,13 +6,14 @@ State: `approved_product_baseline_source_aligned_external_configuration_pending`
 
 ## 结论
 
-OPL Link 是 OPL App 的原生 iOS 连接器。它让用户离开电脑后继续使用桌面端的 Codex 对话，
+OPL Link 是 OPL App 的独立原生 iOS 客户端。它让用户离开电脑后继续使用桌面端的 Codex 对话，
 不是移动版 OPL App、第二个 Codex runtime、第二个历史库，也不是 OPL Flow、OPL Ledger 或
 Linear 的任务控制面。
 
 用户看到和操作的主对象是 **对话**。对话由桌面 OPL App/Codex App Server 持有，使用
 `canonical_thread_id` 作为跨端身份。OPL Link 只读取桌面投影并提交有限的对话操作；腾讯云 IM
-和 Cloud broker 只负责加密传输、配对、凭据与席位，不能成为对话历史或业务状态的 owner。
+只负责实时密文传输，`/Users/gaofeng/workspace/opl-link/service` 负责配对、凭据、席位、撤销和
+可选的 APNs business ID 投影，二者都不能成为对话历史或业务状态的 owner。
 
 ## 用户闭环
 
@@ -68,7 +69,8 @@ OPL Link 只在桌面投影允许时显示引用。
 当前 iOS 产品模型和双页签 UI 已统一为 conversation/thread 语义，支持对话列表、本地过滤、新建、
 详情、发送、停止、审批、刷新和撤销。`canonical_task.*`、`task.snapshot`、`task.list_snapshot` 与
 payload `task`/`tasks` 只作为 `opl_remote_transport.v1` adapter 兼容值保留，不形成任务控制面。
-这只证明 canonical source；真实 Tencent、推送、TestFlight、三网和发布仍需对应 owner readback。
+这只证明 canonical source；真实 OPL Link service、Tencent、推送、TestFlight、三网和发布仍需对应
+owner readback。
 
 ## 连接与隐私边界
 
@@ -76,12 +78,18 @@ payload `task`/`tasks` 只作为 `opl_remote_transport.v1` adapter 兼容值保�
 或局域网配置。腾讯云 IM 体验版是当前 MVP provider；Ably 只是未来替换候选，不能双写、
 自动 fallback 或使用 provider history 作为业务真相。
 
-对话正文、workspace 路径、审批正文和密钥在桌面与 iPhone 之间端到端加密。Cloud 和 provider
-只能看到不透明路由标识、密文和必要的生命周期状态。推送仅发送“有更新”的通用信号。
+对话正文、workspace 路径、审批正文和密钥在桌面与 iPhone 之间端到端加密。OPL Link service
+和 provider 只能看到不透明路由标识、密文和必要的生命周期状态。推送仅发送“有更新”的通用信号，
+APNs business ID 由 service 投影，客户端不得自行选择。
 
-配对需要一次性邀请和 QR/完整 payload，成功配对才消耗 Cloud active pair seat。TestFlight
-只是 Beta 分发载体，不是容量或准入 authority。撤销配对必须由 Cloud owner 完成 provider
+配对需要一次性邀请和 QR/完整 payload，成功配对才消耗 service active pair seat。TestFlight
+只是 Beta 分发载体，不是容量或准入 authority。撤销配对必须由 service owner 完成 provider
 账号删除与 absence readback 后才释放席位。
+
+OPL Link 的运行与发布依赖是 `opl-link/service`、`opl-aion-shell` 的 desktop connector、
+Tencent transport 和 Apple carrier 的各自 owner 证据。OPL Cloud 只保留未来可选的 Workspace/WebUI
+host 角色，不是 OPL Link 的运行或发布依赖；Cloud Candidate、TKE 和完整 Cloud 发布物也不再是
+Link 发布前置。
 
 ## Authority
 
@@ -91,11 +99,13 @@ payload `task`/`tasks` 只作为 `opl_remote_transport.v1` adapter 兼容值保�
 | 对话历史、turn、模型和执行 | Codex App Server + 桌面 OPL App | 只读投影和有限 action |
 | iOS UI、Keychain、E2EE、transport adapter | `opl-link` | 实现 |
 | 桌面 connector 与 canonical bridge | `opl-aion-shell` | 提供真实读/action |
-| 邀请、席位、UserSig、Tencent UserID、revoke | `one-person-lab-cloud` | 提供 broker 状态 |
+| 邀请、席位、UserSig、Tencent UserID、revoke、APNs business ID | `/Users/gaofeng/workspace/opl-link/service` | 提供 service 状态 |
+| OPL Cloud | 未来可选 Workspace/WebUI host | 不参与 OPL Link 运行或发布前置 |
 | OPL Flow、OPL Ledger、Linear 任务 | 对应产品/领域 owner | 可选外部引用 |
 | 实时消息投递 | Tencent Cloud IM（未来可替换 Ably） | 只传密文 |
 
 机器边界见 [`contracts/app-remote-companion.json`](../../contracts/app-remote-companion.json) 和
 [`contracts/app-remote-companion-wire.json`](../../contracts/app-remote-companion-wire.json)。
-实现、真实 Tencent 配置、安装后配对、三网、TestFlight 和 App Store 状态必须分别由对应 owner
-的 source、runtime 或 carrier readback 证明。
+实现、真实 OPL Link service/Tencent 配置、安装后配对、三网、TestFlight 和 App Store 状态必须分别
+由对应 owner 的 source、runtime 或 carrier readback 证明。当前 App 合同只记录 service owner，
+不把 service source 或外部发布状态写成已完成。

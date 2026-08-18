@@ -33,6 +33,27 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     throw new Error('OPL Link contract identity or implementation state is invalid');
   }
 
+  if (
+    policy.service_boundary?.owner !== 'opl-link/service' ||
+    policy.service_boundary?.owner_path !== '/Users/gaofeng/workspace/opl-link/service' ||
+    JSON.stringify(policy.service_boundary?.responsibilities) !== JSON.stringify([
+      'invitation_and_pairing_claims',
+      'atomic_pair_seat_reservation_and_reclaim',
+      'short_lived_usersig_and_tencent_user_id_lifecycle',
+      'pair_revocation_and_provider_absence_readback',
+      'optional_apns_business_id_projection',
+    ]) ||
+    policy.service_boundary?.runtime_dependency_for_opl_link !== true ||
+    policy.service_boundary?.release_dependency_for_opl_link !== true ||
+    policy.optional_cloud_host?.product !== 'OPL Cloud' ||
+    policy.optional_cloud_host?.role !== 'future_optional_workspace_webui_host' ||
+    policy.optional_cloud_host?.runtime_dependency_for_opl_link !== false ||
+    policy.optional_cloud_host?.release_dependency_for_opl_link !== false ||
+    policy.optional_cloud_host?.release_prerequisite_for_opl_link !== false
+  ) {
+    throw new Error('OPL Link service must own pairing lifecycle while OPL Cloud remains an optional host only');
+  }
+
   const identity = policy.product_identity;
   assertDeepEqualJson(
     {
@@ -40,6 +61,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       home_screen_name: identity?.home_screen_name,
       in_app_brand_name: identity?.in_app_brand_name,
       internal_surface_id: identity?.internal_surface_id,
+      client_kind: identity?.client_kind,
       product_role: identity?.product_role,
       local_ios_runtime: identity?.local_ios_runtime,
       local_ios_conversation_history_authority: identity?.local_ios_conversation_history_authority,
@@ -51,6 +73,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       home_screen_name: 'OPL Link',
       in_app_brand_name: 'One Person Lab',
       internal_surface_id: 'remote_companion',
+      client_kind: 'independent_ios_client',
       product_role: 'remote_companion_channel_not_a_runtime_or_third_workbench',
       local_ios_runtime: false,
       local_ios_conversation_history_authority: false,
@@ -83,7 +106,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
   const authentication = transport.authentication;
   if (
     authentication?.mode !== 'pair_specific_user_id_with_short_lived_usersig' ||
-    authentication.credential_issuer !== 'opl_cloud_remote_companion_broker' ||
+    authentication.credential_issuer !== 'opl-link/service' ||
     authentication.active_credential_policy !==
       'existing_desktop_pair_token_or_ios_claim_token_becomes_active_device_credential_after_pair_activation_without_minting_a_second_bearer' ||
     authentication.usersig_ttl_minutes > 60 ||
@@ -91,7 +114,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     authentication.tencent_sdkapp_secret_in_client !== false ||
     authentication.credential_reuse_across_pairs !== false
   ) {
-    throw new Error('OPL Link authentication must use pair-specific identities and short-lived broker-issued UserSig');
+    throw new Error('OPL Link authentication must use pair-specific identities and short-lived service-issued UserSig');
   }
 
   const messagePolicy = transport.message_policy;
@@ -185,7 +208,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     ) ||
     !policy.pairing?.broker_persistence?.allowed?.includes('provider_user_id_bindings') ||
     policy.pairing?.broker_persistence?.allowed?.includes('plaintext_qr_claim_secret') ||
-    policy.pairing?.capacity_lifecycle?.owner !== 'one-person-lab-cloud' ||
+    policy.pairing?.capacity_lifecycle?.owner !== 'opl-link/service' ||
     policy.pairing?.capacity_lifecycle?.reservation_ttl_minutes > 5 ||
     !policy.pairing?.capacity_lifecycle?.allocated_states?.includes('awaiting_desktop_confirmation') ||
     policy.pairing?.capacity_lifecycle?.seat_release_condition !==
@@ -298,14 +321,18 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.state_sync?.canonical_state_owner !== 'codex_core_app_server_and_desktop_opl_app_projection' ||
     policy.state_sync?.history_policy !== 'do_not_use_provider_history_as_canonical_conversation_truth' ||
     policy.notifications?.background_behavior !==
-      'reconnect_and_resync_on_next_foreground; do_not_keep_a_permanent_background_socket'
+      'reconnect_and_resync_on_next_foreground; do_not_keep_a_permanent_background_socket' ||
+    policy.notifications?.apns_business_id?.owner !== 'opl-link/service' ||
+    policy.notifications?.apns_business_id?.wire_field !== 'push_business_id' ||
+    policy.notifications?.apns_business_id?.optional !== true ||
+    policy.notifications?.apns_business_id?.client_must_not_choose !== true
   ) {
-    throw new Error('OPL Link state and background behavior must remain canonical-desktop-first');
+    throw new Error('OPL Link state and optional APNs business ID must remain canonical-service-first');
   }
 
   if (
     policy.ownership?.ios_native_carrier_client_state_and_transport_adapter !== 'opl-link' ||
-    policy.ownership?.invitation_pair_seat_usersig_and_provider_account_lifecycle !== 'one-person-lab-cloud' ||
+    policy.ownership?.invitation_pair_seat_usersig_and_provider_account_lifecycle !== 'opl-link/service' ||
     policy.ownership?.realtime_service !== 'tencent_cloud_im'
   ) {
     throw new Error('OPL Link ownership must keep iOS, Cloud, desktop, and provider authority separate');
@@ -326,7 +353,7 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.implementation_status?.ios_source_implemented !== true ||
     policy.implementation_status?.ios_conversation_surface_implemented !== true ||
     policy.implementation_status?.desktop_conversation_projection_implemented !== true ||
-    policy.implementation_status?.cloud_broker_source_implemented !== true ||
+    policy.implementation_status?.link_service_source_implemented !== false ||
     policy.implementation_status?.tencent_cloud_application_configured !== false ||
     policy.implementation_status?.testflight_or_app_store_release !== false ||
     policy.implementation_status?.china_three_network_qualification !== false ||

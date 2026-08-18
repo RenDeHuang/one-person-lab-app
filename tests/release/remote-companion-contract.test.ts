@@ -5,12 +5,35 @@ import { validateRemoteCompanionContract } from '../../scripts/validate-active-s
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as Record<string, any>;
 
-test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority boundaries', () => {
+test('OPL Link keeps the iOS product, Tencent MVP, service owner, and optional Cloud boundaries', () => {
   const policy = readJson('contracts/app-remote-companion.json');
   assert.doesNotThrow(() => validateRemoteCompanionContract(policy));
+  assert.deepEqual(policy.service_boundary, {
+    owner: 'opl-link/service',
+    owner_path: '/Users/gaofeng/workspace/opl-link/service',
+    responsibilities: [
+      'invitation_and_pairing_claims',
+      'atomic_pair_seat_reservation_and_reclaim',
+      'short_lived_usersig_and_tencent_user_id_lifecycle',
+      'pair_revocation_and_provider_absence_readback',
+      'optional_apns_business_id_projection',
+    ],
+    runtime_dependency_for_opl_link: true,
+    release_dependency_for_opl_link: true,
+  });
+  assert.deepEqual(policy.optional_cloud_host, {
+    product: 'OPL Cloud',
+    role: 'future_optional_workspace_webui_host',
+    repository: 'one-person-lab-cloud',
+    runtime_dependency_for_opl_link: false,
+    release_dependency_for_opl_link: false,
+    release_prerequisite_for_opl_link: false,
+  });
   assert.equal(policy.product_identity.app_store_name, 'OPL Link');
   assert.equal(policy.product_identity.home_screen_name, 'OPL Link');
+  assert.equal(policy.product_identity.client_kind, 'independent_ios_client');
   assert.equal(policy.transport.provider_strategy.active_provider, 'tencent_cloud_im');
+  assert.equal(policy.transport.authentication.credential_issuer, 'opl-link/service');
   assert.equal(policy.transport.provider_strategy.runtime_dual_write, false);
   assert.equal(policy.transport.public_desktop_address_required, false);
   assert.equal(policy.transport.payload_confidentiality.provider_plaintext_conversation_content, false);
@@ -51,13 +74,19 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
   assert.ok(policy.pairing.capacity_lifecycle.allocated_states.includes('awaiting_desktop_confirmation'));
   assert.equal(policy.pairing.device_lifecycle.mvp_max_active_companion_pairs_per_desktop_installation, 1);
   assert.equal(policy.distribution_and_access.testflight_is_capacity_or_entitlement_authority, false);
+  assert.deepEqual(policy.notifications.apns_business_id, {
+    owner: 'opl-link/service',
+    wire_field: 'push_business_id',
+    optional: true,
+    client_must_not_choose: true,
+  });
   assert.equal(policy.product_identity.local_ios_runtime, false);
   assert.equal(policy.implementation_status.protocol_source_implemented, true);
   assert.equal(policy.implementation_status.desktop_connector_source_implemented, true);
   assert.equal(policy.implementation_status.ios_source_implemented, true);
   assert.equal(policy.implementation_status.ios_conversation_surface_implemented, true);
   assert.equal(policy.implementation_status.desktop_conversation_projection_implemented, true);
-  assert.equal(policy.implementation_status.cloud_broker_source_implemented, true);
+  assert.equal(policy.implementation_status.link_service_source_implemented, false);
   assert.equal(policy.implementation_status.tencent_cloud_application_configured, false);
   assert.equal(policy.implementation_status.release_ready_claim_allowed, false);
 });
@@ -65,6 +94,10 @@ test('OPL Link keeps the iOS product, Tencent MVP, capacity, and authority bound
 test('OPL Link validator rejects a second runtime, leaked provider authority, or unsafe seat reclaim', () => {
   const policy = readJson('contracts/app-remote-companion.json');
   const mutations = [
+    (candidate: Record<string, any>) => { candidate.service_boundary.owner = 'one-person-lab-cloud'; },
+    (candidate: Record<string, any>) => { candidate.service_boundary.runtime_dependency_for_opl_link = false; },
+    (candidate: Record<string, any>) => { candidate.optional_cloud_host.release_dependency_for_opl_link = true; },
+    (candidate: Record<string, any>) => { candidate.transport.authentication.credential_issuer = 'one-person-lab-cloud'; },
     (candidate: Record<string, any>) => { candidate.product_identity.local_ios_runtime = true; },
     (candidate: Record<string, any>) => { candidate.transport.provider_strategy.runtime_dual_write = true; },
     (candidate: Record<string, any>) => { candidate.transport.provider_strategy.automatic_provider_fallback = true; },
@@ -84,6 +117,7 @@ test('OPL Link validator rejects a second runtime, leaked provider authority, or
     (candidate: Record<string, any>) => { candidate.pairing.fallback_method = 'short_lived_manual_pairing_code'; },
     (candidate: Record<string, any>) => { candidate.pairing.legacy_manual_code.user_fallback = true; },
     (candidate: Record<string, any>) => { candidate.transport.authentication.active_credential_policy = 'mint_a_second_bearer'; },
+    (candidate: Record<string, any>) => { candidate.notifications.apns_business_id.client_must_not_choose = false; },
     (candidate: Record<string, any>) => { candidate.pairing.ios_pending_pairing_persistence.material = []; },
     (candidate: Record<string, any>) => { candidate.pairing.ios_pending_pairing_persistence.clear_on = ['activation']; },
     (candidate: Record<string, any>) => {

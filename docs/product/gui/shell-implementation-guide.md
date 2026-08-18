@@ -109,9 +109,10 @@ runtime 或 renderer dependency；仅在单独 reuse decision 后把必要技术
 
 - Shell 只实现一个 `RemoteTransport` adapter：将 owner-projected conversation reads/events 与 allowlisted App
   actions 映射到加密 envelope，不复制 Codex App Server 或维护私有 thread truth。
-- Pairing UI 只显示邀请、容量、一次性 QR、相同确认码、provisioning、设备和撤销。席位与腾讯
-  UserID 生命周期归 Cloud；Shell 不在本地分配或释放。QR、UserSig、device credential、pair key、
-  对话正文与 workspace path 不得写日志。
+- Pairing UI 只显示邀请、容量、一次性 QR、相同确认码、provisioning、设备和撤销。席位、腾讯
+  UserID、UserSig、revoke 与可选 APNs business ID 由 `/Users/gaofeng/workspace/opl-link/service`
+  持有；Shell 不在本地分配或释放。QR、UserSig、device credential、pair key、对话正文与 workspace
+  path 不得写日志。
 - Transport unavailable 只降级 Companion；桌面工作台保持可用，也不自动改走 LAN WebUI。
 - `request_id` 去重、key epoch/sequence、回前台 canonical refresh 和 high-impact approval desktop-only
   是实现门槛，不是 renderer 自选策略。

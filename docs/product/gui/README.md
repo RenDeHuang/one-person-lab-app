@@ -177,10 +177,11 @@ AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。�
 手机远程访问采用原生 iOS 产品 **OPL Link**，App Store 与主屏名称相同，应用内母品牌为
 **One Person Lab**；`remote_companion` 只作为内部 surface ID。它通过
 `opl_remote_transport.v1` 的单一 provider adapter 投影桌面 canonical conversation：MVP 选择腾讯云 IM
-体验版，Ably 只保留替换边界，不双写或自动 fallback。Cloud 只拥有邀请、40 active pair seats、
-短时 UserSig、pair provisioning 和 revoke/reclaim；用户不需要公网 IP、端口转发、VPN、Tailscale
-或局域网配置。iOS 不运行 OPL/Codex runtime、不保存第二份对话历史，也不拥有模型、权限、Package
-或 cloud workspace authority。
+体验版，Ably 只保留替换边界，不双写或自动 fallback。`/Users/gaofeng/workspace/opl-link/service`
+拥有邀请、40 active pair seats、短时 UserSig、pair provisioning、revoke/reclaim 和可选 APNs
+business ID 投影；用户不需要公网 IP、端口转发、VPN、Tailscale 或局域网配置。OPL Cloud 只保留
+未来可选 Workspace/WebUI host 角色，不是 OPL Link 的运行或发布依赖。iOS 不运行 OPL/Codex
+runtime、不保存第二份对话历史，也不拥有模型、权限、Package 或 cloud workspace authority。
 
 桌面 WebUI 仍是完整工作台 carrier，但不是 iOS 产品或自动 fallback；旧 LAN QR 登录、
 `http://host:port` / `ws://host:port` 不能被提升为公网远程路径。桌面 Shell 持有配对设置与 canonical

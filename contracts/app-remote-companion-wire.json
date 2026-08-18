@@ -3,7 +3,8 @@
   "owner": "one-person-lab-app",
   "state": "approved_mvp_wire_contract",
   "protocol_version": "opl_remote_transport.v1",
-  "contract_boundary": "This contract owns the cross-repository broker HTTP and encrypted transport wire shape. It does not make Cloud a conversation store or task control plane, prescribe provider SDK types, or prove a deployed Tencent application.",
+  "contract_boundary": "This contract owns the cross-repository OPL Link service broker HTTP and encrypted transport wire shape. It does not make OPL Cloud a conversation store, task control plane, runtime dependency, or release prerequisite; it also does not prescribe provider SDK types or prove a deployed Tencent application.",
+  "service_owner": "opl-link/service",
   "compatibility": {
     "version_field_required": true,
     "supported_versions": [
@@ -53,7 +54,7 @@
         "id": "operator_create_invitation",
         "method": "POST",
         "path": "/v1/remote-companion/invitations",
-        "auth": "existing_opl_cloud_operator_session",
+        "auth": "existing_opl_link_service_operator_session",
         "idempotency_required": true,
         "request_fields": [
           "label",
@@ -144,6 +145,7 @@
           "peer_provider_user_id",
           "peer_public_key",
           "sdk_app_id",
+          "push_business_id",
           "usersig",
           "usersig_expires_at"
         ],
@@ -180,6 +182,7 @@
           "protocol_version",
           "provider",
           "sdk_app_id",
+          "push_business_id",
           "provider_user_id",
           "peer_provider_user_id",
           "usersig",
