@@ -255,6 +255,16 @@ test('the remote Canary starts all three reusable workflows with one synthetic c
   assert.equal(canary.jobs['append-full'].with.source_run_id, '424242');
   assert.equal(canary.jobs['resume-standard'].with.source_artifact, 'opl-release-canary-checkpoint-424242');
   assert.equal(canary.jobs['append-full'].with.source_artifact, 'opl-release-canary-checkpoint-424242');
+  const frameworkCheckpointSteps = canary.jobs['framework-checkpoint-roundtrip'].steps;
+  const workspaceBuildIndex = frameworkCheckpointSteps.findIndex(
+    (step: Record<string, any>) => step.name === 'Build Framework runtime workspaces',
+  );
+  const checkpointTestIndex = frameworkCheckpointSteps.findIndex(
+    (step: Record<string, any>) => step.name === 'Prove checkpoint roundtrip, no rebuild, and expired deadline rejection',
+  );
+  assert.ok(workspaceBuildIndex >= 0);
+  assert.equal(frameworkCheckpointSteps[workspaceBuildIndex].run, 'npm run build:packages');
+  assert.ok(workspaceBuildIndex < checkpointTestIndex);
   for (const [jobId, job] of Object.entries(canary.jobs) as Array<[string, Record<string, any>]>) {
     const permissions = job.permissions ?? canary.permissions;
     assert.equal(permissions.contents, 'read');

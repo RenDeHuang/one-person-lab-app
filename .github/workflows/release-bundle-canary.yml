@@ -42,6 +42,10 @@ jobs:
         working-directory: framework
         run: npm ci --ignore-scripts --no-audit --no-fund
 
+      - name: Build Framework runtime workspaces
+        working-directory: framework
+        run: npm run build:packages
+
       - name: Prove checkpoint roundtrip, no rebuild, and expired deadline rejection
         working-directory: framework
         run: |
