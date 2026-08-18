@@ -606,7 +606,7 @@ export function validateChannelThreadBindingBoundary(
     'unknown_binding_policy',
   ];
   const expectedImplementationStatus = shellIdentity === 'aionui'
-    ? 'framework_projection_consumer_and_exact_canonical_thread_id_read_compatibility_source_e2e_completed'
+    ? 'framework_projection_consumer_without_cached_conversation_binding_source_e2e_completed'
     : shellIdentity === 'opl-studio'
       ? 'framework_projection_consumer_and_exact_binding_source_e2e_completed'
       : null;

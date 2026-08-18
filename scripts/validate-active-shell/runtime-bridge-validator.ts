@@ -1434,9 +1434,9 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       },
       current_missing_surface_policy:
         'treat_as_unavailable_without_blocking_the_current_mainline_or_enabling_shell_inference_or_writeback',
-      existing_exact_canonical_thread_id_read_compatibility:
-        'may_read_an_existing_local_canonical_thread_id_only_when_the_exact_canonical_directory_identity_still_exists_and_no_current_framework_binding_conflicts_never_infer_or_write_a_new_binding',
-      binding_unavailable_policy: 'preserve_the_transport_row_fail_open_without_duplicate_canonical_row_or_fabricated_binding',
+      cached_canonical_thread_id_binding_inference_allowed: false,
+      binding_unavailable_policy:
+        'preserve_the_transport_row_fail_open_without_fabricated_binding_even_if_the_canonical_directory_also_contains_the_cached_thread_id',
       typed_client_event: 'opl/app-transport-bindings/updated',
     },
     'Canonical conversation transport binding projection',

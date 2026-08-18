@@ -163,11 +163,11 @@ test('Framework transport binding projection and both GUI consumers are source E
 
   assert.equal(
     gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.runtime_status,
-    'current_provider_contribution_source_e2e_proven',
+    'source_and_host_path_proven_install_and_live_qr_e2e_require_post_migration_readback',
   );
   assert.equal(
     gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.migration_state,
-    'framework_channel_provider_host_source_e2e_completed',
+    'app_owned_provider_package_source_migrated_live_qr_e2e_deferred',
   );
   assert.ok(profile.client_renderer_compatibility.standard_view_types.includes('channel_access'));
   assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');
@@ -185,14 +185,14 @@ test('Framework transport binding projection and both GUI consumers are source E
       runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection,
     false,
   );
-  assert.match(
+  assert.equal(
     runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
-      .existing_exact_canonical_thread_id_read_compatibility,
-    /never_infer_or_write_a_new_binding/,
+      .cached_canonical_thread_id_binding_inference_allowed,
+    false,
   );
   assert.equal(
     activeAdapter.channel_thread_binding_boundary.implementation_status,
-    'framework_projection_consumer_and_exact_canonical_thread_id_read_compatibility_source_e2e_completed',
+    'framework_projection_consumer_without_cached_conversation_binding_source_e2e_completed',
   );
   assert.ok(studio?.required_capabilities.includes('channel_access_standard_view'));
   assert.ok(studio?.required_capabilities.includes('framework_transport_bindings_projection'));

@@ -259,11 +259,9 @@ test('transport providers project a projectless canonical task binding without S
   assert.equal(projection.target_shell_writeback_allowed, false);
   assert.equal('temporary_legacy_fallback' in projection, false);
   assert.equal('legacy_shell_read_compatibility' in projection, false);
-  assert.match(
-    projection.existing_exact_canonical_thread_id_read_compatibility,
-    /may_read_an_existing_local_canonical_thread_id_only_when_the_exact_canonical_directory_identity_still_exists/,
-  );
-  assert.match(projection.binding_unavailable_policy, /preserve_the_transport_row_fail_open/);
+  assert.equal('existing_exact_canonical_thread_id_read_compatibility' in projection, false);
+  assert.equal(projection.cached_canonical_thread_id_binding_inference_allowed, false);
+  assert.match(projection.binding_unavailable_policy, /preserve_the_transport_row_fail_open_without_fabricated_binding/);
   assert.match(
     pageChannelAccess.provider_absent_policy,
     /transport_row_visible_fail_open_without_shell_inference_or_writeback/,

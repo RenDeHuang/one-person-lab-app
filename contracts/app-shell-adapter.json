@@ -262,7 +262,7 @@
     "binding_key_normalization_or_inference_allowed": false,
     "shell_thread_id_inference_allowed": false,
     "second_session_truth_allowed": false,
-    "implementation_status": "framework_projection_consumer_and_exact_canonical_thread_id_read_compatibility_source_e2e_completed"
+    "implementation_status": "framework_projection_consumer_without_cached_conversation_binding_source_e2e_completed"
   },
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
