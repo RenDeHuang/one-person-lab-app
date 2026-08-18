@@ -37,10 +37,10 @@ export type UpstreamInputs = {
   mineru_open_api: {
     tag: string;
     version: string;
-    published_at: string;
-    archive: string;
-    archive_sha256: string;
+    tag_commit: string;
+    source_url: string;
     binary: string;
+    binary_sha256: string;
     binary_version: string;
   };
 };
@@ -163,49 +163,84 @@ function prepareOfficeCli(cacheRoot: string) {
   };
 }
 
-export function selectLatestMineruCliRelease(releases: JsonRecord[]) {
-  const candidates = releases.filter((release) => (
-    typeof release.tag_name === 'string'
-    && /^cli\/v\d+\.\d+\.\d+$/.test(release.tag_name)
-    && release.draft !== true
-    && release.prerelease !== true
+const MINERU_TAG_PREFIX = 'refs/tags/cli/mineru-open-api/v';
+const MINERU_CDN_ROOT = 'https://cdn-mineru.openxlab.org.cn/open-api-cli';
+
+export function selectLatestMineruCliTag(refs: JsonRecord[]) {
+  const candidates = refs.filter((entry) => (
+    typeof entry.ref === 'string'
+    && /^refs\/tags\/cli\/mineru-open-api\/v\d+\.\d+\.\d+$/.test(entry.ref)
+    && entry.object?.type === 'commit'
+    && typeof entry.object.sha === 'string'
+    && /^[0-9a-f]{40}$/.test(entry.object.sha)
   ));
   candidates.sort((left, right) => compareStableVersions(
-    String(right.tag_name).slice('cli/v'.length),
-    String(left.tag_name).slice('cli/v'.length),
+    String(right.ref).slice(MINERU_TAG_PREFIX.length),
+    String(left.ref).slice(MINERU_TAG_PREFIX.length),
   ));
   const latest = candidates[0];
-  if (!latest) throw new Error('MinerU-Ecosystem has no stable CLI release');
-  return latest;
+  if (!latest) throw new Error('MinerU-Ecosystem has no stable MinerU OpenAPI CLI tag');
+  const version = String(latest.ref).slice(MINERU_TAG_PREFIX.length);
+  return {
+    tag: `cli/mineru-open-api/v${version}`,
+    version,
+    tag_commit: String(latest.object.sha),
+  };
+}
+
+export function mineruOpenApiBinaryUrl(version: string) {
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new Error(`MinerU OpenAPI has an invalid stable version: ${version}`);
+  }
+  return `${MINERU_CDN_ROOT}/v${version}/mineru-open-api-cli-darwin-arm64`;
+}
+
+function downloadMineruBinary(sourceUrl: string, targetPath: string) {
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  const temporary = `${targetPath}.partial-${process.pid}`;
+  fs.rmSync(temporary, { force: true });
+  try {
+    commandResult('curl', [
+      '--fail', '--show-error', '--location',
+      '--connect-timeout', '10', '--max-time', '300',
+      '--retry', '3', '--retry-all-errors',
+      '--output', temporary,
+      sourceUrl,
+    ], { timeoutMs: 315_000 });
+    const stat = fs.statSync(temporary, { throwIfNoEntry: false });
+    if (!stat?.isFile() || stat.size === 0) {
+      throw new Error('MinerU OpenAPI CDN returned an empty binary');
+    }
+    fs.chmodSync(temporary, stat.mode | 0o755);
+    fs.renameSync(temporary, targetPath);
+  } finally {
+    fs.rmSync(temporary, { force: true });
+  }
+  return { path: targetPath, sha256: fileSha256(targetPath) };
 }
 
 function prepareMineruOpenApi(cacheRoot: string) {
-  const releases = githubApi<JsonRecord[]>('repos/opendatalab/MinerU-Ecosystem/releases?per_page=100');
-  const release = selectLatestMineruCliRelease(releases);
-  const tag = releaseTag(release, 'MinerU OpenAPI');
-  const version = versionFromTag(tag, 'cli/v', 'MinerU OpenAPI');
-  const archiveName = 'mineru-open-api_darwin_arm64.tar.gz';
-  const archiveAsset = releaseAsset(release, archiveName, 'MinerU OpenAPI');
-  const releaseRoot = path.join(cacheRoot, 'mineru-open-api', tag.replaceAll('/', '-'));
-  const archive = downloadGithubAsset(
-    archiveAsset,
-    path.join(releaseRoot, archiveName),
-    `MinerU OpenAPI ${tag} macOS arm64 archive`,
+  const refs = githubApi<JsonRecord[]>(
+    'repos/opendatalab/MinerU-Ecosystem/git/matching-refs/tags/cli/mineru-open-api/v',
   );
-  const extracted = path.join(releaseRoot, 'extracted');
-  extractVerifiedTarGz(archive.path, extracted);
-  const binary = requireFile(path.join(extracted, 'mineru-open-api'), 'MinerU OpenAPI');
-  const binaryVersion = verifyMacArm64Binary(binary, ['--version'], 'MinerU OpenAPI');
+  const { tag, version, tag_commit } = selectLatestMineruCliTag(refs);
+  const sourceUrl = mineruOpenApiBinaryUrl(version);
+  const releaseRoot = path.join(cacheRoot, 'mineru-open-api', tag.replaceAll('/', '-'));
+  const binary = downloadMineruBinary(
+    sourceUrl,
+    path.join(releaseRoot, 'mineru-open-api-cli-darwin-arm64'),
+  );
+  const binaryVersion = verifyMacArm64Binary(binary.path, ['--version'], 'MinerU OpenAPI');
   if (!binaryVersion.includes(`version v${version}`)) {
     throw new Error(`MinerU OpenAPI binary version does not match ${tag}: ${binaryVersion}`);
   }
   return {
     tag,
     version,
-    published_at: releasePublishedAt(release),
-    archive: archive.path,
-    archive_sha256: archive.sha256,
-    binary,
+    tag_commit,
+    source_url: sourceUrl,
+    binary: binary.path,
+    binary_sha256: binary.sha256,
     binary_version: binaryVersion,
   };
 }

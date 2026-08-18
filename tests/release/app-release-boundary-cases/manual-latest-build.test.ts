@@ -26,7 +26,8 @@ import {
   resolveAioncoreManagedCodexBinding,
 } from '../../../scripts/manual-latest-build.ts';
 import {
-  selectLatestMineruCliRelease,
+  mineruOpenApiBinaryUrl,
+  selectLatestMineruCliTag,
 } from '../../../scripts/manual-latest-build/upstreams.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '..', '..', '..');
@@ -435,15 +436,24 @@ test('full package app-only build fails closed without manual local identity', (
   );
 });
 
-test('MinerU latest selection ignores drafts, prereleases, and unrelated tags', () => {
-  const selected = selectLatestMineruCliRelease([
-    { tag_name: 'v9.0.0', draft: false, prerelease: false },
-    { tag_name: 'cli/v0.2.0', draft: false, prerelease: false },
-    { tag_name: 'cli/v0.3.0', draft: false, prerelease: true },
-    { tag_name: 'cli/v0.4.0', draft: true, prerelease: false },
-    { tag_name: 'cli/v0.2.1', draft: false, prerelease: false },
+test('MinerU latest selection uses stable OpenAPI CLI tags and binds the tag commit', () => {
+  const selected = selectLatestMineruCliTag([
+    { ref: 'refs/tags/v9.0.0', object: { type: 'commit', sha: '1'.repeat(40) } },
+    { ref: 'refs/tags/cli/v0.9.0', object: { type: 'commit', sha: '2'.repeat(40) } },
+    { ref: 'refs/tags/cli/mineru-open-api/v0.6.0', object: { type: 'commit', sha: '3'.repeat(40) } },
+    { ref: 'refs/tags/cli/mineru-open-api/v0.7.0-rc.1', object: { type: 'commit', sha: '4'.repeat(40) } },
+    { ref: 'refs/tags/cli/mineru-open-api/v0.8.0', object: { type: 'tag', sha: '5'.repeat(40) } },
+    { ref: 'refs/tags/cli/mineru-open-api/v0.6.1', object: { type: 'commit', sha: '6'.repeat(40) } },
   ]);
-  assert.equal(selected.tag_name, 'cli/v0.2.1');
+  assert.deepEqual(selected, {
+    tag: 'cli/mineru-open-api/v0.6.1',
+    version: '0.6.1',
+    tag_commit: '6'.repeat(40),
+  });
+  assert.equal(
+    mineruOpenApiBinaryUrl(selected.version),
+    'https://cdn-mineru.openxlab.org.cn/open-api-cli/v0.6.1/mineru-open-api-cli-darwin-arm64',
+  );
 });
 
 test('manual source-lock binds Codex to AionCore while the Full runtime stays payload-free', (context) => {

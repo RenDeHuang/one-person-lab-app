@@ -714,7 +714,7 @@ function printHelp() {
 
 Shared policy:
   - self-developed App, Shell, Framework, and first-party packages come from clean fresh remote origin/main HEADs
-  - external companions come from the latest official stable GitHub Release and must match its sha256 digest
+  - external companions come from an official stable Release or tagged distribution and bind a verified sha256 digest
 
 Options:
   --version <YY.M.D[-rN]>         Display version (default: latest same-day Stable, else today's r0)
@@ -901,7 +901,7 @@ function main() {
       updater_version: options.updaterVersion,
       source_policy: {
         self_developed: 'clean_fresh_remote_canonical_origin_main_head',
-        external_companions: 'latest_official_stable_github_release_digest_verified',
+        external_companions: 'latest_official_stable_release_or_tagged_distribution_digest_verified',
         package_selection: 'actual_selected_source_commits_recorded_in_full_package_manifest',
       },
       repositories: {

@@ -18,11 +18,14 @@ directory: App, active Shell, Framework, MAS, MAG, RCA, OMA, OBF, MAS Scholar
 Skills, and OPL Flow. The command fails closed if one of those directories is
 dirty, detached, or checked out on another branch.
 
-Temporal CLI, OfficeCLI, and MinerU OpenAPI come from their latest official
-stable GitHub Release. The command downloads the macOS arm64 asset into the
-manual build cache and verifies the SHA-256 digest published by GitHub. Temporal
-is additionally checked against its official `checksums.txt`. Local installed
-copies are never used as build authority.
+Temporal CLI and OfficeCLI come from their latest official stable GitHub
+Release. MinerU OpenAPI uses the highest stable
+`cli/mineru-open-api/v*` Git tag and the matching versioned official CDN binary,
+because the project does not publish GitHub Release objects for that CLI. The
+source lock records the exact MinerU tag commit, versioned URL, downloaded
+SHA-256, and binary-reported version. Temporal is additionally checked against
+its official `checksums.txt`. Local installed copies are never used as build
+authority.
 
 The Framework package catalog is projected only in a temporary checkout when a
 first-party owner `main` is newer than Framework `main`. The canonical Framework
