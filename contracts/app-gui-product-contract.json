@@ -3907,6 +3907,14 @@
     "package_id_allowlist_allowed": false,
     "fallback_policy": "omit_invalid_shortcut_and_preserve_other_packages"
   },
+  "home_shortcut_icon_metadata_policy": {
+    "role": "owner_projected_package_presentation",
+    "source_ref": "app_state.agent_packages.directory.entries[].home_shortcuts[].icon_id",
+    "token_policy": "owner_declared_opaque_token_consumed_by_shell_dsh_resolver",
+    "inference_allowed": false,
+    "consumer": "active_shell_opl_visual_provider",
+    "missing_or_invalid_policy": "dsh_agent_fallback"
+  },
   "theme_and_branding": {
     "default_theme_id": "default-theme",
     "allowed_theme_ids": [

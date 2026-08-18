@@ -22,6 +22,15 @@ const dynamicPackagePresentationPolicy = {
   },
 };
 
+const dynamicPackageShortcutIconPolicy = {
+  role: 'owner_projected_package_presentation',
+  source_ref: 'app_state.agent_packages.directory.entries[].home_shortcuts[].icon_id',
+  token_policy: 'owner_declared_opaque_token_consumed_by_shell_dsh_resolver',
+  inference_allowed: false,
+  consumer: 'active_shell_opl_visual_provider',
+  missing_or_invalid_policy: 'dsh_agent_fallback',
+};
+
 function validateGuiProductIdentity(guiContract) {
   if (guiContract.schema_version !== 2) {
     throw new Error('App GUI product contract schema_version must be 2');
@@ -387,6 +396,14 @@ function validateHomeShortcutCompatibilityMetadata(guiContract) {
   }
 }
 
+function validateHomeShortcutIconMetadata(guiContract) {
+  assertDeepEqualJson(
+    guiContract.home_shortcut_icon_metadata_policy,
+    dynamicPackageShortcutIconPolicy,
+    'App GUI contract Home shortcut icon policy',
+  );
+}
+
 function validateNoFixedAgentHomePresentation(guiContract) {
   for (const field of [
     'default_assistants',
@@ -418,5 +435,6 @@ export function validateGuiProductHomeContract(guiContract) {
   validateAiFirstInteractionModel(guiContract);
   validateRightContextInspector(guiContract);
   validateHomeShortcutCompatibilityMetadata(guiContract);
+  validateHomeShortcutIconMetadata(guiContract);
   validateNoFixedAgentHomePresentation(guiContract);
 }
