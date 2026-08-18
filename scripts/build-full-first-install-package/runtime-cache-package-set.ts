@@ -84,10 +84,6 @@ function normalizePackageProfile(
     profile.dependency_closure,
     'Full runtime package profile dependency_closure',
   );
-  const closureIds = new Set(dependencyClosure);
-  if (packageIds.some((packageId) => !closureIds.has(packageId))) {
-    throw new Error('Full runtime package profile package_ids must be contained in dependency_closure');
-  }
   return { profileId, packageIds, dependencyClosure };
 }
 

@@ -356,7 +356,7 @@ export type AppProductProfile = {
       full_additional_desired_roots_allowed: false;
     };
     package_currentness_policy: {
-      published_current_stable_authority: 'package_owner_per_package_ghcr_latest_stable';
+      published_current_stable_authority: 'package_owner_declared_publication_or_configured_native_carrier';
       installed_callable_authority: 'framework_fresh_aggregation_of_configured_carrier_readback';
       app_carrier_authority: false;
       app_release_authority: false;

@@ -40,7 +40,7 @@
       "same_official_profile_intent_required": true,
       "configured_carrier_terminal_readback_required": true,
       "active_framework_count": 1,
-      "package_published_current_stable_authority": "package_owner_per_package_ghcr_latest_stable",
+      "package_published_current_stable_authority": "package_owner_declared_publication_or_configured_native_carrier",
       "package_installed_callable_authority": "configured_carrier_readback_aggregated_by_framework",
       "full_means_offline_seed_density_not_a_second_product": true,
       "carrier_choice_may_change_install_speed_and_isolation_only": true

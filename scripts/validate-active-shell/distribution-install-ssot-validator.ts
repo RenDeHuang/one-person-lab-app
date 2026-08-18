@@ -530,7 +530,7 @@ export function validateDistributionInstallSsot(releaseChannel, installExposureP
   requireEqual(consistency?.active_framework_count, 1, 'Install active Framework count');
   requireEqual(
     consistency?.package_published_current_stable_authority,
-    'package_owner_per_package_ghcr_latest_stable',
+    'package_owner_declared_publication_or_configured_native_carrier',
     'Package published current stable authority',
   );
   requireEqual(

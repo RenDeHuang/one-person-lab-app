@@ -100,6 +100,8 @@ test('selected package set uses Official Profile roots and records the offline d
     assert.deepEqual(packageSet.package_ids, FULL_RUNTIME_STARTER_PROFILE.package_ids);
     assert.equal(packageSet.package_ids.includes('mas-scholar-skills'), false);
     assert.equal(packageSet.dependency_closure.includes('mas-scholar-skills'), true);
+    assert.equal(packageSet.package_ids.includes('opl-channel-weixin'), true);
+    assert.equal(packageSet.dependency_closure.includes('opl-channel-weixin'), false);
     assert.deepEqual(
       packageSet.packages.map((entry) => entry.package_id),
       FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE,
@@ -134,10 +136,10 @@ test('selected package set uses Official Profile roots and records the offline d
 test('Full runtime starter profile follows the supplied Official Profile roots', () => {
   const packageProfile = buildFullRuntimeStarterProfile({
     official_profile: {
-      desired_root_package_ids: ['opl-flow', 'mas'],
+      desired_root_package_ids: ['opl-flow', 'mas', 'native-carrier-only'],
     },
   });
-  assert.deepEqual(packageProfile.package_ids, ['opl-flow', 'mas']);
+  assert.deepEqual(packageProfile.package_ids, ['opl-flow', 'mas', 'native-carrier-only']);
   assert.deepEqual(
     packageProfile.dependency_closure,
     FULL_RUNTIME_DEFAULT_DEPENDENCY_CLOSURE,

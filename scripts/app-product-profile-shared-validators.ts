@@ -258,7 +258,7 @@ export function assertOfficialProfileShape(
     || officialProfile?.distribution_forms?.full_difference !== 'offline_seed_only'
     || officialProfile?.distribution_forms?.full_additional_desired_roots_allowed !== false
     || officialProfile?.package_currentness_policy?.published_current_stable_authority
-      !== 'package_owner_per_package_ghcr_latest_stable'
+      !== 'package_owner_declared_publication_or_configured_native_carrier'
     || officialProfile?.package_currentness_policy?.installed_callable_authority
       !== 'framework_fresh_aggregation_of_configured_carrier_readback'
     || officialProfile?.package_currentness_policy?.app_carrier_authority !== false
