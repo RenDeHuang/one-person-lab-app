@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import { assert, path, runNode, test } from './helpers.ts';
 import { parseArgs as parseFullFirstInstallArgs } from '../../../scripts/build-full-first-install-package/env.ts';
 import { parseArgs as parseActiveShellArgs } from '../../../scripts/validate-active-shell/validation-config.ts';
@@ -57,6 +59,27 @@ test('Full first-install args consume the MAS Scholar Skills root and ref enviro
     else process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_ROOT = previousRoot;
     if (previousRef === undefined) delete process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_REF;
     else process.env.OPL_FULL_MAS_SCHOLAR_SKILLS_REF = previousRef;
+  }
+});
+
+test('Full first-install args resolve uv from PATH when no explicit binary is configured', (context) => {
+  const toolRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-uv-path-'));
+  const uvBin = path.join(toolRoot, 'uv');
+  fs.writeFileSync(uvBin, '#!/bin/sh\nexit 0\n');
+  fs.chmodSync(uvBin, 0o755);
+  context.after(() => fs.rmSync(toolRoot, { recursive: true, force: true }));
+
+  const previousPath = process.env.PATH;
+  const previousUvBin = process.env.OPL_FULL_UV_BIN;
+  process.env.PATH = toolRoot;
+  delete process.env.OPL_FULL_UV_BIN;
+  try {
+    assert.equal(parseFullFirstInstallArgs([]).uvBin, uvBin);
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    if (previousUvBin === undefined) delete process.env.OPL_FULL_UV_BIN;
+    else process.env.OPL_FULL_UV_BIN = previousUvBin;
   }
 });
 

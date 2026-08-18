@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parseArgs as parseNodeArgs } from 'node:util';
@@ -40,6 +41,22 @@ function defaultOutputDir() {
     : FULL_FIRST_INSTALL_OUTPUT_DIR;
 }
 
+function executableOnPath(name) {
+  for (const directory of (process.env.PATH || '').split(path.delimiter)) {
+    if (!directory) continue;
+    const candidate = path.resolve(directory, name);
+    try {
+      if (fs.statSync(candidate).isFile()) {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return candidate;
+      }
+    } catch {
+      // Continue to the next PATH entry.
+    }
+  }
+  return null;
+}
+
 function defaultReleaseOptions() {
   return {
     version: process.env.OPL_RELEASE_VERSION || '26.5.1',
@@ -79,7 +96,10 @@ function defaultToolchainOptions() {
   return {
     nodeBin: envValue('OPL_FULL_NODE_BIN', ''),
     bunBin: envValue('OPL_FULL_BUN_BIN', ''),
-    uvBin: envValue('OPL_FULL_UV_BIN', path.join(os.homedir(), '.local', 'bin', 'uv')),
+    uvBin: envValue(
+      'OPL_FULL_UV_BIN',
+      executableOnPath('uv') || path.join(os.homedir(), '.local', 'bin', 'uv'),
+    ),
     temporalCliBin: envValue('OPL_FULL_TEMPORAL_CLI_BIN', ''),
     temporalCliArchive: envValue('OPL_FULL_TEMPORAL_CLI_ARCHIVE', ''),
     pythonRoot: envValue('OPL_FULL_PYTHON_ROOT', ''),
