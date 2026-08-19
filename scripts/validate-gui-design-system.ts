@@ -1501,7 +1501,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'thread/list',
       'thread/read',
       'thread/resume',
-      'thread/settings/update',
       'thread/name/set',
       'thread/archive',
       'thread/unarchive',
@@ -1732,7 +1731,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     'thread/start',
     'thread/resume',
     'thread/fork',
-    'thread/settings/update',
     'thread/archive',
   ];
   const forbiddenThreadKeys = [
