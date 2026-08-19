@@ -90,11 +90,76 @@
       "desktop_pair_token": "single_pairing_desktop_poll_and_confirmation_then_desktop_active_device_credential_after_activation",
       "ios_claim_token": "single_pairing_ios_poll_then_ios_active_device_credential_after_activation",
       "active_device_credential": "role_bound_to_the_callers_existing_desktop_pair_token_or_ios_claim_token_after_activation_without_minting_a_second_bearer",
+      "revoked_desktop_credential_scope": "after_revoke_the_existing_desktop_credential_can_only_submit_the_matching_desktop_detach_ack_and_cannot_access_any_other_route",
       "revocation_receipt_token": "single_revocation_status_read_only_until_terminal_or_expiry",
       "storage": "store_only_sha256_or_server_keyed_hashes_in_d1_and_return_plaintext_once",
       "transport": "bearer_header_only_never_url_query_or_qr"
     },
+    "release_cohort_lock": {
+      "source": "opl-link/release-cohort.json",
+      "metadata_match_required_before_pairing": true,
+      "match_fields": [
+        "environment",
+        "cohort_id",
+        "protocol_version",
+        "provider",
+        "service_origin",
+        "config_digest"
+      ],
+      "mismatch_policy": "fail_closed_before_claim_or_transport_connection"
+    },
     "endpoints": [
+      {
+        "id": "service_health",
+        "method": "GET",
+        "path": "/healthz",
+        "auth": "none",
+        "idempotency_required": false,
+        "proof_scope": "worker_process_reachable_only",
+        "response_fields": [
+          "status"
+        ]
+      },
+      {
+        "id": "service_metadata",
+        "method": "GET",
+        "path": "/metadata",
+        "auth": "none",
+        "idempotency_required": false,
+        "response_fields": [
+          "protocol_version",
+          "provider",
+          "environment",
+          "cohort_id",
+          "service_origin",
+          "service_origin_source",
+          "deployment_state",
+          "config_summary",
+          "config_digest"
+        ]
+      },
+      {
+        "id": "service_readiness",
+        "method": "GET",
+        "path": "/readyz",
+        "auth": "operator_bearer_from_OPL_LINK_OPERATOR_TOKEN",
+        "idempotency_required": false,
+        "proof_scope": "d1_read_write_and_scoped_ably_jwt_issuance",
+        "response_fields": [
+          "status",
+          "protocol_version",
+          "database_read",
+          "database_write",
+          "scoped_jwt_issuance",
+          "provider",
+          "active_pair_count"
+        ],
+        "response_must_not_include": [
+          "capability_token",
+          "ably_api_key",
+          "operator_token"
+        ]
+      },
       {
         "id": "operator_create_invitation",
         "method": "POST",
@@ -161,7 +226,7 @@
         "method": "POST",
         "path": "/v1/remote-companion/pairings/resolve",
         "auth": "manual_code_in_body",
-        "idempotency_required": false,
+        "idempotency_required": true,
         "request_fields": [
           "protocol_version",
           "manual_code"
@@ -285,6 +350,61 @@
         ]
       },
       {
+        "id": "rename_own_device",
+        "method": "PATCH",
+        "path": "/v1/remote-companion/pairings/{pairing_id}/devices/{device_id}",
+        "auth": "active_credential_for_the_same_pairing_and_device",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "display_name"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "device_id",
+          "display_name"
+        ]
+      },
+      {
+        "id": "register_own_push_recipient",
+        "method": "PUT",
+        "path": "/v1/remote-companion/pairings/{pairing_id}/devices/{device_id}/push-registration",
+        "auth": "active_credential_for_the_same_pairing_and_device",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "push_recipient_id"
+        ],
+        "forbidden_request_fields": [
+          "apns_token",
+          "device_token",
+          "push_token"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "device_id",
+          "push_recipient_id"
+        ]
+      },
+      {
+        "id": "delete_own_push_recipient",
+        "method": "DELETE",
+        "path": "/v1/remote-companion/pairings/{pairing_id}/devices/{device_id}/push-registration",
+        "auth": "active_credential_for_the_same_pairing_and_device",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "device_id",
+          "push_recipient_id"
+        ]
+      },
+      {
         "id": "revoke_pair",
         "method": "DELETE",
         "path": "/v1/remote-companion/pairings/{pairing_id}",
@@ -314,9 +434,34 @@
           "device_authorization_revoked",
           "token_renewal_denied",
           "desktop_connector_detached",
-          "pair_admission_released"
+          "pair_admission_released",
+          "detachment_basis"
         ],
         "terminal_rule": "state_is_revoked_and_pair_admission_released_is_true_only_after_d1_denies_future_tokens_and_the_desktop_connector_is_detached"
+      },
+      {
+        "id": "desktop_detach_ack",
+        "method": "POST",
+        "path": "/v1/remote-companion/revocations/{revocation_receipt_id}/desktop-detach",
+        "auth": "matching_revoked_desktop_credential_only",
+        "idempotency_required": true,
+        "request_fields": [
+          "protocol_version",
+          "detachment_basis"
+        ],
+        "detachment_basis_values": [
+          "desktop_ack"
+        ],
+        "response_fields": [
+          "protocol_version",
+          "pairing_id",
+          "state",
+          "device_authorization_revoked",
+          "token_renewal_denied",
+          "desktop_connector_detached",
+          "pair_admission_released",
+          "detachment_basis"
+        ]
       }
     ],
     "pairing_states": [
@@ -352,7 +497,11 @@
         "credential_invalid",
         "pair_revoked",
         "provider_unavailable",
+        "service_unavailable",
+        "forbidden",
         "conflict",
+        "idempotency_conflict",
+        "idempotency_in_flight",
         "rate_limited",
         "internal_error"
       ],

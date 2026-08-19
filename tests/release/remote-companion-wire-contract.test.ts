@@ -89,12 +89,33 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.equal(new Set(endpoints.map((endpoint) => endpoint.id)).size, endpoints.length);
   assert.equal(new Set(endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`)).size, endpoints.length);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_create_pairing'));
+  assert.deepEqual(wire.control_plane_http.release_cohort_lock, {
+    source: 'opl-link/release-cohort.json',
+    metadata_match_required_before_pairing: true,
+    match_fields: ['environment', 'cohort_id', 'protocol_version', 'provider', 'service_origin', 'config_digest'],
+    mismatch_policy: 'fail_closed_before_claim_or_transport_connection',
+  });
+  assert.deepEqual(endpoints.find((endpoint) => endpoint.id === 'service_health'), {
+    id: 'service_health',
+    method: 'GET',
+    path: '/healthz',
+    auth: 'none',
+    idempotency_required: false,
+    proof_scope: 'worker_process_reachable_only',
+    response_fields: ['status'],
+  });
+  const metadataEndpoint = endpoints.find((endpoint) => endpoint.id === 'service_metadata');
+  assert.ok(metadataEndpoint.response_fields.includes('config_digest'));
+  assert.ok(metadataEndpoint.response_fields.includes('cohort_id'));
+  const readinessEndpoint = endpoints.find((endpoint) => endpoint.id === 'service_readiness');
+  assert.match(readinessEndpoint.proof_scope, /d1_read_write/);
+  assert.ok(readinessEndpoint.response_must_not_include.includes('capability_token'));
   assert.deepEqual(endpoints.find((endpoint) => endpoint.id === 'ios_resolve_manual_pairing'), {
     id: 'ios_resolve_manual_pairing',
     method: 'POST',
     path: '/v1/remote-companion/pairings/resolve',
     auth: 'manual_code_in_body',
-    idempotency_required: false,
+    idempotency_required: true,
     request_fields: ['protocol_version', 'manual_code'],
     response_fields: ['protocol_version', 'pairing_id', 'service_url', 'desktop_public_key', 'expires_at'],
     secret_request_fields: ['manual_code'],
@@ -120,6 +141,11 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.ok(credentialEndpoint.response_fields.includes('transport_client_id'));
   assert.ok(credentialEndpoint.response_fields.includes('capability_token'));
   assert.ok(credentialEndpoint.response_fields.includes('push_recipient_id'));
+  const renameEndpoint = endpoints.find((endpoint) => endpoint.id === 'rename_own_device');
+  assert.deepEqual(renameEndpoint.request_fields, ['protocol_version', 'display_name']);
+  const putPushEndpoint = endpoints.find((endpoint) => endpoint.id === 'register_own_push_recipient');
+  assert.ok(putPushEndpoint.forbidden_request_fields.includes('apns_token'));
+  assert.ok(endpoints.some((endpoint) => endpoint.id === 'delete_own_push_recipient'));
   const readPairingEndpoint = endpoints.find((endpoint) => endpoint.id === 'read_pairing');
   assert.ok(readPairingEndpoint);
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_device_id'));
@@ -142,6 +168,16 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.equal(wire.provider_transport.switching.dual_write, false);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'revoke_pair'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'read_revocation'));
+  const detachEndpoint = endpoints.find((endpoint) => endpoint.id === 'desktop_detach_ack');
+  assert.equal(detachEndpoint.auth, 'matching_revoked_desktop_credential_only');
+  assert.deepEqual(detachEndpoint.detachment_basis_values, ['desktop_ack']);
+  assert.match(wire.control_plane_http.tokens.revoked_desktop_credential_scope, /only_submit_the_matching_desktop_detach_ack/);
+  for (const endpoint of endpoints.filter((candidate) => ['POST', 'PATCH', 'PUT', 'DELETE'].includes(candidate.method))) {
+    assert.equal(endpoint.idempotency_required, true, `${endpoint.id} must require Idempotency-Key`);
+  }
+  for (const code of ['forbidden', 'service_unavailable', 'idempotency_conflict', 'idempotency_in_flight']) {
+    assert.ok(wire.control_plane_http.error_envelope.allowed_error_codes.includes(code));
+  }
 });
 
 test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintext', () => {
@@ -244,4 +280,5 @@ test('revocation completion requires token denial and desktop detach readback', 
   assert.ok(endpoint);
   assert.match(endpoint.terminal_rule, /d1_denies_future_tokens/);
   assert.match(endpoint.terminal_rule, /desktop_connector_is_detached/);
+  assert.ok(endpoint.response_fields.includes('detachment_basis'));
 });
