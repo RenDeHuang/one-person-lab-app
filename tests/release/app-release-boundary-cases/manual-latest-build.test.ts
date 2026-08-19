@@ -211,6 +211,7 @@ function createTestApp(
   input: {
     displayVersion: string;
     updaterVersion: string;
+    bundleVersion?: string;
     marker?: string;
     buildIdentity?: {
       publicUpdaterVersion: string;
@@ -252,7 +253,7 @@ function createTestApp(
   <key>CFBundleShortVersionString</key>
   <string>${input.updaterVersion}</string>
   <key>CFBundleVersion</key>
-  <string>${input.updaterVersion}</string>${buildIdentity}
+  <string>${input.bundleVersion ?? input.updaterVersion}</string>${buildIdentity}
   <key>LSEnvironment</key>
   <dict>
     <key>MallocNanoZone</key>
@@ -787,7 +788,7 @@ test('manual App launch forwards an explicit valid CDP port without changing the
   );
 });
 
-test('manual installer replaces a runtime-mutated baseline and types a failed replacement rollback', {
+test('manual installer replaces a legacy mixed-version baseline, rejects mixed candidates, and types rollback', {
   skip: process.platform !== 'darwin',
 }, () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-manual-install-test-'));
@@ -807,9 +808,11 @@ test('manual installer replaces a runtime-mutated baseline and types a failed re
     const successInstall = path.join(successRoot, 'Applications', 'One Person Lab.app');
     const successBuilt = path.join(successRoot, 'built', 'One Person Lab.app');
     const successRunning = path.join(successRoot, 'running-state');
+    const legacyBundleVersion = '26.7.2091';
     createTestApp(successInstall, {
       displayVersion: '26.7.20',
       updaterVersion: '26.7.20',
+      bundleVersion: legacyBundleVersion,
       marker: 'OLD_SIGNATURE_POLLUTION',
     });
     createTestApp(successBuilt, {
@@ -826,6 +829,11 @@ test('manual installer replaces a runtime-mutated baseline and types a failed re
     process.env.OPL_TEST_INSTALL_PATH = successInstall;
     process.env.OPL_TEST_RUNNING_STATE = successRunning;
 
+    assert.throws(
+      () => readAppVersionIdentity(successInstall),
+      /App bundle machine versions differ/,
+    );
+
     const completed = installLocalApp({
       builtApp: successBuilt,
       installPath: successInstall,
@@ -834,6 +842,8 @@ test('manual installer replaces a runtime-mutated baseline and types a failed re
     });
     assert.equal(completed.status, 'completed');
     assert.equal(completed.replaced_version?.display_version, '26.7.20');
+    assert.equal(completed.replaced_version?.cf_bundle_short_version, '26.7.20');
+    assert.equal(completed.replaced_version?.cf_bundle_version, legacyBundleVersion);
     assert.equal(completed.replaced_signature?.status, 'invalid');
     assert.match(completed.replaced_signature?.diagnostics ?? '', /sealed resource/);
     assert.equal(completed.installed_version.display_version, '26.7.21');
@@ -850,6 +860,39 @@ test('manual installer replaces a runtime-mutated baseline and types a failed re
       expectedVersionIdentity.source_lock_sha256,
     );
     assert.equal(fs.existsSync(path.join(successInstall, 'Contents', 'OLD_SIGNATURE_POLLUTION')), false);
+
+    const invalidCandidateRoot = path.join(root, 'invalid-candidate');
+    const invalidCandidateInstall = path.join(
+      invalidCandidateRoot,
+      'Applications',
+      'One Person Lab.app',
+    );
+    const invalidCandidateBuilt = path.join(
+      invalidCandidateRoot,
+      'built',
+      'One Person Lab.app',
+    );
+    createTestApp(invalidCandidateBuilt, {
+      displayVersion: '26.7.21',
+      updaterVersion: '26.7.21',
+      bundleVersion: expectedVersionIdentity.machine_version,
+      buildIdentity: {
+        publicUpdaterVersion: expectedVersionIdentity.public_updater_version,
+        localBuildId: expectedVersionIdentity.local_build_id,
+        sourceProvenanceSha256: expectedVersionIdentity.source_provenance_sha256,
+        sourceLockSha256: expectedVersionIdentity.source_lock_sha256,
+      },
+    });
+    assert.throws(
+      () => installLocalApp({
+        builtApp: invalidCandidateBuilt,
+        installPath: invalidCandidateInstall,
+        expectedVersionIdentity,
+        launch: false,
+      }),
+      /App bundle machine versions differ/,
+    );
+    assert.equal(fs.existsSync(invalidCandidateInstall), false);
 
     const failureRoot = path.join(root, 'failure');
     const failureInstall = path.join(failureRoot, 'Applications', 'One Person Lab.app');

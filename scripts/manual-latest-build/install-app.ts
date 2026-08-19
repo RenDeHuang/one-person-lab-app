@@ -198,15 +198,10 @@ function verifyAppSignature(
   return verification;
 }
 
-export function readAppVersionIdentity(appPath: string): ManualAppVersionIdentity {
+function readAppVersionIdentityUnchecked(appPath: string): ManualAppVersionIdentity {
   requireDirectory(appPath, 'App bundle');
   const shortVersion = plistValue(appPath, 'CFBundleShortVersionString');
   const bundleVersion = plistValue(appPath, 'CFBundleVersion');
-  if (shortVersion !== bundleVersion) {
-    throw new Error(
-      `App bundle machine versions differ: CFBundleShortVersionString=${shortVersion} CFBundleVersion=${bundleVersion}`,
-    );
-  }
   const manifestPath = path.join(appPath, FULL_MANIFEST_REF);
   const manifest = fs.statSync(manifestPath, { throwIfNoEntry: false })?.isFile()
     ? readJson(manifestPath)
@@ -217,7 +212,7 @@ export function readAppVersionIdentity(appPath: string): ManualAppVersionIdentit
     display_version: typeof manifest?.version === 'string' ? manifest.version : null,
     updater_version: publicUpdaterVersion,
     public_updater_version: publicUpdaterVersion,
-    bundle_version: shortVersion,
+    bundle_version: bundleVersion,
     build_kind: optionalPlistValue(appPath, 'OPLBuildKind'),
     local_build_id: optionalPlistValue(appPath, 'OPLLocalBuildID'),
     updater_policy: optionalPlistValue(appPath, 'OPLUpdaterPolicy'),
@@ -231,13 +226,25 @@ export function readAppVersionIdentity(appPath: string): ManualAppVersionIdentit
   };
 }
 
+export function readAppVersionIdentity(appPath: string): ManualAppVersionIdentity {
+  const identity = readAppVersionIdentityUnchecked(appPath);
+  if (identity.cf_bundle_short_version !== identity.cf_bundle_version) {
+    throw new Error(
+      'App bundle machine versions differ: '
+      + `CFBundleShortVersionString=${identity.cf_bundle_short_version} `
+      + `CFBundleVersion=${identity.cf_bundle_version}`,
+    );
+  }
+  return identity;
+}
+
 function verifyApp(appPath: string): ManualAppVersionIdentity {
   verifyAppSignature(appPath, 'required');
   return readAppVersionIdentity(appPath);
 }
 
 function inspectExistingApp(appPath: string) {
-  const identity = readAppVersionIdentity(appPath);
+  const identity = readAppVersionIdentityUnchecked(appPath);
   if (identity.bundle_id !== 'cn.onepersonlab.opl') {
     throw new Error(
       `Refusing to replace App with unexpected bundle id at ${appPath}: ${identity.bundle_id}`,
