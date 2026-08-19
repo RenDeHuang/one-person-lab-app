@@ -24,7 +24,7 @@ type PlannerInput = {
 };
 
 const shaPattern = /^[0-9a-f]{40}$/;
-const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/;
+const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
@@ -54,7 +54,7 @@ export function buildStudioProtectedReleaseAdmission(input: PlannerInput) {
       'node scripts/desktop/macos-distribution.mjs --require-release-trust --require-public-feed',
     'Studio public release qualification must require release trust and the public feed.',
   );
-  invariant(versionPattern.test(packageVersion), 'Studio package version must be SemVer.');
+  invariant(versionPattern.test(packageVersion), 'Studio package version must be numeric SemVer.');
   invariant(input.requestedTag === `v${packageVersion}`, 'Protected Studio tag must equal package version.');
   const stageOrder = input.carrier.stageOrder;
 
@@ -80,6 +80,7 @@ export function buildStudioProtectedReleaseAdmission(input: PlannerInput) {
       tree_sha: input.studio.treeSha,
       package_version: packageVersion,
       tag: input.requestedTag,
+      version_identity: 'package_bundle_feed_tag_exact_numeric_semver',
       app_id: input.carrier.bundleId,
       product_name: input.carrier.productName,
       artifact_name_template: input.carrier.artifactNameTemplate,
@@ -94,6 +95,20 @@ export function buildStudioProtectedReleaseAdmission(input: PlannerInput) {
       prepublication_qualification: input.carrier.commands.qualify_prepublication,
       publication_target: 'gaofeng21cn/opl-studio GitHub Releases exact tag',
       public_readback_command: input.carrier.commands.qualify_public_release,
+    },
+    protected_execution: {
+      workflow: '.github/workflows/_release-studio.yml',
+      starts_after_this_admission_in_the_same_stable_run: true,
+      version_must_be_strictly_newer_than_public_numeric_releases: true,
+      github_latest_pointer_required: true,
+      prerelease: false,
+      published_assets: [
+        'macos_arm64_dmg',
+        'macos_arm64_updater_zip',
+        'macos_arm64_updater_zip_blockmap',
+        'latest-mac.yml',
+        'latest-arm64-mac.yml',
+      ],
     },
     gates: {
       exact_source_identity: 'passed',

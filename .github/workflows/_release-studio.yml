@@ -1,0 +1,553 @@
+name: OPL Studio Protected Release
+
+on:
+  workflow_call:
+    inputs:
+      app_ref:
+        description: Exact canonical App executor SHA
+        required: true
+        type: string
+      studio_sha:
+        description: Exact Studio source commit
+        required: true
+        type: string
+      studio_tree:
+        description: Exact Studio source tree
+        required: true
+        type: string
+      studio_tag:
+        description: Exact v-prefixed numeric SemVer tag
+        required: true
+        type: string
+    secrets:
+      BUILD_CERTIFICATE_BASE64:
+        required: false
+      P12_PASSWORD:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_ID_PASSWORD:
+        required: false
+      TEAM_ID:
+        required: false
+      IDENTITY:
+        required: false
+      KEYCHAIN_PASSWORD:
+        required: false
+      OPL_GITHUB_RELEASE_ADMIN_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: opl-studio-protected-release
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  STUDIO_REPOSITORY: gaofeng21cn/opl-studio
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment: release-stable
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Admit one first-attempt canonical Studio execution
+        env:
+          APP_REF: ${{ inputs.app_ref }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p studio-release-evidence
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$APP_REF" = "$GITHUB_SHA"
+          [[ "$APP_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDIO_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDIO_TREE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$STUDIO_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+
+      - name: Checkout exact App release executor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.app_ref }}
+          path: app-source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout exact Studio source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gaofeng21cn/opl-studio
+          ref: ${{ inputs.studio_sha }}
+          path: studio-source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Install locked release dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --prefix app-source
+          npm ci --prefix studio-source
+
+      - name: Bind exact source and numeric version identity
+        env:
+          APP_REF: ${{ inputs.app_ref }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C app-source rev-parse HEAD)" = "$APP_REF"
+          test "$(git -C studio-source rev-parse HEAD)" = "$STUDIO_SHA"
+          test "$(git -C studio-source rev-parse 'HEAD^{tree}')" = "$STUDIO_TREE"
+          version="$(node -p "require('./studio-source/package.json').version")"
+          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          test "$STUDIO_TAG" = "v$version"
+          echo "STUDIO_VERSION=$version" >> "$GITHUB_ENV"
+          node --experimental-strip-types app-source/scripts/studio-protected-release-admission.ts plan \
+            --app-root app-source \
+            --studio-root studio-source \
+            --studio-sha "$STUDIO_SHA" \
+            --studio-tree "$STUDIO_TREE" \
+            --studio-tag "$STUDIO_TAG" \
+            --output studio-release-evidence/source-admission.json
+
+      - name: Verify protected Apple and GitHub capabilities before mutation
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          IDENTITY: ${{ secrets.IDENTITY }}
+          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          node --experimental-strip-types app-source/scripts/verify-apple-release-credentials.ts \
+            --output studio-release-evidence/apple-credentials-preflight.json
+          test "$(gh api "repos/$STUDIO_REPOSITORY" --jq '.permissions.push')" = true
+          remote_tree="$(gh api "repos/$STUDIO_REPOSITORY/git/commits/$STUDIO_SHA" --jq .tree.sha)"
+          test "$remote_tree" = "$STUDIO_TREE"
+
+          release_status="$(curl -sS -o "$RUNNER_TEMP/studio-release-existing.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$STUDIO_REPOSITORY/releases/tags/$STUDIO_TAG")"
+          tag_status="$(curl -sS -o "$RUNNER_TEMP/studio-tag-existing.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$STUDIO_REPOSITORY/git/ref/tags/$STUDIO_TAG")"
+          test "$release_status" = 404
+          test "$tag_status" = 404
+
+          gh api --paginate "repos/$STUDIO_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.draft == false) | .tag_name' > "$RUNNER_TEMP/studio-public-tags.txt"
+          CANDIDATE_VERSION="$STUDIO_VERSION" TAGS_FILE="$RUNNER_TEMP/studio-public-tags.txt" node <<'NODE'
+          const fs = require('node:fs');
+          const parse = (value) => {
+            const match = String(value).match(/^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
+            return match ? match.slice(1).map(Number) : null;
+          };
+          const compare = (left, right) => {
+            for (let index = 0; index < left.length; index += 1) {
+              if (left[index] !== right[index]) return left[index] - right[index];
+            }
+            return 0;
+          };
+          const candidate = parse(process.env.CANDIDATE_VERSION);
+          if (!candidate) process.exit(1);
+          const existing = fs.readFileSync(process.env.TAGS_FILE, 'utf8').split(/\r?\n/).map(parse).filter(Boolean);
+          if (existing.some((version) => compare(candidate, version) <= 0)) {
+            throw new Error('Studio version must be strictly newer than every public numeric release.');
+          }
+          NODE
+          jq -n \
+            --arg repository "$STUDIO_REPOSITORY" \
+            --arg commit_sha "$STUDIO_SHA" \
+            --arg tree_sha "$STUDIO_TREE" \
+            --arg tag "$STUDIO_TAG" \
+            --arg version "$STUDIO_VERSION" \
+            '{schema:"opl_studio_release_capability_preflight.v1",status:"passed",repository:$repository,commit_sha:$commit_sha,tree_sha:$tree_sha,tag:$tag,version:$version,developer_id:true,apple_notarization:true,github_release_write:true,tag_absent:true,release_absent:true,monotonic_version:true}' \
+            > studio-release-evidence/capability-preflight.json
+
+      - name: Import Developer ID identity into an ephemeral keychain
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          CONFIGURED_KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          IDENTITY: ${{ secrets.IDENTITY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain_path="$RUNNER_TEMP/opl-studio-release.keychain-db"
+          keychain_password="${CONFIGURED_KEYCHAIN_PASSWORD:-$(openssl rand -hex 32)}"
+          echo "::add-mask::$keychain_password"
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/studio-release-certificate.p12"
+          chmod 600 "$RUNNER_TEMP/studio-release-certificate.p12"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 7200 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          security default-keychain -d user -s "$keychain_path"
+          security import "$RUNNER_TEMP/studio-release-certificate.p12" \
+            -k "$keychain_path" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$keychain_password" "$keychain_path"
+          rm -f "$RUNNER_TEMP/studio-release-certificate.p12"
+          security find-identity -v -p codesigning "$keychain_path" | grep -F "$IDENTITY" >/dev/null
+          {
+            echo "STUDIO_RELEASE_KEYCHAIN=$keychain_path"
+            echo "STUDIO_RELEASE_KEYCHAIN_PASSWORD=$keychain_password"
+          } >> "$GITHUB_ENV"
+
+      - name: Build exact Developer ID signed App directory
+        id: app
+        working-directory: studio-source
+        env:
+          CSC_NAME: ${{ secrets.IDENTITY }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          NODE_OPTIONS: --max-old-space-size=8192
+          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          security unlock-keychain -p "$STUDIO_RELEASE_KEYCHAIN_PASSWORD" "$STUDIO_RELEASE_KEYCHAIN"
+          npm run build:desktop
+          npx electron-builder --mac --arm64 --dir --config electron-builder.yml --publish never
+          app_paths=()
+          while IFS= read -r candidate; do app_paths+=("$candidate"); done < <(
+            find out -maxdepth 2 -type d -name 'One Person Lab Preview.app' -print | LC_ALL=C sort
+          )
+          test "${#app_paths[@]}" -eq 1
+          app_path="${app_paths[0]}"
+          app_path="$(cd "$(dirname "$app_path")" && pwd -P)/$(basename "$app_path")"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          details="$(codesign -dvvv "$app_path" 2>&1)"
+          grep -q '^Authority=Developer ID Application:' <<<"$details"
+          grep -q '^TeamIdentifier=${{ secrets.TEAM_ID }}$' <<<"$details"
+          grep -q 'flags=.*(runtime)' <<<"$details"
+          test "$(plutil -extract CFBundleShortVersionString raw -o - "$app_path/Contents/Info.plist")" = "$STUDIO_VERSION"
+          echo "app_path=$app_path" >> "$GITHUB_OUTPUT"
+
+      - name: Notarize, staple, and Gatekeeper-check the App
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+          APP_PATH: ${{ steps.app.outputs.app_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$RUNNER_TEMP/opl-studio-app-notarization.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/opl-studio-app-notarization.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$TEAM_ID" \
+            --wait --timeout 30m --output-format json \
+            > studio-release-evidence/app-notarization.json
+          jq -e '.status == "Accepted" and (.id | type == "string" and length > 0)' \
+            studio-release-evidence/app-notarization.json >/dev/null
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          spctl --assess --type execute --verbose=4 "$APP_PATH"
+
+      - name: Package the notarized App into updater artifacts
+        working-directory: studio-source
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="${{ steps.app.outputs.app_path }}"
+          npx electron-builder --mac dmg zip --arm64 \
+            --prepackaged "$app_path" \
+            --config electron-builder.yml \
+            --publish never
+          test -s out/latest-mac.yml
+          zip_paths=()
+          dmg_paths=()
+          blockmap_paths=()
+          while IFS= read -r candidate; do zip_paths+=("$candidate"); done < <(
+            find out -maxdepth 1 -type f -name "one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.zip" -print
+          )
+          while IFS= read -r candidate; do dmg_paths+=("$candidate"); done < <(
+            find out -maxdepth 1 -type f -name "one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.dmg" -print
+          )
+          while IFS= read -r candidate; do blockmap_paths+=("$candidate"); done < <(
+            find out -maxdepth 1 -type f -name "one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.zip.blockmap" -print
+          )
+          test "${#zip_paths[@]}" -eq 1
+          test "${#dmg_paths[@]}" -eq 1
+          test "${#blockmap_paths[@]}" -eq 1
+
+      - name: Finalize DMG signing, notarization, and updater metadata
+        env:
+          appleId: ${{ secrets.APPLE_ID }}
+          appleIdPassword: ${{ secrets.APPLE_ID_PASSWORD }}
+          teamId: ${{ secrets.TEAM_ID }}
+          OPL_RUNTIME_CODESIGN_IDENTITY: ${{ secrets.IDENTITY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          security unlock-keychain -p "$STUDIO_RELEASE_KEYCHAIN_PASSWORD" "$STUDIO_RELEASE_KEYCHAIN"
+          dmg_path="studio-source/out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.dmg"
+          node --experimental-strip-types app-source/scripts/notarize-macos-dmg.ts \
+            --dmg "$dmg_path" \
+            --output studio-release-evidence/dmg-notarization.json
+          node --experimental-strip-types app-source/scripts/update-electron-updater-metadata.ts \
+            --artifact "$dmg_path" \
+            --metadata-dir studio-source/out
+          rm -f "${dmg_path}.blockmap"
+
+      - name: Qualify final local release bytes before publication
+        working-directory: studio-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/desktop/macos-distribution.mjs --require-release-trust
+          cp out/macos-distribution-qualification.json \
+            ../studio-release-evidence/prepublication-qualification.json
+          cmp out/latest-mac.yml out/latest-arm64-mac.yml
+          jq -e \
+            --arg version "$STUDIO_VERSION" \
+            '.version == $version and .releaseReady == false and .releaseBlocker == "public_update_feed_qualification_required" and .trust.gatekeeperAccepted == true and .trust.appStapled == true and .trust.dmgStapled == true' \
+            out/macos-distribution-qualification.json >/dev/null
+
+      - name: Seal exact release asset manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          out=studio-source/out
+          assets=(
+            "$out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.dmg"
+            "$out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.zip"
+            "$out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.zip.blockmap"
+            "$out/latest-mac.yml"
+            "$out/latest-arm64-mac.yml"
+          )
+          for asset in "${assets[@]}"; do
+            test -f "$asset" && test ! -L "$asset" && test -s "$asset"
+          done
+          ASSETS="$(printf '%s\n' "${assets[@]}")" node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const assets = process.env.ASSETS.split('\n').filter(Boolean).map((file) => {
+            const bytes = fs.readFileSync(file);
+            return {
+              name: path.basename(file),
+              size_bytes: bytes.length,
+              sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+            };
+          });
+          fs.writeFileSync('studio-release-evidence/release-assets.json', `${JSON.stringify({
+            schema: 'opl_studio_release_assets.v1',
+            repository: 'gaofeng21cn/opl-studio',
+            version: process.env.STUDIO_VERSION,
+            tag: `v${process.env.STUDIO_VERSION}`,
+            assets,
+          }, null, 2)}\n`);
+          NODE
+          cat > studio-release-evidence/release-notes.md <<EOF
+          One Person Lab Preview ${STUDIO_VERSION}
+
+          Source commit: ${{ inputs.studio_sha }}
+          Source tree: ${{ inputs.studio_tree }}
+
+          This release supplies the signed and notarized macOS arm64 installer and automatic-update feed.
+          EOF
+
+      - name: Publish exact Studio release once
+        env:
+          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_status="$(curl -sS -o "$RUNNER_TEMP/studio-release-race.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$STUDIO_REPOSITORY/releases/tags/$STUDIO_TAG")"
+          tag_status="$(curl -sS -o "$RUNNER_TEMP/studio-tag-race.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/$STUDIO_REPOSITORY/git/ref/tags/$STUDIO_TAG")"
+          test "$release_status" = 404
+          test "$tag_status" = 404
+          out=studio-source/out
+          assets=(
+            "$out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.dmg"
+            "$out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.zip"
+            "$out/one-person-lab-preview-${STUDIO_VERSION}-mac-arm64.zip.blockmap"
+            "$out/latest-mac.yml"
+            "$out/latest-arm64-mac.yml"
+          )
+          gh release create "$STUDIO_TAG" "${assets[@]}" \
+            --repo "$STUDIO_REPOSITORY" \
+            --target "$STUDIO_SHA" \
+            --title "One Person Lab Preview ${STUDIO_VERSION}" \
+            --notes-file studio-release-evidence/release-notes.md \
+            --latest
+
+      - name: Read back public updater bytes anonymously
+        env:
+          GH_TOKEN: ${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$STUDIO_TAG" --repo "$STUDIO_REPOSITORY" \
+            --json tagName,targetCommitish,isDraft,isPrerelease,url,assets \
+            > studio-release-evidence/release-readback.json
+          jq -e \
+            --arg tag "$STUDIO_TAG" \
+            --arg target "$STUDIO_SHA" \
+            --slurpfile expected studio-release-evidence/release-assets.json \
+            '.tagName == $tag and .targetCommitish == $target and .isDraft == false and .isPrerelease == false and ([.assets[].name] | sort) == ([$expected[0].assets[].name] | sort)' \
+            studio-release-evidence/release-readback.json >/dev/null
+          read -r tag_object_type tag_object_sha < <(
+            gh api "repos/$STUDIO_REPOSITORY/git/ref/tags/$STUDIO_TAG" \
+              --jq '.object.type + "\t" + .object.sha'
+          )
+          test "$tag_object_type" = commit
+          test "$tag_object_sha" = "$STUDIO_SHA"
+
+          latest_ready=false
+          for _ in {1..12}; do
+            if curl -fsSL \
+              "https://api.github.com/repos/$STUDIO_REPOSITORY/releases/latest" \
+              -o "$RUNNER_TEMP/studio-latest-public.json" \
+              && jq -e --arg tag "$STUDIO_TAG" '.tag_name == $tag and .draft == false and .prerelease == false' \
+                "$RUNNER_TEMP/studio-latest-public.json" >/dev/null; then
+              latest_ready=true
+              break
+            fi
+            sleep 10
+          done
+          test "$latest_ready" = true
+
+          feed_url="https://github.com/$STUDIO_REPOSITORY/releases/download/$STUDIO_TAG/"
+          public_asset_tsv="$RUNNER_TEMP/studio-public-assets.tsv"
+          : > "$public_asset_tsv"
+          while IFS=$'\t' read -r name expected_size expected_sha256; do
+            public_path="$RUNNER_TEMP/studio-public-$name"
+            asset_ready=false
+            for _ in {1..12}; do
+              if curl -fsSL "$feed_url$name" -o "$public_path"; then
+                actual_size="$(stat -f '%z' "$public_path")"
+                actual_sha256="$(shasum -a 256 "$public_path" | awk '{print $1}')"
+                if [ "$actual_size" = "$expected_size" ] && [ "$actual_sha256" = "$expected_sha256" ]; then
+                  asset_ready=true
+                  printf '%s\t%s\t%s\n' "$name" "$actual_size" "$actual_sha256" >> "$public_asset_tsv"
+                  break
+                fi
+              fi
+              sleep 10
+            done
+            test "$asset_ready" = true
+          done < <(jq -r '.assets[] | [.name, (.size_bytes | tostring), .sha256] | @tsv' \
+            studio-release-evidence/release-assets.json)
+          PUBLIC_ASSET_TSV="$public_asset_tsv" node <<'NODE'
+          const fs = require('node:fs');
+          const assets = fs.readFileSync(process.env.PUBLIC_ASSET_TSV, 'utf8')
+            .trim()
+            .split(/\r?\n/)
+            .filter(Boolean)
+            .map((line) => {
+              const [name, sizeBytes, sha256] = line.split('\t');
+              return { name, size_bytes: Number(sizeBytes), sha256 };
+            });
+          fs.writeFileSync('studio-release-evidence/public-asset-readback.json', `${JSON.stringify({
+            schema: 'opl_studio_public_asset_readback.v1',
+            anonymous_download: true,
+            assets,
+          }, null, 2)}\n`);
+          NODE
+
+          public_ready=false
+          for _ in {1..12}; do
+            if (
+              cd studio-source
+              OPL_DESKTOP_PUBLIC_UPDATE_FEED_URL="$feed_url" \
+                node scripts/desktop/macos-distribution.mjs \
+                  --require-release-trust --require-public-feed
+            ); then
+              public_ready=true
+              break
+            fi
+            sleep 10
+          done
+          test "$public_ready" = true
+          cp studio-source/out/macos-distribution-qualification.json \
+            studio-release-evidence/public-release-qualification.json
+          jq -e \
+            --arg version "$STUDIO_VERSION" \
+            '.version == $version and .releaseReady == true and .publicFeed.qualified == true and .publicFeed.anonymousDownload == true and (.releaseBlockers | length) == 0' \
+            studio-release-evidence/public-release-qualification.json >/dev/null
+
+      - name: Write terminal Studio release receipt
+        env:
+          APP_REF: ${{ inputs.app_ref }}
+          STUDIO_SHA: ${{ inputs.studio_sha }}
+          STUDIO_TREE: ${{ inputs.studio_tree }}
+          STUDIO_TAG: ${{ inputs.studio_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg app_ref "$APP_REF" \
+            --arg studio_sha "$STUDIO_SHA" \
+            --arg studio_tree "$STUDIO_TREE" \
+            --arg tag "$STUDIO_TAG" \
+            --arg version "$STUDIO_VERSION" \
+            --slurpfile assets studio-release-evidence/release-assets.json \
+            --slurpfile app_notary studio-release-evidence/app-notarization.json \
+            --slurpfile dmg_notary studio-release-evidence/dmg-notarization.json \
+            --slurpfile public_assets studio-release-evidence/public-asset-readback.json \
+            --slurpfile public_qualification studio-release-evidence/public-release-qualification.json \
+            '{schema:"opl_studio_protected_release_receipt.v1",status:"released_and_publicly_qualified",authority_owner:"one-person-lab-app",app_executor_sha:$app_ref,source:{repository:"gaofeng21cn/opl-studio",commit_sha:$studio_sha,tree_sha:$studio_tree,tag:$tag,version:$version},assets:$assets[0].assets,notarization:{app_status:$app_notary[0].status,dmg_status:$dmg_notary[0].notarization.status},public_assets:$public_assets[0],public_feed:{qualified:$public_qualification[0].publicFeed.qualified,anonymous_download:$public_qualification[0].publicFeed.anonymousDownload},active_shell_unchanged:true,active_release_carrier:false}' \
+            > studio-release-evidence/terminal-release-receipt.json
+
+      - name: Clean up ephemeral signing keychain
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [ -n "${STUDIO_RELEASE_KEYCHAIN:-}" ] && security list-keychains -d user | grep -F "$STUDIO_RELEASE_KEYCHAIN" >/dev/null; then
+            security delete-keychain "$STUDIO_RELEASE_KEYCHAIN"
+          fi
+          rm -f "$RUNNER_TEMP/studio-release-certificate.p12" "$RUNNER_TEMP/opl-studio-app-notarization.zip"
+
+      - name: Upload Studio release evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-studio-protected-release-${{ inputs.studio_sha }}-${{ github.run_id }}
+          path: studio-release-evidence
+          if-no-files-found: warn
+          retention-days: 30

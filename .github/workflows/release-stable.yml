@@ -1,11 +1,11 @@
 name: OPL Stable Release Bundle
-run-name: "${{ inputs.entry == 'studio_carrier_admission' && format('OPL Stable Studio admission ref:{0} run:{1}', inputs.studio_sha, github.run_id) || inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || inputs.operation == 'append_full' && format('OPL Stable append_full source:{0} run:{1}', inputs.source_run_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
+run-name: "${{ inputs.entry == 'studio_carrier_admission' && format('OPL Stable Studio release ref:{0} run:{1}', inputs.studio_sha, github.run_id) || inputs.operation == 'standard' && format('OPL Stable standard operation:{0} authority:{1} run:{2}', inputs.operation_id, inputs.authority_id, github.run_id) || inputs.operation == 'append_full' && format('OPL Stable append_full source:{0} run:{1}', inputs.source_run_id, github.run_id) || format('OPL Stable {0} {1}', inputs.operation, github.run_id) }}"
 
 on:
   workflow_dispatch:
     inputs:
       entry:
-        description: Select the Framework release lane or the plan-only Studio carrier admission lane
+        description: Select the Framework release lane or the protected Studio release lane
         required: false
         default: framework_release
         type: choice
@@ -207,6 +207,20 @@ jobs:
           path: app-source/studio-protected-release-admission.json
           if-no-files-found: error
           retention-days: 30
+
+  studio-protected-release:
+    if: ${{ !cancelled() && inputs.entry == 'studio_carrier_admission' && needs.studio-protected-release-admission.result == 'success' }}
+    needs: [studio-protected-release-admission]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/_release-studio.yml
+    with:
+      app_ref: ${{ github.sha }}
+      studio_sha: ${{ inputs.studio_sha }}
+      studio_tree: ${{ inputs.studio_tree }}
+      studio_tag: ${{ inputs.studio_tag }}
+    secrets: inherit
 
   protected-operation-admission:
     if: ${{ inputs.entry == 'framework_release' && inputs.operation == 'standard' }}

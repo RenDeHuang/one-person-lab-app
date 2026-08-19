@@ -47,6 +47,7 @@ const nightlyHomebrewFollowerWorkflowPath =
 const nightlySampledVmWorkflowPath = '.github/workflows/release-nightly-sampled-vm.yml';
 const previewLatestPointerWorkflowPath =
   '.github/workflows/_release-preview-latest-pointer.yml';
+const studioReleaseWorkflowPath = '.github/workflows/_release-studio.yml';
 const exactWebuiStablePromotionPermissions = {
   actions: 'read',
   contents: 'read',
@@ -59,6 +60,7 @@ export const stableReleaseActionPaths = [...new Set([
   '.github/workflows/release-attempt-observability.yml',
   postPublicationOptionalCertificationWorkflowPath,
   '.github/workflows/release-source-qualification.yml',
+  studioReleaseWorkflowPath,
   ...releaseWorkflowPaths,
 ])];
 
@@ -452,6 +454,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
 
   const expectedJobs = [
     'studio-protected-release-admission',
+    'studio-protected-release',
     'protected-operation-admission',
     'admission',
     'stable-admission-manifest',
@@ -539,6 +542,79 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   ]) {
     if (!studioAdmissionEvidence.includes(binding)) {
       failures += reportFailure(id, `Studio protected source admission is missing ${binding}`);
+    }
+  }
+
+  const studioRelease = jobs['studio-protected-release'];
+  if (
+    !studioRelease
+    || studioRelease.if !== "${{ !cancelled() && inputs.entry == 'studio_carrier_admission' && needs.studio-protected-release-admission.result == 'success' }}"
+    || !needsExactly(studioRelease, ['studio-protected-release-admission'])
+    || studioRelease.uses !== './.github/workflows/_release-studio.yml'
+    || studioRelease.secrets !== 'inherit'
+    || !exactObject(studioRelease.permissions, exactReadPermissions)
+    || Object.prototype.hasOwnProperty.call(studioRelease, 'steps')
+    || studioRelease.with?.app_ref !== '${{ github.sha }}'
+    || studioRelease.with?.studio_sha !== '${{ inputs.studio_sha }}'
+    || studioRelease.with?.studio_tree !== '${{ inputs.studio_tree }}'
+    || studioRelease.with?.studio_tag !== '${{ inputs.studio_tag }}'
+  ) {
+    failures += reportFailure(
+      id,
+      'Studio execution must be one step-free reusable call after protected source admission',
+    );
+  }
+
+  const studioWorkflow = parseWorkflow(appRoot, studioReleaseWorkflowPath, id);
+  if (!studioWorkflow) {
+    failures += 1;
+  } else {
+    const releaseJobs = workflowJobs(studioWorkflow.workflow);
+    const release = releaseJobs.release;
+    const releaseEvidence = jobEvidenceText(release);
+    if (
+      JSON.stringify(Object.keys(studioWorkflow.workflow.on ?? {})) !== JSON.stringify(['workflow_call'])
+      || !release
+      || release.environment !== 'release-stable'
+      || !exactObject(release.permissions, exactReadPermissions)
+      || release['runs-on'] !== 'macos-15'
+    ) {
+      failures += reportFailure(id, 'Studio reusable release must stay on the protected macOS App-owned runner');
+    }
+    for (const binding of [
+      'scripts/studio-protected-release-admission.ts plan',
+      'scripts/verify-apple-release-credentials.ts',
+      'security import',
+      'electron-builder --mac --arm64 --dir',
+      'pwd -P',
+      'notarytool submit',
+      '--prepackaged "$app_path"',
+      'scripts/notarize-macos-dmg.ts',
+      'scripts/update-electron-updater-metadata.ts',
+      '--require-release-trust',
+      'gh release create',
+      '--latest',
+      'releases/latest',
+      'git/ref/tags/$STUDIO_TAG',
+      '--require-public-feed',
+      'latest-arm64-mac.yml',
+      '.zip.blockmap',
+      'select(.draft == false)',
+      'shasum -a 256',
+      'public-asset-readback.json',
+    ]) {
+      if (!releaseEvidence.includes(binding)) {
+        failures += reportFailure(id, `Studio protected execution is missing ${binding}`);
+      }
+    }
+    if (
+      requestsWritePermission(studioWorkflow.workflow.permissions)
+      || requestsWritePermission(release?.permissions)
+      || releaseEvidence.includes('secrets.GITHUB_TOKEN')
+      || !JSON.stringify(release).includes('OPL_GITHUB_RELEASE_ADMIN_TOKEN')
+      || !releaseEvidence.includes('gaofeng21cn/opl-studio')
+    ) {
+      failures += reportFailure(id, 'Studio release must use the dedicated token and repository without App GITHUB_TOKEN write authority');
     }
   }
 

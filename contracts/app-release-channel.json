@@ -65,6 +65,47 @@
         "publication_allowed": false
       },
       "rule": "The App-owned protected admission binds one exact Studio commit, tree, and tag to the shared desktop carrier stage order, dedicated Studio repository, and carrier-specific qualification. Admission is source evidence only: it does not create a Framework release operation, authorize publication, change the active shell, or make Studio the active release carrier."
+    },
+    "protected_release_execution": {
+      "schema": "opl_studio_protected_release_execution_policy.v1",
+      "authority_owner": "one-person-lab-app",
+      "entry_workflow": ".github/workflows/release-stable.yml",
+      "reusable_workflow": ".github/workflows/_release-studio.yml",
+      "entry_selector": "studio_carrier_admission",
+      "environment": "release-stable",
+      "repository": "gaofeng21cn/opl-studio",
+      "version_identity": {
+        "format": "numeric_semver",
+        "package_bundle_feed_tag_equality_required": true,
+        "tag_template": "v<package-version>",
+        "strictly_newer_than_every_public_numeric_release_required": true,
+        "github_latest_pointer_required": true,
+        "prerelease_flag": false
+      },
+      "secret_custody": {
+        "source": "one-person-lab-app release-stable protected environment",
+        "studio_repository_secret_copy_allowed": false,
+        "github_release_token": "OPL_GITHUB_RELEASE_ADMIN_TOKEN",
+        "capability_preflight_before_notary_or_release_mutation_required": true
+      },
+      "published_assets": [
+        "macos_arm64_dmg",
+        "macos_arm64_updater_zip",
+        "macos_arm64_updater_zip_blockmap",
+        "latest-mac.yml",
+        "latest-arm64-mac.yml"
+      ],
+      "completion_evidence": [
+        "developer_id_signature",
+        "accepted_app_and_dmg_notarization",
+        "stapler_and_gatekeeper_acceptance",
+        "exact_tag_and_target_commit_readback",
+        "anonymous_latest_pointer_and_asset_byte_readback",
+        "carrier_public_release_qualification"
+      ],
+      "active_shell_after_release": "aionui",
+      "active_release_carrier_after_release": false,
+      "rule": "A successful Studio preview release makes only the dedicated Studio package and updater feed current. It does not adopt Studio as the active App shell or replace the Framework Stable release carrier."
     }
   },
   "desktop_release_kernel": {
@@ -101,7 +142,9 @@
         "latest-mac.yml",
         "latest-arm64-mac.yml"
       ],
-      "compatibility_metadata_byte_identical": true
+      "compatibility_metadata_byte_identical": true,
+      "version_identity": "numeric package SemVer equals App bundle version, feed version, and v-prefixed Git tag",
+      "monotonic_public_release_required": true
     },
     "stage_order": [
       "exact_source_checkout",
