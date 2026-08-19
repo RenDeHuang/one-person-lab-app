@@ -1,4 +1,5 @@
 import { assertAppRootBoundary } from '../../../scripts/app-root-boundary.ts';
+import { resolveOplBuildVersions } from '../../../scripts/run-active-shell-command.ts';
 import {
   assert,
   fs,
@@ -69,6 +70,21 @@ test('App root boundary validator accepts the product wrapper and rejects shell-
   assert.throws(
     () => assertAppRootBoundary({ root: tempRoot }),
     /shell build artifact must not exist at App root: index\.js/,
+  );
+});
+
+test('active-shell wrapper binds the display version to the canonical updater machine version', () => {
+  assert.deepEqual(
+    resolveOplBuildVersions({ OPL_RELEASE_VERSION: '26.8.19' }),
+    { displayVersion: '26.8.19', updaterVersion: '26.8.1991' },
+  );
+  assert.throws(
+    () => resolveOplBuildVersions({ OPL_RELEASE_VERSION: '26.8.19', OPL_UPDATER_VERSION: '26.8.19' }),
+    /does not match 26\.8\.19; expected 26\.8\.1991/,
+  );
+  assert.throws(
+    () => resolveOplBuildVersions({ OPL_RELEASE_VERSION: '26.8.19-nightly' }),
+    /Invalid stable App release version/,
   );
 });
 
