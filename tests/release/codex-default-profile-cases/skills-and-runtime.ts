@@ -77,6 +77,28 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     'same_instant_same_authority_exact_thread_id_set_and_archived_bit',
   );
   assert.equal(surfaces.fixed_count_assertion_allowed, false);
+  assert.deepEqual(surfaces.project_row_new_conversation_action, {
+    placement: 'project_row_trailing',
+    visibility: {
+      desktop_fine_pointer: {
+        resting: 'hidden',
+        show_on: ['own_project_row_hover', 'focus_visible'],
+      },
+      coarse_pointer: 'visible',
+      mobile: 'visible',
+    },
+    accessibility: {
+      role: 'button',
+      tab_reachable: true,
+      activation: ['click', 'Enter', 'Space'],
+      accessible_name_required: true,
+      tooltip_required: true,
+    },
+    workspace_scope: 'own_project_row',
+    handler: 'existing_workspace_scoped_new_conversation_handler',
+    route: '/guid',
+    route_state: 'workspace',
+  });
   assert.deepEqual(surfaces.project_affinity_presentation, {
     recorded_cwd_role:
       'canonical_runtime_workspace_and_unregistered_directory_group_fallback_when_explicit_project_id_absent',

@@ -615,6 +615,28 @@
               "mutation_action": "none"
             }
           },
+          "project_row_new_conversation_action": {
+            "placement": "project_row_trailing",
+            "visibility": {
+              "desktop_fine_pointer": {
+                "resting": "hidden",
+                "show_on": ["own_project_row_hover", "focus_visible"]
+              },
+              "coarse_pointer": "visible",
+              "mobile": "visible"
+            },
+            "accessibility": {
+              "role": "button",
+              "tab_reachable": true,
+              "activation": ["click", "Enter", "Space"],
+              "accessible_name_required": true,
+              "tooltip_required": true
+            },
+            "workspace_scope": "own_project_row",
+            "handler": "existing_workspace_scoped_new_conversation_handler",
+            "route": "/guid",
+            "route_state": "workspace"
+          },
           "visible_id_set_policy": {
             "source": "surface_filtered_canonical_visible_id_set",
             "consumers": [
