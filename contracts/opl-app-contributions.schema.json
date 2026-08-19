@@ -504,25 +504,7 @@
       },
       "additionalProperties": false
     },
-    "remote_companion_access_interactive_pairing": {
-      "allOf": [
-        { "$ref": "#/$defs/remote_companion_access_pairing" },
-        { "required": ["manual_code", "authentication_digits"] }
-      ]
-    },
-    "remote_companion_access_non_qr_interactive_pairing": {
-      "allOf": [
-        { "$ref": "#/$defs/remote_companion_access_interactive_pairing" },
-        { "not": { "required": ["qr_payload"] } }
-      ]
-    },
-    "remote_companion_access_qr_ready_pairing": {
-      "allOf": [
-        { "$ref": "#/$defs/remote_companion_access_interactive_pairing" },
-        { "required": ["qr_payload"] }
-      ]
-    },
-    "remote_companion_access_active_pairing": {
+    "remote_companion_access_nonsecret_pairing": {
       "allOf": [
         { "$ref": "#/$defs/remote_companion_access_pairing" },
         {
@@ -535,6 +517,30 @@
           }
         }
       ]
+    },
+    "remote_companion_access_awaiting_confirmation_pairing": {
+      "allOf": [
+        { "$ref": "#/$defs/remote_companion_access_pairing" },
+        { "required": ["authentication_digits"] },
+        {
+          "not": {
+            "anyOf": [
+              { "required": ["manual_code"] },
+              { "required": ["qr_payload"] }
+            ]
+          }
+        }
+      ]
+    },
+    "remote_companion_access_qr_ready_pairing": {
+      "allOf": [
+        { "$ref": "#/$defs/remote_companion_access_pairing" },
+        { "required": ["manual_code", "qr_payload"] },
+        { "not": { "required": ["authentication_digits"] } }
+      ]
+    },
+    "remote_companion_access_active_pairing": {
+      "$ref": "#/$defs/remote_companion_access_nonsecret_pairing"
     },
     "remote_companion_access_device": {
       "type": "object",
@@ -632,21 +638,35 @@
         },
         {
           "properties": { "status": { "const": "unpaired" } },
-          "not": { "required": ["pairing"] }
+          "not": {
+            "anyOf": [
+              { "required": ["pairing"] },
+              { "required": ["devices"] }
+            ]
+          }
         },
         {
           "properties": {
-            "status": { "enum": ["reserving", "awaiting_confirmation", "attention"] },
-            "pairing": { "$ref": "#/$defs/remote_companion_access_non_qr_interactive_pairing" }
+            "status": { "const": "reserving" },
+            "pairing": { "$ref": "#/$defs/remote_companion_access_nonsecret_pairing" }
           },
-          "required": ["pairing"]
+          "not": { "required": ["devices"] }
         },
         {
           "properties": {
             "status": { "const": "qr_ready" },
             "pairing": { "$ref": "#/$defs/remote_companion_access_qr_ready_pairing" }
           },
-          "required": ["pairing"]
+          "required": ["pairing"],
+          "not": { "required": ["devices"] }
+        },
+        {
+          "properties": {
+            "status": { "const": "awaiting_confirmation" },
+            "pairing": { "$ref": "#/$defs/remote_companion_access_awaiting_confirmation_pairing" }
+          },
+          "required": ["pairing"],
+          "not": { "required": ["devices"] }
         },
         {
           "properties": {
@@ -655,6 +675,12 @@
             "devices": { "type": "array", "minItems": 1 }
           },
           "required": ["pairing", "devices"]
+        },
+        {
+          "properties": {
+            "status": { "const": "attention" },
+            "pairing": { "$ref": "#/$defs/remote_companion_access_nonsecret_pairing" }
+          }
         }
       ],
       "additionalProperties": false

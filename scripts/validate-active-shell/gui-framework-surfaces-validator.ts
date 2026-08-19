@@ -126,10 +126,11 @@ export function validatePackageAppContributionsProductContract(contract) {
     || schema.$defs?.remote_companion_access_pairing?.properties?.manual_code?.pattern !== '^[0-9A-HJKMNP-TV-Z]{12}$'
     || schema.$defs?.remote_companion_access_pairing?.properties?.authentication_digits?.pattern !== '^[0-9]{6}$'
     || schema.$defs?.remote_companion_access_pairing?.properties?.qr_payload?.maxLength !== 8192
-    || JSON.stringify(schema.$defs?.remote_companion_access_interactive_pairing?.allOf?.[1]?.required) !==
-      JSON.stringify(['manual_code', 'authentication_digits'])
-    || schema.$defs?.remote_companion_access_active_pairing?.allOf?.[1]?.not?.anyOf?.length !== 3
-    || schema.$defs?.remote_companion_access_qr_ready_pairing?.allOf?.[1]?.required?.join('|') !== 'qr_payload'
+    || schema.$defs?.remote_companion_access_nonsecret_pairing?.allOf?.[1]?.not?.anyOf?.length !== 3
+    || schema.$defs?.remote_companion_access_awaiting_confirmation_pairing?.allOf?.[1]?.required?.join('|') !== 'authentication_digits'
+    || schema.$defs?.remote_companion_access_qr_ready_pairing?.allOf?.[1]?.required?.join('|') !== 'manual_code|qr_payload'
+    || schema.$defs?.remote_companion_access_qr_ready_pairing?.allOf?.[2]?.not?.required?.join('|') !== 'authentication_digits'
+    || schema.$defs?.remote_companion_access_active_pairing?.$ref !== '#/$defs/remote_companion_access_nonsecret_pairing'
     || schema.$defs?.remote_companion_access_device?.additionalProperties !== false
   ) {
     throw new Error('App contributions schema remote_companion_access result must stay closed, bounded, versioned, and state-scoped');

@@ -615,8 +615,6 @@ test('remote_companion_access is closed, state-scoped, and keeps pairing secrets
 
   const pairing = {
     pairing_id: 'pair-001',
-    manual_code: '0123456789AB',
-    authentication_digits: '123456',
     expires_at: '2026-08-19T12:00:00Z',
   };
   const actions = [
@@ -630,11 +628,23 @@ test('remote_companion_access is closed, state-scoped, and keeps pairing secrets
   const qrReady = {
     schema_version: 'opl-app-remote-companion-access.v1',
     status: 'qr_ready',
-    pairing: { ...pairing, qr_payload: 'opllink://pair?payload=temporary' },
+    pairing: { ...pairing, manual_code: '0123456789AB', qr_payload: 'opllink://pair?payload=temporary' },
     actions,
     refresh_after_ms: 1000,
   };
   assert.equal(validate(qrReady), true, JSON.stringify(validate.errors));
+
+  const awaitingConfirmation = {
+    schema_version: 'opl-app-remote-companion-access.v1',
+    status: 'awaiting_confirmation',
+    pairing: { ...pairing, authentication_digits: '123456' },
+    actions,
+  };
+  assert.equal(validate(awaitingConfirmation), true, JSON.stringify(validate.errors));
+
+  const impossibleQrState = structuredClone(qrReady);
+  impossibleQrState.pairing.authentication_digits = '123456';
+  assert.equal(validate(impossibleQrState), false, JSON.stringify(validate.errors));
 
   const active = {
     schema_version: 'opl-app-remote-companion-access.v1',
@@ -662,6 +672,20 @@ test('remote_companion_access is closed, state-scoped, and keeps pairing secrets
     actions,
   };
   assert.equal(validate(active), true, JSON.stringify(validate.errors));
+
+  assert.equal(validate({
+    schema_version: 'opl-app-remote-companion-access.v1',
+    status: 'reserving',
+    actions: [],
+  }), true, JSON.stringify(validate.errors));
+
+  assert.equal(validate({
+    schema_version: 'opl-app-remote-companion-access.v1',
+    status: 'attention',
+    pairing: { ...pairing },
+    devices: active.devices,
+    actions: [{ command_id: 'pair.refresh', input: { pairing_id: 'pair-001' } }],
+  }), true, JSON.stringify(validate.errors));
 
   for (const mutate of [
     (candidate: any) => { candidate.status = 'claimed'; },
