@@ -408,8 +408,7 @@ function validateAgentPackageLifecycleUx(surface, label) {
     controls.row_action_policy !==
       'render every complete Framework-projected Settings action without an App or Shell action-id allowlist' ||
     controls.catalog_search_is_settings_global_search !== false ||
-    'row_actions' in controls ||
-    controls.top_controls?.includes('manifest_url_install_advanced')
+    'row_actions' in controls
   ) {
     throw new Error(label + ' must render projected Settings actions without a fixed action list');
   }
@@ -428,6 +427,20 @@ function validateAgentPackageLifecycleUx(surface, label) {
   ) {
     throw new Error(label + ' must keep action semantic, surface, payload, and confirmation Framework-projected');
   }
+  assertDeepEqualJson(
+    surface.manual_agent_install_entry,
+    {
+      source: 'app_state.actions[action_id=install_from_manifest_url]',
+      destination: 'settings.agents.catalog',
+      visibility_policy: 'show_only_when_the_current_App_action_declares_manifest_url_and_trust_tier_with_dry_run_and_confirmation',
+      input_fields: ['manifest_url', 'trust_tier'],
+      trust_tier_policy: 'user_explicit_third_party_unverified_or_third_party_verified',
+      execution_policy: 'submit_the_current_projected_App_action_then_refresh_fast_state',
+      directory_policy: 'this_is_a_manual_entry_point_not_a_directory_row_or_static_package_registry',
+      lifecycle_authority: 'configured_native_carrier_readback_only',
+    },
+    label + ' manual Agent install entry',
+  );
 
   const projection = surface.package_projection_contract;
   if (
@@ -468,7 +481,6 @@ function validateAgentPackageLifecycleUx(surface, label) {
     'lifecycle_receipt_ref',
     'action_receipt_ref',
     'rollback_ref',
-    'manifest_url_install_advanced',
   ]) {
     if (serialized.includes(forbidden)) {
       throw new Error(label + ' must not parse private Package lifecycle field ' + forbidden);

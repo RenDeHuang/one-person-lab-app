@@ -29,8 +29,6 @@ function assertNoForbiddenConsumerSurface(value: unknown, label: string): void {
     'builtin_assistant_route_receipt_policy',
     'package_lock_receipt_contract',
     'receipt_physical_surface_detail_policy',
-    'advanced_manifest_install_contract',
-    'manifest_url_install_advanced',
     'route_receipt_source_ref',
     'legacy_route_receipt_alias_source_ref',
     'route_receipt_required_fields',
@@ -148,6 +146,21 @@ function validateContract(): void {
     settingsAgents.agent_package_lifecycle_ux.consistent_action_interaction.action_id_allowlist_allowed,
     false,
     'Settings action allowlist policy',
+  );
+  assertEqual(
+    settingsAgents.agent_package_lifecycle_ux.manual_agent_install_entry.source,
+    'app_state.actions[action_id=install_from_manifest_url]',
+    'manual Agent install action source',
+  );
+  assertEqual(
+    settingsAgents.agent_package_lifecycle_ux.manual_agent_install_entry.visibility_policy,
+    'show_only_when_the_current_App_action_declares_manifest_url_and_trust_tier_with_dry_run_and_confirmation',
+    'manual Agent install action visibility policy',
+  );
+  assertEqual(
+    settingsAgents.agent_package_lifecycle_ux.manual_agent_install_entry.input_fields,
+    ['manifest_url', 'trust_tier'],
+    'manual Agent install action inputs',
   );
 
   const unknownEntry = fixture.app_state.agent_packages.directory.entries[0];
