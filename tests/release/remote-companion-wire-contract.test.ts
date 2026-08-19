@@ -64,6 +64,22 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
     product_semantics_source: 'contracts/app-remote-companion.json#surface_boundary.conversation_model',
     must_not_be_interpreted_as: 'opl_link_task_control_plane_or_task_lifecycle_authority',
   });
+  assert.equal(wire.app_access_projection.view_type, 'remote_companion_access');
+  assert.equal(
+    wire.app_access_projection.result_schema_ref,
+    'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result',
+  );
+  assert.deepEqual(wire.app_access_projection.actions, [
+    'pair.start',
+    'pair.refresh',
+    'pair.confirm',
+    'pair.cancel',
+    'device.rename',
+    'pair.revoke',
+  ]);
+  assert.equal(wire.app_access_projection.secret_policy.qr_payload_only_when, 'status_equals_qr_ready');
+  assert.equal(wire.app_access_projection.secret_policy.qr_payload_max_length, 8192);
+  assert.match(wire.app_access_projection.wire_alias_policy, /internal_wire_compatibility_alias/);
   assert.deepEqual(
     wire.transport_envelope.encrypted_payload_variants.command.allowed_action_ids,
     product.action_policy.mvp_allowed_actions,

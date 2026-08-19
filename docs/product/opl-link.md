@@ -75,15 +75,20 @@ OPL Link 整体不是 OPL Connect 的下属产品。只有把桌面 OPL App 接�
 canonical App bridge 执行动作，不长期拥有 Connector 业务逻辑，也不创建产品专用 Host。当前目标
 Package 尚未实现，既有 Shell Connector 源码是待迁移缺口，不能表述为已经完成插件化。
 
-Connector 不创建顶级设置导航，而是用 App-owned `channel_access` 标准声明式视图进入
-`设置 > 资源 > 消息与连接`。只有 Package descriptor 当前、已安装、已启用且可调用，Framework
-Host 已接入，贡献与 action refs 均有效时才显示。Connector 已就绪但尚未连接时显示连接或配对动作；
-Package 或 Host 未就绪时完全隐藏，不显示静态入口或占位。
+Connector 不创建顶级设置导航，而是用 App-owned `remote_companion_access` 标准声明式视图进入
+`设置 > 资源 > 消息与连接`。微信等消息渠道继续使用独立的 `channel_access` 语义；OPL Link
+不得因为不是 `channel_access` 而被 Shell 或 Host 过滤。只有 Package descriptor 当前、已安装、已启用且可调用，
+Framework Host 已接入，贡献与 action refs 均有效时才显示。Connector 已就绪但尚未配对时显示
+`pair.start`；Package 或 Host 未就绪时完全隐藏，不显示静态入口或占位。
 
-普通界面只显示图标、名称、连接状态、主要动作和必要详情；Package ID、carrier/trust 与诊断只在
+普通界面只显示图标、名称、配对状态、设备、主要动作和必要详情；Package ID、carrier/trust 与诊断只在
 开发者详情显示。微信消息渠道 Connector 与 OPL Link desktop Connector 是当前已明确的产品分类，
-不是运行时白名单。Package 只贡献结构化数据和 action refs，不能下发任意 Swift 或 React UI；超出
-`channel_access` 的新交互必须先新增并准入 App-owned 标准视图合同。
+不是运行时白名单。Package 只贡献结构化数据和 action refs，不能下发任意 Swift 或 React UI；
+`remote_companion_access` 的动作固定为 `pair.start`、`pair.refresh`、`pair.confirm`、`pair.cancel`、
+`device.rename`、`pair.revoke`，不接受任意表单或 UI 输入。配对投影的状态固定为
+`unavailable`、`unpaired`、`reserving`、`qr_ready`、`awaiting_confirmation`、`active`、`revoking`、
+`attention`；邀请、短码、QR claim material 和 claim secret 只在当前交互瞬时出现，不进入缓存、日志或
+App action readback，完整 QR payload 只允许在有界且未过期的 `qr_ready` 投影中出现。
 
 TestFlight 只负责 iOS carrier 分发；用户准入和验证 cohort 由 Worker/D1 的邀请与 pair admission
 控制，不能用 TestFlight 名额代替。免费配额是运营约束，不是产品内写死的 40-user 上限。

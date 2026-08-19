@@ -189,6 +189,26 @@ export type AppDeliveryTopology = {
     transport_target: 'ably_free_realtime_with_cloudflare_workers_d1_control_plane';
     transport_selection_status: 'target_pending_mainland_china_probe';
     current_implementation: 'legacy_tencent_and_go_sqlite_source_not_conformant_to_target';
+    access_view_type: 'remote_companion_access';
+    access_view_contract_ref: 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result';
+    access_status_values: [
+      'unavailable',
+      'unpaired',
+      'reserving',
+      'qr_ready',
+      'awaiting_confirmation',
+      'active',
+      'revoking',
+      'attention',
+    ];
+    access_actions: [
+      'pair.start',
+      'pair.refresh',
+      'pair.confirm',
+      'pair.cancel',
+      'device.rename',
+      'pair.revoke',
+    ];
     release_ready: false;
     optional_web_fallback: 'desktop_webui_remains_available_but_is_not_the_ios_product';
     separate_product_renderer_allowed: false;
@@ -310,6 +330,7 @@ export type AppProductProfile = {
       'artifact_view',
       'activity_log',
       'channel_access',
+      'remote_companion_access',
     ];
     transport_binding_source: 'app_state.transport_bindings';
     transport_binding_schema: 'opl_app_transport_bindings_projection.v1';

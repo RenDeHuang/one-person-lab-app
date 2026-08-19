@@ -118,7 +118,8 @@ requires them.
 The product kernel owns navigation, Codex thread/turn transport, the Settings
 host, permissions, and the action broker. Packages may contribute only through
 declared `settings.section`, `runtime.detail`, and `composer.palette` slots, including the App-owned
-`channel_access` standard view. Canonical channel-to-task bindings come only from Framework-projected
+`channel_access` standard view for Weixin/channel providers and the separate `remote_companion_access`
+standard view for OPL Link. Canonical conversation/thread bindings come only from Framework-projected
 `app_state.transport_bindings`; Studio joins them by exact host and thread identity and never infers or writes
 bindings from workspace/title state.
 Studio reuses pinned DeepSeek Harness registration, ordering, error isolation,

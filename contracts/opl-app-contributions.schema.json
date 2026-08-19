@@ -115,7 +115,8 @@
             "task_board",
             "artifact_view",
             "activity_log",
-            "channel_access"
+            "channel_access",
+            "remote_companion_access"
           ]
         },
         "title_i18n": { "$ref": "#/$defs/localized_text" },
@@ -345,6 +346,315 @@
               { "required": ["authorized_users"] }
             ]
           }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "remote_companion_access_pair_start_action_input": {
+      "type": "object",
+      "required": ["invitation_code", "display_name"],
+      "properties": {
+        "invitation_code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_pairing_id_action_input": {
+      "type": "object",
+      "required": ["pairing_id"],
+      "properties": {
+        "pairing_id": { "$ref": "#/$defs/opaque_id" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_pair_confirm_action_input": {
+      "type": "object",
+      "required": ["pairing_id", "authentication_digits"],
+      "properties": {
+        "pairing_id": { "$ref": "#/$defs/opaque_id" },
+        "authentication_digits": {
+          "type": "string",
+          "pattern": "^[0-9]{6}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_device_rename_action_input": {
+      "type": "object",
+      "required": ["device_id", "display_name"],
+      "properties": {
+        "device_id": { "$ref": "#/$defs/opaque_id" },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_action_input": {
+      "oneOf": [
+        { "$ref": "#/$defs/remote_companion_access_pair_start_action_input" },
+        { "$ref": "#/$defs/remote_companion_access_pairing_id_action_input" },
+        { "$ref": "#/$defs/remote_companion_access_pair_confirm_action_input" },
+        { "$ref": "#/$defs/remote_companion_access_device_rename_action_input" }
+      ]
+    },
+    "remote_companion_access_pair_start_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "const": "pair.start" },
+        "input": { "$ref": "#/$defs/remote_companion_access_pair_start_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_pair_refresh_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "const": "pair.refresh" },
+        "input": { "$ref": "#/$defs/remote_companion_access_pairing_id_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_pair_confirm_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "const": "pair.confirm" },
+        "input": { "$ref": "#/$defs/remote_companion_access_pair_confirm_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_pair_cancel_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "const": "pair.cancel" },
+        "input": { "$ref": "#/$defs/remote_companion_access_pairing_id_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_device_rename_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "const": "device.rename" },
+        "input": { "$ref": "#/$defs/remote_companion_access_device_rename_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_pair_revoke_action": {
+      "type": "object",
+      "required": ["command_id", "input"],
+      "properties": {
+        "command_id": { "const": "pair.revoke" },
+        "input": { "$ref": "#/$defs/remote_companion_access_pairing_id_action_input" }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_action": {
+      "oneOf": [
+        { "$ref": "#/$defs/remote_companion_access_pair_start_action" },
+        { "$ref": "#/$defs/remote_companion_access_pair_refresh_action" },
+        { "$ref": "#/$defs/remote_companion_access_pair_confirm_action" },
+        { "$ref": "#/$defs/remote_companion_access_pair_cancel_action" },
+        { "$ref": "#/$defs/remote_companion_access_device_rename_action" },
+        { "$ref": "#/$defs/remote_companion_access_pair_revoke_action" }
+      ]
+    },
+    "remote_companion_access_action_list": {
+      "type": "array",
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/remote_companion_access_action" }
+    },
+    "remote_companion_access_pairing": {
+      "type": "object",
+      "required": ["pairing_id", "expires_at"],
+      "properties": {
+        "pairing_id": { "$ref": "#/$defs/opaque_id" },
+        "manual_code": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{12}$"
+        },
+        "authentication_digits": {
+          "type": "string",
+          "pattern": "^[0-9]{6}$"
+        },
+        "expires_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$",
+          "maxLength": 64
+        },
+        "qr_payload": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8192
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_interactive_pairing": {
+      "allOf": [
+        { "$ref": "#/$defs/remote_companion_access_pairing" },
+        { "required": ["manual_code", "authentication_digits"] }
+      ]
+    },
+    "remote_companion_access_non_qr_interactive_pairing": {
+      "allOf": [
+        { "$ref": "#/$defs/remote_companion_access_interactive_pairing" },
+        { "not": { "required": ["qr_payload"] } }
+      ]
+    },
+    "remote_companion_access_qr_ready_pairing": {
+      "allOf": [
+        { "$ref": "#/$defs/remote_companion_access_interactive_pairing" },
+        { "required": ["qr_payload"] }
+      ]
+    },
+    "remote_companion_access_active_pairing": {
+      "allOf": [
+        { "$ref": "#/$defs/remote_companion_access_pairing" },
+        {
+          "not": {
+            "anyOf": [
+              { "required": ["manual_code"] },
+              { "required": ["authentication_digits"] },
+              { "required": ["qr_payload"] }
+            ]
+          }
+        }
+      ]
+    },
+    "remote_companion_access_device": {
+      "type": "object",
+      "required": ["device_id", "device_type", "display_name", "authorization_state", "last_activity_at"],
+      "properties": {
+        "device_id": { "$ref": "#/$defs/opaque_id" },
+        "device_type": { "enum": ["desktop", "mobile"] },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "authorization_state": {
+          "enum": ["pending", "authorized", "revoking", "revoked", "attention"]
+        },
+        "last_activity_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?Z$",
+              "maxLength": 64
+            },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_secret_boundary": {
+      "type": "object",
+      "required": [
+        "transient_interaction_fields",
+        "forbidden_projection_fields",
+        "forbidden_action_readback_fields",
+        "qr_payload_projection_rule"
+      ],
+      "properties": {
+        "transient_interaction_fields": {
+          "const": ["invitation_code", "manual_code", "qr_payload", "authentication_digits"]
+        },
+        "forbidden_projection_fields": {
+          "const": ["claim_secret", "claim_material", "device_credential", "provider_credential"]
+        },
+        "forbidden_action_readback_fields": {
+          "const": ["invitation_code", "manual_code", "qr_payload", "claim_secret", "claim_material"]
+        },
+        "qr_payload_projection_rule": {
+          "const": "complete_qr_payload_is_allowed_only_in_qr_ready_pairing_projection_and_must_be_bounded_and_expiring"
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote_companion_access_result": {
+      "type": "object",
+      "required": ["schema_version", "status", "actions"],
+      "properties": {
+        "schema_version": { "const": "opl-app-remote-companion-access.v1" },
+        "status": {
+          "enum": [
+            "unavailable",
+            "unpaired",
+            "reserving",
+            "qr_ready",
+            "awaiting_confirmation",
+            "active",
+            "revoking",
+            "attention"
+          ]
+        },
+        "unavailable_reason": { "$ref": "#/$defs/stable_id" },
+        "pairing": { "$ref": "#/$defs/remote_companion_access_pairing" },
+        "devices": {
+          "type": "array",
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/remote_companion_access_device" }
+        },
+        "actions": { "$ref": "#/$defs/remote_companion_access_action_list" },
+        "refresh_after_ms": {
+          "type": "integer",
+          "minimum": 250,
+          "maximum": 60000
+        }
+      },
+      "oneOf": [
+        {
+          "properties": { "status": { "const": "unavailable" } },
+          "required": ["unavailable_reason"],
+          "not": {
+            "anyOf": [
+              { "required": ["pairing"] },
+              { "required": ["devices"] }
+            ]
+          }
+        },
+        {
+          "properties": { "status": { "const": "unpaired" } },
+          "not": { "required": ["pairing"] }
+        },
+        {
+          "properties": {
+            "status": { "enum": ["reserving", "awaiting_confirmation", "attention"] },
+            "pairing": { "$ref": "#/$defs/remote_companion_access_non_qr_interactive_pairing" }
+          },
+          "required": ["pairing"]
+        },
+        {
+          "properties": {
+            "status": { "const": "qr_ready" },
+            "pairing": { "$ref": "#/$defs/remote_companion_access_qr_ready_pairing" }
+          },
+          "required": ["pairing"]
+        },
+        {
+          "properties": {
+            "status": { "enum": ["active", "revoking"] },
+            "pairing": { "$ref": "#/$defs/remote_companion_access_active_pairing" },
+            "devices": { "type": "array", "minItems": 1 }
+          },
+          "required": ["pairing", "devices"]
         }
       ],
       "additionalProperties": false

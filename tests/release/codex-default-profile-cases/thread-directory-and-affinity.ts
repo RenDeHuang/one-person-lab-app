@@ -232,26 +232,26 @@ test('recorded cwd compatibility auto-loads a directory group without creating p
   assert.match(JSON.stringify(pageStateMatrix), /recorded cwd alone treated as explicit Project affinity/);
 });
 
-test('transport providers project a projectless canonical task binding without Shell inference', () => {
+test('OPL Link projects a projectless canonical conversation binding without Shell inference', () => {
   const contract = readJson('contracts/app-gui-product-contract.json');
-  const channelAccess = contract.pages.settings_resources.remote_channel_access;
+  const remoteCompanionAccess = contract.pages.settings_resources.remote_companion_access;
   const runtimeBridge = readJson('contracts/app-runtime-bridge.json');
   const projection = runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection;
   const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');
-  const pageChannelAccess = pageStateMatrix.pages.find((page: any) => page.id === 'settings_resources')
-    .remote_channel_access;
+  const pageRemoteCompanionAccess = pageStateMatrix.pages.find((page: any) => page.id === 'settings_resources')
+    .remote_companion_access;
 
-  assert.equal(channelAccess.source, 'renderer_specific_channel_provider_route');
-  assert.deepEqual(channelAccess.source_by_renderer, {
-    aionui: 'aioncore_builtin_channel_ipc_and_api_channel_weixin_login',
+  assert.equal(remoteCompanionAccess.source, 'framework_projected_remote_companion_connector_route');
+  assert.deepEqual(remoteCompanionAccess.source_by_renderer, {
+    aionui: 'app_state.ui_contributions.slots.settings.section',
     opl_studio: 'app_state.ui_contributions.slots.settings.section',
   });
-  assert.equal(channelAccess.standard_view_type, 'channel_access');
-  assert.equal(channelAccess.framework_channel_provider_host_activation_in_aionui_allowed, false);
-  assert.equal(channelAccess.single_active_provider_path_per_renderer_required, true);
+  assert.equal(remoteCompanionAccess.standard_view_type, 'remote_companion_access');
+  assert.equal(remoteCompanionAccess.framework_remote_companion_host_activation_in_aionui_allowed, true);
+  assert.equal(remoteCompanionAccess.single_active_provider_path_per_renderer_required, true);
   assert.equal(
-    channelAccess.provider_absent_policy,
-    'aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution_without_placeholder_or_fabricated_state',
+    remoteCompanionAccess.provider_absent_policy,
+    'project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable',
   );
   assert.equal(projection.source, 'app_state.transport_bindings');
   assert.equal(projection.surface_kind, 'opl_app_transport_bindings_projection.v1');
@@ -271,10 +271,17 @@ test('transport providers project a projectless canonical task binding without S
   assert.equal('existing_exact_canonical_thread_id_read_compatibility' in projection, false);
   assert.equal(projection.cached_canonical_thread_id_binding_inference_allowed, false);
   assert.match(projection.binding_unavailable_policy, /preserve_the_transport_row_fail_open_without_fabricated_binding/);
-  assert.match(
-    pageChannelAccess.provider_absent_policy,
-    /aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution/,
-  );
+  assert.match(pageRemoteCompanionAccess.provider_absent_policy, /project_unavailable_without_fabricated_pair_or_device_state/);
+  assert.deepEqual(pageRemoteCompanionAccess.status_values, [
+    'unavailable',
+    'unpaired',
+    'reserving',
+    'qr_ready',
+    'awaiting_confirmation',
+    'active',
+    'revoking',
+    'attention',
+  ]);
 });
 
 test('active-shell source gate keeps canonical thread directory queries state-db-only', () => {

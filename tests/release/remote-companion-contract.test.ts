@@ -31,6 +31,27 @@ test('OPL Link selects Ably plus Workers and D1 while keeping implementation gap
   assert.equal(policy.transport.public_desktop_address_required, false);
   assert.equal(policy.transport.usage_guardrails.fixed_pair_limit_in_ios_or_testflight, false);
   assert.equal(policy.distribution_and_access.testflight_is_capacity_or_entitlement_authority, false);
+  assert.equal(policy.desktop_connector_boundary.settings_contribution.view_type, 'remote_companion_access');
+  assert.deepEqual(policy.app_access_contract.status_values, [
+    'unavailable',
+    'unpaired',
+    'reserving',
+    'qr_ready',
+    'awaiting_confirmation',
+    'active',
+    'revoking',
+    'attention',
+  ]);
+  assert.deepEqual(policy.app_access_contract.actions, [
+    'pair.start',
+    'pair.refresh',
+    'pair.confirm',
+    'pair.cancel',
+    'device.rename',
+    'pair.revoke',
+  ]);
+  assert.equal(policy.app_access_contract.product_model, 'conversation_and_canonical_thread_not_task_control_plane');
+  assert.equal(policy.app_access_contract.secret_boundary.qr_payload_max_length, 8192);
 
   assert.equal(policy.pairing.manual_code_resolution.response_fields.includes('service_url'), true);
   assert.equal(policy.pairing.qr_payload.includes('service_url'), true);
@@ -75,6 +96,9 @@ test('OPL Link validator rejects old target defaults and premature release claim
     (candidate: Record<string, any>) => { candidate.implementation_status.legacy_stack_conforms_to_selected_architecture = true; },
     (candidate: Record<string, any>) => { candidate.implementation_status.release_ready_claim_allowed = true; },
     (candidate: Record<string, any>) => { candidate.delivery_governance.process_correction.must_not_repeat = false; },
+    (candidate: Record<string, any>) => { candidate.app_access_contract.view_type = 'channel_access'; },
+    (candidate: Record<string, any>) => { candidate.app_access_contract.actions.push('form.submit'); },
+    (candidate: Record<string, any>) => { candidate.app_access_contract.secret_boundary.qr_payload_max_length = 0; },
   ];
 
   for (const mutate of mutations) {

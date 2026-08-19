@@ -1512,8 +1512,45 @@
     "transport_selection_status": "target_pending_mainland_china_probe",
     "current_connector_implementation": "legacy_tencent_source_requires_migration",
     "release_ready": false,
+    "standard_view_type": "remote_companion_access",
+    "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access",
     "pairing_access_gate": "one_time_invitation_and_worker_d1_pair_admission",
     "pairing_surface": "settings_resources_desktop_pairing_qr_and_ios_scan",
+    "access_status_values": [
+      "unavailable",
+      "unpaired",
+      "reserving",
+      "qr_ready",
+      "awaiting_confirmation",
+      "active",
+      "revoking",
+      "attention"
+    ],
+    "access_actions": [
+      "pair.start",
+      "pair.refresh",
+      "pair.confirm",
+      "pair.cancel",
+      "device.rename",
+      "pair.revoke"
+    ],
+    "secret_boundary": {
+      "transient_interaction_fields": [
+        "invitation_code",
+        "manual_code",
+        "qr_payload",
+        "authentication_digits"
+      ],
+      "never_cached_logged_or_returned_by_app_action": [
+        "invitation_code",
+        "manual_code",
+        "qr_payload",
+        "claim_secret",
+        "claim_material"
+      ],
+      "qr_payload_only_in_status": "qr_ready",
+      "qr_payload_max_length": 8192
+    },
     "ordinary_ios_actions": [
       "conversation.list",
       "conversation.open",
@@ -1636,7 +1673,8 @@
         "task_board",
         "artifact_view",
         "activity_log",
-        "channel_access"
+        "channel_access",
+        "remote_companion_access"
       ],
       "standard_view_contracts": {
         "channel_access": {
@@ -1669,6 +1707,53 @@
           "qr_payload_policy": "ephemeral_login_challenge_render_only_never_persist_log_or_copy_into_shell_state",
           "provider_absent_policy": "no_contribution_entry_is_a_normal_unavailable_state_for_the_successor_and_must_not_block_the_aionui_mainline",
           "arbitrary_renderer_code_allowed": false
+        },
+        "remote_companion_access": {
+          "result_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result",
+          "placement": "settings.section",
+          "trust_tier": "declarative",
+          "owner": "one-person-lab-app",
+          "data_truth_owner": "opl-link_desktop_connector_and_opl_link_service",
+          "projection_owner": "one-person-lab-framework",
+          "renderer_activation_policy": {
+            "aionui": {
+              "provider_owner": "opl_link_desktop_connector",
+              "settings_surface": "app_standard_remote_companion_access",
+              "framework_remote_companion_host_activation_allowed": true,
+              "framework_projected_remote_companion_access_rendering_allowed": true
+            },
+            "opl_studio": {
+              "provider_owner": "opl_link_desktop_connector",
+              "settings_surface": "app_standard_remote_companion_access",
+              "framework_remote_companion_host_activation_allowed": true,
+              "framework_projected_remote_companion_access_rendering_allowed": true
+            },
+            "single_active_provider_path_per_renderer_required": true
+          },
+          "migration_state": "target_contract_landed_connector_package_and_worker_d1_ably_source_not_implemented",
+          "runtime_status": "target_projection_contract_only_service_connector_ios_shell_network_apns_and_testflight_qualification_unverified",
+          "command_input_source": "validated_remote_companion_access_action_inputs",
+          "command_resolution": "resolve_fixed_action_id_against_the_same_current_descriptor_then_dispatch_only_the_declared_closed_input_shape",
+          "post_action_readback": "fresh_remote_companion_access_read_required_after_action_success",
+          "secret_boundary": {
+            "transient_interaction_fields": [
+              "invitation_code",
+              "manual_code",
+              "qr_payload",
+              "authentication_digits"
+            ],
+            "never_cached_logged_or_returned_by_app_action": [
+              "invitation_code",
+              "manual_code",
+              "qr_payload",
+              "claim_secret",
+              "claim_material"
+            ],
+            "qr_payload_only_in_status": "qr_ready",
+            "qr_payload_max_length": 8192
+          },
+          "provider_absent_policy": "project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable",
+          "arbitrary_renderer_code_allowed": false
         }
       },
       "opl_connect_connector_settings": {
@@ -1678,12 +1763,12 @@
           "zh_cn": "消息与连接",
           "en": "Messages & Connections"
         },
-        "contribution_contract": "an_installed_connector_package_declares_a_settings_section_view_using_the_existing_channel_access_standard_view_and_action_refs",
+        "contribution_contract": "an_installed_connector_package_declares_a_settings_section_view_using_an_app_admitted_standard_view_and_action_refs",
         "runtime_membership_source": "app_state.ui_contributions.slots.settings.section",
         "runtime_membership_policy": "dynamic_framework_host_projection_only_no_fixed_package_or_brand_allowlist",
         "renderer_admission": {
-          "aionui": "not_admitted_use_aioncore_builtin_channel_settings_without_starting_the_framework_channel_provider_host",
-          "opl_studio": "admitted_from_dynamic_framework_host_projection_without_a_fixed_package_or_brand_allowlist"
+          "aionui": "admit_remote_companion_access_from_dynamic_framework_host_projection; keep_aioncore_builtin_weixin_only_for_channel_access_without_starting_a_second_channel_provider_path",
+          "opl_studio": "admit_remote_companion_access_and_channel_access_from_dynamic_framework_host_projection_without_a_fixed_package_or_brand_allowlist"
         },
         "visibility_requirements": [
           "package_descriptor_is_current_installed_enabled_and_callable",
@@ -1790,6 +1875,14 @@
         ],
         "settings_placement_policy": {
           "channel_access": {
+            "destination": "settings.resources.messages_and_connections",
+            "app_admission_required": true,
+            "admission_basis": [
+              "current_user_task",
+              "app_placement_policy"
+            ]
+          },
+          "remote_companion_access": {
             "destination": "settings.resources.messages_and_connections",
             "app_admission_required": true,
             "admission_basis": [
@@ -7010,6 +7103,7 @@
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
         "renderer-owned channel account, pairing, and authorized-user management through AionCore in AionUI or the standard channel_access contribution in the successor",
+        "OPL Link pairing and device access through the standard remote_companion_access contribution without a view-type filter",
         "remote connection details close back to Resources & Connections, and Settings retains an explicit return-to-app action",
         "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
@@ -7050,29 +7144,61 @@
         "action_policy": "open_existing_local_browser_access_settings",
         "implementation_provenance_visibility": "technical_details_only"
       },
-      "remote_channel_access": {
-        "source": "renderer_specific_channel_provider_route",
+      "remote_companion_access": {
+        "source": "framework_projected_remote_companion_connector_route",
         "source_by_renderer": {
-          "aionui": "aioncore_builtin_channel_ipc_and_api_channel_weixin_login",
+          "aionui": "app_state.ui_contributions.slots.settings.section",
           "opl_studio": "app_state.ui_contributions.slots.settings.section"
         },
-        "standard_view_type": "channel_access",
-        "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.channel_access",
-        "framework_channel_provider_host_activation_in_aionui_allowed": false,
+        "standard_view_type": "remote_companion_access",
+        "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access",
+        "framework_remote_companion_host_activation_in_aionui_allowed": true,
         "single_active_provider_path_per_renderer_required": true,
         "transport_binding_projection_ref": "contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection",
-        "provider_absent_policy": "aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution_without_placeholder_or_fabricated_state",
+        "provider_absent_policy": "project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable",
+        "status_values": [
+          "unavailable",
+          "unpaired",
+          "reserving",
+          "qr_ready",
+          "awaiting_confirmation",
+          "active",
+          "revoking",
+          "attention"
+        ],
         "ordinary_controls": [
-          "login_or_connection_status",
-          "pairing_requests",
-          "authorized_users"
+          "pair.start",
+          "pair.refresh",
+          "pair.confirm",
+          "pair.cancel",
+          "device.rename",
+          "pair.revoke"
         ],
         "forbidden_controls": [
           "agent_selector",
           "model_selector",
           "model_following_status",
+          "arbitrary_form_or_ui_input",
+          "claim_secret_or_claim_material",
           "target_shell_owned_binding_or_workspace_inference_after_framework_transport_binding_projection_cutover"
         ],
+        "secret_boundary": {
+          "transient_interaction_fields": [
+            "invitation_code",
+            "manual_code",
+            "qr_payload",
+            "authentication_digits"
+          ],
+          "never_cached_logged_or_returned_by_app_action": [
+            "invitation_code",
+            "manual_code",
+            "qr_payload",
+            "claim_secret",
+            "claim_material"
+          ],
+          "qr_payload_only_in_status": "qr_ready",
+          "qr_payload_max_length": 8192
+        },
         "navigation_policy": {
           "close_connection_details": "return_to_settings_resources",
           "return_to_app": "use_settings_return_to_app_action"

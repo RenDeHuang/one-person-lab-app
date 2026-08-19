@@ -224,6 +224,7 @@ test('any Package role may project one closed standard App contribution block', 
     'artifact_view',
     'activity_log',
     'channel_access',
+    'remote_companion_access',
   ];
   const shellWriteActionBridge = {
     action_id: 'package_contribution_execute',
@@ -342,6 +343,42 @@ test('any Package role may project one closed standard App contribution block', 
     post_action_readback: 'fresh_contribution_read_required_after_action_success_and_while_refresh_after_ms_is_projected',
     qr_payload_policy: 'ephemeral_login_challenge_render_only_never_persist_log_or_copy_into_shell_state',
     provider_absent_policy: 'no_contribution_entry_is_a_normal_unavailable_state_for_the_successor_and_must_not_block_the_aionui_mainline',
+    arbitrary_renderer_code_allowed: false,
+  });
+  assert.deepEqual(contributionContract.standard_view_contracts.remote_companion_access, {
+    result_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result',
+    placement: 'settings.section',
+    trust_tier: 'declarative',
+    owner: 'one-person-lab-app',
+    data_truth_owner: 'opl-link_desktop_connector_and_opl_link_service',
+    projection_owner: 'one-person-lab-framework',
+    renderer_activation_policy: {
+      aionui: {
+        provider_owner: 'opl_link_desktop_connector',
+        settings_surface: 'app_standard_remote_companion_access',
+        framework_remote_companion_host_activation_allowed: true,
+        framework_projected_remote_companion_access_rendering_allowed: true,
+      },
+      opl_studio: {
+        provider_owner: 'opl_link_desktop_connector',
+        settings_surface: 'app_standard_remote_companion_access',
+        framework_remote_companion_host_activation_allowed: true,
+        framework_projected_remote_companion_access_rendering_allowed: true,
+      },
+      single_active_provider_path_per_renderer_required: true,
+    },
+    migration_state: 'target_contract_landed_connector_package_and_worker_d1_ably_source_not_implemented',
+    runtime_status: 'target_projection_contract_only_service_connector_ios_shell_network_apns_and_testflight_qualification_unverified',
+    command_input_source: 'validated_remote_companion_access_action_inputs',
+    command_resolution: 'resolve_fixed_action_id_against_the_same_current_descriptor_then_dispatch_only_the_declared_closed_input_shape',
+    post_action_readback: 'fresh_remote_companion_access_read_required_after_action_success',
+    secret_boundary: {
+      transient_interaction_fields: ['invitation_code', 'manual_code', 'qr_payload', 'authentication_digits'],
+      never_cached_logged_or_returned_by_app_action: ['invitation_code', 'manual_code', 'qr_payload', 'claim_secret', 'claim_material'],
+      qr_payload_only_in_status: 'qr_ready',
+      qr_payload_max_length: 8192,
+    },
+    provider_absent_policy: 'project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable',
     arbitrary_renderer_code_allowed: false,
   });
   assert.deepEqual(contributionContract.reference_integrity, {
@@ -566,6 +603,84 @@ test('channel_access requires exact inputs, state-scoped QR challenges, and no s
     status: 'unavailable',
     channel_id: 'weixin',
     unavailable_reason: 'producer_absent',
+  }), true, JSON.stringify(validate.errors));
+});
+
+test('remote_companion_access is closed, state-scoped, and keeps pairing secrets transient', () => {
+  const schema = readJson('contracts/opl-app-contributions.schema.json');
+  const ajv = new Ajv2020({ allErrors: true, strictSchema: true, strictTypes: false });
+  ajv.addSchema(schema);
+  const validate = ajv.getSchema(`${schema.$id}#/$defs/remote_companion_access_result`);
+  assert.ok(validate);
+
+  const pairing = {
+    pairing_id: 'pair-001',
+    manual_code: '0123456789AB',
+    authentication_digits: '123456',
+    expires_at: '2026-08-19T12:00:00Z',
+  };
+  const actions = [
+    { command_id: 'pair.start', input: { invitation_code: 'invite-once', display_name: 'Desktop' } },
+    { command_id: 'pair.refresh', input: { pairing_id: 'pair-001' } },
+    { command_id: 'pair.confirm', input: { pairing_id: 'pair-001', authentication_digits: '123456' } },
+    { command_id: 'pair.cancel', input: { pairing_id: 'pair-001' } },
+    { command_id: 'device.rename', input: { device_id: 'ios-001', display_name: 'Phone' } },
+    { command_id: 'pair.revoke', input: { pairing_id: 'pair-001' } },
+  ];
+  const qrReady = {
+    schema_version: 'opl-app-remote-companion-access.v1',
+    status: 'qr_ready',
+    pairing: { ...pairing, qr_payload: 'opllink://pair?payload=temporary' },
+    actions,
+    refresh_after_ms: 1000,
+  };
+  assert.equal(validate(qrReady), true, JSON.stringify(validate.errors));
+
+  const active = {
+    schema_version: 'opl-app-remote-companion-access.v1',
+    status: 'active',
+    pairing: {
+      pairing_id: pairing.pairing_id,
+      expires_at: pairing.expires_at,
+    },
+    devices: [
+      {
+        device_id: 'desktop-001',
+        device_type: 'desktop',
+        display_name: 'Desktop',
+        authorization_state: 'authorized',
+        last_activity_at: '2026-08-19T11:59:00Z',
+      },
+      {
+        device_id: 'ios-001',
+        device_type: 'mobile',
+        display_name: 'Phone',
+        authorization_state: 'authorized',
+        last_activity_at: null,
+      },
+    ],
+    actions,
+  };
+  assert.equal(validate(active), true, JSON.stringify(validate.errors));
+
+  for (const mutate of [
+    (candidate: any) => { candidate.status = 'claimed'; },
+    (candidate: any) => { candidate.pairing.qr_payload = 'secret-in-normal-state'; },
+    (candidate: any) => { candidate.pairing.manual_code = 'too-short'; },
+    (candidate: any) => { candidate.actions[0].input.extra = 'arbitrary-form'; },
+    (candidate: any) => { candidate.actions[0] = { command_id: 'pair.start', input: { invitation_code: 'x', display_name: 'D', pairing_id: 'unexpected' } }; },
+    (candidate: any) => { candidate.devices[0].claim_secret = 'must-not-project'; },
+  ]) {
+    const invalid = structuredClone(active);
+    mutate(invalid);
+    assert.equal(validate(invalid), false, JSON.stringify(validate.errors));
+  }
+
+  assert.equal(validate({
+    schema_version: 'opl-app-remote-companion-access.v1',
+    status: 'unavailable',
+    unavailable_reason: 'connector_unavailable',
+    actions: [],
   }), true, JSON.stringify(validate.errors));
 });
 

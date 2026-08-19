@@ -34,6 +34,45 @@
       "must_not_be_interpreted_as": "opl_link_task_control_plane_or_task_lifecycle_authority"
     }
   },
+  "app_access_projection": {
+    "view_type": "remote_companion_access",
+    "result_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result",
+    "status_values": [
+      "unavailable",
+      "unpaired",
+      "reserving",
+      "qr_ready",
+      "awaiting_confirmation",
+      "active",
+      "revoking",
+      "attention"
+    ],
+    "actions": [
+      "pair.start",
+      "pair.refresh",
+      "pair.confirm",
+      "pair.cancel",
+      "device.rename",
+      "pair.revoke"
+    ],
+    "secret_policy": {
+      "transient_only": [
+        "invitation_code",
+        "manual_code",
+        "qr_payload",
+        "authentication_digits"
+      ],
+      "never_in_cache_log_or_app_action_readback": [
+        "invitation_code",
+        "manual_code",
+        "claim_secret",
+        "claim_material"
+      ],
+      "qr_payload_only_when": "status_equals_qr_ready",
+      "qr_payload_max_length": 8192
+    },
+    "wire_alias_policy": "opl_remote_transport.v1_is_an_internal_wire_compatibility_alias_only; product_model_uses_conversation_and_canonical_thread"
+  },
   "serialization": {
     "media_type": "application/json",
     "field_names": "lower_snake_case",

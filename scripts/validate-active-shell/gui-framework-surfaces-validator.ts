@@ -19,6 +19,7 @@ const appContributionViewTypes = [
   'artifact_view',
   'activity_log',
   'channel_access',
+  'remote_companion_access',
 ];
 const appContributionSchemaPath = path.join(root, 'contracts', 'opl-app-contributions.schema.json');
 
@@ -105,6 +106,87 @@ export function validatePackageAppContributionsProductContract(contract) {
     ],
     'App contributions schema channel_access action inputs',
   );
+  const remoteCompanionAccess = schema.$defs?.remote_companion_access_result;
+  if (
+    remoteCompanionAccess?.additionalProperties !== false
+    || remoteCompanionAccess?.properties?.schema_version?.const !== 'opl-app-remote-companion-access.v1'
+    || JSON.stringify(remoteCompanionAccess?.properties?.status?.enum) !== JSON.stringify([
+      'unavailable',
+      'unpaired',
+      'reserving',
+      'qr_ready',
+      'awaiting_confirmation',
+      'active',
+      'revoking',
+      'attention',
+    ])
+    || remoteCompanionAccess?.properties?.actions?.$ref !== '#/$defs/remote_companion_access_action_list'
+    || remoteCompanionAccess?.properties?.devices?.maxItems !== 2
+    || schema.$defs?.remote_companion_access_pairing?.additionalProperties !== false
+    || schema.$defs?.remote_companion_access_pairing?.properties?.manual_code?.pattern !== '^[0-9A-HJKMNP-TV-Z]{12}$'
+    || schema.$defs?.remote_companion_access_pairing?.properties?.authentication_digits?.pattern !== '^[0-9]{6}$'
+    || schema.$defs?.remote_companion_access_pairing?.properties?.qr_payload?.maxLength !== 8192
+    || JSON.stringify(schema.$defs?.remote_companion_access_interactive_pairing?.allOf?.[1]?.required) !==
+      JSON.stringify(['manual_code', 'authentication_digits'])
+    || schema.$defs?.remote_companion_access_active_pairing?.allOf?.[1]?.not?.anyOf?.length !== 3
+    || schema.$defs?.remote_companion_access_qr_ready_pairing?.allOf?.[1]?.required?.join('|') !== 'qr_payload'
+    || schema.$defs?.remote_companion_access_device?.additionalProperties !== false
+  ) {
+    throw new Error('App contributions schema remote_companion_access result must stay closed, bounded, versioned, and state-scoped');
+  }
+  assertDeepEqualJson(
+    schema.$defs?.remote_companion_access_secret_boundary,
+    {
+      type: 'object',
+      required: [
+        'transient_interaction_fields',
+        'forbidden_projection_fields',
+        'forbidden_action_readback_fields',
+        'qr_payload_projection_rule',
+      ],
+      properties: {
+        transient_interaction_fields: {
+          const: ['invitation_code', 'manual_code', 'qr_payload', 'authentication_digits'],
+        },
+        forbidden_projection_fields: {
+          const: ['claim_secret', 'claim_material', 'device_credential', 'provider_credential'],
+        },
+        forbidden_action_readback_fields: {
+          const: ['invitation_code', 'manual_code', 'qr_payload', 'claim_secret', 'claim_material'],
+        },
+        qr_payload_projection_rule: {
+          const: 'complete_qr_payload_is_allowed_only_in_qr_ready_pairing_projection_and_must_be_bounded_and_expiring',
+        },
+      },
+      additionalProperties: false,
+    },
+    'App contributions schema remote_companion_access secret boundary',
+  );
+  assertDeepEqualJson(
+    schema.$defs?.remote_companion_access_action?.oneOf,
+    [
+      { $ref: '#/$defs/remote_companion_access_pair_start_action' },
+      { $ref: '#/$defs/remote_companion_access_pair_refresh_action' },
+      { $ref: '#/$defs/remote_companion_access_pair_confirm_action' },
+      { $ref: '#/$defs/remote_companion_access_pair_cancel_action' },
+      { $ref: '#/$defs/remote_companion_access_device_rename_action' },
+      { $ref: '#/$defs/remote_companion_access_pair_revoke_action' },
+    ],
+    'App contributions schema remote_companion_access action allowlist',
+  );
+  for (const [definition, requiredFields] of Object.entries({
+    remote_companion_access_pair_start_action_input: ['invitation_code', 'display_name'],
+    remote_companion_access_pairing_id_action_input: ['pairing_id'],
+    remote_companion_access_pair_confirm_action_input: ['pairing_id', 'authentication_digits'],
+    remote_companion_access_device_rename_action_input: ['device_id', 'display_name'],
+  })) {
+    if (
+      schema.$defs?.[definition]?.additionalProperties !== false ||
+      JSON.stringify(schema.$defs?.[definition]?.required) !== JSON.stringify(requiredFields)
+    ) {
+      throw new Error(`App contributions schema ${definition} must use its exact closed input shape`);
+    }
+  }
   for (const [entry, requiredFields] of Object.entries({
     navigation: ['navigation_id', 'label_i18n', 'view_id'],
     view: ['view_id', 'view_type', 'title_i18n', 'data_ref'],
@@ -203,6 +285,46 @@ export function validatePackageAppContributionsProductContract(contract) {
     'App GUI channel_access standard view contract',
   );
   assertDeepEqualJson(
+    contract.standard_view_contracts?.remote_companion_access,
+    {
+      result_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result',
+      placement: 'settings.section',
+      trust_tier: 'declarative',
+      owner: 'one-person-lab-app',
+      data_truth_owner: 'opl-link_desktop_connector_and_opl_link_service',
+      projection_owner: 'one-person-lab-framework',
+      renderer_activation_policy: {
+        aionui: {
+          provider_owner: 'opl_link_desktop_connector',
+          settings_surface: 'app_standard_remote_companion_access',
+          framework_remote_companion_host_activation_allowed: true,
+          framework_projected_remote_companion_access_rendering_allowed: true,
+        },
+        opl_studio: {
+          provider_owner: 'opl_link_desktop_connector',
+          settings_surface: 'app_standard_remote_companion_access',
+          framework_remote_companion_host_activation_allowed: true,
+          framework_projected_remote_companion_access_rendering_allowed: true,
+        },
+        single_active_provider_path_per_renderer_required: true,
+      },
+      migration_state: 'target_contract_landed_connector_package_and_worker_d1_ably_source_not_implemented',
+      runtime_status: 'target_projection_contract_only_service_connector_ios_shell_network_apns_and_testflight_qualification_unverified',
+      command_input_source: 'validated_remote_companion_access_action_inputs',
+      command_resolution: 'resolve_fixed_action_id_against_the_same_current_descriptor_then_dispatch_only_the_declared_closed_input_shape',
+      post_action_readback: 'fresh_remote_companion_access_read_required_after_action_success',
+      secret_boundary: {
+        transient_interaction_fields: ['invitation_code', 'manual_code', 'qr_payload', 'authentication_digits'],
+        never_cached_logged_or_returned_by_app_action: ['invitation_code', 'manual_code', 'qr_payload', 'claim_secret', 'claim_material'],
+        qr_payload_only_in_status: 'qr_ready',
+        qr_payload_max_length: 8192,
+      },
+      provider_absent_policy: 'project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable',
+      arbitrary_renderer_code_allowed: false,
+    },
+    'App GUI remote_companion_access standard view contract',
+  );
+  assertDeepEqualJson(
     contract.stable_id_fields,
     ['navigation_id', 'view_id', 'command_id', 'badge_id', 'contribution_id'],
     'App GUI Package contribution stable ids',
@@ -254,6 +376,11 @@ export function validatePackageAppContributionsProductContract(contract) {
       scopes: ['root', 'work_item'],
       settings_placement_policy: {
         channel_access: {
+          destination: 'settings.resources.messages_and_connections',
+          app_admission_required: true,
+          admission_basis: ['current_user_task', 'app_placement_policy'],
+        },
+        remote_companion_access: {
           destination: 'settings.resources.messages_and_connections',
           app_admission_required: true,
           admission_basis: ['current_user_task', 'app_placement_policy'],

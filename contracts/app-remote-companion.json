@@ -45,7 +45,8 @@
     "cordis_host_policy": "reuse_the_single_framework_host_never_create_a_product_specific_host",
     "shell_role": "render_framework_projection_and_bridge_canonical_app_state_and_actions_only",
     "settings_contribution": {
-      "view_type": "channel_access",
+      "view_type": "remote_companion_access",
+      "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access",
       "slot": "settings.section",
       "destination": "settings.resources.messages_and_connections",
       "visibility": "only_after_package_descriptor_framework_host_provider_contribution_and_action_refs_are_current_and_ready",
@@ -53,6 +54,46 @@
       "package_unready_state": "fully_hidden_without_placeholder"
     },
     "product_boundary": "only_the_desktop_connector_is_an_opl_connect_module_the_opl_link_ios_app_and_opl_link_service_remain_independent_opl_link_product_surfaces"
+  },
+  "app_access_contract": {
+    "view_type": "remote_companion_access",
+    "result_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result",
+    "status_values": [
+      "unavailable",
+      "unpaired",
+      "reserving",
+      "qr_ready",
+      "awaiting_confirmation",
+      "active",
+      "revoking",
+      "attention"
+    ],
+    "actions": [
+      "pair.start",
+      "pair.refresh",
+      "pair.confirm",
+      "pair.cancel",
+      "device.rename",
+      "pair.revoke"
+    ],
+    "product_model": "conversation_and_canonical_thread_not_task_control_plane",
+    "secret_boundary": {
+      "transient_interaction_fields": [
+        "invitation_code",
+        "manual_code",
+        "qr_payload",
+        "authentication_digits"
+      ],
+      "never_cached_logged_or_returned_by_app_action": [
+        "invitation_code",
+        "manual_code",
+        "qr_payload",
+        "claim_secret",
+        "claim_material"
+      ],
+      "qr_payload_state": "complete_qr_payload_only_in_qr_ready_projection",
+      "qr_payload_max_length": 8192
+    }
   },
   "optional_cloud_host": {
     "product": "OPL Cloud",

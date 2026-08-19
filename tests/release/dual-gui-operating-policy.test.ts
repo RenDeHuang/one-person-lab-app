@@ -169,7 +169,13 @@ test('Framework transport binding projection and renderer-specific Weixin routes
     gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.migration_state,
     'renderer_specific_activation_selected_aionui_keeps_aioncore_and_successor_uses_app_owned_provider_package',
   );
+  assert.equal(
+    gui.framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access.renderer_activation_policy.aionui
+      .framework_projected_remote_companion_access_rendering_allowed,
+    true,
+  );
   assert.ok(profile.client_renderer_compatibility.standard_view_types.includes('channel_access'));
+  assert.ok(profile.client_renderer_compatibility.standard_view_types.includes('remote_companion_access'));
   assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');
   assert.equal(
     profile.client_renderer_compatibility.transport_binding_migration_state,
@@ -195,6 +201,7 @@ test('Framework transport binding projection and renderer-specific Weixin routes
     'framework_projection_consumer_without_cached_conversation_binding_source_e2e_completed',
   );
   assert.ok(studio?.required_capabilities.includes('channel_access_standard_view'));
+  assert.ok(studio?.required_capabilities.includes('remote_companion_access_standard_view'));
   assert.ok(studio?.required_capabilities.includes('framework_transport_bindings_projection'));
 });
 

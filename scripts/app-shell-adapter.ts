@@ -503,6 +503,7 @@ export function resolveClientRendererAdmission(
         'artifact_view',
         'activity_log',
         'channel_access',
+        'remote_companion_access',
       ]) ||
     compatibility.transport_binding_source !== 'app_state.transport_bindings' ||
     compatibility.transport_binding_schema !== 'opl_app_transport_bindings_projection.v1' ||

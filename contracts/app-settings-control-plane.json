@@ -2638,6 +2638,7 @@
       },
       "destinations": {
         "channel_access": "settings.resources.messages_and_connections",
+        "remote_companion_access": "settings.resources.messages_and_connections",
         "activity_log": null,
         "other_settings_section": "settings.capabilities.module_extensions"
       }

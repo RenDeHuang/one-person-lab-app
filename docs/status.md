@@ -52,6 +52,12 @@ D1 Free：Ably 负责实时密文和通用推送，Worker/D1 负责邀请、配�
 因此该目标不能表述为已实现或已可用；探针失败后才允许通过明确 decision 切换单一腾讯 cohort，
 不双写、不自动 fallback。
 
+App-owned `remote_companion_access` view contract、八态配对投影、六个固定配对/设备动作和
+transient-secret boundary 已落在 App schema、GUI、profile、page-state 与 wire contracts 中；
+这只证明产品合同已更新，不证明 `opl-link/service`、desktop Connector、iOS、Shell、Ably/Worker
+live network、APNs 或 TestFlight qualification 已完成。OPL Link 不复用 Weixin/AionCore 的
+`channel_access` 语义，也不能因 view type 不同被过滤。
+
 iOS conversation-first UI、E2EE、旧 Tencent adapters、Go/SQLite Service 和一份 TestFlight carrier
 build 均已有源码或载体证据，但后三者与目标架构不一致。现有 TestFlight build 对 OPL Link 核心
 可用性没有验收意义，只证明编译、签名与上传。后续必须先完成网络探针和真实 Worker/D1 + Ably

@@ -118,7 +118,7 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
     contribution_abi: 'opl_app_client_contributions.v1',
     allowlist_contract: 'contracts/opl-app-contributions.schema.json',
     typed_slots: ['settings.section', 'runtime.detail', 'composer.palette'],
-    standard_view_types: ['list_detail', 'timeline', 'approval_diff', 'task_board', 'artifact_view', 'activity_log', 'channel_access'],
+    standard_view_types: ['list_detail', 'timeline', 'approval_diff', 'task_board', 'artifact_view', 'activity_log', 'channel_access', 'remote_companion_access'],
     transport_binding_source: 'app_state.transport_bindings',
     transport_binding_schema: 'opl_app_transport_bindings_projection.v1',
     transport_binding_migration_state: 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed',

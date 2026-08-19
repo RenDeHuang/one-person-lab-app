@@ -408,35 +408,67 @@ function validateResourcesPage(matrix, guiContract) {
     appOwnedSettingsResourceActionBehavior,
     'App GUI Resources action behavior',
   );
-  const remoteChannelAccess = {
-    source: 'renderer_specific_channel_provider_route',
+  const remoteCompanionAccess = {
+    source: 'framework_projected_remote_companion_connector_route',
     source_by_renderer: {
-      aionui: 'aioncore_builtin_channel_ipc_and_api_channel_weixin_login',
+      aionui: 'app_state.ui_contributions.slots.settings.section',
       opl_studio: 'app_state.ui_contributions.slots.settings.section',
     },
-    standard_view_type: 'channel_access',
-    standard_view_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/channel_access_result',
-    framework_channel_provider_host_activation_in_aionui_allowed: false,
+    standard_view_type: 'remote_companion_access',
+    standard_view_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result',
+    framework_remote_companion_host_activation_in_aionui_allowed: true,
     single_active_provider_path_per_renderer_required: true,
-    transport_binding_source: 'app_state.transport_bindings',
+    transport_binding_projection_ref:
+      'contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection',
     provider_absent_policy:
-      'aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution_without_placeholder_or_shell_inference',
-    ordinary_controls: ['login_or_connection_status', 'pairing_requests', 'authorized_users'],
+      'project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable',
+    status_values: [
+      'unavailable',
+      'unpaired',
+      'reserving',
+      'qr_ready',
+      'awaiting_confirmation',
+      'active',
+      'revoking',
+      'attention',
+    ],
+    ordinary_controls: [
+      'pair.start',
+      'pair.refresh',
+      'pair.confirm',
+      'pair.cancel',
+      'device.rename',
+      'pair.revoke',
+    ],
     forbidden_controls: [
       'agent_selector',
       'model_selector',
       'model_following_status',
+      'arbitrary_form_or_ui_input',
+      'claim_secret_or_claim_material',
       'target_shell_owned_binding_or_workspace_inference_after_framework_transport_binding_projection_cutover',
     ],
+    secret_boundary: {
+      transient_interaction_fields: ['invitation_code', 'manual_code', 'qr_payload', 'authentication_digits'],
+      never_cached_logged_or_returned_by_app_action: [
+        'invitation_code',
+        'manual_code',
+        'qr_payload',
+        'claim_secret',
+        'claim_material',
+      ],
+      qr_payload_only_in_status: 'qr_ready',
+      qr_payload_max_length: 8192,
+    },
     navigation_policy: {
       close_connection_details: 'return_to_settings_resources',
       return_to_app: 'use_settings_return_to_app_action',
     },
   };
   assertDeepEqualJson(
-    resourcesPage.remote_channel_access,
-    remoteChannelAccess,
-    'Resources page remote channel access contribution',
+    resourcesPage.remote_companion_access,
+    remoteCompanionAccess,
+    'Resources page remote companion access contribution',
   );
   assertIncludesAll(
     resourcesPage.state_sections,
@@ -444,35 +476,66 @@ function validateResourcesPage(matrix, guiContract) {
     'Resources page remote channel state sections',
   );
   assertDeepEqualJson(
-    guiContract.pages?.settings_resources?.remote_channel_access,
+    guiContract.pages?.settings_resources?.remote_companion_access,
     {
-      source: 'renderer_specific_channel_provider_route',
+      source: 'framework_projected_remote_companion_connector_route',
       source_by_renderer: {
-        aionui: 'aioncore_builtin_channel_ipc_and_api_channel_weixin_login',
+        aionui: 'app_state.ui_contributions.slots.settings.section',
         opl_studio: 'app_state.ui_contributions.slots.settings.section',
       },
-      standard_view_type: 'channel_access',
+      standard_view_type: 'remote_companion_access',
       standard_view_contract_ref:
-        'framework_surfaces.package_app_contributions.standard_view_contracts.channel_access',
-      framework_channel_provider_host_activation_in_aionui_allowed: false,
+        'framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access',
+      framework_remote_companion_host_activation_in_aionui_allowed: true,
       single_active_provider_path_per_renderer_required: true,
       transport_binding_projection_ref:
         'contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection',
       provider_absent_policy:
-        'aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution_without_placeholder_or_fabricated_state',
-      ordinary_controls: ['login_or_connection_status', 'pairing_requests', 'authorized_users'],
+        'project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable',
+      status_values: [
+        'unavailable',
+        'unpaired',
+        'reserving',
+        'qr_ready',
+        'awaiting_confirmation',
+        'active',
+        'revoking',
+        'attention',
+      ],
+      ordinary_controls: [
+        'pair.start',
+        'pair.refresh',
+        'pair.confirm',
+        'pair.cancel',
+        'device.rename',
+        'pair.revoke',
+      ],
       forbidden_controls: [
         'agent_selector',
         'model_selector',
         'model_following_status',
+        'arbitrary_form_or_ui_input',
+        'claim_secret_or_claim_material',
         'target_shell_owned_binding_or_workspace_inference_after_framework_transport_binding_projection_cutover',
       ],
+      secret_boundary: {
+        transient_interaction_fields: ['invitation_code', 'manual_code', 'qr_payload', 'authentication_digits'],
+        never_cached_logged_or_returned_by_app_action: [
+          'invitation_code',
+          'manual_code',
+          'qr_payload',
+          'claim_secret',
+          'claim_material',
+        ],
+        qr_payload_only_in_status: 'qr_ready',
+        qr_payload_max_length: 8192,
+      },
       navigation_policy: {
         close_connection_details: 'return_to_settings_resources',
         return_to_app: 'use_settings_return_to_app_action',
       },
     },
-    'App GUI Resources remote channel access contribution',
+    'App GUI Resources remote companion access contribution',
   );
 }
 

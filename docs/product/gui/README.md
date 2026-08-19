@@ -187,7 +187,8 @@ workspace authority。
 桌面 WebUI 仍是完整工作台 carrier，但不是 iOS 产品或自动 fallback；旧 LAN QR 登录、
 `http://host:port` / `ws://host:port` 不能被提升为公网远程路径。桌面 Shell 持有配对设置与 canonical
 App action consumer，iOS 只允许合同列出的对话读取、文本发送、停止、低/中影响审批和撤销。
-具体产品 scope、E2EE、owner 与实现缺口见 [`../opl-link.md`](../opl-link.md)。当前 Tencent
+桌面 Settings 通过 App-owned `remote_companion_access` 标准 view 投影配对和设备状态；Weixin/AionCore
+继续使用独立的 `channel_access` view。具体产品 scope、E2EE、owner 与实现缺口见 [`../opl-link.md`](../opl-link.md)。当前 Tencent
 adapters、Go/SQLite Service 与 TestFlight build 是 legacy source/carrier evidence，不证明 Ably、
 Workers/D1、真实 pair、APNs、三网或 release qualification 完成。
 

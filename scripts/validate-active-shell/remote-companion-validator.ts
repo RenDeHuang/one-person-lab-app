@@ -24,6 +24,26 @@ const forbiddenActions = [
   'cloud_workspace.migrate',
 ];
 
+const remoteCompanionAccessStatuses = [
+  'unavailable',
+  'unpaired',
+  'reserving',
+  'qr_ready',
+  'awaiting_confirmation',
+  'active',
+  'revoking',
+  'attention',
+];
+
+const remoteCompanionAccessActions = [
+  'pair.start',
+  'pair.refresh',
+  'pair.confirm',
+  'pair.cancel',
+  'device.rename',
+  'pair.revoke',
+];
+
 export function validateRemoteCompanionContract(policy: Record<string, any>): void {
   if (
     policy?.schema !== 'opl_app_remote_companion.v4' ||
@@ -82,6 +102,30 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     identity.local_ios_agent_package_authority !== false
   ) {
     throw new Error('OPL Link must remain a bounded native iOS conversation connector');
+  }
+
+  if (
+    policy.desktop_connector_boundary?.settings_contribution?.view_type !== 'remote_companion_access' ||
+    policy.desktop_connector_boundary.settings_contribution.standard_view_contract_ref !==
+      'framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access'
+  ) {
+    throw new Error('OPL Link desktop Connector must use the remote_companion_access standard view');
+  }
+  const access = policy.app_access_contract;
+  if (
+    access?.view_type !== 'remote_companion_access' ||
+    access.result_schema_ref !== 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result' ||
+    JSON.stringify(access.status_values) !== JSON.stringify(remoteCompanionAccessStatuses) ||
+    JSON.stringify(access.actions) !== JSON.stringify(remoteCompanionAccessActions) ||
+    access.product_model !== 'conversation_and_canonical_thread_not_task_control_plane' ||
+    JSON.stringify(access.secret_boundary?.transient_interaction_fields) !==
+      JSON.stringify(['invitation_code', 'manual_code', 'qr_payload', 'authentication_digits']) ||
+    JSON.stringify(access.secret_boundary?.never_cached_logged_or_returned_by_app_action) !==
+      JSON.stringify(['invitation_code', 'manual_code', 'qr_payload', 'claim_secret', 'claim_material']) ||
+    access.secret_boundary?.qr_payload_state !== 'complete_qr_payload_only_in_qr_ready_projection' ||
+    access.secret_boundary?.qr_payload_max_length !== 8192
+  ) {
+    throw new Error('OPL Link remote_companion_access contract must be closed, bounded, and conversation-first');
   }
 
   const transport = policy.transport;

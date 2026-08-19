@@ -9,6 +9,7 @@ test('channel settings admit exactly one provider route per renderer', () => {
   const weixinManifest = readJson('packages/opl-channel-weixin/opl-package.json');
   const contract = gui.framework_surfaces.package_app_contributions.opl_connect_connector_settings;
   const channelAccess = gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access;
+  const remoteCompanionAccess = gui.framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access;
 
   assert.equal(contract.destination, 'settings.resources.messages_and_connections');
   assert.equal(contract.section_labels.zh_cn, '消息与连接');
@@ -18,8 +19,8 @@ test('channel settings admit exactly one provider route per renderer', () => {
     'dynamic_framework_host_projection_only_no_fixed_package_or_brand_allowlist',
   );
   assert.equal(contract.top_level_settings_navigation_allowed, false);
-  assert.match(contract.renderer_admission.aionui, /aioncore_builtin_channel_settings/);
-  assert.match(contract.renderer_admission.aionui, /without_starting_the_framework_channel_provider_host/);
+  assert.match(contract.renderer_admission.aionui, /aioncore_builtin_weixin_only_for_channel_access/);
+  assert.match(contract.renderer_admission.aionui, /without_starting_a_second_channel_provider_path/);
   assert.match(contract.renderer_admission.opl_studio, /dynamic_framework_host_projection/);
   assert.match(contract.page_model, /app_owned_standard_renderer/);
   assert.match(contract.visible_disconnected_state, /show_the_connector/);
@@ -45,6 +46,17 @@ test('channel settings admit exactly one provider route per renderer', () => {
     },
     single_active_provider_path_per_renderer_required: true,
   });
+  assert.equal(remoteCompanionAccess.result_schema_ref, 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result');
+  assert.equal(remoteCompanionAccess.renderer_activation_policy.aionui.framework_remote_companion_host_activation_allowed, true);
+  assert.equal(remoteCompanionAccess.renderer_activation_policy.aionui.framework_projected_remote_companion_access_rendering_allowed, true);
+  assert.deepEqual(remoteCompanionAccess.renderer_activation_policy.aionui, remoteCompanionAccess.renderer_activation_policy.opl_studio);
+  assert.deepEqual(remoteCompanionAccess.secret_boundary.never_cached_logged_or_returned_by_app_action, [
+    'invitation_code',
+    'manual_code',
+    'qr_payload',
+    'claim_secret',
+    'claim_material',
+  ]);
   assert.deepEqual(weixinManifest.authority_boundary.activation_route_by_renderer, {
     aionui: 'aioncore_builtin_weixin_only_package_provider_activation_forbidden',
     opl_studio: 'installed_provider_through_one_person_lab_framework_generic_channel_host',

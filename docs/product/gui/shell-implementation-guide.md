@@ -96,9 +96,11 @@ contract/实现收敛 lane 处理。
   responsive renderer，也不通过 Capacitor 包装 WebUI；iOS 不能成为第二 runtime、第二 history store
   或第二 action authority。
 - Desktop/WebUI carrier 仍共享同一 host core 和 renderer，但旧 LAN WebUI 登录不能成为 Companion
-  的公网 fallback。桌面 connector 与 iOS 通过 `opl_remote_transport.v1` 消费单一 provider
-  adapter；当前目标是 Ably Free + Cloudflare Workers/D1，腾讯 IM 只在大陆选择探针失败后经明确
-  decision 切换单一 cohort。所有业务动作仍回到 desktop canonical App action bridge。
+  的公网 fallback。桌面 connector 与 iOS 通过 App-owned `remote_companion_access` view 与
+  `opl_remote_transport.v1` 消费单一 provider adapter；`opl_remote_transport.v1` 只保留为内部 wire
+  alias，产品模型使用 conversation/thread。当前目标是 Ably Free + Cloudflare Workers/D1，腾讯 IM
+  只在大陆选择探针失败后经明确 decision 切换单一 cohort。所有业务动作仍回到 desktop canonical
+  App action bridge；Weixin/AionCore 继续走 `channel_access`。
 
 外部项目只能帮助验证这一分层或提供 bounded component technique。OpenChamber 的 Electron +
 Web server/Docker 组合可作为桌面/WebUI 拓扑证据；其 PWA/Capacitor 路线、OpenCode runtime、
