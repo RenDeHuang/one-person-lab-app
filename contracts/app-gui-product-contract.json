@@ -637,6 +637,33 @@
             "route": "/guid",
             "route_state": "workspace"
           },
+          "ordinary_conversation_row_visual": {
+            "source": "pinned_deepseek_harness_history_row_visual_cohort",
+            "expanded_row_leading_content": "none",
+            "leading_icon_policy": "do_not_render_assistant_backend_or_generic_message_icons_for_ordinary_conversations",
+            "status_exception_policy": "render_only_real_cron_or_generation_status_when_present",
+            "collapsed_row_policy": "compact_identity_glyph_allowed_when_title_is_hidden",
+            "managed_worktree_policy": "preserve_localized_branch_indicator_as_non_leading_metadata",
+            "typography": {
+              "title_font_size_px": 13,
+              "title_font_weight": 400,
+              "title_line_height_px": 20,
+              "letter_spacing_px": 0
+            },
+            "geometry": {
+              "row_min_height_px": 30,
+              "row_padding_block_px": 4,
+              "row_padding_inline_end_px": 4,
+              "row_padding_inline_start_px": 28,
+              "row_gap_px": 1,
+              "row_radius_px": 6
+            },
+            "interaction_invariants": [
+              "click_context_menu_keyboard_focus_tooltip_and_selection_semantics_unchanged",
+              "project_folder_and_cron_status_markers_remain_semantic",
+              "pinned_and_managed_worktree_metadata_must_not_become_leading_conversation_icons"
+            ]
+          },
           "visible_id_set_policy": {
             "source": "surface_filtered_canonical_visible_id_set",
             "consumers": [
