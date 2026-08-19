@@ -410,6 +410,9 @@
         "path": "/v1/remote-companion/pairings/{pairing_id}",
         "auth": "active_device_credential_or_desktop_pair_token",
         "idempotency_required": true,
+        "request_fields": [
+          "protocol_version"
+        ],
         "response_fields": [
           "protocol_version",
           "pairing_id",

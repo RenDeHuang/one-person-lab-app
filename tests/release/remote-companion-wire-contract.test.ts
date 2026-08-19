@@ -167,6 +167,7 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.equal(wire.provider_transport.switching.automatic_fallback, false);
   assert.equal(wire.provider_transport.switching.dual_write, false);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'revoke_pair'));
+  assert.deepEqual(endpoints.find((endpoint) => endpoint.id === 'revoke_pair').request_fields, ['protocol_version']);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'read_revocation'));
   const detachEndpoint = endpoints.find((endpoint) => endpoint.id === 'desktop_detach_ack');
   assert.equal(detachEndpoint.auth, 'matching_revoked_desktop_credential_only');
