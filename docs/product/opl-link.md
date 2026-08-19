@@ -107,6 +107,8 @@ Workers/D1 control plane 和新的 provider-neutral credential wire 替换。旧
 
 - Ably + Worker endpoint 的大陆三网选择探针；
 - Ably iOS/desktop adapter；
+- `opl-link/packages/opl-link-desktop-connector` 目标 Package、Framework Host 动态贡献接入和
+  Shell 旧 Connector 业务逻辑迁移；实施顺序与验收由 `opl-link/docs/delivery-plan.md` 持有；
 - Worker routes、D1 schema、原子 claim、短期 scoped JWT 和 revoke；
 - iPhone -> Ably -> desktop -> canonical action -> Ably -> iPhone 的真实密文往返；
 - Ably Push/APNs 实机通知；
