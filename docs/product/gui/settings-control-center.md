@@ -370,6 +370,12 @@ version, or rollback detail opens through its owner route; Settings does not
 reimplement it. Every mutation requires fresh installed/callable readback before
 success. One Package failure stays on that row.
 
+For an entry already discovered in this directory, Install is the owner-projected
+`agent_package_install` action with that row's `package_id`. **Add Agent** is a
+separate manual third-party entry: it appears only when the current App action
+accepts `manifest_url` and an explicit trust tier, supports dry-run, and requires
+confirmation. It does not replace or reinterpret a directory-row action.
+
 Dependency hierarchy comes from generic required identity edges. MAS may link
 to MAS Scholar Skills because MAS declares the capability requirement, while
 the capability's canonical catalog row stays under Capabilities; the App never

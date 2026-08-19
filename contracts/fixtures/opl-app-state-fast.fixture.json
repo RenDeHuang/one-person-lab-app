@@ -76,10 +76,12 @@
               "status_read_error": null
             },
             "exposure": null,
-            "recommended_action": "install_from_manifest_url",
+            "recommended_action": "agent_package_install",
             "recommended_action_ref": {
-              "action_id": "install_from_manifest_url",
-              "action_ref": "app_state.actions#install_from_manifest_url",
+              "action_id": "agent_package_install",
+              "action_ref": "app_state.actions#agent_package_install",
+              "semantic": "install",
+              "surface": "settings",
               "payload": {
                 "package_id": "obf"
               },
@@ -88,8 +90,10 @@
             },
             "available_actions": [
               {
-                "action_id": "install_from_manifest_url",
-                "action_ref": "app_state.actions#install_from_manifest_url",
+                "action_id": "agent_package_install",
+                "action_ref": "app_state.actions#agent_package_install",
+                "semantic": "install",
+                "surface": "settings",
                 "payload": {
                   "package_id": "obf"
                 },

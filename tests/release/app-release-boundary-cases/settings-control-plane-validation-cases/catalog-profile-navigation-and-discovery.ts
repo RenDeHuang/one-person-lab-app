@@ -461,6 +461,7 @@ test("Settings exposes Official Profile restore only as an explicit App-owned se
 
 test("Settings Agents treats the canonical directory as discovery truth and exposes the complete ordinary-user catalog path", () => {
   const values = contracts();
+  const fastFixture = readJson("contracts/fixtures/opl-app-state-fast.fixture.json");
   assert.doesNotThrow(() => validate(values));
 
   const lifecycle =
@@ -510,6 +511,36 @@ test("Settings Agents treats the canonical directory as discovery truth and expo
     lifecycle.canonical_action_contract.action_ref_policy,
     "action_ref must equal app_state.actions#${action_id}",
   );
+  const catalogEntry = fastFixture.app_state.agent_packages.directory.entries.find(
+    (entry) => entry.package_id === "obf",
+  );
+  assert.deepStrictEqual(catalogEntry?.recommended_action_ref, {
+    action_id: "agent_package_install",
+    action_ref: "app_state.actions#agent_package_install",
+    semantic: "install",
+    surface: "settings",
+    payload: { package_id: "obf" },
+    required_payload_fields: ["package_id"],
+    confirmation_required: true,
+  });
+  assert.deepStrictEqual(catalogEntry?.available_actions, [catalogEntry.recommended_action_ref]);
+  assert.equal(
+    catalogEntry?.available_actions.some(
+      (action) => action.action_id === "install_from_manifest_url",
+    ),
+    false,
+  );
+  assert.deepStrictEqual(lifecycle.manual_agent_install_entry, {
+    source: "app_state.actions[action_id=install_from_manifest_url]",
+    destination: "settings.agents.catalog",
+    visibility_policy:
+      "show_only_when_the_current_App_action_declares_manifest_url_and_trust_tier_with_dry_run_and_confirmation",
+    input_fields: ["manifest_url", "trust_tier"],
+    trust_tier_policy: "user_explicit_third_party_unverified_or_third_party_verified",
+    execution_policy: "submit_the_current_projected_App_action_then_refresh_fast_state",
+    directory_policy: "this_is_a_manual_entry_point_not_a_directory_row_or_static_package_registry",
+    lifecycle_authority: "configured_native_carrier_readback_only",
+  });
   assert.equal(
     lifecycle.canonical_action_contract.required_payload_alternative_policy,
     "a required_payload_fields item containing ' or ' is satisfied when at least one named payload field is present",
