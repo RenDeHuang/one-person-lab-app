@@ -1646,13 +1646,28 @@
           "owner": "one-person-lab-app",
           "data_truth_owner": "installed_transport_provider_or_native_carrier",
           "projection_owner": "one-person-lab-framework",
-          "migration_state": "app_owned_provider_package_source_migrated_live_qr_e2e_deferred",
-          "runtime_status": "source_and_host_path_proven_install_and_live_qr_e2e_require_post_migration_readback",
+          "renderer_activation_policy": {
+            "aionui": {
+              "provider_owner": "aioncore_builtin_weixin",
+              "settings_surface": "aioncore_channel_settings",
+              "framework_channel_provider_host_activation_allowed": false,
+              "framework_projected_channel_access_rendering_allowed": false
+            },
+            "opl_studio": {
+              "provider_owner": "installed_channel_provider_package",
+              "settings_surface": "app_standard_channel_access",
+              "framework_channel_provider_host_activation_allowed": true,
+              "framework_projected_channel_access_rendering_allowed": true
+            },
+            "single_active_provider_path_per_renderer_required": true
+          },
+          "migration_state": "renderer_specific_activation_selected_aionui_keeps_aioncore_and_successor_uses_app_owned_provider_package",
+          "runtime_status": "aionui_builtin_source_path_present_successor_package_source_and_host_path_present_each_requires_its_own_installed_live_e2e",
           "command_input_source": "validated_channel_access_result_entity_actions",
           "command_resolution": "resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_entity_input",
           "post_action_readback": "fresh_contribution_read_required_after_action_success_and_while_refresh_after_ms_is_projected",
           "qr_payload_policy": "ephemeral_login_challenge_render_only_never_persist_log_or_copy_into_shell_state",
-          "provider_absent_policy": "no_contribution_entry_is_a_normal_unavailable_state_and_must_not_block_the_current_mainline",
+          "provider_absent_policy": "no_contribution_entry_is_a_normal_unavailable_state_for_the_successor_and_must_not_block_the_aionui_mainline",
           "arbitrary_renderer_code_allowed": false
         }
       },
@@ -1666,6 +1681,10 @@
         "contribution_contract": "an_installed_connector_package_declares_a_settings_section_view_using_the_existing_channel_access_standard_view_and_action_refs",
         "runtime_membership_source": "app_state.ui_contributions.slots.settings.section",
         "runtime_membership_policy": "dynamic_framework_host_projection_only_no_fixed_package_or_brand_allowlist",
+        "renderer_admission": {
+          "aionui": "not_admitted_use_aioncore_builtin_channel_settings_without_starting_the_framework_channel_provider_host",
+          "opl_studio": "admitted_from_dynamic_framework_host_projection_without_a_fixed_package_or_brand_allowlist"
+        },
         "visibility_requirements": [
           "package_descriptor_is_current_installed_enabled_and_callable",
           "framework_cordis_host_has_admitted_and_loaded_the_connector_provider",
@@ -6990,7 +7009,7 @@
       ],
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
-        "provider-projected channel account, pairing, and authorized-user management through the standard channel_access contribution",
+        "renderer-owned channel account, pairing, and authorized-user management through AionCore in AionUI or the standard channel_access contribution in the successor",
         "remote connection details close back to Resources & Connections, and Settings retains an explicit return-to-app action",
         "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
@@ -7032,11 +7051,17 @@
         "implementation_provenance_visibility": "technical_details_only"
       },
       "remote_channel_access": {
-        "source": "app_state.ui_contributions.slots.settings.section",
+        "source": "renderer_specific_channel_provider_route",
+        "source_by_renderer": {
+          "aionui": "aioncore_builtin_channel_ipc_and_api_channel_weixin_login",
+          "opl_studio": "app_state.ui_contributions.slots.settings.section"
+        },
         "standard_view_type": "channel_access",
         "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.channel_access",
+        "framework_channel_provider_host_activation_in_aionui_allowed": false,
+        "single_active_provider_path_per_renderer_required": true,
         "transport_binding_projection_ref": "contracts/app-runtime-bridge.json#canonical_conversation_continuity_policy.transport_binding_projection",
-        "provider_absent_policy": "omit_channel_access_contribution_and_render_no_placeholder_or_fabricated_connection_state",
+        "provider_absent_policy": "aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution_without_placeholder_or_fabricated_state",
         "ordinary_controls": [
           "login_or_connection_status",
           "pairing_requests",

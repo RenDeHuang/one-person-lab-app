@@ -320,13 +320,28 @@ test('any Package role may project one closed standard App contribution block', 
     owner: 'one-person-lab-app',
     data_truth_owner: 'installed_transport_provider_or_native_carrier',
     projection_owner: 'one-person-lab-framework',
-    migration_state: 'app_owned_provider_package_source_migrated_live_qr_e2e_deferred',
-    runtime_status: 'source_and_host_path_proven_install_and_live_qr_e2e_require_post_migration_readback',
+    renderer_activation_policy: {
+      aionui: {
+        provider_owner: 'aioncore_builtin_weixin',
+        settings_surface: 'aioncore_channel_settings',
+        framework_channel_provider_host_activation_allowed: false,
+        framework_projected_channel_access_rendering_allowed: false,
+      },
+      opl_studio: {
+        provider_owner: 'installed_channel_provider_package',
+        settings_surface: 'app_standard_channel_access',
+        framework_channel_provider_host_activation_allowed: true,
+        framework_projected_channel_access_rendering_allowed: true,
+      },
+      single_active_provider_path_per_renderer_required: true,
+    },
+    migration_state: 'renderer_specific_activation_selected_aionui_keeps_aioncore_and_successor_uses_app_owned_provider_package',
+    runtime_status: 'aionui_builtin_source_path_present_successor_package_source_and_host_path_present_each_requires_its_own_installed_live_e2e',
     command_input_source: 'validated_channel_access_result_entity_actions',
     command_resolution: 'resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_entity_input',
     post_action_readback: 'fresh_contribution_read_required_after_action_success_and_while_refresh_after_ms_is_projected',
     qr_payload_policy: 'ephemeral_login_challenge_render_only_never_persist_log_or_copy_into_shell_state',
-    provider_absent_policy: 'no_contribution_entry_is_a_normal_unavailable_state_and_must_not_block_the_current_mainline',
+    provider_absent_policy: 'no_contribution_entry_is_a_normal_unavailable_state_for_the_successor_and_must_not_block_the_aionui_mainline',
     arbitrary_renderer_code_allowed: false,
   });
   assert.deepEqual(contributionContract.reference_integrity, {
@@ -575,6 +590,32 @@ test('App contribution product contract rejects role filters, executable UI, and
     assert.throws(
       () => validatePackageAppContributionsProductContract(invalid),
       /role-agnostic|view types|broker-routed|legacy truth sources/,
+    );
+  }
+});
+
+test('App contribution product contract rejects a second Weixin provider path in AionUI', () => {
+  const source = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
+
+  for (const mutate of [
+    (contract: any) => {
+      contract.standard_view_contracts.channel_access.renderer_activation_policy.aionui
+        .framework_channel_provider_host_activation_allowed = true;
+    },
+    (contract: any) => {
+      contract.standard_view_contracts.channel_access.renderer_activation_policy.aionui
+        .framework_projected_channel_access_rendering_allowed = true;
+    },
+    (contract: any) => {
+      contract.standard_view_contracts.channel_access.renderer_activation_policy
+        .single_active_provider_path_per_renderer_required = false;
+    },
+  ]) {
+    const invalid = structuredClone(source);
+    mutate(invalid);
+    assert.throws(
+      () => validatePackageAppContributionsProductContract(invalid),
+      /App GUI channel_access standard view contract/,
     );
   }
 });

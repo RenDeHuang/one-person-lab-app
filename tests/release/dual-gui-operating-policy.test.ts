@@ -153,7 +153,7 @@ test('DeepSeek Harness full reuse stays Studio-only while AionUI gets only the b
   );
 });
 
-test('Framework transport binding projection and both GUI consumers are source E2E complete', () => {
+test('Framework transport binding projection and renderer-specific Weixin routes stay separate', () => {
   const gui = readJson<any>('contracts/app-gui-product-contract.json');
   const profile = readJson<any>('contracts/app-product-profile.json');
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
@@ -163,11 +163,11 @@ test('Framework transport binding projection and both GUI consumers are source E
 
   assert.equal(
     gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.runtime_status,
-    'source_and_host_path_proven_install_and_live_qr_e2e_require_post_migration_readback',
+    'aionui_builtin_source_path_present_successor_package_source_and_host_path_present_each_requires_its_own_installed_live_e2e',
   );
   assert.equal(
     gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access.migration_state,
-    'app_owned_provider_package_source_migrated_live_qr_e2e_deferred',
+    'renderer_specific_activation_selected_aionui_keeps_aioncore_and_successor_uses_app_owned_provider_package',
   );
   assert.ok(profile.client_renderer_compatibility.standard_view_types.includes('channel_access'));
   assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');

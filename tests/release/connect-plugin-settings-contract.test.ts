@@ -4,9 +4,11 @@ import test from 'node:test';
 
 const readJson = (relativePath: string) => JSON.parse(fs.readFileSync(relativePath, 'utf8'));
 
-test('OPL Connect connector settings are dynamically projected through one Framework Host', () => {
+test('channel settings admit exactly one provider route per renderer', () => {
   const gui = readJson('contracts/app-gui-product-contract.json');
+  const weixinManifest = readJson('packages/opl-channel-weixin/opl-package.json');
   const contract = gui.framework_surfaces.package_app_contributions.opl_connect_connector_settings;
+  const channelAccess = gui.framework_surfaces.package_app_contributions.standard_view_contracts.channel_access;
 
   assert.equal(contract.destination, 'settings.resources.messages_and_connections');
   assert.equal(contract.section_labels.zh_cn, '消息与连接');
@@ -16,6 +18,9 @@ test('OPL Connect connector settings are dynamically projected through one Frame
     'dynamic_framework_host_projection_only_no_fixed_package_or_brand_allowlist',
   );
   assert.equal(contract.top_level_settings_navigation_allowed, false);
+  assert.match(contract.renderer_admission.aionui, /aioncore_builtin_channel_settings/);
+  assert.match(contract.renderer_admission.aionui, /without_starting_the_framework_channel_provider_host/);
+  assert.match(contract.renderer_admission.opl_studio, /dynamic_framework_host_projection/);
   assert.match(contract.page_model, /app_owned_standard_renderer/);
   assert.match(contract.visible_disconnected_state, /show_the_connector/);
   assert.match(contract.unready_policy, /omit_the_connector_row_route_and_placeholder/);
@@ -25,6 +30,26 @@ test('OPL Connect connector settings are dynamically projected through one Frame
   );
   assert.equal(weixin.connector_kind, 'message_channel_connector');
   assert.equal(weixin.classification_role, 'product_documentation_example_not_runtime_membership');
+  assert.deepEqual(channelAccess.renderer_activation_policy, {
+    aionui: {
+      provider_owner: 'aioncore_builtin_weixin',
+      settings_surface: 'aioncore_channel_settings',
+      framework_channel_provider_host_activation_allowed: false,
+      framework_projected_channel_access_rendering_allowed: false,
+    },
+    opl_studio: {
+      provider_owner: 'installed_channel_provider_package',
+      settings_surface: 'app_standard_channel_access',
+      framework_channel_provider_host_activation_allowed: true,
+      framework_projected_channel_access_rendering_allowed: true,
+    },
+    single_active_provider_path_per_renderer_required: true,
+  });
+  assert.deepEqual(weixinManifest.authority_boundary.activation_route_by_renderer, {
+    aionui: 'aioncore_builtin_weixin_only_package_provider_activation_forbidden',
+    opl_studio: 'installed_provider_through_one_person_lab_framework_generic_channel_host',
+  });
+  assert.equal(weixinManifest.authority_boundary.second_channel_provider_path_allowed, false);
 
   const link = contract.currently_defined_product_classifications.find(
     ({ target_package_id }: { target_package_id?: string }) =>

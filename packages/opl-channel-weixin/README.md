@@ -1,10 +1,15 @@
 # OPL Channel Weixin
 
 `opl-channel-weixin` is the OPL App-owned Weixin iLink channel capability
-Package. It lives under `packages/opl-channel-weixin` in the public App
-repository and owns the Weixin transport lifecycle only. OPL Framework remains
-the composition host, and the Codex App Server remains the sole thread and
-turn authority.
+Package for the successor OPL GUI. It lives under `packages/opl-channel-weixin`
+in the public App repository and owns that renderer's Weixin transport
+lifecycle only. OPL Framework remains the composition host for this Package
+route, and the Codex App Server remains the sole thread and turn authority.
+
+The current AionUI release shell does not activate this Package provider. It
+continues to use AionCore's built-in Weixin provider and settings flow. Package
+installation through the App Official Profile is availability only; each GUI
+must have exactly one active Weixin provider path.
 
 ## Current boundary
 
@@ -32,6 +37,8 @@ turn authority.
   never fabricate a successful reply.
 
 ## Host usage
+
+This example applies to the successor OPL GUI, not to AionUI:
 
 ```ts
 import {
@@ -90,8 +97,9 @@ codex plugin add opl-channel-weixin@one-person-lab-app --json
 
 This App-owned Package has no separate GHCR publication. The Git-backed
 marketplace source and the configured Codex native carrier are the installation
-authority. Installed Plugin bytes, active Host attachment, and live Weixin login
-remain separate evidence surfaces.
+authority. Installed Plugin bytes, a successor-GUI Host attachment, and live
+Weixin login remain separate evidence surfaces. AionUI must not attach this
+provider.
 
 ## Verification status
 

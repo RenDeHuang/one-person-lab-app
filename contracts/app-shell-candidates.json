@@ -483,7 +483,7 @@
         "slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation",
         "OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices",
         "Framework remains the only authoritative Package Host graph; each GUI Client Cordis graph is derived from that Host projection plus the App product profile and slot policy",
-        "channel_access is one App-owned declarative standard view consumed by both GUI clients while provider bindings and channel facts remain Framework-projected owner data"
+        "channel_access is the App-owned declarative standard view for the successor GUI while current AionUI keeps its AionCore-built-in Weixin settings and must not start the Framework channel-provider Host"
       ],
       "forbidden_reuse": [
         "do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority",

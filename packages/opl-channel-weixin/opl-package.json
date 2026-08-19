@@ -122,12 +122,16 @@
     "required_skill_ids": []
   },
   "authority_boundary": {
-    "transport_owner": "opl-channel-weixin",
-    "opl_mainline_activation_route": "installed_provider_through_one_person_lab_framework_generic_channel_host",
-    "legacy_aioncore_weixin_activation_allowed": false,
+    "package_transport_owner": "opl-channel-weixin",
+    "activation_route_by_renderer": {
+      "aionui": "aioncore_builtin_weixin_only_package_provider_activation_forbidden",
+      "opl_studio": "installed_provider_through_one_person_lab_framework_generic_channel_host"
+    },
+    "single_active_provider_path_per_renderer_required": true,
+    "second_channel_provider_path_allowed": false,
     "credential_injection": "provider_owned_explicit_qr_login_in_memory_only",
     "canonical_thread_and_turn_owner": "codex_app_server",
-    "composition_host_owner": "one-person-lab-framework",
+    "package_route_composition_host_owner": "one-person-lab-framework",
     "binding_source": "callback_returned_canonical_thread_host_and_canonical_thread_id_only",
     "persistent_secret_store_allowed": false,
     "persistent_conversation_store_allowed": false,

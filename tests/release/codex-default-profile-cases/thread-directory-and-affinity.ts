@@ -241,9 +241,18 @@ test('transport providers project a projectless canonical task binding without S
   const pageChannelAccess = pageStateMatrix.pages.find((page: any) => page.id === 'settings_resources')
     .remote_channel_access;
 
-  assert.equal(channelAccess.source, 'app_state.ui_contributions.slots.settings.section');
+  assert.equal(channelAccess.source, 'renderer_specific_channel_provider_route');
+  assert.deepEqual(channelAccess.source_by_renderer, {
+    aionui: 'aioncore_builtin_channel_ipc_and_api_channel_weixin_login',
+    opl_studio: 'app_state.ui_contributions.slots.settings.section',
+  });
   assert.equal(channelAccess.standard_view_type, 'channel_access');
-  assert.equal(channelAccess.provider_absent_policy, 'omit_channel_access_contribution_and_render_no_placeholder_or_fabricated_connection_state');
+  assert.equal(channelAccess.framework_channel_provider_host_activation_in_aionui_allowed, false);
+  assert.equal(channelAccess.single_active_provider_path_per_renderer_required, true);
+  assert.equal(
+    channelAccess.provider_absent_policy,
+    'aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution_without_placeholder_or_fabricated_state',
+  );
   assert.equal(projection.source, 'app_state.transport_bindings');
   assert.equal(projection.surface_kind, 'opl_app_transport_bindings_projection.v1');
   assert.equal(projection.migration_state, 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed');
@@ -264,7 +273,7 @@ test('transport providers project a projectless canonical task binding without S
   assert.match(projection.binding_unavailable_policy, /preserve_the_transport_row_fail_open_without_fabricated_binding/);
   assert.match(
     pageChannelAccess.provider_absent_policy,
-    /transport_row_visible_fail_open_without_shell_inference_or_writeback/,
+    /aionui_keeps_its_builtin_channel_surface_while_the_successor_omits_an_absent_channel_access_contribution/,
   );
 });
 
