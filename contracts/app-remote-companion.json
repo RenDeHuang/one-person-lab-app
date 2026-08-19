@@ -259,6 +259,77 @@
       "nonce_policy": "cryptographically_random_96_bit_nonce_with_duplicate_rejection_per_directional_key",
       "replay_protection": "pair_key_epoch_plus_per_sender_monotonic_sequence_and_request_id"
     },
+    "credential_boundary": {
+      "public_core_fields": [
+        "transport_provider",
+        "transport_credential",
+        "key_epoch",
+        "credential_expires_at",
+        "push_recipient_id"
+      ],
+      "opaque_field": "transport_credential",
+      "opaque_to": [
+        "one-person-lab-app",
+        "opl-aion-shell",
+        "opl-studio",
+        "one-person-lab-framework",
+        "codex_core_app_server"
+      ],
+      "decoder_owner": "opl-link_selected_provider_adapter",
+      "provider_adapter_may_decode": true,
+      "provider_specific_public_fields_forbidden": [
+        "transport_client_id",
+        "publish_channel",
+        "subscribe_channel",
+        "channel_epoch",
+        "capability_token",
+        "capability_expires_at"
+      ]
+    },
+    "release_cohort_lock": {
+      "source": "opl-link/release-cohort.json",
+      "owner": "opl-link/service",
+      "source_status": "planned_validation_cohort_owner_source_not_currently_integrated",
+      "environment": "validation",
+      "cohort_id": "ably-validation-20260819",
+      "protocol_version": "opl_remote_transport.v1",
+      "provider": "ably",
+      "service_origin": "https://validation.invalid",
+      "service_origin_source": "validation_placeholder",
+      "deployment_state": "not_live_qualified",
+      "admission": {
+        "authority": "opl-link/service_cloudflare_worker_and_d1",
+        "active_pair_limit": 20,
+        "warning_threshold": 15,
+        "limit_scope": "validation_cohort_not_provider_seat_limit",
+        "fixed_provider_seat_limit": false,
+        "testflight_is_capacity_authority": false
+      },
+      "config_summary": {
+        "active_pair_limit": 20,
+        "warning_threshold": 15,
+        "pair_ttl_seconds": 300,
+        "invitation_default_ttl_seconds": 259200,
+        "invitation_max_ttl_seconds": 604800,
+        "manual_code_max_attempts": 5,
+        "jwt_max_ttl_seconds": 3600,
+        "idempotency_response_ttl_seconds": 600,
+        "clock_skew_seconds": 30
+      },
+      "config_digest": "sha256:721fce8b69d45bc311857fe774201427add86e038cf36243d80b3efa673a9718",
+      "config_digest_algorithm": "sha256",
+      "config_digest_canonical_fields": [
+        "environment",
+        "cohort_id",
+        "protocol_version",
+        "provider",
+        "service_origin",
+        "config_summary"
+      ],
+      "metadata_match_required_before_pairing": true,
+      "mismatch_policy": "fail_closed_before_claim_or_transport_connection",
+      "runtime_enforcement_status": "opl-link_service_worker_d1_not_implemented_or_live_qualified"
+    },
     "usage_guardrails": {
       "provider": "ably",
       "plan": "free",
@@ -270,7 +341,9 @@
       "peak_message_rate_per_second": 500,
       "admission_authority": "opl-link/service_cloudflare_worker_and_d1",
       "fixed_pair_limit_in_ios_or_testflight": false,
-      "validation_cohort_limit": "operator_configured_below_current_provider_and_control_plane_free_quota_headroom",
+      "validation_cohort_limit": "release_cohort_lock_active_pair_limit_20",
+      "validation_cohort_warning_threshold": 15,
+      "validation_cohort_limit_scope": "validation_cohort_not_provider_seat_limit",
       "new_pairing_stops_when_configured_cohort_or_quota_headroom_is_exhausted": true,
       "limits_must_be_rechecked_before_beta_and_public_release": true
     }
@@ -334,7 +407,7 @@
       "desktop_requires_local_confirmation_after_the_user_compares_the_short_authentication_string",
       "desktop_and_ios_derive_the_pair_master_key_locally_with_x25519_and_hkdf_without_transmitting_it",
       "desktop_pair_token_and_ios_claim_token_become_role_bound_active_device_credentials_after_activation_and_d1_stores_only_their_hashes",
-      "worker_activates_pair_specific_device_authorizations_channel_epoch_and_opaque_ably_client_ids_then_issues_direction_scoped_short_lived_ably_jwts",
+      "worker_activates_pair_specific_device_authorizations_and_key_epoch_then_issues_provider_scoped_short_lived_opaque_transport_credentials",
       "ios_enables_commands_only_after_transport_connection_and_desktop_canonical_refresh_both_succeed"
     ],
     "control_plane_persistence": {
@@ -345,7 +418,7 @@
         "keyed_hash_of_single_use_claim_secret_or_manual_code",
         "pair_specific_public_keys",
         "expiry_claim_and_pair_admission_state",
-        "opaque_ably_client_ids_and_channel_epoch",
+        "opaque_transport_identity_and_key_epoch",
         "device_credential_hashes",
         "revoked_device_hash",
         "push_registration_reference_without_notification_content"
@@ -395,7 +468,7 @@
         "active",
         "revoking"
       ],
-      "limit_source": "operator_configured_validation_cohort_below_current_free_quota_headroom",
+        "limit_source": "release_cohort_lock_active_pair_limit_20_with_warning_at_15",
       "release_condition": "d1_pair_is_terminally_revoked_device_token_renewal_is_denied_and_desktop_connector_is_detached",
       "client_must_not_allocate_reclaim_or_infer_capacity": true
     },
@@ -404,7 +477,7 @@
       "device_label_user_editable": true,
       "revoke_action": "desktop_or_ios_explicit_revoke_pair",
       "revoke_effect": "mark_pair_revoked_in_d1_deny_future_jwt_issuance_detach_desktop_delete_pair_keys_remove_push_registration_rotate_or_retire_channel_epoch_and_clear_ios_material",
-      "existing_token_policy": "a_short_lived_ably_jwt_may_remain_cryptographically_valid_until_expiry_but_desktop_detach_and_deleted_pair_keys_must_reject_all_commands_immediately",
+        "existing_token_policy": "a_short_lived_provider_transport_credential_may_remain_cryptographically_valid_until_expiry_but_desktop_detach_and_deleted_pair_keys_must_reject_all_commands_immediately",
       "provider_user_account_deletion_required": false,
       "repair_required_after_provider_switch": true
     }

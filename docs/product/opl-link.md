@@ -90,8 +90,20 @@ Framework Host 已接入，贡献与 action refs 均有效时才显示。Connect
 `attention`；邀请、短码、QR claim material 和 claim secret 只在当前交互瞬时出现，不进入缓存、日志或
 App action readback，完整 QR payload 只允许在有界且未过期的 `qr_ready` 投影中出现。
 
-TestFlight 只负责 iOS carrier 分发；用户准入和验证 cohort 由 Worker/D1 的邀请与 pair admission
-控制，不能用 TestFlight 名额代替。免费配额是运营约束，不是产品内写死的 40-user 上限。
+TestFlight 只负责 iOS carrier 分发；用户准入和验证 cohort 由 `opl-link/service` 在 Cloudflare
+Workers/D1 上的邀请与 pair admission 控制，不能用 TestFlight 名额代替。当前冻结的 validation
+cohort 内容锁把 hard limit 设为 20、warning threshold 设为 15；这是该 cohort 的 admission
+配置，不是 Ably/Tencent provider seat，也不是 TestFlight capacity。新 pairing 在 20 个已占用
+admission 时必须由 D1 原子拒绝，达到 15 时由 service capacity readback 报 warning。
+
+配对前必须读取并匹配 `opl-link/release-cohort.json` 的 environment、cohort、protocol、provider、
+service origin、完整 `config_summary` 和 `config_digest`。任何 metadata 或 digest 不一致都在 claim
+或 transport connection 前 fail closed。当前 lock 仍是 validation contract，service source、部署、
+真实 provider reachability 和 TestFlight qualification 均未完成。
+
+公共 activation/credential wire 只暴露 `transport_provider`、opaque `transport_credential`、
+`key_epoch`、`credential_expires_at` 和 `push_recipient_id`。App、Shell、Framework 与 Codex core
+不得解析 provider credential；只有选中的 `opl-link` provider adapter 可以解码它。
 
 ## 当前实现与目标的差距
 

@@ -47,10 +47,19 @@ promoted into release-ready or family production-ready proof.
 OPL Link 的当前产品 SSOT 是 [`product/opl-link.md`](product/opl-link.md) 与
 `contracts/app-remote-companion.json`。目标路线已经改为 Ably Free + Cloudflare Workers Free +
 D1 Free：Ably 负责实时密文和通用推送，Worker/D1 负责邀请、配对、短期 scoped JWT、设备授权与
-撤销；OPL Cloud、TKE、Cloudflare Tunnel、本机常驻 Service 和固定 40-seat 腾讯模型都不是运行或
-发布前置。Ably realtime、Worker endpoint 与 APNs 尚未通过移动、联通、电信和 Wi-Fi 选择探针，
+撤销；OPL Cloud、TKE、Cloudflare Tunnel、本机常驻 Service 和 Tencent provider seat 都不是运行或
+发布前置。当前 validation release-cohort contract 冻结了 D1 admission hard limit 20、warning
+threshold 15；它是 cohort 配置，不是 Ably/Tencent seat 或 TestFlight capacity。Ably realtime、Worker endpoint 与 APNs 尚未通过移动、联通、电信和 Wi-Fi 选择探针，
 因此该目标不能表述为已实现或已可用；探针失败后才允许通过明确 decision 切换单一腾讯 cohort，
 不双写、不自动 fallback。
+
+配对前必须匹配 owner `opl-link/service` 的 `release-cohort.json` metadata、完整 `config_summary`
+和 `config_digest`；metadata 或 digest drift 必须在 claim/transport connection 前 fail closed。
+公共 credential wire 只传递 `transport_provider`、opaque `transport_credential`、`key_epoch`、
+`credential_expires_at` 与 `push_recipient_id`，由 selected provider adapter 解码；App、Shell、
+Framework 和 Codex core 不解析 provider-specific credential fields。
+当前 App 合同只冻结这一 validation lock，不能把未吸收的 integration candidate、未部署 Worker/D1、
+未验证 Ably/APNs 或未 qualification 的 TestFlight carrier 说成当前可用实现。
 
 App-owned `remote_companion_access` view contract、八态配对投影、六个固定配对/设备动作和
 transient-secret boundary 已落在 App schema、GUI、profile、page-state 与 wire contracts 中；

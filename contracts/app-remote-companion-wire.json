@@ -97,6 +97,9 @@
     },
     "release_cohort_lock": {
       "source": "opl-link/release-cohort.json",
+      "product_contract_ref": "contracts/app-remote-companion.json#transport.release_cohort_lock",
+      "owner": "opl-link/service",
+      "source_status": "planned_validation_cohort_owner_source_not_currently_integrated",
       "metadata_match_required_before_pairing": true,
       "match_fields": [
         "environment",
@@ -106,6 +109,21 @@
         "service_origin",
         "config_digest"
       ],
+      "config_summary_match_required": true,
+      "config_digest_match_required": true,
+      "expected_validation_cohort": {
+        "environment": "validation",
+        "cohort_id": "ably-validation-20260819",
+        "protocol_version": "opl_remote_transport.v1",
+        "provider": "ably",
+        "service_origin": "https://validation.invalid",
+        "deployment_state": "not_live_qualified",
+        "active_pair_limit": 20,
+        "warning_threshold": 15
+      },
+      "admission_authority": "opl-link/service_cloudflare_worker_and_d1",
+      "limit_scope": "validation_cohort_not_provider_seat_limit",
+      "fixed_provider_seat_limit": false,
       "mismatch_policy": "fail_closed_before_claim_or_transport_connection"
     },
     "endpoints": [
@@ -156,6 +174,7 @@
         ],
         "response_must_not_include": [
           "capability_token",
+          "transport_credential",
           "ably_api_key",
           "operator_token"
         ]
@@ -297,16 +316,13 @@
           "peer_device_label",
           "peer_public_key",
           "transport_provider",
-          "transport_client_id",
-          "publish_channel",
-          "subscribe_channel",
-          "channel_epoch",
-          "capability_token",
-          "capability_expires_at",
+          "transport_credential",
+          "key_epoch",
+          "credential_expires_at",
           "push_recipient_id"
         ],
         "active_device_credential_source": "desktop_pair_token_for_desktop_and_ios_claim_token_for_ios_become_active_after_pair_activation",
-        "device_activation_policy": "return_only_the_calling_devices_own_activation_and_the_minimum_peer_route_identity_device_label_and_public_key_required_for_e2ee; pre_active_pairing_returns_null; never_return_or_echo_a_bearer_in_device_activation"
+        "device_activation_policy": "return_only_the_calling_devices_own_activation_and_the_minimum_peer_route_identity_device_label_and_public_key_required_for_e2ee; pre_active_pairing_returns_null; transport_credential_is_opaque_to_app_shell_framework_and_core_and_decoded_only_by_the_selected_provider_adapter; never_return_or_echo_a_pair_bearer_in_device_activation"
       },
       {
         "id": "desktop_confirm_pairing",
@@ -337,16 +353,13 @@
         "response_fields": [
           "protocol_version",
           "transport_provider",
-          "transport_client_id",
-          "publish_channel",
-          "subscribe_channel",
-          "channel_epoch",
-          "capability_token",
-          "capability_expires_at",
+          "transport_credential",
+          "key_epoch",
+          "credential_expires_at",
           "push_recipient_id"
         ],
         "secret_response_fields": [
-          "capability_token"
+          "transport_credential"
         ]
       },
       {
@@ -516,7 +529,7 @@
         "invitation_code",
         "claim_secret",
         "device_credential",
-        "capability_token"
+        "transport_credential"
       ]
     }
   },
@@ -536,7 +549,7 @@
       "invitation_code",
       "provider_secret",
       "device_credential",
-      "capability_token",
+      "transport_credential",
       "workspace_path",
       "conversation_text",
       "task_text"
@@ -547,6 +560,33 @@
     "selected_target": "ably",
     "selected_plan": "free",
     "implementation_status": "target_not_implemented_or_live_verified",
+    "credential_wire": {
+      "public_core_fields": [
+        "transport_provider",
+        "transport_credential",
+        "key_epoch",
+        "credential_expires_at",
+        "push_recipient_id"
+      ],
+      "opaque_field": "transport_credential",
+      "opaque_to": [
+        "one-person-lab-app",
+        "opl-aion-shell",
+        "opl-studio",
+        "one-person-lab-framework",
+        "codex_core_app_server"
+      ],
+      "decoder_owner": "opl-link_selected_provider_adapter",
+      "provider_adapter_may_decode": true,
+      "provider_specific_public_fields_forbidden": [
+        "transport_client_id",
+        "publish_channel",
+        "subscribe_channel",
+        "channel_epoch",
+        "capability_token",
+        "capability_expires_at"
+      ]
+    },
     "channel_model": {
       "channels_per_active_pair": 2,
       "ios_publish": "opaque_pair_channel_ios_to_desktop",
@@ -556,11 +596,10 @@
       "public_or_group_channels_allowed": false
     },
     "credential": {
-      "format": "ably_jwt",
+      "format": "provider_adapter_defined_opaque_transport_credential",
       "issuer": "opl-link_service_cloudflare_worker",
-      "client_id": "opaque_pair_and_device_scoped",
       "maximum_ttl_minutes": 60,
-      "capability": "publish_only_to_outbound_channel_subscribe_only_to_inbound_channel_and_push_subscribe_only_for_the_calling_device",
+      "capability": "selected_provider_adapter_enforces_pair_scoped_directional_transport_and_push_scope",
       "api_key_in_client": false
     },
     "switching": {
@@ -875,7 +914,7 @@
       "device_credential",
       "private_key",
       "pair_master_key",
-      "capability_token",
+      "transport_credential",
       "ably_api_key"
     ],
     "push_payload": "generic_pair_scoped_update_signal_only",

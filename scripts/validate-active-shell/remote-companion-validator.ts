@@ -215,10 +215,99 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     guardrails.peak_channel_limit !== 200 ||
     guardrails.peak_message_rate_per_second !== 500 ||
     guardrails.fixed_pair_limit_in_ios_or_testflight !== false ||
+    guardrails.admission_authority !== 'opl-link/service_cloudflare_worker_and_d1' ||
+    guardrails.validation_cohort_limit !== 'release_cohort_lock_active_pair_limit_20' ||
+    guardrails.validation_cohort_warning_threshold !== 15 ||
+    guardrails.validation_cohort_limit_scope !== 'validation_cohort_not_provider_seat_limit' ||
     guardrails.new_pairing_stops_when_configured_cohort_or_quota_headroom_is_exhausted !== true ||
     guardrails.limits_must_be_rechecked_before_beta_and_public_release !== true
   ) {
-    throw new Error('OPL Link free-plan guardrails must use current Ably limits without a fixed 40-seat product rule');
+    throw new Error('OPL Link free-plan guardrails must use the locked validation cohort without a provider seat rule');
+  }
+
+  assertDeepEqualJson(
+    transport.credential_boundary,
+    {
+      public_core_fields: [
+        'transport_provider',
+        'transport_credential',
+        'key_epoch',
+        'credential_expires_at',
+        'push_recipient_id',
+      ],
+      opaque_field: 'transport_credential',
+      opaque_to: [
+        'one-person-lab-app',
+        'opl-aion-shell',
+        'opl-studio',
+        'one-person-lab-framework',
+        'codex_core_app_server',
+      ],
+      decoder_owner: 'opl-link_selected_provider_adapter',
+      provider_adapter_may_decode: true,
+      provider_specific_public_fields_forbidden: [
+        'transport_client_id',
+        'publish_channel',
+        'subscribe_channel',
+        'channel_epoch',
+        'capability_token',
+        'capability_expires_at',
+      ],
+    },
+    'OPL Link provider-neutral transport credential boundary',
+  );
+
+  const cohort = transport.release_cohort_lock;
+  if (
+    cohort?.source !== 'opl-link/release-cohort.json' ||
+    cohort.owner !== 'opl-link/service' ||
+    cohort.source_status !== 'planned_validation_cohort_owner_source_not_currently_integrated' ||
+    cohort.environment !== 'validation' ||
+    cohort.cohort_id !== 'ably-validation-20260819' ||
+    cohort.protocol_version !== 'opl_remote_transport.v1' ||
+    cohort.provider !== 'ably' ||
+    cohort.service_origin !== 'https://validation.invalid' ||
+    cohort.service_origin_source !== 'validation_placeholder' ||
+    cohort.deployment_state !== 'not_live_qualified' ||
+    cohort.config_digest !== 'sha256:721fce8b69d45bc311857fe774201427add86e038cf36243d80b3efa673a9718' ||
+    cohort.config_digest_algorithm !== 'sha256' ||
+    JSON.stringify(cohort.config_digest_canonical_fields) !==
+      JSON.stringify(['environment', 'cohort_id', 'protocol_version', 'provider', 'service_origin', 'config_summary']) ||
+    cohort.metadata_match_required_before_pairing !== true ||
+    cohort.mismatch_policy !== 'fail_closed_before_claim_or_transport_connection' ||
+    cohort.runtime_enforcement_status !== 'opl-link_service_worker_d1_not_implemented_or_live_qualified'
+  ) {
+    throw new Error('OPL Link validation release cohort lock identity or fail-closed policy is invalid');
+  }
+  assertDeepEqualJson(
+    cohort.admission,
+    {
+      authority: 'opl-link/service_cloudflare_worker_and_d1',
+      active_pair_limit: 20,
+      warning_threshold: 15,
+      limit_scope: 'validation_cohort_not_provider_seat_limit',
+      fixed_provider_seat_limit: false,
+      testflight_is_capacity_authority: false,
+    },
+    'OPL Link validation cohort admission lock',
+  );
+  assertDeepEqualJson(
+    cohort.config_summary,
+    {
+      active_pair_limit: 20,
+      warning_threshold: 15,
+      pair_ttl_seconds: 300,
+      invitation_default_ttl_seconds: 259200,
+      invitation_max_ttl_seconds: 604800,
+      manual_code_max_attempts: 5,
+      jwt_max_ttl_seconds: 3600,
+      idempotency_response_ttl_seconds: 600,
+      clock_skew_seconds: 30,
+    },
+    'OPL Link validation cohort config summary',
+  );
+  if (cohort.config_summary.active_pair_limit !== cohort.admission.active_pair_limit || cohort.config_summary.warning_threshold !== cohort.admission.warning_threshold) {
+    throw new Error('OPL Link validation cohort config summary must carry the locked 20/15 admission values');
   }
 
   if (
@@ -254,12 +343,13 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       'worker_validates_one_time_invitation_and_atomically_reserves_one_configured_pair_admission_in_d1',
     ) ||
     !policy.pairing?.claim_protocol?.includes(
-      'worker_activates_pair_specific_device_authorizations_channel_epoch_and_opaque_ably_client_ids_then_issues_direction_scoped_short_lived_ably_jwts',
+      'worker_activates_pair_specific_device_authorizations_and_key_epoch_then_issues_provider_scoped_short_lived_opaque_transport_credentials',
     ) ||
     policy.pairing?.control_plane_persistence?.owner !== 'opl-link/service_on_cloudflare_d1' ||
     policy.pairing?.control_plane_persistence?.allowed?.includes('plaintext_qr_claim_secret') ||
     policy.pairing?.control_plane_persistence?.atomic_claim_and_pair_admission_required !== true ||
     policy.pairing?.admission_lifecycle?.owner !== 'opl-link/service_on_cloudflare_workers_and_d1' ||
+    policy.pairing?.admission_lifecycle?.limit_source !== 'release_cohort_lock_active_pair_limit_20_with_warning_at_15' ||
     policy.pairing?.admission_lifecycle?.client_must_not_allocate_reclaim_or_infer_capacity !== true ||
     policy.pairing?.device_lifecycle?.provider_user_account_deletion_required !== false ||
     policy.pairing?.device_lifecycle?.repair_required_after_provider_switch !== true

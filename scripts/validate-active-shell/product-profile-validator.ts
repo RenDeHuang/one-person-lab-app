@@ -366,6 +366,16 @@ function validateDeliveryTopology(profile) {
       current_implementation: 'legacy_tencent_and_go_sqlite_source_not_conformant_to_target',
       access_view_type: 'remote_companion_access',
       access_view_contract_ref: 'contracts/opl-app-contributions.schema.json#/$defs/remote_companion_access_result',
+      release_cohort_lock_ref: 'contracts/app-remote-companion.json#transport.release_cohort_lock',
+      validation_cohort_admission: {
+        authority: 'opl-link/service_cloudflare_worker_and_d1',
+        active_pair_limit: 20,
+        warning_threshold: 15,
+        limit_scope: 'validation_cohort_not_provider_seat_limit',
+        fixed_provider_seat_limit: false,
+        testflight_is_capacity_authority: false,
+        metadata_or_config_digest_mismatch: 'fail_closed_before_claim_or_transport_connection',
+      },
       access_status_values: [
         'unavailable',
         'unpaired',

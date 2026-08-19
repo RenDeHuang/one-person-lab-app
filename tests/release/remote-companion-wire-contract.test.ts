@@ -91,8 +91,26 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_create_pairing'));
   assert.deepEqual(wire.control_plane_http.release_cohort_lock, {
     source: 'opl-link/release-cohort.json',
+    product_contract_ref: 'contracts/app-remote-companion.json#transport.release_cohort_lock',
+    owner: 'opl-link/service',
+    source_status: 'planned_validation_cohort_owner_source_not_currently_integrated',
     metadata_match_required_before_pairing: true,
     match_fields: ['environment', 'cohort_id', 'protocol_version', 'provider', 'service_origin', 'config_digest'],
+    config_summary_match_required: true,
+    config_digest_match_required: true,
+    expected_validation_cohort: {
+      environment: 'validation',
+      cohort_id: 'ably-validation-20260819',
+      protocol_version: 'opl_remote_transport.v1',
+      provider: 'ably',
+      service_origin: 'https://validation.invalid',
+      deployment_state: 'not_live_qualified',
+      active_pair_limit: 20,
+      warning_threshold: 15,
+    },
+    admission_authority: 'opl-link/service_cloudflare_worker_and_d1',
+    limit_scope: 'validation_cohort_not_provider_seat_limit',
+    fixed_provider_seat_limit: false,
     mismatch_policy: 'fail_closed_before_claim_or_transport_connection',
   });
   assert.deepEqual(endpoints.find((endpoint) => endpoint.id === 'service_health'), {
@@ -109,7 +127,7 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.ok(metadataEndpoint.response_fields.includes('cohort_id'));
   const readinessEndpoint = endpoints.find((endpoint) => endpoint.id === 'service_readiness');
   assert.match(readinessEndpoint.proof_scope, /d1_read_write/);
-  assert.ok(readinessEndpoint.response_must_not_include.includes('capability_token'));
+  assert.ok(readinessEndpoint.response_must_not_include.includes('transport_credential'));
   assert.deepEqual(endpoints.find((endpoint) => endpoint.id === 'ios_resolve_manual_pairing'), {
     id: 'ios_resolve_manual_pairing',
     method: 'POST',
@@ -138,8 +156,15 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   });
   const credentialEndpoint = endpoints.find((endpoint) => endpoint.id === 'refresh_provider_credentials');
   assert.ok(credentialEndpoint);
-  assert.ok(credentialEndpoint.response_fields.includes('transport_client_id'));
-  assert.ok(credentialEndpoint.response_fields.includes('capability_token'));
+  assert.deepEqual(credentialEndpoint.response_fields, [
+    'protocol_version',
+    'transport_provider',
+    'transport_credential',
+    'key_epoch',
+    'credential_expires_at',
+    'push_recipient_id',
+  ]);
+  assert.deepEqual(credentialEndpoint.secret_response_fields, ['transport_credential']);
   assert.ok(credentialEndpoint.response_fields.includes('push_recipient_id'));
   const renameEndpoint = endpoints.find((endpoint) => endpoint.id === 'rename_own_device');
   assert.deepEqual(renameEndpoint.request_fields, ['protocol_version', 'display_name']);
@@ -150,8 +175,26 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.ok(readPairingEndpoint);
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_device_id'));
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_public_key'));
-  assert.ok(readPairingEndpoint.device_activation_fields.includes('publish_channel'));
-  assert.ok(readPairingEndpoint.device_activation_fields.includes('subscribe_channel'));
+  assert.deepEqual(readPairingEndpoint.device_activation_fields, [
+    'device_id',
+    'device_label',
+    'peer_device_id',
+    'peer_device_label',
+    'peer_public_key',
+    'transport_provider',
+    'transport_credential',
+    'key_epoch',
+    'credential_expires_at',
+    'push_recipient_id',
+  ]);
+  for (const field of [
+    'transport_client_id',
+    'publish_channel',
+    'subscribe_channel',
+    'channel_epoch',
+    'capability_token',
+    'capability_expires_at',
+  ]) assert.equal(readPairingEndpoint.device_activation_fields.includes(field), false, `${field} is provider-specific`);
   assert.ok(readPairingEndpoint.device_activation_fields.includes('push_recipient_id'));
   assert.ok(!readPairingEndpoint.device_activation_fields.includes('device_credential'));
   assert.equal(readPairingEndpoint.pre_active_device_activation, null);
@@ -163,6 +206,15 @@ test('OPL Link wire contract has one serverless control plane and encrypted tran
   assert.match(wire.control_plane_http.tokens.active_device_credential, /without_minting_a_second_bearer/);
   assert.equal(wire.provider_transport.selected_target, 'ably');
   assert.equal(wire.provider_transport.implementation_status, 'target_not_implemented_or_live_verified');
+  assert.deepEqual(wire.provider_transport.credential_wire.public_core_fields, [
+    'transport_provider',
+    'transport_credential',
+    'key_epoch',
+    'credential_expires_at',
+    'push_recipient_id',
+  ]);
+  assert.equal(wire.provider_transport.credential_wire.opaque_field, 'transport_credential');
+  assert.equal(wire.provider_transport.credential_wire.provider_adapter_may_decode, true);
   assert.equal(wire.provider_transport.switching.conditional_alternative, 'tencent_cloud_im');
   assert.equal(wire.provider_transport.switching.automatic_fallback, false);
   assert.equal(wire.provider_transport.switching.dual_write, false);
@@ -189,6 +241,7 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
   }
   assert.equal(wire.control_plane_http.tokens.transport, 'bearer_header_only_never_url_query_or_qr');
   assert.equal(wire.secret_and_log_policy.provider_or_cloud_plaintext_conversation_content, false);
+  assert.ok(wire.secret_and_log_policy.never_log.includes('transport_credential'));
   assert.equal(wire.desktop_dispatch.provider_history_read_for_business_state, false);
   assert.equal(wire.desktop_dispatch.cloud_conversation_store, false);
   assert.equal(wire.desktop_dispatch.task_management_authority, false);

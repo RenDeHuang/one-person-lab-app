@@ -1513,9 +1513,20 @@
     "current_connector_implementation": "legacy_tencent_source_requires_migration",
     "release_ready": false,
     "standard_view_type": "remote_companion_access",
-    "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access",
-    "pairing_access_gate": "one_time_invitation_and_worker_d1_pair_admission",
-    "pairing_surface": "settings_resources_desktop_pairing_qr_and_ios_scan",
+      "standard_view_contract_ref": "framework_surfaces.package_app_contributions.standard_view_contracts.remote_companion_access",
+      "pairing_access_gate": "one_time_invitation_and_worker_d1_pair_admission_with_release_cohort_metadata_lock",
+      "release_cohort_lock_ref": "contracts/app-remote-companion.json#transport.release_cohort_lock",
+      "pairing_capacity_policy": {
+        "authority": "opl-link/service_cloudflare_worker_and_d1",
+        "active_pair_limit": 20,
+        "warning_threshold": 15,
+        "limit_scope": "validation_cohort_not_provider_seat_limit",
+        "warning_projection": "service_capacity_warning_when_active_pair_count_at_or_above_15",
+        "hard_stop": "service_rejects_new_pairing_when_active_pair_count_at_or_above_20",
+        "metadata_or_config_digest_mismatch": "fail_closed_before_claim_or_transport_connection",
+        "testflight_is_capacity_authority": false
+      },
+      "pairing_surface": "settings_resources_desktop_pairing_qr_and_ios_scan",
     "access_status_values": [
       "unavailable",
       "unpaired",

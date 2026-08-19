@@ -30,6 +30,18 @@ test('OPL Link selects Ably plus Workers and D1 while keeping implementation gap
   assert.equal(policy.optional_cloud_host.runtime_dependency_for_opl_link, false);
   assert.equal(policy.transport.public_desktop_address_required, false);
   assert.equal(policy.transport.usage_guardrails.fixed_pair_limit_in_ios_or_testflight, false);
+  assert.equal(policy.transport.usage_guardrails.validation_cohort_limit, 'release_cohort_lock_active_pair_limit_20');
+  assert.equal(policy.transport.usage_guardrails.validation_cohort_warning_threshold, 15);
+  assert.equal(policy.transport.release_cohort_lock.admission.active_pair_limit, 20);
+  assert.equal(policy.transport.release_cohort_lock.admission.warning_threshold, 15);
+  assert.equal(policy.transport.release_cohort_lock.config_summary.active_pair_limit, 20);
+  assert.equal(policy.transport.release_cohort_lock.config_summary.warning_threshold, 15);
+  assert.equal(
+    policy.transport.release_cohort_lock.mismatch_policy,
+    'fail_closed_before_claim_or_transport_connection',
+  );
+  assert.equal(policy.transport.credential_boundary.opaque_field, 'transport_credential');
+  assert.equal(policy.transport.credential_boundary.provider_adapter_may_decode, true);
   assert.equal(policy.distribution_and_access.testflight_is_capacity_or_entitlement_authority, false);
   assert.equal(policy.desktop_connector_boundary.settings_contribution.view_type, 'remote_companion_access');
   assert.deepEqual(policy.app_access_contract.status_values, [
@@ -84,6 +96,10 @@ test('OPL Link validator rejects old target defaults and premature release claim
     (candidate: Record<string, any>) => { candidate.transport.authentication.ably_api_key_in_client = true; },
     (candidate: Record<string, any>) => { candidate.transport.message_policy.provider_history_used_for_business_reads = true; },
     (candidate: Record<string, any>) => { candidate.transport.usage_guardrails.fixed_pair_limit_in_ios_or_testflight = 40; },
+    (candidate: Record<string, any>) => { candidate.transport.usage_guardrails.validation_cohort_warning_threshold = 16; },
+    (candidate: Record<string, any>) => { candidate.transport.release_cohort_lock.admission.active_pair_limit = 19; },
+    (candidate: Record<string, any>) => { candidate.transport.release_cohort_lock.config_digest = 'sha256:drift'; },
+    (candidate: Record<string, any>) => { candidate.transport.credential_boundary.opaque_field = 'capability_token'; },
     (candidate: Record<string, any>) => {
       candidate.distribution_and_access.testflight_is_capacity_or_entitlement_authority = true;
     },
