@@ -1,10 +1,18 @@
 {
-  "schema": "opl_app_remote_companion_wire.v1",
+  "schema": "opl_app_remote_companion_wire.v2",
   "owner": "one-person-lab-app",
-  "state": "approved_mvp_wire_contract",
+  "state": "approved_serverless_target_wire_implementation_pending",
   "protocol_version": "opl_remote_transport.v1",
-  "contract_boundary": "This contract owns the cross-repository OPL Link service broker HTTP and encrypted transport wire shape. It does not make OPL Cloud a conversation store, task control plane, runtime dependency, or release prerequisite; it also does not prescribe provider SDK types or prove a deployed Tencent application.",
+  "contract_boundary": "This contract owns the target cross-repository OPL Link control-plane HTTP and encrypted transport wire shape. It selects Ably plus Cloudflare Workers and D1 as the current target without claiming that iOS, desktop, service, provider, network, APNs, or TestFlight qualification is complete. OPL Cloud, a user-managed server, Cloudflare Tunnel, and provider history are not runtime or release authorities.",
   "service_owner": "opl-link/service",
+  "target_runtime": {
+    "control_plane_compute": "cloudflare_workers_free",
+    "control_plane_persistence": "cloudflare_d1_free",
+    "realtime_provider": "ably_free",
+    "always_on_application_server_required": false,
+    "local_resident_service_required": false,
+    "cloudflare_tunnel_required": false
+  },
   "compatibility": {
     "version_field_required": true,
     "supported_versions": [
@@ -14,7 +22,7 @@
     "unknown_action_policy": "reject_without_forwarding_to_the_canonical_action_bridge",
     "manual_code": {
       "status": "short_code_user_fallback",
-      "client_behavior": "resolve_through_the_configured_ios_link_service_origin_then_reuse_the_same_code_in_the_existing_claim_request",
+      "client_behavior": "resolve_through_the_configured_ios_worker_origin_then_reuse_the_same_code_in_the_existing_claim_request",
       "resolution_eligibility": "reserved_pairing_before_first_claim_only"
     },
     "legacy_transport_identifiers": {
@@ -34,7 +42,7 @@
     "opaque_identifier_encoding": "uuid_v4_or_128_bit_random_base64url",
     "maximum_encrypted_transport_message_bytes": 65536
   },
-  "broker_http": {
+  "control_plane_http": {
     "base_path": "/v1/remote-companion",
     "tls_required": true,
     "mutation_idempotency_header": "Idempotency-Key",
@@ -44,7 +52,7 @@
       "ios_claim_token": "single_pairing_ios_poll_then_ios_active_device_credential_after_activation",
       "active_device_credential": "role_bound_to_the_callers_existing_desktop_pair_token_or_ios_claim_token_after_activation_without_minting_a_second_bearer",
       "revocation_receipt_token": "single_revocation_status_read_only_until_terminal_or_expiry",
-      "storage": "store_only_sha256_or_stronger_salted_hashes_and_return_plaintext_once",
+      "storage": "store_only_sha256_or_server_keyed_hashes_in_d1_and_return_plaintext_once",
       "transport": "bearer_header_only_never_url_query_or_qr"
     },
     "endpoints": [
@@ -52,7 +60,7 @@
         "id": "operator_create_invitation",
         "method": "POST",
         "path": "/v1/remote-companion/invitations",
-        "auth": "operator_bearer_from_OPL_LINK_OPERATOR_TOKEN",
+        "auth": "operator_bearer_from_cloudflare_worker_secret",
         "idempotency_required": true,
         "request_fields": [
           "protocol_version",
@@ -75,8 +83,8 @@
         "idempotency_required": false,
         "response_fields": [
           "protocol_version",
-          "seat_count",
-          "seat_limit",
+          "active_pair_count",
+          "active_pair_limit",
           "warning_threshold",
           "warning"
         ]
@@ -101,7 +109,7 @@
           "claim_secret",
           "manual_code",
           "expires_at",
-          "broker_url"
+          "service_url"
         ],
         "secret_response_fields": [
           "desktop_pair_token",
@@ -122,7 +130,7 @@
         "response_fields": [
           "protocol_version",
           "pairing_id",
-          "broker_url",
+          "service_url",
           "desktop_public_key",
           "expires_at"
         ],
@@ -183,13 +191,15 @@
           "device_label",
           "peer_device_id",
           "peer_device_label",
-          "provider_user_id",
-          "peer_provider_user_id",
           "peer_public_key",
-          "sdk_app_id",
-          "push_business_id",
-          "usersig",
-          "usersig_expires_at"
+          "transport_provider",
+          "transport_client_id",
+          "publish_channel",
+          "subscribe_channel",
+          "channel_epoch",
+          "capability_token",
+          "capability_expires_at",
+          "push_recipient_id"
         ],
         "active_device_credential_source": "desktop_pair_token_for_desktop_and_ios_claim_token_for_ios_become_active_after_pair_activation",
         "device_activation_policy": "return_only_the_calling_devices_own_activation_and_the_minimum_peer_route_identity_device_label_and_public_key_required_for_e2ee; pre_active_pairing_returns_null; never_return_or_echo_a_bearer_in_device_activation"
@@ -222,16 +232,17 @@
         ],
         "response_fields": [
           "protocol_version",
-          "provider",
-          "sdk_app_id",
-          "push_business_id",
-          "provider_user_id",
-          "peer_provider_user_id",
-          "usersig",
-          "usersig_expires_at"
+          "transport_provider",
+          "transport_client_id",
+          "publish_channel",
+          "subscribe_channel",
+          "channel_epoch",
+          "capability_token",
+          "capability_expires_at",
+          "push_recipient_id"
         ],
         "secret_response_fields": [
-          "usersig"
+          "capability_token"
         ]
       },
       {
@@ -261,21 +272,21 @@
           "protocol_version",
           "pairing_id",
           "state",
-          "desktop_provider_identity_absent",
-          "ios_provider_identity_absent",
-          "seat_released"
+          "device_authorization_revoked",
+          "token_renewal_denied",
+          "desktop_connector_detached",
+          "pair_admission_released"
         ],
-        "terminal_rule": "state_is_revoked_and_seat_released_is_true_only_after_both_provider_identities_are_absent_by_provider_owner_readback"
+        "terminal_rule": "state_is_revoked_and_pair_admission_released_is_true_only_after_d1_denies_future_tokens_and_the_desktop_connector_is_detached"
       }
     ],
     "pairing_states": [
       "reserved",
       "claimed",
       "awaiting_desktop_confirmation",
-      "provisioning",
+      "activating",
       "active",
       "revoking",
-      "provider_reclaim_pending",
       "revoked",
       "expired"
     ],
@@ -314,7 +325,7 @@
         "invitation_code",
         "claim_secret",
         "device_credential",
-        "usersig"
+        "capability_token"
       ]
     }
   },
@@ -323,7 +334,7 @@
     "host": "pair",
     "fields": [
       "protocol_version",
-      "broker_url",
+      "service_url",
       "pairing_id",
       "claim_secret",
       "desktop_public_key",
@@ -334,12 +345,39 @@
       "invitation_code",
       "provider_secret",
       "device_credential",
-      "usersig",
+      "capability_token",
       "workspace_path",
       "conversation_text",
       "task_text"
     ],
     "single_use": true
+  },
+  "provider_transport": {
+    "selected_target": "ably",
+    "selected_plan": "free",
+    "implementation_status": "target_not_implemented_or_live_verified",
+    "channel_model": {
+      "channels_per_active_pair": 2,
+      "ios_publish": "opaque_pair_channel_ios_to_desktop",
+      "ios_subscribe": "opaque_pair_channel_desktop_to_ios",
+      "desktop_publish": "opaque_pair_channel_desktop_to_ios",
+      "desktop_subscribe": "opaque_pair_channel_ios_to_desktop",
+      "public_or_group_channels_allowed": false
+    },
+    "credential": {
+      "format": "ably_jwt",
+      "issuer": "opl-link_service_cloudflare_worker",
+      "client_id": "opaque_pair_and_device_scoped",
+      "maximum_ttl_minutes": 60,
+      "capability": "publish_only_to_outbound_channel_subscribe_only_to_inbound_channel_and_push_subscribe_only_for_the_calling_device",
+      "api_key_in_client": false
+    },
+    "switching": {
+      "conditional_alternative": "tencent_cloud_im",
+      "automatic_fallback": false,
+      "dual_write": false,
+      "explicit_cohort_decision_and_repair_required": true
+    }
   },
   "pairing_authentication_string": {
     "input_serialization": "utf8_length_prefixed_fields_in_exact_order_pair_id_desktop_public_key_ios_public_key_joined_by_ascii_pipe",
@@ -646,8 +684,8 @@
       "device_credential",
       "private_key",
       "pair_master_key",
-      "usersig",
-      "tencent_sdkapp_secret"
+      "capability_token",
+      "ably_api_key"
     ],
     "push_payload": "generic_pair_scoped_update_signal_only",
     "provider_or_cloud_plaintext_conversation_content": false

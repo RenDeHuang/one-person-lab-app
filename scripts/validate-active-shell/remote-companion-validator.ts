@@ -26,104 +26,126 @@ const forbiddenActions = [
 
 export function validateRemoteCompanionContract(policy: Record<string, any>): void {
   if (
-    policy?.schema !== 'opl_app_remote_companion.v3' ||
+    policy?.schema !== 'opl_app_remote_companion.v4' ||
     policy.owner !== 'one-person-lab-app' ||
-    policy.state !== 'approved_conversation_first_product_baseline_source_aligned_external_configuration_pending'
+    policy.state !== 'approved_serverless_validation_architecture_implementation_and_live_qualification_pending'
   ) {
-    throw new Error('OPL Link contract identity or implementation state is invalid');
+    throw new Error('OPL Link contract identity or target state is invalid');
   }
 
+  const service = policy.service_boundary;
   if (
-    policy.service_boundary?.owner !== 'opl-link/service' ||
-    policy.service_boundary?.repository !== 'opl-link' ||
-    policy.service_boundary?.path !== 'service' ||
-    policy.service_boundary?.runtime_dependency_for_opl_link !== true ||
-    policy.service_boundary?.release_dependency_for_opl_link !== true ||
-    policy.optional_cloud_host?.product !== 'OPL Cloud' ||
-    policy.optional_cloud_host?.role !== 'optional_workspace_webui_host' ||
-    policy.optional_cloud_host?.runtime_dependency_for_opl_link !== false ||
-    policy.optional_cloud_host?.release_dependency_for_opl_link !== false ||
-    policy.optional_cloud_host?.release_prerequisite_for_opl_link !== false
+    service?.owner !== 'opl-link/service' ||
+    service.repository !== 'opl-link' ||
+    service.path !== 'service' ||
+    service.target_runtime?.compute !== 'cloudflare_workers_free' ||
+    service.target_runtime?.persistence !== 'cloudflare_d1_free' ||
+    service.target_runtime?.always_on_server_required !== false ||
+    service.target_runtime?.user_managed_server_required !== false ||
+    service.target_runtime?.local_resident_service_required !== false ||
+    service.target_runtime?.cloudflare_tunnel_required !== false ||
+    service.target_runtime?.periodic_manual_renewal_required !== false ||
+    service.runtime_dependency_for_opl_link !== true ||
+    service.release_dependency_for_opl_link !== true
   ) {
-    throw new Error('OPL Link service must own pairing lifecycle while OPL Cloud remains an optional host only');
+    throw new Error('OPL Link control plane must be the serverless Workers and D1 service');
   }
+  assertIncludesAll(service.must_not_store, [
+    'conversation_history',
+    'conversation_content',
+    'pair_master_key',
+    'plaintext_long_lived_device_credential',
+  ], 'OPL Link control-plane storage exclusions');
 
-  const identity = policy.product_identity;
   assertDeepEqualJson(
+    policy.optional_cloud_host,
     {
-      app_store_name: identity?.app_store_name,
-      home_screen_name: identity?.home_screen_name,
-      in_app_brand_name: identity?.in_app_brand_name,
-      internal_surface_id: identity?.internal_surface_id,
-      client_kind: identity?.client_kind,
-      product_role: identity?.product_role,
-      local_ios_runtime: identity?.local_ios_runtime,
-      local_ios_conversation_history_authority: identity?.local_ios_conversation_history_authority,
-      local_ios_provider_or_model_authority: identity?.local_ios_provider_or_model_authority,
-      local_ios_agent_package_authority: identity?.local_ios_agent_package_authority,
+      product: 'OPL Cloud',
+      role: 'optional_workspace_webui_host',
+      repository: 'one-person-lab-cloud',
+      runtime_dependency_for_opl_link: false,
+      release_dependency_for_opl_link: false,
+      release_prerequisite_for_opl_link: false,
     },
-    {
-      app_store_name: 'OPL Link',
-      home_screen_name: 'OPL Link',
-      in_app_brand_name: 'One Person Lab',
-      internal_surface_id: 'remote_companion',
-      client_kind: 'independent_ios_client',
-      product_role: 'remote_companion_channel_not_a_runtime_or_third_workbench',
-      local_ios_runtime: false,
-      local_ios_conversation_history_authority: false,
-      local_ios_provider_or_model_authority: false,
-      local_ios_agent_package_authority: false,
-    },
-    'OPL Link product identity',
+    'OPL Link optional Cloud boundary',
   );
 
+  const identity = policy.product_identity;
+  if (
+    identity?.app_store_name !== 'OPL Link' ||
+    identity.home_screen_name !== 'OPL Link' ||
+    identity.client_kind !== 'independent_ios_client' ||
+    identity.product_role !== 'remote_companion_channel_not_a_runtime_or_third_workbench' ||
+    identity.local_ios_runtime !== false ||
+    identity.local_ios_conversation_history_authority !== false ||
+    identity.local_ios_provider_or_model_authority !== false ||
+    identity.local_ios_agent_package_authority !== false
+  ) {
+    throw new Error('OPL Link must remain a bounded native iOS conversation connector');
+  }
+
   const transport = policy.transport;
+  const target = transport?.target_architecture;
   const strategy = transport?.provider_strategy;
   if (
     transport?.protocol !== 'opl_remote_transport.v1' ||
-    strategy?.active_provider !== 'tencent_cloud_im' ||
-    strategy.active_edition !== 'trial' ||
-    strategy.selection_status !== 'approved_for_mvp' ||
-    strategy.client_adapter_owner !== 'opl-link' ||
+    target?.realtime_provider !== 'ably' ||
+    target.provider_plan !== 'free' ||
+    target.control_plane_compute !== 'cloudflare_workers_free' ||
+    target.control_plane_persistence !== 'cloudflare_d1_free' ||
+    target.fixed_monthly_infrastructure_cost_within_free_quotas !== 0 ||
+    target.desktop_public_address_required !== false ||
+    target.always_on_application_server_required !== false ||
+    strategy?.selected_provider !== 'ably' ||
+    strategy.selected_plan !== 'free' ||
+    strategy.selection_status !== 'target_current_decision_pending_mainland_china_probe' ||
     strategy.single_provider_per_release_cohort !== true ||
     strategy.runtime_dual_write !== false ||
     strategy.automatic_provider_fallback !== false ||
-    strategy.replacement_candidate !== 'ably' ||
-    strategy.replacement_candidate_implemented !== false ||
+    strategy.conditional_alternative !== 'tencent_cloud_im' ||
+    strategy.conditional_alternative_status !== 'not_selected' ||
+    strategy.switch_without_explicit_decision_allowed !== false ||
+    strategy.selection_gate?.status !== 'not_run' ||
     transport.public_desktop_address_required !== false ||
     transport.lan_or_vpn_configuration_required !== false ||
     transport.provider_secret_embedded_in_client !== false
   ) {
-    throw new Error('OPL Link must use one Tencent Cloud IM MVP adapter behind the provider-neutral protocol');
+    throw new Error('OPL Link target must be Ably Free plus Workers and D1 with an explicit probe-gated alternative');
   }
+  assertIncludesAll(strategy.selection_gate.networks, [
+    'china_mobile',
+    'china_unicom',
+    'china_telecom',
+    'representative_wifi',
+  ], 'OPL Link mainland network selection gate');
 
   const authentication = transport.authentication;
   if (
-    authentication?.mode !== 'pair_specific_user_id_with_short_lived_usersig' ||
-    authentication.credential_issuer !== 'opl-link/service' ||
-    authentication.active_credential_policy !==
-      'existing_desktop_pair_token_or_ios_claim_token_becomes_active_device_credential_after_pair_activation_without_minting_a_second_bearer' ||
-    authentication.usersig_ttl_minutes > 60 ||
+    authentication?.mode !== 'pair_specific_device_identity_with_short_lived_ably_jwt' ||
+    authentication.credential_issuer !== 'opl-link/service_on_cloudflare_workers' ||
+    authentication.token_format !== 'ably_jwt' ||
+    authentication.token_ttl_minutes_max > 60 ||
     authentication.automatic_refresh !== true ||
-    authentication.tencent_sdkapp_secret_in_client !== false ||
+    authentication.ably_api_key_in_client !== false ||
     authentication.credential_reuse_across_pairs !== false
   ) {
-    throw new Error('OPL Link authentication must use pair-specific identities and short-lived service-issued UserSig');
+    throw new Error('OPL Link target authentication must use short-lived pair-scoped Ably JWTs');
   }
 
-  const messagePolicy = transport.message_policy;
+  const messages = transport.message_policy;
   if (
-    messagePolicy?.route !== 'pair_specific_c2c_custom_messages' ||
-    messagePolicy.group_or_public_channel_used !== false ||
-    messagePolicy.command_delivery !== 'online_only_without_cloud_command_queue' ||
-    messagePolicy.provider_history_used_for_business_reads !== false ||
-    messagePolicy.ids_must_be_opaque !== true ||
-    messagePolicy.user_text_or_workspace_path_in_provider_route !== false ||
+    messages?.route !== 'two_pair_specific_directional_ably_channels' ||
+    messages.channels_per_active_pair !== 2 ||
+    messages.group_or_public_channel_used !== false ||
+    messages.command_delivery !== 'online_realtime_only_without_cloud_command_queue' ||
+    messages.provider_history_used_for_business_reads !== false ||
+    messages.ids_must_be_opaque !== true ||
+    messages.user_text_or_workspace_path_in_provider_route !== false ||
     transport.presence_policy?.source !== 'encrypted_pair_heartbeat_and_timeout' ||
     transport.presence_policy?.provider_presence_required !== false ||
     transport.presence_policy?.transport_connected_is_product_ready !== false
   ) {
-    throw new Error('OPL Link transport routing must remain pair-scoped, online-only, and independent of provider history');
+    throw new Error('OPL Link transport must remain pair-scoped, online-only, and independent of provider history');
   }
 
   const confidentiality = transport.payload_confidentiality;
@@ -135,29 +157,24 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     confidentiality.aead_associated_data !==
       'protocol_version_pair_id_sender_device_id_recipient_device_id_key_epoch_sender_sequence_and_channel_direction' ||
     confidentiality.nonce_policy !==
-      'cryptographically_random_96_bit_nonce_with_duplicate_rejection_per_directional_key' ||
-    confidentiality.replay_protection !==
-      'pair_key_epoch_plus_per_sender_monotonic_sequence_and_request_id'
+      'cryptographically_random_96_bit_nonce_with_duplicate_rejection_per_directional_key'
   ) {
-    throw new Error('OPL Link encryption must keep conversation content opaque and reject nonce or sequence reuse');
+    throw new Error('OPL Link encryption must keep conversation content opaque and reject nonce reuse');
   }
 
   const guardrails = transport.usage_guardrails;
   if (
-    guardrails?.provider !== 'tencent_cloud_im' ||
-    guardrails.edition !== 'trial' ||
-    guardrails.registered_user_id_limit !== 100 ||
-    guardrails.peak_dau_limit !== 100 ||
-    guardrails.user_ids_per_active_pair_seat !== 2 ||
-    guardrails.active_pair_seat_limit !== 40 ||
-    guardrails.pair_seat_warning_threshold !== 35 ||
-    guardrails.reserved_user_id_headroom !==
-      guardrails.registered_user_id_limit -
-        guardrails.user_ids_per_active_pair_seat * guardrails.active_pair_seat_limit ||
-    guardrails.new_pairing_stops_at_seat_limit !== true ||
+    guardrails?.provider !== 'ably' ||
+    guardrails.plan !== 'free' ||
+    guardrails.monthly_message_limit !== 6000000 ||
+    guardrails.peak_connection_limit !== 200 ||
+    guardrails.peak_channel_limit !== 200 ||
+    guardrails.peak_message_rate_per_second !== 500 ||
+    guardrails.fixed_pair_limit_in_ios_or_testflight !== false ||
+    guardrails.new_pairing_stops_when_configured_cohort_or_quota_headroom_is_exhausted !== true ||
     guardrails.limits_must_be_rechecked_before_beta_and_public_release !== true
   ) {
-    throw new Error('OPL Link trial capacity must reserve provider headroom and gate new pairings at 40 seats');
+    throw new Error('OPL Link free-plan guardrails must use current Ably limits without a fixed 40-seat product rule');
   }
 
   if (
@@ -165,77 +182,60 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
     policy.distribution_and_access?.public_carrier !== 'apple_app_store' ||
     policy.distribution_and_access?.invitation_required_for_pairing !== true ||
     policy.distribution_and_access?.testflight_is_capacity_or_entitlement_authority !== false ||
-    policy.distribution_and_access?.install_launch_or_invite_entry_consumes_provider_identity !== false ||
-    policy.distribution_and_access?.successful_pairing_consumes_one_active_pair_seat !== true
+    policy.distribution_and_access?.install_launch_or_invite_entry_consumes_transport_capacity !== false ||
+    policy.distribution_and_access?.successful_pairing_consumes_one_control_plane_active_pair_admission !== true
   ) {
-    throw new Error('OPL Link distribution must separate Apple carrier access from invitation and pair capacity');
+    throw new Error('OPL Link must separate Apple distribution from Worker and D1 admission');
   }
 
   assertDeepEqualJson(
     policy.pairing?.qr_payload,
     [
-      'broker_route',
+      'service_url',
       'opaque_pairing_id',
       'one_time_random_256_bit_qr_claim_secret',
       'desktop_pair_specific_public_key',
       'short_lived_pairing_expiry',
     ],
-    'OPL Link QR payload',
+    'OPL Link target QR payload',
   );
   if (
     policy.pairing?.account_required !== false ||
     policy.pairing?.fallback_method !== 'short_manual_code_or_paste_full_pairing_payload' ||
-    policy.pairing?.fallback_payload_policy !==
-      'both_entry_methods_bind_to_the_same_single_use_short_lived_pairing_record_without_creating_a_second_pairing_state' ||
-    policy.pairing?.short_manual_code !== 'implemented_via_configured_link_service_origin_then_normal_claim' ||
-    policy.pairing?.manual_code_resolution?.configured_origin !== 'signed_ios_carrier_configuration' ||
     policy.pairing?.manual_code_resolution?.endpoint !== '/v1/remote-companion/pairings/resolve' ||
-    policy.pairing?.manual_code_resolution?.availability !== 'reserved_pairing_before_first_claim_only' ||
-    !Array.isArray(policy.pairing?.manual_code_resolution?.response_fields) ||
-    !policy.pairing?.manual_code_resolution?.response_fields.includes('desktop_public_key') ||
+    !policy.pairing?.manual_code_resolution?.response_fields?.includes('service_url') ||
     policy.pairing?.manual_code_resolution?.response_must_not_include?.join('|') !==
       'claim_secret|desktop_pair_token|ios_claim_token|provider_credential' ||
-    policy.pairing?.manual_code_resolution?.claim_behavior !==
-      'reuse_the_same_manual_code_with_the_resolved_pairing_id_in_the_existing_claim_protocol' ||
     !policy.pairing?.claim_protocol?.includes(
-      'broker_validates_one_time_invitation_and_atomically_reserves_one_pair_seat_with_a_5_minute_ttl',
+      'worker_validates_one_time_invitation_and_atomically_reserves_one_configured_pair_admission_in_d1',
     ) ||
     !policy.pairing?.claim_protocol?.includes(
-      'desktop_reads_the_claim_and_both_devices_display_the_same_short_authentication_string_derived_from_pairing_id_and_both_public_keys',
+      'worker_activates_pair_specific_device_authorizations_channel_epoch_and_opaque_ably_client_ids_then_issues_direction_scoped_short_lived_ably_jwts',
     ) ||
-    !policy.pairing?.claim_protocol?.includes(
-      'desktop_pair_token_and_ios_claim_token_become_role_bound_active_device_credentials_after_activation_without_minting_second_bearers_and_the_broker_persists_only_their_sha256_hashes_for_future_usersig_requests',
-    ) ||
-    !policy.pairing?.broker_persistence?.allowed?.includes('provider_user_id_bindings') ||
-    policy.pairing?.broker_persistence?.allowed?.includes('plaintext_qr_claim_secret') ||
-    policy.pairing?.capacity_lifecycle?.owner !== 'opl-link/service' ||
-    policy.pairing?.capacity_lifecycle?.reservation_ttl_minutes > 5 ||
-    !policy.pairing?.capacity_lifecycle?.allocated_states?.includes('awaiting_desktop_confirmation') ||
-    policy.pairing?.capacity_lifecycle?.seat_release_condition !==
-      'both_tencent_user_ids_deleted_and_provider_owner_readback_confirms_absence' ||
-    policy.pairing?.capacity_lifecycle?.client_must_not_allocate_reclaim_or_infer_seats !== true ||
-    policy.pairing?.device_lifecycle?.provider_account_delete_and_absence_readback_required_for_seat_reclaim !== true
+    policy.pairing?.control_plane_persistence?.owner !== 'opl-link/service_on_cloudflare_d1' ||
+    policy.pairing?.control_plane_persistence?.allowed?.includes('plaintext_qr_claim_secret') ||
+    policy.pairing?.control_plane_persistence?.atomic_claim_and_pair_admission_required !== true ||
+    policy.pairing?.admission_lifecycle?.owner !== 'opl-link/service_on_cloudflare_workers_and_d1' ||
+    policy.pairing?.admission_lifecycle?.client_must_not_allocate_reclaim_or_infer_capacity !== true ||
+    policy.pairing?.device_lifecycle?.provider_user_account_deletion_required !== false ||
+    policy.pairing?.device_lifecycle?.repair_required_after_provider_switch !== true
   ) {
-    throw new Error('OPL Link pairing must be invitation-gated, atomic, and release seats only after provider absence readback');
+    throw new Error('OPL Link pairing must use Worker and D1 authorization without Tencent account lifecycle');
   }
 
-  const pendingPairing = policy.pairing?.ios_pending_pairing_persistence;
-  assertIncludesAll(pendingPairing?.material, [
+  const pending = policy.pairing.ios_pending_pairing_persistence;
+  assertIncludesAll(pending?.material, [
     'opaque_pairing_id',
-    'broker_route',
+    'service_url',
     'ios_pair_specific_private_key',
     'desktop_pair_specific_public_key',
     'ios_claim_token',
     'short_lived_pairing_expiry',
   ], 'OPL Link pending pairing material');
   if (
-    pendingPairing?.owner !== 'opl-link' ||
-    pendingPairing.storage !== 'ios_keychain_when_unlocked_this_device_only_until_activation_expiry_or_local_reset' ||
-    pendingPairing.resume !==
-      'cold_start_restores_awaiting_desktop_confirmation_and_reads_broker_state_without_reclaiming_or_reminting_pair_credentials' ||
-    pendingPairing.activation !==
-      'persist_active_pair_material_with_the_existing_ios_claim_token_before_transport_connect_then_delete_the_pending_record' ||
-    JSON.stringify(pendingPairing.clear_on) !== JSON.stringify([
+    pending?.owner !== 'opl-link' ||
+    pending.storage !== 'ios_keychain_when_unlocked_this_device_only_until_activation_expiry_or_local_reset' ||
+    JSON.stringify(pending.clear_on) !== JSON.stringify([
       'active_pair_material_persisted_after_activation',
       'pairing_expiry',
       'failed_claim',
@@ -247,118 +247,66 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
 
   assertIncludesAll(policy.action_policy?.product_action_names, requiredActions, 'OPL Link product actions');
   assertIncludesAll(policy.action_policy?.forbidden_actions, forbiddenActions, 'OPL Link forbidden actions');
-  assertDeepEqualJson(
-    policy.surface_boundary?.conversation_model,
-    {
-      primary_object: 'canonical_codex_conversation',
-      canonical_identity: 'canonical_thread_id',
-      conversation_is: [
-        'the_user_visible_unit_in_the_opl_link_list',
-        'the_context_for_messages_streaming_output_and_turn_control',
-        'the_unit_that_can_be_started_opened_continued_and_stopped',
-      ],
-      task_is: [
-        'optional_desktop_metadata_or_grouping_label',
-        'an_external_opl_flow_ledger_or_linear_reference_when_present',
-      ],
-      opl_link_does_not_manage: [
-        'task_lifecycle',
-        'task_owner_deadline_dependency_or_workflow',
-        'ledger_receipts_or_linear_issue_state',
-      ],
-      task_management_authority:
-        'opl_flow_via_opl_ledger_and_linear_when_enabled; otherwise_task_is_desktop_conversation_grouping_metadata_only',
-    },
-    'OPL Link conversation and task boundary',
-  );
-  assertIncludesAll(policy.surface_boundary?.primary_user_outcomes, [
-    'filter_the_currently_loaded_conversation_directory_locally_without_claiming_canonical_search',
-  ], 'OPL Link local conversation filtering');
-  assertIncludesAll(policy.surface_boundary?.deferred_outcomes, [
-    'canonical_conversation_search_archive_rename_or_delete_until_desktop_apis_are_admitted',
-  ], 'OPL Link canonical conversation operations');
-  assertDeepEqualJson(
-    policy.action_policy?.wire_action_id_mapping,
-    {
-      'conversation.list': 'canonical_task.list',
-      'conversation.open': 'canonical_task.read',
-      'conversation.refresh': 'canonical_task.refresh',
-      'conversation.start': 'canonical_task.start',
-      'conversation.send_text': 'canonical_task.send_text',
-      'conversation.turn.stop': 'canonical_turn.stop',
-      'conversation.approval.respond': 'canonical_approval.respond',
-      'pair.revoke': 'pair.revoke',
-    },
-    'OPL Link product-to-wire action aliases',
-  );
-  assertDeepEqualJson(
-    policy.action_policy?.request_required_fields,
-    ['protocol_version', 'pair_id', 'device_id', 'key_epoch', 'nonce', 'encrypted_payload'],
-    'OPL Link outer request envelope',
-  );
-  assertDeepEqualJson(
-    policy.action_policy?.encrypted_request_fields,
-    [
-      'request_id',
-      'canonical_thread_id_or_new_conversation_intent',
-      'client_sequence',
-      'action_id',
-      'action_payload',
-    ],
-    'OPL Link encrypted request body',
-  );
   if (
     policy.action_policy?.action_authority !== 'desktop_canonical_app_action_bridge' ||
     policy.action_policy?.wire_action_ids_are_internal_aliases !== true ||
-    policy.action_policy?.idempotency?.send_and_start_requests_require_request_id !== true ||
-    policy.action_policy?.idempotency?.desktop_deduplicates_within_pair_key_epoch !== true ||
     policy.action_policy?.idempotency?.offline_command_queue !== false
   ) {
-    throw new Error('OPL Link actions must be desktop-authoritative, idempotent, and online-only');
+    throw new Error('OPL Link actions must remain desktop-authoritative, idempotent, and online-only');
   }
 
   if (
+    policy.surface_boundary?.conversation_model?.primary_object !== 'canonical_codex_conversation' ||
+    policy.surface_boundary?.conversation_model?.canonical_identity !== 'canonical_thread_id' ||
     policy.state_sync?.canonical_state_owner !== 'codex_core_app_server_and_desktop_opl_app_projection' ||
     policy.state_sync?.history_policy !== 'do_not_use_provider_history_as_canonical_conversation_truth' ||
-    policy.notifications?.background_behavior !==
-      'reconnect_and_resync_on_next_foreground; do_not_keep_a_permanent_background_socket' ||
-    policy.notifications?.apns_business_id?.owner !== 'opl-link/service' ||
-    policy.notifications?.apns_business_id?.wire_field !== 'push_business_id' ||
-    policy.notifications?.apns_business_id?.optional !== true ||
-    policy.notifications?.apns_business_id?.client_must_not_choose !== true
+    policy.notifications?.background_transport !== 'ably_push_to_apns_generic_signal' ||
+    policy.notifications?.push_registration?.owner !== 'opl-link/service_with_ably_push' ||
+    policy.notifications?.push_registration?.client_must_not_receive_push_admin_capability !== true ||
+    policy.ownership?.invitation_device_authorization_jwt_and_revoke_control_plane !==
+      'opl-link/service_on_cloudflare_workers_and_d1' ||
+    policy.ownership?.realtime_service !== 'ably'
   ) {
-    throw new Error('OPL Link state must remain desktop-authoritative and APNs business ID service-projected');
+    throw new Error('OPL Link state, push, and control-plane ownership must follow the selected target');
   }
 
+  const status = policy.implementation_status;
   if (
-    policy.ownership?.ios_native_carrier_client_state_and_transport_adapter !== 'opl-link' ||
-    policy.ownership?.invitation_pair_seat_usersig_and_provider_account_lifecycle !== 'opl-link/service' ||
-    policy.ownership?.realtime_service !== 'tencent_cloud_im'
+    status?.product_name_decided !== true ||
+    status.target_transport_and_control_plane_decided !== true ||
+    status.conversation_first_ios_source_implemented !== true ||
+    status.legacy_tencent_ios_adapter_source_present !== true ||
+    status.legacy_tencent_desktop_adapter_source_present !== true ||
+    status.legacy_go_sqlite_service_source_present !== true ||
+    status.legacy_stack_conforms_to_selected_architecture !== false ||
+    status.ably_adapter_source_implemented !== false ||
+    status.cloudflare_worker_source_implemented !== false ||
+    status.cloudflare_d1_schema_implemented !== false ||
+    status.mainland_china_selection_probe_completed !== false ||
+    status.testflight_carrier_build_evidence_exists !== true ||
+    status.testflight_product_qualification_completed !== false ||
+    status.release_ready_claim_allowed !== false
   ) {
-    throw new Error('OPL Link ownership must keep iOS, service, desktop, and provider authority separate');
+    throw new Error('OPL Link must distinguish the selected target, legacy source, carrier evidence, and live gaps');
   }
 
-  assertIncludesAll(policy.acceptance?.must_prove_before_beta, [
-    'no_public_desktop_address_is_needed_for_pairing_or_reconnect',
-    'atomic_pair_seat_reservation_prevents_capacity_oversubscription',
-    'duplicate_send_does_not_create_duplicate_turns',
-    'both_provider_user_ids_are_absent_before_pair_seat_reclaim',
-  ], 'OPL Link beta acceptance');
+  assertDeepEqualJson(
+    policy.delivery_governance?.required_order,
+    [
+      'run_selected_provider_and_control_plane_mainland_network_probe',
+      'implement_and_prove_one_minimum_real_vertical_pair_token_message_and_revoke_path',
+      'complete_the_conversation_feature_surface_on_the_proven_transport',
+      'qualify_real_devices_apns_three_networks_clean_install_and_testflight',
+      'only_then_allow_release_ready_or_app_store_claims',
+    ],
+    'OPL Link delivery order',
+  );
   if (
-    policy.implementation_status?.product_name_decided !== true ||
-    policy.implementation_status?.transport_decided !== true ||
-    policy.implementation_status?.ios_repository_initialized !== true ||
-    policy.implementation_status?.protocol_source_implemented !== true ||
-    policy.implementation_status?.desktop_connector_source_implemented !== true ||
-    policy.implementation_status?.ios_source_implemented !== true ||
-    policy.implementation_status?.ios_conversation_surface_implemented !== true ||
-    policy.implementation_status?.desktop_conversation_projection_implemented !== true ||
-    policy.implementation_status?.link_service_source_implemented !== true ||
-    policy.implementation_status?.tencent_cloud_application_configured !== false ||
-    policy.implementation_status?.testflight_or_app_store_release !== false ||
-    policy.implementation_status?.china_three_network_qualification !== false ||
-    policy.implementation_status?.release_ready_claim_allowed !== false
+    policy.delivery_governance?.process_correction?.finding !== 'incorrect_delivery_sequence' ||
+    policy.delivery_governance?.process_correction?.must_not_repeat !== true ||
+    policy.delivery_governance?.process_correction?.product_acceptance_value_of_existing_testflight_build !==
+      'none_for_opl_link_usability; carrier_build_and_signing_evidence_only'
   ) {
-    throw new Error('OPL Link implementation status must distinguish delivered source from external release evidence');
+    throw new Error('OPL Link must preserve the release-sequencing correction');
   }
 }

@@ -97,8 +97,8 @@ contract/实现收敛 lane 处理。
   或第二 action authority。
 - Desktop/WebUI carrier 仍共享同一 host core 和 renderer，但旧 LAN WebUI 登录不能成为 Companion
   的公网 fallback。桌面 connector 与 iOS 通过 `opl_remote_transport.v1` 消费单一 provider
-  adapter；MVP 为腾讯云 IM，Ably 只保留替换边界。所有业务动作仍回到 desktop canonical App
-  action bridge。
+  adapter；当前目标是 Ably Free + Cloudflare Workers/D1，腾讯 IM 只在大陆选择探针失败后经明确
+  decision 切换单一 cohort。所有业务动作仍回到 desktop canonical App action bridge。
 
 外部项目只能帮助验证这一分层或提供 bounded component technique。OpenChamber 的 Electron +
 Web server/Docker 组合可作为桌面/WebUI 拓扑证据；其 PWA/Capacitor 路线、OpenCode runtime、
@@ -109,15 +109,16 @@ runtime 或 renderer dependency；仅在单独 reuse decision 后把必要技术
 
 - Shell 只实现一个 `RemoteTransport` adapter：将 owner-projected conversation reads/events 与 allowlisted App
   actions 映射到加密 envelope，不复制 Codex App Server 或维护私有 thread truth。
-- Pairing UI 只显示邀请、容量、一次性 QR、相同确认码、provisioning、设备和撤销。席位、腾讯
-  UserID、UserSig、revoke 与可选 APNs business ID 由 `opl-link/service`
-  持有；Shell 不在本地分配或释放。QR、UserSig、device credential、pair key、对话正文与 workspace
-  path 不得写日志。
+- Pairing UI 只显示邀请、容量、一次性 QR、相同确认码、activation、设备和撤销。Worker/D1
+  持有 pair admission、短期 scoped JWT、设备授权、token renewal denial、revoke 与 push
+  registration；Shell 不在本地分配或推断。QR、capability token、device credential、pair key、
+  对话正文与 workspace path 不得写日志。
 - Transport unavailable 只降级 Companion；桌面工作台保持可用，也不自动改走 LAN WebUI。
 - `request_id` 去重、key epoch/sequence、回前台 canonical refresh 和 high-impact approval desktop-only
   是实现门槛，不是 renderer 自选策略。
-- 产品协议、owner 边界和当前缺口见 [`../opl-link.md`](../opl-link.md)；
-  App 合同通过不能替代 Shell/Cloud/iOS source 与安装证据。
+- 当前 Shell 的 Tencent credential/adapter source 是待迁移 `active_gap`，不能作为目标 provider
+  或 release-ready 证据。产品协议、owner 边界和当前缺口见 [`../opl-link.md`](../opl-link.md)；
+  App 合同通过不能替代 Worker/D1、Ably、Shell/iOS 实现与真实运行证据。
 
 ## 多 GUI 运行边界
 

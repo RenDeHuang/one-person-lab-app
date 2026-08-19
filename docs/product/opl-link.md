@@ -1,136 +1,146 @@
-# OPL Link 产品基线
+# OPL Link 产品与交付基线
 
-Owner: `one-person-lab-app`  
-Purpose: `opl_link_conversation_first_product_ssot`  
-State: `approved_product_baseline_source_aligned_external_configuration_pending`
+Owner: `one-person-lab-app`
+Purpose: `opl_link_product_and_delivery_ssot`
+State: `target_current_decision_with_explicit_implementation_gaps`
 
 ## 结论
 
-OPL Link 是 OPL App 的独立原生 iOS 客户端。它让用户离开电脑后继续使用桌面端的 Codex 对话，
-不是移动版 OPL App、第二个 Codex runtime、第二个历史库，也不是 OPL Flow、OPL Ledger 或
-Linear 的任务控制面。
+OPL Link 是 OPL App 的独立原生 iOS 对话连接器。它让用户离开电脑后继续桌面端的 Codex
+conversation/thread，不是移动版 OPL App、第二个 Codex runtime、第二个历史库，也不是 OPL
+Flow、OPL Ledger 或 Linear 的任务控制面。
 
-用户看到和操作的主对象是 **对话**。对话由桌面 OPL App/Codex App Server 持有，使用
-`canonical_thread_id` 作为跨端身份。OPL Link 只读取桌面投影并提交有限的对话操作；腾讯云 IM
-只负责实时密文传输，`opl-link/service` 负责配对、凭据、席位、撤销和
-可选的 APNs business ID 投影，二者都不能成为对话历史或业务状态的 owner。
+目标技术路线只有一条：
+
+```text
+iPhone OPL Link <-> Ably Free <-> Desktop OPL Connector
+        \               /
+         Cloudflare Workers Free + D1 Free
+         邀请、配对、短期 JWT、设备授权与撤销
+```
+
+这条路线不要求用户电脑有公网 IP，不要求端口转发、VPN、Tailscale、Cloudflare Tunnel 或本机
+常驻公网 Service，也不依赖 OPL Cloud、Cloud Candidate、TKE 或完整 Cloud 发布物。Workers 按请求
+运行，D1 承担轻量控制面持久化；在免费额度内没有固定服务器费用，也没有 CloudBase 每 6 个月
+续期一次的运维动作。
+
+Ably 是当前目标 provider，但尚未通过中国大陆网络探针，因此不能写成已经可用。实施前必须同时
+验证 Ably realtime、Worker HTTPS/token refresh 和 Ably Push -> APNs 在移动、联通、电信与代表性
+Wi-Fi 下的可达性和恢复行为。只有探针证据不达标时，才允许通过新的明确决策将一个 release cohort
+切换为腾讯云 IM；不双写、不运行时自动 fallback，已有 pair 必须重新配对。
 
 ## 用户闭环
 
 ```text
 安全配对 -> 查看对话列表 -> 打开对话 -> 阅读历史/流式输出
-        -> 继续发送消息或停止当前生成 -> 前后台恢复后重新同步
+        -> 继续发送消息或停止当前 turn -> 前后台恢复后重新同步
 ```
 
-首发闭环只需要：
+首发闭环包括：
 
 - 配对一台正在运行的桌面 OPL App；
 - 查看桌面已有对话的标题、摘要、最近更新时间和当前状态；
-- 在当前已加载的对话目录中按标题本地过滤，不把结果冒充桌面全历史搜索；
-- 打开一条对话，阅读历史消息与流式输出；
-- 继续发送文字；
-- 新建一条对话，沿用桌面的默认工作区、模型、权限和 Agent 配置；
-- 停止当前 turn；
+- 在当前已加载的对话目录中按标题本地过滤，不冒充 canonical 全历史搜索；
+- 打开对话，阅读历史和流式输出，继续发送文字或停止当前 turn；
+- 新建对话并沿用桌面默认工作区、模型、权限和 Agent 配置；
 - 处理桌面明确投影的低/中影响审批；
-- 接收不含正文的通用更新提醒，打开 App 后重新同步。
+- 接收不含正文、路径、审批内容或密钥的通用更新提醒；
+- 从任一端撤销 pair，阻止 token 续签并立即让 desktop connector 拒绝旧连接的命令。
 
-### 任务与对话
-
-OPL Link 中“任务”不是产品主对象。它只可能是：
-
-- 桌面对话的标题、状态或其他元数据；
-- OPL Flow/OPL Ledger/Linear 在用户启用这些系统时提供的外部分组或引用。
-
-OPL Link 不负责任务的负责人、截止时间、依赖、阶段、工作流、Ledger receipt、Linear issue
-状态或任务迁移。没有 OPL Flow/Linear 时，对话仍然可以独立使用；启用后也由对应 owner 管理，
-OPL Link 只在桌面投影允许时显示引用。
-
-### 不做什么
-
-以下能力不属于当前产品闭环：
-
-- 任意终端、shell、文件系统读写或文件上传；
-- 手机端模型、Provider、权限策略、Package 或 Agent 配置；
-- 离线命令队列、云端任务迁移、多用户共享工作区；
-- Linear/OPL Ledger 任务生命周期管理；
-- 在没有桌面 canonical API 的情况下自行实现全历史搜索、归档、重命名或删除。
-
-直接打开或投影桌面 WebUI 是开发验证、手动应急和技术下限，不是 OPL Link 的产品语义，也不是
-自动 transport fallback。正式 OPL Link 投影的是对话数据和事件，而不是桌面像素：这样可以减少
-流量、缩短加载、正确处理前后台恢复，并保持桌面端作为唯一历史 authority。
-
-## 信息架构
-
-- **对话**：默认首页，按最近活动显示桌面 canonical conversation directory，并可本地过滤当前投影。
-- **对话详情**：消息历史、流式输出、输入框、停止当前 turn、允许的审批和刷新。
-- **设置**：连接状态、设备信息、隐私、兼容信息和撤销配对；通知与 carrier 诊断仍待真实 Beta 验收。
-- **任务/项目**：不是 OPL Link 的一级入口；需要时作为对话元数据或外部引用展示。
-
-当前 iOS 产品模型和双页签 UI 已统一为 conversation/thread 语义，支持对话列表、本地过滤、新建、
-详情、发送、停止、审批、刷新和撤销。`canonical_task.*`、`task.snapshot`、`task.list_snapshot` 与
-payload `task`/`tasks` 只作为 `opl_remote_transport.v1` adapter 兼容值保留，不形成任务控制面。
-这只证明 canonical source；真实 OPL Link service、Tencent、推送、TestFlight、三网和发布仍需对应
-owner readback。
-
-## OPL Connect 与桌面 Connector
-
-OPL Link 整体不是 OPL Connect 的下属产品。只有负责把桌面 OPL App 接入远程对话链路的
-`opl-link-desktop-connector` Package 归入 OPL Connect，类型为 `remote_companion_connector`。
-OPL Link iOS App 与 `opl-link/service` 继续由 OPL Link 持有，OPL Connect 不拥有它们的产品语义、
-远端服务、凭据、对话历史或 provider 生命周期。
-
-目标源码位置是 `opl-link/packages/opl-link-desktop-connector`。它复用 OPL Framework 唯一的 Cordis
-Host，负责 provider adapter、配对投影和 canonical App read/action 接口；Shell 只渲染 Framework
-投影并提供 canonical App bridge，不长期持有 Connector 业务逻辑，也不创建第二个 Host。当前目标
-Package 尚未实现，既有 Shell connector source 是待迁移实现，不能写成已完成插件化。
-
-在桌面设置中，Connector 不创建顶级导航，而是通过 `channel_access` 标准声明式视图进入
-`设置 > 资源 > 消息与连接`。Package、Framework Host、贡献和 action refs 全部就绪后才显示；
-“未连接”是就绪后的正常可配置状态，应显示连接或配对动作。Package 未安装、未启用、不可调用、
-Host 未接入或贡献无效时完全隐藏，不显示静态入口或占位。普通界面只显示图标、名称、连接状态、
-主要动作和必要详情，Package ID、carrier/trust 与诊断只在开发者详情中显示。
-
-目前已明确的产品分类是微信消息渠道 Connector 与 OPL Link desktop Connector。这两个名称只用于
-产品说明，运行时成员始终来自 installed descriptor 和 Framework Host 动态投影，App 与 Shell 都不得
-维护品牌白名单。标准配置页由 App renderer 提供，Package 只贡献结构化数据和 action refs；需要超出
-`channel_access` 的新交互时，必须先新增并准入 App-owned 标准视图合同，不能下发任意 Swift/React UI。
-
-## 连接与隐私边界
-
-桌面和 iPhone 都向托管服务主动建立出站连接，用户不需要公网 IP、端口转发、VPN、Tailscale
-或局域网配置。腾讯云 IM 体验版是当前 MVP provider；Ably 只是未来替换候选，不能双写、
-自动 fallback 或使用 provider history 作为业务真相。
-
-对话正文、workspace 路径、审批正文和密钥在桌面与 iPhone 之间端到端加密。OPL Link service
-和 provider 只能看到不透明路由标识、密文和必要的生命周期状态。推送仅发送“有更新”的通用信号，
-APNs business ID 由 service 投影，客户端不得自行选择。
-
-配对需要一次性邀请和 QR/完整 payload，成功配对才消耗 service active pair seat。TestFlight
-只是 Beta 分发载体，不是容量或准入 authority。撤销配对必须由 service owner 完成 provider
-账号删除与 absence readback 后才释放席位。
-
-OPL Link 的运行与发布依赖是 `opl-link/service`、目标 `opl-link-desktop-connector` Package、
-对应 transport 和 Apple carrier 的各自 owner 证据。OPL Cloud 只保留未来可选的 Workspace/WebUI
-host 角色，不是 OPL Link 的运行或发布依赖；Cloud Candidate、TKE 和完整 Cloud 发布物也不再是
-Link 发布前置。
+“任务”只可能是桌面对话的元数据、虚拟分组或可选的 OPL Flow/Ledger/Linear 外部引用。
+OPL Link 不创建或管理 owner、deadline、dependency、stage、lifecycle 或工作流。
 
 ## Authority
 
-| 主题 | 唯一 owner | OPL Link 角色 |
+| 主题 | 唯一 owner | 边界 |
 | --- | --- | --- |
-| OPL Link 产品与跨端语义 | `one-person-lab-app` | 定义合同并验收 |
-| 对话历史、turn、模型和执行 | Codex App Server + 桌面 OPL App | 只读投影和有限 action |
-| iOS UI、Keychain、E2EE、transport adapter | `opl-link` | 实现 |
-| 桌面 Connector Package | `opl-link/packages/opl-link-desktop-connector` | 归类为 OPL Connect 的 `remote_companion_connector` |
-| Connector runtime composition | OPL Framework 唯一 Cordis Host | 动态发现、托管并投影贡献 |
-| Shell | 当前 App Shell | 只渲染投影并提供 canonical App bridge；既有 Connector 逻辑待迁出 |
-| 邀请、席位、UserSig、Tencent UserID、revoke、APNs business ID | `opl-link/service` | 提供 service 状态 |
-| OPL Cloud | 未来可选 Workspace/WebUI host | 不参与 OPL Link 运行或发布前置 |
-| OPL Flow、OPL Ledger、Linear 任务 | 对应产品/领域 owner | 可选外部引用 |
-| 实时消息投递 | Tencent Cloud IM（未来可替换 Ably） | 只传密文 |
+| 产品身份、用户结果、安全与发布门禁 | `one-person-lab-app` | 本文与 App contracts |
+| iOS UI、Keychain、E2EE、transport adapter | `opl-link` | 不持有 canonical history |
+| 桌面 Connector Package | `opl-link/packages/opl-link-desktop-connector` | 归类为 OPL Connect 的 `remote_companion_connector`；目标 Package 尚未实现 |
+| Connector lifecycle/composition | OPL Framework 唯一 Cordis Host | 动态发现、托管并投影贡献 |
+| Shell renderer 与 canonical App bridge | `opl-aion-shell` 或已准入 successor | 只渲染投影和桥接 read/action；当前 Connector 业务源码待迁出 |
+| 邀请、配对、短期 JWT、设备授权与撤销 | `opl-link/service` on Workers/D1 | 不存对话正文或 pair master key |
+| 实时密文与通用推送信号 | Ably | 不成为业务 truth |
+| 对话历史、turn、模型与执行 | Codex App Server + 桌面 OPL runtime | 唯一 canonical authority |
+| OPL Cloud | 可选 Workspace/WebUI host | 不是 Link 运行或发布前置 |
 
-机器边界见 [`contracts/app-remote-companion.json`](../../contracts/app-remote-companion.json) 和
+## OPL Connect 与桌面设置
+
+OPL Link 整体不是 OPL Connect 的下属产品。只有把桌面 OPL App 接入远程对话链路的
+`opl-link-desktop-connector` Package 属于 OPL Connect；OPL Link iOS App 与
+`opl-link/service` 仍由 OPL Link 持有。OPL Connect 不接管它们的产品语义、远端服务、凭据、
+对话历史或 provider 生命周期。
+
+桌面 Connector 复用 OPL Framework 唯一 Cordis Host。Shell 只渲染 Framework projection 并通过
+canonical App bridge 执行动作，不长期拥有 Connector 业务逻辑，也不创建产品专用 Host。当前目标
+Package 尚未实现，既有 Shell Connector 源码是待迁移缺口，不能表述为已经完成插件化。
+
+Connector 不创建顶级设置导航，而是用 App-owned `channel_access` 标准声明式视图进入
+`设置 > 资源 > 消息与连接`。只有 Package descriptor 当前、已安装、已启用且可调用，Framework
+Host 已接入，贡献与 action refs 均有效时才显示。Connector 已就绪但尚未连接时显示连接或配对动作；
+Package 或 Host 未就绪时完全隐藏，不显示静态入口或占位。
+
+普通界面只显示图标、名称、连接状态、主要动作和必要详情；Package ID、carrier/trust 与诊断只在
+开发者详情显示。微信消息渠道 Connector 与 OPL Link desktop Connector 是当前已明确的产品分类，
+不是运行时白名单。Package 只贡献结构化数据和 action refs，不能下发任意 Swift 或 React UI；超出
+`channel_access` 的新交互必须先新增并准入 App-owned 标准视图合同。
+
+TestFlight 只负责 iOS carrier 分发；用户准入和验证 cohort 由 Worker/D1 的邀请与 pair admission
+控制，不能用 TestFlight 名额代替。免费配额是运营约束，不是产品内写死的 40-user 上限。
+
+## 当前实现与目标的差距
+
+已存在且可保留的当前源码：
+
+- conversation-first SwiftUI 页面、E2EE envelope、Keychain/projection 和 deterministic 测试；
+- iOS 与 Shell 的 provider-neutral transport 外层；
+- 腾讯 IM iOS/desktop adapter；
+- Go + SQLite Link Service；
+- 一份已上传过的 TestFlight carrier build 证据。
+
+其中后三项不符合当前目标架构。Tencent adapter、Go/SQLite Service 和 Shell 的 Tencent credential
+wire 是 `active_gap`，不是首发方案、fallback 运行路径或发布前置；必须由 Ably adapter、
+Workers/D1 control plane 和新的 provider-neutral credential wire 替换。旧源码在真实 caller
+切换和纵向链路通过前保留，只用于迁移与回归，不得据此宣称目标已实现。
+
+当前明确未完成：
+
+- Ably + Worker endpoint 的大陆三网选择探针；
+- Ably iOS/desktop adapter；
+- Worker routes、D1 schema、原子 claim、短期 scoped JWT 和 revoke；
+- iPhone -> Ably -> desktop -> canonical action -> Ably -> iPhone 的真实密文往返；
+- Ably Push/APNs 实机通知；
+- clean install、跨端 pair、前后台恢复、三网和 TestFlight qualification。
+
+## 发布流程纠正
+
+此前的开发顺序有实质问题：公网鉴权端、稳定 endpoint、真实 provider、跨端配对和消息往返都没有
+闭合，就先完成了 iOS 构建、签名与 TestFlight 上传。这个 build 对“OPL Link 是否能工作”的产品
+验收没有意义，只能证明某个 iOS carrier 可以编译、签名和上传。把 carrier evidence 当能力完成，
+会让团队在最关键的技术可行性尚未验证时继续投入 UI、资格和发布工作。
+
+以后顺序固定为：
+
+1. **选择探针**：先测 Ably realtime、Worker control plane 和 APNs 的大陆网络可达性；
+2. **最小真实纵向链路**：真实 endpoint、D1 claim、短期 JWT、双端连接、一来一回密文和 revoke；
+3. **功能面完成**：在已证明的 transport 上补齐对话、恢复、审批与错误状态；
+4. **Release qualification**：实机、APNs、三网、clean install、升级和 TestFlight；
+5. **发布声明**：上述 owner readback 全部闭合后，才允许使用 `release-ready` 或 App Store 完成表述。
+
+任一源码、单元测试、签名、IPA 或 TestFlight 上传都不能越过前面的真实链路门禁。
+
+## 方案取舍
+
+| 方案 | 结论 | 原因 |
+| --- | --- | --- |
+| Ably Free + Workers Free + D1 Free | 当前目标 | 无常驻服务器、免费验证、token/pair authority 清晰、维护面最小 |
+| 腾讯云 IM | 条件备选 | 仅在大陆探针证明当前目标不达标后显式切 cohort |
+| CloudBase 免费环境 | 保底，不是当前目标 | 每 6 个月手动续期会形成持续运维风险 |
+| CloudKit | 不作实时主通道 | 同步延迟和系统调度不适合对话流式 transport |
+| Durable Objects 自建消息层 | 不采用 | 自建重连、顺序、推送和消息语义的维护成本过高 |
+| Cloudflare Tunnel + 本机 Service | 不采用 | 笔记本离线即全局服务消失，不符合产品预期 |
+| OPL Cloud/TKE | 不采用 | 为 Link 部署完整 Cloud 过重，owner 和成本边界错误 |
+
+机器边界见 [`contracts/app-remote-companion.json`](../../contracts/app-remote-companion.json) 与
 [`contracts/app-remote-companion-wire.json`](../../contracts/app-remote-companion-wire.json)。
-实现、真实 OPL Link service/Tencent 配置、安装后配对、三网、TestFlight 和 App Store 状态必须分别
-由对应 owner 的 source、runtime 或 carrier readback 证明。当前 App 合同只记录 service owner，
-不把 service source 或外部发布状态写成已完成。
+实现细节与 active gaps 由 `opl-link` 仓的 contracts 和 docs 持有。
