@@ -2622,7 +2622,26 @@
     "owner": "one-person-lab-app",
     "source": "opl app state --profile full --json#app_state.settings_control_center.settings_projection",
     "policy": "summary_first_settings_items_with_scope_owner_risk_action_details_and_editability_reason",
-    "package_contribution_visibility_policy": "package_installation_or_dynamic_discovery_only_establishes_availability; render_settings_contributions_only_when_the_App_product_contract_admits_the_current_user_task_and_declared_standard_view_type; unadmitted_contributions_do_not_create_ordinary_Settings_rows_or_routes",
+    "package_contribution_visibility_policy": {
+      "source_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.ui_composition.settings_placement_policy",
+      "availability": {
+        "package_installation": "availability_only",
+        "dynamic_discovery": "availability_only",
+        "declared_standard_view_type": "placement_candidate_only"
+      },
+      "ordinary_settings": {
+        "app_admission_required": true,
+        "unadmitted_contribution": {
+          "ordinary_settings_row": "omit",
+          "ordinary_settings_route": "omit"
+        }
+      },
+      "destinations": {
+        "channel_access": "settings.resources.messages_and_connections",
+        "activity_log": null,
+        "other_settings_section": "settings.capabilities.module_extensions"
+      }
+    },
     "section_ids": [
       "overview",
       "gateway",

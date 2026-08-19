@@ -238,9 +238,31 @@ export function validatePackageAppContributionsProductContract(contract) {
       trust_tiers: ['declarative', 'trusted_first_party_renderer'],
       scopes: ['root', 'work_item'],
       settings_placement_policy: {
-        channel_access: 'settings.resources.messages_and_connections',
-        root_scoped_activity_log: 'settings.services.installed_services',
-        other_settings_section: 'settings.capabilities.module_extensions',
+        channel_access: {
+          destination: 'settings.resources.messages_and_connections',
+          app_admission_required: true,
+          admission_basis: ['current_user_task', 'app_placement_policy'],
+        },
+        activity_log: {
+          destination: null,
+          app_admission_required: true,
+          admission_basis: ['current_user_task', 'app_placement_policy'],
+          ordinary_settings_without_explicit_app_admission: 'hidden_from_ordinary_settings',
+        },
+        other_settings_section: {
+          destination: 'settings.capabilities.module_extensions',
+          app_admission_required: true,
+          admission_basis: ['current_user_task', 'app_placement_policy'],
+        },
+        ordinary_visibility: {
+          package_installation: 'availability_only',
+          dynamic_discovery: 'availability_only',
+          declared_standard_view_type: 'placement_candidate_only',
+          unadmitted_contribution: {
+            ordinary_settings_row: 'omit',
+            ordinary_settings_route: 'omit',
+          },
+        },
         top_level_settings_navigation: 'client_static_destinations_only_package_contributions_never_create_navigation_entries',
         same_package_grouping: 'group_entries_by_package_id_within_their_declared_destination_and_preserve_declared_order_within_each_group',
         ordinary_presentation: 'show_package_display_name_and_view_title_without_package_id_or_trust_carrier_provenance',
