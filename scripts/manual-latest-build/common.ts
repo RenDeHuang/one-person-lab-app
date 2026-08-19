@@ -143,15 +143,7 @@ export function stampManualLocalAppIdentity(
     'Manual local App Info.plist',
   );
   for (const key of ['CFBundleShortVersionString', 'CFBundleVersion']) {
-    const actual = commandOutput('plutil', [
-      '-extract', key, 'raw', '-o', '-', plistPath,
-    ]);
-    if (actual !== identity.machine_version) {
-      throw new Error(
-        `Manual local App ${key} must retain canonical machine version `
-        + `${identity.machine_version}; observed ${actual || '<empty>'}`,
-      );
-    }
+    setPlistString(plistPath, key, identity.machine_version);
   }
   const values = {
     OPLBuildKind: identity.build_kind,

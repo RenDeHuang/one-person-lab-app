@@ -390,7 +390,7 @@ test('manual local App plist stamping exposes public updater and source-lock pro
   };
   createTestApp(appPath, {
     displayVersion: expected.display_version,
-    updaterVersion: expected.machine_version,
+    updaterVersion: expected.display_version,
   });
 
   stampManualLocalAppIdentity(appPath, expected);
