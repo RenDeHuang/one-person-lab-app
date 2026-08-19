@@ -7,12 +7,58 @@ import {
 } from '../../scripts/app-shell-adapter.ts';
 import { appOwnedOplStandardAgentMembershipPolicy } from '../../scripts/validate-active-shell/app-contract-constants.ts';
 import { validateRuntimeBridgeContract } from '../../scripts/validate-active-shell/runtime-bridge-validator.ts';
+import { validateMinimumCompleteProductContract } from '../../scripts/validate-shell-candidates/candidate-contract.ts';
 import {
   validateRegistryShape,
 } from '../../scripts/validate-shell-candidates/registry.ts';
 import type { ShellCandidateRegistry } from '../../scripts/validate-shell-candidates/types.ts';
 
 const readJson = <T>(relativePath: string): T => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as T;
+
+test('Studio minimum-complete baseline keeps all 27 features and only defers Scheduled Tasks/Cron', () => {
+  const profile = readJson<any>('contracts/app-product-profile.json');
+  const baseline = profile.delivery_topology.minimum_complete_product;
+  assert.doesNotThrow(() => validateMinimumCompleteProductContract(baseline));
+  assert.equal(baseline.features.length, 27);
+
+  const missingFeature = structuredClone(baseline);
+  missingFeature.features = missingFeature.features.filter((feature: any) => feature.feature_id !== 'B0-08');
+  assert.throws(
+    () => validateMinimumCompleteProductContract(missingFeature),
+    /each B0, R1, and U1 feature exactly once/,
+  );
+
+  const duplicateFeature = structuredClone(baseline);
+  duplicateFeature.features[1].feature_id = 'B0-01';
+  assert.throws(
+    () => validateMinimumCompleteProductContract(duplicateFeature),
+    /each B0, R1, and U1 feature exactly once/,
+  );
+
+  const deferredRequiredFeature = structuredClone(baseline);
+  deferredRequiredFeature.features.find((feature: any) => feature.feature_id === 'R1-01').disposition = 'deferred';
+  assert.throws(
+    () => validateMinimumCompleteProductContract(deferredRequiredFeature),
+    /R1-01 must remain required/,
+  );
+
+  const weakenedBackgroundContinuity = structuredClone(baseline);
+  weakenedBackgroundContinuity.features
+    .find((feature: any) => feature.feature_id === 'B0-12')
+    .components.find((component: any) => component.id === 'background_turn_continuity')
+    .cutover_blocking = false;
+  assert.throws(
+    () => validateMinimumCompleteProductContract(weakenedBackgroundContinuity),
+    /background_turn_continuity must remain required and cutover-blocking/,
+  );
+
+  const substitutedEvidence = structuredClone(baseline);
+  substitutedEvidence.evidence_axes.required.splice(3, 1);
+  assert.throws(
+    () => validateMinimumCompleteProductContract(substitutedEvidence),
+    /evidence axes must be complete, ordered, owner-backed, and non-substitutable/,
+  );
+});
 
 test('dual GUI launcher selection stays separate from release adoption', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
@@ -375,32 +421,33 @@ test('dual GUI conversation continuity rejects shell-owned thread history', () =
   );
 });
 
-test('dual GUI conversation continuity accepts only explicit projectless one-time affinity assignment', () => {
+test('dual GUI conversation continuity stores one-time affinity as versioned UI metadata keyed by canonical thread', () => {
   const runtimeBridge = readJson<any>('contracts/app-runtime-bridge.json');
   const activeAdapter = readJson<any>('contracts/app-shell-adapter.json');
   assert.doesNotThrow(() => validateRuntimeBridgeContract(runtimeBridge, activeAdapter));
 
   const policy = runtimeBridge.canonical_conversation_continuity_policy.directory_group_policy
     .project_adoption_policy;
-  assert.equal(policy.canonical_project_id_assignment_allowed, true);
-  assert.equal(policy.canonical_project_id_exact_readback_required, true);
+  assert.equal(policy.canonical_project_id_assignment_allowed, false);
+  assert.equal(policy.canonical_project_id_exact_readback_required, false);
+  assert.equal(policy.versioned_ui_affinity_writeback_allowed, true);
+  assert.equal(policy.versioned_ui_affinity_exact_thread_id_readback_required, true);
   assert.equal(policy.recorded_runtime_cwd_preservation_required, true);
   assert.equal(policy.recorded_runtime_cwd_blocks_assignment, false);
   assert.equal(policy.runtime_workspace_roots_mutation_allowed, false);
   assert.equal(policy.private_pending_deferred_revision_state_allowed, false);
   assert.equal(
     policy.core_workspace_application,
-    'assign_project_affinity_then_thread_read_exact_project_id_and_recorded_cwd_readback_then_local_projection',
+    'thread_read_exact_canonical_thread_id_then_versioned_ui_metadata_projection_without_app_server_project_id_writeback',
   );
   assert.equal(
     policy.turn_or_command_pwd_requirement,
-    'never_used_for_project_affinity_eligibility_or_readback',
+    'never_used_for_project_affinity_eligibility_or_ui_metadata_readback',
   );
-  assert.equal(policy.transport, 'single_active_codex_app_server_adapter_typed_assign_project_affinity_ipc');
-  assert.ok(
-    runtimeBridge.canonical_conversation_continuity_policy.required_operations.includes(
-      'thread/settings/update',
-    ),
+  assert.equal(policy.transport, 'single_active_codex_app_server_adapter_plus_versioned_ui_metadata_store');
+  assert.equal(
+    runtimeBridge.canonical_conversation_continuity_policy.required_operations.includes('thread/settings/update'),
+    false,
   );
 
   const invalid = structuredClone(runtimeBridge);
@@ -412,12 +459,12 @@ test('dual GUI conversation continuity accepts only explicit projectless one-tim
     /Canonical conversation directory group policy/,
   );
 
-  const missingProjectIdReadback = structuredClone(runtimeBridge);
-  missingProjectIdReadback.canonical_conversation_continuity_policy.directory_group_policy
-    .project_adoption_policy.canonical_project_id_exact_readback_required = false;
+  const missingUiThreadReadback = structuredClone(runtimeBridge);
+  missingUiThreadReadback.canonical_conversation_continuity_policy.directory_group_policy
+    .project_adoption_policy.versioned_ui_affinity_exact_thread_id_readback_required = false;
 
   assert.throws(
-    () => validateRuntimeBridgeContract(missingProjectIdReadback, activeAdapter),
+    () => validateRuntimeBridgeContract(missingUiThreadReadback, activeAdapter),
     /Canonical conversation directory group policy/,
   );
 
@@ -430,14 +477,14 @@ test('dual GUI conversation continuity accepts only explicit projectless one-tim
     /Canonical conversation directory group policy/,
   );
 
-  const missingCanonicalUpdate = structuredClone(runtimeBridge);
-  missingCanonicalUpdate.canonical_conversation_continuity_policy.required_operations =
-    missingCanonicalUpdate.canonical_conversation_continuity_policy.required_operations.filter(
-      (operation: string) => operation !== 'thread/settings/update',
+  const missingCanonicalRead = structuredClone(runtimeBridge);
+  missingCanonicalRead.canonical_conversation_continuity_policy.required_operations =
+    missingCanonicalRead.canonical_conversation_continuity_policy.required_operations.filter(
+      (operation: string) => operation !== 'thread/read',
     );
 
   assert.throws(
-    () => validateRuntimeBridgeContract(missingCanonicalUpdate, activeAdapter),
+    () => validateRuntimeBridgeContract(missingCanonicalRead, activeAdapter),
     /Canonical conversation continuity operations/,
   );
 });

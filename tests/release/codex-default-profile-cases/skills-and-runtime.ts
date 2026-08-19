@@ -160,7 +160,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(
     threadDirectoryPolicy.strict_project_affinity_producer,
-    'codex_app_server_adapter_project_id_projection',
+    'opl_studio_versioned_ui_metadata_keyed_by_canonical_thread_id',
   );
   assert.equal(
     guiWorkspaceModel.projectless_detection,
@@ -170,7 +170,7 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
     guiWorkspaceModel.recorded_cwd_role,
     'canonical_runtime_workspace_and_derived_directory_group_fallback_when_explicit_project_id_absent_and_not_managed_scratch',
   );
-  assert.equal(guiWorkspaceModel.project_affinity_source, 'explicit_project_id_projection');
+  assert.equal(guiWorkspaceModel.project_affinity_source, 'opl_studio_versioned_ui_metadata_keyed_by_canonical_thread_id');
   assert.equal(
     guiWorkspaceModel.project_affinity_role,
     'explicit_project_id_wins_for_sidebar_grouping_non_managed_scratch_recorded_cwd_only_supplies_derived_directory_group',
@@ -181,11 +181,11 @@ test('conversation history and managed scratch keep identity, cwd, and Project a
   );
   assert.equal(
     guiWorkspaceModel.core_workspace_application,
-    'thread_settings_update_cwd_records_runtime_workspace_only',
+    'thread_resume_or_turn_start_cwd_records_runtime_workspace_only',
   );
   assert.equal(
     guiWorkspaceModel.project_adoption_transition,
-    'unbound_to_bound_once_via_explicit_project_affinity_assignment',
+    'unbound_to_bound_once_via_versioned_ui_metadata_assignment',
   );
   assert.deepEqual(profileWorkspaceModel, guiWorkspaceModel);
   assert.deepEqual(ordinaryConversation.conversation_view_model.session_workspace_model, guiWorkspaceModel);

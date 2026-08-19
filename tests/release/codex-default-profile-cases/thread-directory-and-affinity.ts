@@ -221,7 +221,7 @@ test('recorded cwd compatibility auto-loads a directory group without creating p
   );
   assert.equal(
     contract.interaction_baseline.conversation_scope.session_workspace_model.project_affinity_source,
-    'explicit_project_id_projection',
+    'opl_studio_versioned_ui_metadata_keyed_by_canonical_thread_id',
   );
 
   const pageStateMatrix = readJson('contracts/app-page-state-matrix.json');

@@ -135,9 +135,11 @@ runtime authority.
 - The candidate consumes the minimal user-triggered thread operations owned by Codex App Server:
   list, read, start, resume, fork, archive, and restore.
 - Session/thread is the primary identity. Project affinity is zero-or-one: a project or directory may provide
-  a new session's initial cwd, and a projectless session may be adopted once after canonical readback. A bound
-  session is not arbitrarily reassigned; runtime `pwd` changes do not rewrite affinity, and the directory does
-  not own sessions, context, or artifacts.
+  a new session's initial cwd, and a projectless session may be adopted once into versioned Studio UI metadata
+  keyed by the exact canonical thread ID. Studio does not claim an App Server `projectId` field or require a
+  `thread/read.projectId` readback that the current protocol does not provide. A bound session is not arbitrarily
+  reassigned; runtime `pwd` changes do not rewrite UI affinity, and the directory does not own sessions, context,
+  or artifacts.
 - Ordinary conversation starts Codex CLI App Server directly; no ACP/AionCore carrier is required.
 - The successor does not require, start, package, or read AionCore. Its shared Node host core resolves an exact Codex executable through
   `OPL_CODEX_BIN` or an App-owned equivalent, starts Codex App Server directly, and consumes OPL only

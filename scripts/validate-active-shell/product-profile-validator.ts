@@ -23,6 +23,7 @@ import {
   validateOplFlowContext,
 } from './shared-contract-validators.ts';
 import { validateScheduledTasksProfileProjection } from './scheduled-tasks-policy-validator.ts';
+import { validateMinimumCompleteProductContract } from '../validate-shell-candidates/candidate-contract.ts';
 import { validateSettingsControlPlaneBehavior } from './settings-control-plane-validator.ts';
 import { assertDefaultCodexSessionProfile } from '../app-product-profile-default-session.ts';
 import { assertAppProductProfileIdentity } from '../app-product-profile-identity.ts';
@@ -141,6 +142,7 @@ function validateProductProfileContractRefs(profile) {
 
 function validateDeliveryTopology(profile) {
   const topology = profile.delivery_topology;
+  validateMinimumCompleteProductContract(topology.minimum_complete_product);
   if (
     JSON.stringify(profile.product?.target_desktop_platforms) !== JSON.stringify(['macos', 'windows', 'linux']) ||
     JSON.stringify(profile.product?.target_runtime_forms) !==
@@ -423,9 +425,9 @@ function validateDeliveryTopology(profile) {
     'Product profile AionUI reference boundary',
   );
   assertDeepEqualJson(
-    topology.minimum_complete_product,
+    (({ feature_inventory_ref, functional_baseline_scope, evidence_axes, features, ...legacyMinimumProduct }) => legacyMinimumProduct)(topology.minimum_complete_product),
     {
-      schema: 'opl_app_successor_minimum_complete_product.v2',
+      schema: 'opl_app_successor_minimum_complete_product.v3',
       implementation_id: 'opl-studio',
       completion_rule:
         'all_required_user_outcomes_have_owner_backed_state_action_and_post_action_readback_without_a_second_runtime_or_truth_store',

@@ -240,9 +240,38 @@ export type AppDeliveryTopology = {
     active_release_shell_source_ref: string;
   };
   minimum_complete_product: {
-    schema: 'opl_app_successor_minimum_complete_product.v2';
+    schema: 'opl_app_successor_minimum_complete_product.v3';
     implementation_id: 'opl-studio';
     completion_rule: string;
+    feature_inventory_ref: string;
+    functional_baseline_scope: {
+      first_qualification_platform: 'macos';
+      macos_full_functional_baseline_required_before_cutover: true;
+      windows_linux_full_vm_required_before_declared_platform_support: true;
+      source_portability_may_substitute_for_platform_vm_evidence: false;
+      current_state: 'candidate_validation_only_not_active_shell_admitted';
+    };
+    evidence_axes: {
+      non_substitution_rule: string;
+      required: Array<{
+        id: 'contract' | 'source_behavior' | 'rendered' | 'installed_macos' | 'clean_vm';
+        owner: string;
+        cutover_required: true;
+      }>;
+    };
+    features: Array<{
+      feature_id: string;
+      capability_id: string;
+      owner: string;
+      disposition: 'required' | 'mixed';
+      cutover_blocking: true;
+      components?: Array<{
+        id: string;
+        disposition: 'required' | 'deferred';
+        cutover_blocking: boolean;
+        deferral_boundary?: string;
+      }>;
+    }>;
     required_user_outcomes: string[];
     update_ownership: {
       opl_app: string;

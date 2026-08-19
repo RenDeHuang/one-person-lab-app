@@ -1324,7 +1324,6 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       'thread/list',
       'thread/read',
       'thread/resume',
-      'thread/settings/update',
       'thread/name/set',
       'thread/archive',
       'thread/unarchive',
@@ -1445,7 +1444,7 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     policy?.directory_group_policy,
     {
       source:
-        'explicit_project_affinity_else_non_managed_scratch_canonical_recorded_cwd_joined_by_canonical_thread_id',
+        'opl_studio_versioned_ui_metadata_affinity_else_non_managed_scratch_canonical_recorded_cwd_joined_by_canonical_thread_id',
       role: 'presentation_new_session_cwd_shortcut_and_projectless_adoption_only',
       owns_sessions: false,
       owns_context: false,
@@ -1462,22 +1461,24 @@ function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
       git_origin_url_project_identity_allowed: false,
       turn_cwd_reclassifies_bound_session: false,
       project_adoption_policy: {
-        eligible_state: 'canonical_project_id_absent_and_thread_read_project_id_absent',
+        eligible_state: 'canonical_thread_id_present_and_versioned_ui_affinity_absent',
         triggers: ['drag_to_directory_group', 'keyboard_move_to_project_action'],
         destination_policy:
           'one_user_selected_canonical_project_directory_independent_of_explicit_inputs_turn_cwd_and_writable_roots',
         result:
-          'assign_explicit_project_id_preserving_canonical_thread_id_history_and_recorded_runtime_cwd',
+          'persist_versioned_ui_project_affinity_keyed_by_canonical_thread_id_without_claiming_app_server_project_id',
         assignment_commit_policy:
-          'only_after_assignment_and_thread_read_exact_project_id_readback_with_recorded_cwd_unchanged',
-        transport: 'single_active_codex_app_server_adapter_typed_assign_project_affinity_ipc',
+          'only_after_canonical_thread_id_readback_then_versioned_ui_metadata_writeback_with_recorded_cwd_unchanged',
+        transport: 'single_active_codex_app_server_adapter_plus_versioned_ui_metadata_store',
         core_workspace_application:
-          'assign_project_affinity_then_thread_read_exact_project_id_and_recorded_cwd_readback_then_local_projection',
+          'thread_read_exact_canonical_thread_id_then_versioned_ui_metadata_projection_without_app_server_project_id_writeback',
         turn_or_command_pwd_requirement:
-          'never_used_for_project_affinity_eligibility_or_readback',
+          'never_used_for_project_affinity_eligibility_or_ui_metadata_readback',
         assignment_failure_policy: 'keep_unbound_conversation_available_and_show_lightweight_error',
-        canonical_project_id_assignment_allowed: true,
-        canonical_project_id_exact_readback_required: true,
+        canonical_project_id_assignment_allowed: false,
+        canonical_project_id_exact_readback_required: false,
+        versioned_ui_affinity_writeback_allowed: true,
+        versioned_ui_affinity_exact_thread_id_readback_required: true,
         recorded_runtime_cwd_preservation_required: true,
         recorded_runtime_cwd_blocks_assignment: false,
         runtime_workspace_roots_mutation_allowed: false,

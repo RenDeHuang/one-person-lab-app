@@ -152,11 +152,130 @@ const requiredNativeSubagentSourceKinds = [
 ];
 const requiredNativeSubagentItemTypes = ['collabAgentToolCall', 'subAgentActivity'];
 
+type MinimumCompleteFeature = {
+  feature_id?: string;
+  capability_id?: string;
+  owner?: string;
+  disposition?: string;
+  cutover_blocking?: boolean;
+  components?: Array<{
+    id?: string;
+    disposition?: string;
+    cutover_blocking?: boolean;
+    deferral_boundary?: string;
+  }>;
+};
+
+type MinimumCompleteProduct = {
+  schema?: string;
+  implementation_id?: string;
+  feature_inventory_ref?: string;
+  functional_baseline_scope?: Record<string, unknown>;
+  evidence_axes?: {
+    non_substitution_rule?: string;
+    required?: Array<{ id?: string; owner?: string; cutover_required?: boolean }>;
+  };
+  features?: MinimumCompleteFeature[];
+};
+
 const appProductProfile = readJson<{
   codex: { default_model: string; default_reasoning_effort: string };
+  delivery_topology: { minimum_complete_product: MinimumCompleteProduct };
 }>(path.join(root, 'contracts', 'app-product-profile.json'));
 const configuredDefaultModel = appProductProfile.codex.default_model;
 const configuredDefaultReasoningEffort = appProductProfile.codex.default_reasoning_effort;
+
+const requiredMinimumCompleteFeatureIds = [
+  'B0-01', 'B0-02', 'B0-03', 'B0-04', 'B0-05', 'B0-06', 'B0-07',
+  'B0-08', 'B0-09', 'B0-10', 'B0-11', 'B0-12', 'B0-13', 'B0-14',
+  'R1-01', 'R1-02', 'R1-03', 'R1-04', 'R1-05', 'R1-06',
+  'U1-01', 'U1-02', 'U1-03', 'U1-04', 'U1-05', 'U1-06', 'U1-07',
+] as const;
+const requiredMinimumCompleteEvidenceAxes = [
+  'contract',
+  'source_behavior',
+  'rendered',
+  'installed_macos',
+  'clean_vm',
+] as const;
+
+export function validateMinimumCompleteProductContract(minimumProduct: MinimumCompleteProduct): void {
+  if (
+    minimumProduct.schema !== 'opl_app_successor_minimum_complete_product.v3' ||
+    minimumProduct.implementation_id !== 'opl-studio' ||
+    minimumProduct.feature_inventory_ref !== 'docs/product/gui/feature-inventory.md#b0-codex-necessary-baseline'
+  ) {
+    throw new Error('OPL Studio minimum-complete contract must use the App-owned v3 feature inventory');
+  }
+
+  const scope = minimumProduct.functional_baseline_scope;
+  if (
+    scope?.first_qualification_platform !== 'macos' ||
+    scope.macos_full_functional_baseline_required_before_cutover !== true ||
+    scope.windows_linux_full_vm_required_before_declared_platform_support !== true ||
+    scope.source_portability_may_substitute_for_platform_vm_evidence !== false ||
+    scope.current_state !== 'candidate_validation_only_not_active_shell_admitted'
+  ) {
+    throw new Error('OPL Studio minimum-complete contract must preserve the macOS-first candidate-only qualification boundary');
+  }
+
+  const evidenceAxes = minimumProduct.evidence_axes;
+  const evidenceAxisIds = evidenceAxes?.required?.map((axis) => axis.id) ?? [];
+  if (
+    evidenceAxes?.non_substitution_rule !== 'each_axis_proves_only_its_named_layer_and_cannot_close_any_other_axis' ||
+    JSON.stringify(evidenceAxisIds) !== JSON.stringify(requiredMinimumCompleteEvidenceAxes) ||
+    evidenceAxes.required?.some((axis) => !axis.owner?.trim() || axis.cutover_required !== true)
+  ) {
+    throw new Error('OPL Studio minimum-complete evidence axes must be complete, ordered, owner-backed, and non-substitutable');
+  }
+
+  const features = minimumProduct.features ?? [];
+  const featureIds = features.map((feature) => feature.feature_id);
+  if (
+    JSON.stringify(featureIds) !== JSON.stringify(requiredMinimumCompleteFeatureIds) ||
+    new Set(featureIds).size !== requiredMinimumCompleteFeatureIds.length
+  ) {
+    throw new Error('OPL Studio minimum-complete contract must contain each B0, R1, and U1 feature exactly once');
+  }
+
+  for (const feature of features) {
+    if (!feature.capability_id?.trim() || !feature.owner?.trim() || feature.cutover_blocking !== true) {
+      throw new Error(`${feature.feature_id} must be owner-backed and cutover-blocking`);
+    }
+    if (feature.feature_id !== 'B0-12') {
+      if (feature.disposition !== 'required' || feature.components?.some((component) => component.disposition === 'deferred')) {
+        throw new Error(`${feature.feature_id} must remain required without deferred components`);
+      }
+      continue;
+    }
+
+    const components = feature.components ?? [];
+    const componentIds = components.map((component) => component.id);
+    if (
+      feature.disposition !== 'mixed' ||
+      JSON.stringify(componentIds) !== JSON.stringify([
+        'background_turn_continuity',
+        'completion_notification',
+        'scheduled_tasks_cron',
+      ])
+    ) {
+      throw new Error('B0-12 must separate required background continuity and notification from deferred Scheduled Tasks/Cron');
+    }
+    for (const component of components) {
+      if (component.id === 'scheduled_tasks_cron') {
+        if (
+          component.disposition !== 'deferred' ||
+          component.cutover_blocking !== false ||
+          !component.deferral_boundary?.trim()
+        ) {
+          throw new Error('scheduled_tasks_cron is the only allowed non-blocking deferred component');
+        }
+      } else if (component.disposition !== 'required' || component.cutover_blocking !== true) {
+        throw new Error(`${component.id} must remain required and cutover-blocking`);
+      }
+    }
+  }
+}
 
 export type CandidateValidationPolicy = {
   onlyForegroundAlternative: string;
@@ -787,6 +906,7 @@ export function validateCandidate(candidate: ShellCandidate, policy: CandidateVa
 }
 
 function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
+  validateMinimumCompleteProductContract(appProductProfile.delivery_topology.minimum_complete_product);
   if (candidate.foreground_alternative_role !== 'only_foreground_alternative') {
     throw new Error(`${candidate.id}.foreground_alternative_role must be only_foreground_alternative`);
   }
