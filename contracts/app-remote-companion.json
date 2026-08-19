@@ -18,6 +18,25 @@
     "runtime_dependency_for_opl_link": true,
     "release_dependency_for_opl_link": true
   },
+  "desktop_connector_boundary": {
+    "opl_module_classification": "opl_connect.remote_companion_connector",
+    "target_package_id": "opl-link-desktop-connector",
+    "target_repository": "opl-link",
+    "target_path": "packages/opl-link-desktop-connector",
+    "package_owner": "opl-link",
+    "runtime_host_owner": "one-person-lab-framework",
+    "cordis_host_policy": "reuse_the_single_framework_host_never_create_a_product_specific_host",
+    "shell_role": "render_framework_projection_and_bridge_canonical_app_state_and_actions_only",
+    "settings_contribution": {
+      "view_type": "channel_access",
+      "slot": "settings.section",
+      "destination": "settings.resources.messages_and_connections",
+      "visibility": "only_after_package_descriptor_framework_host_provider_contribution_and_action_refs_are_current_and_ready",
+      "unpaired_state": "visible_with_pair_action_after_connector_readiness",
+      "package_unready_state": "fully_hidden_without_placeholder"
+    },
+    "product_boundary": "only_the_desktop_connector_is_an_opl_connect_module_the_opl_link_ios_app_and_opl_link_service_remain_independent_opl_link_product_surfaces"
+  },
   "optional_cloud_host": {
     "product": "OPL Cloud",
     "role": "optional_workspace_webui_host",
@@ -403,7 +422,9 @@
   "ownership": {
     "app_contract_product_identity_and_cross_surface_behavior": "one-person-lab-app",
     "ios_native_carrier_client_state_and_transport_adapter": "opl-link",
-    "desktop_connector_and_canonical_action_consumer": "opl-aion-shell_or_admitted_successor_shell",
+    "desktop_connector_package": "opl-link/packages/opl-link-desktop-connector",
+    "desktop_connector_runtime_host": "one-person-lab-framework_single_cordis_host",
+    "shell_connector_role": "framework_projection_renderer_and_canonical_app_state_action_bridge",
     "invitation_pair_seat_usersig_and_provider_account_lifecycle": "opl-link/service",
     "realtime_service": "tencent_cloud_im",
     "conversation_history_and_execution": "codex_core_app_server_and_desktop_runtime",
@@ -421,6 +442,8 @@
     "design_contracts_implemented": true,
     "protocol_source_implemented": true,
     "desktop_connector_source_implemented": true,
+    "desktop_connector_target_package_implemented": false,
+    "legacy_shell_connector_migration_required": true,
     "ios_source_implemented": true,
     "ios_conversation_surface_implemented": true,
     "desktop_conversation_projection_implemented": true,

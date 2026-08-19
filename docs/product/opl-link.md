@@ -72,6 +72,29 @@ payload `task`/`tasks` 只作为 `opl_remote_transport.v1` adapter 兼容值保�
 这只证明 canonical source；真实 OPL Link service、Tencent、推送、TestFlight、三网和发布仍需对应
 owner readback。
 
+## OPL Connect 与桌面 Connector
+
+OPL Link 整体不是 OPL Connect 的下属产品。只有负责把桌面 OPL App 接入远程对话链路的
+`opl-link-desktop-connector` Package 归入 OPL Connect，类型为 `remote_companion_connector`。
+OPL Link iOS App 与 `opl-link/service` 继续由 OPL Link 持有，OPL Connect 不拥有它们的产品语义、
+远端服务、凭据、对话历史或 provider 生命周期。
+
+目标源码位置是 `opl-link/packages/opl-link-desktop-connector`。它复用 OPL Framework 唯一的 Cordis
+Host，负责 provider adapter、配对投影和 canonical App read/action 接口；Shell 只渲染 Framework
+投影并提供 canonical App bridge，不长期持有 Connector 业务逻辑，也不创建第二个 Host。当前目标
+Package 尚未实现，既有 Shell connector source 是待迁移实现，不能写成已完成插件化。
+
+在桌面设置中，Connector 不创建顶级导航，而是通过 `channel_access` 标准声明式视图进入
+`设置 > 资源 > 消息与连接`。Package、Framework Host、贡献和 action refs 全部就绪后才显示；
+“未连接”是就绪后的正常可配置状态，应显示连接或配对动作。Package 未安装、未启用、不可调用、
+Host 未接入或贡献无效时完全隐藏，不显示静态入口或占位。普通界面只显示图标、名称、连接状态、
+主要动作和必要详情，Package ID、carrier/trust 与诊断只在开发者详情中显示。
+
+目前已明确的产品分类是微信消息渠道 Connector 与 OPL Link desktop Connector。这两个名称只用于
+产品说明，运行时成员始终来自 installed descriptor 和 Framework Host 动态投影，App 与 Shell 都不得
+维护品牌白名单。标准配置页由 App renderer 提供，Package 只贡献结构化数据和 action refs；需要超出
+`channel_access` 的新交互时，必须先新增并准入 App-owned 标准视图合同，不能下发任意 Swift/React UI。
+
 ## 连接与隐私边界
 
 桌面和 iPhone 都向托管服务主动建立出站连接，用户不需要公网 IP、端口转发、VPN、Tailscale
@@ -86,8 +109,8 @@ APNs business ID 由 service 投影，客户端不得自行选择。
 只是 Beta 分发载体，不是容量或准入 authority。撤销配对必须由 service owner 完成 provider
 账号删除与 absence readback 后才释放席位。
 
-OPL Link 的运行与发布依赖是 `opl-link/service`、`opl-aion-shell` 的 desktop connector、
-Tencent transport 和 Apple carrier 的各自 owner 证据。OPL Cloud 只保留未来可选的 Workspace/WebUI
+OPL Link 的运行与发布依赖是 `opl-link/service`、目标 `opl-link-desktop-connector` Package、
+对应 transport 和 Apple carrier 的各自 owner 证据。OPL Cloud 只保留未来可选的 Workspace/WebUI
 host 角色，不是 OPL Link 的运行或发布依赖；Cloud Candidate、TKE 和完整 Cloud 发布物也不再是
 Link 发布前置。
 
@@ -98,7 +121,9 @@ Link 发布前置。
 | OPL Link 产品与跨端语义 | `one-person-lab-app` | 定义合同并验收 |
 | 对话历史、turn、模型和执行 | Codex App Server + 桌面 OPL App | 只读投影和有限 action |
 | iOS UI、Keychain、E2EE、transport adapter | `opl-link` | 实现 |
-| 桌面 connector 与 canonical bridge | `opl-aion-shell` | 提供真实读/action |
+| 桌面 Connector Package | `opl-link/packages/opl-link-desktop-connector` | 归类为 OPL Connect 的 `remote_companion_connector` |
+| Connector runtime composition | OPL Framework 唯一 Cordis Host | 动态发现、托管并投影贡献 |
+| Shell | 当前 App Shell | 只渲染投影并提供 canonical App bridge；既有 Connector 逻辑待迁出 |
 | 邀请、席位、UserSig、Tencent UserID、revoke、APNs business ID | `opl-link/service` | 提供 service 状态 |
 | OPL Cloud | 未来可选 Workspace/WebUI host | 不参与 OPL Link 运行或发布前置 |
 | OPL Flow、OPL Ledger、Linear 任务 | 对应产品/领域 owner | 可选外部引用 |
