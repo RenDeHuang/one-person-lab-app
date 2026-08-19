@@ -1508,8 +1508,11 @@
     "default_ios_surface": "conversation_directory",
     "task_grouping_policy": "optional_metadata_or_external_opl_flow_ledger_linear_reference_not_an_opl_link_control_plane",
     "desktop_workbench_remains_canonical": true,
-    "transport": "tencent_cloud_im_outbound_tls_with_short_lived_usersig",
-    "pairing_access_gate": "one_time_invitation_and_cloud_active_pair_seat",
+    "transport_target": "ably_free_realtime_with_cloudflare_workers_d1_control_plane",
+    "transport_selection_status": "target_pending_mainland_china_probe",
+    "current_connector_implementation": "legacy_tencent_source_requires_migration",
+    "release_ready": false,
+    "pairing_access_gate": "one_time_invitation_and_worker_d1_pair_admission",
     "pairing_surface": "settings_resources_desktop_pairing_qr_and_ios_scan",
     "ordinary_ios_actions": [
       "conversation.list",

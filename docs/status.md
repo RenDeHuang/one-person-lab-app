@@ -45,12 +45,17 @@ promoted into release-ready or family production-ready proof.
 ### OPL Link Conversation Baseline
 
 OPL Link 的当前产品 SSOT 是 [`product/opl-link.md`](product/opl-link.md) 与
-`contracts/app-remote-companion.json`。它是桌面 OPL App 的原生 iOS 对话连接器，主对象是
-canonical Codex conversation，不是 OPL Flow、OPL Ledger 或 Linear 的任务控制面。iOS 产品模型与
-双页签 UI 已完成 conversation-first source 对齐；desktop connector 和 iOS adapter 继续使用
-`canonical_task.*`、`task.*` 与 payload `task`/`tasks` 作为 `opl_remote_transport.v1` 兼容值，
-这些标识不能反向定义产品语义。列表搜索只过滤当前已加载的只读 projection，不宣称 canonical
-全历史搜索。腾讯生产配置、真实跨端 pair、推送、TestFlight、三网和发布证据继续独立未验证。
+`contracts/app-remote-companion.json`。目标路线已经改为 Ably Free + Cloudflare Workers Free +
+D1 Free：Ably 负责实时密文和通用推送，Worker/D1 负责邀请、配对、短期 scoped JWT、设备授权与
+撤销；OPL Cloud、TKE、Cloudflare Tunnel、本机常驻 Service 和固定 40-seat 腾讯模型都不是运行或
+发布前置。Ably realtime、Worker endpoint 与 APNs 尚未通过移动、联通、电信和 Wi-Fi 选择探针，
+因此该目标不能表述为已实现或已可用；探针失败后才允许通过明确 decision 切换单一腾讯 cohort，
+不双写、不自动 fallback。
+
+iOS conversation-first UI、E2EE、旧 Tencent adapters、Go/SQLite Service 和一份 TestFlight carrier
+build 均已有源码或载体证据，但后三者与目标架构不一致。现有 TestFlight build 对 OPL Link 核心
+可用性没有验收意义，只证明编译、签名与上传。后续必须先完成网络探针和真实 Worker/D1 + Ably
+纵向链路，再补功能面，最后才进入实机、APNs、三网与 TestFlight qualification。
 
 ### Computer Use Implementation Ledger
 

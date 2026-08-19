@@ -36,16 +36,24 @@ const decryptVector = (vector: Record<string, any>, associatedData: string) => {
   return Buffer.concat([decipher.update(ciphertextAndTag.subarray(0, -16)), decipher.final()]).toString('utf8');
 };
 
-test('OPL Link wire contract has one versioned service broker and encrypted transport shape', () => {
+test('OPL Link wire contract has one serverless control plane and encrypted transport shape', () => {
   const product = readJson('contracts/app-remote-companion.json');
   const wire = readJson('contracts/app-remote-companion-wire.json');
-  assert.equal(wire.schema, 'opl_app_remote_companion_wire.v1');
+  assert.equal(wire.schema, 'opl_app_remote_companion_wire.v2');
   assert.equal(wire.service_owner, 'opl-link/service');
   assert.equal(wire.protocol_version, product.transport.protocol);
   assert.equal(product.source_refs.wire_contract, 'contracts/app-remote-companion-wire.json');
+  assert.deepEqual(wire.target_runtime, {
+    control_plane_compute: 'cloudflare_workers_free',
+    control_plane_persistence: 'cloudflare_d1_free',
+    realtime_provider: 'ably_free',
+    always_on_application_server_required: false,
+    local_resident_service_required: false,
+    cloudflare_tunnel_required: false,
+  });
   assert.deepEqual(wire.compatibility.manual_code, {
     status: 'short_code_user_fallback',
-    client_behavior: 'resolve_through_the_configured_ios_link_service_origin_then_reuse_the_same_code_in_the_existing_claim_request',
+    client_behavior: 'resolve_through_the_configured_ios_worker_origin_then_reuse_the_same_code_in_the_existing_claim_request',
     resolution_eligibility: 'reserved_pairing_before_first_claim_only',
   });
   assert.deepEqual(wire.compatibility.legacy_transport_identifiers, {
@@ -61,7 +69,7 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
     product.action_policy.mvp_allowed_actions,
   );
 
-  const endpoints = wire.broker_http.endpoints as Array<Record<string, any>>;
+  const endpoints = wire.control_plane_http.endpoints as Array<Record<string, any>>;
   assert.equal(new Set(endpoints.map((endpoint) => endpoint.id)).size, endpoints.length);
   assert.equal(new Set(endpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`)).size, endpoints.length);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_create_pairing'));
@@ -72,7 +80,7 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
     auth: 'manual_code_in_body',
     idempotency_required: false,
     request_fields: ['protocol_version', 'manual_code'],
-    response_fields: ['protocol_version', 'pairing_id', 'broker_url', 'desktop_public_key', 'expires_at'],
+    response_fields: ['protocol_version', 'pairing_id', 'service_url', 'desktop_public_key', 'expires_at'],
     secret_request_fields: ['manual_code'],
     allowed_pairing_state: 'reserved',
     response_must_not_include: ['claim_secret', 'desktop_pair_token', 'ios_claim_token', 'provider_credential'],
@@ -80,7 +88,7 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'ios_claim_pairing'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'desktop_confirm_pairing'));
   const invitationEndpoint = endpoints.find((endpoint) => endpoint.id === 'operator_create_invitation');
-  assert.equal(invitationEndpoint.auth, 'operator_bearer_from_OPL_LINK_OPERATOR_TOKEN');
+  assert.equal(invitationEndpoint.auth, 'operator_bearer_from_cloudflare_worker_secret');
   assert.ok(invitationEndpoint.request_fields.includes('protocol_version'));
   const capacityEndpoint = endpoints.find((endpoint) => endpoint.id === 'operator_read_capacity');
   assert.deepEqual(capacityEndpoint, {
@@ -89,26 +97,33 @@ test('OPL Link wire contract has one versioned service broker and encrypted tran
     path: '/v1/remote-companion/capacity',
     auth: 'operator_bearer_from_OPL_LINK_OPERATOR_TOKEN',
     idempotency_required: false,
-    response_fields: ['protocol_version', 'seat_count', 'seat_limit', 'warning_threshold', 'warning'],
+    response_fields: ['protocol_version', 'active_pair_count', 'active_pair_limit', 'warning_threshold', 'warning'],
   });
   const credentialEndpoint = endpoints.find((endpoint) => endpoint.id === 'refresh_provider_credentials');
   assert.ok(credentialEndpoint);
-  assert.ok(credentialEndpoint.response_fields.includes('provider_user_id'));
-  assert.ok(credentialEndpoint.response_fields.includes('peer_provider_user_id'));
-  assert.ok(credentialEndpoint.response_fields.includes('push_business_id'));
+  assert.ok(credentialEndpoint.response_fields.includes('transport_client_id'));
+  assert.ok(credentialEndpoint.response_fields.includes('capability_token'));
+  assert.ok(credentialEndpoint.response_fields.includes('push_recipient_id'));
   const readPairingEndpoint = endpoints.find((endpoint) => endpoint.id === 'read_pairing');
   assert.ok(readPairingEndpoint);
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_device_id'));
   assert.ok(readPairingEndpoint.device_activation_fields.includes('peer_public_key'));
-  assert.ok(readPairingEndpoint.device_activation_fields.includes('push_business_id'));
+  assert.ok(readPairingEndpoint.device_activation_fields.includes('publish_channel'));
+  assert.ok(readPairingEndpoint.device_activation_fields.includes('subscribe_channel'));
+  assert.ok(readPairingEndpoint.device_activation_fields.includes('push_recipient_id'));
   assert.ok(!readPairingEndpoint.device_activation_fields.includes('device_credential'));
   assert.equal(readPairingEndpoint.pre_active_device_activation, null);
   assert.match(readPairingEndpoint.device_activation_policy, /pre_active_pairing_returns_null/);
   assert.match(readPairingEndpoint.active_device_credential_source, /desktop_pair_token/);
-  assert.equal('device_credential' in wire.broker_http.tokens, false);
-  assert.match(wire.broker_http.tokens.desktop_pair_token, /active_device_credential_after_activation/);
-  assert.match(wire.broker_http.tokens.ios_claim_token, /active_device_credential_after_activation/);
-  assert.match(wire.broker_http.tokens.active_device_credential, /without_minting_a_second_bearer/);
+  assert.equal('device_credential' in wire.control_plane_http.tokens, false);
+  assert.match(wire.control_plane_http.tokens.desktop_pair_token, /active_device_credential_after_activation/);
+  assert.match(wire.control_plane_http.tokens.ios_claim_token, /active_device_credential_after_activation/);
+  assert.match(wire.control_plane_http.tokens.active_device_credential, /without_minting_a_second_bearer/);
+  assert.equal(wire.provider_transport.selected_target, 'ably');
+  assert.equal(wire.provider_transport.implementation_status, 'target_not_implemented_or_live_verified');
+  assert.equal(wire.provider_transport.switching.conditional_alternative, 'tencent_cloud_im');
+  assert.equal(wire.provider_transport.switching.automatic_fallback, false);
+  assert.equal(wire.provider_transport.switching.dual_write, false);
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'revoke_pair'));
   assert.ok(endpoints.some((endpoint) => endpoint.id === 'read_revocation'));
 });
@@ -119,7 +134,7 @@ test('OPL Link wire keeps secrets out of QR, routes, logs, and provider plaintex
   for (const field of wire.pairing_qr.forbidden_fields as string[]) {
     assert.equal(qrFields.has(field), false, `${field} must not be present in pairing QR`);
   }
-  assert.equal(wire.broker_http.tokens.transport, 'bearer_header_only_never_url_query_or_qr');
+  assert.equal(wire.control_plane_http.tokens.transport, 'bearer_header_only_never_url_query_or_qr');
   assert.equal(wire.secret_and_log_policy.provider_or_cloud_plaintext_conversation_content, false);
   assert.equal(wire.desktop_dispatch.provider_history_read_for_business_state, false);
   assert.equal(wire.desktop_dispatch.cloud_conversation_store, false);
@@ -206,11 +221,11 @@ test('sender_sequence is AEAD-bound and a sequence-only mutation fails decryptio
   assert.throws(() => decryptVector(vector, mutatedSequenceData));
 });
 
-test('seat reclaim stays tied to provider absence readback', () => {
+test('revocation completion requires token denial and desktop detach readback', () => {
   const wire = readJson('contracts/app-remote-companion-wire.json');
-  const endpoint = (wire.broker_http.endpoints as Array<Record<string, any>>)
+  const endpoint = (wire.control_plane_http.endpoints as Array<Record<string, any>>)
     .find((candidate) => candidate.id === 'read_revocation');
   assert.ok(endpoint);
-  assert.match(endpoint.terminal_rule, /both_provider_identities_are_absent/);
-  assert.match(endpoint.terminal_rule, /seat_released_is_true/);
+  assert.match(endpoint.terminal_rule, /d1_denies_future_tokens/);
+  assert.match(endpoint.terminal_rule, /desktop_connector_is_detached/);
 });

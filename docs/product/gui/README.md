@@ -175,19 +175,21 @@ AionUI 与 successor 是同一 `B0 + R1 + U1` 产品定义的两种 carrier。�
 [`shell-conformance-matrix.md#r1--u1-必要功能实现矩阵`](shell-conformance-matrix.md#r1--u1-必要功能实现矩阵)。
 
 手机远程访问采用原生 iOS 产品 **OPL Link**，App Store 与主屏名称相同，应用内母品牌为
-**One Person Lab**；`remote_companion` 只作为内部 surface ID。它通过
-`opl_remote_transport.v1` 的单一 provider adapter 投影桌面 canonical conversation：MVP 选择腾讯云 IM
-体验版，Ably 只保留替换边界，不双写或自动 fallback。`opl-link/service`
-拥有邀请、40 active pair seats、短时 UserSig、pair provisioning、revoke/reclaim 和可选 APNs
-business ID 投影；用户不需要公网 IP、端口转发、VPN、Tailscale 或局域网配置。OPL Cloud 只保留
-未来可选 Workspace/WebUI host 角色，不是 OPL Link 的运行或发布依赖。iOS 不运行 OPL/Codex
-runtime、不保存第二份对话历史，也不拥有模型、权限、Package 或 cloud workspace authority。
+**One Person Lab**；`remote_companion` 只作为内部 surface ID。目标 transport 是 Ably Free，
+控制面是 Cloudflare Workers Free + D1 Free；实施前必须先验证 Ably、Worker endpoint 和 APNs 的
+大陆三网可达性。只有探针失败后才允许显式切一个腾讯 IM cohort，不双写、不自动 fallback。
+`opl-link/service` 通过 Worker/D1 拥有邀请、pair admission、短期 scoped JWT、设备授权、revoke
+和 push registration；用户不需要公网 IP、端口转发、VPN、Tailscale、Cloudflare Tunnel 或本机
+常驻公网 Service。OPL Cloud 只是可选 Workspace/WebUI host，不是 OPL Link 的运行或发布依赖。
+iOS 不运行 OPL/Codex runtime、不保存第二份对话历史，也不拥有模型、权限、Package 或 cloud
+workspace authority。
 
 桌面 WebUI 仍是完整工作台 carrier，但不是 iOS 产品或自动 fallback；旧 LAN QR 登录、
 `http://host:port` / `ws://host:port` 不能被提升为公网远程路径。桌面 Shell 持有配对设置与 canonical
 App action consumer，iOS 只允许合同列出的对话读取、文本发送、停止、低/中影响审批和撤销。
-具体产品 scope、E2EE、owner 与实现缺口见 [`../opl-link.md`](../opl-link.md)。合同或文档不证明 Shell、Cloud、
-iOS、腾讯配置、TestFlight 或三网实现完成。
+具体产品 scope、E2EE、owner 与实现缺口见 [`../opl-link.md`](../opl-link.md)。当前 Tencent
+adapters、Go/SQLite Service 与 TestFlight build 是 legacy source/carrier evidence，不证明 Ably、
+Workers/D1、真实 pair、APNs、三网或 release qualification 完成。
 
 频道到 canonical Codex conversation 的目标绑定来自 `app_state.transport_bindings`，按 exact App Server host
 和 thread id join，且始终保持 `projectless`，不会由 cwd 建立 Project affinity。Framework
