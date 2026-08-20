@@ -442,6 +442,18 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
 test('one signed Standard build is sealed once and every final consumer binds its identity digest', () => {
   const bundle = parseWorkflow('_release-bundle.yml');
   const source = readWorkflow('_release-bundle.yml');
+  const reusableBuild = parseWorkflow('_build-reusable.yml');
+  const cohortUpload = reusableBuild.jobs.build.steps.find(
+    (step: any) => step.name === 'Upload build artifact cohort manifest',
+  );
+  const cohortDownload = bundle.jobs['seal-standard-identity'].steps.find(
+    (step: any) => step.name === 'Download the signed Standard build cohort',
+  );
+  assert.equal(
+    cohortUpload.with.name,
+    "${{ inputs.append_commit_hash && format('{0}-{1}-dmg-cohort', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg-cohort', matrix.artifact-name) }}",
+  );
+  assert.equal(cohortDownload.with.name, 'macos-build-arm64-dmg-cohort');
   assert.equal((source.match(/uses: \.\/\.github\/workflows\/_build-reusable\.yml/g) ?? []).length, 1);
   assert.deepEqual(bundle.jobs['seal-standard-identity'].needs, ['freeze', 'standard-build']);
   assert.equal(bundle.jobs['standard-qualification'], undefined);
