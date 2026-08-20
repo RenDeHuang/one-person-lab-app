@@ -492,11 +492,11 @@ function validateSettingsPartitionImplementation(shellPaths, dshVisualSourceImpl
     shellPaths,
     'tests/unit/opl-runtime/FirstRun.dom.test.tsx',
     [
-      'keeps the completion state in place even when initialize reports a non-first-run ready install',
+      'asks the Shell completion marker to converge Official Profile even when bootstrap cleared is_first_run',
       'is_first_run: false',
-      'expect(bridgeMocks.applyOfficialProfileInvoke).not.toHaveBeenCalled()',
+      "expect(bridgeMocks.applyOfficialProfileInvoke).toHaveBeenCalledWith({ intent: 'first_install' })",
     ],
-    'Active shell restart does not reapply Official Profile test',
+    'Active shell restart converges Official Profile through completion marker test',
   );
   for (const [relativePath, label] of [
     ['packages/desktop/src/renderer/services/managedUpdateMaintenance.ts', 'daily maintenance'],
