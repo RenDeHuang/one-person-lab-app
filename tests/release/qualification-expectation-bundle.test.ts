@@ -111,12 +111,18 @@ test('compiler rejects scenario profile refs that do not match package and runti
   assert.throws(() => buildFirstRunCompiledExpectations(input), /compiled Full expectation profile/);
 });
 
-test('compiler keeps Full clean-VM qualification optional after publication', () => {
+test('compiler requires Standard and Full clean-VM qualification before publication', () => {
   const input = sources();
+  const standard = input.matrix.scenarios.find((scenario) => scenario.id === 'standard_dmg_clean_vm_smoke');
   const full = input.matrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
-  assert.equal(full.release_gate, false);
-  assert.equal(full.post_publication_optional_certification, true);
-  assert.deepEqual(input.matrix.provider_configuration_qualification.required_release_scenarios, []);
+  for (const scenario of [standard, full]) {
+    assert.equal(scenario.release_gate, true);
+    assert.equal(scenario.post_publication_optional_certification, false);
+  }
+  assert.deepEqual(
+    input.matrix.provider_configuration_qualification.required_release_scenarios,
+    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
+  );
 });
 
 test('compiler rejects GUI, product-profile, page-state, and release policy drift', () => {

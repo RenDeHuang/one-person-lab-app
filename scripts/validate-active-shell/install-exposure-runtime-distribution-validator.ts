@@ -388,6 +388,8 @@ function validateReleaseValidation(validation) {
   assertDeepEqualJson(
     validation?.stable_install_gates,
     [
+      'standard_dmg_clean_vm_smoke',
+      'full_dmg_clean_vm_smoke',
       'docker_webui_smoke',
     ],
     'Install exposure Stable/add-on gates',
@@ -395,11 +397,14 @@ function validateReleaseValidation(validation) {
   assertDeepEqualJson(
     validation?.post_publication_optional_certification_surfaces,
     [
-    'standard_dmg_clean_vm_smoke',
-    'homebrew_standard_cask_clean_vm_smoke',
-    'one_shot_app_installer_fresh_install_smoke',
-    'full_dmg_clean_vm_smoke',
+      'homebrew_standard_cask_clean_vm_smoke',
+      'one_shot_app_installer_fresh_install_smoke',
     ],
     'Install exposure post-publication optional certification surfaces',
+  );
+  assertDeepEqualJson(
+    validation?.same_candidate_prepublication_clean_install_gates,
+    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
+    'Install exposure same-candidate clean-install gates',
   );
 }

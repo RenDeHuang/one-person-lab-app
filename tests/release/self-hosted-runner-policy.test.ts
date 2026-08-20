@@ -26,7 +26,7 @@ function needsList(job: Record<string, any>): string[] {
   return Array.isArray(job.needs) ? job.needs.map(String) : [];
 }
 
-test('Stable and Latest mandatory workflows never depend on self-hosted or VM certification jobs', () => {
+test('Stable and Latest allow only the exact protected Standard/Full clean-install ancestor', () => {
   const mandatoryWorkflows = [
     'release-source-qualification.yml',
     'release-stable.yml',
@@ -38,17 +38,37 @@ test('Stable and Latest mandatory workflows never depend on self-hosted or VM ce
   for (const name of mandatoryWorkflows) {
     const { workflow } = readWorkflow(name);
     for (const [jobId, job] of Object.entries(workflow.jobs ?? {}) as Array<[string, Record<string, any>]>) {
+      const protectedGate =
+        (name === '_release-bundle.yml' && jobId === 'standard-clean-vm-qualification')
+        || (name === '_release-full-addon.yml' && jobId === 'full-clean-vm-qualification');
       const runsOn = JSON.stringify(job['runs-on'] ?? '');
       assert.doesNotMatch(runsOn, /self-hosted/i, `${name}:${jobId} must remain GitHub-hosted`);
-      assert.doesNotMatch(
-        String(job.uses ?? ''),
-        /opl-first-run-vm|release-post-publication-certification/i,
-        `${name}:${jobId} must not call optional certification`,
-      );
+      if (protectedGate) {
+        assert.equal(job.uses, './.github/workflows/opl-first-run-vm.yml');
+        assert.equal(job.with.diagnostic_scope, 'release_gate');
+        assert.equal(job.with.require_macos_gatekeeper, true);
+        assert.deepEqual(job.permissions, { contents: 'read', actions: 'read' });
+        assert.equal(job.secrets, 'inherit');
+      } else {
+        assert.doesNotMatch(
+          String(job.uses ?? ''),
+          /opl-first-run-vm|release-post-publication-certification/i,
+          `${name}:${jobId} must not call optional or advisory certification`,
+        );
+      }
+      const allowedVmDependency =
+        (name === '_release-bundle.yml'
+          && jobId === 'checkpoint-standard'
+          && needsList(job).filter((dependency) => /vm|certification|tart/i.test(dependency)).join(',') ===
+            'standard-clean-vm-qualification')
+        || (name === '_release-full-addon.yml'
+          && jobId === 'checkpoint-full'
+          && needsList(job).filter((dependency) => /vm|certification|tart/i.test(dependency)).join(',') ===
+            'full-clean-vm-qualification');
       assert.equal(
         needsList(job).some((dependency) => /vm|certification|tart/i.test(dependency)),
-        false,
-        `${name}:${jobId} must not depend on an optional physical capability`,
+        allowedVmDependency,
+        `${name}:${jobId} may depend only on its protected exact-candidate clean-install gate`,
       );
     }
   }
@@ -76,6 +96,12 @@ test('Tart VM consumers and routine advisory jobs use distinct exact capability 
     firstRun.jobs['clean-vm-first-run']['runs-on'],
     ['self-hosted', 'macOS', 'ARM64', 'opl-cert-mac-tart'],
   );
+  assert.equal(
+    firstRun.jobs['clean-vm-first-run'].environment,
+    "${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && 'release-stable' || null }}",
+  );
+  assert.equal(firstRun.on.workflow_call.secrets.OPL_GATEWAY_ACCOUNT_EMAIL.required, false);
+  assert.equal(firstRun.on.workflow_call.secrets.OPL_GATEWAY_ACCOUNT_PASSWORD.required, false);
   const updater = readWorkflow('opl-updater-upgrade-vm.yml').workflow;
   assert.deepEqual(
     updater.jobs.upgrade['runs-on'],
@@ -113,7 +139,7 @@ test('Tart VM consumers and routine advisory jobs use distinct exact capability 
   assert.equal(advisory.workflow.jobs['mac-vmware-advisory']['continue-on-error'], true);
 });
 
-test('runner policy contract defines four routine targets without changing the hosted publication floor', () => {
+test('runner policy contract limits publication to one protected self-hosted gate per release track', () => {
   const contract = JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'), 'utf8'));
   const policy = contract.release_acceleration.runner_policy;
   const pools = Object.fromEntries(policy.pools.map((pool: Record<string, any>) => [pool.id, pool]));
@@ -142,7 +168,18 @@ test('runner policy contract defines four routine targets without changing the h
   assert.equal(policy.routine_advisory.untrusted_pull_request_execution_allowed, false);
   assert.equal(policy.routine_advisory.inventory_token_least_privilege_verified, false);
   assert.equal(policy.publication_floor.stable_and_latest_executor, 'github_hosted');
-  assert.equal(policy.publication_floor.self_hosted_ancestor_count, 0);
+  assert.equal(policy.publication_floor.self_hosted_ancestor_count, 1);
+  assert.equal(
+    policy.publication_floor.self_hosted_ancestor_scope,
+    'exact_profile_protected_clean_install_only',
+  );
+  assert.equal(policy.publication_floor.optional_or_advisory_self_hosted_ancestor_count, 0);
+  assert.deepEqual(policy.protected_macos_clean_install_gate.required_profiles, ['standard', 'full']);
+  assert.equal(policy.protected_macos_clean_install_gate.credentials_environment, 'release-stable');
+  assert.equal(
+    policy.protected_macos_clean_install_gate.missing_runner_or_credential_effect,
+    'fail_closed_without_publication',
+  );
 });
 
 test('offline self-hosted inventory is deferred before queueing and cannot become a publication dependency', () => {

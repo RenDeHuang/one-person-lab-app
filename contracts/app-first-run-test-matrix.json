@@ -217,7 +217,7 @@
     "release_contract_ref": "contracts/app-release-channel.json#provider_configuration_boundary",
     "default_user_authentication": "opl_gateway_account_password",
     "api_key_role": "explicit_compatibility_only",
-    "configuration_timing": "user_requested_at_model_use_or_settings",
+    "configuration_timing": "user_requested_at_model_use_or_settings_except_protected_release_qualification",
     "existing_codex_config_reuse": {
       "config_source_resolution": "OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml",
       "detection": "selected_provider_has_usable_access",
@@ -227,12 +227,26 @@
       "secret_exposure_allowed": false
     },
     "release_vm_default": {
-      "credential_mode": "none",
-      "provider_configuration_status": "not_requested",
-      "provider_configuration_required": false,
+      "credential_mode": "protected_gateway_account_files",
+      "credential_source": "release-stable secrets OPL_GATEWAY_ACCOUNT_EMAIL and OPL_GATEWAY_ACCOUNT_PASSWORD",
+      "credential_transport": "mode_0600_runner_files_to_guest_files_then_CDP_form_arguments_without_secret_argv_log_plan_receipt_or_artifact",
+      "provider_configuration_status": "required_gateway_account_login",
+      "provider_configuration_required": true,
       "synthetic_api_key_generation_allowed": false,
       "implicit_api_key_file_injection_allowed": false,
-      "visible_provider_wizard_behavior": "observe_and_defer",
+      "visible_provider_wizard_behavior": "submit_real_gateway_account_and_wait_for_fresh_connected_projection",
+      "required_fresh_account_readback": [
+        "connected=true",
+        "account_non_empty",
+        "managed_key_active",
+        "stale=false"
+      ],
+      "required_official_profile_readback": [
+        "first_install_status=passed",
+        "desired_root_package_ids_exact",
+        "installed_root_package_ids_exact",
+        "restore_action_invoked=false"
+      ],
       "required_summary_fields": [
         "status",
         "requested",
@@ -276,7 +290,10 @@
       "configure_codex_allowed": false,
       "installed_package_resolution": "framework_managed_and_independent_from_app_carrier"
     },
-    "required_release_scenarios": []
+    "required_release_scenarios": [
+      "standard_dmg_clean_vm_smoke",
+      "full_dmg_clean_vm_smoke"
+    ]
   },
   "release_qualification_agent_target_fixture": {
     "role": "release_qualification_probe_input_only",
@@ -717,15 +734,15 @@
     {
       "id": "standard_dmg_clean_vm_smoke",
       "package_type": "standard",
-      "release_gate": false,
-      "post_publication_optional_certification": true,
+      "release_gate": true,
+      "post_publication_optional_certification": false,
       "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
-        "diagnostic_scope": "post_publication_optional_certification",
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "standard"
       },
       "diagnostics_contract": {
@@ -841,6 +858,8 @@
         "Standard DMG is installed into /Applications on first launch",
         "App-managed bootstrap installs or refreshes the Framework CLI when opl is missing on the clean Mac",
         "Core first-launch readiness is proven through opl system initialize --json before the first conversation, while /guid remains explicitly enterable earlier",
+        "Protected release credentials complete a real OPL Gateway account login and fresh App state reports connected account, active managed key, and stale=false",
+        "First-install Official Profile converges the exact desired root Package IDs before the Standard candidate can publish",
         "App launches without Full-only runtime equivalence checks",
         "GUID entry is usable through packaged App CDP with input, send control, and default assistant surface",
         "Settings pages are navigable after first-run initialization",
@@ -1037,15 +1056,15 @@
     {
       "id": "full_dmg_clean_vm_smoke",
       "package_type": "full",
-      "release_gate": false,
-      "post_publication_optional_certification": true,
+      "release_gate": true,
+      "post_publication_optional_certification": false,
       "provider_configuration_contract_ref": "provider_configuration_qualification",
       "vm": {
         "source": "clean no-CLT Tart base clone",
         "display": "1920x1080px",
         "smoke_profile": "no-clt-clean-vm",
         "settings_smoke": true,
-        "diagnostic_scope": "post_publication_optional_certification",
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "full"
       },
       "diagnostics_contract": {
@@ -1186,8 +1205,8 @@
       "expects": [
         "Full DMG reaches Core ready from the bundled runtime",
         "ready_to_launch is reached before the first conversation after workspace root, Codex CLI, and usable Codex model access are ready, while /guid remains explicitly enterable earlier",
-        "Codex model access is ready before the first conversation; OPL Gateway is configured only when no existing Codex login or other usable provider is available",
-        "Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation",
+        "The release gate submits protected OPL Gateway account credentials and requires fresh App state with connected account, active managed key, and stale=false; ordinary user sessions may still reuse an existing usable provider",
+        "First-install Official Profile converges the exact desired and installed root Package IDs without invoking the restore action before the Full candidate can publish",
         "Framework reports and reconciles installed Packages independently of provider configuration and API key availability; no fixed Package set, Flow lock, or optional Skill payload is required for App or Full readiness",
         "Fresh App readback reports the package set selected for this Full build without requiring a fixed count; workspace-scoped capabilities remain out of global marketplace or config exposure until their owner-projected workspace binding exists",
         "Bundled AionCore producer intake supplies schema v2 Node and Codex identities, while the distributed opl_aioncore_managed_resources_projection.v1 manifest carries exactly Node plus Codex and physically excludes Claude; Codex completes a real app-server initialize handshake with model_reasoning_effort = max, and no retired codex-acp resource or parallel ACP truth remains",

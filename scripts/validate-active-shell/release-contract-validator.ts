@@ -9,6 +9,12 @@ import {
 } from './app-contract-constants.ts';
 import type { ReleaseValidationProfile } from '../validate-release-boundary/release-checks.ts';
 
+function sameStringSet(actual, expected) {
+  return Array.isArray(actual)
+    && actual.length === expected.length
+    && JSON.stringify([...actual].sort()) === JSON.stringify([...expected].sort());
+}
+
 const retiredReleasePackageScripts = [
   'release:stable',
   'release:operator',
@@ -505,17 +511,36 @@ function validateProviderConfigurationBoundary(boundary) {
     boundary?.schema !== 'opl_release_provider_configuration_boundary.v1'
     || boundary?.default_user_authentication !== 'opl_gateway_account_password'
     || boundary?.api_key_role !== 'explicit_compatibility_only'
-    || boundary?.configuration_timing !== 'user_requested_at_model_use_or_settings'
+    || boundary?.configuration_timing !==
+      'user_requested_at_model_use_or_settings_except_protected_release_qualification'
     || independence?.dmg_build_requires_provider_credential !== false
     || independence?.manual_full_m1_requires_provider_credential !== false
     || independence?.local_manual_delivery_requires_provider_credential !== false
     || independence?.manual_full_preview_publication_requires_provider_credential !== false
     || independence?.managed_package_currentness_requires_provider_credential !== false
-    || releaseVmSmoke?.default_provider_configuration_status !== 'not_requested'
-    || releaseVmSmoke?.provider_configuration_is_blocking_release_gate !== false
+    || releaseVmSmoke?.default_provider_configuration_status !== 'required_gateway_account_login'
+    || releaseVmSmoke?.provider_configuration_is_blocking_release_gate !== true
+    || !sameStringSet(releaseVmSmoke?.required_package_profiles, ['standard', 'full'])
+    || releaseVmSmoke?.credential_mode !== 'protected_gateway_account_files'
+    || !sameStringSet(releaseVmSmoke?.credential_secret_names, [
+      'OPL_GATEWAY_ACCOUNT_EMAIL',
+      'OPL_GATEWAY_ACCOUNT_PASSWORD',
+    ])
+    || releaseVmSmoke?.credential_transport !==
+      'release-stable secrets to mode_0600 runner files to guest files then CDP form arguments'
+    || !sameStringSet(releaseVmSmoke?.credential_forbidden_surfaces, [
+      'command_argv',
+      'command_preview',
+      'step_summary',
+      'stdout',
+      'stderr',
+      'json_receipt',
+      'uploaded_artifact',
+    ])
     || releaseVmSmoke?.synthetic_api_key_generation_allowed !== false
     || releaseVmSmoke?.implicit_api_key_file_injection_allowed !== false
-    || releaseVmSmoke?.visible_provider_wizard_without_explicit_credential !== 'observe_and_defer'
+    || releaseVmSmoke?.visible_provider_wizard_without_explicit_credential !==
+      'fail_closed_for_standard_and_full_release_gate'
     || releaseVmSmoke?.summary_pointer !== '/provider_configuration'
     || releaseVmSmoke?.api_key_compatibility_lane_requires_explicit_request !== true
     || releaseVmSmoke?.api_key_compatibility_lane_requires_explicit_credential_file !== false
@@ -528,8 +553,18 @@ function validateProviderConfigurationBoundary(boundary) {
     || connectedDiagnostic?.missing_or_incompatible_host_credential !== 'diagnostic_skipped_without_artifact_gate_failure'
     || connectedDiagnostic?.secret_transport !== 'temporary_mode_0600_file_to_guest_then_stdin_no_secret_argv_plan_receipt_or_artifact'
   ) {
-    throw new Error('Release Provider configuration boundary must remain optional and credential-independent');
+    throw new Error('Release Provider configuration boundary must keep build/package independence while requiring protected Gateway credentials only for Standard and Full clean-VM gates');
   }
+  assertDeepEqualJson(
+    releaseVmSmoke.required_fresh_account_readback,
+    ['connected=true', 'account_non_empty', 'managed_key_active', 'stale=false'],
+    'Release VM fresh Gateway account readback',
+  );
+  assertDeepEqualJson(
+    releaseVmSmoke.required_official_profile_readback,
+    ['status=passed', 'desired_root_package_ids_exact', 'installed_root_package_ids_exact', 'restore_action_invoked=false'],
+    'Release VM Official Profile readback',
+  );
   assertDeepEqualJson(
     connectedDiagnostic.required_selected_provider_fields,
     ['base_url', 'experimental_bearer_token'],
@@ -1219,18 +1254,33 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
       'homebrew_standard_cask_clean_vm_smoke',
       'full_dmg_clean_vm_smoke',
     ],
-    'Physical VM optional certification gates',
+    'Physical VM qualification gates',
   );
-  for (const gate of vmGates) {
+  const requiredVmGates = vmGates.filter((gate) =>
+    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'].includes(gate?.id),
+  );
+  for (const gate of requiredVmGates) {
     if (
-      gate?.diagnostic_scope !== 'post_publication_optional_certification' ||
-      gate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+      gate?.diagnostic_scope !== 'release_gate' ||
+      gate?.gate_policy !== 'required_prepublication_same_candidate' ||
       !Array.isArray(gate?.certification_readiness) ||
       gate.certification_readiness.length === 0 ||
-      'release_blocking_readiness' in gate
+      !sameStringSet(gate?.release_blocking_readiness, [
+        'gateway_account_login',
+        'official_profile_first_install',
+        'fresh_framework_agent_projection',
+      ])
     ) {
-      throw new Error('Physical VM qualification must remain post-publication optional certification');
+      throw new Error('Standard and Full physical VM qualification must fail closed on the exact same candidate');
     }
+  }
+  const optionalVmGate = vmGates.find((gate) => gate?.id === 'homebrew_standard_cask_clean_vm_smoke');
+  if (
+    optionalVmGate?.diagnostic_scope !== 'post_publication_optional_certification' ||
+    optionalVmGate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+    'release_blocking_readiness' in (optionalVmGate ?? {})
+  ) {
+    throw new Error('Homebrew physical VM qualification must remain post-publication optional certification');
   }
   const fullVmGate = vmGates.find((gate) => gate?.id === 'full_dmg_clean_vm_smoke');
   const legacyVmGate = acceleration?.vm_gate;
@@ -1245,16 +1295,14 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     'codex_config_wizard',
     'gate_policy',
     'certification_readiness',
+    'release_blocking_readiness',
     'post_core_ready_background_policy',
   ]) {
     assertDeepEqualJson(
       legacyVmGate?.[field],
       fullVmGate?.[field],
-      `Legacy Full VM optional certification mirror ${field}`,
+      `Legacy Full VM required qualification mirror ${field}`,
     );
-  }
-  if ('release_blocking_readiness' in (legacyVmGate ?? {})) {
-    throw new Error('Legacy Full VM mirror must not expose release-blocking readiness');
   }
   assertDeepEqualJson(
     hostedLinux,
@@ -1294,12 +1342,15 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   assertDeepEqualJson(
     stableValidation?.post_publication_optional_certification_surfaces,
     [
-      'standard_dmg_clean_vm_smoke',
       'homebrew_standard_cask_clean_vm_smoke',
       'one_shot_app_installer_fresh_install_smoke',
-      'full_dmg_clean_vm_smoke',
     ],
     'Stable post-publication optional certification surfaces',
+  );
+  assertDeepEqualJson(
+    stableValidation?.same_candidate_prepublication_clean_install_gates,
+    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'],
+    'Stable same-candidate clean-install gates',
   );
   assertDeepEqualJson(
     stableValidation?.hosted_post_publication_optional_certification_surfaces,
@@ -1308,15 +1359,17 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   );
   if (
     stableValidation?.addon_gate_blocking_standard_terminal !== false ||
-    stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
-    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
     !stableValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
+    !stableValidation?.required_lanes?.includes('standard_dmg_clean_vm_smoke') ||
     stableValidation?.required_lanes?.includes('standard_linux_x64_build') ||
     !nightlyValidation?.required_lanes?.includes('standard_macos_arm64_build') ||
+    nightlyValidation?.required_lanes?.includes('standard_dmg_clean_vm_smoke') ||
     nightlyValidation?.required_lanes?.includes('standard_linux_x64_build')
   ) {
     throw new Error(
-      'Full optional certification must remain outside the Stable publication terminal; '
+      'Standard and Full clean-install gates must protect only their respective Stable track; '
       + 'Stable and Nightly core validation must remain macOS ARM64-only',
     );
   }

@@ -24,8 +24,8 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   assert.doesNotThrow(() => validateFirstRunMatrix(matrix, adapter));
   const fullDmg = matrix.scenarios.find((entry) => entry.id === "full_dmg_clean_vm_smoke");
   assert.ok(fullDmg, "full_dmg_clean_vm_smoke");
-  assert.equal(fullDmg.release_gate, false);
-  assert.equal(fullDmg.post_publication_optional_certification, true);
+  assert.equal(fullDmg.release_gate, true);
+  assert.equal(fullDmg.post_publication_optional_certification, false);
   const capabilityStrategy = matrix.scenarios.find(
     (entry) => entry.id === 'flow_capability_strategy_framework_managed',
   );
@@ -53,21 +53,24 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   );
 
   for (const scenario of matrix.scenarios.filter((entry) => entry.vm)) {
-    assert.equal(scenario.release_gate, false, `${scenario.id} physical VM release gate`);
+    const protectedReleaseGate = [
+      "standard_dmg_clean_vm_smoke",
+      "full_dmg_clean_vm_smoke",
+    ].includes(scenario.id);
+    assert.equal(scenario.release_gate, protectedReleaseGate, `${scenario.id} physical VM release gate`);
     assert.equal(
       scenario.post_publication_optional_certification,
-      true,
+      !protectedReleaseGate,
       `${scenario.id} post-publication optional certification`,
     );
     assert.equal(
       scenario.vm.diagnostic_scope,
-      "post_publication_optional_certification",
+      protectedReleaseGate ? "release_gate" : "post_publication_optional_certification",
       `${scenario.id} diagnostic scope`,
     );
   }
 
   for (const id of [
-    "standard_dmg_clean_vm_smoke",
     "homebrew_standard_cask_clean_vm_smoke",
     "one_shot_app_installer_fresh_install_smoke",
   ]) {
@@ -166,7 +169,7 @@ test("first-run matrix delegates policy shape to the active-shell validator", ()
   );
 });
 
-test("release qualification reuses host Codex credentials only for requested connected VM diagnostics", () => {
+test("release qualification requires protected Gateway credentials only for Standard and Full clean-VM gates", () => {
   const matrix = readJson("contracts/app-first-run-test-matrix.json");
   const release = readJson("contracts/app-release-channel.json");
   const adapter = readJson("contracts/app-shell-adapter.json");
@@ -175,7 +178,12 @@ test("release qualification reuses host Codex credentials only for requested con
 
   assert.equal(qualification.default_user_authentication, "opl_gateway_account_password");
   assert.equal(qualification.api_key_role, "explicit_compatibility_only");
-  assert.equal(qualification.release_vm_default.provider_configuration_status, "not_requested");
+  assert.equal(qualification.release_vm_default.provider_configuration_status, "required_gateway_account_login");
+  assert.equal(qualification.release_vm_default.provider_configuration_required, true);
+  assert.deepEqual(qualification.required_release_scenarios, [
+    "standard_dmg_clean_vm_smoke",
+    "full_dmg_clean_vm_smoke",
+  ]);
   assert.equal(qualification.release_vm_default.synthetic_api_key_generation_allowed, false);
   assert.equal(
     qualification.connected_provider_diagnostic.credential_source,
@@ -210,21 +218,21 @@ test("release qualification reuses host Codex credentials only for requested con
   syntheticCredentialMatrix.provider_configuration_qualification.release_vm_default.synthetic_api_key_generation_allowed = true;
   assert.throws(
     () => validateFirstRunMatrix(syntheticCredentialMatrix, adapter),
-    /must default to not_requested without synthetic credentials/,
+    /must use protected Gateway credentials without synthetic keys/,
   );
 
   const userPromptingMatrix = structuredClone(matrix);
   userPromptingMatrix.provider_configuration_qualification.connected_provider_diagnostic.manual_user_input_required = true;
   assert.throws(
     () => validateFirstRunMatrix(userPromptingMatrix, adapter),
-    /must default to not_requested without synthetic credentials/,
+    /must use protected Gateway credentials without synthetic keys/,
   );
 
   const providerBoundRelease = structuredClone(release);
   providerBoundRelease.provider_configuration_boundary.artifact_and_package_independence.dmg_build_requires_provider_credential = true;
   assert.throws(
     () => validateReleaseChannelContract(providerBoundRelease),
-    /must remain optional and credential-independent/,
+    /must keep build\/package independence while requiring protected Gateway credentials/,
   );
 });
 

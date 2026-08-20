@@ -214,7 +214,8 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     qualification?.release_contract_ref !== 'contracts/app-release-channel.json#provider_configuration_boundary'
     || qualification?.default_user_authentication !== 'opl_gateway_account_password'
     || qualification?.api_key_role !== 'explicit_compatibility_only'
-    || qualification?.configuration_timing !== 'user_requested_at_model_use_or_settings'
+    || qualification?.configuration_timing !==
+      'user_requested_at_model_use_or_settings_except_protected_release_qualification'
     || existingConfigReuse?.config_source_resolution !==
       'OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml'
     || existingConfigReuse?.detection !== 'selected_provider_has_usable_access'
@@ -222,12 +223,17 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     || existingConfigReuse?.manual_user_input_required !== false
     || existingConfigReuse?.mutation_performed !== false
     || existingConfigReuse?.secret_exposure_allowed !== false
-    || releaseVmDefault?.credential_mode !== 'none'
-    || releaseVmDefault?.provider_configuration_status !== 'not_requested'
-    || releaseVmDefault?.provider_configuration_required !== false
+    || releaseVmDefault?.credential_mode !== 'protected_gateway_account_files'
+    || releaseVmDefault?.credential_source !==
+      'release-stable secrets OPL_GATEWAY_ACCOUNT_EMAIL and OPL_GATEWAY_ACCOUNT_PASSWORD'
+    || releaseVmDefault?.credential_transport !==
+      'mode_0600_runner_files_to_guest_files_then_CDP_form_arguments_without_secret_argv_log_plan_receipt_or_artifact'
+    || releaseVmDefault?.provider_configuration_status !== 'required_gateway_account_login'
+    || releaseVmDefault?.provider_configuration_required !== true
     || releaseVmDefault?.synthetic_api_key_generation_allowed !== false
     || releaseVmDefault?.implicit_api_key_file_injection_allowed !== false
-    || releaseVmDefault?.visible_provider_wizard_behavior !== 'observe_and_defer'
+    || releaseVmDefault?.visible_provider_wizard_behavior !==
+      'submit_real_gateway_account_and_wait_for_fresh_connected_projection'
     || connectedDiagnostic?.trigger !== 'codex_ai_self_check_requested'
     || connectedDiagnostic?.credential_source !== 'developer_host_codex_selected_provider'
     || connectedDiagnostic?.config_path_resolution !== 'OPL_FIRST_RUN_HOST_CODEX_CONFIG_or_CODEX_HOME_config_toml_or_home_dot_codex_config_toml'
@@ -253,7 +259,7 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
       'framework_managed_and_independent_from_app_carrier'
   ) {
     throw new Error(
-      'Release VM Provider configuration must default to not_requested without synthetic credentials, reuse existing access, and remain independent from package reconciliation',
+      'Standard and Full release VM qualification must use protected Gateway credentials without synthetic keys while ordinary use reuses existing access and package reconciliation stays independent',
     );
   }
   assertDeepEqualJson(
@@ -275,17 +281,44 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     ['base_url', 'experimental_bearer_token'],
     'Connected VM Provider credential fields',
   );
-  const requiredScenarioIds: string[] = [];
+  assertDeepEqualJson(
+    releaseVmDefault.required_fresh_account_readback,
+    ['connected=true', 'account_non_empty', 'managed_key_active', 'stale=false'],
+    'Release VM fresh Gateway account readback',
+  );
+  assertDeepEqualJson(
+    releaseVmDefault.required_official_profile_readback,
+    [
+      'first_install_status=passed',
+      'desired_root_package_ids_exact',
+      'installed_root_package_ids_exact',
+      'restore_action_invoked=false',
+    ],
+    'Release VM Official Profile readback',
+  );
+  const requiredScenarioIds = [
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+  ];
   assertDeepEqualJson(
     qualification.required_release_scenarios,
     requiredScenarioIds,
-    'Release VM Provider-independent scenarios',
+    'Release VM protected Gateway account scenarios',
   );
+  for (const scenarioId of requiredScenarioIds) {
+    const scenario = scenarioById.get(scenarioId);
+    if (
+      scenario?.release_gate !== true
+      || scenario?.post_publication_optional_certification !== false
+      || scenario?.vm?.diagnostic_scope !== 'release_gate'
+      || scenario?.provider_configuration_contract_ref !== 'provider_configuration_qualification'
+    ) {
+      throw new Error(`Tart scenario ${scenarioId} must fail closed as a protected same-candidate release gate`);
+    }
+  }
   for (const scenarioId of [
     'full_first_install_clean_machine',
-    'standard_dmg_clean_vm_smoke',
     'homebrew_standard_cask_clean_vm_smoke',
-    'full_dmg_clean_vm_smoke',
   ]) {
     const scenario = scenarioById.get(scenarioId);
     if (
@@ -295,10 +328,6 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     ) {
       throw new Error(`Tart scenario ${scenarioId} must be post-publication optional certification and must not block publication or Latest`);
     }
-  }
-  const fullDmgPolicy = scenarioById.get('full_dmg_clean_vm_smoke');
-  if (fullDmgPolicy?.provider_configuration_contract_ref !== 'provider_configuration_qualification') {
-    throw new Error('Full DMG optional certification must retain the Provider-independent qualification contract');
   }
   const oneShot = scenarioById.get('one_shot_app_installer_fresh_install_smoke');
   if (oneShot?.release_gate !== false || oneShot?.post_publication_optional_certification !== true) {
@@ -318,7 +347,7 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
   const fullDmg = scenarioById.get('full_dmg_clean_vm_smoke');
   if (
     !fullDmg?.expects?.includes(
-      'Existing usable Codex provider access is reused from resolved config.toml without manual key input or provider mutation',
+      'The release gate submits protected OPL Gateway account credentials and requires fresh App state with connected account, active managed key, and stale=false; ordinary user sessions may still reuse an existing usable provider',
     ) ||
     !fullDmg?.expects?.includes(
       'Framework reports and reconciles installed Packages independently of provider configuration and API key availability; no fixed Package set, Flow lock, or optional Skill payload is required for App or Full readiness',

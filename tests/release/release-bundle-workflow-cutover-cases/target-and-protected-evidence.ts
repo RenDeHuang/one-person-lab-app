@@ -447,8 +447,15 @@ test('one signed Standard build is sealed once and every final consumer binds it
   assert.equal(bundle.jobs['standard-qualification'], undefined);
   assert.deepEqual(
     bundle.jobs['checkpoint-standard'].needs,
-    ['admission', 'freeze', 'seal-standard-identity'],
+    ['admission', 'freeze', 'seal-standard-identity', 'standard-clean-vm-qualification'],
   );
+  const standardCleanVm = bundle.jobs['standard-clean-vm-qualification'];
+  assert.equal(standardCleanVm.uses, './.github/workflows/opl-first-run-vm.yml');
+  assert.deepEqual(standardCleanVm.needs, ['freeze', 'seal-standard-identity']);
+  assert.equal(standardCleanVm.with.package_profile, 'standard');
+  assert.equal(standardCleanVm.with.diagnostic_scope, 'release_gate');
+  assert.equal(standardCleanVm.with.require_macos_gatekeeper, true);
+  assert.equal(standardCleanVm.secrets, 'inherit');
   assert.equal(
     bundle.jobs['publish-standard'].with.standard_identity_sha256,
     '${{ needs.checkpoint-standard.outputs.standard_identity_sha256 }}',

@@ -376,6 +376,9 @@ test('production Standard and Full builds fail closed on Apple distribution trus
 
   assert.equal(bundle.jobs['standard-build'].with.require_macos_gatekeeper, true);
   assert.equal(bundle.jobs['standard-build'].secrets, 'inherit');
+  assert.equal(bundle.jobs['standard-clean-vm-qualification'].secrets, 'inherit');
+  assert.equal(bundle.jobs['standard-clean-vm-qualification'].with.diagnostic_scope, 'release_gate');
+  assert.equal(bundle.jobs['standard-clean-vm-qualification'].with.package_profile, 'standard');
   assert.deepEqual(bundle.jobs['standard-build'].permissions, {
     contents: 'read',
     actions: 'read',
@@ -485,6 +488,9 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(cleanupSigning.if, "startsWith(matrix.platform, 'macos') && always()");
   assert.match(String(cleanupSigning.run), /security delete-keychain build\.keychain/);
   assert.equal(fullAddon.jobs['full-build'].secrets, 'inherit');
+  assert.equal(fullAddon.jobs['full-clean-vm-qualification'].secrets, 'inherit');
+  assert.equal(fullAddon.jobs['full-clean-vm-qualification'].with.diagnostic_scope, 'release_gate');
+  assert.equal(fullAddon.jobs['full-clean-vm-qualification'].with.package_profile, 'full');
   assert.equal(fullBuild.jobs['full-first-install']['runs-on'], 'macos-latest');
   assert.equal(fullBuild.jobs['full-first-install'].environment, 'release-stable');
   assert.equal(fullBuild.jobs['full-finalizer']['runs-on'], 'macos-latest');

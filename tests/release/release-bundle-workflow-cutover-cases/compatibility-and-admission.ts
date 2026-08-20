@@ -190,7 +190,7 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   );
   assert.deepEqual(
     workflow.jobs['checkpoint-standard'].needs,
-    ['admission', 'freeze', 'seal-standard-identity'],
+    ['admission', 'freeze', 'seal-standard-identity', 'standard-clean-vm-qualification'],
   );
   assert.deepEqual(workflow.jobs['publish-standard'].needs, ['freeze', 'checkpoint-standard']);
   assert.equal(workflow.jobs['prepare-native-webui'], undefined);
@@ -301,7 +301,7 @@ test('Standard checkpoint stage follows the immutable Bundle track set', () => {
   }
 });
 
-test('Standard moving pointers require exact Desktop readback and hosted admission without VM qualification state', () => {
+test('Standard moving pointers require exact Desktop readback and a protected clean-VM checkpoint sidecar', () => {
   const workflow = parseWorkflow('_release-standard-publish.yml');
   const source = readWorkflow('_release-standard-publish.yml');
   assert.ok(workflow.jobs['publish-homebrew-standard'].needs.includes('remote-digest-verify'));
@@ -313,6 +313,14 @@ test('Standard moving pointers require exact Desktop readback and hosted admissi
   assert.match(source, /Unified hosted publication requires a checkpoint at or after stable_built/);
   assert.match(source, /Hosted Standard publication requires a checkpoint at or after standard_built/);
   assert.doesNotMatch(source, /requires a checkpoint at or after standard_qualified/);
+  const sidecar = workflow.jobs.restore.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Verify protected Standard clean-VM checkpoint sidecar',
+  );
+  assert.equal(sidecar.if, "${{ inputs.publication_channel == 'stable' }}");
+  assert.match(String(sidecar.run), /standard-clean-vm-qualification-receipt\.json/);
+  assert.match(String(sidecar.run), /standard-clean-vm-qualification-receipt\.sha256/);
+  assert.match(String(sidecar.run), /test "\$observed_sha" = "\$expected_sha"/);
+  assert.match(String(sidecar.run), /\.qualification\.result == "passed"/);
   assert.equal(
     (source.match(/if jq -e '\.tracks\.webui' "\$bundle"/g) ?? []).length,
     1,

@@ -853,6 +853,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'freeze',
     'standard-build',
     'seal-standard-identity',
+    'standard-clean-vm-qualification',
     'checkpoint-standard',
     'publish-standard',
   ])) {
@@ -894,13 +895,35 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       'seal-standard-identity must bind the signed build to one immutable read-only identity',
     );
   }
+  if (bundleJobs['standard-qualification'] || /\bopl\s+release\s+verify\b/.test(jobRuns(bundleJobs['checkpoint-standard']))) {
+    failures += reportFailure(
+      id,
+      'Bundle publication must consume sealed identity without reintroducing the retired inline qualification gate',
+    );
+  }
+  failures += validateReusableCall(
+    id,
+    bundleJobs,
+    'standard-clean-vm-qualification',
+    './.github/workflows/opl-first-run-vm.yml',
+    exactReadPermissions,
+  );
+  const standardCleanVm = bundleJobs['standard-clean-vm-qualification'];
   if (
-    bundleJobs['standard-qualification']
-    || /\bopl\s+release\s+verify\b/.test(jobRuns(bundleJobs['checkpoint-standard']))
+    !standardCleanVm
+    || !needsExactly(standardCleanVm, ['freeze', 'seal-standard-identity'])
+    || standardCleanVm.if !== "${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}"
+    || standardCleanVm.with?.release_artifact_name !==
+      '${{ needs.seal-standard-identity.outputs.standard_artifact_name }}'
+    || standardCleanVm.with?.release_artifact_run_id !== '${{ github.run_id }}'
+    || standardCleanVm.with?.package_profile !== 'standard'
+    || standardCleanVm.with?.diagnostic_scope !== 'release_gate'
+    || standardCleanVm.with?.require_macos_gatekeeper !== true
+    || standardCleanVm.secrets !== 'inherit'
   ) {
     failures += reportFailure(
       id,
-      'Bundle publication must consume sealed identity without reintroducing the retired inline VM gate',
+      'Standard clean-VM qualification must consume the sealed same-run candidate under the protected release gate',
     );
   }
   failures += validateReusableCall(
@@ -914,13 +937,14 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       'admission',
       'freeze',
       'seal-standard-identity',
+      'standard-clean-vm-qualification',
     ])
     || !needsExactly(bundleJobs['publish-standard'], [
       'freeze',
       'checkpoint-standard',
     ])
   ) {
-    failures += reportFailure(id, 'Standard checkpoint and publication must not depend on a retired Native carrier');
+    failures += reportFailure(id, 'Standard checkpoint must depend only on admission, freeze, sealed identity, and protected clean-VM qualification');
   }
   if (/\bopl\s+release\s+(?:publish|reconcile|status)\b/.test(bundle.text)) {
     failures += reportFailure(id, '_release-bundle.yml must delegate publish/reconcile/status to Standard publish');
@@ -989,6 +1013,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     'restore-standard',
     'full-build',
     'full-qualification',
+    'full-clean-vm-qualification',
     'checkpoint-full',
     'publish-full',
   ]) {
@@ -1030,14 +1055,43 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       );
     }
   }
+  failures += validateReusableCall(
+    id,
+    fullJobs,
+    'full-clean-vm-qualification',
+    './.github/workflows/opl-first-run-vm.yml',
+    exactReadPermissions,
+  );
+  const fullCleanVm = fullJobs['full-clean-vm-qualification'];
+  if (
+    !fullCleanVm
+    || !needsExactly(fullCleanVm, [
+      'restore-standard',
+      'full-build',
+      'materialize-full-build',
+      'full-qualification',
+    ])
+    || fullCleanVm.with?.release_artifact_run_id !== '${{ github.run_id }}'
+    || fullCleanVm.with?.package_profile !== 'full'
+    || fullCleanVm.with?.diagnostic_scope !== 'release_gate'
+    || fullCleanVm.with?.require_macos_gatekeeper !== true
+    || fullCleanVm.secrets !== 'inherit'
+  ) {
+    failures += reportFailure(
+      id,
+      'Full clean-VM qualification must follow hosted trust validation and consume the exact same-run Full candidate',
+    );
+  }
   const checkpointFullRuns = jobRuns(fullJobs['checkpoint-full']);
   if (
     !checkpointFullRuns.includes('--hosted-core-qualification "$hosted_receipt"')
+    || !checkpointFullRuns.includes('full-clean-vm-qualification-receipt.json')
+    || !checkpointFullRuns.includes('standard-clean-vm-qualification-receipt.json')
     || checkpointFullRuns.includes('--legacy-qualification')
   ) {
     failures += reportFailure(
       id,
-      'checkpoint-full must consume only the exact hosted Full core qualification receipt',
+      'checkpoint-full must consume hosted Full trust plus Standard and Full protected clean-VM sidecars',
     );
   }
   if (fullJobs['publish-full'] && fullJobs['publish-full'].environment !== 'release-stable') {

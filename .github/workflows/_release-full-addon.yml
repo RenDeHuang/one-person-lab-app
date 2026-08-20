@@ -556,6 +556,89 @@ jobs:
             echo "transport_run_id=$GITHUB_RUN_ID"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Verify protected clean-VM checkpoint sidecars
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
+          stage='${{ steps.checkpoint.outputs.completed_stage }}'
+          bundle_digest="$(jq -er .bundle_digest "$bundle")"
+          app_sha="$(jq -er .sources.app.source_commit "$bundle")"
+          shell_sha="$(jq -er .sources.shell.source_commit "$bundle")"
+          framework_sha="$(jq -er .sources.framework.source_commit "$bundle")"
+          version="$(jq -er .release.version "$bundle")"
+          identity_receipts=()
+          while IFS= read -r item; do identity_receipts+=("$item"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          test "${#identity_receipts[@]}" -eq 1
+          standard_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "${identity_receipts[0]}")"
+          verify_sidecar() {
+            local profile="$1"
+            local receipt_name="$2"
+            local digest_name="$3"
+            local expected_run_id="$4"
+            local expected_artifact="$5"
+            local receipts=()
+            local digests=()
+            while IFS= read -r item; do receipts+=("$item"); done < <(
+              find checkpoint-identity-bootstrap -type f -name "$receipt_name" -print | LC_ALL=C sort
+            )
+            while IFS= read -r item; do digests+=("$item"); done < <(
+              find checkpoint-identity-bootstrap -type f -name "$digest_name" -print | LC_ALL=C sort
+            )
+            test "${#receipts[@]}" -eq 1
+            test "${#digests[@]}" -eq 1
+            local receipt="${receipts[0]}"
+            local digest_file="${digests[0]}"
+            test -s "$receipt" && test ! -L "$receipt"
+            test -s "$digest_file" && test ! -L "$digest_file"
+            local expected_sha
+            local observed_sha
+            expected_sha="$(tr -d '\r\n' < "$digest_file")"
+            observed_sha="sha256:$(shasum -a 256 "$receipt" | awk '{print $1}')"
+            [[ "$expected_sha" =~ ^sha256:[0-9a-f]{64}$ ]]
+            test "$observed_sha" = "$expected_sha"
+            jq -e \
+              --arg profile "$profile" \
+              --arg run_id "$expected_run_id" \
+              --arg artifact "$expected_artifact" \
+              --arg bundle "$bundle_digest" \
+              --arg app "$app_sha" \
+              --arg shell "$shell_sha" \
+              --arg framework "$framework_sha" '
+                .schema == "opl_app_artifact_qualification_receipt.v1"
+                and .status == "passed"
+                and .package_profile == $profile
+                and .release_cohort_ref == $bundle
+                and .qualification.run_id == $run_id
+                and .qualification.source_artifact_run_id == $run_id
+                and .qualification.source_artifact_name == $artifact
+                and .qualification.result == "passed"
+                and .cohort == {
+                  app_sha: $app,
+                  shell_sha: $shell,
+                  framework_sha: $framework
+                }
+              ' "$receipt" >/dev/null
+          }
+          verify_sidecar \
+            standard \
+            standard-clean-vm-qualification-receipt.json \
+            standard-clean-vm-qualification-receipt.sha256 \
+            "$standard_run_id" \
+            "opl-release-standard-bound-${standard_run_id}"
+          if [ "$stage" = full_qualified ]; then
+            verify_sidecar \
+              full \
+              full-clean-vm-qualification-receipt.json \
+              full-clean-vm-qualification-receipt.sha256 \
+              "$SOURCE_RUN_ID" \
+              "opl-full-first-install-dmg-${version}-mac-arm64"
+          fi
+
       - name: Admit executor-head Full publication target before build
         env:
           TARGET_STANDARD_COMMITISH: ${{ steps.identity.outputs.target_standard_target_commitish }}
@@ -671,6 +754,14 @@ jobs:
           cp "$source/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg" full-output/
           cp "$source/opl-release-manifest.json" full-output/
 
+      - name: Download original Full build cohort identity
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64-cohort
+          run-id: ${{ needs.restore-standard.outputs.source_run_id }}
+          github-token: ${{ github.token }}
+          path: full-cohort
+
       - name: Upload materialized Full package artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -686,6 +777,14 @@ jobs:
           path: full-output/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload materialized Full cohort identity
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64-cohort
+          path: full-cohort
+          if-no-files-found: error
+          retention-days: 30
 
   full-qualification:
     if: ${{ always() && inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_built' || needs.restore-standard.outputs.completed_stage == 'standard_qualified' || needs.restore-standard.outputs.completed_stage == 'full_built') && (needs.full-build.result == 'success' || needs.materialize-full-build.result == 'success') }}
@@ -802,11 +901,36 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  full-clean-vm-qualification:
+    if: ${{ always() && inputs.mode == 'execute' && needs.full-qualification.result == 'success' }}
+    needs: [restore-standard, full-build, materialize-full-build, full-qualification]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_artifact_name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64
+      release_artifact_run_id: ${{ github.run_id }}
+      release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
+      shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      smoke_harness_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+      package_profile: full
+      diagnostic_scope: release_gate
+      require_macos_gatekeeper: true
+      operation: append_full
+      operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}
+    secrets: inherit
+
   checkpoint-full:
-    if: ${{ always() && inputs.mode == 'execute' && needs.restore-standard.result == 'success' && needs.restore-standard.outputs.completed_stage != 'full_qualified' && needs.full-qualification.result == 'success' }}
+    if: ${{ always() && inputs.mode == 'execute' && needs.restore-standard.result == 'success' && needs.restore-standard.outputs.completed_stage != 'full_qualified' && needs.full-qualification.result == 'success' && needs.full-clean-vm-qualification.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [restore-standard, full-build, materialize-full-build, full-qualification]
+    needs: [restore-standard, full-build, materialize-full-build, full-qualification, full-clean-vm-qualification]
     permissions:
       contents: read
       actions: read
@@ -838,6 +962,12 @@ jobs:
         with:
           name: opl-hosted-full-core-qualification-${{ github.run_id }}
           path: hosted-core-qualification
+
+      - name: Download protected Full clean-VM qualification
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.full-clean-vm-qualification.outputs.qualification_artifact_name }}
+          path: full-clean-vm-evidence
 
       - name: Download exact unified Standard attestation
         env:
@@ -960,6 +1090,56 @@ jobs:
           original_standard_receipt="${standard_build_receipts[0]}"
           test -f "$original_standard_receipt" && test ! -L "$original_standard_receipt"
           cp "$original_standard_receipt" standard-build-receipt.json
+          standard_vm_receipts=()
+          standard_vm_digests=()
+          while IFS= read -r receipt; do standard_vm_receipts+=("$receipt"); done < <(
+            find imported-checkpoint -type f -name standard-clean-vm-qualification-receipt.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r digest; do standard_vm_digests+=("$digest"); done < <(
+            find imported-checkpoint -type f -name standard-clean-vm-qualification-receipt.sha256 -print | LC_ALL=C sort
+          )
+          test "${#standard_vm_receipts[@]}" -eq 1
+          test "${#standard_vm_digests[@]}" -eq 1
+          cp "${standard_vm_receipts[0]}" standard-clean-vm-qualification-receipt.json
+          cp "${standard_vm_digests[0]}" standard-clean-vm-qualification-receipt.sha256
+          full_vm_receipts=()
+          while IFS= read -r receipt; do full_vm_receipts+=("$receipt"); done < <(
+            find full-clean-vm-evidence -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort
+          )
+          test "${#full_vm_receipts[@]}" -eq 1 || {
+            echo "::error::Full release requires exactly one clean-VM qualification receipt."
+            exit 1
+          }
+          full_vm_receipt="${full_vm_receipts[0]}"
+          test -s "$full_vm_receipt" && test ! -L "$full_vm_receipt"
+          full_vm_sha="sha256:$(shasum -a 256 "$full_vm_receipt" | awk '{print $1}')"
+          test "$full_vm_sha" = '${{ needs.full-clean-vm-qualification.outputs.qualification_receipt_sha256 }}' || {
+            echo "::error::Full clean-VM qualification digest mismatch."
+            exit 1
+          }
+          jq -e \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg artifact 'opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64' \
+            --arg bundle "$BUNDLE_DIGEST" \
+            --arg app '${{ needs.restore-standard.outputs.app_ref }}' \
+            --arg shell '${{ needs.restore-standard.outputs.shell_ref }}' \
+            --arg framework '${{ needs.restore-standard.outputs.framework_source_ref }}' '
+              .schema == "opl_app_artifact_qualification_receipt.v1"
+              and .status == "passed"
+              and .package_profile == "full"
+              and .release_cohort_ref == $bundle
+              and .qualification.run_id == $run_id
+              and .qualification.source_artifact_run_id == $run_id
+              and .qualification.source_artifact_name == $artifact
+              and .qualification.result == "passed"
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+            ' "$full_vm_receipt" >/dev/null
+          cp "$full_vm_receipt" full-clean-vm-qualification-receipt.json
+          printf '%s\n' "$full_vm_sha" > full-clean-vm-qualification-receipt.sha256
           hosted_receipt=hosted-core-qualification/hosted-full-core-qualification.json
           test -f "$hosted_receipt" && test ! -L "$hosted_receipt"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts qualification-receipt \
@@ -993,6 +1173,10 @@ jobs:
             full-checkpoint
             standard-build-receipt.json
             full-build-receipt.json
+            standard-clean-vm-qualification-receipt.json
+            standard-clean-vm-qualification-receipt.sha256
+            full-clean-vm-qualification-receipt.json
+            full-clean-vm-qualification-receipt.sha256
           if-no-files-found: error
           retention-days: 30
 

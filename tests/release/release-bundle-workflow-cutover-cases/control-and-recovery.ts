@@ -244,6 +244,7 @@ test('the live control plane is split into Standard build, Standard publish, and
     'freeze',
     'standard-build',
     'seal-standard-identity',
+    'standard-clean-vm-qualification',
     'checkpoint-standard',
     'publish-standard',
   ]);
@@ -628,6 +629,9 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(run, /cp "\$original_full_receipt" full-build-receipt\.json/);
   assert.equal((run.match(/opl release build/g) ?? []).length, 1);
   assert.match(run, /--hosted-core-qualification "\$hosted_receipt"/);
+  assert.match(run, /standard-clean-vm-qualification-receipt\.json/);
+  assert.match(run, /full-clean-vm-qualification-receipt\.json/);
+  assert.match(run, /Full clean-VM qualification digest mismatch/);
   assert.doesNotMatch(run, /--legacy-qualification/);
   const qualification = full.jobs['full-qualification'];
   assert.equal(qualification['runs-on'], 'macos-latest');
@@ -641,10 +645,21 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(qualificationRun, /xcrun stapler validate/);
   assert.match(qualificationRun, /spctl --assess/);
   assert.doesNotMatch(qualificationRun, /opl-first-run-vm|tart\b/i);
+  const cleanVmQualification = full.jobs['full-clean-vm-qualification'];
+  assert.equal(cleanVmQualification.uses, './.github/workflows/opl-first-run-vm.yml');
+  assert.deepEqual(cleanVmQualification.needs, [
+    'restore-standard',
+    'full-build',
+    'materialize-full-build',
+    'full-qualification',
+  ]);
+  assert.equal(cleanVmQualification.with.package_profile, 'full');
+  assert.equal(cleanVmQualification.with.diagnostic_scope, 'release_gate');
+  assert.equal(cleanVmQualification.secrets, 'inherit');
   assert.match(readWorkflow('_release-full-addon.yml'), /rebuild_performed/);
 });
 
-test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', () => {
+test('mandatory publication ancestors allow only the protected exact-candidate clean-install gates', () => {
   const releaseContract = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), 'contracts', 'app-release-channel.json'), 'utf8'),
   );
@@ -657,18 +672,37 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
       'full_dmg_clean_vm_smoke',
     ],
   );
-  for (const gate of vmGates) {
-    assert.equal(gate.diagnostic_scope, 'post_publication_optional_certification');
-    assert.equal(gate.gate_policy, 'optional_non_blocking_same_published_artifact');
+  const gatesById = Object.fromEntries(vmGates.map((gate: Record<string, unknown>) => [gate.id, gate]));
+  for (const gateId of ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke']) {
+    const gate = gatesById[gateId];
+    assert.equal(gate.diagnostic_scope, 'release_gate');
+    assert.equal(gate.gate_policy, 'required_prepublication_same_candidate');
     assert.ok(Array.isArray(gate.certification_readiness));
-    assert.equal('release_blocking_readiness' in gate, false);
+    assert.deepEqual(gate.release_blocking_readiness, [
+      'gateway_account_login',
+      'official_profile_first_install',
+      'fresh_framework_agent_projection',
+    ]);
   }
+  assert.equal(
+    gatesById.homebrew_standard_cask_clean_vm_smoke.diagnostic_scope,
+    'post_publication_optional_certification',
+  );
+  assert.equal(
+    gatesById.homebrew_standard_cask_clean_vm_smoke.gate_policy,
+    'optional_non_blocking_same_published_artifact',
+  );
   const stableValidation = releaseContract.release_validation_profiles.stable;
   assert.equal(stableValidation.addon_gate_blocking_standard_terminal, false);
-  assert.equal(stableValidation.addon_lanes.includes('full_dmg_clean_vm_smoke'), false);
+  assert.equal(stableValidation.required_lanes.includes('standard_dmg_clean_vm_smoke'), true);
+  assert.equal(stableValidation.addon_lanes.includes('full_dmg_clean_vm_smoke'), true);
+  assert.deepEqual(stableValidation.same_candidate_prepublication_clean_install_gates, [
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+  ]);
   assert.equal(
     stableValidation.post_publication_optional_certification_surfaces.includes('full_dmg_clean_vm_smoke'),
-    true,
+    false,
   );
 
   const standard = parseWorkflow('_release-standard-publish.yml');
@@ -689,18 +723,12 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
     visit(jobName);
     return [...found].sort();
   };
-  for (const jobName of [
-    'publish-standard-nonlatest',
-    'remote-digest-verify',
-    'publish-homebrew-standard',
-    'homebrew-standard-readback',
-  ]) {
+  for (const jobName of ['publish-standard-nonlatest', 'remote-digest-verify', 'publish-homebrew-standard']) {
     for (const ancestor of ancestors(jobName)) {
-      const source = JSON.stringify(standard.jobs[ancestor]);
       assert.doesNotMatch(
-        source,
-        /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|(?:^|[^a-z])vm(?:[^a-z]|$)/i,
-        `${jobName} depends on ${ancestor}`,
+        JSON.stringify(standard.jobs[ancestor]),
+        /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|opl-first-run-vm/i,
+        `${jobName} directly depends on unexpected physical execution ${ancestor}`,
       );
     }
   }
@@ -727,14 +755,19 @@ test('mandatory publication ancestors contain no self-hosted, VM, or Tart job', 
     return [...found].sort();
   };
   assert.ok(fullAncestors('publish-full').includes('full-qualification'));
-  for (const ancestor of fullAncestors('publish-full')) {
-    const source = JSON.stringify(full.jobs[ancestor]);
-    assert.doesNotMatch(
-      source,
-      /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|opl-first-run-vm/i,
-      `publish-full depends on ${ancestor}`,
-    );
-  }
+  assert.ok(fullAncestors('publish-full').includes('full-clean-vm-qualification'));
+  const fullPhysicalAncestors = fullAncestors('publish-full').filter((ancestor) =>
+    /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|opl-first-run-vm/i.test(JSON.stringify(full.jobs[ancestor])),
+  );
+  assert.deepEqual(fullPhysicalAncestors, ['full-clean-vm-qualification']);
+  const bundle = parseWorkflow('_release-bundle.yml');
+  assert.equal(bundle.jobs['standard-clean-vm-qualification'].uses, './.github/workflows/opl-first-run-vm.yml');
+  assert.deepEqual(bundle.jobs['checkpoint-standard'].needs, [
+    'admission',
+    'freeze',
+    'seal-standard-identity',
+    'standard-clean-vm-qualification',
+  ]);
   assert.equal(standard.jobs['updater-upgrade-qualification'], undefined);
   assert.equal(standard.jobs['updater-upgrade-qualification-highest'], undefined);
   assert.equal(standard.jobs['homebrew-standard-vm'], undefined);

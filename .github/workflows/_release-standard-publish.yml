@@ -319,6 +319,66 @@ jobs:
             echo "standard_bound_artifact_name=opl-release-standard-bound-$producer_run_id"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Verify protected Standard clean-VM checkpoint sidecar
+        if: ${{ inputs.publication_channel == 'stable' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          qualification_receipts=()
+          qualification_digests=()
+          identity_receipts=()
+          bundle_receipts=()
+          while IFS= read -r item; do qualification_receipts+=("$item"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-clean-vm-qualification-receipt.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do qualification_digests+=("$item"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-clean-vm-qualification-receipt.sha256 -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do identity_receipts+=("$item"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          while IFS= read -r item; do bundle_receipts+=("$item"); done < <(
+            find checkpoint-identity-bootstrap -type f -name bundle.json -print | LC_ALL=C sort
+          )
+          test "${#qualification_receipts[@]}" -eq 1
+          test "${#qualification_digests[@]}" -eq 1
+          test "${#identity_receipts[@]}" -eq 1
+          test "${#bundle_receipts[@]}" -eq 1
+          qualification_receipt="${qualification_receipts[0]}"
+          qualification_digest_file="${qualification_digests[0]}"
+          identity_receipt="${identity_receipts[0]}"
+          bundle="${bundle_receipts[0]}"
+          for required in "$qualification_receipt" "$qualification_digest_file" "$identity_receipt" "$bundle"; do
+            test -s "$required" && test ! -L "$required"
+          done
+          expected_sha="$(tr -d '\r\n' < "$qualification_digest_file")"
+          observed_sha="sha256:$(shasum -a 256 "$qualification_receipt" | awk '{print $1}')"
+          [[ "$expected_sha" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "$observed_sha" = "$expected_sha"
+          producer_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "$identity_receipt")"
+          bundle_digest="$(jq -er .bundle_digest "$bundle")"
+          jq -e \
+            --arg run_id "$producer_run_id" \
+            --arg artifact "opl-release-standard-bound-${producer_run_id}" \
+            --arg bundle "$bundle_digest" \
+            --arg app "$(jq -er .sources.app.source_commit "$bundle")" \
+            --arg shell "$(jq -er .sources.shell.source_commit "$bundle")" \
+            --arg framework "$(jq -er .sources.framework.source_commit "$bundle")" '
+              .schema == "opl_app_artifact_qualification_receipt.v1"
+              and .status == "passed"
+              and .package_profile == "standard"
+              and .release_cohort_ref == $bundle
+              and .qualification.run_id == $run_id
+              and .qualification.source_artifact_run_id == $run_id
+              and .qualification.source_artifact_name == $artifact
+              and .qualification.result == "passed"
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+            ' "$qualification_receipt" >/dev/null
+
       - name: Resolve frozen Framework source and current executor identities
         id: framework-binding
         env:

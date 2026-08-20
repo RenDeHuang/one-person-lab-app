@@ -3,6 +3,13 @@ run-name: OPL GUI First-Run VM
 
 on:
   workflow_call:
+    secrets:
+      OPL_GATEWAY_ACCOUNT_EMAIL:
+        description: Protected OPL Gateway account email for Standard and Full release-gate qualification.
+        required: false
+      OPL_GATEWAY_ACCOUNT_PASSWORD:
+        description: Protected OPL Gateway account password for Standard and Full release-gate qualification.
+        required: false
     inputs:
       mode:
         description: 'execute or canary validation-only startup.'
@@ -164,6 +171,12 @@ on:
       post_publication_classification_valid:
         description: 'true only when the terminal state is safe to seal as passed, failed, or unavailable.'
         value: ${{ jobs.clean-vm-first-run.outputs.post_publication_classification_valid }}
+      qualification_artifact_name:
+        description: Same-run artifact containing the strict exact-candidate qualification receipt.
+        value: ${{ jobs.clean-vm-first-run.outputs.qualification_artifact_name }}
+      qualification_receipt_sha256:
+        description: Exact sha256 digest of the strict exact-candidate qualification receipt.
+        value: ${{ jobs.clean-vm-first-run.outputs.qualification_receipt_sha256 }}
 concurrency:
   # Scheduled runs collapse to the latest queued run; manual and release-called
   # validation runs use caller-run/profile-scoped groups so stable release
@@ -676,6 +689,7 @@ jobs:
     needs: validate-vm-inputs
     if: ${{ needs.validate-vm-inputs.outputs.skip_vm != 'true' }}
     runs-on: [self-hosted, macOS, ARM64, opl-cert-mac-tart]
+    environment: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && 'release-stable' || null }}
     timeout-minutes: ${{ inputs.operation == 'append_full' && 50 || 75 }}
     outputs:
       post_publication_status: ${{ steps.post_publication_outcome.outputs.status }}
@@ -684,6 +698,8 @@ jobs:
       post_publication_job_started: ${{ steps.post_publication_job.outputs.started }}
       post_publication_execution_started: ${{ steps.post_publication_execution.outputs.started }}
       post_publication_classification_valid: ${{ steps.post_publication_outcome.outputs.valid }}
+      qualification_artifact_name: ${{ steps.qualification_receipt.outputs.qualification_artifact_name }}
+      qualification_receipt_sha256: ${{ steps.qualification_receipt.outputs.qualification_receipt_sha256 }}
     permissions:
       actions: read
       contents: read
@@ -1549,6 +1565,33 @@ jobs:
             > artifacts/opl-first-run-vm/post-publication-execution-start.json
           echo "started=true" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare protected Gateway account files for release qualification
+        id: gateway_credentials
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && (needs.validate-vm-inputs.outputs.package_profile == 'standard' || needs.validate-vm-inputs.outputs.package_profile == 'full') }}
+        shell: bash
+        env:
+          GATEWAY_ACCOUNT_EMAIL: ${{ secrets.OPL_GATEWAY_ACCOUNT_EMAIL }}
+          GATEWAY_ACCOUNT_PASSWORD: ${{ secrets.OPL_GATEWAY_ACCOUNT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$GATEWAY_ACCOUNT_EMAIL" || { echo "::error::OPL_GATEWAY_ACCOUNT_EMAIL is required for Standard/Full release qualification."; exit 1; }
+          test -n "$GATEWAY_ACCOUNT_PASSWORD" || { echo "::error::OPL_GATEWAY_ACCOUNT_PASSWORD is required for Standard/Full release qualification."; exit 1; }
+          credential_dir="$RUNNER_TEMP/opl-gateway-release-credentials-${GITHUB_RUN_ID}-${GITHUB_JOB}"
+          umask 077
+          mkdir -p "$credential_dir"
+          email_file="$credential_dir/email"
+          password_file="$credential_dir/password"
+          printf '%s' "$GATEWAY_ACCOUNT_EMAIL" > "$email_file"
+          printf '%s' "$GATEWAY_ACCOUNT_PASSWORD" > "$password_file"
+          chmod 600 "$email_file" "$password_file"
+          test "$(stat -f '%Lp' "$email_file")" = 600
+          test "$(stat -f '%Lp' "$password_file")" = 600
+          {
+            echo "credential_dir=$credential_dir"
+            echo "email_file=$email_file"
+            echo "password_file=$password_file"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run clean VM first launch smoke
         id: vm_smoke
         shell: bash
@@ -1625,6 +1668,10 @@ jobs:
           if [ "${{ inputs.guide_screenshots }}" = "true" ]; then
             CMD+=(--guide-screenshots)
           fi
+          if [ -n "${{ steps.gateway_credentials.outputs.email_file }}" ]; then
+            CMD+=(--gateway-account-email-file "${{ steps.gateway_credentials.outputs.email_file }}")
+            CMD+=(--gateway-account-password-file "${{ steps.gateway_credentials.outputs.password_file }}")
+          fi
 
           mkdir -p artifacts/opl-first-run-vm
           COMMAND_PREVIEW="artifacts/opl-first-run-vm/app-wrapper-smoke-command-preview.txt"
@@ -1689,6 +1736,7 @@ jobs:
             > artifacts/opl-first-run-vm/artifacts/settings-runtime-refresh-verification.json
 
       - name: Write exact-artifact qualification receipt
+        id: qualification_receipt
         if: ${{ always() && inputs.release_artifact_name != '' && inputs.release_bundle_digest != '' && inputs.release_cohort_ref != '' && (needs.validate-vm-inputs.outputs.diagnostic_scope == 'bootstrap_only' || steps.settings_runtime_evidence.outcome == 'success') }}
         shell: bash
         run: |
@@ -1713,6 +1761,11 @@ jobs:
             --verification-scope-proof-base64 "${{ needs.validate-vm-inputs.outputs.qualification_scope_base64 }}"
           shasum -a 256 artifacts/opl-first-run-vm/artifact-qualification-receipt.json \
             > artifacts/opl-first-run-vm/artifact-qualification-receipt.sha256
+          receipt_sha="sha256:$(shasum -a 256 artifacts/opl-first-run-vm/artifact-qualification-receipt.json | awk '{print $1}')"
+          {
+            echo "qualification_artifact_name=opl-first-run-vm-${profile}-${GITHUB_RUN_ID}"
+            echo "qualification_receipt_sha256=$receipt_sha"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Write first-run VM critical diagnostics
         if: ${{ always() }}
@@ -1739,6 +1792,54 @@ jobs:
           DMG_CONCLUSION: ${{ steps.dmg.conclusion || 'skipped' }}
           CODEX_PACKAGE_PREFLIGHT_CONCLUSION: ${{ steps.codex_package_preflight.conclusion || 'skipped' }}
           VM_SMOKE_CONCLUSION: ${{ steps.vm_smoke.conclusion || 'skipped' }}
+
+      - name: Remove protected Gateway account files
+        if: ${{ always() && needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && (needs.validate-vm-inputs.outputs.package_profile == 'standard' || needs.validate-vm-inputs.outputs.package_profile == 'full') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          credential_dir="$RUNNER_TEMP/opl-gateway-release-credentials-${GITHUB_RUN_ID}-${GITHUB_JOB}"
+          case "$credential_dir" in
+            "$RUNNER_TEMP"/opl-gateway-release-credentials-*) ;;
+            *) echo "::error::Refusing to remove an unexpected credential path."; exit 1 ;;
+          esac
+          rm -rf "$credential_dir"
+          test ! -e "$credential_dir"
+
+      - name: Reject protected credentials in release evidence
+        if: ${{ always() && needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && (needs.validate-vm-inputs.outputs.package_profile == 'standard' || needs.validate-vm-inputs.outputs.package_profile == 'full') }}
+        shell: bash
+        env:
+          GATEWAY_ACCOUNT_EMAIL: ${{ secrets.OPL_GATEWAY_ACCOUNT_EMAIL }}
+          GATEWAY_ACCOUNT_PASSWORD: ${{ secrets.OPL_GATEWAY_ACCOUNT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const secrets = [
+            process.env.GATEWAY_ACCOUNT_EMAIL || '',
+            process.env.GATEWAY_ACCOUNT_PASSWORD || '',
+          ];
+          if (secrets.some((value) => !value)) throw new Error('Protected Gateway credentials are unavailable for evidence scanning.');
+          const roots = ['artifacts'];
+          const visit = (entry) => {
+            if (!fs.existsSync(entry)) return;
+            const stat = fs.lstatSync(entry);
+            if (stat.isSymbolicLink()) throw new Error(`Evidence path must not be a symlink: ${entry}`);
+            if (stat.isDirectory()) {
+              for (const child of fs.readdirSync(entry)) visit(path.join(entry, child));
+              return;
+            }
+            const bytes = fs.readFileSync(entry);
+            for (const secret of secrets) {
+              if (bytes.includes(Buffer.from(secret))) {
+                throw new Error(`Protected Gateway credential found in release evidence: ${entry}`);
+              }
+            }
+          };
+          for (const root of roots) visit(root);
+          NODE
 
       - name: Upload first-run VM critical diagnostics
         if: ${{ failure() }}

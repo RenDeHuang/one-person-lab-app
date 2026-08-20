@@ -841,6 +841,12 @@ jobs:
           name: macos-build-arm64
           path: standard-assets
 
+      - name: Download the signed Standard build cohort
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: macos-build-arm64-cohort
+          path: standard-cohort
+
       - name: Download the exact Linux Desktop build
         if: ${{ inputs.channel != 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -905,11 +911,45 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Upload bound Standard cohort identity
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-release-standard-bound-${{ github.run_id }}-cohort
+          path: standard-cohort
+          if-no-files-found: error
+          retention-days: 30
+
+  standard-clean-vm-qualification:
+    if: ${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}
+    needs: [freeze, seal-standard-identity]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      mode: execute
+      release_artifact_name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
+      release_artifact_run_id: ${{ github.run_id }}
+      standard_identity_sha256: ${{ needs.seal-standard-identity.outputs.standard_identity_sha256 }}
+      release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
+      release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
+      artifact_app_ref: ${{ needs.freeze.outputs.app_sha }}
+      shell_ref: ${{ needs.freeze.outputs.shell_sha }}
+      smoke_harness_ref: ${{ needs.freeze.outputs.shell_sha }}
+      framework_ref: ${{ needs.freeze.outputs.framework_sha }}
+      package_profile: standard
+      diagnostic_scope: release_gate
+      require_macos_gatekeeper: true
+      operation: standard
+      operation_started_at: ${{ needs.freeze.outputs.operation_started_at }}
+      operation_deadline_at: ${{ needs.freeze.outputs.operation_deadline_at }}
+    secrets: inherit
+
   checkpoint-standard:
-    if: ${{ always() && inputs.mode == 'execute' && needs.admission.result == 'success' && needs.freeze.result == 'success' && needs.seal-standard-identity.result == 'success' }}
+    if: ${{ always() && inputs.mode == 'execute' && needs.admission.result == 'success' && needs.freeze.result == 'success' && needs.seal-standard-identity.result == 'success' && (inputs.channel != 'stable' || needs.standard-clean-vm-qualification.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: [admission, freeze, seal-standard-identity]
+    needs: [admission, freeze, seal-standard-identity, standard-clean-vm-qualification]
     permissions:
       contents: read
       actions: read
@@ -958,6 +998,13 @@ jobs:
           name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
           path: bound-standard
 
+      - name: Download protected Standard clean-VM qualification
+        if: ${{ inputs.channel == 'stable' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.standard-clean-vm-qualification.outputs.qualification_artifact_name }}
+          path: standard-clean-vm-evidence
+
       - name: Download consumed Stable operation control for durable carrier binding
         if: ${{ inputs.channel == 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1005,6 +1052,46 @@ jobs:
                 framework_sha: $framework
               }
             ' "$identity_receipt" >/dev/null
+          if [ '${{ inputs.channel }}' = stable ]; then
+            qualification_receipts=()
+            while IFS= read -r receipt; do qualification_receipts+=("$receipt"); done < <(
+              find standard-clean-vm-evidence -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort
+            )
+            test "${#qualification_receipts[@]}" -eq 1 || {
+              echo "::error::Standard release requires exactly one clean-VM qualification receipt."
+              exit 1
+            }
+            qualification_receipt="${qualification_receipts[0]}"
+            test -s "$qualification_receipt" && test ! -L "$qualification_receipt"
+            qualification_sha="sha256:$(shasum -a 256 "$qualification_receipt" | awk '{print $1}')"
+            test "$qualification_sha" = '${{ needs.standard-clean-vm-qualification.outputs.qualification_receipt_sha256 }}' || {
+              echo "::error::Standard clean-VM qualification digest mismatch."
+              exit 1
+            }
+            jq -e \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg artifact '${{ needs.seal-standard-identity.outputs.standard_artifact_name }}' \
+              --arg bundle "$BUNDLE_DIGEST" \
+              --arg app '${{ needs.freeze.outputs.app_sha }}' \
+              --arg shell '${{ needs.freeze.outputs.shell_sha }}' \
+              --arg framework '${{ needs.freeze.outputs.framework_sha }}' '
+                .schema == "opl_app_artifact_qualification_receipt.v1"
+                and .status == "passed"
+                and .package_profile == "standard"
+                and .release_cohort_ref == $bundle
+                and .qualification.run_id == $run_id
+                and .qualification.source_artifact_run_id == $run_id
+                and .qualification.source_artifact_name == $artifact
+                and .qualification.result == "passed"
+                and .cohort == {
+                  app_sha: $app,
+                  shell_sha: $shell,
+                  framework_sha: $framework
+                }
+              ' "$qualification_receipt" >/dev/null
+            cp "$qualification_receipt" standard-clean-vm-qualification-receipt.json
+            printf '%s\n' "$qualification_sha" > standard-clean-vm-qualification-receipt.sha256
+          fi
           test -d bound-standard/assets && test ! -L bound-standard/assets
           mv bound-standard/assets standard-assets
           cp "$identity_receipt" standard-identity-receipt.json
@@ -1092,6 +1179,8 @@ jobs:
             standard-checkpoint
             standard-build-receipt.json
             standard-identity-receipt.json
+            standard-clean-vm-qualification-receipt.json
+            standard-clean-vm-qualification-receipt.sha256
             stable-operation-control
           if-no-files-found: error
           retention-days: 30

@@ -872,7 +872,12 @@ test('release contract keeps Standard independent behind Framework checkpoint au
     gui.release_channel_policy.stable.post_publication_optional_certification_surfaces,
     release.release_validation_profiles.stable.post_publication_optional_certification_surfaces,
   );
-  assert.equal(gui.release_channel_policy.stable.must_gate.includes('full_dmg_clean_vm_smoke'), false);
+  assert.equal(gui.release_channel_policy.stable.must_gate.includes('standard_dmg_clean_vm_smoke'), true);
+  assert.deepEqual(gui.release_channel_policy.stable.addon_must_gate, ['full_dmg_clean_vm_smoke']);
+  assert.deepEqual(gui.release_channel_policy.stable.same_candidate_prepublication_clean_install_gates, [
+    'standard_dmg_clean_vm_smoke',
+    'full_dmg_clean_vm_smoke',
+  ]);
   assert.equal(gui.release_channel_policy.stable.addon_gate_blocking_standard_terminal, false);
   assert.equal(gui.release_channel_policy.stable.diagnostic_lanes_block_publication_or_latest, false);
   assert.equal(gui.release_channel_policy.stable.optional_certification_blocks_publication_or_latest, false);
@@ -884,12 +889,12 @@ test('release contract keeps Standard independent behind Framework checkpoint au
     ],
   );
   assert.deepEqual(
-    release.full_first_install.size_policy.optimization_artifacts.optional_certification_evidence,
+    release.full_first_install.size_policy.optimization_artifacts.required_qualification_evidence,
     [
       {
         id: 'full_dmg_clean_vm_smoke',
-        policy: 'post_publication_optional_non_blocking',
-        allowed_statuses: ['passed', 'failed', 'not_run', 'unavailable'],
+        policy: 'required_prepublication_same_candidate',
+        allowed_statuses: ['passed'],
       },
     ],
   );
@@ -974,27 +979,30 @@ test('release contract keeps Standard independent behind Framework checkpoint au
     /implementations must remain absent/,
   );
 
-  const blockingVm = structuredClone(release);
-  blockingVm.release_acceleration.vm_gates.find(
+  const optionalFullVm = structuredClone(release);
+  optionalFullVm.release_acceleration.vm_gates.find(
     (gate) => gate.id === 'full_dmg_clean_vm_smoke',
-  ).gate_policy = 'deterministic_release_blocking';
+  ).gate_policy = 'optional_non_blocking_same_published_artifact';
   assert.throws(
-    () => validateReleaseChannelContract(blockingVm),
-    /post-publication optional certification/,
+    () => validateReleaseChannelContract(optionalFullVm),
+    /must fail closed on the exact same candidate/,
   );
 
   const mismatchedLegacyVm = structuredClone(release);
-  mismatchedLegacyVm.release_acceleration.vm_gate.diagnostic_scope = 'release_gate';
+  mismatchedLegacyVm.release_acceleration.vm_gate.diagnostic_scope = 'post_publication_optional_certification';
   assert.throws(
     () => validateReleaseChannelContract(mismatchedLegacyVm),
-    /Legacy Full VM optional certification mirror/,
+    /Legacy Full VM required qualification mirror/,
   );
 
-  const fullVmInStableTerminal = structuredClone(release);
-  fullVmInStableTerminal.release_validation_profiles.stable.addon_lanes.push('full_dmg_clean_vm_smoke');
+  const fullVmMissingFromAddon = structuredClone(release);
+  fullVmMissingFromAddon.release_validation_profiles.stable.addon_lanes =
+    fullVmMissingFromAddon.release_validation_profiles.stable.addon_lanes.filter(
+      (lane) => lane !== 'full_dmg_clean_vm_smoke',
+    );
   assert.throws(
-    () => validateReleaseChannelContract(fullVmInStableTerminal),
-    /outside the Stable publication terminal/,
+    () => validateReleaseChannelContract(fullVmMissingFromAddon),
+    /protect only their respective Stable track/,
   );
 });
 

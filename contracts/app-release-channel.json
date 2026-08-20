@@ -1097,7 +1097,7 @@
     "schema": "opl_release_provider_configuration_boundary.v1",
     "default_user_authentication": "opl_gateway_account_password",
     "api_key_role": "explicit_compatibility_only",
-    "configuration_timing": "user_requested_at_model_use_or_settings",
+    "configuration_timing": "user_requested_at_model_use_or_settings_except_protected_release_qualification",
     "artifact_and_package_independence": {
       "dmg_build_requires_provider_credential": false,
       "manual_full_m1_requires_provider_credential": false,
@@ -1106,12 +1106,40 @@
       "managed_package_currentness_requires_provider_credential": false
     },
     "release_vm_smoke": {
-      "default_provider_configuration_status": "not_requested",
-      "provider_configuration_is_blocking_release_gate": false,
+      "default_provider_configuration_status": "required_gateway_account_login",
+      "provider_configuration_is_blocking_release_gate": true,
+      "required_package_profiles": ["standard", "full"],
+      "credential_mode": "protected_gateway_account_files",
+      "credential_secret_names": [
+        "OPL_GATEWAY_ACCOUNT_EMAIL",
+        "OPL_GATEWAY_ACCOUNT_PASSWORD"
+      ],
+      "credential_transport": "release-stable secrets to mode_0600 runner files to guest files then CDP form arguments",
+      "credential_forbidden_surfaces": [
+        "command_argv",
+        "command_preview",
+        "step_summary",
+        "stdout",
+        "stderr",
+        "json_receipt",
+        "uploaded_artifact"
+      ],
       "synthetic_api_key_generation_allowed": false,
       "implicit_api_key_file_injection_allowed": false,
-      "visible_provider_wizard_without_explicit_credential": "observe_and_defer",
+      "visible_provider_wizard_without_explicit_credential": "fail_closed_for_standard_and_full_release_gate",
       "summary_pointer": "/provider_configuration",
+      "required_fresh_account_readback": [
+        "connected=true",
+        "account_non_empty",
+        "managed_key_active",
+        "stale=false"
+      ],
+      "required_official_profile_readback": [
+        "status=passed",
+        "desired_root_package_ids_exact",
+        "installed_root_package_ids_exact",
+        "restore_action_invoked=false"
+      ],
       "api_key_compatibility_lane_requires_explicit_request": true,
       "api_key_compatibility_lane_requires_explicit_credential_file": false,
       "explicit_api_key_file_role": "optional_manual_override_only",
@@ -1129,7 +1157,7 @@
         "secret_transport": "temporary_mode_0600_file_to_guest_then_stdin_no_secret_argv_plan_receipt_or_artifact"
       }
     },
-    "rule": "Provider configuration is optional local use-time configuration. Release build, Manual Full M1, local delivery, Preview publication, and managed package currentness never require a Provider credential. A specifically requested connected VM diagnostic may automatically reuse the selected OPL Gateway Base URL and bearer token from the developer host Codex config; it never asks the release user for a duplicate credential and never generates a synthetic API key."
+    "rule": "Artifact construction, local delivery, Preview publication, and managed package currentness remain independent of Provider credentials. Stable Standard and Full publication each require the exact candidate to complete a protected real OPL Gateway account login and Official Profile first-install convergence in a clean VM. Credentials never enter argv, logs, plans, summaries, receipts, or artifacts, and no synthetic API key is generated."
   },
   "github_release_name": {
     "format": "One Person Lab v<version>",
@@ -3643,15 +3671,12 @@
           "full-package-manifest.json#runtime_assertions.offline_required_payloads",
           "full-runtime-native-trust.json"
         ],
-        "optional_certification_evidence": [
+        "required_qualification_evidence": [
           {
             "id": "full_dmg_clean_vm_smoke",
-            "policy": "post_publication_optional_non_blocking",
+            "policy": "required_prepublication_same_candidate",
             "allowed_statuses": [
-              "passed",
-              "failed",
-              "not_run",
-              "unavailable"
+              "passed"
             ]
           }
         ],
@@ -4532,6 +4557,7 @@
       "schema": "opl_app_runner_policy.v1",
       "publication_floor": {
         "stable_and_latest_executor": "github_hosted",
+        "scope": "github_hosted_publication_subgraph_after_protected_macos_clean_install_gate",
         "required_floor": [
           "github_hosted_source_contract_build_preflight",
           "github_hosted_signed_notarized_standard_build",
@@ -4539,11 +4565,27 @@
           "standard_homebrew_digest_bound_publication",
           "standard_homebrew_publication_readback"
         ],
-        "self_hosted_ancestor_count": 0,
+        "self_hosted_ancestor_count": 1,
+        "self_hosted_ancestor_scope": "exact_profile_protected_clean_install_only",
+        "optional_or_advisory_self_hosted_ancestor_count": 0,
         "offline_or_unavailable_effect": "publication_continues_without_waiting_or_queueing",
         "optional_certification_effect": "evidence_only_does_not_change_publication_or_latest"
       },
+      "protected_macos_clean_install_gate": {
+        "runner_pool": "mac-tart",
+        "workload_class": "pre_publication_macos_clean_install_gate",
+        "required_profiles": ["standard", "full"],
+        "artifact_binding": "same_run_exact_candidate_cohort_and_checkpoint_sidecar",
+        "credentials_environment": "release-stable",
+        "missing_runner_or_credential_effect": "fail_closed_without_publication",
+        "resume_policy": "checkpoint_must_contain_and_publish_restore_must_validate_the_exact_passed_qualification_sidecar"
+      },
       "workload_classes": {
+        "pre_publication_macos_clean_install_gate": {
+          "artifact_binding": "exact_same_run_candidate_before_publication",
+          "statuses": ["passed", "failed"],
+          "publication_blocking": true
+        },
         "post_publication_optional_certification": {
           "artifact_binding": "exact_published_release_artifact_with_workflow_cas_and_unified_attestation",
           "statuses": [
@@ -4619,6 +4661,7 @@
             "no_clt_first_install"
           ],
           "workload_classes": [
+            "pre_publication_macos_clean_install_gate",
             "post_publication_optional_certification",
             "nightly_or_maintenance"
           ],
@@ -4670,13 +4713,14 @@
         "missing_capability_status": "unavailable",
         "fallback": "hosted_equivalent_or_not_run",
         "release_priority": [
+          "pre_publication_macos_clean_install_gate",
           "github_hosted_publication_floor",
           "post_publication_optional_certification",
           "pr_advisory_acceleration",
           "nightly_or_maintenance"
         ],
         "preemption": {
-          "stable_latest_publication": "never_preempted_by_self_hosted_work",
+          "stable_latest_publication": "waits_only_for_the_protected_same_candidate_macos_clean_install_gate",
           "p0_release_or_foreground": "never_preempted",
           "background_or_experiment": "preemptible_only_with_explicit_fleet_lease",
           "same_pool_concurrency": "one_active_job_per_machine_unless_fleet_capability_allows_more"
@@ -5289,16 +5333,23 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
-        "diagnostic_scope": "post_publication_optional_certification",
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "standard",
         "certification_readiness": [
           "local_authorization_policy",
           "app_launch",
-          "core_ready_or_app_managed_bootstrap_visible",
+          "core_ready_after_app_managed_bootstrap",
+          "gateway_account_fresh_connected_managed_key_non_stale",
+          "official_profile_exact_roots_installed_without_restore",
           "settings_navigation",
-          "home_agent_shortcuts_visible_and_launch_blocked_with_repair_hint"
+          "home_agent_shortcuts_visible_selectable_and_launch_admitted"
         ],
-        "gate_policy": "optional_non_blocking_same_published_artifact"
+        "release_blocking_readiness": [
+          "gateway_account_login",
+          "official_profile_first_install",
+          "fresh_framework_agent_projection"
+        ],
+        "gate_policy": "required_prepublication_same_candidate"
       },
       {
         "id": "homebrew_standard_cask_clean_vm_smoke",
@@ -5336,17 +5387,24 @@
         "smoke_profile": "no-clt-clean-vm",
         "display": "1920x1080px",
         "settings_smoke": true,
-        "diagnostic_scope": "post_publication_optional_certification",
+        "diagnostic_scope": "release_gate",
         "runtime_profile": "full",
-        "codex_config_wizard": "required_and_submitted",
+        "codex_config_wizard": "not_used_gateway_account_default",
         "certification_readiness": [
           "local_authorization_policy",
           "core_ready",
+          "gateway_account_fresh_connected_managed_key_non_stale",
+          "official_profile_exact_roots_installed_without_restore",
           "domain_modules_ready",
           "family_runtime_provider_ready",
           "assistant_route_receipts"
         ],
-        "gate_policy": "optional_non_blocking_same_published_artifact",
+        "release_blocking_readiness": [
+          "gateway_account_login",
+          "official_profile_first_install",
+          "fresh_framework_agent_projection"
+        ],
+        "gate_policy": "required_prepublication_same_candidate",
         "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready"
       }
     ],
@@ -5391,10 +5449,10 @@
       "smoke_profile": "no-clt-clean-vm",
       "display": "1920x1080px",
       "settings_smoke": true,
-      "diagnostic_scope": "post_publication_optional_certification",
+      "diagnostic_scope": "release_gate",
       "runtime_profile": "full",
-      "codex_config_wizard": "required_and_submitted",
-      "gate_policy": "optional_non_blocking_same_published_artifact",
+      "codex_config_wizard": "not_used_gateway_account_default",
+      "gate_policy": "required_prepublication_same_candidate",
       "preflight_summary_fields": [
         "runner_labels",
         "source_vm",
@@ -5415,9 +5473,16 @@
       "certification_readiness": [
         "local_authorization_policy",
         "core_ready",
+        "gateway_account_fresh_connected_managed_key_non_stale",
+        "official_profile_exact_roots_installed_without_restore",
         "domain_modules_ready",
         "family_runtime_provider_ready",
         "assistant_route_receipts"
+      ],
+      "release_blocking_readiness": [
+        "gateway_account_login",
+        "official_profile_first_install",
+        "fresh_framework_agent_projection"
       ],
       "post_core_ready_background_policy": "best_effort_non_blocking_until_maintenance_ready",
       "non_blocking_deferred_maintenance": [
@@ -5477,16 +5542,18 @@
       "workflow": ".github/workflows/release-nightly.yml"
     },
     "stable": {
-      "purpose": "publish one CAS- and attestation-protected mutable Standard through the GitHub-hosted source, contract, build, signing, notarization, package, Homebrew, Latest, repository-setting restore, and public readback floor",
+      "purpose": "publish one CAS- and attestation-protected mutable Standard after the exact candidate passes the protected macOS clean-install gate, then use the GitHub-hosted package, Homebrew, Latest, repository-setting restore, and public readback floor",
       "required_lanes": [
         "release_boundary_contract",
         "active_shell_quick_validation",
         "standard_macos_arm64_build",
+        "standard_dmg_clean_vm_smoke",
         "local_standard_asset_validation",
         "remote_standard_release_verification"
       ],
       "addon_lanes": [
         "full_first_install_build",
+        "full_dmg_clean_vm_smoke",
         "remote_full_addon_verification",
         "docker_webui_smoke",
         "webui_ghcr_publish"
@@ -5494,15 +5561,15 @@
       "addon_gate_blocking_standard_terminal": false,
       "diagnostic_lanes": [
         "operator_evidence_bundle",
-        "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke",
-        "full_dmg_clean_vm_smoke"
+        "one_shot_app_installer_fresh_install_smoke"
       ],
       "post_publication_optional_certification_surfaces": [
-        "standard_dmg_clean_vm_smoke",
         "homebrew_standard_cask_clean_vm_smoke",
-        "one_shot_app_installer_fresh_install_smoke",
+        "one_shot_app_installer_fresh_install_smoke"
+      ],
+      "same_candidate_prepublication_clean_install_gates": [
+        "standard_dmg_clean_vm_smoke",
         "full_dmg_clean_vm_smoke"
       ],
       "hosted_post_publication_optional_certification_surfaces": [
@@ -5515,7 +5582,7 @@
         "unavailable"
       ],
       "release_latest_policy": "stable_release_may_be_marked_latest_after_required_lanes_pass",
-      "heavy_gate_policy": "post-publication optional certification never blocks or queues Stable publication or Latest",
+      "heavy_gate_policy": "Standard and Full exact-candidate clean-install gates fail closed before their respective publication; remaining optional certification never blocks or queues publication or Latest",
       "forbidden_inferences": [
         "stable/latest promotion from draft evidence bundle alone",
         "family production readiness from App release/user-path evidence",

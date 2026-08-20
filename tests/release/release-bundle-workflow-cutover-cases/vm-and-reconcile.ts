@@ -182,7 +182,7 @@ test('active release workflows fail closed on duplicate critical evidence instea
     }
   }
 
-  assert.doesNotMatch(readWorkflow('_release-bundle.yml'), /artifact qualification receipt/);
+  assert.match(readWorkflow('_release-bundle.yml'), /exactly one clean-VM qualification receipt/);
   assert.match(readWorkflow('_release-full-addon.yml'), /must contain at most one Full build receipt/);
   assert.match(readWorkflow('_release-standard-publish.yml'), /requires exactly one publication receipt/);
   const observationalHomebrew = readWorkflow('_release-homebrew-full-publish.yml');
@@ -197,6 +197,110 @@ test('active release workflows fail closed on duplicate critical evidence instea
     /\[\.assets\[\] \| select\(\.name == "opl-app-component-manifest\.json"\)\] \| length == 1/,
   );
   assert.match(readWorkflow('opl-first-run-vm.yml'), /must appear at most once/);
+});
+
+test('Standard publish restore rejects a missing or digest-mismatched clean-VM sidecar', () => {
+  const verification = workflowStep(
+    '_release-standard-publish.yml',
+    'restore',
+    'Verify protected Standard clean-VM checkpoint sidecar',
+  );
+  assert.equal(verification.if, "${{ inputs.publication_channel == 'stable' }}");
+
+  const runFixture = (mode: 'valid' | 'missing' | 'digest-mismatch') => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-clean-vm-sidecar-'));
+    const checkpoint = path.join(root, 'checkpoint-identity-bootstrap');
+    fs.mkdirSync(checkpoint, { recursive: true });
+    const appSha = '1'.repeat(40);
+    const shellSha = '2'.repeat(40);
+    const frameworkSha = '3'.repeat(40);
+    const bundleDigest = `sha256:${'4'.repeat(64)}`;
+    const receipt = {
+      schema: 'opl_app_artifact_qualification_receipt.v1',
+      status: 'passed',
+      package_profile: 'standard',
+      release_cohort_ref: bundleDigest,
+      qualification: {
+        run_id: '42',
+        source_artifact_run_id: '42',
+        source_artifact_name: 'opl-release-standard-bound-42',
+        result: 'passed',
+      },
+      cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
+    };
+    const receiptPath = path.join(checkpoint, 'standard-clean-vm-qualification-receipt.json');
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt)}\n`);
+    fs.writeFileSync(
+      path.join(checkpoint, 'standard-clean-vm-qualification-receipt.sha256'),
+      `sha256:${mode === 'digest-mismatch'
+        ? 'f'.repeat(64)
+        : crypto.createHash('sha256').update(fs.readFileSync(receiptPath)).digest('hex')}\n`,
+    );
+    fs.writeFileSync(
+      path.join(checkpoint, 'standard-identity-receipt.json'),
+      `${JSON.stringify({ source: { run_id: '42' } })}\n`,
+    );
+    fs.writeFileSync(
+      path.join(checkpoint, 'bundle.json'),
+      `${JSON.stringify({
+        bundle_digest: bundleDigest,
+        sources: {
+          app: { source_commit: appSha },
+          shell: { source_commit: shellSha },
+          framework: { source_commit: frameworkSha },
+        },
+      })}\n`,
+    );
+    if (mode === 'missing') fs.rmSync(receiptPath);
+    const result = spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', String(verification.run)], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    fs.rmSync(root, { recursive: true, force: true });
+    return result;
+  };
+
+  const valid = runFixture('valid');
+  assert.equal(valid.status, 0, valid.stderr || valid.stdout);
+  assert.notEqual(runFixture('missing').status, 0);
+  assert.notEqual(runFixture('digest-mismatch').status, 0);
+});
+
+test('release-gate Gateway credentials stay file-bound and are scanned before artifact upload', () => {
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const find = (name: string) => {
+    const step = steps.find((candidate) => candidate.name === name);
+    assert.ok(step, `clean-vm-first-run is missing ${name}`);
+    return step;
+  };
+  const prepare = find('Prepare protected Gateway account files for release qualification');
+  const smoke = find('Run clean VM first launch smoke');
+  const remove = find('Remove protected Gateway account files');
+  const scan = find('Reject protected credentials in release evidence');
+  const uploadDiagnostics = find('Upload first-run VM critical diagnostics');
+  const uploadEvidence = find('Upload first-run VM artifacts');
+
+  assert.deepEqual(prepare.env, {
+    GATEWAY_ACCOUNT_EMAIL: '${{ secrets.OPL_GATEWAY_ACCOUNT_EMAIL }}',
+    GATEWAY_ACCOUNT_PASSWORD: '${{ secrets.OPL_GATEWAY_ACCOUNT_PASSWORD }}',
+  });
+  assert.match(String(prepare.run), /umask 077/);
+  assert.match(String(prepare.run), /chmod 600 "\$email_file" "\$password_file"/);
+  assert.doesNotMatch(String(prepare.run), /echo[^\n]*\$GATEWAY_ACCOUNT_(?:EMAIL|PASSWORD)/);
+  assert.equal(smoke.env, undefined);
+  assert.doesNotMatch(String(smoke.run), /secrets\.OPL_GATEWAY|GATEWAY_ACCOUNT_(?:EMAIL|PASSWORD)/);
+  assert.match(String(smoke.run), /--gateway-account-email-file/);
+  assert.match(String(smoke.run), /--gateway-account-password-file/);
+  assert.doesNotMatch(String(smoke.run), /--gateway-account-(?:email|password)(?:\s|$)/);
+  assert.match(String(scan.run), /const roots = \['artifacts'\]/);
+  assert.match(String(scan.run), /Protected Gateway credential found in release evidence/);
+  assert.ok(steps.indexOf(remove) < steps.indexOf(scan));
+  assert.ok(steps.indexOf(scan) < steps.indexOf(uploadDiagnostics));
+  assert.ok(steps.indexOf(scan) < steps.indexOf(uploadEvidence));
+  for (const upload of [uploadDiagnostics, uploadEvidence]) {
+    assert.doesNotMatch(JSON.stringify(upload.with), /gateway-release-credentials|email_file|password_file/);
+  }
 });
 
 test('release helpers reject duplicate mounted Apps, promotion receipts, and packaged runtime executables', () => {

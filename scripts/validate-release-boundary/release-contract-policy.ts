@@ -750,16 +750,38 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
       'standard_dmg_clean_vm_smoke',
       'homebrew_standard_cask_clean_vm_smoke',
       'full_dmg_clean_vm_smoke',
-    ]) ||
-    vmGates.some((gate) =>
-      gate?.diagnostic_scope !== 'post_publication_optional_certification' ||
-      gate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+    ])
+  ) {
+    console.error('FAIL release_vm_certification_policy: physical VM gate identities must remain exact');
+    failures += 1;
+  }
+  const requiredVmGates = vmGates.filter((gate) =>
+    ['standard_dmg_clean_vm_smoke', 'full_dmg_clean_vm_smoke'].includes(gate?.id),
+  );
+  if (
+    requiredVmGates.length !== 2 ||
+    requiredVmGates.some((gate) =>
+      gate?.diagnostic_scope !== 'release_gate' ||
+      gate?.gate_policy !== 'required_prepublication_same_candidate' ||
       !Array.isArray(gate?.certification_readiness) ||
       gate.certification_readiness.length === 0 ||
-      'release_blocking_readiness' in gate
+      !sameStringSet(gate?.release_blocking_readiness, [
+        'gateway_account_login',
+        'official_profile_first_install',
+        'fresh_framework_agent_projection',
+      ])
     )
   ) {
-    console.error('FAIL release_vm_certification_policy: every physical VM gate must be post-publication, same-artifact, and non-blocking');
+    console.error('FAIL release_vm_required_policy: Standard and Full clean-VM gates must fail closed on the exact same candidate');
+    failures += 1;
+  }
+  const optionalVmGate = vmGates.find((gate) => gate?.id === 'homebrew_standard_cask_clean_vm_smoke');
+  if (
+    optionalVmGate?.diagnostic_scope !== 'post_publication_optional_certification' ||
+    optionalVmGate?.gate_policy !== 'optional_non_blocking_same_published_artifact' ||
+    'release_blocking_readiness' in (optionalVmGate ?? {})
+  ) {
+    console.error('FAIL release_vm_optional_policy: Homebrew VM certification must remain post-publication and non-blocking');
     failures += 1;
   }
   const fullVmGate = vmGates.find((gate) => gate?.id === 'full_dmg_clean_vm_smoke');
@@ -775,6 +797,7 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
     'codex_config_wizard',
     'gate_policy',
     'certification_readiness',
+    'release_blocking_readiness',
     'post_core_ready_background_policy',
   ];
   if (
@@ -782,10 +805,9 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
     !legacyVmGate ||
     legacyVmMirrorFields.some((field) =>
       JSON.stringify(legacyVmGate[field]) !== JSON.stringify(fullVmGate[field])
-    ) ||
-    'release_blocking_readiness' in legacyVmGate
+    )
   ) {
-    console.error('FAIL release_vm_legacy_mirror: legacy Full VM policy must mirror the optional certification gate');
+    console.error('FAIL release_vm_legacy_mirror: legacy Full VM policy must mirror the required clean-install gate');
     failures += 1;
   }
   if (
@@ -827,19 +849,22 @@ function validatePhysicalVmOptionalCertificationPolicy(releaseContract: Record<s
   const stableValidation = releaseContract.release_validation_profiles?.stable;
   if (
     stableValidation?.addon_gate_blocking_standard_terminal !== false ||
-    stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
-    !stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.addon_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    stableValidation?.diagnostic_lanes?.includes('full_dmg_clean_vm_smoke') ||
+    !stableValidation?.required_lanes?.includes('standard_dmg_clean_vm_smoke') ||
     !sameStringSet(stableValidation?.post_publication_optional_certification_surfaces, [
-      'standard_dmg_clean_vm_smoke',
       'homebrew_standard_cask_clean_vm_smoke',
       'one_shot_app_installer_fresh_install_smoke',
+    ]) ||
+    !sameStringSet(stableValidation?.same_candidate_prepublication_clean_install_gates, [
+      'standard_dmg_clean_vm_smoke',
       'full_dmg_clean_vm_smoke',
     ]) ||
     !sameStringSet(stableValidation?.hosted_post_publication_optional_certification_surfaces, [
       'linux_x64_same_artifact_install_smoke',
     ])
   ) {
-    console.error('FAIL release_stable_optional_certification: physical VM coverage must remain outside the Stable publication terminal');
+    console.error('FAIL release_stable_vm_policy: exact-candidate Standard and Full gates must protect only their respective publication tracks');
     failures += 1;
   }
   return failures;
