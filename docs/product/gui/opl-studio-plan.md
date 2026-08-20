@@ -170,6 +170,45 @@ The current objective stops at the functional baseline and local user acceptance
 replacement or retirement, protected release admission, signing/notarization, publication, deployment and
 public update-feed mutation are deferred to separate App-owner decisions after that baseline is accepted.
 
+The approved delivery order now has an explicit Preview and transition runway. Studio first ships only as
+the separately identified `One Person Lab Preview`, using its own bundle, user-data root, repository, and
+updater feed for feature validation and internal users. A Preview release may be publicly downloadable and
+automatically update later Preview builds after its own signing, notarization, feed, artifact, install, and
+restart qualification. It remains outside the App Stable/Dev/Nightly identity and does not change the active
+shell.
+
+After functional and internal acceptance, adoption converges both installed populations on the existing
+`One Person Lab` identity defined by `contracts/app-release-channel.json#shell_transition_policy`:
+
+- Existing AionUI App installations receive Studio renderer bytes as a normal strictly newer update from
+  the preserved App Stable feed. Bundle ID, install path, user-data root, repository, and updater metadata
+  namespace stay unchanged.
+- Existing Studio Preview installations receive a terminal Preview update that performs a signed handoff
+  to one exact notarized App release. Preview never changes its bundle ID or feed to impersonate the App.
+
+The target's first launch owns one idempotent, versioned migration before normal renderer startup. It imports
+only allowlisted shell-local preferences, canonical-thread-keyed UI metadata, and unsent drafts. Codex
+threads, Gateway credentials/account, Framework Package/runtime/receipts, Workspace source, and domain
+artifacts remain at their existing owners and are reused without copying. AionUI/AionCore databases,
+credentials, cookies, Electron cache/session data, and updater identity files are excluded. An optional last
+AionUI pre-cutover release may emit migration inventory for early diagnosis, but correctness must not depend
+on users installing that intermediate version; direct upgrade from every supported source version remains
+mandatory.
+
+The future implementation sequence is:
+
+1. close the Studio functional baseline and internal-user acceptance;
+2. qualify signed/notarized Studio Preview publication and Preview-to-Preview automatic updates;
+3. implement the App target migrator, AionUI supported-source readers, and Preview handoff exporter/helper;
+4. freeze the supported source window and qualify AionUI-only, Preview-only, both-installed, interrupted
+   migration, existing-target, and rollback scenarios in clean VMs;
+5. explicitly switch the App adapter and publish Studio bytes through the preserved App Stable identity;
+6. publish the terminal Preview handoff, then retain source bytes and rollback artifacts until post-update
+   owner readback is accepted.
+
+No source, local package, migration receipt, or Preview release authorizes step 5. The cutover requires a
+separate App-owner production decision and exact public/installed readback for both upgrade routes.
+
 ## Optional Design Evaluation Tooling
 
 For an explicit, bounded UI hypothesis, maintainers may use the `build-web-apps`

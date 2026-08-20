@@ -13,7 +13,7 @@ package scripts, validation output, and candidate package artifacts.
 | Role | Shell | Physical checkout | Adapter contract | Default scope |
 | --- | --- | --- | --- | --- |
 | Active App GUI | `aionui` | `shells/aionui` or `OPL_APP_SHELL_ROOT` | `contracts/app-shell-adapter.json` | Stable plus Dev/Nightly Preview wrapper commands |
-| Foreground candidate | `opl-studio` | `shells/opl-studio` or `../opl-studio` | `contracts/shell-adapters/opl-studio.json` | Explicit Native validation/build only |
+| Foreground candidate | `opl-studio` | `shells/opl-studio` or `../opl-studio` | `contracts/shell-adapters/opl-studio.json` | Explicit validation/build and dedicated Studio Preview release only; never App Stable/Dev/Nightly before adoption |
 
 Stable role marker:
 `gui_shell_roles: active=aionui; foreground=opl-studio`.
@@ -67,7 +67,7 @@ authority 或重写另一 Shell。
 | Workspace、source files、artifact refs | 用户 workspace / domain owner | 可由两个 GUI 指向同一逻辑工作区，但不据此声明并发写安全。 |
 | Renderer、framework、lockfile、`node_modules` | 每个 shell 独立 | AionUI 与 Native 不共享依赖树。 |
 | Window state、panel layout、draft、UI cache | 每个 GUI 私有、可重建 | 不允许直接读取或写入另一个 GUI 的 SQLite、localStorage 或 user-data store。 |
-| Bundle id、updater、release artifact | 每个安装身份隔离；release authority 仍归 App | 可并存安装；candidate shell 在 adoption 前不进入 Stable、Dev 或 Nightly build。Latest pointer selection 不改变 shell role。 |
+| Bundle id、updater、release artifact | 每个安装身份隔离；release authority 仍归 App | 可并存安装；candidate 在 adoption 前只进入独立 Studio Preview repository/feed，不进入 App Stable、Dev 或 Nightly identity。Latest pointer selection 不改变 shell role。 |
 
 “共享逻辑基座”不等于“当前共享同一份物理 Runtime”。AionUI 走 managed/packaged
 runtime 路径；Native 通过 App launcher 使用显式 `opl`/`codex` 路径，但直接打开 bundle
@@ -93,6 +93,34 @@ canonical thread history。迁移计划见
 | `active release shell` | Stable 与当前 Dev/Nightly Preview 的发布 GUI | 只由 `contracts/app-shell-adapter.json` 决定；当前为 AionUI。 |
 | `local GUI launch target` | 本机本次打开 AionUI 或 Native | 每次 launch 局部选择；不得修改 active adapter、release role 或 updater channel。 |
 | `adoption / promotion` | 候选正式替换默认发布 GUI | 显式修改 active adapter，并完成完整 adoption/release/owner gates。 |
+
+## Preview 到正式 App 的升级路线
+
+完整机器合同是
+`contracts/app-release-channel.json#shell_transition_policy`；本节只解释 Shell 角色，
+不复制 release/version/data truth。
+
+正式切换保留当前 `One Person Lab` 的 Bundle ID、`/Applications/One Person Lab.app`、
+user-data 根和 App Stable feed，仅把实现从 AionUI 换成 Studio。这样当前主线用户可以沿
+现有 updater 原地升级，且第一版 Studio 正式 App 在正常启动 renderer 前执行一次幂等、
+可恢复的 allowlisted local-state migration。
+
+Studio Preview 继续保持独立 Bundle ID、应用名、user-data 和 repository/feed。不同身份的
+Electron App 不能被描述为原地自动更新：Preview 的 terminal release 必须通过受签名保护的
+handoff 安装 exact 正式 App，迁移 Preview 私有设置和未发送草稿，并在正式 App 的启动、
+版本、数据和 owner state 回读成功后才允许清理 Preview。Preview feed 不得被重定向或改名
+为 App Stable feed。
+
+切换不迁移 Codex thread truth、Gateway credential、Framework Package/runtime/receipt、
+Workspace 或 domain artifact；这些数据继续由原 owner 提供。AionUI/Preview 的数据库、
+cookie、Electron cache、updater identity 和凭据不得整体复制到新 renderer。两边都存在时，
+触发 handoff 的来源只填充正式 App 尚不存在的允许字段；草稿按来源命名空间保留，禁止静默
+覆盖。
+
+在 Preview 内测结束前，这条路线只是 `planned_not_authorized`。后续开发必须分别证明：
+AionUI supported-source window 到正式 App 的直接更新、Preview 到正式 App 的 handoff、
+双安装共存的单 writer、迁移中断恢复、回滚路径，以及更新后 Gateway/thread/workspace/
+settings 的 owner readback。通过这些门禁后，才修改 `app-shell-adapter.json`。
 
 每次 App wrapper 解析 active 或显式 candidate adapter 时，都必须先通过 App-owned
 `client_renderer_compatibility` / `client_renderer_admission`。该门禁验证两条 renderer 共享
@@ -229,4 +257,7 @@ is deliberately outside that authority path.
 | 3 | Shared Runtime resolver | Both GUI clients consume the App resolver and emit exact OPL/Codex path, version and cohort readback. | Implemented for launcher-started Native only; active AionUI parity and Native direct-launch fallback remain unproven. |
 | 4 | Canonical conversation continuity | Both clients project App Server `thread/list/read/resume`; local stores contain UI state/drafts/rebuildable cache only. | P1c App/Studio candidate bytes remove the Studio private coordination/cache requirement, but canonical absorption and cross-GUI continuity evidence remain pending; AionUI private repository is unchanged by this slice. |
 | 5 | Side-by-side acceptance | Distinct bundle identities, sequential switching, same-workspace readback and negative concurrent-write cases use one exact cohort. | Pending; no simultaneous-write claim. |
-| 6 | Optional adoption | Candidate changes the active adapter and passes full release/owner gates. | Separate later decision. |
+| 6 | Preview qualification | Dedicated Preview feed proves signed/notarized install, update, restart and current-version readback without changing the active App identity. | Current phase after functional acceptance. |
+| 7 | Dual-source migration | AionUI direct in-place update and Preview exact handoff preserve allowlisted local state and reuse owner state without copying databases or secrets. | Planned; implementation and clean-VM proof pending. |
+| 8 | Optional adoption | Candidate changes the active adapter and publishes Studio bytes on the preserved App Stable identity only after full release/owner gates. | Separate later decision. |
+| 9 | Legacy retirement | Terminal Preview handoff and old Shell data are removed only after post-update owner readback and rollback retention. | Deferred until adoption acceptance. |

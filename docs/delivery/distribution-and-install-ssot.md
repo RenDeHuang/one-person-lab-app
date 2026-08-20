@@ -9,6 +9,47 @@ macOS 与 Linux Desktop 可在无图形会话中运行，并通过 Desktop 自�
 Docker WebUI 保留为独立容器产品线，使用 GHCR 自己的版本、资格与移动标签；它不是
 Desktop Stable 的 follower，也不参与 Desktop GitHub Release 的资产集合。
 
+## GUI 演进与升级路线
+
+机器真值位于
+`contracts/app-release-channel.json#shell_transition_policy`。当前阶段只发布和测试
+独立的 **One Person Lab Preview**，不修改 OPL App Stable 的 active shell、bundle、
+安装路径、user-data 或更新 feed。最终切换必须收敛为一个正式 Desktop 身份，而不是
+长期维护两个同名 App 或两个 Stable feed。
+
+| 阶段身份 | Bundle ID / 安装路径 | 更新 authority | 终态 |
+| --- | --- | --- | --- |
+| 当前 OPL App（AionUI） | `cn.onepersonlab.opl` / `/Applications/One Person Lab.app` | `gaofeng21cn/one-person-lab-app` Stable feed | 保留此正式身份，未来只替换 Shell |
+| OPL Studio Preview | `cn.onepersonlab.opl.studio.preview` / `/Applications/One Person Lab Preview.app` | `gaofeng21cn/opl-studio` Preview feed | 功能测试期独立更新，切换时发布 terminal handoff |
+| 切换后的 OPL App（Studio） | `cn.onepersonlab.opl` / `/Applications/One Person Lab.app` | 继续使用 App Stable feed | 唯一正式身份 |
+
+因此有两条不同但最终汇合的升级路线：
+
+1. **AionUI 主线用户原地自动升级。** 第一版 Studio 内核的正式 App 必须继续使用现有
+   Bundle ID、安装路径、Stable repository、updater metadata 命名和严格递增版本。更新后
+   第一次启动先执行幂等数据迁移，再进入正常 renderer。实现必须直接支持 cutover manifest
+   声明的全部仍受支持 AionUI 版本，不能把用户曾经安装某个中间桥接版本作为正确性前提。
+2. **Studio Preview 用户自动 handoff。** 不同 Bundle ID 和 feed 不能冒充原地更新。
+   最后一个 Preview 更新只能下载并校验 exact version、URL、SHA-256、Developer ID、
+   notarization 和 Gatekeeper 均通过的正式 App，导出 Preview 的允许迁移状态，退出后安装或
+   激活正式 App，由正式 App 完成导入并回写 receipt。Preview feed 永远不变成 Stable feed；
+   正式 App 成功启动、迁移和 owner readback 前不得删除 Preview 或源数据。
+
+状态分两类处理：
+
+- Codex 对话、Gateway 凭据/账户、Framework Package/runtime/receipt、Workspace source 与
+  domain artifact 都继续从原 owner 读取，**不复制、不迁库**。
+- 只有 Shell 私有且不可重建的配置需要版本化迁移：语言、主题与无障碍偏好，非敏感的
+  模型/推理/权限偏好，工作区选择与标签，canonical thread keyed UI metadata，未发送草稿，
+  通知与日志位置。迁移清单不得包含密码、API key、token、cookie、Keychain material、
+  AionCore/AionUI backend database、Codex 消息正文、Framework 状态或 Electron cache。
+
+落地顺序固定为：Preview 功能基线和内测；Preview 签名、公证、公开更新链资格；两条迁移
+路径实现和 supported-source window 冻结；AionUI 原地更新与 Preview handoff 的 clean-VM
+验收；显式 active-shell/release authority 切换；正式 App 与 terminal Preview handoff 发布；
+最后才进行旧数据和 Preview 的有界清理。任何一步的 source、candidate 或本机测试都不能
+替代下一步的 public/installed/owner readback。
+
 ## Stable Desktop Release Set
 
 每个 Stable 版本只有一个 GitHub Release 和一个 `v<version>` tag：

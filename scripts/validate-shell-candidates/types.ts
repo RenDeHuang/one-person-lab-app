@@ -317,6 +317,7 @@ export type ShellCandidateRegistry = {
     }>;
   };
   release_shell_contract: string;
+  shell_transition_policy_ref: string;
   gui_product_contract: string;
   runtime_bridge_contract: string;
   product_profile_contract: string;
@@ -372,4 +373,47 @@ export type ShellCandidateRegistry = {
     forbidden_reuse: string[];
   }>;
   candidates: ShellCandidate[];
+};
+
+export type ShellTransitionPolicy = {
+  schema: string;
+  state: string;
+  authority_owner: string;
+  initial_carrier: string;
+  current_active_shell: string;
+  current_candidate_shell: string;
+  target_active_shell: string;
+  execution_requires_separate_authorization: boolean;
+  identities: Record<'active_app' | 'studio_preview' | 'target_app', {
+    product_name: string;
+    shell?: string;
+    bundle_id: string;
+    install_path: string;
+    user_data_root: string;
+    release_repository: string;
+    updater_metadata: string[];
+    transition_role: string;
+  }>;
+  version_lines: {
+    active_app: string;
+    studio_preview: string;
+    merge_policy: string;
+    target_first_version_rule: string;
+    source_window_rule: string;
+  };
+  upgrade_routes: {
+    aionui_mainline_to_target: Record<string, unknown>;
+    studio_preview_to_target: Record<string, unknown>;
+  };
+  state_continuity: {
+    canonical_shared_state: Array<{ id: string; owner: string; transition: string }>;
+    shell_local_migration: Record<string, unknown> & {
+      allowlisted_classes: string[];
+      excluded_classes: string[];
+    };
+  };
+  cutover_sequence: string[];
+  cutover_gates: string[];
+  rollback_policy: Record<string, unknown>;
+  forbidden: string[];
 };

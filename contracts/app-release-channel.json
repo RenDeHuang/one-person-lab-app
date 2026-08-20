@@ -174,6 +174,186 @@
     "active_product_bundle_id": "cn.onepersonlab.opl",
     "studio_preview_bundle_id": "cn.onepersonlab.opl.studio.preview"
   },
+  "shell_transition_policy": {
+    "schema": "opl_app_shell_transition_policy.v1",
+    "state": "planned_not_authorized",
+    "authority_owner": "one-person-lab-app",
+    "initial_carrier": "macos_arm64",
+    "current_active_shell": "aionui",
+    "current_candidate_shell": "opl-studio",
+    "target_active_shell": "opl-studio",
+    "execution_requires_separate_authorization": true,
+    "identities": {
+      "active_app": {
+        "product_name": "One Person Lab",
+        "bundle_id": "cn.onepersonlab.opl",
+        "install_path": "/Applications/One Person Lab.app",
+        "user_data_root": "~/Library/Application Support/One Person Lab",
+        "release_repository": "gaofeng21cn/one-person-lab-app",
+        "updater_metadata": [
+          "latest-mac.yml",
+          "latest-arm64-mac.yml"
+        ],
+        "transition_role": "preserved_canonical_identity"
+      },
+      "studio_preview": {
+        "product_name": "One Person Lab Preview",
+        "bundle_id": "cn.onepersonlab.opl.studio.preview",
+        "install_path": "/Applications/One Person Lab Preview.app",
+        "user_data_root": "~/Library/Application Support/opl-studio",
+        "release_repository": "gaofeng21cn/opl-studio",
+        "updater_metadata": [
+          "latest-mac.yml",
+          "latest-arm64-mac.yml"
+        ],
+        "transition_role": "independent_preview_identity_until_terminal_handoff"
+      },
+      "target_app": {
+        "product_name": "One Person Lab",
+        "shell": "opl-studio",
+        "bundle_id": "cn.onepersonlab.opl",
+        "install_path": "/Applications/One Person Lab.app",
+        "user_data_root": "~/Library/Application Support/One Person Lab",
+        "release_repository": "gaofeng21cn/one-person-lab-app",
+        "updater_metadata": [
+          "latest-mac.yml",
+          "latest-arm64-mac.yml"
+        ],
+        "transition_role": "single_post_cutover_active_identity"
+      }
+    },
+    "version_lines": {
+      "active_app": "continue_existing_strictly_monotonic_stable_line",
+      "studio_preview": "independent_strictly_monotonic_preview_line_ending_in_terminal_handoff",
+      "merge_policy": "do_not_merge_version_sequences_preview_handoff_targets_one_exact_active_app_release",
+      "target_first_version_rule": "strictly_newer_than_the_current_public_active_app_release",
+      "source_window_rule": "direct_upgrade_from_every_supported_public_aionui_version_and_handoff_from_the_latest_public_preview_plus_one_previous_public_preview_when_present"
+    },
+    "upgrade_routes": {
+      "aionui_mainline_to_target": {
+        "source_identity": "active_app",
+        "target_identity": "target_app",
+        "mechanism": "in_place_auto_update_on_preserved_active_identity",
+        "preserve_bundle_id": true,
+        "preserve_install_path": true,
+        "preserve_release_repository": true,
+        "preserve_updater_metadata_namespace": true,
+        "direct_supported_source_window_required": true,
+        "intermediate_aionui_bridge_release_required_for_correctness": false,
+        "pre_cutover_aionui_migration_inventory_allowed": true,
+        "first_target_launch_runs_idempotent_migration_before_normal_renderer_start": true
+      },
+      "studio_preview_to_target": {
+        "source_identity": "studio_preview",
+        "target_identity": "target_app",
+        "mechanism": "preview_updater_delivers_signed_handoff_to_exact_active_app_release",
+        "native_cross_bundle_in_place_update_claimed": false,
+        "terminal_preview_release_required": true,
+        "handoff_target_requires_exact_version_url_sha256_signature_notarization_and_gatekeeper": true,
+        "preview_exports_allowlisted_shell_local_state_before_quit": true,
+        "target_imports_handoff_before_normal_renderer_start": true,
+        "preview_update_feed_never_becomes_the_target_app_update_feed": true,
+        "preview_cleanup_requires_successful_target_launch_migration_and_owner_readback": true
+      }
+    },
+    "state_continuity": {
+      "canonical_shared_state": [
+        {
+          "id": "codex_threads_and_turns",
+          "owner": "codex_core_app_server",
+          "transition": "reuse_in_place_no_copy"
+        },
+        {
+          "id": "gateway_credentials_account_and_usage",
+          "owner": "opl_framework_gateway",
+          "transition": "reuse_in_place_no_copy"
+        },
+        {
+          "id": "framework_packages_runtime_and_receipts",
+          "owner": "opl_framework",
+          "transition": "reuse_in_place_no_copy"
+        },
+        {
+          "id": "workspace_sources_and_domain_artifacts",
+          "owner": "workspace_and_domain_owners",
+          "transition": "reuse_by_reference_no_copy"
+        }
+      ],
+      "shell_local_migration": {
+        "manifest_schema": "opl_app_shell_local_migration.v1",
+        "receipt_schema": "opl_app_shell_local_migration_receipt.v1",
+        "sources": {
+          "aionui": "~/Library/Application Support/One Person Lab",
+          "studio_preview": "~/Library/Application Support/opl-studio"
+        },
+        "target": "~/Library/Application Support/One Person Lab",
+        "allowlisted_classes": [
+          "locale_theme_and_accessibility_preferences",
+          "non_secret_model_reasoning_and_permission_preferences",
+          "workspace_selection_labels_and_order",
+          "canonical_thread_keyed_ui_metadata",
+          "unsent_user_drafts",
+          "notification_and_log_location_preferences"
+        ],
+        "excluded_classes": [
+          "passwords_api_keys_tokens_cookies_and_keychain_material",
+          "aioncore_or_aionui_backend_databases",
+          "codex_thread_or_turn_bodies",
+          "framework_package_runtime_or_receipt_state",
+          "electron_cache_session_gpu_crash_and_updater_identity_files",
+          "owner_workspace_or_artifact_bodies"
+        ],
+        "source_route_policy": "the_route_that_started_handoff_supplies_shell_local_values_existing_target_values_win_and_secondary_sources_import_only_missing_keys",
+        "draft_collision_policy": "preserve_each_source_as_a_namespaced_draft_without_silent_overwrite",
+        "direct_database_copy_allowed": false,
+        "direct_secret_copy_allowed": false,
+        "versioned_field_translators_required": true,
+        "idempotent": true,
+        "exclusive_migration_lock_required": true,
+        "source_backup_and_hash_inventory_required": true,
+        "partial_import_must_resume_or_rollback": true,
+        "source_bytes_retained_until_owner_acceptance": true
+      }
+    },
+    "cutover_sequence": [
+      "studio_preview_functional_baseline_and_internal_acceptance",
+      "studio_preview_signed_notarized_public_update_qualification",
+      "dual_source_migration_implementation_and_supported_source_window_freeze",
+      "aionui_in_place_and_preview_handoff_clean_vm_qualification",
+      "explicit_active_shell_and_release_authority_cutover",
+      "active_app_target_release_and_terminal_preview_handoff_release",
+      "post_update_owner_readback_and_bounded_legacy_retention"
+    ],
+    "cutover_gates": [
+      "functional_baseline_and_internal_user_acceptance",
+      "same_cohort_app_shell_contract_and_runtime_conformance",
+      "aionui_direct_automatic_update_with_config_and_data_readback",
+      "studio_preview_automatic_handoff_with_config_and_data_readback",
+      "both_installed_source_precedence_and_no_dual_writer_proof",
+      "interrupted_migration_resume_or_rollback_proof",
+      "signed_notarized_stapled_gatekeeper_accepted_exact_public_bytes",
+      "anonymous_active_and_preview_feed_and_artifact_readback",
+      "post_restart_version_runtime_gateway_thread_workspace_and_settings_readback"
+    ],
+    "rollback_policy": {
+      "previous_signed_active_app_artifact_retained": true,
+      "pre_migration_shell_local_backup_retained": true,
+      "canonical_shared_state_not_rewritten_by_shell_rollback": true,
+      "preview_not_removed_before_target_owner_readback": true,
+      "automatic_downgrade_assumed": false,
+      "rollback_path_must_be_qualified_before_cutover": true
+    },
+    "forbidden": [
+      "changing_the_preview_bundle_id_or_feed_to_impersonate_the_active_app",
+      "publishing_target_studio_bytes_only_in_the_preview_repository",
+      "requiring_an_intermediate_aionui_release_for_direct_upgrade_correctness",
+      "copying_aionui_aioncore_codex_or_framework_databases_as_migration",
+      "copying_or_rendering_credentials_in_a_shell_migration_manifest",
+      "running_aionui_and_target_shell_as_concurrent_writers_during_migration",
+      "deleting_preview_or_source_data_before_target_owner_readback",
+      "claiming_cutover_release_or_migration_completion_from_source_or_local_candidate_evidence"
+    ]
+  },
   "component_interoperability_ref": "contracts/app-install-exposure-policy.json#component_interoperability",
   "computer_use_distribution": {
     "schema": "opl_app_computer_use_distribution.v1",

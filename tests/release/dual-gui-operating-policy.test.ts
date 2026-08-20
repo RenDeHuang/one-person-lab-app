@@ -10,8 +10,12 @@ import { validateRuntimeBridgeContract } from '../../scripts/validate-active-she
 import { validateMinimumCompleteProductContract } from '../../scripts/validate-shell-candidates/candidate-contract.ts';
 import {
   validateRegistryShape,
+  validateShellTransitionPolicy,
 } from '../../scripts/validate-shell-candidates/registry.ts';
-import type { ShellCandidateRegistry } from '../../scripts/validate-shell-candidates/types.ts';
+import type {
+  ShellCandidateRegistry,
+  ShellTransitionPolicy,
+} from '../../scripts/validate-shell-candidates/types.ts';
 
 const readJson = <T>(relativePath: string): T => JSON.parse(fs.readFileSync(relativePath, 'utf8')) as T;
 
@@ -84,6 +88,43 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
   native.required_capabilities = [];
   native.dsh_source_reuse_contract!.default_model = 'candidate-only-drift';
   assert.doesNotThrow(() => validateRegistryShape(candidateDetailDrift));
+});
+
+test('shell transition preserves the active App identity and uses an exact Preview handoff', () => {
+  const release = readJson<{ shell_transition_policy: ShellTransitionPolicy }>('contracts/app-release-channel.json');
+  const policy = release.shell_transition_policy;
+  assert.doesNotThrow(() => validateShellTransitionPolicy(policy));
+
+  const previewImpersonatesActive = structuredClone(policy);
+  previewImpersonatesActive.identities.studio_preview.release_repository =
+    previewImpersonatesActive.identities.active_app.release_repository;
+  assert.throws(
+    () => validateShellTransitionPolicy(previewImpersonatesActive),
+    /Studio Preview must retain an isolated identity and repository/,
+  );
+
+  const databaseCopy = structuredClone(policy);
+  databaseCopy.state_continuity.shell_local_migration.direct_database_copy_allowed = true;
+  assert.throws(
+    () => validateShellTransitionPolicy(databaseCopy),
+    /shell-local migration must stay allowlisted, versioned, idempotent, recoverable, and secret-free/,
+  );
+
+  const prematurePreviewCleanup = structuredClone(policy);
+  prematurePreviewCleanup.upgrade_routes.studio_preview_to_target
+    .preview_cleanup_requires_successful_target_launch_migration_and_owner_readback = false;
+  assert.throws(
+    () => validateShellTransitionPolicy(prematurePreviewCleanup),
+    /Studio Preview route must use an exact signed handoff/,
+  );
+
+  const bridgeOnly = structuredClone(policy);
+  bridgeOnly.upgrade_routes.aionui_mainline_to_target
+    .intermediate_aionui_bridge_release_required_for_correctness = true;
+  assert.throws(
+    () => validateShellTransitionPolicy(bridgeOnly),
+    /AionUI route must be a direct in-place update/,
+  );
 });
 
 test('explicit Studio adapter keeps its candidate implementation role', () => {

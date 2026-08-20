@@ -2,6 +2,7 @@ import path from 'node:path';
 import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 import type {
   ShellCandidateRegistry,
+  ShellTransitionPolicy,
 } from './types.ts';
 import {
   activeAdapterPath,
@@ -67,6 +68,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   validateInteractiveLauncherPolicy(registry);
   for (const [label, expected] of Object.entries({
     release_shell_contract: 'contracts/app-shell-adapter.json',
+    shell_transition_policy_ref: 'contracts/app-release-channel.json#shell_transition_policy',
     gui_product_contract: 'contracts/app-gui-product-contract.json',
     runtime_bridge_contract: 'contracts/app-runtime-bridge.json',
     product_profile_contract: 'contracts/app-product-profile.json',
@@ -76,8 +78,12 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     if (registry[label as keyof ShellCandidateRegistry] !== expected) {
       throw new Error(`candidate registry ${label} must be ${expected}`);
     }
-    assertFile(path.join(root, expected), label);
+    assertFile(path.join(root, expected.split('#')[0]), label);
   }
+  const releaseContract = readJson<{ shell_transition_policy: ShellTransitionPolicy }>(
+    path.join(root, 'contracts', 'app-release-channel.json'),
+  );
+  validateShellTransitionPolicy(releaseContract.shell_transition_policy);
   const policy = registry.candidate_policy;
   if (policy.candidate_root_pattern !== 'shells/<candidate>') {
     throw new Error('candidate roots must stay under shells/<candidate>');
@@ -119,6 +125,144 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   }
   validateCandidateRoleEntries(registry);
   validateDesignReferences(registry);
+}
+
+export function validateShellTransitionPolicy(policy: ShellTransitionPolicy): void {
+  if (
+    policy?.schema !== 'opl_app_shell_transition_policy.v1'
+    || policy.state !== 'planned_not_authorized'
+    || policy.authority_owner !== 'one-person-lab-app'
+    || policy.initial_carrier !== 'macos_arm64'
+    || policy.current_active_shell !== 'aionui'
+    || policy.current_candidate_shell !== 'opl-studio'
+    || policy.target_active_shell !== 'opl-studio'
+    || policy.execution_requires_separate_authorization !== true
+  ) {
+    throw new Error('shell transition policy must remain an App-owned, non-authorized macOS plan from AionUI to OPL Studio');
+  }
+
+  const active = policy.identities?.active_app;
+  const preview = policy.identities?.studio_preview;
+  const target = policy.identities?.target_app;
+  if (
+    active?.product_name !== 'One Person Lab'
+    || active.bundle_id !== 'cn.onepersonlab.opl'
+    || active.install_path !== '/Applications/One Person Lab.app'
+    || active.user_data_root !== '~/Library/Application Support/One Person Lab'
+    || active.release_repository !== 'gaofeng21cn/one-person-lab-app'
+    || target?.product_name !== active.product_name
+    || target.shell !== 'opl-studio'
+    || target.bundle_id !== active.bundle_id
+    || target.install_path !== active.install_path
+    || target.user_data_root !== active.user_data_root
+    || target.release_repository !== active.release_repository
+  ) {
+    throw new Error('target App must preserve the existing active product identity while replacing only its shell');
+  }
+  if (
+    preview?.product_name !== 'One Person Lab Preview'
+    || preview.bundle_id !== 'cn.onepersonlab.opl.studio.preview'
+    || preview.install_path !== '/Applications/One Person Lab Preview.app'
+    || preview.user_data_root !== '~/Library/Application Support/opl-studio'
+    || preview.release_repository !== 'gaofeng21cn/opl-studio'
+    || preview.bundle_id === target.bundle_id
+    || preview.release_repository === target.release_repository
+  ) {
+    throw new Error('Studio Preview must retain an isolated identity and repository until terminal handoff');
+  }
+  for (const [label, identity] of Object.entries({ active, preview, target })) {
+    if (identity?.updater_metadata?.join(',') !== 'latest-mac.yml,latest-arm64-mac.yml') {
+      throw new Error(`${label} shell transition identity must declare both macOS updater metadata names`);
+    }
+  }
+
+  const mainline = policy.upgrade_routes?.aionui_mainline_to_target;
+  const handoff = policy.upgrade_routes?.studio_preview_to_target;
+  if (
+    mainline?.mechanism !== 'in_place_auto_update_on_preserved_active_identity'
+    || mainline.preserve_bundle_id !== true
+    || mainline.preserve_install_path !== true
+    || mainline.preserve_release_repository !== true
+    || mainline.preserve_updater_metadata_namespace !== true
+    || mainline.direct_supported_source_window_required !== true
+    || mainline.intermediate_aionui_bridge_release_required_for_correctness !== false
+    || mainline.first_target_launch_runs_idempotent_migration_before_normal_renderer_start !== true
+  ) {
+    throw new Error('AionUI route must be a direct in-place update on the preserved active identity');
+  }
+  if (
+    handoff?.mechanism !== 'preview_updater_delivers_signed_handoff_to_exact_active_app_release'
+    || handoff.native_cross_bundle_in_place_update_claimed !== false
+    || handoff.terminal_preview_release_required !== true
+    || handoff.handoff_target_requires_exact_version_url_sha256_signature_notarization_and_gatekeeper !== true
+    || handoff.preview_update_feed_never_becomes_the_target_app_update_feed !== true
+    || handoff.preview_cleanup_requires_successful_target_launch_migration_and_owner_readback !== true
+  ) {
+    throw new Error('Studio Preview route must use an exact signed handoff instead of impersonating the active updater identity');
+  }
+
+  const shared = policy.state_continuity?.canonical_shared_state ?? [];
+  const sharedIds = shared.map(({ id }) => id).sort();
+  const requiredSharedIds = [
+    'codex_threads_and_turns',
+    'gateway_credentials_account_and_usage',
+    'framework_packages_runtime_and_receipts',
+    'workspace_sources_and_domain_artifacts',
+  ].sort();
+  if (JSON.stringify(sharedIds) !== JSON.stringify(requiredSharedIds) || shared.some(({ transition }) => !transition.includes('no_copy'))) {
+    throw new Error('canonical shared state must be reused from its owner without shell database copying');
+  }
+  const migration = policy.state_continuity?.shell_local_migration;
+  const requiredAllowlist = [
+    'locale_theme_and_accessibility_preferences',
+    'non_secret_model_reasoning_and_permission_preferences',
+    'workspace_selection_labels_and_order',
+    'canonical_thread_keyed_ui_metadata',
+    'unsent_user_drafts',
+    'notification_and_log_location_preferences',
+  ];
+  const requiredExclusions = [
+    'passwords_api_keys_tokens_cookies_and_keychain_material',
+    'aioncore_or_aionui_backend_databases',
+    'codex_thread_or_turn_bodies',
+    'framework_package_runtime_or_receipt_state',
+    'electron_cache_session_gpu_crash_and_updater_identity_files',
+    'owner_workspace_or_artifact_bodies',
+  ];
+  assertStringArrayIncludes(migration?.allowlisted_classes ?? [], requiredAllowlist, 'shell local migration allowlist');
+  assertStringArrayIncludes(migration?.excluded_classes ?? [], requiredExclusions, 'shell local migration exclusions');
+  if (
+    migration?.direct_database_copy_allowed !== false
+    || migration.direct_secret_copy_allowed !== false
+    || migration.versioned_field_translators_required !== true
+    || migration.idempotent !== true
+    || migration.exclusive_migration_lock_required !== true
+    || migration.source_backup_and_hash_inventory_required !== true
+    || migration.partial_import_must_resume_or_rollback !== true
+    || migration.source_bytes_retained_until_owner_acceptance !== true
+  ) {
+    throw new Error('shell-local migration must stay allowlisted, versioned, idempotent, recoverable, and secret-free');
+  }
+
+  const requiredSequence = [
+    'studio_preview_functional_baseline_and_internal_acceptance',
+    'studio_preview_signed_notarized_public_update_qualification',
+    'dual_source_migration_implementation_and_supported_source_window_freeze',
+    'aionui_in_place_and_preview_handoff_clean_vm_qualification',
+    'explicit_active_shell_and_release_authority_cutover',
+    'active_app_target_release_and_terminal_preview_handoff_release',
+    'post_update_owner_readback_and_bounded_legacy_retention',
+  ];
+  if (JSON.stringify(policy.cutover_sequence) !== JSON.stringify(requiredSequence)) {
+    throw new Error('shell transition cutover sequence must preserve Preview testing before dual-route migration and explicit cutover');
+  }
+  if (
+    policy.rollback_policy?.automatic_downgrade_assumed !== false
+    || policy.rollback_policy?.rollback_path_must_be_qualified_before_cutover !== true
+    || policy.rollback_policy?.preview_not_removed_before_target_owner_readback !== true
+  ) {
+    throw new Error('shell transition rollback must be qualified and must not assume automatic downgrade');
+  }
 }
 
 function validateCandidateRoleEntries(registry: ShellCandidateRegistry): void {

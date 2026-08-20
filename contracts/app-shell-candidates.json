@@ -82,6 +82,7 @@
     }
   },
   "release_shell_contract": "contracts/app-shell-adapter.json",
+  "shell_transition_policy_ref": "contracts/app-release-channel.json#shell_transition_policy",
   "gui_product_contract": "contracts/app-gui-product-contract.json",
   "runtime_bridge_contract": "contracts/app-runtime-bridge.json",
   "product_profile_contract": "contracts/app-product-profile.json",
