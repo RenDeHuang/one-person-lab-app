@@ -666,7 +666,7 @@ test('Full notes derive only selected prebuild input refs from exact App, Shell,
   });
   assert.deepEqual(authority.components.codex, { version: `codex-cli ${fixture.codexVersion}` });
   assert.equal(authority.runtime_authority.codex_cli.shell_source_commit, fixture.shell.ref);
-  assert.equal(authority.runtime_authority.codex_cli.source, 'shell_opl_aioncore_managed_resources_projection_v1');
+  assert.equal(authority.runtime_authority.codex_cli.source, 'shell_opl_composed_managed_resources_projection_v1');
   assert.equal(
     authority.runtime_authority.codex_cli.managed_resources_projection_schema,
     'opl_aioncore_managed_resources_projection.v1',

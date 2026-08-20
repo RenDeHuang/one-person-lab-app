@@ -36,15 +36,23 @@ test('AionUI cannot restore the duplicate Framework Codex payload', () => {
   );
 });
 
-test('AionUI target keeps the AionCore export as staging and distributes only Node plus Codex', () => {
+test('AionUI composes the AionCore Node export with one official Codex carrier', () => {
   const aionui = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
   const target = aionui.codex_executable_contract?.carrier.target_packaging_policy;
 
-  assert.equal(target?.implementation_status, 'pending_shell_projection_and_packaged_smoke');
+  assert.equal(target?.implementation_status, 'verified_shell_composition_and_packaged_smoke');
   assert.equal(target?.aioncore_modification_policy, 'consume_upstream_release_without_fork_or_patch');
-  assert.deepEqual(target?.producer_export.required_cli_names, ['claude', 'codex']);
-  assert.equal(target?.producer_export.role, 'build_intermediate_only');
+  assert.deepEqual(target?.producer_export.required_cli_names, []);
+  assert.equal(target?.producer_export.role, 'build_intermediate_node_only');
   assert.equal(target?.producer_export.distributed_manifest_allowed, false);
+  assert.deepEqual(target?.codex_carrier, {
+    owner: 'gaofeng21cn/opl-aion-shell',
+    package: '@openai/codex',
+    version_and_digest_source: 'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli',
+    authority: 'official_npm_platform_package',
+    aioncore_compatibility_source:
+      'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli.verified_by_aioncore',
+  });
   assert.equal(target?.packaged_projection.schema, 'opl_aioncore_managed_resources_projection.v1');
   assert.deepEqual(target?.packaged_projection.included_cli_names, ['codex']);
   assert.deepEqual(target?.packaged_projection.excluded_cli_names, ['claude']);
@@ -56,6 +64,7 @@ test('AionUI target keeps the AionCore export as staging and distributes only No
   assert.deepEqual(target?.distributed_bundle.required_metadata, [
     'projection_manifest',
     'producer_manifest_digest_provenance',
+    'codex_source_identity',
   ]);
   assert.deepEqual(target?.distributed_bundle.cli_names_exact, ['codex']);
   assert.equal(
@@ -75,7 +84,8 @@ test('AionUI target keeps the AionCore export as staging and distributes only No
       'raw_producer_manifest',
     ],
   );
-  assert.equal(target?.independent_codex_downloader_or_version_authority_allowed, false);
+  assert.equal(target?.opl_selected_official_codex_carrier_required, true);
+  assert.equal(target?.second_codex_carrier_or_registry_allowed, false);
   assert.doesNotThrow(() => validateCodexExecutableContract(aionui));
 });
 
@@ -87,7 +97,7 @@ test('AionUI target cannot package Claude or introduce a second Codex authority'
 
   assert.throws(
     () => validateCodexExecutableContract(withClaude),
-    /Codex-only projection/,
+    /official AionCore Node export/,
   );
 
   const withoutArchiveGate = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
@@ -100,21 +110,21 @@ test('AionUI target cannot package Claude or introduce a second Codex authority'
 
   assert.throws(
     () => validateCodexExecutableContract(withoutArchiveGate),
-    /Codex-only projection/,
+    /official AionCore Node export/,
   );
 
-  const withDownloader = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
-  assert.ok(withDownloader.codex_executable_contract?.carrier.target_packaging_policy);
-  withDownloader.codex_executable_contract.carrier.target_packaging_policy
-    .independent_codex_downloader_or_version_authority_allowed = true;
+  const withSecondCarrier = structuredClone(readAdapter('contracts/app-shell-adapter.json'));
+  assert.ok(withSecondCarrier.codex_executable_contract?.carrier.target_packaging_policy);
+  withSecondCarrier.codex_executable_contract.carrier.target_packaging_policy
+    .second_codex_carrier_or_registry_allowed = true;
 
   assert.throws(
-    () => validateCodexExecutableContract(withDownloader),
-    /second Codex authority/,
+    () => validateCodexExecutableContract(withSecondCarrier),
+    /second carrier or registry/,
   );
 });
 
-test('Full App contract delegates Codex to AionCore and omits the Framework manifest component', async () => {
+test('Full App contract delegates Codex to the Shell-composed carrier and omits the Framework component', async () => {
   const releaseChannel = JSON.parse(
     fs.readFileSync('contracts/app-release-channel.json', 'utf8'),
   );
@@ -123,7 +133,7 @@ test('Full App contract delegates Codex to AionCore and omits the Framework mani
   assert.equal(codex.resolver_env, 'OPL_CODEX_BIN');
   assert.equal(codex.aioncore_required, true);
   assert.deepEqual(codex.preferred_sources, [
-    'shell_opl_aioncore_managed_resources_projection_v1',
+    'shell_opl_composed_managed_resources_projection_v1',
   ]);
   assert.equal(
     codex.projection_schema,

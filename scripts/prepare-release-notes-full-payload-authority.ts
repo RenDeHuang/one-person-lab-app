@@ -368,7 +368,7 @@ export function buildReleaseNotesFullPayloadAuthority(
     },
     runtime_authority: {
       codex_cli: {
-        source: 'shell_opl_aioncore_managed_resources_projection_v1',
+        source: 'shell_opl_composed_managed_resources_projection_v1',
         shell_source_commit: shellRef,
         runtime_key: aioncoreBinding.runtime_key,
         aioncore_version: aioncoreBinding.aioncore.version,

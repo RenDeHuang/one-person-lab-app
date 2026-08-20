@@ -234,7 +234,7 @@ test('release helpers reject duplicate mounted Apps, promotion receipts, and pac
   assert.match(codexCarrierValidator, /resolver_env !== 'OPL_CODEX_BIN'/);
   assert.match(
     codexCarrierValidator,
-    /version_source !== 'OPL Codex-only projection derived from AionCore producer manifest'/,
+    /version_source !== 'contracts\/aionui-upstream-intake\.json#managed_runtime\.codex_cli'/,
   );
   assert.match(
     codexCarrierValidator,

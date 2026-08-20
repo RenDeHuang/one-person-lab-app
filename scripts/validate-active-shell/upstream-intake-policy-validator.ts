@@ -552,10 +552,10 @@ function validateManagedRuntimeQualification(contract) {
   const nodeRuntime = assertObject(runtimeDependencies.node_runtime, 'Manual qualification Node runtime dependency');
   if (
     nodeRuntime.version_source !==
-      'OPL Codex-only projection derived from AionCore producer manifest' ||
+      'AionCore producer manifest node runtime' ||
     nodeRuntime.target_platform_binary_required !== true
   ) {
-    throw new Error('Active shell Node runtime qualification must bind the Codex-only projection and target binary');
+    throw new Error('Active shell Node runtime qualification must bind the AionCore producer Node runtime and target binary');
   }
   if (Object.hasOwn(runtimeDependencies, 'claude_cli')) {
     throw new Error('Active shell packaged runtime qualification must not retain Claude CLI');
@@ -564,10 +564,10 @@ function validateManagedRuntimeQualification(contract) {
   if (
     codexCli.package !== '@openai/codex' ||
     codexCli.version_source !==
-      'OPL Codex-only projection derived from AionCore producer manifest' ||
+      'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli' ||
     codexCli.target_platform_binary_required !== true
   ) {
-    throw new Error('Active shell Codex CLI qualification must bind the Codex-only projection and target binary');
+    throw new Error('Active shell Codex CLI qualification must bind the OPL-selected Codex source and target binary');
   }
 }
 
@@ -673,6 +673,17 @@ function validateStableCurrentnessReceipt(contract, shellPaths, options, isGitAn
     throw new Error('AionUI receipt managed resources schema must be 2');
   }
   assertSha256(runtime.managed_resources_manifest_sha256, 'AionUI receipt managed resources manifest');
+  const managedResourcesProjection = assertObject(
+    runtime.managed_resources_projection,
+    'AionUI receipt managed resources projection',
+  );
+  if (
+    managedResourcesProjection.composition !== 'aioncore_node_plus_opl_selected_cli' ||
+    JSON.stringify(managedResourcesProjection.aioncore_source_cli_names) !== JSON.stringify([]) ||
+    managedResourcesProjection.codex_source !== 'managed_runtime.codex_cli'
+  ) {
+    throw new Error('AionUI receipt managed resources projection must bind the OPL-composed Codex carrier');
+  }
   if (Object.hasOwn(runtime, 'codex_acp')) {
     throw new Error('AionUI receipt must not retain retired Codex ACP truth');
   }
@@ -685,12 +696,24 @@ function validateStableCurrentnessReceipt(contract, shellPaths, options, isGitAn
   }
   assertExactPackageVersion(claudeCli.version, 'AionUI receipt managed Claude CLI version');
   assertSha256(claudeCli.binary_sha256, 'AionUI receipt managed Claude CLI binary');
+  if (
+    claudeCli.carrier_status !== 'absent_legacy_producer_identity' ||
+    claudeCli.required_in_bundle !== false
+  ) {
+    throw new Error('AionUI receipt must preserve Claude only as an absent legacy producer identity');
+  }
   const codexCli = assertObject(runtime.codex_cli, 'AionUI receipt managed Codex CLI');
   if (codexCli.package !== '@openai/codex') {
     throw new Error('AionUI receipt managed Codex CLI package is not authoritative');
   }
   assertExactPackageVersion(codexCli.version, 'AionUI receipt managed Codex CLI version');
   assertSha256(codexCli.binary_sha256, 'AionUI receipt managed Codex CLI binary');
+  if (
+    codexCli.carrier !== 'opl_app_official_npm_platform_package' ||
+    codexCli.verified_by_aioncore !== aionCore.version
+  ) {
+    throw new Error('AionUI receipt managed Codex CLI must bind the OPL official package carrier and AionCore compatibility');
+  }
   assertDeepEqualJson(receipt.policy, authority.required_policy, 'AionUI stable currentness receipt policy');
   validateManagedRuntimeQualification(contract);
   return receipt;

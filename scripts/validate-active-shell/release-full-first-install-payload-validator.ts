@@ -15,12 +15,13 @@ function validateReleaseFullCodexCliPayload(codexCli) {
     codexCli?.compatibility_mode !== 'shell_carrier_exact_manifest_binary' ||
     codexCli?.carrier_contract_ref !== 'contracts/app-shell-adapter.json#codex_executable_contract' ||
     codexCli?.resolver_env !== 'OPL_CODEX_BIN' ||
-    codexCli?.version_source !== 'OPL Codex-only projection derived from AionCore producer manifest' ||
+    codexCli?.version_source !== 'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli' ||
     codexCli?.projection_schema !== 'opl_aioncore_managed_resources_projection.v1' ||
     codexCli?.producer_schema_version !== 2 ||
     codexCli?.aioncore_required !== true ||
     codexCli?.framework_managed_payload_in_full_runtime_allowed !== false ||
-    !/bundled-aioncore managed-resources Codex-only projection/.test(codexCli?.verification ?? '') ||
+    !/bundled-aioncore managed-resources OPL-composed Codex-only projection/.test(codexCli?.verification ?? '') ||
+    !/official npm platform package source/.test(codexCli?.verification ?? '') ||
     !/prove Claude absent/.test(codexCli?.verification ?? '') ||
     !/forbidden duplicate paths absent/.test(codexCli?.verification ?? '')
   ) {
@@ -28,7 +29,7 @@ function validateReleaseFullCodexCliPayload(codexCli) {
   }
   assertDeepEqualJson(
     codexCli.preferred_sources,
-    ['shell_opl_aioncore_managed_resources_projection_v1'],
+    ['shell_opl_composed_managed_resources_projection_v1'],
     'Release channel Codex CLI preferred sources',
   );
   assertDeepEqualJson(

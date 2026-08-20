@@ -248,6 +248,13 @@ export type ShellAdapterContract = {
           required_cli_names: string[];
           distributed_manifest_allowed: boolean;
         };
+        codex_carrier: {
+          owner: string;
+          package: string;
+          version_and_digest_source: string;
+          authority: string;
+          aioncore_compatibility_source: string;
+        };
         packaged_projection: {
           owner: string;
           schema: string;
@@ -270,7 +277,8 @@ export type ShellAdapterContract = {
             expected_match_count: number;
           }>;
         };
-        independent_codex_downloader_or_version_authority_allowed: boolean;
+        opl_selected_official_codex_carrier_required: boolean;
+        second_codex_carrier_or_registry_allowed: boolean;
       };
     };
     framework_headless_carrier_policy: string;
@@ -685,25 +693,33 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
     }
     if (
       target?.schema !== 'opl_aioncore_codex_only_packaging_policy.v1' ||
-      target?.implementation_status !== 'pending_shell_projection_and_packaged_smoke' ||
+      target?.implementation_status !== 'verified_shell_composition_and_packaged_smoke' ||
       target?.aioncore_modification_policy !== 'consume_upstream_release_without_fork_or_patch' ||
       target?.producer_export?.owner !== 'AionCore' ||
-      target?.producer_export?.role !== 'build_intermediate_only' ||
+      target?.producer_export?.role !== 'build_intermediate_node_only' ||
       target?.producer_export?.schema_version !== 2 ||
-      JSON.stringify(target?.producer_export?.required_cli_names) !== JSON.stringify(['claude', 'codex']) ||
+      JSON.stringify(target?.producer_export?.required_cli_names) !== JSON.stringify([]) ||
       target?.producer_export?.distributed_manifest_allowed !== false ||
+      target?.codex_carrier?.owner !== 'gaofeng21cn/opl-aion-shell' ||
+      target?.codex_carrier?.package !== '@openai/codex' ||
+      target?.codex_carrier?.version_and_digest_source !==
+        'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli' ||
+      target?.codex_carrier?.authority !== 'official_npm_platform_package' ||
+      target?.codex_carrier?.aioncore_compatibility_source !==
+        'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli.verified_by_aioncore' ||
       target?.packaged_projection?.owner !== 'gaofeng21cn/opl-aion-shell' ||
       target?.packaged_projection?.schema !== 'opl_aioncore_managed_resources_projection.v1' ||
       target?.packaged_projection?.authority_path !==
         'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json' ||
       JSON.stringify(target?.packaged_projection?.included_cli_names) !== JSON.stringify(['codex']) ||
       JSON.stringify(target?.packaged_projection?.excluded_cli_names) !== JSON.stringify(['claude']) ||
-      target?.packaged_projection?.version_and_digest_source !== 'aioncore_producer_export' ||
+      target?.packaged_projection?.version_and_digest_source !==
+        'aioncore_node_export_plus_opl_selected_official_codex_package' ||
       JSON.stringify(target?.distributed_bundle?.applies_to) !== JSON.stringify(['standard', 'full']) ||
       JSON.stringify(target?.distributed_bundle?.required_runtime_components) !==
         JSON.stringify(['aioncore', 'node_runtime', 'codex_cli']) ||
       JSON.stringify(target?.distributed_bundle?.required_metadata) !==
-        JSON.stringify(['projection_manifest', 'producer_manifest_digest_provenance']) ||
+        JSON.stringify(['projection_manifest', 'producer_manifest_digest_provenance', 'codex_source_identity']) ||
       JSON.stringify(target?.distributed_bundle?.cli_names_exact) !== JSON.stringify(['codex']) ||
       JSON.stringify(target?.distributed_bundle?.required_absence_checks) !== JSON.stringify([
         {
@@ -750,10 +766,11 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
           expected_match_count: 0,
         },
       ]) ||
-      target?.independent_codex_downloader_or_version_authority_allowed !== false
+      target?.opl_selected_official_codex_carrier_required !== true ||
+      target?.second_codex_carrier_or_registry_allowed !== false
     ) {
       throw new Error(
-        'active AionUI must target an OPL-owned Codex-only projection without modifying AionCore or adding a second Codex authority',
+        'active AionUI must compose the official AionCore Node export with one OPL-selected official Codex carrier without modifying AionCore or adding a second carrier or registry',
       );
     }
     return;

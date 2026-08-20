@@ -3507,10 +3507,10 @@
         "compatibility_mode": "shell_carrier_exact_manifest_binary",
         "carrier_contract_ref": "contracts/app-shell-adapter.json#codex_executable_contract",
         "preferred_sources": [
-          "shell_opl_aioncore_managed_resources_projection_v1"
+          "shell_opl_composed_managed_resources_projection_v1"
         ],
         "resolver_env": "OPL_CODEX_BIN",
-        "version_source": "OPL Codex-only projection derived from AionCore producer manifest",
+        "version_source": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli",
         "projection_schema": "opl_aioncore_managed_resources_projection.v1",
         "producer_schema_version": 2,
         "forbidden_cli_names": [
@@ -3524,7 +3524,7 @@
           "vendor/codex",
           ".runtime-cache/codex-cli"
         ],
-        "verification": "The active AionUI shell must resolve one exact Codex executable from the bundled-aioncore managed-resources Codex-only projection and pass it through OPL_CODEX_BIN; the final App tree must prove Claude absent and the Full Framework runtime must prove all forbidden duplicate paths absent."
+        "verification": "The active AionUI shell must resolve one exact Codex executable from the bundled-aioncore managed-resources OPL-composed Codex-only projection and pass it through OPL_CODEX_BIN; the projection must bind the official npm platform package source, the final App tree must prove Claude absent, and the Full Framework runtime must prove all forbidden duplicate paths absent."
       },
       "temporal_cli": {
         "compatibility_mode": "minimum_version_plus_capability_smoke",

@@ -21,17 +21,21 @@
       "framework_managed_payload_in_app_bundle_allowed": false,
       "target_packaging_policy": {
         "schema": "opl_aioncore_codex_only_packaging_policy.v1",
-        "implementation_status": "pending_shell_projection_and_packaged_smoke",
+        "implementation_status": "verified_shell_composition_and_packaged_smoke",
         "aioncore_modification_policy": "consume_upstream_release_without_fork_or_patch",
         "producer_export": {
           "owner": "AionCore",
-          "role": "build_intermediate_only",
+          "role": "build_intermediate_node_only",
           "schema_version": 2,
-          "required_cli_names": [
-            "claude",
-            "codex"
-          ],
+          "required_cli_names": [],
           "distributed_manifest_allowed": false
+        },
+        "codex_carrier": {
+          "owner": "gaofeng21cn/opl-aion-shell",
+          "package": "@openai/codex",
+          "version_and_digest_source": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli",
+          "authority": "official_npm_platform_package",
+          "aioncore_compatibility_source": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli.verified_by_aioncore"
         },
         "packaged_projection": {
           "owner": "gaofeng21cn/opl-aion-shell",
@@ -43,7 +47,7 @@
           "excluded_cli_names": [
             "claude"
           ],
-          "version_and_digest_source": "aioncore_producer_export"
+          "version_and_digest_source": "aioncore_node_export_plus_opl_selected_official_codex_package"
         },
         "distributed_bundle": {
           "applies_to": [
@@ -57,7 +61,8 @@
           ],
           "required_metadata": [
             "projection_manifest",
-            "producer_manifest_digest_provenance"
+            "producer_manifest_digest_provenance",
+            "codex_source_identity"
           ],
           "cli_names_exact": [
             "codex"
@@ -118,7 +123,8 @@
             }
           ]
         },
-        "independent_codex_downloader_or_version_authority_allowed": false
+        "opl_selected_official_codex_carrier_required": true,
+        "second_codex_carrier_or_registry_allowed": false
       }
     },
     "framework_headless_carrier_policy": "preserved_outside_app_bundle"
@@ -133,12 +139,12 @@
         "resource_authority": "bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json"
       },
       "node_runtime": {
-        "version_source": "OPL Codex-only projection derived from AionCore producer manifest",
+        "version_source": "AionCore producer manifest node runtime",
         "target_platform_binary_required": true
       },
       "codex_cli": {
         "package": "@openai/codex",
-        "version_source": "OPL Codex-only projection derived from AionCore producer manifest",
+        "version_source": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli",
         "target_platform_binary_required": true
       }
     },
