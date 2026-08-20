@@ -142,6 +142,37 @@ test('OPL Studio candidate machine contract removes retired private capabilities
   }
 });
 
+test('OPL Studio candidate evidence keeps the current user-centered Settings groups', () => {
+  const evidence = readJson<{
+    settings_information_architecture: {
+      visible_tabs: string[];
+      legacy_tabs_hidden: string[];
+    };
+  }>('shells/opl-studio/src/candidateContractEvidence.json');
+
+  assert.deepEqual(evidence.settings_information_architecture.visible_tabs, [
+    'overview',
+    'account_models',
+    'connections_deployment',
+    'workspace',
+    'agents_capabilities',
+    'runtime_maintenance',
+    'preferences',
+  ]);
+  assert.deepEqual(evidence.settings_information_architecture.legacy_tabs_hidden, [
+    'runtime',
+    'system',
+    'model',
+    'agent',
+    'assistants',
+    'skills-hub',
+    'tools',
+    'display',
+    'webui',
+    'pet',
+  ]);
+});
+
 test('OPL Studio candidate binds DSH-covered visuals to source-preserving reuse plus semantic App integrations', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const policy = candidateValidationPolicyFromRegistry(registry);

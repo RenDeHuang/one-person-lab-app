@@ -16,13 +16,11 @@ import {
   assertStringArrayIncludes,
   expectedFrameworkSurfaces,
   findMacAppExecutable,
-  forbiddenLegacySettingsTabs,
   forbiddenSeriesDomainFields,
   readJson,
   requiredConversationEventKinds,
   requiredNativeCapabilities,
   requiredSeriesProgressFields,
-  requiredSettingsTabs,
   root,
   validateActiveProjectLineStateModel,
 } from './shared.ts';
@@ -40,6 +38,27 @@ const deepSeekHarnessRc8PackageRoots = [
   'packages/client/ui-theme/src',
   'packages/client/ui-primitives/src',
   'packages/client/ui-renderer/src',
+];
+const studioSettingsGroups = [
+  'overview',
+  'account_models',
+  'connections_deployment',
+  'workspace',
+  'agents_capabilities',
+  'runtime_maintenance',
+  'preferences',
+];
+const retiredStudioSettingsTabs = [
+  'runtime',
+  'system',
+  'model',
+  'agent',
+  'assistants',
+  'skills-hub',
+  'tools',
+  'display',
+  'webui',
+  'pet',
 ];
 
 export type OPLStudioCarrierEvidenceEntry = {
@@ -331,14 +350,14 @@ function validateOPLStudioImplementationEvidence(
     evidence.active_project_line_state_model,
     `${candidate.id} evidence active_project_line_state_model`,
   );
-  assertStringArrayIncludes(
+  assertDeepEqualJson(
     evidence.settings_information_architecture?.visible_tabs ?? [],
-    requiredSettingsTabs,
+    studioSettingsGroups,
     `${candidate.id} evidence settings_information_architecture.visible_tabs`,
   );
-  assertStringArrayIncludes(
+  assertDeepEqualJson(
     evidence.settings_information_architecture?.legacy_tabs_hidden ?? [],
-    forbiddenLegacySettingsTabs,
+    retiredStudioSettingsTabs,
     `${candidate.id} evidence settings_information_architecture.legacy_tabs_hidden`,
   );
   if (
