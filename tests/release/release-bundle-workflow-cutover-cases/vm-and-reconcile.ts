@@ -91,7 +91,7 @@ test('real build and qualification calls recalculate and consume the same remain
   assert.match(String(vmRun.run), /steps\.operation_smoke_budget\.outputs\.run_timeout_ms/);
 });
 
-test('first-run VM installs frozen Shell runtime dependencies before importing the harness', () => {
+test('first-run VM imports the frozen Shell harness without installing its dependency graph', () => {
   const source = readWorkflow('opl-first-run-vm.yml');
   const workflow = parseWorkflow('opl-first-run-vm.yml');
   const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
@@ -107,33 +107,20 @@ test('first-run VM installs frozen Shell runtime dependencies before importing t
     String(checkout.with['sparse-checkout']).trim().split('\n'),
     [
       '/scripts/',
-      '/package.json',
-      '/bun.lock',
-      '/patches/',
-      '/packages/*/package.json',
       '/packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json',
     ],
   );
   assert.equal(checkout.with['sparse-checkout-cone-mode'], false);
   assert.equal(stepIndex('Materialize active shell dependency metadata'), -1);
-
-  const setupBun = step('Setup bun');
-  assert.equal(setupBun.uses, 'oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6');
-  assert.equal(setupBun.with['bun-version'], '1.3.14');
-
-  const install = step('Install active shell harness dependencies');
-  assert.equal(install['working-directory'], 'shells/aionui');
-  assert.equal(String(install.run).trim(), 'bun install --frozen-lockfile --ignore-scripts');
+  assert.equal(stepIndex('Setup bun'), -1);
+  assert.equal(stepIndex('Install active shell harness dependencies'), -1);
 
   const validate = step('Validate smoke scripts');
   assert.match(String(validate.run), /await import\('\.\/shells\/aionui\/scripts\/opl-first-run-tart-smoke\.mjs'\)/);
-  assert.ok(stepIndex('Checkout active shell') < stepIndex('Setup bun'));
-  assert.ok(stepIndex('Setup bun') < stepIndex('Install active shell harness dependencies'));
-  assert.ok(stepIndex('Install active shell harness dependencies') < stepIndex('Validate smoke scripts'));
+  assert.ok(stepIndex('Checkout active shell') < stepIndex('Validate smoke scripts'));
   assert.ok(stepIndex('Validate smoke scripts') < stepIndex('Run clean VM first launch smoke'));
-  assert.doesNotMatch(source, /'\/packages\/\*\/package\.json'/);
   assert.doesNotMatch(source, /git -C shells\/aionui sparse-checkout set/);
-  assert.doesNotMatch(source, /\b(?:npm install|npm i|bun add)\s+smol-toml(?:@|\s|$)/);
+  assert.doesNotMatch(source, /\b(?:npm install|npm i|bun install|bun add)\b/);
 });
 
 test('first-run VM validates both production Runtime refresh routes before writing qualification evidence', () => {
