@@ -996,20 +996,20 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   }
   const visual = candidate.dsh_source_reuse_contract as DSHSourceReuseContract | undefined;
   if (
-    visual?.source_cohort !== 'DeepSeek Harness 47f943859bef60e4160492346772ded9b24f765a selected GUI source' ||
+    visual?.source_cohort !== 'DeepSeek Harness 141eb6fef83422698aef7a981029e843e8161534 selected GUI source' ||
     visual.vendor_byte_policy !== 'selected_gui_files_remain_byte_identical_to_their_recorded_upstream_paths_at_the_pinned_ref' ||
     visual.contract_role !== 'source_preservation_and_opl_integration_regression_not_pixel_reimplementation' ||
     visual.reuse_method !== 'source_preserving_direct_reuse_through_public_slots_props_and_external_adapters' ||
     visual.visual_style_baseline !== 'DeepSeek Harness selected MIT GUI source preserved for DSH-covered modules plus semantically necessary One Person Lab integrations' ||
     visual.visual_style_scope !== 'light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface' ||
-    visual.visual_token_source !== 'deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@47f943859bef60e4160492346772ded9b24f765a' ||
+    visual.visual_token_source !== 'deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@141eb6fef83422698aef7a981029e843e8161534' ||
     visual.font_asset_policy !== 'reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets' ||
     visual.parallel_opl_visual_system_allowed !== false ||
     visual.css_override_policy !== 'forbidden_for_dsh_covered_modules_unless_a_real_opl_semantic_host_accessibility_or_platform_boundary_requires_the_smallest_external_delta' ||
     visual.pixel_evidence_role !== 'detect_regressions_after_source_reuse_and_opl_integration_not_reconstruct_or_approximate_dsh' ||
     visual.current_reference_status !== 'pinned_direct_source_reuse' ||
     visual.regression_floor !== 'AionUI active release shell' ||
-    visual.source_usage !== 'direct_mit_package_and_selected_source_reuse' ||
+    visual.source_usage !== 'direct_mit_gui_source_reuse' ||
     visual.minimum_bar !== 'direct_dsh_primitives_slots_layout_and_error_isolation_with_opl_owned_authority' ||
     visual.model_policy_source !== 'contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
     visual.default_model !== configuredDefaultModel ||
@@ -1101,6 +1101,11 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     "import css from './Button.module.css'",
     'export function Button',
   ], 'vendored DeepSeek Harness Button primitive');
+  assertCandidateFileContains(candidate, 'src/vendor/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx', [
+    'export function createSlotRenderer',
+    'SlotAssemblyError',
+    'useSyncExternalStore',
+  ], 'vendored DeepSeek Harness scoped slot renderer');
   assertCandidatePathAbsent(
     candidate,
     'src/integrations/deepseek-harness/uiPrimitives.tsx',
@@ -1109,6 +1114,7 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
   assertCandidateFileContains(candidate, 'src/composition/dshSlotHost.tsx', [
     'SlotCore',
     'createSlotRenderer',
+    'ui-renderer/src/client/scoped-slots.tsx',
     'AppFrame',
     'SidebarRoot',
     'ConversationRoot',
@@ -1119,16 +1125,26 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     '<ConversationRoot',
     '<InputBar',
     '<SettingsRoot',
+    'sidebar.brand.mark',
+    'sidebar.brand.name',
+    'conversation.hero.brand.mark',
+    'conversation.input.attachments',
+    'function OplBrandNameSlot() { return <>One Person Lab</>; }',
+    'function EmptyAttachmentSlot() { return null; }',
+    'useHostDescription={(selector: any) => selector(undefined)}',
     'renderRoot()',
   ], 'DeepSeek Harness slot host and rendered GUI composition');
+  assertCandidateFileContains(candidate, 'src/integrations/deepseek-harness/runtimeShim.ts', [
+    'export function abbreviateHomePath',
+    'isWindowsStylePath',
+    'path.startsWith(`${root}/`)',
+  ], 'DeepSeek Harness workspace path compatibility shim');
   assertCandidateFileContains(candidate, 'src/main.tsx', [
     'renderOplStudioRoot',
     'createRoot(rootElement).render(renderOplStudioRoot())',
   ], 'DeepSeek Harness composition entrypoint');
   assertCandidateFileContains(candidate, 'src/workbench/App.tsx', [
     'renderShell',
-    'data-testid="opl-workspace-rail"',
-    'data-testid="opl-session-list"',
     'data-testid="opl-context-tabs"',
     'data-testid="opl-runtime-status-panel"',
     'data-testid="opl-agent-run-status"',
@@ -1142,6 +1158,8 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     'data-testid="opl-web-transport"',
   ], 'OPL Studio surface producer and contextual content');
   assertCandidateFileExcludes(candidate, 'src/workbench/App.tsx', [
+    'data-testid="opl-workspace-rail"',
+    'data-testid="opl-session-list"',
     'data-testid="opl-skills-panel"',
     'data-testid="opl-routing-panel"',
     'data-testid="opl-memory-panel"',
@@ -1168,7 +1186,8 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
   ], 'results and delivery workbench model');
   assertCandidateFileContains(candidate, 'scripts/validate-opl-studio-candidate.mjs', [
     'src/candidateContractEvidence.json',
-    'opl-workspace-rail',
+    'src/vendor/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx',
+    '0.1.0-rc.8',
     'opl-studio',
   ], 'OPL Studio self-validator');
 }

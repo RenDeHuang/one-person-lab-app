@@ -27,6 +27,21 @@ import {
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
+const deepSeekHarnessRc8Ref = '141eb6fef83422698aef7a981029e843e8161534';
+const deepSeekHarnessRc8PackageRoots = [
+  'packages/client/ui-layout/src',
+  'packages/client/ui-sidebar/src',
+  'packages/client/ui-conversation/src',
+  'packages/client/ui-input-trigger/src',
+  'packages/client/ui-model-selection/src',
+  'packages/client/ui-agent-preset/src',
+  'packages/client/ui-workspace/src',
+  'packages/client/ui-settings-general/src',
+  'packages/client/ui-theme/src',
+  'packages/client/ui-primitives/src',
+  'packages/client/ui-renderer/src',
+];
+
 export type OPLStudioCarrierEvidenceEntry = {
   carrier_id: OPLStudioCarrierId;
   source_implementation: {
@@ -364,11 +379,10 @@ function validateOPLStudioImplementationEvidence(
     throw new Error(`${candidate.id} evidence must prove one renderer and shared Node host core across Electron desktop and WebUI adapters`);
   }
   if (
-    evidence.reuse_policy?.deepseek_harness_source_usage !== 'direct_mit_package_and_selected_source_reuse'
-    || evidence.reuse_policy?.deepseek_harness_source_ref !== '47f943859bef60e4160492346772ded9b24f765a'
+    evidence.reuse_policy?.deepseek_harness_source_usage !== 'direct_mit_gui_source_reuse'
+    || evidence.reuse_policy?.deepseek_harness_source_ref !== deepSeekHarnessRc8Ref
+    || evidence.reuse_policy?.deepseek_harness_ui_package_version !== '0.1.0-rc.8'
     || evidence.reuse_policy?.deepseek_harness_selected_source_reused !== true
-    || evidence.reuse_policy?.kdense_source_usage !== 'experience_reference_only'
-    || evidence.reuse_policy?.openclaudescience_source_usage !== 'experience_reference_only'
     || evidence.reuse_policy?.other_external_gui_source_copied !== false
     || evidence.reuse_policy?.runtime_authority_transfer !== false
   ) {
@@ -383,6 +397,34 @@ function validateOPLStudioImplementationEvidence(
       'rich file preview affordances',
     ],
     `${candidate.id} evidence reuse_policy.adopted_patterns`,
+  );
+  const reusedModules = evidence.reused_oss_module_policy;
+  if (
+    reusedModules?.policy !== 'pinned_direct_reuse_for_deepseek_harness_reference_only_for_other_gui_sources'
+    || reusedModules?.vendored_source_root !== 'src/vendor/deepseek-harness'
+    || reusedModules?.source_manifest !== 'src/composition/deepseekHarnessSourceManifest.json'
+    || reusedModules?.vendored_file_count !== 277
+    || reusedModules?.byte_identical !== true
+    || reusedModules?.byte_identical_to_pinned_ref !== true
+    || reusedModules?.slot_renderer_source !== 'packages/client/ui-renderer/src/client/scoped-slots.tsx#createSlotRenderer'
+    || reusedModules?.brand_override !== 'upstream_rc8_brand_slots_with_text_only_opl_occupants'
+    || reusedModules?.attachment_slot_policy !== 'registered_empty_occupant_no_multimodal_runtime'
+    || reusedModules?.workspace_host_description_policy !== 'unavailable_until_app_abi_exists'
+    || reusedModules?.home_path_abbreviation_policy !== 'posix_boundary_shim_windows_fail_open_without_app_home_field'
+    || reusedModules?.runtime_authority_transfer !== false
+  ) {
+    throw new Error(`${candidate.id} evidence must bind rc8 source reuse to 277 byte-identical files, the pinned slot renderer, and non-authoritative OPL adapters`);
+  }
+  assertDeepEqualJson(reusedModules.direct_reuse_modules, [
+    '@deepseek-ai/dsh-client-ui-slots@0.1.0-rc.8',
+    '@deepseek-ai/dsh-invariants@0.1.0-rc.8',
+    '@deepseek-ai/cordis@4.0.1',
+    'use-sync-external-store@1.2.0',
+  ], `${candidate.id} evidence reused_oss_module_policy.direct_reuse_modules`);
+  assertDeepEqualJson(
+    reusedModules.vendored_package_roots,
+    deepSeekHarnessRc8PackageRoots,
+    `${candidate.id} evidence reused_oss_module_policy.vendored_package_roots`,
   );
   if (
     evidence.secondary_runtime_context_refs?.authority !== 'opl_framework_refs_only_projection'
@@ -494,7 +536,8 @@ export function validateDeepSeekHarnessCompositionEvidence(
   const visual = defaultHomeLayout?.primary_visual_reference;
   if (
     visual?.reference_product !== 'DeepSeek Harness'
-    || visual?.reference_version !== '47f943859bef60e4160492346772ded9b24f765a'
+    || visual?.reference_version !== deepSeekHarnessRc8Ref
+    || visual?.reference_date !== '2026-08-20'
     || visual?.source_usage !== 'direct_mit_gui_source_reuse'
     || visual?.left_side !== 'persistent project and conversation rail with search and Settings only'
     || visual?.center !== 'single dominant conversation timeline with bottom composer'
@@ -505,8 +548,9 @@ export function validateDeepSeekHarnessCompositionEvidence(
   const style = defaultHomeLayout?.visual_style_reference;
   if (
     style?.reference_product !== 'DeepSeek Harness'
-    || style?.reference_version !== '47f943859bef60e4160492346772ded9b24f765a'
-    || style?.scope !== 'six_pinned_gui_package_source_trees_with_vendor_external_opl_adapters'
+    || style?.reference_version !== deepSeekHarnessRc8Ref
+    || style?.reference_date !== '2026-08-20'
+    || style?.scope !== 'eleven_pinned_gui_package_source_trees_with_opl_slot_adapters'
     || style?.token_source !== 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css'
     || style?.font_asset_policy !== 'system_font_stack_no_foreign_font_binary_redistribution'
   ) {

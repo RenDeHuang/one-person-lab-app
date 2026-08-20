@@ -104,6 +104,35 @@ aggregation -> App contract -> successor renderer。它先由一个真实 Packag
 
 ## 取证快照
 
+### 当前 Studio rc8 candidate（2026-08-20）
+
+Studio 当前固定 DeepSeek Harness tag `dsh-v0.1.0-rc.8`、commit
+`141eb6fef83422698aef7a981029e843e8161534`。candidate 直接 vendor 11 个 GUI source
+roots、277 个逐字节一致文件；`packages/client/ui-renderer/src/client/scoped-slots.tsx`
+成为 `createSlotRenderer` 的 pinned source，旧的 `dsh-client-web-react` 依赖已经删除。
+运行时依赖边界固定为 `dsh-client-ui-slots@0.1.0-rc.8`、
+`dsh-invariants@0.1.0-rc.8`、Cordis `4.0.1` 和
+`use-sync-external-store@1.2.0`。
+
+rc8 的 Studio 收益限定在 GUI/source 与 adapter 层：
+
+- 上游拆出的 scoped slot renderer 让 Studio 保留完整 slot composition 和 error isolation，
+  同时不引入 DSH client runtime；
+- 品牌 slots 直接承载 `OPL` / `One Person Lab`，附件 slot 保持空实现，因此兼容 rc8 composer
+  但不虚构多模态能力；
+- workspace host description 继续返回 unavailable，home path 只保留 POSIX 边界 shim 和
+  Windows fail-open，不扩展 App ABI；
+- conversation、sidebar、theme 和 primitives 的 rc8 响应式、Safari、浮层定位与外部点击处理
+  随 byte-identical cohort 吸收，仍由 Desktop/WebUI rendered acceptance 约束 OPL 体验。
+
+AionUI 不跟随这次 Studio source cohort 升级。它继续独立固定
+`contracts/app-gui-visual-source-cohort.json` 中的 rc5 commit
+`47f943859bef60e4160492346772ded9b24f765a`，仅消费 bounded icons/theme/primitive
+geometry；Studio rc8 ref 与 AionUI rc5 visual ref 合法且必须不同。该候选证据仍不表示
+active-shell、clean-VM、release、production 或 domain ready。
+
+### 历史 rc5 评估记录（保留）
+
 本次评估固定 DeepSeek Harness source ref
 `47f943859bef60e4160492346772ded9b24f765a`（2026-08-13，source version
 `0.1.0-rc.5`）。2026-08-14 观察到 npm 可安装入口已是 `0.1.0-rc.6`，而部分拆分 GUI
@@ -286,8 +315,11 @@ slot host -> DSH-derived React renderer -> visible UI -> App action dry-run -> a
 - 不产生 DSH home、session store、credential store 或第二 action bus；
 - build size、cold start 和 steady render 没有不可接受回归。
 
-当前状态：source/package/fixture 链已实现；完整 pixel、cold-start、installed readback 和
-canonical absorption 仍待完成，不能据此声称 release-ready。
+当前状态：Studio rc8 source/package/fixture 链、双视口 rendered acceptance、desktop candidate
+package 和 Studio source canonical absorption 已完成，App 双 cohort 合同由本变更收敛。截图与
+receipt 只证明本地 rendered candidate，不是 pixel baseline、installed、clean-VM 或 release 证据；
+cold-start、installed readback、clean-VM 与 release qualification 仍待完成，不能据此声称
+release-ready。
 
 当前 UI 基线已进一步完成：用户可见品牌只保留 `One Person Lab`；模型 Auto 与固定模型消歧；
 强度选项使用短标签；OPL 标准智能体在 composer `+` 菜单独立成组；DSH Appearance 三态已接入

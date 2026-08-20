@@ -356,32 +356,37 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
   }
   if (
     deepseekHarness.source_repo !== 'https://github.com/deepseek-ai/deepseek-harness' ||
-    deepseekHarness.evaluated_ref !== '47f943859bef60e4160492346772ded9b24f765a' ||
-    deepseekHarness.evaluated_at !== '2026-08-14' ||
-    deepseekHarness.evaluated_version !== '0.1.0-rc.5 source; 0.1.0-rc.6 installable entry observed' ||
+    deepseekHarness.evaluated_ref !== '141eb6fef83422698aef7a981029e843e8161534' ||
+    deepseekHarness.evaluated_at !== '2026-08-20' ||
+    deepseekHarness.evaluated_version !== '0.1.0-rc.8 source and package cohort' ||
     deepseekHarness.license !== 'MIT' ||
     deepseekHarness.source_usage !== 'approved_bounded_source_and_package_reuse'
   ) {
     throw new Error('DeepSeek Harness reference must stay pinned to the evaluated preview source, version, date, license, and bounded reuse status');
   }
   assertDeepEqualJson(deepseekHarness.adopted_packages, {
-    '@deepseek-ai/dsh-client-ui-slots': '0.1.0-rc.6',
-    '@deepseek-ai/dsh-client-web-react': '0.1.0-rc.6',
+    '@deepseek-ai/dsh-client-ui-slots': '0.1.0-rc.8',
+    '@deepseek-ai/dsh-invariants': '0.1.0-rc.8',
     '@deepseek-ai/cordis': '4.0.1',
-    '@deepseek-ai/dsh-invariants': '0.1.0-rc.6',
+    'use-sync-external-store': '1.2.0',
   }, 'DeepSeek Harness adopted_packages');
   assertDeepEqualJson(deepseekHarness.adopted_source, {
     root: 'src/vendor/deepseek-harness',
-    ref: '47f943859bef60e4160492346772ded9b24f765a',
+    ref: '141eb6fef83422698aef7a981029e843e8161534',
     path_policy: 'preserve_upstream_package_relative_paths',
     byte_policy: 'byte_identical_to_pinned_ref',
     package_roots: [
       'packages/client/ui-layout/src',
       'packages/client/ui-sidebar/src',
       'packages/client/ui-conversation/src',
+      'packages/client/ui-input-trigger/src',
+      'packages/client/ui-model-selection/src',
+      'packages/client/ui-agent-preset/src',
+      'packages/client/ui-workspace/src',
       'packages/client/ui-settings-general/src',
       'packages/client/ui-theme/src',
       'packages/client/ui-primitives/src',
+      'packages/client/ui-renderer/src',
     ],
     files: [
       'packages/client/ui-layout/src/client/AppFrame.tsx',
@@ -395,6 +400,10 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
       'packages/client/ui-conversation/src/client/skeleton/InputBar.module.css',
       'packages/client/ui-conversation/src/client/skeleton/EmptyHero.tsx',
       'packages/client/ui-conversation/src/client/skeleton/HeroShell.module.css',
+      'packages/client/ui-input-trigger/src/client/MenuView.tsx',
+      'packages/client/ui-model-selection/src/client/ModelSelect.tsx',
+      'packages/client/ui-agent-preset/src/client/AgentPresetSeat.tsx',
+      'packages/client/ui-workspace/src/client/WorkspaceBrowser.tsx',
       'packages/client/ui-settings-general/src/client/SettingsRoot.tsx',
       'packages/client/ui-settings-general/src/client/SettingsRoot.module.css',
       'packages/client/ui-theme/src/styles/design-platform.css',
@@ -413,6 +422,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
       'packages/client/ui-primitives/src/Tooltip.module.css',
       'packages/client/ui-primitives/src/markdown/MessageText.tsx',
       'packages/client/ui-primitives/src/markdown/MessageText.module.css',
+      'packages/client/ui-renderer/src/client/scoped-slots.tsx',
     ],
   }, 'DeepSeek Harness adopted_source');
   assertStringArrayIncludes(deepseekHarness.adopted_surface, [
@@ -424,6 +434,8 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'SettingsRoot navigation and modal composition',
     'ui-theme design platform base scrollbar and gradient shadow styles',
     'complete ui-primitives source tree with OPL brand overrides outside the vendor root',
+    'pinned ui-renderer scoped-slots createSlotRenderer implementation without the DSH client runtime',
+    'rc8 brand attachment and workspace hooks satisfied by external OPL adapters without new runtime authority',
   ], 'DeepSeek Harness adopted_surface');
   assertDeepEqualJson(deepseekHarness.upstream_intake, {
     mode: 'pinned_vendor_snapshot_with_external_opl_adapters',

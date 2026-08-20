@@ -139,10 +139,13 @@ test('DeepSeek Harness full reuse stays Studio-only while AionUI gets only the b
   const visualCohort = readJson<any>('contracts/app-gui-visual-source-cohort.json');
   const governance = (registry as any).design_system_governance;
 
-  assert.equal(reference?.evaluated_ref, '47f943859bef60e4160492346772ded9b24f765a');
+  assert.equal(reference?.evaluated_ref, '141eb6fef83422698aef7a981029e843e8161534');
   assert.equal(reference?.license, 'MIT');
   assert.equal(reference?.source_usage, 'approved_bounded_source_and_package_reuse');
-  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-ui-slots'], '0.1.0-rc.6');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-ui-slots'], '0.1.0-rc.8');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-invariants'], '0.1.0-rc.8');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-web-react'], undefined);
+  assert.equal(reference?.adopted_packages['use-sync-external-store'], '1.2.0');
   assert.equal(reference?.adopted_source?.root, 'src/vendor/deepseek-harness');
   assert.equal(reference?.adopted_source?.path_policy, 'preserve_upstream_package_relative_paths');
   assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-layout/src/client/AppFrame.tsx'));
@@ -150,9 +153,12 @@ test('DeepSeek Harness full reuse stays Studio-only while AionUI gets only the b
   assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-conversation/src/client/skeleton/InputBar.tsx'));
   assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-settings-general/src/client/SettingsRoot.tsx'));
   assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-theme/src/styles/design-platform.css'));
+  assert.ok(reference?.adopted_source?.files.includes('packages/client/ui-renderer/src/client/scoped-slots.tsx'));
+  assert.equal(reference?.adopted_source?.package_roots.length, 11);
   assert.equal(reference?.upstream_intake?.floating_ref_allowed, false);
   assert.equal(reference?.upstream_intake?.automatic_promotion_allowed, false);
-  assert.equal(visualCohort.upstream.commit, reference?.evaluated_ref);
+  assert.equal(visualCohort.upstream.commit, '47f943859bef60e4160492346772ded9b24f765a');
+  assert.notEqual(visualCohort.upstream.commit, reference?.evaluated_ref);
   assert.deepEqual(visualCohort.phase_one_surfaces, [
     'titlebar',
     'navigation_rail',

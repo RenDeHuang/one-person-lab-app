@@ -210,7 +210,8 @@ test('OPL Studio candidate evidence binds layout and interaction semantics to pi
       product_layout_contract: alignment,
       primary_visual_reference: {
         reference_product: 'DeepSeek Harness',
-        reference_version: '47f943859bef60e4160492346772ded9b24f765a',
+        reference_version: '141eb6fef83422698aef7a981029e843e8161534',
+        reference_date: '2026-08-20',
         source_usage: 'direct_mit_gui_source_reuse',
         left_side: 'persistent project and conversation rail with search and Settings only',
         center: 'single dominant conversation timeline with bottom composer',
@@ -218,8 +219,9 @@ test('OPL Studio candidate evidence binds layout and interaction semantics to pi
       },
       visual_style_reference: {
         reference_product: 'DeepSeek Harness',
-        reference_version: '47f943859bef60e4160492346772ded9b24f765a',
-        scope: 'six_pinned_gui_package_source_trees_with_vendor_external_opl_adapters',
+        reference_version: '141eb6fef83422698aef7a981029e843e8161534',
+        reference_date: '2026-08-20',
+        scope: 'eleven_pinned_gui_package_source_trees_with_opl_slot_adapters',
         token_source: 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css',
         font_asset_policy: 'system_font_stack_no_foreign_font_binary_redistribution',
       },
