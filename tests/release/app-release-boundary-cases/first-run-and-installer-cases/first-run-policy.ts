@@ -180,6 +180,21 @@ test("release qualification requires protected Gateway credentials only for Stan
   assert.equal(qualification.api_key_role, "explicit_compatibility_only");
   assert.equal(qualification.release_vm_default.provider_configuration_status, "required_gateway_account_login");
   assert.equal(qualification.release_vm_default.provider_configuration_required, true);
+  assert.deepEqual(qualification.release_vm_default.dedicated_account_policy, {
+    personal_or_administrator_account_allowed: false,
+    required_profile_role: "user",
+    required_account_status: "active",
+    required_balance_amount: 0,
+    configured_email_must_match_authenticated_profile: true,
+    live_profile_preflight_required: true,
+    credential_or_token_fields_in_receipt_allowed: false,
+  });
+  assert.deepEqual(boundary.release_vm_smoke.credential_variable_names, [
+    "OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL",
+  ]);
+  assert.deepEqual(boundary.release_vm_smoke.credential_secret_names, [
+    "OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD",
+  ]);
   assert.deepEqual(qualification.required_release_scenarios, [
     "standard_dmg_clean_vm_smoke",
     "full_dmg_clean_vm_smoke",
@@ -212,6 +227,22 @@ test("release qualification requires protected Gateway credentials only for Stan
     boundary.artifact_and_package_independence
       .managed_package_currentness_requires_provider_credential,
     false,
+  );
+
+  const administratorCredentialMatrix = structuredClone(matrix);
+  administratorCredentialMatrix.provider_configuration_qualification.release_vm_default
+    .dedicated_account_policy.required_profile_role = "admin";
+  assert.throws(
+    () => validateFirstRunMatrix(administratorCredentialMatrix, adapter),
+    /must use protected Gateway credentials without synthetic keys/,
+  );
+
+  const administratorCredentialRelease = structuredClone(release);
+  administratorCredentialRelease.provider_configuration_boundary.release_vm_smoke
+    .dedicated_account_policy.personal_or_administrator_account_allowed = true;
+  assert.throws(
+    () => validateReleaseChannelContract(administratorCredentialRelease),
+    /must keep build\/package independence while requiring protected Gateway credentials/,
   );
 
   const syntheticCredentialMatrix = structuredClone(matrix);

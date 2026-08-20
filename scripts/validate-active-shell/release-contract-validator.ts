@@ -506,6 +506,7 @@ function validateOptionalCertificationPolicy(releaseChannel) {
 function validateProviderConfigurationBoundary(boundary) {
   const independence = boundary?.artifact_and_package_independence;
   const releaseVmSmoke = boundary?.release_vm_smoke;
+  const dedicatedAccount = releaseVmSmoke?.dedicated_account_policy;
   const connectedDiagnostic = releaseVmSmoke?.connected_provider_diagnostic;
   if (
     boundary?.schema !== 'opl_release_provider_configuration_boundary.v1'
@@ -521,13 +522,15 @@ function validateProviderConfigurationBoundary(boundary) {
     || releaseVmSmoke?.default_provider_configuration_status !== 'required_gateway_account_login'
     || releaseVmSmoke?.provider_configuration_is_blocking_release_gate !== true
     || !sameStringSet(releaseVmSmoke?.required_package_profiles, ['standard', 'full'])
-    || releaseVmSmoke?.credential_mode !== 'protected_gateway_account_files'
+    || releaseVmSmoke?.credential_mode !== 'dedicated_release_test_account_files'
+    || !sameStringSet(releaseVmSmoke?.credential_variable_names, [
+      'OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL',
+    ])
     || !sameStringSet(releaseVmSmoke?.credential_secret_names, [
-      'OPL_GATEWAY_ACCOUNT_EMAIL',
-      'OPL_GATEWAY_ACCOUNT_PASSWORD',
+      'OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD',
     ])
     || releaseVmSmoke?.credential_transport !==
-      'release-stable secrets to mode_0600 runner files to guest files then CDP form arguments'
+      'release-stable environment variable and secret to mode_0600 runner files to guest files then CDP form arguments'
     || !sameStringSet(releaseVmSmoke?.credential_forbidden_surfaces, [
       'command_argv',
       'command_preview',
@@ -541,6 +544,15 @@ function validateProviderConfigurationBoundary(boundary) {
     || releaseVmSmoke?.implicit_api_key_file_injection_allowed !== false
     || releaseVmSmoke?.visible_provider_wizard_without_explicit_credential !==
       'fail_closed_for_standard_and_full_release_gate'
+    || dedicatedAccount?.personal_or_administrator_account_allowed !== false
+    || dedicatedAccount?.required_profile_role !== 'user'
+    || dedicatedAccount?.required_account_status !== 'active'
+    || dedicatedAccount?.required_balance_amount !== 0
+    || dedicatedAccount?.configured_email_must_match_authenticated_profile !== true
+    || dedicatedAccount?.live_profile_preflight_required !== true
+    || dedicatedAccount?.live_profile_preflight_timing !== 'immediately_before_clean_vm_smoke'
+    || dedicatedAccount?.live_profile_endpoint !== '/api/v1/user/profile'
+    || dedicatedAccount?.credential_or_token_fields_in_receipt_allowed !== false
     || releaseVmSmoke?.summary_pointer !== '/provider_configuration'
     || releaseVmSmoke?.api_key_compatibility_lane_requires_explicit_request !== true
     || releaseVmSmoke?.api_key_compatibility_lane_requires_explicit_credential_file !== false
@@ -555,6 +567,11 @@ function validateProviderConfigurationBoundary(boundary) {
   ) {
     throw new Error('Release Provider configuration boundary must keep build/package independence while requiring protected Gateway credentials only for Standard and Full clean-VM gates');
   }
+  assertDeepEqualJson(
+    releaseVmSmoke.required_release_test_account_preflight_readback,
+    ['role=user', 'status=active', 'balance_amount=0', 'profile_email_matches_configured=true'],
+    'Release VM dedicated Gateway test account preflight readback',
+  );
   assertDeepEqualJson(
     releaseVmSmoke.required_fresh_account_readback,
     ['connected=true', 'account_non_empty', 'managed_key_active', 'stale=false'],

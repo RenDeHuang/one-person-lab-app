@@ -100,8 +100,13 @@ test('Tart VM consumers and routine advisory jobs use distinct exact capability 
     firstRun.jobs['clean-vm-first-run'].environment,
     "${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && 'release-stable' || null }}",
   );
-  assert.equal(firstRun.on.workflow_call.secrets.OPL_GATEWAY_ACCOUNT_EMAIL.required, false);
-  assert.equal(firstRun.on.workflow_call.secrets.OPL_GATEWAY_ACCOUNT_PASSWORD.required, false);
+  assert.deepEqual(Object.keys(firstRun.on.workflow_call.secrets), [
+    'OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD',
+  ]);
+  assert.equal(
+    firstRun.on.workflow_call.secrets.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD.required,
+    false,
+  );
   const updater = readWorkflow('opl-updater-upgrade-vm.yml').workflow;
   assert.deepEqual(
     updater.jobs.upgrade['runs-on'],

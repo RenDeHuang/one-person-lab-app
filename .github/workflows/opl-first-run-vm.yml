@@ -4,11 +4,8 @@ run-name: OPL GUI First-Run VM
 on:
   workflow_call:
     secrets:
-      OPL_GATEWAY_ACCOUNT_EMAIL:
-        description: Protected OPL Gateway account email for Standard and Full release-gate qualification.
-        required: false
-      OPL_GATEWAY_ACCOUNT_PASSWORD:
-        description: Protected OPL Gateway account password for Standard and Full release-gate qualification.
+      OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD:
+        description: Password for the dedicated non-admin OPL Gateway release-test account used by Standard and Full qualification.
         required: false
     inputs:
       mode:
@@ -1570,12 +1567,12 @@ jobs:
         if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && (needs.validate-vm-inputs.outputs.package_profile == 'standard' || needs.validate-vm-inputs.outputs.package_profile == 'full') }}
         shell: bash
         env:
-          GATEWAY_ACCOUNT_EMAIL: ${{ secrets.OPL_GATEWAY_ACCOUNT_EMAIL }}
-          GATEWAY_ACCOUNT_PASSWORD: ${{ secrets.OPL_GATEWAY_ACCOUNT_PASSWORD }}
+          GATEWAY_ACCOUNT_EMAIL: ${{ vars.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL }}
+          GATEWAY_ACCOUNT_PASSWORD: ${{ secrets.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "$GATEWAY_ACCOUNT_EMAIL" || { echo "::error::OPL_GATEWAY_ACCOUNT_EMAIL is required for Standard/Full release qualification."; exit 1; }
-          test -n "$GATEWAY_ACCOUNT_PASSWORD" || { echo "::error::OPL_GATEWAY_ACCOUNT_PASSWORD is required for Standard/Full release qualification."; exit 1; }
+          test -n "$GATEWAY_ACCOUNT_EMAIL" || { echo "::error::OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL is required for Standard/Full release qualification."; exit 1; }
+          test -n "$GATEWAY_ACCOUNT_PASSWORD" || { echo "::error::OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD is required for Standard/Full release qualification."; exit 1; }
           credential_dir="$RUNNER_TEMP/opl-gateway-release-credentials-${GITHUB_RUN_ID}-${GITHUB_JOB}"
           umask 077
           mkdir -p "$credential_dir"
@@ -1591,6 +1588,17 @@ jobs:
             echo "email_file=$email_file"
             echo "password_file=$password_file"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Verify dedicated non-admin Gateway release-test account
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && (needs.validate-vm-inputs.outputs.package_profile == 'standard' || needs.validate-vm-inputs.outputs.package_profile == 'full') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/opl-first-run-vm
+          node --experimental-strip-types scripts/verify-release-gateway-test-account.ts \
+            --email-file "${{ steps.gateway_credentials.outputs.email_file }}" \
+            --password-file "${{ steps.gateway_credentials.outputs.password_file }}" \
+            --output artifacts/opl-first-run-vm/gateway-release-test-account-qualification.json
 
       - name: Run clean VM first launch smoke
         id: vm_smoke
@@ -1810,8 +1818,8 @@ jobs:
         if: ${{ always() && needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' && (needs.validate-vm-inputs.outputs.package_profile == 'standard' || needs.validate-vm-inputs.outputs.package_profile == 'full') }}
         shell: bash
         env:
-          GATEWAY_ACCOUNT_EMAIL: ${{ secrets.OPL_GATEWAY_ACCOUNT_EMAIL }}
-          GATEWAY_ACCOUNT_PASSWORD: ${{ secrets.OPL_GATEWAY_ACCOUNT_PASSWORD }}
+          GATEWAY_ACCOUNT_EMAIL: ${{ vars.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL }}
+          GATEWAY_ACCOUNT_PASSWORD: ${{ secrets.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD }}
         run: |
           set -euo pipefail
           node <<'NODE'

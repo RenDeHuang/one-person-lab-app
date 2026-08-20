@@ -207,6 +207,7 @@ function validateSharedProgressModel(progressModel, scenarios) {
 function validateProviderConfigurationQualification(qualification, scenarioById) {
   const existingConfigReuse = qualification?.existing_codex_config_reuse;
   const releaseVmDefault = qualification?.release_vm_default;
+  const dedicatedAccount = releaseVmDefault?.dedicated_account_policy;
   const connectedDiagnostic = qualification?.connected_provider_diagnostic;
   const compatibilityLane = qualification?.api_key_compatibility_lane;
   const packageReconciliation = qualification?.package_reconciliation_independence;
@@ -223,13 +224,20 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     || existingConfigReuse?.manual_user_input_required !== false
     || existingConfigReuse?.mutation_performed !== false
     || existingConfigReuse?.secret_exposure_allowed !== false
-    || releaseVmDefault?.credential_mode !== 'protected_gateway_account_files'
+    || releaseVmDefault?.credential_mode !== 'dedicated_release_test_account_files'
     || releaseVmDefault?.credential_source !==
-      'release-stable secrets OPL_GATEWAY_ACCOUNT_EMAIL and OPL_GATEWAY_ACCOUNT_PASSWORD'
+      'release-stable variable OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL and secret OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD'
     || releaseVmDefault?.credential_transport !==
       'mode_0600_runner_files_to_guest_files_then_CDP_form_arguments_without_secret_argv_log_plan_receipt_or_artifact'
     || releaseVmDefault?.provider_configuration_status !== 'required_gateway_account_login'
     || releaseVmDefault?.provider_configuration_required !== true
+    || dedicatedAccount?.personal_or_administrator_account_allowed !== false
+    || dedicatedAccount?.required_profile_role !== 'user'
+    || dedicatedAccount?.required_account_status !== 'active'
+    || dedicatedAccount?.required_balance_amount !== 0
+    || dedicatedAccount?.configured_email_must_match_authenticated_profile !== true
+    || dedicatedAccount?.live_profile_preflight_required !== true
+    || dedicatedAccount?.credential_or_token_fields_in_receipt_allowed !== false
     || releaseVmDefault?.synthetic_api_key_generation_allowed !== false
     || releaseVmDefault?.implicit_api_key_file_injection_allowed !== false
     || releaseVmDefault?.visible_provider_wizard_behavior !==
@@ -280,6 +288,11 @@ function validateProviderConfigurationQualification(qualification, scenarioById)
     connectedDiagnostic.required_selected_provider_fields,
     ['base_url', 'experimental_bearer_token'],
     'Connected VM Provider credential fields',
+  );
+  assertDeepEqualJson(
+    releaseVmDefault.required_release_test_account_preflight_readback,
+    ['role=user', 'status=active', 'balance_amount=0', 'profile_email_matches_configured=true'],
+    'Release VM dedicated Gateway test account preflight readback',
   );
   assertDeepEqualJson(
     releaseVmDefault.required_fresh_account_readback,

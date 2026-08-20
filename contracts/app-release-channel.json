@@ -1289,12 +1289,14 @@
       "default_provider_configuration_status": "required_gateway_account_login",
       "provider_configuration_is_blocking_release_gate": true,
       "required_package_profiles": ["standard", "full"],
-      "credential_mode": "protected_gateway_account_files",
-      "credential_secret_names": [
-        "OPL_GATEWAY_ACCOUNT_EMAIL",
-        "OPL_GATEWAY_ACCOUNT_PASSWORD"
+      "credential_mode": "dedicated_release_test_account_files",
+      "credential_variable_names": [
+        "OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL"
       ],
-      "credential_transport": "release-stable secrets to mode_0600 runner files to guest files then CDP form arguments",
+      "credential_secret_names": [
+        "OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD"
+      ],
+      "credential_transport": "release-stable environment variable and secret to mode_0600 runner files to guest files then CDP form arguments",
       "credential_forbidden_surfaces": [
         "command_argv",
         "command_preview",
@@ -1307,7 +1309,24 @@
       "synthetic_api_key_generation_allowed": false,
       "implicit_api_key_file_injection_allowed": false,
       "visible_provider_wizard_without_explicit_credential": "fail_closed_for_standard_and_full_release_gate",
+      "dedicated_account_policy": {
+        "personal_or_administrator_account_allowed": false,
+        "required_profile_role": "user",
+        "required_account_status": "active",
+        "required_balance_amount": 0,
+        "configured_email_must_match_authenticated_profile": true,
+        "live_profile_preflight_required": true,
+        "live_profile_preflight_timing": "immediately_before_clean_vm_smoke",
+        "live_profile_endpoint": "/api/v1/user/profile",
+        "credential_or_token_fields_in_receipt_allowed": false
+      },
       "summary_pointer": "/provider_configuration",
+      "required_release_test_account_preflight_readback": [
+        "role=user",
+        "status=active",
+        "balance_amount=0",
+        "profile_email_matches_configured=true"
+      ],
       "required_fresh_account_readback": [
         "connected=true",
         "account_non_empty",

@@ -275,6 +275,7 @@ test('release-gate Gateway credentials stay file-bound and are scanned before ar
     return step;
   };
   const prepare = find('Prepare protected Gateway account files for release qualification');
+  const preflight = find('Verify dedicated non-admin Gateway release-test account');
   const smoke = find('Run clean VM first launch smoke');
   const remove = find('Remove protected Gateway account files');
   const scan = find('Reject protected credentials in release evidence');
@@ -282,12 +283,18 @@ test('release-gate Gateway credentials stay file-bound and are scanned before ar
   const uploadEvidence = find('Upload first-run VM artifacts');
 
   assert.deepEqual(prepare.env, {
-    GATEWAY_ACCOUNT_EMAIL: '${{ secrets.OPL_GATEWAY_ACCOUNT_EMAIL }}',
-    GATEWAY_ACCOUNT_PASSWORD: '${{ secrets.OPL_GATEWAY_ACCOUNT_PASSWORD }}',
+    GATEWAY_ACCOUNT_EMAIL: '${{ vars.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL }}',
+    GATEWAY_ACCOUNT_PASSWORD: '${{ secrets.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD }}',
   });
   assert.match(String(prepare.run), /umask 077/);
   assert.match(String(prepare.run), /chmod 600 "\$email_file" "\$password_file"/);
   assert.doesNotMatch(String(prepare.run), /echo[^\n]*\$GATEWAY_ACCOUNT_(?:EMAIL|PASSWORD)/);
+  assert.match(String(preflight.run), /verify-release-gateway-test-account\.ts/);
+  assert.match(String(preflight.run), /--email-file/);
+  assert.match(String(preflight.run), /--password-file/);
+  assert.match(String(preflight.run), /gateway-release-test-account-qualification\.json/);
+  assert.ok(steps.indexOf(prepare) < steps.indexOf(preflight));
+  assert.ok(steps.indexOf(preflight) < steps.indexOf(smoke));
   assert.equal(smoke.env, undefined);
   assert.doesNotMatch(String(smoke.run), /secrets\.OPL_GATEWAY|GATEWAY_ACCOUNT_(?:EMAIL|PASSWORD)/);
   assert.match(String(smoke.run), /--gateway-account-email-file/);
@@ -295,6 +302,14 @@ test('release-gate Gateway credentials stay file-bound and are scanned before ar
   assert.doesNotMatch(String(smoke.run), /--gateway-account-(?:email|password)(?:\s|$)/);
   assert.match(String(scan.run), /const roots = \['artifacts'\]/);
   assert.match(String(scan.run), /Protected Gateway credential found in release evidence/);
+  assert.deepEqual(scan.env, {
+    GATEWAY_ACCOUNT_EMAIL: '${{ vars.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_EMAIL }}',
+    GATEWAY_ACCOUNT_PASSWORD: '${{ secrets.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD }}',
+  });
+  assert.doesNotMatch(
+    JSON.stringify(workflow),
+    /OPL_GATEWAY_ACCOUNT_EMAIL|OPL_GATEWAY_ACCOUNT_PASSWORD/,
+  );
   assert.ok(steps.indexOf(remove) < steps.indexOf(scan));
   assert.ok(steps.indexOf(scan) < steps.indexOf(uploadDiagnostics));
   assert.ok(steps.indexOf(scan) < steps.indexOf(uploadEvidence));
