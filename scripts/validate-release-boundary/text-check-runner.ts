@@ -914,7 +914,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     || !needsExactly(standardCleanVm, ['freeze', 'seal-standard-identity'])
     || standardCleanVm.if !== "${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}"
     || standardCleanVm.with?.release_artifact_name !==
-      '${{ needs.seal-standard-identity.outputs.standard_artifact_name }}'
+      '${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}'
     || standardCleanVm.with?.release_artifact_run_id !== '${{ github.run_id }}'
     || standardCleanVm.with?.package_profile !== 'standard'
     || standardCleanVm.with?.diagnostic_scope !== 'release_gate'

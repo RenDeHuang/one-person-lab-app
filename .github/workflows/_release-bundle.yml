@@ -827,6 +827,7 @@ jobs:
       actions: read
     outputs:
       standard_artifact_name: ${{ steps.seal.outputs.standard_artifact_name }}
+      standard_vm_artifact_name: ${{ steps.seal.outputs.standard_vm_artifact_name }}
       standard_identity_sha256: ${{ steps.seal.outputs.standard_identity_sha256 }}
     steps:
       - name: Checkout exact App identity binder
@@ -898,8 +899,20 @@ jobs:
           mv standard-identity-receipt.json bound-standard/standard-identity-receipt.json
           identity_digest="sha256:$(shasum -a 256 bound-standard/standard-identity-receipt.json | awk '{print $1}')"
           [[ "$identity_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          standard_dmgs=()
+          while IFS= read -r candidate; do standard_dmgs+=("$candidate"); done < <(
+            find bound-standard/assets -maxdepth 1 -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' -print | LC_ALL=C sort
+          )
+          test "${#standard_dmgs[@]}" -eq 1 || {
+            echo "::error::Standard VM carrier requires exactly one bound Standard DMG; found ${#standard_dmgs[@]}."
+            exit 1
+          }
+          mkdir -p bound-standard-vm/assets
+          ln "${standard_dmgs[0]}" "bound-standard-vm/assets/$(basename "${standard_dmgs[0]}")"
+          cp bound-standard/standard-identity-receipt.json bound-standard-vm/standard-identity-receipt.json
           {
             echo "standard_artifact_name=opl-release-standard-bound-${GITHUB_RUN_ID}"
+            echo "standard_vm_artifact_name=opl-release-standard-vm-bound-${GITHUB_RUN_ID}"
             echo "standard_identity_sha256=$identity_digest"
           } >> "$GITHUB_OUTPUT"
 
@@ -911,10 +924,27 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Upload exact-candidate Standard VM artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-release-standard-vm-bound-${{ github.run_id }}
+          path: bound-standard-vm
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
       - name: Upload bound Standard cohort identity
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-bound-${{ github.run_id }}-cohort
+          path: standard-cohort
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload exact-candidate Standard VM cohort identity
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-release-standard-vm-bound-${{ github.run_id }}-cohort
           path: standard-cohort
           if-no-files-found: error
           retention-days: 30
@@ -928,7 +958,7 @@ jobs:
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       mode: execute
-      release_artifact_name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
+      release_artifact_name: ${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}
       release_artifact_run_id: ${{ github.run_id }}
       standard_identity_sha256: ${{ needs.seal-standard-identity.outputs.standard_identity_sha256 }}
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}

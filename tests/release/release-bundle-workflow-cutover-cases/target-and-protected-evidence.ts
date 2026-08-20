@@ -449,11 +449,33 @@ test('one signed Standard build is sealed once and every final consumer binds it
   const cohortDownload = bundle.jobs['seal-standard-identity'].steps.find(
     (step: any) => step.name === 'Download the signed Standard build cohort',
   );
+  const seal = bundle.jobs['seal-standard-identity'];
+  const sealIdentity = seal.steps.find(
+    (step: any) => step.name === 'Seal one immutable Standard artifact identity',
+  );
+  const vmArtifactUpload = seal.steps.find(
+    (step: any) => step.name === 'Upload exact-candidate Standard VM artifact',
+  );
+  const vmCohortUpload = seal.steps.find(
+    (step: any) => step.name === 'Upload exact-candidate Standard VM cohort identity',
+  );
   assert.equal(
     cohortUpload.with.name,
     "${{ inputs.append_commit_hash && format('{0}-{1}-dmg-cohort', matrix.artifact-name, steps.commit.outputs.short) || format('{0}-dmg-cohort', matrix.artifact-name) }}",
   );
   assert.equal(cohortDownload.with.name, 'macos-build-arm64-dmg-cohort');
+  assert.equal(
+    seal.outputs.standard_vm_artifact_name,
+    '${{ steps.seal.outputs.standard_vm_artifact_name }}',
+  );
+  assert.match(String(sealIdentity.run), /Standard VM carrier requires exactly one bound Standard DMG/);
+  assert.match(String(sealIdentity.run), /ln "\$\{standard_dmgs\[0\]\}"/);
+  assert.match(String(sealIdentity.run), /cp bound-standard\/standard-identity-receipt\.json bound-standard-vm\/standard-identity-receipt\.json/);
+  assert.equal(vmArtifactUpload.with.name, 'opl-release-standard-vm-bound-${{ github.run_id }}');
+  assert.equal(vmArtifactUpload.with.path, 'bound-standard-vm');
+  assert.equal(vmArtifactUpload.with['compression-level'], 0);
+  assert.equal(vmCohortUpload.with.name, 'opl-release-standard-vm-bound-${{ github.run_id }}-cohort');
+  assert.equal(vmCohortUpload.with.path, 'standard-cohort');
   assert.equal((source.match(/uses: \.\/\.github\/workflows\/_build-reusable\.yml/g) ?? []).length, 1);
   assert.deepEqual(bundle.jobs['seal-standard-identity'].needs, ['freeze', 'standard-build']);
   assert.equal(bundle.jobs['standard-qualification'], undefined);
@@ -466,6 +488,10 @@ test('one signed Standard build is sealed once and every final consumer binds it
   assert.deepEqual(standardCleanVm.needs, ['freeze', 'seal-standard-identity']);
   assert.equal(standardCleanVm.with.package_profile, 'standard');
   assert.equal(standardCleanVm.with.diagnostic_scope, 'release_gate');
+  assert.equal(
+    standardCleanVm.with.release_artifact_name,
+    '${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}',
+  );
   assert.equal(standardCleanVm.with.require_macos_gatekeeper, true);
   assert.equal(standardCleanVm.secrets, 'inherit');
   assert.equal(

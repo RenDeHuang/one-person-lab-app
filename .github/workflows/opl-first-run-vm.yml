@@ -1056,6 +1056,10 @@ jobs:
           mkdir -p artifacts/release
           artifact_download_outcome="${{ steps.release_artifact_download.outcome }}"
           if [ -n "${{ inputs.release_artifact_name }}" ] && [ "$artifact_download_outcome" != "success" ]; then
+            if [ '${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}' = release_gate ]; then
+              echo "::error::Exact-candidate workflow artifact download failed with outcome ${artifact_download_outcome:-unavailable}; release qualification must not fall back to a published release."
+              exit 1
+            fi
             echo "::warning::Workflow artifact download outcome was ${artifact_download_outcome:-unavailable}; removing partial artifact files and falling back to the GitHub Release asset."
             find artifacts/release -mindepth 1 -maxdepth 1 -exec rm -rf {} +
           fi

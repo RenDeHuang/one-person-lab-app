@@ -123,6 +123,26 @@ test('first-run VM imports the frozen Shell harness without installing its depen
   assert.doesNotMatch(source, /\b(?:npm install|npm i|bun install|bun add)\b/);
 });
 
+test('release-gate VM qualification never falls back from the exact candidate to Latest', () => {
+  const resolve = workflowStep(
+    'opl-first-run-vm.yml',
+    'clean-vm-first-run',
+    'Resolve release DMG',
+  );
+  const run = String(resolve.run);
+  const failureGuard = run.indexOf('release qualification must not fall back to a published release');
+  const releaseLookup = run.indexOf('fetch_release_metadata_with_retry()');
+
+  assert.notEqual(failureGuard, -1);
+  assert.notEqual(releaseLookup, -1);
+  assert.ok(failureGuard < releaseLookup);
+  assert.match(
+    run,
+    /if \[ '\$\{\{ needs\.validate-vm-inputs\.outputs\.diagnostic_scope \}\}' = release_gate \]; then/,
+  );
+  assert.match(run, /exit 1/);
+});
+
 test('first-run VM validates both production Runtime refresh routes before writing qualification evidence', () => {
   const workflow = parseWorkflow('opl-first-run-vm.yml');
   const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
