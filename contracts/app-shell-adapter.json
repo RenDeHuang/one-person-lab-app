@@ -235,8 +235,7 @@
     "upstream_ref": "a0ce713b65801fd9ca7f46ad168c977c75a187de",
     "upstream_ref_role": "minimum_verified_gui_conformance_ancestor",
     "current_head_source": "active_shell_checkout_git_head",
-    "current_head_must_contain_upstream_ref": true,
-    "current_head_must_not_be_copied_into_human_docs": true
+    "current_head_must_contain_upstream_ref": true
   },
   "app_remote": {
     "name": "origin",

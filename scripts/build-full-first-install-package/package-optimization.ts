@@ -373,7 +373,7 @@ export function auditFullPackageBundleBoundaries(appPath: string, manifest: Reco
     version: manifest?.version ?? null,
     standard_app_boundary: {
       standard_package_allowed_to_contain_full_runtime: false,
-      standard_payload_guard: 'scripts/prepare-standard-release-payload.ts removes packaged-runtimes/opl-full-runtime before standard builds; publish-release asserts standard App bundles do not contain Contents/Resources/opl-full-runtime/runtime/current',
+      standard_payload_guard: 'scripts/prepare-standard-release-payload.ts removes packaged-runtimes/opl-full-runtime before standard builds; Standard publication validation rejects Full runtime payloads',
     },
     full_package_boundary: {
       contains_opl_full_runtime: entries.opl_full_runtime.exists,

@@ -97,13 +97,8 @@ evidence/history owner，不回填当前五轴。
 当前开放项、顺序和 Contract/Source/Pixel/Install/Release 状态只读
 [`app-ideal-state-gap-plan.md`](app-ideal-state-gap-plan.md) 与
 [`../product/gui/shell-conformance-matrix.md`](../product/gui/shell-conformance-matrix.md)。本文件只保护薄壳
-产品边界与 no-resurrection 规则，不是发布 worklist，也不证明 runtime、installed currentness、owner
+产品边界，不是发布 worklist，也不证明 runtime、installed currentness、owner
 acceptance 或 production readiness。
-
-Historical GUI-ancestor and 41301 pixel-cohort bindings remain only in the App machine contracts and
-[`../product/gui/evidence/aionui-41301/`](../product/gui/evidence/aionui-41301/). They are not a
-current Shell HEAD, current pixel, Install or Release claim and must not be copied back into this
-active plan.
 
 ## 维护规则
 

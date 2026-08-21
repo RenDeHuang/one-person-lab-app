@@ -67,11 +67,6 @@ export type GuiDesignSystemValidation = {
     };
   };
   evidence_scope: 'design_system_governance_consistency_only';
-  conformance_matrix: {
-    rows_validated: number;
-    status_axes: ['contract_status', 'source_status', 'pixel_status'];
-    pixel_verified_implies_visual_parity: false;
-  };
   visual_evidence: {
     manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json';
     shell_head: string;
@@ -95,11 +90,7 @@ export type GuiDesignSystemValidation = {
 };
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const roleMarker = 'gui_shell_roles: active=aionui; foreground=opl-studio';
-const stackMarker = 'gui_definition_stack: product_definition > visual_system > shell_implementation_conformance';
-const shellAuthorityMarker = 'gui_shell_authority: implementation_only';
 const visualSourceCohortPath = 'contracts/app-gui-visual-source-cohort.json';
-const visualSourceReference = 'pinned DeepSeek Harness visual source cohort (exact commit recorded in contracts/app-gui-visual-source-cohort.json)';
 const visualSourceCommit = '47f943859bef60e4160492346772ded9b24f765a';
 const visualSourceUsage = 'bounded_source_reuse_for_icons_theme_tokens_and_visual_primitive_geometry_only';
 const expectedVisualSourceNormalizations = [
@@ -149,7 +140,6 @@ const foundationDocs = {
   shell_conformance_matrix: 'docs/product/gui/shell-conformance-matrix.md',
 } as const;
 
-const convergencePlanPath = 'docs/active/aionui-mainline-gui-convergence-plan.md';
 const visualReferenceCohortPath = 'contracts/app-gui-visual-reference-cohort.json';
 const visualPrimitiveIds = ['composer', 'rail_row', 'icon_button', 'menu', 'settings_row'] as const;
 const expectedVisualReferenceScenes = [
@@ -338,15 +328,6 @@ function readJson(root: string, relativePath: string, issues: Set<string>): Json
   }
 }
 
-function readText(root: string, relativePath: string, issues: Set<string>): string {
-  const filePath = path.join(root, relativePath);
-  if (!fs.existsSync(filePath)) {
-    issues.add(`missing ${relativePath}`);
-    return '';
-  }
-  return fs.readFileSync(filePath, 'utf8');
-}
-
 function sha256(filePath: string): string {
   return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
@@ -467,124 +448,41 @@ function validateVisualEvidence(root: string, historicalPixelShellSha: string, i
   return entries.length;
 }
 
-function requireMarker(text: string, marker: string, label: string, issues: Set<string>): void {
-  if (!text.includes(marker)) issues.add(`${label} must include ${marker}`);
-}
-
-function requireExactMarkerLine(text: string, marker: string, label: string, issues: Set<string>): void {
-  const present = text.split(/\r?\n/).some((line) => line.trim().replace(/^-\s+/, '').replace(/^`|`$/g, '') === marker);
-  if (!present) issues.add(`${label} must include exact marker ${marker}`);
-}
-
-function markdownCells(line: string): string[] {
-  return line
-    .trim()
-    .replace(/^\|/, '')
-    .replace(/\|$/, '')
-    .split('|')
-    .map((cell) => cell.trim());
-}
-
-function requireCellStatus(
-  cell: string,
-  allowed: readonly string[],
-  axis: string,
-  shell: string,
-  requirement: string,
+function validateActiveShellCheckout(
+  root: string,
+  shellSource: JsonRecord,
+  verifiedAncestor: string,
   issues: Set<string>,
 ): void {
-  const normalized = cell.replace(/^`|`$/g, '');
-  if (!allowed.includes(normalized)) {
-    issues.add(`conformance row "${requirement}" must declare exactly one ${shell} ${axis}`);
-  }
-}
-
-function validateConformanceMatrix(text: string, issues: Set<string>): number {
-  const lines = text.split(/\r?\n/);
-  const expectedHeader = [
-    '功能或交互要求',
-    'AionUI contract',
-    'AionUI source',
-    'AionUI pixel',
-    'Native contract',
-    'Native source',
-    'Native pixel',
-  ];
-  const headerIndex = lines.findIndex((line) => {
-    const cells = markdownCells(line);
-    return expectedHeader.every((header, index) => cells[index] === header);
-  });
-  if (headerIndex < 0) {
-    issues.add('shell conformance matrix must provide separate contract/source/pixel columns for AionUI and Native');
-    return 0;
-  }
-
-  if (/\baligned-contract\b/.test(text)) {
-    issues.add('shell conformance matrix must not use legacy aligned-contract without independent source and pixel status');
-  }
-
-  let rowsValidated = 0;
-  for (let index = headerIndex + 2; index < lines.length && lines[index].trim().startsWith('|'); index += 1) {
-    const cells = markdownCells(lines[index]);
-    if (cells.length < expectedHeader.length || /^[-: ]+$/.test(cells[0])) continue;
-    const requirement = cells[0] || `row ${index + 1}`;
-    requireCellStatus(cells[1], conformanceStatusVocabulary.contract_status, 'contract_status', 'AionUI', requirement, issues);
-    requireCellStatus(cells[2], conformanceStatusVocabulary.source_status, 'source_status', 'AionUI', requirement, issues);
-    requireCellStatus(cells[3], conformanceStatusVocabulary.pixel_status, 'pixel_status', 'AionUI', requirement, issues);
-    requireCellStatus(cells[4], conformanceStatusVocabulary.contract_status, 'contract_status', 'Native', requirement, issues);
-    requireCellStatus(cells[5], conformanceStatusVocabulary.source_status, 'source_status', 'Native', requirement, issues);
-    requireCellStatus(cells[6], conformanceStatusVocabulary.pixel_status, 'pixel_status', 'Native', requirement, issues);
-    rowsValidated += 1;
-  }
-  if (rowsValidated === 0) issues.add('shell conformance matrix must contain implementation requirement rows');
-  return rowsValidated;
-}
-
-function matrixRow(text: string, requirement: string): string[] | null {
-  for (const line of text.split(/\r?\n/)) {
-    if (!line.trim().startsWith('|')) continue;
-    const cells = markdownCells(line);
-    if (cells[0] === requirement) return cells;
-  }
-  return null;
-}
-
-function requireAionuiContractStatus(text: string, requirement: string, expected: ContractConformanceStatus, issues: Set<string>): void {
-  const row = matrixRow(text, requirement);
-  if (!row) {
-    issues.add(`shell conformance matrix must include current AionUI contract row "${requirement}"`);
+  const checkoutPath = typeof shellSource.checkout_path === 'string' ? shellSource.checkout_path : '';
+  if (!checkoutPath) {
+    issues.add('active shell adapter must declare shell_source.checkout_path');
     return;
   }
-  if (row[1]?.replace(/^`|`$/g, '') !== expected) {
-    issues.add(`shell conformance row "${requirement}" must report AionUI contract_status ${expected}`);
-  }
-}
 
-function validateAionuiSnapshot(root: string, text: string, issues: Set<string>): void {
-  const ancestorMatch = text.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
-  if (!ancestorMatch) {
-    issues.add('shell conformance matrix must bind an exact 40-character AionUI GUI conformance ancestor');
+  const shellRoot = path.join(root, checkoutPath);
+  if (!fs.existsSync(shellRoot)) {
+    issues.add(`missing active shell checkout ${checkoutPath}; run npm run ensure:shell`);
     return;
   }
-  const currentSourceMatch = text.match(/Current Shell source cohort：symbolic `([a-z0-9_]+)`/);
-  if (!currentSourceMatch || currentSourceMatch[1] !== 'session_workspace_minimal_current_source_cohort') {
-    issues.add('shell conformance matrix must use the symbolic current Shell source cohort without pinning a transient HEAD');
-    return;
-  }
-  if (text.includes('pages/guid/components/AssistantSelectionArea.tsx')) {
-    issues.add('shell conformance matrix must not retain the retired AssistantSelectionArea source anchor');
-  }
-  const shellRoot = path.join(root, 'shells', 'aionui');
-  if (!fs.existsSync(shellRoot)) return;
+
   try {
     const currentHead = execFileSync('git', ['-C', shellRoot, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
     }).trim();
     if (!/^[0-9a-f]{40}$/.test(currentHead)) {
-      issues.add('active AionUI current source checkout must resolve a 40-character Git HEAD');
+      issues.add('active AionUI checkout must resolve a 40-character Git HEAD');
+      return;
+    }
+    try {
+      execFileSync('git', ['-C', shellRoot, 'merge-base', '--is-ancestor', verifiedAncestor, currentHead], {
+        stdio: 'pipe',
+      });
+    } catch {
+      issues.add(`active AionUI checkout ${currentHead} must contain verified GUI ancestor ${verifiedAncestor}`);
     }
   } catch (error) {
-    issues.add(`unable to read active AionUI current source checkout: ${error instanceof Error ? error.message : String(error)}`);
+    issues.add(`unable to read active AionUI checkout: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -676,54 +574,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   }
   if (nativeCandidate.foreground_alternative_role !== 'only_foreground_alternative') {
     issues.add('opl-studio must carry only_foreground_alternative role');
-  }
-
-  const decisions = readText(root, 'docs/decisions.md', issues);
-  const invariants = readText(root, 'docs/invariants.md', issues);
-  const candidateDoc = readText(root, 'docs/product/gui/gui-shell-candidates.md', issues);
-  requireMarker(candidateDoc, roleMarker, 'gui-shell-candidates.md', issues);
-  for (const [label, text] of [
-    ['docs/decisions.md', decisions],
-    ['docs/invariants.md', invariants],
-    ['docs/product/gui/gui-shell-candidates.md', candidateDoc],
-  ] as const) {
-    requireMarker(text, stackMarker, label, issues);
-    requireMarker(text, shellAuthorityMarker, label, issues);
-  }
-
-  const governedDocPaths = [...new Set(expectedStack.flatMap((layer) => layer.entry_docs))];
-  const governedDocsPresent = governedDocPaths.every((relativePath) => fs.existsSync(path.join(root, relativePath)));
-  const governedText = governedDocPaths.map((relativePath) => readText(root, relativePath, issues)).join('\n');
-  const foundationReadme = readText(root, foundationDocs.readme, issues);
-  const conformanceMatrix = readText(root, foundationDocs.shell_conformance_matrix, issues);
-  const convergencePlan = readText(root, convergencePlanPath, issues);
-  const conformanceRowsValidated = validateConformanceMatrix(conformanceMatrix, issues);
-  validateAionuiSnapshot(root, conformanceMatrix, issues);
-  if (governedDocsPresent) {
-    for (const layer of expectedStack) {
-      requireExactMarkerLine(foundationReadme, `${layer.id}=${layer.entry_docs.join(',')}`, foundationDocs.readme, issues);
-    }
-    requireExactMarkerLine(foundationReadme, `entry_docs=${governedDocPaths.join(',')}`, foundationDocs.readme, issues);
-    const contractRefs = [...new Set(expectedStack.flatMap((layer) => layer.contract_refs))];
-    requireExactMarkerLine(foundationReadme, `contract_refs=${contractRefs.join(',')}`, foundationDocs.readme, issues);
-    requireMarker(foundationReadme, shellAuthorityMarker, foundationDocs.readme, issues);
-    for (const marker of [
-      `visual_source_policy=${visualSourceReference}`,
-      `historical_interaction_reference=${interactionReference}`,
-      `superseded_interaction_observations=${supersededInteractionReferences.join(',')}`,
-      'human_target.owner=one-person-lab-app',
-      'active_aionui.role=current_implementation_conformance_only',
-      'docs_or_contract_imply_source_complete=false',
-      'docs_or_contract_imply_pixel_complete=false',
-      'ideal_target.workspace_session_rail_default_visible=true',
-      'ideal_target.inspector_default_visible=false',
-      'ideal_target.permission_access_mode_visible=true',
-      'ideal_target.default_third_column_visible=false',
-      'ideal_target.advanced_workspace_surfaces=files_changes,preview,terminal,browser',
-      'active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout',
-    ]) {
-      requireExactMarkerLine(foundationReadme, marker, foundationDocs.readme, issues);
-    }
   }
 
   const interactionBaseline = record(guiContract.interaction_baseline);
@@ -1289,15 +1139,14 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     acceptanceBoundary.docs_or_contract_imply_release_ready !== false ||
     acceptanceBoundary.authority_status !== 'active_mainline_authority' ||
     acceptanceBoundary.shell_implementation_status !== 'current_source_and_historical_pixels_separately_bound' ||
-    acceptanceBoundary.source_evidence_status !== 'current_source_gates_passed_ref_in_convergence_plan' ||
+    acceptanceBoundary.source_evidence_status !== 'active_shell_checkout_contains_verified_gui_ancestor' ||
     acceptanceBoundary.pixel_evidence_status !==
       'historical_packaged_route_visual_matrix_verified_current_pixels_unverified' ||
     acceptanceBoundary.release_evidence_status !==
       'historical_local_packaged_visual_evidence_complete_release_not_claimed' ||
     acceptanceBoundary.current_source_head_source !== 'active_shell_checkout_git_head' ||
     acceptanceBoundary.current_source_head_must_contain_verified_gui_ancestor !== true ||
-    acceptanceBoundary.current_source_evidence_ref !==
-      'docs/active/aionui-mainline-gui-convergence-plan.md#当前事实快照' ||
+    acceptanceBoundary.current_source_evidence_ref !== 'contracts/app-shell-adapter.json#shell_source' ||
     !/^[0-9a-f]{40}$/.test(historicalPixelShellSha) ||
     acceptanceBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
     acceptanceBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
@@ -1310,78 +1159,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !/^[0-9a-f]{40}$/.test(guiConformanceRef) ||
     shellSource.upstream_ref_role !== 'minimum_verified_gui_conformance_ancestor' ||
     shellSource.current_head_source !== 'active_shell_checkout_git_head' ||
-    shellSource.current_head_must_contain_upstream_ref !== true ||
-    shellSource.current_head_must_not_be_copied_into_human_docs !== true
+    shellSource.current_head_must_contain_upstream_ref !== true
   ) {
     issues.add('active shell adapter must bind a verified GUI ancestor separately from the current shell Git head');
   }
-  if (!/^State: `(active_parity_convergence|active_currentness_refresh|release_closeout_in_progress|complete)`$/m.test(convergencePlan)) {
-    issues.add('AionUI mainline convergence plan must be in active_parity_convergence, active_currentness_refresh, release_closeout_in_progress, or complete state');
-  }
-  if (convergencePlan.includes(guiConformanceRef) || convergencePlan.includes(historicalPixelShellSha)) {
-    issues.add('AionUI mainline convergence plan must not copy fixed GUI ancestor or historical evidence SHAs from machine owners');
-  }
-  for (const staleMarker of [
-    '5204a68d41d799287a4567e61897df3c25345dc4',
-    'Machine interaction target | 仍有 `26.707.31428` legacy markers',
-    'P0 authority sync 未完成',
-    '最多四个 starter',
-  ]) {
-    if (convergencePlan.includes(staleMarker)) {
-      issues.add(`AionUI mainline convergence plan must not retain stale marker: ${staleMarker}`);
-    }
-  }
-  requireExactMarkerLine(
-    foundationReadme,
-    `active_aionui.gui_conformance_ref=${guiConformanceRef}`,
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    'active_aionui.current_shell_head_source=active_shell_checkout_git_head',
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    `active_aionui.historical_41301_evidence_sha=${historicalPixelShellSha}`,
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    'runtime_cockpit.role=core_dynamic_agent_runtime',
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    'runtime_cockpit.adopted_shell_requirement=true',
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    'runtime_cockpit.core_requirement=true',
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    'runtime_cockpit.explicit_validation_command=npm run validate:runtime-route',
-    foundationDocs.readme,
-    issues,
-  );
-  requireExactMarkerLine(
-    foundationReadme,
-    'runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance',
-    foundationDocs.readme,
-    issues,
-  );
-  const matrixSnapshot = conformanceMatrix.match(/AionUI GUI conformance ancestor：`opl-aion-shell@([0-9a-f]{40})`/);
-  if (matrixSnapshot?.[1] !== guiConformanceRef) {
-    issues.add('shell conformance matrix GUI conformance ancestor must match the active shell adapter');
+  if (/^[0-9a-f]{40}$/.test(guiConformanceRef)) {
+    validateActiveShellCheckout(root, shellSource, guiConformanceRef, issues);
   }
   const visualEvidenceEntries = validateVisualEvidence(root, historicalPixelShellSha, issues);
 
@@ -2069,8 +1852,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     pageStateBoundary.shell_implementation_status !== 'current_source_and_historical_pixels_separately_bound' ||
     pageStateBoundary.current_source_head_source !== 'active_shell_checkout_git_head' ||
     pageStateBoundary.current_source_head_must_contain_verified_gui_ancestor !== true ||
-    pageStateBoundary.current_source_evidence_ref !==
-      'docs/active/aionui-mainline-gui-convergence-plan.md#当前事实快照' ||
+    pageStateBoundary.current_source_evidence_ref !== 'contracts/app-shell-adapter.json#shell_source' ||
     pageStateBoundary.historical_pixel_shell_sha !== historicalPixelShellSha ||
     pageStateBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
     pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
@@ -2168,34 +1950,12 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     !('primary_tools' in activeInspector) &&
     !('secondary_sections' in activeInspector) &&
     !('tabs' in activeInspector);
-  requireAionuiContractStatus(conformanceMatrix, '宽桌面 rail 默认展开且 `280-340px` 可调', conformanceStatus(railMatchesIdeal), issues);
-  requireAionuiContractStatus(
-    conformanceMatrix,
-    'Permission/access mode 在 composer 可见且不用 backend/provider 术语',
-    conformanceStatus(permissionAccessModeMatchesIdeal),
-    issues,
-  );
   const codex = record(profile.codex);
   const defaultModel = typeof codex.default_model === 'string' ? codex.default_model : '';
   const defaultReasoningEffort = typeof codex.default_reasoning_effort === 'string' ? codex.default_reasoning_effort : '';
   if (!defaultModel || !defaultReasoningEffort) {
     issues.add('app-product-profile Codex defaults must be non-empty strings');
   }
-  const mentionedModels = new Set((governedText.match(/\bgpt-[a-z0-9.-]+\b/gi) ?? []).map((value) => value.toLowerCase()));
-  for (const model of mentionedModels) {
-    if (model !== defaultModel) {
-      issues.add(`governed GUI docs must not copy model catalogs or name non-default model ${model}`);
-    }
-  }
-  const readinessText = [governedText, decisions, invariants, candidateDoc].join('\n');
-  const positiveReadinessClaims = [
-    /\b(?:release|production)[_ -]ready\s*[:=]\s*(?:true|yes)\b/i,
-    /\b(?:candidate|shell|app)\s+(?:is|are)\s+(?!not\b)(?:release|production)[ -]ready\b/i,
-  ];
-  if (positiveReadinessClaims.some((pattern) => pattern.test(readinessText))) {
-    issues.add('governed GUI docs must not make a positive release or production readiness claim');
-  }
-
   const visualSourceGovernance = record(governance.visual_source);
   const interactionGovernance = record(governance.interaction_reference);
   if (
@@ -2296,11 +2056,6 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       },
     },
     evidence_scope: 'design_system_governance_consistency_only',
-    conformance_matrix: {
-      rows_validated: conformanceRowsValidated,
-      status_axes: ['contract_status', 'source_status', 'pixel_status'],
-      pixel_verified_implies_visual_parity: false,
-    },
     visual_evidence: {
       manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
       shell_head: historicalPixelShellSha,

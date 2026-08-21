@@ -45,7 +45,7 @@
     "shell_implementation_status": "current_source_and_historical_pixels_separately_bound",
     "current_source_head_source": "active_shell_checkout_git_head",
     "current_source_head_must_contain_verified_gui_ancestor": true,
-    "current_source_evidence_ref": "docs/active/aionui-mainline-gui-convergence-plan.md#当前事实快照",
+    "current_source_evidence_ref": "contracts/app-shell-adapter.json#shell_source",
     "historical_pixel_shell_sha": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
     "historical_pixel_shell_sha_binding_status": "bound_to_exact_historical_evidence",
     "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json",

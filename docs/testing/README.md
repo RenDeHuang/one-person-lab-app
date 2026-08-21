@@ -233,9 +233,7 @@ Treat this as cohort-bound installed-App evidence. The smoke output can support
 release review only when the same cohort also has the contracted manifests,
 screenshots, VM summaries, remote verification, and release evidence bundle
 classification. Older local installed-smoke transcripts and absolute artifact
-paths are history/provenance, not current release proof; the old local-smoke
-examples are compressed under
-`docs/history/process/retired-surface-provenance.md`.
+paths are historical, not current release proof.
 
 ## Release Validation Matrix
 

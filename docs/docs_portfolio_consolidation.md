@@ -38,7 +38,7 @@ taxonomy below instead of growing more root-level topic files.
 | `docs/product/` | Product docs; `active_support` | App/workbench/product shell design, GUI support, foreground shell-alternative material, and product-facing reference docs | Product acceptance stays in App contracts, page-state matrices, active-shell validation, source, and tests |
 | `docs/delivery/` | Delivery docs; `active_support` | Release, artifact/package/export lifecycle, user-guide generation source, screenshot provenance, release evidence, and verification support | Release/delivery truth stays in assets, updater metadata, evidence manifests, CI/logs, workflows, validators, release records, and release-boundary tests |
 | `docs/testing/` | Testing docs; `active` | Test command entry, validation orientation, release-evidence classification guidance, and explicit smoke lanes | Tests, scripts, contracts, workflows, validators, and artifacts are authoritative |
-| `docs/history/` | History docs; `history_index` | Retired topology, process provenance, candidate replay history, stale-surface no-resurrection notes, and archived dated evidence | Historical only; not active product/runtime/release truth |
+| `docs/history/` | History docs; `history_index` | Retired topology, process provenance, candidate replay history, and archived dated evidence | Historical only; not active product/runtime/release truth |
 | `scripts/README.md` | App wrapper and release script guide; `active_support` | Script/operator command index, including docs generation commands | Scripts/tests/contracts determine behavior |
 
 ## Governance Rules
@@ -81,10 +81,8 @@ taxonomy below instead of growing more root-level topic files.
 ## Coverage Ledger Foldback
 
 Dated coverage entries, closeout ledgers, candidate smoke notes, local
-release/source evidence, and stale-surface retirement notes are compressed under
-[App process history](./history/process/README.md), with durable
-no-resurrection rules in
-[App retired surface provenance](./history/process/retired-surface-provenance.md).
+release/source evidence, and retirement notes are compressed under
+[App process history](./history/process/README.md) or remain available in Git history.
 
 The current process index is topic-level only: it records SSOT owners,
 compressed provenance groups, coverage summary, remaining unreviewed scope, and

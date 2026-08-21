@@ -31,6 +31,5 @@ engine.
 | [`gui/deepseek-harness-composition-plan.md`](gui/deepseek-harness-composition-plan.md) | DeepSeek Harness GUI reuse boundary and OPL spatial/temporal composition migration plan. |
 | [`gui/claude-science-runtime-task-awareness-plan.md`](gui/claude-science-runtime-task-awareness-plan.md) | Claude Science external-learning landing plan, mapped onto Runtime global task awareness and current-task slices. |
 | [`gui/settings-control-center.md`](gui/settings-control-center.md) | App-owned Settings Control Center product system and validation boundary. |
-| [`gui/settings-control-center-completion-audit.md`](gui/settings-control-center-completion-audit.md) | Current completion audit for the Settings Control Center product-system checklist. |
 
 Archived shell-candidate proof lives under `docs/history/shell-candidates/`.

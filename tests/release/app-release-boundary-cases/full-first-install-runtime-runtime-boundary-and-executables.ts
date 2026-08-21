@@ -11,53 +11,11 @@ import {
   runNode,
   writeFile,
   writeExecutable,
-  writeReleaseMetadata,
   writeJson,
   resolveFrameworkSelectedBundleFixture,
   flowCapabilityBuildLockFixture,
   createFullRuntimeFixture,
 } from "./full-first-install-runtime-fixtures.ts";
-
-test("publish rejects standard App artifacts that contain the Full runtime payload", () => {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-app-release-full-leak-"));
-  const shellRoot = path.join(tempRoot, "shells", "aionui");
-  const outDir = path.join(shellRoot, "out");
-  const version = "26.5.15";
-  const dmgName = `One-Person-Lab-${version}-mac-arm64.dmg`;
-
-  writeFile(path.join(outDir, dmgName));
-  writeFile(path.join(outDir, `One-Person-Lab-${version}-mac-arm64.zip`));
-  writeReleaseMetadata(outDir, version, dmgName);
-  writeFile(
-    path.join(
-      shellRoot,
-      "out",
-      "mac-arm64",
-      "One Person Lab.app",
-      "Contents",
-      "Resources",
-      "opl-full-runtime",
-      "runtime",
-      "current",
-      "manifest",
-      "full-package-manifest.json",
-    ),
-    "{}\n",
-  );
-
-  const result = runNode([
-    "scripts/publish-release.ts",
-    "--no-build",
-    "--dry-run",
-    "--shell-root",
-    shellRoot,
-    "--version",
-    version,
-  ]);
-
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /contains Full runtime payload/);
-});
 
 test("packaged runtime validator only requires Full runtime when explicitly requested", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-app-packaged-runtime-"));

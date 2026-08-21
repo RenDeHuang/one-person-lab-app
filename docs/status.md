@@ -450,11 +450,9 @@ Detailed run/timing/asset profiles are historical provenance under
 release artifacts, contracts, workflows, validators, CI outputs, and the release
 guide rather than dated status prose.
 
-The approved cleanup tranche is complete. Its current reopening boundary lives in
-`docs/active/over-engineering-cleanup.md`, while dated execution details live in
-`docs/history/process/2026-07-10-over-engineering-cleanup.md`. Hygiene commands
-prove code health only, not currentness, package/install, release, owner acceptance,
-or production readiness.
+The completed 2026 cleanup details remain historical in
+`docs/history/process/2026-07-10-over-engineering-cleanup.md`. Current maintenance
+boundaries live in contracts, source, tests, validators, and release evidence.
 
 Current release validation is App-root first. Root wrappers prepare App-owned
 payloads and call active-shell build/release scripts; `validate:app-root-boundary`
@@ -549,12 +547,9 @@ This status file keeps only the authority boundary: current-source or local smok
 evidence does not update a published cohort, does not promote stable/latest, and
 does not prove MAS/MAG/RCA/BookForge domain readiness or OPL family production readiness.
 
-Dated local smoke, candidate, current-source release, and migration notes are
-compressed under `docs/history/process/`, with no-resurrection rules in
-`docs/history/process/retired-surface-provenance.md`. New proof-by-proof records
-belong in release artifacts, candidate manifests, CI logs, or precise
-history/provenance docs; durable rules fold back into contracts, core docs,
-release/testing docs, or the active gap plan.
+Dated local smoke, candidate, current-source release, and migration notes remain
+under `docs/history/process/` or in Git history. Durable rules belong in contracts,
+core docs, source, tests, release artifacts, or the active gap plan.
 
 ## Validation Entry Points
 

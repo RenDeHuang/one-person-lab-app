@@ -303,55 +303,6 @@ Conformance 必须按 `contract_status`、`source_status`、`pixel_status`、`in
 用户路径回读，`release` 证明 owner promotion。当前 Contract、Source、Pixel、Install、Release
 必须逐轴记录；公开发布、远端 currentness 与 owner promotion 仍必须由 release authority 独立证明。
 
-## 治理标记（供 validator 读取）
-
-本段只声明入口、authority 和动态默认状态来源，不复制 machine truth：
-
-- `product_definition=docs/product/gui/README.md,docs/product/gui/feature-inventory.md`
-- `visual_system=docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md`
-- `shell_implementation_conformance=docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
-- `gui_shell_authority: implementation_only`
-- `ideal_target.workspace_session_rail_default_visible=true`
-- `ideal_target.ordinary_rail_thread_authority=codex_app_server_thread_list_read_resume`
-- `ideal_target.workspace_directory_owner=false`
-- `ideal_target.explicit_session_local_inputs=attachments,file_picker,directory_picker,paste,drop,/open`
-- `ideal_target.workspace_selection=new_session_initial_cwd_only`
-- `ideal_target.review_surface=existing_files_changes_diff_surface`
-- `active_aionui.review_last_turn=source_implemented_existing_message_store`
-- `active_aionui.review_custom_target_instructions=review_start_target_custom_only`
-- `active_aionui.review_focus_context=optional_protocol_limit_non_blocking`
-- `active_aionui.review_inline_comments=optional_protocol_limit_non_blocking`
-- `ideal_target.inspector_default_visible=false`
-- `active_aionui.state_source=contracts/app-product-profile.json#gui.home.home_layout`
-- `active_shell_switch_contract=contracts/app-shell-adapter.json`
-- `visual_source_policy=pinned DeepSeek Harness visual source cohort (exact commit recorded in contracts/app-gui-visual-source-cohort.json)`
-- `historical_interaction_reference=historical ChatGPT Codex macOS workflow and spatial interaction observation`
-- `superseded_interaction_observations=ChatGPT Codex macOS 26.707.31428 (2026-07-10),ChatGPT Codex macOS 26.707.31123 (2026-07-10)`
-- `human_target.owner=one-person-lab-app`
-- `active_aionui.role=current_implementation_conformance_only`
-- `active_aionui.gui_conformance_ref=a0ce713b65801fd9ca7f46ad168c977c75a187de`
-- `active_aionui.current_shell_head_source=active_shell_checkout_git_head`
-- `active_aionui.historical_41301_evidence_sha=0ebc1fdd278e8a79602458e15e28cf814dfd917d`
-- `active_aionui.current_parity_evidence_ref=docs/product/gui/evidence/aionui-41301-parity-20260714/manifest.json`
-- `runtime_cockpit.role=core_dynamic_agent_runtime`
-- `runtime_cockpit.adopted_shell_requirement=true`
-- `runtime_cockpit.core_requirement=true`
-- `runtime_cockpit.explicit_validation_command=npm run validate:runtime-route`
-- `runtime_cockpit.acceptance_ref=contracts/app-page-state-matrix.json#pages[id=runtime].runtime_view_model.runtime_cockpit_acceptance`
-- `docs_or_contract_imply_source_complete=false`
-- `docs_or_contract_imply_pixel_complete=false`
-- `runtime_contract_implies_framework_producer_complete=false`
-- `runtime_contract_implies_shell_consumer_complete=false`
-- `runtime_contract_implies_live_evidence_complete=false`
-- `ideal_target.permission_access_mode_visible=true`
-- `ideal_target.environment_details_primary=workspace,locality,branch,changes,subtasks,sources`
-- `ideal_target.advanced_tools_default_visible=false`
-- `ideal_target.default_third_column_visible=false`
-- `ideal_target.advanced_workspace_surfaces=files_changes,preview,terminal,browser`
-- `entry_docs=docs/product/gui/README.md,docs/product/gui/feature-inventory.md,docs/product/gui/ideal-interaction-spec.md,docs/product/gui/visual-system.md,docs/product/gui/codex-to-opl-app-delta.md,docs/product/gui/element-audit.md,docs/product/gui/shell-implementation-guide.md,docs/product/gui/shell-conformance-matrix.md`
-- `codex_auto_model_policy=contracts/app-product-profile.json#codex.auto_model_policy`
-- `contract_refs=contracts/app-gui-product-contract.json,contracts/app-product-profile.json,contracts/app-page-state-matrix.json,contracts/app-remote-companion.json,contracts/app-shell-candidates.json,contracts/app-shell-adapter.json`
-
 ## 当前目标与实现边界
 
 当前 Codex-based ideal target 是：
@@ -502,4 +453,3 @@ artifact、owner acceptance 或 release authority 提供 fresh evidence。
 7. [`shell-implementation-guide.md`](shell-implementation-guide.md)
 8. [`shell-conformance-matrix.md`](shell-conformance-matrix.md)
 9. [`../../active/aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md)
-10. [`aionui-41301-delta-audit.md`](aionui-41301-delta-audit.md)（历史 `dbff7370f` 审计）

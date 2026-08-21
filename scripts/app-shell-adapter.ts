@@ -296,7 +296,6 @@ export type ShellAdapterContract = {
     upstream_ref_role?: string;
     current_head_source?: string;
     current_head_must_contain_upstream_ref?: boolean;
-    current_head_must_not_be_copied_into_human_docs?: boolean;
   };
   gui_authority: {
     source_of_truth: string;

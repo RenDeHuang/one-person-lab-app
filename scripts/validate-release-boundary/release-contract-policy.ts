@@ -71,7 +71,6 @@ const requiredRetainedNonAuthoritativeImplementationPaths = [
   'scripts/validate-release-candidate-record.ts',
   'scripts/stable-release-session.ts',
   'scripts/closeout-release-run.ts',
-  'scripts/publish-release.ts',
   'scripts/inspect-release-draft-candidates.ts',
 ];
 const requiredStandardLatestAdmission = {

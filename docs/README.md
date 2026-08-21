@@ -58,7 +58,6 @@ Authority remains deliberately bounded across both phases:
 | [`architecture.md`](architecture.md) | Durable ecology and owner boundaries. | Implementation state or migration completion. |
 | [`decisions.md`](decisions.md) | Two-stage authority, presence-only composition, Official Profile, Codex-first/OPL-owned policy, and the approved successor-first Phase 2 direction. | Migration completion, release, Package publication or public mutation. |
 | [`active/opl-package-platform-composition-migration.md`](active/opl-package-platform-composition-migration.md) | Current/canonical/candidate classification, retained-consumer inventory, approved Phase 2 work packages, dependencies, execution order, acceptance and deletion gates. | Automatic completion claims or Package GHCR/tag, Stable/Latest, WebUI, real-user managed-state or other public mutation. |
-| [`active/over-engineering-cleanup.md`](active/over-engineering-cleanup.md) | Cleanup ordering and reopening state only. | A second implementation plan or delete authority. |
 | [`product/managed-update-three-layer.md`](product/managed-update-three-layer.md) | Target user-facing install/update behavior. | Current lifecycle implementation truth. |
 | [`delivery/distribution-and-install-ssot.md`](delivery/distribution-and-install-ssot.md) | App carrier/release/install terminology and convergence. | Package currentness or publication mutation. |
 
@@ -77,7 +76,7 @@ canonical authority.
 | [`product/`](product/) | App/workbench/product shell design and GUI support; `active_support` | Product requirements, GUI support docs, App/workbench shell design, and product-facing decisions. | Product acceptance stays in App contracts, page-state matrices, shell validation, source, and tests. |
 | [`delivery/`](delivery/) | Release, artifact/package/export, user-guide generation source, and verification; `active_support` | Release operator docs, generated guide source/provenance, screenshots, and package/export lifecycle support. | Release truth stays in produced assets, updater metadata, evidence manifests, CI/logs, workflows, validators, and release-boundary tests. |
 | [`testing/`](testing/) | App testing entry; `app_testing_docs`; `active` | Test, validation, release-evidence classification, and smoke command orientation. | Test code, contracts, workflows, validators, and artifacts are executable truth. |
-| [`history/`](history/) | App historical index; `app_history`; `history_index` | Retired routes, candidate verification provenance, stale-surface no-resurrection notes, and compressed process history. | Historical only; not active product/runtime/release truth. |
+| [`history/`](history/) | App historical index; `app_history`; `history_index` | Retired routes, candidate verification provenance, and compressed process history. | Historical only; not active product/runtime/release truth. |
 The canonical public user install entries are the latest Pages outputs under
 `docs/site/latest/`; source and maintenance material belongs under
 `docs/guides/`, `docs/delivery/`, and `docs/whitepapers/`. New shareable

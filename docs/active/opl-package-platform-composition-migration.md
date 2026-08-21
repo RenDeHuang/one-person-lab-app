@@ -67,39 +67,8 @@ Stable/Latest、WebUI promotion、真实用户 managed state 或其他 public mu
 本迁移文档不是 Stable、Package publication、Foundry 或任何零交叉工作前置。它们
 可以独立推进，只在同仓 `main` CAS 的瞬间按 fresh exact write set 串行。
 
-### Phase 1 历史文档写集
-
-Phase 1 只包含以下 SSOT/引用面；exact path 和临时状态不在其他 durable 文档复制：
-
-```text
-App exact16
-AGENTS.md
-docs/README.md
-docs/active/aionui-mainline-gui-convergence-plan.md
-docs/active/app-ideal-state-gap-plan.md
-docs/active/opl-package-platform-composition-migration.md
-docs/active/over-engineering-cleanup.md
-docs/architecture.md
-docs/decisions.md
-docs/delivery/distribution-and-install-ssot.md
-docs/product/gui/claude-science-runtime-task-awareness-plan.md
-docs/product/gui/codex-to-opl-app-delta.md
-docs/product/gui/openscience-console-projection.md
-docs/product/gui/runtime-overview-redesign.md
-docs/product/managed-update-three-layer.md
-docs/project.md
-docs/status.md
-
-Framework exact4
-docs/active/current-state-vs-ideal-gap.md
-docs/active/standard-agent-private-platform-inventory.md
-docs/specs/standard-agent-interface.md
-docs/status.md
-```
-
-Phase 1 的完成条件已经满足：两个仓的 docs-only commit 均进入各自 canonical `main`，
-文档/链接/结构/diff 门禁与远端 wire/API/tree/blob/raw readback通过。当前
-`next_action=按 M1-M4 完成 successor cutover、consumer switch、OUT01-17 和 bulk delete`。
+Phase 1 已完成 Package composition 的文档与边界定义。当前工作直接按
+M1-M4 推进 successor cutover、consumer switch、OUT01-17 和 bulk delete。
 
 ## 持久原则
 

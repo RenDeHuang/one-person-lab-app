@@ -56,7 +56,6 @@ installed readback。
 | `install-docker-webui.ps1` | Windows PowerShell one-click Docker/WebUI installer that writes `compose.yaml`, creates persistent `OnePersonLab` data/projects directories, runs `docker compose up`, waits for the local HTTP endpoint, and can write a diagnostic directory or archive without accepting API keys. |
 | `docker-webui-smoke-gate.ts` | Repo-native Docker/WebUI smoke gate runner for clean Linux VM, clean Windows VM, existing Docker, and old data-dir gates. It writes a typed blocker when the current host cannot prove the requested gate instead of returning a false pass. |
 | `validate-docker-webui-diagnostics.ts` | Validates installer diagnostic directories for required files, data preservation evidence, and secret-like markers. |
-| `publish-release.ts` | Retired direct publisher. It only inspects local assets with explicit `--dry-run`; every non-dry invocation returns typed failure before remote inspection or mutation. Live publication belongs to the protected Framework Bundle executor. |
 | `closeout-release-run.ts` | Reads historical run/session artifacts for diagnostics only. It has no package entrypoint and cannot advance or reconcile live Framework Bundle state. |
 | `verify-release-attestations.ts` | Runs `gh attestation verify` for downloaded release assets or OCI refs and writes `opl_release_attestation_verification.v1` for closeout ingestion. It records build-integrity evidence only and does not replace checksum, remote-readback, VM, or owner evidence. |
 | `summarize-github-actions-timing.ts` | Profiles one or more `gh run view --json ...jobs` payloads, including operation kind, admission/build/Apple/publication/certification phase spans, recovery gaps, failed/canceled run tax, slow jobs, slow steps, and orchestration time outside Actions. |
@@ -503,8 +502,7 @@ Standard terminal.
 
 The Standard and Full publisher workflows exercise the actual `github-apply`
 CLI twice with a table-validated identical option surface: mutation-free
-`rehearsal`, then `execute`. Retired `publish-release.ts --dry-run` calls are not
-publication qualification. Full build, ARM finalizer, and publication
+`rehearsal`, then `execute`. Full build, ARM finalizer, and publication
 diagnostics use failure-safe uploads so typed evidence survives the first
 contract breakpoint.
 

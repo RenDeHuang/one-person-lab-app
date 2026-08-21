@@ -426,7 +426,6 @@ test("legacy App Bundle and broker/state-machine surfaces are read-only compatib
     "scripts/validate-release-candidate-record.ts",
     "scripts/stable-release-session.ts",
     "scripts/closeout-release-run.ts",
-    "scripts/publish-release.ts",
     "scripts/inspect-release-draft-candidates.ts",
   ]);
   assert.deepEqual(legacy.draft_candidate_inspection, {

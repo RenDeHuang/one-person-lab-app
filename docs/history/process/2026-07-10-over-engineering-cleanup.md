@@ -5,8 +5,7 @@ Purpose: `over_engineering_cleanup_history`
 State: `history_only`
 Machine boundary: This document preserves the completed 2026-07-10 cleanup
 scope and its historical verification. Current behavior and risk boundaries
-belong to contracts, source, tests, validators, release artifacts, and
-[`docs/active/over-engineering-cleanup.md`](../../active/over-engineering-cleanup.md).
+belong to contracts, source, tests, validators, and release artifacts.
 
 Historical scope: eight approved safe slices across release fixtures/tests,
 guide generation, filesystem helpers, whitepaper generation, and active-shell
