@@ -1100,7 +1100,7 @@ jobs:
             }
             jq -e \
               --arg run_id "$GITHUB_RUN_ID" \
-              --arg artifact '${{ needs.seal-standard-identity.outputs.standard_artifact_name }}' \
+              --arg artifact '${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}' \
               --arg bundle "$BUNDLE_DIGEST" \
               --arg app '${{ needs.freeze.outputs.app_sha }}' \
               --arg shell '${{ needs.freeze.outputs.shell_sha }}' \
