@@ -230,7 +230,7 @@ test('Standard publish restore rejects a missing or digest-mismatched clean-VM s
       qualification: {
         run_id: '42',
         source_artifact_run_id: '42',
-        source_artifact_name: 'opl-release-standard-bound-42',
+        source_artifact_name: 'opl-release-standard-vm-bound-42',
         result: 'passed',
       },
       cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
