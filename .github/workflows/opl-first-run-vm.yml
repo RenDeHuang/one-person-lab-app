@@ -598,9 +598,13 @@ jobs:
           set -euo pipefail
           profile="${{ steps.diagnostic_inputs.outputs.profile }}"
           case "$profile" in full|homebrew-full) profile=full ;; *) profile=standard ;; esac
+          verification_app_sha="$GITHUB_SHA"
+          if [ "${{ inputs.operation }}" = append_full ] && [ -n "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" ]; then
+            verification_app_sha="${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}"
+          fi
           proof="$(node --experimental-strip-types scripts/qualification-harness-scope.ts \
             --artifact-app-sha "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" \
-            --verification-app-sha "$GITHUB_SHA" \
+            --verification-app-sha "$verification_app_sha" \
             --artifact-shell-sha "${{ steps.shell_ref.outputs.shell_sha }}" \
             --verification-shell-sha "${{ steps.smoke_harness_ref.outputs.shell_sha }}" \
             --profile "$profile")"
@@ -1753,7 +1757,7 @@ jobs:
             --source-artifact-name "${{ inputs.release_artifact_name }}" \
             --evidence-ref "$evidence_ref" \
             --smoke-summary artifacts/opl-first-run-vm/tart-smoke-summary.json \
-            --verification-app-sha "$GITHUB_SHA" \
+            --verification-app-sha "${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}" \
             --verification-shell-sha "${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}" \
             --verification-smoke-harness shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
             --verification-scope-proof-base64 "${{ needs.validate-vm-inputs.outputs.qualification_scope_base64 }}"
