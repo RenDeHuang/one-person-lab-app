@@ -629,7 +629,7 @@ jobs:
             standard-clean-vm-qualification-receipt.json \
             standard-clean-vm-qualification-receipt.sha256 \
             "$standard_run_id" \
-            "opl-release-standard-bound-${standard_run_id}"
+            "opl-release-standard-vm-bound-${standard_run_id}"
           if [ "$stage" = full_qualified ]; then
             verify_sidecar \
               full \
