@@ -359,7 +359,7 @@ jobs:
           bundle_digest="$(jq -er .bundle_digest "$bundle")"
           jq -e \
             --arg run_id "$producer_run_id" \
-            --arg artifact "opl-release-standard-bound-${producer_run_id}" \
+            --arg artifact "opl-release-standard-vm-bound-${producer_run_id}" \
             --arg bundle "$bundle_digest" \
             --arg app "$(jq -er .sources.app.source_commit "$bundle")" \
             --arg shell "$(jq -er .sources.shell.source_commit "$bundle")" \
