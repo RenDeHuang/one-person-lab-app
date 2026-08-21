@@ -12,6 +12,18 @@
 - GUI 工作从 `docs/product/gui/README.md` 开始；App contracts 或 wrappers 变更后运行 `bun run validate:active-shell`，本地缺 Shell 时先运行 `npm run ensure:shell`。测试通过不等于发布完成。
 - 并发只拆分可独立推进且可验收的任务；不得创建只能等待其他 repo、producer、candidate 或 `main` 进入 authority 的 consumer 任务。依赖只决定最终吸收顺序：各 owner 先在任务 worktree 完成兼容桥、producer/consumer 实现、cross-test 与 fresh replay；无独立可执行切片时立即合并 ownership 或重组 scope。write-set overlap 仅在最终 canonical 集成短窗口串行，并按 fresh SSOT 解决冲突。
 - failed run 或 fail-closed 只终止当前 operation，不结束 objective；除非确实缺少权限或外部输入，owner 必须修复首个真实断点并继续。source 吸收须基于 fresh `main` 语义重放和验证，远端 ref/tree/blob 回读一致后用 OPL Flow `scripts/worktree_absorption_audit.py` 或等价确定性证明确认已吸收，才清理 task-owned worktree/branch。
+
+## Release Execution Discipline
+
+- 直接发布任务以 90 分钟内到达公开终态为默认执行预算。预算不是跳过签名、公证、clean-VM 或公开回读的理由；超过预算时必须指出当前精确 job/step、已证根因和不可替代的外部阻塞，不能用继续测试、审计、整理证据或搜索历史维持 `ACTIVE`。
+- 根因或最深断点一旦明确，先修改真实 owner 持有的实现、配置或 workflow caller。修复后只运行能证明该断点关闭的 focused check，以及 release contract 明确要求的一次 aggregate/source gate；测试、计划、authority、nonce、digest 和 receipt 都不能替代实际 dispatch、publication 或 clean-install acceptance。
+- 同一 exact candidate 的已通过门禁不得重复运行，除非候选字节、依赖 cohort、相关 contract、执行环境或失败证据发生了能使旧结果失效的变化。不得因为时间流逝、上下文切换、需要“更放心”或准备 commit/push/dispatch 而重跑同类门禁。
+- 发布 authority 绑定已通过门禁的 immutable exact candidate，不绑定持续移动的 `main`。候选冻结后，其他普通提交、文档更新或 `main` 前进不得使当前发布追新、重建或重跑门禁；只要冻结提交仍可达、authority/critical blobs 未漂移且真实发布前提仍成立，就继续发布原候选。只有用户明确要求改发更新候选，或新事实证明冻结候选不合法、不可构建、不可安装或必然验收失败时，才废弃它并生成新 operation。
+- 必需的 pre-dispatch gates 全部通过、canonical main 与 cohort 回读一致、发布 authority 可用后，下一生产性动作必须在同一执行轮次触发唯一一次正式 dispatch。此时停止新增测试、格式化、历史检索、Skill/流程阅读、额外 evidence schema、重复 readback 或旁路审计；只有发现会使发布不合法或必然失败的新事实时才能暂停 dispatch。
+- 发布 run 失败时只读取失败 run 的精确首个失败 step 和必要日志，选择 `direct_fix`、最小 `delivery_bridge` 或真实 `stop`。修复后废弃旧 operation，按合同生成一个 fresh operation 并继续；不得扩大为全仓巡检、无关重构或重复验证已经通过且未失效的阶段。
+- 监控只跟踪当前唯一 owner run，不以高频轮询、重复状态摘要或等待回调冒充进展。Standard 成功后立即进入其合同规定的 Full 路径；最终完成必须回读 Latest/tag、Standard/Full 资产与 digest、签名/公证、普通账号 clean-install 登录和 Framework-owned Agent projection。
+- 测试凭据只使用用户授权的最低权限专用账号和既有瞬态凭据桥，不使用管理员账号，不把密码写入 GitHub Secrets、仓库、日志、receipt 或聊天。缺少可执行测试凭据时明确转为 `NEEDS_ACTION`，不得用管理员账号或伪造登录结果绕过。
+
 ## Code Review Rules
 
 - 只报告当前 diff 可复现的正确性、安全、数据完整性、release/CI 或 machine-readable contract 回归；每条必须给出精确代码或 contract 证据、触发路径和用户可见或自动化可证的影响。安全路径是修复 canonical owner 或其真实 consumer，不是复制一份平行 truth。
