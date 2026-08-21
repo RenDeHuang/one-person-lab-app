@@ -36,7 +36,7 @@
   },
   "toolchain": {
     "bun": {
-      "version": "1.3.14",
+      "version": "1.4.0",
       "source": "oven-sh/setup-bun GitHub release asset",
       "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
     },

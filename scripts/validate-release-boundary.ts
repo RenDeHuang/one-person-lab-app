@@ -6,6 +6,7 @@ import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { validateReleaseContractPolicies } from './validate-release-boundary/release-contract-policy.ts';
 import { validateReleaseBoundaryScriptDependencies } from './validate-release-boundary/script-dependencies.ts';
 import { validateActionsCachePolicy } from './validate-release-boundary/actions-cache-policy.ts';
+import { validateBunToolchainCompatibility } from './validate-release-boundary/bun-toolchain-compatibility.ts';
 import {
   runReleaseBoundaryTextChecks,
   validateStableReleaseActionPinPolicy,
@@ -30,6 +31,7 @@ failures += validateWorkflowNode24Policy(appRoot);
 failures += validateStableReleaseActionPinPolicy(appRoot);
 failures += validateWorkflowDispatchWriteAuthority(appRoot);
 failures += validateActionsCachePolicy(appRoot);
+failures += validateBunToolchainCompatibility(appRoot);
 failures += validateReleaseBoundaryScriptDependencies(appRoot);
 failures += validateReleaseContractPolicies(appRoot, validationProfile);
 
