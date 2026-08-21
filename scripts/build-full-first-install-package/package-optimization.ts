@@ -248,7 +248,7 @@ function auditAioncoreCodexOnlyProjection(appPath: string) {
       && manifest?.runtimeKey === runtimeKey
       && manifest?.source?.schemaVersion === 2
       && /^[a-f0-9]{64}$/.test(String(manifest?.source?.manifestSha256 ?? ''))
-      && JSON.stringify(manifest?.source?.cliNames) === JSON.stringify(['claude', 'codex'])
+      && JSON.stringify(manifest?.source?.cliNames) === JSON.stringify([])
       && JSON.stringify(manifest?.projection?.includedCliNames) === JSON.stringify(['codex'])
       && JSON.stringify(manifest?.projection?.excludedCliNames) === JSON.stringify(['claude'])
       && JSON.stringify(manifest?.projection?.requiredAbsentPaths)

@@ -289,7 +289,7 @@ test("Full App bundle staging trim removes non-runtime artifacts while preservin
       source: {
         schemaVersion: 2,
         manifestSha256: "a".repeat(64),
-        cliNames: ["claude", "codex"],
+        cliNames: [],
       },
       node: {
         version: "24.11.0",
