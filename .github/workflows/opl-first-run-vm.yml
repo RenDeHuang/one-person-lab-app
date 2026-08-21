@@ -1594,6 +1594,112 @@ jobs:
             --password-file "${{ steps.gateway_credentials.outputs.password_file }}" \
             --output artifacts/opl-first-run-vm/gateway-release-test-account-qualification.json
 
+      - name: Provision Framework-owned MAS qualification workspace
+        id: mas_qualification_provisioning
+        if: ${{ steps.package_profile.outputs.runtime_profile == 'full' && needs.validate-vm-inputs.outputs.diagnostic_scope == 'release_gate' }}
+        shell: bash
+        env:
+          OPL_STATE_DIR: ${{ runner.temp }}/opl-mas-qualification-state-${{ github.run_id }}-${{ github.job }}
+          CODEX_HOME: ${{ runner.temp }}/opl-mas-qualification-codex-${{ github.run_id }}-${{ github.job }}
+          MAS_PROVISIONING_WORKSPACE: /tmp/opl-first-run-smoke/mas-provisioned-workspace
+          MAS_PROVISIONING_RUN_ID: mas-full-vm-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test -x one-person-lab/bin/opl
+
+          rm -rf "$OPL_STATE_DIR" "$CODEX_HOME" "$MAS_PROVISIONING_WORKSPACE"
+          mkdir -p "$OPL_STATE_DIR" "$CODEX_HOME" "$MAS_PROVISIONING_WORKSPACE"
+
+          npm ci --prefix one-person-lab --ignore-scripts --no-audit --no-fund
+          one-person-lab/bin/opl packages install mas --json \
+            > "$RUNNER_TEMP/mas-package-install.json"
+
+          authority_file="$RUNNER_TEMP/mas-qualification-authority.json"
+          request_file="$RUNNER_TEMP/mas-qualification-request.json"
+          AUTHORITY_FILE="$authority_file" REQUEST_FILE="$request_file" node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          function canonicalJson(value) {
+            if (value === null || typeof value !== 'object') return JSON.stringify(value);
+            if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+            return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+          }
+
+          const runId = process.env.MAS_PROVISIONING_RUN_ID;
+          const workspace = process.env.MAS_PROVISIONING_WORKSPACE;
+          const issuedAt = new Date().toISOString();
+          const authority = {
+            surface_kind: 'mas_qualification_work_item_provisioning_authority',
+            schema_version: 1,
+            authority_ref: `opl-release-full-vm-qualification:${runId}`,
+            domain_owner: 'MedAutoScience',
+            domain_id: 'medautoscience',
+            canonical_workspace_root: workspace,
+            qualification_scope: 'standard_agent_full_vm_qualification',
+            issued_at: issuedAt,
+            single_use: true,
+            qualification_only: true,
+            provisions_work_item: true,
+            authorizes_stage_body: false,
+            authorizes_business_action: false,
+            authorizes_publication: false,
+            authorizes_submission: false,
+            provider_completion_is_domain_completion: false,
+          };
+          const authorityBytes = Buffer.from(canonicalJson(authority), 'utf8');
+          const authoritySha256 = crypto.createHash('sha256').update(authorityBytes).digest('hex');
+          const request = {
+            surface_kind: 'mas_qualification_work_item_provisioning_authority_request',
+            schema_version: 1,
+            authority_context: {
+              action_id: 'qualification_work_item_provisioning_authority_evaluate',
+              handler_call_ref: `opl-handler-call:${runId}`,
+              owner_ledger_ref: `opl-owner-ledger:${runId}`,
+            },
+            qualification_authority: {
+              authority_sha256: authoritySha256,
+              authority_bytes_base64: authorityBytes.toString('base64'),
+              authority_byte_size: authorityBytes.byteLength,
+              record: authority,
+            },
+            current_workspace_index: {
+              exists: false,
+              workspace_index_ref: 'workspace_index.json',
+              workspace_index_sha256: null,
+              workspace_index_bytes_base64: null,
+              workspace_index_byte_size: null,
+              record: null,
+            },
+          };
+          fs.writeFileSync(process.env.AUTHORITY_FILE, authorityBytes, { mode: 0o600 });
+          fs.writeFileSync(process.env.REQUEST_FILE, canonicalJson(request), { mode: 0o600 });
+          NODE
+
+          result_file="$RUNNER_TEMP/mas-qualification-provisioning-result.json"
+          one-person-lab/bin/opl agents run \
+            --domain mas \
+            --action qualification_work_item_provisioning_authority_evaluate \
+            --workspace "$MAS_PROVISIONING_WORKSPACE" \
+            --payload-file "$request_file" \
+            --run-id "$MAS_PROVISIONING_RUN_ID" \
+            --json > "$result_file"
+
+          receipt_relative_path="$(jq -er '
+            select(.standard_agent_action_run.result.status == "authorized")
+            | .standard_agent_action_run.result.provisioning_receipt.receipt_relative_path
+          ' "$result_file")"
+          receipt_path="$MAS_PROVISIONING_WORKSPACE/$receipt_relative_path"
+          test -f "$receipt_path" && test ! -L "$receipt_path"
+          jq -e --arg receipt "$receipt_relative_path" '
+            .standard_agent_action_run.host_materialization.status == "materialized"
+            and .standard_agent_action_run.result.provisioning_receipt.receipt_relative_path == $receipt
+          ' "$result_file" >/dev/null
+          {
+            echo "workspace=$MAS_PROVISIONING_WORKSPACE"
+            echo "receipt=$receipt_path"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run clean VM first launch smoke
         id: vm_smoke
         shell: bash
@@ -1642,6 +1748,10 @@ jobs:
             CMD+=(--assistant-route-smoke)
             CMD+=(--codex-functional-check)
             CMD+=(--codex-ai-self-check)
+            if [ -n "${{ steps.mas_qualification_provisioning.outputs.workspace }}" ]; then
+              CMD+=(--mas-study-provisioning-workspace "${{ steps.mas_qualification_provisioning.outputs.workspace }}")
+              CMD+=(--mas-study-provisioning-receipt "${{ steps.mas_qualification_provisioning.outputs.receipt }}")
+            fi
           fi
           if [ "${{ steps.package_profile.outputs.install_mode }}" = "homebrew-cask" ]; then
             if [ "${{ steps.package_profile.outputs.profile }}" = "homebrew-full" ]; then
