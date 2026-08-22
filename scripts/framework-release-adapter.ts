@@ -1503,6 +1503,7 @@ export function inspectRelease(
     if (!digest) throw new Error(`GitHub asset ${asset.name} has no authoritative SHA-256 digest.`);
     return { name: asset.name, size_bytes: asset.size, sha256: digest };
   });
+  const targetIdentity = releaseTargetIdentity(repo, tag, release.target_commitish, runtime);
   return {
     surface_kind: 'opl_app_github_release_inspection.v1',
     repository: repo,
@@ -1513,7 +1514,7 @@ export function inspectRelease(
       name: release.name,
       draft: release.draft,
       prerelease: release.prerelease,
-      target_commitish: release.target_commitish,
+      ...targetIdentity,
       body_sha256: sha256Bytes(String(release.body ?? '')),
       immutable: release.immutable === true,
     },
@@ -1554,6 +1555,7 @@ function inspectReleaseById(
     if (!digest) throw new Error(`GitHub asset ${asset.name} has no authoritative SHA-256 digest.`);
     return { name: asset.name, size_bytes: asset.size, sha256: digest };
   });
+  const targetIdentity = releaseTargetIdentity(repo, tag, release.target_commitish, runtime);
   return {
     surface_kind: 'opl_app_github_release_inspection.v1',
     repository: repo,
@@ -1564,7 +1566,7 @@ function inspectReleaseById(
       name: release.name,
       draft: release.draft,
       prerelease: release.prerelease,
-      target_commitish: release.target_commitish,
+      ...targetIdentity,
       body_sha256: sha256Bytes(String(release.body ?? '')),
       immutable: release.immutable === true,
     },
@@ -1742,6 +1744,26 @@ function inspectReleaseTagRef(repo: string, tag: string, runtime: GitHubAdapterR
     ref: expectedRef,
     exists: true,
     target_commitish: observed.object.sha,
+  };
+}
+
+function releaseTargetIdentity(
+  repo: string,
+  tag: string,
+  declaredTarget: unknown,
+  runtime: GitHubAdapterRuntime,
+): JsonRecord {
+  const declared = typeof declaredTarget === 'string' ? declaredTarget : '';
+  if (/^[0-9a-f]{40}$/.test(declared)) {
+    return { target_commitish: declared, declared_target_commitish: declared };
+  }
+  const tagRef = inspectReleaseTagRef(repo, tag, runtime);
+  if (tagRef.exists !== true || !/^[0-9a-f]{40}$/.test(String(tagRef.target_commitish ?? ''))) {
+    throw new Error(`GitHub Release ${tag} has no exact commit target.`);
+  }
+  return {
+    target_commitish: tagRef.target_commitish,
+    declared_target_commitish: declared || null,
   };
 }
 
@@ -1934,6 +1956,7 @@ function acceptedDraftReleaseId(
     notes: string;
     targetCommitish: string;
     prerelease: boolean;
+    exactTagPreexisting: boolean;
   },
 ): number {
   let response: JsonRecord;
@@ -1949,7 +1972,11 @@ function acceptedDraftReleaseId(
     || !Number.isSafeInteger(response.id)
     || response.id <= 0
     || response.tag_name !== options.tag
-    || response.target_commitish !== options.targetCommitish
+    || (
+      options.exactTagPreexisting
+        ? typeof response.target_commitish !== 'string' || response.target_commitish.trim() === ''
+        : response.target_commitish !== options.targetCommitish
+    )
     || response.name !== options.name
     || response.draft !== true
     || response.prerelease !== options.prerelease
@@ -2111,6 +2138,7 @@ function ensureRelease(options: {
   if (!inspection.release.exists) {
     const expectedRef = `refs/tags/${options.tag}`;
     const existingTagRef = inspectReleaseTagRef(options.repo, options.tag, options.runtime);
+    const exactTagPreexisting = existingTagRef.exists === true;
     if (existingTagRef.exists) {
       if (existingTagRef.target_commitish !== options.targetCommitish) {
         throw new Error(
@@ -2120,7 +2148,7 @@ function ensureRelease(options: {
     }
     const payload = JSON.stringify({
       tag_name: options.tag,
-      target_commitish: options.targetCommitish,
+      ...(!exactTagPreexisting ? { target_commitish: options.targetCommitish } : {}),
       name: options.name,
       body: expectedBody,
       draft: true,
@@ -2146,7 +2174,7 @@ function ensureRelease(options: {
     }
     let releaseId: number;
     try {
-      releaseId = acceptedDraftReleaseId(attempt.evidence, options);
+      releaseId = acceptedDraftReleaseId(attempt.evidence, { ...options, exactTagPreexisting });
     } catch (error) {
       const fallback = inspectReleaseForReconcile(options.repo, options.tag, options.runtime);
       return unknownAfterAcceptedMutation({
