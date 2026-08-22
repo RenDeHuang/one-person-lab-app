@@ -30,6 +30,11 @@ on:
         description: Exact Framework executor SHA used to verify and import the checkpoint; independent from the frozen Bundle source SHA
         required: true
         type: string
+      prior_full_artifact_run_id:
+        description: Exact failed append_full run containing reusable unchanged Full bytes
+        required: false
+        default: ''
+        type: string
       operation_started_at:
         description: Full append operation start
         required: false
@@ -116,26 +121,38 @@ jobs:
           grep -E -q -- '--out-dir "\$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"' .github/workflows/full-first-install-release.yml
 
       - name: Admit one-shot Full append operation
+        env:
+          OPERATION: ${{ inputs.operation }}
+          SOURCE_FORMAT: ${{ inputs.source_format }}
+          FRAMEWORK_EXECUTOR_REF: ${{ inputs.framework_executor_ref }}
+          PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
+          OPERATION_STARTED_AT: ${{ inputs.operation_started_at }}
+          OPERATION_DEADLINE_AT: ${{ inputs.operation_deadline_at }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ '${{ inputs.framework_executor_ref }}' =~ ^[0-9a-f]{40}$ ]] || {
+          [[ "$FRAMEWORK_EXECUTOR_REF" =~ ^[0-9a-f]{40}$ ]] || {
             echo "::error::Framework executor must be an exact lowercase SHA."
             exit 1
           }
-          test '${{ inputs.source_format }}' = checkpoint_v1
+          test "$SOURCE_FORMAT" = checkpoint_v1
+          if [ -n "$PRIOR_FULL_ARTIFACT_RUN_ID" ]; then
+            test "$OPERATION" = append_full
+            [[ "$PRIOR_FULL_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            test "$PRIOR_FULL_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
+          fi
           mkdir -p release-failure-evidence
           status=passed
           reason=admitted
           if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then status=failed; reason=workflow_rerun; fi
-          if [ -n '${{ inputs.operation_started_at }}' ] || [ -n '${{ inputs.operation_deadline_at }}' ]; then
+          if [ -n "$OPERATION_STARTED_AT" ] || [ -n "$OPERATION_DEADLINE_AT" ]; then
             node <<'NODE' || { status=failed; reason=deadline_invalid; }
-          const started = Date.parse('${{ inputs.operation_started_at }}');
-          const deadline = Date.parse('${{ inputs.operation_deadline_at }}');
+          const started = Date.parse(process.env.OPERATION_STARTED_AT);
+          const deadline = Date.parse(process.env.OPERATION_DEADLINE_AT);
           if (!Number.isFinite(started) || !Number.isFinite(deadline) || Date.now() >= deadline) process.exit(1);
           NODE
           fi
-          jq -n --arg status "$status" --arg reason "$reason" --arg operation '${{ inputs.operation }}' \
+          jq -n --arg status "$status" --arg reason "$reason" --arg operation "$OPERATION" \
             --arg run_id "$GITHUB_RUN_ID" \
             '{schema:"opl_release_operation_admission_receipt.v1",status:$status,reason:$reason,operation:$operation,run_id:$run_id,run_attempt:env.GITHUB_RUN_ATTEMPT}' \
             > release-failure-evidence/operation-admission.json
@@ -755,7 +772,7 @@ jobs:
           retention-days: 30
 
   full-build:
-    if: ${{ inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'standard_built' || needs.restore-standard.outputs.completed_stage == 'standard_qualified') }}
+    if: ${{ inputs.mode == 'execute' && inputs.prior_full_artifact_run_id == '' && (needs.restore-standard.outputs.completed_stage == 'standard_built' || needs.restore-standard.outputs.completed_stage == 'standard_qualified') }}
     needs: [restore-standard]
     permissions:
       contents: read
@@ -780,7 +797,7 @@ jobs:
     secrets: inherit
 
   materialize-full-build:
-    if: ${{ inputs.mode == 'execute' && needs.restore-standard.outputs.completed_stage == 'full_built' }}
+    if: ${{ inputs.mode == 'execute' && (needs.restore-standard.outputs.completed_stage == 'full_built' || inputs.prior_full_artifact_run_id != '') }}
     needs: [restore-standard]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -795,6 +812,7 @@ jobs:
         with: { ref: '${{ github.sha }}', path: app-source }
 
       - name: Restore existing Full build without rebuilding
+        if: ${{ inputs.prior_full_artifact_run_id == '' }}
         id: checkpoint
         uses: ./app-source/.github/actions/restore-release-checkpoint
         with:
@@ -804,6 +822,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: Materialize exact Full assets for qualification
+        if: ${{ inputs.prior_full_artifact_run_id == '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -812,6 +831,177 @@ jobs:
           mkdir -p full-output
           cp "$source/One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg" full-output/
           cp "$source/opl-release-manifest.json" full-output/
+
+      - name: Download reusable Full package from the exact failed run
+        if: ${{ inputs.prior_full_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-full-first-install-${{ needs.restore-standard.outputs.version }}-mac-arm64
+          run-id: ${{ inputs.prior_full_artifact_run_id }}
+          github-token: ${{ github.token }}
+          path: full-output
+
+      - name: Download reusable Full cohort identity
+        if: ${{ inputs.prior_full_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64-cohort
+          run-id: ${{ inputs.prior_full_artifact_run_id }}
+          github-token: ${{ github.token }}
+          path: full-cohort
+
+      - name: Download exact failed qualification receipt
+        if: ${{ inputs.prior_full_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-qualification-attempt-full-${{ inputs.prior_full_artifact_run_id }}
+          run-id: ${{ inputs.prior_full_artifact_run_id }}
+          github-token: ${{ github.token }}
+          path: prior-qualification
+
+      - name: Download exact Full notarization evidence
+        if: ${{ inputs.prior_full_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-full-notarization-evidence-${{ needs.restore-standard.outputs.version }}-${{ inputs.prior_full_artifact_run_id }}
+          run-id: ${{ inputs.prior_full_artifact_run_id }}
+          github-token: ${{ github.token }}
+          path: prior-notarization
+
+      - name: Verify reusable Full bytes and failed-run identity
+        if: ${{ inputs.prior_full_artifact_run_id != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRIOR_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
+          VERSION: ${{ needs.restore-standard.outputs.version }}
+          BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
+          APP_REF: ${{ needs.restore-standard.outputs.app_ref }}
+          SHELL_REF: ${{ needs.restore-standard.outputs.shell_ref }}
+          FRAMEWORK_REF: ${{ needs.restore-standard.outputs.framework_source_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRIOR_RUN_ID")"
+          jq -e \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$PRIOR_RUN_ID" '
+              (.id | tostring) == $run_id
+              and .event == "workflow_dispatch"
+              and .head_branch == "main"
+              and .run_attempt == 1
+              and .status == "completed"
+              and .conclusion == "failure"
+              and .path == ".github/workflows/release-stable.yml"
+              and .repository.full_name == $repository
+            ' <<<"$run_json" >/dev/null
+
+          dmg="full-output/One-Person-Lab-Full-${VERSION}-mac-arm64.dmg"
+          manifest=full-output/opl-release-manifest.json
+          cohort=full-cohort/opl-build-cohort.json
+          qualification=prior-qualification/qualification-attempt-receipt.json
+          notarization=prior-notarization/full-apple-notarization-receipt.json
+          for file in "$dmg" "$manifest" "$cohort" "$qualification" "$notarization"; do
+            test -f "$file" && test ! -L "$file"
+          done
+          dmg_sha="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+          dmg_size="$(wc -c < "$dmg" | tr -d ' ')"
+          manifest_sha="$(shasum -a 256 "$manifest" | awk '{print $1}')"
+
+          jq -e \
+            --arg version "$VERSION" \
+            --arg bundle "$BUNDLE_DIGEST" \
+            --arg app "$APP_REF" \
+            --arg shell "$SHELL_REF" \
+            --arg framework "$FRAMEWORK_REF" \
+            --arg run_id "$PRIOR_RUN_ID" \
+            --arg artifact "opl-full-first-install-dmg-${VERSION}-mac-arm64" \
+            --arg dmg_name "$(basename "$dmg")" \
+            --arg dmg_sha "$dmg_sha" \
+            --argjson dmg_size "$dmg_size" '
+              .schema == "opl_app_build_artifact_cohort.v2"
+              and .release.stable_session_id == $bundle
+              and .release.release_cohort_ref == $bundle
+              and .cohort == {app_sha:$app,shell_sha:$shell,framework_sha:$framework}
+              and .build == {version:$version,kind:"full"}
+              and .artifact == {name:$dmg_name,sha256:$dmg_sha,size_bytes:$dmg_size}
+              and .actions.run_id == $run_id
+              and .actions.run_attempt == "1"
+              and .actions.artifact_name == $artifact
+            ' "$cohort" >/dev/null
+
+          semantic_digest="$(jq -er .digests.compiled_expectation_semantic_sha256 "$cohort")"
+          probe_digest="$(jq -er .digests.compiled_expectation_probe_sha256 "$cohort")"
+          qualification_input_digest="$(jq -er .digests.qualification_input_manifest_sha256 "$cohort")"
+          jq -e \
+            --arg bundle "$BUNDLE_DIGEST" \
+            --arg app "$APP_REF" \
+            --arg shell "$SHELL_REF" \
+            --arg run_id "$PRIOR_RUN_ID" \
+            --arg artifact "opl-full-first-install-dmg-${VERSION}-mac-arm64" \
+            --arg dmg_sha "$dmg_sha" \
+            --arg manifest_sha "$manifest_sha" \
+            --arg semantic_digest "$semantic_digest" \
+            --arg probe_digest "$probe_digest" \
+            --arg qualification_input_digest "$qualification_input_digest" '
+              .schema == "opl_app_qualification_attempt_receipt.v1"
+              and .status == "failed"
+              and .retry.disposition == "same_artifact_retry_allowed"
+              and .identity.stable_session_id == $bundle
+              and .identity.release_cohort_ref == $bundle
+              and .identity.artifact_kind == "full"
+              and .identity.package_profile == "full"
+              and .identity.qualification_run_id == $run_id
+              and .identity.qualification_run_attempt == "1"
+              and .identity.source_artifact_run_id == $run_id
+              and .identity.source_artifact_name == $artifact
+              and .artifact.sha256 == $dmg_sha
+              and .artifact.manifest_sha256 == $manifest_sha
+              and .expectations.semantic_digest == $semantic_digest
+              and .expectations.probe_digest == $probe_digest
+              and .qualification_inputs.manifest_sha256 == $qualification_input_digest
+              and .evidence.scope_proof.classification == "same_as_artifact_cohort"
+              and .evidence.scope_proof.app_base_sha == $app
+              and .evidence.scope_proof.app_head_sha == $app
+              and .evidence.scope_proof.shell_base_sha == $shell
+              and .evidence.scope_proof.shell_head_sha == $shell
+              and .evidence.scope_proof.artifact_semantic_digest == $semantic_digest
+              and .evidence.scope_proof.verification_semantic_digest == $semantic_digest
+              and .evidence.scope_proof.artifact_probe_digest == $probe_digest
+              and .evidence.scope_proof.verification_probe_digest == $probe_digest
+              and .evidence.scope_proof.forbidden_app_paths == []
+              and .evidence.scope_proof.forbidden_shell_paths == []
+            ' "$qualification" >/dev/null
+
+          jq -e \
+            --arg dmg_name "$(basename "$dmg")" \
+            --arg dmg_sha "$dmg_sha" \
+            --argjson dmg_size "$dmg_size" '
+              .schema == "opl_apple_notarized_dmg_receipt.v1"
+              and .status == "passed"
+              and .artifact == $dmg_name
+              and .notarization.status == "Accepted"
+              and .stapler_validate_status == "passed"
+              and .dmg_spctl_status == "passed"
+              and .app_spctl_status == "passed"
+              and .final_stapled_dmg_sha256 == $dmg_sha
+              and .final_stapled_dmg_size_bytes == $dmg_size
+            ' "$notarization" >/dev/null
+
+          jq -e \
+            --arg version "$VERSION" \
+            --arg dmg_name "$(basename "$dmg")" \
+            --arg dmg_sha "sha256:$dmg_sha" \
+            --argjson dmg_size "$dmg_size" '
+              .schema == "opl_public_release_manifest.v1"
+              and .package_kind == "opl_full_first_install_macos_arm64"
+              and .version == $version
+              and .release_version == $version
+              and .primary_install_asset == $dmg_name
+              and ([.assets[] | select(.name == $dmg_name and .sha256 == $dmg_sha and .size_bytes == $dmg_size)] | length == 1)
+              and .evidence.apple_notarization_receipt.status == "passed"
+              and .evidence.apple_notarization_receipt.notarization.status == "Accepted"
+              and .evidence.apple_notarization_receipt.final_stapled_dmg_sha256 == ($dmg_sha | sub("^sha256:"; ""))
+            ' "$manifest" >/dev/null
 
       - name: Resolve exact Full MAS source
         id: full_source
@@ -822,6 +1012,7 @@ jobs:
           echo "mas_ref=$mas_ref" >> "$GITHUB_OUTPUT"
 
       - name: Download original Full build cohort identity
+        if: ${{ inputs.prior_full_artifact_run_id == '' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64-cohort
@@ -1122,10 +1313,14 @@ jobs:
           stage='${{ needs.restore-standard.outputs.completed_stage }}'
           case "$stage" in
             standard_built|standard_qualified)
+              full_build_run_id="$GITHUB_RUN_ID"
+              if [ -n '${{ inputs.prior_full_artifact_run_id }}' ]; then
+                full_build_run_id='${{ inputs.prior_full_artifact_run_id }}'
+              fi
               node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
-                --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-full-build" \
+                --operation build --executor remote --attempt-id "gha-${full_build_run_id}-full-build" \
                 --release-operation append_full --operation-id "$operation_id" \
-                --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/full-build" \
+                --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${full_build_run_id}/full-build" \
                 --bundle "$bundle" --track full --outcome complete \
                 --assets-dir full-assets --output full-build-receipt.json
               framework-executor/bin/opl release build \

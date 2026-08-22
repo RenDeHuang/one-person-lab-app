@@ -54,11 +54,11 @@ test("Full workflow checks out MAS Scholar Skills and binds both runtime assembl
   );
   assert.match(
     workflow,
-    /echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=\$mas_scholar_skills_ref" >> "\$GITHUB_ENV"/,
+    /echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=\$mas_scholar_skills_ref"[\s\S]*\} >> "\$GITHUB_ENV"/,
   );
   assert.match(
     workflow,
-    /echo "mas_scholar_skills_ref=\$mas_scholar_skills_ref" >> "\$GITHUB_OUTPUT"/,
+    /echo "mas_scholar_skills_ref=\$mas_scholar_skills_ref"[\s\S]*\} >> "\$GITHUB_OUTPUT"/,
   );
   assert.match(
     workflow,

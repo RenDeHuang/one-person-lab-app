@@ -222,7 +222,7 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   )?.run ?? '');
   assert.match(
     stableAdmission,
-    /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT"/,
+    /test -z "\$REQUESTED_VERSION\$REQUESTED_SHELL_REF\$REQUESTED_FRAMEWORK_REF\$SOURCE_RUN_ID\$SOURCE_ARTIFACT\$PRIOR_FULL_ARTIFACT_RUN_ID"/,
   );
   assert.doesNotMatch(stableAdmission, /SOURCE_QUALIFICATION_RUN_ID="\$GITHUB_RUN_ID"/);
   assert.doesNotMatch(stableAdmission, /needs\.source-qualification/);

@@ -91,6 +91,11 @@ on:
         required: false
         default: ''
         type: string
+      prior_full_artifact_run_id:
+        description: Exact failed append_full run containing reusable unchanged Full bytes
+        required: false
+        default: ''
+        type: string
 permissions:
   contents: read
   actions: read
@@ -132,6 +137,7 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -142,7 +148,7 @@ jobs:
           [[ "$STUDIO_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$STUDIO_TREE" =~ ^[0-9a-f]{40}$ ]]
           [[ "$STUDIO_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]
-          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
+          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
           test "$INCLUDE_FULL" = false
 
       - name: Checkout exact App release authority
@@ -251,6 +257,7 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
           INCLUDE_FULL: ${{ inputs.include_full }}
           REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS: ${{ inputs.desktop_additional_platforms }}
           STUDIO_SHA: ${{ inputs.studio_sha }}
@@ -267,7 +274,7 @@ jobs:
           test -n "$OPERATION_ID"
           test -n "$AUTHORITY_CARRIER"
           [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT"
+          test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
           test -z "$STUDIO_SHA$STUDIO_TREE$STUDIO_TAG"
           test "$INCLUDE_FULL" = false
           jq -e 'type == "array"' <<<"$REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS" >/dev/null
@@ -470,6 +477,7 @@ jobs:
       framework_executor_ref: ${{ steps.admission.outputs.framework_executor_ref }}
       source_run_id: ${{ steps.admission.outputs.source_run_id }}
       source_artifact: ${{ steps.admission.outputs.source_artifact }}
+      prior_full_artifact_run_id: ${{ steps.admission.outputs.prior_full_artifact_run_id }}
       operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
       package_compatibility_abi: ${{ steps.admission.outputs.package_compatibility_abi }}
@@ -493,6 +501,7 @@ jobs:
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+          PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
           STUDIO_SHA: ${{ inputs.studio_sha }}
           STUDIO_TREE: ${{ inputs.studio_tree }}
           STUDIO_TAG: ${{ inputs.studio_tag }}
@@ -515,7 +524,7 @@ jobs:
           FRAMEWORK_EXECUTOR_REF=''
           case "$OPERATION" in
             standard)
-              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT" || {
+              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID" || {
                 echo "::error::A new Standard Bundle accepts no external source artifact."
                 exit 1
               }
@@ -543,6 +552,18 @@ jobs:
                 echo "::error::$OPERATION requires an exact Framework executor SHA."
                 exit 1
               }
+              if [ "$OPERATION" = resume_standard ]; then
+                test -z "$PRIOR_FULL_ARTIFACT_RUN_ID" || {
+                  echo "::error::Only append_full may reuse an exact prior Full artifact run."
+                  exit 1
+                }
+              elif [ -n "$PRIOR_FULL_ARTIFACT_RUN_ID" ]; then
+                [[ "$PRIOR_FULL_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+                  echo "::error::append_full recovery requires an exact prior run id."
+                  exit 1
+                }
+                test "$PRIOR_FULL_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
+              fi
               ;;
             *) exit 1 ;;
           esac
@@ -566,6 +587,7 @@ jobs:
             echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF"
             echo "source_run_id=$SOURCE_RUN_ID"
             echo "source_artifact=$SOURCE_ARTIFACT"
+            echo "prior_full_artifact_run_id=$PRIOR_FULL_ARTIFACT_RUN_ID"
             echo "operation_started_at=$operation_started_at"
             echo "operation_deadline_at=$operation_deadline_at"
             echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
@@ -798,6 +820,7 @@ jobs:
       source_run_id: ${{ needs.admission.outputs.source_run_id }}
       source_artifact: ${{ needs.admission.outputs.source_artifact }}
       framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
+      prior_full_artifact_run_id: ${{ needs.admission.outputs.prior_full_artifact_run_id }}
       operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
     secrets: inherit
