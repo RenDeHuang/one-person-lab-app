@@ -1112,7 +1112,6 @@ function buildQualificationReceipt(values: AdapterOptionValues): JsonRecord {
 
 const githubReadTimeoutMs = 30_000;
 const githubMutationTimeoutMs = 10 * 60_000;
-const acceptedTagReadbackDelaysMs = [0, 500, 1_500] as const;
 
 export interface GitHubCommandResult {
   status: number | null;
@@ -1746,57 +1745,6 @@ function inspectReleaseTagRef(repo: string, tag: string, runtime: GitHubAdapterR
   };
 }
 
-function inspectReleaseTagRefForReconcile(
-  repo: string,
-  tag: string,
-  runtime: GitHubAdapterRuntime,
-): JsonRecord {
-  try {
-    return { status: 'complete', observation: inspectReleaseTagRef(repo, tag, runtime) };
-  } catch (error) {
-    return {
-      status: 'inspect_failed',
-      failure: error instanceof GitHubReadError
-        ? error.evidence
-        : { error_message: error instanceof Error ? error.message : String(error) },
-    };
-  }
-}
-
-function reconcileAcceptedTagReservation(input: {
-  repo: string;
-  tag: string;
-  operationDeadlineAt: string;
-  runtime: GitHubAdapterRuntime;
-}): JsonRecord {
-  let reconciliation: JsonRecord = {
-    status: 'inspect_failed',
-    failure: { error_message: 'Tag reservation readback did not run.' },
-  };
-  for (const delayMs of acceptedTagReadbackDelaysMs) {
-    if (delayMs > 0) {
-      const remainingMs = remainingReleaseOperationMilliseconds({
-        deadlineAt: input.operationDeadlineAt,
-        nowMs: input.runtime.now(),
-      });
-      if (remainingMs <= delayMs) break;
-      input.runtime.wait?.(delayMs);
-    }
-    reconciliation = inspectReleaseTagRefForReconcile(
-      input.repo,
-      input.tag,
-      input.runtime,
-    );
-    if (
-      reconciliation.status === 'complete'
-      && reconciliation.observation.exists === true
-    ) {
-      return reconciliation;
-    }
-  }
-  return reconciliation;
-}
-
 function inspectReleaseByIdForReconcile(
   repo: string,
   tag: string,
@@ -2162,7 +2110,6 @@ function ensureRelease(options: {
   let inspection = options.initialInspection ?? inspectRelease(options.repo, options.tag, options.runtime);
   if (!inspection.release.exists) {
     const expectedRef = `refs/tags/${options.tag}`;
-    const tagRemoteTarget = `github-ref:${options.repo}@${expectedRef}`;
     const existingTagRef = inspectReleaseTagRef(options.repo, options.tag, options.runtime);
     if (existingTagRef.exists) {
       if (existingTagRef.target_commitish !== options.targetCommitish) {
@@ -2173,53 +2120,6 @@ function ensureRelease(options: {
       throw new Error(
         `Existing ${expectedRef} already reserves this Release identity without an exact Release; allocate a new tag.`,
       );
-    }
-    const tagPayload = JSON.stringify({
-      ref: expectedRef,
-      sha: options.targetCommitish,
-    });
-    const tagAttempt = runGitHubMutation({
-      mutation: 'tag_reserve',
-      attemptId: mutationAttemptId(
-        options.baseAttemptId,
-        'tag_reserve',
-        tagRemoteTarget,
-        options.targetCommitish,
-      ),
-      remoteTarget: tagRemoteTarget,
-      args: ['api', '--method', 'POST', `repos/${options.repo}/git/refs`, '--input', '-'],
-      body: tagPayload,
-      operationDeadlineAt: options.operationDeadlineAt,
-      runtime: options.runtime,
-    });
-    if (tagAttempt.status !== 'accepted') {
-      return stoppedMutation({
-        attempt: tagAttempt,
-        repo: options.repo,
-        tag: options.tag,
-        reconciliation: inspectReleaseTagRefForReconcile(options.repo, options.tag, options.runtime),
-      });
-    }
-    const tagReconciliation = reconcileAcceptedTagReservation({
-      repo: options.repo,
-      tag: options.tag,
-      operationDeadlineAt: options.operationDeadlineAt,
-      runtime: options.runtime,
-    });
-    if (
-      tagReconciliation.status !== 'complete'
-      || tagReconciliation.observation.exists !== true
-      || tagReconciliation.observation.target_commitish !== options.targetCommitish
-    ) {
-      return unknownAfterAcceptedMutation({
-        mutation: 'tag_reserve',
-        operationDeadlineAt: options.operationDeadlineAt,
-        attemptEvidence: tagAttempt.evidence,
-        repo: options.repo,
-        tag: options.tag,
-        reconciliation: tagReconciliation,
-        reason: 'GitHub accepted tag reservation but exact frozen App SHA readback did not complete.',
-      });
     }
     const payload = JSON.stringify({
       tag_name: options.tag,

@@ -95,13 +95,13 @@ test('Full publication declares the Stable channel and same-tag CAS boundary at 
   assert.doesNotMatch(String(publish.run), /scripts\/publish-release\.ts/);
 });
 
-test('Stable Standard publication uses only the Release mutation credential', () => {
+test('Stable Standard publication uses the Contents-write workflow credential', () => {
   const publish = workflowStep(
     '_release-standard-publish.yml',
     'publish-standard-nonlatest',
     'Publish only missing Standard bytes',
   );
-  assert.equal(publish.env?.GH_TOKEN, '${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}');
+  assert.equal(publish.env?.GH_TOKEN, '${{ github.token }}');
   assert.match(String(publish.run), /framework-release-adapter\.ts github-apply/);
   assert.doesNotMatch(String(publish.run), /immutable-releases|preflight-setting-receipt|disabled-setting-receipt/);
 });

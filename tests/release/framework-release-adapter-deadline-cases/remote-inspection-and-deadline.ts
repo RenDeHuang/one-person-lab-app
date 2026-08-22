@@ -395,162 +395,9 @@ test('a timed out asset upload stops all mutation and performs only fresh read-o
   assert.ok(calls.filter(({ args }) => isReleaseInspect(args)).every(({ options }) => options.timeout === 2_345));
 });
 
-test('a timed out tag reservation performs one mutation and never creates a Release', () => {
-  const files = fixture([asset('first.zip', '5')]);
-  const calls: string[][] = [];
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 90_000,
-    readTimeoutMs: 2_111,
-    run(_command, args, options) {
-      calls.push(args);
-      if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (isTagRefReadFor(args, tag, repo)) {
-        assert.equal(options.timeout, 2_111);
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        return {
-          status: null,
-          signal: 'SIGTERM',
-          stdout: 'possibly reserved',
-          stderr: 'timed out',
-          error: Object.assign(new Error('spawnSync gh ETIMEDOUT'), { code: 'ETIMEDOUT' }),
-        };
-      }
-      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
-    },
-  };
-
-  const result = applyPublishPlan({
-    ...mutationAdmission(),
-    bundle: files.bundlePath,
-    plan: files.planPath,
-    'operation-deadline-at': deadlineAt,
-  }, runtime);
-
-  assert.equal(result.status, 'outcome_unknown');
-  assert.equal(result.failure.mutation, 'tag_reserve');
-  assert.equal(result.failure.failure_taxonomy, 'github_mutation_timeout');
-  assert.equal(result.mutation_attempt_id, expectedMutationAttemptId(
-    'tag_reserve',
-    `github-ref:${repo}@refs/tags/${tag}`,
-    sourceCommit,
-  ));
-  assert.equal(result.remote_target, `github-ref:${repo}@refs/tags/${tag}`);
-  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
-  assert.equal(calls.filter((args) => isTagRefReadFor(args, tag, repo)).length, 2);
-  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 0);
-});
-
-test('an accepted tag reservation tolerates bounded eventual-consistency readback without repeating mutation', () => {
-  const first = asset('first.zip', '6');
-  const files = fixture([first]);
-  const calls: string[][] = [];
-  const waits: number[] = [];
-  const remoteAssets: Asset[] = [];
-  let tagReserved = false;
-  let tagReads = 0;
-  let published = false;
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 90_000,
-    wait(milliseconds) {
-      waits.push(milliseconds);
-    },
-    run(_command, args) {
-      calls.push(args);
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/tags/${tag}`) {
-        if (!published) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
-      }
-      if (args[0] === 'api' && args[1] === `repos/${repo}/releases/12345`) {
-        return success(releaseResponse(remoteAssets, {
-          draft: !published,
-          immutable: false,
-        }));
-      }
-      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (isTagRefReadFor(args, tag, repo)) {
-        tagReads += 1;
-        return tagReserved && tagReads >= 3
-          ? tagRefResponse(tag)
-          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        tagReserved = true;
-        return tagRefResponse(tag);
-      }
-      if (args[3] === `repos/${repo}/releases`) {
-        return success(releaseResponse([], { draft: true, immutable: false }));
-      }
-      if (args[0] === 'release' && args[1] === 'upload') {
-        remoteAssets.push(first);
-        return success();
-      }
-      if (args.includes('PATCH')) {
-        published = true;
-        return success(releaseResponse(remoteAssets, { draft: false, immutable: false }));
-      }
-      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
-    },
-  };
-
-  const result = applyPublishPlan({
-    ...mutationAdmission(),
-    bundle: files.bundlePath,
-    plan: files.planPath,
-    'operation-deadline-at': deadlineAt,
-  }, runtime);
-
-  assert.equal(result.status, 'complete');
-  assert.deepEqual(result.uploaded, [first.name]);
-  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
-  assert.equal(calls.filter((args) => isTagRefReadFor(args, tag, repo)).length, 3);
-  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
-  assert.deepEqual(waits, [500]);
-});
-
-test('an accepted tag reservation remains outcome unknown after bounded read-only reconciliation', () => {
-  const files = fixture([asset('first.zip', '6')]);
-  const calls: string[][] = [];
-  const waits: number[] = [];
-  const runtime: GitHubAdapterRuntime = {
-    now: () => deadlineMs - 90_000,
-    wait(milliseconds) {
-      waits.push(milliseconds);
-    },
-    run(_command, args) {
-      calls.push(args);
-      if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      if (isTagRefReadFor(args, tag, repo)) {
-        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) return tagRefResponse(tag);
-      throw new Error(`Unexpected gh call: ${args.join(' ')}`);
-    },
-  };
-
-  const result = applyPublishPlan({
-    ...mutationAdmission(),
-    bundle: files.bundlePath,
-    plan: files.planPath,
-    'operation-deadline-at': deadlineAt,
-  }, runtime);
-
-  assert.equal(result.status, 'outcome_unknown');
-  assert.equal(result.failure.mutation, 'tag_reserve');
-  assert.equal(result.failure.failure_taxonomy, 'github_mutation_readback_unknown');
-  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
-  assert.equal(calls.filter((args) => isTagRefReadFor(args, tag, repo)).length, 4);
-  assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 0);
-  assert.deepEqual(waits, [500, 1_500]);
-});
-
 test('a timed out Release create performs one Release mutation and then read-only reconciliation only', () => {
   const files = fixture([asset('first.zip', '5')]);
   const calls: string[][] = [];
-  let tagReserved = false;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 90_000,
     readTimeoutMs: 2_222,
@@ -563,13 +410,7 @@ test('a timed out Release create performs one Release mutation and then read-onl
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {
         assert.equal(options.timeout, 2_222);
-        return tagReserved
-          ? tagRefResponse(tag)
-          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        tagReserved = true;
-        return tagRefResponse(tag);
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
       if (args[3] === `repos/${repo}/releases`) {
         return {
@@ -601,7 +442,7 @@ test('a timed out Release create performs one Release mutation and then read-onl
   assert.equal(result.failure.mutation_attempt_id, result.mutation_attempt_id);
   assert.equal(result.failure.remote_target, result.remote_target);
   assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
-  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 0);
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
   assert.equal(calls.filter(isReleaseInspect).length, 2, 'one pre-create read and one bounded reconcile read');
 });
@@ -611,7 +452,6 @@ test('accepted Release create uses its exact id while the draft remains absent b
   const files = fixture([first]);
   const calls: string[][] = [];
   const remoteAssets: Asset[] = [];
-  let tagReserved = false;
   let created = false;
   let published = false;
   const runtime: GitHubAdapterRuntime = {
@@ -634,13 +474,7 @@ test('accepted Release create uses its exact id while the draft remains absent b
       }
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {
-        return tagReserved
-          ? tagRefResponse(tag)
-          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        tagReserved = true;
-        return tagRefResponse(tag);
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
       if (args[3] === `repos/${repo}/releases`) {
         created = true;
@@ -669,20 +503,19 @@ test('accepted Release create uses its exact id while the draft remains absent b
   assert.deepEqual(result.uploaded, [first.name]);
   assert.equal(result.inspection.release.id, 12345);
   assert.equal(result.inspection.release.immutable, false);
-  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 0);
   assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
   const tagReadIndexes = calls.flatMap((args, index) => (
     isTagRefReadFor(args, tag, repo) ? [index] : []
   ));
   const tagCreateIndex = calls.findIndex((args) => isTagRefCreateFor(args, repo));
   const releaseCreateIndex = calls.findIndex((args) => args[3] === `repos/${repo}/releases`);
-  assert.equal(tagReadIndexes.length, 2);
+  assert.equal(tagReadIndexes.length, 1);
   assert.ok(
-    tagReadIndexes[0]! < tagCreateIndex
-      && tagCreateIndex < tagReadIndexes[1]!
-      && tagReadIndexes[1]! < releaseCreateIndex,
-    '404 read, tag reservation, exact readback, and Release creation stay strictly ordered',
+    tagReadIndexes[0]! < releaseCreateIndex,
+    'the existing tag conflict read must precede atomic Release creation',
   );
+  assert.equal(tagCreateIndex, -1);
   assert.equal(
     calls.filter((args) => args[1] === `repos/${repo}/releases/tags/${tag}`).length,
     1,
@@ -780,7 +613,6 @@ test('an existing draft hidden from the by-tag endpoint is bound by id before an
 test('accepted Release create with a mismatched response identity fails closed without follow-up mutation', () => {
   const files = fixture([asset('first.zip', '7')]);
   const calls: string[][] = [];
-  let tagReserved = false;
   const runtime: GitHubAdapterRuntime = {
     now: () => deadlineMs - 90_000,
     run(_command, args) {
@@ -788,13 +620,7 @@ test('accepted Release create with a mismatched response identity fails closed w
       if (isReleaseInspect(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isReleaseView(args)) return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       if (isTagRefReadFor(args, tag, repo)) {
-        return tagReserved
-          ? tagRefResponse(tag)
-          : { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
-      }
-      if (isTagRefCreateFor(args, repo)) {
-        tagReserved = true;
-        return tagRefResponse(tag);
+        return { status: 1, stdout: '', stderr: 'HTTP 404 Not Found' };
       }
       if (args[3] === `repos/${repo}/releases`) {
         return success({
@@ -820,7 +646,7 @@ test('accepted Release create with a mismatched response identity fails closed w
   assert.match(result.reconciliation.failure.error_message, /conflicts with the exact draft identity/);
   assert.equal(result.reconciliation.fallback.status, 'complete');
   assert.equal(result.reconciliation.fallback.observation.release.exists, false);
-  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 1);
+  assert.equal(calls.filter((args) => isTagRefCreateFor(args, repo)).length, 0);
   assert.equal(calls.filter((args) => args[3] === `repos/${repo}/releases`).length, 1);
   assert.equal(calls.filter(isReleaseInspect).length, 2);
   assert.equal(calls.filter((args) => args[0] === 'release' && args[1] === 'upload').length, 0);
