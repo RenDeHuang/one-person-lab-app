@@ -898,6 +898,7 @@ jobs:
           APP_REF: ${{ needs.restore-standard.outputs.app_ref }}
           SHELL_REF: ${{ needs.restore-standard.outputs.shell_ref }}
           FRAMEWORK_REF: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -962,10 +963,14 @@ jobs:
             --arg cohort_sha "$cohort_sha" \
             --arg semantic_digest "$semantic_digest" \
             --arg probe_digest "$probe_digest" \
-            --arg qualification_input_digest "$qualification_input_digest" '
+            --arg qualification_input_digest "$qualification_input_digest" \
+            --arg smoke_harness_ref "$SMOKE_HARNESS_REF" '
               .schema == "opl_app_qualification_attempt_receipt.v1"
               and .status == "failed"
-              and .retry.disposition == "same_artifact_retry_allowed"
+              and (
+                .retry.disposition == "same_artifact_retry_allowed"
+                or ($smoke_harness_ref != "" and .retry.disposition == "new_cohort_required")
+              )
               and .identity.stable_session_id == $bundle
               and .identity.release_cohort_ref == $bundle
               and .identity.artifact_kind == "full"

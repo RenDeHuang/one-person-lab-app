@@ -677,6 +677,17 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
     '${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}',
   );
   assert.equal(cleanVmQualification.secrets, 'inherit');
+  const reusableFullVerification = workflowStep(
+    '_release-full-addon.yml',
+    'materialize-full-build',
+    'Verify reusable Full bytes and failed-run identity',
+  );
+  assert.equal(reusableFullVerification.env.SMOKE_HARNESS_REF, '${{ inputs.smoke_harness_ref }}');
+  const reusableFullVerificationRun = String(reusableFullVerification.run);
+  assert.match(
+    reusableFullVerificationRun,
+    /\.retry\.disposition == "same_artifact_retry_allowed"\s+or \(\$smoke_harness_ref != "" and \.retry\.disposition == "new_cohort_required"\)/,
+  );
   assert.match(readWorkflow('_release-full-addon.yml'), /rebuild_performed/);
 });
 
