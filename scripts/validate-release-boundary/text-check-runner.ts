@@ -913,7 +913,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     !standardCleanVm
     || !needsExactly(standardCleanVm, ['freeze', 'seal-standard-identity'])
-    || standardCleanVm.if !== "${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}"
+    || standardCleanVm.if !== "${{ always() && inputs.mode == 'execute' && inputs.channel == 'stable' && needs.freeze.result == 'success' && needs.seal-standard-identity.result == 'success' }}"
     || standardCleanVm.with?.release_artifact_name !==
       '${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}'
     || standardCleanVm.with?.release_artifact_run_id !==

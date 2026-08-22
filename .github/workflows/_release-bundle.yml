@@ -1303,7 +1303,7 @@ jobs:
           retention-days: 30
 
   standard-clean-vm-qualification:
-    if: ${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}
+    if: ${{ always() && inputs.mode == 'execute' && inputs.channel == 'stable' && needs.freeze.result == 'success' && needs.seal-standard-identity.result == 'success' }}
     needs: [freeze, seal-standard-identity]
     permissions:
       contents: read
