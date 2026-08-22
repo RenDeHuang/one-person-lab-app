@@ -1071,7 +1071,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
       'materialize-full-build',
       'full-qualification',
     ])
-    || fullCleanVm.with?.release_artifact_run_id !== '${{ github.run_id }}'
+    || fullCleanVm.with?.release_artifact_run_id !== '${{ inputs.prior_full_artifact_run_id || github.run_id }}'
     || fullCleanVm.with?.package_profile !== 'full'
     || fullCleanVm.with?.diagnostic_scope !== 'release_gate'
     || fullCleanVm.with?.require_macos_gatekeeper !== true
@@ -1079,7 +1079,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   ) {
     failures += reportFailure(
       id,
-      'Full clean-VM qualification must follow hosted trust validation and consume the exact same-run Full candidate',
+      'Full clean-VM qualification must follow hosted trust validation and consume the exact original Full artifact run',
     );
   }
   const checkpointFullRuns = jobRuns(fullJobs['checkpoint-full']);
@@ -1087,6 +1087,8 @@ export function validateReleaseBundleTopology(appRoot: string): number {
     !checkpointFullRuns.includes('--hosted-core-qualification "$hosted_receipt"')
     || !checkpointFullRuns.includes('full-clean-vm-qualification-receipt.json')
     || !checkpointFullRuns.includes('standard-clean-vm-qualification-receipt.json')
+    || !checkpointFullRuns.includes("--arg source_artifact_run_id '${{ inputs.prior_full_artifact_run_id || github.run_id }}'")
+    || !checkpointFullRuns.includes('.qualification.source_artifact_run_id == $source_artifact_run_id')
     || checkpointFullRuns.includes('--legacy-qualification')
   ) {
     failures += reportFailure(

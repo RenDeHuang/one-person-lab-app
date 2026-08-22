@@ -1169,7 +1169,7 @@ jobs:
     with:
       mode: execute
       release_artifact_name: opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64
-      release_artifact_run_id: ${{ github.run_id }}
+      release_artifact_run_id: ${{ inputs.prior_full_artifact_run_id || github.run_id }}
       release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
       artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
@@ -1383,6 +1383,7 @@ jobs:
           }
           jq -e \
             --arg run_id "$GITHUB_RUN_ID" \
+            --arg source_artifact_run_id '${{ inputs.prior_full_artifact_run_id || github.run_id }}' \
             --arg artifact 'opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64' \
             --arg bundle "$BUNDLE_DIGEST" \
             --arg app '${{ needs.restore-standard.outputs.app_ref }}' \
@@ -1393,7 +1394,7 @@ jobs:
               and .package_profile == "full"
               and .release_cohort_ref == $bundle
               and .qualification.run_id == $run_id
-              and .qualification.source_artifact_run_id == $run_id
+              and .qualification.source_artifact_run_id == $source_artifact_run_id
               and .qualification.source_artifact_name == $artifact
               and .qualification.result == "passed"
               and .cohort == {
