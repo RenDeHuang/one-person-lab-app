@@ -661,6 +661,13 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Checkout frozen App product cohort
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.admission.outputs.app_ref }}
+          path: app-source
+          fetch-depth: 1
+
       - name: Download frozen pre-submit authority evidence
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -734,6 +741,7 @@ jobs:
           node --experimental-strip-types app-executor/scripts/stable-release-admission-manifest.ts create \
             --base-version "$base_version" \
             --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
+            --app-source-root app-source \
             --admission-run-id "$GITHUB_RUN_ID" \
             --source-gate "$source_gate_path" \
             --credential-receipt "$RUNNER_TEMP/apple-release-credentials-preflight.json" \

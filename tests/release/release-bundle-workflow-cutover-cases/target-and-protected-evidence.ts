@@ -341,6 +341,12 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.equal(stableAdmissionManifest.steps.some(
     (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
   ), true);
+  assert.equal(
+    stableAdmissionManifest.steps.find(
+      (step: Record<string, unknown>) => step.name === 'Checkout frozen App product cohort',
+    )?.with?.ref,
+    '${{ needs.admission.outputs.app_ref }}',
+  );
   const controlDownload = stableAdmissionManifest.steps.find(
     (step: Record<string, unknown>) => step.name === 'Download frozen pre-submit authority evidence',
   ) as Record<string, any>;
@@ -356,6 +362,7 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.match(manifestSeal, /--pre-nonce-guard "\$\{pre_nonce_guards\[0\]\}"/);
   assert.match(manifestSeal, /--run-authority-reconcile "\$\{run_reconciles\[0\]\}"/);
   assert.match(manifestSeal, /stable-release-admission-manifest\.ts create[\s\S]*--source-gate "\$source_gate_path"/);
+  assert.match(manifestSeal, /--app-source-root app-source/);
   assert.match(manifestSeal, /--failure-output "\$RUNNER_TEMP\/stable-release-admission-failure\.json"/);
   assert.doesNotMatch(manifestSeal, /--source-qualification-receipt/);
   assert.equal(stable.jobs.standard.needs.includes('protected-operation-admission'), true);

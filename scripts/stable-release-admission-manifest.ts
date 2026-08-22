@@ -635,9 +635,9 @@ export function buildStableReleaseAdmissionManifest(
   };
 }
 
-function run(command: string, args: string[]): string {
+function run(command: string, args: string[], cwd = appRoot): string {
   const result = spawnSync(command, args, {
-    cwd: appRoot,
+    cwd,
     encoding: 'utf8',
     env: process.env,
     timeout: 45_000,
@@ -684,13 +684,15 @@ function ghJson(
   });
 }
 
-function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
+function localWorkflowBlobs(executorRef: string): WorkflowBlob[] {
   const head = fullSha(run('git', ['rev-parse', 'HEAD']).trim(), 'Local App HEAD');
-  if (head !== appRef) throw new Error(`Local App HEAD ${head} does not match admission App ref ${appRef}.`);
+  if (head !== executorRef) {
+    throw new Error(`Local App executor HEAD ${head} does not match credential executor ref ${executorRef}.`);
+  }
   return requiredWorkflowPaths.map((workflowPath) => {
-    const bytes = Buffer.from(run('git', ['show', `${appRef}:${workflowPath}`]));
+    const bytes = Buffer.from(run('git', ['show', `${executorRef}:${workflowPath}`]));
     const gitBlobSha = fullSha(
-      run('git', ['rev-parse', `${appRef}:${workflowPath}`]).trim(),
+      run('git', ['rev-parse', `${executorRef}:${workflowPath}`]).trim(),
       `Git blob ${workflowPath}`,
     );
     return {
@@ -699,6 +701,16 @@ function localWorkflowBlobs(appRef: string): WorkflowBlob[] {
       sha256: sha256Bytes(bytes),
     };
   });
+}
+
+function verifyFrozenAppCheckout(appSourceRoot: string, appRef: string): void {
+  const head = fullSha(
+    run('git', ['rev-parse', 'HEAD'], appSourceRoot).trim(),
+    'Frozen App product HEAD',
+  );
+  if (head !== appRef) {
+    throw new Error(`Frozen App product HEAD ${head} does not match admission App ref ${appRef}.`);
+  }
 }
 
 export function parseGitHubReleaseNamespacePages(
@@ -945,25 +957,36 @@ async function collectObservation(
   sourceGatePath: string,
   credentialReceiptPath: string,
   excludedRunId: string,
+  appSourceRoot: string,
   checkedAt = new Date().toISOString(),
 ): Promise<StableAdmissionObservation> {
   const sourceGateBytes = fs.readFileSync(sourceGatePath);
   const credentialReceiptBytes = fs.readFileSync(credentialReceiptPath);
+  const credentialReceipt = object(
+    JSON.parse(credentialReceiptBytes.toString('utf8')),
+    'Apple credential receipt',
+  );
+  const credentialExecution = object(
+    credentialReceipt.execution,
+    'Apple credential receipt execution',
+  );
+  const executorRef = fullSha(
+    credentialExecution.head_sha,
+    'Apple credential receipt executor SHA',
+  );
+  verifyFrozenAppCheckout(appSourceRoot, input.appRef);
   const releaseContractBytes = fs.readFileSync(path.join(appRoot, 'contracts', 'app-release-channel.json'));
   const releaseContract = object(JSON.parse(releaseContractBytes.toString('utf8')), 'App release contract');
   return {
     checkedAt,
     currentDate: shanghaiDate(),
-    workflowBlobs: localWorkflowBlobs(input.appRef),
+    workflowBlobs: localWorkflowBlobs(executorRef),
     sourceGate: object(
       JSON.parse(sourceGateBytes.toString('utf8')),
       'Frozen source-gate evidence',
     ),
     sourceGateBytes,
-    credentialReceipt: object(
-      JSON.parse(credentialReceiptBytes.toString('utf8')),
-      'Apple credential receipt',
-    ),
+    credentialReceipt,
     credentialReceiptBytes,
     publishedReleases: publishedReleases(),
     tagRefs: matchingTagRefs(input.baseVersion),
@@ -1012,6 +1035,7 @@ export async function verifyStableReleaseAdmissionManifest(options: {
   credentialReceiptPath: string;
   expectedDigest: string;
   currentRunId: string;
+  appSourceRoot: string;
 }): Promise<StableAdmissionManifest> {
   if (!digestPattern.test(options.expectedDigest)) {
     throw new Error('Expected admission manifest digest must use sha256:<64 lowercase hex>.');
@@ -1041,6 +1065,7 @@ export async function verifyStableReleaseAdmissionManifest(options: {
     options.sourceGatePath,
     options.credentialReceiptPath,
     runId(options.currentRunId, 'Current Standard run id'),
+    options.appSourceRoot,
     manifest.checked_at,
   );
   const rebuilt = buildStableReleaseAdmissionManifest(input, observation);
@@ -1078,6 +1103,7 @@ function cliOptions() {
       'admission-run-id': { type: 'string' },
       'source-gate': { type: 'string' },
       'credential-receipt': { type: 'string' },
+      'app-source-root': { type: 'string' },
       manifest: { type: 'string' },
       'expected-digest': { type: 'string' },
       'current-run-id': { type: 'string' },
@@ -1095,6 +1121,10 @@ function cliOptions() {
     values['credential-receipt'],
     '--credential-receipt',
   ));
+  const appSourceRoot = path.resolve(requiredString(
+    values['app-source-root'],
+    '--app-source-root',
+  ));
   if (command === 'create') {
     return {
       command,
@@ -1102,6 +1132,7 @@ function cliOptions() {
       failureOutput: path.resolve(requiredString(values['failure-output'], '--failure-output')),
       sourceGatePath,
       credentialReceiptPath,
+      appSourceRoot,
       input: {
         baseVersion: requiredString(values['base-version'], '--base-version'),
         appRef: fullSha(values['app-ref'], '--app-ref'),
@@ -1117,12 +1148,13 @@ function cliOptions() {
       output,
       sourceGatePath,
       credentialReceiptPath,
+      appSourceRoot,
       manifestPath: path.resolve(requiredString(values.manifest, '--manifest')),
       expectedDigest: requiredString(values['expected-digest'], '--expected-digest'),
       currentRunId: runId(values['current-run-id'], '--current-run-id'),
     } as const;
   }
-  throw new Error('Usage: stable-release-admission-manifest.ts <create|verify> [options].');
+  throw new Error('Usage: stable-release-admission-manifest.ts <create|verify> --app-source-root <path> [options].');
 }
 
 async function main(): Promise<void> {
@@ -1136,6 +1168,7 @@ async function main(): Promise<void> {
         options.sourceGatePath,
         options.credentialReceiptPath,
         options.input.admissionRunId,
+        options.appSourceRoot,
       );
       phase = 'build_manifest';
       const manifest = buildStableReleaseAdmissionManifest(options.input, observation);
@@ -1169,6 +1202,7 @@ async function main(): Promise<void> {
     credentialReceiptPath: options.credentialReceiptPath,
     expectedDigest: options.expectedDigest,
     currentRunId: options.currentRunId,
+    appSourceRoot: options.appSourceRoot,
   });
   const output = {
     schema: 'opl_stable_release_admission_verification.v1',
