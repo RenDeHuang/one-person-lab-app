@@ -227,7 +227,13 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.doesNotMatch(stableAdmission, /SOURCE_QUALIFICATION_RUN_ID="\$GITHUB_RUN_ID"/);
   assert.doesNotMatch(stableAdmission, /needs\.source-qualification/);
   assert.doesNotMatch(stableAdmission, /source-qualification-receipt\.ts verify/);
-  assert.match(stableAdmission, /executor_sha="\$\(git -C app-source rev-parse HEAD\)"/);
+  assert.match(stableAdmission, /executor_sha="\$\(git -C app-executor rev-parse HEAD\)"/);
+  assert.equal(
+    stable.jobs.admission.steps.find(
+      (step: Record<string, unknown>) => step.name === 'Checkout canonical App executor',
+    )?.with?.path,
+    'app-executor',
+  );
   assert.match(stableAdmission, /APP_REF="\$executor_sha"/);
   assert.match(
     stableAdmission,
@@ -289,7 +295,13 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
     protectedControlRun,
     /node --experimental-strip-types app-source\/scripts\/validate-release-source-gate\.ts/,
   );
-  assert.match(protectedControlRun, /git -C app-source checkout --detach "\$app_sha"/);
+  assert.equal(
+    protectedControl.steps.find(
+      (step: Record<string, unknown>) => step.name === 'Checkout frozen App authority cohort',
+    )?.with?.ref,
+    '${{ steps.authority.outputs.app_ref }}',
+  );
+  assert.match(protectedControlRun, /app_sha="\$\(git -C app-source rev-parse HEAD\)"/);
   assert.doesNotMatch(
     protectedControlRun,
     /--expected-app-sha "\$GITHUB_SHA"|test "\$app_sha" = "\$GITHUB_SHA"/,
@@ -329,6 +341,12 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.equal(stableAdmissionManifest.steps.some(
     (step: Record<string, unknown>) => String(step.run ?? '').includes('stable-release-admission-manifest.ts create'),
   ), true);
+  assert.equal(
+    stableAdmissionManifest.steps.find(
+      (step: Record<string, unknown>) => step.name === 'Checkout frozen App product cohort',
+    )?.with?.ref,
+    '${{ needs.admission.outputs.app_ref }}',
+  );
   const controlDownload = stableAdmissionManifest.steps.find(
     (step: Record<string, unknown>) => step.name === 'Download frozen pre-submit authority evidence',
   ) as Record<string, any>;
@@ -344,6 +362,7 @@ test('new Standard consumes frozen protected evidence before sealing its run-bou
   assert.match(manifestSeal, /--pre-nonce-guard "\$\{pre_nonce_guards\[0\]\}"/);
   assert.match(manifestSeal, /--run-authority-reconcile "\$\{run_reconciles\[0\]\}"/);
   assert.match(manifestSeal, /stable-release-admission-manifest\.ts create[\s\S]*--source-gate "\$source_gate_path"/);
+  assert.match(manifestSeal, /--app-source-root app-source/);
   assert.match(manifestSeal, /--failure-output "\$RUNNER_TEMP\/stable-release-admission-failure\.json"/);
   assert.doesNotMatch(manifestSeal, /--source-qualification-receipt/);
   assert.equal(stable.jobs.standard.needs.includes('protected-operation-admission'), true);
@@ -466,7 +485,7 @@ test('one signed Standard build is sealed once and every final consumer binds it
   assert.equal(cohortDownload.with.name, 'macos-build-arm64-dmg-cohort');
   assert.equal(
     seal.outputs.standard_vm_artifact_name,
-    '${{ steps.seal.outputs.standard_vm_artifact_name }}',
+    '${{ steps.seal.outputs.standard_vm_artifact_name || steps.reuse.outputs.standard_vm_artifact_name }}',
   );
   assert.match(String(sealIdentity.run), /Standard VM carrier requires exactly one bound Standard DMG/);
   assert.match(String(sealIdentity.run), /ln "\$\{standard_dmgs\[0\]\}"/);

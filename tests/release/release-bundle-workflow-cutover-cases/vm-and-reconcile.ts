@@ -228,7 +228,7 @@ test('Standard publish restore rejects a missing or digest-mismatched clean-VM s
       package_profile: 'standard',
       release_cohort_ref: bundleDigest,
       qualification: {
-        run_id: '42',
+        run_id: '84',
         source_artifact_run_id: '42',
         source_artifact_name: 'opl-release-standard-vm-bound-42',
         result: 'passed',
@@ -262,6 +262,7 @@ test('Standard publish restore rejects a missing or digest-mismatched clean-VM s
     const result = spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', String(verification.run)], {
       cwd: root,
       encoding: 'utf8',
+      env: { ...process.env, QUALIFICATION_RUN_ID: '84' },
     });
     fs.rmSync(root, { recursive: true, force: true });
     return result;

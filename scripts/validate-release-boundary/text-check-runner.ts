@@ -647,7 +647,8 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     'stable-operation-control.ts materialize-evidence',
     'stable-operation-control.ts verify-executor',
     'stable-operation-control.ts verify-authority',
-    'git -C app-source checkout --detach "$app_sha"',
+    '--app-root app-executor --expected-actor "$GITHUB_ACTOR"',
+    'Checkout frozen App authority cohort',
     'release-dispatch-guard.ts verify-evidence',
     'release-dispatch-guard.ts preflight',
     '--current-run-id "$GITHUB_RUN_ID"',
@@ -912,10 +913,11 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   if (
     !standardCleanVm
     || !needsExactly(standardCleanVm, ['freeze', 'seal-standard-identity'])
-    || standardCleanVm.if !== "${{ inputs.mode == 'execute' && inputs.channel == 'stable' }}"
+    || standardCleanVm.if !== "${{ always() && inputs.mode == 'execute' && inputs.channel == 'stable' && needs.freeze.result == 'success' && needs.seal-standard-identity.result == 'success' }}"
     || standardCleanVm.with?.release_artifact_name !==
       '${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}'
-    || standardCleanVm.with?.release_artifact_run_id !== '${{ github.run_id }}'
+    || standardCleanVm.with?.release_artifact_run_id !==
+      '${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}'
     || standardCleanVm.with?.package_profile !== 'standard'
     || standardCleanVm.with?.diagnostic_scope !== 'release_gate'
     || standardCleanVm.with?.require_macos_gatekeeper !== true
@@ -923,7 +925,7 @@ export function validateReleaseBundleTopology(appRoot: string): number {
   ) {
     failures += reportFailure(
       id,
-      'Standard clean-VM qualification must consume the sealed same-run candidate under the protected release gate',
+      'Standard clean-VM qualification must consume the sealed exact candidate under the protected release gate',
     );
   }
   failures += validateReusableCall(
