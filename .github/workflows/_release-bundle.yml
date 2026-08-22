@@ -967,6 +967,7 @@ jobs:
       shell_ref: ${{ needs.freeze.outputs.shell_sha }}
       smoke_harness_ref: ${{ needs.freeze.outputs.shell_sha }}
       framework_ref: ${{ needs.freeze.outputs.framework_sha }}
+      framework_executor_ref: ${{ needs.freeze.outputs.framework_sha }}
       package_profile: standard
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
