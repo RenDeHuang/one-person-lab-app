@@ -2117,9 +2117,6 @@ function ensureRelease(options: {
           `Existing ${expectedRef} points to ${existingTagRef.target_commitish}, expected ${options.targetCommitish}.`,
         );
       }
-      throw new Error(
-        `Existing ${expectedRef} already reserves this Release identity without an exact Release; allocate a new tag.`,
-      );
     }
     const payload = JSON.stringify({
       tag_name: options.tag,
