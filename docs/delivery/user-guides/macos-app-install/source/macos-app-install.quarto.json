@@ -20,7 +20,7 @@
   "download": {
     "latest_release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
     "stable_install_command": "brew install --cask gaofeng21cn/one-person-lab/one-person-lab",
-    "recommended_first_install_asset": "One-Person-Lab-<version>-mac-arm64.dmg"
+    "recommended_first_install_asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg"
   },
   "required_terms": [
     "One Person Lab App 首次安装图文教程",
@@ -32,6 +32,7 @@
     "开始第一项工作",
     "后续调整与更新",
     "登录并继续",
+    "设为模型访问方式",
     "API Key",
     "重新检测已有配置",
     "gateway.medopl.com",
@@ -42,6 +43,7 @@
     "Homebrew Cask",
     "open -a",
     "Full DMG",
+    "直连 OpenAI",
     "quarantine",
     "设置 -> 账户与访问",
     "设置 -> 模型",

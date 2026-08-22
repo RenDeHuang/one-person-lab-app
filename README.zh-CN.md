@@ -9,7 +9,7 @@
 <h1 align="center">One Person Lab App</h1>
 
 <p align="center"><strong>面向复杂知识工作的本地优先 AI 工作台</strong></p>
-<p align="center">在本机或浏览器里进入科研、基金、演示、写书和通用任务，查看进度、继续长任务、检查交付物</p>
+<p align="center">在本机或浏览器里进入通用任务和当前 Package 提供的专业工作，查看进度、继续长任务、检查交付物</p>
 
 <!--
 Owner: `one-person-lab-app`
@@ -46,7 +46,7 @@ OPL Cloud 在线工作空间按照真实产品与运行证据接入同一套工�
 ## 核心亮点
 
 **一个入口进入多类专业 AI 工作**<br/>
-从桌面应用进入通用工作、科研、基金、演示和写书，不需要在多个命令、仓库和工具之间切换。
+从桌面应用进入通用工作，以及当前安装的 Package 动态提供的专业工作，不需要在多个命令、仓库和工具之间切换。
 
 **桌面与浏览器共享一套工作台**<br/>
 用户可以在 Desktop 窗口中使用，也可以通过 macOS/Linux Desktop 自带的 WebUI 在
@@ -57,10 +57,10 @@ OPL Cloud 在线工作空间与本机工作台共享任务、成果、进度和�
 应用展示任务进展、文件、运行状态和可继续的上下文。用户回来时可以直接看到做到了哪一步、有哪些结果、是否需要人工处理。
 
 **把首次安装做成产品体验**<br/>
-macOS 新用户可以使用完整首次安装包，先打开 App，再让后台继续准备框架、专业 Agent、技能和工具载荷。
+macOS 新用户优先使用 Full 首次安装包，减少 Base、Package seeds 和工具载荷的首启在线下载。
 
 **专业 Agent 保持清晰分工**<br/>
-科研、基金、演示、写书四个默认目的入口面向不同类型成果。用户看到统一入口，背后仍保留各自专业判断和交付边界。
+首页入口来自 Framework 对当前 Agent Packages 的动态投影。8.22 当前提供科研、基金申请、视觉交付和智能体构建入口；各 Package 仍保留自己的专业判断和交付边界。
 
 **让专业 AI 保持专业空间**<br/>
 App 负责把入口、进度、文件和交付体验做好；医学研究、基金写作和视觉交付的具体判断，仍交给对应专业 Agent 完成。当任务进入专业阶段时，用户可以看到 AI 读资料、比较方案、接受审阅、继续修订并形成下一版交付物。
@@ -80,6 +80,10 @@ Desktop 载荷密度，当前 Full 只在 macOS arm64 公开；Headless 只安�
 不属于 App 产品。统一入口、平台矩阵、校验、更新和回滚见
 [One Person Lab 安装指南](docs/delivery/install/README.zh-CN.md)；维护侧术语与状态见
 [分发与安装 SSOT](docs/delivery/distribution-and-install-ssot.md)。
+
+macOS 首次安装推荐 Full。Standard 适合升级，或网络环境非常好的联网安装；它会在安装和
+首次检查期间下载 Base、Packages 和其他模块，并需要访问所选模型服务。例如使用 OpenAI 时，
+需要能够直连 OpenAI。安装或首次检查异常时，先排查网络、代理、DNS 和目标服务连通性。
 
 ### Homebrew
 
@@ -107,7 +111,7 @@ opl system initialize --json
 Homebrew 本身也支持 Linux。`opl` Formula 是 Base/CLI carrier，Cask 是 Desktop
 carrier。Docker WebUI 由 GHCR 独立版本化，不从 Desktop Stable 继承 authority。
 
-Full 是 Standard 之后独立执行的可选附加模块。Standard 先公开并成为 Latest；Full
+Full 是 macOS Stable 必须提供的首次安装载体，由 Standard 之后独立执行的 operation 追加。Standard 先公开并成为 Latest；Full
 成功后只向同一个 Standard Release/tag 新增 Full DMG 与
 `opl-release-manifest.json`，不创建平行 Full Release/tag，也不修改 Standard assets、
 release body、updater metadata 或 Latest。Full Homebrew follower 只消费该同 tag、
@@ -160,7 +164,7 @@ manifest 与 DMG：
 ```bash
 curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-install.sh
 chmod 0755 opl-install.sh
-./opl-install.sh --stable-macos-install --standard --yes
+./opl-install.sh --stable-macos-install --full --yes
 ```
 
 ### 直接下载
@@ -169,9 +173,9 @@ chmod 0755 opl-install.sh
 
 [下载 One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-没有 Homebrew 的 macOS arm64 新用户可在同一 Standard Release 页面已出现 Full 时
-选择 `One-Person-Lab-Full-<version>-mac-arm64.dmg`；Full 后续出现不会改变哪个
-Standard 是 Latest。
+macOS arm64 新用户选择同一 Standard Release 页面的
+`One-Person-Lab-Full-<version>-mac-arm64.dmg`。刚发版时如暂未显示 Full，请等待同 tag
+追加完成；Full 后续出现不会改变哪个 Standard 是 Latest。
 
 Stable 发布不依赖 GitHub 仓库级 Immutable Releases。Standard 资产通过精确的
 name/size/digest CAS 与统一 `opl-release-attestation.json` 保护；Full 后续只能向同一
@@ -244,9 +248,9 @@ Linux x64 使用 Latest Release 的 `.deb` 与
 
 One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 
-- 从一个桌面界面进入通用工作，以及科研、基金、演示、写书四个默认目的入口。
+- 从一个桌面界面进入通用工作，以及当前安装的 Package 动态提供的专业工作入口。
 - 在 macOS 桌面、本机/服务器浏览器 WebUI 与 OPL Cloud 在线工作空间之间保留同一套工作台语义。
-- 默认提供科研、基金、演示和写书入口；更多专业能力由可扩展 Agent Packages 提供。
+- 8.22 当前投影科研、基金申请、视觉交付和智能体构建入口；安装、启用或移除 Package 后，首页随 Framework 投影更新。
 - 展示进度、文件、运行状态和可恢复的工作上下文，帮助用户继续长任务和检查交付物。
 - 首次启动先完成最基本的可用准备，再让更完整的运行环境和专业 Agent 载荷在后台维护。
 - 通过 Homebrew、直接下载或完整首次安装包提供安装和更新路径。
@@ -258,7 +262,7 @@ One Person Lab App 是面向用户的日常 chat-first 桌面入口：
 2. 打开 `One Person Lab.app`。
 3. 让首次启动完成基础设置；界面会显示准备进度和下一步。
 4. 选择工作目录。
-5. 开始通用工作，或进入科研、基金、演示、写书入口。
+5. 开始通用工作，或选择当前 Package 提供的专业工作入口。
 6. 通过进度、文件和运行状态视图继续任务、检查交付物。
 
 ## 产品边界

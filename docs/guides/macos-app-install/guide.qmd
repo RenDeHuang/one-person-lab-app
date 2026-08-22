@@ -10,44 +10,47 @@ lang: zh-CN
 
 下载最新版本：<{{download.latest_release_url}}>
 
-> 已安装 Homebrew 的 Mac 用户优先使用 Homebrew Cask 安装 Standard；直接 DMG
-> 适合无 Homebrew 用户，Full DMG 只用于需要离线预置的新机器。不要把可变分支中的
-> 安装脚本直接通过管道交给 shell 执行。
+> macOS 首次安装推荐下载 Full DMG，它预置 Base 和 Package seeds，可显著减少首启时的在线下载。
+> Standard 适合稳定版升级，或网络环境非常好的首次安装。不要把可变分支中的安装脚本直接通过管道交给 shell 执行。
 
 ## 准备清单
 
 - 一台 Apple Silicon（arm64）Mac；当前 macOS App 不支持 Intel Mac。
-- 稳定网络，用于下载安装包和完成首次检查。
+- 稳定网络，用于下载安装包、账户登录、更新和模型访问。Full 也需要联网完成登录和使用在线模型。
+- 如果选择 Standard，需要很好的网络环境来下载 Base、Packages 和其他模块，并能访问所选模型服务；
+  例如使用 OpenAI 时，需要能够直连 OpenAI。安装或首次检查异常时，先排查网络、代理、DNS 和目标服务连通性。
 - 一个本机工作目录，用于保存项目材料和生成结果。
 - 可选：可用的 OPL Gateway 账户，或兼容方式所需的 API Key。本机已有可用 Codex 配置时可以直接重新检测。
 
 ## 1. 安装 One Person Lab
 
-推荐打开 macOS“终端”，粘贴并运行下面的 Homebrew Standard 安装命令：
+**首次安装推荐 Full。** 打开上面的 Latest Release 页面，在 **Assets** 区域下载
+`One-Person-Lab-Full-<版本>-mac-arm64.dmg`。Standard 会先成为 Latest，Full 随后追加到同一
+Release/tag；刚发布时如果暂未看到 Full，请等待追加发布完成并刷新 Assets，不要改下 ZIP、Source code
+或其他元数据文件。
+
+已经完成首次安装、准备升级，或确认网络环境足以在线下载全部模块时，可以打开 macOS“终端”，
+粘贴并运行下面的 Homebrew Standard 安装命令：
 
 ```bash
 {{download.stable_install_command}}
 ```
 
-这条命令适用于 Standard 首次安装和稳定版升级。Homebrew Cask 会把 App 安装到
+这条命令适用于 Standard 联网安装和稳定版升级。Homebrew Cask 会把 App 安装到
 “应用程序”，但不会自动打开 App，也不应被当作清理 quarantine 的入口。安装完成后运行：
 
 ```bash
 open -a "One Person Lab"
 ```
 
-App 启动后可直接跳到第 3 步。
-
-不方便使用终端时，打开上面的最新 Release 页面，在 **Assets** 区域下载
-`One-Person-Lab-<版本>-mac-arm64.dmg`。教程只保留 Latest 入口，不展示会随发版过期的
-版本截图或精确 tag URL。
+App 启动后可直接跳到第 3 步。教程只保留 Latest 入口，不展示会随发版过期的版本截图或精确 tag URL。
 
 - 当前只提供 Apple Silicon（arm64）安装包。
 - 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
 - Release 页面版本号会持续变化，以标记为 Latest 的稳定版为准。
-- Standard 选择 `One-Person-Lab-<版本>-mac-arm64.dmg`。
-- 只有需要离线 Base 和 Package seeds 时才选择同 tag
-  `One-Person-Lab-Full-<版本>-mac-arm64.dmg`。Full 不是更新频道，后续仍走 Standard 更新路径。
+- 首次安装选择 `One-Person-Lab-Full-<版本>-mac-arm64.dmg`；它包含 Base 和 Package seeds。
+- Standard 选择 `One-Person-Lab-<版本>-mac-arm64.dmg`，安装过程中需要联网下载模块，网络要求更高。
+- Full 不是独立更新频道，安装后的 App 更新仍走 Standard 更新路径。
 
 从已审阅的 source checkout 开发或恢复时可以运行仓库内的 `./install.sh`。普通安装
 不要从可变 `main` 分支下载后直接执行；需要终端入口时，从 Latest Release 下载唯一
@@ -56,7 +59,7 @@ App 启动后可直接跳到第 3 步。
 ```bash
 curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-install.sh
 chmod 0755 opl-install.sh
-./opl-install.sh --stable-macos-install --standard --yes
+./opl-install.sh --stable-macos-install --full --yes
 ```
 
 该 installer 会在挂载 DMG 或替换 App 前校验所选 Release 的 component manifest、installer 与
@@ -84,11 +87,14 @@ DMG 的摘要。
 模型访问显示“缺失”时，根据实际情况处理：
 
 1. **账户登录（默认）**：填写 OPL Gateway 的“邮箱”和“密码”，点击“登录并继续”。密码只用于本次登录，不会保存在 App 中。
-2. **重新检测已有配置**：本机 Codex/OpenAI 已登录或已有可用配置时，点击“重新检测已有配置”。这是独立检测操作，不是第三种登录方式。
-3. **API Key（兼容方式）**：只有需要手工密钥接入时才切换到“API Key”，按团队提供的方式填写。
-4. **暂时进入工作台**：当前没有可用账户或密钥时，可先点击右上角“进入 OPL”；需要模型的功能仍会提示完成访问设置。
+2. **确认模型访问**：登录成功并出现“已登录 OPL Gateway”后，点击“设为模型访问方式”。账户登录本身不会替用户完成这项确认。
+3. **重新检测已有配置**：本机 Codex/OpenAI 已登录或已有可用配置时，点击“重新检测已有配置”。这是独立检测操作，不是第三种登录方式。
+4. **API Key（兼容方式）**：只有需要手工密钥接入时才切换到“API Key”，按团队提供的方式填写。
+5. **暂时进入工作台**：当前没有可用账户或密钥时，可先点击右上角“进入 OPL”；需要模型的功能仍会提示完成访问设置。
 
 ![默认使用账户登录，也可切换 API Key 或重新检测已有配置](screenshots/03-codex-config-needed.png){width=96% fig-align="center"}
+
+![登录成功后确认将 OPL Gateway 设为模型访问方式](screenshots/05-gateway-model-access-confirm.png){width=96% fig-align="center"}
 
 当前版本只把 `gateway.medopl.com` 作为 OPL Gateway 的可信服务主机：账户登录、账户信息和用量查看使用 `https://gateway.medopl.com/api/v1`，模型访问使用 `https://gateway.medopl.com/v1`。新配置会由 App 自动写入 provider ID `oplgateway` 和上述模型地址，无需手工填写 Base URL。
 
@@ -98,9 +104,11 @@ DMG 的摘要。
 
 ## 5. 开始第一项工作
 
-进入主界面后，可以直接描述目标，也可以选择科研、基金、演示或写书等专业入口。本教程以科研入口为例。
+进入主界面后，可以直接描述目标，也可以选择当前安装的 Package 动态提供的工作入口。8.22 界面中的
+当前入口包括“开展科研工作”“开展基金申请工作”“制作视觉交付物”和“构建与迭代智能体”；后续安装、
+启用或移除 Package 时，首页会随 Framework 的实时投影变化，不维护固定入口清单。本教程以科研任务为例。
 
-![在主界面描述目标或选择专业工作入口](screenshots/05-opl-ready-research-entry.png){width=96% fig-align="center"}
+![在主界面描述目标或选择当前 Package 提供的工作入口](screenshots/05-opl-ready-dynamic-entries.png){width=96% fig-align="center"}
 
 第一条任务建议同时说明目标和材料位置，例如：
 
@@ -125,7 +133,8 @@ DMG 的摘要。
 - **Intel Mac 可以安装吗？** 当前不支持。请使用 Apple Silicon（arm64）Mac。
 - **已经在用 Codex，还需要登录 OPL Gateway 吗？** 不需要。点击“重新检测已有配置”即可确认现有模型访问。
 - **暂时没有 Gateway 账户或 API Key 怎么办？** 可以先“进入 OPL”，后续从“设置 -> 账户与访问”完成配置。
-- **下载页面里文件很多，应该选哪个？** 普通安装选择 `One-Person-Lab-<版本>-mac-arm64.dmg`；只有离线首装才选择同 tag Full DMG。不要下载 ZIP、blockmap、YML、JSON 或 Source code。
+- **下载页面里文件很多，应该选哪个？** 首次安装选择 `One-Person-Lab-Full-<版本>-mac-arm64.dmg`。刚发版时 Full 可能正在向同一 Release 追加，请等待它出现；不要下载 ZIP、blockmap、YML、JSON 或 Source code。
+- **Standard 安装或首次检查卡住怎么办？** Standard 需要在线下载 Base、Packages 和其他模块。先确认网络、代理和 DNS 正常，并检查所选模型服务是否可达；例如使用 OpenAI 时，需要能够直连 OpenAI。网络条件不稳定时改用 Full 首次安装。
 - **打不开 App 怎么办？** 确认 App 已复制到 `/Applications` 并按 macOS 安全提示允许打开；仍无法启动时，使用同 tag `opl-install.sh` 安装。
-- **账户登录失败怎么办？** 确认邮箱和密码正确、网络可用；反馈问题时提供操作系统、发生步骤和不含密码或 API Key 的报错截图。
+- **账户登录失败怎么办？** 先确认邮箱和密码正确，并检查 `gateway.medopl.com` 的网络连通性；反馈问题时提供操作系统、发生步骤和不含密码或 API Key 的报错截图。
 - **需要自己选择具体模型版本吗？** 通常不需要；需要调整时打开“设置 -> 模型”。

@@ -14,38 +14,15 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "Quarto 1.9.38 Typst Book route currently fails in the default orange-book template on local smoke; xelatex remains the stable Chinese PDF engine until the OPL Typst template is hardened.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 8,
+  "pdf_pages": 9,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 8,
+  "rendered_pages": 9,
   "rendered_dir": "tmp/quarto-guides/macos-app-install/rendered",
-  "html_bytes": 2636086,
+  "html_bytes": 2737137,
   "screenshot_assets": [
-    {
-      "role": "download_release",
-      "description": "v26.8.4 Latest Release Assets list showing the same-tag macOS Standard and Full DMGs, Linux x64 DEB, Windows x64 EXE, and release installer.",
-      "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
-      "public_file": "screenshots/01-download-release.png",
-      "width": 1087,
-      "height": 776,
-      "sha256": "98912043cb875143680d8bca43db6c65a4540ce2966ce15f9b75aef3815d6cf8",
-      "referenced": false,
-      "source_kind": "live_github_release_playwright_capture",
-      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.4",
-      "locale": "zh-CN",
-      "browser_size": "1200x1369",
-      "expected_ui_text": [
-        "Assets",
-        "One-Person-Lab-26.8.4-mac-arm64.dmg",
-        "One-Person-Lab-Full-26.8.4-mac-arm64.dmg",
-        "One-Person-Lab-26.8.4-linux-x64.deb",
-        "One-Person-Lab-26.8.4-win-x64.exe",
-        "opl-install.sh"
-      ],
-      "note": "The full live Assets group is retained so users can distinguish current platform packages from updater metadata, manifests, and source archives."
-    },
     {
       "role": "install_dmg",
       "description": "Focused DMG installation view without unrelated browser and desktop content.",
@@ -70,10 +47,10 @@
       "public_file": "screenshots/03-codex-config-needed.png",
       "width": 1536,
       "height": 912,
-      "sha256": "df2ca23c8a3989a6e6f39488c53af771fffa15b6a8310f2632bb0f68c224ca0e",
+      "sha256": "bb37d3a45ec9706af4a39bf8fe0ffa1ae316e2e2bd7e524c526c8394459c773f",
       "referenced": true,
       "source_kind": "release_cohort_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@d98d6de0337fde7f46b1be5cc4dae54dc9dee73e FirstRun renderer with deterministic p19.stage-runtime contract fixture.",
+      "source": "opl-aion-shell@ccb5e2ed426d75a64a82ecb30f78413ed57fd2f3 FirstRun renderer with deterministic p19.stage-runtime contract fixture.",
       "locale": "zh-CN",
       "browser_size": "1536x912",
       "expected_ui_text": [
@@ -90,15 +67,15 @@
     },
     {
       "role": "first_run_check",
-      "description": "First-run device check pending screen from the released Shell cohort.",
+      "description": "First-run device check pending screen from the v26.8.22 Shell cohort.",
       "file": "docs/guides/macos-app-install/screenshots/04-first-run-checking.png",
       "public_file": "screenshots/04-first-run-checking.png",
       "width": 1536,
       "height": 912,
-      "sha256": "d118cd3eee6f474242b034d5ac75dbc45469aac17e31cc2df4e1a3b0d700790f",
+      "sha256": "aa48fccfb620369051e93177e0dd713fa8595038af2f88b139373cdc2dc90550",
       "referenced": true,
       "source_kind": "release_cohort_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@d98d6de0337fde7f46b1be5cc4dae54dc9dee73e FirstRun renderer with deterministic p19.stage-runtime contract fixture.",
+      "source": "opl-aion-shell@ccb5e2ed426d75a64a82ecb30f78413ed57fd2f3 FirstRun renderer with deterministic p19.stage-runtime contract fixture.",
       "locale": "zh-CN",
       "browser_size": "1536x912",
       "expected_ui_text": [
@@ -109,26 +86,47 @@
       ]
     },
     {
-      "role": "workbench_entry",
-      "description": "Ready One Person Lab workbench with professional task entries and no incomplete FirstRun recovery entry.",
-      "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-research-entry.png",
-      "public_file": "screenshots/05-opl-ready-research-entry.png",
+      "role": "confirm_gateway_model_access",
+      "description": "The v26.8.22 post-login confirmation that keeps account authentication separate from changing the model access method.",
+      "file": "docs/guides/macos-app-install/screenshots/05-gateway-model-access-confirm.png",
+      "public_file": "screenshots/05-gateway-model-access-confirm.png",
       "width": 1536,
       "height": 912,
-      "sha256": "0a3b3d22cbc1b271ca22246309ac25f5191637ea0a428f0da57350306c49d8e5",
+      "sha256": "c09d4c1cdf2b2c7fdc640a7442fd1a0c954f9bccab793fd4294086268db4edff",
       "referenced": true,
       "source_kind": "release_cohort_shell_electron_playwright_capture",
-      "source": "opl-aion-shell@d98d6de0337fde7f46b1be5cc4dae54dc9dee73e workbench renderer with deterministic p19.stage-runtime ready fixture.",
+      "source": "opl-aion-shell@ccb5e2ed426d75a64a82ecb30f78413ed57fd2f3 FirstRun renderer with deterministic p19.stage-runtime contract fixture.",
+      "locale": "zh-CN",
+      "browser_size": "1536x912",
+      "expected_ui_text": [
+        "已登录 OPL Gateway",
+        "确认模型访问方式后即可完成设置",
+        "设为模型访问方式",
+        "重新检测已有配置"
+      ],
+      "note": "The state is driven by a deterministic non-secret fixture. It does not represent a real user account or provider mutation."
+    },
+    {
+      "role": "workbench_entry",
+      "description": "Ready v26.8.22 workbench whose visible starters come from the Framework Package directory projection.",
+      "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-dynamic-entries.png",
+      "public_file": "screenshots/05-opl-ready-dynamic-entries.png",
+      "width": 1536,
+      "height": 912,
+      "sha256": "ad4cda510657fec7c1ff177b82ebebf6667f9ab3b835ecbaf3e885424bf75b63",
+      "referenced": true,
+      "source_kind": "release_cohort_shell_electron_playwright_capture",
+      "source": "opl-aion-shell@ccb5e2ed426d75a64a82ecb30f78413ed57fd2f3 workbench renderer with deterministic p19.stage-runtime Package directory fixture.",
       "locale": "zh-CN",
       "browser_size": "1536x912",
       "expected_ui_text": [
         "One Person Lab",
-        "科研",
-        "演示",
-        "基金",
-        "设置"
+        "开展科研工作",
+        "开展基金申请工作",
+        "制作视觉交付物",
+        "构建与迭代智能体"
       ],
-      "note": "The ready fixture proves the incomplete FirstRun recovery entry is absent before the screenshot is accepted."
+      "note": "The four entries are current owner-projected examples, not an App-maintained fixed Package list."
     }
   ],
   "required_terms": [
@@ -141,6 +139,7 @@
     "开始第一项工作",
     "后续调整与更新",
     "登录并继续",
+    "设为模型访问方式",
     "API Key",
     "重新检测已有配置",
     "gateway.medopl.com",
@@ -151,6 +150,7 @@
     "Homebrew Cask",
     "open -a",
     "Full DMG",
+    "直连 OpenAI",
     "quarantine",
     "设置 -> 账户与访问",
     "设置 -> 模型",

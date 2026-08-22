@@ -27,10 +27,11 @@ Use readiness，不影响普通 OPL/Codex 使用。
 
 ## 当前 Stable Desktop Release Set
 
-每个 Stable 版本只有一个 GitHub Release 和一个 `v<version>` tag。同一 tag 可以包含：
+每个 Stable 版本只有一个 GitHub Release 和一个 `v<version>` tag。macOS Stable 发布集包含
+Standard 与 Full；Standard 可以先成为 Latest，Full 随后追加到同一 tag：
 
 - `One-Person-Lab-<version>-mac-arm64.dmg`：macOS Standard；
-- `One-Person-Lab-Full-<version>-mac-arm64.dmg`：macOS Full，可在 Standard 之后追加；
+- `One-Person-Lab-Full-<version>-mac-arm64.dmg`：macOS Full 首次安装包，可在 Standard 之后追加；
 - `One-Person-Lab-<version>-linux-x64.deb`：Linux x64 Desktop；
 - `One-Person-Lab-<version>-win-x64.exe`：Windows x64 Desktop；
 - `opl-install.sh`、component manifest、Desktop platform manifest 和平台更新元数据。
@@ -42,16 +43,21 @@ Release 上存在文件，只能证明公开载体具有这些精确字节。是
 
 ## macOS arm64
 
-已安装 Homebrew 时，Standard 是最短路径：
+macOS 首次安装推荐同 tag 的 Full DMG。它预置 Base、Package seeds 和固定的 Computer Use
+归档，可减少首启在线下载；刚发布时如果 Assets 里还没有 Full，说明追加仍在进行，请等待完成后再下载。
+
+已安装 Homebrew 且网络环境很好时，Standard 是最短的联网路径：
 
 ```bash
 brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 open -a "One Person Lab"
 ```
 
-没有 Homebrew 时，从当前 Release 下载 Standard DMG。需要在新机器或离线环境预置
-Base/Package 种子时，选择同一 tag 的 Full DMG。Full 不创建独立 Release，也不进入
-Standard updater metadata。
+Standard 会在托管安装和首次检查过程中下载 Base、Packages 和其他模块，需要稳定访问
+GitHub、Homebrew/模块来源以及所选模型服务；例如使用 OpenAI 时，需要能够直连 OpenAI。
+出现安装、首次检查或模型访问异常时，先排查网络、代理、DNS 和目标服务连通性。
+Full 仍需要联网完成账户登录、模型访问和更新，但能显著降低首次安装对模块下载网络的依赖。
+Full 不创建独立 Release，也不进入 Standard updater metadata。
 
 [macOS 首次安装图文教程](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 

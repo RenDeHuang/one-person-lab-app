@@ -270,8 +270,11 @@ function coverSlide(slides: SlideBlock[], manifest: GuideManifest, screenshotTag
   const intro = slides[0];
   const title = manifest.title;
   const description = intro.body.find((line) => !line.startsWith('curl ')) ?? '按下载安装、首次配置、环境检查、科研入口和进度查看的顺序演示。';
-  const command = manifest.download?.stable_install_command ?? intro.body.find((line) => line.startsWith('curl ')) ?? '';
-  const image = intro.image ?? '05-opl-ready-research-entry.png';
+  const command = manifest.download?.recommended_first_install_asset
+    ?? manifest.download?.stable_install_command
+    ?? intro.body.find((line) => line.startsWith('curl '))
+    ?? '';
+  const image = intro.image ?? '05-opl-ready-dynamic-entries.png';
   const checklist = intro.bullets.slice(0, 4);
   return `<!-- _class: cover -->
 <div class="brand"><strong>One Person Lab App</strong><span>macOS 首次安装与首启</span></div>
@@ -643,6 +646,7 @@ function main() {
     generator_version: `${marpVersion}; OfficeCLI ${pptxGeneration.generator_version}`,
     source_model: 'qmd_body_manifest_metadata_to_marp_pdf_rendered_pages_and_officecli_pptx',
     download_url: latestReleaseUrl,
+    recommended_first_install_asset: manifest.download?.recommended_first_install_asset,
     stable_install_command: manifest.download?.stable_install_command,
     screenshot_release_run: screenshots.release_run ?? null,
     source_qmd: relativeToApp(sourceQmdPath),

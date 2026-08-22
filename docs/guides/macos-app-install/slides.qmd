@@ -9,19 +9,17 @@ lang: zh-CN
 
 按安装、首次检查、登录或确认模型访问、进入工作台的顺序操作。
 
-```bash
-{{download.stable_install_command}}
-```
+`One-Person-Lab-Full-<版本>-mac-arm64.dmg`
 
-![](screenshots/05-opl-ready-research-entry.png){width=72%}
+![](screenshots/05-opl-ready-dynamic-entries.png){width=72%}
 
 - 一台 Apple Silicon（arm64）Mac；当前 macOS App 不支持 Intel Mac。
-- 稳定网络和一个本机工作目录。
+- Full 也需要稳定网络；Standard 还需在线下载模块，网络要求更高。
 - 默认使用 OPL Gateway 账户登录；已有可用 Codex 配置时可以直接重新检测。
 
 ## 1. 安装 One Person Lab
 
-推荐在“终端”运行 Homebrew Standard 安装命令；不方便使用终端时，再从最新 Release 手工下载 arm64 DMG。
+首次安装推荐从最新 Release 下载 Full DMG；Standard 适合升级，或网络环境非常好的联网安装。
 
 最新版本：<{{download.latest_release_url}}>
 
@@ -29,7 +27,8 @@ lang: zh-CN
 
 - Homebrew Cask 安装到 `/Applications`；完成后运行 `open -a "One Person Lab"`。
 - 系统阻止打开时，改用 Latest Release 的 `opl-install.sh`。
-- 手工安装选 Standard DMG；离线首装才选 Full。
+- 首次安装选 Full DMG；刚发版时如仍在追加，请等待同一 Release 的 Full 出现。
+- Standard 会在线下载 Base、Packages 等模块；使用 OpenAI 时需要能够直连 OpenAI。
 - 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
 - 页面版本号会持续变化，以标记为 Latest 的稳定版为准；教程不保留固定版本截图。
 
@@ -65,13 +64,24 @@ lang: zh-CN
 - 已有 Codex 配置可“重新检测”；API Key 只作为兼容方式。
 - 暂不配置时可先“进入 OPL”，之后从“设置 -> 账户与访问”继续。
 
-## 5. 开始第一项工作
+## 5. 确认模型访问
 
-进入主界面后，直接描述目标，或选择科研、基金、演示、写书等专业入口。
+账户登录成功后，还要明确确认把 OPL Gateway 用作模型访问方式。
 
-![](screenshots/05-opl-ready-research-entry.png){width=78%}
+![](screenshots/05-gateway-model-access-confirm.png){width=78%}
+
+- 看到“已登录 OPL Gateway”后，点击“设为模型访问方式”。
+- 登录只确认账户身份，不会自动替用户修改模型访问方式。
+- 确认完成后，首次设置才会进入已就绪状态。
+
+## 6. 开始第一项工作
+
+进入主界面后，直接描述目标，或选择当前安装的 Package 动态提供的工作入口。
+
+![](screenshots/05-opl-ready-dynamic-entries.png){width=78%}
 
 - 第一条任务同时说明目标和材料位置。
+- 8.22 当前显示科研、基金申请、视觉交付和智能体构建入口；入口随 Package 投影变化。
 - 涉及患者或敏感数据时，先完成脱敏并遵守机构要求。
 - 账户与访问在“设置 -> 账户与访问”，模型选择在“设置 -> 模型”。
 
@@ -80,7 +90,8 @@ lang: zh-CN
 - Intel Mac：当前不支持，请使用 Apple Silicon（arm64）Mac。
 - 已有 Codex 配置：点击“重新检测已有配置”，不需要先登录 Gateway。
 - 暂时没有账户或 API Key：可以先进入 OPL，后续再配置。
-- 下载文件很多：手工安装只选择 `mac-arm64.dmg`。
+- 下载文件很多：首次安装选择 `Full-<版本>-mac-arm64.dmg`，刚发版时等待同一 Release 追加完成。
+- Standard 卡住：先排查网络、代理、DNS 和模型服务连通性；OpenAI 使用场景需要能直连 OpenAI。
 - 打不开 App：确认已复制到 Applications，或使用 Latest Release 的 `opl-install.sh` 安装。
 
 > 密码只用于本次登录；请勿公开转发或保存 API Key 到研究目录、论文附件或代码仓库。

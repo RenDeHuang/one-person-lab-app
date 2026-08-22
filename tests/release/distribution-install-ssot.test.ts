@@ -551,6 +551,10 @@ test('ordinary docs point to the SSOT without advertising retired or unpublished
     macGuideManifest.download.stable_install_command,
     'brew install --cask gaofeng21cn/one-person-lab/one-person-lab',
   );
+  assert.equal(
+    macGuideManifest.download.recommended_first_install_asset,
+    'One-Person-Lab-Full-<version>-mac-arm64.dmg',
+  );
   assert.doesNotMatch(rootReadme, /brew install --cask .*one-person-lab-nightly/);
   assert.doesNotMatch(rootReadme, /brew install --cask .*one-person-lab-full/);
   assert.doesNotMatch(rootReadme, /--stable-macos-install --yes/);

@@ -31,11 +31,12 @@ the rest of OPL remains usable.
 
 ## Current Stable Desktop Release Set
 
-Each Stable version has one GitHub Release and one `v<version>` tag. The same
-tag may contain:
+Each Stable version has one GitHub Release and one `v<version>` tag. The macOS
+Stable release set contains both Standard and Full. Standard may become Latest
+first, with Full appended to the same tag afterward:
 
 - `One-Person-Lab-<version>-mac-arm64.dmg`: macOS Standard;
-- `One-Person-Lab-Full-<version>-mac-arm64.dmg`: macOS Full, appended after Standard when available;
+- `One-Person-Lab-Full-<version>-mac-arm64.dmg`: macOS Full first-install package, which may be appended after Standard;
 - `One-Person-Lab-<version>-linux-x64.deb`: Linux x64 Desktop;
 - `One-Person-Lab-<version>-win-x64.exe`: Windows x64 Desktop;
 - `opl-install.sh`, component and Desktop platform manifests, and platform updater metadata.
@@ -48,17 +49,26 @@ still require readback from the target machine.
 
 ## macOS arm64
 
-For users who already have Homebrew, Standard is the shortest path:
+For a first macOS install, use the same-tag Full DMG. It preloads Base, Package
+seeds, and the pinned Computer Use archive, reducing first-launch downloads. If
+Full is not yet visible immediately after a release, wait for its same-tag append
+to finish before downloading.
+
+For Homebrew users with a strong network path, Standard is the shortest online path:
 
 ```bash
 brew install --cask gaofeng21cn/one-person-lab/one-person-lab
 open -a "One Person Lab"
 ```
 
-Without Homebrew, download the Standard DMG from the current Release. Choose the
-same-tag Full DMG only when a new or offline machine needs preloaded Base and
-Package seeds. Full creates no separate Release and never enters Standard
-updater metadata.
+Standard downloads Base, Packages, and other modules during managed setup and
+first-run checks. It requires reliable access to GitHub, Homebrew/module sources,
+and the selected model provider; using OpenAI, for example, requires direct
+OpenAI connectivity. Diagnose the network, proxy, DNS, and target-service path
+first when installation, first-run checks, or model access fail. Full still
+needs network access for sign-in, online models, and updates, but substantially
+reduces the first install's dependence on module downloads. Full creates no
+separate Release and never enters Standard updater metadata.
 
 [macOS first-install guide](https://gaofeng21cn.github.io/one-person-lab-app/latest/macos-app-install/macos-app-install.html)
 

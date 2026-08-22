@@ -9,7 +9,7 @@
 <h1 align="center">One Person Lab App</h1>
 
 <p align="center"><strong>A local-first AI workbench for complex knowledge work</strong></p>
-<p align="center">Start research, grants, presentations, books, and general tasks from the desktop or browser; track progress, resume long-running work, and inspect deliverables.</p>
+<p align="center">Start general tasks and professional work projected by current Packages from the desktop or browser; track progress, resume long-running work, and inspect deliverables.</p>
 
 <!--
 Owner: `one-person-lab-app`
@@ -52,7 +52,7 @@ same workbench through current product and runtime projections.
 ## Core Highlights
 
 **One entry point for professional AI work**<br/>
-Enter general work, medical research, grant writing, presentation preparation, and book writing from the desktop app instead of jumping across commands, repositories, and tools.
+Enter general work and the professional work projected by currently installed Packages from the desktop app instead of jumping across commands, repositories, and tools.
 
 **Desktop and browser share one workbench**<br/>
 Use the same OPL task, artifact, progress, and receipt language in a Desktop
@@ -66,10 +66,10 @@ projections.
 The app shows task progress, files, runtime status, and recoverable work context. When you come back, you can see what happened, what was produced, and whether anything needs human attention.
 
 **First install feels like a product**<br/>
-New macOS users can start with the complete first-install package, open the App first, and let background maintenance prepare the framework, professional agents, skills, and tool payloads.
+New macOS users should start with the Full first-install package to reduce first-launch downloads for Base, Package seeds, and tool payloads.
 
 **Professional agents with clear roles**<br/>
-Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry focus on different deliverables. Users get one interface while each agent keeps its own professional boundary.
+Home entries come from the Framework projection of current Agent Packages. The 8.22 cohort currently presents research, grant application, visual delivery, and agent-building work while each Package keeps its own professional boundary.
 
 **Professional AI keeps professional room**<br/>
 The App makes entries, progress, files, and delivery usable. Medical research, grant writing, visual-delivery, and book-writing judgment remain with the corresponding professional agents. When work enters a professional stage, users can watch AI read material, compare options, accept review, keep revising, and produce the next deliverable version.
@@ -92,6 +92,12 @@ WebUI route. Standard and Full are Desktop payload densities; Full is currently
 available only for macOS arm64. Headless installs Framework Base only and is not
 an App product. The short list below contains only current ordinary-user paths;
 historical, transitional, and planned paths are not presented as supported.
+
+For a first macOS install, use Full. Standard is intended for upgrades or an
+online install with a strong network path: it downloads Base, Packages, and other
+modules during setup and must reach the selected model provider. Using OpenAI,
+for example, requires direct OpenAI connectivity. Diagnose the network, proxy,
+DNS, and target-service path first when installation or first-run checks fail.
 
 ### Homebrew
 
@@ -124,7 +130,8 @@ Homebrew itself also runs on Linux. The `opl` Formula is a Base/CLI carrier and
 the Cask is a Desktop carrier. Docker WebUI remains an independently versioned
 GHCR product line and does not derive authority from Desktop Stable.
 
-Full is an optional post-Standard module. Standard is published and becomes
+Full is the required macOS Stable first-install carrier, appended by an independent
+post-Standard operation. Standard is published and becomes
 Latest first; a successful Full operation later adds only the Full DMG and
 `opl-release-manifest.json` to that same Standard Release and tag. It creates no
 parallel Full Release or tag and cannot change Standard assets, the release
@@ -180,7 +187,7 @@ resolved Release, component manifest, and DMG before any App target mutation:
 ```bash
 curl -fLO https://github.com/gaofeng21cn/one-person-lab-app/releases/latest/download/opl-install.sh
 chmod 0755 opl-install.sh
-./opl-install.sh --stable-macos-install --standard --yes
+./opl-install.sh --stable-macos-install --full --yes
 ```
 
 The repository script remains available as `./install.sh` for developers
@@ -192,10 +199,10 @@ You can also download the current desktop package from the App repository releas
 
 [Download One Person Lab App](https://github.com/gaofeng21cn/one-person-lab-app/releases/latest)
 
-For a first-time macOS arm64 install without Homebrew, choose
-`One-Person-Lab-Full-<version>-mac-arm64.dmg` when it is present on the same
-Standard Release page. Its later availability does not change which Standard
-release is Latest.
+For a first-time macOS arm64 install, choose
+`One-Person-Lab-Full-<version>-mac-arm64.dmg` on the same Standard Release page.
+If Full is not visible immediately after publication, wait for the same-tag append
+to finish. Its later appearance does not change which Standard release is Latest.
 
 Stable publication does not depend on GitHub repository-level Immutable
 Releases. Standard assets are protected by exact name/size/digest CAS and the
@@ -288,9 +295,9 @@ artifact must not be represented as signed.
 
 One Person Lab App is the daily chat-first desktop entry point for users:
 
-- Enter general work, medical research, grant writing, presentation preparation, and book writing from one desktop interface.
+- Enter general work and professional work projected by currently installed Packages from one desktop interface.
 - Keep the same workbench semantics across the macOS App, local/server browser WebUI, and OPL Cloud online workspaces.
-- Enter Research Foundry, Grant Foundry, Presentation Foundry, and Book Foundry.
+- In 8.22, use the currently projected research, grant application, visual delivery, and agent-building entries; Home updates as Packages are installed, enabled, or removed.
 - View progress, files, runtime status, and recoverable work context for continuing long tasks and inspecting deliverables.
 - Complete the minimum first-run setup before the user starts, then let fuller runtime and professional-agent payloads continue as background maintenance.
 - Offer Homebrew, direct download, and complete first-install package paths.
@@ -302,7 +309,7 @@ One Person Lab App is the daily chat-first desktop entry point for users:
 2. Open `One Person Lab.app`.
 3. Let first launch complete the basic setup; the app shows preparation progress and the next step.
 4. Choose a workspace directory.
-5. Start general work or enter Research, Grant, Presentation, or Book Foundry.
+5. Start general work or choose a professional entry supplied by the current Packages.
 6. Use progress, files, and runtime status views to continue work and inspect deliverables.
 
 ## Product Boundaries
