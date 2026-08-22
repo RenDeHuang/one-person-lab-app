@@ -4627,7 +4627,7 @@
             "goal": "The first window renders from a bounded secret-free snapshot and background hydration can recover after failure.",
             "evidence_required": [
               "snapshot schema/version/freshness/invalidation are explicit",
-              "first paint does not await full fast state",
+              "first paint renders the branded startup loader without awaiting full fast state",
               "automatic failure clears the single-flight marker",
               "retry is bounded and remount/manual retry remains possible"
             ]

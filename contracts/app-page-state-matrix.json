@@ -2780,6 +2780,14 @@
       "startup_loader": {
         "experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract.startup_loader",
         "visible_product_name": "One Person Lab",
+        "ordinary_launch_stages": [
+          "app_state_and_agents",
+          "conversations",
+          "models",
+          "capabilities"
+        ],
+        "quantitative_status": "ready_stage_count_over_total_stage_count",
+        "failure_policy": "failed_or_timed_out_stage_retry_and_explicit_limited_entry",
         "ordered_stages": [
           "workspace",
           "local_assistant",
@@ -2828,7 +2836,9 @@
         "fixed three-step rail with one current task panel",
         "active rail step and task panel stay aligned to the first unready Core item",
         "authenticated standalone first-run route outside the ordinary product layout",
-        "ordinary startup enters /guid with zero fast-state navigation wait while unknown readiness refreshes in the background without mutation",
+        "ordinary startup shows a branded readiness overlay until app and Agent state, conversations, models, and capabilities finish loading",
+        "ordinary startup shows ready stage count over total stage count without invented percentage progress",
+        "startup read failure or timeout names the affected stage and offers retry plus explicit limited entry without mutating readiness",
         "fresh authenticated WebUI login carries a one-shot setup check that replaces /guid with /first-run only when fast Core readiness is known incomplete",
         "fresh WebUI login readiness unknown, timeout, or read failure fails open on /guid, while ordinary startup, refresh, and deep links never auto-open /first-run",
         "explicit enter OPL action before readiness without mutating readiness",

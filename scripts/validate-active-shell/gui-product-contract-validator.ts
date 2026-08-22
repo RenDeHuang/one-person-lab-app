@@ -726,27 +726,26 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   const startupReadModelPolicy = guiContract.framework_surfaces?.canonical_state?.startup_read_model_policy;
   if (
     startupReadModelPolicy?.blocking_policy !==
-    'ordinary_startup_and_guid_navigation_are_non_blocking_core_failures_only_restrict_dependent_capabilities'
+    'ordinary_startup_waits_only_for_fast_state_agent_conversation_model_and_capability_catalog_reads_then_core_failures_restrict_only_dependent_capabilities'
   ) {
-    throw new Error('App GUI startup read model must keep Guid navigation non-blocking');
+    throw new Error('App GUI startup read model must wait only for the bounded ordinary-use catalogs');
   }
   if (
     startupReadModelPolicy?.ordinary_entry_route !== '/guid' ||
-    startupReadModelPolicy?.visible_startup_gate !== 'none' ||
-    startupReadModelPolicy?.navigation_wait_for_fast_state_ms !== 0 ||
+    startupReadModelPolicy?.visible_startup_gate !== 'bounded_core_catalog_readiness_overlay' ||
+    startupReadModelPolicy?.navigation_wait_for_fast_state_ms !== 20000 ||
     startupReadModelPolicy?.state_hydration !==
       'last_good_allowlisted_renderer_cache_then_single_flight_background_refresh' ||
     startupReadModelPolicy?.background_refresh_soft_deadline_ms !== 1500 ||
     startupReadModelPolicy?.background_refresh_deadline_behavior !==
-      'keep_guid_interactive_and_report_local_state_unavailable_without_global_failure'
+      'keep_startup_stage_visible_then_offer_limited_entry_without_false_ready'
   ) {
-    throw new Error('App GUI startup read model must enter Guid without waiting for fast state and refresh in the background');
+    throw new Error('App GUI startup read model must expose bounded quantitative readiness before Guid interaction');
   }
   const installedLaunchTarget = startupReadModelPolicy.installed_launch_target;
   if (
     installedLaunchTarget?.target_ms !== 1500 ||
-    installedLaunchTarget?.measurement_scope !==
-      'OS_launch_request_to_Guid_composer_visible_enabled_and_focusable' ||
+    installedLaunchTarget?.measurement_scope !== 'OS_launch_request_to_branded_startup_loader_visible' ||
     installedLaunchTarget?.status !== 'required_unverified_installed_target_not_current_measurement_or_SLA' ||
     installedLaunchTarget?.fast_state_hydration_in_target !== false
   ) {
@@ -926,18 +925,21 @@ export function validateAppGuiProductContract(guiContract, releaseChannel, insta
   );
   for (const [field, expected] of Object.entries({
     default_launch_command: 'opl app state --profile fast --json',
-    default_launch_mode: 'guid_first_with_background_fast_state',
+    default_launch_mode: 'bounded_readiness_overlay_then_guid',
     first_run_route_policy: 'authenticated_standalone_route_outside_ordinary_product_layout',
     ordinary_entry_route: '/guid',
-    visible_startup_gate: 'none',
-    navigation_wait_for_fast_state_ms: 0,
-    unknown_readiness_policy: 'enter_guid_and_refresh_in_background_without_mutating_readiness',
-    guid_navigation_blocked_by_readiness: false,
+    visible_startup_gate: 'bounded_core_catalog_readiness_overlay',
+    navigation_wait_for_fast_state_ms: 20000,
+    unknown_readiness_policy: 'show_truthful_pending_stage_then_allow_explicit_limited_guid_without_mutating_readiness',
+    guid_navigation_blocked_by_readiness: true,
     core_capability_use_blocked_when_prerequisites_fail: true,
   })) {
     if (firstLaunchPolicy?.startup_runtime_policy?.[field] !== expected) {
       throw new Error('App GUI first-launch startup runtime ' + field + ' must be ' + expected);
     }
+  }
+  if (firstLaunchPolicy?.startup_runtime_policy?.limited_guid_entry_after_failure_or_timeout !== true) {
+    throw new Error('App GUI first-launch startup runtime must allow explicit limited entry after a failed or timed-out stage');
   }
   const postLoginSetupCheck = firstLaunchPolicy?.startup_runtime_policy?.fresh_webui_login_setup_check;
   if (

@@ -148,6 +148,34 @@
     "startup_loader": {
       "visible_product_name": "One Person Lab",
       "presentation": "brand_and_truthful_current_stage_in_the_first_viewport",
+      "ordinary_launch_stage_ids": [
+        "app_state_and_agents",
+        "conversations",
+        "models",
+        "capabilities"
+      ],
+      "ordinary_launch_stage_labels": {
+        "app_state_and_agents": {
+          "zh-CN": "读取应用状态与智能体",
+          "en-US": "Loading app state and Agents"
+        },
+        "conversations": {
+          "zh-CN": "加载对话",
+          "en-US": "Loading conversations"
+        },
+        "models": {
+          "zh-CN": "加载模型",
+          "en-US": "Loading models"
+        },
+        "capabilities": {
+          "zh-CN": "加载插件与能力",
+          "en-US": "Loading plugins and capabilities"
+        }
+      },
+      "ordinary_launch_ready_gate": "all_ordinary_launch_stages_ready_before_guid_interaction",
+      "ordinary_launch_quantitative_status": "ready_stage_count_over_total_stage_count",
+      "ordinary_launch_failure_policy": "show_failed_or_timed_out_stages_with_retry_and_explicit_limited_entry",
+      "ordinary_launch_limited_entry_policy": "preserve_plain_conversation_when_possible_and_restrict_only_capabilities_whose_owner_read_failed",
       "ordered_stage_ids": [
         "workspace",
         "local_assistant",
@@ -2084,20 +2112,20 @@
         "ordinary_launch_command": "opl app state --profile fast --json",
         "ordinary_refresh_command": "opl app state --profile fast --json",
         "ordinary_entry_route": "/guid",
-        "visible_startup_gate": "none",
-        "navigation_wait_for_fast_state_ms": 0,
+        "visible_startup_gate": "bounded_core_catalog_readiness_overlay",
+        "navigation_wait_for_fast_state_ms": 20000,
         "state_hydration": "last_good_allowlisted_renderer_cache_then_single_flight_background_refresh",
         "background_refresh_soft_deadline_ms": 1500,
-        "background_refresh_deadline_behavior": "keep_guid_interactive_and_report_local_state_unavailable_without_global_failure",
+        "background_refresh_deadline_behavior": "keep_startup_stage_visible_then_offer_limited_entry_without_false_ready",
         "installed_launch_target": {
           "target_ms": 1500,
-          "measurement_scope": "OS_launch_request_to_Guid_composer_visible_enabled_and_focusable",
+          "measurement_scope": "OS_launch_request_to_branded_startup_loader_visible",
           "status": "required_unverified_installed_target_not_current_measurement_or_SLA",
           "fast_state_hydration_in_target": false
         },
         "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
         "deep_initialize_stream": "opl system initialize --events --json",
-        "blocking_policy": "ordinary_startup_and_guid_navigation_are_non_blocking_core_failures_only_restrict_dependent_capabilities",
+        "blocking_policy": "ordinary_startup_waits_only_for_fast_state_agent_conversation_model_and_capability_catalog_reads_then_core_failures_restrict_only_dependent_capabilities",
         "core_prerequisites": [
           "workspace_root",
           "codex_cli",
@@ -5619,12 +5647,12 @@
     },
     "startup_runtime_policy": {
       "default_launch_command": "opl app state --profile fast --json",
-      "default_launch_mode": "guid_first_with_background_fast_state",
+      "default_launch_mode": "bounded_readiness_overlay_then_guid",
       "first_run_route_policy": "authenticated_standalone_route_outside_ordinary_product_layout",
       "ordinary_entry_route": "/guid",
-      "visible_startup_gate": "none",
-      "navigation_wait_for_fast_state_ms": 0,
-      "unknown_readiness_policy": "enter_guid_and_refresh_in_background_without_mutating_readiness",
+      "visible_startup_gate": "bounded_core_catalog_readiness_overlay",
+      "navigation_wait_for_fast_state_ms": 20000,
+      "unknown_readiness_policy": "show_truthful_pending_stage_then_allow_explicit_limited_guid_without_mutating_readiness",
       "fresh_webui_login_setup_check": {
         "trigger": "successful_authenticated_webui_login_only",
         "route_intent": "postLoginSetupCheck",
@@ -5638,7 +5666,8 @@
       },
       "deep_initialize_trigger": "explicit_user_configuration_or_diagnostics_only",
       "deep_initialize_event_stream": "opl system initialize --events --json",
-      "guid_navigation_blocked_by_readiness": false,
+      "guid_navigation_blocked_by_readiness": true,
+      "limited_guid_entry_after_failure_or_timeout": true,
       "core_capability_use_blocked_when_prerequisites_fail": true,
       "core_prerequisites": [
         "workspace_root",
