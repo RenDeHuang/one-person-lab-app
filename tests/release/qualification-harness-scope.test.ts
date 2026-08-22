@@ -16,6 +16,7 @@ test('qualification harness scope allows only the paired VM smoke mechanics chan
     '.github/workflows/_release-full-addon.yml',
     '.github/workflows/release-stable.yml',
     'scripts/qualification-harness-scope.ts',
+    'scripts/validate-release-boundary/release-checks.ts',
     'scripts/validate-release-boundary/text-check-runner.ts',
     'tests/release/qualification-harness-scope.test.ts',
     'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
@@ -31,6 +32,7 @@ test('qualification harness scope allows only the paired VM smoke mechanics chan
     verificationShellSha,
     shellChangedPaths: [
       'scripts/opl-first-run-vm-smoke.mjs',
+      'tests/unit/opl-runtime/firstRunVmSmoke.test.ts',
       'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
     ],
   });
