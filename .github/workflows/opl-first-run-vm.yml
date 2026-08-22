@@ -62,6 +62,10 @@ on:
         description: 'App SHA recorded in the existing build artifact cohort. Empty uses this workflow commit.'
         required: false
         type: string
+      verification_app_ref:
+        description: 'Separately pinned one-person-lab-app ref containing the verification scripts. Empty uses artifact_app_ref.'
+        required: false
+        type: string
       shell_ref:
         description: 'Product opl-aion-shell ref. Release-bound qualification requires the exact cohort SHA; diagnostics may omit it.'
         required: false
@@ -220,6 +224,7 @@ jobs:
     outputs:
       package_profile: ${{ steps.diagnostic_inputs.outputs.profile }}
       artifact_app_sha: ${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}
+      verification_app_sha: ${{ steps.verification_app.outputs.app_sha }}
       shell_ref: ${{ steps.diagnostic_inputs.outputs.shell_ref }}
       shell_sha: ${{ steps.shell_ref.outputs.shell_sha }}
       smoke_harness_ref: ${{ steps.diagnostic_inputs.outputs.smoke_harness_ref }}
@@ -241,8 +246,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/opl-vm-admission"
           touch "$RUNNER_TEMP/opl-vm-admission/stdout.txt" "$RUNNER_TEMP/opl-vm-admission/stderr.txt"
           exec > >(tee -a "$RUNNER_TEMP/opl-vm-admission/stdout.txt") 2> >(tee -a "$RUNNER_TEMP/opl-vm-admission/stderr.txt" >&2)
+          verification_app_ref='${{ inputs.verification_app_ref }}'
+          if [ -z "$verification_app_ref" ]; then verification_app_ref='${{ inputs.artifact_app_ref }}'; fi
           printf '%s\0' '${{ inputs.operation }}' '${{ inputs.operation_started_at }}' '${{ inputs.operation_deadline_at }}' \
-            '${{ inputs.release_bundle_digest }}' '${{ inputs.artifact_app_ref }}' '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' \
+            '${{ inputs.release_bundle_digest }}' '${{ inputs.artifact_app_ref }}' "$verification_app_ref" \
+            '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' \
             '${{ inputs.framework_executor_ref }}' '${{ inputs.mas_ref }}' \
             '${{ inputs.standard_identity_sha256 }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > "$RUNNER_TEMP/opl-vm-admission/input-digest.txt"
@@ -259,6 +267,7 @@ jobs:
           if [ "$status" = passed ] && ! [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]]; then status=failed; reason=bundle_digest_invalid; fi
           if [ "$status" = passed ] && [ '${{ inputs.release_bundle_digest }}' = sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49 ]; then status=failed; reason=bundle_permanently_rejected; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.artifact_app_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=app_sha_invalid; fi
+          if [ "$status" = passed ] && ! [[ "$verification_app_ref" =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=verification_app_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=shell_sha_invalid; fi
           if [ "$status" = passed ] && ! [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]]; then status=failed; reason=framework_sha_invalid; fi
           if [ "$status" = passed ] && [ -n '${{ inputs.standard_identity_sha256 }}' ] && ! [[ '${{ inputs.standard_identity_sha256 }}' =~ ^sha256:[0-9a-f]{64}$ ]]; then status=failed; reason=standard_identity_invalid; fi
@@ -280,7 +289,21 @@ jobs:
       - name: Checkout App repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.verification_app_ref || inputs.artifact_app_ref || github.sha }}
+
+      - name: Resolve checked-out App verification SHA
+        id: verification_app
+        shell: bash
+        run: |
+          set -euo pipefail
+          verification_app_sha="$(git rev-parse HEAD)"
+          [[ "$verification_app_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Checked-out verification App SHA is invalid."; exit 1; }
+          requested_ref='${{ inputs.verification_app_ref || inputs.artifact_app_ref || github.sha }}'
+          if [[ "$requested_ref" =~ ^[0-9a-f]{40}$ ]] && [ "$verification_app_sha" != "$requested_ref" ]; then
+            echo "::error::Checked-out verification App SHA differs from the requested exact ref."
+            exit 1
+          fi
+          echo "app_sha=$verification_app_sha" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -295,6 +318,9 @@ jobs:
           [[ '${{ inputs.release_bundle_digest }}' =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::release_bundle_digest must be exact."; exit 1; }
           test '${{ inputs.release_bundle_digest }}' != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49 || { echo "::error::release_bundle_digest is permanently rejected."; exit 1; }
           [[ '${{ inputs.artifact_app_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::artifact_app_ref must be the exact frozen App SHA."; exit 1; }
+          verification_app_ref='${{ inputs.verification_app_ref }}'
+          if [ -z "$verification_app_ref" ]; then verification_app_ref='${{ inputs.artifact_app_ref }}'; fi
+          [[ "$verification_app_ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::verification_app_ref must resolve to the exact frozen verification App SHA."; exit 1; }
           [[ '${{ inputs.shell_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::shell_ref must be the exact frozen Shell SHA."; exit 1; }
           [[ '${{ inputs.framework_ref }}' =~ ^[0-9a-f]{40}$ ]] || { echo "::error::framework_ref must be the exact frozen Framework SHA."; exit 1; }
           test '${{ inputs.release_cohort_ref }}' = '${{ inputs.release_bundle_digest }}' || { echo "::error::release_cohort_ref must equal the Bundle digest."; exit 1; }
@@ -411,6 +437,7 @@ jobs:
           SHELL_REF_INPUT: ${{ inputs.shell_ref }}
           SMOKE_HARNESS_REF_INPUT: ${{ inputs.smoke_harness_ref }}
           ARTIFACT_APP_REF: ${{ inputs.artifact_app_ref }}
+          VERIFICATION_APP_REF_INPUT: ${{ inputs.verification_app_ref }}
           RELEASE_BUNDLE_DIGEST: ${{ inputs.release_bundle_digest }}
           RELEASE_COHORT_REF: ${{ inputs.release_cohort_ref }}
           FRAMEWORK_REF: ${{ inputs.framework_ref }}
@@ -455,10 +482,15 @@ jobs:
             echo "::error::artifact_app_ref must resolve to the exact 40-character App SHA recorded in the build cohort."
             exit 1
           fi
+          verification_app_ref="$VERIFICATION_APP_REF_INPUT"
+          if [ -z "$verification_app_ref" ]; then
+            verification_app_ref="$artifact_app_sha"
+          fi
           if [ -n "$RELEASE_BUNDLE_DIGEST" ]; then
             [[ "$RELEASE_BUNDLE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Release-bound Bundle digest must be an exact sha256 identity."; exit 1; }
             [[ "$RELEASE_COHORT_REF" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Release-bound release_cohort_ref must be an exact sha256 identity."; exit 1; }
             [[ "$ARTIFACT_APP_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound artifact_app_ref must be an exact 40-character SHA."; exit 1; }
+            [[ "$verification_app_ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Release-bound verification_app_ref must resolve to an exact 40-character SHA."; exit 1; }
             [[ "$shell_ref" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound shell_ref must be an exact 40-character SHA."; exit 1; }
             [[ "$smoke_harness_ref" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound smoke_harness_ref must be an exact 40-character SHA."; exit 1; }
             [[ "$FRAMEWORK_REF" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "::error::Release-bound framework_ref must be an exact 40-character SHA."; exit 1; }
@@ -540,6 +572,7 @@ jobs:
           {
             echo "profile=$profile"
             echo "artifact_app_sha=$artifact_app_sha"
+            echo "verification_app_ref=$verification_app_ref"
             echo "shell_ref=$shell_ref"
             echo "smoke_harness_ref=$smoke_harness_ref"
             echo "diagnostic_scope=$diagnostic_scope"
@@ -617,10 +650,11 @@ jobs:
           set -euo pipefail
           profile="${{ steps.diagnostic_inputs.outputs.profile }}"
           case "$profile" in full|homebrew-full) profile=full ;; *) profile=standard ;; esac
-          verification_app_sha="$GITHUB_SHA"
-          if [ "${{ inputs.operation }}" = append_full ] && [ -n "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" ]; then
-            verification_app_sha="${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}"
-          fi
+          verification_app_sha="$(git rev-parse HEAD)"
+          test "$verification_app_sha" = '${{ steps.verification_app.outputs.app_sha }}' || {
+            echo "::error::Verification App checkout changed before scope proof."
+            exit 1
+          }
           proof="$(node --experimental-strip-types scripts/qualification-harness-scope.ts \
             --artifact-app-sha "${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}" \
             --verification-app-sha "$verification_app_sha" \
@@ -825,6 +859,20 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-vm-inputs.outputs.verification_app_sha }}
+
+      - name: Resolve checked-out App verification SHA
+        id: verification_app
+        shell: bash
+        run: |
+          set -euo pipefail
+          verification_app_sha="$(git rev-parse HEAD)"
+          test "$verification_app_sha" = '${{ needs.validate-vm-inputs.outputs.verification_app_sha }}' || {
+            echo "::error::VM job App checkout differs from the validated verification App SHA."
+            exit 1
+          }
+          echo "app_sha=$verification_app_sha" >> "$GITHUB_OUTPUT"
 
       - name: Checkout active shell
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1513,7 +1561,7 @@ jobs:
             echo "- Release source: $RELEASE_SOURCE"
             echo "- Artifact App SHA: \`${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}\`"
             echo "- Product Shell SHA: \`${{ needs.validate-vm-inputs.outputs.shell_sha }}\`"
-            echo "- Smoke harness App SHA: \`$GITHUB_SHA\`"
+            echo "- Smoke harness App SHA: \`${{ steps.verification_app.outputs.app_sha }}\`"
             echo "- Smoke harness Shell SHA: \`${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}\`"
             echo "- Package profile: \`${{ steps.package_profile.outputs.profile }}\`"
             echo "- Diagnostic scope: \`${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}\`"
@@ -1976,7 +2024,7 @@ jobs:
             --source-artifact-name "${{ inputs.release_artifact_name }}" \
             --evidence-ref "$evidence_ref" \
             --smoke-summary artifacts/opl-first-run-vm/tart-smoke-summary.json \
-            --verification-app-sha "${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}" \
+            --verification-app-sha "${{ steps.verification_app.outputs.app_sha }}" \
             --verification-shell-sha "${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}" \
             --verification-smoke-harness shells/aionui/scripts/opl-first-run-vm-smoke.mjs \
             --verification-scope-proof-base64 "${{ needs.validate-vm-inputs.outputs.qualification_scope_base64 }}"
@@ -2007,7 +2055,7 @@ jobs:
           RELEASE_ARTIFACT_EFFECTIVE_RUN_ID: ${{ inputs.release_artifact_run_id || github.run_id }}
           ARTIFACT_APP_SHA: ${{ needs.validate-vm-inputs.outputs.artifact_app_sha }}
           PRODUCT_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.shell_sha }}
-          SMOKE_HARNESS_APP_SHA: ${{ github.sha }}
+          SMOKE_HARNESS_APP_SHA: ${{ steps.verification_app.outputs.app_sha || needs.validate-vm-inputs.outputs.verification_app_sha }}
           SMOKE_HARNESS_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
           RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.release_artifact_download.outcome || 'skipped' }}
           DMG_CONCLUSION: ${{ steps.dmg.conclusion || 'skipped' }}

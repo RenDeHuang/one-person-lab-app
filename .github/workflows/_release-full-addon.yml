@@ -1173,6 +1173,7 @@ jobs:
       release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
       artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
+      verification_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
       shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
       smoke_harness_ref: ${{ needs.restore-standard.outputs.shell_ref }}
       framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}

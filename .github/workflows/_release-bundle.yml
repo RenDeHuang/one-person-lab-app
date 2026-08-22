@@ -1317,6 +1317,7 @@ jobs:
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
       artifact_app_ref: ${{ needs.freeze.outputs.app_sha }}
+      verification_app_ref: ${{ needs.freeze.outputs.app_sha }}
       shell_ref: ${{ needs.freeze.outputs.shell_sha }}
       smoke_harness_ref: ${{ needs.freeze.outputs.shell_sha }}
       framework_ref: ${{ needs.freeze.outputs.framework_sha }}
