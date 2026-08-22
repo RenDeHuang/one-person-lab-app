@@ -345,6 +345,23 @@ test('resume admission preserves Standard identity and rotates only an expired e
   assert.equal(releaseExecutorCheckout.with.ref, '${{ github.sha }}');
   assert.equal(releaseExecutorCheckout.with.path, 'app-executor');
   assert.notEqual(frozenAppCheckout.with.ref, releaseExecutorCheckout.with.ref);
+  const controlExecutorResolution = String(workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Resolve immutable Stable control executor',
+  ).run);
+  assert.match(controlExecutorResolution, /actions\/runs\/\$control_run_id/);
+  assert.match(controlExecutorResolution, /\.path == "\.github\/workflows\/release-stable\.yml"/);
+  assert.match(controlExecutorResolution, /\.event == "workflow_dispatch"/);
+  assert.match(controlExecutorResolution, /\.head_branch == "main"/);
+  assert.match(controlExecutorResolution, /\.run_attempt == 1/);
+  const controlExecutorCheckout = workflowStep(
+    '_release-standard-publish.yml',
+    'publish-standard-nonlatest',
+    'Checkout immutable Stable control executor',
+  );
+  assert.equal(controlExecutorCheckout.with.ref, '${{ steps.control-executor.outputs.app_sha }}');
+  assert.equal(controlExecutorCheckout.with.path, 'control-executor');
   assert.equal(
     workflowStep(
       '_release-standard-publish.yml',
@@ -360,7 +377,7 @@ test('resume admission preserves Standard identity and rotates only an expired e
     'Bind consumed Stable operation control into the immutable carrier',
   ).run);
   assert.match(controlVerification, /app-executor\/scripts\/stable-operation-control\.ts verify/);
-  assert.match(controlVerification, /--app-root app-executor/);
+  assert.match(controlVerification, /--app-root control-executor/);
   assert.doesNotMatch(controlVerification, /app-source\/scripts\//);
 
   const publicationControl = String(workflowStep(
