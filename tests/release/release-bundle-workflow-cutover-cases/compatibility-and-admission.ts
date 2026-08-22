@@ -338,7 +338,7 @@ test('Stable and Full publication consume one mutable-Standard attestation witho
 
   assert.doesNotMatch(
     standard,
-    /immutable-releases|github-release-immutability-setting|OPL_GITHUB_RELEASE_ADMIN_TOKEN|preflight-setting-receipt|disabled-setting-receipt/,
+    /immutable-releases|github-release-immutability-setting|preflight-setting-receipt|disabled-setting-receipt/,
   );
   assert.match(standard, /write-release-attestation\.ts/);
   assert.match(

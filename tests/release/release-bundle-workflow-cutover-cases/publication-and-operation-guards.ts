@@ -101,8 +101,7 @@ test('Stable Standard publication uses only the Release mutation credential', ()
     'publish-standard-nonlatest',
     'Publish only missing Standard bytes',
   );
-  assert.equal(publish.env?.GH_TOKEN, '${{ github.token }}');
-  assert.equal(publish.env?.OPL_GITHUB_RELEASE_ADMIN_TOKEN, undefined);
+  assert.equal(publish.env?.GH_TOKEN, '${{ secrets.OPL_GITHUB_RELEASE_ADMIN_TOKEN }}');
   assert.match(String(publish.run), /framework-release-adapter\.ts github-apply/);
   assert.doesNotMatch(String(publish.run), /immutable-releases|preflight-setting-receipt|disabled-setting-receipt/);
 });

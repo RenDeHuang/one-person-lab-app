@@ -423,7 +423,7 @@ test('resume admission preserves Standard identity and rotates only an expired e
   const standardPublicationSource = readWorkflow('_release-standard-publish.yml');
   assert.doesNotMatch(
     standardPublicationSource,
-    /immutable-releases|github-release-immutability-setting|OPL_GITHUB_RELEASE_ADMIN_TOKEN|restore-repository-immutability/,
+    /immutable-releases|github-release-immutability-setting|restore-repository-immutability/,
   );
   assert.equal(parseWorkflow('_release-standard-publish.yml').jobs['restore-repository-immutability'], undefined);
 
