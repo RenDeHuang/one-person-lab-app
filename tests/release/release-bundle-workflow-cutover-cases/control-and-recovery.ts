@@ -360,7 +360,7 @@ test('resume admission preserves Standard identity and rotates only an expired e
     'Bind consumed Stable operation control into the immutable carrier',
   ).run);
   assert.match(controlVerification, /app-executor\/scripts\/stable-operation-control\.ts verify/);
-  assert.match(controlVerification, /--app-root app-source/);
+  assert.match(controlVerification, /--app-root app-executor/);
   assert.doesNotMatch(controlVerification, /app-source\/scripts\//);
 
   const publicationControl = String(workflowStep(

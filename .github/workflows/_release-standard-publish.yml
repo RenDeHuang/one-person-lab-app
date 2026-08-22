@@ -1006,7 +1006,7 @@ jobs:
           pre_nonce_guard="$control_source_dir/pre-issued-pre-nonce-guard.json"
           run_authority_reconcile="$control_source_dir/run-authority-reconcile.json"
           node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
-            --control "$control" --input "$consumption" --app-root app-source \
+            --control "$control" --input "$consumption" --app-root app-executor \
             --source-gate "$source_gate" --pre-nonce-guard "$pre_nonce_guard" \
             --run-authority-reconcile "$run_authority_reconcile" \
             --expected-run-id "$control_run_id" \
