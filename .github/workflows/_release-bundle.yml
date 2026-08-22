@@ -655,6 +655,8 @@ jobs:
 
       - name: Validate Bundle contracts before paid work
         working-directory: app-executor
+        env:
+          OPL_APP_SHELL_ROOT: ../app-source/shells/aionui
         run: |
           npm run typecheck
           npm run validate:release-boundary
