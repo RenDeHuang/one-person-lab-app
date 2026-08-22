@@ -1775,9 +1775,37 @@ jobs:
             .standard_agent_action_run.host_materialization.receipt.status == "materialized"
             and .standard_agent_action_run.result.provisioning_receipt.receipt_relative_path == $receipt
           ' "$result_file" >/dev/null
+
+          shell_receipt_path="${receipt_path%.json}.shell-compat.json"
+          jq --arg workspace "$MAS_PROVISIONING_WORKSPACE" '
+            .action_id = "qualification_work_item_provisioning_authority_evaluate"
+            | .domain_truth_owner = .domain_owner
+            | .qualification_scope = "full_vm_release_smoke"
+            | .workspace_root = $workspace
+            | .stage_body_allowed = .stage_body_authorized
+            | .business_work_allowed = .business_action_authorized
+            | .publication_allowed = .publication_authorized
+            | .submission_allowed = .submission_authorized
+          ' "$receipt_path" > "$shell_receipt_path"
+          chmod 600 "$shell_receipt_path"
+          test -f "$shell_receipt_path" && test ! -L "$shell_receipt_path"
+          jq -e --arg workspace "$MAS_PROVISIONING_WORKSPACE" '
+            .surface_kind == "mas_qualification_work_item_provisioning_receipt"
+            and .schema_version == 1
+            and .action_id == "qualification_work_item_provisioning_authority_evaluate"
+            and .domain_truth_owner == "MedAutoScience"
+            and .domain_id == "medautoscience"
+            and .qualification_scope == "full_vm_release_smoke"
+            and .workspace_root == $workspace
+            and .single_use == true
+            and .stage_body_allowed == false
+            and .business_work_allowed == false
+            and .publication_allowed == false
+            and .submission_allowed == false
+          ' "$shell_receipt_path" >/dev/null
           {
             echo "workspace=$MAS_PROVISIONING_WORKSPACE"
-            echo "receipt=$receipt_path"
+            echo "receipt=$shell_receipt_path"
           } >> "$GITHUB_OUTPUT"
 
       - name: Run clean VM first launch smoke
@@ -1802,6 +1830,7 @@ jobs:
             node shells/aionui/scripts/opl-first-run-tart-smoke.mjs
             --source-vm "$SOURCE_VM"
             --guest-user "$GUEST_USER"
+            --guest-workdir /private/tmp/opl-first-run-smoke
             --artifacts artifacts/opl-first-run-vm
             --timeout-ms "${{ steps.operation_smoke_budget.outputs.run_timeout_ms || steps.vm_timeouts.outputs.run_timeout_ms }}"
             --smoke-timeout-ms "${{ steps.operation_smoke_budget.outputs.smoke_timeout_ms || steps.vm_timeouts.outputs.smoke_timeout_ms }}"
