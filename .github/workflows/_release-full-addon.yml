@@ -1182,6 +1182,7 @@ jobs:
       package_profile: full
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
+      retry_artifact_upload_once: true
       operation: append_full
       operation_started_at: ${{ needs.restore-standard.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.restore-standard.outputs.operation_deadline_at }}

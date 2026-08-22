@@ -1325,6 +1325,7 @@ jobs:
       package_profile: standard
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
+      retry_artifact_upload_once: true
       operation: standard
       operation_started_at: ${{ needs.freeze.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.freeze.outputs.operation_deadline_at }}

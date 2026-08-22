@@ -115,6 +115,11 @@ on:
         required: false
         type: boolean
         default: false
+      retry_artifact_upload_once:
+        description: 'Retry the final VM evidence artifact upload once after a transient upload failure.'
+        required: false
+        type: boolean
+        default: false
       guide_screenshots:
         description: 'Capture full-screen user-guide screenshots in the VM smoke artifacts.'
         required: false
@@ -2129,12 +2134,23 @@ jobs:
             artifacts/opl-first-run-vm/framework-source
 
       - name: Upload first-run VM artifacts
+        id: vm_artifact_upload
         if: ${{ always() }}
+        continue-on-error: ${{ inputs.retry_artifact_upload_once }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-first-run-vm-${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}-${{ github.run_id }}
           path: artifacts/opl-first-run-vm
           if-no-files-found: warn
+
+      - name: Retry first-run VM artifact upload once
+        if: ${{ always() && inputs.retry_artifact_upload_once && steps.vm_artifact_upload.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-first-run-vm-${{ steps.package_profile.outputs.profile || needs.validate-vm-inputs.outputs.package_profile }}-${{ github.run_id }}
+          path: artifacts/opl-first-run-vm
+          if-no-files-found: warn
+          overwrite: true
 
       - name: Clean stale first-run Tart VMs
         if: always() && inputs.keep_vm != true
