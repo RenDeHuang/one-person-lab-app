@@ -539,6 +539,14 @@ jobs:
             and ([.assets[].name] | index("standard-gatekeeper-launch-policy.json") | not)
             and ([.assets[].name] | index("standard-apple-notarization-receipt.json") | not)
           ' target-standard-release.json >/dev/null
+          identity_receipts=()
+          while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
+          )
+          test "${#identity_receipts[@]}" -eq 1 || {
+            echo "::error::Checkpoint transport must contain exactly one Standard identity receipt."
+            exit 1
+          }
           {
             bundle_digest="$(jq -r .bundle_digest "$bundle")"
             standard_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "${identity_receipts[0]}")"
