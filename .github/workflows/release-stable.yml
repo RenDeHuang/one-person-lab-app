@@ -96,6 +96,11 @@ on:
         required: false
         default: ''
         type: string
+      prior_standard_artifact_run_id:
+        description: Exact failed Standard run containing reusable signed and notarized bytes for the frozen cohort
+        required: false
+        default: ''
+        type: string
 permissions:
   contents: read
   actions: read
@@ -138,6 +143,7 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
           PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
+          PRIOR_STANDARD_ARTIFACT_RUN_ID: ${{ inputs.prior_standard_artifact_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -148,7 +154,7 @@ jobs:
           [[ "$STUDIO_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$STUDIO_TREE" =~ ^[0-9a-f]{40}$ ]]
           [[ "$STUDIO_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]
-          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
+          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID$PRIOR_STANDARD_ARTIFACT_RUN_ID"
           test "$INCLUDE_FULL" = false
 
       - name: Checkout exact App release authority
@@ -258,6 +264,7 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
           PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
+          PRIOR_STANDARD_ARTIFACT_RUN_ID: ${{ inputs.prior_standard_artifact_run_id }}
           INCLUDE_FULL: ${{ inputs.include_full }}
           REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS: ${{ inputs.desktop_additional_platforms }}
           STUDIO_SHA: ${{ inputs.studio_sha }}
@@ -275,6 +282,10 @@ jobs:
           test -n "$AUTHORITY_CARRIER"
           [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
+          if [ -n "$PRIOR_STANDARD_ARTIFACT_RUN_ID" ]; then
+            [[ "$PRIOR_STANDARD_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            test "$PRIOR_STANDARD_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
+          fi
           test -z "$STUDIO_SHA$STUDIO_TREE$STUDIO_TAG"
           test "$INCLUDE_FULL" = false
           jq -e 'type == "array"' <<<"$REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS" >/dev/null
@@ -283,7 +294,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
-          path: app-source
+          path: app-executor
           fetch-depth: 0
 
       - name: Decode and verify pre-issued Stable authority before dependency installation
@@ -297,11 +308,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts decode-carrier \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts decode-carrier \
             --input "$AUTHORITY_CARRIER" --authority-id "$AUTHORITY_ID" \
             --authority-digest "$AUTHORITY_DIGEST" \
             --output stable-operation-authority.json
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts materialize-evidence \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts materialize-evidence \
             --authority stable-operation-authority.json \
             --source-gate-output source-gate.json \
             --pre-nonce-guard-output pre-issued-pre-nonce-guard.json
@@ -317,17 +328,15 @@ jobs:
           for value in "$shell_sha" "$framework_sha"; do
             [[ "$value" =~ ^[0-9a-f]{40}$ ]]
           done
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify-executor \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify-executor \
             --authority stable-operation-authority.json \
-            --app-root app-source --expected-actor "$GITHUB_ACTOR" \
+            --app-root app-executor --expected-actor "$GITHUB_ACTOR" \
             --expected-executor-sha "$GITHUB_SHA"
-          git -C app-source checkout --detach "$app_sha"
-          test "$(git -C app-source rev-parse HEAD)" = "$app_sha"
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify-authority \
+
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify-authority \
             --authority stable-operation-authority.json \
             --authority-id "$AUTHORITY_ID" --authority-digest "$AUTHORITY_DIGEST" \
-            --operation-id "$OPERATION_ID" \
-            --app-root app-source --expected-actor "$GITHUB_ACTOR" --expected-app-sha "$app_sha"
+            --operation-id "$OPERATION_ID"
           {
             echo "authority_id=$AUTHORITY_ID"
             echo "operation_id=$operation_id"
@@ -337,6 +346,13 @@ jobs:
             echo "framework_ref=$framework_sha"
             echo "desktop_additional_platforms=$desktop_additional_platforms"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout frozen App authority cohort
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.authority.outputs.app_ref }}
+          path: app-source
+          fetch-depth: 0
 
       - name: Checkout frozen Shell authority cohort
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -376,7 +392,7 @@ jobs:
           test "$app_sha" = '${{ steps.authority.outputs.app_ref }}'
           test "$shell_sha" = '${{ steps.authority.outputs.shell_ref }}'
           test "$framework_sha" = '${{ steps.authority.outputs.framework_ref }}'
-          node --experimental-strip-types app-source/scripts/release-dispatch-guard.ts verify-evidence \
+          node --experimental-strip-types app-executor/scripts/release-dispatch-guard.ts verify-evidence \
             --workflow .github/workflows/release-stable.yml \
             --expected-app-sha "$app_sha" \
             --expected-shell-sha "$shell_sha" \
@@ -386,7 +402,7 @@ jobs:
             --source-gate-report source-gate.json \
             --pre-nonce-guard-report pre-issued-pre-nonce-guard.json \
             --output pre-dispatch-evidence-verification.json
-          node --experimental-strip-types app-source/scripts/release-dispatch-guard.ts preflight \
+          node --experimental-strip-types app-executor/scripts/release-dispatch-guard.ts preflight \
             --workflow .github/workflows/release-stable.yml \
             --expected-app-sha "$app_sha" \
             --expected-shell-sha "$shell_sha" \
@@ -396,7 +412,7 @@ jobs:
             --operation-id '${{ steps.authority.outputs.operation_id }}' \
             --source-gate-report source-gate.json \
             --output run-authority-reconcile.json
-          node - app-source critical-blobs.json <<'NODE'
+          node - app-executor critical-blobs.json <<'NODE'
           const crypto = require('crypto');
           const fs = require('fs');
           const path = require('path');
@@ -422,7 +438,7 @@ jobs:
           source_gate_digest="sha256:$(shasum -a 256 source-gate.json | awk '{print $1}')"
           pre_nonce_guard_digest="sha256:$(shasum -a 256 pre-issued-pre-nonce-guard.json | awk '{print $1}')"
           run_authority_reconcile_digest="sha256:$(shasum -a 256 run-authority-reconcile.json | awk '{print $1}')"
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts bind \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts bind \
             --authority stable-operation-authority.json \
             --authority-digest "$AUTHORITY_DIGEST" \
             --actor "$GITHUB_ACTOR" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" \
@@ -430,8 +446,8 @@ jobs:
             --pre-nonce-guard-digest "$pre_nonce_guard_digest" \
             --run-authority-reconcile-digest "$run_authority_reconcile_digest" \
             --output stable-operation-control.json
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
-            --control stable-operation-control.json --app-root app-source \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
+            --control stable-operation-control.json --app-root app-executor \
             --source-gate source-gate.json --pre-nonce-guard pre-issued-pre-nonce-guard.json \
             --run-authority-reconcile run-authority-reconcile.json \
             --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
@@ -478,6 +494,7 @@ jobs:
       source_run_id: ${{ steps.admission.outputs.source_run_id }}
       source_artifact: ${{ steps.admission.outputs.source_artifact }}
       prior_full_artifact_run_id: ${{ steps.admission.outputs.prior_full_artifact_run_id }}
+      prior_standard_artifact_run_id: ${{ steps.admission.outputs.prior_standard_artifact_run_id }}
       operation_started_at: ${{ steps.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.admission.outputs.operation_deadline_at }}
       package_compatibility_abi: ${{ steps.admission.outputs.package_compatibility_abi }}
@@ -487,7 +504,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
-          path: app-source
+          path: app-executor
           fetch-depth: 0
 
       - name: Admit one bounded Bundle operation
@@ -502,6 +519,7 @@ jobs:
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
           PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
+          PRIOR_STANDARD_ARTIFACT_RUN_ID: ${{ inputs.prior_standard_artifact_run_id }}
           STUDIO_SHA: ${{ inputs.studio_sha }}
           STUDIO_TREE: ${{ inputs.studio_tree }}
           STUDIO_TAG: ${{ inputs.studio_tag }}
@@ -516,7 +534,7 @@ jobs:
             echo "::error::Studio identity inputs are accepted only by admit_studio_carrier."
             exit 1
           }
-          executor_sha="$(git -C app-source rev-parse HEAD)"
+          executor_sha="$(git -C app-executor rev-parse HEAD)"
           APP_REF="$executor_sha"
           VERSION="$REQUESTED_VERSION"
           SHELL_REF="$REQUESTED_SHELL_REF"
@@ -528,6 +546,13 @@ jobs:
                 echo "::error::A new Standard Bundle accepts no external source artifact."
                 exit 1
               }
+              if [ -n "$PRIOR_STANDARD_ARTIFACT_RUN_ID" ]; then
+                [[ "$PRIOR_STANDARD_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+                  echo "::error::Standard artifact reuse requires an exact failed producer run id."
+                  exit 1
+                }
+                test "$PRIOR_STANDARD_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
+              fi
               test "$INCLUDE_FULL" = false || {
                 echo "::error::A new App Standard Bundle cannot bind a future Full Package payload."
                 exit 1
@@ -539,6 +564,10 @@ jobs:
               FRAMEWORK_EXECUTOR_REF="$FRAMEWORK_SOURCE_REF"
               ;;
             resume_standard|append_full)
+              test -z "$PRIOR_STANDARD_ARTIFACT_RUN_ID" || {
+                echo "::error::Only a fresh Standard operation may reuse signed Standard bytes."
+                exit 1
+              }
               [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
                 echo "::error::$OPERATION requires an exact source run id."
                 exit 1
@@ -571,7 +600,7 @@ jobs:
           operation_deadline_at=''
           if [ "$OPERATION" = standard ] || [ "$OPERATION" = resume_standard ] || [ "$OPERATION" = append_full ]; then
             operation_created_at="$(timeout --foreground --signal=TERM --kill-after=5s 30s gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)"
-            node --experimental-strip-types app-source/scripts/release-operation-deadline.ts resolve \
+            node --experimental-strip-types app-executor/scripts/release-operation-deadline.ts resolve \
               --operation "$OPERATION" --started-at "$operation_created_at" \
               --output release-operation-admission.json > /dev/null
             operation_started_at="$(jq -er .started_at release-operation-admission.json)"
@@ -588,6 +617,7 @@ jobs:
             echo "source_run_id=$SOURCE_RUN_ID"
             echo "source_artifact=$SOURCE_ARTIFACT"
             echo "prior_full_artifact_run_id=$PRIOR_FULL_ARTIFACT_RUN_ID"
+            echo "prior_standard_artifact_run_id=$PRIOR_STANDARD_ARTIFACT_RUN_ID"
             echo "operation_started_at=$operation_started_at"
             echo "operation_deadline_at=$operation_deadline_at"
             echo "package_compatibility_abi=$OPL_APP_STANDARD_PACKAGE_COMPATIBILITY_ABI"
@@ -623,7 +653,8 @@ jobs:
       - name: Checkout exact Stable executor
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.admission.outputs.app_ref }}
+          ref: ${{ github.sha }}
+          path: app-executor
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -645,7 +676,7 @@ jobs:
           TEAM_ID: ${{ secrets.TEAM_ID }}
           IDENTITY: ${{ secrets.IDENTITY }}
         run: |
-          node --experimental-strip-types scripts/verify-apple-release-credentials.ts \
+          node --experimental-strip-types app-executor/scripts/verify-apple-release-credentials.ts \
             --output "$RUNNER_TEMP/apple-release-credentials-preflight.json"
 
       - name: Seal one same-run Stable admission manifest
@@ -680,8 +711,8 @@ jobs:
           test "${#run_reconciles[@]}" -eq 1
           control_path="${controls[0]}"
           source_gate_path="${source_gates[0]}"
-          node --experimental-strip-types scripts/stable-operation-control.ts verify \
-            --control "$control_path" --app-root . \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
+            --control "$control_path" --app-root app-executor \
             --source-gate "$source_gate_path" \
             --pre-nonce-guard "${pre_nonce_guards[0]}" \
             --run-authority-reconcile "${run_reconciles[0]}" \
@@ -700,7 +731,7 @@ jobs:
           NODE
           )"
           echo "source_gate_path=$source_gate_path" >> "$GITHUB_OUTPUT"
-          node --experimental-strip-types scripts/stable-release-admission-manifest.ts create \
+          node --experimental-strip-types app-executor/scripts/stable-release-admission-manifest.ts create \
             --base-version "$base_version" \
             --app-ref "$APP_REF" --shell-ref "$SHELL_REF" --framework-ref "$FRAMEWORK_REF" \
             --admission-run-id "$GITHUB_RUN_ID" \
@@ -788,6 +819,7 @@ jobs:
       stable_admission_artifact: opl-stable-admission-${{ github.run_id }}
       stable_admission_manifest_digest: ${{ needs.stable-admission-manifest.outputs.manifest_digest }}
       stable_desktop_additional_platforms: ${{ needs.protected-operation-admission.outputs.desktop_additional_platforms }}
+      prior_standard_artifact_run_id: ${{ needs.admission.outputs.prior_standard_artifact_run_id }}
     secrets: inherit
 
   resume-standard:

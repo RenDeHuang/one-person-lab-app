@@ -96,6 +96,11 @@ on:
         required: false
         default: '["linux-x64","windows-x64"]'
         type: string
+      prior_standard_artifact_run_id:
+        description: Exact failed Standard run containing reusable signed and notarized bytes for this frozen cohort
+        required: false
+        default: ''
+        type: string
     outputs:
       source_run_id:
         description: Run containing the exported Standard checkpoint
@@ -143,7 +148,7 @@ jobs:
           test '${{ inputs.package_compatibility_version_range }}' = '>=0.1.0 <1.0.0'
 
   resolve-platform-matrix:
-    if: ${{ inputs.mode == 'execute' }}
+    if: ${{ inputs.mode == 'execute' && inputs.prior_standard_artifact_run_id == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -184,12 +189,12 @@ jobs:
       contents: read
       actions: read
     steps:
-      - name: Checkout exact App control verifier
+      - name: Checkout current App control verifier
         if: ${{ inputs.channel == 'stable' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.app_ref }}
-          path: app-source
+          ref: ${{ github.sha }}
+          path: app-executor
 
       - name: Download protected Stable operation control
         if: ${{ inputs.channel == 'stable' }}
@@ -241,6 +246,19 @@ jobs:
               status=failed
               reason=invalid_optional_platform_selection
             }
+            if [ -n '${{ inputs.prior_standard_artifact_run_id }}' ]; then
+              [[ '${{ inputs.prior_standard_artifact_run_id }}' =~ ^[1-9][0-9]*$ ]] || {
+                status=failed
+                reason=invalid_prior_standard_artifact_run
+              }
+              if [ '${{ inputs.prior_standard_artifact_run_id }}' = "$GITHUB_RUN_ID" ]; then
+                status=failed
+                reason=prior_standard_artifact_run_is_current_run
+              fi
+            fi
+          elif [ -n '${{ inputs.prior_standard_artifact_run_id }}' ]; then
+            status=failed
+            reason=standard_artifact_reuse_requires_stable
           fi
           if [ "$publication_channel" != stable ] && [ '${{ inputs.include_full }}' = true ]; then
             status=failed
@@ -272,8 +290,8 @@ jobs:
           test "$(jq -er .authority_digest "$control")" = '${{ inputs.stable_operation_control_digest }}'
           test "$(jq -cer .desktop_additional_platforms "$control")" = \
             "$(jq -cer . <<< '${{ inputs.stable_desktop_additional_platforms }}')"
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
-            --control "$control" --app-root app-source \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
+            --control "$control" --app-root app-executor \
             --source-gate stable-operation-control/source-gate.json \
             --pre-nonce-guard stable-operation-control/pre-issued-pre-nonce-guard.json \
             --run-authority-reconcile stable-operation-control/run-authority-reconcile.json \
@@ -282,11 +300,11 @@ jobs:
             --expected-shell-sha '${{ inputs.shell_ref }}' \
             --expected-framework-sha '${{ inputs.framework_ref }}'
           nonce="$(jq -er .nonce "$control")"
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts consume \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts consume \
             --control "$control" --operation-id "$(jq -er .operation_id "$control")" \
             --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --nonce "$nonce" \
             --output stable-operation-control/stable-operation-consumption.json
-          node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
             --control "$control" --input stable-operation-control/stable-operation-consumption.json
 
       - name: Upload consumed Stable operation control
@@ -327,10 +345,18 @@ jobs:
       operation_started_at: ${{ steps.bundle.outputs.operation_started_at }}
       operation_deadline_at: ${{ steps.bundle.outputs.operation_deadline_at }}
     steps:
-      - name: Checkout canonical App source
+      - name: Checkout current App workflow executor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: app-executor
+          fetch-depth: 0
+
+      - name: Checkout frozen App product source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.app_ref }}
+          path: app-source
           fetch-depth: 0
 
       - name: Download and verify consumed Stable operation control
@@ -350,9 +376,9 @@ jobs:
           test -f "$control" && test ! -L "$control"
           test -f "$consumption" && test ! -L "$consumption"
           test "$(jq -er .authority_digest "$control")" = '${{ inputs.stable_operation_control_digest }}'
-          node --experimental-strip-types scripts/stable-operation-control.ts verify \
+          node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
             --control "$control" --input "$consumption" \
-            --app-root . --source-gate stable-operation-control/source-gate.json \
+            --app-root app-executor --source-gate stable-operation-control/source-gate.json \
             --pre-nonce-guard stable-operation-control/pre-issued-pre-nonce-guard.json \
             --run-authority-reconcile stable-operation-control/run-authority-reconcile.json \
             --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
@@ -372,7 +398,7 @@ jobs:
         with:
           repository: gaofeng21cn/opl-aion-shell
           ref: ${{ inputs.shell_ref || 'main' }}
-          path: shells/aionui
+          path: app-source/shells/aionui
 
       - name: Checkout Framework source and executor
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -388,7 +414,7 @@ jobs:
 
       - name: Install cold-gate dependencies
         run: |
-          npm ci --ignore-scripts
+          npm --prefix app-executor ci --ignore-scripts
           npm --prefix framework-source ci --ignore-scripts
 
       - name: Freeze source, version, and compatibility identity
@@ -415,8 +441,8 @@ jobs:
             stable|preview) ;;
             *) echo "::error::Unsupported execute channel: $CHANNEL"; exit 1 ;;
           esac
-          app_sha="$(git rev-parse HEAD)"
-          shell_sha="$(git -C shells/aionui rev-parse HEAD)"
+          app_sha="$(git -C app-source rev-parse HEAD)"
+          shell_sha="$(git -C app-source/shells/aionui rev-parse HEAD)"
           framework_sha="$(git -C framework-source rev-parse HEAD)"
           [ "$app_sha" = "$REQUESTED_APP_REF" ] || {
             echo "::error::App checkout differs from the admitted snapshot."
@@ -461,8 +487,8 @@ jobs:
               node --experimental-strip-types --input-type=module > "$verified_admission_identity_json" <<'NODE'
           import crypto from 'node:crypto';
           import fs from 'node:fs';
-          import { stableAdmissionManifestDigest } from './scripts/stable-release-admission-manifest.ts';
-          import { resolveReleaseVersionIdentity } from './scripts/release-version.ts';
+          import { stableAdmissionManifestDigest } from './app-executor/scripts/stable-release-admission-manifest.ts';
+          import { resolveReleaseVersionIdentity } from './app-executor/scripts/release-version.ts';
 
           const manifest = JSON.parse(fs.readFileSync(process.env.ADMISSION_MANIFEST, 'utf8'));
           const { manifest_digest: declaredDigest, ...core } = manifest;
@@ -539,7 +565,7 @@ jobs:
           previous_latest_json="$RUNNER_TEMP/opl-previous-latest-$GITHUB_RUN_ID.json"
           previous_latest_manifest_json="$RUNNER_TEMP/opl-previous-latest-component-manifest-$GITHUB_RUN_ID.json"
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$published_releases_json"
-          git ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
+          git -C app-source ls-remote --tags origin 'refs/tags/v*' > "$published_tags_txt"
           if [ "$CHANNEL" = stable ]; then
             stable_version_order_json="$RUNNER_TEMP/opl-stable-version-order-$GITHUB_RUN_ID.json"
             registry_token="$(
@@ -559,14 +585,14 @@ jobs:
               200) echo "::error::Public WebUI version tag $version already exists."; exit 1 ;;
               *) echo "::error::Unable to resolve public WebUI version tag $version (HTTP $status)."; exit 1 ;;
             esac
-            node --experimental-strip-types scripts/stable-release-version-order.ts \
+            node --experimental-strip-types app-executor/scripts/stable-release-version-order.ts \
               --target "$version" --published-releases-json "$published_releases_json" > "$stable_version_order_json"
           else
             PUBLISHED_RELEASES_JSON="$published_releases_json" PUBLISHED_TAGS_TXT="$published_tags_txt" \
               BASE_VERSION="${version%-preview.*}" VERSION="$version" \
               node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
-          import { resolvePreviewReleaseVersion } from './scripts/release-version.ts';
+          import { resolvePreviewReleaseVersion } from './app-executor/scripts/release-version.ts';
           const pages = JSON.parse(fs.readFileSync(process.env.PUBLISHED_RELEASES_JSON, 'utf8'));
           const refs = Array.isArray(pages) ? pages.flat().map((release) => release.tag_name).filter(Boolean) : [];
           refs.push(...fs.readFileSync(process.env.PUBLISHED_TAGS_TXT, 'utf8').split(/\r?\n/).filter(Boolean));
@@ -580,11 +606,11 @@ jobs:
             echo "::error::Release v$version already exists; resume only its exact failed checkpoint."
             exit 1
           fi
-          git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1 && {
+          git -C app-source ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1 && {
             echo "::error::Release tag v$version already exists."
             exit 1
           }
-          version_json="$(node --experimental-strip-types scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json)"
+          version_json="$(node --experimental-strip-types app-executor/scripts/release-version.ts --channel "$CHANNEL" --version "$version" --json)"
           updater_version="$(jq -er .updater_version <<<"$version_json")"
           if [ "$CHANNEL" = stable ]; then
             test "$(jq -er .version "$verified_admission_identity_json")" = "$version"
@@ -596,14 +622,14 @@ jobs:
           previous_target="$(jq -er .target_commitish "$previous_latest_json")"
           export GITHUB_REPOSITORY
           previous_target="$(
-            node --experimental-strip-types scripts/resolve-github-target-commit.ts \
+              node --experimental-strip-types app-executor/scripts/resolve-github-target-commit.ts \
               --target "$previous_target" \
               --release-tag "$previous_latest_tag"
           )"
           previous_manifest_url="$(jq -er '.assets[] | select(.name == "opl-app-component-manifest.json") | .url' "$previous_latest_json")"
           gh api --header 'Accept: application/octet-stream' "$previous_manifest_url" > "$previous_latest_manifest_json"
           previous_identity_json="$RUNNER_TEMP/opl-previous-latest-component-identity-$GITHUB_RUN_ID.json"
-          node --experimental-strip-types scripts/read-opl-app-component-manifest-identity.ts \
+          node --experimental-strip-types app-executor/scripts/read-opl-app-component-manifest-identity.ts \
             --manifest "$previous_latest_manifest_json" \
             --expected-tag "$previous_latest_tag" \
             --release-prerelease "$(jq -er .prerelease "$previous_latest_json")" \
@@ -612,7 +638,7 @@ jobs:
           test "$(jq -er .display_version "$previous_identity_json")" = "$previous_display"
           previous_updater="$(jq -er .updater_version "$previous_identity_json")"
           TARGET="$updater_version" CURRENT="$previous_updater" node --experimental-strip-types --input-type=module <<'NODE'
-          import { compareUpdaterMachineVersions } from './scripts/release-version.ts';
+          import { compareUpdaterMachineVersions } from './app-executor/scripts/release-version.ts';
           if (compareUpdaterMachineVersions(process.env.TARGET, process.env.CURRENT) <= 0) {
             throw new Error(`Candidate updater version ${process.env.TARGET} is not newer than Latest ${process.env.CURRENT}.`);
           }
@@ -628,14 +654,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Validate Bundle contracts before paid work
+        working-directory: app-executor
         run: |
           npm run typecheck
           npm run validate:release-boundary
           node --experimental-strip-types --test tests/release/release-bundle-workflow-cutover.test.ts
-          node --conditions=opl-source --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts
-          npm --prefix framework-source run typecheck
+          node --conditions=opl-source --experimental-strip-types --test ../framework-source/tests/src/cli/cases/release-bundle.test.ts
+          npm --prefix ../framework-source run typecheck
 
       - name: Prepare and validate online AI notes
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
+        working-directory: app-source
         env:
           GH_TOKEN: ${{ github.token }}
           OPL_RELEASE_NOTES_MODE: ai
@@ -655,7 +684,7 @@ jobs:
           if (( ${#notes_intent_args[@]} )); then
             set -- "${notes_intent_args[@]}"
           fi
-          npm run release:notes -- \
+          node --experimental-strip-types ../app-executor/scripts/generate-release-notes.ts \
             --version '${{ steps.identity.outputs.version }}' \
             --channel '${{ inputs.publication_channel || inputs.channel }}' \
             --repo "$GITHUB_REPOSITORY" \
@@ -668,16 +697,16 @@ jobs:
             --evidence-output "$notes_root/notes-evidence.json" \
             --output "$notes_root/notes-template.md"
           if [ '${{ inputs.publication_channel || inputs.channel }}' = preview ]; then
-            npm run release:notes:prepare -- \
+            node --experimental-strip-types ../app-executor/scripts/release-notes-ai-writer.ts \
               --evidence "$notes_root/notes-evidence.json" \
               --output "$notes_root/notes-ai.md" \
-              --receipt-output notes-prepare-receipt.json
+              --receipt-output "$GITHUB_WORKSPACE/notes-prepare-receipt.json"
             if ! NOTES_PATH="$notes_root/notes-ai.md" EVIDENCE_PATH="$notes_root/notes-evidence.json" \
-              OUTPUT_PATH="$notes_root/notes-finalized.md" \
+              OUTPUT_PATH="$notes_root/notes-finalized.md" RECEIPT_PATH="$GITHUB_WORKSPACE/notes-prepare-receipt.json" \
               node --experimental-strip-types --input-type=module <<'NODE'
           import fs from 'node:fs';
-          import { finalizePreviewReleaseNotesDocument } from './scripts/release-notes.ts';
-          import { validateAiReleaseNotes } from './scripts/release-notes-ai-writer-parts/validation.ts';
+          import { finalizePreviewReleaseNotesDocument } from '../app-executor/scripts/release-notes.ts';
+          import { validateAiReleaseNotes } from '../app-executor/scripts/release-notes-ai-writer-parts/validation.ts';
           const evidence = JSON.parse(fs.readFileSync(process.env.EVIDENCE_PATH, 'utf8'));
           const prepared = fs.readFileSync(process.env.NOTES_PATH, 'utf8');
           const finalized = finalizePreviewReleaseNotesDocument(prepared, evidence);
@@ -685,9 +714,9 @@ jobs:
           fs.writeFileSync(process.env.OUTPUT_PATH, finalized);
           NODE
             then
-              node --input-type=module <<'NODE'
+              RECEIPT_PATH="$GITHUB_WORKSPACE/notes-prepare-receipt.json" node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const receipt = JSON.parse(fs.readFileSync('notes-prepare-receipt.json', 'utf8'));
+          const receipt = JSON.parse(fs.readFileSync(process.env.RECEIPT_PATH, 'utf8'));
           receipt.written_at = new Date().toISOString();
           receipt.status = 'failed';
           receipt.notes_sha256 = null;
@@ -698,30 +727,39 @@ jobs:
             transport_retry_exhausted: false,
             message: 'Preview deterministic finalization failed after online AI preparation.',
           };
-          fs.writeFileSync('notes-prepare-receipt.json', `${JSON.stringify(receipt, null, 2)}\n`);
+          fs.writeFileSync(process.env.RECEIPT_PATH, `${JSON.stringify(receipt, null, 2)}\n`);
           NODE
               exit 1
             fi
-            npm run release:notes:prepare -- \
+            node --experimental-strip-types ../app-executor/scripts/release-notes-ai-writer.ts \
               --evidence "$notes_root/notes-evidence.json" \
               --input "$notes_root/notes-finalized.md" \
               --output "$notes_root/notes.md" \
-              --receipt-output notes-prepare-receipt.json
+              --receipt-output "$GITHUB_WORKSPACE/notes-prepare-receipt.json"
           else
-            npm run release:notes:prepare -- \
+            node --experimental-strip-types ../app-executor/scripts/release-notes-ai-writer.ts \
               --evidence "$notes_root/notes-evidence.json" \
               --output "$notes_root/notes.md" \
-              --receipt-output notes-prepare-receipt.json
+              --receipt-output "$GITHUB_WORKSPACE/notes-prepare-receipt.json"
           fi
 
       - name: Upload notes preparation receipt
-        if: ${{ always() && hashFiles('notes-prepare-receipt.json') != '' }}
+        if: ${{ always() && inputs.prior_standard_artifact_run_id == '' && hashFiles('notes-prepare-receipt.json') != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-notes-prepare-${{ github.run_id }}
           path: notes-prepare-receipt.json
           if-no-files-found: error
           retention-days: 30
+
+      - name: Download prior immutable Bundle inputs
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-release-bundle-${{ inputs.prior_standard_artifact_run_id }}
+          path: prior-bundle
+          run-id: ${{ inputs.prior_standard_artifact_run_id }}
+          github-token: ${{ github.token }}
 
       - name: Freeze canonical Framework Bundle
         id: bundle
@@ -732,26 +770,48 @@ jobs:
           set -euo pipefail
           notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
           rm -f notes-prepare-receipt.json
-          node --experimental-strip-types scripts/release-operation-deadline.ts check \
+          node --experimental-strip-types app-executor/scripts/release-operation-deadline.ts check \
             --operation '${{ inputs.operation }}' \
             --started-at '${{ inputs.operation_started_at }}' \
             --deadline-at '${{ inputs.operation_deadline_at }}'
-          node --experimental-strip-types scripts/framework-release-adapter.ts freeze-request \
-            --channel '${{ inputs.channel }}' \
-            --publication-channel '${{ inputs.publication_channel || inputs.channel }}' \
-            --version '${{ steps.identity.outputs.version }}' \
-            --updater-version '${{ steps.identity.outputs.updater_version }}' \
-            --app-root . \
-            --shell-root shells/aionui \
-            --framework-root framework-source \
-            --notes "$notes_root/notes.md" \
-            --notes-evidence "$notes_root/notes-evidence.json" \
-            --include-full-package '${{ inputs.include_full }}' \
-            --package-compatibility-abi '${{ inputs.package_compatibility_abi }}' \
-            --package-compatibility-version-range '${{ inputs.package_compatibility_version_range }}' \
-            --output freeze-request.json
-          cp "$notes_root/notes.md" notes.md
-          cp "$notes_root/notes-evidence.json" notes-evidence.json
+          if [ -n '${{ inputs.prior_standard_artifact_run_id }}' ]; then
+            for required in release-bundle.json freeze-request.json notes.md notes-evidence.json; do
+              test -s "prior-bundle/$required" && test ! -L "prior-bundle/$required"
+              cp "prior-bundle/$required" "$required"
+            done
+            jq -e \
+              --arg version '${{ steps.identity.outputs.version }}' \
+              --arg updater '${{ steps.identity.outputs.updater_version }}' \
+              --arg app '${{ steps.identity.outputs.app_sha }}' \
+              --arg shell '${{ steps.identity.outputs.shell_sha }}' \
+              --arg framework '${{ steps.identity.outputs.framework_sha }}' '
+                .release.channel == "stable"
+                and .release.version == $version
+                and .release.display_version == $version
+                and .release.updater_version == $updater
+                and .release.tag == ("v" + $version)
+                and .sources.app.source_commit == $app
+                and .sources.shell.source_commit == $shell
+                and .sources.framework.source_commit == $framework
+              ' release-bundle.json >/dev/null
+          else
+            node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts freeze-request \
+              --channel '${{ inputs.channel }}' \
+              --publication-channel '${{ inputs.publication_channel || inputs.channel }}' \
+              --version '${{ steps.identity.outputs.version }}' \
+              --updater-version '${{ steps.identity.outputs.updater_version }}' \
+              --app-root app-source \
+              --shell-root app-source/shells/aionui \
+              --framework-root framework-source \
+              --notes "$notes_root/notes.md" \
+              --notes-evidence "$notes_root/notes-evidence.json" \
+              --include-full-package '${{ inputs.include_full }}' \
+              --package-compatibility-abi '${{ inputs.package_compatibility_abi }}' \
+              --package-compatibility-version-range '${{ inputs.package_compatibility_version_range }}' \
+              --output freeze-request.json
+            cp "$notes_root/notes.md" notes.md
+            cp "$notes_root/notes-evidence.json" notes-evidence.json
+          fi
           framework-source/bin/opl release freeze \
             --request freeze-request.json \
             --source-root framework-source \
@@ -760,7 +820,12 @@ jobs:
           bundle_digest="$(jq -er .release_bundle_freeze.bundle_digest freeze-result.json)"
           test "$bundle_digest" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           bundle_path="$(jq -er .release_bundle_freeze.bundle_path freeze-result.json)"
-          cp "$bundle_path" release-bundle.json
+          if [ -n '${{ inputs.prior_standard_artifact_run_id }}' ]; then
+            test "$bundle_digest" = "$(jq -er .bundle_digest release-bundle.json)"
+            cmp "$bundle_path" release-bundle.json
+          else
+            cp "$bundle_path" release-bundle.json
+          fi
           operation_id="gha-${GITHUB_RUN_ID}-standard"
           operation_started_at='${{ inputs.operation_started_at }}'
           operation_deadline_at='${{ inputs.operation_deadline_at }}'
@@ -794,7 +859,7 @@ jobs:
           retention-days: 30
 
   standard-build:
-    if: ${{ inputs.mode == 'execute' }}
+    if: ${{ inputs.mode == 'execute' && inputs.prior_standard_artifact_run_id == '' }}
     needs: [freeze, resolve-platform-matrix]
     permissions:
       contents: read
@@ -818,7 +883,7 @@ jobs:
     secrets: inherit
 
   seal-standard-identity:
-    if: ${{ inputs.mode == 'execute' }}
+    if: ${{ always() && inputs.mode == 'execute' && needs.freeze.result == 'success' && (inputs.prior_standard_artifact_run_id != '' || needs.standard-build.result == 'success') }}
     needs: [freeze, standard-build]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -826,9 +891,10 @@ jobs:
       contents: read
       actions: read
     outputs:
-      standard_artifact_name: ${{ steps.seal.outputs.standard_artifact_name }}
-      standard_vm_artifact_name: ${{ steps.seal.outputs.standard_vm_artifact_name }}
-      standard_identity_sha256: ${{ steps.seal.outputs.standard_identity_sha256 }}
+      standard_artifact_name: ${{ steps.seal.outputs.standard_artifact_name || steps.reuse.outputs.standard_artifact_name }}
+      standard_vm_artifact_name: ${{ steps.seal.outputs.standard_vm_artifact_name || steps.reuse.outputs.standard_vm_artifact_name }}
+      standard_artifact_run_id: ${{ steps.seal.outputs.standard_artifact_run_id || steps.reuse.outputs.standard_artifact_run_id }}
+      standard_identity_sha256: ${{ steps.seal.outputs.standard_identity_sha256 || steps.reuse.outputs.standard_identity_sha256 }}
     steps:
       - name: Checkout exact App identity binder
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -837,25 +903,28 @@ jobs:
           path: app-source
 
       - name: Download the one signed Standard build
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: macos-build-arm64
           path: standard-assets
 
       - name: Download the signed Standard build cohort
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: macos-build-arm64-dmg-cohort
           path: standard-cohort
 
       - name: Download the exact Linux Desktop build
-        if: ${{ inputs.channel != 'stable' }}
+        if: ${{ inputs.prior_standard_artifact_run_id == '' && inputs.channel != 'stable' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: linux-build-x64
           path: standard-assets
 
       - name: Generate the frozen universal installer asset
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -873,6 +942,7 @@ jobs:
           bash -n standard-assets/opl-install.sh
 
       - name: Seal one immutable Standard artifact identity
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         id: seal
         shell: bash
         run: |
@@ -913,10 +983,288 @@ jobs:
           {
             echo "standard_artifact_name=opl-release-standard-bound-${GITHUB_RUN_ID}"
             echo "standard_vm_artifact_name=opl-release-standard-vm-bound-${GITHUB_RUN_ID}"
+            echo "standard_artifact_run_id=$GITHUB_RUN_ID"
             echo "standard_identity_sha256=$identity_digest"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Download prior sealed Standard artifact
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-release-standard-bound-${{ inputs.prior_standard_artifact_run_id }}
+          path: bound-standard
+          run-id: ${{ inputs.prior_standard_artifact_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download prior exact-candidate Standard VM artifact
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-release-standard-vm-bound-${{ inputs.prior_standard_artifact_run_id }}
+          path: bound-standard-vm
+          run-id: ${{ inputs.prior_standard_artifact_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download prior Standard cohort identities
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: opl-release-standard*bound-${{ inputs.prior_standard_artifact_run_id }}-cohort
+          path: prior-standard-cohorts
+          run-id: ${{ inputs.prior_standard_artifact_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download prior frozen Bundle
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-release-bundle-${{ inputs.prior_standard_artifact_run_id }}
+          path: prior-bundle
+          run-id: ${{ inputs.prior_standard_artifact_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Download current frozen Bundle
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ env.OPL_RELEASE_BUNDLE_ARTIFACT }}
+          path: current-bundle
+
+      - name: Download prior Standard qualification attempt
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-qualification-attempt-standard-${{ inputs.prior_standard_artifact_run_id }}
+          path: prior-qualification-attempt
+          run-id: ${{ inputs.prior_standard_artifact_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify reusable signed and notarized Standard bytes
+        if: ${{ inputs.prior_standard_artifact_run_id != '' }}
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRIOR_RUN_ID: ${{ inputs.prior_standard_artifact_run_id }}
+          EXPECTED_VERSION: ${{ needs.freeze.outputs.version }}
+          EXPECTED_UPDATER_VERSION: ${{ needs.freeze.outputs.updater_version }}
+          EXPECTED_BUNDLE_DIGEST: ${{ needs.freeze.outputs.bundle_digest }}
+          EXPECTED_APP_SHA: ${{ needs.freeze.outputs.app_sha }}
+          EXPECTED_SHELL_SHA: ${{ needs.freeze.outputs.shell_sha }}
+          EXPECTED_FRAMEWORK_SHA: ${{ needs.freeze.outputs.framework_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRIOR_RUN_ID")"
+          jq -e \
+            --arg run_id "$PRIOR_RUN_ID" \
+            --arg app "$EXPECTED_APP_SHA" '
+              .id == ($run_id | tonumber)
+              and .run_attempt == 1
+              and .event == "workflow_dispatch"
+              and .status == "completed"
+              and .conclusion == "failure"
+              and .head_sha == $app
+              and .path == ".github/workflows/release-stable.yml"
+            ' <<<"$run_json" >/dev/null
+
+          current_bundle=current-bundle/release-bundle.json
+          prior_bundle=prior-bundle/release-bundle.json
+          identity_receipt=bound-standard/standard-identity-receipt.json
+          vm_identity_receipt=bound-standard-vm/standard-identity-receipt.json
+          qualification_attempt=prior-qualification-attempt/qualification-attempt-receipt.json
+          for required in \
+            "$current_bundle" \
+            "$prior_bundle" \
+            "$identity_receipt" \
+            "$vm_identity_receipt" \
+            "$qualification_attempt"; do
+            test -s "$required" && test ! -L "$required"
+          done
+          cmp "$current_bundle" "$prior_bundle"
+          cmp "$identity_receipt" "$vm_identity_receipt"
+          for bundle in "$current_bundle" "$prior_bundle"; do
+            jq -e \
+              --arg digest "$EXPECTED_BUNDLE_DIGEST" \
+              --arg version "$EXPECTED_VERSION" \
+              --arg updater "$EXPECTED_UPDATER_VERSION" \
+              --arg app "$EXPECTED_APP_SHA" \
+              --arg shell "$EXPECTED_SHELL_SHA" \
+              --arg framework "$EXPECTED_FRAMEWORK_SHA" '
+                .bundle_digest == $digest
+                and .release.channel == "stable"
+                and .release.version == $version
+                and .release.display_version == $version
+                and .release.updater_version == $updater
+                and .release.tag == ("v" + $version)
+                and .sources.app.source_commit == $app
+                and .sources.shell.source_commit == $shell
+                and .sources.framework.source_commit == $framework
+              ' "$bundle" >/dev/null
+          done
+
+          standard_dmgs=()
+          vm_dmgs=()
+          while IFS= read -r candidate; do standard_dmgs+=("$candidate"); done < <(
+            find bound-standard/assets -maxdepth 1 -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' -print | LC_ALL=C sort
+          )
+          while IFS= read -r candidate; do vm_dmgs+=("$candidate"); done < <(
+            find bound-standard-vm/assets -maxdepth 1 -type f -name 'One-Person-Lab-*-mac-arm64.dmg' ! -name 'One-Person-Lab-Full-*' -print | LC_ALL=C sort
+          )
+          test "${#standard_dmgs[@]}" -eq 1
+          test "${#vm_dmgs[@]}" -eq 1
+          standard_dmg="${standard_dmgs[0]}"
+          vm_dmg="${vm_dmgs[0]}"
+          expected_dmg_name="One-Person-Lab-${EXPECTED_VERSION}-mac-arm64.dmg"
+          test "$(basename "$standard_dmg")" = "$expected_dmg_name"
+          test "$(basename "$vm_dmg")" = "$expected_dmg_name"
+          dmg_sha256="sha256:$(shasum -a 256 "$standard_dmg" | awk '{print $1}')"
+          vm_dmg_sha256="sha256:$(shasum -a 256 "$vm_dmg" | awk '{print $1}')"
+          test "$dmg_sha256" = "$vm_dmg_sha256"
+          dmg_size="$(stat -c %s "$standard_dmg")"
+          test "$dmg_size" = "$(stat -c %s "$vm_dmg")"
+
+          notarization_receipt=bound-standard/assets/standard-apple-notarization-receipt.json
+          gatekeeper_policy=bound-standard/assets/standard-gatekeeper-launch-policy.json
+          for required in "$notarization_receipt" "$gatekeeper_policy"; do
+            test -s "$required" && test ! -L "$required"
+          done
+          notarization_sha256="sha256:$(shasum -a 256 "$notarization_receipt" | awk '{print $1}')"
+          gatekeeper_sha256="sha256:$(shasum -a 256 "$gatekeeper_policy" | awk '{print $1}')"
+          jq -e \
+            --arg dmg_sha "${dmg_sha256#sha256:}" \
+            --argjson dmg_size "$dmg_size" '
+              .schema == "opl_apple_notarized_dmg_receipt.v1"
+              and .status == "passed"
+              and (.team_identifier | test("^[A-Z0-9]{10}$"))
+              and .app_signature.hardened_runtime == true
+              and .mounted_app_signature.hardened_runtime == true
+              and .notarization.status == "Accepted"
+              and (.notarization.id | type == "string" and length > 0)
+              and .stapler_validate_status == "passed"
+              and .dmg_spctl_status == "passed"
+              and .app_spctl_status == "passed"
+              and .final_stapled_dmg_sha256 == $dmg_sha
+              and .final_stapled_dmg_size_bytes == $dmg_size
+            ' "$notarization_receipt" >/dev/null
+          jq -e \
+            --arg team_id "$(jq -er .team_identifier "$notarization_receipt")" \
+            --arg receipt_sha "${notarization_sha256#sha256:}" '
+              .schema == "opl_gatekeeper_launch_policy.v1"
+              and .package_kind == "app_standard"
+              and .distribution_mode == "developer_id_notarized"
+              and .team_identifier == $team_id
+              and .codesign_status == "passed"
+              and .spctl_status == "passed"
+              and .dmg_codesign_status == "passed"
+              and .dmg_spctl_status == "passed"
+              and .stapler_validate_status == "passed"
+              and .notarization_status == "Accepted"
+              and .notarization_receipt_sha256 == $receipt_sha
+              and .local_authorization_required == false
+              and .quarantine_removal_required == false
+            ' "$gatekeeper_policy" >/dev/null
+
+          identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+          jq -e \
+            --arg run_id "$PRIOR_RUN_ID" \
+            --arg version "$EXPECTED_VERSION" \
+            --arg updater "$EXPECTED_UPDATER_VERSION" \
+            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg app "$EXPECTED_APP_SHA" \
+            --arg shell "$EXPECTED_SHELL_SHA" \
+            --arg framework "$EXPECTED_FRAMEWORK_SHA" \
+            --arg dmg_name "$expected_dmg_name" \
+            --arg dmg_sha "$dmg_sha256" \
+            --arg notarization_sha "$notarization_sha256" \
+            --arg gatekeeper_sha "$gatekeeper_sha256" '
+              .schema == "opl_standard_release_identity_receipt.v2"
+              and .status == "passed"
+              and .source.repository == env.GITHUB_REPOSITORY
+              and .source.run_id == $run_id
+              and .source.run_attempt == 1
+              and .release == {
+                channel: "stable",
+                version: $version,
+                updater_version: $updater,
+                tag: ("v" + $version),
+                bundle_digest: $bundle
+              }
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+              and .apple_distribution_trust.final_dmg == {name: $dmg_name, sha256: $dmg_sha}
+              and .apple_distribution_trust.notarization_receipt == {
+                name: "standard-apple-notarization-receipt.json",
+                sha256: $notarization_sha
+              }
+              and .apple_distribution_trust.gatekeeper_policy == {
+                name: "standard-gatekeeper-launch-policy.json",
+                sha256: $gatekeeper_sha
+              }
+            ' "$identity_receipt" >/dev/null
+
+          cohort_receipts=()
+          while IFS= read -r receipt; do cohort_receipts+=("$receipt"); done < <(
+            find prior-standard-cohorts -type f -name opl-build-cohort.json -print | LC_ALL=C sort
+          )
+          test "${#cohort_receipts[@]}" -eq 2
+          cmp "${cohort_receipts[0]}" "${cohort_receipts[1]}"
+          jq -e \
+            --arg run_id "$PRIOR_RUN_ID" \
+            --arg version "$EXPECTED_VERSION" \
+            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg app "$EXPECTED_APP_SHA" \
+            --arg shell "$EXPECTED_SHELL_SHA" \
+            --arg framework "$EXPECTED_FRAMEWORK_SHA" \
+            --arg dmg_name "$expected_dmg_name" \
+            --arg dmg_sha "${dmg_sha256#sha256:}" \
+            --argjson dmg_size "$dmg_size" '
+              .schema == "opl_app_build_artifact_cohort.v2"
+              and .release.release_cohort_ref == $bundle
+              and .cohort == {
+                app_sha: $app,
+                shell_sha: $shell,
+                framework_sha: $framework
+              }
+              and .build == {version: $version, kind: "standard"}
+              and .artifact == {name: $dmg_name, sha256: $dmg_sha, size_bytes: $dmg_size}
+              and .actions.run_id == $run_id
+              and .actions.run_attempt == "1"
+            ' "${cohort_receipts[0]}" >/dev/null
+
+          jq -e \
+            --arg run_id "$PRIOR_RUN_ID" \
+            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg artifact "opl-release-standard-vm-bound-${PRIOR_RUN_ID}" \
+            --arg dmg_sha "${dmg_sha256#sha256:}" '
+              .schema == "opl_app_qualification_attempt_receipt.v1"
+              and .status == "incomplete"
+              and .retry.disposition == "terminal_blocked"
+              and .identity.release_cohort_ref == $bundle
+              and .identity.artifact_kind == "standard"
+              and .identity.package_profile == "standard"
+              and .identity.qualification_run_id == $run_id
+              and .identity.qualification_run_attempt == "1"
+              and .identity.source_artifact_run_id == $run_id
+              and .identity.source_artifact_name == $artifact
+              and .artifact.sha256 == $dmg_sha
+              and .outcomes.validate_inputs == "failure"
+              and .outcomes.clean_vm == "skipped"
+              and .evidence.strict_qualification_receipt_path == null
+              and .evidence.smoke_summary_path == null
+              and .evidence.critical_diagnostics_path == null
+            ' "$qualification_attempt" >/dev/null
+          {
+            echo "standard_artifact_name=opl-release-standard-bound-${PRIOR_RUN_ID}"
+            echo "standard_vm_artifact_name=opl-release-standard-vm-bound-${PRIOR_RUN_ID}"
+            echo "standard_artifact_run_id=$PRIOR_RUN_ID"
+            echo "standard_identity_sha256=$identity_sha256"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Upload one bound Standard artifact
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-bound-${{ github.run_id }}
@@ -925,6 +1273,7 @@ jobs:
           retention-days: 30
 
       - name: Upload exact-candidate Standard VM artifact
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-vm-bound-${{ github.run_id }}
@@ -934,6 +1283,7 @@ jobs:
           compression-level: 0
 
       - name: Upload bound Standard cohort identity
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-bound-${{ github.run_id }}-cohort
@@ -942,6 +1292,7 @@ jobs:
           retention-days: 30
 
       - name: Upload exact-candidate Standard VM cohort identity
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-vm-bound-${{ github.run_id }}-cohort
@@ -959,7 +1310,7 @@ jobs:
     with:
       mode: execute
       release_artifact_name: ${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}
-      release_artifact_run_id: ${{ github.run_id }}
+      release_artifact_run_id: ${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}
       standard_identity_sha256: ${{ needs.seal-standard-identity.outputs.standard_identity_sha256 }}
       release_bundle_digest: ${{ needs.freeze.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.freeze.outputs.bundle_digest }}
@@ -992,6 +1343,12 @@ jobs:
       completed_stage: ${{ steps.provenance.outputs.completed_stage }}
       standard_identity_sha256: ${{ steps.provenance.outputs.standard_identity_sha256 }}
     steps:
+      - name: Checkout current App workflow executor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: app-executor
+
       - name: Recheck one-shot deadline before Standard checkpoint
         shell: bash
         run: |
@@ -1028,6 +1385,8 @@ jobs:
         with:
           name: ${{ needs.seal-standard-identity.outputs.standard_artifact_name }}
           path: bound-standard
+          run-id: ${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}
+          github-token: ${{ github.token }}
 
       - name: Download protected Standard clean-VM qualification
         if: ${{ inputs.channel == 'stable' }}
@@ -1066,7 +1425,7 @@ jobs:
             exit 1
           }
           jq -e \
-            --arg run_id "$GITHUB_RUN_ID" \
+            --arg producer_run_id '${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}' \
             --arg bundle "$BUNDLE_DIGEST" \
             --arg app '${{ needs.freeze.outputs.app_sha }}' \
             --arg shell '${{ needs.freeze.outputs.shell_sha }}' \
@@ -1074,7 +1433,7 @@ jobs:
             '
               .schema == "opl_standard_release_identity_receipt.v2"
               and .status == "passed"
-              and .source.run_id == $run_id
+              and .source.run_id == $producer_run_id
               and .source.run_attempt == 1
               and .release.bundle_digest == $bundle
               and .cohort == {
@@ -1100,7 +1459,8 @@ jobs:
               exit 1
             }
             jq -e \
-              --arg run_id "$GITHUB_RUN_ID" \
+              --arg qualification_run_id "$GITHUB_RUN_ID" \
+              --arg producer_run_id '${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}' \
               --arg artifact '${{ needs.seal-standard-identity.outputs.standard_vm_artifact_name }}' \
               --arg bundle "$BUNDLE_DIGEST" \
               --arg app '${{ needs.freeze.outputs.app_sha }}' \
@@ -1110,8 +1470,8 @@ jobs:
                 and .status == "passed"
                 and .package_profile == "standard"
                 and .release_cohort_ref == $bundle
-                and .qualification.run_id == $run_id
-                and .qualification.source_artifact_run_id == $run_id
+                and .qualification.run_id == $qualification_run_id
+                and .qualification.source_artifact_run_id == $producer_run_id
                 and .qualification.source_artifact_name == $artifact
                 and .qualification.result == "passed"
                 and .cohort == {
@@ -1137,9 +1497,9 @@ jobs:
             for required in "$control" "$consumption" "$authority" "$source_gate" "$pre_nonce_guard" "$run_authority_reconcile"; do
               test -s "$required" && test ! -L "$required"
             done
-            node --experimental-strip-types app-source/scripts/stable-operation-control.ts verify \
+            node --experimental-strip-types app-executor/scripts/stable-operation-control.ts verify \
               --control "$control" --input "$consumption" \
-              --app-root app-source --source-gate "$source_gate" \
+              --app-root app-executor --source-gate "$source_gate" \
               --pre-nonce-guard "$pre_nonce_guard" \
               --run-authority-reconcile "$run_authority_reconcile" \
               --expected-run-id "$GITHUB_RUN_ID" --expected-actor "$GITHUB_ACTOR" \
@@ -1150,7 +1510,7 @@ jobs:
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
             --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
             --release-operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
-            --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${GITHUB_RUN_ID}/standard-build" \
+            --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}/standard-build" \
             --bundle bundle/release-bundle.json --track standard --outcome complete \
             --assets-dir standard-assets --output standard-build-receipt.json
           framework-source/bin/opl release freeze \

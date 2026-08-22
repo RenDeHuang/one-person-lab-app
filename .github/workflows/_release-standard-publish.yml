@@ -321,6 +321,8 @@ jobs:
 
       - name: Verify protected Standard clean-VM checkpoint sidecar
         if: ${{ inputs.publication_channel == 'stable' }}
+        env:
+          QUALIFICATION_RUN_ID: ${{ inputs.source_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -358,7 +360,8 @@ jobs:
           producer_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "$identity_receipt")"
           bundle_digest="$(jq -er .bundle_digest "$bundle")"
           jq -e \
-            --arg run_id "$producer_run_id" \
+            --arg qualification_run_id "$QUALIFICATION_RUN_ID" \
+            --arg producer_run_id "$producer_run_id" \
             --arg artifact "opl-release-standard-vm-bound-${producer_run_id}" \
             --arg bundle "$bundle_digest" \
             --arg app "$(jq -er .sources.app.source_commit "$bundle")" \
@@ -368,8 +371,8 @@ jobs:
               and .status == "passed"
               and .package_profile == "standard"
               and .release_cohort_ref == $bundle
-              and .qualification.run_id == $run_id
-              and .qualification.source_artifact_run_id == $run_id
+              and .qualification.run_id == $qualification_run_id
+              and .qualification.source_artifact_run_id == $producer_run_id
               and .qualification.source_artifact_name == $artifact
               and .qualification.result == "passed"
               and .cohort == {
