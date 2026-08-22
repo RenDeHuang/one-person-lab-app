@@ -599,10 +599,19 @@ jobs:
           )
           test "${#fallback_receipts[@]}" -eq 1
           test "${#fallback_digests[@]}" -eq 1
+          declared_sha="$(awk 'NR == 1 { print $1 }' "${fallback_digests[0]}")"
+          case "$declared_sha" in
+            sha256:[0-9a-f][0-9a-f]*) canonical_sha="$declared_sha" ;;
+            [0-9a-f][0-9a-f]*) canonical_sha="sha256:$declared_sha" ;;
+            *) echo "::error::Historical Standard clean-VM qualification digest is invalid."; exit 1 ;;
+          esac
+          [[ "$canonical_sha" =~ ^sha256:[0-9a-f]{64}$ ]]
+          observed_sha="sha256:$(shasum -a 256 "${fallback_receipts[0]}" | awk '{print $1}')"
+          test "$observed_sha" = "$canonical_sha"
           materialized_dir=checkpoint-identity-bootstrap/standard-clean-vm-sidecar
           mkdir -p "$materialized_dir"
           cp "${fallback_receipts[0]}" "$materialized_dir/standard-clean-vm-qualification-receipt.json"
-          cp "${fallback_digests[0]}" "$materialized_dir/standard-clean-vm-qualification-receipt.sha256"
+          printf '%s\n' "$canonical_sha" > "$materialized_dir/standard-clean-vm-qualification-receipt.sha256"
 
       - name: Verify protected clean-VM checkpoint sidecars
         shell: bash
