@@ -1687,6 +1687,8 @@ jobs:
 
           rm -rf "$OPL_STATE_DIR" "$CODEX_HOME" "$MAS_PROVISIONING_WORKSPACE"
           mkdir -p "$OPL_STATE_DIR" "$CODEX_HOME" "$MAS_PROVISIONING_WORKSPACE"
+          MAS_PROVISIONING_WORKSPACE="$(cd "$MAS_PROVISIONING_WORKSPACE" && pwd -P)"
+          export MAS_PROVISIONING_WORKSPACE
 
           npm ci --prefix one-person-lab-executor --ignore-scripts --no-audit --no-fund
           one-person-lab-executor/bin/opl packages install mas --json \
