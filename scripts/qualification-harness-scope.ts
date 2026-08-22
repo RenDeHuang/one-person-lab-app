@@ -212,29 +212,47 @@ export function buildQualificationHarnessScopeProof(input: {
   const probesEqual = artifactProbeDigest === verificationProbeDigest;
   const appDiffers = appChangedPaths.length > 0;
   const shellDiffers = shellChangedPaths.length > 0;
-  const harnessMechanicsPaths = [
+  const appHarnessMechanicsPaths = [
+    '.github/workflows/_release-full-addon.yml',
+    '.github/workflows/release-stable.yml',
+    'scripts/qualification-harness-scope.ts',
+    'scripts/validate-release-boundary/text-check-runner.ts',
+    'tests/release/qualification-harness-scope.test.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/publication-and-operation-guards.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/target-and-protected-evidence.ts',
+    'tests/release/release-workflow-broker-admission.test.ts',
+  ];
+  const shellHarnessMechanicsPaths = [
     'scripts/opl-first-run-vm-smoke.mjs',
     'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
   ];
-  const harnessMechanicsOnly = shellDiffers &&
-    shellChangedPaths.length === harnessMechanicsPaths.length &&
-    shellChangedPaths.every((entry, index) => entry === harnessMechanicsPaths[index]);
-  const forbiddenShellPaths = harnessMechanicsOnly ? [] : shellChangedPaths;
+  const appHarnessMechanicsOnly = appDiffers &&
+    appChangedPaths.length === appHarnessMechanicsPaths.length &&
+    appChangedPaths.every((entry, index) => entry === appHarnessMechanicsPaths[index]);
+  const shellHarnessMechanicsOnly = shellDiffers &&
+    shellChangedPaths.length === shellHarnessMechanicsPaths.length &&
+    shellChangedPaths.every((entry, index) => entry === shellHarnessMechanicsPaths[index]);
+  const harnessMechanicsOnly = (appHarnessMechanicsOnly || !appDiffers) &&
+    (shellHarnessMechanicsOnly || !shellDiffers) &&
+    (appDiffers || shellDiffers);
+  const forbiddenAppPaths = appHarnessMechanicsOnly ? [] : appChangedPaths;
+  const forbiddenShellPaths = shellHarnessMechanicsOnly ? [] : shellChangedPaths;
   const expectationContractChanged = !expectationsEqual || !probesEqual;
-  const classification = expectationContractChanged || appDiffers || forbiddenShellPaths.length > 0
+  const classification = expectationContractChanged || forbiddenAppPaths.length > 0 || forbiddenShellPaths.length > 0
     ? 'new_cohort_required'
     : harnessMechanicsOnly
       ? 'harness_mechanics_only'
       : 'same_as_artifact_cohort';
   const reason = expectationContractChanged
     ? 'semantic_expectation_changed'
-    : appDiffers
-      ? 'app_changed'
+    : harnessMechanicsOnly
+      ? 'harness_mechanics_only'
+      : forbiddenAppPaths.length > 0
+        ? 'app_changed'
       : forbiddenShellPaths.length > 0
         ? 'shell_product_or_runtime_changed'
-        : harnessMechanicsOnly
-          ? 'harness_mechanics_only'
-          : 'exact_cohort';
+        : 'exact_cohort';
   return {
     schema: 'opl_app_qualification_harness_scope.v2',
     profile,
@@ -251,7 +269,7 @@ export function buildQualificationHarnessScopeProof(input: {
       allowed: classification !== 'new_cohort_required',
       reason,
       forbidden_paths: {
-        app: appChangedPaths,
+        app: forbiddenAppPaths,
         shell: forbiddenShellPaths,
       },
     },

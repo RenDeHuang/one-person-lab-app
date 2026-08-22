@@ -12,10 +12,21 @@ const artifactShellSha = 'c'.repeat(40);
 const verificationShellSha = 'd'.repeat(40);
 
 test('qualification harness scope allows only the paired VM smoke mechanics change', () => {
+  const appChangedPaths = [
+    '.github/workflows/_release-full-addon.yml',
+    '.github/workflows/release-stable.yml',
+    'scripts/qualification-harness-scope.ts',
+    'scripts/validate-release-boundary/text-check-runner.ts',
+    'tests/release/qualification-harness-scope.test.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/publication-and-operation-guards.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/target-and-protected-evidence.ts',
+    'tests/release/release-workflow-broker-admission.test.ts',
+  ];
   const proof = buildQualificationHarnessScopeProof({
     artifactAppSha,
-    verificationAppSha: artifactAppSha,
-    appChangedPaths: [],
+    verificationAppSha,
+    appChangedPaths,
     artifactShellSha,
     verificationShellSha,
     shellChangedPaths: [
@@ -27,14 +38,15 @@ test('qualification harness scope allows only the paired VM smoke mechanics chan
   assert.equal(proof.classification, 'harness_mechanics_only');
   assert.equal(proof.reuse_authorization.allowed, true);
   assert.equal(proof.reuse_authorization.reason, 'harness_mechanics_only');
+  assert.deepEqual(proof.reuse_authorization.forbidden_paths.app, []);
   assert.deepEqual(proof.reuse_authorization.forbidden_paths.shell, []);
   assert.equal(proof.app.base_sha, artifactAppSha);
-  assert.equal(proof.app.head_sha, artifactAppSha);
+  assert.equal(proof.app.head_sha, verificationAppSha);
   assert.equal(proof.shell.base_sha, artifactShellSha);
   assert.equal(proof.shell.head_sha, verificationShellSha);
   assert.deepEqual(validateQualificationHarnessScopeProof(proof, {
     artifactAppSha,
-    verificationAppSha: artifactAppSha,
+    verificationAppSha,
     artifactShellSha,
     verificationShellSha,
   }), []);
