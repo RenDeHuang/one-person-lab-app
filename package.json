@@ -96,6 +96,7 @@
     "release:dispatch-guard": "node --experimental-strip-types scripts/release-dispatch-guard.ts",
     "release:attestation:verify": "node --experimental-strip-types scripts/verify-release-attestations.ts",
     "release:actions-timing": "node --experimental-strip-types scripts/summarize-github-actions-timing.ts",
+    "release:incident-status": "node --experimental-strip-types scripts/release-incident-status.ts",
     "release:cache-plan": "node --experimental-strip-types scripts/write-actions-cache-plan.ts",
     "release:readiness-summary": "node --experimental-strip-types scripts/summarize-release-readiness.ts",
     "release:component-manifest": "node --experimental-strip-types scripts/write-opl-app-component-manifest.ts",
