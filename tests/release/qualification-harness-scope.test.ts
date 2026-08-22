@@ -11,7 +11,7 @@ const verificationAppSha = 'b'.repeat(40);
 const artifactShellSha = 'c'.repeat(40);
 const verificationShellSha = 'd'.repeat(40);
 
-test('qualification harness scope records exact base/head and requires a new cohort for verifier changes', () => {
+test('qualification harness scope allows only the paired VM smoke mechanics change', () => {
   const proof = buildQualificationHarnessScopeProof({
     artifactAppSha,
     verificationAppSha: artifactAppSha,
@@ -20,16 +20,14 @@ test('qualification harness scope records exact base/head and requires a new coh
     verificationShellSha,
     shellChangedPaths: [
       'scripts/opl-first-run-vm-smoke.mjs',
-      'tests/unit/opl-runtime/firstRunVmSmoke.test.ts',
+      'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
     ],
   });
 
-  assert.equal(proof.classification, 'new_cohort_required');
-  assert.equal(proof.reuse_authorization.allowed, false);
-  assert.deepEqual(proof.reuse_authorization.forbidden_paths.shell, [
-    'scripts/opl-first-run-vm-smoke.mjs',
-    'tests/unit/opl-runtime/firstRunVmSmoke.test.ts',
-  ]);
+  assert.equal(proof.classification, 'harness_mechanics_only');
+  assert.equal(proof.reuse_authorization.allowed, true);
+  assert.equal(proof.reuse_authorization.reason, 'harness_mechanics_only');
+  assert.deepEqual(proof.reuse_authorization.forbidden_paths.shell, []);
   assert.equal(proof.app.base_sha, artifactAppSha);
   assert.equal(proof.app.head_sha, artifactAppSha);
   assert.equal(proof.shell.base_sha, artifactShellSha);

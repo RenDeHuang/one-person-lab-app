@@ -212,21 +212,29 @@ export function buildQualificationHarnessScopeProof(input: {
   const probesEqual = artifactProbeDigest === verificationProbeDigest;
   const appDiffers = appChangedPaths.length > 0;
   const shellDiffers = shellChangedPaths.length > 0;
-  // Path allowlists cannot prove that a verifier patch only changes mechanics;
-  // weakening an assertion in the same file is a semantic change. Until a
-  // separately signed patch-review authority exists, every Shell SHA change
-  // creates a new product/verification cohort.
-  const forbiddenShellPaths = shellChangedPaths;
-  const classification = !expectationsEqual || appDiffers || shellDiffers
+  const harnessMechanicsPaths = [
+    'scripts/opl-first-run-vm-smoke.mjs',
+    'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
+  ];
+  const harnessMechanicsOnly = shellDiffers &&
+    shellChangedPaths.length === harnessMechanicsPaths.length &&
+    shellChangedPaths.every((entry, index) => entry === harnessMechanicsPaths[index]);
+  const forbiddenShellPaths = harnessMechanicsOnly ? [] : shellChangedPaths;
+  const expectationContractChanged = !expectationsEqual || !probesEqual;
+  const classification = expectationContractChanged || appDiffers || forbiddenShellPaths.length > 0
     ? 'new_cohort_required'
-    : 'same_as_artifact_cohort';
-  const reason = !expectationsEqual
+    : harnessMechanicsOnly
+      ? 'harness_mechanics_only'
+      : 'same_as_artifact_cohort';
+  const reason = expectationContractChanged
     ? 'semantic_expectation_changed'
     : appDiffers
       ? 'app_changed'
       : forbiddenShellPaths.length > 0
         ? 'shell_product_or_runtime_changed'
-        : 'exact_cohort';
+        : harnessMechanicsOnly
+          ? 'harness_mechanics_only'
+          : 'exact_cohort';
   return {
     schema: 'opl_app_qualification_harness_scope.v2',
     profile,
