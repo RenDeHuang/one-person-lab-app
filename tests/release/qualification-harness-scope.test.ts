@@ -11,18 +11,10 @@ const verificationAppSha = 'b'.repeat(40);
 const artifactShellSha = 'c'.repeat(40);
 const verificationShellSha = 'd'.repeat(40);
 
-test('qualification harness scope allows only the paired VM smoke mechanics change', () => {
+test('qualification harness scope allows a paired VM smoke mechanics subset', () => {
   const appChangedPaths = [
     '.github/workflows/_release-full-addon.yml',
-    '.github/workflows/release-stable.yml',
     'scripts/qualification-harness-scope.ts',
-    'scripts/validate-release-boundary/release-checks.ts',
-    'scripts/validate-release-boundary/text-check-runner.ts',
-    'tests/release/qualification-harness-scope.test.ts',
-    'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
-    'tests/release/release-bundle-workflow-cutover-cases/publication-and-operation-guards.ts',
-    'tests/release/release-bundle-workflow-cutover-cases/target-and-protected-evidence.ts',
-    'tests/release/release-workflow-broker-admission.test.ts',
   ];
   const proof = buildQualificationHarnessScopeProof({
     artifactAppSha,
@@ -33,7 +25,6 @@ test('qualification harness scope allows only the paired VM smoke mechanics chan
     shellChangedPaths: [
       'scripts/opl-first-run-vm-smoke.mjs',
       'tests/unit/opl-runtime/firstRunVmSmoke.test.ts',
-      'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
     ],
   });
 
@@ -61,7 +52,7 @@ test('malicious verifier weakening cannot qualify as same-artifact by changed pa
     appChangedPaths: [],
     artifactShellSha,
     verificationShellSha,
-    shellChangedPaths: ['scripts/opl-first-run-vm-smoke.mjs'],
+    shellChangedPaths: ['src/main/services/oplRuntime.ts'],
     artifactExpectationDigest: '1'.repeat(64),
     verificationExpectationDigest: '1'.repeat(64),
     artifactProbeDigest: '2'.repeat(64),

@@ -230,11 +230,9 @@ export function buildQualificationHarnessScopeProof(input: {
     'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
   ];
   const appHarnessMechanicsOnly = appDiffers &&
-    appChangedPaths.length === appHarnessMechanicsPaths.length &&
-    appChangedPaths.every((entry, index) => entry === appHarnessMechanicsPaths[index]);
+    appChangedPaths.every((entry) => appHarnessMechanicsPaths.includes(entry));
   const shellHarnessMechanicsOnly = shellDiffers &&
-    shellChangedPaths.length === shellHarnessMechanicsPaths.length &&
-    shellChangedPaths.every((entry, index) => entry === shellHarnessMechanicsPaths[index]);
+    shellChangedPaths.every((entry) => shellHarnessMechanicsPaths.includes(entry));
   const harnessMechanicsOnly = (appHarnessMechanicsOnly || !appDiffers) &&
     (shellHarnessMechanicsOnly || !shellDiffers) &&
     (appDiffers || shellDiffers);

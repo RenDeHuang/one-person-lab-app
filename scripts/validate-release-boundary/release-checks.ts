@@ -1248,7 +1248,7 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "opl_app_full_append_boundary_receipt.v1",
       "carrier:{kind:\"same_standard_release_assets\"",
       "full-read-only-reconcile.json",
-      "verification_app_ref: ${{ inputs.smoke_harness_ref != '' && 'e44568c871c09931926bf226c540e58f703ecb1e' || needs.restore-standard.outputs.app_ref }}",
+      "verification_app_ref: ${{ needs.restore-standard.outputs.app_ref }}",
       "test \"$(jq -r .mutation_attempted full-read-only-reconcile.json)\" = false",
       "standard_updater_metadata_modified:false",
       "latest_modified:false",
