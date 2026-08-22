@@ -1189,7 +1189,7 @@ jobs:
       release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
       artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
-      verification_app_ref: ${{ inputs.smoke_harness_ref != '' && 'ad8403fba6372bf67574f5d72144d6ae1ffb9f61' || needs.restore-standard.outputs.app_ref }}
+      verification_app_ref: ${{ inputs.smoke_harness_ref != '' && 'e44568c871c09931926bf226c540e58f703ecb1e' || needs.restore-standard.outputs.app_ref }}
       shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
       smoke_harness_ref: ${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}
       framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
