@@ -21,12 +21,13 @@ import {
   requiredConversationEventKinds,
   requiredNativeCapabilities,
   requiredSeriesProgressFields,
+  resolveCandidateRoot,
   root,
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
-const deepSeekHarnessRc8Ref = '141eb6fef83422698aef7a981029e843e8161534';
-const deepSeekHarnessRc8PackageRoots = [
+const deepSeekHarnessApplicationHostRef = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e';
+const deepSeekHarnessPackageRoots = [
   'packages/client/ui-layout/src',
   'packages/client/ui-sidebar/src',
   'packages/client/ui-conversation/src',
@@ -114,7 +115,7 @@ export function runCandidateCommands(candidate: ShellCandidate): void {
 
   for (const entry of candidate.validation_commands) {
     if (entry.optional) continue;
-    runRequiredCommand(candidate.id, 'validation', entry);
+    runRequiredCommand(candidate, 'validation', entry);
     if (entry.id === 'candidate_app_bundle_build') {
       validateOPLStudioCarrierEvidenceManifestFile(candidate);
     }
@@ -127,15 +128,18 @@ export function runCandidateCommands(candidate: ShellCandidate): void {
   validateOPLStudioImplementationEvidenceFile(candidate);
 }
 
-function runRequiredCommand(candidateId: string, commandKind: string, entry: ValidationCommand): void {
+function runRequiredCommand(candidate: ShellCandidate, commandKind: string, entry: ValidationCommand): void {
+  const cwd = entry.cwd === candidate.candidate_root
+    ? resolveCandidateRoot(candidate.candidate_root)
+    : path.join(root, entry.cwd);
   const result = spawnSync(entry.command, {
-    cwd: path.join(root, entry.cwd),
+    cwd,
     shell: true,
     stdio: 'inherit',
     env: process.env,
   });
   if (result.status !== 0) {
-    throw new Error(`${candidateId} ${commandKind} command failed: ${entry.id}`);
+    throw new Error(`${candidate.id} ${commandKind} command failed: ${entry.id}`);
   }
 }
 
@@ -146,7 +150,7 @@ export function validateOPLStudioCarrierEvidenceManifestFile(
   if (!contract) {
     throw new Error(`${candidate.id} must declare carrier_evidence_contract`);
   }
-  const candidateRoot = path.join(root, candidate.candidate_root);
+  const candidateRoot = resolveCandidateRoot(candidate.candidate_root);
   const manifestPath = path.join(candidateRoot, contract.manifest_path);
   assertFile(manifestPath, `${candidate.id} carrier evidence manifest`);
   validateOPLStudioCarrierEvidenceManifest(
@@ -328,7 +332,7 @@ export function validateOPLStudioCarrierEvidenceManifest(
 }
 
 function validateOPLStudioImplementationEvidenceFile(candidate: ShellCandidate): void {
-  const evidencePath = path.join(root, candidate.candidate_root, 'src', 'candidateContractEvidence.json');
+  const evidencePath = path.join(resolveCandidateRoot(candidate.candidate_root), 'src', 'candidateContractEvidence.json');
   assertFile(evidencePath, `${candidate.id} contract evidence`);
   const evidence = readJson<Record<string, any>>(evidencePath);
   if (evidence.owner !== 'one-person-lab-app' || evidence.shell !== candidate.id) {
@@ -398,15 +402,49 @@ function validateOPLStudioImplementationEvidence(
     throw new Error(`${candidate.id} evidence must prove one renderer and shared Node host core across Electron desktop and WebUI adapters`);
   }
   if (
-    evidence.reuse_policy?.deepseek_harness_source_usage !== 'direct_mit_gui_source_reuse'
-    || evidence.reuse_policy?.deepseek_harness_source_ref !== deepSeekHarnessRc8Ref
-    || evidence.reuse_policy?.deepseek_harness_ui_package_version !== '0.1.0-rc.8'
+    evidence.reuse_policy?.deepseek_harness_source_usage !== 'pinned_application_host_runtime_and_gui_source_reuse'
+    || evidence.reuse_policy?.deepseek_harness_source_ref !== deepSeekHarnessApplicationHostRef
+    || evidence.reuse_policy?.deepseek_harness_package_version !== '0.1.1-rc.2'
     || evidence.reuse_policy?.deepseek_harness_selected_source_reused !== true
     || evidence.reuse_policy?.other_external_gui_source_copied !== false
-    || evidence.reuse_policy?.runtime_authority_transfer !== false
+    || evidence.reuse_policy?.application_host_runtime_adopted !== true
+    || evidence.reuse_policy?.dsh_product_runtime_authority_adopted !== false
   ) {
-    throw new Error(`${candidate.id} evidence must prove pinned DeepSeek Harness source reuse while keeping other GUI references non-copied and runtime authority unchanged`);
+    throw new Error(`${candidate.id} evidence must prove the pinned DeepSeek Harness Application Host and GUI cohort without adopting DSH product runtime authority`);
   }
+  assertDeepEqualJson(
+    evidence.application_host,
+    candidate.application_host_contract,
+    `${candidate.id} evidence Application Host`,
+  );
+  const guiContract = readJson<Record<string, any>>(
+    path.join(root, 'contracts', 'app-gui-product-contract.json'),
+  );
+  const appComposition = guiContract.framework_surfaces?.package_app_contributions?.ui_composition;
+  const clientComposition = evidence.client_composition_boundary;
+  assertDeepEqualJson(
+    {
+      framework_host_composition_authority: clientComposition?.framework_host_composition_authority,
+      framework_host_composition_authority_scope: clientComposition?.framework_host_composition_authority_scope,
+      framework_runtime_and_package_composition_authority:
+        clientComposition?.framework_runtime_and_package_composition_authority,
+      studio_application_host: clientComposition?.studio_application_host,
+      studio_application_host_scope: clientComposition?.studio_application_host_scope,
+      studio_application_host_may_exist_without_authority_transfer:
+        clientComposition?.studio_application_host_may_exist_without_authority_transfer,
+    },
+    {
+      framework_host_composition_authority: appComposition?.framework_host_composition_authority,
+      framework_host_composition_authority_scope: appComposition?.framework_host_composition_authority_scope,
+      framework_runtime_and_package_composition_authority:
+        appComposition?.framework_runtime_and_package_composition_authority,
+      studio_application_host: appComposition?.studio_application_host,
+      studio_application_host_scope: appComposition?.studio_application_host_scope,
+      studio_application_host_may_exist_without_authority_transfer:
+        appComposition?.studio_application_host_may_exist_without_authority_transfer,
+    },
+    `${candidate.id} evidence Host scope boundary`,
+  );
   assertStringArrayIncludes(
     evidence.reuse_policy?.adopted_patterns ?? [],
     [
@@ -419,30 +457,47 @@ function validateOPLStudioImplementationEvidence(
   );
   const reusedModules = evidence.reused_oss_module_policy;
   if (
-    reusedModules?.policy !== 'pinned_direct_reuse_for_deepseek_harness_reference_only_for_other_gui_sources'
+    reusedModules?.policy !== 'pinned_deepseek_harness_application_host_and_gui_source_reuse_other_gui_sources_reference_only'
     || reusedModules?.vendored_source_root !== 'src/vendor/deepseek-harness'
     || reusedModules?.source_manifest !== 'src/composition/deepseekHarnessSourceManifest.json'
     || reusedModules?.vendored_file_count !== 277
     || reusedModules?.byte_identical !== true
     || reusedModules?.byte_identical_to_pinned_ref !== true
     || reusedModules?.slot_renderer_source !== 'packages/client/ui-renderer/src/client/scoped-slots.tsx#createSlotRenderer'
-    || reusedModules?.brand_override !== 'upstream_rc8_brand_slots_with_text_only_opl_occupants'
+    || reusedModules?.brand_override !== 'upstream_rc2_brand_slots_with_text_only_opl_occupants'
     || reusedModules?.attachment_slot_policy !== 'registered_empty_occupant_no_multimodal_runtime'
     || reusedModules?.workspace_host_description_policy !== 'unavailable_until_app_abi_exists'
     || reusedModules?.home_path_abbreviation_policy !== 'posix_boundary_shim_windows_fail_open_without_app_home_field'
-    || reusedModules?.runtime_authority_transfer !== false
+    || reusedModules?.application_host_runtime_adopted !== true
+    || reusedModules?.dsh_product_runtime_authority_adopted !== false
   ) {
-    throw new Error(`${candidate.id} evidence must bind rc8 source reuse to 277 byte-identical files, the pinned slot renderer, and non-authoritative OPL adapters`);
+    throw new Error(`${candidate.id} evidence must bind the RC2 Application Host and 277 byte-identical GUI files to OPL-owned plugins without product authority transfer`);
   }
   assertDeepEqualJson(reusedModules.direct_reuse_modules, [
-    '@deepseek-ai/dsh-client-ui-slots@0.1.0-rc.8',
-    '@deepseek-ai/dsh-invariants@0.1.0-rc.8',
     '@deepseek-ai/cordis@4.0.1',
+    '@deepseek-ai/cordis-plugin-group@1.0.1',
+    '@deepseek-ai/cordis-plugin-include@1.0.6',
+    '@deepseek-ai/cordis-plugin-loader@1.0.2',
+    '@deepseek-ai/dsh-app-boot@0.1.1-rc.2',
+    '@deepseek-ai/dsh-brand@0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-modules@0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-ui-primitives@0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-ui-slots@0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-web@0.1.1-rc.2',
+    '@deepseek-ai/dsh-home-paths@0.1.1-rc.2',
+    '@deepseek-ai/dsh-host-frontend-static@0.1.1-rc.2',
+    '@deepseek-ai/dsh-host-plugin-inventory@0.1.1-rc.2',
+    '@deepseek-ai/dsh-host-webserver@0.1.1-rc.2',
+    '@deepseek-ai/dsh-invariants@0.1.1-rc.2',
+    '@deepseek-ai/dsh-launch-environment@0.1.1-rc.2',
+    '@deepseek-ai/dsh-system-prompt@0.1.1-rc.2',
+    '@deepseek-ai/dsh-tools@0.1.1-rc.2',
+    '@deepseek-ai/dsh-typert-protocol@0.1.1-rc.2',
     'use-sync-external-store@1.2.0',
   ], `${candidate.id} evidence reused_oss_module_policy.direct_reuse_modules`);
   assertDeepEqualJson(
     reusedModules.vendored_package_roots,
-    deepSeekHarnessRc8PackageRoots,
+    deepSeekHarnessPackageRoots,
     `${candidate.id} evidence reused_oss_module_policy.vendored_package_roots`,
   );
   if (
@@ -555,9 +610,9 @@ export function validateDeepSeekHarnessCompositionEvidence(
   const visual = defaultHomeLayout?.primary_visual_reference;
   if (
     visual?.reference_product !== 'DeepSeek Harness'
-    || visual?.reference_version !== deepSeekHarnessRc8Ref
-    || visual?.reference_date !== '2026-08-20'
-    || visual?.source_usage !== 'direct_mit_gui_source_reuse'
+    || visual?.reference_version !== deepSeekHarnessApplicationHostRef
+    || visual?.reference_date !== '2026-08-22'
+    || visual?.source_usage !== 'direct_gui_source_reuse_with_application_host_cohort'
     || visual?.left_side !== 'persistent project and conversation rail with search and Settings only'
     || visual?.center !== 'single dominant conversation timeline with bottom composer'
     || visual?.right_side !== 'on-demand DSH details column for run status, files and results, and agents and capabilities'
@@ -567,8 +622,8 @@ export function validateDeepSeekHarnessCompositionEvidence(
   const style = defaultHomeLayout?.visual_style_reference;
   if (
     style?.reference_product !== 'DeepSeek Harness'
-    || style?.reference_version !== deepSeekHarnessRc8Ref
-    || style?.reference_date !== '2026-08-20'
+    || style?.reference_version !== deepSeekHarnessApplicationHostRef
+    || style?.reference_date !== '2026-08-22'
     || style?.scope !== 'eleven_pinned_gui_package_source_trees_with_opl_slot_adapters'
     || style?.token_source !== 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css'
     || style?.font_asset_policy !== 'system_font_stack_no_foreign_font_binary_redistribution'

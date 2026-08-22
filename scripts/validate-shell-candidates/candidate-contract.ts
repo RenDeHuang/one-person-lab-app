@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {
+  DSHApplicationHostContract,
   DSHSourceReuseContract,
   NativeP1BaselineBridge,
   NativeThreadAdapterBoundary,
@@ -18,6 +19,8 @@ import {
   requiredSeriesProgressFields,
   forbiddenSeriesDomainFields,
   readJson,
+  resolveCandidateRoot,
+  requiredDshApplicationHostCapabilities,
   requiredNativeCapabilities,
   requiredNativeP1Capabilities,
   requiredNativeThreadCapabilities,
@@ -27,7 +30,7 @@ import {
 import { assertDeepEqualJson } from '../validate-active-shell/assertions.ts';
 
 function assertCandidateFileContains(candidate: ShellCandidate, relativePath: string, snippets: string[], label: string): void {
-  const filePath = path.join(root, candidate.candidate_root, relativePath);
+  const filePath = path.join(resolveCandidateRoot(candidate.candidate_root), relativePath);
   assertFile(filePath, `${candidate.id} ${label}`);
   const source = fs.readFileSync(filePath, 'utf8');
   for (const snippet of snippets) {
@@ -38,14 +41,14 @@ function assertCandidateFileContains(candidate: ShellCandidate, relativePath: st
 }
 
 function assertCandidatePathAbsent(candidate: ShellCandidate, relativePath: string, label: string): void {
-  const filePath = path.join(root, candidate.candidate_root, relativePath);
+  const filePath = path.join(resolveCandidateRoot(candidate.candidate_root), relativePath);
   if (fs.existsSync(filePath)) {
     throw new Error(`${candidate.id} must not retain ${label}: ${relativePath}`);
   }
 }
 
 function assertCandidateFileExcludes(candidate: ShellCandidate, relativePath: string, snippets: string[], label: string): void {
-  const filePath = path.join(root, candidate.candidate_root, relativePath);
+  const filePath = path.join(resolveCandidateRoot(candidate.candidate_root), relativePath);
   assertFile(filePath, `${candidate.id} ${label}`);
   const source = fs.readFileSync(filePath, 'utf8');
   for (const snippet of snippets) {
@@ -57,7 +60,7 @@ function assertCandidateFileExcludes(candidate: ShellCandidate, relativePath: st
 
 function missingCandidateCheckoutCanBeBlocked(candidate: ShellCandidate): boolean {
   return Boolean(
-    !fs.existsSync(path.join(root, candidate.candidate_root))
+    !fs.existsSync(resolveCandidateRoot(candidate.candidate_root))
     && candidate.checkout_policy?.missing_checkout_status === 'blocked_missing_checkout'
     && candidate.build_wrapper?.missing_checkout_blocker_allowed === true
   );
@@ -78,7 +81,9 @@ type CandidateAdapterContract = {
     product_profile_ref?: string;
     topology_authority?: boolean;
     renderer?: string;
+    application_host?: string;
     shared_host_core?: string;
+    shared_host_core_role?: string;
     desktop_adapter?: string;
     desktop_platforms?: string[];
     web_adapter?: string;
@@ -94,6 +99,7 @@ type CandidateAdapterContract = {
     aionui_or_aioncore_dependency_allowed?: boolean;
     active_release_carrier?: boolean;
   };
+  application_host?: DSHApplicationHostContract;
   gui_authority?: { implementation_role?: string };
   codex_executable_contract?: {
     resolver_env?: string;
@@ -117,6 +123,69 @@ export const requiredDSHSourceReuseSurfaces = [
   'settings_locale_surface',
   'text_only_opl_product_identity',
 ];
+
+const expectedDshApplicationHost: DSHApplicationHostContract = {
+  role: 'deepseek_harness_cordis_application_host',
+  implementation_status: 'source_implemented_release_admission_separate',
+  upstream_version: '0.1.1-rc.2',
+  upstream_ref: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+  profile: 'opl-studio',
+  profile_source: 'scripts/webui-host/dsh/cordis.yml',
+  web_overlay: 'scripts/webui-host/dsh/web.patch.yml',
+  profile_home: '$DSH_HOME/profiles/opl-studio',
+  dsh_base_loaded: false,
+  loaded_dsh_services: [
+    'system-prompt_without_harness_identity_or_runtime_context',
+    'tools_native_registry',
+    'host_webserver',
+    'host_plugin_inventory',
+    'frontend_static_web_only',
+    'client_modules_web_only',
+  ],
+  studio_plugins: [
+    'opl-dsh-tool-mcp',
+    'opl-codex-native',
+    'opl-framework-bridge',
+    'opl-host-core',
+    'opl-web-routes',
+  ],
+  codex_runtime_owner: 'opl-codex-native',
+  codex_owned_state: [
+    'persistent_app_server_process',
+    'canonical_threads_and_turns',
+    'approvals',
+    'live_turn_events',
+  ],
+  dsh_tool_bridge: 'authenticated_stateful_loopback_mcp',
+  dsh_tool_plugin_compatibility: 'plugins_registering_tools_in_ctx_tools_are_exposed_to_codex',
+  excluded_upstream_authorities: [
+    'dsh_session',
+    'dsh_llm_provider_routing',
+    'dsh_agent_loop',
+    'dsh_credentials',
+  ],
+  framework_bridge: 'consume_framework_app_state_action_authentication_and_channel_callbacks_only',
+  startup_order: [
+    'dsh_host_tree_and_tool_mcp',
+    'codex_app_server',
+    'framework_bridge',
+  ],
+  shutdown_order: [
+    'framework_channel_callback',
+    'codex_app_server',
+    'dsh_cordis_tree',
+  ],
+  upstream_upgrade_contract: 'update_one_pinned_ref_and_package_cohort_then_regenerate_vendor_manifest_replay_profile_patches_and_run_host_mcp_renderer_candidate_gates',
+  active_shell_adopted: false,
+  release_ready: false,
+};
+
+function validateDshApplicationHostContract(
+  host: DSHApplicationHostContract | undefined,
+  label: string,
+): void {
+  assertDeepEqualJson(host, expectedDshApplicationHost, label);
+}
 
 const requiredNativeThreadProtocols = [
   'thread/list',
@@ -454,11 +523,11 @@ function validateCandidateAdapterContract(
     adapterContract.purpose !== 'active_shell_adapter' ||
     adapterContract.state !== 'active' ||
     adapterContract.candidate_stage !==
-      'opl_studio_single_app_server_adapter_candidate_only' ||
+      'opl_studio_dsh_application_host_candidate_only' ||
     adapterContract.gui_authority?.implementation_role !==
       'foreground_alternative_candidate_implementation_carrier'
   ) {
-    throw new Error(`${candidate.id} adapter must preserve the shared adapter schema and single App Server adapter candidate stage`);
+    throw new Error(`${candidate.id} adapter must preserve the shared adapter schema and DSH Application Host candidate stage`);
   }
   if (adapterContract.shell_root !== candidate.candidate_root) {
     throw new Error(`${candidate.id} adapter contract must point at ${candidate.candidate_root}`);
@@ -497,6 +566,20 @@ function validateCandidateAdapterContract(
     requiredNativeP1Capabilities,
     `${candidate.id} adapter P1 capabilities`,
   );
+  assertStringArrayIncludes(
+    adapterContract.shell_contract.capabilities,
+    requiredDshApplicationHostCapabilities,
+    `${candidate.id} adapter DSH Application Host capabilities`,
+  );
+  validateDshApplicationHostContract(
+    adapterContract.application_host,
+    `${candidate.id} adapter Application Host`,
+  );
+  assertDeepEqualJson(
+    adapterContract.application_host,
+    candidate.application_host_contract,
+    `${candidate.id} registry and adapter Application Host`,
+  );
   if (
     'cross_top_level_thread_authority' in adapterContract ||
     'local_p0_p1_implementation_evidence' in candidate ||
@@ -516,7 +599,9 @@ function validateCandidateAdapterContract(
       product_profile_ref: 'contracts/app-product-profile.json#delivery_topology',
       topology_authority: false,
       renderer: 'deepseek_harness_derived_react',
+      application_host: 'scripts/webui-host/dsh/host.mjs',
       shared_host_core: 'scripts/webui-host/host-core.mjs',
+      shared_host_core_role: 'cross_carrier_application_service_facade_inside_dsh_host',
       desktop_adapter: 'desktop/main.mjs + desktop/preload.cjs',
       desktop_platforms: ['macos', 'windows', 'linux'],
       web_adapter: 'http_sse',
@@ -559,12 +644,15 @@ function validateCandidateAdapterContract(
 
 function validateCandidateImplementationBasis(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.implementation_basis, [
-    'one DeepSeek Harness-derived React renderer with a shared Node host core',
+    'one pinned DeepSeek Harness Cordis Application Host with a DSH-derived React renderer and shared Node service facade',
     'Electron thin desktop carrier for macOS Windows and Linux plus HTTP/SSE standalone and Docker adapters',
     'OPL App state/action contract first',
+    'opl-codex-native owns one persistent Codex App Server canonical threads approvals and live turn events',
+    'authenticated stateful loopback MCP exposes DSH ctx.tools to Codex',
+    'opl-framework-bridge consumes Framework state action authentication and channel callbacks without taking runtime or Package authority',
     'DeepSeek Harness AppFrame sidebar conversation composer Settings theme SlotCore createSlotRenderer and primitives reused from one pinned MIT source cohort',
     'OPL branding bridges and custom functions implemented outside the DSH vendor snapshot as adapters and slot plugins',
-    'independent shell repo mounted under shells/opl-studio',
+    'independent Application Host repo mounted under shells/opl-studio',
   ], `${candidate.id}.implementation_basis`);
 }
 
@@ -871,7 +959,7 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
   if (missingCandidateCheckoutCanBeBlocked(candidate)) {
     return;
   }
-  assertFile(path.join(root, candidate.candidate_root, 'scripts', 'validate-opl-studio-candidate.mjs'), `${candidate.id} self-check`);
+  assertFile(path.join(resolveCandidateRoot(candidate.candidate_root), 'scripts', 'validate-opl-studio-candidate.mjs'), `${candidate.id} self-check`);
   assertCandidateFileContains(candidate, 'package.json', [
     '"build:desktop"',
     '"package:desktop"',
@@ -919,10 +1007,14 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   }
   if (
     candidate.candidate_stage !==
-    'opl_studio_single_app_server_adapter_candidate_only'
+    'opl_studio_dsh_application_host_candidate_only'
   ) {
-    throw new Error(`${candidate.id}.candidate_stage must remain a single App Server adapter candidate only`);
+    throw new Error(`${candidate.id}.candidate_stage must remain a DSH Application Host candidate only`);
   }
+  validateDshApplicationHostContract(
+    candidate.application_host_contract,
+    `${candidate.id}.application_host_contract`,
+  );
   const maintenance = candidate.maintenance_policy;
   if (
     maintenance?.mode !== 'active_product_development_release_admission_separate' ||
@@ -970,7 +1062,7 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
     runtimeDependency?.aioncore_required !== false ||
     runtimeDependency.aionui_required !== false ||
     runtimeDependency.codex_app_server_source !== 'OPL_CODEX_BIN_or_exact_external_codex' ||
-    runtimeDependency.opl_integration !== 'framework_app_state_action_contracts_only' ||
+    runtimeDependency.opl_integration !== 'framework_app_state_action_authentication_and_channel_callbacks_only' ||
     runtimeDependency.multi_backend_abstraction_required !== false ||
     runtimeDependency.thread_store_owner !== 'codex_core_app_server' ||
     !runtimeDependency.forbidden_dependencies.includes('AionUI runtime') ||
@@ -996,27 +1088,29 @@ function validateOPLStudioCandidateContract(candidate: ShellCandidate): void {
   }
   const visual = candidate.dsh_source_reuse_contract as DSHSourceReuseContract | undefined;
   if (
-    visual?.source_cohort !== 'DeepSeek Harness 141eb6fef83422698aef7a981029e843e8161534 selected GUI source' ||
+    visual?.source_cohort !== 'DeepSeek Harness b150a551b8d465e31e418e1b2eaf5e79bbb7d28e Application Host and selected GUI source' ||
     visual.vendor_byte_policy !== 'selected_gui_files_remain_byte_identical_to_their_recorded_upstream_paths_at_the_pinned_ref' ||
-    visual.contract_role !== 'source_preservation_and_opl_integration_regression_not_pixel_reimplementation' ||
-    visual.reuse_method !== 'source_preserving_direct_reuse_through_public_slots_props_and_external_adapters' ||
+    visual.contract_role !== 'application_host_and_source_preservation_with_opl_integration_regression_not_pixel_reimplementation' ||
+    visual.reuse_method !== 'pinned_dsh_application_host_packages_plus_source_preserving_gui_reuse_with_opl_plugins_and_adapters' ||
     visual.visual_style_baseline !== 'DeepSeek Harness selected MIT GUI source preserved for DSH-covered modules plus semantically necessary One Person Lab integrations' ||
     visual.visual_style_scope !== 'light_workbench_palette_system_font_stack_type_scale_weight_line_height_sidebar_density_and_composer_surface' ||
-    visual.visual_token_source !== 'deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@141eb6fef83422698aef7a981029e843e8161534' ||
+    visual.visual_token_source !== 'deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e' ||
     visual.font_asset_policy !== 'reuse_deepseek_harness_system_font_behavior_without_copying_unrelated_assets' ||
     visual.parallel_opl_visual_system_allowed !== false ||
     visual.css_override_policy !== 'forbidden_for_dsh_covered_modules_unless_a_real_opl_semantic_host_accessibility_or_platform_boundary_requires_the_smallest_external_delta' ||
     visual.pixel_evidence_role !== 'detect_regressions_after_source_reuse_and_opl_integration_not_reconstruct_or_approximate_dsh' ||
-    visual.current_reference_status !== 'pinned_direct_source_reuse' ||
+    visual.current_reference_status !== 'pinned_application_host_runtime_and_gui_source_reuse' ||
     visual.regression_floor !== 'AionUI active release shell' ||
-    visual.source_usage !== 'direct_mit_gui_source_reuse' ||
-    visual.minimum_bar !== 'direct_dsh_primitives_slots_layout_and_error_isolation_with_opl_owned_authority' ||
+    visual.source_usage !== 'pinned_application_host_runtime_and_gui_source_reuse' ||
+    visual.application_host_runtime_adopted !== true ||
+    visual.dsh_product_runtime_authority_adopted !== false ||
+    visual.minimum_bar !== 'pinned_dsh_application_host_tools_mcp_codex_native_framework_bridge_and_direct_gui_source_reuse_with_declared_authorities' ||
     visual.model_policy_source !== 'contracts/app-product-profile.json#gui.home.codex_model_display_options' ||
     visual.default_model !== configuredDefaultModel ||
     visual.default_reasoning_effort !== configuredDefaultReasoningEffort ||
     visual.docs_or_contract_only_completion_allowed !== false
   ) {
-    throw new Error(`${candidate.id}.dsh_source_reuse_contract must require source-preserving DSH GUI reuse, reject pixel reimplementation and parallel visual systems, consume the App-owned configured model policy, preserve the AionUI regression floor, and forbid docs-only completion`);
+    throw new Error(`${candidate.id}.dsh_source_reuse_contract must require the pinned DSH Application Host and source-preserving GUI reuse without adopting DSH product runtime authority`);
   }
   assertDeepEqualJson(
     visual.dsh_owned_visual_properties,
@@ -1132,16 +1226,26 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     'function OplBrandNameSlot() { return <>One Person Lab</>; }',
     'function EmptyAttachmentSlot() { return null; }',
     'useHostDescription={(selector: any) => selector(undefined)}',
-    'renderRoot()',
+    'this.renderer.renderRoot(this.host, { contributions })',
+    'return slotHost.renderRoot(contributions)',
   ], 'DeepSeek Harness slot host and rendered GUI composition');
+  assertCandidateFileContains(candidate, 'src/composition/oplStudioClientPlugin.tsx', [
+    'provideOplStudioClientContributions(ctx)',
+    'ctx.provide("uiRenderer"',
+    'root.render(renderOplStudioRoot(contributions))',
+    'ctx.plugin(oplStudioClientPlugin)',
+  ], 'Cordis client plugin and renderer composition');
   assertCandidateFileContains(candidate, 'src/integrations/deepseek-harness/runtimeShim.ts', [
     'export function abbreviateHomePath',
     'isWindowsStylePath',
     'path.startsWith(`${root}/`)',
   ], 'DeepSeek Harness workspace path compatibility shim');
   assertCandidateFileContains(candidate, 'src/main.tsx', [
-    'renderOplStudioRoot',
-    'createRoot(rootElement).render(renderOplStudioRoot())',
+    'import { AppWebEntry } from "@deepseek-ai/dsh-client-web"',
+    'import { mountOplStudioClient, oplStudioClientPlugin } from "./composition/oplStudioClientPlugin"',
+    'globalThis.__OPL_STUDIO_CLIENT__ = oplStudioClientPlugin',
+    'mountOplStudioClient(rootElement)',
+    'new AppWebEntry(rootElement).run()',
   ], 'DeepSeek Harness composition entrypoint');
   assertCandidateFileContains(candidate, 'src/workbench/App.tsx', [
     'renderShell',
@@ -1187,7 +1291,7 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
   assertCandidateFileContains(candidate, 'scripts/validate-opl-studio-candidate.mjs', [
     'src/candidateContractEvidence.json',
     'src/vendor/deepseek-harness/packages/client/ui-renderer/src/client/scoped-slots.tsx',
-    '0.1.0-rc.8',
+    '0.1.1-rc.2',
     'opl-studio',
   ], 'OPL Studio self-validator');
 }

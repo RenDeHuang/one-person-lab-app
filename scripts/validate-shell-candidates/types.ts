@@ -106,6 +106,8 @@ export type DSHSourceReuseContract = {
   superseded_observations?: string[];
   regression_floor?: string;
   source_usage?: string;
+  application_host_runtime_adopted: boolean;
+  dsh_product_runtime_authority_adopted: boolean;
   minimum_bar: string;
   model_policy_source: string;
   default_model: string;
@@ -113,6 +115,31 @@ export type DSHSourceReuseContract = {
   required_surfaces: string[];
   required_evidence: string[];
   docs_or_contract_only_completion_allowed: boolean;
+};
+
+export type DSHApplicationHostContract = {
+  role: 'deepseek_harness_cordis_application_host';
+  implementation_status: 'source_implemented_release_admission_separate';
+  upstream_version: '0.1.1-rc.2';
+  upstream_ref: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e';
+  profile: 'opl-studio';
+  profile_source: 'scripts/webui-host/dsh/cordis.yml';
+  web_overlay: 'scripts/webui-host/dsh/web.patch.yml';
+  profile_home: '$DSH_HOME/profiles/opl-studio';
+  dsh_base_loaded: false;
+  loaded_dsh_services: string[];
+  studio_plugins: string[];
+  codex_runtime_owner: 'opl-codex-native';
+  codex_owned_state: string[];
+  dsh_tool_bridge: 'authenticated_stateful_loopback_mcp';
+  dsh_tool_plugin_compatibility: 'plugins_registering_tools_in_ctx_tools_are_exposed_to_codex';
+  excluded_upstream_authorities: string[];
+  framework_bridge: 'consume_framework_app_state_action_authentication_and_channel_callbacks_only';
+  startup_order: string[];
+  shutdown_order: string[];
+  upstream_upgrade_contract: 'update_one_pinned_ref_and_package_cohort_then_regenerate_vendor_manifest_replay_profile_patches_and_run_host_mcp_renderer_candidate_gates';
+  active_shell_adopted: false;
+  release_ready: false;
 };
 
 export type ShellCandidate = {
@@ -143,6 +170,7 @@ export type ShellCandidate = {
   };
   carrier_evidence_contract?: OPLStudioCarrierEvidenceContract;
   dsh_source_reuse_contract?: DSHSourceReuseContract;
+  application_host_contract?: DSHApplicationHostContract;
   p1_baseline_contract?: {
     runtime_bridge_ref: string;
     adapter_binding_ref: string;

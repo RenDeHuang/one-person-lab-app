@@ -19,7 +19,7 @@ OPL App 不是两个 GUI 产品，而是一个产品 authority 配两个可替�
 
 ```text
 OPL Base
-  `-- OPL Framework：唯一 Cordis Host、状态/动作与 Package projection
+  `-- OPL Framework Host：在 runtime、Package graph 与 App projection scope 内唯一
 OPL Packages
   `-- 提交 runtime capabilities 与 App-schema-admitted declarative GUI descriptors
                 |
@@ -31,7 +31,7 @@ one-person-lab-app
   App 产品 SSOT、Client profile、GUI ABI、发布 authority
                 |
                 +-- opl-aion-shell   当前 Stable Shell，AionUI 薄适配
-                `-- opl-studio       DSH-native 下一代候选 Shell
+                `-- opl-studio       独立 DSH Application Host，同时是下一代候选 Shell carrier
 
 OPL Cloud 通过同一 App/Framework ABI 提供在线产品 projection，
 但保留独立服务与数据 authority。
@@ -71,10 +71,12 @@ GUI 的技术形态是 Host/Client 双运行面，而不是 Framework Node 直�
       -> 投影到 typed slots/routes/actions
 ```
 
-AionUI 可以通过薄 bridge 实现这条协议；Studio 可以原生采用 DSH 的 Client Cordis
-形态。两个 Shell 都只能执行 Framework Host projection 与 App allowlist/profile 派生的
-graph；不能建立第二套 OPL Host，自行发现或安装 plugin，维护 Package registry/currentness，
-获得 release-operation，或拥有 task、Package、product、thread/history truth。
+AionUI 可以通过薄 bridge 实现这条协议；Studio 在自己的 DSH Application Host 内原生采用
+Client Cordis。两个 Shell 都只能执行 Framework Host projection 与 App allowlist/profile
+派生的 client graph。Studio 的 server-side Host 只负责 DSH profile/plugin lifecycle、原生
+Codex child 和 delivery transport，不得成为第二套 Framework runtime/Package Host；任一 Shell
+都不能自行发现或安装 OPL Package，维护 Package registry/currentness，获得 release-operation，
+或拥有 task、Package、product、domain、release truth。
 
 “可替换”由 [`contracts/app-product-profile.json#client_renderer_compatibility`](../../../contracts/app-product-profile.json)
 和各 adapter 的 `client_renderer_admission` 共同证明。所有 App wrapper 在启动 Shell 命令前校验

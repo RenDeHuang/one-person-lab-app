@@ -11,6 +11,11 @@ export const guiContractPath = path.join(root, 'contracts', 'app-gui-product-con
 export const runtimeBridgePath = path.join(root, 'contracts', 'app-runtime-bridge.json');
 export const pageStateMatrixPath = path.join(root, 'contracts', 'app-page-state-matrix.json');
 export const firstRunMatrixPath = path.join(root, 'contracts', 'app-first-run-test-matrix.json');
+
+export function resolveCandidateRoot(candidateRoot: string): string {
+  const override = process.env.OPL_APP_SHELL_ROOT?.trim();
+  return override ? path.resolve(root, override) : path.join(root, candidateRoot);
+}
 export const requiredHomeEntries = ['research', 'grant', 'ppt'];
 export const requiredCapabilities = [
   'codex_cli_fixed_executor_home',
@@ -58,6 +63,16 @@ export const requiredNativeP1Capabilities = [
   'managed_update_base_packages_bridge',
   'app_carrier_update_and_restart',
 ];
+export const requiredDshApplicationHostCapabilities = [
+  'dsh_cordis_application_host',
+  'dsh_profile_loader_and_overlay',
+  'dsh_host_plugin_inventory',
+  'dsh_tools_to_codex_mcp_bridge',
+  'dsh_tool_plugin_compatibility',
+  'opl_codex_native_plugin',
+  'opl_framework_bridge_plugin',
+  'upstream_dsh_upgrade_replay_contract',
+];
 export const requiredNativeCapabilities = [
   'codex_cli_fixed_executor_home',
   'codex_app_server_thread_turn_backend',
@@ -92,6 +107,7 @@ export const requiredNativeCapabilities = [
   'candidate_app_bundle_package',
   ...requiredNativeThreadCapabilities,
   ...requiredNativeP1Capabilities,
+  ...requiredDshApplicationHostCapabilities,
   'shared_node_host_core',
   'electron_desktop_adapter',
   'http_sse_web_adapter',

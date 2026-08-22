@@ -321,7 +321,7 @@ Public role map:
 - App is the ordinary-user product entry and GUI product truth. It owns product navigation, page-state expectations, user documentation, screenshots, and the agent package-management UI that makes OPL usable without knowing the underlying repositories.
 - Agent package management is an App product surface. Each Package owner defines identity and publication, the configured carrier owns physical lifecycle and installed readback, and Framework/root aggregates installed/callable status plus generic actions. The App renders that dynamic projection; shell-local state cannot become install authority.
 - One Person Lab Framework/root owns runtime state, action execution, package/runtime projections, provider/domain projections, and domain routes behind the App views.
-- AionUI remains the mainline shell implementation carrier. The internal `opl-studio` candidate implements the first-party cross-platform App successor; it remains non-mainline until it satisfies the minimum-complete and release-admission gates and the App explicitly switches carriers. Both consume App/root canonical state and do not own product, runtime, package, or domain truth.
+- AionUI remains the mainline shell implementation carrier. The internal `opl-studio` candidate is a full pinned DSH/Cordis Application Host with native Codex integration and shared Desktop/WebUI/OCI carriers; it remains non-mainline until it satisfies the minimum-complete and release-admission gates and the App explicitly switches carriers. Studio consumes Framework state/action/auth/channel contracts and does not take runtime, Package, product, domain, or release authority.
 
 The App decides what users see during install, first launch, task entry, and settings. One Person Lab Framework provides the runtime, initialization, and progress data behind those views, while MAS, MAG, RCA, and BookForge keep their professional judgment and deliverables. The App turns those capabilities into a desktop product experience without replacing professional-agent judgment.
 
@@ -334,7 +334,7 @@ runtime projections, while OPL Cloud owns delivery of the online services.
 
 OPL Book Forge is admitted into the App-owned default Home and Codex-visible skill surface through product contracts and active-shell validation. That default visibility supports the user entry point; it does not authorize production-ready book-writing, publication approval, owner acceptance, or hosted runtime parity claims.
 
-GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. The internal `opl-studio` candidate is the first-party App successor under active development and the only foreground alternative; it does not become mainline until minimum completion, release admission, and an explicit App carrier switch. PilotDeck and similar external projects are inspiration only. The user-facing interface, default behavior, and release experience are governed by this App repository's product docs, contracts, and validation.
+GUI product truth is App-owned as well. The current GUI mainline is the OPL-branded AionUI shell. The internal `opl-studio` candidate is the first-party App successor and an independent DSH Application Host under active development; it is the only foreground alternative and does not become mainline until minimum completion, release admission, and an explicit App carrier switch. The user-facing interface, default behavior, and release experience remain governed by this App repository's product docs, contracts, and validation.
 
 Need framework, runtime, or contract details? Go to [`gaofeng21cn/one-person-lab`](https://github.com/gaofeng21cn/one-person-lab).
 
@@ -355,7 +355,7 @@ one-person-lab-app/
     aionui/             External checkout of gaofeng21cn/opl-aion-shell
 ```
 
-`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. The first-party successor follows the same external-checkout rule under its internal `opl-studio` repo/candidate id at `shells/opl-studio`.
+`shells/aionui/` is intentionally not tracked by this repository. It is checked out from `gaofeng21cn/opl-aion-shell` for builds and validation, keeping AionUI history and contributors outside the clean App product repository. The first-party successor follows the same external-checkout rule under its internal `opl-studio` repo/candidate id at `shells/opl-studio`; that checkout owns a complete DSH Application Host implementation rather than an App-owned source subtree.
 
 ### Validation Commands
 

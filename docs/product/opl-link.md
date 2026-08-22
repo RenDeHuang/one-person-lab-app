@@ -57,7 +57,7 @@ OPL Link 不创建或管理 owner、deadline、dependency、stage、lifecycle �
 | 产品身份、用户结果、安全与发布门禁 | `one-person-lab-app` | 本文与 App contracts |
 | iOS UI、Keychain、E2EE、transport adapter | `opl-link` | 不持有 canonical history |
 | 桌面 Connector Package | `opl-link/packages/opl-link-desktop-connector` | 归类为 OPL Connect 的 `remote_companion_connector`；目标 Package 尚未实现 |
-| Connector lifecycle/composition | OPL Framework 唯一 Cordis Host | 动态发现、托管并投影贡献 |
+| Connector lifecycle/composition | OPL Framework runtime/Package/App projection scope 内唯一的 Cordis Host | 动态发现、托管并投影贡献；不进入 Studio DSH Host |
 | Shell renderer 与 canonical App bridge | `opl-aion-shell` 或已准入 successor | 只渲染投影和桥接 read/action；当前 Connector 业务源码待迁出 |
 | 邀请、配对、短期 JWT、设备授权与撤销 | `opl-link/service` on Workers/D1 | 不存对话正文或 pair master key |
 | 实时密文与通用推送信号 | Ably | 不成为业务 truth |
@@ -71,7 +71,7 @@ OPL Link 整体不是 OPL Connect 的下属产品。只有把桌面 OPL App 接�
 `opl-link/service` 仍由 OPL Link 持有。OPL Connect 不接管它们的产品语义、远端服务、凭据、
 对话历史或 provider 生命周期。
 
-桌面 Connector 复用 OPL Framework 唯一 Cordis Host。Shell 只渲染 Framework projection 并通过
+桌面 Connector 复用 OPL Framework 在 runtime/Package/App projection scope 内唯一的 Cordis Host。Shell 只渲染 Framework projection 并通过
 canonical App bridge 执行动作，不长期拥有 Connector 业务逻辑，也不创建产品专用 Host。当前目标
 Package 尚未实现，既有 Shell Connector 源码是待迁移缺口，不能表述为已经完成插件化。
 

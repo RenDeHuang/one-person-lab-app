@@ -174,17 +174,18 @@ test('retired Hermes and AGUI GUI candidate chains stay physically absent', () =
   assert.equal(packageScripts['validate:candidate:agui'], undefined);
 });
 
-test('DeepSeek Harness full reuse stays Studio-only while AionUI gets only the bounded visual cohort', () => {
+test('DeepSeek Harness Application Host and full GUI reuse stay Studio-only while AionUI gets only the bounded visual cohort', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const reference = registry.design_references?.find(({ id }) => id === 'deepseek-harness');
   const visualCohort = readJson<any>('contracts/app-gui-visual-source-cohort.json');
   const governance = (registry as any).design_system_governance;
 
-  assert.equal(reference?.evaluated_ref, '141eb6fef83422698aef7a981029e843e8161534');
+  assert.equal(reference?.evaluated_ref, 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e');
   assert.equal(reference?.license, 'MIT');
-  assert.equal(reference?.source_usage, 'approved_bounded_source_and_package_reuse');
-  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-ui-slots'], '0.1.0-rc.8');
-  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-invariants'], '0.1.0-rc.8');
+  assert.equal(reference?.source_usage, 'approved_application_host_runtime_and_gui_source_reuse');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-app-boot'], '0.1.1-rc.2');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-ui-slots'], '0.1.1-rc.2');
+  assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-invariants'], '0.1.1-rc.2');
   assert.equal(reference?.adopted_packages['@deepseek-ai/dsh-client-web-react'], undefined);
   assert.equal(reference?.adopted_packages['use-sync-external-store'], '1.2.0');
   assert.equal(reference?.adopted_source?.root, 'src/vendor/deepseek-harness');
@@ -227,11 +228,11 @@ test('DeepSeek Harness full reuse stays Studio-only while AionUI gets only the b
   const driftedReference = secondShell.design_references?.find(({ id }) => id === 'deepseek-harness');
   assert.ok(driftedReference);
   driftedReference.opl_mapping = driftedReference.opl_mapping.filter(
-    (item) => !item.startsWith('OPL Studio may import the complete pinned DeepSeek Harness renderer'),
+    (item) => !item.startsWith('OPL Studio runs the complete pinned DeepSeek Harness Application Host'),
   );
   assert.throws(
     () => validateRegistryShape(secondShell),
-    /DeepSeek Harness opl_mapping must include OPL Studio may import the complete pinned DeepSeek Harness renderer/,
+    /DeepSeek Harness opl_mapping must include OPL Studio runs the complete pinned DeepSeek Harness Application Host/,
   );
 
   const runtimeTakeover = structuredClone(registry);

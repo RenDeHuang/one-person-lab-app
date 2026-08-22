@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import {
   candidateValidationPolicyFromRegistry,
   validateCandidate,
   validateNativeThreadAdapterBoundary,
 } from '../../scripts/validate-shell-candidates/candidate-contract.ts';
+import { resolveCandidateRoot } from '../../scripts/validate-shell-candidates/shared.ts';
 import {
   validateDeepSeekHarnessCompositionEvidence,
   validateDeepSeekHarnessProductLayoutContract,
@@ -107,7 +109,7 @@ test('OPL Studio candidate machine contract removes retired private capabilities
   const candidate = registry.candidates.find((entry) => entry.id === 'opl-studio');
   assert.ok(candidate);
   assert.doesNotThrow(() => validateCandidate(candidate, policy));
-  assert.equal(candidate.candidate_stage, 'opl_studio_single_app_server_adapter_candidate_only');
+  assert.equal(candidate.candidate_stage, 'opl_studio_dsh_application_host_candidate_only');
   assert.deepEqual(candidate.maintenance_policy, {
     mode: 'active_product_development_release_admission_separate',
     automatic_or_scheduled_work_allowed: false,
@@ -130,6 +132,11 @@ test('OPL Studio candidate machine contract removes retired private capabilities
   assert.equal('local_p0_p1_implementation_evidence' in candidate, false);
   assert.ok(candidate.required_capabilities.includes('single_codex_app_server_thread_adapter'));
   assert.ok(candidate.required_capabilities.includes('codex_subagent_event_projection'));
+  assert.ok(candidate.required_capabilities.includes('dsh_cordis_application_host'));
+  assert.ok(candidate.required_capabilities.includes('dsh_tools_to_codex_mcp_bridge'));
+  assert.equal(candidate.application_host_contract?.codex_runtime_owner, 'opl-codex-native');
+  assert.equal(candidate.application_host_contract?.active_shell_adopted, false);
+  assert.equal(candidate.application_host_contract?.release_ready, false);
   for (const retired of [
     'typed_cross_top_level_thread_host_bridge',
     'client_executed_dynamic_tools_coordination_bridge',
@@ -142,13 +149,31 @@ test('OPL Studio candidate machine contract removes retired private capabilities
   }
 });
 
+test('OPL Studio candidate mounts the shared renderer through the RC2 Cordis client plugin', () => {
+  const studioRoot = resolveCandidateRoot('shells/opl-studio');
+  const main = fs.readFileSync(path.join(studioRoot, 'src/main.tsx'), 'utf8');
+  const slotHost = fs.readFileSync(path.join(studioRoot, 'src/composition/dshSlotHost.tsx'), 'utf8');
+  const clientPlugin = fs.readFileSync(
+    path.join(studioRoot, 'src/composition/oplStudioClientPlugin.tsx'),
+    'utf8',
+  );
+
+  assert.match(main, /globalThis\.__OPL_STUDIO_CLIENT__ = oplStudioClientPlugin/);
+  assert.match(main, /mountOplStudioClient\(rootElement\)/);
+  assert.match(main, /new AppWebEntry\(rootElement\)\.run\(\)/);
+  assert.match(slotHost, /this\.renderer\.renderRoot\(this\.host, \{ contributions \}\)/);
+  assert.match(clientPlugin, /root\.render\(renderOplStudioRoot\(contributions\)\)/);
+  assert.match(clientPlugin, /ctx\.plugin\(oplStudioClientPlugin\)/);
+  assert.doesNotMatch(main, /createRoot\(rootElement\)\.render\(renderOplStudioRoot\(\)\)/);
+});
+
 test('OPL Studio candidate evidence keeps the current user-centered Settings groups', () => {
   const evidence = readJson<{
     settings_information_architecture: {
       visible_tabs: string[];
       legacy_tabs_hidden: string[];
     };
-  }>('shells/opl-studio/src/candidateContractEvidence.json');
+  }>(path.join(resolveCandidateRoot('shells/opl-studio'), 'src/candidateContractEvidence.json'));
 
   assert.deepEqual(evidence.settings_information_architecture.visible_tabs, [
     'overview',
@@ -195,7 +220,7 @@ test('OPL Studio candidate binds DSH-covered visuals to source-preserving reuse 
     'ChatGPT Codex macOS 26.707.41301 (2026-07-11)';
   assert.throws(
     () => validateCandidate(staleCandidate, policy),
-    /dsh_source_reuse_contract must require source-preserving DSH GUI reuse/,
+    /dsh_source_reuse_contract must require the pinned DSH Application Host/,
   );
 });
 
@@ -241,17 +266,17 @@ test('OPL Studio candidate evidence binds layout and interaction semantics to pi
       product_layout_contract: alignment,
       primary_visual_reference: {
         reference_product: 'DeepSeek Harness',
-        reference_version: '141eb6fef83422698aef7a981029e843e8161534',
-        reference_date: '2026-08-20',
-        source_usage: 'direct_mit_gui_source_reuse',
+        reference_version: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+        reference_date: '2026-08-22',
+        source_usage: 'direct_gui_source_reuse_with_application_host_cohort',
         left_side: 'persistent project and conversation rail with search and Settings only',
         center: 'single dominant conversation timeline with bottom composer',
         right_side: 'on-demand DSH details column for run status, files and results, and agents and capabilities',
       },
       visual_style_reference: {
         reference_product: 'DeepSeek Harness',
-        reference_version: '141eb6fef83422698aef7a981029e843e8161534',
-        reference_date: '2026-08-20',
+        reference_version: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
+        reference_date: '2026-08-22',
         scope: 'eleven_pinned_gui_package_source_trees_with_opl_slot_adapters',
         token_source: 'src/vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css',
         font_asset_policy: 'system_font_stack_no_foreign_font_binary_redistribution',

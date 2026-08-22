@@ -1,224 +1,170 @@
-# One Person Lab App Successor Product Boundary
+# OPL Studio Product And Repository Boundary
 
 Owner: `one-person-lab-app`
-Purpose: `opl_app_successor_product_boundary`
+Purpose: `opl_studio_product_role_repository_boundary_and_adoption`
 State: `active_product_development_release_admission_separate`
-Machine boundary: 本文记录轻量 OPL GUI 方向的人读产品边界。产品、mainline owner 与 adoption
-真值归 App contracts，source/tests 归独立 OPL Studio；package、pixel、install 与
-release 结论归对应 owner evidence。本文不改变当前 active AionUI release adapter。
+Machine boundary: 本文解释 OPL Studio 在 App 产品中的角色。产品和 adoption 真相归 App
+contracts；Application Host、renderer 与 carrier source 归 `opl-studio`；runtime/Package truth
+归 Framework。本文不改变当前 AionUI active release adapter。
 
 ## Decision
 
-`opl-studio` is the internal repo and candidate id for the approved One Person Lab App successor:
-one DSH-derived React renderer, one shared Node host core, an Electron thin desktop carrier for macOS,
-Windows, and Linux, plus HTTP/SSE adapters for standalone headless WebUI and Docker WebUI. All runtime
-forms expose the same App-owned bridge ABI and product behavior. The product supports Codex CLI/App
-Server only and must not require, start, package, or read AionUI/AionCore.
+`opl-studio` 是 One Person Lab App 的第一方 successor 实现仓库。它不是简单 GUI module、空 Shell
+或 OPL Framework plugin，而是基于 DeepSeek Harness `v0.1.1-rc.2` 的独立 DSH/Cordis
+Application Host，原生管理 Codex App Server，并为 Electron Desktop、standalone headless WebUI
+和 Docker WebUI 提供同一 renderer、Host core 和 App bridge。
 
-AionUI remains the active release shell until the App adapter and release surfaces complete a separate
-adoption transition. That current release role does not make AionUI the target renderer, feature inventory,
-or runtime dependency. The successor is required product development, but it has no full-AionUI-parity
-obligation. Electron is now the selected thin desktop carrier for all three desktop platforms; each
-platform still needs its own packaging, signing, updater, install, and runtime admission before support can
-be claimed. Windows process placement remains adapter-owned and unresolved until native/WSL evidence exists.
+App 仍把实现选择建模为 Shell role：
 
-The current mainline decision is `retain_aionui_with_thin_adapter`: AionUI may render the OPL-owned
-UI-contribution ABI through existing App state/action surfaces, while only OPL Studio may directly reuse
-the pinned DeepSeek Harness AppFrame, sidebar, conversation/composer, Settings, theme, slots, renderer
-contracts, and MIT GUI primitives as its host base. OPL-specific behavior enters those slots through the
-Codex/OPL bridge instead of wrapping the DSH source in a separately imitated workbench. Neither shell may
-create another runtime or product-truth owner.
+- `aionui` 是当前 Stable active release shell；
+- `opl-studio` 是唯一 foreground alternative；
+- source implemented 不自动等于 active-shell adopted；
+- release admission 仍由 App owner 单独决定。
 
-The vendored DSH GUI snapshot is an upstream intake boundary, not a private fork body. Selected vendor
-files should remain byte-identical to the pinned source whenever possible; OPL branding, bridge logic,
-state projection, and contributions live outside that tree. Updating the GUI means advancing one pinned
-DSH ref, reviewing its exact source diff, then rerunning Studio type, interaction, desktop/web pixel,
-package, and notice checks. Floating refs and automatic promotion are forbidden.
+因此，“Studio 是完整 Application Host”和“Studio 当前仍是 candidate Shell”同时成立：前者描述
+Studio 仓库内部架构，后者描述 App 当前发布组合中的角色。
 
-The product layout is intentionally small and follows the pinned DSH composition directly:
+## Repository Relationship
 
-- The left rail contains only projects, conversations, search, and Settings. Runtime, capabilities,
-  project context, files, and results are not standalone Home destinations.
-- The central surface remains the DSH conversation timeline and composer.
-- The user-requested right details surface contains exactly Run status, Files and results, and Agents and
-  capabilities. Package install, update, repair, and removal remain in Settings.
-- Run status combines the current Codex thread state with App-projected `active_project_lines`.
-  Package-owned hypotheses, roadmaps, and other task modules render through `runtime.detail` contribution
-  readback; the shell does not invent them.
-- Files shows only files or directories the user actually added. Results show owner-projected artifacts;
-  App state refs and action JSON are not displayed as files or results.
-- In-app identity is text-only `One Person Lab`. `OPL Studio` is an internal repository, development-line,
-  and candidate-artifact codename and must not appear as the user-facing product name. No Logo is rendered
-  in the workbench; platform bundle icons remain normal operating-system assets.
+| Repository | Sole owner |
+| --- | --- |
+| `one-person-lab-app` | One Person Lab App 产品定义、GUI ABI、Client profile、page state、active-shell、版本组合、carrier evidence contract、迁移与 release |
+| `opl-studio` | DSH profile/plugin lifecycle、`opl-codex-native`、DSH tool MCP、Framework bridge、renderer、Desktop/WebUI/OCI carrier source 与 focused validation |
+| `one-person-lab` | Framework runtime、installed Package discovery/graph/currentness、App projection、state/action/authentication/channel callback contracts |
+| `opl-aion-shell` | 当前 Stable AionUI renderer/process/package implementation 与 upstream intake |
 
-The prior unified coordination plan is superseded by the repo-owned boundaries in
-[`aionui-mainline-gui-convergence-plan.md`](../../active/aionui-mainline-gui-convergence-plan.md),
-[`feature-inventory.md`](feature-inventory.md), and [`decisions.md`](../../decisions.md).
-Historical experiments involving model-triggered cross-thread tools, private delivery ledgers,
-cross-host handoff, or a second thread runtime are evidence of those experiments only. They are not
-required capabilities, release blockers, or an authority source for product behavior.
+App repo 不复制 Studio source，Studio 也不复制 App product truth。App wrapper 通过
+`contracts/shell-adapters/opl-studio.json` 选择 Studio checkout，校验 App-owned compatibility，
+并把当前 App checkout 的绝对 `OPL_APP_REPO_ROOT` 注入 Studio 命令。这样 task worktree、CI checkout
+和 sibling repo 都读取同一 App contract cohort，不会误用旁边另一个 App checkout。
 
-## Current Source Baseline
+Studio 不是 `one-person-lab` Framework Host 的子插件。两个 Cordis Host 通过公开协议对接：
 
-The current Studio source baseline directly reuses the pinned DSH AppFrame, conversation/composer,
-Settings shell, theme tokens, Appearance control and slot host. It now renders only `One Person Lab`,
-disambiguates Auto from a fixed model, presents effort values without a redundant “reasoning” prefix,
-and lists owner-projected OPL standard Agents separately in the composer palette. These are source and
-local visual results only; they do not prove installed, active-shell or release adoption.
+```text
+Framework Host scope
+  = framework_runtime_package_graph_and_app_projection
 
-The source implementation now includes the successor P1 skeleton without adding an Agent activation action.
-It projects the dynamic Agent catalog and lifecycle, captures the selected standard Agent's owner-projected
-`package_id`, `shortcut_id`, `codex_visible_entry`, and `required_skill_ids`, and routes new conversations
-through Codex `thread/start` plus `turn/start`. During an active turn, accepted follow-up input uses
-`turn/steer`; otherwise it uses `turn/start`. Any visible queue is renderer-ephemeral until App Server
-acceptance and is never a persistent Shell queue. The same source baseline includes the `runtime.detail`
-renderer skeleton. Electron Desktop and standalone Headless have App-updater callers, and Base/Package
-action entries exist, but those facts do not establish three complete update objects: Docker/OCI has no
-host-side updater caller, the fast App projection does not yet supply managed-update and OPL Flow dependency
-state, and currentness readback is incomplete. Dynamic Codex Skills/Plugins/Apps reading is canonical; the
-searchable Settings directory, onboarding, workspace/storage controls and updater UX remain in an active
-Studio lane rather than canonical source. `managed_companions` and other owner capability details are not
-yet preserved by the compact projection. Source presence does not replace canonical post-action readback,
-live producer evidence, interaction qualification, or user acceptance.
+Studio Application Host scope
+  = dsh_profile_plugin_lifecycle_codex_and_delivery_transport_composition
 
-## Minimum Complete Product And Ordered Gaps
+Bridge
+  = opl app state/action + authentication + channel callbacks
+```
 
-Studio completion follows the App profile's minimum-complete contract, not AionUI feature parity. The status
-labels below distinguish canonical source, an unabsorbed active lane, missing producer/caller work, and work
-intentionally deferred to release admission; none of them implies user acceptance.
+scope 分离保证 Studio 可以使用 DSH plugin ecosystem，同时不会创建第二套 OPL runtime、Package
+registry/currentness、App state/action、domain 或 product/release authority。
 
-| Surface | Current status | Current evidence and required closure |
-| --- | --- | --- |
-| Agent management | Canonical source-complete skeleton; correctness gaps open | Dynamic catalog, projected installed/enabled/readiness lifecycle, standard-Agent selection, `thread/start` + `turn/start`, and active-turn `turn/steer` are present. Still prove post-launch `thread/read(includeTurns=true)` against the returned canonical thread, restore `activeTurnId` when an active thread is reopened, and hard-block launch when `launch_allowed` or `operational_ready` is false. Lifecycle and automatic-update outcomes require fresh owner readback; do not add an Agent activation action or Shell queue. |
-| Run and research state | Canonical renderer skeleton; producer missing | Thread/turn status, `active_project_lines`, and scoped `runtime.detail` rendering exist. A real owner producer for phase, hypotheses, roadmap and task modules plus an authoritative thread-to-`work_item` identity ABI are still required before work-item-scoped data may render; never synthesize research state in the shell. |
-| App update | Desktop/Headless callers canonical; Docker/OCI caller missing; UX active lane; release deferred | Electron and standalone Headless status/check/apply/restart callers exist. Add the Docker/OCI host-side caller, then qualify restart or recreate and running-version readback. The Settings/Updater interaction and failure-state flow is pending in the active Studio lane. Signing, publication and public-feed mutation remain release work. |
-| OPL Base update | Action entry canonical; producer/readback missing | The Settings action entry exists, but the fast App projection does not yet provide managed-update state. Add that producer projection and qualify terminal post-action readback through the Framework-managed authority. |
-| OPL Packages and Agent updates | Action entries canonical; producer/readback missing | Dynamic action entries exist, but OPL Flow dependency/currentness state is absent from the fast projection. Preserve Package and Agent Package identity, version, policy and terminal outcomes in the owner projection; Agent Packages remain part of this object and never become a fourth updater. |
-| Capabilities | Codex catalog canonical; Settings directory active lane; projection producer incomplete | Dynamic Codex Skills/Plugins/Apps reading and composer selection exist. The searchable Settings directory is pending in the active Studio lane. Preserve `managed_companions`, Flow dependencies, MCP, image/voice capability, owner, version and actions through the compact projection, then qualify empty, loading, partial and error states. |
-| Channel access | Framework projection and Studio source consumer complete | Provider callback, Framework `app_state.transport_bindings` projection, fast-state preservation and Studio merge consumer are source E2E complete. Render projected connection, QR, pairing and authorized-user state with exact action inputs; treat absence as normal, keep an unbound transport row visible, and never persist QR payloads or infer/write bindings. |
-| Computer Use | Shared ABI canonical; Studio consumption active lane | Complete and qualify the Host-projected Computer Use contribution consumer without granting the renderer a second capability authority. |
-| Workspace and storage | Active Studio lane; carrier-host producer missing | Workspace chooser/rebind, storage inventory and related Settings/Onboarding UX are pending outside canonical main. The carrier host also needs a cleanup plan/execute/restore ABI and terminal owner readback; never create a second store. |
-| Account and access | Core Gateway bridge canonical; UX active lane | Gateway projection, cache, non-secret action path and dedicated login secret bridge exist. First-run/startup and stale/error/post-action Settings behavior remains pending interaction qualification; never place password material in generic App actions or renderer persistence. |
-| Preferences and diagnostics | Basic canonical settings; expanded UX active lane; recovery projection incomplete | Theme and basic local preferences exist. Top-level Runtime Overview, first-run/onboarding, updater UX and macOS tray/menu are in the active Studio lane. Service recovery must preserve root cause, mutation guard, repair/restart/recheck actions and terminal readback before acceptance. |
+## Native Codex Boundary
 
-P1 contract closure is now explicit in `app-runtime-bridge.json#native_minimum_product_bridge`, the Studio
-adapter, candidate requirements and focused validation. Agent launch/steer and dynamic lifecycle have a
-canonical source skeleton; the other rows above remain either active-lane work or producer/caller gaps and
-must not be summarized as three complete update objects, a complete capability directory, or accepted
-Settings. The functional baseline remains open until canonical Agent thread/turn readback and active-turn
-restoration, readiness false-gates, a real `runtime.detail` producer with authoritative `work_item` identity,
-current Settings/Onboarding/Updater interaction qualification, Computer Use consumption,
-and end-to-end user acceptance are complete. Connections, notifications, storage maintenance, diagnostic
-export and repeatable DSH upstream intake follow the same evidence boundary. AionUI-only provider, Team,
-scheduler or AionCore surfaces are not parity requirements unless a current OPL user outcome independently
-requires them.
+`opl-codex-native` 是 Studio 内唯一 Codex runtime owner。它启动一个持久
+`codex app-server --stdio`，并持有 canonical threads/turns、approvals 和 live events。Studio
+renderer 不保存第二份会话真相。
 
-## Composition Rule
+DSH `ctx.tools` 通过 authenticated stateful loopback MCP 暴露给同一个 Codex child。因此只注册
+tools、或只依赖 Studio 已加载 Host services 的 DSH plugins 可以直接复用。依赖 DSH Session、LLM
+Provider、Agent Loop 或 Credentials 的 plugins 需要单独 adapter；Studio 不通过加载 `dsh-base`
+来换取兼容性。
 
-The product kernel owns navigation, Codex thread/turn transport, the Settings
-host, permissions, and the action broker. Packages may contribute only through
-declared `settings.section`, `runtime.detail`, and `composer.palette` slots, including the App-owned
-`channel_access` standard view for Weixin/channel providers and the separate `remote_companion_access`
-standard view for OPL Link. Canonical conversation/thread bindings come only from Framework-projected
-`app_state.transport_bindings`; Studio joins them by exact host and thread identity and never infers or writes
-bindings from workspace/title state.
-Studio reuses pinned DeepSeek Harness registration, ordering, error isolation,
-and disposal. AionUI and Studio consume one App Client Contribution ABI and one
-App-owned profile/slot policy. Each shell's Client Cordis graph derives from the
-Framework Host graph projection; neither Cordis nor DSH becomes an independent
-Host, Package registry, currentness, state store, updater, session, action, or
-runtime authority.
+OPL Packages 仍由 Framework installed discovery 和 App contribution ABI 提供，不转换成 DSH
+plugins，也不由 Studio 维护 Package catalog。
 
-## Current Boundary
+## Product Shape
 
-- Codex Core/App Server owns canonical thread identity, history, lifecycle, permissions, and turn state.
-- The candidate consumes the minimal user-triggered thread operations owned by Codex App Server:
-  list, read, start, resume, fork, archive, and restore.
-- Session/thread is the primary identity. Project affinity is zero-or-one: a project or directory may provide
-  a new session's initial cwd, and a projectless session may be adopted once into versioned Studio UI metadata
-  keyed by the exact canonical thread ID. Studio does not claim an App Server `projectId` field or require a
-  `thread/read.projectId` readback that the current protocol does not provide. A bound session is not arbitrarily
-  reassigned; runtime `pwd` changes do not rewrite UI affinity, and the directory does not own sessions, context,
-  or artifacts.
-- Ordinary conversation starts Codex CLI App Server directly; no ACP/AionCore carrier is required.
-- The successor does not require, start, package, or read AionCore. Its shared Node host core resolves an exact Codex executable through
-  `OPL_CODEX_BIN` or an App-owned equivalent, starts Codex App Server directly, and consumes OPL only
-  through Framework `opl app state/action` contracts.
-- Electron desktop owns only windows, preload IPC, OS integration, packaging, signing, and the desktop update
-  adapter. Business logic and Codex/OPL transports stay in the shared Node host core. Standalone headless WebUI
-  and Docker use the same host core through HTTP/SSE and run neither Electron nor AionCore.
-- The existing `install.sh --headless` remains Base-only. Standalone headless WebUI requires a new explicit
-  runtime form or service entry and a separate migration decision; the current packaged Desktop `--webui`
-  path is not evidence that the Electron-free host is complete.
-- Candidate-specific storage, protocol, renderer, package, or live-smoke evidence never proves active-shell
-  adoption, release readiness, or shared physical Runtime parity.
-- macOS, Windows, and Linux must reuse the same renderer, host core, and bridge ABI. Source support does not
-  establish platform support, and the Windows adapter must not pre-decide native versus WSL process placement.
-- AionUI and OpenChamber are bounded references only. Any source reuse requires a separate decision and must
-  not bring their runtime authority, provider abstraction, session store, or control plane into OPL.
-- Model dynamic tools, JSONL audit/idempotency ledgers, write-set advisory control planes, pending-request
-  coordination UI, and cross-host task handoff require a separate future product decision.
+三种 carrier 必须保持同一产品行为：
 
-## Release Admission Gate
+- 左侧是 project/conversation/search/Settings rail；
+- 中心是 DSH conversation timeline 和 persistent composer；
+- 右侧只按需打开 Run status、Files and results、Agents and capabilities；
+- Package lifecycle 位于 Settings；
+- files 只来自用户选择，results 只来自 owner-projected artifacts；
+- 用户可见 identity 是 `One Person Lab`，`OPL Studio` 只用于 repo、candidate 和 Preview artifact。
 
-Successor development follows the minimum-complete product contract. It does not create a full AionUI
-parity plan. Active-shell adoption, installed-App replacement, platform updater
-participation, and release promotion still require separate App-owner qualification and evidence. App release
-validators must not infer those states from source, local package, or candidate evidence.
+GUI contributions 只进入 App 声明的 `settings.section`、`runtime.detail` 和
+`composer.palette`。Client graph 由 Framework projection 与 App slot policy 派生，不允许
+browser-side Package discovery、arbitrary code plugin、第二 action bus 或第二 session store。
 
-The current objective stops at the functional baseline and local user acceptance. AionUI active-shell
-replacement or retirement, protected release admission, signing/notarization, publication, deployment and
-public update-feed mutation are deferred to separate App-owner decisions after that baseline is accepted.
+## Current Source Status
 
-The approved delivery order now has an explicit Preview and transition runway. Studio first ships only as
-the separately identified `One Person Lab Preview`, using its own bundle, user-data root, repository, and
-updater feed for feature validation and internal users. A Preview release may be publicly downloadable and
-automatically update later Preview builds after its own signing, notarization, feed, artifact, install, and
-restart qualification. It remains outside the App Stable/Dev/Nightly identity and does not change the active
-shell.
+App contracts 将 Studio Application Host 标为
+`source_implemented_release_admission_separate`。当前 source contract 已包含：
 
-After functional and internal acceptance, adoption converges both installed populations on the existing
-`One Person Lab` identity defined by `contracts/app-release-channel.json#shell_transition_policy`:
+- pinned RC2 DSH boot/profile/overlay 和 selected GUI source cohort；
+- OPL Host plugin tree 与可回收 lifecycle；
+- persistent native Codex App Server；
+- DSH tools-to-Codex MCP bridge；
+- Framework state/action/auth/channel bridge；
+- shared renderer/Host core across Electron and HTTP/SSE；
+- three-carrier candidate evidence generator；
+- App/Framework/Studio/AionUI Client conformance gate。
 
-- Existing AionUI App installations receive Studio renderer bytes as a normal strictly newer update from
-  the preserved App Stable feed. Bundle ID, install path, user-data root, repository, and updater metadata
-  namespace stay unchanged.
-- Existing Studio Preview installations receive a terminal Preview update that performs a signed handoff
-  to one exact notarized App release. Preview never changes its bundle ID or feed to impersonate the App.
+这些是 source/candidate 能力，不是 release 声明。App carrier evidence contract 仍把 distribution
+wiring、update command wiring、签名、公证、public feed、multi-arch qualification 和 release
+admission 分别列为未完成或未证明状态。
 
-The target's first launch owns one idempotent, versioned migration before normal renderer startup. It imports
-only allowlisted shell-local preferences, canonical-thread-keyed UI metadata, and unsent drafts. Codex
-threads, Gateway credentials/account, Framework Package/runtime/receipts, Workspace source, and domain
-artifacts remain at their existing owners and are reused without copying. AionUI/AionCore databases,
-credentials, cookies, Electron cache/session data, and updater identity files are excluded. An optional last
-AionUI pre-cutover release may emit migration inventory for early diagnosis, but correctness must not depend
-on users installing that intermediate version; direct upgrade from every supported source version remains
-mandatory.
+## Three-Carrier Candidate Evidence
 
-The future implementation sequence is:
+Studio `npm run package` 不再只构建 Electron `.app`，而是按 App contract 顺序验证并生成：
 
-1. close the Studio functional baseline and internal-user acceptance;
-2. qualify signed/notarized Studio Preview publication and Preview-to-Preview automatic updates;
-3. implement the App target migrator, AionUI supported-source readers, and Preview handoff exporter/helper;
-4. freeze the supported source window and qualify AionUI-only, Preview-only, both-installed, interrupted
-   migration, existing-target, and rollback scenarios in clean VMs;
-5. explicitly switch the App adapter and publish Studio bytes through the preserved App Stable identity;
-6. publish the terminal Preview handoff, then retain source bytes and rollback artifacts until post-update
-   owner readback is accepted.
+1. Electron Desktop `.app`；
+2. standalone headless WebUI archive；
+3. Docker local smoke receipt；
+4. `out/opl-studio-carrier-evidence-manifest.json`。
 
-No source, local package, migration receipt, or Preview release authorizes step 5. The cutover requires a
-separate App-owner production decision and exact public/installed readback for both upgrade routes.
+该命令要求 Studio tracked source 已提交且在运行前后保持 clean，以便 manifest 绑定 exact
+`source_commit`。它从当前 App checkout 读取 `carrier_evidence_contract`，不会在 Studio 复制另一份
+carrier authority。生成物是 ignored local evidence；它不授权发布或 active-shell 切换。
 
-## Optional Design Evaluation Tooling
+## Upstream DSH Policy
 
-For an explicit, bounded UI hypothesis, maintainers may use the `build-web-apps`
-frontend design and React review skills as authoring and visual-QA aids. The App
-design system remains the specification: concept generation must preserve its
-information architecture and contracts, and any implementation claim still
-requires browser screenshots and focused interaction checks against the selected
-acceptance surface.
+Studio 必须保持可跟随上游，而不是形成私有 DSH fork：
 
-This tooling is not a Native runtime or package dependency, a routine validation
-gate, or a reason to start an unsolicited redesign. A full visual redesign is
-appropriate only when a manual evaluation task names the target screen or flow
-and its acceptance surface.
+- 一个 exact version/ref 和一组同步 package versions；
+- profile、Web overlay、vendor inventory、license notices 同 cohort；
+- OPL branding、bridge、Host plugins 和 product behavior 留在 vendor tree 外；
+- 只允许有真实 OPL semantic/host/platform/accessibility caller 的最小 source delta；
+- 每次升级重跑 Host/MCP、renderer、Desktop/WebUI、candidate、notice 和 carrier gates；
+- Host service 或 authority 变化时先更新 App contract，再吸收 Studio implementation。
+
+完整升级方法见
+[`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md)。
+
+## Adoption And Release
+
+Studio Preview 保持独立 product name、bundle id、user-data root、repository 和 updater feed。它可以
+用于候选验证，但不能冒充当前 `/Applications/One Person Lab.app` 或 App Stable feed。
+
+未来 adoption 仍保留两条迁移路线：
+
+1. 当前 AionUI App 从保留的 App identity/feed 原地升级到 Studio renderer；
+2. Studio Preview 通过一个 exact signed handoff 安装同一正式 App release。
+
+正式 App 首次启动只迁移 allowlisted shell-local preferences、canonical-thread-keyed UI metadata
+和 unsent drafts。Codex threads、Gateway credentials、Framework Package/runtime/receipts、Workspace
+source 和 domain artifacts 继续由原 owner 提供；AionUI/AionCore database、cookies、secrets、
+Electron cache 和 updater identity 不整体复制。
+
+Adoption 只有在以下 owner evidence 完成后才可发生：
+
+- minimum-complete App user outcomes；
+- three-carrier package/install/update/rollback evidence for the claimed scope；
+- signing/notarization/public artifact/feed evidence where applicable；
+- clean-host/VM and accessibility evidence for claimed platforms；
+- migration and rollback qualification；
+- explicit update of `contracts/app-shell-adapter.json`；
+- final installed/runtime/App/Framework owner readback。
+
+在此之前固定：
+
+- `active_shell_adopted=false`；
+- `release_ready=false`；
+- AionUI remains Stable mainline；
+- Studio source, local package, Preview 或 candidate manifest 都不能单独关闭 adoption gate。
+
+## Canonical References
+
+- [`app-product-profile.json`](../../../contracts/app-product-profile.json) 的 `delivery_topology`
+- [`app-gui-product-contract.json`](../../../contracts/app-gui-product-contract.json) 的 `ui_composition`
+- [`app-shell-candidates.json`](../../../contracts/app-shell-candidates.json) 的 candidate 与 carrier evidence contract
+- [`shell-adapters/opl-studio.json`](../../../contracts/shell-adapters/opl-studio.json) 的 Application Host adapter
+- [`app-release-channel.json`](../../../contracts/app-release-channel.json) 的 shell transition policy
+- [`gui-shell-candidates.md`](gui-shell-candidates.md) 的 active/candidate selection

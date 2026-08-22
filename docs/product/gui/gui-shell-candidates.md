@@ -51,7 +51,7 @@ task、Package、product truth。Framework Host producer/projection 已 canonica
 | --- | --- | --- |
 | `one-person-lab-app` | 产品行为、导航、页面状态、GUI contribution ABI、Client Cordis profile、active shell、版本组合与发布门禁 | Electron/React 具体实现、AionUI/DSH 上游源码 |
 | `opl-aion-shell` | 当前 Stable 的 AionUI renderer、Electron/preload、AionCore/Codex 适配和安装实现 | OPL 产品定义、插件名单、发布策略 |
-| `opl-studio` | DSH 风格 Client Cordis、Codex App Server carrier 和 Studio renderer 的下一代候选实现 | 第二套 OPL 产品 authority、擅自声明 active/release-ready |
+| `opl-studio` | 完整 DSH/Cordis Application Host、`opl-codex-native`、Framework bridge、Client Cordis、renderer 与三种 carrier 的下一代候选实现 | 第二套 Framework runtime/Package authority、第二套 App 产品 authority、擅自声明 active/release-ready |
 
 共享产品逻辑只能沉淀为 App contracts/profile、Framework ABI、GUI contribution schema
 或独立 Package；不能从一个 Shell 复制到另一个。Shell 切换只需在 App 主仓通过
@@ -131,15 +131,17 @@ Host-derived graph、App allowlist、typed slots/actions、RPC/events 和 state 
 或与 AionUI 的 Runtime/session parity。两个 bundle 可并存，但在 host coordination 与并发
 负向证据完成前，只承诺快速顺序切换，不承诺两个 GUI 同时写同一 workspace/thread 的安全性。
 
-DeepSeek Harness is not another shell role. Its complete renderer/slot host remains a
-pinned source dependency for the sole foreground candidate route, `opl-studio`.
+DeepSeek Harness is not another shell role. Its pinned Application Host and selected
+renderer/slot source form the implementation base of the sole foreground candidate,
+`opl-studio`.
 AionUI consumes the OPL-owned contribution ABI plus only the bounded visual source
 cohort through `OplVisualProvider` and `OplIcon`; it does not import DeepSeek Harness
-runtime, session, router, provider, connection, complete renderer, or Client Cordis. Both shells may run the
-single App-approved Client Cordis graph derived from the Framework Host graph
-and App profile/allowlist; neither may create independent Host truth, discover
-or install OPL plugins, maintain a Package registry/currentness view, receive
-release-operation, or own state, session, or action authority.
+Application Host, session, router, provider, connection, complete renderer, or Client
+Cordis. Both shells may run the single App-approved Client Cordis graph derived from
+the Framework Host graph and App profile/allowlist. Studio's separate server-side Host
+is scoped to DSH/plugin/Codex/transport composition; neither shell may create a second
+Framework runtime/Package graph, discover or install OPL Packages, maintain a Package
+registry/currentness view, receive release-operation, or own App state/action authority.
 The evaluation and controlled migration plan lives in
 [`deepseek-harness-composition-plan.md`](deepseek-harness-composition-plan.md).
 
@@ -223,7 +225,10 @@ npm run validate:candidate:studio
 ```
 
 Build the foreground candidate through the App wrapper. Full Studio evidence is
-owned by the OPL Studio candidate path:
+owned by the OPL Studio candidate path. The wrapper injects the current App
+checkout as an absolute `OPL_APP_REPO_ROOT`; Studio then requires committed,
+tracked-clean source and produces the Electron, standalone WebUI, Docker smoke,
+and exact-commit carrier manifest required by the App contract:
 
 ```bash
 npm run package:candidate:studio
@@ -235,6 +240,10 @@ set `OPL_APP_SHELL_ROOT` for that command:
 ```bash
 OPL_APP_SHELL_ROOT=../opl-studio npm run package:candidate:studio
 ```
+
+The generated carrier manifest is ignored candidate evidence. It does not
+change `app-shell-adapter.json`, wire any distribution/update channel, or prove
+signing, notarization, public publication, release admission, or adoption.
 
 ## Boundaries
 

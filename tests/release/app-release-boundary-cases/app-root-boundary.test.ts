@@ -1,5 +1,8 @@
 import { assertAppRootBoundary } from '../../../scripts/app-root-boundary.ts';
-import { resolveOplBuildVersions } from '../../../scripts/run-active-shell-command.ts';
+import {
+  resolveActiveShellEnvironment,
+  resolveOplBuildVersions,
+} from '../../../scripts/run-active-shell-command.ts';
 import {
   assert,
   fs,
@@ -85,6 +88,19 @@ test('active-shell wrapper binds the display version to the canonical updater ma
   assert.throws(
     () => resolveOplBuildVersions({ OPL_RELEASE_VERSION: '26.8.19-nightly' }),
     /Invalid stable App release version/,
+  );
+});
+
+test('active-shell wrapper binds Shell contract reads to the current App worktree', () => {
+  const repositoryRoot = path.join(os.tmpdir(), 'opl-app-current-worktree');
+  const environment = resolveActiveShellEnvironment(
+    { OPL_RELEASE_VERSION: '26.8.19', OPL_APP_REPO_ROOT: '/stale/app/root' },
+    repositoryRoot,
+  );
+  assert.equal(environment.OPL_APP_REPO_ROOT, path.resolve(repositoryRoot));
+  assert.equal(
+    environment.OPL_APP_RELEASE_ICON_ICNS,
+    path.join(path.resolve(repositoryRoot), 'shells', 'aionui', 'resources', 'app.icns'),
   );
 });
 

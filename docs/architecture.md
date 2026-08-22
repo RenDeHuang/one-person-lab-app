@@ -10,7 +10,7 @@ The App is one product layer in that ecology, not the owner of Base,
 Packages, Cloud, or domain truth:
 
 ```text
-OPL Base       -> OPL Framework, the single Cordis Host
+OPL Base       -> OPL Framework, the Cordis Host for runtime, Package graph, and App projection
 OPL Packages   -> installable runtime and declarative GUI contributions
 OPL App        -> one-person-lab-app product profile, GUI ABI, Shell and release
 OPL Cloud      -> online Workspace, governance and hosted services
@@ -63,13 +63,13 @@ OPL Packages
   -> runtime/plugin capabilities -------------------------------+
   -> App-schema-admitted declarative GUI descriptors -----------+
                                                                v
-OPL Framework (single Host Cordis)
+OPL Framework Host (scope: framework_runtime_package_graph_and_app_projection)
   -> frozen Host graph and allowlisted state/action/RPC/event + GUI projection
                                                                |
                                                                v
 one-person-lab-app product profile + allowlisted Client Cordis/GUI ABI
   -> opl-aion-shell (current Stable AionUI carrier)
-  -> opl-studio (DSH-derived candidate carrier)
+  -> opl-studio (independent DSH Application Host, candidate carrier)
 ```
 
 Both Shells must implement the same product state semantics, typed RPC reads and
@@ -77,17 +77,21 @@ events, canonical App actions, runtime bridge, typed slots/routes/actions, GUI
 contribution schema, accessibility policy, and release evidence categories.
 They may keep independent renderers, component trees,
 Electron/Node carriers, AionCore/Codex adapters, upstream intake, caches, build
-systems, Git histories, and implementation tests. Neither Shell may own a
-second OPL Host, discover or install Packages/plugins, maintain Package
-registry/currentness, receive release-operation, or own task, Package, product,
-Codex thread, domain, or release truth.
+systems, Git histories, and implementation tests. Studio additionally owns a
+DSH Application Host scoped to profile/plugin lifecycle, native Codex process,
+and delivery transport composition. That Host is not a second Framework
+runtime or Package Host: neither Shell may discover or install OPL Packages,
+maintain Package registry/currentness, receive release-operation, or own task,
+Package, product, domain, or release truth. Canonical thread/turn truth remains
+with Codex App Server; `opl-codex-native` owns only Studio's persistent child and
+protocol lifecycle around it.
 
 The GUI target is a Host/Client composition, not Node rendering React directly.
-The Framework Host freezes the graph and projects bounded declarative client
-contributions. A Shell reads the App-owned boot/profile, creates its Client
-Cordis, loads only that Host-derived graph, and mounts contributions into typed
-slots. AionUI may implement this through a thin bridge; Studio may implement it
-natively in the DSH style. The Framework Host producer and
+The Framework Host freezes the runtime/Package graph and projects bounded
+declarative client contributions. A Shell reads the App-owned boot/profile,
+creates its Client Cordis, loads only that Host-derived graph, and mounts
+contributions into typed slots. AionUI may implement this through a thin bridge;
+Studio does so inside its separate DSH Application Host. The Framework Host producer and
 `app_state.ui_contributions` projection are canonical. Each Shell's Client
 runtime conformance remains source- and test-proven; this App contract cannot
 substitute for either implementation's evidence.
@@ -625,7 +629,7 @@ for Native Candidate launches; active AionUI parity and direct Native bundle
 launches remain current deviations. Side-by-side installation and sequential launch selection
 therefore do not imply safe simultaneous writes to one workspace or thread.
 
-Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit pre-adoption builds. `contracts/app-shell-candidates.json` declares `opl-studio` as the only foreground alternative and first-party Native successor, with its adapter under `contracts/shell-adapters/opl-studio.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell until Studio completes its minimum product and release-admission gates. The OPL Studio route is the shell-agnostic route for direct App state/action consumption, shared desktop/WebUI renderer shape, and bounded DSH composition reuse without importing external runtime authority. Source, install, and readback evidence qualify the eventual explicit cutover; they do not make local candidate bytes the active shell by themselves.
+Shell alternatives are intentionally separated from the default release adapter while still remaining selectable for explicit pre-adoption builds. `contracts/app-shell-candidates.json` declares `opl-studio` as the only foreground alternative and first-party successor, with its adapter under `contracts/shell-adapters/opl-studio.json`. The default `contracts/app-shell-adapter.json` continues to define the stable AionUI release shell until Studio completes its minimum product and release-admission gates. OPL Studio is a full pinned DSH/Cordis Application Host with native Codex ownership and a Framework consumer bridge; App still treats it as a candidate Shell carrier until explicit adoption. Source, install, and readback evidence qualify the eventual cutover; they do not make local candidate bytes the active shell by themselves.
 
 A candidate enters App product truth only through App-owned contract updates and validation gates; implementation roadmaps and candidate package evidence remain technical verification until an explicit active-shell adoption decision changes `contracts/app-shell-adapter.json`. A candidate becomes the default release shell only when `contracts/app-shell-adapter.json` is updated deliberately and the runtime bridge remains satisfied, App product profile syncs into its configured target, App page-state and first-run matrices pass, shared desktop/WebUI evidence passes when claimed, App-root active-shell validation passes, GUI package compile succeeds through the App wrapper, and the external checkout history policy is preserved.
 

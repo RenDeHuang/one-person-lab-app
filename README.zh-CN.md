@@ -304,7 +304,7 @@ one-person-lab-app/
     aionui/             gaofeng21cn/opl-aion-shell 的外部检出目录
 ```
 
-`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。OPL Studio 作为唯一开发备选候选，同样以 `shells/opl-studio` 外部检出承载。
+`shells/aionui/` 不纳入本仓跟踪。构建和验证时从 `gaofeng21cn/opl-aion-shell` 检出，AionUI 历史和贡献者记录保留在独立 shell 仓库中。OPL Studio 作为唯一开发备选候选，同样以 `shells/opl-studio` 外部检出承载；该检出本身实现完整的 DSH/Cordis Application Host、原生 Codex 集成与三种 delivery carrier，不是 App 仓内的 GUI 子模块。
 
 ### 常用验证命令
 

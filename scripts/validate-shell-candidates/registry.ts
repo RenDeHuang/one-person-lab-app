@@ -40,7 +40,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
   const alternative = registry.alternative_gui_policy;
   if (
     alternative?.only_foreground_alternative !== 'opl-studio' ||
-    alternative.basis !== 'OPL Studio DSH-derived composition workbench' ||
+    alternative.basis !== 'OPL Studio DSH Application Host and composition workbench' ||
     alternative.active_shell_switch_policy !== 'only_contracts/app-shell-adapter.json_can_switch_default_release_shell'
   ) {
     throw new Error('candidate registry must keep OPL Studio as the only foreground alternative');
@@ -110,7 +110,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     'candidate uses one App-owned product renderer across claimed delivery surfaces without making the renderer a product truth owner',
     'candidate provides delivery-surface bridges that expose the same App-owned API shape without taking runtime authority',
     'candidate passes WebUI smoke only when it explicitly claims WebUI delivery; otherwise WebUI remains explicitly deferred and non-claiming',
-    'candidate directly reuses the pinned DeepSeek Harness GUI source cohort and keeps OPL custom functions outside the vendor snapshot',
+    'candidate runs the pinned DeepSeek Harness Application Host and GUI source cohort with OPL-owned plugins while keeping product and runtime authorities at their declared owners',
     'candidate keeps only projects, conversations, search, and Settings in the left rail and exposes run status, files and results, and agents and capabilities as user-requested right context',
     'candidate passes state-model validation proving active project line projection consumption without taking runtime or domain authority',
     'candidate compiles a launchable .app bundle through the App wrapper when OPL_APP_SHELL_ADAPTER_CONTRACT selects its adapter contract',
@@ -500,23 +500,39 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
   }
   if (
     deepseekHarness.source_repo !== 'https://github.com/deepseek-ai/deepseek-harness' ||
-    deepseekHarness.evaluated_ref !== '141eb6fef83422698aef7a981029e843e8161534' ||
-    deepseekHarness.evaluated_at !== '2026-08-20' ||
-    deepseekHarness.evaluated_version !== '0.1.0-rc.8 source and package cohort' ||
+    deepseekHarness.evaluated_ref !== 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e' ||
+    deepseekHarness.evaluated_at !== '2026-08-22' ||
+    deepseekHarness.evaluated_version !== '0.1.1-rc.2 Application Host and GUI source cohort' ||
     deepseekHarness.license !== 'MIT' ||
-    deepseekHarness.source_usage !== 'approved_bounded_source_and_package_reuse'
+    deepseekHarness.source_usage !== 'approved_application_host_runtime_and_gui_source_reuse'
   ) {
-    throw new Error('DeepSeek Harness reference must stay pinned to the evaluated preview source, version, date, license, and bounded reuse status');
+    throw new Error('DeepSeek Harness reference must stay pinned to the evaluated Application Host source, version, date, license, and reuse status');
   }
   assertDeepEqualJson(deepseekHarness.adopted_packages, {
-    '@deepseek-ai/dsh-client-ui-slots': '0.1.0-rc.8',
-    '@deepseek-ai/dsh-invariants': '0.1.0-rc.8',
     '@deepseek-ai/cordis': '4.0.1',
+    '@deepseek-ai/cordis-plugin-group': '1.0.1',
+    '@deepseek-ai/cordis-plugin-include': '1.0.6',
+    '@deepseek-ai/cordis-plugin-loader': '1.0.2',
+    '@deepseek-ai/dsh-app-boot': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-brand': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-modules': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-ui-primitives': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-ui-slots': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-client-web': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-home-paths': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-host-frontend-static': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-host-plugin-inventory': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-host-webserver': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-invariants': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-launch-environment': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-system-prompt': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-tools': '0.1.1-rc.2',
+    '@deepseek-ai/dsh-typert-protocol': '0.1.1-rc.2',
     'use-sync-external-store': '1.2.0',
   }, 'DeepSeek Harness adopted_packages');
   assertDeepEqualJson(deepseekHarness.adopted_source, {
     root: 'src/vendor/deepseek-harness',
-    ref: '141eb6fef83422698aef7a981029e843e8161534',
+    ref: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
     path_policy: 'preserve_upstream_package_relative_paths',
     byte_policy: 'byte_identical_to_pinned_ref',
     package_roots: [
@@ -578,17 +594,20 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'SettingsRoot navigation and modal composition',
     'ui-theme design platform base scrollbar and gradient shadow styles',
     'complete ui-primitives source tree with OPL brand overrides outside the vendor root',
-    'pinned ui-renderer scoped-slots createSlotRenderer implementation without the DSH client runtime',
-    'rc8 brand attachment and workspace hooks satisfied by external OPL adapters without new runtime authority',
+    'pinned ui-renderer scoped-slots createSlotRenderer implementation inside the Studio Client Cordis',
+    'DSH app boot profile loader overlay and Cordis plugin lifecycle',
+    'DSH native tools registry host webserver and plugin inventory',
+    'authenticated stateful loopback MCP from DSH ctx.tools to the persistent Codex App Server',
+    'rc2 brand attachment and workspace hooks satisfied by OPL-owned plugins without product authority transfer',
   ], 'DeepSeek Harness adopted_surface');
   assertDeepEqualJson(deepseekHarness.upstream_intake, {
-    mode: 'pinned_vendor_snapshot_with_external_opl_adapters',
+    mode: 'pinned_application_host_packages_and_vendor_snapshot_with_opl_plugins',
     vendor_source_policy: 'byte_identical_to_recorded_upstream_path_and_ref',
-    opl_delta_policy: 'branding_bridge_state_and_custom_functions_live_outside_vendor_tree_as_adapters_and_slot_plugins',
-    update_policy: 'fetch_review_exact_source_diff_update_one_pinned_ref_then_run_source_interaction_desktop_webui_pixel_notice_and_package_gates',
+    opl_delta_policy: 'profile_branding_bridge_codex_framework_state_and_custom_functions_live_outside_vendor_tree_as_plugins_and_adapters',
+    update_policy: 'update_one_pinned_ref_and_package_cohort_regenerate_vendor_manifest_replay_profile_patches_then_run_host_mcp_renderer_candidate_and_notice_gates',
     floating_ref_allowed: false,
     automatic_promotion_allowed: false,
-    stop_condition: 'large_private_vendor_delta_or_required_dsh_authority_runtime',
+    stop_condition: 'large_private_vendor_delta_or_required_dsh_product_runtime_authority',
   }, 'DeepSeek Harness upstream_intake');
   assertStringArrayIncludes(deepseekHarness.reference_value, [
     'quiet chat-first Web UI with workspace/session rail and persistent composer',
@@ -599,21 +618,22 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'dynamic plugin inventory and configuration rendered from installed deployment state',
   ], 'DeepSeek Harness reference_value');
   assertStringArrayIncludes(deepseekHarness.opl_mapping, [
-    'OPL Studio may import the complete pinned DeepSeek Harness renderer and selected GUI source; AionUI may consume only the bounded visual source cohort through OplVisualProvider and OplIcon',
-    'OPL App keeps product truth and slot policy while Framework projections and App actions remain the only runtime state and mutation ABI',
+    'OPL Studio runs the complete pinned DeepSeek Harness Application Host and selected GUI source with OPL-owned plugins; AionUI may consume only the separately pinned bounded visual source cohort through OplVisualProvider and OplIcon',
+    'OPL App keeps product truth slot policy active-shell adoption and release authority while Framework projections and App actions remain the only OPL runtime state and mutation ABI',
     'Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state',
     'slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation',
     'OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices',
-    'Framework remains the only authoritative Package Host graph; each GUI Client Cordis graph is derived from that Host projection plus the App product profile and slot policy',
+    'Framework remains the authoritative OPL runtime Package graph and App projection Host; Studio separately owns its DSH Application Host lifecycle without receiving Framework runtime or Package authority',
   ], 'DeepSeek Harness opl_mapping');
   assertStringArrayIncludes(deepseekHarness.forbidden_reuse, [
-    'do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, plugin manager, or profile home as OPL authority',
+    'do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, Package currentness, product, domain, or release authority',
     'do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane',
     'do not add DeepSeek Harness as a second foreground shell beside opl-studio',
     'do not import DeepSeek Harness runtime, session, router, provider, credential, action, connection, complete renderer, product routes, or Framework ABI into the AionUI mainline; only the bounded visual source cohort may be consumed through OplVisualProvider and OplIcon',
     'do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes',
     'do not assume the repository root license covers every selected package or third-party payload without per-package notices review',
     'do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces',
+    'do not load dsh-base or create a second DSH session LLM provider agent loop or credential authority',
   ], 'DeepSeek Harness forbidden_reuse');
 }
 

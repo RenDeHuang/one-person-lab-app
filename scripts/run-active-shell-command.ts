@@ -11,6 +11,7 @@ import {
 } from './release-version.ts';
 
 const OPL_RELEASE_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
+const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function defaultOplReleaseVersion(date = new Date()): string {
   const year = String(date.getUTCFullYear()).slice(-2);
@@ -42,6 +43,22 @@ export function resolveOplBuildVersions(
   return { displayVersion, updaterVersion };
 }
 
+export function resolveActiveShellEnvironment(
+  env: NodeJS.ProcessEnv = process.env,
+  repositoryRoot = appRoot,
+): NodeJS.ProcessEnv {
+  const releaseIconPath = env.OPL_APP_RELEASE_ICON_ICNS
+    || path.join(repositoryRoot, 'shells', 'aionui', 'resources', 'app.icns');
+  const buildVersions = resolveOplBuildVersions(env);
+  return {
+    ...env,
+    OPL_APP_REPO_ROOT: path.resolve(repositoryRoot),
+    OPL_APP_RELEASE_ICON_ICNS: releaseIconPath,
+    OPL_RELEASE_VERSION: buildVersions.displayVersion,
+    OPL_UPDATER_VERSION: buildVersions.updaterVersion,
+  };
+}
+
 export function runActiveShellCommand(
   args: string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -51,19 +68,11 @@ export function runActiveShellCommand(
   }
 
   const shellPaths = resolveActiveShellPaths();
-  const releaseIconPath = env.OPL_APP_RELEASE_ICON_ICNS
-    || fileURLToPath(new URL('../shells/aionui/resources/app.icns', import.meta.url));
-  const buildVersions = resolveOplBuildVersions(env);
   assertAppRootBoundary({ phase: 'before active shell command' });
   const result = spawnSync(args[0]!, args.slice(1), {
     cwd: shellPaths.shellRoot,
     stdio: 'inherit',
-    env: {
-      ...env,
-      OPL_APP_RELEASE_ICON_ICNS: releaseIconPath,
-      OPL_RELEASE_VERSION: buildVersions.displayVersion,
-      OPL_UPDATER_VERSION: buildVersions.updaterVersion,
-    },
+    env: resolveActiveShellEnvironment(env),
   });
 
   try {
