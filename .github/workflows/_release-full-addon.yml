@@ -541,6 +541,7 @@ jobs:
           ' target-standard-release.json >/dev/null
           {
             bundle_digest="$(jq -r .bundle_digest "$bundle")"
+            standard_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "${identity_receipts[0]}")"
             echo "version=$(jq -r .release.version "$bundle")"
             echo "updater_version=$(jq -r .release.updater_version "$bundle")"
             echo "tag=$tag"
@@ -554,7 +555,46 @@ jobs:
             echo "completed_stage=$completed_stage"
             echo "checkpoint_transport_executor=github_actions"
             echo "transport_run_id=$GITHUB_RUN_ID"
+            echo "standard_run_id=$standard_run_id"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Recover historical Standard clean-VM checkpoint sidecar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STANDARD_RUN_ID: ${{ steps.identity.outputs.standard_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          receipts=()
+          while IFS= read -r receipt; do receipts+=("$receipt"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-clean-vm-qualification-receipt.json -print | LC_ALL=C sort
+          )
+          case "${#receipts[@]}" in
+            1) exit 0 ;;
+            0) ;;
+            *)
+              echo "::error::Checkpoint transport contains multiple Standard clean-VM qualification receipts."
+              exit 1
+              ;;
+          esac
+          evidence_artifact="$(printf 'opl-%s-%s-%s-standard-%s' first run vm "$STANDARD_RUN_ID")"
+          evidence_dir="$RUNNER_TEMP/opl-standard-clean-vm-sidecar-${STANDARD_RUN_ID}"
+          gh run download "$STANDARD_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name "$evidence_artifact" --dir "$evidence_dir"
+          fallback_receipts=()
+          while IFS= read -r receipt; do fallback_receipts+=("$receipt"); done < <(
+            find "$evidence_dir" -type f -name artifact-qualification-receipt.json -print | LC_ALL=C sort
+          )
+          fallback_digests=()
+          while IFS= read -r digest; do fallback_digests+=("$digest"); done < <(
+            find "$evidence_dir" -type f -name artifact-qualification-receipt.sha256 -print | LC_ALL=C sort
+          )
+          test "${#fallback_receipts[@]}" -eq 1
+          test "${#fallback_digests[@]}" -eq 1
+          materialized_dir=checkpoint-identity-bootstrap/standard-clean-vm-sidecar
+          mkdir -p "$materialized_dir"
+          cp "${fallback_receipts[0]}" "$materialized_dir/standard-clean-vm-qualification-receipt.json"
+          cp "${fallback_digests[0]}" "$materialized_dir/standard-clean-vm-qualification-receipt.sha256"
 
       - name: Verify protected clean-VM checkpoint sidecars
         shell: bash

@@ -587,6 +587,24 @@ jobs:
               exit 1
               ;;
           esac
+          standard_qualification_receipts=()
+          while IFS= read -r receipt; do standard_qualification_receipts+=("$receipt"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-clean-vm-qualification-receipt.json -print | LC_ALL=C sort
+          )
+          standard_qualification_digests=()
+          while IFS= read -r digest; do standard_qualification_digests+=("$digest"); done < <(
+            find checkpoint-identity-bootstrap -type f -name standard-clean-vm-qualification-receipt.sha256 -print | LC_ALL=C sort
+          )
+          test "${#standard_qualification_receipts[@]}" -eq 1 || {
+            echo "::error::Checkpoint transport must contain exactly one Standard clean-VM qualification receipt."
+            exit 1
+          }
+          test "${#standard_qualification_digests[@]}" -eq 1 || {
+            echo "::error::Checkpoint transport must contain exactly one Standard clean-VM qualification digest."
+            exit 1
+          }
+          cp "${standard_qualification_receipts[0]}" standard-clean-vm-qualification-receipt.json
+          cp "${standard_qualification_digests[0]}" standard-clean-vm-qualification-receipt.sha256
           {
             echo "source_run_id=$GITHUB_RUN_ID"
             echo "source_artifact=opl-release-standard-operation-checkpoint-${GITHUB_RUN_ID}"
@@ -605,6 +623,8 @@ jobs:
             standard-operation-checkpoint
             standard-build-receipt.json
             standard-identity-receipt.json
+            standard-clean-vm-qualification-receipt.json
+            standard-clean-vm-qualification-receipt.sha256
             operation-status-before.json
             operation-status-after-reconcile.json
             operation-status-after-admit.json
