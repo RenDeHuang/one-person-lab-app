@@ -321,8 +321,6 @@ jobs:
 
       - name: Verify protected Standard clean-VM checkpoint sidecar
         if: ${{ inputs.publication_channel == 'stable' }}
-        env:
-          QUALIFICATION_RUN_ID: ${{ inputs.source_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -330,6 +328,7 @@ jobs:
           qualification_digests=()
           identity_receipts=()
           bundle_receipts=()
+          control_receipts=()
           while IFS= read -r item; do qualification_receipts+=("$item"); done < <(
             find checkpoint-identity-bootstrap -type f -name standard-clean-vm-qualification-receipt.json -print | LC_ALL=C sort
           )
@@ -342,15 +341,20 @@ jobs:
           while IFS= read -r item; do bundle_receipts+=("$item"); done < <(
             find checkpoint-identity-bootstrap -type f -name bundle.json -print | LC_ALL=C sort
           )
+          while IFS= read -r item; do control_receipts+=("$item"); done < <(
+            find stable-operation-control -type f -name stable-operation-control.json -print | LC_ALL=C sort
+          )
           test "${#qualification_receipts[@]}" -eq 1
           test "${#qualification_digests[@]}" -eq 1
           test "${#identity_receipts[@]}" -eq 1
           test "${#bundle_receipts[@]}" -eq 1
+          test "${#control_receipts[@]}" -eq 1
           qualification_receipt="${qualification_receipts[0]}"
           qualification_digest_file="${qualification_digests[0]}"
           identity_receipt="${identity_receipts[0]}"
           bundle="${bundle_receipts[0]}"
-          for required in "$qualification_receipt" "$qualification_digest_file" "$identity_receipt" "$bundle"; do
+          control_receipt="${control_receipts[0]}"
+          for required in "$qualification_receipt" "$qualification_digest_file" "$identity_receipt" "$bundle" "$control_receipt"; do
             test -s "$required" && test ! -L "$required"
           done
           expected_sha="$(tr -d '\r\n' < "$qualification_digest_file")"
@@ -358,9 +362,10 @@ jobs:
           [[ "$expected_sha" =~ ^sha256:[0-9a-f]{64}$ ]]
           test "$observed_sha" = "$expected_sha"
           producer_run_id="$(jq -er '.source.run_id | strings | select(test("^[1-9][0-9]*$"))' "$identity_receipt")"
+          qualification_run_id="$(jq -er '.run_id | strings | select(test("^[1-9][0-9]*$"))' "$control_receipt")"
           bundle_digest="$(jq -er .bundle_digest "$bundle")"
           jq -e \
-            --arg qualification_run_id "$QUALIFICATION_RUN_ID" \
+            --arg qualification_run_id "$qualification_run_id" \
             --arg producer_run_id "$producer_run_id" \
             --arg artifact "opl-release-standard-vm-bound-${producer_run_id}" \
             --arg bundle "$bundle_digest" \

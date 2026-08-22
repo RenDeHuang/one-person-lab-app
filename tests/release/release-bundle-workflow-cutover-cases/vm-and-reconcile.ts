@@ -217,7 +217,9 @@ test('Standard publish restore rejects a missing or digest-mismatched clean-VM s
   const runFixture = (mode: 'valid' | 'missing' | 'digest-mismatch') => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-standard-clean-vm-sidecar-'));
     const checkpoint = path.join(root, 'checkpoint-identity-bootstrap');
+    const control = path.join(root, 'stable-operation-control');
     fs.mkdirSync(checkpoint, { recursive: true });
+    fs.mkdirSync(control, { recursive: true });
     const appSha = '1'.repeat(40);
     const shellSha = '2'.repeat(40);
     const frameworkSha = '3'.repeat(40);
@@ -258,11 +260,15 @@ test('Standard publish restore rejects a missing or digest-mismatched clean-VM s
         },
       })}\n`,
     );
+    fs.writeFileSync(
+      path.join(control, 'stable-operation-control.json'),
+      `${JSON.stringify({ run_id: '84' })}\n`,
+    );
     if (mode === 'missing') fs.rmSync(receiptPath);
     const result = spawnSync('/bin/bash', ['-euo', 'pipefail', '-c', String(verification.run)], {
       cwd: root,
       encoding: 'utf8',
-      env: { ...process.env, QUALIFICATION_RUN_ID: '84' },
+      env: process.env,
     });
     fs.rmSync(root, { recursive: true, force: true });
     return result;
