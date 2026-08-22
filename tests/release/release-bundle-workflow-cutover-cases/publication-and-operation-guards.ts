@@ -490,6 +490,10 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   assert.equal(fullAddon.jobs['full-clean-vm-qualification'].secrets, 'inherit');
   assert.equal(fullAddon.jobs['full-clean-vm-qualification'].with.diagnostic_scope, 'release_gate');
   assert.equal(fullAddon.jobs['full-clean-vm-qualification'].with.package_profile, 'full');
+  assert.equal(
+    fullAddon.jobs['full-clean-vm-qualification'].with.smoke_harness_ref,
+    '${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}',
+  );
   assert.equal(fullBuild.jobs['full-first-install']['runs-on'], 'macos-latest');
   assert.equal(fullBuild.jobs['full-first-install'].environment, 'release-stable');
   assert.equal(fullBuild.jobs['full-finalizer']['runs-on'], 'macos-latest');

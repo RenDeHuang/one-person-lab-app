@@ -31,6 +31,7 @@ test('Stable has one dispatch and exactly three Framework Bundle operations', ()
     'prior_full_artifact_run_id',
     'prior_standard_artifact_run_id',
     'shell_ref',
+    'smoke_harness_ref',
     'source_artifact',
     'source_run_id',
     'studio_sha',

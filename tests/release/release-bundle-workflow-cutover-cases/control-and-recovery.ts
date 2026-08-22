@@ -672,6 +672,10 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   ]);
   assert.equal(cleanVmQualification.with.package_profile, 'full');
   assert.equal(cleanVmQualification.with.diagnostic_scope, 'release_gate');
+  assert.equal(
+    cleanVmQualification.with.smoke_harness_ref,
+    '${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}',
+  );
   assert.equal(cleanVmQualification.secrets, 'inherit');
   assert.match(readWorkflow('_release-full-addon.yml'), /rebuild_performed/);
 });

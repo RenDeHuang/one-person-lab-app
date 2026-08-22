@@ -76,6 +76,11 @@ on:
         required: false
         default: ''
         type: string
+      smoke_harness_ref:
+        description: Exact opl-aion-shell verification ref used only when recovering unchanged Full bytes from prior_full_artifact_run_id
+        required: false
+        default: ''
+        type: string
       framework_ref:
         description: Legacy raw Standard input; exact Framework executor SHA for resume/append
         required: false
@@ -139,6 +144,7 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.version }}
           INCLUDE_FULL: ${{ inputs.include_full }}
           REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
@@ -154,7 +160,7 @@ jobs:
           [[ "$STUDIO_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$STUDIO_TREE" =~ ^[0-9a-f]{40}$ ]]
           [[ "$STUDIO_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$ ]]
-          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID$PRIOR_STANDARD_ARTIFACT_RUN_ID"
+          test -z "$AUTHORITY_ID$OPERATION_ID$AUTHORITY_CARRIER$AUTHORITY_DIGEST$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_SMOKE_HARNESS_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID$PRIOR_STANDARD_ARTIFACT_RUN_ID"
           test "$INCLUDE_FULL" = false
 
       - name: Checkout exact App release authority
@@ -260,6 +266,7 @@ jobs:
           AUTHORITY_DIGEST: ${{ inputs.authority_digest }}
           REQUESTED_VERSION: ${{ inputs.version }}
           REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
@@ -281,7 +288,7 @@ jobs:
           test -n "$OPERATION_ID"
           test -n "$AUTHORITY_CARRIER"
           [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
-          test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
+          test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_SMOKE_HARNESS_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
           if [ -n "$PRIOR_STANDARD_ARTIFACT_RUN_ID" ]; then
             [[ "$PRIOR_STANDARD_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             test "$PRIOR_STANDARD_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
@@ -489,6 +496,7 @@ jobs:
       include_full: ${{ steps.admission.outputs.include_full }}
       app_ref: ${{ steps.admission.outputs.app_ref }}
       shell_ref: ${{ steps.admission.outputs.shell_ref }}
+      smoke_harness_ref: ${{ steps.admission.outputs.smoke_harness_ref }}
       framework_ref: ${{ steps.admission.outputs.framework_ref }}
       framework_executor_ref: ${{ steps.admission.outputs.framework_executor_ref }}
       source_run_id: ${{ steps.admission.outputs.source_run_id }}
@@ -515,6 +523,7 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.version }}
           INCLUDE_FULL: ${{ inputs.include_full }}
           REQUESTED_SHELL_REF: ${{ inputs.shell_ref }}
+          REQUESTED_SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
           REQUESTED_FRAMEWORK_REF: ${{ inputs.framework_ref }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
@@ -538,11 +547,12 @@ jobs:
           APP_REF="$executor_sha"
           VERSION="$REQUESTED_VERSION"
           SHELL_REF="$REQUESTED_SHELL_REF"
+          SMOKE_HARNESS_REF="$REQUESTED_SMOKE_HARNESS_REF"
           FRAMEWORK_SOURCE_REF=''
           FRAMEWORK_EXECUTOR_REF=''
           case "$OPERATION" in
             standard)
-              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID" || {
+              test -z "$REQUESTED_VERSION$REQUESTED_SHELL_REF$REQUESTED_SMOKE_HARNESS_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID" || {
                 echo "::error::A new Standard Bundle accepts no external source artifact."
                 exit 1
               }
@@ -582,7 +592,7 @@ jobs:
                 exit 1
               }
               if [ "$OPERATION" = resume_standard ]; then
-                test -z "$PRIOR_FULL_ARTIFACT_RUN_ID" || {
+                test -z "$PRIOR_FULL_ARTIFACT_RUN_ID$REQUESTED_SMOKE_HARNESS_REF" || {
                   echo "::error::Only append_full may reuse an exact prior Full artifact run."
                   exit 1
                 }
@@ -592,6 +602,17 @@ jobs:
                   exit 1
                 }
                 test "$PRIOR_FULL_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
+                if [ -n "$REQUESTED_SMOKE_HARNESS_REF" ]; then
+                  [[ "$REQUESTED_SMOKE_HARNESS_REF" =~ ^[0-9a-f]{40}$ ]] || {
+                    echo "::error::append_full recovery smoke_harness_ref must be an exact lowercase Shell SHA."
+                    exit 1
+                  }
+                fi
+              else
+                test -z "$REQUESTED_SMOKE_HARNESS_REF" || {
+                  echo "::error::smoke_harness_ref is allowed only with prior_full_artifact_run_id."
+                  exit 1
+                }
               fi
               ;;
             *) exit 1 ;;
@@ -612,6 +633,7 @@ jobs:
             echo "include_full=$INCLUDE_FULL"
             echo "app_ref=$APP_REF"
             echo "shell_ref=$SHELL_REF"
+            echo "smoke_harness_ref=$SMOKE_HARNESS_REF"
             echo "framework_ref=$FRAMEWORK_SOURCE_REF"
             echo "framework_executor_ref=$FRAMEWORK_EXECUTOR_REF"
             echo "source_run_id=$SOURCE_RUN_ID"
@@ -861,6 +883,7 @@ jobs:
       source_artifact: ${{ needs.admission.outputs.source_artifact }}
       framework_executor_ref: ${{ needs.admission.outputs.framework_executor_ref }}
       prior_full_artifact_run_id: ${{ needs.admission.outputs.prior_full_artifact_run_id }}
+      smoke_harness_ref: ${{ needs.admission.outputs.smoke_harness_ref }}
       operation_started_at: ${{ needs.admission.outputs.operation_started_at }}
       operation_deadline_at: ${{ needs.admission.outputs.operation_deadline_at }}
     secrets: inherit

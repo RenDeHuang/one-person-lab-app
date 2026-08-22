@@ -35,6 +35,11 @@ on:
         required: false
         default: ''
         type: string
+      smoke_harness_ref:
+        description: Exact opl-aion-shell verification ref for recovery-only clean-VM execution; empty uses the frozen product Shell ref
+        required: false
+        default: ''
+        type: string
       operation_started_at:
         description: Full append operation start
         required: false
@@ -126,6 +131,7 @@ jobs:
           SOURCE_FORMAT: ${{ inputs.source_format }}
           FRAMEWORK_EXECUTOR_REF: ${{ inputs.framework_executor_ref }}
           PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
+          SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
           OPERATION_STARTED_AT: ${{ inputs.operation_started_at }}
           OPERATION_DEADLINE_AT: ${{ inputs.operation_deadline_at }}
         shell: bash
@@ -140,6 +146,11 @@ jobs:
             test "$OPERATION" = append_full
             [[ "$PRIOR_FULL_ARTIFACT_RUN_ID" =~ ^[1-9][0-9]*$ ]]
             test "$PRIOR_FULL_ARTIFACT_RUN_ID" != "$GITHUB_RUN_ID"
+            if [ -n "$SMOKE_HARNESS_REF" ]; then
+              [[ "$SMOKE_HARNESS_REF" =~ ^[0-9a-f]{40}$ ]]
+            fi
+          else
+            test -z "$SMOKE_HARNESS_REF"
           fi
           mkdir -p release-failure-evidence
           status=passed
@@ -1184,7 +1195,7 @@ jobs:
       artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
       verification_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
       shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
-      smoke_harness_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      smoke_harness_ref: ${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}
       framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
       framework_executor_ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
       mas_ref: ${{ needs.full-build.outputs.mas_ref || needs.materialize-full-build.outputs.mas_ref }}
