@@ -110,6 +110,7 @@ function fixture(kind: 'stable' | 'dev' | 'nightly' = 'dev') {
       draft: rawRelease.draft,
       prerelease: rawRelease.prerelease,
       target_commitish: rawRelease.target_commitish,
+      declared_target_commitish: rawRelease.target_commitish,
       body_sha256: crypto.createHash('sha256').update(rawRelease.body).digest('hex'),
     },
     assets: rawRelease.assets.map((asset) => ({

@@ -194,18 +194,21 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
       path: ".github/workflows/release-qualification.yml",
       start: "  release-boundary:",
       end: null,
+      install: "npm ci --ignore-scripts",
       validation: "npm run test:release-boundary",
     },
     {
       path: ".github/workflows/_build-reusable.yml",
       start: "  release-boundary:",
       end: "\n  active-shell-tests:",
+      install: "npm ci --ignore-scripts",
       validation: "scripts/verify.sh release-boundary",
     },
     {
       path: ".github/workflows/_release-bundle.yml",
       start: "  freeze:",
       end: "\n  standard-build:",
+      install: "npm --prefix app-executor ci --ignore-scripts",
       validation: "npm run validate:release-boundary",
     },
   ];
@@ -216,7 +219,7 @@ test("fresh-runner release-boundary jobs install App root dependencies before va
     const jobEnd =
       candidate.end === null ? workflow.length : workflow.indexOf(candidate.end, jobStart);
     const job = workflow.slice(jobStart, jobEnd);
-    const install = job.indexOf("npm ci --ignore-scripts");
+    const install = job.indexOf(candidate.install);
     const validation = job.indexOf(candidate.validation);
 
     assert.ok(
@@ -277,11 +280,11 @@ test("Bundle freeze gate installs frozen App and Framework dependencies before v
   const jobEnd = workflow.indexOf("\n  standard-build:", jobStart);
   const job = workflow.slice(jobStart, jobEnd);
   const setup = job.indexOf("uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020");
-  const install = job.indexOf("npm ci --ignore-scripts");
+  const install = job.indexOf("npm --prefix app-executor ci --ignore-scripts");
   const installFramework = job.indexOf("npm --prefix framework-source ci --ignore-scripts");
   const validation = job.indexOf("- name: Validate Bundle contracts before paid work");
   const frameworkSourceTest = job.indexOf(
-    "node --conditions=opl-source --experimental-strip-types --test framework-source/tests/src/cli/cases/release-bundle.test.ts",
+    "node --conditions=opl-source --experimental-strip-types --test ../framework-source/tests/src/cli/cases/release-bundle.test.ts",
   );
 
   assert.ok(jobStart >= 0 && jobEnd > jobStart, "missing Bundle freeze job");

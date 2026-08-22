@@ -611,7 +611,7 @@ test("Settings keeps Gateway ownership, cached storage freshness, managed depend
     .navigation_wait_for_fast_state_ms = 1500;
   assert.throws(
     () => validateGui(waitingGuid.guiContract),
-    /must enter Guid without waiting for fast state/,
+    /must expose bounded quantitative readiness before Guid interaction/,
   );
 
   const oversizedStartup = contracts();

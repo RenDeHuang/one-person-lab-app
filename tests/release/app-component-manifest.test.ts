@@ -256,7 +256,8 @@ test('Bundle topology binds the component manifest before remote digest verifica
   assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /generate-frozen-universal-installer\.ts/);
   assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /standard-assets\/opl-install\.sh/);
   assert.doesNotMatch(bundleWorkflow.slice(sealIdentity, checkpoint), /opl-app-installer\.sh/);
-  assert.doesNotMatch(bundleWorkflow.slice(sealIdentity, checkpoint), /standard-gatekeeper-launch-policy\.json|standard-apple-notarization-receipt\.json/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /standard-gatekeeper-launch-policy\.json/);
+  assert.match(bundleWorkflow.slice(sealIdentity, checkpoint), /standard-apple-notarization-receipt\.json/);
   assert.match(bundleWorkflow.slice(publishReusable), /uses: \.\/\.github\/workflows\/_release-standard-publish\.yml/);
   assert.match(bindScript, /opl_standard_release_identity_receipt\.v2/);
   assert.doesNotMatch(publishWorkflow.slice(remoteVerify, latest), /release_bundle_status\.latest_eligible/);
