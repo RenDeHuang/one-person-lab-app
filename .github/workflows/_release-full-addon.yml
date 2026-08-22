@@ -905,7 +905,7 @@ jobs:
           done
           dmg_sha="$(shasum -a 256 "$dmg" | awk '{print $1}')"
           dmg_size="$(wc -c < "$dmg" | tr -d ' ')"
-          manifest_sha="$(shasum -a 256 "$manifest" | awk '{print $1}')"
+          cohort_sha="$(shasum -a 256 "$cohort" | awk '{print $1}')"
 
           jq -e \
             --arg version "$VERSION" \
@@ -939,7 +939,7 @@ jobs:
             --arg run_id "$PRIOR_RUN_ID" \
             --arg artifact "opl-full-first-install-dmg-${VERSION}-mac-arm64" \
             --arg dmg_sha "$dmg_sha" \
-            --arg manifest_sha "$manifest_sha" \
+            --arg cohort_sha "$cohort_sha" \
             --arg semantic_digest "$semantic_digest" \
             --arg probe_digest "$probe_digest" \
             --arg qualification_input_digest "$qualification_input_digest" '
@@ -955,7 +955,7 @@ jobs:
               and .identity.source_artifact_run_id == $run_id
               and .identity.source_artifact_name == $artifact
               and .artifact.sha256 == $dmg_sha
-              and .artifact.manifest_sha256 == $manifest_sha
+              and .artifact.manifest_sha256 == $cohort_sha
               and .expectations.semantic_digest == $semantic_digest
               and .expectations.probe_digest == $probe_digest
               and .qualification_inputs.manifest_sha256 == $qualification_input_digest
