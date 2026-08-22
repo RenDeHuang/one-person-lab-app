@@ -184,6 +184,7 @@ jobs:
       framework_source_ref: ${{ steps.identity.outputs.framework_source_ref }}
       target_standard_release_id: ${{ steps.identity.outputs.target_standard_release_id }}
       target_standard_release_tag: ${{ steps.identity.outputs.target_standard_release_tag }}
+      target_standard_declared_commitish: ${{ steps.identity.outputs.target_standard_declared_commitish }}
       target_standard_target_commitish: ${{ steps.identity.outputs.target_standard_target_commitish }}
       framework_executor_ref: ${{ steps.checkpoint.outputs.framework_executor_ref }}
       completed_stage: ${{ steps.identity.outputs.completed_stage }}
@@ -542,7 +543,9 @@ jobs:
           test "$(jq -r .release.channel "$bundle")" = stable
           repository="$(jq -er '.sources.app.repo | select(type == "string" and test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"))' "$bundle")"
           tag="$(jq -er '.release.tag | select(type == "string" and test("^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}(-r[1-9][0-9]*)?$"))' "$bundle")"
+          app_ref="$(jq -er '.sources.app.source_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' "$bundle")"
           gh api "repos/${repository}/releases/tags/${tag}" > target-standard-release.json
+          gh api "repos/${repository}/git/ref/tags/${tag}" > target-standard-tag.json
           jq -e --arg tag "$tag" '
             .id > 0
             and .tag_name == $tag
@@ -550,12 +553,17 @@ jobs:
             and .prerelease == false
             and .immutable == false
             and (.published_at | type == "string" and length > 0)
-            and (.target_commitish | type == "string" and test("^[0-9a-f]{40}$"))
+            and (.target_commitish | type == "string" and length > 0)
             and ([.assets[] | select(.name == "opl-release-attestation.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
             and ([.assets[].name] | index("stable-operation-publication-record.json") | not)
             and ([.assets[].name] | index("standard-gatekeeper-launch-policy.json") | not)
             and ([.assets[].name] | index("standard-apple-notarization-receipt.json") | not)
           ' target-standard-release.json >/dev/null
+          jq -e --arg tag "$tag" --arg app "$app_ref" '
+            .ref == ("refs/tags/" + $tag)
+            and .object.type == "commit"
+            and .object.sha == $app
+          ' target-standard-tag.json >/dev/null
           identity_receipts=()
           while IFS= read -r receipt; do identity_receipts+=("$receipt"); done < <(
             find checkpoint-identity-bootstrap -type f -name standard-identity-receipt.json -print | LC_ALL=C sort
@@ -571,12 +579,13 @@ jobs:
             echo "updater_version=$(jq -r .release.updater_version "$bundle")"
             echo "tag=$tag"
             echo "bundle_digest=$bundle_digest"
-            echo "app_ref=$(jq -r .sources.app.source_commit "$bundle")"
+            echo "app_ref=$app_ref"
             echo "shell_ref=$(jq -r .sources.shell.source_commit "$bundle")"
             echo "framework_source_ref=$(jq -r .sources.framework.source_commit "$bundle")"
             echo "target_standard_release_id=$(jq -r .id target-standard-release.json)"
             echo "target_standard_release_tag=$tag"
-            echo "target_standard_target_commitish=$(jq -r .target_commitish target-standard-release.json)"
+            echo "target_standard_declared_commitish=$(jq -r .target_commitish target-standard-release.json)"
+            echo "target_standard_target_commitish=$(jq -r .object.sha target-standard-tag.json)"
             echo "completed_stage=$completed_stage"
             echo "checkpoint_transport_executor=github_actions"
             echo "transport_run_id=$GITHUB_RUN_ID"
@@ -1563,19 +1572,27 @@ jobs:
           standard_tag='${{ needs.restore-standard.outputs.target_standard_release_tag }}'
           remote_target="github-release:${GITHUB_REPOSITORY}@${standard_tag}"
           gh api "repos/${GITHUB_REPOSITORY}/releases/${{ needs.restore-standard.outputs.target_standard_release_id }}" > target-standard-release-before-publish.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${standard_tag}" > target-standard-tag-before-publish.json
           gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > latest-before-full.json
           jq -e \
             --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' '
+            --arg declared_target '${{ needs.restore-standard.outputs.target_standard_declared_commitish }}' '
             .id == $release_id
             and .tag_name == $tag
-            and .target_commitish == $target
+            and .target_commitish == $declared_target
             and .draft == false
             and .prerelease == false
             and .immutable == false
             and ([.assets[] | select(.name == "opl-release-attestation.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
           ' target-standard-release-before-publish.json >/dev/null
+          jq -e \
+            --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
+            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' '
+            .ref == ("refs/tags/" + $tag)
+            and .object.type == "commit"
+            and .object.sha == $target
+          ' target-standard-tag-before-publish.json >/dev/null
           jq -e \
             --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
