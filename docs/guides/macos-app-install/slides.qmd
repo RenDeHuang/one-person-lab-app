@@ -23,11 +23,11 @@ lang: zh-CN
 
 最新版本：<{{download.latest_release_url}}>
 
-![](screenshots/02-install-dmg.png){width=70%}
+![](screenshots/01-download-release.png){width=70%}
 
 - Homebrew Cask 安装到 `/Applications`；完成后运行 `open -a "One Person Lab"`。
 - 系统阻止打开时，改用 Latest Release 的 `opl-install.sh`。
-- 首次安装选 Full DMG；刚发版时如仍在追加，请等待同一 Release 的 Full 出现。
+- 首次安装选 Full DMG。
 - Standard 会在线下载 Base、Packages 等模块；使用 OpenAI 时需要能够直连 OpenAI。
 - 不要下载 ZIP、blockmap、YML、JSON 或 Source code。
 - 页面版本号会持续变化，以标记为 Latest 的稳定版为准；教程不保留固定版本截图。
@@ -90,7 +90,7 @@ lang: zh-CN
 - Intel Mac：当前不支持，请使用 Apple Silicon（arm64）Mac。
 - 已有 Codex 配置：点击“重新检测已有配置”，不需要先登录 Gateway。
 - 暂时没有账户或 API Key：可以先进入 OPL，后续再配置。
-- 下载文件很多：首次安装选择 `Full-<版本>-mac-arm64.dmg`，刚发版时等待同一 Release 追加完成。
+- 下载文件很多：首次安装选择 `Full-<版本>-mac-arm64.dmg`，不要下载 ZIP、Source code 或元数据文件。
 - Standard 卡住：先排查网络、代理、DNS 和模型服务连通性；OpenAI 使用场景需要能直连 OpenAI。
 - 打不开 App：确认已复制到 Applications，或使用 Latest Release 的 `opl-install.sh` 安装。
 

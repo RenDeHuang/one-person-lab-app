@@ -28,6 +28,20 @@
   },
   "screenshot_assets": [
     {
+      "role": "download_release",
+      "description": "Live v26.8.22 GitHub Release Assets list showing the macOS DMG and public installer among the release files.",
+      "file": "docs/guides/macos-app-install/screenshots/01-download-release.png",
+      "width": 1102,
+      "height": 820,
+      "sha256": "3e2908f3a7a3d5c82fdfd339accd98cc427806dd76d782b7a1c53c5b4c663492",
+      "referenced": true,
+      "expected_ui_text": [
+        "Assets",
+        "One-Person-Lab-26.8.22-mac-arm64.dmg",
+        "opl-install.sh"
+      ]
+    },
+    {
       "role": "install_dmg",
       "description": "Focused DMG installation view without unrelated browser and desktop content.",
       "file": "docs/guides/macos-app-install/screenshots/02-install-dmg.png",

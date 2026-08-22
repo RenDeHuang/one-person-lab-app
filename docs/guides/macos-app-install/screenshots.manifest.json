@@ -3,16 +3,15 @@
   "guide_id": "macos-app-install",
   "status": "active",
   "source_summary": {
-    "kind": "release_cohort_shell_capture_and_retained_vm_install_capture",
+    "kind": "live_release_web_capture_release_cohort_shell_capture_and_retained_vm_install_capture",
     "locale": "zh-CN",
     "release_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.22",
     "release_asset": "One-Person-Lab-Full-26.8.22-mac-arm64.dmg",
-    "release_asset_status_at_capture": "same_tag_append_in_progress",
     "current_app_commit": "04d9aa2ef932885b4302f499b712636ae72e1cfa",
     "current_shell_commit": "ccb5e2ed426d75a64a82ecb30f78413ed57fd2f3",
     "current_framework_commit": "571b7b5b63b7bf65a32617e2f226c559eeab28d1",
-    "captured_at": "2026-08-22T09:29:27+08:00",
-    "note": "The first-run and workbench images use the v26.8.22 Shell renderer with a deterministic Framework contract fixture. They prove the documented UI states without using a real account and are not clean-install acceptance evidence. The focused DMG Finder image is retained from the macOS VM capture because that OS interaction did not change."
+    "captured_at": "2026-08-22T10:20:18+08:00",
+    "note": "The download image is a live capture of the v26.8.22 GitHub Release. The first-run and workbench images use the v26.8.22 Shell renderer with a deterministic Framework contract fixture. They prove the documented UI states without using a real account and are not clean-install acceptance evidence. The focused DMG Finder image is retained from the macOS VM capture because that OS interaction did not change."
   },
   "release_run": {
     "id": "guide-refresh-v26.8.22-04d9aa2-2026-08-22",
@@ -20,6 +19,25 @@
     "conclusion": "success"
   },
   "screenshots": [
+    {
+      "file": "01-download-release.png",
+      "role": "download_release",
+      "title": "Latest GitHub Release Assets",
+      "description": "Live v26.8.22 GitHub Release Assets list showing the macOS DMG and public installer among the release files.",
+      "source_kind": "live_github_release_playwright_capture",
+      "source": "https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.8.22",
+      "locale": "zh-CN",
+      "browser_size": "1200x1600",
+      "width": 1102,
+      "height": 820,
+      "sha256": "3e2908f3a7a3d5c82fdfd339accd98cc427806dd76d782b7a1c53c5b4c663492",
+      "expected_ui_text": [
+        "Assets",
+        "One-Person-Lab-26.8.22-mac-arm64.dmg",
+        "opl-install.sh"
+      ],
+      "note": "The full live Assets group is retained so users can distinguish the macOS installer from updater metadata, manifests, and source archives."
+    },
     {
       "file": "02-install-dmg.png",
       "role": "install_dmg",
