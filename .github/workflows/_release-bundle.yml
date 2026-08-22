@@ -776,44 +776,29 @@ jobs:
             --operation '${{ inputs.operation }}' \
             --started-at '${{ inputs.operation_started_at }}' \
             --deadline-at '${{ inputs.operation_deadline_at }}'
+          mkdir -p "$notes_root"
           if [ -n '${{ inputs.prior_standard_artifact_run_id }}' ]; then
-            for required in release-bundle.json freeze-request.json notes.md notes-evidence.json; do
+            for required in notes.md notes-evidence.json; do
               test -s "prior-bundle/$required" && test ! -L "prior-bundle/$required"
-              cp "prior-bundle/$required" "$required"
+              cp "prior-bundle/$required" "$notes_root/$required"
             done
-            jq -e \
-              --arg version '${{ steps.identity.outputs.version }}' \
-              --arg updater '${{ steps.identity.outputs.updater_version }}' \
-              --arg app '${{ steps.identity.outputs.app_sha }}' \
-              --arg shell '${{ steps.identity.outputs.shell_sha }}' \
-              --arg framework '${{ steps.identity.outputs.framework_sha }}' '
-                .release.channel == "stable"
-                and .release.version == $version
-                and .release.display_version == $version
-                and .release.updater_version == $updater
-                and .release.tag == ("v" + $version)
-                and .sources.app.source_commit == $app
-                and .sources.shell.source_commit == $shell
-                and .sources.framework.source_commit == $framework
-              ' release-bundle.json >/dev/null
-          else
-            node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts freeze-request \
-              --channel '${{ inputs.channel }}' \
-              --publication-channel '${{ inputs.publication_channel || inputs.channel }}' \
-              --version '${{ steps.identity.outputs.version }}' \
-              --updater-version '${{ steps.identity.outputs.updater_version }}' \
-              --app-root app-source \
-              --shell-root app-source/shells/aionui \
-              --framework-root framework-source \
-              --notes "$notes_root/notes.md" \
-              --notes-evidence "$notes_root/notes-evidence.json" \
-              --include-full-package '${{ inputs.include_full }}' \
-              --package-compatibility-abi '${{ inputs.package_compatibility_abi }}' \
-              --package-compatibility-version-range '${{ inputs.package_compatibility_version_range }}' \
-              --output freeze-request.json
-            cp "$notes_root/notes.md" notes.md
-            cp "$notes_root/notes-evidence.json" notes-evidence.json
           fi
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts freeze-request \
+            --channel '${{ inputs.channel }}' \
+            --publication-channel '${{ inputs.publication_channel || inputs.channel }}' \
+            --version '${{ steps.identity.outputs.version }}' \
+            --updater-version '${{ steps.identity.outputs.updater_version }}' \
+            --app-root app-source \
+            --shell-root app-source/shells/aionui \
+            --framework-root framework-source \
+            --notes "$notes_root/notes.md" \
+            --notes-evidence "$notes_root/notes-evidence.json" \
+            --include-full-package '${{ inputs.include_full }}' \
+            --package-compatibility-abi '${{ inputs.package_compatibility_abi }}' \
+            --package-compatibility-version-range '${{ inputs.package_compatibility_version_range }}' \
+            --output freeze-request.json
+          cp "$notes_root/notes.md" notes.md
+          cp "$notes_root/notes-evidence.json" notes-evidence.json
           framework-source/bin/opl release freeze \
             --request freeze-request.json \
             --source-root framework-source \
@@ -822,12 +807,7 @@ jobs:
           bundle_digest="$(jq -er .release_bundle_freeze.bundle_digest freeze-result.json)"
           test "$bundle_digest" != sha256:91d5ea069757fca6bb9aa2280615dc952caeff55b6b4bc13e08e40df32378f49
           bundle_path="$(jq -er .release_bundle_freeze.bundle_path freeze-result.json)"
-          if [ -n '${{ inputs.prior_standard_artifact_run_id }}' ]; then
-            test "$bundle_digest" = "$(jq -er .bundle_digest release-bundle.json)"
-            cmp "$bundle_path" release-bundle.json
-          else
-            cp "$bundle_path" release-bundle.json
-          fi
+          cp "$bundle_path" release-bundle.json
           operation_id="gha-${GITHUB_RUN_ID}-standard"
           operation_started_at='${{ inputs.operation_started_at }}'
           operation_deadline_at='${{ inputs.operation_deadline_at }}'
@@ -1082,27 +1062,41 @@ jobs:
             "$qualification_attempt"; do
             test -s "$required" && test ! -L "$required"
           done
-          cmp "$current_bundle" "$prior_bundle"
           cmp "$identity_receipt" "$vm_identity_receipt"
-          for bundle in "$current_bundle" "$prior_bundle"; do
-            jq -e \
-              --arg digest "$EXPECTED_BUNDLE_DIGEST" \
-              --arg version "$EXPECTED_VERSION" \
-              --arg updater "$EXPECTED_UPDATER_VERSION" \
-              --arg app "$EXPECTED_APP_SHA" \
-              --arg shell "$EXPECTED_SHELL_SHA" \
-              --arg framework "$EXPECTED_FRAMEWORK_SHA" '
-                .bundle_digest == $digest
-                and .release.channel == "stable"
-                and .release.version == $version
-                and .release.display_version == $version
-                and .release.updater_version == $updater
-                and .release.tag == ("v" + $version)
-                and .sources.app.source_commit == $app
-                and .sources.shell.source_commit == $shell
-                and .sources.framework.source_commit == $framework
-              ' "$bundle" >/dev/null
-          done
+          jq -e \
+            --arg digest "$EXPECTED_BUNDLE_DIGEST" \
+            --arg version "$EXPECTED_VERSION" \
+            --arg updater "$EXPECTED_UPDATER_VERSION" \
+            --arg app "$EXPECTED_APP_SHA" \
+            --arg shell "$EXPECTED_SHELL_SHA" \
+            --arg framework "$EXPECTED_FRAMEWORK_SHA" '
+              .bundle_digest == $digest
+              and .release.channel == "stable"
+              and .release.version == $version
+              and .release.display_version == $version
+              and .release.updater_version == $updater
+              and .release.tag == ("v" + $version)
+              and .sources.app.source_commit == $app
+              and .sources.shell.source_commit == $shell
+              and .sources.framework.source_commit == $framework
+            ' "$current_bundle" >/dev/null
+          jq -e \
+            --arg version "$EXPECTED_VERSION" \
+            --arg updater "$EXPECTED_UPDATER_VERSION" \
+            --arg app "$EXPECTED_APP_SHA" \
+            --arg shell "$EXPECTED_SHELL_SHA" '
+              (.bundle_digest | test("^sha256:[0-9a-f]{64}$"))
+              and .release.channel == "stable"
+              and .release.version == $version
+              and .release.display_version == $version
+              and .release.updater_version == $updater
+              and .release.tag == ("v" + $version)
+              and .sources.app.source_commit == $app
+              and .sources.shell.source_commit == $shell
+              and (.sources.framework.source_commit | test("^[0-9a-f]{40}$"))
+            ' "$prior_bundle" >/dev/null
+          prior_bundle_digest="$(jq -er .bundle_digest "$prior_bundle")"
+          prior_framework_sha="$(jq -er .sources.framework.source_commit "$prior_bundle")"
 
           standard_dmgs=()
           vm_dmgs=()
@@ -1166,15 +1160,15 @@ jobs:
               and .quarantine_removal_required == false
             ' "$gatekeeper_policy" >/dev/null
 
-          identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
+          prior_identity_sha256="sha256:$(shasum -a 256 "$identity_receipt" | awk '{print $1}')"
           jq -e \
             --arg run_id "$PRIOR_RUN_ID" \
             --arg version "$EXPECTED_VERSION" \
             --arg updater "$EXPECTED_UPDATER_VERSION" \
-            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg bundle "$prior_bundle_digest" \
             --arg app "$EXPECTED_APP_SHA" \
             --arg shell "$EXPECTED_SHELL_SHA" \
-            --arg framework "$EXPECTED_FRAMEWORK_SHA" \
+            --arg framework "$prior_framework_sha" \
             --arg dmg_name "$expected_dmg_name" \
             --arg dmg_sha "$dmg_sha256" \
             --arg notarization_sha "$notarization_sha256" \
@@ -1216,10 +1210,10 @@ jobs:
           jq -e \
             --arg run_id "$PRIOR_RUN_ID" \
             --arg version "$EXPECTED_VERSION" \
-            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg bundle "$prior_bundle_digest" \
             --arg app "$EXPECTED_APP_SHA" \
             --arg shell "$EXPECTED_SHELL_SHA" \
-            --arg framework "$EXPECTED_FRAMEWORK_SHA" \
+            --arg framework "$prior_framework_sha" \
             --arg dmg_name "$expected_dmg_name" \
             --arg dmg_sha "${dmg_sha256#sha256:}" \
             --argjson dmg_size "$dmg_size" '
@@ -1238,7 +1232,7 @@ jobs:
 
           jq -e \
             --arg run_id "$PRIOR_RUN_ID" \
-            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg bundle "$prior_bundle_digest" \
             --arg artifact "opl-release-standard-vm-bound-${PRIOR_RUN_ID}" \
             --arg dmg_sha "${dmg_sha256#sha256:}" '
               .schema == "opl_app_qualification_attempt_receipt.v1"
@@ -1258,15 +1252,70 @@ jobs:
               and .evidence.smoke_summary_path == null
               and .evidence.critical_diagnostics_path == null
             ' "$qualification_attempt" >/dev/null
+
+          node --experimental-strip-types app-source/scripts/generate-frozen-universal-installer.ts \
+            --source app-source/install.sh \
+            --output bound-standard/assets/opl-install.sh \
+            --version "$EXPECTED_VERSION" \
+            --app-sha "$EXPECTED_APP_SHA" \
+            --shell-sha "$EXPECTED_SHELL_SHA" \
+            --framework-sha "$EXPECTED_FRAMEWORK_SHA" \
+            --repository "$GITHUB_REPOSITORY"
+          test -x bound-standard/assets/opl-install.sh
+          bash -n bound-standard/assets/opl-install.sh
+          node --experimental-strip-types app-source/scripts/bind-standard-release-track.ts \
+            --assets-dir bound-standard/assets \
+            --version "$EXPECTED_VERSION" \
+            --updater-version "$EXPECTED_UPDATER_VERSION" \
+            --app-sha "$EXPECTED_APP_SHA" \
+            --shell-sha "$EXPECTED_SHELL_SHA" \
+            --framework-sha "$EXPECTED_FRAMEWORK_SHA" \
+            --bundle-digest "$EXPECTED_BUNDLE_DIGEST" \
+            --channel stable \
+            --repository "$GITHUB_REPOSITORY" \
+            --source-run-id "$GITHUB_RUN_ID" \
+            --source-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --latest-override-requested false \
+            --component-manifest-script app-source/scripts/write-opl-app-component-manifest.ts \
+            --component-manifest-output bound-standard/assets/opl-app-component-manifest.json \
+            --identity-receipt-output rebound-standard-identity-receipt.json
+          mv rebound-standard-identity-receipt.json bound-standard/standard-identity-receipt.json
+          cp bound-standard/standard-identity-receipt.json bound-standard-vm/standard-identity-receipt.json
+
+          mkdir -p standard-cohort
+          jq \
+            --arg bundle "$EXPECTED_BUNDLE_DIGEST" \
+            --arg framework "$EXPECTED_FRAMEWORK_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg artifact_name "opl-release-standard-vm-bound-${GITHUB_RUN_ID}" '
+              .release.stable_session_id = $bundle
+              | .release.release_cohort_ref = $bundle
+              | .cohort.framework_sha = $framework
+              | .actions.run_id = $run_id
+              | .actions.run_attempt = "1"
+              | .actions.artifact_name = $artifact_name
+            ' "${cohort_receipts[0]}" > standard-cohort/opl-build-cohort.json
+          node --experimental-strip-types app-source/scripts/validate-build-artifact-cohort.ts \
+            --manifest standard-cohort/opl-build-cohort.json \
+            --artifact "$standard_dmg" \
+            --app-sha "$EXPECTED_APP_SHA" \
+            --shell-sha "$EXPECTED_SHELL_SHA" \
+            --framework-sha "$EXPECTED_FRAMEWORK_SHA" \
+            --version "$EXPECTED_VERSION" \
+            --actions-run-id "$GITHUB_RUN_ID" \
+            --stable-session-id "$EXPECTED_BUNDLE_DIGEST" \
+            --release-cohort-ref "$EXPECTED_BUNDLE_DIGEST"
+
+          identity_sha256="sha256:$(shasum -a 256 bound-standard/standard-identity-receipt.json | awk '{print $1}')"
+          test "$identity_sha256" != "$prior_identity_sha256"
           {
-            echo "standard_artifact_name=opl-release-standard-bound-${PRIOR_RUN_ID}"
-            echo "standard_vm_artifact_name=opl-release-standard-vm-bound-${PRIOR_RUN_ID}"
-            echo "standard_artifact_run_id=$PRIOR_RUN_ID"
+            echo "standard_artifact_name=opl-release-standard-bound-${GITHUB_RUN_ID}"
+            echo "standard_vm_artifact_name=opl-release-standard-vm-bound-${GITHUB_RUN_ID}"
+            echo "standard_artifact_run_id=$GITHUB_RUN_ID"
             echo "standard_identity_sha256=$identity_sha256"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload one bound Standard artifact
-        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-bound-${{ github.run_id }}
@@ -1275,7 +1324,6 @@ jobs:
           retention-days: 30
 
       - name: Upload exact-candidate Standard VM artifact
-        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-vm-bound-${{ github.run_id }}
@@ -1285,7 +1333,6 @@ jobs:
           compression-level: 0
 
       - name: Upload bound Standard cohort identity
-        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-bound-${{ github.run_id }}-cohort
@@ -1294,7 +1341,6 @@ jobs:
           retention-days: 30
 
       - name: Upload exact-candidate Standard VM cohort identity
-        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-release-standard-vm-bound-${{ github.run_id }}-cohort
