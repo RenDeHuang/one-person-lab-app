@@ -2,6 +2,10 @@ name: OPL Full First-Install Release
 
 on:
   workflow_call:
+    outputs:
+      mas_ref:
+        description: Exact MAS source SHA bundled into the Full candidate.
+        value: ${{ jobs.full-first-install.outputs.mas_ref }}
     inputs:
       mode:
         description: execute or canary validation-only startup
@@ -130,6 +134,7 @@ jobs:
       actions: read
     outputs:
       finalizer_input_digest: ${{ steps.normalize_full_finalizer_input_digest.outputs.artifact_digest }}
+      mas_ref: ${{ steps.release_version.outputs.mas_ref }}
       mas_scholar_skills_ref: ${{ steps.release_version.outputs.mas_scholar_skills_ref }}
 
     steps:
@@ -397,21 +402,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mas_ref="$(git -C med-autoscience rev-parse HEAD)"
           mas_scholar_skills_ref="$(git -C mas-scholar-skills rev-parse HEAD)"
-          echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}" >> "$GITHUB_ENV"
-          echo "OPL_UPDATER_VERSION=${{ inputs.opl_updater_version }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref }}" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MAS_REF=$(git -C med-autoscience rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=$mas_scholar_skills_ref" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MAG_REF=$(git -C med-autogrant rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_RCA_REF=$(git -C redcube-ai rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_META_AGENT_REF=$(git -C opl-meta-agent rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_BOOKFORGE_REF=$(git -C opl-bookforge rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_OPL_FLOW_REF=$(git -C opl-flow rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_OFFICECLI_REF=$(git -C OfficeCLI rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_MINERU_REF=$(git -C MinerU-Ecosystem rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
-          echo "mas_scholar_skills_ref=$mas_scholar_skills_ref" >> "$GITHUB_OUTPUT"
+          {
+            echo "OPL_RELEASE_VERSION=${{ inputs.opl_version }}"
+            echo "OPL_UPDATER_VERSION=${{ inputs.opl_updater_version }}"
+            echo "OPL_FULL_FRAMEWORK_REF=${{ inputs.framework_ref }}"
+            echo "OPL_FULL_MAS_REF=$mas_ref"
+            echo "OPL_FULL_MAS_SCHOLAR_SKILLS_REF=$mas_scholar_skills_ref"
+            echo "OPL_FULL_MAG_REF=$(git -C med-autogrant rev-parse HEAD)"
+            echo "OPL_FULL_RCA_REF=$(git -C redcube-ai rev-parse HEAD)"
+            echo "OPL_FULL_META_AGENT_REF=$(git -C opl-meta-agent rev-parse HEAD)"
+            echo "OPL_FULL_BOOKFORGE_REF=$(git -C opl-bookforge rev-parse HEAD)"
+            echo "OPL_FULL_OPL_FLOW_REF=$(git -C opl-flow rev-parse HEAD)"
+            echo "OPL_FULL_OFFICECLI_REF=$(git -C OfficeCLI rev-parse HEAD)"
+            echo "OPL_FULL_MINERU_REF=$(git -C MinerU-Ecosystem rev-parse HEAD)"
+            echo "OPL_FULL_WORKFLOW_STARTED_AT=$(date +%s)"
+          } >> "$GITHUB_ENV"
+          {
+            echo "mas_ref=$mas_ref"
+            echo "mas_scholar_skills_ref=$mas_scholar_skills_ref"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         id: node-cache
