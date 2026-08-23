@@ -886,6 +886,7 @@ jobs:
           ref: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
           path: shells/aionui
           fetch-depth: 1
+          filter: blob:limit=1m
           sparse-checkout: |
             /scripts/
             /packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json

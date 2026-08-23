@@ -235,6 +235,7 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "Authorization: Bearer ${GH_TOKEN}",
       "curl_args=(-fL --retry 5 --retry-all-errors --retry-delay 10 --connect-timeout 30 --max-time 1800 --continue-at -)",
       "fetch-depth: 1",
+      "filter: blob:limit=1m",
       "sparse-checkout: |",
       "/scripts/",
       "/packages/desktop/src/common/config/oplProductProfile/oplProductProfile.generated.json",

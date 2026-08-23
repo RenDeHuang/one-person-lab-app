@@ -224,6 +224,7 @@ export function buildQualificationHarnessScopeProof(input: {
     'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
     'tests/release/release-bundle-workflow-cutover-cases/publication-and-operation-guards.ts',
     'tests/release/release-bundle-workflow-cutover-cases/target-and-protected-evidence.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/vm-and-reconcile.ts',
     'tests/release/release-workflow-broker-admission.test.ts',
   ];
   const shellHarnessMechanicsPaths = [

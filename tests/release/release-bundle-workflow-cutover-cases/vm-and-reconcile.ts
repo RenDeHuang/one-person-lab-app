@@ -103,6 +103,7 @@ test('first-run VM imports the frozen Shell harness without installing its depen
   };
 
   const checkout = step('Checkout active shell');
+  assert.equal(checkout.with['filter'], 'blob:limit=1m');
   assert.deepEqual(
     String(checkout.with['sparse-checkout']).trim().split('\n'),
     [

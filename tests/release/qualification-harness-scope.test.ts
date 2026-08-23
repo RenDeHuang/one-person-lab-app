@@ -17,6 +17,7 @@ test('qualification harness scope allows a paired VM smoke mechanics subset', ()
     '.github/workflows/opl-first-run-vm.yml',
     'scripts/qualification-harness-scope.ts',
     'scripts/validate-shell-candidates/candidate-contract.ts',
+    'tests/release/release-bundle-workflow-cutover-cases/vm-and-reconcile.ts',
   ];
   const proof = buildQualificationHarnessScopeProof({
     artifactAppSha,
