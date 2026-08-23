@@ -1105,7 +1105,47 @@ jobs:
 
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
-        id: release_artifact_download
+        id: release_artifact_download_1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        timeout-minutes: 30
+        continue-on-error: true
+        with:
+          name: ${{ inputs.release_artifact_name }}
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/release
+
+      - name: Remove partial release DMG after first download failure
+        if: ${{ inputs.release_artifact_name != '' && steps.release_artifact_download_1.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release
+          find artifacts/release -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+      - name: Retry release DMG artifact download (attempt 2 of 3)
+        if: ${{ inputs.release_artifact_name != '' && steps.release_artifact_download_1.outcome == 'failure' }}
+        id: release_artifact_download_2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        timeout-minutes: 30
+        continue-on-error: true
+        with:
+          name: ${{ inputs.release_artifact_name }}
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/release
+
+      - name: Remove partial release DMG after second download failure
+        if: ${{ inputs.release_artifact_name != '' && steps.release_artifact_download_2.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release
+          find artifacts/release -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+      - name: Retry release DMG artifact download (attempt 3 of 3)
+        if: ${{ inputs.release_artifact_name != '' && steps.release_artifact_download_1.outcome == 'failure' && steps.release_artifact_download_2.outcome == 'failure' }}
+        id: release_artifact_download_3
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         timeout-minutes: 30
         continue-on-error: true
@@ -1116,8 +1156,49 @@ jobs:
           path: artifacts/release
 
       - name: Download release cohort identity
-        if: ${{ inputs.release_artifact_name != '' }}
+        if: ${{ inputs.release_artifact_name != '' && (steps.release_artifact_download_1.outcome == 'success' || steps.release_artifact_download_2.outcome == 'success' || steps.release_artifact_download_3.outcome == 'success') }}
+        id: release_cohort_download_1
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          name: ${{ inputs.release_artifact_name }}-cohort
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/release-cohort
+
+      - name: Remove partial release cohort after first download failure
+        if: ${{ inputs.release_artifact_name != '' && steps.release_cohort_download_1.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release-cohort
+          find artifacts/release-cohort -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+      - name: Retry release cohort identity download (attempt 2 of 3)
+        if: ${{ inputs.release_artifact_name != '' && steps.release_cohort_download_1.outcome == 'failure' }}
+        id: release_cohort_download_2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        timeout-minutes: 10
+        continue-on-error: true
+        with:
+          name: ${{ inputs.release_artifact_name }}-cohort
+          run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/release-cohort
+
+      - name: Remove partial release cohort after second download failure
+        if: ${{ inputs.release_artifact_name != '' && steps.release_cohort_download_2.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release-cohort
+          find artifacts/release-cohort -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+
+      - name: Retry release cohort identity download (attempt 3 of 3)
+        if: ${{ inputs.release_artifact_name != '' && steps.release_cohort_download_1.outcome == 'failure' && steps.release_cohort_download_2.outcome == 'failure' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        timeout-minutes: 10
         with:
           name: ${{ inputs.release_artifact_name }}-cohort
           run-id: ${{ inputs.release_artifact_run_id || github.run_id }}
@@ -1185,7 +1266,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts/release
-          artifact_download_outcome="${{ steps.release_artifact_download.outcome }}"
+          artifact_download_outcome=skipped
+          if [ -n "${{ inputs.release_artifact_name }}" ]; then
+            artifact_download_outcome=failure
+            if [ '${{ steps.release_artifact_download_1.outcome }}' = success ] || \
+              [ '${{ steps.release_artifact_download_2.outcome }}' = success ] || \
+              [ '${{ steps.release_artifact_download_3.outcome }}' = success ]; then
+              artifact_download_outcome=success
+            fi
+          fi
           if [ -n "${{ inputs.release_artifact_name }}" ] && [ "$artifact_download_outcome" != "success" ]; then
             if [ '${{ needs.validate-vm-inputs.outputs.diagnostic_scope }}' = release_gate ]; then
               echo "::error::Exact-candidate workflow artifact download failed with outcome ${artifact_download_outcome:-unavailable}; release qualification must not fall back to a published release."
@@ -2093,7 +2182,7 @@ jobs:
           PRODUCT_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.shell_sha }}
           SMOKE_HARNESS_APP_SHA: ${{ steps.verification_app.outputs.app_sha || needs.validate-vm-inputs.outputs.verification_app_sha }}
           SMOKE_HARNESS_SHELL_SHA: ${{ needs.validate-vm-inputs.outputs.smoke_harness_sha }}
-          RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.release_artifact_download.outcome || 'skipped' }}
+          RELEASE_ARTIFACT_DOWNLOAD_OUTCOME: ${{ inputs.release_artifact_name == '' && 'skipped' || (steps.release_artifact_download_1.outcome == 'success' || steps.release_artifact_download_2.outcome == 'success' || steps.release_artifact_download_3.outcome == 'success') && 'success' || 'failure' }}
           DMG_CONCLUSION: ${{ steps.dmg.conclusion || 'skipped' }}
           CODEX_PACKAGE_PREFLIGHT_CONCLUSION: ${{ steps.codex_package_preflight.conclusion || 'skipped' }}
           VM_SMOKE_CONCLUSION: ${{ steps.vm_smoke.conclusion || 'skipped' }}
