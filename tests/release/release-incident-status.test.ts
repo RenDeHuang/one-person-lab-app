@@ -189,6 +189,20 @@ test('runtime markers distinguish VM allocation from a merely visible VM step', 
       vm_name: 'opl-first-run-20260822-000401',
       guest_ip: null,
     }),
+    JSON.stringify({
+      timestamp: '2026-08-22T00:04:12Z',
+      event_type: 'host_runtime_event',
+      stage: 'wait_for_ssh',
+      vm_name: 'opl-first-run-20260822-000401',
+      guest_ip: '192.168.64.4',
+    }),
+    JSON.stringify({
+      timestamp: '2026-08-22T00:04:14Z',
+      event_type: 'host_runtime_event',
+      stage: 'run_guest_smoke',
+      vm_name: 'opl-first-run-20260822-000401',
+      guest_ip: '192.168.64.4',
+    }),
   ].join('\n');
   const status = buildReleaseIncidentStatus({
     run: run({ status: 'in_progress', conclusion: null }),
@@ -209,14 +223,14 @@ test('runtime markers distinguish VM allocation from a merely visible VM step', 
   });
 
   assert.deepEqual(status.vm_state, {
-    status: 'waiting_for_ip',
-    stage: 'wait_for_ip',
-    marker_timestamp: '2026-08-22T00:04:10.000Z',
+    status: 'guest_ip_ready',
+    stage: 'run_guest_smoke',
+    marker_timestamp: '2026-08-22T00:04:14.000Z',
     vm_name: 'opl-first-run-20260822-000401',
-    guest_ip: null,
-    marker_count: 3,
+    guest_ip: '192.168.64.4',
+    marker_count: 5,
   });
-  assert.equal(status.focus?.last_change_at, '2026-08-22T00:04:10.000Z');
+  assert.equal(status.focus?.last_change_at, '2026-08-22T00:04:14.000Z');
   assert.equal(status.next_action.code, 'continue_current_step');
 });
 

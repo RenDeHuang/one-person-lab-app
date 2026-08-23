@@ -42,7 +42,7 @@ const failedConclusions = new Set([
   'startup_failure',
 ]);
 const cancelledConclusions = new Set(['cancelled', 'stale']);
-const vmStages = new Set(['clone_vm', 'start_vm', 'wait_for_ip']);
+const vmAllocationStages = new Set(['clone_vm', 'start_vm', 'wait_for_ip']);
 
 function record(value: unknown, label: string): JsonRecord {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -283,7 +283,7 @@ function vmState(logs: JobLogMap) {
       const runtimeLine = line.match(
         /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s+.*\[tart-smoke\]\s+stage=([a-z0-9_]+)\s*$/,
       );
-      if (runtimeLine?.[2] && vmStages.has(runtimeLine[2])) {
+      if (runtimeLine?.[2]) {
         markers.push({
           timestamp: canonicalTimestamp(runtimeLine[1] ?? null),
           stage: runtimeLine[2],
@@ -293,7 +293,7 @@ function vmState(logs: JobLogMap) {
       }
       const event = parseRuntimeEvent(line);
       const stage = event ? stringField(event, 'stage') : null;
-      if (event && stage && vmStages.has(stage)) {
+      if (event && stage) {
         markers.push({
           timestamp: canonicalTimestamp(stringField(event, 'timestamp')),
           stage,
@@ -307,13 +307,16 @@ function vmState(logs: JobLogMap) {
     (timestampMs(left.timestamp) ?? 0) - (timestampMs(right.timestamp) ?? 0)
   ));
   const latest = markers.at(-1) ?? null;
+  const latestAllocation = [...markers].reverse().find((marker) => (
+    vmAllocationStages.has(marker.stage)
+  )) ?? null;
   const guestIpMarker = [...markers].reverse().find((marker) => marker.guestIp) ?? null;
   const vmNameMarker = [...markers].reverse().find((marker) => marker.vmName) ?? null;
   let status: VmStatus = 'unknown_requires_runtime_marker';
   if (guestIpMarker?.guestIp) status = 'guest_ip_ready';
-  else if (latest?.stage === 'wait_for_ip') status = 'waiting_for_ip';
-  else if (latest?.stage === 'start_vm') status = 'start_requested';
-  else if (latest?.stage === 'clone_vm') status = 'clone_started';
+  else if (latestAllocation?.stage === 'wait_for_ip') status = 'waiting_for_ip';
+  else if (latestAllocation?.stage === 'start_vm') status = 'start_requested';
+  else if (latestAllocation?.stage === 'clone_vm') status = 'clone_started';
   return {
     status,
     stage: latest?.stage ?? null,
