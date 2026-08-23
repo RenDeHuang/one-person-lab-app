@@ -1,0 +1,333 @@
+name: Reconcile WebUI Recovery Carrier Receipt
+run-name: Reconcile recovery carrier receipt for source run 32655797925
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Enter RECONCILE_WEBUI_RECOVERY_RECEIPT
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SOURCE_RUN_ID: '32655797925'
+  SOURCE_RUN_ATTEMPT: '1'
+  SOURCE_EXECUTOR_SHA: a5e11d614cf8db097cea1ab367d58f9f5e983b61
+  SOURCE_AUTHORITY_ARTIFACT: opl-webui-source-authority-32655797925
+  SOURCE_AUTHORITY_ARTIFACT_DIGEST: sha256:b6430a2e3e5b4d57c6ebb3a41134daab45d380b8a5e9c7dea3beb2a6cd30dae6
+  SOURCE_AUTHORITY_DIGEST: sha256:6ad4cbc6dcb5769500a9fd16f3711d0a64275c7c5c24477f1842028339b936d0
+  VERSION: 26.8.23-r1
+  APP_SHA: cf6733fbd8cc4188a596119f5e52813493c8aaae
+  SHELL_SHA: cae3258f3134ac462074bdc38aa69ed525455741
+  FRAMEWORK_SHA: 80f1a4907f0174a44ccbbb368944084c2932f1f2
+  IMAGE_REPOSITORY: ghcr.io/rendehuang/one-person-lab-webui-recovery
+  IMAGE_DIGEST: sha256:df38bf5e5c2381efe2d314704e7f08b19d6ec1ea930c28755df82b7966b8d585
+  AMD64_DIGEST: sha256:1c44430fd7a15939cffc03fb75998108c8524595f0dd0cfb1b3a0b0390d2e445
+  ARM64_DIGEST: sha256:fcf059114d4c99235f4df14281d349b1322f6c979e983393a5a45f7476d73983
+
+concurrency:
+  group: webui-recovery-carrier-receipt-32655797925
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: ${{ github.ref == 'refs/heads/main' && github.actor == 'RenDeHuang' && inputs.confirmation == 'RECONCILE_WEBUI_RECOVERY_RECEIPT' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-stable
+    steps:
+      - name: Checkout canonical reconciliation executor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Admit exact failed publication and qualified artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$GITHUB_REPOSITORY" = RenDeHuang/one-person-lab-app
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$GITHUB_SHA"
+          mkdir -p recovery-authority
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > recovery-authority/source-run.json
+          jq -e \
+            --arg run "$SOURCE_RUN_ID" \
+            --arg sha "$SOURCE_EXECUTOR_SHA" \
+            --arg attempt "$SOURCE_RUN_ATTEMPT" '
+            (.id | tostring) == $run
+            and (.run_attempt | tostring) == $attempt
+            and .head_sha == $sha
+            and .head_branch == "main"
+            and .event == "workflow_dispatch"
+            and .path == ".github/workflows/release-webui-development.yml"
+            and .status == "completed"
+            and .conclusion == "failure"
+            and .actor.login == "RenDeHuang"
+            and .triggering_actor.login == "RenDeHuang"
+          ' recovery-authority/source-run.json >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?per_page=100" \
+            > recovery-authority/source-jobs.json
+          jq -e '
+            ([.jobs[] | select(.name == "source-authority" and .conclusion == "success")] | length) == 1
+            and
+            ([.jobs[] | select(.name | startswith("webui-carrier / build-and-qualify")) | select(.conclusion == "success")] | length) == 2
+            and ([.jobs[] | select(
+              .name == "webui-carrier / publish-immutable-carrier"
+              and .conclusion == "failure"
+              and ([.steps[] | select(.name == "Publish qualified candidate and CAS immutable version tag" and .conclusion == "success")] | length) == 1
+              and ([.steps[] | select(.name == "Write and verify exact carrier receipt" and .conclusion == "failure")] | length) == 1
+            )] | length) == 1
+          ' recovery-authority/source-jobs.json >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" \
+            > recovery-authority/source-artifacts.json
+          jq -e \
+            --arg source_name "$SOURCE_AUTHORITY_ARTIFACT" \
+            --arg source_digest "$SOURCE_AUTHORITY_ARTIFACT_DIGEST" '
+            ([.artifacts[] | select(.id == 9497400291 and .name == $source_name and .digest == $source_digest and .expired == false)] | length) == 1
+            and ([.artifacts[] | select(.id == 9497515427 and .name == "webui-qualified-26.8.23-r1-32655797925-1-amd64" and .digest == "sha256:2e2f3e7b3f8ae7b61406ecb2c5aa21cca399efd667ec73ed2b8590a08100a5a6" and .expired == false)] | length) == 1
+            and ([.artifacts[] | select(.id == 9497496156 and .name == "webui-qualified-26.8.23-r1-32655797925-1-arm64" and .digest == "sha256:f10e95f94884137888c6c4996edf67f917e136901647ff8ddcc273f3e7bd2457" and .expired == false)] | length) == 1
+          ' recovery-authority/source-artifacts.json >/dev/null
+
+      - name: Download exact qualified amd64 evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: webui-qualified-26.8.23-r1-32655797925-1-amd64
+          run-id: 32655797925
+          github-token: ${{ github.token }}
+          path: webui-platforms/amd64
+
+      - name: Download exact qualified arm64 evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: webui-qualified-26.8.23-r1-32655797925-1-arm64
+          run-id: 32655797925
+          github-token: ${{ github.token }}
+          path: webui-platforms/arm64
+
+      - name: Download exact source authority
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: opl-webui-source-authority-32655797925
+          run-id: 32655797925
+          github-token: ${{ github.token }}
+          path: source-authority
+
+      - name: Remove unused image archives from reconciliation workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          for architecture in amd64 arm64; do
+            test -s "webui-platforms/$architecture/qualified-image.tar.gz"
+            rm "webui-platforms/$architecture/qualified-image.tar.gz"
+          done
+
+      - name: Setup ORAS for immutable GHCR readback
+        uses: oras-project/setup-oras@1d808f7d7f6995cc68b7bf507bfe5c5446e1dc9d # v2.0.1
+
+      - name: Authenticate to GHCR for read-only reconciliation
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read back exact immutable version and native children
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p webui-carrier
+          image_ref="$IMAGE_REPOSITORY@$IMAGE_DIGEST"
+          version_tag="$IMAGE_REPOSITORY:$VERSION"
+          test "$(oras resolve "$image_ref")" = "$IMAGE_DIGEST"
+          test "$(oras resolve "$version_tag")" = "$IMAGE_DIGEST"
+          oras manifest fetch --output webui-carrier/version-tag-manifest.json "$image_ref"
+          IMAGE_REF="$image_ref" VERSION_TAG="$version_tag" node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          import fs from 'node:fs';
+
+          const raw = fs.readFileSync('webui-carrier/version-tag-manifest.json');
+          const digest = `sha256:${crypto.createHash('sha256').update(raw).digest('hex')}`;
+          if (digest !== process.env.IMAGE_DIGEST) throw new Error('immutable index bytes do not match the admitted digest');
+          const manifest = JSON.parse(raw);
+          if (![
+            'application/vnd.oci.image.index.v1+json',
+            'application/vnd.docker.distribution.manifest.list.v2+json',
+          ].includes(manifest.mediaType) || manifest.schemaVersion !== 2 || manifest.manifests?.length !== 2) {
+            throw new Error('immutable index must contain exactly linux/amd64 and linux/arm64');
+          }
+          const expectedDigests = { amd64: process.env.AMD64_DIGEST, arm64: process.env.ARM64_DIGEST };
+          const platforms = [...manifest.manifests]
+            .sort((left, right) => left.platform.architecture.localeCompare(right.platform.architecture))
+            .map((descriptor) => {
+              const architecture = descriptor.platform?.architecture;
+              if (descriptor.platform?.os !== 'linux' || descriptor.digest !== expectedDigests[architecture]) {
+                throw new Error(`unexpected immutable child for linux/${String(architecture)}`);
+              }
+              return {
+                os: 'linux',
+                architecture,
+                ref: `${process.env.IMAGE_REPOSITORY}@${descriptor.digest}`,
+                digest: descriptor.digest,
+              };
+            });
+          if (platforms.map(({ architecture }) => architecture).join(',') !== 'amd64,arm64') {
+            throw new Error('immutable index platform set drifted');
+          }
+          for (const platform of platforms) {
+            fs.writeFileSync(`webui-platforms/${platform.architecture}/registry-readback.json`, `${JSON.stringify({
+              schema: 'opl_app_webui_platform_registry_readback.v1',
+              status: 'passed',
+              platform: { os: platform.os, architecture: platform.architecture },
+              ref: platform.ref,
+              digest: platform.digest,
+            })}\n`);
+          }
+          fs.writeFileSync('webui-carrier/registry-readback.json', `${JSON.stringify({
+            schema: 'opl_app_webui_registry_readback.v2',
+            status: 'passed',
+            ref: process.env.IMAGE_REF,
+            digest,
+            version_tag: process.env.VERSION_TAG,
+            version_tag_digest: digest,
+            size_bytes: raw.byteLength,
+            platforms,
+          })}\n`);
+          fs.writeFileSync('webui-carrier/version-descriptor-readback.json', `${JSON.stringify({
+            schema: 'opl_app_webui_descriptor_readback.v1',
+            status: 'present',
+            ref: process.env.VERSION_TAG,
+            digest,
+            child_digest: digest,
+            manifest_count: 2,
+            media_type: manifest.mediaType,
+            platforms: platforms.map(({ os, architecture, digest: childDigest }) => ({ os, architecture, digest: childDigest })),
+          })}\n`);
+          NODE
+          for digest in "$AMD64_DIGEST" "$ARM64_DIGEST"; do
+            test "$(oras resolve "$IMAGE_REPOSITORY@$digest")" = "$digest"
+          done
+
+      - name: Validate exact source authority and historical cutoffs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/webui-source-authority.ts \
+            validate --input source-authority/source-authority.json \
+            > webui-carrier/source-authority-verification.json
+          jq -e \
+            --arg version "$VERSION" \
+            --arg digest "$SOURCE_AUTHORITY_DIGEST" \
+            --arg app "$APP_SHA" \
+            --arg shell "$SHELL_SHA" \
+            --arg framework "$FRAMEWORK_SHA" \
+            --arg run "$SOURCE_RUN_ID" \
+            --arg executor "$SOURCE_EXECUTOR_SHA" '
+            .release.version == $version
+            and .source_authority_digest == $digest
+            and .sources.app.source_commit == $app
+            and .sources.shell.source_commit == $shell
+            and .sources.framework.source_commit == $framework
+            and (.authorization.run_id | tostring) == $run
+            and .authorization.executor_sha == $executor
+          ' source-authority/source-authority.json >/dev/null
+          test "$(jq -r .source_cutoff.observed_at webui-platforms/amd64/build-input.json)" = 2026-08-23T17:45:19.829Z
+          test "$(jq -r .source_cutoff.observed_at webui-platforms/arm64/build-input.json)" = 2026-08-23T17:45:20.848Z
+
+      - name: Write and verify temporary recovery carrier receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          common_args=(
+            --platform-evidence-root webui-platforms
+            --registry-readback webui-carrier/registry-readback.json
+            --image-ref "$IMAGE_REPOSITORY@$IMAGE_DIGEST"
+            --expected-version "$VERSION"
+            --expected-bundle-digest "$SOURCE_AUTHORITY_DIGEST"
+            --expected-cohort-ref "$SOURCE_AUTHORITY_DIGEST"
+            --expected-app-sha "$APP_SHA"
+            --expected-shell-sha "$SHELL_SHA"
+            --expected-framework-sha "$FRAMEWORK_SHA"
+            --source-publication-run-id "$SOURCE_RUN_ID"
+            --source-publication-executor-sha "$SOURCE_EXECUTOR_SHA"
+            --source-authority source-authority/source-authority.json
+            --source-authority-artifact-id 9497400291
+            --source-authority-artifact "$SOURCE_AUTHORITY_ARTIFACT"
+            --source-authority-artifact-digest "$SOURCE_AUTHORITY_ARTIFACT_DIGEST"
+            --amd64-qualified-artifact-id 9497515427
+            --amd64-qualified-artifact webui-qualified-26.8.23-r1-32655797925-1-amd64
+            --amd64-qualified-artifact-digest sha256:2e2f3e7b3f8ae7b61406ecb2c5aa21cca399efd667ec73ed2b8590a08100a5a6
+            --arm64-qualified-artifact-id 9497496156
+            --arm64-qualified-artifact webui-qualified-26.8.23-r1-32655797925-1-arm64
+            --arm64-qualified-artifact-digest sha256:f10e95f94884137888c6c4996edf67f917e136901647ff8ddcc273f3e7bd2457
+            --reconciliation-run-id "$GITHUB_RUN_ID"
+            --reconciliation-executor-sha "$GITHUB_SHA"
+          )
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            write-recovery-carrier-receipt \
+            "${common_args[@]}" \
+            --output webui-carrier/recovery-carrier-receipt.json \
+            > webui-carrier/recovery-carrier-receipt-write.json
+          node --experimental-strip-types scripts/release-webui-carrier.ts \
+            verify-recovery-carrier-receipt \
+            "${common_args[@]}" \
+            --receipt webui-carrier/recovery-carrier-receipt.json \
+            > webui-carrier/recovery-carrier-receipt-verification.json
+
+      - name: Stage bounded recovery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p recovery-carrier-artifact/platforms
+          cp recovery-authority/*.json recovery-carrier-artifact/
+          cp source-authority/*.json recovery-carrier-artifact/
+          for file in \
+            recovery-carrier-receipt.json \
+            recovery-carrier-receipt-write.json \
+            recovery-carrier-receipt-verification.json \
+            registry-readback.json \
+            source-authority-verification.json \
+            version-descriptor-readback.json \
+            version-tag-manifest.json; do
+            cp "webui-carrier/$file" recovery-carrier-artifact/
+          done
+          for architecture in amd64 arm64; do
+            source_root="webui-platforms/$architecture"
+            target_root="recovery-carrier-artifact/platforms/$architecture"
+            mkdir -p "$target_root"
+            for file in \
+              build-input.json \
+              build-input-verification.json \
+              codex-artifact-verification.json \
+              container-id.txt \
+              container-phase.txt \
+              docker-context-policy-verification.json \
+              http-health.txt \
+              image-inspect.json \
+              image-manifest.json \
+              image-size.txt \
+              persistence-restart.txt \
+              registry-readback.json \
+              restarted-container-id.txt \
+              runtime-summary.json \
+              seed-metadata.json; do
+              test -f "$source_root/$file"
+              cp "$source_root/$file" "$target_root/$file"
+            done
+          done
+
+      - name: Upload temporary recovery carrier receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: webui-recovery-carrier-receipt-26.8.23-r1-32655797925-${{ github.run_id }}
+          path: recovery-carrier-artifact
+          if-no-files-found: error
+          retention-days: 90

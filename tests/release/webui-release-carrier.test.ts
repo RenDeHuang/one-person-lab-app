@@ -7,12 +7,15 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import YAML from 'yaml';
 
+import { createWebuiSourceAuthority } from '../../scripts/webui-source-authority.ts';
+
 const appRoot = process.cwd();
 const cliPath = path.join(appRoot, 'scripts', 'release-webui-carrier.ts');
 const runtimeValidatorPath = path.join(appRoot, 'scripts', 'validate-webui-runtime-image.ts');
 const schemaPath = path.join(appRoot, 'contracts', 'app-webui-release-carrier.schema.json');
 const workflowPath = path.join(appRoot, '.github', 'workflows', '_release-webui-carrier.yml');
 const developmentWorkflowPath = path.join(appRoot, '.github', 'workflows', 'release-webui-development.yml');
+const recoveryReceiptWorkflowPath = path.join(appRoot, '.github', 'workflows', 'reconcile-webui-recovery-receipt.yml');
 const appSha = 'a'.repeat(40);
 const shellSha = 'b'.repeat(40);
 const frameworkSha = 'c'.repeat(40);
@@ -410,6 +413,127 @@ test('WebUI carrier receipt binds one dual-platform OCI index and both native qu
     receipt.qualification.platform_qualifications.map((platform: { architecture: string }) => platform.architecture),
     ['amd64', 'arm64'],
   );
+});
+
+test('temporary recovery receipt preserves distinct native cutoff observations and exact authority', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-recovery-receipt-'));
+  const { platformEvidenceRoot, registryReadbackPath } = carrierFixture(root);
+  const arm64Root = path.join(platformEvidenceRoot, 'arm64');
+  const buildInputPath = path.join(arm64Root, 'build-input.json');
+  const draft = JSON.parse(fs.readFileSync(buildInputPath, 'utf8'));
+  delete draft.content_fingerprint;
+  draft.source_cutoff.observed_at = '2026-07-23T01:04:05Z';
+  const resealedPath = sealBuildInput(arm64Root, draft);
+  const resealed = JSON.parse(fs.readFileSync(resealedPath, 'utf8'));
+  const imageInspectPath = path.join(arm64Root, 'image-inspect.json');
+  const imageInspect = JSON.parse(fs.readFileSync(imageInspectPath, 'utf8'));
+  imageInspect[0].Config.Labels['dev.onepersonlab.release.build-input-digest'] = sha256(fs.readFileSync(resealedPath));
+  imageInspect[0].Config.Labels['dev.onepersonlab.release.content-fingerprint'] = resealed.content_fingerprint;
+  fs.writeFileSync(imageInspectPath, `${JSON.stringify(imageInspect)}\n`);
+
+  const imageRef = `ghcr.io/gaofeng21cn/one-person-lab-webui@${imageDigest}`;
+  const standard = runCli([
+    'write-carrier-receipt',
+    '--platform-evidence-root', platformEvidenceRoot,
+    '--registry-readback', registryReadbackPath,
+    '--image-ref', imageRef,
+    '--output', path.join(root, 'standard-must-not-exist.json'),
+  ]);
+  assert.notEqual(standard.status, 0);
+  assert.match(standard.stderr, /platform build inputs must share the same source_cutoff/);
+
+  const sourceAuthority = createWebuiSourceAuthority({
+    version: '26.7.23',
+    appSha,
+    shellSha,
+    frameworkSha,
+    runId: '32655797925',
+    executorSha: 'd'.repeat(40),
+  });
+  const sourceAuthorityDigest = sourceAuthority.source_authority_digest as string;
+  const sourceAuthorityPath = writeJson(root, 'source-authority.json', sourceAuthority);
+  for (const architecture of ['amd64', 'arm64'] as const) {
+    const platformRoot = path.join(platformEvidenceRoot, architecture);
+    const platformBuildInputPath = path.join(platformRoot, 'build-input.json');
+    const platformDraft = JSON.parse(fs.readFileSync(platformBuildInputPath, 'utf8'));
+    delete platformDraft.content_fingerprint;
+    platformDraft.release.bundle_digest = sourceAuthorityDigest;
+    platformDraft.release.cohort_ref = sourceAuthorityDigest;
+    const sealedPath = sealBuildInput(platformRoot, platformDraft);
+    const sealed = JSON.parse(fs.readFileSync(sealedPath, 'utf8'));
+    const inspectPath = path.join(platformRoot, 'image-inspect.json');
+    const inspect = JSON.parse(fs.readFileSync(inspectPath, 'utf8'));
+    inspect[0].Config.Labels['dev.onepersonlab.release.bundle-digest'] = sourceAuthorityDigest;
+    inspect[0].Config.Labels['dev.onepersonlab.release.cohort-ref'] = sourceAuthorityDigest;
+    inspect[0].Config.Labels['dev.onepersonlab.release.build-input-digest'] = sha256(fs.readFileSync(sealedPath));
+    inspect[0].Config.Labels['dev.onepersonlab.release.content-fingerprint'] = sealed.content_fingerprint;
+    fs.writeFileSync(inspectPath, `${JSON.stringify(inspect)}\n`);
+  }
+
+  const receiptPath = path.join(root, 'recovery-carrier-receipt.json');
+  const authorityArgs = [
+    '--source-publication-run-id', '32655797925',
+    '--source-publication-executor-sha', 'd'.repeat(40),
+    '--source-authority', sourceAuthorityPath,
+    '--source-authority-artifact-id', '9497400291',
+    '--source-authority-artifact', 'opl-webui-source-authority-32655797925',
+    '--source-authority-artifact-digest', digest('8'),
+    '--amd64-qualified-artifact-id', '9497515427',
+    '--amd64-qualified-artifact', 'webui-qualified-26.8.23-r1-32655797925-1-amd64',
+    '--amd64-qualified-artifact-digest', digest('9'),
+    '--arm64-qualified-artifact-id', '9497496156',
+    '--arm64-qualified-artifact', 'webui-qualified-26.8.23-r1-32655797925-1-arm64',
+    '--arm64-qualified-artifact-digest', digest('a'),
+    '--reconciliation-run-id', '32660000000',
+    '--reconciliation-executor-sha', 'e'.repeat(40),
+  ];
+  const write = runCli([
+    'write-recovery-carrier-receipt',
+    '--platform-evidence-root', platformEvidenceRoot,
+    '--registry-readback', registryReadbackPath,
+    '--image-ref', imageRef,
+    '--expected-version', '26.7.23',
+    '--expected-bundle-digest', sourceAuthorityDigest,
+    '--expected-cohort-ref', sourceAuthorityDigest,
+    '--expected-app-sha', appSha,
+    '--expected-shell-sha', shellSha,
+    '--expected-framework-sha', frameworkSha,
+    ...authorityArgs,
+    '--output', receiptPath,
+  ]);
+  assert.equal(write.status, 0, write.stderr || write.stdout);
+  const verify = runCli([
+    'verify-recovery-carrier-receipt',
+    '--platform-evidence-root', platformEvidenceRoot,
+    '--registry-readback', registryReadbackPath,
+    '--image-ref', imageRef,
+    '--expected-version', '26.7.23',
+    '--expected-bundle-digest', sourceAuthorityDigest,
+    '--expected-cohort-ref', sourceAuthorityDigest,
+    '--expected-app-sha', appSha,
+    '--expected-shell-sha', shellSha,
+    '--expected-framework-sha', frameworkSha,
+    ...authorityArgs,
+    '--receipt', receiptPath,
+  ]);
+  assert.equal(verify.status, 0, verify.stderr || verify.stdout);
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.equal(receipt.schema, 'opl_app_webui_recovery_carrier_receipt.v1');
+  assert.equal(receipt.disclosure.canonical_carrier_receipt, false);
+  assert.deepEqual(
+    receipt.source_cutoffs.map((cutoff: { architecture: string; observed_at: string }) => [cutoff.architecture, cutoff.observed_at]),
+    [
+      ['amd64', '2026-07-23T01:02:03Z'],
+      ['arm64', '2026-07-23T01:04:05Z'],
+    ],
+  );
+  assert.equal(receipt.authority.source_publication.run_id, '32655797925');
+  assert.deepEqual(
+    receipt.authority.source_publication.artifacts.map((artifact: { id: string }) => artifact.id),
+    ['9497400291', '9497515427', '9497496156'],
+  );
+  assert.equal(receipt.disclosure.version_tag_republished, false);
+  assert.deepEqual(receipt.disclosure.moving_tags_updated, []);
 });
 
 test('WebUI carrier rejects a platform without persisted restart evidence', () => {
@@ -912,6 +1036,26 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(publishRun, /source-authority-final-verification\.json/);
   assert.match(publishRun, /carrier-artifact/);
   assert.match(publishRun, /source-authority\.json/);
+});
+
+test('one-time recovery receipt workflow is exact, read-only for the version image, and artifact-only', () => {
+  const source = fs.readFileSync(recoveryReceiptWorkflowPath, 'utf8');
+  const workflow = YAML.parse(source);
+  const job = workflow.jobs.reconcile;
+  assert.equal(workflow.permissions.packages, 'read');
+  assert.equal(job.environment, 'release-stable');
+  assert.match(job.if, /github\.actor == 'RenDeHuang'/);
+  assert.equal(workflow.env.SOURCE_RUN_ID, '32655797925');
+  assert.equal(workflow.env.SOURCE_EXECUTOR_SHA, 'a5e11d614cf8db097cea1ab367d58f9f5e983b61');
+  assert.equal(workflow.env.APP_SHA, 'cf6733fbd8cc4188a596119f5e52813493c8aaae');
+  assert.equal(workflow.env.SHELL_SHA, 'cae3258f3134ac462074bdc38aa69ed525455741');
+  assert.equal(workflow.env.FRAMEWORK_SHA, '80f1a4907f0174a44ccbbb368944084c2932f1f2');
+  assert.equal(workflow.env.IMAGE_DIGEST, 'sha256:df38bf5e5c2381efe2d314704e7f08b19d6ec1ea930c28755df82b7966b8d585');
+  assert.match(source, /write-recovery-carrier-receipt/);
+  assert.match(source, /verify-recovery-carrier-receipt/);
+  assert.match(fs.readFileSync(cliPath, 'utf8'), /version_tag_republished: false/);
+  assert.doesNotMatch(source, /docker push|oras push|imagetools create|:stable|:latest/);
+  assert.equal(job.steps.at(-1).with['retention-days'], 90);
 });
 
 test('manual WebUI entry separates read-only qualification from protected publication', () => {

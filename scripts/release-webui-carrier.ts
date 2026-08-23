@@ -6,6 +6,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
+import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
+
 type JsonRecord = Record<string, unknown>;
 type WebuiArchitecture = 'amd64' | 'arm64';
 
@@ -81,6 +83,12 @@ function digestValue(value: unknown, label: string): string {
 function gitShaValue(value: unknown, label: string): string {
   const actual = stringValue(value, label);
   if (!gitShaPattern.test(actual)) fail(`${label} must be a 40-character lowercase Git SHA`);
+  return actual;
+}
+
+function runIdValue(value: unknown, label: string): string {
+  const actual = stringValue(value, label);
+  if (!/^[1-9][0-9]*$/.test(actual)) fail(`${label} must be a positive Actions run id`);
   return actual;
 }
 
@@ -461,7 +469,16 @@ function validatePlatformRegistryReadback(raw: unknown, architecture: WebuiArchi
   return readback;
 }
 
-function platformEvidence(root: string): PlatformEvidence[] {
+function sourceCutoffPolicy(value: unknown): JsonRecord {
+  const cutoff = record(value, 'source_cutoff');
+  const { observed_at: _observedAt, ...policy } = cutoff;
+  return policy;
+}
+
+function platformEvidence(
+  root: string,
+  options: { allowDistinctSourceCutoffObservations?: boolean } = {},
+): PlatformEvidence[] {
   const resolvedRoot = path.resolve(root);
   const directories = fs.readdirSync(resolvedRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -508,10 +525,17 @@ function platformEvidence(root: string): PlatformEvidence[] {
   });
   const [first, ...rest] = evidence;
   for (const item of rest) {
-    for (const field of ['release', 'source_cutoff', 'cohort'] as const) {
+    for (const field of ['release', 'cohort'] as const) {
       if (canonicalJson(item.input[field]) !== canonicalJson(first.input[field])) {
         fail(`platform build inputs must share the same ${field}`);
       }
+    }
+    if (options.allowDistinctSourceCutoffObservations) {
+      if (canonicalJson(sourceCutoffPolicy(item.input.source_cutoff)) !== canonicalJson(sourceCutoffPolicy(first.input.source_cutoff))) {
+        fail('platform build inputs must share the same source_cutoff policy');
+      }
+    } else if (canonicalJson(item.input.source_cutoff) !== canonicalJson(first.input.source_cutoff)) {
+      fail('platform build inputs must share the same source_cutoff');
     }
     const stableInputs = (input: JsonRecord) => (input.inputs as JsonRecord[])
       .filter((entry) => entry.id !== 'base_image');
@@ -637,6 +661,182 @@ function buildCarrierReceipt(options: {
   };
 }
 
+function buildRecoveryCarrierReceipt(options: {
+  platformEvidenceRoot: string;
+  registryReadbackPath: string;
+  imageRef: string;
+  expected: ExpectedIdentity;
+  sourcePublicationRunId: string;
+  sourcePublicationExecutorSha: string;
+  sourceAuthorityPath: string;
+  sourceAuthorityArtifactId: string;
+  sourceAuthorityArtifact: string;
+  sourceAuthorityArtifactDigest: string;
+  amd64QualifiedArtifactId: string;
+  amd64QualifiedArtifact: string;
+  amd64QualifiedArtifactDigest: string;
+  arm64QualifiedArtifactId: string;
+  arm64QualifiedArtifact: string;
+  arm64QualifiedArtifactDigest: string;
+  reconciliationRunId: string;
+  reconciliationExecutorSha: string;
+}): JsonRecord {
+  const platforms = platformEvidence(options.platformEvidenceRoot, {
+    allowDistinctSourceCutoffObservations: true,
+  });
+  for (const platform of platforms) validateExpectedIdentity(platform.input, options.expected);
+  const sourceCutoffs = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    ...record(platform.input.source_cutoff, `${platform.architecture} source_cutoff`),
+  }));
+  if (new Set(sourceCutoffs.map((cutoff) => cutoff.observed_at)).size !== sourceCutoffs.length) {
+    fail('recovery carrier receipt requires distinct native source_cutoff observations');
+  }
+
+  const first = platforms[0];
+  const release = record(first.input.release, 'release');
+  const cohort = record(first.input.cohort, 'cohort');
+  const sourceAuthority = validateWebuiSourceAuthority(
+    readJson(options.sourceAuthorityPath, 'source authority'),
+  );
+  const sourceAuthorityRelease = record(sourceAuthority.release, 'source authority release');
+  const sourceAuthoritySources = record(sourceAuthority.sources, 'source authority sources');
+  const sourceAuthorityAuthorization = record(sourceAuthority.authorization, 'source authority authorization');
+  exactString(sourceAuthorityRelease.version, String(release.version), 'source authority release.version');
+  exactString(sourceAuthority.source_authority_digest, String(release.bundle_digest), 'source authority digest');
+  exactString(sourceAuthority.source_authority_digest, String(release.cohort_ref), 'source authority cohort ref');
+  exactString(record(sourceAuthoritySources.app, 'source authority app').source_commit, String(cohort.app_sha), 'source authority App SHA');
+  exactString(record(sourceAuthoritySources.shell, 'source authority shell').source_commit, String(cohort.shell_sha), 'source authority Shell SHA');
+  exactString(record(sourceAuthoritySources.framework, 'source authority framework').source_commit, String(cohort.framework_sha), 'source authority Framework SHA');
+  exactString(sourceAuthorityAuthorization.run_id, options.sourcePublicationRunId, 'source authority publication run id');
+  exactString(sourceAuthorityAuthorization.executor_sha, options.sourcePublicationExecutorSha, 'source authority publication executor SHA');
+  if (sourceAuthorityAuthorization.run_attempt !== 1) fail('source authority publication run attempt must be 1');
+  const registryReadback = validateRegistryReadback(
+    readJson(options.registryReadbackPath, 'registry readback'),
+    options.imageRef,
+    String(release.version),
+    platforms,
+  );
+  const buildInputs = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    manifest_digest: platform.inputDigest,
+    content_fingerprint: platform.input.content_fingerprint,
+  }));
+  const buildInputDigest = sha256(canonicalJson(buildInputs));
+  const carrierPlatforms = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    ref: platform.childRef,
+    digest: platform.childDigest,
+    size_bytes: platform.imageSize,
+    content_fingerprint: platform.input.content_fingerprint,
+  }));
+  const contentFingerprint = sha256(canonicalJson(carrierPlatforms));
+  const platformQualifications = platforms.map((platform) => ({
+    os: 'linux',
+    architecture: platform.architecture,
+    image_digest: platform.childDigest,
+    build_input_digest: platform.inputDigest,
+    content_fingerprint: platform.input.content_fingerprint,
+    runtime_summary_sha256: platform.runtimeSummaryDigest,
+    runtime_image_id: platform.runtimeSummary.image_id,
+  }));
+  const imageDigest = immutableImageDigest(options.imageRef);
+  return {
+    schema: 'opl_app_webui_recovery_carrier_receipt.v1',
+    status: 'complete',
+    temporary: true,
+    release: first.input.release,
+    source_cutoffs: sourceCutoffs,
+    cohort,
+    build_input: {
+      schema: 'opl_app_webui_multiarch_build_input.v1',
+      manifest_digest: buildInputDigest,
+      platforms: buildInputs,
+    },
+    carrier: {
+      carrier_id: 'docker_webui',
+      carrier_kind: 'oci_image',
+      package_profile: 'webui-full',
+      ref: options.imageRef,
+      digest: imageDigest,
+      size_bytes: positiveInteger(registryReadback.size_bytes, 'registry readback.size_bytes'),
+      content_fingerprint: contentFingerprint,
+      os: 'linux',
+      architecture: 'multiarch',
+      platforms: carrierPlatforms,
+    },
+    qualification: {
+      schema: 'opl_app_webui_runtime_qualification.v1',
+      status: 'passed',
+      build_stage: 'webui_built',
+      qualification_stage: 'webui_qualified',
+      image_digest: imageDigest,
+      build_input_digest: buildInputDigest,
+      content_fingerprint: contentFingerprint,
+      runtime_summary_sha256: sha256(canonicalJson(platformQualifications)),
+      registry_readback_sha256: fileDigest(options.registryReadbackPath),
+      runtime_image_id: `oci-index:${imageDigest}`,
+      platform_qualifications: platformQualifications,
+    },
+    authority: {
+      source_publication: {
+        repository: 'RenDeHuang/one-person-lab-app',
+        workflow: '.github/workflows/release-webui-development.yml',
+        run_id: runIdValue(options.sourcePublicationRunId, 'source publication run id'),
+        run_attempt: 1,
+        executor_sha: gitShaValue(options.sourcePublicationExecutorSha, 'source publication executor SHA'),
+        source_authority_digest: digestValue(sourceAuthority.source_authority_digest, 'source authority digest'),
+        source_authority_sha256: fileDigest(options.sourceAuthorityPath),
+        artifacts: [
+          {
+            role: 'source_authority',
+            id: runIdValue(options.sourceAuthorityArtifactId, 'source authority artifact id'),
+            name: stringValue(options.sourceAuthorityArtifact, 'source authority artifact'),
+            archive_digest: digestValue(options.sourceAuthorityArtifactDigest, 'source authority artifact digest'),
+          },
+          {
+            role: 'qualified_amd64',
+            id: runIdValue(options.amd64QualifiedArtifactId, 'amd64 qualified artifact id'),
+            name: stringValue(options.amd64QualifiedArtifact, 'amd64 qualified artifact'),
+            archive_digest: digestValue(options.amd64QualifiedArtifactDigest, 'amd64 qualified artifact digest'),
+          },
+          {
+            role: 'qualified_arm64',
+            id: runIdValue(options.arm64QualifiedArtifactId, 'arm64 qualified artifact id'),
+            name: stringValue(options.arm64QualifiedArtifact, 'arm64 qualified artifact'),
+            archive_digest: digestValue(options.arm64QualifiedArtifactDigest, 'arm64 qualified artifact digest'),
+          },
+        ],
+      },
+      reconciliation: {
+        repository: 'RenDeHuang/one-person-lab-app',
+        workflow: '.github/workflows/reconcile-webui-recovery-receipt.yml',
+        run_id: runIdValue(options.reconciliationRunId, 'reconciliation run id'),
+        run_attempt: 1,
+        executor_sha: gitShaValue(options.reconciliationExecutorSha, 'reconciliation executor SHA'),
+      },
+    },
+    disclosure: {
+      canonical_carrier_receipt: false,
+      reason: 'native_source_cutoff_observations_differ',
+      version_tag_republished: false,
+      moving_tags_updated: [],
+    },
+  };
+}
+
+function validateRecoveryCarrierReceipt(raw: unknown, options: Parameters<typeof buildRecoveryCarrierReceipt>[0]): JsonRecord {
+  const receipt = record(raw, 'recovery carrier receipt');
+  const expected = buildRecoveryCarrierReceipt(options);
+  if (canonicalJson(receipt) !== canonicalJson(expected)) {
+    fail('recovery carrier receipt does not match the exact historical dual-platform evidence and OCI index readback');
+  }
+  return receipt;
+}
+
 function validateCarrierReceipt(raw: unknown, options: {
   platformEvidenceRoot: string;
   registryReadbackPath: string;
@@ -703,6 +903,20 @@ function main(): void {
       'expected-shell-sha': { type: 'string' },
       'expected-framework-sha': { type: 'string' },
       'expected-architecture': { type: 'string' },
+      'source-publication-run-id': { type: 'string' },
+      'source-publication-executor-sha': { type: 'string' },
+      'source-authority': { type: 'string' },
+      'source-authority-artifact-id': { type: 'string' },
+      'source-authority-artifact': { type: 'string' },
+      'source-authority-artifact-digest': { type: 'string' },
+      'amd64-qualified-artifact-id': { type: 'string' },
+      'amd64-qualified-artifact': { type: 'string' },
+      'amd64-qualified-artifact-digest': { type: 'string' },
+      'arm64-qualified-artifact-id': { type: 'string' },
+      'arm64-qualified-artifact': { type: 'string' },
+      'arm64-qualified-artifact-digest': { type: 'string' },
+      'reconciliation-run-id': { type: 'string' },
+      'reconciliation-executor-sha': { type: 'string' },
     },
     allowPositionals: true,
     strict: true,
@@ -774,6 +988,51 @@ function main(): void {
       image_ref: record(receipt.carrier, 'carrier').ref,
       output: outputPath,
     });
+    return;
+  }
+
+  if (command === 'write-recovery-carrier-receipt' || command === 'verify-recovery-carrier-receipt') {
+    const options = {
+      platformEvidenceRoot: requiredOption(values, 'platform-evidence-root'),
+      registryReadbackPath: requiredOption(values, 'registry-readback'),
+      imageRef: requiredOption(values, 'image-ref'),
+      expected: expectedIdentity(values),
+      sourcePublicationRunId: requiredOption(values, 'source-publication-run-id'),
+      sourcePublicationExecutorSha: requiredOption(values, 'source-publication-executor-sha'),
+      sourceAuthorityPath: requiredOption(values, 'source-authority'),
+      sourceAuthorityArtifactId: requiredOption(values, 'source-authority-artifact-id'),
+      sourceAuthorityArtifact: requiredOption(values, 'source-authority-artifact'),
+      sourceAuthorityArtifactDigest: requiredOption(values, 'source-authority-artifact-digest'),
+      amd64QualifiedArtifactId: requiredOption(values, 'amd64-qualified-artifact-id'),
+      amd64QualifiedArtifact: requiredOption(values, 'amd64-qualified-artifact'),
+      amd64QualifiedArtifactDigest: requiredOption(values, 'amd64-qualified-artifact-digest'),
+      arm64QualifiedArtifactId: requiredOption(values, 'arm64-qualified-artifact-id'),
+      arm64QualifiedArtifact: requiredOption(values, 'arm64-qualified-artifact'),
+      arm64QualifiedArtifactDigest: requiredOption(values, 'arm64-qualified-artifact-digest'),
+      reconciliationRunId: requiredOption(values, 'reconciliation-run-id'),
+      reconciliationExecutorSha: requiredOption(values, 'reconciliation-executor-sha'),
+    };
+    if (command === 'write-recovery-carrier-receipt') {
+      const outputPath = requiredOption(values, 'output');
+      const receipt = buildRecoveryCarrierReceipt(options);
+      writeCanonical(outputPath, receipt);
+      printSummary({
+        schema: 'opl_app_webui_recovery_carrier_receipt_write.v1',
+        status: 'passed',
+        receipt_digest: fileDigest(outputPath),
+        image_ref: record(receipt.carrier, 'carrier').ref,
+        output: outputPath,
+      });
+    } else {
+      const receiptPath = requiredOption(values, 'receipt');
+      const receipt = validateRecoveryCarrierReceipt(readJson(receiptPath, 'recovery carrier receipt'), options);
+      printSummary({
+        schema: 'opl_app_webui_recovery_carrier_receipt_verification.v1',
+        status: 'passed',
+        receipt_digest: fileDigest(receiptPath),
+        image_ref: record(receipt.carrier, 'carrier').ref,
+      });
+    }
     return;
   }
 
