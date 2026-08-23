@@ -214,8 +214,10 @@ export function buildQualificationHarnessScopeProof(input: {
   const shellDiffers = shellChangedPaths.length > 0;
   const appHarnessMechanicsPaths = [
     '.github/workflows/_release-full-addon.yml',
+    '.github/workflows/opl-first-run-vm.yml',
     '.github/workflows/release-stable.yml',
     'scripts/qualification-harness-scope.ts',
+    'scripts/validate-shell-candidates/candidate-contract.ts',
     'scripts/validate-release-boundary/release-checks.ts',
     'scripts/validate-release-boundary/text-check-runner.ts',
     'tests/release/qualification-harness-scope.test.ts',

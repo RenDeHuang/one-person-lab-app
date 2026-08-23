@@ -14,7 +14,9 @@ const verificationShellSha = 'd'.repeat(40);
 test('qualification harness scope allows a paired VM smoke mechanics subset', () => {
   const appChangedPaths = [
     '.github/workflows/_release-full-addon.yml',
+    '.github/workflows/opl-first-run-vm.yml',
     'scripts/qualification-harness-scope.ts',
+    'scripts/validate-shell-candidates/candidate-contract.ts',
   ];
   const proof = buildQualificationHarnessScopeProof({
     artifactAppSha,
