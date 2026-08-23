@@ -982,6 +982,18 @@ jobs:
               and (
                 .retry.disposition == "same_artifact_retry_allowed"
                 or ($smoke_harness_ref != "" and .retry.disposition == "new_cohort_required")
+                or (
+                  .retry.disposition == "reconcile_only"
+                  and .failure_taxonomy == "infrastructure"
+                  and .failure.type == "artifact_download_failed"
+                  and .failure.boundary == "workflow_artifact_download"
+                  and .failure.classification == "artifact_download_failed"
+                  and .outcomes.validate_inputs == "success"
+                  and .outcomes.clean_vm == "failure"
+                  and .evidence.strict_qualification_receipt_path == null
+                  and .evidence.smoke_summary_path == null
+                  and (.evidence.critical_diagnostics_sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+                )
               )
               and .identity.stable_session_id == $bundle
               and .identity.release_cohort_ref == $bundle
