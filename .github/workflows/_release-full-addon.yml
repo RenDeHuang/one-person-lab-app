@@ -26,6 +26,18 @@ on:
         required: false
         default: checkpoint_v1
         type: string
+      full_content_app_ref:
+        description: Exact App SHA whose bytes are packaged into the fresh Full asset
+        required: true
+        type: string
+      full_content_shell_ref:
+        description: Exact Shell SHA whose bytes are packaged into the fresh Full asset
+        required: true
+        type: string
+      full_content_framework_ref:
+        description: Exact Framework SHA whose bytes are packaged into the fresh Full asset
+        required: true
+        type: string
       framework_executor_ref:
         description: Exact Framework executor SHA used to verify and import the checkpoint; independent from the frozen Bundle source SHA
         required: true
@@ -129,6 +141,9 @@ jobs:
         env:
           OPERATION: ${{ inputs.operation }}
           SOURCE_FORMAT: ${{ inputs.source_format }}
+          FULL_CONTENT_APP_REF: ${{ inputs.full_content_app_ref }}
+          FULL_CONTENT_SHELL_REF: ${{ inputs.full_content_shell_ref }}
+          FULL_CONTENT_FRAMEWORK_REF: ${{ inputs.full_content_framework_ref }}
           FRAMEWORK_EXECUTOR_REF: ${{ inputs.framework_executor_ref }}
           PRIOR_FULL_ARTIFACT_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
           SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
@@ -141,6 +156,12 @@ jobs:
             echo "::error::Framework executor must be an exact lowercase SHA."
             exit 1
           }
+          for ref in "$FULL_CONTENT_APP_REF" "$FULL_CONTENT_SHELL_REF" "$FULL_CONTENT_FRAMEWORK_REF"; do
+            [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "::error::Fresh Full content refs must be exact lowercase SHAs."
+              exit 1
+            }
+          done
           test "$SOURCE_FORMAT" = checkpoint_v1
           if [ -n "$PRIOR_FULL_ARTIFACT_RUN_ID" ]; then
             test "$OPERATION" = append_full
@@ -802,12 +823,12 @@ jobs:
       mode: execute
       opl_version: ${{ needs.restore-standard.outputs.version }}
       opl_updater_version: ${{ needs.restore-standard.outputs.updater_version }}
-      framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
-      shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
+      framework_ref: ${{ inputs.full_content_framework_ref }}
+      shell_ref: ${{ inputs.full_content_shell_ref }}
       upload_full_package_artifact: true
       release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
-      artifact_app_sha: ${{ needs.restore-standard.outputs.app_ref }}
+      artifact_app_sha: ${{ inputs.full_content_app_ref }}
       target_standard_release_id: ${{ needs.restore-standard.outputs.target_standard_release_id }}
       target_standard_release_tag: ${{ needs.restore-standard.outputs.target_standard_release_tag }}
       target_standard_target_commitish: ${{ needs.restore-standard.outputs.target_standard_target_commitish }}
@@ -886,9 +907,9 @@ jobs:
           PRIOR_RUN_ID: ${{ inputs.prior_full_artifact_run_id }}
           VERSION: ${{ needs.restore-standard.outputs.version }}
           BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
-          APP_REF: ${{ needs.restore-standard.outputs.app_ref }}
-          SHELL_REF: ${{ needs.restore-standard.outputs.shell_ref }}
-          FRAMEWORK_REF: ${{ needs.restore-standard.outputs.framework_source_ref }}
+          APP_REF: ${{ inputs.full_content_app_ref }}
+          SHELL_REF: ${{ inputs.full_content_shell_ref }}
+          FRAMEWORK_REF: ${{ inputs.full_content_framework_ref }}
           SMOKE_HARNESS_REF: ${{ inputs.smoke_harness_ref }}
         shell: bash
         run: |
@@ -1078,6 +1099,9 @@ jobs:
       - name: Verify exact hosted Full core qualification
         env:
           VERSION: ${{ needs.restore-standard.outputs.version }}
+          FULL_CONTENT_APP_REF: ${{ inputs.full_content_app_ref }}
+          FULL_CONTENT_SHELL_REF: ${{ inputs.full_content_shell_ref }}
+          FULL_CONTENT_FRAMEWORK_REF: ${{ inputs.full_content_framework_ref }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1090,7 +1114,10 @@ jobs:
           jq -e \
             --arg name "$(basename "$dmg_path")" \
             --arg sha "$dmg_sha" \
-            --argjson size "$dmg_size" '
+            --argjson size "$dmg_size" \
+            --arg app "$FULL_CONTENT_APP_REF" \
+            --arg shell "$FULL_CONTENT_SHELL_REF" \
+            --arg framework "$FULL_CONTENT_FRAMEWORK_REF" '
             .schema == "opl_public_release_manifest.v1"
             and .package_kind == "opl_full_first_install_macos_arm64"
             and .version == env.VERSION
@@ -1105,6 +1132,13 @@ jobs:
             and .evidence.apple_notarization_receipt.status == "passed"
             and .evidence.apple_notarization_receipt.notarization.status == "Accepted"
             and .evidence.runtime_native_trust.status == "passed"
+            and .carrier_context.full_content_sources == {
+              role: "observational_build_provenance_only",
+              may_gate_install_or_runtime: false,
+              app_sha: $app,
+              shell_sha: $shell,
+              framework_sha: $framework
+            }
           ' "$manifest_path" >/dev/null
           mount_point="$(mktemp -d)"
           mounted=false
@@ -1188,11 +1222,11 @@ jobs:
       release_artifact_run_id: ${{ inputs.prior_full_artifact_run_id || github.run_id }}
       release_bundle_digest: ${{ needs.restore-standard.outputs.bundle_digest }}
       release_cohort_ref: ${{ needs.restore-standard.outputs.bundle_digest }}
-      artifact_app_ref: ${{ needs.restore-standard.outputs.app_ref }}
-      verification_app_ref: ${{ inputs.smoke_harness_ref != '' && github.sha || needs.restore-standard.outputs.app_ref }}
-      shell_ref: ${{ needs.restore-standard.outputs.shell_ref }}
-      smoke_harness_ref: ${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}
-      framework_ref: ${{ needs.restore-standard.outputs.framework_source_ref }}
+      artifact_app_ref: ${{ inputs.full_content_app_ref }}
+      verification_app_ref: ${{ inputs.smoke_harness_ref != '' && github.sha || inputs.full_content_app_ref }}
+      shell_ref: ${{ inputs.full_content_shell_ref }}
+      smoke_harness_ref: ${{ inputs.smoke_harness_ref || inputs.full_content_shell_ref }}
+      framework_ref: ${{ inputs.full_content_framework_ref }}
       framework_executor_ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
       mas_ref: ${{ needs.full-build.outputs.mas_ref || needs.materialize-full-build.outputs.mas_ref }}
       package_profile: full
@@ -1295,7 +1329,10 @@ jobs:
             --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
             --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
             --arg attestation_sha "$standard_attestation_sha" \
-            --argjson attestation_size "$standard_attestation_size" '
+            --argjson attestation_size "$standard_attestation_size" \
+            --arg app '${{ inputs.full_content_app_ref }}' \
+            --arg shell '${{ inputs.full_content_shell_ref }}' \
+            --arg framework '${{ inputs.full_content_framework_ref }}' '
               if (
                 .carrier_context.publication_model == "same_tag_mutable_standard_addon"
                 and .carrier_context.target_standard_release == {
@@ -1306,6 +1343,13 @@ jobs:
                   immutable: false,
                   full_asset_append_allowed: true,
                   standard_asset_overwrite_or_delete_allowed: false
+                }
+                and .carrier_context.full_content_sources == {
+                  role: "observational_build_provenance_only",
+                  may_gate_install_or_runtime: false,
+                  app_sha: $app,
+                  shell_sha: $shell,
+                  framework_sha: $framework
                 }
               ) then .
               else error("Full build manifest does not bind the exact same-tag mutable Standard append target")
@@ -1409,9 +1453,9 @@ jobs:
               --arg source_artifact_run_id '${{ inputs.prior_full_artifact_run_id || github.run_id }}' \
               --arg artifact 'opl-full-first-install-dmg-${{ needs.restore-standard.outputs.version }}-mac-arm64' \
               --arg bundle "$BUNDLE_DIGEST" \
-              --arg app '${{ needs.restore-standard.outputs.app_ref }}' \
-              --arg shell '${{ needs.restore-standard.outputs.shell_ref }}' \
-              --arg framework '${{ needs.restore-standard.outputs.framework_source_ref }}' '
+              --arg app '${{ inputs.full_content_app_ref }}' \
+              --arg shell '${{ inputs.full_content_shell_ref }}' \
+              --arg framework '${{ inputs.full_content_framework_ref }}' '
                 .schema == "opl_app_artifact_qualification_receipt.v1"
                 and .status == "passed"
                 and .package_profile == "full"
@@ -1605,7 +1649,10 @@ jobs:
           ' target-standard-release-before-publish.json >/dev/null
           jq -e \
             --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' '
+            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
+            --arg app '${{ inputs.full_content_app_ref }}' \
+            --arg shell '${{ inputs.full_content_shell_ref }}' \
+            --arg framework '${{ inputs.full_content_framework_ref }}' '
             .ref == ("refs/tags/" + $tag)
             and .object.type == "commit"
             and .object.sha == $target
@@ -1624,6 +1671,13 @@ jobs:
             and .carrier_context.latest_modified == false
             and .carrier_context.updater_metadata_modified == false
             and .carrier_context.release_notes_modified == false
+            and .carrier_context.full_content_sources == {
+              role: "observational_build_provenance_only",
+              may_gate_install_or_runtime: false,
+              app_sha: $app,
+              shell_sha: $shell,
+              framework_sha: $framework
+            }
           ' "$full_manifest" >/dev/null
           framework-executor/bin/opl release operation admit \
             --bundle "$BUNDLE_DIGEST" "${operation_args[@]}" \
@@ -1820,9 +1874,9 @@ jobs:
             --argjson target_standard_release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
             --arg target_standard_release_tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
             --arg target_standard_target_commitish '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
-            --arg app_sha '${{ needs.restore-standard.outputs.app_ref }}' \
-            --arg shell_sha '${{ needs.restore-standard.outputs.shell_ref }}' \
-            --arg framework_sha '${{ needs.restore-standard.outputs.framework_source_ref }}' \
+            --arg app_sha '${{ inputs.full_content_app_ref }}' \
+            --arg shell_sha '${{ inputs.full_content_shell_ref }}' \
+            --arg framework_sha '${{ inputs.full_content_framework_ref }}' \
             --arg operation_id '${{ needs.restore-standard.outputs.operation_id }}' \
             --arg operation_started_at '${{ needs.restore-standard.outputs.operation_started_at }}' \
             --arg operation_deadline_at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \

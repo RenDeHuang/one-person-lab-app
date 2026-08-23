@@ -96,10 +96,17 @@ test('Desktop assets append to the same Release through one CAS controller', () 
 
 test('Full append starts only after Desktop append and binds exactly one new successful run', () => {
   const full = workflow.jobs['dispatch-full'];
+  const dispatchStep = full.steps.find(
+    (step: Record<string, unknown>) => step.name === 'Dispatch and bind one same-tag Full append',
+  );
   assert.equal(full.if, "${{ github.event_name == 'workflow_run' && needs.admit.outputs.applicable == 'true' }}");
   assert.deepEqual(full.needs, ['admit', 'append-desktop-platforms']);
   assert.equal(full['timeout-minutes'], 160);
   assert.deepEqual(full.permissions, { contents: 'read', actions: 'write' });
+  assert.equal(dispatchStep.env.APP_REF, '${{ needs.admit.outputs.app_ref }}');
+  assert.equal(dispatchStep.env.SHELL_REF, '${{ needs.admit.outputs.shell_ref }}');
+  assert.equal(dispatchStep.env.FRAMEWORK_REF, '${{ needs.admit.outputs.framework_ref }}');
+  assert.match(dispatchStep.run, /app_ref:\$app_ref,shell_ref:\$shell_ref,framework_ref:\$framework_ref/);
   assert.match(source, /prior_ids=/);
   assert.match(source, /prior \| index\(\$id\)/);
   assert.equal((source.match(/actions\/workflows\/release-stable\.yml\/dispatches/g) ?? []).length, 1);

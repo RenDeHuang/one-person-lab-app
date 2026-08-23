@@ -274,6 +274,72 @@ test('the live control plane is split into Standard build, Standard publish, and
   assert.doesNotMatch(`${readWorkflow('_release-bundle.yml')}\n${readWorkflow('_release-standard-publish.yml')}\n${readWorkflow('_release-full-addon.yml')}`, /release[_ -]broker|stable[_ -]session[_ -]lease/i);
 });
 
+test('append_full preserves the Standard checkpoint while binding a fresh Full content cohort', () => {
+  const controller = parseWorkflow('release-stable.yml');
+  const full = parseWorkflow('_release-full-addon.yml');
+  const controllerAdmission = workflowStep(
+    'release-stable.yml',
+    'admission',
+    'Admit one bounded Bundle operation',
+  );
+  const controllerAdmissionRun = String(controllerAdmission.run);
+  const append = controller.jobs['append-full'].with;
+
+  assert.equal(controller.on.workflow_dispatch.inputs.app_ref.required, false);
+  assert.equal(controllerAdmission.env.REQUESTED_APP_REF, '${{ inputs.app_ref }}');
+  assert.match(controllerAdmissionRun, /APP_REF="\$REQUESTED_APP_REF"/);
+  assert.match(controllerAdmissionRun, /FRAMEWORK_SOURCE_REF="\$FRAMEWORK_EXECUTOR_REF"/);
+  assert.equal(append.source_run_id, '${{ needs.admission.outputs.source_run_id }}');
+  assert.equal(append.source_artifact, '${{ needs.admission.outputs.source_artifact }}');
+  assert.equal(append.full_content_app_ref, '${{ needs.admission.outputs.app_ref }}');
+  assert.equal(append.full_content_shell_ref, '${{ needs.admission.outputs.shell_ref }}');
+  assert.equal(append.full_content_framework_ref, '${{ needs.admission.outputs.framework_ref }}');
+  assert.equal(controller.jobs['resume-standard'].with.full_content_app_ref, undefined);
+
+  for (const input of ['full_content_app_ref', 'full_content_shell_ref', 'full_content_framework_ref']) {
+    assert.equal(full.on.workflow_call.inputs[input].required, true);
+  }
+  assert.equal(full.jobs['full-build'].with.artifact_app_sha, '${{ inputs.full_content_app_ref }}');
+  assert.equal(full.jobs['full-build'].with.shell_ref, '${{ inputs.full_content_shell_ref }}');
+  assert.equal(full.jobs['full-build'].with.framework_ref, '${{ inputs.full_content_framework_ref }}');
+  assert.equal(
+    full.jobs['full-build'].with.release_bundle_digest,
+    '${{ needs.restore-standard.outputs.bundle_digest }}',
+  );
+  assert.equal(
+    full.jobs['full-clean-vm-qualification'].with.artifact_app_ref,
+    '${{ inputs.full_content_app_ref }}',
+  );
+  assert.equal(
+    full.jobs['full-clean-vm-qualification'].with.shell_ref,
+    '${{ inputs.full_content_shell_ref }}',
+  );
+  assert.equal(
+    full.jobs['full-clean-vm-qualification'].with.framework_ref,
+    '${{ inputs.full_content_framework_ref }}',
+  );
+
+  const hostedQualification = workflowStep(
+    '_release-full-addon.yml',
+    'full-qualification',
+    'Verify exact hosted Full core qualification',
+  );
+  assert.equal(hostedQualification.env.FULL_CONTENT_APP_REF, '${{ inputs.full_content_app_ref }}');
+  assert.equal(hostedQualification.env.FULL_CONTENT_SHELL_REF, '${{ inputs.full_content_shell_ref }}');
+  assert.equal(hostedQualification.env.FULL_CONTENT_FRAMEWORK_REF, '${{ inputs.full_content_framework_ref }}');
+  assert.match(String(hostedQualification.run), /carrier_context\.full_content_sources/);
+  for (const step of [
+    workflowStep('_release-full-addon.yml', 'checkpoint-full', 'Bind Full bytes and export additive checkpoint'),
+    workflowStep('_release-full-addon.yml', 'publish-full', 'Append exact Full bytes to the mutable Standard Release'),
+  ]) {
+    const run = String(step.run);
+    assert.match(run, /carrier_context\.full_content_sources/);
+    assert.match(run, /inputs\.full_content_app_ref/);
+    assert.match(run, /inputs\.full_content_shell_ref/);
+    assert.match(run, /inputs\.full_content_framework_ref/);
+  }
+});
+
 test('resume admission preserves Standard identity and rotates only an expired execution window', () => {
   const workflow = parseWorkflow('_release-standard-publish.yml');
   const source = readWorkflow('_release-standard-publish.yml');
@@ -680,11 +746,11 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.equal(cleanVmQualification.with.diagnostic_scope, 'release_gate');
   assert.equal(
     cleanVmQualification.with.verification_app_ref,
-    "${{ inputs.smoke_harness_ref != '' && github.sha || needs.restore-standard.outputs.app_ref }}",
+    "${{ inputs.smoke_harness_ref != '' && github.sha || inputs.full_content_app_ref }}",
   );
   assert.equal(
     cleanVmQualification.with.smoke_harness_ref,
-    '${{ inputs.smoke_harness_ref || needs.restore-standard.outputs.shell_ref }}',
+    '${{ inputs.smoke_harness_ref || inputs.full_content_shell_ref }}',
   );
   assert.equal(cleanVmQualification.secrets, 'inherit');
   const reusableFullVerification = workflowStep(

@@ -299,6 +299,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ needs.admit.outputs.source_run_id }}
           SOURCE_ARTIFACT: ${{ needs.admit.outputs.source_artifact }}
+          APP_REF: ${{ needs.admit.outputs.app_ref }}
+          SHELL_REF: ${{ needs.admit.outputs.shell_ref }}
           FRAMEWORK_REF: ${{ needs.admit.outputs.framework_ref }}
         run: |
           set -euo pipefail
@@ -308,9 +310,10 @@ jobs:
             > before-runs.json
           prior_ids="$(jq -c '[.[]?.workflow_runs[]? | select(.display_title | test($title)) | .id]' \
             --arg title "$title_regex" before-runs.json)"
-          jq -n --arg ref main --arg framework_ref "$FRAMEWORK_REF" \
+          jq -n --arg ref main --arg app_ref "$APP_REF" --arg shell_ref "$SHELL_REF" \
+            --arg framework_ref "$FRAMEWORK_REF" \
             --arg source_run_id "$SOURCE_RUN_ID" --arg source_artifact "$SOURCE_ARTIFACT" \
-            '{ref:$ref,inputs:{operation:"append_full",version:"",include_full:"false",shell_ref:"",framework_ref:$framework_ref,source_run_id:$source_run_id,source_artifact:$source_artifact}}' \
+            '{ref:$ref,inputs:{operation:"append_full",version:"",include_full:"false",app_ref:$app_ref,shell_ref:$shell_ref,framework_ref:$framework_ref,source_run_id:$source_run_id,source_artifact:$source_artifact}}' \
             > dispatch.json
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/release-stable.yml/dispatches" --input dispatch.json
 
