@@ -921,7 +921,9 @@ function validateCandidateValidationCommands(candidate: ShellCandidate): void {
     if (!entry.id || !entry.cwd || !entry.command) {
       throw new Error(`${candidate.id} has invalid validation command ${JSON.stringify(entry)}`);
     }
-    const cwdPath = path.join(root, entry.cwd);
+    const cwdPath = entry.cwd === candidate.candidate_root
+      ? resolveCandidateRoot(candidate.candidate_root)
+      : path.join(root, entry.cwd);
     if (!fs.existsSync(cwdPath)) {
       if (missingCandidateCheckoutCanBeBlocked(candidate) && entry.cwd === candidate.candidate_root) {
         continue;
