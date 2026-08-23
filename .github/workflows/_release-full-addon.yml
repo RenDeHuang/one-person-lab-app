@@ -1595,26 +1595,41 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BUNDLE_DIGEST: ${{ needs.restore-standard.outputs.bundle_digest }}
+          SOURCE_RUN_ID: ${{ needs.provenance.outputs.source_run_id }}
+          SOURCE_ARTIFACT: ${{ needs.provenance.outputs.source_artifact }}
+          CHECKPOINT_TRANSPORT_EXECUTOR: ${{ needs.provenance.outputs.checkpoint_transport_executor }}
+          TRANSPORT_RUN_ID: ${{ needs.provenance.outputs.transport_run_id }}
+          OPERATION_ID: ${{ needs.restore-standard.outputs.operation_id }}
+          OPERATION_STARTED_AT: ${{ needs.restore-standard.outputs.operation_started_at }}
+          OPERATION_DEADLINE_AT: ${{ needs.restore-standard.outputs.operation_deadline_at }}
+          BUNDLE_PATH: ${{ steps.checkpoint.outputs.bundle_path }}
+          STORE_DIR: ${{ steps.checkpoint.outputs.store_dir }}
+          CHECKPOINT_DIR: ${{ steps.checkpoint.outputs.checkpoint_dir }}
+          RELEASE_VERSION: ${{ needs.restore-standard.outputs.version }}
+          TARGET_STANDARD_RELEASE_ID: ${{ needs.restore-standard.outputs.target_standard_release_id }}
+          TARGET_STANDARD_RELEASE_TAG: ${{ needs.restore-standard.outputs.target_standard_release_tag }}
+          TARGET_STANDARD_DECLARED_COMMITISH: ${{ needs.restore-standard.outputs.target_standard_declared_commitish }}
+          TARGET_STANDARD_TARGET_COMMITISH: ${{ needs.restore-standard.outputs.target_standard_target_commitish }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-failure-evidence
           exec > >(tee release-failure-evidence/stdout.txt) 2> >(tee release-failure-evidence/stderr.txt >&2)
-          printf '%s\0' "$BUNDLE_DIGEST" '${{ needs.provenance.outputs.source_run_id }}' '${{ needs.provenance.outputs.source_artifact }}' '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+          printf '%s\0' "$BUNDLE_DIGEST" "$SOURCE_RUN_ID" "$SOURCE_ARTIFACT" "$OPERATION_DEADLINE_AT" \
             | shasum -a 256 | awk '{print "sha256:"$1}' > release-failure-evidence/input-digest.txt
           node --experimental-strip-types app-source/scripts/release-operation-deadline.ts check \
-            --operation append_full --started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
-            --deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
-          bundle='${{ steps.checkpoint.outputs.bundle_path }}'
-          store='${{ steps.checkpoint.outputs.store_dir }}'
-          operation_id='${{ needs.restore-standard.outputs.operation_id }}'
+            --operation append_full --started-at "$OPERATION_STARTED_AT" \
+            --deadline-at "$OPERATION_DEADLINE_AT"
+          bundle="$BUNDLE_PATH"
+          store="$STORE_DIR"
+          operation_id="$OPERATION_ID"
           operation_args=(
             --operation append_full
             --operation-id "$operation_id"
-            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}'
-            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}'
+            --operation-started-at "$OPERATION_STARTED_AT"
+            --operation-deadline-at "$OPERATION_DEADLINE_AT"
           )
-          checkpoint='${{ steps.checkpoint.outputs.checkpoint_dir }}'
+          checkpoint="$CHECKPOINT_DIR"
           full_manifest="$checkpoint/tracks/full/assets/opl-release-manifest.json"
           test -f "$full_manifest" && test ! -L "$full_manifest"
           full_version="$(jq -er '
@@ -1630,15 +1645,15 @@ jobs:
           full_manifest_sha_hex="$(shasum -a 256 "$full_manifest" | awk '{print $1}')"
           full_manifest_sha="sha256:$full_manifest_sha_hex"
           full_manifest_executor_app_sha="$(jq -er '.carrier_context.release_executor.app_sha | select(type == "string" and test("^[0-9a-f]{40}$"))' "$full_manifest")"
-          standard_tag='${{ needs.restore-standard.outputs.target_standard_release_tag }}'
+          standard_tag="$TARGET_STANDARD_RELEASE_TAG"
           remote_target="github-release:${GITHUB_REPOSITORY}@${standard_tag}"
-          gh api "repos/${GITHUB_REPOSITORY}/releases/${{ needs.restore-standard.outputs.target_standard_release_id }}" > target-standard-release-before-publish.json
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${TARGET_STANDARD_RELEASE_ID}" > target-standard-release-before-publish.json
           gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${standard_tag}" > target-standard-tag-before-publish.json
           gh api "repos/${GITHUB_REPOSITORY}/releases/latest" > latest-before-full.json
           jq -e \
-            --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
-            --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg declared_target '${{ needs.restore-standard.outputs.target_standard_declared_commitish }}' '
+            --argjson release_id "$TARGET_STANDARD_RELEASE_ID" \
+            --arg tag "$TARGET_STANDARD_RELEASE_TAG" \
+            --arg declared_target "$TARGET_STANDARD_DECLARED_COMMITISH" '
             .id == $release_id
             and .tag_name == $tag
             and .target_commitish == $declared_target
@@ -1648,8 +1663,8 @@ jobs:
             and ([.assets[] | select(.name == "opl-release-attestation.json" and .size > 0 and (.digest | test("^sha256:[0-9a-f]{64}$")))] | length == 1)
           ' target-standard-release-before-publish.json >/dev/null
           jq -e \
-            --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
+            --arg tag "$TARGET_STANDARD_RELEASE_TAG" \
+            --arg target "$TARGET_STANDARD_TARGET_COMMITISH" \
             --arg app '${{ inputs.full_content_app_ref }}' \
             --arg shell '${{ inputs.full_content_shell_ref }}' \
             --arg framework '${{ inputs.full_content_framework_ref }}' '
@@ -1658,9 +1673,9 @@ jobs:
             and .object.sha == $target
           ' target-standard-tag-before-publish.json >/dev/null
           jq -e \
-            --argjson release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
-            --arg tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg target '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' '
+            --argjson release_id "$TARGET_STANDARD_RELEASE_ID" \
+            --arg tag "$TARGET_STANDARD_RELEASE_TAG" \
+            --arg target "$TARGET_STANDARD_TARGET_COMMITISH" '
             .carrier_context.publication_model == "same_tag_mutable_standard_addon"
             and .carrier_context.target_standard_release.release_id == $release_id
             and .carrier_context.target_standard_release.tag == $tag
@@ -1708,14 +1723,14 @@ jobs:
           standard_attestation="${standard_attestations[0]}"
           test -f "$standard_attestation"
           test ! -L "$standard_attestation"
-          target_standard_commitish='${{ needs.restore-standard.outputs.target_standard_target_commitish }}'
+          target_standard_commitish="$TARGET_STANDARD_TARGET_COMMITISH"
           node --experimental-strip-types app-source/scripts/framework-release-adapter.ts github-apply \
             --bundle "$bundle" --plan publish-plan.json \
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --publication-channel stable \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
-            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
-            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            --operation-started-at "$OPERATION_STARTED_AT" \
+            --operation-deadline-at "$OPERATION_DEADLINE_AT" \
             --standard-attestation "$standard_attestation" \
             --executor-app-sha "$full_manifest_executor_app_sha" \
             --mutation-mode rehearsal \
@@ -1728,8 +1743,8 @@ jobs:
             --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
             --publication-channel stable \
             --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-publish" \
-            --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
-            --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            --operation-started-at "$OPERATION_STARTED_AT" \
+            --operation-deadline-at "$OPERATION_DEADLINE_AT" \
             --standard-attestation "$standard_attestation" \
             --executor-app-sha "$full_manifest_executor_app_sha" \
             --mutation-mode execute \
@@ -1788,8 +1803,8 @@ jobs:
               --operation append_full --track full --run-attempt "$GITHUB_RUN_ATTEMPT" \
               --publication-channel stable \
               --operation-id "$operation_id" --attempt-id "gha-${GITHUB_RUN_ID}-full-reconcile" \
-              --operation-started-at '${{ needs.restore-standard.outputs.operation_started_at }}' \
-              --operation-deadline-at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+              --operation-started-at "$OPERATION_STARTED_AT" \
+              --operation-deadline-at "$OPERATION_DEADLINE_AT" \
               --standard-attestation "$standard_attestation" \
               --executor-app-sha "$full_manifest_executor_app_sha" \
               --mutation-mode execute \
@@ -1837,7 +1852,7 @@ jobs:
           full_qualification="$checkpoint/tracks/full/qualification.json"
           test -f "$full_assets"
           test -f "$full_qualification"
-          dmg_name="One-Person-Lab-Full-${{ needs.restore-standard.outputs.version }}-mac-arm64.dmg"
+          dmg_name="One-Person-Lab-Full-${RELEASE_VERSION}-mac-arm64.dmg"
           manifest_name=opl-release-manifest.json
           dmg_path="$checkpoint/tracks/full/assets/$dmg_name"
           manifest_path="$checkpoint/tracks/full/assets/$manifest_name"
@@ -1863,23 +1878,23 @@ jobs:
           base_url="https://github.com/$GITHUB_REPOSITORY/releases/download/${standard_tag}"
           jq -n \
             --arg authority_run_id "$GITHUB_RUN_ID" --arg authority_head_sha "$GITHUB_SHA" \
-            --arg source_run_id '${{ needs.provenance.outputs.source_run_id }}' \
-            --arg source_artifact '${{ needs.provenance.outputs.source_artifact }}' \
-            --arg checkpoint_transport_executor '${{ needs.provenance.outputs.checkpoint_transport_executor }}' \
-            --arg transport_run_id '${{ needs.provenance.outputs.transport_run_id }}' \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_artifact "$SOURCE_ARTIFACT" \
+            --arg checkpoint_transport_executor "$CHECKPOINT_TRANSPORT_EXECUTOR" \
+            --arg transport_run_id "$TRANSPORT_RUN_ID" \
             --arg bundle_digest "$BUNDLE_DIGEST" --arg version "$full_version" \
             --arg manifest_sha "$full_manifest_sha" --arg standard_tag "$standard_tag" \
             --arg standard_attestation_sha "$standard_attestation_sha" \
             --argjson standard_attestation_size "$standard_attestation_size" \
-            --argjson target_standard_release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
-            --arg target_standard_release_tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg target_standard_target_commitish '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
+            --argjson target_standard_release_id "$TARGET_STANDARD_RELEASE_ID" \
+            --arg target_standard_release_tag "$TARGET_STANDARD_RELEASE_TAG" \
+            --arg target_standard_target_commitish "$TARGET_STANDARD_TARGET_COMMITISH" \
             --arg app_sha '${{ inputs.full_content_app_ref }}' \
             --arg shell_sha '${{ inputs.full_content_shell_ref }}' \
             --arg framework_sha '${{ inputs.full_content_framework_ref }}' \
-            --arg operation_id '${{ needs.restore-standard.outputs.operation_id }}' \
-            --arg operation_started_at '${{ needs.restore-standard.outputs.operation_started_at }}' \
-            --arg operation_deadline_at '${{ needs.restore-standard.outputs.operation_deadline_at }}' \
+            --arg operation_id "$OPERATION_ID" \
+            --arg operation_started_at "$OPERATION_STARTED_AT" \
+            --arg operation_deadline_at "$OPERATION_DEADLINE_AT" \
             --arg dmg_name "$dmg_name" --arg dmg_sha "$dmg_sha" --argjson dmg_size "$dmg_size" \
             --arg dmg_url "$base_url/$dmg_name" \
             --arg manifest_name "$manifest_name" --arg manifest_sha "$manifest_sha" --argjson manifest_size "$manifest_size" \
@@ -1912,9 +1927,9 @@ jobs:
             }' > homebrew-full-handoff.json
           jq -n --arg standard_tag "$standard_tag" --arg manifest_sha "$full_manifest_sha" \
             --arg standard_attestation_sha "$standard_attestation_sha" \
-            --argjson target_standard_release_id '${{ needs.restore-standard.outputs.target_standard_release_id }}' \
-            --arg target_standard_release_tag '${{ needs.restore-standard.outputs.target_standard_release_tag }}' \
-            --arg target_standard_target_commitish '${{ needs.restore-standard.outputs.target_standard_target_commitish }}' \
+            --argjson target_standard_release_id "$TARGET_STANDARD_RELEASE_ID" \
+            --arg target_standard_release_tag "$TARGET_STANDARD_RELEASE_TAG" \
+            --arg target_standard_target_commitish "$TARGET_STANDARD_TARGET_COMMITISH" \
             '{schema:"opl_app_full_append_boundary_receipt.v1",status:"passed",operation:"append_full",carrier:{kind:"same_standard_release_assets",versioning:"same_standard_tag",standard_tag:$standard_tag,manifest_sha256:$manifest_sha,standard_attestation_sha256:$standard_attestation_sha,target_standard:{release_id:$target_standard_release_id,tag:$target_standard_release_tag,target_commitish:$target_standard_target_commitish,immutable:false,full_asset_append_allowed:true,standard_asset_overwrite_or_delete_allowed:false}},standard_assets_modified:false,prepared_notes_modified:false,standard_updater_metadata_modified:false,homebrew_modified:false,latest_modified:false}' \
             > append-full-boundary.json
 
