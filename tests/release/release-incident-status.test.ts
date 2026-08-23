@@ -235,7 +235,12 @@ test('exact Full checkpoint is required before recommending checkpoint recovery'
   ]);
   const status = buildReleaseIncidentStatus({
     run: run(),
-    jobs: { jobs: [checkpointUpload, failure] },
+    jobs: { jobs: [
+      completedJob(38, 'append-full / full-qualification'),
+      completedJob(39, 'append-full / full-clean-vm-qualification / Clean VM first launch'),
+      checkpointUpload,
+      failure,
+    ] },
     artifacts: { artifacts: [artifact(10, `opl-release-full-checkpoint-${runId}`)] },
     now: '2026-08-22T00:30:00Z',
   });
@@ -243,6 +248,34 @@ test('exact Full checkpoint is required before recommending checkpoint recovery'
   assert.deepEqual(status.checkpoint_recovery, {
     available: true,
     completed_stage: 'full_qualified',
+    artifact_name: `opl-release-full-checkpoint-${runId}`,
+  });
+  assert.equal(status.next_action.code, 'reuse_full_built_checkpoint');
+});
+
+test('failed Full qualification preserves a recoverable full_built checkpoint', () => {
+  const qualificationFailure = {
+    id: 42,
+    name: 'append-full / full-clean-vm-qualification / Clean VM first launch',
+    status: 'completed',
+    conclusion: 'failure',
+    started_at: '2026-08-22T00:25:00Z',
+    completed_at: '2026-08-22T00:26:00Z',
+    steps: [step(2, 'Run clean VM first launch smoke', 'failure', '2026-08-22T00:25:10Z', '2026-08-22T00:25:20Z')],
+  };
+  const checkpointUpload = completedJob(43, 'append-full / checkpoint-full', [
+    step(9, 'Upload additive Full checkpoint', 'success', '2026-08-22T00:26:10Z', '2026-08-22T00:26:20Z'),
+  ]);
+  const status = buildReleaseIncidentStatus({
+    run: run(),
+    jobs: { jobs: [qualificationFailure, checkpointUpload] },
+    artifacts: { artifacts: [artifact(11, `opl-release-full-checkpoint-${runId}`)] },
+    now: '2026-08-22T00:30:00Z',
+  });
+
+  assert.deepEqual(status.checkpoint_recovery, {
+    available: true,
+    completed_stage: 'full_built',
     artifact_name: `opl-release-full-checkpoint-${runId}`,
   });
   assert.equal(status.next_action.code, 'reuse_full_built_checkpoint');

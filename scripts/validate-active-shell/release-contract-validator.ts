@@ -718,6 +718,7 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   const checkpoint = control?.checkpoint_transport;
   const operations = control?.operation_control;
   const markerPolicy = checkpoint?.active_unknown_markers;
+  const fullMaterializationCheckpoint = checkpoint?.full_materialization_checkpoint;
   const standardOperation = operations?.stable_operations?.standard;
   const resumeStandardOperation = operations?.stable_operations?.resume_standard;
   const appendFullOperation = operations?.stable_operations?.append_full;
@@ -805,6 +806,11 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
     checkpoint?.portable_between_executors !== true ||
     checkpoint?.import_never_rebuilds !== true ||
     checkpoint?.completed_stage_behavior !== 'skip_with_rebuild_performed_false' ||
+    fullMaterializationCheckpoint?.required_after_materialization !== true ||
+    JSON.stringify(fullMaterializationCheckpoint?.terminal_stages) !== JSON.stringify(['full_built', 'full_qualified']) ||
+    fullMaterializationCheckpoint?.qualification_failure_preserves_stage !== 'full_built' ||
+    fullMaterializationCheckpoint?.recovery_preference !== 'framework_checkpoint_before_actions_artifact_selection' ||
+    fullMaterializationCheckpoint?.prior_full_artifact_run_id_scope !== 'legacy_runs_without_full_built_checkpoint' ||
     checkpoint?.asset_and_receipt_digest_revalidation_required !== true ||
     checkpoint?.transport_must_not_replace_source_build_provenance !== true ||
     checkpoint?.operation_controls_preserved_exactly !== true ||

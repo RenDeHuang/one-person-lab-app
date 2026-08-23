@@ -348,9 +348,13 @@ function successfulJobExists(jobs: JsonRecord[], pattern: RegExp): boolean {
 }
 
 function checkpointEvidence(jobs: JsonRecord[], artifacts: ReturnType<typeof artifactSummary>) {
-  const qualified = artifacts.find((artifact) => /^opl-release-full-checkpoint-\d+$/.test(artifact.name));
-  if (qualified && successfulStepExists(jobs, /Upload additive Full checkpoint/i)) {
-    return { available: true, completed_stage: 'full_qualified', artifact_name: qualified.name };
+  const checkpoint = artifacts.find((artifact) => /^opl-release-full-checkpoint-\d+$/.test(artifact.name));
+  if (checkpoint && successfulStepExists(jobs, /Upload additive Full checkpoint/i)) {
+    const completedStage = successfulJobExists(jobs, /full-qualification$/i)
+      && successfulJobExists(jobs, /full-clean-vm-qualification \/ Clean VM first launch/i)
+      ? 'full_qualified'
+      : 'full_built';
+    return { available: true, completed_stage: completedStage, artifact_name: checkpoint.name };
   }
   return { available: false, completed_stage: null, artifact_name: null };
 }

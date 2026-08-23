@@ -55,6 +55,12 @@ manifest's original installer identity through every public additive repair rece
 Release asset. `.github/workflows/release-post-publication-certification.yml` is a read-only consumer
 of the completed same-tag Release Set and additive repair receipt.
 
+Once exact Full bytes have been materialized, the Full workflow always exports a Framework
+checkpoint after qualification reaches a terminal result. Successful hosted and clean-VM
+qualification exports `full_qualified`; any later qualification failure still exports `full_built`.
+Recovery consumes that checkpoint before considering the legacy `prior_full_artifact_run_id` path,
+so a failed verifier cannot force another signed/notarized build or human artifact-producer choice.
+
 Nightly and Windows Preview/RC are separate Preview policies and never become alternate Stable
 Releases. Docker WebUI is also outside this Bundle control plane.
 

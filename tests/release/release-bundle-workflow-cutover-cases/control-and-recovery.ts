@@ -634,8 +634,12 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(String(full.jobs['materialize-full-build'].if), /full_built/);
   assert.match(String(full.jobs['full-qualification'].if), /standard_qualified/);
   assert.match(String(full.jobs['full-qualification'].if), /full_built/);
-  assert.match(String(full.jobs['checkpoint-full'].if), /full_qualified/);
+  assert.match(String(full.jobs['checkpoint-full'].if), /needs\.full-build\.result == 'success'/);
+  assert.match(String(full.jobs['checkpoint-full'].if), /needs\.materialize-full-build\.result == 'success'/);
+  assert.match(String(full.jobs['checkpoint-full'].if), /needs\.restore-standard\.outputs\.completed_stage == 'full_built'/);
+  assert.doesNotMatch(String(full.jobs['checkpoint-full'].if), /needs\.full-qualification\.result == 'success'/);
   assert.match(String(full.jobs.provenance.if), /full_qualified/);
+  assert.match(String(full.jobs['publish-full'].if), /completed_stage == 'full_qualified'/);
 
   const bind = full.jobs['checkpoint-full'].steps.find(
     (step: Record<string, unknown>) => step.name === 'Bind Full bytes and export additive checkpoint',
@@ -649,6 +653,8 @@ test('completed Full stages skip work already proven by the checkpoint', () => {
   assert.match(run, /standard-clean-vm-qualification-receipt\.json/);
   assert.match(run, /full-clean-vm-qualification-receipt\.json/);
   assert.match(run, /Full clean-VM qualification digest mismatch/);
+  assert.match(run, /if \[ "\$QUALIFICATION_COMPLETE" = true \]/);
+  assert.match(run, /checkpoint export/);
   assert.doesNotMatch(run, /--legacy-qualification/);
   const qualification = full.jobs['full-qualification'];
   assert.equal(qualification['runs-on'], 'macos-latest');

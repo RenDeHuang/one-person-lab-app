@@ -215,6 +215,13 @@ test("local and GitHub executors consume one exact build-once Bundle", () => {
     control.checkpoint_transport.completed_stage_behavior,
     "skip_with_rebuild_performed_false",
   );
+  assert.deepEqual(control.checkpoint_transport.full_materialization_checkpoint, {
+    required_after_materialization: true,
+    terminal_stages: ["full_built", "full_qualified"],
+    qualification_failure_preserves_stage: "full_built",
+    recovery_preference: "framework_checkpoint_before_actions_artifact_selection",
+    prior_full_artifact_run_id_scope: "legacy_runs_without_full_built_checkpoint",
+  });
   assert.deepEqual(control.checkpoint_transport.source_build_provenance_fields, [
     "source_build_executor",
     "source_build_run_id",
