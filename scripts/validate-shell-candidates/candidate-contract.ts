@@ -677,7 +677,12 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
         'electron-builder.yml',
       ],
       package_artifact_kind: 'electron_app_bundle',
-      qualification_commands: ['npm run test:desktop', 'npm run package:desktop', 'npm run validate:package'],
+      qualification_commands: [
+        'npm run test:desktop',
+        'npm run package:desktop',
+        'npm run smoke:desktop-live',
+        'npm run validate:package',
+      ],
       user_service_manager_source: { status: 'not_applicable', platforms: [] },
       distribution_wiring_status: 'not_wired',
       update_adapter_source: { status: 'implemented', ref: 'desktop/updater.mjs' },
@@ -968,6 +973,7 @@ function validateCandidatePackageScriptSurfaces(candidate: ShellCandidate): void
     '"build:webui"',
     '"webui"',
     '"smoke:webui"',
+    '"smoke:desktop-live"',
     '"test:webui-host"',
     '"validate:state-model"',
   ], 'package scripts for the shared renderer, Electron desktop, and headless WebUI');

@@ -590,6 +590,7 @@
             "qualification_commands": [
               "npm run test:desktop",
               "npm run package:desktop",
+              "npm run smoke:desktop-live",
               "npm run validate:package"
             ],
             "user_service_manager_source": {

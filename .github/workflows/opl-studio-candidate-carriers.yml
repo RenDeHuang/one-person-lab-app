@@ -70,6 +70,7 @@ jobs:
         working-directory: studio
         run: |
           npm run package:desktop
+          npm run smoke:desktop-live
           npm run validate:package
 
       - name: Stage candidate artifacts without release authority

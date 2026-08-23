@@ -146,6 +146,29 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   assert.equal(studio.carrier_evidence_contract.candidate_only, true);
   assert.equal(studio.carrier_evidence_contract.release_authority, false);
   assert.equal(studio.carrier_evidence_contract.current_aionui_release_evidence_may_close_successor_entry, false);
+  assert.deepEqual(
+    studio.carrier_evidence_contract.entries.electron_desktop.qualification_commands,
+    [
+      'npm run test:desktop',
+      'npm run package:desktop',
+      'npm run smoke:desktop-live',
+      'npm run validate:package',
+    ],
+  );
+  const desktopQualificationStep = parseYaml(
+    fs.readFileSync(path.join(appRoot, '.github/workflows/opl-studio-candidate-carriers.yml'), 'utf8'),
+  ).jobs['desktop-headless'].steps.find(
+    (step: { name?: string }) => step.name === 'Build and validate Electron candidate package',
+  );
+  assert.ok(desktopQualificationStep);
+  assert.deepEqual(
+    desktopQualificationStep.run.trim().split('\n').map((line: string) => line.trim()),
+    [
+      'npm run package:desktop',
+      'npm run smoke:desktop-live',
+      'npm run validate:package',
+    ],
+  );
   const studioAdapter = readJson('contracts/shell-adapters/opl-studio.json');
   assert.equal(studioAdapter.delivery_topology.carrier_evidence_manifest.candidate_only, true);
   assert.equal(studioAdapter.delivery_topology.carrier_evidence_manifest.release_authority, false);
