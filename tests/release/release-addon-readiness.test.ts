@@ -259,7 +259,7 @@ function options(fixture: ReturnType<typeof writeFixture>) {
   };
 }
 
-test('qualification receipt rejects a verification harness SHA change as a new cohort', () => {
+test('qualification receipt accepts an authorized verification harness-only change', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualification-harness-'));
   try {
     const fixture = writeFixture(root);
@@ -275,7 +275,7 @@ test('qualification receipt rejects a verification harness SHA change as a new c
       verificationShellSha,
       shellChangedPaths: ['scripts/opl-first-run-vm-smoke.mjs'],
     });
-    assert.throws(() => buildArtifactQualificationReceipt({
+    const receipt = buildArtifactQualificationReceipt({
         manifest: JSON.parse(fs.readFileSync(fixture.manifestPath, 'utf8')) as BuildArtifactCohortV2,
         manifestPath: fixture.manifestPath,
         result: 'passed',
@@ -291,7 +291,15 @@ test('qualification receipt rejects a verification harness SHA change as a new c
           smokeHarnessPath,
           scopeProof,
         },
-      }), /require.*new artifact cohort/);
+      });
+    assert.equal(receipt.verification_harness?.change_scope, 'harness_mechanics_only');
+    assert.deepEqual(validateArtifactQualificationReceipt(receipt, {
+      stableSessionId,
+      releaseCohortRef,
+      version: '26.7.13',
+      packageProfile: 'full',
+      result: 'passed',
+    }), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

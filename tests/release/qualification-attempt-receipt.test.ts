@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   buildQualificationAttemptReceipt,
+  validateQualificationAttemptReceipt,
   writeQualificationAttemptReceiptAtomic,
 } from '../../scripts/qualification-attempt-receipt.ts';
 
@@ -54,7 +55,10 @@ test('fixture retry requires the exact unchanged verifier cohort', () => {
     classification: 'same_as_artifact_cohort',
     app: { base_sha: '1'.repeat(40), head_sha: '1'.repeat(40) },
     shell: { base_sha: '2'.repeat(40), head_sha: '2'.repeat(40) },
-    expectations: { artifact_semantic_digest: '4'.repeat(64), verification_semantic_digest: '4'.repeat(64) },
+    expectations: {
+      artifact_semantic_digest: '4'.repeat(64), verification_semantic_digest: '4'.repeat(64),
+      artifact_probe_digest: '5'.repeat(64), verification_probe_digest: '5'.repeat(64),
+    },
     reuse_authorization: { forbidden_paths: { app: [], shell: [] } },
   };
   const receipt = buildQualificationAttemptReceipt({
@@ -113,19 +117,22 @@ test('typed VM diagnostics override unknown and force a new cohort for verifier 
   }
 });
 
-test('fixture failure with a changed Shell verifier requires a new cohort even when semantic digests match', () => {
+test('fixture failure with authorized Shell verifier mechanics can reuse the artifact', () => {
   const proof = {
     classification: 'harness_mechanics_only',
     app: { base_sha: '1'.repeat(40), head_sha: '1'.repeat(40) },
     shell: { base_sha: '2'.repeat(40), head_sha: '3'.repeat(40) },
-    expectations: { artifact_semantic_digest: '4'.repeat(64), verification_semantic_digest: '4'.repeat(64) },
-    reuse_authorization: { forbidden_paths: { app: [], shell: ['scripts/opl-first-run-vm-smoke.mjs'] } },
+    expectations: {
+      artifact_semantic_digest: '4'.repeat(64), verification_semantic_digest: '4'.repeat(64),
+      artifact_probe_digest: '5'.repeat(64), verification_probe_digest: '5'.repeat(64),
+    },
+    reuse_authorization: { forbidden_paths: { app: [], shell: [] } },
   };
   const receipt = buildQualificationAttemptReceipt({
     status: 'failed', failureTaxonomy: 'fixture',
     scopeProofBase64: Buffer.from(JSON.stringify(proof)).toString('base64'),
   });
-  assert.equal(receipt.retry.disposition, 'new_cohort_required');
+  assert.equal(receipt.retry.disposition, 'same_artifact_retry_allowed');
 });
 
 test('success without a manifest is downgraded to incomplete', () => {
@@ -196,12 +203,13 @@ test('attempt receipt binds artifact and expectation digests when the manifest i
     }));
     const receipt = buildQualificationAttemptReceipt({
       status: 'passed', failureTaxonomy: 'none', manifestPath,
+      artifactKind: 'standard', packageProfile: 'standard',
       strictQualificationReceiptPath: strictPath, smokeSummaryPath: smokePath,
       qualificationRunId: '11', qualificationRunAttempt: '1', sourceArtifactRunId: '10', sourceArtifactName: 'standard-dmg',
       scopeProofBase64: Buffer.from(JSON.stringify({
-        classification: 'same_as_artifact_cohort',
+        classification: 'harness_mechanics_only',
         app: { base_sha: '1'.repeat(40), head_sha: '1'.repeat(40) },
-        shell: { base_sha: '2'.repeat(40), head_sha: '2'.repeat(40) },
+        shell: { base_sha: '2'.repeat(40), head_sha: '6'.repeat(40) },
         expectations: {
           artifact_semantic_digest: '4'.repeat(64), verification_semantic_digest: '4'.repeat(64),
           artifact_probe_digest: '5'.repeat(64), verification_probe_digest: '5'.repeat(64),
@@ -215,6 +223,20 @@ test('attempt receipt binds artifact and expectation digests when the manifest i
     assert.equal(receipt.artifact.sha256, '3'.repeat(64));
     assert.equal(receipt.qualification_inputs.manifest_sha256, '8'.repeat(64));
     assert.equal(receipt.qualification_inputs.runtime?.codex_cli.version, '0.144.5');
+    assert.deepEqual(validateQualificationAttemptReceipt(receipt, {
+      stableSessionId: `sha256:${'1'.repeat(64)}`,
+      releaseCohortRef: `sha256:${'2'.repeat(64)}`,
+      artifactKind: 'standard',
+      qualificationRunId: '11',
+      qualificationRunAttempt: '1',
+      sourceArtifactRunId: '10',
+      sourceArtifactName: 'standard-dmg',
+      artifactSha256: '3'.repeat(64),
+      manifestSha256: manifestSha,
+      semanticDigest: '4'.repeat(64),
+      probeDigest: '5'.repeat(64),
+      qualificationInputManifestDigest: '8'.repeat(64),
+    }), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

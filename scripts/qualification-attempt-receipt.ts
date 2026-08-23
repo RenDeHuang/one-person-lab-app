@@ -96,6 +96,38 @@ export type QualificationAttemptReceiptExpectation = {
   qualificationInputManifestDigest?: string;
 };
 
+type QualificationScopeReceipt = NonNullable<QualificationAttemptReceiptV1['evidence']['scope_proof']>;
+
+function isAuthorizedSameArtifactScope(
+  proof: QualificationScopeReceipt | null | undefined,
+  expectedSemanticDigest?: string | null,
+  expectedProbeDigest?: string | null,
+): boolean {
+  if (!proof) return false;
+  const exactCohort =
+    proof.classification === 'same_as_artifact_cohort' &&
+    proof.app_base_sha === proof.app_head_sha &&
+    proof.shell_base_sha === proof.shell_head_sha;
+  const harnessMechanicsOnly =
+    proof.classification === 'harness_mechanics_only' &&
+    (proof.app_base_sha !== proof.app_head_sha || proof.shell_base_sha !== proof.shell_head_sha);
+  const semanticEqual =
+    digestPattern.test(proof.artifact_semantic_digest ?? '') &&
+    proof.artifact_semantic_digest === proof.verification_semantic_digest;
+  const probeEqual =
+    digestPattern.test(proof.artifact_probe_digest ?? '') &&
+    proof.artifact_probe_digest === proof.verification_probe_digest;
+  return (
+    (exactCohort || harnessMechanicsOnly) &&
+    semanticEqual &&
+    probeEqual &&
+    (!expectedSemanticDigest || proof.artifact_semantic_digest === expectedSemanticDigest) &&
+    (!expectedProbeDigest || proof.artifact_probe_digest === expectedProbeDigest) &&
+    Array.isArray(proof.forbidden_app_paths) && proof.forbidden_app_paths.length === 0 &&
+    Array.isArray(proof.forbidden_shell_paths) && proof.forbidden_shell_paths.length === 0
+  );
+}
+
 export function validateQualificationAttemptReceipt(
   value: unknown,
   expected: QualificationAttemptReceiptExpectation,
@@ -151,8 +183,12 @@ export function validateQualificationAttemptReceipt(
       errors.push('passed attempt receipt lacks smoke summary digest');
     }
     if (receipt.identity?.qualification_run_attempt !== '1') errors.push('passed attempt receipt must come from workflow run attempt 1');
-    if (receipt.evidence?.scope_proof?.classification !== 'same_as_artifact_cohort') {
-      errors.push('passed attempt receipt lacks an exact unchanged verifier scope proof');
+    if (!isAuthorizedSameArtifactScope(
+      receipt.evidence?.scope_proof,
+      expected.semanticDigest,
+      expected.probeDigest,
+    )) {
+      errors.push('passed attempt receipt lacks an authorized same-artifact verifier scope proof');
     }
     if (!receipt.retry?.reason) errors.push('passed attempt receipt retry reason is missing');
   }
@@ -405,9 +441,7 @@ export function buildQualificationAttemptReceipt(input: {
   if (finalStatus !== 'passed' && failureTaxonomy === 'none') failureTaxonomy = 'unknown';
   const sameArtifactFixture =
     failureTaxonomy === 'fixture' &&
-    scopeProof?.classification === 'same_as_artifact_cohort' &&
-    scopeProof.artifact_semantic_digest != null &&
-    scopeProof.artifact_semantic_digest === scopeProof.verification_semantic_digest;
+    isAuthorizedSameArtifactScope(scopeProof, semanticDigest, probeDigest);
   const harnessContractDrift =
     criticalDiagnostics?.classification === 'verification_harness_contract_drift';
   const retry = failureTaxonomy === 'product' || harnessContractDrift || (failureTaxonomy === 'fixture' && !sameArtifactFixture)
@@ -417,7 +451,7 @@ export function buildQualificationAttemptReceipt(input: {
         ? 'product failure changes the releasable cohort'
         : 'fixture failure lacks a semantic-equal harness-mechanics-only scope proof' }
     : sameArtifactFixture
-      ? { disposition: 'same_artifact_retry_allowed' as const, reason: 'fixture failure may retry only with the exact unchanged App and Shell verifier cohort' }
+      ? { disposition: 'same_artifact_retry_allowed' as const, reason: 'fixture failure may retry only with an authorized semantic-equal same-artifact verifier scope' }
       : failureTaxonomy === 'operator'
         ? { disposition: 'terminal_blocked' as const, reason: 'operator identity or authority must be repaired before any mutation' }
         : { disposition: 'reconcile_only' as const, reason: finalStatus === 'passed'

@@ -576,10 +576,9 @@ export function validateArtifactQualificationReceipt(
     if (verificationHarness.differs_from_artifact_cohort !== differsFromArtifactCohort) {
       errors.push('verification harness differs_from_artifact_cohort is inconsistent');
     }
-    const expectedScope = 'same_as_artifact_cohort';
-    if (differsFromArtifactCohort) {
-      errors.push('verification harness differs from the frozen artifact cohort; a new cohort is required');
-    }
+    const expectedScope = differsFromArtifactCohort
+      ? 'harness_mechanics_only'
+      : 'same_as_artifact_cohort';
     if (verificationHarness.change_scope !== expectedScope) {
       errors.push(`verification harness change_scope is ${verificationHarness.change_scope}`);
     }
@@ -592,6 +591,9 @@ export function validateArtifactQualificationReceipt(
     errors.push(...scopeErrors);
     if (verificationHarness.scope_proof?.classification !== verificationHarness.change_scope) {
       errors.push('verification harness scope proof classification is inconsistent');
+    }
+    if (verificationHarness.scope_proof?.reuse_authorization?.allowed !== true) {
+      errors.push('verification harness scope proof does not authorize artifact reuse');
     }
   }
   for (const [label, actual, expectedValue] of [
