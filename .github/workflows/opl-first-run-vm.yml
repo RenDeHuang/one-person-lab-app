@@ -1758,7 +1758,7 @@ jobs:
               break
             fi
 
-            failure_code="$(jq -r '.error.failure_code // empty' "$install_output" 2>/dev/null || true)"
+            failure_code="$(jq -r '.error.details.failure_code // empty' "$install_output" 2>/dev/null || true)"
             exit_status="$(jq -r '.error.details.exit_status // empty' "$install_output" 2>/dev/null || true)"
             transient_download=false
             if [ "$failure_code" = "configured_codex_plugin_carrier_payload_download_failed" ]; then
