@@ -18,6 +18,7 @@ const appContributionViewTypes = [
   'task_board',
   'artifact_view',
   'activity_log',
+  'service_status',
   'channel_access',
   'remote_companion_access',
 ];
@@ -134,6 +135,22 @@ export function validatePackageAppContributionsProductContract(contract) {
     || schema.$defs?.remote_companion_access_device?.additionalProperties !== false
   ) {
     throw new Error('App contributions schema remote_companion_access result must stay closed, bounded, versioned, and state-scoped');
+  }
+  const serviceStatus = schema.$defs?.service_status_result;
+  if (
+    serviceStatus?.additionalProperties !== false
+    || serviceStatus?.properties?.schema_version?.const !== 'opl-app-service-status.v1'
+    || serviceStatus?.required !== undefined
+    || serviceStatus?.properties?.native_carrier?.oneOf?.length !== 2
+    || serviceStatus?.properties?.freshness?.$ref !== '#/$defs/service_status_summary_object'
+    || serviceStatus?.properties?.payload?.$ref !== '#/$defs/service_status_summary_object'
+    || serviceStatus?.oneOf !== undefined
+    || serviceStatus?.anyOf?.length !== 3
+    || schema.$defs?.service_status_summary_object?.additionalProperties?.$ref !== '#/$defs/service_status_value'
+    || schema.$defs?.service_status_summary_object?.maxProperties !== 64
+    || schema.$defs?.service_status_value?.oneOf?.length !== 6
+  ) {
+    throw new Error('App contributions schema service_status result must stay closed, bounded, versioned, and generic');
   }
   assertDeepEqualJson(
     schema.$defs?.remote_companion_access_secret_boundary,
@@ -326,6 +343,25 @@ export function validatePackageAppContributionsProductContract(contract) {
     'App GUI remote_companion_access standard view contract',
   );
   assertDeepEqualJson(
+    contract.standard_view_contracts?.service_status,
+    {
+      result_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/service_status_result',
+      placement: 'settings.section',
+      trust_tier: 'declarative',
+      owner: 'one-person-lab-app',
+      data_truth_owner: 'installed_native_carrier_or_provider',
+      projection_owner: 'one-person-lab-framework',
+      settings_destination: 'settings.services.installed_services',
+      status_field_policy: 'status_and_bounded_summary_objects_are_provider_defined_without_an_App_or_Fleet_business_field_allowlist',
+      command_input_source: 'descriptor_declared_action_inputs',
+      command_resolution: 'resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_input',
+      post_action_readback: 'fresh_contribution_read_required_after_action_success',
+      provider_absent_policy: 'project_unavailable_without_fabricated_service_or_node_state_and_keep_the_desktop_workbench_usable',
+      arbitrary_renderer_code_allowed: false,
+    },
+    'App GUI service_status standard view contract',
+  );
+  assertDeepEqualJson(
     contract.stable_id_fields,
     ['navigation_id', 'view_id', 'command_id', 'badge_id', 'contribution_id'],
     'App GUI Package contribution stable ids',
@@ -396,6 +432,11 @@ export function validatePackageAppContributionsProductContract(contract) {
           app_admission_required: true,
           admission_basis: ['current_user_task', 'app_placement_policy'],
           ordinary_settings_without_explicit_app_admission: 'hidden_from_ordinary_settings',
+        },
+        service_status: {
+          destination: 'settings.services.installed_services',
+          app_admission_required: true,
+          admission_basis: ['current_user_task', 'app_placement_policy'],
         },
         other_settings_section: {
           destination: 'settings.capabilities.module_extensions',

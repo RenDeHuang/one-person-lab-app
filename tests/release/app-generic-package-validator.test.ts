@@ -223,6 +223,7 @@ test('any Package role may project one closed standard App contribution block', 
     'task_board',
     'artifact_view',
     'activity_log',
+    'service_status',
     'channel_access',
     'remote_companion_access',
   ];
@@ -284,6 +285,12 @@ test('any Package role may project one closed standard App contribution block', 
   assert.equal(schema.$defs.view.properties.command_ids.maxItems, 100);
   assert.equal(schema.$defs.view.properties.badge_ids.maxItems, 100);
   assert.deepEqual(schema.$defs.view.properties.view_type.enum, viewTypes);
+  assert.equal(schema.$defs.service_status_result.required, undefined);
+  assert.equal(schema.$defs.service_status_result.additionalProperties, false);
+  assert.equal(schema.$defs.service_status_result.properties.schema_version.const, 'opl-app-service-status.v1');
+  assert.equal(schema.$defs.service_status_result.anyOf.length, 3);
+  assert.equal(schema.$defs.service_status_summary_object.maxProperties, 64);
+  assert.equal(schema.$defs.service_status_value.oneOf.length, 6);
   assert.deepEqual(schema.$defs.channel_access_action_input.oneOf, [
     { $ref: '#/$defs/channel_action_input' },
     { $ref: '#/$defs/channel_pairing_action_input' },
@@ -379,6 +386,21 @@ test('any Package role may project one closed standard App contribution block', 
       qr_payload_max_length: 8192,
     },
     provider_absent_policy: 'project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable',
+    arbitrary_renderer_code_allowed: false,
+  });
+  assert.deepEqual(contributionContract.standard_view_contracts.service_status, {
+    result_schema_ref: 'contracts/opl-app-contributions.schema.json#/$defs/service_status_result',
+    placement: 'settings.section',
+    trust_tier: 'declarative',
+    owner: 'one-person-lab-app',
+    data_truth_owner: 'installed_native_carrier_or_provider',
+    projection_owner: 'one-person-lab-framework',
+    settings_destination: 'settings.services.installed_services',
+    status_field_policy: 'status_and_bounded_summary_objects_are_provider_defined_without_an_App_or_Fleet_business_field_allowlist',
+    command_input_source: 'descriptor_declared_action_inputs',
+    command_resolution: 'resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_input',
+    post_action_readback: 'fresh_contribution_read_required_after_action_success',
+    provider_absent_policy: 'project_unavailable_without_fabricated_service_or_node_state_and_keep_the_desktop_workbench_usable',
     arbitrary_renderer_code_allowed: false,
   });
   assert.deepEqual(contributionContract.reference_integrity, {
@@ -708,6 +730,117 @@ test('remote_companion_access is closed, state-scoped, and keeps pairing secrets
   }), true, JSON.stringify(validate.errors));
 });
 
+test('service_status accepts generic Fleet summaries and rejects unbounded or malformed results', () => {
+  const schema = readJson('contracts/opl-app-contributions.schema.json');
+  const ajv = new Ajv2020({ allErrors: true, strictSchema: true, strictTypes: false });
+  ajv.addSchema(schema);
+  const validate = ajv.getSchema(`${schema.$id}#/$defs/service_status_result`);
+  assert.ok(validate);
+
+  const result = {
+    schema_version: 'opl-app-service-status.v1',
+    status: 'ready',
+    native_carrier: {
+      availability: 'available',
+      status: 'ready',
+    },
+    freshness: {
+      state: 'fresh',
+      last_observed_at: '2026-08-19T02:43:36.431Z',
+    },
+    node: {
+      display_name: 'Local development Mac',
+      platform: 'macOS',
+    },
+    payload: {
+      collection_status: 'available',
+      active_conversation_count: 7,
+      checks: [
+        { check_id: 'provider', state: 'pass' },
+      ],
+    },
+  };
+  assert.equal(validate(result), true, JSON.stringify(validate.errors));
+
+  const providerResult = {
+    schema: 'opl_fleet_agent_provider.v1',
+    capability_abi: { id: 'opl-fleet-agent.capabilities', version: '1.0.0' },
+    access: 'read_only',
+    authority: 'observation_only',
+    operation: 'telemetry.read',
+    read_ref: 'fleet.agent.telemetry.v1#local',
+    observed_at: '2026-08-19T02:43:36.431Z',
+    freshness: {
+      state: 'fresh',
+      last_observed_at: '2026-08-19T02:43:36.431Z',
+      last_known: false,
+    },
+    native_carrier: {
+      kind: 'opl_fleet_agent_process',
+      availability: 'available',
+      status: 'ready',
+    },
+    node: {
+      stable_node_id: 'fixture-node',
+      display_name: 'Fixture Node',
+      platform: 'macOS',
+      agent_version: '0.2.41',
+    },
+    payload: {
+      collection_status: 'available',
+      active_conversation_count: 7,
+      checks: [{ check_id: 'provider', state: 'pass' }],
+    },
+  };
+  assert.equal(validate(providerResult), true, JSON.stringify(validate.errors));
+
+  const unavailable = {
+    availability: 'unavailable',
+    reason_code: 'native_provider_not_installed',
+    freshness: {
+      state: 'unavailable',
+      last_observed_at: null,
+      last_known: false,
+      reason_code: 'native_provider_not_installed',
+    },
+    node: null,
+  };
+  assert.equal(validate(unavailable), true, JSON.stringify(validate.errors));
+
+  for (const mutate of [
+    (candidate: any) => { candidate.schema_version = 'opl-app-service-status.v2'; },
+    (candidate: any) => { candidate.node = []; },
+    (candidate: any) => { candidate.payload = { checks: Array.from({ length: 101 }, () => ({ state: 'pass' })) }; },
+    (candidate: any) => { candidate.payload = Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`field_${index}`, true])); },
+    (candidate: any) => {
+      delete candidate.status;
+      delete candidate.native_carrier;
+    },
+    (candidate: any) => { candidate.extra = true; },
+  ]) {
+    const invalid = structuredClone(result);
+    mutate(invalid);
+    assert.equal(validate(invalid), false, JSON.stringify(validate.errors));
+  }
+});
+
+test('service_status enters Services while activity_log remains hidden from ordinary Settings', () => {
+  const gui = readJson('contracts/app-gui-product-contract.json');
+  const settings = readJson('contracts/app-settings-control-plane.json');
+  const placement = gui.framework_surfaces.package_app_contributions.ui_composition.settings_placement_policy;
+  const destinations = settings.settings_projection.package_contribution_visibility_policy.destinations;
+
+  assert.deepEqual(placement.service_status, {
+    destination: 'settings.services.installed_services',
+    app_admission_required: true,
+    admission_basis: ['current_user_task', 'app_placement_policy'],
+  });
+  assert.equal(destinations.service_status, 'settings.services.installed_services');
+  assert.equal(placement.activity_log.destination, null);
+  assert.equal(placement.activity_log.ordinary_settings_without_explicit_app_admission, 'hidden_from_ordinary_settings');
+  assert.equal(destinations.activity_log, null);
+});
+
 test('App contribution product contract rejects role filters, executable UI, and view-type drift', () => {
   const source = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
 
@@ -728,7 +861,7 @@ test('App contribution product contract rejects role filters, executable UI, and
     mutate(invalid);
     assert.throws(
       () => validatePackageAppContributionsProductContract(invalid),
-      /role-agnostic|view types|broker-routed|legacy truth sources/,
+      /role-agnostic|view types|broker-routed|legacy truth sources|UI composition/,
     );
   }
 });

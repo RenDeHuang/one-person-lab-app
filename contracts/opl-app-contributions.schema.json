@@ -115,6 +115,7 @@
             "task_board",
             "artifact_view",
             "activity_log",
+            "service_status",
             "channel_access",
             "remote_companion_access"
           ]
@@ -347,6 +348,111 @@
             ]
           }
         }
+      ],
+      "additionalProperties": false
+    },
+    "service_status_value": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "maxItems": 100,
+          "items": { "$ref": "#/$defs/service_status_value" }
+        },
+        {
+          "type": "object",
+          "maxProperties": 64,
+          "additionalProperties": { "$ref": "#/$defs/service_status_value" }
+        }
+      ]
+    },
+    "service_status_summary_object": {
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": { "$ref": "#/$defs/service_status_value" }
+    },
+    "service_status_result": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": "opl-app-service-status.v1" },
+        "status": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "availability": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "capability_abi": { "$ref": "#/$defs/service_status_summary_object" },
+        "access": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "authority": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "read_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 257
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "native_carrier": {
+          "oneOf": [
+            { "$ref": "#/$defs/service_status_summary_object" },
+            { "type": "null" }
+          ]
+        },
+        "freshness": { "$ref": "#/$defs/service_status_summary_object" },
+        "node": {
+          "oneOf": [
+            { "$ref": "#/$defs/service_status_summary_object" },
+            { "type": "null" }
+          ]
+        },
+        "payload": { "$ref": "#/$defs/service_status_summary_object" }
+      },
+      "anyOf": [
+        { "required": ["status"] },
+        { "required": ["availability"] },
+        { "required": ["native_carrier"] }
       ],
       "additionalProperties": false
     },

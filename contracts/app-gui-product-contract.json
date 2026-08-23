@@ -1712,6 +1712,7 @@
         "task_board",
         "artifact_view",
         "activity_log",
+        "service_status",
         "channel_access",
         "remote_companion_access"
       ],
@@ -1792,6 +1793,21 @@
             "qr_payload_max_length": 8192
           },
           "provider_absent_policy": "project_unavailable_without_fabricated_pair_or_device_state_and_keep_the_desktop_workbench_usable",
+          "arbitrary_renderer_code_allowed": false
+        },
+        "service_status": {
+          "result_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/service_status_result",
+          "placement": "settings.section",
+          "trust_tier": "declarative",
+          "owner": "one-person-lab-app",
+          "data_truth_owner": "installed_native_carrier_or_provider",
+          "projection_owner": "one-person-lab-framework",
+          "settings_destination": "settings.services.installed_services",
+          "status_field_policy": "status_and_bounded_summary_objects_are_provider_defined_without_an_App_or_Fleet_business_field_allowlist",
+          "command_input_source": "descriptor_declared_action_inputs",
+          "command_resolution": "resolve_command_id_against_the_same_current_descriptor_then_dispatch_its_action_ref_with_the_exact_validated_input",
+          "post_action_readback": "fresh_contribution_read_required_after_action_success",
+          "provider_absent_policy": "project_unavailable_without_fabricated_service_or_node_state_and_keep_the_desktop_workbench_usable",
           "arbitrary_renderer_code_allowed": false
         }
       },
@@ -1942,6 +1958,14 @@
               "app_placement_policy"
             ],
             "ordinary_settings_without_explicit_app_admission": "hidden_from_ordinary_settings"
+          },
+          "service_status": {
+            "destination": "settings.services.installed_services",
+            "app_admission_required": true,
+            "admission_basis": [
+              "current_user_task",
+              "app_placement_policy"
+            ]
           },
           "other_settings_section": {
             "destination": "settings.capabilities.module_extensions",

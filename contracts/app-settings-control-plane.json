@@ -2640,6 +2640,7 @@
         "channel_access": "settings.resources.messages_and_connections",
         "remote_companion_access": "settings.resources.messages_and_connections",
         "activity_log": null,
+        "service_status": "settings.services.installed_services",
         "other_settings_section": "settings.capabilities.module_extensions"
       }
     },

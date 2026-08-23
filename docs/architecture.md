@@ -176,7 +176,8 @@ any `package_role` may contribute navigation, views, commands, or badges. A
 contribution block declares `opl-app-contributions.v1`, contains at least one
 non-empty collection, uses stable ids and localized labels or titles, and may
 only select the App-owned `list_detail`, `timeline`, `approval_diff`,
-`task_board`, `artifact_view`, or `activity_log` view types. Navigation points
+`task_board`, `artifact_view`, `activity_log`, or `service_status` view types.
+Navigation points
 to a view in the same block; view commands point to commands in that block;
 data, badge values, and actions remain references to Framework-projected or
 domain-owned truth.
