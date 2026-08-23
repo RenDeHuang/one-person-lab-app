@@ -154,6 +154,7 @@ jobs:
       release_cohort_ref: ${{ needs.source-authority.outputs.source_authority_digest }}
       source_artifact_run_id: ${{ needs.source-authority.outputs.source_run_id }}
       source_authority_artifact_name: ${{ needs.source-authority.outputs.source_authority_artifact_name }}
+      image_repository: ghcr.io/rendehuang/one-person-lab-webui-recovery
 
   webui-carrier-qualification:
     if: ${{ inputs.operation == 'qualify' }}
