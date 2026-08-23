@@ -356,6 +356,7 @@ jobs:
             --file webui-carrier/Dockerfile.frozen \
             --build-arg 'OPL_FRAMEWORK_REF=${{ inputs.framework_ref }}' \
             --build-arg 'OPL_CODEX_NPM_SPEC=${{ steps.build-inputs.outputs.codex_ref }}' \
+            --build-arg OPL_WEBUI_BUN_VERSION=1.4.0 \
             --build-arg OPL_WEBUI_IMAGE_PROFILE=webui-full \
             --label org.opencontainers.image.source=https://github.com/gaofeng21cn/one-person-lab-app \
             --label 'org.opencontainers.image.revision=${{ inputs.app_ref }}' \

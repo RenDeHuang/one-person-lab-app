@@ -819,6 +819,7 @@ test('reusable WebUI workflow builds independently and gates immutable publicati
   assert.match(buildRun, /--build-arg 'OPL_FRAMEWORK_REF=/);
   assert.doesNotMatch(buildRun, /OPL_FLOW_REF|inputs\.get\('opl_flow'\)/);
   assert.match(buildRun, /--build-arg 'OPL_CODEX_NPM_SPEC=/);
+  assert.match(buildRun, /--build-arg OPL_WEBUI_BUN_VERSION=1\.4\.0/);
   assert.match(buildRun, /validate-webui-runtime-image\.ts/);
   assert.match(buildRun, /curl --fail/);
   assert.equal(
