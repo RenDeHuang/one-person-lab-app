@@ -215,16 +215,21 @@ export function buildQualificationHarnessScopeProof(input: {
   const appHarnessMechanicsPaths = [
     '.github/workflows/_release-full-addon.yml',
     '.github/workflows/opl-first-run-vm.yml',
+    '.github/workflows/opl-studio-candidate-carriers.yml',
+    '.github/workflows/release-stable-post-success-followups.yml',
     '.github/workflows/release-stable.yml',
+    'contracts/app-shell-candidates.json',
     'scripts/qualification-harness-scope.ts',
     'scripts/validate-shell-candidates/candidate-contract.ts',
     'scripts/validate-release-boundary/release-checks.ts',
     'scripts/validate-release-boundary/text-check-runner.ts',
+    'tests/release/app-release-boundary-cases/gui-delivery-topology-contract.test.ts',
     'tests/release/qualification-harness-scope.test.ts',
     'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
     'tests/release/release-bundle-workflow-cutover-cases/publication-and-operation-guards.ts',
     'tests/release/release-bundle-workflow-cutover-cases/target-and-protected-evidence.ts',
     'tests/release/release-bundle-workflow-cutover-cases/vm-and-reconcile.ts',
+    'tests/release/release-stable-post-success-followups.test.ts',
     'tests/release/release-workflow-broker-admission.test.ts',
   ];
   const shellHarnessMechanicsPaths = [
