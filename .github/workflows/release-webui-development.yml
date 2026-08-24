@@ -88,9 +88,9 @@ jobs:
           test "$GITHUB_TRIGGERING_ACTOR" = RenDeHuang
           test "$OPERATION" = publish
           test "$CHANNEL" = stable
-          test "$VERSION" = 26.8.24-r1
+          test "$VERSION" = 26.8.24-r2
           test "$APP_REF" = cf6733fbd8cc4188a596119f5e52813493c8aaae
-          test "$SHELL_REF" = cae3258f3134ac462074bdc38aa69ed525455741
+          test "$SHELL_REF" = 842698340eb80a442938dabd006fd22c7d83ede4
           test "$FRAMEWORK_REF" = 48f8eac98b1d0f194db62608b5f388608137de7d
           case "$CHANNEL" in
             stable)
