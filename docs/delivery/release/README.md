@@ -79,6 +79,13 @@ Full hosted package verification and clean-VM qualification run concurrently on 
 artifact; the checkpoint becomes `full_qualified` only after both pass. Publication keeps its
 existing checkpoint, signature, notarization and digest gates.
 
+Full append admission now runs a small deterministic preflight before Full packaging or VM
+runner work. It verifies the exact MAS Scholar Skills commit and, when a recovery supplies a
+different App or Shell harness, proves that the changed paths are eligible for same-artifact
+reuse. A bad ref or an unauthorized harness fails in admission within seconds; the final VM
+qualification repeats the scope proof and remains authoritative. This removes repeated 7–10
+minute Full attempts that previously failed only after reaching the VM lane.
+
 Stable Windows builds select the contract's `stable_desktop_additional` command with
 `--win nsis`: only the EXE and updater sidecars are published. Do not generate and then
 delete the unused ZIP. Manual builds retain their general Windows targets.

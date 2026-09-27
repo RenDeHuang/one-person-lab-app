@@ -4726,6 +4726,11 @@
         "executor_source": "canonical_workflow_sha",
         "dependency_check": "npm_ci_ignore_scripts_dry_run",
         "asset_policy_check": "full_addon_asset_policy_v1",
+        "full_specific_ref_check": "scripts/validate-full-addon-admission.ts",
+        "full_specific_ref_checks": [
+          "exact_mas_scholar_skills_commit_reachability",
+          "reusable_harness_scope_when_verification_refs_differ"
+        ],
         "runtime_binding_check": [
           "release-executor",
           "gui_root",

@@ -121,6 +121,27 @@ jobs:
           grep -E -q -- '--gui-root "\$GITHUB_WORKSPACE/one-person-lab-app/[^"]*steps[.]shell_profile[.]outputs[.]shell_root[^"]*"' .github/workflows/full-first-install-release.yml
           grep -E -q -- '--out-dir "\$GITHUB_WORKSPACE/one-person-lab-app/dist/opl-full-release"' .github/workflows/full-first-install-release.yml
 
+      - name: Validate Full-specific refs before build and VM runner work
+        env:
+          MAS_SCHOLAR_SKILLS_REF: ${{ inputs.mas_scholar_skills_ref }}
+          ARTIFACT_APP_SHA: ${{ inputs.full_content_app_ref }}
+          VERIFICATION_APP_SHA: ${{ inputs.verification_app_ref || inputs.full_content_app_ref }}
+          ARTIFACT_SHELL_SHA: ${{ inputs.full_content_shell_ref }}
+          VERIFICATION_SHELL_SHA: ${{ inputs.smoke_harness_ref || inputs.full_content_shell_ref }}
+        working-directory: app-source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../release-failure-evidence
+          node --experimental-strip-types scripts/validate-full-addon-admission.ts \
+            --mas-scholar-skills-ref "$MAS_SCHOLAR_SKILLS_REF" \
+            --artifact-app-sha "$ARTIFACT_APP_SHA" \
+            --verification-app-sha "$VERIFICATION_APP_SHA" \
+            --artifact-shell-sha "$ARTIFACT_SHELL_SHA" \
+            --verification-shell-sha "$VERIFICATION_SHELL_SHA" \
+            --profile full \
+            > ../release-failure-evidence/full-addon-admission-preflight.json
+
       - name: Admit one-shot Full append operation
         env:
           OPERATION: ${{ inputs.operation }}

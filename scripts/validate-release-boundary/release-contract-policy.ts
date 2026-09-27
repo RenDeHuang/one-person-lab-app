@@ -1461,6 +1461,11 @@ function validateReleasePreflightContract(releaseContract: Record<string, any>):
     preflight?.full_addon_preflight?.admission_dry_run?.executor_source !== 'canonical_workflow_sha' ||
     preflight?.full_addon_preflight?.admission_dry_run?.dependency_check !== 'npm_ci_ignore_scripts_dry_run' ||
     preflight?.full_addon_preflight?.admission_dry_run?.asset_policy_check !== 'full_addon_asset_policy_v1' ||
+    preflight?.full_addon_preflight?.admission_dry_run?.full_specific_ref_check !== 'scripts/validate-full-addon-admission.ts' ||
+    !sameStringSet(preflight?.full_addon_preflight?.admission_dry_run?.full_specific_ref_checks, [
+      'exact_mas_scholar_skills_commit_reachability',
+      'reusable_harness_scope_when_verification_refs_differ',
+    ]) ||
     !sameStringSet(preflight?.full_addon_preflight?.admission_dry_run?.runtime_binding_check, [
       'release-executor',
       'gui_root',
