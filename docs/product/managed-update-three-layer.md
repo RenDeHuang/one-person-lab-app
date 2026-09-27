@@ -53,6 +53,10 @@ There is no shared publication snapshot, combination freeze, or aggregate channe
 - The Profile declares desired root Packages only for first install or explicit
   **Restore official combination**.
 - Full differs only by carrying offline seed bytes for those roots.
+- On an in-place Full upgrade, the embedded runtime manifest is authoritative:
+  the App reuses the installed runtime only when its manifest matches the
+  embedded payload exactly; otherwise it atomically replaces `runtime/current`
+  and rewrites `current.json`, while preserving the user state root.
 - Required dependencies are expanded by identity presence, for example
   `MAS -> MAS Scholar Skills`.
 - A user-uninstalled Package stays uninstalled. Startup and background update

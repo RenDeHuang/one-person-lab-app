@@ -3964,6 +3964,12 @@
     "updater_visible": false,
     "updater_metadata_allowed": false,
     "validation_required": true,
+    "runtime_upgrade_policy": {
+      "authority": "embedded_full_payload_manifest",
+      "reuse_requires_exact_manifest_match": true,
+      "mismatch_action": "atomically_replace_current_runtime_and_rewrite_pointer",
+      "user_state_root_preserved": true
+    },
     "carrier_profiles": {
       "aionui": {
         "schema": "opl_app_full_payload_carrier_profile.v1",
