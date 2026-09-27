@@ -352,8 +352,10 @@ test('release-gate Gateway credentials stay file-bound and are scanned before ar
   assert.match(String(smoke.run), /--gateway-account-email-file/);
   assert.match(String(smoke.run), /--gateway-account-password-file/);
   assert.doesNotMatch(String(smoke.run), /--gateway-account-(?:email|password)(?:\s|$)/);
-  assert.match(String(scan.run), /const roots = \['artifacts'\]/);
-  assert.match(String(scan.run), /Protected Gateway credential found in release evidence/);
+  assert.match(String(scan.run), /node scripts\/reject-protected-credentials\.mjs/);
+  const scanScript = fs.readFileSync(path.join(process.cwd(), 'scripts', 'reject-protected-credentials.mjs'), 'utf8');
+  assert.match(scanScript, /visit\('artifacts'\)/);
+  assert.match(scanScript, /Protected Gateway credential found in release evidence/);
   assert.deepEqual(scan.env, {
     GATEWAY_ACCOUNT_PASSWORD: '${{ secrets.OPL_GATEWAY_RELEASE_TEST_ACCOUNT_PASSWORD }}',
   });
