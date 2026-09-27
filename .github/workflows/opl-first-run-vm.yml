@@ -101,6 +101,11 @@ on:
         required: false
         default: ''
         type: string
+      mas_scholar_skills_ref:
+        description: 'Exact MAS Scholar Skills source SHA used for Full qualification-only host provisioning.'
+        required: false
+        default: ''
+        type: string
       codex_qualification_cohort_artifact_name:
         description: 'Frozen source cohort artifact for Codex prefetch when a repackaged DMG has no same-run build artifact.'
         required: false
@@ -244,6 +249,7 @@ jobs:
       framework_sha: ${{ steps.framework_ref.outputs.framework_sha }}
       framework_executor_sha: ${{ steps.framework_executor_ref.outputs.framework_sha }}
       mas_sha: ${{ steps.mas_ref.outputs.mas_sha }}
+      mas_scholar_skills_sha: ${{ steps.mas_scholar_skills_ref.outputs.mas_scholar_skills_sha }}
       diagnostic_scope: ${{ steps.diagnostic_inputs.outputs.diagnostic_scope }}
       skip_vm: ${{ steps.scheduled_release_guard.outputs.skip_vm || 'false' }}
       skip_reason: ${{ steps.scheduled_release_guard.outputs.skip_reason || '' }}
@@ -263,6 +269,7 @@ jobs:
             '${{ inputs.release_bundle_digest }}' '${{ inputs.artifact_app_ref }}' "$verification_app_ref" \
             '${{ inputs.shell_ref }}' '${{ inputs.framework_ref }}' \
             '${{ inputs.framework_executor_ref }}' '${{ inputs.mas_ref }}' \
+            '${{ inputs.mas_scholar_skills_ref }}' \
             '${{ inputs.standard_identity_sha256 }}' \
             | shasum -a 256 | awk '{print "sha256:"$1}' > "$RUNNER_TEMP/opl-vm-admission/input-digest.txt"
           input_digest="$(cat "$RUNNER_TEMP/opl-vm-admission/input-digest.txt")"
@@ -750,6 +757,27 @@ jobs:
           test "$mas_sha" = "$MAS_REF" || { echo "::error::Resolved MAS SHA does not match mas_ref."; exit 1; }
           echo "mas_sha=$mas_sha" >> "$GITHUB_OUTPUT"
 
+      - name: Validate MAS Scholar Skills ref before VM runner work
+        id: mas_scholar_skills_ref
+        if: ${{ steps.diagnostic_inputs.outputs.profile == 'full' && steps.diagnostic_inputs.outputs.diagnostic_scope == 'release_gate' }}
+        shell: bash
+        env:
+          MAS_SCHOLAR_SKILLS_REF: ${{ inputs.mas_scholar_skills_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$MAS_SCHOLAR_SKILLS_REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::mas_scholar_skills_ref must be an exact 40-character SHA."; exit 1; }
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
+          git -C "$tmp_dir" init -q
+          git -C "$tmp_dir" remote add origin https://github.com/gaofeng21cn/mas-scholar-skills.git
+          git -C "$tmp_dir" fetch --depth=1 origin "$MAS_SCHOLAR_SKILLS_REF" >/dev/null
+          mas_scholar_skills_sha="$(git -C "$tmp_dir" rev-parse FETCH_HEAD)"
+          test "$mas_scholar_skills_sha" = "$MAS_SCHOLAR_SKILLS_REF" || {
+            echo "::error::Resolved MAS Scholar Skills SHA does not match mas_scholar_skills_ref."
+            exit 1
+          }
+          echo "mas_scholar_skills_sha=$mas_scholar_skills_sha" >> "$GITHUB_OUTPUT"
+
       - name: Validate Framework executor ref before VM runner work
         id: framework_executor_ref
         if: ${{ inputs.framework_executor_ref != '' }}
@@ -836,6 +864,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Checkout exact MAS Scholar Skills source for VM handoff
+        if: ${{ steps.mas_scholar_skills_ref.outputs.mas_scholar_skills_sha != '' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gaofeng21cn/mas-scholar-skills
+          ref: ${{ steps.mas_scholar_skills_ref.outputs.mas_scholar_skills_sha }}
+          path: .opl-vm-source-checkouts/mas-scholar-skills
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Checkout exact Framework executor for VM handoff
         if: ${{ steps.framework_executor_ref.outputs.framework_sha != '' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -890,6 +928,12 @@ jobs:
               "$GITHUB_WORKSPACE/.opl-vm-source-checkouts/med-autoscience" \
               "$workspace_root/med-autoscience" \
               '${{ steps.mas_ref.outputs.mas_sha }}'
+          fi
+          if [ -d "$GITHUB_WORKSPACE/.opl-vm-source-checkouts/mas-scholar-skills/.git" ]; then
+            materialize_repo \
+              "$GITHUB_WORKSPACE/.opl-vm-source-checkouts/mas-scholar-skills" \
+              "$workspace_root/mas-scholar-skills" \
+              '${{ steps.mas_scholar_skills_ref.outputs.mas_scholar_skills_sha }}'
           fi
           if [ -d "$GITHUB_WORKSPACE/.opl-vm-source-checkouts/framework-executor/.git" ]; then
             materialize_repo \
@@ -1048,6 +1092,10 @@ jobs:
           if [ -d med-autoscience/.git ]; then
             test "$(git -C med-autoscience rev-parse HEAD)" = '${{ needs.validate-vm-inputs.outputs.mas_sha }}'
             test -z "$(git -C med-autoscience status --porcelain --untracked-files=no)"
+          fi
+          if [ -d mas-scholar-skills/.git ]; then
+            test "$(git -C mas-scholar-skills rev-parse HEAD)" = '${{ needs.validate-vm-inputs.outputs.mas_scholar_skills_sha }}'
+            test -z "$(git -C mas-scholar-skills status --porcelain --untracked-files=no)"
           fi
           if [ -d one-person-lab-executor/.git ]; then
             test "$(git -C one-person-lab-executor rev-parse HEAD)" = '${{ needs.validate-vm-inputs.outputs.framework_executor_sha }}'
@@ -2016,6 +2064,7 @@ jobs:
           CODEX_HOME: ${{ runner.temp }}/opl-mas-qualification-codex-${{ github.run_id }}-${{ github.job }}
           OPL_MODULE_SOURCE_MODE: git_checkout
           OPL_MODULE_PATH_MEDAUTOSCIENCE: ${{ github.workspace }}/med-autoscience
+          OPL_MODULE_PATH_SCHOLARSKILLS: ${{ github.workspace }}/mas-scholar-skills
           MAS_PROVISIONING_WORKSPACE: /tmp/opl-first-run-smoke/mas-provisioned-workspace
           MAS_PROVISIONING_RUN_ID: mas-full-vm-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
@@ -2025,6 +2074,8 @@ jobs:
 
           test "$(git -C "$OPL_MODULE_PATH_MEDAUTOSCIENCE" rev-parse HEAD)" = '${{ needs.validate-vm-inputs.outputs.mas_sha }}'
           test -f "$OPL_MODULE_PATH_MEDAUTOSCIENCE/contracts/domain_descriptor.json"
+          test "$(git -C "$OPL_MODULE_PATH_SCHOLARSKILLS" rev-parse HEAD)" = '${{ needs.validate-vm-inputs.outputs.mas_scholar_skills_sha }}'
+          test -f "$OPL_MODULE_PATH_SCHOLARSKILLS/contracts/opl_capability_package_manifest.json"
 
           npm ci --prefix one-person-lab-executor --ignore-scripts --no-audit --no-fund
           install_output="$RUNNER_TEMP/mas-package-install.json"

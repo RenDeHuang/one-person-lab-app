@@ -33,6 +33,11 @@ on:
         description: Exact Framework SHA whose bytes are packaged into the fresh Full asset
         required: true
         type: string
+      mas_scholar_skills_ref:
+        description: Exact MAS Scholar Skills source SHA used for Full qualification-only host provisioning
+        required: false
+        default: ''
+        type: string
       framework_executor_ref:
         description: Exact Framework executor SHA used to verify and import the checkpoint; independent from the frozen Bundle source SHA
         required: true
@@ -1411,6 +1416,7 @@ jobs:
       framework_ref: ${{ inputs.full_content_framework_ref }}
       framework_executor_ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
       mas_ref: ${{ needs.full-build.outputs.mas_ref || needs.materialize-full-build.outputs.mas_ref }}
+      mas_scholar_skills_ref: ${{ inputs.mas_scholar_skills_ref }}
       prepared_inputs_artifact: ${{ needs.prepare-full-vm-inputs.outputs.artifact_name }}
       package_profile: full
       diagnostic_scope: release_gate
