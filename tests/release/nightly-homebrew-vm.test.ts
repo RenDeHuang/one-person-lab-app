@@ -151,6 +151,8 @@ test("credential scanning skips unused credentials but remains fail-closed once 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "opl-nightly-credential-scan-"));
   try {
     fs.mkdirSync(path.join(root, "artifacts"));
+    fs.mkdirSync(path.join(root, "scripts"));
+    fs.copyFileSync(path.join(process.cwd(), "scripts", "reject-protected-credentials.mjs"), path.join(root, "scripts", "reject-protected-credentials.mjs"));
     const evidence = path.join(root, "artifacts", "smoke.log");
     const runScan = (password: string) => spawnSync("bash", ["-c", scan.run], {
       cwd: root, encoding: "utf8", env: { ...process.env, GATEWAY_ACCOUNT_PASSWORD: password },
