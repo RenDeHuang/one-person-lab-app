@@ -2294,28 +2294,7 @@ jobs:
             COMMAND_PREVIEW="$COMMAND_PREVIEW" \
             STDOUT_LOG="$STDOUT_LOG" \
             STDERR_LOG="$STDERR_LOG" \
-            node <<'NODE'
-          const fs = require('node:fs');
-          const diagnosticsPath = 'artifacts/opl-first-run-vm/app-wrapper-diagnostics.json';
-          const diagnostics = JSON.parse(fs.readFileSync(diagnosticsPath, 'utf8'));
-          diagnostics.smoke_command = {
-            command_preview_path: process.env.COMMAND_PREVIEW,
-            command_preview: fs.readFileSync(process.env.COMMAND_PREVIEW, 'utf8').trim(),
-            stdout_path: process.env.STDOUT_LOG,
-            stderr_path: process.env.STDERR_LOG,
-            exit_code: Number(process.env.SMOKE_STATUS),
-          };
-          diagnostics.phase_timings = {
-            ...(diagnostics.phase_timings || {}),
-            app_wrapper_smoke: {
-              started_at: process.env.SMOKE_STARTED_AT,
-              ended_at: process.env.SMOKE_ENDED_AT,
-              duration_ms: Number(process.env.SMOKE_DURATION_MS),
-              exit_code: Number(process.env.SMOKE_STATUS),
-            },
-          };
-          fs.writeFileSync(diagnosticsPath, `${JSON.stringify(diagnostics, null, 2)}\n`);
-          NODE
+            node scripts/record-first-run-vm-smoke-diagnostics.mjs
           fi
 
           exit "$SMOKE_STATUS"
