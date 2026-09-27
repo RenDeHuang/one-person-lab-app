@@ -1180,7 +1180,7 @@ function usage(): never {
   process.stderr.write(`Usage:
   npm run release:stable-dispatch -- new-product-release --product-change-summary <summary> [--reuse-standard-run-id <failed-run> --smoke-harness-ref <sha>] [--execute]
   npm run release:stable-dispatch -- publish-qualified-standard --run-id <qualification-run> [--source-artifact <exact-publication-checkpoint>] [--execute]
-  npm run release:stable-dispatch -- append-full --source-run-id <standard-or-full-checkpoint-run> [--smoke-harness-ref <sha>] [--verification-app-ref <sha>] [--execute]
+  npm run release:stable-dispatch -- append-full --source-run-id <standard-or-full-checkpoint-run> [--source-artifact <exact-full-checkpoint>] [--smoke-harness-ref <sha>] [--verification-app-ref <sha>] [--execute]
 
 Only new-product-release may allocate a tag, and it requires an explicit product-change summary. When --reuse-standard-run-id is present, it continues that failed same-version operation with its already signed and notarized Standard bytes. Publication, repair, and Full operations preserve the source tag and perform at most one workflow dispatch.
 `);
@@ -1285,12 +1285,37 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
     const frameworkSha = values['framework-ref']
       ? sha(values['framework-ref'], 'framework_ref')
       : wireSha(runtime, frameworkRemote);
-    let target = reconcileAppendFullTarget({
-      runs: observation.runs,
-      rootSourceRunId,
-      artifactsByRunId,
-      workflow,
-    });
+    const requestedSourceArtifact = values['source-artifact']
+      ? text(values['source-artifact'], 'source_artifact')
+      : null;
+    let target = requestedSourceArtifact
+      ? (() => {
+          if (!isFullCheckpointArtifact(requestedSourceArtifact, rootSourceRunId)) {
+            throw new Error(
+              `append-full --source-artifact must be an exact Full checkpoint for source run ${rootSourceRunId}.`,
+            );
+          }
+          const matching = (artifactsByRunId[rootSourceRunId] ?? [])
+            .filter((artifact) => !artifact.expired && artifact.name === requestedSourceArtifact);
+          if (matching.length !== 1) {
+            throw new Error(
+              `Source run ${rootSourceRunId} must expose exactly one requested Full checkpoint artifact.`,
+            );
+          }
+          return {
+            state: 'dispatch_required' as const,
+            root_source_run_id: rootSourceRunId,
+            owner_run_id: null,
+            source_run_id: rootSourceRunId,
+            source_artifact: requestedSourceArtifact,
+          };
+        })()
+      : reconcileAppendFullTarget({
+          runs: observation.runs,
+          rootSourceRunId,
+          artifactsByRunId,
+          workflow,
+        });
     if (target.state === 'dispatch_required'
       && isFullCheckpointArtifact(target.source_artifact, target.source_run_id)) {
       target = reconcileAppendFullCheckpointCohort({
