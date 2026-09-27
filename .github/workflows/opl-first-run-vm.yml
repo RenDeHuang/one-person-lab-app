@@ -1092,13 +1092,7 @@ jobs:
           node --check shells/opl-studio/scripts/desktop/stable-smoke.mjs
           node --check shells/opl-studio/scripts/desktop/stable-clean-vm.mjs
           node --input-type=module -e "await import('./shells/opl-studio/scripts/desktop/stable-clean-vm.mjs')"
-          node --use-system-ca --input-type=module <<'NODE'
-          import { buildGuestLaunchCommand } from './shells/opl-studio/scripts/desktop/qualify-clean-vm.mjs';
-          const command = buildGuestLaunchCommand({ appExecutable: '/Applications/One Person Lab.app/Contents/MacOS/One Person Lab', logPath: '/tmp/test.log', caBundle: '/tmp/runner-ca.pem' });
-          if (!command.includes('NODE_EXTRA_CA_CERTS=') || !command.includes('SSL_CERT_FILE=') || command.includes('NODE_TLS_REJECT_UNAUTHORIZED')) {
-            throw new Error('The selected VM harness cannot preserve runner CA trust without disabling TLS.');
-          }
-          NODE
+          node --use-system-ca --input-type=module -e "import { buildGuestLaunchCommand } from './shells/opl-studio/scripts/desktop/qualify-clean-vm.mjs'; const command = buildGuestLaunchCommand({ appExecutable: '/Applications/One Person Lab.app/Contents/MacOS/One Person Lab', logPath: '/tmp/test.log', caBundle: '/tmp/runner-ca.pem' }); if (!command.includes('NODE_EXTRA_CA_CERTS=') || !command.includes('SSL_CERT_FILE=') || command.includes('NODE_TLS_REJECT_UNAUTHORIZED')) throw new Error('The selected VM harness cannot preserve runner CA trust without disabling TLS.');"
 
       - name: Prepare OPL Framework bootstrap archive
         id: framework_source
