@@ -102,6 +102,7 @@ jobs:
           retention-days: 7
       - name: Retry exact install tarballs upload once
         if: ${{ inputs.retry_artifact_upload_once && steps.upload_tarballs.outcome == 'failure' }}
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: opl-clean-vm-prepared-${{ inputs.package_profile }}-${{ github.run_id }}
