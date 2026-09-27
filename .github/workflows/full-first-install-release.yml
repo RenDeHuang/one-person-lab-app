@@ -6,6 +6,9 @@ on:
       mas_ref:
         description: Exact MAS source SHA bundled into the Full candidate.
         value: ${{ jobs.full-first-install.outputs.mas_ref }}
+      mas_scholar_skills_ref:
+        description: Exact MAS Scholar Skills source SHA bundled into the Full candidate.
+        value: ${{ jobs.full-first-install.outputs.mas_scholar_skills_ref }}
     inputs:
       opl_version:
         description: OPL display version used by the release tag and Full asset names

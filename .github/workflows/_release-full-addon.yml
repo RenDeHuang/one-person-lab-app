@@ -946,6 +946,7 @@ jobs:
       actions: read
     outputs:
       mas_ref: ${{ steps.full_source.outputs.mas_ref }}
+      mas_scholar_skills_ref: ${{ steps.full_source.outputs.mas_scholar_skills_ref }}
       artifact_producer_run_id: ${{ steps.full_source.outputs.artifact_producer_run_id }}
     steps:
       - name: Checkout canonical App executor
@@ -1231,6 +1232,7 @@ jobs:
         run: |
           set -euo pipefail
           mas_ref="$(jq -er '.manifest.resolved_refs.mas.resolved_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' full-output/opl-release-manifest.json)"
+          mas_scholar_skills_ref="$(jq -er '.manifest.resolved_refs.mas_scholar_skills.resolved_commit | select(type == "string" and test("^[0-9a-f]{40}$"))' full-output/opl-release-manifest.json)"
           artifact_producer_run_id="$(jq -er '.actions.run_id | select(type == "string" and test("^[1-9][0-9]*$"))' full-cohort/opl-build-cohort.json)"
           receipt_producer_run_id='${{ needs.restore-standard.outputs.full_artifact_producer_run_id }}'
           if [ -n "$receipt_producer_run_id" ]; then
@@ -1241,6 +1243,7 @@ jobs:
           fi
           {
             echo "mas_ref=$mas_ref"
+            echo "mas_scholar_skills_ref=$mas_scholar_skills_ref"
             echo "artifact_producer_run_id=$artifact_producer_run_id"
           } >> "$GITHUB_OUTPUT"
 
@@ -1416,7 +1419,7 @@ jobs:
       framework_ref: ${{ inputs.full_content_framework_ref }}
       framework_executor_ref: ${{ needs.restore-standard.outputs.framework_executor_ref }}
       mas_ref: ${{ needs.full-build.outputs.mas_ref || needs.materialize-full-build.outputs.mas_ref }}
-      mas_scholar_skills_ref: ${{ inputs.mas_scholar_skills_ref }}
+      mas_scholar_skills_ref: ${{ inputs.mas_scholar_skills_ref || needs.full-build.outputs.mas_scholar_skills_ref || needs.materialize-full-build.outputs.mas_scholar_skills_ref }}
       prepared_inputs_artifact: ${{ needs.prepare-full-vm-inputs.outputs.artifact_name }}
       package_profile: full
       diagnostic_scope: release_gate
