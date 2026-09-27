@@ -7,7 +7,7 @@
   "source_contract_ref": "contracts/app-gui-product-contract.json#settings_navigation",
   "page_state_matrix_ref": "contracts/app-page-state-matrix.json#pages",
   "product_profile_projection_target": "settings.control_plane",
-  "active_shell": "aionui",
+  "active_shell": "opl-studio",
   "shell_adapter_role": "render_host_and_route_adapter_only",
   "user_question_information_architecture": {
     "schema": "opl_settings_user_question_information_architecture.v1",
@@ -5681,5 +5681,15 @@
       ]
     },
     "live_evidence_boundary": "contract_matrix_validator_and_focused_tests_do_not_prove_running_shell_runtime_or_release_readiness"
+  },
+  "implementation_organization": {
+    "settings": "domain_modules_with_shared_DSH_primitives",
+    "host": "opl-studio/src/host",
+    "workbench_services": "single_plugin_with_separate_memory_and_storage_services",
+    "schedules": "primary_workbench_view; settings_links_to_workbench_and_background_services",
+    "capabilities": "user_purpose_first_with_technical_type_filters",
+    "permissions": "models_and_execution",
+    "status": "installation_enablement_connection_and_callability_are_distinct",
+    "remote_companion": "not_bundled_or_auto_installed_until_product_completion; preserve_existing_data"
   }
 }

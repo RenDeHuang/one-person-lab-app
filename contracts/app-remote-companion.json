@@ -701,5 +701,12 @@
     "app_product_profile": "contracts/app-product-profile.json#delivery_topology.mobile",
     "app_gui_contract": "contracts/app-gui-product-contract.json#remote_companion",
     "app_page_state_matrix": "contracts/app-page-state-matrix.json#remote_companion"
+  },
+  "distribution_policy": {
+    "bundled": false,
+    "default_install": false,
+    "default_settings_entry": false,
+    "existing_data": "preserve",
+    "admission": "explicit_product_completion_required"
   }
 }

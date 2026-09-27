@@ -2106,8 +2106,8 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
   );
   if (shellPaths?.contract.active_shell === 'aionui') validateLocalDataLifecycleImplementation(shellPaths);
   if (shellPaths?.contract.active_shell === 'opl-studio') {
-    assertShellTextIncludesAll(shellPaths, 'scripts/webui-host/aion-migration-source.mjs', ['readFile', 'source'], 'Studio read-only legacy source');
-    assertShellTextIncludesAll(shellPaths, 'scripts/webui-host/aion-migration.mjs', ['CodexThreadAdapter', 'canonical_metadata_only', 'this.transport.readThread'], 'Studio canonical metadata continuity');
+    assertShellTextIncludesAll(shellPaths, 'src/host/aion-migration-source.mjs', ['readFile', 'source'], 'Studio read-only legacy source');
+    assertShellTextIncludesAll(shellPaths, 'src/host/aion-migration.mjs', ['CodexThreadAdapter', 'canonical_metadata_only', 'this.transport.readThread'], 'Studio canonical metadata continuity');
   }
 }
 

@@ -130,8 +130,8 @@ const expectedDshApplicationHost: DSHApplicationHostContract = {
   upstream_version: '0.1.7-rc.2',
   upstream_ref: '477b4f420553e8a52c2fbccc464d7561b239c443',
   profile: 'opl-studio',
-  profile_source: 'scripts/webui-host/dsh/cordis.yml',
-  web_overlay: 'scripts/webui-host/dsh/web.patch.yml',
+  profile_source: 'src/host/dsh/cordis.yml',
+  web_overlay: 'src/host/dsh/web.patch.yml',
   profile_home: '$DSH_HOME/profiles/opl-studio',
   dsh_base_loaded: false,
   loaded_dsh_services: [
@@ -645,8 +645,8 @@ function validateCandidateAdapterContract(
       product_profile_ref: 'contracts/app-product-profile.json#delivery_topology',
       topology_authority: false,
       renderer: 'deepseek_harness_derived_react',
-      application_host: 'scripts/webui-host/dsh/host.mjs',
-      shared_host_core: 'scripts/webui-host/host-core.mjs',
+      application_host: 'src/host/dsh/host.mjs',
+      shared_host_core: 'src/host/host-core.mjs',
       shared_host_core_role: 'cross_carrier_application_service_facade_inside_dsh_host',
       desktop_adapter: 'desktop/main.mjs + desktop/preload.cjs',
       desktop_platforms: ['macos', 'windows', 'linux'],
@@ -713,7 +713,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
   release_authority: false,
   product_profile_owner: 'one-person-lab-app',
   shared_renderer: 'deepseek_harness_derived_react',
-  shared_host_core: 'scripts/webui-host/host-core.mjs',
+  shared_host_core: 'src/host/host-core.mjs',
   bridge_abi: 'opl_app_host_bridge.v1',
   required_entries: ['electron_desktop', 'standalone_headless_webui', 'docker_webui'],
   current_aionui_release_evidence_may_close_successor_entry: false,
@@ -736,7 +736,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
     electron_desktop: {
       source_refs: [
         'src/workbench/App.tsx',
-        'scripts/webui-host/host-core.mjs',
+        'src/host/host-core.mjs',
         'desktop/main.mjs',
         'desktop/preload.cjs',
         'electron-builder.yml',
@@ -762,7 +762,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
     standalone_headless_webui: {
       source_refs: [
         'src/workbench/App.tsx',
-        'scripts/webui-host/host-core.mjs',
+        'src/host/host-core.mjs',
         'scripts/headless/run.mjs',
         'scripts/headless/server.mjs',
         'scripts/headless/installer.mjs',
@@ -784,14 +784,14 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
     docker_webui: {
       source_refs: [
         'src/workbench/App.tsx',
-        'scripts/webui-host/host-core.mjs',
+        'src/host/host-core.mjs',
         'Dockerfile',
         'docker-compose.distribution.yaml',
         'scripts/oci/manage.mjs',
         'scripts/oci/build-plan.mjs',
         'scripts/oci/handoff.mjs',
-        'scripts/webui-host/webui-auth.mjs',
-        'scripts/webui-host/staged-inputs.mjs',
+        'src/host/webui-auth.mjs',
+        'src/host/staged-inputs.mjs',
         '.github/workflows/studio-webui-preview.yml',
       ],
       package_artifact_kind: 'local_oci_smoke_receipt',
@@ -1348,7 +1348,7 @@ export function validateCandidateImplementationFiles(candidate: ShellCandidate):
     'data-testid="opl-always-on-panel"',
     'branding/opl-app-logo.png',
   ], 'OPL Studio product layout');
-  assertCandidateFileContains(candidate, 'src/workbench/SettingsPanel.tsx', [
+  assertCandidateFileContains(candidate, 'src/workbench/settings/useSettingsPageContext.tsx', [
     'data-testid="opl-locale-toggle"',
     'onSettingChange("locale", "zh")',
     'onSettingChange("locale", "en")',
@@ -1413,7 +1413,7 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.shared_renderer !== true) {
     throw new Error(`${candidate.id} webui_transport.shared_renderer must be true`);
   }
-  if (transport.shared_host_core !== 'scripts/webui-host/host-core.mjs') {
+  if (transport.shared_host_core !== 'src/host/host-core.mjs') {
     throw new Error(`${candidate.id} transport must use the shared Node host core`);
   }
   if (transport.bridge_abi !== 'opl_app_host_bridge.v1') {

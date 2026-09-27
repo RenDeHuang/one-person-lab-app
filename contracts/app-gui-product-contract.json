@@ -7312,7 +7312,7 @@
       "must_show": [
         "browser access to this computer with port, account, and password management entry",
         "renderer-owned channel account, pairing, and authorized-user management through AionCore in AionUI or the standard channel_access contribution in the successor",
-        "OPL Link pairing and device access through the standard remote_companion_access contribution without a view-type filter",
+        "Only completed, admitted connector contributions; OPL Link is excluded from bundled installation until product completion",
         "remote connection details close back to Resources & Connections, and Settings retains an explicit return-to-app action",
         "Docker WebUI deployment and access entry",
         "resource readiness and action executability as separate states",
@@ -7469,7 +7469,18 @@
       },
       "ia_group": "connections_deployment",
       "product_page_id": "resources",
-      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.resources"
+      "experience_contract_ref": "contracts/app-settings-control-plane.json#experience_contract.page_contracts.resources",
+      "configuration_acceptance": {
+        "not_configured_requires": "implemented_capability_and_reachable_configuration_path",
+        "unknown_is_not_unconfigured": true,
+        "webui_deployment_owner": "Studio standalone installer or OCI lifecycle manager",
+        "framework_install_is_not_webui_deployment": true,
+        "diagnostic_without_runtime_evidence_is_not_ready": true,
+        "startup_missing_readiness_or_counts_is_unknown_not_false_or_zero": true,
+        "startup_attention_requires_reason_and_recovery_entry": true,
+        "schedule_ui_reference": "DSH RC2 ui-schedule TaskManagerPage and TaskDetail; reuse Button Input StateDot",
+        "unsupported_and_unimplemented_are_not_user_configuration_errors": true
+      }
     },
     "settings_capabilities": {
       "state_source": "opl update status --json#managed_update.components[component_id=opl_base].current.dependency_catalog.flow_dependencies + Codex and shell skill/plugin registries",
@@ -9301,5 +9312,21 @@
     ],
     "diagnostics_escape_hatch": "Advanced, release evidence, developer detail, or explicit full-detail drilldown only",
     "source_policy": "ordinary views consume opl app state --profile fast --json and must not derive first-screen layout from raw runtime drilldown"
+  },
+  "settings_modularization": {
+    "contract_ref": "contracts/app-settings-control-plane.json#implementation_organization",
+    "primary_views": [
+      "conversation",
+      "schedules",
+      "runtime"
+    ],
+    "upstream_adoption": [
+      "plugin_management",
+      "custom_shortcuts",
+      "time_context",
+      "voice_input",
+      "auto_review_controls"
+    ],
+    "remote_companion_default_install": false
   }
 }

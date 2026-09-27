@@ -59,8 +59,8 @@ export type AppDeliveryTopology = {
     upstream_version: '0.1.7-rc.2';
     upstream_ref: '477b4f420553e8a52c2fbccc464d7561b239c443';
     profile: 'opl-studio';
-    profile_source: 'scripts/webui-host/dsh/cordis.yml';
-    web_overlay: 'scripts/webui-host/dsh/web.patch.yml';
+    profile_source: 'src/host/dsh/cordis.yml';
+    web_overlay: 'src/host/dsh/web.patch.yml';
     dsh_base_loaded: false;
     codex_runtime_owner: 'opl-codex-native';
     framework_bridge_scope: 'framework_app_state_action_authentication_and_channel_callbacks_only';

@@ -740,3 +740,25 @@ confirmBeforeExecute value for compatibility but do not display an unimplemented
 Model and reasoning controls explain their scope and automatic/manual relationship. Local builds
 show their identity and disabled updater policy; official release update actions require native support.
 Support links are separate rows. Destructive actions remain behind their real preview and confirmation.
+
+### 配置能力与验收
+
+“尚未配置”只用于已经实现、且提供真实配置路径的能力。未知状态、当前平台不支持和待开发必须分别说明。验收包含入口、保存、重新读取或重启，以及实际操作；模拟外部服务的测试不能证明真实账户认证完成。
+
+网页端通过 Studio 独立安装器或 OCI 生命周期管理器部署，设置提供部署指南及只读诊断。Framework 初始化、密钥写入和启动维护都不是 Docker 部署，不能包装成“一键安装网页端”。诊断没有发现告警也不能证明 WebUI 已运行；Docker 可达、地址已配置与 HTTP 可访问是不同事实。WebUI 存储统计依赖部署环境的数据目录，桌面端不能承诺自动看到另一部署的用量。
+
+未安装或主动停用的可选智能体不应因为没有首页入口出现在故障列表。已可调用但没有首页入口时，说明需要智能体更新提供入口，而不是要求用户反复修复安装。
+
+启动自检缺少 readiness 或检查计数时显示“结果不完整”，不把缺失值补成 false 或 0/0。读取失败、未知结果、已证实阻断分别呈现，并提供“重新检查”。真实阻断和用户需处理的维护项同时进入概览问题列表，显示具体检查项、原因和对应设置入口；概览不能一边声称无问题一边要求处理。
+
+计划任务参考官方 DSH RC2 `ui-schedule/TaskManagerPage` 与 `TaskDetail`：紧凑的可搜索任务列表、状态与时间元信息、按需展开任务详情和执行历史。复用官方 Button、Input、StateDot，使用 DSH 字体、颜色、分隔线与间距。任务配置和执行继续走 Framework/Temporal，保留 OPL 所需创建表单与执行确认；长路径、完整提示词和技术执行信息不占据列表主体。
+
+扫码连接按每次完成的状态读取安排下一次刷新，不能只因 channel ID 与刷新周期未变化而停止。连接失败须将已有 reason code 翻译为可操作的原因与重试指引；未连接、连接中、待扫码、已连接和失败使用不同状态。获取二维码不是登录完成，扫码确认和消息实际交付需分别验证。
+
+## 设置与工作台的模块边界
+
+计划任务属于主工作台，支持创建、编辑、暂停、运行和历史；设置只保留后台运行条件及跳转。模型与执行统一承载模型、权限、审阅和时间上下文。界面偏好承载语言、主题、字号、快捷键和语音输入。能力目录先按用户用途展示，再按技术类型筛选，并跳转到唯一配置入口。安装、启用、连接和可调用分别表达，源码接入不代表本机就绪。
+
+Studio 设置按领域组织，共享 DSH 外壳和控件；生产 Host 位于 `src/host`，脚本只负责启动、构建和验证。Framework 工作台服务仍是一个插件，记忆和存储分别维护。OPL Link Desktop Connector 完整交付前不进入默认安装与内置曝光，既有数据保留。
+
+本轮实现位置与验证边界见 [设置模块化验收](evidence/settings-modularization-acceptance-2026-09-27.md)。

@@ -81,7 +81,7 @@ export type OPLStudioCarrierEvidenceContract = {
   release_authority: false;
   product_profile_owner: 'one-person-lab-app';
   shared_renderer: 'deepseek_harness_derived_react';
-  shared_host_core: 'scripts/webui-host/host-core.mjs';
+  shared_host_core: 'src/host/host-core.mjs';
   bridge_abi: 'opl_app_host_bridge.v1';
   required_entries: OPLStudioCarrierId[];
   current_aionui_release_evidence_may_close_successor_entry: false;
@@ -138,8 +138,8 @@ export type DSHApplicationHostContract = {
   upstream_version: '0.1.7-rc.2';
   upstream_ref: '477b4f420553e8a52c2fbccc464d7561b239c443';
   profile: 'opl-studio';
-  profile_source: 'scripts/webui-host/dsh/cordis.yml';
-  web_overlay: 'scripts/webui-host/dsh/web.patch.yml';
+  profile_source: 'src/host/dsh/cordis.yml';
+  web_overlay: 'src/host/dsh/web.patch.yml';
   profile_home: '$DSH_HOME/profiles/opl-studio';
   dsh_base_loaded: false;
   loaded_dsh_services: string[];
