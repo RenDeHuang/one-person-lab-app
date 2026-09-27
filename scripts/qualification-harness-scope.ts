@@ -229,7 +229,9 @@ export function buildQualificationHarnessScopeProof(input: {
   const shellDiffers = shellChangedPaths.length > 0;
   const appHarnessMechanicsPaths = [
     '.github/workflows/build-manual.yml',
+    '.github/workflows/_prepare-clean-vm-inputs.yml',
     '.github/workflows/_release-full-addon.yml',
+    '.github/workflows/full-first-install-release.yml',
     '.github/workflows/opl-first-run-vm.yml',
     '.github/workflows/opl-studio-candidate-carriers.yml',
     '.github/workflows/release-stable-post-success-followups.yml',
@@ -240,6 +242,8 @@ export function buildQualificationHarnessScopeProof(input: {
     'scripts/validate-release-boundary/release-checks.ts',
     'scripts/validate-release-boundary/text-check-runner.ts',
     'scripts/verify-release-gateway-test-account.ts',
+    'scripts/stable-release-dispatch.ts',
+    'scripts/write-mas-qualification-provisioning-request.ts',
     'tests/release/app-release-boundary-cases/gui-delivery-topology-contract.test.ts',
     'tests/release/qualification-harness-scope.test.ts',
     'tests/release/release-bundle-workflow-cutover-cases/control-and-recovery.ts',
