@@ -3965,9 +3965,10 @@
     "updater_metadata_allowed": false,
     "validation_required": true,
     "runtime_upgrade_policy": {
-      "authority": "embedded_full_payload_manifest",
-      "reuse_requires_exact_manifest_match": true,
-      "mismatch_action": "atomically_replace_current_runtime_and_rewrite_pointer",
+      "authority": "framework_managed_update",
+      "reuse_requires_runtime_activation_support": true,
+      "embedded_payload_role": "bootstrap_seed_for_missing_or_incompatible_runtime",
+      "manifest_difference_alone_requires_replacement": false,
       "user_state_root_preserved": true
     },
     "carrier_profiles": {
