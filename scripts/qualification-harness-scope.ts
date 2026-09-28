@@ -255,10 +255,13 @@ export function buildQualificationHarnessScopeProof(input: {
     'tests/release/release-workflow-broker-admission.test.ts',
   ];
   const shellHarnessMechanicsPaths = shellRepository === 'gaofeng21cn/opl-studio' ? [
+    // Stable smoke imports the shared Preview UI and Gateway probes.
+    'scripts/desktop/preview-smoke.mjs',
     'scripts/desktop/qualify-clean-vm.mjs',
     'scripts/desktop/stable-clean-vm.mjs',
     'scripts/desktop/stable-smoke.mjs',
     'scripts/desktop/stable-upgrade-vm.mjs',
+    'tests/desktop/preview-smoke.test.mjs',
   ] : [
     'scripts/opl-first-run-tart-smoke.mjs',
     'scripts/opl-first-run-vm-smoke.mjs',
