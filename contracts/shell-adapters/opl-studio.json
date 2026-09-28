@@ -89,12 +89,19 @@
     "topology_authority": false,
     "renderer": "deepseek_harness_derived_react",
     "application_host": "src/host/dsh/host.mjs",
-    "shared_host_core": "src/host/host-core.mjs",
+    "shared_host_core": "plugins/opl-host-core/src/service.mjs",
     "shared_host_core_role": "cross_carrier_application_service_facade_inside_dsh_host",
     "desktop_adapter": "desktop/main.mjs + desktop/preload.cjs",
-    "desktop_platforms": ["macos", "windows", "linux"],
+    "desktop_platforms": [
+      "macos",
+      "windows",
+      "linux"
+    ],
     "web_adapter": "http_sse",
-    "web_runtime_forms": ["standalone_headless_webui", "docker_webui"],
+    "web_runtime_forms": [
+      "standalone_headless_webui",
+      "docker_webui"
+    ],
     "bridge_abi": "opl_app_host_bridge.v1",
     "carrier_evidence_manifest": {
       "schema": "opl_studio_carrier_evidence.v1",
@@ -181,7 +188,17 @@
     ],
     "upstream_upgrade_contract": "update_one_pinned_ref_and_package_cohort_then_regenerate_vendor_manifest_replay_profile_patches_and_run_host_mcp_renderer_candidate_gates",
     "active_shell_adopted": false,
-    "release_ready": false
+    "release_ready": false,
+    "plugin_package_layout": {
+      "source_root": "plugins",
+      "package_format": "dsh_npm_package",
+      "host_entry": "exports[.]",
+      "client_entry": "exports[./client]",
+      "profile_module_reference": "npm_package_name",
+      "installed_location": "node_modules",
+      "third_party_policy": "pinned_native_package_or_provenance_preserving_adapter",
+      "codex_capability_packages_are_dsh_plugins": false
+    }
   },
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",
@@ -412,7 +429,11 @@
     "desktop_install": "after_normal_host_shutdown_or_explicit_idle_restart",
     "bootstrap_pin": "first_install_only_preserve_existing_managed_framework_updates",
     "external_temporal_server": "report_external_owner_without_brew_upgrade_or_service_restart",
-    "disabled_by": ["OPL_STUDIO_MANAGED_UPDATES=0", "OPL_STUDIO_READ_ONLY=1", "OPL_NATIVE_WORKBENCH_READ_ONLY=1"]
+    "disabled_by": [
+      "OPL_STUDIO_MANAGED_UPDATES=0",
+      "OPL_STUDIO_READ_ONLY=1",
+      "OPL_NATIVE_WORKBENCH_READ_ONLY=1"
+    ]
   },
   "thread_adapter_boundary": {
     "source_ref": "contracts/app-gui-product-contract.json#interaction_baseline.thread_coordination",

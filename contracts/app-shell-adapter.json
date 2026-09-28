@@ -85,7 +85,7 @@
     "topology_authority": false,
     "renderer": "deepseek_harness_derived_react",
     "application_host": "src/host/dsh/host.mjs",
-    "shared_host_core": "src/host/host-core.mjs",
+    "shared_host_core": "plugins/opl-host-core/src/service.mjs",
     "shared_host_core_role": "cross_carrier_application_service_facade_inside_dsh_host",
     "desktop_adapter": "desktop/main.mjs + desktop/preload.cjs",
     "desktop_platforms": [
@@ -184,7 +184,17 @@
     ],
     "upstream_upgrade_contract": "update_one_pinned_ref_and_package_cohort_then_regenerate_vendor_manifest_replay_profile_patches_and_run_host_mcp_renderer_candidate_gates",
     "active_shell_adopted": true,
-    "release_ready": false
+    "release_ready": false,
+    "plugin_package_layout": {
+      "source_root": "plugins",
+      "package_format": "dsh_npm_package",
+      "host_entry": "exports[.]",
+      "client_entry": "exports[./client]",
+      "profile_module_reference": "npm_package_name",
+      "installed_location": "node_modules",
+      "third_party_policy": "pinned_native_package_or_provenance_preserving_adapter",
+      "codex_capability_packages_are_dsh_plugins": false
+    }
   },
   "gui_authority": {
     "source_of_truth": "one-person-lab-app",

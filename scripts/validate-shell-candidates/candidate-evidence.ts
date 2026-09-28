@@ -111,7 +111,7 @@ export type OPLStudioCarrierEvidenceManifest = {
   runtime_authority_transfer: false;
   domain_truth_owned: false;
   shared_renderer: 'deepseek_harness_derived_react';
-  shared_host_core: 'src/host/host-core.mjs';
+  shared_host_core: 'plugins/opl-host-core/src/service.mjs';
   bridge_abi: 'opl_app_host_bridge.v1';
   carriers: Record<OPLStudioCarrierId, OPLStudioCarrierEvidenceEntry>;
 };
@@ -399,7 +399,7 @@ function validateOPLStudioImplementationEvidence(
 
   if (
     evidence.webui_transport?.renderer !== 'src/workbench/App.tsx'
-    || evidence.webui_transport?.host_core !== 'src/host/host-core.mjs'
+    || evidence.webui_transport?.host_core !== 'plugins/opl-host-core/src/service.mjs'
     || evidence.webui_transport?.native_host !== 'desktop/main.mjs'
     || evidence.webui_transport?.native_transport !== 'desktop/preload.cjs#window.oplStudio'
     || evidence.webui_transport?.web_transport !== 'src/bridge/webTransport.ts'

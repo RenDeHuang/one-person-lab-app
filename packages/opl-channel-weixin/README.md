@@ -1,15 +1,18 @@
 # OPL Channel Weixin
 
 `opl-channel-weixin` is the OPL App-owned Weixin iLink channel capability
-Package for the successor OPL GUI. It lives under `packages/opl-channel-weixin`
-in the public App repository and owns that renderer's Weixin transport
-lifecycle only. OPL Framework remains the composition host for this Package
-route, and the Codex App Server remains the sole thread and turn authority.
+Package for OPL Studio, the Shell selected by the current
+[App Shell contract](../../contracts/app-shell-adapter.json). It lives under
+`packages/opl-channel-weixin` in the public App repository and owns Weixin
+transport lifecycle only. OPL Framework remains the composition host for this
+Package route, and the Codex App Server remains the sole thread and turn authority.
 
-The current AionUI release shell does not activate this Package provider. It
-continues to use AionCore's built-in Weixin provider and settings flow. Package
-installation through the App Official Profile is availability only; each GUI
-must have exactly one active Weixin provider path.
+The historical AionUI integration used AionCore's built-in Weixin provider and
+must not activate this Package provider. Package installation through the App
+Official Profile is availability only; each GUI must have exactly one active
+Weixin provider path. Source presence does not establish installation, Host
+attachment or a live Weixin login. See the [Package directory guide](../README.md)
+for the other plugin source owners.
 
 ## Current boundary
 
@@ -38,7 +41,7 @@ must have exactly one active Weixin provider path.
 
 ## Host usage
 
-This example applies to the successor OPL GUI, not to AionUI:
+This example describes the Framework-hosted Studio integration, not AionUI:
 
 ```ts
 import {
@@ -97,7 +100,7 @@ codex plugin add opl-channel-weixin@one-person-lab-app --json
 
 This App-owned Package has no separate GHCR publication. The Git-backed
 marketplace source and the configured Codex native carrier are the installation
-authority. Installed Plugin bytes, a successor-GUI Host attachment, and live
+authority. Installed Plugin bytes, a Studio Host attachment, and live
 Weixin login remain separate evidence surfaces. AionUI must not attach this
 provider.
 

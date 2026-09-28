@@ -98,7 +98,7 @@ function carrierManifest(): OPLStudioCarrierEvidenceManifest {
     runtime_authority_transfer: false,
     domain_truth_owned: false,
     shared_renderer: 'deepseek_harness_derived_react',
-    shared_host_core: 'src/host/host-core.mjs',
+    shared_host_core: 'plugins/opl-host-core/src/service.mjs',
     bridge_abi: 'opl_app_host_bridge.v1',
     carriers: {
       electron_desktop: carrierEntry('electron_desktop'),

@@ -4,7 +4,73 @@ Owner: `one-person-lab-app`
 State: `active`
 Scope: DeepSeek Harness `dsh-v0.1.7-rc.2` (`477b4f420553e8a52c2fbccc464d7561b239c443`) 与 OPL Studio 适配。
 
-这份文档只回答三个问题：DSH 官方插件在 OPL 中的状态、OPL 自有插件提供的能力，以及这些能力在设置中心的归属。默认策略是吸收 DSH 的有价值能力；已有 OPL owner 时复用 DSH 的 UI、协议和交互，再接入现有 owner。只有明确与 OPL 设计冲突、会制造第二份 authority 或无法满足安全/数据边界的部分才排除。
+这份文档说明插件的源码和安装位置、开发归口、DSH 官方插件在 OPL 中的状态，以及设置归属。默认策略是吸收 DSH 的有价值能力；已有 OPL owner 时复用 DSH 的 UI、协议和交互，再接入现有 owner。只有明确与 OPL 设计冲突、会制造第二份 authority 或无法满足安全/数据边界的部分才排除。
+
+## 0. 源码、安装位置与开发归口
+
+OPL App 复用 DSH/Cordis 的应用骨架和 GUI，同时通过 Studio 的内置插件接入持久
+Codex App Server 与 Framework。它不是把一组可卸载插件装进原版 DSH 后的同一个产品。
+“Host 插件”“客户端插件”和“可独立安装的能力包”是不同的交付单位，不能从一个
+`packages/` 目录推断全部插件的位置或安装状态。
+
+### 源码放在哪里
+
+下表路径以各源码仓库根目录为基准；是开发导航，不是可供安装器消费的插件清单。
+
+| 类别 | 源码位置 | 装载依据与更新归属 |
+| --- | --- | --- |
+| Studio 内置 Host 插件 | `opl-studio/plugins/<plugin-id>/src/`；共用协议和工具在 `src/host/` | `src/host/dsh/cordis.yml` 与 `web.patch.yml`；随 App/Shell 更新 |
+| Studio 客户端适配 | `opl-studio/plugins/opl-studio-client/`、`src/integrations/` 与 `src/workbench/` | Studio 客户端入口、构建和 slots；随 App/Shell 更新 |
+| DSH 官方和社区 UI | Studio 的 npm 依赖、`src/vendor/deepseek-harness/` | 固定 DSH cohort、npm lock 与第三方原包溯源；随 App/Shell 更新 |
+| Framework 内置服务与 Package Host | `one-person-lab/src/host/`、`packages/package-host/` 等 | Framework 公开组合入口与插件描述；随 Framework runtime 更新 |
+| App 自有可安装能力包 | 本仓 [`packages/`](../../../packages/README.md)，目前为微信通道 | Package descriptor 与 [App marketplace](../../../.agents/plugins/marketplace.json)；由配置的原生 carrier 安装 |
+| 领域 Agent/能力包 | 对应领域仓库，例如 `med-autocast/plugins/med-autocast/`、`opl-relay/plugins/opl-relay/` | 各 owner 的 manifest 与原生 carrier；Framework 聚合发现、状态和操作 |
+
+App 的 [Shell contract](../../../contracts/app-shell-adapter.json) 把 Studio 定义为外部
+仓库 checkout，默认位于 `shells/opl-studio`。开发机可有相邻的 `opl-studio` 工作目录，
+那不是 App `packages/` 下缺失的插件，也不自动代表当前安装包使用的源码。
+
+### 安装后放在哪里
+
+| 安装层 | macOS 默认或典型物理位置 | 如何判断当前状态 |
+| --- | --- | --- |
+| App 内置 Host/客户端 | `/Applications/One Person Lab.app/Contents/Resources/app.asar` 内的 `node_modules/` 与 `dist/desktop/` | 读取具体安装包及其加载配置；源码存在不代表当前运行版本 |
+| Framework runtime | 默认 `~/.opl/one-person-lab/`；自定义安装以实际 launcher 解析为准 | Framework 安装身份及公开 state/action readback |
+| Codex carrier 的可安装插件 | 默认 `$CODEX_HOME/plugins/cache/<marketplace>/<plugin>/<version>/`，未覆盖时 `CODEX_HOME=~/.codex` | 原生 carrier 的有效安装记录及 Framework 投影；缓存中有目录不代表启用或可调用 |
+| DSH profile | `$DSH_HOME/profiles/opl-studio/` | Studio Host 的 profile resolution；profile 配置不是插件源码总仓库 |
+
+`app.asar`、`node_modules`、插件缓存和 Full 的离线种子都是交付或安装产物，不是开发
+编辑位置；不手改这些副本来修复源码。账户、业务数据和插件代码也不能混为同一目录。
+
+### DSH 插件统一规范
+
+通用能力优先采用 DSH 官方实现。新增或修改自有插件、升级 DSH 时都要检查官方
+对应能力；已经覆盖需求的，及时迁移调用者并删除被替代代码。存在 OPL 特有的
+线程、权限或 Framework 边界时只保留必要适配，不把整个自研插件视为不可替换。
+保留项写明具体能力差距与可替换条件；语义等价性由开发者结合源码和运行结果判断，
+不按包名相似度自动替换，也不为通用能力再造并行实现。
+
+OPL 自有 DSH 插件源码集中在 Studio 的 `plugins/<plugin-id>/`，统一采用 DSH 原生
+npm 包形态：`package.json` 声明名称、版本、描述、许可证、`engines.dsh` 和公开入口；
+Host 入口导出 Cordis `apply`/服务依赖，客户端入口使用 `exports[./client]` 与
+`dsh.client`。DSH profile 一律按包名加载，不再混用相对插件文件路径。
+
+Host 插件由 `build:plugins` 把实现及本地依赖打进各包的 `lib/`；安装产物与官方、
+社区 DSH 插件统一通过 `node_modules/<package-name>/` 解析。源码目录和安装目录
+职责明确，App、WebUI、Docker 使用同一组包和 profile，不能各留一套插件副本。
+
+官方/社区插件保留原始 npm 包与来源；需要适配的插件同样在 `plugins/` 建立标准
+DSH 包。文档预览当前只随固定 DSH cohort 保留官方源码，并复用其 `MarkdownText`
+primitive；其他已支持格式由 OPL workspace/thread 适配器呈现。接入官方完整 runtime 后应删除被替代的呈现代码，不再维护平行 viewer
+载荷。普通 GUI 源码复用不冒充已装载的 DSH 插件。
+
+微信目录中的 `opl-package.json` 与 `.codex-plugin/plugin.json` 属于独立的 OPL/Codex
+能力包协议，本身不是 DSH 插件描述；其通道由 Framework 托管，通过 DSH 的
+`opl-framework-bridge` 接入。不能仅改目录或加空入口就宣称微信实现了 DSH ABI。
+
+新增 DSH 插件直接在上述目录创建标准包、声明依赖、加入 profile，并验证原生
+inventory、生命周期与实际打包加载。复用 DSH package metadata 和 inventory，
+不另建 App 私有插件格式或重复维护安装状态。领域能力包仍由 Framework 投影管理。
 
 ## 1. 插件边界
 
@@ -52,7 +118,7 @@ RC2 release notes 明确新增/调整了插件管理页 Auto Review、快捷键�
 | `opl-host-core` / `opl-web-routes` | Desktop、standalone WebUI、Docker 的共用 host 与路由 | 运行与维护；载体绑定属于部署/安装合同，不在普通 Settings 改写。 |
 | `opl-studio-client` 与 contribution slots | 项目/任务进度、文件与结果、智能体与能力详情、Settings 投影 | 右侧 inspector 和 Settings > 智能体与能力/连接与部署。 |
 | `opl-workbench-services`（Framework plugin） | 计划任务、执行历史、Memory 纠错建议、存储盘点与清理 | Settings > 运行与维护 > 服务状态；工作区 > 数据与存储；智能体与能力 > 指令与上下文。 |
-| `dsh-file-viewer` 适配 | Markdown、CSV、图片、PDF 等浏览器预览 | 文件与结果；文件路径和字节读取继续由 canonical workspace bridge 校验。 |
+| DSH `ui-sidebar-documentpreview` 官方来源 | 当前复用其 DSH Markdown primitive；HTML、图片、普通文本由 OPL 适配器呈现 | 文件路径和字节读取继续由 canonical workspace bridge 校验；完整官方插件与 Office/Excel/PDF 需官方 Remote/运行时接入后启用。 |
 | `dsh-settings-search` 1.2.0 | 本地设置搜索、结果定位、方向键/Enter/Escape 交互 | Settings 全局唯一搜索框；搜索不创建第二份设置模型。 |
 
 ## 4. 设置整合规则

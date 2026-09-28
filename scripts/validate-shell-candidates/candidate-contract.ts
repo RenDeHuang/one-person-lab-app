@@ -178,6 +178,7 @@ const expectedDshApplicationHost: DSHApplicationHostContract = {
   upstream_upgrade_contract: 'update_one_pinned_ref_and_package_cohort_then_regenerate_vendor_manifest_replay_profile_patches_and_run_host_mcp_renderer_candidate_gates',
   active_shell_adopted: false,
   release_ready: false,
+  plugin_package_layout: {"source_root": "plugins", "package_format": "dsh_npm_package", "host_entry": "exports[.]", "client_entry": "exports[./client]", "profile_module_reference": "npm_package_name", "installed_location": "node_modules", "third_party_policy": "pinned_native_package_or_provenance_preserving_adapter", "codex_capability_packages_are_dsh_plugins": false},
 };
 
 function validateDshApplicationHostContract(
@@ -646,7 +647,7 @@ function validateCandidateAdapterContract(
       topology_authority: false,
       renderer: 'deepseek_harness_derived_react',
       application_host: 'src/host/dsh/host.mjs',
-      shared_host_core: 'src/host/host-core.mjs',
+      shared_host_core: 'plugins/opl-host-core/src/service.mjs',
       shared_host_core_role: 'cross_carrier_application_service_facade_inside_dsh_host',
       desktop_adapter: 'desktop/main.mjs + desktop/preload.cjs',
       desktop_platforms: ['macos', 'windows', 'linux'],
@@ -713,7 +714,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
   release_authority: false,
   product_profile_owner: 'one-person-lab-app',
   shared_renderer: 'deepseek_harness_derived_react',
-  shared_host_core: 'src/host/host-core.mjs',
+  shared_host_core: 'plugins/opl-host-core/src/service.mjs',
   bridge_abi: 'opl_app_host_bridge.v1',
   required_entries: ['electron_desktop', 'standalone_headless_webui', 'docker_webui'],
   current_aionui_release_evidence_may_close_successor_entry: false,
@@ -736,7 +737,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
     electron_desktop: {
       source_refs: [
         'src/workbench/App.tsx',
-        'src/host/host-core.mjs',
+        'plugins/opl-host-core/src/service.mjs',
         'desktop/main.mjs',
         'desktop/preload.cjs',
         'electron-builder.yml',
@@ -762,7 +763,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
     standalone_headless_webui: {
       source_refs: [
         'src/workbench/App.tsx',
-        'src/host/host-core.mjs',
+        'plugins/opl-host-core/src/service.mjs',
         'scripts/headless/run.mjs',
         'scripts/headless/server.mjs',
         'scripts/headless/installer.mjs',
@@ -784,7 +785,7 @@ const expectedCarrierEvidenceContract: OPLStudioCarrierEvidenceContract = {
     docker_webui: {
       source_refs: [
         'src/workbench/App.tsx',
-        'src/host/host-core.mjs',
+        'plugins/opl-host-core/src/service.mjs',
         'Dockerfile',
         'docker-compose.distribution.yaml',
         'scripts/oci/manage.mjs',
@@ -1413,7 +1414,7 @@ function validateCandidateWebUiTransport(candidate: ShellCandidate): void {
   if (transport.shared_renderer !== true) {
     throw new Error(`${candidate.id} webui_transport.shared_renderer must be true`);
   }
-  if (transport.shared_host_core !== 'src/host/host-core.mjs') {
+  if (transport.shared_host_core !== 'plugins/opl-host-core/src/service.mjs') {
     throw new Error(`${candidate.id} transport must use the shared Node host core`);
   }
   if (transport.bridge_abi !== 'opl_app_host_bridge.v1') {

@@ -17,7 +17,7 @@ export function validateStudioImplementation(shellPaths): void {
   for (const name of ['typecheck', 'test:node-suite', 'test:bun-suites', 'validate:candidate', 'build-mac:arm64']) {
     if (typeof scripts[name] !== 'string' || !scripts[name].trim()) throw new Error(`Studio source gate requires ${name}.`);
   }
-  for (const relative of ['desktop/main.mjs', 'desktop/preload.cjs', 'desktop/updater.mjs', 'src/host/host-core.mjs', 'src/host/app-server-transport.mjs']) {
+  for (const relative of ['desktop/main.mjs', 'desktop/preload.cjs', 'desktop/updater.mjs', 'plugins/opl-host-core/src/service.mjs', 'src/host/app-server-transport.mjs']) {
     const result = spawnSync(process.execPath, ['--check', path.join(shellPaths.shellRoot, relative)], { encoding: 'utf8' });
     if (result.status !== 0) throw new Error(`Studio JavaScript syntax check failed for ${relative}: ${result.stderr}`);
   }
