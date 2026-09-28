@@ -64,6 +64,21 @@ test('qualification harness scope allows a paired VM smoke mechanics subset', ()
   }), []);
 });
 
+test('Studio shared Gateway smoke diagnostics allow exact artifact reuse but not runtime changes', () => {
+  for (const profile of ['standard', 'full'] as const) {
+    const input = {
+      profile, shellRepository: 'gaofeng21cn/opl-studio' as const,
+      artifactAppSha, verificationAppSha: artifactAppSha, appChangedPaths: [],
+      artifactShellSha, verificationShellSha,
+      shellChangedPaths: ['scripts/desktop/preview-smoke.mjs', 'tests/desktop/preview-smoke.test.mjs'],
+    };
+    assert.equal(buildQualificationHarnessScopeProof(input).reuse_authorization.allowed, true);
+    assert.equal(buildQualificationHarnessScopeProof({
+      ...input, shellChangedPaths: ['desktop/host.mjs', ...input.shellChangedPaths],
+    }).reuse_authorization.allowed, false);
+  }
+});
+
 test('malicious verifier weakening cannot qualify as same-artifact by changed path alone', () => {
   const proof = buildQualificationHarnessScopeProof({
     artifactAppSha,
