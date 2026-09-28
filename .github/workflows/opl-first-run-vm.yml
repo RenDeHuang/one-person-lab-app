@@ -706,6 +706,34 @@ jobs:
             exit 1
           fi
 
+      - name: Verify selected receipt scope consumer before VM
+        if: ${{ inputs.release_artifact_name != '' }}
+        env:
+          QUALIFICATION_SCOPE_BASE64: ${{ steps.qualification_scope.outputs.proof_base64 }}
+          ARTIFACT_APP_SHA: ${{ steps.diagnostic_inputs.outputs.artifact_app_sha }}
+          VERIFICATION_APP_SHA: ${{ steps.verification_app.outputs.app_sha }}
+          ARTIFACT_SHELL_SHA: ${{ steps.shell_ref.outputs.shell_sha }}
+          VERIFICATION_SHELL_SHA: ${{ steps.smoke_harness_ref.outputs.shell_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The receipt writer imports this module from the selected verification checkout.
+          # Exercise that exact consumer now, before allocating the expensive VM runner.
+          node --experimental-strip-types --input-type=module <<'NODE'
+          import { validateQualificationHarnessScopeProof } from './scripts/qualification-harness-scope.ts';
+          const proof = JSON.parse(Buffer.from(process.env.QUALIFICATION_SCOPE_BASE64, 'base64').toString('utf8'));
+          const errors = validateQualificationHarnessScopeProof(proof, {
+            artifactAppSha: process.env.ARTIFACT_APP_SHA,
+            verificationAppSha: process.env.VERIFICATION_APP_SHA,
+            artifactShellSha: process.env.ARTIFACT_SHELL_SHA,
+            verificationShellSha: process.env.VERIFICATION_SHELL_SHA,
+          });
+          if (errors.length > 0 || !proof.reuse_authorization?.allowed) {
+            throw new Error('Selected verification App cannot consume the qualification scope proof: '
+              + errors.join('; ') + '. Select a compatible harness-only --verification-app-ref; do not change artifact refs.');
+          }
+          NODE
+
       - name: Validate Framework ref before VM runner work
         id: framework_ref
         if: ${{ inputs.framework_ref != '' }}

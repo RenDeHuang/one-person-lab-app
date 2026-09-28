@@ -7,6 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { redactReleaseCommandDetail } from './release-file-helpers.ts';
 import { readActiveShellBuildProfile } from './active-shell-build-profile.ts';
 import { classifyStableSourceOperation } from './stable-followup-router.ts';
 
@@ -150,12 +151,12 @@ function runId(value: unknown, label: string): string {
   return normalized;
 }
 
-function commandDetail(result: CommandResult): string {
-  return [result.stderr, result.stdout, result.error?.message]
+export function commandDetail(result: CommandResult): string {
+  return redactReleaseCommandDetail([result.stderr, result.stdout, result.error?.message]
     .filter(Boolean)
     .join('\n')
     .trim()
-    .replace(/\s+/g, ' ');
+    .replace(/\s+/g, ' '));
 }
 
 function runRequired(
@@ -275,22 +276,47 @@ function isFullCheckpointArtifact(sourceArtifact: string, sourceRunId: string): 
     || sourceArtifact === `opl-release-append-full-operation-checkpoint-v2-${sourceRunId}`;
 }
 
+type FullSourceRefs = { appSha: string; shellSha: string; frameworkSha: string };
+
+export function resolveAppendFullCohort(
+  checkpointCohort: unknown | undefined,
+  requested: Partial<FullSourceRefs>,
+  current: (key: keyof FullSourceRefs) => string,
+): FullSourceRefs {
+  let defaults: FullSourceRefs;
+  if (checkpointCohort === undefined) {
+    defaults = {
+      appSha: requested.appSha ?? current('appSha'),
+      shellSha: requested.shellSha ?? current('shellSha'),
+      frameworkSha: requested.frameworkSha ?? current('frameworkSha'),
+    };
+  } else {
+    const manifest = record(checkpointCohort, 'Full checkpoint build cohort');
+    if (manifest.schema !== 'opl_app_build_artifact_cohort.v2') {
+      throw new Error('Full checkpoint build cohort schema is invalid.');
+    }
+    if (record(manifest.build, 'Full checkpoint build identity').kind !== 'full') {
+      throw new Error('Full checkpoint build cohort is not a Full artifact.');
+    }
+    const cohort = record(manifest.cohort, 'Full checkpoint content cohort');
+    defaults = {
+      appSha: sha(cohort.app_sha, 'Full checkpoint app_sha'),
+      shellSha: sha(cohort.shell_sha, 'Full checkpoint shell_sha'),
+      frameworkSha: sha(cohort.framework_sha, 'Full checkpoint framework_sha'),
+    };
+  }
+  return {
+    appSha: sha(requested.appSha ?? defaults.appSha, 'requested app_sha'),
+    shellSha: sha(requested.shellSha ?? defaults.shellSha, 'requested shell_sha'),
+    frameworkSha: sha(requested.frameworkSha ?? defaults.frameworkSha, 'requested framework_sha'),
+  };
+}
+
 export function fullCheckpointMatchesRequestedCohort(
   value: unknown,
-  requested: { appSha: string; shellSha: string; frameworkSha: string },
+  requested: FullSourceRefs,
 ): boolean {
-  const manifest = record(value, 'Full checkpoint build cohort');
-  if (manifest.schema !== 'opl_app_build_artifact_cohort.v2') {
-    throw new Error('Full checkpoint build cohort schema is invalid.');
-  }
-  const build = record(manifest.build, 'Full checkpoint build identity');
-  if (build.kind !== 'full') throw new Error('Full checkpoint build cohort is not a Full artifact.');
-  const cohort = record(manifest.cohort, 'Full checkpoint content cohort');
-  const actual = {
-    appSha: sha(cohort.app_sha, 'Full checkpoint app_sha'),
-    shellSha: sha(cohort.shell_sha, 'Full checkpoint shell_sha'),
-    frameworkSha: sha(cohort.framework_sha, 'Full checkpoint framework_sha'),
-  };
+  const actual = resolveAppendFullCohort(value, {}, () => { throw new Error('Full checkpoint is required.'); });
   return actual.appSha === sha(requested.appSha, 'requested app_sha')
     && actual.shellSha === sha(requested.shellSha, 'requested shell_sha')
     && actual.frameworkSha === sha(requested.frameworkSha, 'requested framework_sha');
@@ -300,6 +326,7 @@ export function reconcileAppendFullCheckpointCohort(input: {
   target: AppendFullTargetState;
   rootArtifacts: WorkflowArtifact[];
   checkpointCohort: unknown;
+  exactArtifactRequested?: boolean;
   appSha: string;
   shellSha: string;
   frameworkSha: string;
@@ -310,6 +337,11 @@ export function reconcileAppendFullCheckpointCohort(input: {
   }
   if (fullCheckpointMatchesRequestedCohort(input.checkpointCohort, input)) return input.target;
   const rootSourceRunId = input.target.root_source_run_id;
+  if (input.exactArtifactRequested || !input.rootArtifacts.some((artifact) => !artifact.expired
+    && (artifact.name === 'opl-release-standard-checkpoint-' + rootSourceRunId
+      || artifact.name === 'opl-release-standard-operation-checkpoint-' + rootSourceRunId))) {
+    throw new Error('Requested content refs differ from the Full checkpoint; select the original Standard source to build a new Full cohort.');
+  }
   return {
     state: 'dispatch_required',
     root_source_run_id: rootSourceRunId,
@@ -1280,11 +1312,6 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
     for (const artifactRunId of artifactRunIds) {
       artifactsByRunId[artifactRunId] = workflowArtifacts(runtime, repository, artifactRunId);
     }
-    const appSha = values['app-ref'] ? sha(values['app-ref'], 'app_ref') : executorSha;
-    const shellSha = values['shell-ref'] ? sha(values['shell-ref'], 'shell_ref') : wireSha(runtime, shellRemote);
-    const frameworkSha = values['framework-ref']
-      ? sha(values['framework-ref'], 'framework_ref')
-      : wireSha(runtime, frameworkRemote);
     const requestedSourceArtifact = values['source-artifact']
       ? text(values['source-artifact'], 'source_artifact')
       : null;
@@ -1316,22 +1343,6 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
           artifactsByRunId,
           workflow,
         });
-    if (target.state === 'dispatch_required'
-      && isFullCheckpointArtifact(target.source_artifact, target.source_run_id)) {
-      target = reconcileAppendFullCheckpointCohort({
-        target,
-        rootArtifacts: artifactsByRunId[rootSourceRunId] ?? [],
-        checkpointCohort: readFullCheckpointCohort(
-          runtime,
-          repository,
-          target.source_run_id,
-          artifactsByRunId[target.source_run_id] ?? [],
-        ),
-        appSha,
-        shellSha,
-        frameworkSha,
-      });
-    }
     const appendAttemptId = attemptId('append-full', runtime);
     if (target.state !== 'dispatch_required') {
       const ownerRun = observation.runs
@@ -1357,6 +1368,19 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
         },
       });
       return;
+    }
+    const checkpointCohort = isFullCheckpointArtifact(target.source_artifact, target.source_run_id)
+      ? readFullCheckpointCohort(runtime, repository, target.source_run_id, artifactsByRunId[target.source_run_id] ?? [])
+      : undefined;
+    const { appSha, shellSha, frameworkSha } = resolveAppendFullCohort(checkpointCohort, {
+      appSha: values['app-ref'], shellSha: values['shell-ref'], frameworkSha: values['framework-ref'],
+    }, (key) => key === 'appSha' ? executorSha : wireSha(runtime, key === 'shellSha' ? shellRemote : frameworkRemote));
+    if (checkpointCohort !== undefined) {
+      target = reconcileAppendFullCheckpointCohort({
+        target, rootArtifacts: artifactsByRunId[rootSourceRunId] ?? [], checkpointCohort,
+        exactArtifactRequested: Boolean(requestedSourceArtifact),
+        appSha, shellSha, frameworkSha,
+      });
     }
     const sourceRunId = target.source_run_id;
     const sourceArtifact = target.source_artifact;

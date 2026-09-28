@@ -15,4 +15,6 @@ Studio 已是当前正式实现；历史 Studio Preview 的 terminal handoff 仅
 
 需要修复实现或交付源码时使用 `$software-development` 的对应模式；跨 worktree 吸收时使用 `$manage-codex-tasks`。所需通用 Skill 不可用时沿仓库同等规则执行，不创建平行流程或为普通选择停下。实际生产动作沿用既有授权和生产变更边界。
 
+同字节恢复先按 SOP 区分冻结产品 cohort、workflow／Framework executor、App verifier 与 Shell smoke harness；恢复默认消费 checkpoint，验证器兼容性必须在 VM 前证明。运行中已有失败 step 时先处理该断点，不把上传诊断或 cleanup 当作成功。发布后改进修复真实 caller 并补最窄回归；通用规则留在 SOP，历史事实进入复盘，不额外派发产品。
+
 入口选择、派发条件、未知结果对账、异常恢复、计时和完成标准均遵循 SOP。不要复制发布参数、固定 Package 清单、旧版本、历史 run ID 或另造发布控制器。最终报告真实已完成渠道、当前缺口和公开证据；计划、测试通过或排队均不代表发布完成。

@@ -210,9 +210,12 @@ This preserves the unknown marker for owner-authoritative reconciliation before 
 `publish-qualified-standard` and `append-full` preserve the
 source checkpoint tag. For Full, `append-full` follows the complete recovery chain, binds a published or active owner when one
 exists, otherwise reuses the newest non-expired Full checkpoint whose App, Shell and Framework content
-SHAs exactly match the requested Full cohort. A mismatch falls back to the original Standard checkpoint
-and builds new Full bytes. An exact `--smoke-harness-ref <sha>` may requalify unchanged Full checkpoint
-bytes without rebuilding them. One controller attempt makes at most one workflow mutation. If the
+SHAs exactly match the requested Full cohort. When recovering a Full checkpoint, omitted product refs
+default to its build cohort, not moving main. Explicit content overrides can fall back to the original
+Standard only when that checkpoint exists; an explicitly selected Full artifact rejects conflicting
+content refs. An exact `--smoke-harness-ref <sha>` and, if needed, a compatible harness-only
+`--verification-app-ref <sha>` may requalify unchanged Full bytes. VM input validation exercises the
+scope consumer imported by that selected App receipt writer before allocating a VM runner. One controller attempt makes at most one workflow mutation. If the
 dispatch result is unknown, the controller performs read-only reconciliation and never retries it.
 
 The three Framework-backed workflow mutation operations remain exactly:

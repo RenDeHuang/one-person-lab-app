@@ -152,13 +152,15 @@ function stepConclusion(step: JsonRecord): string | null {
 
 function firstFailedStep(job: JsonRecord): JsonRecord | null {
   const steps = jobSteps(job)
-    .filter((step) => failedConclusions.has(stepConclusion(step) ?? ''))
+    .filter((step) => failedConclusions.has(stepConclusion(step) ?? '')
+      && step['continue-on-error'] !== true && step.continue_on_error !== true)
     .sort((left, right) => stepNumber(left) - stepNumber(right));
   return steps[0] ?? null;
 }
 
 function firstTerminalFailure(jobs: JsonRecord[]): { job: JsonRecord; step: JsonRecord | null } | null {
-  const primary = jobs.filter((job) => failedConclusions.has(jobConclusion(job) ?? ''));
+  const primary = jobs.filter((job) => failedConclusions.has(jobConclusion(job) ?? '')
+    || (jobStatus(job) === 'in_progress' && firstFailedStep(job) !== null));
   const candidates = primary.length > 0
     ? primary
     : jobs.filter((job) => cancelledConclusions.has(jobConclusion(job) ?? ''));

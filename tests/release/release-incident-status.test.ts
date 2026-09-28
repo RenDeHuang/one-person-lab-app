@@ -482,3 +482,29 @@ test('Full compression subprocess events expose the real substage and elapsed ti
   assert.equal(status.focus?.stalled_seconds, 60);
   assert.equal(status.completed_actual_stages.includes('full_candidate_built'), false);
 });
+
+
+test('an active job reports its failed business step while cleanup and upload are running', () => {
+  const failed = step(47, 'Run clean VM first launch smoke', 'failure', '2026-08-22T00:05:00Z', '2026-08-22T00:06:00Z');
+  const jobs = [{ id: 10, name: 'Full clean VM', status: 'in_progress', conclusion: null,
+    steps: [failed, step(49, 'Upload diagnostics', null, '2026-08-22T00:06:01Z', null)] }];
+  const status = buildReleaseIncidentStatus({ run: run({ status: 'in_progress', conclusion: null }), jobs,
+    artifacts: [], now: '2026-08-22T00:06:10Z' });
+  assert.equal(status.first_failure?.step_number, 47);
+  assert.equal(status.first_failure?.failed_at, '2026-08-22T00:06:00.000Z');
+  assert.equal(status.next_action.code, 'inspect_first_failed_step');
+  assert.equal(status.focus?.step_name, failed.name);
+  assert.equal(status.completed_actual_stages.includes('full_clean_vm_qualification_completed'), false);
+});
+
+test('optional failures and successful job conclusions do not become blocking incident steps', () => {
+  const tolerated = step(2, 'Optional cache upload', 'failure', '2026-08-22T00:05:00Z', '2026-08-22T00:06:00Z');
+  const status = buildReleaseIncidentStatus({ run: run({ status: 'in_progress', conclusion: null }),
+    jobs: [
+      { id: 10, name: 'Prepare cache', status: 'completed', conclusion: 'success', steps: [tolerated] },
+      { id: 11, name: 'Full build', status: 'in_progress', conclusion: null,
+        steps: [{ ...tolerated, 'continue-on-error': true }, step(3, 'Build', null, '2026-08-22T00:06:01Z', null)] },
+    ], artifacts: [], now: '2026-08-22T00:06:10Z' });
+  assert.equal(status.first_failure, null);
+  assert.equal(status.next_action.code, 'continue_current_step');
+});

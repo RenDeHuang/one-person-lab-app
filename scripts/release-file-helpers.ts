@@ -42,6 +42,15 @@ export function fileSha256(filePath: string): string {
   return hash.digest('hex');
 }
 
+// Transport diagnostics may contain GitHub redirects with Azure/S3 signed URLs.
+export function redactReleaseCommandDetail(detail: string): string {
+  return detail
+    .replace(/https?:\/\/[^\s"'<>]+/gi, (url) => url
+      .replace(/(https?:\/\/)[^/@]+@/i, '$1[REDACTED]@')
+      .replace(/[?#].*$/, '?[REDACTED]'))
+    .replace(/(authorization:\s*(?:bearer|basic)\s+)\S+/gi, '$1[REDACTED]');
+}
+
 export function runGitHubCli(args: string[], label: string, options: RunGhOptions = {}): string {
   const result = spawnSync('gh', args, {
     cwd: options.cwd,
@@ -50,7 +59,7 @@ export function runGitHubCli(args: string[], label: string, options: RunGhOption
   });
   if (result.status !== 0) {
     const detail = result.stderr.trim() || result.stdout.trim() || `${label} failed`;
-    throw new Error(options.prefixErrorWithLabel ? `${label} failed: ${result.stderr || result.stdout}` : detail);
+    throw new Error(redactReleaseCommandDetail(options.prefixErrorWithLabel ? `${label} failed: ${result.stderr || result.stdout}` : detail));
   }
   return result.stdout;
 }

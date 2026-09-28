@@ -14,6 +14,8 @@ import {
   completeAppendFullDispatch,
   dispatchOnce,
   fullCheckpointMatchesRequestedCohort,
+  resolveAppendFullCohort,
+  commandDetail,
   reachableAppendFullRuns,
   reconcileAppendFullCheckpointCohort,
   reconcileAppendFullTarget,
@@ -810,4 +812,46 @@ test('harness override resolves only in the Shell repository before any dispatch
   assert.deepEqual(calls[0], ['api', `repos/gaofeng21cn/opl-studio/git/commits/${shellSha}`, '--jq', '.sha']);
   assert.throws(() => validateShellSmokeHarness({ ...runtime, runner: () => ({ status: 1, stdout: '', stderr: 'Not Found' }) }, appSha), /App commit is not a Shell harness/);
   assert.equal(calls.some(args => args.includes('run')), false);
+});
+
+
+test('Full recovery defaults to checkpoint content without reading moving main refs', () => {
+  const checkpoint = { schema: 'opl_app_build_artifact_cohort.v2', build: { kind: 'full' },
+    cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha } };
+  const noCurrent = () => { throw new Error('must not resolve moving main for recovery'); };
+  assert.deepEqual(resolveAppendFullCohort(checkpoint, {}, noCurrent), { appSha, shellSha, frameworkSha });
+  assert.deepEqual(resolveAppendFullCohort(checkpoint, { shellSha: '4'.repeat(40) }, noCurrent),
+    { appSha, shellSha: '4'.repeat(40), frameworkSha });
+  assert.deepEqual(resolveAppendFullCohort(undefined, { appSha }, (key) => ({ appSha: '5'.repeat(40), shellSha, frameworkSha })[key]),
+    { appSha, shellSha, frameworkSha });
+  assert.deepEqual(resolveAppendFullCohort(undefined, { appSha, shellSha, frameworkSha }, noCurrent), { appSha, shellSha, frameworkSha });
+  assert.throws(() => resolveAppendFullCohort({ ...checkpoint, cohort: {} }, {}, noCurrent), /app_sha is missing/);
+});
+
+test('an explicit changed cohort cannot silently discard an exact Full checkpoint', () => {
+  const input = {
+    target: { state: 'dispatch_required' as const, root_source_run_id: '100', owner_run_id: null,
+      source_run_id: '100', source_artifact: 'opl-release-full-checkpoint-100' },
+    rootArtifacts: [{ id: 1, name: 'opl-release-standard-operation-checkpoint-100', expired: false }],
+    checkpointCohort: { schema: 'opl_app_build_artifact_cohort.v2', build: { kind: 'full' },
+      cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha } },
+    appSha, shellSha, frameworkSha: '4'.repeat(40),
+  };
+  assert.throws(() => reconcileAppendFullCheckpointCohort({ ...input, exactArtifactRequested: true }), /select the original Standard source/);
+  assert.throws(() => reconcileAppendFullCheckpointCohort({ ...input, rootArtifacts: [] }), /select the original Standard source/);
+});
+
+test('release command errors retain transport context but redact signed URLs and credentials', () => {
+  const detail = commandDetail({ status: 1,
+    stdout: 'Get "https://blob.example/artifact.zip?sv=test&sig=secret-signature": EOF',
+    stderr: 'https://user:secret-password@github.example/path?token=secret-token Authorization: Bearer secret-auth',
+    error: new Error('https://s3.example/path?X-Amz-Signature=secret-aws: connection reset'),
+  });
+  for (const value of ['secret-signature', 'secret-password', 'secret-token', 'secret-auth', 'secret-aws']) {
+    assert.equal(detail.includes(value), false);
+  }
+  assert.match(detail, /blob.example\/artifact.zip/);
+  assert.match(detail, /EOF/);
+  assert.match(detail, /connection reset/);
+  assert.equal(commandDetail({ status: 1, stdout: '', stderr: 'fatal: missing local file' }), 'fatal: missing local file');
 });

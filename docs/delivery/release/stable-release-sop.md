@@ -73,7 +73,7 @@ npm run release:dispatch-guard -- reconcile --workflow release-stable.yml \
 npm run --silent release:incident-status -- --run-id <owner-run-id>
 ```
 
-读取精确 job／step、step 开始时间、最后可证变化、已完成产物和下一生产性动作。向用户只报告有意义的变化。请求持续跟进时沿用现有 owner；需要跨执行轮次的定时跟进则使用宿主原生自动化并复用已有任务，不另造轮询 daemon，也不擅自恢复用户已暂停的自动化。
+读取精确 job／step、step 开始时间、最后可证变化、已完成产物和下一生产性动作。运行中 job 的业务 step 已失败时，立即定位该 step；后续上传诊断、回收 VM 或 cleanup 不表示业务验收成功。已明确容错的 step 和最终成功的 job 不自动升级为阻断失败。向用户只报告有意义的变化。请求持续跟进时沿用现有 owner；需要跨执行轮次的定时跟进则使用宿主原生自动化并复用已有任务，不另造轮询 daemon，也不擅自恢复用户已暂停的自动化。
 
 五分钟没有可证变化时，对该 step 定点取证：读取必要日志、runner 进程或产物变化。Apple 等外部服务按其请求编号查真实状态。日志不可得、REST 旧快照、浏览器虚拟化日志或静止界面均不证明进程卡死。有已知真实断点就修复；缺少证据就明确观测缺口，不能据此取消或重建。
 
@@ -120,6 +120,35 @@ Full 恢复或追加：
 npm run release:stable-dispatch -- append-full \
   --source-run-id <原-Standard-或-Full-checkpoint-run-id> --execute
 ```
+
+### 保持产物身份，分别选择执行器与验证器
+
+恢复 Full checkpoint 时，省略产品 ref 会从其 build cohort 读取原 App／Shell／Framework SHA，不追随当前 main。只覆盖某一个产品 ref 也会改变候选：自动恢复仅在原 Standard checkpoint 可用时退回新建 Full；指定了准确 Full artifact，或原 run 不含 Standard 时，会明确拒绝冲突，要求选择原 Standard 来源。只修验收脚本时不要改产品 ref。
+
+| 角色 | 来源与用途 |
+| --- | --- |
+| 冻结产品 cohort | checkpoint 中的 App／Shell／Framework；决定签名产物身份。 |
+| workflow executor | 当前正式派发入口；可以包含流程修复，不改产品字节。 |
+| Framework executor | 正式 checkpoint／operation 执行端，与产物内 Framework 源码角色独立。 |
+| App verifier | 默认原 App SHA；必要时用准确的纯验收修复提交指定 `--verification-app-ref`。 |
+| Shell smoke harness | 默认原 Shell SHA；必要时用准确的验收修复提交指定 `--smoke-harness-ref`。 |
+
+若恢复需要修复验证器，在原 Full 来源上增加所需参数：
+
+```bash
+npm run release:stable-dispatch -- append-full \
+  --source-run-id <原-Full-checkpoint-run-id> \
+  --smoke-harness-ref <准确的-Shell-验收修复-SHA> \
+  --verification-app-ref <准确的-App-验收修复-SHA> --execute
+```
+
+前置 scope proof 通过还不足以证明旧 App 回执写入器能消费它。VM 输入阶段会用选定 App checkout 中的同一 scope consumer 验证该 proof；不兼容时在分配 VM 前失败，并提示修正 `--verification-app-ref`。不得通过放宽产品路径白名单解决，也不要直接选含产品、打包或不相关合同改动的 main。该检查不会跳过实际登录、就绪、签名、公证或精确产物回执。
+
+### 只读传输错误与可选预备包
+
+artifact 下载遇到 EOF／连接中断时，保留失败 host、路径和错误类型；错误输出应移除签名 URL query、URL 凭据和 Authorization 值。只读下载可在确认本次尚无 mutation 后有界重试；dispatch、上传、push 等结果未知时先回读目标身份，不把网络错误当成未执行。SSH push 失败且远端 ref 确认未变时，可沿用现有 GitHub 凭据助手切换 HTTPS；不把 token 拼入 remote URL。
+
+预备安装包是可选加速。只有实际上传成功后才向 VM consumer 提供 artifact 名；主上传与一次重试都失败时输出为空，由现有按摘要校验的本地准备路径继续。不能用一个拼接出来的名字表示资产存在，也不因此重建签名产物。
 
 Linux／Windows／Homebrew 的独立恢复使用 [现有 follow-up workflow](../../../.github/workflows/release-stable-post-success-followups.yml) 的 `reconcile_desktop_platform`、`reconcile_homebrew_standard`、`reconcile_homebrew_full` 等对应 operation。执行前确认源 run、目标渠道及该渠道 owner；参数以当前 workflow 为准，不将内部 `standard` 输入搬到这个入口。`repair_additive` 只适用于其合同规定的安装器资产 CAS，不能当作任意资产替换工具。
 
@@ -196,3 +225,9 @@ Skill 的版本化源是 `skills/opl-app-release`。本机 `~/.codex/skills/opl-
 生成，传入公开回读的 `--component-manifest <file>`，使机器版本、DMG URL 和摘要绑定该已验收
 替换包，而不是重新从显示版本推导旧机器版本。继续使用当前 Cask 摘要 CAS，验证公开 Release
 资产与 manifest 后写入下游；不得仅改 Cask 版本或校验和。
+
+## 8. 发布后改进
+
+只固化有证据的真实断点和恢复路径：先修 caller，再用对应失败样例或边界用例验证；通用操作写入本 SOP，入口提示写入发布 Skill，具体版本、run、时间和未知原因放入 [事故复盘](incidents/2026-09-29-stable-release-recovery.md)。不为经验沉淀重复发布或运行已通过的产品门禁。
+
+一次未保留 owner 原因的 Gateway 失败，只能记录最深已证断点；后续同字节成功不能倒推出当次根因。持续失败时读取已脱敏的 machine reason code 和 owner 只读投影，再决定修哪一层。进度只在阶段变化、出现真实失败或需要用户动作时汇报；没有变化的轮询不产生新验收证据。
