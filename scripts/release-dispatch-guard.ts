@@ -351,9 +351,12 @@ export function readOwnerWorkflowRuns(options: {
   runner?: CommandRunner;
   cwd?: string;
 } = {}): OwnerRunsResult {
+  const maxAttempts = boundedAttempts(options.maxAttempts);
   const endpoint = workflowEndpoint(options.workflow);
   const args = [
     'api',
+    '-H',
+    'Cache-Control: no-cache',
     '-X',
     'GET',
     endpoint,
@@ -371,7 +374,7 @@ export function readOwnerWorkflowRuns(options: {
     {
       runner: options.runner,
       cwd: options.cwd,
-      maxAttempts: options.maxAttempts,
+      maxAttempts,
     },
   );
   if (read.status === 'failed') {
@@ -446,6 +449,12 @@ export function readOwnerWorkflowRuns(options: {
       });
     }
     if (index > 0 && pageTotalCount !== totalCount) {
+      // GitHub pagination is not a snapshot. Discard the entire inconsistent
+      // read and retry within the same bounded read budget, never combine pages.
+      if (read.attempts < maxAttempts) {
+        const fresh = readOwnerWorkflowRuns({ ...options, maxAttempts: maxAttempts - read.attempts });
+        return { ...fresh, attempts: read.attempts + fresh.attempts };
+      }
       return ownerRunsProtocolFailure({
         endpoint,
         attempts: read.attempts,

@@ -65,6 +65,10 @@ npm run release:dispatch-guard -- reconcile --workflow release-stable.yml \
 
 `identified` 后核对返回 run 的 operation／authority 或源 checkpoint 是否对应本次请求，再绑定跟进。零匹配、多匹配或读取失败继续保持 `outcome_unknown`，均不授权重新派发；缺少原始字段时先恢复调度证据，不填当前时间或猜测 SHA。这个入口不替代已有 run 的 publication unknown checkpoint 对账。
 
+GitHub owner-run 分页查询要求新鲜响应。若同次读取的 `total_count` 在分页间变化，
+丢弃整次结果，在既有最多三次只读尝试预算内重新查询；不得混合前后分页或据不完整结果
+证明没有活跃发布者。预算耗尽仍停止派发，已发生的 dispatch 不因此重试。
+
 ## 4. 跟进真实执行
 
 每次检查当前 owner 使用一次新鲜快照：

@@ -5,6 +5,7 @@ import {
   buildPostDispatchReconcile,
   buildPreNonceDispatchGuard,
   extractUniqueOwnerWorkflowRun,
+  readOwnerWorkflowRuns,
   type CommandRunner,
 } from '../../scripts/release-dispatch-guard.ts';
 import { createStableFailureFingerprint } from '../../scripts/stable-stage-result.ts';
@@ -399,17 +400,34 @@ test('pre-nonce guard rejects a missing owner-run page before proving operation 
 test('pre-nonce guard rejects total_count drift across owner-run pages', () => {
   const pages = paginatedRuns(Array.from({ length: 101 }, (_, index) => ownerRun(index + 1000)));
   pages[1]!.total_count = 102;
+  let calls = 0;
   const report = buildPreNonceDispatchGuard({
     workflow,
     expectedAppSha: appSha,
     expectedShellSha: shellSha,
     expectedFrameworkSha: frameworkSha,
     sourceGateReport: sourceGateReport(),
-  }, { runner: () => ({ status: 0, stdout: JSON.stringify(pages), stderr: '' }) });
+  }, { runner: () => { calls += 1; return { status: 0, stdout: JSON.stringify(pages), stderr: '' }; } });
 
+  assert.equal(calls, 3);
   assert.equal(report.status, 'blocked');
   assert.equal(report.failure_code, 'invalid_response');
   assert.match(report.reason, /total_count drifted/);
+});
+
+test('owner-run read discards inconsistent pages and accepts only a complete fresh snapshot', () => {
+  const stale = paginatedRuns(Array.from({ length: 101 }, (_, index) => ownerRun(index + 1000)));
+  stale[1]!.total_count = 102;
+  const current = ownerRun(42);
+  let calls = 0;
+  const result = readOwnerWorkflowRuns({ workflow, runner: (_command, args) => {
+    assert.ok(args.includes('Cache-Control: no-cache'));
+    calls += 1;
+    return { status: 0, stdout: JSON.stringify(calls === 1 ? stale : paginatedRuns([current])), stderr: '' };
+  } });
+  assert.equal(result.status, 'ok');
+  assert.equal(result.attempts, 2);
+  if (result.status === 'ok') assert.deepEqual(result.runs, [current]);
 });
 
 test('pre-nonce guard rejects a duplicate run id across owner-run pages', () => {
