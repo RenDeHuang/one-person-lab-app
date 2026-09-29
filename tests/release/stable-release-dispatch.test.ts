@@ -96,6 +96,8 @@ test('Stable recovery validates frozen product source in an isolated worktree wh
         return { status: 0, stdout: '', stderr: '' };
       }
       if (command === process.execPath) {
+        const sourceRoot = args[args.indexOf('--repo-root') + 1]!;
+        assert.equal(sourceRoot, fs.realpathSync(sourceRoot), 'frozen CLI argv must use the real path for entry detection');
         const outputIndex = args.indexOf('--output');
         fs.writeFileSync(args[outputIndex + 1]!, JSON.stringify({ schema: 'source-gate-fixture', status: 'passed' }));
       }

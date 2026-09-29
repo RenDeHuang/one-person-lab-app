@@ -818,7 +818,9 @@ export function sourceGate(
   frameworkSha: string,
   objectiveFingerprint: string,
 ): unknown {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-source-gate-'));
+  // Node resolves the main module through macOS /var -> /private/var aliases.
+  // Use that same path in argv so frozen source CLI entry detection still runs.
+  const tempRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opl-stable-source-gate-')));
   const currentAppSha = sha(runRequired(
     runtime,
     'git',
