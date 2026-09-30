@@ -282,6 +282,33 @@ Composer 是普通路径唯一主 command surface：
   负责 Skills/Plugins/Flow 与本机能力；历史
   `/capabilities` 只能作为 compatibility redirect，不能重新挂载第二套 capability directory。
 
+能力工作台承接当前有效 contribution 的实际操作，不替代上述设置目录或 conversation。
+用户显式打开后，桌面采用可调宽、可停留的非模态并排面板；窄窗采用可返回原会话的独立视图，
+不使用大遮罩。打开、切换和返回保留 composer draft 与 timeline scroll，不重绑 thread 或激活 Package。
+分组依据当前 view 的 `data_ref`（client `dataRef`）稳定能力语义，呈现通信、个人上下文、知识等组；
+相同语义不因 Package ID、版本、对象 selector 或本地化标题变化而换组。未知语义进入其它，
+成员仍只来自 Framework 当前投影，不增加 Package ID 特判、品牌表或第二 registry。
+
+集合层的 `collection_actions` 明确承接模块声明的新建等操作，不要求先选一行；row actions
+只作用于所选对象，两者不互相推导。表单在异步动作执行期间保留输入并防止重复提交，只有等待
+canonical action 身份校验、`response.ok=true` 和 owner 的终态成功后才关闭，再 fresh read。
+排队/运行中不算成功；取消确认、失败或结果未知都保留输入并就地反馈。结果未知先只读核对
+owner，成功后的 readback 失败也不能重发已成功动作。确认必须显示实际动作、对象/目标和提交
+内容/实际变更，只授权这次明确内容；普通读取、编辑或批准不扩大为邮件发送或网站发布授权。
+
+`approval_diff` 展示正文、目标、证据与真实 before/after；缺失段明确说明，不用标题或摘要
+伪造 diff。`timeline` 与 `activity_log` 使用专门的时间序列，时间、状态和证据来自 owner，
+不套用普通列表或 raw JSON。模块返回 `input_required` 和有效 `input_schema` 时，渲染 read form，
+校验后重读同一 ref，不走写动作；缺 schema 不猜字段，读取失败保留输入。集合查询按模块声明
+向服务端传入 `query/status/offset/limit`，筛选变化重置 offset，以服务端分页元数据决定后续页，
+旧请求不能覆盖新查询，不用本地全量筛选/切片冒充服务端分页。
+
+安装更新仍在 Settings，Base/Package lifecycle 由 Framework 与原生 carrier 持有，工作台不接管。
+上述是产品目标；知识管理、网站管理与真人 ASR 的完成度仍须各 owner 的真实路径证据。
+机器边界与状态验收复用
+[`package_app_contributions`](../../../contracts/app-gui-product-contract.json#framework_surfaces)
+和 [`package_contribution`](../../../contracts/app-page-state-matrix.json)，不另立功能真源。
+
 ## Environment Floating Details 与 Advanced Surfaces
 
 Environment details 采用 Codex reference 的右上 anchored floating surface，默认关闭。首层只显示

@@ -1812,6 +1812,38 @@
         "remote_companion_access"
       ],
       "standard_view_contracts": {
+        "list_detail": {
+          "collection_actions_source": "validated_result.collection_actions",
+          "collection_actions_role": "collection_scoped_commands_including_declared_create_actions_without_a_selected_row",
+          "row_actions_source": "validated_selected_row.actions",
+          "row_actions_role": "selected_object_only_never_inferred_from_collection_actions",
+          "command_resolution": "resolve_command_id_against_the_same_current_descriptor_then_dispatch_only_its_declared_action_ref_and_validated_input",
+          "undeclared_action_policy": "omit_never_invent_create_edit_delete_or_send_commands"
+        },
+        "approval_diff": {
+          "presentation": "body_target_evidence_and_actual_before_after_diff",
+          "required_review_sections": [
+            "body",
+            "target",
+            "evidence",
+            "before",
+            "after"
+          ],
+          "diff_source": "owner_projected_actual_before_and_after_content",
+          "missing_content_policy": "show_explicit_missing_or_unavailable_sections_never_synthesize_a_diff_from_titles_summaries_or_refs",
+          "approval_authority": "exact_owner_action_object_content_and_permission_scope_only"
+        },
+        "timeline": {
+          "presentation": "dedicated_chronological_event_sequence_not_list_detail_or_raw_json",
+          "event_identity_and_time_source": "owner_projected_event_identity_and_timestamp",
+          "event_content": "time_action_object_status_and_available_detail_or_evidence",
+          "ordering": "owner_declared_time_order_with_stable_identity_tiebreaker",
+          "missing_time_policy": "show_unknown_time_without_fabricating_timestamps_or_order"
+        },
+        "activity_log": {
+          "presentation_contract_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.standard_view_contracts.timeline",
+          "placement_policy": "capability_workspace_when_declared_and_admitted_not_an_ordinary_Settings_activity_page"
+        },
         "channel_access": {
           "result_schema_ref": "contracts/opl-app-contributions.schema.json#/$defs/channel_access_result",
           "placement": "settings.section",
@@ -1905,6 +1937,98 @@
           "provider_absent_policy": "project_unavailable_without_fabricated_service_or_node_state_and_keep_the_desktop_workbench_usable",
           "arbitrary_renderer_code_allowed": false
         }
+      },
+      "capability_workspace": {
+        "product_role": "stay_open_operational_surface_for_current_dynamic_capability_contributions",
+        "default_state": "closed",
+        "opens_on": "explicit_user_open_of_a_current_admitted_contribution",
+        "desktop_placement": "resizable_non_modal_panel_alongside_the_conversation",
+        "narrow_placement": "dedicated_workspace_view_with_back_to_the_same_conversation_not_a_large_modal_mask",
+        "conversation_continuity": "preserve_composer_draft_and_timeline_scroll_without_thread_rebind_or_capability_activation",
+        "state_ownership": "client_owns_only_open_panel_selection_filters_and_transient_form_input_domain_state_remains_owner_projected",
+        "grouping": {
+          "source": "current_descriptor_view.data_ref_exposed_as_dataRef_by_the_client",
+          "basis": "stable_capability_semantics_of_the_data_ref_namespace_not_package_identity_brand_localized_title_or_view_type",
+          "stability": "the_same_capability_semantics_stays_in_the_same_group_across_package_ids_ref_versions_and_object_selectors",
+          "presentation_groups": [
+            "communication",
+            "personal_context",
+            "knowledge",
+            "other"
+          ],
+          "unknown_semantics": "other_preserving_the_current_valid_contribution_not_hidden_or_guessed",
+          "membership_source": "current_Framework_projected_directory_and_admitted_contribution_refs_only",
+          "package_id_special_cases_allowed": false,
+          "second_registry_allowed": false
+        },
+        "action_form": {
+          "input_source": "current_module_projected_input_schema_and_exact_declared_action_input",
+          "dispatch": "canonical_package_contribution_execute_action_bridge_only",
+          "pending": "keep_form_input_visible_disable_duplicate_submit_and_show_local_progress",
+          "close_condition": "awaited_identity_validated_canonical_action_response_with_response_ok_true_and_owner_reported_terminal_success",
+          "close_before_terminal_success_allowed": false,
+          "preserve_input_on": [
+            "pending",
+            "queued",
+            "running",
+            "confirmation_cancelled",
+            "failed",
+            "unknown"
+          ],
+          "queued_or_running": "retain_form_and_follow_owner_status_without_redispatch_or_claiming_success",
+          "failure": "keep_form_and_input_with_inline_action_or_field_error_and_explicit_retry",
+          "confirmation_cancelled": "keep_form_and_input_without_dispatch_or_success_feedback",
+          "unknown_outcome": "keep_form_and_input_reconcile_owner_status_read_only_before_any_retry",
+          "post_success": "close_form_then_fresh_read_the_same_contribution_and_show_readback_failure_locally_without_reexecuting_the_action"
+        },
+        "confirmation": {
+          "authority": "current_descriptor_and_broker",
+          "must_show": [
+            "exact_action",
+            "exact_object_or_target",
+            "submitted_content_or_actual_change"
+          ],
+          "binding": "confirmation_applies_only_to_the_displayed_current_action_object_content_and_scope_reconfirm_when_any_changes",
+          "missing_preview": "do_not_confirm_an_unidentified_action_object_or_content_request_owner_details_or_show_unavailable",
+          "ordinary_operation_authorizes_mail_send": false,
+          "ordinary_operation_authorizes_website_publish": false
+        },
+        "read_form": {
+          "trigger": "module_projected_input_required_with_input_schema",
+          "schema_source": "input_schema_provided_by_the_current_module_response_not_a_client_business_field_registry",
+          "request_validation": "validate_current_package_ref_operation_response_schema_and_declared_input_schema_before_rendering_the_read_form",
+          "submission": "validate_declared_read_input_then_repeat_the_same_contribution_read_never_execute_an_action",
+          "submission_operation": "read",
+          "action_execution_allowed": false,
+          "success_validation": "input_required_is_not_data_or_action_success_only_a_valid_ok_read_result_enters_the_standard_view",
+          "missing_or_invalid_schema": "show_local_unavailable_feedback_without_a_guessed_form",
+          "failure": "preserve_input_and_show_inline_feedback",
+          "secret_input": "transient_only_no_logs_receipts_or_persistent_client_cache"
+        },
+        "collection_read": {
+          "input_fields": [
+            "query",
+            "status",
+            "offset",
+            "limit"
+          ],
+          "input_authority": "module_declared_read_input_schema_and_server_pagination_contract",
+          "execution": "send_supported_query_status_offset_and_limit_to_the_same_contribution_read_broker",
+          "filter_change": "reset_offset_and_request_the_first_server_page",
+          "reset_offset_on_filter_change": true,
+          "pagination_authority": "server_returned_page_total_or_next_page_metadata_never_the_current_page_length_or_local_full_dataset",
+          "pagination_owner": "server",
+          "stale_response": "only_the_latest_matching_package_ref_and_query_status_offset_limit_request_may_replace_visible_results",
+          "unsupported_input": "do_not_offer_unsupported_controls_or_fake_server_filtering_and_pagination_with_local_array_slicing"
+        },
+        "lifecycle_destination": "Settings_with_Framework_owned_Base_and_Package_lifecycle_and_native_carrier_actions",
+        "workbench_install_or_update_allowed": false,
+        "completion_evidence": "contract_target_only_Studio_source_pixel_install_and_release_require_separate_current_evidence",
+        "unverified_completion_claims": [
+          "knowledge_management",
+          "website_management",
+          "human_voice_ASR"
+        ]
       },
       "opl_connect_connector_settings": {
         "product_group": "OPL Connect",

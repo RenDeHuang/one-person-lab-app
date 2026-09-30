@@ -43,6 +43,7 @@ typed slots/actions、RPC/events 与 state semantics。通过它只允许选择�
 | Rail、Home、conversation、composer、模型与权限 | GUI product contract、product profile、page-state matrix | Active Shell renderer/ACP/App Server adapter；`validate:active-shell` |
 | Gateway、first-run、Official Profile | Settings control plane、first-run test matrix | Framework state/action、Shell first-run 和 Settings consumers |
 | Agent/Capability 目录及 lifecycle | Dynamic Package projection、App contribution ABI | Framework/native carriers；Shell 只显示与调用 projected actions |
+| 能力工作台与标准 contribution views | GUI `framework_surfaces.package_app_contributions`、page-state `package_contribution` | Studio 并排面板与通用 renderer；领域模块提供数据、input schema、分页及动作结果 |
 | Dynamic Agent Runtime、typed views | Runtime bridge、Runtime page state、`core_dynamic_agent_runtime` | Framework producer、domain task owner、Shell Runtime consumer |
 | 三对象维护、数据存储 | Settings control plane、data lifecycle contracts | App updater、Framework/Base、Package/native owner 的各自 readback |
 | Studio 与三 carrier | Active/candidate adapter、delivery topology、release contracts | Studio Host、native Codex、renderer、package 和对应 gates |
@@ -51,6 +52,12 @@ typed slots/actions、RPC/events 与 state semantics。通过它只允许选择�
 Runtime 已是 `U1-07` 核心能力，typed domain views 通过
 `opl_app.typed_domain_views.v3` 进入通用显示边界。不能用旧 optional Runtime 分类缩小
 当前 contract 的验收范围，也不能用 contract 已更新推断 source 或 release 已完成。
+
+能力工作台按上述现有合同验收并排停留、dataRef 语义分组、集合/行操作和表单状态；Source
+证据须经过真实异步成功、确认取消、失败/未知结果保留输入、read form 和服务端分页路径。
+差异视图需 owner 正文/目标/证据与实际 before/after，时间序列需真实事件时间；本轮合同更新
+不证明 Studio、知识/网站管理或真人 ASR 已完成。安装与发布不在本轮范围，不能由 focused
+tests 或 mock evidence 升格；后续五轴结论仍按当前 source/package 单独读取。
 
 ## B0-11 Codex Subagent 证据
 

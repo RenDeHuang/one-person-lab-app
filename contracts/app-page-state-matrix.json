@@ -1194,6 +1194,8 @@
         "broker_response_contract_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.broker_response_contract",
         "broker_response_validation_policy": "validate_the_Framework_envelope_response_identity_success_and_App_owned_standard_renderer_payload_before_rendering_or_accepting_action_success",
         "supported_view_types_source_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.supported_view_types",
+        "capability_workspace_contract_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.capability_workspace",
+        "standard_view_contracts_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.standard_view_contracts",
         "service_status_contract_ref": "contracts/app-gui-product-contract.json#framework_surfaces.package_app_contributions.standard_view_contracts.service_status",
         "service_status_settings_destination": "settings.services.installed_services",
         "activity_log_settings_destination": null,
@@ -1213,15 +1215,39 @@
           "plugin_url"
         ]
       },
+      "capability_workspace_states": {
+        "open": "stay_open_non_modal_desktop_panel_with_conversation_and_narrow_view_back_navigation_preserving_draft_and_scroll",
+        "selection": "group_current_contributions_by_stable_dataRef_capability_semantics_with_unknown_in_other",
+        "input_required": "render_the_current_module_input_schema_as_a_read_form_and_submit_only_to_the_same_read_ref",
+        "read_pending": "retain_filters_and_input_accept_only_the_latest_matching_read_request",
+        "read_failed": "retain_filters_and_input_with_inline_feedback_and_read_only_retry",
+        "confirming": "show_the_exact_action_object_and_content_before_owner_required_confirmation",
+        "confirmation_cancelled": "retain_action_form_and_input_without_dispatch",
+        "action_pending": "retain_form_and_input_disable_duplicate_submit_without_claiming_success",
+        "action_failed": "retain_form_and_input_show_inline_failure_and_explicit_retry",
+        "action_outcome_unknown": "retain_form_and_input_reconcile_owner_status_without_reexecuting",
+        "action_succeeded": "close_form_only_after_validated_terminal_success_then_fresh_read_without_duplicate_execution"
+      },
       "must_show": [
         "only_current_valid_descriptor_declared_navigation_and_standard_views",
-        "broker_owned_confirmation_prompt_when_the_descriptor_requires_confirmation"
+        "broker_owned_confirmation_prompt_when_the_descriptor_requires_confirmation",
+        "stay_open_side_by_side_capability_workspace_not_a_large_modal_mask",
+        "declared_collection_actions_including_create_without_selection_and_separate_selected_row_actions",
+        "approval_diff_body_target_evidence_and_actual_before_after_or_explicit_missing_sections",
+        "dedicated_timeline_and_activity_time_sequence_with_owner_timestamps",
+        "module_input_schema_read_form_and_server_query_status_offset_limit_controls_when_supported",
+        "inline_pending_cancelled_failure_or_unknown_feedback_preserving_input_until_terminal_success"
       ],
       "must_not_show": [
         "stale_or_missing_descriptor_contribution",
         "malformed_broker_response",
         "registry_cache_or_package_lock_fallback",
-        "arbitrary_plugin_ui_or_filesystem_path"
+        "arbitrary_plugin_ui_or_filesystem_path",
+        "package_id_special_case_grouping_or_second_capability_registry",
+        "form_closed_on_dispatch_queued_running_cancelled_failed_or_unknown_outcome",
+        "mail_send_or_website_publish_authority_inferred_from_an_ordinary_operation",
+        "workbench_install_update_controls_outside_Settings_Framework_owned_lifecycle",
+        "knowledge_website_management_or_human_voice_ASR_claimed_complete_from_contract_or_mock_evidence"
       ]
     },
     {

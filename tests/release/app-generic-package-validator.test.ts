@@ -200,6 +200,52 @@ test('one unknown non-OPL Agent remains generic Settings/Runtime truth but canno
   assert.equal('professional_agent_packages' in profile.gui, false);
 });
 
+test('capability workspace stays a non-modal dynamic projection with bounded authority', () => {
+  const contributions = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
+  const workspace = contributions.capability_workspace;
+  const page = readJson('contracts/app-page-state-matrix.json').pages.find((item: any) => item.id === 'package_contribution');
+  const ref = page.package_contribution_view_model.capability_workspace_contract_ref;
+  const [contractPath, fragment] = ref.split('#');
+  assert.deepEqual(fragment.split('.').reduce((value: any, key: string) => value[key], readJson(contractPath)), workspace);
+  assert.equal(workspace.desktop_placement, 'resizable_non_modal_panel_alongside_the_conversation');
+  assert.equal(workspace.grouping.package_id_special_cases_allowed, false);
+  assert.equal(workspace.grouping.second_registry_allowed, contributions.ui_composition.second_package_registry_allowed);
+  assert.equal(workspace.workbench_install_or_update_allowed, false);
+  assert.equal(workspace.confirmation.ordinary_operation_authorizes_mail_send, false);
+  assert.equal(workspace.confirmation.ordinary_operation_authorizes_website_publish, false);
+  assert.deepEqual(workspace.confirmation.must_show, ['exact_action', 'exact_object_or_target', 'submitted_content_or_actual_change']);
+  assert.equal(workspace.action_form.close_before_terminal_success_allowed, false);
+  for (const state of ['pending', 'queued', 'running', 'confirmation_cancelled', 'failed', 'unknown']) {
+    assert.equal(workspace.action_form.preserve_input_on.includes(state), true, `${state} must preserve the form and input`);
+  }
+});
+
+test('standard capability views keep collection, row, review and chronological semantics distinct', () => {
+  const contributions = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
+  const views = contributions.standard_view_contracts;
+  assert.notEqual(views.list_detail.collection_actions_source, views.list_detail.row_actions_source);
+  assert.equal(views.list_detail.collection_actions_source, 'validated_result.collection_actions');
+  assert.equal(views.list_detail.row_actions_source, 'validated_selected_row.actions');
+  assert.deepEqual(views.approval_diff.required_review_sections, ['body', 'target', 'evidence', 'before', 'after']);
+  const [contractPath, fragment] = views.activity_log.presentation_contract_ref.split('#');
+  assert.deepEqual(fragment.split('.').reduce((value: any, key: string) => value[key], readJson(contractPath)), views.timeline);
+  for (const viewType of ['list_detail', 'approval_diff', 'timeline', 'activity_log']) {
+    assert.equal(contributions.supported_view_types.includes(viewType), true);
+  }
+});
+
+test('capability read forms and pagination use owner read input without adding an execution surface', () => {
+  const workspace = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions.capability_workspace;
+  const page = readJson('contracts/app-page-state-matrix.json').pages.find((item: any) => item.id === 'package_contribution');
+  assert.equal(workspace.read_form.trigger, 'module_projected_input_required_with_input_schema');
+  assert.equal(workspace.read_form.submission_operation, 'read');
+  assert.equal(workspace.read_form.action_execution_allowed, false);
+  assert.deepEqual(workspace.collection_read.input_fields, ['query', 'status', 'offset', 'limit']);
+  assert.equal(workspace.collection_read.reset_offset_on_filter_change, true);
+  assert.equal(workspace.collection_read.pagination_owner, 'server');
+  assert.equal(page.package_contribution_view_model.direct_execute_broker_command_allowed, false);
+});
+
 test('App-owned Agent presentation overlay restoration fails closed', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const invalidProfile = structuredClone(readJson('contracts/app-product-profile.json'));
