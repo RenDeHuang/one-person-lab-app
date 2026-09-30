@@ -14,8 +14,8 @@ choices, not a backend selector or a domain workflow authority.
 | Owner | Responsibility |
 | --- | --- |
 | App | Product behavior, GUI ABI, official first-install profile, carrier admission and App release policy. |
-| `opl-aion-shell` | Independently pinned Docker WebUI implementation, historical Desktop source and legacy upgrade checks. |
-| `opl-studio` | Selected Desktop Shell on the DSH Application Host, native Codex and delivery transport composition; Stable and terminal Preview packaging. |
+| `opl-aion-shell` | Archived historical source, retained release tags and fixed legacy-upgrade fixtures; no production builds or new upstream intake. |
+| `opl-studio` | Current Desktop, standalone WebUI and Docker implementation on the DSH Application Host, native Codex integration and delivery transport composition; Stable and terminal Preview packaging. |
 | Framework | Generic runtime, installed Package discovery, presence/status aggregation and state/action producers. |
 | Package/domain owners | Business tasks, domain schemas, quality verdicts, artifacts and their authority. |
 | Codex / Temporal | Canonical conversation protocol and execution facts in their respective scopes. |

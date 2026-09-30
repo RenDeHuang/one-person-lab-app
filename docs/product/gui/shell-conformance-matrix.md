@@ -11,7 +11,8 @@ active/candidate source、repo-native validators 和 exact-cohort evidence。
 功能定义在 [功能目录](feature-inventory.md)，交互与实现分别在
 [交互细则](ideal-interaction-spec.md) 和 [实现指南](shell-implementation-guide.md)。
 本文不复制逐功能完成度、候选测试计数或旧 Native demo 缺口。需要评估某项能力时，
-从下表定位唯一 owner，再对本次明确的 scope 生成一次完整的证据结论。
+从下表定位唯一 owner，再对本次明确的 scope 生成一次完整的证据结论。Studio 是当前实现；
+AionUI 只在旧版迁移或固定历史夹具需要时纳入评估。
 
 ## 五轴证据
 
@@ -34,8 +35,8 @@ typed slots/actions、RPC/events 与 state semantics。通过它只允许选择�
 ## R1 / U1 必要功能实现矩阵
 
 本节维护证据映射；功能数量与语义只由功能目录和 machine contract 决定，不维护固定
-“12 项”清单。每次审计按请求范围填写上述五轴，并为 AionUI 与 Studio 分别保留 source
-和后续 evidence；App-owned contract 可以共享，carrier 结论不能共享。
+“12 项”清单。每次审计按请求范围填写上述五轴，为所评估的 Studio carrier 或历史 AionUI
+基线分别保留 source 和后续 evidence；App-owned contract 可以共享，carrier 结论不能共享。
 
 | Scope | App owner | 实现与验证 owner |
 | --- | --- | --- |
@@ -44,8 +45,8 @@ typed slots/actions、RPC/events 与 state semantics。通过它只允许选择�
 | Agent/Capability 目录及 lifecycle | Dynamic Package projection、App contribution ABI | Framework/native carriers；Shell 只显示与调用 projected actions |
 | Dynamic Agent Runtime、typed views | Runtime bridge、Runtime page state、`core_dynamic_agent_runtime` | Framework producer、domain task owner、Shell Runtime consumer |
 | 三对象维护、数据存储 | Settings control plane、data lifecycle contracts | App updater、Framework/Base、Package/native owner 的各自 readback |
-| Studio candidate 与三 carrier | Candidate/adapter、delivery topology、release contracts | Studio Host、native Codex、renderer、package 和 candidate gates |
-| Optional resources / channel / companion | App runtime bridge、remote companion contract | 对应 backend/provider 的真实 projection 与双 Shell consumer |
+| Studio 与三 carrier | Active/candidate adapter、delivery topology、release contracts | Studio Host、native Codex、renderer、package 和对应 gates |
+| Optional resources / channel / companion | App runtime bridge、remote companion contract | 对应 backend/provider 的真实 projection 与当前 carrier consumer |
 
 Runtime 已是 `U1-07` 核心能力，typed domain views 通过
 `opl_app.typed_domain_views.v3` 进入通用显示边界。不能用旧 optional Runtime 分类缩小
@@ -58,8 +59,10 @@ Codex delegated execution 与 AionUI Team 是不同产品面。检查现有 adap
 Active/Done、详情/结果与打开线程的处理。未知 metadata 应回退到真实 generic tool row；
 打开失败保持当前 conversation 并给出重试。执行与线程 authority 仍归 Codex。
 
-检查 source 时包含 `normalizeToolCall.ts` 与 `MessageToolGroupSummary.tsx` 的实际路径和
-focused tests；不从 App Server schema 存在推导 UI 完成，不为此新建第二 client、Team store、
+检查当前 source 时包含 Studio 的 `src/host/thread-adapter.mjs`、
+`src/workbench/workbenchModel.ts` / `featureModel.ts` 及实际 renderer caller 和 focused tests。
+历史 AionUI 的 `normalizeToolCall.ts` 与 `MessageToolGroupSummary.tsx` 只用于对应固定基线。
+不从 App Server schema 存在推导 UI 完成，不为此新建第二 client、Team store、
 scheduler、execution authority 或额外 direct-control 层。Pixel、Install、Release 单独取证。
 
 ## 验证入口

@@ -72,6 +72,13 @@ Docker WebUI 均使用 Studio。正式 App 保留既有安装身份与 Stable fe
   通知与日志位置。迁移清单不得包含密码、API key、token、cookie、Keychain material、
   AionCore/AionUI backend database、Codex 消息正文、Framework 状态或 Electron cache。
 
+旧迁移索引和来源快照保留作恢复证据；无效或范围外关联退出自动迁移，不删除已经存在的
+Codex 原生线程。没有原生关联的记录仍保留在来源中。草稿只迁移可读取的持久内容，旧进程
+内存中的未保存草稿不能从磁盘恢复，也不能当作 Codex 会话迁移。
+
+Docker 复用挂载的 Codex 数据，显式旧目录只读提供上述 Shell 元数据；未挂载的数据卷
+不能由容器自动发现。新任务、消息、归档和删除继续使用 Codex 公开操作。
+
 新候选先完成签名、公证与准确字节首装验收，再公开 Standard；随后验收真实升级链路，
 必要时在同一可变 tag 修复资产并递增机器版本。迁移问题须修实现，不能仅扩大测试等待。
 两条用户来源的升级与数据延续都要完成验证，但不把全部历史迁移测试设为每次普通发布的

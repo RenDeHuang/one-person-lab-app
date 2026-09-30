@@ -1,19 +1,24 @@
 # AionUI Codex Runtime Carrier
 
-Owner: `one-person-lab-app` for composition policy; `opl-aion-shell` for implementation.
-Purpose: runtime byte sources, packaged composition and identity boundary.
-State: current source reference; installed evidence is cohort-specific.
+Owner: `one-person-lab-app` for historical composition policy; archived `opl-aion-shell` for retained source.
+Purpose: legacy upgrade byte sources, packaged composition and identity provenance.
+State: historical reference; installed evidence is cohort-specific.
+
+Studio is the current Desktop, WebUI and Docker implementation and has no AionCore
+dependency. Current ownership is defined in the [Studio product boundary](../product/gui/opl-studio-plan.md).
+The sections below describe retained AionUI artifacts only; they do not authorize
+new production builds, upstream intake or replacement of an installed App binary.
 
 ## Composition
 
-AionCore is an unmodified official dependency. The active Shell obtains Node
+AionCore is an unmodified official dependency in the retained AionUI carrier. That Shell obtains Node
 from its schema-v2 producer export and selects official `@openai/codex` bytes
 independently through the Shell-owned intake contract. AionCore no longer owns
 the selected Codex version. Its Node export is temporary build input, not the
 distributed managed-resources manifest.
 
 The policy owner is
-[`app-shell-adapter.json`](../../contracts/app-shell-adapter.json), under
+[`shell-adapters/aionui.json`](../../contracts/shell-adapters/aionui.json), under
 `codex_executable_contract.carrier.target_packaging_policy`. Exact Codex package,
 version, digest and verified AionCore compatibility live in the Shell's
 `contracts/aionui-upstream-intake.json#managed_runtime.codex_cli`. This page does
@@ -26,7 +31,7 @@ not maintain a second version list.
 | Packaged composition | Shell | `opl_aioncore_managed_resources_projection.v1` combining Node and Codex with producer and Codex-source provenance. |
 | Distributed App | App release owner | Standard and Full share one slim `bundled-aioncore`; Full differs in offline seeds elsewhere. |
 
-The final App must contain AionCore, Node and exactly one Codex CLI. Claude
+The historical AionUI App composition required AionCore, Node and exactly one Codex CLI. Claude
 directories, executables/symlinks, Anthropic packages/archives, distribution cache
 entries and raw producer manifests must be absent. Build staging is not installed
 state. The composition neither patches AionCore nor changes user-owned tools.
@@ -63,6 +68,6 @@ build, install and runtime readback; individual installed binaries are not hot-s
 [`issue-122-codex-runtime-identity-v26.8.1-r5.json`](../delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json)
 retains historical Full clean-install followed by Standard-update evidence for
 its exact artifacts. It is not proof for today's independently selected Codex
-bytes or new release cohort. The owning validator is
-`npm run validate:codex-runtime-identity-evidence`; current qualification and
+bytes or new release cohort. Its evidence validator is
+`npm run validate:codex-runtime-identity-evidence`; current Studio qualification and
 publication follow the [release guide](../delivery/release/README.md).

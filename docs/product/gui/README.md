@@ -4,7 +4,8 @@ Owner: `one-person-lab-app`
 Purpose: GUI 文档导航与职责分层。
 State: `active`
 
-App 拥有一个产品定义，AionUI 与 Studio 分别实现其允许的产品能力。当前发布 Shell 由
+App 拥有一个产品定义，Studio 实现当前 Desktop、WebUI 和 Docker；AionUI 仅保留历史源码、
+升级基线与固定夹具。当前发布 Shell 由
 [`app-shell-adapter.json`](../../../contracts/app-shell-adapter.json) 决定；候选与采用条件由
 [`app-shell-candidates.json`](../../../contracts/app-shell-candidates.json) 决定。实现、候选构建或
 截图通过不会自动改变发布身份。完整组件关系见 [Architecture](../../architecture.md)。
@@ -33,8 +34,8 @@ App 拥有一个产品定义，AionUI 与 Studio 分别实现其允许的产品�
 | 模型选择 | [Codex Auto](codex-auto-model-policy.md) | App profile 与 Shell consumer |
 | Computer Use | [Computer Use](computer-use.md) | 对应 release qualification |
 | OPL Link | [OPL Link](../opl-link.md) | Link owner 的冻结/重启边界 |
-| AionCore / Codex 包装 | [Codex-only carrier](../../architecture/aioncore-codex-only-carrier.md) | Shell source 与 exact artifact evidence |
-| AionUI 维护 | [Fork maintenance](../../architecture/opl-aionui-fork-maintenance-strategy.md) | AionUI owner；实际偏差归 conformance |
+| 历史 AionCore / Codex 包装 | [Codex-only carrier](../../architecture/aioncore-codex-only-carrier.md) | 旧版升级来源与原始 artifact evidence |
+| AionUI 退役与维护出处 | [Fork maintenance](../../architecture/opl-aionui-fork-maintenance-strategy.md) | 历史说明；不授权新生产构建或 upstream intake |
 | Studio | [Studio plan](opl-studio-plan.md) | Studio owner，采用权仍归 App |
 | DeepSeek Harness 复用 | [Composition plan](deepseek-harness-composition-plan.md) | App/Shell 各自合同与源码 |
 | 插件位置与开发归口 | [插件组织与设置归属](dsh-plugin-and-settings-map.md) | 内置模块随所属 runtime；独立 Package 随领域 owner 与原生 carrier |

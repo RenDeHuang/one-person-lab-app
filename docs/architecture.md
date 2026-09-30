@@ -15,8 +15,10 @@ fixed source directory, Package, plugin or release artifact.
 Package capabilities and declarative App contributions
   -> Framework Host: runtime, Package graph, App state/action projection
     -> App product profile, Client/GUI ABI and release policy
-      -> Studio: selected Desktop Shell on the DSH Application Host
-      -> AionUI: independently pinned Docker WebUI and historical Desktop source
+      -> Studio: Desktop, standalone WebUI and Docker on the DSH Application Host
+
+Historical upgrade inputs
+  -> archived AionUI source, releases and fixed migration fixtures
 ```
 
 App owns product semantics, first-run behavior, GUI contracts, accessibility,
@@ -140,13 +142,16 @@ switch triggers a fresh Framework projection. Standard/Full are payload densitie
 not separate update authorities. [Managed updates](product/managed-update-three-layer.md)
 owns that user experience.
 
-AionUI uses unmodified AionCore, a Node-only producer export and independently
-selected official Codex bytes. [Runtime carrier](architecture/aioncore-codex-only-carrier.md)
-owns composition and process identity. Studio has no AionCore dependency. All
+Studio uses native Codex App Server and has no AionCore dependency. Its carrier
+composition is maintained by [Studio](product/gui/opl-studio-plan.md) and the
+[Studio implementation](https://github.com/gaofeng21cn/opl-studio/blob/main/docs/architecture.md).
+The [historical AionUI carrier](architecture/aioncore-codex-only-carrier.md)
+explains the old unmodified AionCore/Node export and independently selected
+Codex bytes for retained upgrade baselines. All
 installed upgrades require full App build/install/readback; no embedded binary
 hot replacement is supported.
 
-The successor shares a DSH-derived renderer and Node host across Electron,
+Studio shares a DSH-derived renderer and Node host across Electron,
 standalone WebUI and container carriers. Each carrier must independently prove its
 claimed behavior. Current supported distribution, installer selection and update
 identity live in [distribution](delivery/distribution-and-install-ssot.md); operator

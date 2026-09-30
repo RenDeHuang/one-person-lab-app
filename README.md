@@ -26,7 +26,8 @@ with native Codex conversations and Framework-owned runtime and Package state.
 The product remains **One Person Lab App**. Studio is its implementation;
 Stable/Nightly are release channels, and Standard/Full are installation choices.
 The [September architecture-transition notes](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.9.25-r1)
-describe the changes since 26.9.23 and the current migration and delivery status.
+describe the original cutover from 26.9.23. Current distribution and migration
+boundaries are maintained in the [distribution reference](docs/delivery/distribution-and-install-ssot.md).
 
 ## Workbench
 
@@ -97,8 +98,9 @@ This repository owns App product behavior, packaging and release qualification.
 runtime and Package projections; domain Packages own professional decisions and
 artifacts. OPL Studio, based on the pinned DSH/Cordis Host, is the current
 macOS Stable Desktop Shell. Stable preserves the OPL App identity
-and update feed; existing Studio Preview installations move through a signed
-terminal handoff release. All current carrier source paths, including Docker WebUI,
+and update feed; Studio Preview keeps its own identity until a signed terminal
+handoff installs its declared Stable target. Qualification is specific to that
+source and target version. All current carrier source paths, including Docker WebUI,
 use Studio. The Docker release is qualified independently on native amd64 and arm64
 runners. AionUI is retained for legacy upgrade checks and source history; Studio
 has no AionCore dependency.

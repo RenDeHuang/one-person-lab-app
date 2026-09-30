@@ -5,22 +5,24 @@ Purpose: `gui_upstream_and_visual_maintenance_policy`
 State: `active`
 Machine boundary: 机器约束归
 `contracts/app-gui-product-contract.json#gui_maintenance_policy`、
-`contracts/app-shell-adapter.json#upstream_intake`、App validators、Shell audit/tests
+`contracts/app-shell-adapter.json`、Studio source manifest、App validators、Shell audit/tests
 和 exact-cohort visual manifests；本文解释运维流程，不创建第二套状态。
 
 ## 结论
 
 OPL App 同时维持三条独立轨道：
 
-1. AionUI 只跟随正式 stable tag，通过审计和选择性吸收持续升级；
-2. DeepSeek Harness 只通过 exact commit、source manifest 和 MIT notice 手工推进受限视觉 cohort；
+1. Studio 的 DSH Application Host、renderer、plugins 与 overlay 按 exact upstream cohort
+   维护；唯一操作入口是 [Studio 上游维护](https://github.com/gaofeng21cn/opl-studio/blob/main/README.md#dsh-upstream-maintenance)。
+2. App 持有视觉目标、reference cohort 和像素验收；历史 AionUI 的受限 DSH 视觉借用
+   与 stable-tag intake 仅保留为 provenance，不继续生产维护。
 3. ChatGPT Codex 只保留历史工作流/空间关系参考；OPL 自有 baseline 承担像素回归。
 
-三条轨道不能互相冒充。看到新 AionUI tag 不等于已经吸收；看到新 DSH commit 或 Codex
+三条轨道不能互相冒充。看到新 DSH commit 或 Codex
 截图不等于自动替换产品合同；App 合同、Shell source、像素证据、package、安装与 release 继续分别
 给出结论。
 
-视觉来源与验收分轴：DSH cohort 只拥有普通 icon、theme token 和 visual primitive geometry；
+视觉来源与验收分轴：历史 AionUI 的 DSH 视觉 cohort 只拥有普通 icon、theme token 和 visual primitive geometry；
 Codex observation 只用于 workflow、placement 和 interaction 审查；OPL App 自有 baseline 绑定
 16-scene PNG SHA、审批 receipt 和人工 verdict，用于正式像素回归。任何外部 build 都不是
 下载、安装、Pixel、Release 或 Stable 前置条件。
@@ -32,18 +34,22 @@ Codex observation 只用于 workflow、placement 和 interaction 审查；OPL Ap
 ## 固定职责
 
 - App repo 决定产品行为、OPL 保留能力、reference cohort、视觉协议和验收预算。
-- Shell repo 负责 AionUI upstream audit、OPL overlay、token 映射、组件适配和 focused tests。
-- AionUI upstream 提供实现材料，不覆盖 OPL Settings IA、Runtime、模型策略或 owner truth。
-- DeepSeek Harness 提供固定 cohort 内的 icon、theme token 和 visual primitive geometry，不提供
-  AionUI runtime、session、router、provider、connection、完整 renderer 或产品 authority。
+- Studio repo 负责 DSH upstream status/preflight/replay、OPL overlay、token 映射、组件适配
+  和 focused tests；其 source manifest 持有运行中的 Host 与 renderer cohort。
+- DeepSeek Harness 提供当前 Studio Host 与 renderer 的实现材料，不覆盖 OPL Settings IA、
+  Runtime、模型策略、Framework runtime/Package 或领域 authority。具体复用和排除范围见
+  [Application Host composition](deepseek-harness-composition-plan.md)。
 - ChatGPT Codex 只提供历史 workflow、composition 与交互位置参考，不提供 active visual source、
   代码、品牌、账户或产品 authority。
-- AionUI/AionCore 官方能力默认继承；只有 App contract 的 `adapt`、`redirect` 或 `reject`
-  可以改变 ordinary surface。OPL allowlist 不得被解释为禁用无关上游能力的通用授权。
+- 上游 surface 是否进入 ordinary product 由 App contract 准入；OPL allowlist 不得被
+  解释为禁用无关上游能力的通用授权。历史 AionUI/AionCore 规则不自动变成 Studio parity 要求。
 - 上游没有且 B0/R1/U1 不要求的复杂功能默认不私有实现；只存在于 rejected、retired 或
   private legacy surface 的问题不进入主线修复。
 
-## DSH Visual Source Promotion
+## Historical AionUI Visual Source Promotion
+
+本节保留旧 AionUI 视觉来源准入的说明，不控制当前 Studio Host/renderer 的 DSH 升级。
+Studio 的精确源码和 plugin compatibility 按其 source manifest 与公开维护入口推进。
 
 Active visual source policy 由
 `contracts/app-gui-product-contract.json#interaction_baseline.visual_source` 指定；精确上游、许可、
@@ -60,7 +66,10 @@ Active visual source policy 由
 Codex 新 observation 不会自动改变视觉 source 或 OPL pixel baseline，只能形成历史交互 delta。
 旧 DSH cohort、Codex observation、OPL baseline、Shell source、package、安装与 release 各自独立取证。
 
-## AionUI Stable Intake
+## Historical AionUI Stable Intake
+
+`opl-aion-shell` 已归档；下述流程仅用于解释原始 receipts 与维护预算，不能继续 intake、
+构建或发布。当前生产维护归 Studio。
 
 每轮 upstream 检查只接受 GitHub 正式 release：tag 必须符合 `vMAJOR.MINOR.PATCH`，且
 `draft=false`、`prerelease=false`。固定顺序为：
@@ -81,8 +90,8 @@ Codex 新 observation 不会自动改变视觉 source 或 OPL pixel baseline，�
 | `redirect` | 仅保留历史重定向入口，转到 App-owned surface。 |
 | `reject` | 不进入 ordinary App 行为。 |
 
-Stable currentness 的机器权威来自 active Shell checkout 中的
-`contracts/aionui-upstream-intake.json`。App 只读消费该 receipt，校验 schema、official stable
+历史 AionUI cohort 来自归档 Shell 中的
+`contracts/aionui-upstream-intake.json`。旧 App 校验曾只读消费该 receipt，校验 schema、official stable
 metadata、Shell package pin、implementation ancestry，以及 AionCore source/archive、managed
 manifest、ACP lock 和 Codex binary 的 exact digest/source-lock/qualification 绑定。新 stable 只进入
 `review_required`，网络或 API 不确定一律 fail closed，不自动 merge 或触发 release mutation。

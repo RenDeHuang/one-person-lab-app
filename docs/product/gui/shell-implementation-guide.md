@@ -11,9 +11,9 @@ validators、source/tests 与 evidence 拥有。
 
 ## 定位
 
-本指南提炼 active AionUI 路线中可复用的方法，不是 AionUI 代码复制指南。未来 shell
-应实现同一套 App-owned contracts，而不是继承 AionUI 的目录、组件名、状态模型或
-fork-local 产品逻辑。
+本指南维护当前 Studio 与后续 admitted Shell 的 App 接入方法。历史 AionUI 的薄适配
+经验可用于解释保留基线，但不授权恢复归档实现。Shell 应实现同一套 App-owned contracts，
+不继承历史实现的目录、组件名、状态模型或 fork-local 产品逻辑。
 
 正确目标是：
 
@@ -47,10 +47,9 @@ policy 约束。缺少 App 清单项本身不是删除能力的授权。
    [`shell-conformance-matrix.md`](shell-conformance-matrix.md)。
 
 若现有 shell 行为与目标不同，先分类差异，不在 renderer 中偷偷建立新默认。当前
-Codex-based ideal target 是宽桌面 persistent project/conversation rail；active
-AionUI 读取动态 state source，OPL Studio candidate contract 记录 ideal target。两者是否
-收敛由 validator readback 动态计算，不在人读实现指引复制当前 profile 值；应由产品
-contract/实现收敛 lane 处理。
+Codex-based ideal target 是宽桌面 persistent project/conversation rail；Studio 读取当前
+App profile 与 Framework 动态 projection。目标与实现是否收敛由 source、validator 和
+场景 evidence 判断，不在人读实现指引复制当前 profile 值。
 
 ## Thin Adapter 结构
 
@@ -96,8 +95,9 @@ Shell 用唯一 remote transport 映射 owner-projected conversation reads/event
 
 - App-root launcher 按 `shell id + mode` 选择本次启动目标，默认目标来自 active adapter；
   launcher 不得改写 active adapter、release role 或 updater channel。
-- 每个 shell 保持独立 bundle id、checkout、lockfile、依赖树和 GUI user-data root；不要
-  为复用而共享 `node_modules`、SQLite、localStorage 或 renderer store。
+- 正式 App 与 Preview 保持独立 bundle id 和 GUI user-data root；同一 Studio source
+  可实现两个 release profile，不合并 updater identity 或 GUI 私有 store。不同 Shell 的
+  checkout、lockfile 和依赖树继续独立。
 - 两个 shell 都必须通过 App command-resolution policy 取得 OPL/Codex executable。
   Launcher、直接打开 bundle 与 installed process 分别回读身份，不从单个路径外推 same-runtime parity。
 - Runtime readback 至少绑定 OPL/Codex path、version 和 cohort ref。Shell-local cache 不得
@@ -113,9 +113,11 @@ Shell 用唯一 remote transport 映射 owner-projected conversation reads/event
 本机 launch selection、runtime identity 与 conversation continuity 分别验收。
 当前状态从 [Shell conformance](shell-conformance-matrix.md) 的 owner 入口读取，局部实现不提升为双 Shell parity。
 
-## AionUI 最小定制阶梯
+## 最小定制阶梯
 
-AionUI 主线定制必须从维护成本最低的层开始，前一层能完成就不得进入后一层：
+Shell 定制从维护成本最低的层开始，前一层能完成就不得进入后一层。Studio 的 DSH
+source/vendor/overlay 重放归其 [上游维护入口](https://github.com/gaofeng21cn/opl-studio/blob/main/README.md#dsh-upstream-maintenance)，
+不继续 AionUI upstream intake：
 
 | Level | 优先手段 | 适用内容 | Closeout 要求 |
 | --- | --- | --- | --- |
@@ -126,7 +128,7 @@ AionUI 主线定制必须从维护成本最低的层开始，前一层能完成�
 
 以下情况不是进入 `L4` 的理由：现有组件样式不完全一致、测试更容易写、短期绕过
 profile hydration、或 Settings 页面已有类似布局。视觉对齐优先复用 composition/token，
-不能通过重写大组件把 AionUI 变成第二套私有 shell。
+不能通过重写大组件建立第二套私有 shell。
 
 每次主线 GUI 工作都应输出 delta inventory：修改的 upstream fork-body 文件、OPL-owned
 overlay/adapter 文件、tests/evidence 文件分别计数。文件数不是机械 gate，但 fork-body
@@ -207,8 +209,8 @@ opl app action execute --action <id> [--payload <json>] [--dry-run] --json
 
 Thread directory 是一条窄 host boundary：Codex Core/App Server 拥有 opaque thread ID、history、
 status 和 lifecycle；Shell 用一个 adapter执行 list/read/start/resume/fork/archive/restore并投影现有
-directory/actions。Project/workspace 只作默认 cwd、分组和元数据。普通 conversation 继续复用
-AionUI ACP；不得增加第二 JSON-RPC client、coordination audit/idempotency、dynamic/model-delivery、
+directory/actions。Project/workspace 只作默认 cwd、分组和元数据。普通 conversation 复用
+Studio 的 native Codex transport；不得增加第二 JSON-RPC client、coordination audit/idempotency、dynamic/model-delivery、
 pending-request 或 cross-host控制面。
 
 ## Settings Control Plane
@@ -234,8 +236,9 @@ adapter slot 承接，而不是遍历 upstream settings pages 后临时隐藏。
 
 ## Settings Upstream Intake 分类
 
-Broad AionUI intake 先使用 adapter contract 的 `absorbed / rejected / deferred`。只有
-Settings route、registry、slot 与 compatibility 变化再使用以下四类判定：
+当前 Studio upstream intake 使用其 source manifest、profile 与 overlay 的既有重放入口。
+历史 AionUI 的 `absorbed / rejected / deferred` 只解释冻结基线。当前 Settings route、
+registry、slot 与 compatibility 变化使用以下四类判定：
 
 | Class | 何时使用 | 实现动作 |
 | --- | --- | --- |
@@ -254,8 +257,8 @@ Settings route、registry、slot 与 compatibility 变化再使用以下四类�
   `26.707.41301`、`26.707.31428` 与 `26.707.31123` 仅保留为历史 observations。正式像素
   回归只绑定 OPL App 自有、经人工批准的 baseline；OPL branding 与 product contracts
   始终是 authority。
-- AionUI 是 active implementation carrier 和 OPL Studio candidate 的 regression floor，
-  不是理想视觉 authority。
+- Studio 是当前 implementation carrier；保留的 AionUI fixtures 只证明原始升级或
+  regression cohort，不能成为当前理想视觉 authority。
 - 优先通过 tokens、CSS、existing layout primitives、composition 和 i18n 对齐。
 - 不复制 ChatGPT/Codex、AionUI upstream 或外部 demo 源码来建立产品层。
 - DOM presence 不能证明视觉可用。Rail、drawer、Environment/details 和 canvas 必须在
@@ -284,8 +287,8 @@ command 和可见状态 anchor。
    与 current deviation。
 2. 按 `P0 Codex Core -> P1 OPL Professional -> P2 Administration` 排序，不用 Settings
    完成度替代主体验。
-3. 先用 `absorbed / rejected / deferred` 分类 broad AionUI intake；Settings 变化再追加
-   `accepted / adapt / redirect / reject`，然后从 `L1-L4` 定制阶梯选择第一个可行层级。
+3. 使用当前 Studio upstream owner 的 intake/replay 入口；Settings 变化按
+   `accepted / adapt / redirect / reject` 分类，再从 `L1-L4` 选择第一个可行层级。
 4. 只实现 profile consumer、bridge、slot、route、presentation 所需最小 delta。
 5. 为用户可见行为增加 focused existing-test coverage；视觉变化增加截图/pixel evidence。
 6. 运行 adapter 对应 validation，不用 candidate evidence 替代 active-shell evidence。

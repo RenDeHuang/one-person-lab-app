@@ -28,10 +28,11 @@ One Person Lab App 默认保存的是 `Auto` 模式，不是某次解析得到�
 6. 固定选择从目录消失时，保留为不可用选择，直到用户恢复 Auto 或另选模型。
    自动模式只保存 Auto，不保存旧解析快照。
 
-当前 AionUI 主线通过 Shell 独立携带官方 npm Codex CLI `0.156.1`。App 将目录中可用的
+当前 Studio 通过 App-admitted resolver 使用外部或 Framework-managed Codex CLI；精确
+版本来自当前 qualification inputs 与实际运行回读，不在此维护第二版本表。App 将目录中可用的
 `gpt-6-astra` 解析为 Auto 默认并使用 `max`；有访问权限时，`gpt-6-sol` 随实时目录进入固定模型菜单。
-目录不可用时按 App fallback 处理。AionCore 保持官方 `v0.2.1` 原样；CLI 与 AionCore
-的组合兼容性由 OPL Shell 验证，升级 CLI 不要求修改或派生 AionCore。安装包仍须经过
+目录不可用时按 App fallback 处理。Studio 不依赖 AionCore；历史 AionUI 组合只用于
+保留的升级基线。安装包仍须经过
 完整 App 构建、安装和运行时版本回读，不能单独替换已安装 App 内的运行文件。
 
 ## 已知列表的角色
@@ -54,7 +55,7 @@ App 默认，不把仅有名称的目录或失败请求当成旧 CLI 的证据�
 | OPL Framework | 从已安装 Flow policy 产生严格 `model_projection` 并放入 App state。 | App Auto 算法、用户固定选择。 |
 | App product profile | 定义 Auto 算法、已知覆盖、fallback 和持久化语义。 | Flow policy 文件、CLI 实时目录、provider readiness、用户凭证。 |
 | Codex CLI | 通过 `model/list` 提供 `isDefault` 和 `supportedReasoningEfforts`。 | App fallback、用户选择持久化、GUI 文案。 |
-| AionUI / Native / 其它 Shell | 读取 product profile 和 CLI 目录，解析并展示 Auto，保存 mode 或 fixed override。 | 私有 allowlist、私有模型排序、私有 fallback。 |
+| Studio / 其它 admitted Shell | 读取 product profile 和 CLI 目录，解析并展示 Auto，保存 mode 或 fixed override。 | 私有 allowlist、私有模型排序、私有 fallback。 |
 | OPL Framework 安装器 | 从 Flow 策略生成首次安装默认配置。 | 另一份默认模型/推理策略。 |
 
 App 新会话和恢复 Auto 使用同一 App 默认；完整目录确认不支持时才兼容回退。Framework 安装器仍按 Flow 策略生成 CLI 初始配置。Shell 当前解析出的具体模型只是运行时结果，不得回写成新的 App product truth。
@@ -79,12 +80,6 @@ npm run codex:model-policy:check
 node --experimental-strip-types scripts/app-product-profile.ts
 npm run test:release-boundary
 
-# opl-aion-shell
-bunx vitest run tests/unit/common-config/oplProductProfile.test.ts \
-  tests/unit/guid/buildAgentConversationParams.test.ts \
-  tests/unit/guid/codexModelDisplay.test.ts
-bunx tsc --noEmit
-
 # one-person-lab
 npm run codex:export-default-profile -- \
   --workflow-policy /absolute/path/to/opl-flow/contracts/workflow-policy.json
@@ -94,9 +89,9 @@ npm run test:fresh-install
 npm run validate:candidate
 ```
 
-`scripts/app-product-profile.ts` 把 App profile 同步到 active AionUI checkout；Shell 只提交
-`oplProductProfile.generated.json` 及其必要 consumer/test 变化。Native 在 build/validation 时
-直接读取 App profile，不维护副本。Framework 的安装默认值来自 Flow 策略，只提交生成器产出的
+`scripts/app-product-profile.ts` 处理当前 adapter 对应的 App profile projection；Studio 在
+build/validation 时直接读取指定 App checkout 的 profile，不维护独立产品副本。
+历史 AionUI 的 generated profile 不再是当前维护入口。Framework 的安装默认值来自 Flow 策略，只提交生成器产出的
 `contracts/opl-framework/codex-default-profile.json`；App 默认优先于 Flow 推荐；Flow 自身的工作负载策略保持其 owner 管理。
 
 若新推理档只是 Codex CLI 未来新增的非空字符串，消费者不得扩展本地 enum/allowlist；

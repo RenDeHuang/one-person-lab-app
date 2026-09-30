@@ -12,6 +12,15 @@ implementation ownership.
 
 ## Superseded Product Designs
 
+- [September 2026 Studio cutover evidence](./studio-cutover-2026-09.md):
+  original Stable, Full, Preview handoff and Docker cohorts, including the limits
+  of the recorded sequential-upgrade evidence. Current implementation is owned
+  by the [Studio product boundary](../product/gui/opl-studio-plan.md).
+- [Legacy App product map](../../assets/branding/opl-app-product-map.png):
+  historical fixed-Agent sidebar and panel composition, retained unchanged for
+  design provenance. The current public overview is the
+  [user journey](../../assets/branding/opl-app-user-journey-v2.png); GUI behavior
+  and dynamic Package membership come from current App contracts and projections.
 - [Professional Agent Package management implementation snapshot](./agent-package-management-implementation-snapshot.md):
   provenance for the former resolver/version/lock/payload/receipt/materialization
   design. It is historical only; current architecture and deletion gates live in

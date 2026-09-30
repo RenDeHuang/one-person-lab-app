@@ -24,7 +24,8 @@ Machine boundary: 当前合同、源码和精确发布/安装证据。
 Codex 会话，由 Framework 提供运行时与 Package 状态。产品仍是 **One Person Lab App**：
 Studio 是实现架构，Stable/Nightly 是发布渠道，Standard/Full 是安装包选择。
 [9 月架构切换说明](https://github.com/gaofeng21cn/one-person-lab-app/releases/tag/v26.9.25-r1)
-说明了相对 26.9.23 的变化，以及迁移和附加发布的当前状态。
+说明了从 26.9.23 切换时的变化；当前分发与迁移边界统一维护在
+[分发与安装参考](docs/delivery/distribution-and-install-ssot.md)。
 
 ## 工作台
 
@@ -83,7 +84,8 @@ open -a "One Person Lab"
 [One Person Lab Framework](https://github.com/gaofeng21cn/one-person-lab)
 负责运行与 Package 投影，领域 Packages 负责专业判断和交付物。当前 macOS Stable 的
 桌面 Shell 使用基于固定 DSH/Cordis Host 的 OPL Studio，沿用既有 OPL App
-身份和更新源；Studio Preview 通过签名过渡版迁入正式版。包括 Docker WebUI
+身份和更新源；Studio Preview 在签名过渡版安装其声明的 Stable 目标前保持独立身份。
+迁移验收绑定具体来源和目标版本。包括 Docker WebUI
 在内的当前构建入口统一使用 Studio；Docker 在原生 amd64、arm64 runner 上独立验收发布。
 AionUI 保留为旧版升级检查和源码历史，Studio 不依赖 AionCore。
 

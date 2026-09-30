@@ -32,7 +32,7 @@ the rest of OPL remains usable.
 ## Current Stable Desktop artifact
 
 Each Stable version has one GitHub Release and one `v<version>` tag. The macOS
-The App Stable release offers Standard and Full installers. Standard may become Latest
+App Stable release offers Standard and Full installers. Standard may become Latest
 first, with Full appended to the same tag afterward:
 
 - `One-Person-Lab-<version>-mac-arm64.dmg`: macOS Standard;

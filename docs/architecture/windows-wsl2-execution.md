@@ -7,7 +7,7 @@ State: active reference.
 The Windows desktop execution boundary is active in
 [`app-windows-wsl2-execution.json`](../../contracts/app-windows-wsl2-execution.json).
 Windows runs Electron, provisioning and explicit host integration. A dedicated
-`OPL-Linux` WSL2 distribution runs AionCore, Codex and Framework. The earlier
+`OPL-Linux` WSL2 distribution runs the Studio Node Host, Codex and Framework. The earlier
 exploration and proposed phases have been superseded by this contract and the
 Shell implementation.
 
@@ -16,19 +16,21 @@ Shell implementation.
 | Surface | Owner and current implementation |
 | --- | --- |
 | Windows outcome, execution invariant and acceptance | App's Windows execution contract. |
-| Guided setup, restart resume, repair and progress | `opl-aion-shell`: Shell's `packages/desktop/src/process/services/windows-wsl/provisioner.ts` and `provisioningWindow.ts`. |
-| Structured transport and cancellation | Shell's `packages/desktop/src/process/services/runtime-execution/windowsWslRuntimeExecution.ts`. |
-| AionCore backend launch | Shell's `packages/desktop/src/index.ts` selects `windowsWslBackendProcessController.ts` on Windows. |
-| Direct Codex App Server | Shell's `codexAppServer/adapter.ts` selects the WSL runtime on Windows. |
-| Framework state, action and credential transport | Shell's `bridge/oplRuntimeBridge.ts` transports owner commands through the same WSL runtime; Framework owns their semantics. |
-| AionCore bytes and protocol | Unmodified official upstream release, selected and installed through the complete App/Shell delivery path. |
+| Guided setup, restart resume, repair and progress | Studio `desktop/windows-provisioning.mjs`, `windows-bootstrap.sh` and the existing App setup projection. |
+| Structured transport and cancellation | Studio `desktop/windows-runtime.mjs` and `windows-guest-rpc.mjs`; stops are operation-scoped. |
+| Studio Host launch | Studio `desktop/main.mjs` selects `windows-guest-proxy.mjs` and starts `windows-guest-host.mjs` inside the owned guest. |
+| Native Codex App Server | Guest-local Studio Host and `opl-codex-native` use the declared Linux executable and `CODEX_HOME`. |
+| Framework state, action and credential transport | Guest-local Framework bridge invokes the public owner interfaces; Framework owns their semantics. |
+| Guest Host bytes and runtime pins | Studio `scripts/desktop/prepare-wsl-host-payload.mjs` binds the payload to the frozen Shell ref and App bootstrap/qualification inputs. |
 | Package lifecycle and domain outcomes | Configured carriers and Package/domain owners; Framework aggregates their readback. |
 
 The execution port accepts logical programs declared by the contract,
 structured arguments and bounded stdin. It calls the guest bootstrap inspect,
 execute and control entrypoints. It does not provide an unrestricted guest
 command channel. Missing or unhealthy WSL enters provisioning or repair; it
-cannot select native Windows AionCore, Codex or Framework as a fallback.
+cannot select native Windows Codex or Framework as a fallback. Studio does not
+launch AionCore. The archived AionUI provisioner and early receipts explain
+historical baselines only; they are not the current production implementation.
 
 The distribution belongs to the OPL installation. Existing user distributions,
 the Windows default distribution and `docker-desktop` are not adopted or

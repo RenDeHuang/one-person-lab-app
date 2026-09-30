@@ -13,9 +13,13 @@ shell source 承接；机器可读产品状态、模型策略、page-state 和 r
 
 普通图标、theme token 和 visual primitive geometry 的 active source 是
 [`contracts/app-gui-visual-source-cohort.json`](../../../contracts/app-gui-visual-source-cohort.json)
-固定的 DeepSeek Harness commit。AionUI 只 vendor 该合同列出的最小闭包，并通过
+固定的 DeepSeek Harness commit。历史 AionUI 只 vendor 该合同列出的最小闭包，并通过
 `OplVisualProvider` / `OplIcon` 适配现有 theme state、handlers 与 Arco controls；DSH runtime、
 session、router、provider、connection、完整 renderer 和 Client Cordis 均不进入 AionUI。
+
+当前 Studio 复用完整 DSH/Cordis Application Host 与 renderer，其 exact upstream、vendor
+和 overlay 由 Studio source manifest 持有，见 [Application Host composition](deepseek-harness-composition-plan.md)。
+历史 AionUI 的受限源码借用规则不覆盖 Studio 的已采用架构；两者都不能改写 App 产品与像素验收 authority。
 
 ChatGPT Codex macOS 只保留历史工作流和空间关系参考。每次 observation 可以记录官方来源、
 精确版本/build 和日期，但不再拥有字体、颜色、图标、token 或 primitive 的 active visual
@@ -237,7 +241,7 @@ Composer 是底部唯一主 command surface：
 ## Project / Conversation Rail
 
 - 宽桌面默认可见，宽度在 `280-340px` 内可调，窄窗口改 drawer。
-- Active AionUI 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 按当前核心能力合同验收。capability starter
+- 产品一级入口按当前合同组织 New task、运行状态、Scheduled tasks、Archived；Runtime 按当前核心能力合同验收。capability starter
   属于 Home，package/capability 管理属于 Settings。Sites/Chat 没有 OPL 对应能力时不显示。
 - 中段优先按显式 Project-affinity metadata 组织 canonical sessions；无显式 affinity 的普通 recorded cwd 可生成
   只读目录组，`~/Documents/Codex/**` 与 `~/.codex/worktrees/<id>/**` managed scratch 则保持 projectless，避免按

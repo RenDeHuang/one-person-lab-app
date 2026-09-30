@@ -24,7 +24,8 @@ instructions begin at the root [README](../README.md) or its [Chinese edition](.
 | Package and capability consumption | [Capability governance](capability-governance.md) |
 | Package successor cutover and legacy deletion | [Package migration](active/opl-package-platform-composition-migration.md) |
 | Product integrations | [Product docs](product/README.md) |
-| AionUI runtime composition | [Codex carrier](architecture/aioncore-codex-only-carrier.md) |
+| Current Application Host and carrier ownership | [Studio product boundary](product/gui/opl-studio-plan.md) |
+| DSH plugin admission and Settings ownership | [Plugin and settings map](product/gui/dsh-plugin-and-settings-map.md) |
 | Windows execution | [Windows architecture](architecture/windows-wsl2-execution.md) |
 | Verification and command reference | [Testing](testing/README.md), [Scripts](../scripts/README.md) |
 
@@ -39,13 +40,10 @@ instructions begin at the root [README](../README.md) or its [Chinese edition](.
 | App whitepaper source and family publication | [Whitepapers](whitepapers/README.md) |
 | Generated latest output | [Site](site/README.md) |
 | Signing and privacy | [Signing](security/code-signing-policy.md), [Privacy](security/privacy-policy.md) |
-| Retained historical evidence | [History](history/README.md), [Security audit projection](security/audits/2026-07-30-codex-security-app/report.md) |
+| Retained historical evidence | [History](history/README.md), [AionUI carrier](architecture/aioncore-codex-only-carrier.md), [Security audit projection](security/audits/2026-07-30-codex-security-app/report.md) |
 
 The App whitepaper is published by the Framework family publisher:
 [HTML](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.html)
 and [PDF](https://gaofeng21cn.github.io/one-person-lab/latest/whitepapers/opl-app-whitepaper.pdf).
 Install-guide publication and generated output routing are documented in [Site](site/README.md).
 An index link is not evidence that a public artifact is current or available.
-
-
-| DSH 插件与 OPL 设置归属 | [DSH plugin and settings map](product/gui/dsh-plugin-and-settings-map.md) | 官方插件准入、OPL 自有插件和设置 owner 关系 |

@@ -2,13 +2,19 @@
 
 Owner: `one-person-lab-app`
 Purpose: `aionui_fork_maintenance_architecture`
-State: `accepted`
+State: `historical_reference_retired_implementation`
 Machine boundary: App contracts define product behavior and release admission; the
-active Shell owns source, upstream intake receipts and focused validation.
+archived AionUI source retains its original upstream intake receipts and focused validation.
+
+Studio is the current production implementation; its [product boundary](../product/gui/opl-studio-plan.md)
+and [Application Host composition](../product/gui/deepseek-harness-composition-plan.md)
+own current decisions. `opl-aion-shell` is archived. The policy below explains
+retained source and migration baselines, and does not authorize new AionUI
+production builds, upstream intake, fork patches or release operations.
 
 ## Decision
 
-Maintain the OPL AionUI implementation through existing App contracts and thin Shell
+The retained OPL AionUI implementation used App contracts and thin Shell
 adapters. App owns product behavior, Settings information architecture, model policy,
 GUI contributions and release acceptance. Shell owns renderer, process/preload,
 platform integration, packaging implementation, styling and focused tests.
@@ -53,11 +59,11 @@ parsers are not accepted architecture and must not be reintroduced by documentat
 
 ## Intake And Verification
 
-The repeatable stable-tag review, classification, overlap budgets and source-cohort
-promotion procedure lives only in
+The former stable-tag review, classification, overlap budgets and source-cohort
+promotion procedure is retained for provenance in
 [GUI maintenance policy](../product/gui/gui-maintenance-policy.md).
-The active Shell `contracts/aionui-upstream-intake.json` owns the moving release
-receipt; App validators check it against the active adapter and resolved checkout.
+The archived Shell's `contracts/aionui-upstream-intake.json` records its original
+release cohort; it is not current Studio upstream authority.
 This strategy does not copy release SHAs, remediation ancestors, test counts or
 historical incident timelines.
 

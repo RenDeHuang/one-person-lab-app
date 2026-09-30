@@ -39,10 +39,9 @@ Machine boundary: 本文是 shell-neutral 的人读交互目标。机器可读�
 8. **Thread operations stay native and thin。** 用户通过现有 directory/actions 执行 thread
    list/read/start/resume/fork/archive；App Server 拥有 thread truth，Shell 只做一个薄 adapter。
 9. **Executable carrier stays replaceable。** Shell 只通过 `OPL_CODEX_BIN` 获取 exact
-   Codex executable 并启动 App Server。当前 AionUI 从 Shell-owned projection 解析该路径；
-   projection 组合官方 AionCore Node-only export 与 Shell 独立选择的官方 Codex package。
-   AionCore 不能进入 App/Framework 的 thread、product 或 Native
-   adoption authority；替换 shell 只改变 executable source，不改变 `CODEX_HOME` 或 thread truth。
+   Codex executable 并启动 App Server。当前 Studio 使用 App-admitted resolver，托管安装
+   与更新归 Framework；历史 AionUI projection 只解释旧版来源。Studio 不依赖 AionCore。
+   替换 shell 只改变 executable source，不改变 `CODEX_HOME` 或 thread truth。
 
 没有明确 OPL delta 的主流程采用 OPL contracts 对观察时最新可验证的官方 ChatGPT Codex
 macOS 所做的 composition 翻译；精确版本由每次 observation receipt 记录。
@@ -103,7 +102,7 @@ macOS 所做的 composition 翻译；精确版本由每次 observation receipt �
 
 Rail 负责 navigation，不承担 dashboard：
 
-- Active AionUI 顶部固定 New task、运行状态、Scheduled tasks、Archived；Runtime 是核心
+- 产品一级入口按 New task、运行状态、Scheduled tasks、Archived 组织；Runtime 是核心
   Agent 工作入口。会话级 current-task context 独立成立，不依赖全局 Runtime。Package/capability
   选择由 Home starter 承接，package 管理由 Settings → Agents 承接，Skills/Plugins/Flow
   管理由 Settings → Capabilities 承接，不在 rail 重复。
@@ -131,7 +130,7 @@ Rail 负责 navigation，不承担 dashboard：
   在真实 StageRun/StageAttempt 启动前按该 stage 的 `workspace_locator` 执行。
 - 支持 search、pin、rename、archive、restore、delete、reset；rename/archive/restore/delete
   直接映射 `thread/name/set`、`thread/archive`、`thread/unarchive`、`thread/delete`。Pin 只是
-  Shell UI metadata；AionUI local reset 保留既有会话语义，但不得冒充 App Server history reset。
+  Shell UI metadata；Shell-local reset 不得冒充 App Server history reset。
 - 底部固定 account、help、Settings。
 - Home root、composer shell 与 footer account/Settings entry 在每个 viewport 各渲染一次。
 - Active conversation、running/blocked/completed 等状态只用轻量标记，不改变 row 布局。
@@ -164,7 +163,7 @@ Rail 负责 navigation，不承担 dashboard：
 - 主界面不提供独立“线程协调”页面或 rail 区块。Project 下的 conversation rows 是 App
   Server thread 的可见入口，目录分组不改变身份或授权。
 - 读取采用 metadata first；list/read/start/resume/fork/archive/restore 复用一个 App Server
-  adapter并保持键盘可达。普通 conversation 发送继续走 AionUI 现有 ACP。
+  adapter并保持键盘可达。普通 conversation 发送使用 Studio 现有 native Codex transport。
 - Shell 不维护第二 JSON-RPC client、JSONL audit/idempotency ledger、write-set advisory、model
   delivery、dynamic thread tools、pending-request control plane 或 cross-host handoff。
 
@@ -172,7 +171,7 @@ Rail 负责 navigation，不承担 dashboard：
 selection 或当前草稿。Back/Forward、Previous/Next Task、New Window 是 desktop
 affordance，通过 application menu 与现有 conversation header 提供，并保持键盘可达；
 Previous/Next 只在当前可见 ordinary conversations 中移动，不扩张 WebUI 产品 IA。
-Active AionUI 的一级导航固定按 New task、运行状态、Scheduled tasks、Archived 排列；
+一级导航按当前 App contract 组织 New task、运行状态、Scheduled tasks、Archived；
 “运行状态”在展开栏、折叠栏和窄窗口 drawer 中都可见并可键盘访问，目标为 `/runtime`。
 Runtime 的显示范围与采用要求由当前 App contract 决定，Home 保持对话工作区。
 

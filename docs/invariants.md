@@ -18,9 +18,10 @@ specialized owners in the [documentation index](README.md).
   projection. Domain owners retain scientific semantics, quality verdicts,
   artifacts and business lifecycle. App cannot infer those verdicts from UI,
   provider completion or a successful transport.
-- AionCore is an unmodified official dependency. The Shell composes its Node-only
-  export with the independently selected official Codex CLI; App does not create
-  a private AionCore fork or replace a running App's embedded core in place.
+- Studio is the current production implementation and has no AionCore dependency.
+  Retained AionUI artifacts use unmodified official AionCore with independently
+  selected Codex bytes. App does not create a private AionCore fork, revive the
+  archived Aion Shell as a production source, or replace embedded binaries in place.
 - Native carriers own actual Package lifecycle. Package identity, physical
   carrier, executor route and owner publication/currentness stay independent.
   App must not create a resolver, lock, payload, LKG or parallel installed registry.

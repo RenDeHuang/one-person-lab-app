@@ -11,11 +11,12 @@ logs.
 This directory holds App-owned product design material. It is for maintainers
 and implementers, not for end-user onboarding.
 
-The cross-repository Persona/Relay/App design authority is
+Persona/Relay integration guidance lives in
 `opl-persona/docs/architecture-guidance.md` in the sibling `opl-persona`
-repository. App documents should describe the App consumer contract and visual
-behavior; they should not redefine domain ownership or create a second domain
-engine.
+repository. It retains those domain boundaries; App contracts own App product
+behavior and adoption, and Studio owns the current implementation. App documents
+describe the consumer contract and visual behavior without creating a second
+domain engine.
 
 ## Entries
 
