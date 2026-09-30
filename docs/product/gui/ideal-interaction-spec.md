@@ -283,8 +283,9 @@ Composer 是普通路径唯一主 command surface：
   `/capabilities` 只能作为 compatibility redirect，不能重新挂载第二套 capability directory。
 
 能力工作台承接当前有效 contribution 的实际操作，不替代上述设置目录或 conversation。
-用户显式打开后，桌面采用可调宽、可停留的非模态并排面板；窄窗采用可返回原会话的独立视图，
-不使用大遮罩。打开、切换和返回保留 composer draft 与 timeline scroll，不重绑 thread 或激活 Package。
+入口与运行状态、计划任务并列，用户点击后在主内容区打开，使用侧栏之外的全部可用宽度。
+工作台内部提供能力视图导航、条目列表和详情；窄窗下调整为顺序布局，不使用右侧弹出面板或遮罩。
+切换和返回聊天保留 composer draft 与 timeline scroll，不重绑 thread 或激活 Package。
 分组依据当前 view 的 `data_ref`（client `dataRef`）稳定能力语义，呈现通信、个人上下文、知识等组；
 相同语义不因 Package ID、版本、对象 selector 或本地化标题变化而换组。未知语义进入其它，
 成员仍只来自 Framework 当前投影，不增加 Package ID 特判、品牌表或第二 registry。

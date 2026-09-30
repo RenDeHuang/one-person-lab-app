@@ -200,14 +200,16 @@ test('one unknown non-OPL Agent remains generic Settings/Runtime truth but canno
   assert.equal('professional_agent_packages' in profile.gui, false);
 });
 
-test('capability workspace stays a non-modal dynamic projection with bounded authority', () => {
+test('capability workspace is a primary page with bounded dynamic projection authority', () => {
   const contributions = readJson('contracts/app-gui-product-contract.json').framework_surfaces.package_app_contributions;
   const workspace = contributions.capability_workspace;
   const page = readJson('contracts/app-page-state-matrix.json').pages.find((item: any) => item.id === 'package_contribution');
   const ref = page.package_contribution_view_model.capability_workspace_contract_ref;
   const [contractPath, fragment] = ref.split('#');
   assert.deepEqual(fragment.split('.').reduce((value: any, key: string) => value[key], readJson(contractPath)), workspace);
-  assert.equal(workspace.desktop_placement, 'resizable_non_modal_panel_alongside_the_conversation');
+  assert.equal(workspace.desktop_placement, 'primary_content_page_using_full_available_width');
+  assert.equal(workspace.narrow_placement, 'primary_content_page_with_responsive_view_navigation');
+  assert.equal(workspace.navigation_surface, 'primary_navigation_alongside_runtime_and_scheduled_tasks');
   assert.equal(workspace.grouping.package_id_special_cases_allowed, false);
   assert.equal(workspace.grouping.second_registry_allowed, contributions.ui_composition.second_package_registry_allowed);
   assert.equal(workspace.workbench_install_or_update_allowed, false);
