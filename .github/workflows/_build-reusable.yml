@@ -1371,7 +1371,7 @@ jobs:
         shell: bash
         run: |
           if [ '${{ needs.resolve-active-shell-ref.outputs.shell_id }}' = opl-studio ]; then
-            node ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/scripts/validate-desktop-package.mjs --distribution --identity stable --version "$OPL_RELEASE_VERSION"
+            node ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/scripts/validate-desktop-package.mjs --distribution --write-receipt --identity stable --version "$OPL_RELEASE_VERSION"
             if [ "${{ runner.os }}" = macOS ] && [ "${{ inputs.require_macos_gatekeeper }}" = true ]; then
               OPL_DESKTOP_RELEASE_IDENTITY=stable OPL_UPDATER_VERSION="$OPL_UPDATER_VERSION" \
                 node ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/scripts/desktop/macos-distribution.mjs --require-release-trust
@@ -1532,6 +1532,7 @@ jobs:
             ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/*.yml
             ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/opl-windows-updater-assets.json
             ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/opl-windows-authenticode-receipt.json
+            ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/opl-windows-guest-host-payload-qualification.json
             ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/standard-local-authorization-policy.json
             ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/standard-gatekeeper-launch-policy.json
             ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/standard-apple-notarization-receipt.json
