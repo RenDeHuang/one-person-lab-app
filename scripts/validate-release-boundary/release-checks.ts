@@ -1114,6 +1114,8 @@ export const releaseBoundaryChecks: ReleaseBoundaryCheck[] = [
       "TimeStamperCertificate",
       "opl-windows-authenticode-receipt.json",
       "-win-x64.exe.blockmap",
+      "scripts/validate-desktop-package.mjs --distribution --write-receipt",
+      "opl-windows-guest-host-payload-qualification.json",
     ],
     forbidden: [
       "config.publish.provider=generic",
