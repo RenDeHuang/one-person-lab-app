@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { readActiveShellBuildProfile } from './active-shell-build-profile.ts';
 import {
   appOwnedActiveAionuiPrimaryNavigation,
   appOwnedCodexSubagentActivityPolicy,
@@ -32,7 +33,7 @@ export type GuiDesignSystemValidation = {
   root: string;
   definition_stack: string[];
   shell_roles: {
-    active: 'aionui';
+    active: 'aionui' | 'opl-studio';
     foreground: 'opl-studio';
   };
   visual_source_cohort: {
@@ -493,6 +494,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const guiContract = readJson(root, 'contracts/app-gui-product-contract.json', issues);
   const pageStateMatrix = readJson(root, 'contracts/app-page-state-matrix.json', issues);
   const shellAdapter = readJson(root, 'contracts/app-shell-adapter.json', issues);
+  const activeBuild = readActiveShellBuildProfile(root);
   const visualReferenceCohort = readJson(root, visualReferenceCohortPath, issues);
   const visualSourceCohort = readJson(root, visualSourceCohortPath, issues);
   const packageJson = readJson(root, 'package.json', issues);
@@ -560,8 +562,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const alternatives = record(registry.alternative_gui_policy);
   const candidates = Array.isArray(registry.candidates) ? registry.candidates.map(record) : [];
   const nativeCandidate = candidates.find((candidate) => candidate.id === 'opl-studio') ?? {};
-  if (mainline.shell !== 'aionui' || registry.active_shell_unchanged !== 'aionui') {
-    issues.add('candidate registry must keep AionUI active');
+  if (mainline.shell !== activeBuild.id || registry.active_shell_unchanged !== activeBuild.id) {
+    issues.add('candidate registry must match the App-selected active Shell');
   }
   if (alternatives.only_foreground_alternative !== 'opl-studio') {
     issues.add('candidate registry must keep opl-studio foreground');
@@ -1155,16 +1157,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
-  if (
-    !/^[0-9a-f]{40}$/.test(guiConformanceRef) ||
-    shellSource.upstream_ref_role !== 'minimum_verified_gui_conformance_ancestor' ||
-    shellSource.current_head_source !== 'active_shell_checkout_git_head' ||
-    shellSource.current_head_must_contain_upstream_ref !== true
-  ) {
-    issues.add('active shell adapter must bind a verified GUI ancestor separately from the current shell Git head');
-  }
-  if (/^[0-9a-f]{40}$/.test(guiConformanceRef)) {
-    validateActiveShellCheckout(root, shellSource, guiConformanceRef, issues);
+  if (activeBuild.id === 'aionui') {
+    if (
+      !/^[0-9a-f]{40}$/.test(guiConformanceRef) ||
+      shellSource.upstream_ref_role !== 'minimum_verified_gui_conformance_ancestor' ||
+      shellSource.current_head_source !== 'active_shell_checkout_git_head' ||
+      shellSource.current_head_must_contain_upstream_ref !== true
+    ) {
+      issues.add('active shell adapter must bind a verified GUI ancestor separately from the current shell Git head');
+    }
+    if (/^[0-9a-f]{40}$/.test(guiConformanceRef)) {
+      validateActiveShellCheckout(root, shellSource, guiConformanceRef, issues);
+    }
   }
   const visualEvidenceEntries = validateVisualEvidence(root, historicalPixelShellSha, issues);
 
@@ -2022,7 +2026,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     root,
     definition_stack: expectedStack.map((layer) => layer.id),
     shell_roles: {
-      active: 'aionui',
+      active: activeBuild.id,
       foreground: 'opl-studio',
     },
     visual_source_cohort: {

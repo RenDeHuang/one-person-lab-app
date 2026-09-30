@@ -46,7 +46,7 @@ function refreshSourceManifestHash(root: string): void {
   writeJson(root, 'docs/product/gui/evidence/aionui-41301/manifest.json', manifest);
 }
 
-function createFixture(): string {
+function createFixture(activeShell: 'aionui' | 'opl-studio' = 'aionui'): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-gui-design-system-'));
   ownedFixtureRoots.add(root);
   for (const relativePath of [
@@ -75,15 +75,19 @@ function createFixture(): string {
 
   // The retained AionUI pixel/source evidence is a historical conformance fixture.
   // It must not accidentally treat the currently selected Studio adapter as AionUI.
-  writeJson(root, 'contracts/app-shell-adapter.json', JSON.parse(fs.readFileSync(path.join(appRoot, 'contracts/shell-adapters/aionui.json'), 'utf8')));
-  const registry = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-shell-candidates.json'), 'utf8'));
-  registry.active_shell_unchanged = 'aionui';
-  registry.active_gui_mainline.shell = 'aionui';
-  writeJson(root, 'contracts/app-shell-candidates.json', registry);
-  const verifiedAncestor = createShellCheckout(root);
-  const shellAdapter = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-shell-adapter.json'), 'utf8'));
-  shellAdapter.shell_source.upstream_ref = verifiedAncestor;
+  const shellAdapter = JSON.parse(fs.readFileSync(path.join(appRoot, `contracts/shell-adapters/${activeShell}.json`), 'utf8'));
+  shellAdapter.active_shell = activeShell;
   writeJson(root, 'contracts/app-shell-adapter.json', shellAdapter);
+  const registry = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-shell-candidates.json'), 'utf8'));
+  registry.active_shell_unchanged = activeShell;
+  registry.active_gui_mainline.shell = activeShell;
+  registry.active_gui_mainline.shell_root = shellAdapter.shell_root;
+  registry.active_gui_mainline.source_repo = shellAdapter.shell_source.owner_repo;
+  writeJson(root, 'contracts/app-shell-candidates.json', registry);
+  if (activeShell === 'aionui') {
+    shellAdapter.shell_source.upstream_ref = createShellCheckout(root);
+    writeJson(root, 'contracts/app-shell-adapter.json', shellAdapter);
+  }
   const evidenceManifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json'), 'utf8'));
   for (const entry of evidenceManifest.entries) copyFixtureAsset(root, entry.screenshot_path);
   return root;
@@ -119,6 +123,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   const historicalPixelShellSha =
     contract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha;
   assert.equal(summary.status, 'consistent');
+  assert.equal(summary.shell_roles.active, 'aionui');
   assert.equal(summary.release_ready, false);
   assert.deepEqual(summary.visual_source_cohort, {
     contract: 'contracts/app-gui-visual-source-cohort.json',
@@ -161,6 +166,48 @@ test('GUI design-system validator accepts a complete fixture without promoting r
     reference_assets_complete: false,
     scene_bound_visual_parity: false,
   });
+});
+
+test('GUI design-system validator accepts active Studio without a legacy GUI ancestor', () => {
+  for (const upstreamRef of ['main', '0'.repeat(40)]) {
+    const root = createFixture('opl-studio');
+    const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
+    const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
+    adapter.shell_source.upstream_ref = upstreamRef;
+    writeJson(root, 'contracts/app-shell-adapter.json', adapter);
+
+    const summary = validateGuiDesignSystem(root);
+    assert.equal(summary.shell_roles.active, 'opl-studio');
+    assert.equal(summary.release_ready, false);
+    assert.equal(summary.visual_evidence.manifest, 'docs/product/gui/evidence/aionui-41301/manifest.json');
+  }
+});
+
+test('GUI design-system validator rejects active registry identity drift for either adapter', () => {
+  for (const activeShell of ['aionui', 'opl-studio'] as const) {
+    for (const field of ['active_shell_unchanged', 'active_gui_mainline'] as const) {
+      const root = createFixture(activeShell);
+      const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
+      const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+      const otherShell = activeShell === 'aionui' ? 'opl-studio' : 'aionui';
+      if (field === 'active_shell_unchanged') registry[field] = otherShell;
+      else registry[field].shell = otherShell;
+      writeJson(root, 'contracts/app-shell-candidates.json', registry);
+
+      assert.throws(() => validateGuiDesignSystem(root), /candidate registry must match the App-selected active Shell/);
+    }
+  }
+});
+
+test('GUI design-system validator still requires the legacy AionUI ancestor binding', () => {
+  const root = createFixture();
+  const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
+  const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
+  adapter.shell_source.upstream_ref = 'main';
+  delete adapter.shell_source.upstream_ref_role;
+  writeJson(root, 'contracts/app-shell-adapter.json', adapter);
+
+  assert.throws(() => validateGuiDesignSystem(root), /active shell adapter must bind a verified GUI ancestor/);
 });
 
 test('GUI design-system validator accepts an approved App-owned baseline without promoting release readiness', () => {
