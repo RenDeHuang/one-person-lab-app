@@ -32,6 +32,48 @@ cannot select native Windows Codex or Framework as a fallback. Studio does not
 launch AionCore. The archived AionUI provisioner and early receipts explain
 historical baselines only; they are not the current production implementation.
 
+The packaged Guest Host closure includes a digest-bound archive. Studio verifies
+the installed payload, extracts this archive into the owned guest's Linux
+filesystem, verifies the extracted inventory and bytes, then starts the Host
+from that immutable cache. Cached bytes are rechecked before reuse. This avoids
+loading thousands of modules through the mounted NTFS drive; the installed
+package remains the source, and Codex/Framework keep their existing owners.
+Staging reports the existing initialization activity and elapsed-time heartbeat.
+Native admission is asynchronous so package verification cannot block the
+Electron window. Bootstrap checks the sources it executes or copies; Host
+launch checks the archive and staging entry, then checks the entire extracted
+Host inventory inside the guest.
+
+Gateway credentials remain Framework-owned. If Node rejects a certificate
+chain on a local TLS inspection path, the Framework control client can use the
+system HTTPS transport with its normal certificate checks, bounded responses
+and cancellation. Credentials stay in a private stdin pipe and never become
+command arguments or qualification output.
+
+Windows protocol activation can normalize `opl://navigate?route=...` to
+`opl://navigate/?route=...`. The empty path and the single root slash are
+equivalent for this hostname-owned action. Non-root paths, extra parameters,
+credentials and routes outside the App registry remain rejected.
+
+Framework installation supplies the cohort-verified Linux Temporal CLI when no
+existing executable owner is present. The background-service start action uses
+that CLI. A platform supervisor marked `applicable=false` does not imply
+configuration drift; the App reads the actual service, worker and scheduler
+readiness instead.
+On App start, `opl system startup-maintenance --scope runtime_recovery --json`
+restores the already configured local service, worker and scheduler in the owned
+Linux guest. This reuses persistent state and public lifecycle operations; it
+does not activate, download or update runtime generations. Updates remain under
+the managed updater entrypoint.
+Background-service recovery also runs when automatic updates are disabled;
+read-only hosts do not run this maintenance.
+The owned guest installs GitHub CLI from GitHub's signed apt source, keeping
+its native package owner and allowing public extension installation without a
+GitHub login. ffmpeg and ffprobe use the Ubuntu package owner.
+WSL repair retains a working Framework carrier installed or updated by its
+owner. The pinned Framework source is used for first installation; repair does
+not replace an existing artifact carrier with a bootstrap source checkout.
+
 The distribution belongs to the OPL installation. Existing user distributions,
 the Windows default distribution and `docker-desktop` are not adopted or
 modified. The guest user, `CODEX_HOME`, workspace root and common route identity
