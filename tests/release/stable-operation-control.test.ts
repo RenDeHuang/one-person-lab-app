@@ -164,7 +164,11 @@ test('qualification repairs change the operation while legacy authority is read-
   assert.notEqual(issuedAuthority({ criticalBlobs: changed }).operation_id, operationId);
   const legacyBlobs = { ...criticalBlobs };
   for (const file of Object.keys(legacyBlobs)) {
-    if (file.startsWith('scripts/stable-release-dispatch-parts/')) delete legacyBlobs[file];
+    if (
+      file.startsWith('scripts/framework-release-adapter-')
+      || file.startsWith('scripts/stable-operation-control-parts/')
+      || file.startsWith('scripts/release-dispatch-guard-parts/')
+    ) delete legacyBlobs[file];
   }
   delete legacyBlobs['.github/workflows/opl-first-run-vm.yml'];
   delete legacyBlobs['scripts/download-github-artifact.mjs'];
@@ -180,7 +184,8 @@ test('pre-extraction authority remains readable while executor admission require
   const priorBlobs = Object.fromEntries(Object.entries(criticalBlobs)
     .filter(([file]) => (
       !file.startsWith('scripts/framework-release-adapter-')
-      && !file.startsWith('scripts/stable-release-dispatch-parts/')
+      && !file.startsWith('scripts/stable-operation-control-parts/')
+      && !file.startsWith('scripts/release-dispatch-guard-parts/')
     )));
   assert.equal(Object.keys(priorBlobs).length, 13);
   const prior = issuedAuthority({ criticalBlobs: priorBlobs });
@@ -192,7 +197,10 @@ test('pre-extraction authority remains readable while executor admission require
 
 test('the complete pre-leaf 21-path authority remains legacy-readable but cannot run as current', () => {
   const priorCurrentBlobs = Object.fromEntries(Object.entries(criticalBlobs)
-    .filter(([file]) => !file.startsWith('scripts/stable-release-dispatch-parts/')));
+    .filter(([file]) => (
+      !file.startsWith('scripts/stable-operation-control-parts/')
+      && !file.startsWith('scripts/release-dispatch-guard-parts/')
+    )));
   assert.equal(Object.keys(priorCurrentBlobs).length, 21);
   const prior = issuedAuthority({ criticalBlobs: priorCurrentBlobs });
   assert.equal(validateStableOperationAuthority(prior).authority_digest, prior.authority_digest);
@@ -206,7 +214,10 @@ test('artifact transport repairs change operation identity and preserve old evid
   assert.notEqual(stableOperationIdForFrozenCohort({ objectiveFingerprint, appSha, shellSha, frameworkSha, criticalBlobs: changed }), operationId);
   const priorBlobs = { ...criticalBlobs };
   for (const file of Object.keys(priorBlobs)) {
-    if (file.startsWith('scripts/stable-release-dispatch-parts/')) delete priorBlobs[file];
+    if (
+      file.startsWith('scripts/stable-operation-control-parts/')
+      || file.startsWith('scripts/release-dispatch-guard-parts/')
+    ) delete priorBlobs[file];
   }
   delete priorBlobs['scripts/download-github-artifact.mjs'];
   delete priorBlobs['scripts/stable-release-dispatch.ts'];
@@ -402,7 +413,7 @@ test('Stable executor may advance on unrelated main bytes while the frozen autho
       'scripts/framework-release-adapter-publication-github.ts',
       'scripts/framework-release-adapter-publication-latest.ts',
       'scripts/framework-release-adapter-publication-standard.ts',
-      ...criticalBlobPaths.filter((file) => file.startsWith('scripts/stable-release-dispatch-parts/')),
+      ...criticalBlobPaths.filter((file) => file.startsWith('scripts/stable-operation-control-parts/')),
     ]) {
       const file = path.join(root, relativePath);
       fs.writeFileSync(file, 'drifted implementation\n');
