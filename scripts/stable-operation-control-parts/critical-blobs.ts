@@ -52,10 +52,30 @@ const extractedReleaseDispatchGuardPaths = [
   'scripts/release-dispatch-guard-parts/nonce-guards.ts',
 ] as const;
 
-export const stableOperationCriticalBlobPaths = [
+const extractedStableReleaseDispatchPaths = [
+  'scripts/stable-release-dispatch-parts/types.ts',
+  'scripts/stable-release-dispatch-parts/artifact-retrieval.ts',
+  'scripts/stable-release-dispatch-parts/owner-run-reconciliation.ts',
+  'scripts/stable-release-dispatch-parts/plan-source-guards.ts',
+] as const;
+
+const extractedReleaseSourceGatePaths = [
+  'scripts/validate-release-source-gate-parts/types.ts',
+  'scripts/validate-release-source-gate-parts/namespace-evidence.ts',
+  'scripts/validate-release-source-gate-parts/environment.ts',
+  'scripts/validate-release-source-gate-parts/git-ref-status.ts',
+] as const;
+
+const preDispatchExtractionCriticalBlobPaths = [
   ...preExtractionStableOperationCriticalBlobPaths,
   ...extractedStableOperationControlPaths,
   ...extractedReleaseDispatchGuardPaths,
+] as const;
+
+export const stableOperationCriticalBlobPaths = [
+  ...preDispatchExtractionCriticalBlobPaths,
+  ...extractedStableReleaseDispatchPaths,
+  ...extractedReleaseSourceGatePaths,
 ] as const;
 
 export function normalizedCriticalBlobs(value: unknown): Record<string, string> {
@@ -74,6 +94,10 @@ export function normalizedCriticalBlobs(value: unknown): Record<string, string> 
   // Read already-issued controls so their signed artifacts and source evidence
   // remain recoverable. Current executor admission below requires the full set.
   const historicalPathSets = [
+    preDispatchExtractionCriticalBlobPaths,
+    preDispatchExtractionCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
+    preDispatchExtractionCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
+    [...preDispatchExtractionCriticalBlobPaths, ...extractedStableReleaseDispatchPaths],
     legacyStableOperationCriticalBlobPaths,
     legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
     legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
