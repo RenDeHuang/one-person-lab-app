@@ -91,4 +91,3 @@ export function needsExactly(job: Record<string, any>, expected: string[]): bool
   return Array.isArray(needs) && needs.length === expected.length &&
     expected.every((name, index) => needs[index] === name);
 }
-

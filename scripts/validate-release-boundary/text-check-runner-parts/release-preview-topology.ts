@@ -315,4 +315,3 @@ export function validateIndependentWebuiPreviewTopology(appRoot: string): number
   }
   return failures;
 }
-
