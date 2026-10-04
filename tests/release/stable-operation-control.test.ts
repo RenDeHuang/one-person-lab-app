@@ -14,6 +14,7 @@ import {
   decodeStableOperationAuthorityCarrier,
   encodeStableOperationAuthorityCarrier,
   stableOperationIdForFrozenCohort,
+  stableOperationCriticalBlobPaths,
   validateStableOperationAuthority,
   validateStableOperationAuthorityExecutorBinding,
   validateStableOperationConsumption,
@@ -26,21 +27,7 @@ const shellSha = '2'.repeat(40);
 const frameworkSha = '3'.repeat(40);
 const nonce = 'a'.repeat(32);
 const objectiveFingerprint = 'fix-all-five-stable-control-gaps-20260728';
-const criticalBlobPaths = [
-  '.github/workflows/release-stable.yml',
-  '.github/workflows/_release-bundle.yml',
-  '.github/workflows/_release-standard-publish.yml',
-  '.github/workflows/opl-first-run-vm.yml',
-  'contracts/app-release-channel.json',
-  'scripts/download-github-artifact.mjs',
-  'scripts/framework-release-adapter.ts',
-  'scripts/release-dispatch-guard.ts',
-  'scripts/stable-operation-control.ts',
-  'scripts/stable-release-dispatch.ts',
-  'scripts/stable-operation-publication-record.ts',
-  'scripts/stable-release-admission-manifest.ts',
-  'scripts/validate-release-source-gate.ts',
-];
+const criticalBlobPaths = [...stableOperationCriticalBlobPaths];
 const criticalBlobs = Object.fromEntries(
   criticalBlobPaths.map((file, index) => [
     file,
@@ -183,6 +170,17 @@ test('qualification repairs change the operation while legacy authority is read-
   assert.equal(validateStableOperationAuthority(legacy).authority_digest, legacy.authority_digest);
   assert.throws(() => validateStableOperationAuthorityExecutorBinding({
     authority: legacy, appRoot: '.', expectedActor: legacy.issuer, expectedExecutorSha: appSha,
+  }), /requires all critical workflow bindings/);
+});
+
+test('pre-extraction authority remains readable while executor admission requires implementation bytes', () => {
+  const priorBlobs = Object.fromEntries(Object.entries(criticalBlobs)
+    .filter(([file]) => !file.startsWith('scripts/framework-release-adapter-')));
+  assert.equal(Object.keys(priorBlobs).length, 13);
+  const prior = issuedAuthority({ criticalBlobs: priorBlobs });
+  assert.deepEqual(validateStableOperationAuthority(prior), prior);
+  assert.throws(() => validateStableOperationAuthorityExecutorBinding({
+    authority: prior, appRoot: '.', expectedActor: prior.issuer, expectedExecutorSha: appSha,
   }), /requires all critical workflow bindings/);
 });
 
@@ -374,6 +372,19 @@ test('Stable executor may advance on unrelated main bytes while the frozen autho
       }).cohort.app_sha,
       frozenAppSha,
     );
+
+    for (const implementation of [
+      'bundle', 'plan', 'publication', 'publication-admission', 'publication-full-addon',
+      'publication-github', 'publication-latest', 'publication-standard',
+    ]) {
+      const relativePath = `scripts/framework-release-adapter-${implementation}.ts`;
+      const file = path.join(root, relativePath);
+      fs.writeFileSync(file, 'drifted implementation\n');
+      assert.throws(() => validateStableOperationAuthorityExecutorBinding({
+        authority, appRoot: root, expectedActor: 'gaofeng21cn', expectedExecutorSha: executorSha,
+      }), /critical blob drifted/, relativePath);
+      fs.writeFileSync(file, `${relativePath}\n`);
+    }
 
     fs.writeFileSync(path.join(root, 'scripts', 'stable-operation-control.ts'), 'drifted\n');
     assert.throws(

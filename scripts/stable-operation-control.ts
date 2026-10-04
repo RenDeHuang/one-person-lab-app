@@ -19,7 +19,7 @@ const stableDesktopAdditionalPlatformIds = [
   'windows-x64',
 ] as const;
 const defaultStableDesktopAdditionalPlatformIds = ['linux-x64', 'windows-x64'] as const;
-export const stableOperationCriticalBlobPaths = [
+const legacyStableOperationCriticalBlobPaths = [
   '.github/workflows/release-stable.yml',
   '.github/workflows/_release-bundle.yml',
   '.github/workflows/_release-standard-publish.yml',
@@ -33,6 +33,18 @@ export const stableOperationCriticalBlobPaths = [
   'scripts/stable-operation-publication-record.ts',
   'scripts/stable-release-admission-manifest.ts',
   'scripts/validate-release-source-gate.ts',
+] as const;
+
+export const stableOperationCriticalBlobPaths = [
+  ...legacyStableOperationCriticalBlobPaths,
+  'scripts/framework-release-adapter-bundle.ts',
+  'scripts/framework-release-adapter-plan.ts',
+  'scripts/framework-release-adapter-publication.ts',
+  'scripts/framework-release-adapter-publication-admission.ts',
+  'scripts/framework-release-adapter-publication-full-addon.ts',
+  'scripts/framework-release-adapter-publication-github.ts',
+  'scripts/framework-release-adapter-publication-latest.ts',
+  'scripts/framework-release-adapter-publication-standard.ts',
 ] as const;
 
 export type StableOperationControl = {
@@ -231,6 +243,10 @@ function normalizedCriticalBlobs(value: unknown): Record<string, string> {
   // Read already-issued controls so their signed artifacts and source evidence
   // remain recoverable. Current executor admission below requires the full set.
   const historicalPathSets = [
+    legacyStableOperationCriticalBlobPaths,
+    legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
+    legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
+    legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs' && file !== '.github/workflows/opl-first-run-vm.yml'),
     stableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
     stableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
     stableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs' && file !== '.github/workflows/opl-first-run-vm.yml'),
