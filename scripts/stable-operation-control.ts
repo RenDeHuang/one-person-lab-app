@@ -35,7 +35,7 @@ const legacyStableOperationCriticalBlobPaths = [
   'scripts/validate-release-source-gate.ts',
 ] as const;
 
-export const stableOperationCriticalBlobPaths = [
+const preExtractionStableOperationCriticalBlobPaths = [
   ...legacyStableOperationCriticalBlobPaths,
   'scripts/framework-release-adapter-bundle.ts',
   'scripts/framework-release-adapter-plan.ts',
@@ -45,6 +45,18 @@ export const stableOperationCriticalBlobPaths = [
   'scripts/framework-release-adapter-publication-github.ts',
   'scripts/framework-release-adapter-publication-latest.ts',
   'scripts/framework-release-adapter-publication-standard.ts',
+] as const;
+
+const extractedStableReleaseDispatchPaths = [
+  'scripts/stable-release-dispatch-parts/types.ts',
+  'scripts/stable-release-dispatch-parts/artifact-retrieval.ts',
+  'scripts/stable-release-dispatch-parts/owner-run-reconciliation.ts',
+  'scripts/stable-release-dispatch-parts/plan-source-guards.ts',
+] as const;
+
+export const stableOperationCriticalBlobPaths = [
+  ...preExtractionStableOperationCriticalBlobPaths,
+  ...extractedStableReleaseDispatchPaths,
 ] as const;
 
 export type StableOperationControl = {
@@ -247,9 +259,17 @@ function normalizedCriticalBlobs(value: unknown): Record<string, string> {
     legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
     legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
     legacyStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs' && file !== '.github/workflows/opl-first-run-vm.yml'),
-    stableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
-    stableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
-    stableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs' && file !== '.github/workflows/opl-first-run-vm.yml'),
+    preExtractionStableOperationCriticalBlobPaths,
+    preExtractionStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts'),
+    preExtractionStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
+    preExtractionStableOperationCriticalBlobPaths.filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs' && file !== '.github/workflows/opl-first-run-vm.yml'),
+    [...preExtractionStableOperationCriticalBlobPaths, ...extractedStableReleaseDispatchPaths],
+    [...preExtractionStableOperationCriticalBlobPaths, ...extractedStableReleaseDispatchPaths]
+      .filter(file => file !== 'scripts/stable-release-dispatch.ts'),
+    [...preExtractionStableOperationCriticalBlobPaths, ...extractedStableReleaseDispatchPaths]
+      .filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
+    [...preExtractionStableOperationCriticalBlobPaths, ...extractedStableReleaseDispatchPaths]
+      .filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs' && file !== '.github/workflows/opl-first-run-vm.yml'),
   ];
   const legacy = historicalPathSets.some(paths => Object.keys(normalized).length === paths.length
     && paths.every(file => normalized[file] !== undefined));
