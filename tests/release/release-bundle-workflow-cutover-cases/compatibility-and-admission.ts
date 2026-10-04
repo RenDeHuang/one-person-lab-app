@@ -201,6 +201,10 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
   const standardSource = readWorkflow('_release-standard-publish.yml');
   const webuiSource = readWorkflow('_release-webui-carrier.yml');
   const adapterSource = readAdapter();
+  const bundleSource = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'framework-release-adapter-bundle.ts'),
+    'utf8',
+  );
   assert.deepEqual(workflow.jobs['standard-build'].needs, ['freeze', 'resolve-platform-matrix']);
   assert.equal(
     workflow.jobs['standard-build'].with.matrix,
@@ -296,9 +300,9 @@ test('Stable Standard publication binds one Desktop carrier without a retired Na
     'qualification_harness',
     'shell_webui_source',
   ]) {
-    assert.match(adapterSource, new RegExp(id));
+    assert.match(bundleSource, new RegExp(id));
   }
-  assert.doesNotMatch(adapterSource, /first_party_packages|framework_release_set:|release-set-manifest/);
+  assert.doesNotMatch(`${adapterSource}\n${bundleSource}`, /first_party_packages|framework_release_set:|release-set-manifest/);
   assert.equal((source.match(/oras manifest fetch --descriptor "\$\{carrier\}:latest-stable"/g) ?? []).length, 0);
   assert.doesNotMatch(source, /oras login|--password-stdin/);
   assert.doesNotMatch(source, /single_read_at_freeze_admission|--source-cutoff-observed-at/);
@@ -393,7 +397,18 @@ test('Standard moving pointers require exact Desktop readback and a protected cl
 test('Stable and Full publication consume one mutable-Standard attestation without repository setting control', () => {
   const standard = readWorkflow('_release-standard-publish.yml');
   const full = readWorkflow('_release-full-addon.yml');
-  const adapter = readAdapter();
+  const bundleSource = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'framework-release-adapter-bundle.ts'),
+    'utf8',
+  );
+  const admissionSource = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'framework-release-adapter-publication-admission.ts'),
+    'utf8',
+  );
+  const standardPublicationSource = fs.readFileSync(
+    path.join(process.cwd(), 'scripts', 'framework-release-adapter-publication-standard.ts'),
+    'utf8',
+  );
 
   assert.doesNotMatch(
     standard,
@@ -406,10 +421,10 @@ test('Stable and Full publication consume one mutable-Standard attestation witho
   );
   assert.match(full, /test "\$\{#standard_attestations\[@\]\}" -eq 1/);
   assert.match(full, /--standard-attestation "\$standard_attestation"/);
-  assert.match(adapter, /standardAttestationIdentity/);
-  assert.match(adapter, /Canonical Stable publication requires exactly one unified public attestation/);
-  assert.match(adapter, /assertCanonicalStandardPublicationBoundary/);
-  assert.match(adapter, /github_native_immutable_expected: false/);
+  assert.match(bundleSource, /standardAttestationIdentity/);
+  assert.match(admissionSource, /Canonical Stable publication requires exactly one unified public attestation/);
+  assert.match(admissionSource, /assertCanonicalStandardPublicationBoundary/);
+  assert.match(standardPublicationSource, /github_native_immutable_expected: false/);
   assert.match(full, /index\("stable-operation-publication-record\.json"\) \| not/);
   assert.doesNotMatch(full, /--publication-record|--pattern stable-operation-publication-record\.json/);
 });
