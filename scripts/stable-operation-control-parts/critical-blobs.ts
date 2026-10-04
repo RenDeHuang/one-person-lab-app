@@ -52,10 +52,18 @@ const extractedReleaseDispatchGuardPaths = [
   'scripts/release-dispatch-guard-parts/nonce-guards.ts',
 ] as const;
 
+const extractedStableReleaseDispatchPaths = [
+  'scripts/stable-release-dispatch-parts/types.ts',
+  'scripts/stable-release-dispatch-parts/artifact-retrieval.ts',
+  'scripts/stable-release-dispatch-parts/owner-run-reconciliation.ts',
+  'scripts/stable-release-dispatch-parts/plan-source-guards.ts',
+] as const;
+
 export const stableOperationCriticalBlobPaths = [
   ...preExtractionStableOperationCriticalBlobPaths,
   ...extractedStableOperationControlPaths,
   ...extractedReleaseDispatchGuardPaths,
+  ...extractedStableReleaseDispatchPaths,
 ] as const;
 
 export function normalizedCriticalBlobs(value: unknown): Record<string, string> {
@@ -86,6 +94,21 @@ export function normalizedCriticalBlobs(value: unknown): Record<string, string> 
       .filter(file => file !== 'scripts/stable-release-dispatch.ts'),
     [...preExtractionStableOperationCriticalBlobPaths, ...extractedStableOperationControlPaths]
       .filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
+    [
+      ...preExtractionStableOperationCriticalBlobPaths,
+      ...extractedStableOperationControlPaths,
+      ...extractedReleaseDispatchGuardPaths,
+    ],
+    [
+      ...preExtractionStableOperationCriticalBlobPaths,
+      ...extractedStableOperationControlPaths,
+      ...extractedReleaseDispatchGuardPaths,
+    ].filter(file => file !== 'scripts/stable-release-dispatch.ts'),
+    [
+      ...preExtractionStableOperationCriticalBlobPaths,
+      ...extractedStableOperationControlPaths,
+      ...extractedReleaseDispatchGuardPaths,
+    ].filter(file => file !== 'scripts/stable-release-dispatch.ts' && file !== 'scripts/download-github-artifact.mjs'),
   ];
   const legacy = historicalPathSets.some(paths => Object.keys(normalized).length === paths.length
     && paths.every(file => normalized[file] !== undefined));

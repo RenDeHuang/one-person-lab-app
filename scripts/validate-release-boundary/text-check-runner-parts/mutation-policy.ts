@@ -15,7 +15,9 @@ export function runReleaseBoundaryTextChecks(appRoot: string): number {
   let failures = 0;
 
   for (const check of releaseBoundaryChecksForProfile()) {
-    const absolutePath = path.join(appRoot, check.file);
+    const sourcePaths = check.files ?? [check.file];
+    const absolutePaths = sourcePaths.map((sourcePath) => path.join(appRoot, sourcePath));
+    const absolutePath = absolutePaths[0]!;
     if (check.retired) {
       if (fs.existsSync(absolutePath)) {
         console.error(`FAIL ${check.id}: ${check.file} is retired and must not exist`);
@@ -23,12 +25,15 @@ export function runReleaseBoundaryTextChecks(appRoot: string): number {
       }
       continue;
     }
-    if (!fs.existsSync(absolutePath)) {
-      console.error(`FAIL ${check.id}: missing ${check.file}`);
-      failures += 1;
+    const missingPaths = sourcePaths.filter((_, index) => !fs.existsSync(absolutePaths[index]!));
+    if (missingPaths.length > 0) {
+      for (const sourcePath of missingPaths) {
+        console.error(`FAIL ${check.id}: missing ${sourcePath}`);
+      }
+      failures += missingPaths.length;
       continue;
     }
-    const text = fs.readFileSync(absolutePath, 'utf8');
+    const text = absolutePaths.map((sourcePath) => fs.readFileSync(sourcePath, 'utf8')).join('\n');
     for (const needle of check.required ?? []) {
       if (!text.includes(needle)) {
         console.error(`FAIL ${check.id}: ${check.file} missing ${needle}`);

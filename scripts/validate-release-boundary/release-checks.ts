@@ -8,6 +8,7 @@ const shellPaths = resolveActiveShellPaths();
 export type ReleaseBoundaryCheck = {
   id: string;
   file: string;
+  files?: string[];
   required?: string[];
   forbidden?: string[];
   retired?: boolean;
@@ -654,6 +655,13 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   {
     id: "release_dispatch_guard",
     file: "scripts/release-dispatch-guard.ts",
+    files: [
+      "scripts/release-dispatch-guard.ts",
+      "scripts/release-dispatch-guard-parts/types.ts",
+      "scripts/release-dispatch-guard-parts/owner-reads.ts",
+      "scripts/release-dispatch-guard-parts/wire-refs.ts",
+      "scripts/release-dispatch-guard-parts/nonce-guards.ts",
+    ],
     required: [
       "opl_release_dispatch_guard.v1",
       "['ls-remote'",

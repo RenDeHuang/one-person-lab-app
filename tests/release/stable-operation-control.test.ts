@@ -168,6 +168,7 @@ test('qualification repairs change the operation while legacy authority is read-
       file.startsWith('scripts/framework-release-adapter-')
       || file.startsWith('scripts/stable-operation-control-parts/')
       || file.startsWith('scripts/release-dispatch-guard-parts/')
+      || file.startsWith('scripts/stable-release-dispatch-parts/')
     ) delete legacyBlobs[file];
   }
   delete legacyBlobs['.github/workflows/opl-first-run-vm.yml'];
@@ -186,6 +187,7 @@ test('pre-extraction authority remains readable while executor admission require
       !file.startsWith('scripts/framework-release-adapter-')
       && !file.startsWith('scripts/stable-operation-control-parts/')
       && !file.startsWith('scripts/release-dispatch-guard-parts/')
+      && !file.startsWith('scripts/stable-release-dispatch-parts/')
     )));
   assert.equal(Object.keys(priorBlobs).length, 13);
   const prior = issuedAuthority({ criticalBlobs: priorBlobs });
@@ -200,6 +202,7 @@ test('the complete pre-leaf 21-path authority remains legacy-readable but cannot
     .filter(([file]) => (
       !file.startsWith('scripts/stable-operation-control-parts/')
       && !file.startsWith('scripts/release-dispatch-guard-parts/')
+      && !file.startsWith('scripts/stable-release-dispatch-parts/')
     )));
   assert.equal(Object.keys(priorCurrentBlobs).length, 21);
   const prior = issuedAuthority({ criticalBlobs: priorCurrentBlobs });
@@ -217,6 +220,7 @@ test('artifact transport repairs change operation identity and preserve old evid
     if (
       file.startsWith('scripts/stable-operation-control-parts/')
       || file.startsWith('scripts/release-dispatch-guard-parts/')
+      || file.startsWith('scripts/stable-release-dispatch-parts/')
     ) delete priorBlobs[file];
   }
   delete priorBlobs['scripts/download-github-artifact.mjs'];
@@ -414,6 +418,8 @@ test('Stable executor may advance on unrelated main bytes while the frozen autho
       'scripts/framework-release-adapter-publication-latest.ts',
       'scripts/framework-release-adapter-publication-standard.ts',
       ...criticalBlobPaths.filter((file) => file.startsWith('scripts/stable-operation-control-parts/')),
+      ...criticalBlobPaths.filter((file) => file.startsWith('scripts/release-dispatch-guard-parts/')),
+      ...criticalBlobPaths.filter((file) => file.startsWith('scripts/stable-release-dispatch-parts/')),
     ]) {
       const file = path.join(root, relativePath);
       fs.writeFileSync(file, 'drifted implementation\n');
