@@ -163,6 +163,13 @@ test('qualification repairs change the operation while legacy authority is read-
   const changed = { ...criticalBlobs, '.github/workflows/opl-first-run-vm.yml': `sha256:${'f'.repeat(64)}` };
   assert.notEqual(issuedAuthority({ criticalBlobs: changed }).operation_id, operationId);
   const legacyBlobs = { ...criticalBlobs };
+  for (const file of Object.keys(legacyBlobs)) {
+    if (
+      file.startsWith('scripts/framework-release-adapter-')
+      || file.startsWith('scripts/stable-operation-control-parts/')
+      || file.startsWith('scripts/release-dispatch-guard-parts/')
+    ) delete legacyBlobs[file];
+  }
   delete legacyBlobs['.github/workflows/opl-first-run-vm.yml'];
   delete legacyBlobs['scripts/download-github-artifact.mjs'];
   delete legacyBlobs['scripts/stable-release-dispatch.ts'];
@@ -175,10 +182,28 @@ test('qualification repairs change the operation while legacy authority is read-
 
 test('pre-extraction authority remains readable while executor admission requires implementation bytes', () => {
   const priorBlobs = Object.fromEntries(Object.entries(criticalBlobs)
-    .filter(([file]) => !file.startsWith('scripts/framework-release-adapter-')));
+    .filter(([file]) => (
+      !file.startsWith('scripts/framework-release-adapter-')
+      && !file.startsWith('scripts/stable-operation-control-parts/')
+      && !file.startsWith('scripts/release-dispatch-guard-parts/')
+    )));
   assert.equal(Object.keys(priorBlobs).length, 13);
   const prior = issuedAuthority({ criticalBlobs: priorBlobs });
   assert.deepEqual(validateStableOperationAuthority(prior), prior);
+  assert.throws(() => validateStableOperationAuthorityExecutorBinding({
+    authority: prior, appRoot: '.', expectedActor: prior.issuer, expectedExecutorSha: appSha,
+  }), /requires all critical workflow bindings/);
+});
+
+test('the complete pre-leaf 21-path authority remains legacy-readable but cannot run as current', () => {
+  const priorCurrentBlobs = Object.fromEntries(Object.entries(criticalBlobs)
+    .filter(([file]) => (
+      !file.startsWith('scripts/stable-operation-control-parts/')
+      && !file.startsWith('scripts/release-dispatch-guard-parts/')
+    )));
+  assert.equal(Object.keys(priorCurrentBlobs).length, 21);
+  const prior = issuedAuthority({ criticalBlobs: priorCurrentBlobs });
+  assert.equal(validateStableOperationAuthority(prior).authority_digest, prior.authority_digest);
   assert.throws(() => validateStableOperationAuthorityExecutorBinding({
     authority: prior, appRoot: '.', expectedActor: prior.issuer, expectedExecutorSha: appSha,
   }), /requires all critical workflow bindings/);
@@ -188,6 +213,12 @@ test('artifact transport repairs change operation identity and preserve old evid
   const changed = { ...criticalBlobs, 'scripts/download-github-artifact.mjs': `sha256:${'f'.repeat(64)}` };
   assert.notEqual(stableOperationIdForFrozenCohort({ objectiveFingerprint, appSha, shellSha, frameworkSha, criticalBlobs: changed }), operationId);
   const priorBlobs = { ...criticalBlobs };
+  for (const file of Object.keys(priorBlobs)) {
+    if (
+      file.startsWith('scripts/stable-operation-control-parts/')
+      || file.startsWith('scripts/release-dispatch-guard-parts/')
+    ) delete priorBlobs[file];
+  }
   delete priorBlobs['scripts/download-github-artifact.mjs'];
   delete priorBlobs['scripts/stable-release-dispatch.ts'];
   const prior = issuedAuthority({ criticalBlobs: priorBlobs });
@@ -373,11 +404,17 @@ test('Stable executor may advance on unrelated main bytes while the frozen autho
       frozenAppSha,
     );
 
-    for (const implementation of [
-      'bundle', 'plan', 'publication', 'publication-admission', 'publication-full-addon',
-      'publication-github', 'publication-latest', 'publication-standard',
+    for (const relativePath of [
+      'scripts/framework-release-adapter-bundle.ts',
+      'scripts/framework-release-adapter-plan.ts',
+      'scripts/framework-release-adapter-publication.ts',
+      'scripts/framework-release-adapter-publication-admission.ts',
+      'scripts/framework-release-adapter-publication-full-addon.ts',
+      'scripts/framework-release-adapter-publication-github.ts',
+      'scripts/framework-release-adapter-publication-latest.ts',
+      'scripts/framework-release-adapter-publication-standard.ts',
+      ...criticalBlobPaths.filter((file) => file.startsWith('scripts/stable-operation-control-parts/')),
     ]) {
-      const relativePath = `scripts/framework-release-adapter-${implementation}.ts`;
       const file = path.join(root, relativePath);
       fs.writeFileSync(file, 'drifted implementation\n');
       assert.throws(() => validateStableOperationAuthorityExecutorBinding({
