@@ -1,194 +1,23 @@
 import { assertDeepEqualJson, assertIncludesAll } from '../assertions.ts';
 import { assertShellTextIncludesAll } from '../shell-implementation-helpers.ts';
 import { sameStringSet } from './string-set.ts';
+import {
+  exactUnknownMarkerFields,
+  frameworkReleaseAbiSha,
+  frameworkReleaseCommandForms,
+  frameworkReleaseCommands,
+  immutableOperationControlFields,
+  publisherReconcileAdmissionContract,
+  retiredReleasePackageScripts,
+  stableBusinessStageIds,
+  stableFailureFingerprintFields,
+  stableStageAxes,
+  standardLatestAdmissionContract,
+  standardPrePublicationAdmissionContract,
+  validationCanaryContract,
+} from './execution-contract-values.ts';
+import { assertRetiredReleaseControlPlaneAbsent } from './retired-control-plane-policy.ts';
 import type { ReleaseValidationProfile } from '../../validate-release-boundary/release-checks.ts';
-
-const retiredReleasePackageScripts = [
-  'release:stable',
-  'release:operator',
-  'release:publish',
-  'release:bundle',
-  'release:plan',
-  'release:preflight',
-  'release:cohort-lock',
-  'release:cohort-plan',
-  'release:closeout',
-  'release:cleanup-drafts',
-  'release:gate-reuse-plan',
-  'release:cohort-manifest',
-  'release:candidate-record',
-  'release:candidate-record:resolve-owner',
-  'release:candidate-record:validate',
-  'release:candidate-record:status',
-  'release:owner-candidate-record:verify',
-];
-const standardLatestAdmissionContract = {
-  validator: 'scripts/validate-standard-latest-admission.ts',
-  receipt_schema: 'opl_standard_latest_admission_receipt.v1',
-  required_status: 'passed',
-  latest_activation_admitted_required: true,
-  framework_latest_eligible_alone_is_sufficient: false,
-  hosted_publication_floor_schema: 'opl_standard_hosted_publication_floor.v1',
-  source_contract_build_preflight_required: 'passed',
-  remote_digest_readback_required: 'passed',
-  current_latest_readback_required: true,
-  updater_predecessor_receipts_allowed: false,
-  optional_certification_receipts_allowed: false,
-  publication_ancestor_counts: { self_hosted: 0, vm: 0, tart: 0 },
-  required_exact_identity_fields: [
-    'bundle_digest',
-    'candidate.zip.sha256',
-    'candidate.zip.size_bytes',
-    'candidate.dmg.sha256',
-    'candidate.dmg.size_bytes',
-  ],
-  homebrew_follower: {
-    workflow: '.github/workflows/release-stable-post-success-followups.yml',
-    operation: 'reconcile_homebrew_standard',
-    latest_receipt_value: null,
-    consumed_by_latest_admission: false,
-    failure_blocks_core_release_or_latest: false,
-  },
-  failure_mode: 'fail_closed_before_latest_patch',
-};
-const standardPrePublicationAdmissionContract = {
-  validator: 'scripts/validate-standard-publication-input.ts',
-  receipt_schema: 'opl_standard_pre_publication_admission_receipt.v1',
-  required_status: 'passed',
-  runs_before: 'publish-standard-nonlatest',
-  checks: [
-    'exact_component_manifest_identity_and_self_digest',
-    'exact_staged_standard_asset_set',
-    'staged_asset_digest_and_size_binding',
-    'regular_local_asset_presence_and_digest_readback',
-  ],
-  public_mutation_allowed: false,
-  does_not_replace: [
-    'remote_digest_readback',
-    'latest_admission',
-  ],
-  failure_mode: 'fail_closed_before_public_release_creation',
-};
-const publisherReconcileAdmissionContract = {
-  persistent_unknown_framework_receipt_required: true,
-  unknown_marker_schema: 'opl_release_bundle_unknown_outcome.v1',
-  fresh_framework_status_required: true,
-  framework_status_surface: 'release_bundle_status',
-  framework_status_marker_field: 'active_unknown_markers',
-  framework_status_reconcile_field: 'tracks.<track>.reconcile_required',
-  framework_status_reconcile_required_value: true,
-  exact_marker_match_fields: [
-    'bundle_digest',
-    'operation_id',
-    'operation_kind',
-    'stage_operation',
-    'publication_scope',
-    'track',
-    'remote_target',
-    'prior_mutation_attempt_id',
-  ],
-  app_may_infer_reconcile_required: false,
-  required_sequence: [
-    'persist_framework_unknown_outcome_marker',
-    'read_fresh_framework_status',
-    'require_exact_active_unknown_marker',
-    'bounded_read_only_remote_inspect',
-    'framework_exact_reconcile',
-  ],
-  active_marker_ordinary_mutation_allowed: false,
-  app_local_reconcile_loop_allowed: false,
-  deadline_elapsed_allows_bounded_read_only_inspect: true,
-  deadline_elapsed_allows_framework_reconcile: true,
-  deadline_elapsed_reconcile_result: 'late_observation',
-  deadline_elapsed_reconcile_may_advance_stage: false,
-  create_upload_latest_or_homebrew_retry_allowed: false,
-};
-const frameworkReleaseAbiSha = '97510b268300b1996f308e7a4110205cd703b95e';
-const frameworkReleaseCommands = [
-  'freeze',
-  'operation admit',
-  'build',
-  'checkpoint export',
-  'checkpoint import',
-  'verify',
-  'publish',
-  'reconcile',
-  'status',
-  'events',
-  'consumer envelope',
-];
-const frameworkReleaseCommandForms = [
-  'opl release freeze --request <request.json> [--source-root <directory>] [--store <directory>]',
-  'opl release operation admit --bundle <sha256:digest> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
-  'opl release build --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
-  'opl release checkpoint export --bundle <sha256:digest> --output <directory> [--store <directory>]',
-  'opl release checkpoint import --checkpoint <checkpoint.json> [--store <directory>]',
-  'opl release verify --bundle <sha256:digest> --qualification-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--track standard|full] [--store <directory>]',
-  'opl release publish --bundle <sha256:digest> --executor-receipt <remote-inspect.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
-  'opl release reconcile --bundle <sha256:digest> --executor-receipt <receipt.json> --operation <standard|resume_standard|append_full> --operation-id <id> --operation-started-at <timestamp> --operation-deadline-at <timestamp> [--store <directory>]',
-  'opl release status --bundle <sha256:digest> [--store <directory>]',
-  'opl release events --bundle <sha256:digest> [--after-event <sha256:event>] [--store <directory>]',
-  'opl release consumer envelope --bundle <sha256:digest> --track <standard|full> [--source-checkpoint-run-id <run-id>] [--store <directory>]',
-];
-const immutableOperationControlFields = [
-  'control_digest',
-  'bundle_digest',
-  'operation_id',
-  'operation_kind',
-  'track',
-  'operation_started_at',
-  'operation_deadline_at',
-];
-const exactUnknownMarkerFields = [
-  'bundle_digest',
-  'operation_id',
-  'operation_kind',
-  'stage_operation',
-  'publication_scope',
-  'track',
-  'remote_target',
-  'prior_mutation_attempt_id',
-];
-const stableBusinessStageIds = [
-  'admission_and_circuit_breaker',
-  'source_contract_preflight',
-  'credential_runner_and_custody_preflight',
-  'standard_signed_notarized_build_and_seal',
-  'clean_vm_exact_artifact_qualification',
-  'updater_exact_artifact_qualification',
-  'standard_publication',
-  'homebrew_exact_artifact_install',
-  'latest_pointer_activation',
-  'remote_digest_and_clean_user_installed_readback',
-  'terminal_fold_and_idempotent_cleanup',
-];
-const stableStageAxes = ['qualification_product', 'evidence', 'transport', 'cleanup'];
-const stableFailureFingerprintFields = [
-  'cohort',
-  'stage_id',
-  'reason_code',
-  'artifact_digest_or_input_digest',
-  'environment_receipt_digest',
-];
-const validationCanaryContract = {
-  workflow: '.github/workflows/release-bundle-canary.yml',
-  mode: 'validation_only',
-  triggers: ['daily_schedule', 'workflow_dispatch'],
-  local_contract_checks: [
-    'framework_checkpoint_roundtrip',
-    'release_bundle_workflow_cutover',
-    'release_control_plane_boundary',
-  ],
-  reusable_release_workflow_jobs_allowed: false,
-  permissions: { contents: 'read', actions: 'read' },
-  secrets_allowed: false,
-  build_or_vm_execution_allowed: false,
-  external_write_allowed: false,
-  stable_mutation_allowed: false,
-  publication_allowed: false,
-  uses_stable_mutation_mutex: false,
-  synthetic_identity_may_authorize_release: false,
-};
 function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationProfile) {
   const control = releaseChannel?.release_bundle_control_plane;
   const framework = control?.framework_authority;
@@ -1132,50 +961,6 @@ function validateReleaseExecutionPolicy(releaseChannel, shellPaths, validationPr
   ) {
     throw new Error('Release platform matrix must keep only macOS ARM64 Stable-blocking while platform followers and the same-tag Full module remain non-blocking');
   }
-}
-
-function assertRetiredReleaseControlPlaneAbsent(releaseChannel) {
-  const forbiddenKeys = new Set([
-    'stable_release_state_machine',
-    'cohort_prepare',
-    'release_operator',
-    'release_monitor',
-    'gate_reuse',
-    'publish_resume',
-    'post_owner_receipt_fast_path',
-    'broker_authority_gate',
-    'promotion_saga',
-    'attempt_ledger',
-    'signed_mutation_authority',
-  ]);
-  const forbiddenWorkflowValues = new Set([
-    '.github/workflows/desktop-release.yml',
-    '.github/workflows/desktop-release-promote.yml',
-    '.github/workflows/desktop-release-full-addon.yml',
-  ]);
-
-  const visit = (value, path = 'release_channel') => {
-    if (Array.isArray(value)) {
-      value.forEach((entry, index) => visit(entry, `${path}[${index}]`));
-      return;
-    }
-    if (!value || typeof value !== 'object') return;
-    for (const [key, entry] of Object.entries(value)) {
-      const entryPath = `${path}.${key}`;
-      if (forbiddenKeys.has(key)) {
-        throw new Error(`Retired release control-plane field remains live at ${entryPath}`);
-      }
-      if (typeof entry === 'string' && forbiddenWorkflowValues.has(entry)) {
-        throw new Error(`Retired release writer workflow remains live at ${entryPath}`);
-      }
-      if (entry === 'release_operator_plan') {
-        throw new Error(`Retired release operator admission remains live at ${entryPath}`);
-      }
-      visit(entry, entryPath);
-    }
-  };
-
-  visit(releaseChannel);
 }
 
 export { validateReleaseExecutionPolicy };
