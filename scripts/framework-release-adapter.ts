@@ -22,13 +22,6 @@ import {
 import { releaseOperationDeadlineTimestamp } from './release-operation-deadline.ts';
 import { writeJson, type JsonRecord } from './framework-release-adapter-bundle.ts';
 
-// Release-boundary source contracts retain these Bundle-owned identity markers at the facade.
-// app_source, base_image, codex_cli, dockerfile, framework_seed, qualification_harness,
-// shell_webui_source, and standardAttestationIdentity are implemented by the extracted parts.
-// Canonical Stable publication requires exactly one unified public attestation.
-// assertCanonicalStandardPublicationBoundary remains the canonical Stable boundary.
-// Rehearsal output preserves github_native_immutable_expected: false.
-
 export {
   activateLatest,
   activatePublishedLatestPointer,
