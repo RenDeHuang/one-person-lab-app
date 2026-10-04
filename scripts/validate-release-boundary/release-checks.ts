@@ -8,6 +8,7 @@ const shellPaths = resolveActiveShellPaths();
 export type ReleaseBoundaryCheck = {
   id: string;
   file: string;
+  files?: string[];
   required?: string[];
   forbidden?: string[];
   retired?: boolean;
@@ -745,6 +746,13 @@ const legacyReleaseBoundaryChecks: ReleaseBoundaryCheck[] = [
   {
     id: "release_asset_local_authorization_verifiers",
     file: "scripts/verify-remote-release-assets.ts",
+    files: [
+      "scripts/verify-remote-release-assets.ts",
+      "scripts/verify-remote-release-assets-parts/release-assets.ts",
+      "scripts/verify-remote-release-assets-parts/standard-trust.ts",
+      "scripts/verify-remote-release-assets-parts/full-trust.ts",
+      "scripts/verify-remote-release-assets-parts/carrier-boundary.ts",
+    ],
     required: [
       "opl-release-attestation.json",
       "full-local-authorization-policy.json",

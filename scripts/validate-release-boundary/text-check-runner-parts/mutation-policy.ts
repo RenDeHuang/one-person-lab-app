@@ -15,29 +15,35 @@ export function runReleaseBoundaryTextChecks(appRoot: string): number {
   let failures = 0;
 
   for (const check of releaseBoundaryChecksForProfile()) {
-    const absolutePath = path.join(appRoot, check.file);
+    const files = check.files ?? [check.file];
     if (check.retired) {
-      if (fs.existsSync(absolutePath)) {
+      if (files.some((file) => fs.existsSync(path.join(appRoot, file)))) {
         console.error(`FAIL ${check.id}: ${check.file} is retired and must not exist`);
         failures += 1;
       }
       continue;
     }
-    if (!fs.existsSync(absolutePath)) {
-      console.error(`FAIL ${check.id}: missing ${check.file}`);
-      failures += 1;
+    const missingFiles = files.filter((file) => !fs.existsSync(path.join(appRoot, file)));
+    if (missingFiles.length > 0) {
+      for (const file of missingFiles) {
+        console.error(`FAIL ${check.id}: missing ${file}`);
+        failures += 1;
+      }
       continue;
     }
-    const text = fs.readFileSync(absolutePath, 'utf8');
+    const text = files
+      .map((file) => fs.readFileSync(path.join(appRoot, file), 'utf8'))
+      .join('\n');
+    const displayFiles = files.join(', ');
     for (const needle of check.required ?? []) {
       if (!text.includes(needle)) {
-        console.error(`FAIL ${check.id}: ${check.file} missing ${needle}`);
+        console.error(`FAIL ${check.id}: ${displayFiles} missing ${needle}`);
         failures += 1;
       }
     }
     for (const needle of check.forbidden ?? []) {
       if (text.includes(needle)) {
-        console.error(`FAIL ${check.id}: ${check.file} still contains ${needle}`);
+        console.error(`FAIL ${check.id}: ${displayFiles} still contains ${needle}`);
         failures += 1;
       }
     }
