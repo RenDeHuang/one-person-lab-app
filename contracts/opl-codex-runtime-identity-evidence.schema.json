@@ -19,8 +19,8 @@
         "policy_owner",
         "runtime_identity_producer",
         "carrier",
-        "aioncore_modified",
-        "aioncore_native_readback",
+        "retired_aionui_dependency",
+        "studio_native_readback",
         "exact_identity_may_gate_install_or_runtime",
         "claim_scope"
       ],
@@ -29,22 +29,22 @@
           "const": "one-person-lab-app"
         },
         "runtime_identity_producer": {
-          "const": "gaofeng21cn/opl-aion-shell"
+          "const": "gaofeng21cn/opl-studio"
         },
         "carrier": {
-          "const": "aioncore_managed_resources_projection"
+          "const": "studio_native_external_binary"
         },
-        "aioncore_modified": {
+        "retired_aionui_dependency": {
           "const": false
         },
-        "aioncore_native_readback": {
-          "const": false
+        "studio_native_readback": {
+          "const": true
         },
         "exact_identity_may_gate_install_or_runtime": {
           "const": false
         },
         "claim_scope": {
-          "const": "opl_controlled_input_and_successful_handshake_without_aioncore_native_readback"
+          "const": "opl_controlled_input_and_successful_handshake_with_studio_native_external_binary"
         }
       }
     },
@@ -170,22 +170,23 @@
           "additionalProperties": false,
           "required": [
             "kind",
-            "producer_manifest_sha256",
-            "projection_manifest_sha256",
-            "aioncore_native_readback"
+            "external_binary_sha256",
+            "external_binary_path",
+            "studio_native_readback"
           ],
           "properties": {
             "kind": {
-              "const": "aioncore_managed_resources_projection"
+              "const": "studio_native_external_binary"
             },
-            "producer_manifest_sha256": {
+            "external_binary_sha256": {
               "$ref": "#/$defs/digest"
             },
-            "projection_manifest_sha256": {
-              "$ref": "#/$defs/digest"
+            "external_binary_path": {
+              "type": "string",
+              "minLength": 1
             },
-            "aioncore_native_readback": {
-              "const": false
+            "studio_native_readback": {
+              "const": true
             }
           }
         }
@@ -229,7 +230,7 @@
         "artifact",
         "managed_candidate",
         "direct_app_server",
-        "aioncore_acp",
+        "studio_native_app_server",
         "identity_comparison",
         "typed_error_probes"
       ],
@@ -341,29 +342,29 @@
             }
           }
         },
-        "aioncore_acp": {
+        "studio_native_app_server": {
           "type": "object",
           "additionalProperties": false,
           "required": [
             "observation_mode",
             "native_readback",
-            "managed_candidate_count",
+            "resolved_candidate_count",
             "handshake",
             "identity",
             "evidence_refs"
           ],
           "properties": {
             "observation_mode": {
-              "const": "unique_managed_candidate_inherited_environment_and_conversation_handshake"
+              "const": "resolved_external_binary_and_app_server_handshake"
             },
             "native_readback": {
-              "const": false
+              "const": true
             },
-            "managed_candidate_count": {
+            "resolved_candidate_count": {
               "const": 1
             },
             "handshake": {
-              "const": "ordinary_conversation_real_response_passed"
+              "const": "initialize_passed"
             },
             "identity": {
               "$ref": "#/$defs/identity"
@@ -396,7 +397,7 @@
               "const": "matched"
             },
             "claim_scope": {
-              "const": "opl_controlled_input_and_successful_handshake_without_aioncore_native_readback"
+              "const": "opl_controlled_input_and_successful_handshake_with_studio_native_external_binary"
             },
             "may_gate_install_or_runtime": {
               "const": false

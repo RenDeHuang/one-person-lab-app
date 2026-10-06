@@ -344,35 +344,10 @@ export function writeFullRemoteAssets(outDir, version) {
     full_package_boundary: {
       contains_opl_full_runtime: true,
       contains_shell_runtime: carrier.shellRuntimeRequired,
-      aioncore_codex_carrier_present: carrier.aioncoreRequired,
-      aioncore_codex_only_projection_present: carrier.aioncoreRequired,
-      aioncore_claude_payload_absent: true,
-      aioncore_codex_only_projection_audit: carrier.aioncoreRequired ? {
-        schema: "opl_aioncore_codex_only_projection_audit.v1",
-        runtime_count: 1,
-        runtimes: [{
-          runtime_key: "darwin-arm64",
-          manifest_path:
-            "Contents/Resources/bundled-aioncore/darwin-arm64/managed-resources/manifest.json",
-          projection_valid: true,
-          cli_names: ["codex"],
-          producer_manifest_sha256: "a".repeat(64),
-        }],
-        required_absence_checks: [
-          "managed_claude_subtree",
-          "claude_executable_or_symlink",
-          "anthropic_package_or_archive",
-          "claude_distribution_cache_entry",
-          "raw_producer_manifest",
-        ].map((id) => ({
-          id,
-          matches: [],
-          expected_match_count: 0,
-          match_count: 0,
-        })),
-        projection_present: true,
-        claude_payload_absent: true,
-      } : {
+      native_codex_external_carrier_present: true,
+      native_codex_embedded_payload_present: false,
+      claude_payload_absent: true,
+      codex_carrier_audit: {
         schema: 'opl_codex_native_carrier_audit.v1',
         runtime_count: 0,
         runtimes: [],
@@ -394,11 +369,11 @@ export function writeFullRemoteAssets(outDir, version) {
         exists: true,
         size_bytes: 128,
       },
-      aionui_bundled_runtime: {
-        path: "Contents/Resources/bundled-aioncore",
-        owner: "active_shell",
-        exists: carrier.aioncoreRequired,
-        size_bytes: 256,
+      studio_shell_runtime: {
+        path: "Contents/Resources/opl-studio-runtime",
+        owner: "gaofeng21cn/opl-studio",
+        exists: false,
+        size_bytes: 0,
       },
       app_asar: { path: "Contents/Resources/app.asar", owner: "active_shell", exists: true, size_bytes: 64 },
       electron_framework: {

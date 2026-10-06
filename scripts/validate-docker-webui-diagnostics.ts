@@ -202,7 +202,7 @@ function extractFirstJsonValue(text: string): string | null {
 function validateComposeVolumeMapping(composeText: string) {
   const missingMounts: string[] = [];
   const requiredMounts = ['host_data_dir -> /data', 'host_projects_dir -> /projects'];
-  if (!/AIONUI_DATA_DIR:\s*\/data\b/.test(composeText) || !/-\s*["']?.+:\/data["']?\s*$/m.test(composeText)) {
+  if (!/OPL_DATA_DIR:\s*\/data\b/.test(composeText) || !/-\s*["']?.+:\/data["']?\s*$/m.test(composeText)) {
     missingMounts.push('host_data_dir -> /data');
   }
   if (!/OPL_PROJECTS_DIR:\s*\/projects\b/.test(composeText) || !/-\s*["']?.+:\/projects["']?\s*$/m.test(composeText)) {

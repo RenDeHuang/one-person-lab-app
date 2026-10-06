@@ -516,29 +516,29 @@ test('Guid Home page state admits dynamic Agent identities while retaining direc
   );
 });
 
-test('active AionUI keeps Runtime status in primary navigation without expanding Native or release gates', () => {
+test('active Studio keeps Runtime status in primary navigation without expanding Native or release gates', () => {
   const installExposure = readJson('contracts/app-install-exposure-policy.json');
   const profile = structuredClone(readJson('contracts/app-product-profile.json'));
-  const navigation = profile.gui.home.home_layout.active_aionui_primary_navigation;
+  const navigation = profile.gui.home.home_layout.active_studio_primary_navigation;
   assert.deepStrictEqual(navigation.ordered_entry_ids, ['new_task', 'runtime', 'scheduled_tasks', 'archived']);
   assert.equal(navigation.runtime_entry.label_i18n['zh-CN'], '运行状态');
   assert.equal(navigation.runtime_entry.route, '/runtime');
   assert.equal(navigation.runtime_entry.keyboard_reachable, true);
   assert.equal(navigation.runtime_entry.home_content_effect, 'navigation_only_no_dashboard');
 
-  profile.gui.home.home_layout.active_aionui_primary_navigation.ordered_entry_ids = [
+  profile.gui.home.home_layout.active_studio_primary_navigation.ordered_entry_ids = [
     'new_task',
     'scheduled_tasks',
     'archived',
   ];
   assert.throws(
     () => validateProductProfile(profile, installExposure),
-    /Runtime status in the active AionUI primary navigation/,
+    /Runtime status in the active Studio primary navigation/,
   );
 
   const matrix = structuredClone(readJson('contracts/app-page-state-matrix.json'));
   matrix.pages.find((page: any) => page.id === 'guid_home').home_view_model.home_layout
-    .active_aionui_primary_navigation.runtime_entry.keyboard_reachable = false;
+    .active_studio_primary_navigation.runtime_entry.keyboard_reachable = false;
   assert.throws(() => validatePrimaryInteractionPages(matrix), /Guid home page layout/);
 });
 

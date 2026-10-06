@@ -12,24 +12,23 @@ export function validateReleaseFullFirstInstallPayloads(releaseChannel) {
 
 function validateReleaseFullCodexCliPayload(codexCli) {
   if (
-    codexCli?.compatibility_mode !== 'shell_carrier_exact_manifest_binary' ||
+    codexCli?.compatibility_mode !== 'studio_native_exact_external_binary' ||
     codexCli?.carrier_contract_ref !== 'contracts/app-shell-adapter.json#codex_executable_contract' ||
     codexCli?.resolver_env !== 'OPL_CODEX_BIN' ||
-    codexCli?.version_source !== 'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli' ||
-    codexCli?.projection_schema !== 'opl_aioncore_managed_resources_projection.v1' ||
-    codexCli?.producer_schema_version !== 2 ||
-    codexCli?.aioncore_required !== true ||
+    codexCli?.version_source !== 'contracts/shell-adapters/opl-studio.json#qualification_external_carrier' ||
+    codexCli?.projection_schema !== 'opl_codex_native_external_binary.v1' ||
+    codexCli?.producer_schema_version !== 1 ||
+    codexCli?.aioncore_required !== false ||
     codexCli?.framework_managed_payload_in_full_runtime_allowed !== false ||
-    !/bundled-aioncore managed-resources OPL-composed Codex-only projection/.test(codexCli?.verification ?? '') ||
-    !/official npm platform package source/.test(codexCli?.verification ?? '') ||
+    !/active Studio shell must resolve one exact external @openai\/codex platform binary/.test(codexCli?.verification ?? '') ||
     !/prove Claude absent/.test(codexCli?.verification ?? '') ||
     !/forbidden duplicate paths absent/.test(codexCli?.verification ?? '')
   ) {
-    throw new Error('Release channel Full Codex CLI must use the Shell-bundled AionCore carrier without a Framework duplicate');
+    throw new Error('Release channel Full Codex CLI must use the Studio native external carrier without a Framework duplicate');
   }
   assertDeepEqualJson(
     codexCli.preferred_sources,
-    ['shell_opl_composed_managed_resources_projection_v1'],
+    ['studio_opl_codex_native_external_binary_v1'],
     'Release channel Codex CLI preferred sources',
   );
   assertDeepEqualJson(

@@ -83,7 +83,7 @@ test('Docker/WebUI installer dry-run generates the compose-only startup plan', (
     /pull_policy: always/,
     /"127\.0\.0\.1:3917:3000"/,
     /AIONUI_ALLOW_REMOTE: "true"/,
-    /AIONUI_DATA_DIR: \/data/,
+    /OPL_DATA_DIR: \/data/,
     /OPL_PROJECTS_DIR: \/projects/,
     new RegExp(`${escapedHome}/data-dir:/data`),
     new RegExp(`${escapedHome}/projects-dir:/projects`),

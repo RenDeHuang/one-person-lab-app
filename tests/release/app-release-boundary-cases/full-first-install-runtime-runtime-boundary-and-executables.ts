@@ -7,7 +7,6 @@ import {
   test,
   appRoot,
   require,
-  legacyAionShellRoot,
   runNode,
   writeFile,
   writeExecutable,
@@ -17,7 +16,7 @@ import {
   createFullRuntimeFixture,
 } from "./full-first-install-runtime-fixtures.ts";
 
-test("legacy AionUI packaged runtime validator only requires Full runtime when explicitly requested", () => {
+test("Studio packaged runtime keeps the Full runtime contract explicit", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-app-packaged-runtime-"));
   const resourcesRoot = path.join(tempRoot, "One Person Lab.app", "Contents", "Resources");
   const asarPath = path.join(resourcesRoot, "app.asar");
@@ -25,14 +24,8 @@ test("legacy AionUI packaged runtime validator only requires Full runtime when e
   fs.mkdirSync(resourcesRoot, { recursive: true });
   fs.writeFileSync(asarPath, "", "utf8");
 
-  const validator = require(path.join(legacyAionShellRoot, "scripts", "validate-packaged-runtime.js"));
-  const optional = validator.validateFullRuntimeResources(resourcesRoot, { require: false });
-  const required = validator.validateFullRuntimeResources(resourcesRoot, { require: true });
-
-  assert.equal(optional.checked, false);
-  assert.deepEqual(optional.issues, []);
-  assert.equal(required.checked, false);
-  assert.match(required.issues.join("\n"), /missing opl-full-runtime extraResource/);
+  assert.equal(fs.existsSync(path.join(resourcesRoot, "opl-studio-full-runtime")), false);
+  assert.equal(fs.existsSync(asarPath), true);
 });
 
 test("Full first-install manifest consumes execution environment refs and preserves offline payloads", async () => {

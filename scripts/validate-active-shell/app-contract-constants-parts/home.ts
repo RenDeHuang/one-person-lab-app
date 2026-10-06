@@ -4,8 +4,8 @@ export const homeActivityCenterForbiddenDisplays = [
   "quality verdict body",
   "provider implementation details",
 ];
-export const appOwnedActiveAionuiPrimaryNavigation = {
-  scope: "active_aionui_current_product_only",
+export const appOwnedActiveStudioPrimaryNavigation = {
+  scope: "active_opl_studio_current_product_only",
   ordered_entry_ids: ["new_task", "runtime", "scheduled_tasks", "archived"],
   runtime_entry: {
     route: "/runtime",
@@ -20,7 +20,7 @@ export const appOwnedActiveAionuiPrimaryNavigation = {
     narrow_drawer_behavior: "icon_and_label",
     keyboard_reachable: true,
     home_content_effect: "navigation_only_no_dashboard",
-    route_gate_boundary: "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime",
+    route_gate_boundary: "default_release_gate_requires_opl_studio_runtime",
   },
 };
 export const appOwnedOplStandardAgentMembershipPolicy = {
@@ -127,7 +127,7 @@ export const appOwnedHomeLayout = {
   projectless_conversation_supported: true,
   text_chat_without_workspace: "available",
   workspace_session_rail_default_state: "visible_wide_drawer_narrow",
-  active_aionui_primary_navigation: appOwnedActiveAionuiPrimaryNavigation,
+  active_studio_primary_navigation: appOwnedActiveStudioPrimaryNavigation,
   right_context_inspector_default_state: "collapsed",
   must_not_show: [
     "dashboard-first home",

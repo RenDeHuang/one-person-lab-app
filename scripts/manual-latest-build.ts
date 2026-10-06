@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,7 +15,6 @@ import {
 } from './release-version.ts';
 import {
   assertDevelopmentRepoSnapshotsUnchanged,
-  commandResult,
   deriveManualLocalAppIdentity,
   fileSha256,
   githubApi,
@@ -48,15 +46,6 @@ const OWNER_REPOS = {
 } as const;
 
 type Mode = 'local-app' | 'full-dmg';
-
-const MANUAL_RUNTIME_KEY = 'darwin-arm64';
-const MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS = [
-  'cli/claude',
-  'acp',
-  'node_modules/@anthropic-ai/claude-code',
-  'node_modules/claude-code',
-  'claude',
-];
 
 type ShellBuildProjectionSnapshot = Array<{
   path: string;
@@ -94,409 +83,13 @@ export function restoreShellBuildProjection(snapshot: ShellBuildProjectionSnapsh
   }
 }
 
-function requiredString(value: unknown, label: string) {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`AionCore managed Codex binding is missing ${label}`);
-  }
-  return value.trim();
-}
-
-function requiredObject(value: unknown, label: string): Record<string, any> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`AionCore managed Codex binding is missing ${label}`);
-  }
-  return value as Record<string, any>;
-}
-
-function requiredRelativePath(value: unknown, label: string) {
-  const relativePath = requiredString(value, label);
-  const segments = relativePath.split('/');
-  if (
-    relativePath.includes('\\')
-    || path.posix.isAbsolute(relativePath)
-    || segments.some((segment) => !segment || segment === '.' || segment === '..')
-    || path.posix.normalize(relativePath) !== relativePath
-  ) {
-    throw new Error(
-      `AionCore managed Codex binding has invalid ${label}: ${relativePath}`,
-    );
-  }
-  return relativePath;
-}
-
-function comparePathNames(left: string, right: string) {
-  if (left < right) return -1;
-  if (left > right) return 1;
-  return 0;
-}
-
-function directoryTreeSha256(directory: string, label: string) {
-  const entries: string[] = [];
-  const collect = (current: string, relativeRoot: string) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })
-      .sort((left, right) => comparePathNames(left.name, right.name))) {
-      const relativePath = relativeRoot
-        ? `${relativeRoot}/${entry.name}`
-        : entry.name;
-      const entryPath = path.join(current, entry.name);
-      const stat = fs.lstatSync(entryPath);
-      const mode = (stat.mode & 0o777).toString(8).padStart(3, '0');
-      if (stat.isSymbolicLink()) {
-        throw new Error(
-          `AionCore managed Codex ${label} contains an unsupported symlink: ${entryPath}`,
-        );
-      }
-      if (stat.isDirectory()) {
-        entries.push(`D\t${relativePath}\t${mode}`);
-        collect(entryPath, relativePath);
-        continue;
-      }
-      if (!stat.isFile()) {
-        throw new Error(
-          `AionCore managed Codex ${label} contains an unsupported filesystem entry: ${entryPath}`,
-        );
-      }
-      entries.push(
-        `F\t${relativePath}\t${mode}\t${stat.size}\t${fileSha256(entryPath)}`,
-      );
-    }
-  };
-  collect(directory, '');
-  return crypto.createHash('sha256').update(`${entries.join('\n')}\n`).digest('hex');
-}
-
-function requireStrictDescendant(
-  root: string,
-  candidate: string,
-  label: string,
-) {
-  const rootRealpath = fs.realpathSync(root);
-  let candidateRealpath: string;
-  try {
-    candidateRealpath = fs.realpathSync(candidate);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new Error(`AionCore managed Codex ${label} is missing: ${candidate}`);
-    }
-    throw error;
-  }
-  const relative = path.relative(rootRealpath, candidateRealpath);
-  if (
-    !relative ||
-    relative === '..' ||
-    relative.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relative)
-  ) {
-    throw new Error(
-      `AionCore managed Codex ${label} escapes its selected Shell resource root`,
-    );
-  }
-  return candidateRealpath;
-}
-
-export function resolveAioncoreManagedCodexBinding(shellRoot: string) {
-  const shellRealpath = fs.realpathSync(shellRoot);
-  const runtimeRoot = path.join(
-    shellRealpath,
-    'resources',
-    'bundled-aioncore',
-    MANUAL_RUNTIME_KEY,
-  );
-  const rootManifestPath = requireFile(
-    path.join(runtimeRoot, 'manifest.json'),
-    'AionCore root manifest',
-  );
-  const managedRoot = path.join(runtimeRoot, 'managed-resources');
-  const managedManifestPath = requireFile(
-    path.join(managedRoot, 'manifest.json'),
-    'AionCore managed-resources manifest',
-  );
-  const rootManifest = requiredObject(
-    readJson(rootManifestPath),
-    'root manifest',
-  );
-  const managedManifest = requiredObject(
-    readJson(managedManifestPath),
-    'managed-resources manifest',
-  );
-  const aioncoreVersion = requiredString(
-    rootManifest.version,
-    'AionCore version',
-  );
-  const source = requiredObject(rootManifest.source, 'AionCore source');
-  const sourceUrl = requiredString(source.url, 'AionCore source URL');
-  if (rootManifest.platform !== 'darwin' || rootManifest.arch !== 'arm64') {
-    throw new Error(
-      `AionCore root manifest target mismatch: expected ${MANUAL_RUNTIME_KEY}`,
-    );
-  }
-  if (managedManifest.schema !== 'opl_aioncore_managed_resources_projection.v1') {
-    throw new Error(
-      'AionCore managed-resources manifest must use the OPL Codex-only projection schema v1',
-    );
-  }
-  const producer = requiredObject(managedManifest.source, 'producer provenance');
-  if (producer.schemaVersion !== 2) {
-    throw new Error(
-      'AionCore managed-resources projection must bind producer schemaVersion 2',
-    );
-  }
-  const producerManifestSha256 = requiredString(
-    producer.manifestSha256,
-    'producer manifest SHA-256',
-  );
-  if (!/^[a-f0-9]{64}$/.test(producerManifestSha256)) {
-    throw new Error(
-      'AionCore managed-resources projection producer manifest SHA-256 must be a lowercase 64-character digest',
-    );
-  }
-  const producerCliNames = producer.cliNames;
-  const projection = requiredObject(managedManifest.projection, 'projection metadata');
-  const legacyProducer = Array.isArray(producerCliNames)
-    && JSON.stringify([...producerCliNames].sort()) === JSON.stringify(['claude', 'codex']);
-  const composedProducer = Array.isArray(producerCliNames) && producerCliNames.length === 0;
-  if (!legacyProducer && !composedProducer) {
-    throw new Error('AionCore managed-resources projection has unsupported producer CLI provenance');
-  }
-  if (composedProducer) {
-    const codexSource = requiredObject(projection.codexSource, 'official Codex carrier source');
-    const codexVersion = requiredString(codexSource.version, 'official Codex carrier version');
-    const projectedCodex = Array.isArray(managedManifest.clis)
-      ? managedManifest.clis.find((cli) => cli.name === 'codex') : null;
-    if (codexSource.package !== '@openai/codex'
-      || codexSource.packageSpec !== `@openai/codex@${codexVersion}-${MANUAL_RUNTIME_KEY}`
-      || codexSource.authority !== 'official_npm_platform_package'
-      || codexSource.oplVerifiedAioncoreVersion !== aioncoreVersion
-      || projectedCodex?.version !== codexVersion) {
-      throw new Error('AionCore composed projection must bind the official Codex package and verified runtime version');
-    }
-  }
-  if (
-    JSON.stringify(projection.includedCliNames) !== JSON.stringify(['codex'])
-    || JSON.stringify(projection.excludedCliNames) !== JSON.stringify(['claude'])
-    || JSON.stringify(projection.requiredAbsentPaths)
-      !== JSON.stringify(MANAGED_RESOURCES_REQUIRED_ABSENT_PATHS)
-  ) {
-    throw new Error(
-      'AionCore managed-resources projection must include only Codex and exclude Claude',
-    );
-  }
-  for (const relativePath of projection.requiredAbsentPaths) {
-    const absentPath = path.join(
-      managedRoot,
-      ...requiredRelativePath(relativePath, 'required absent path').split('/'),
-    );
-    if (fs.lstatSync(absentPath, { throwIfNoEntry: false })) {
-      throw new Error(
-        `AionCore managed-resources projection required absent path is present: ${absentPath}`,
-      );
-    }
-  }
-  if (Object.hasOwn(managedManifest, 'acpTools')) {
-    throw new Error(
-      'AionCore managed-resources manifest must not retain retired acpTools truth',
-    );
-  }
-  if (managedManifest.runtimeKey !== MANUAL_RUNTIME_KEY) {
-    throw new Error(
-      `AionCore managed-resources runtimeKey mismatch: expected ${MANUAL_RUNTIME_KEY}`,
-    );
-  }
-  const node = requiredObject(managedManifest.node, 'managed Node runtime');
-  const nodeVersion = requiredString(node.version, 'managed Node version');
-  const nodeRootRelative = requiredRelativePath(node.root, 'managed Node root');
-  const nodeRoot = requireStrictDescendant(
-    managedRoot,
-    path.join(managedRoot, ...nodeRootRelative.split('/')),
-    'Node runtime root',
-  );
-  if (!fs.statSync(nodeRoot).isDirectory()) {
-    throw new Error(`AionCore managed Codex Node runtime root is missing: ${nodeRoot}`);
-  }
-  const nodeExecutableRelative = requiredRelativePath(
-    node.executable,
-    'managed Node executable',
-  );
-  const nodeExecutable = requireStrictDescendant(
-    nodeRoot,
-    path.join(nodeRoot, ...nodeExecutableRelative.split('/')),
-    'Node executable',
-  );
-  requireFile(nodeExecutable, 'AionCore managed Node executable');
-
-  const clis = Array.isArray(managedManifest.clis) ? managedManifest.clis : [];
-  if (clis.length !== 1 || clis[0]?.name !== 'codex') {
-    throw new Error(
-      'AionCore managed-resources projection must contain exactly one Codex direct CLI',
-    );
-  }
-  const resolveCli = (name: 'codex') => {
-    const entry = requiredObject(
-      clis.find((candidate) => candidate?.name === name),
-      `managed ${name} CLI`,
-    );
-    const version = requiredString(
-      entry.version,
-      `managed ${name} CLI version`,
-    );
-    const expectedRoot = `cli/${name}/${version}/${MANUAL_RUNTIME_KEY}`;
-    const rootRelative = requiredRelativePath(
-      entry.root,
-      `managed ${name} CLI root`,
-    );
-    if (rootRelative !== expectedRoot) {
-      throw new Error(
-        `AionCore managed ${name} CLI root must match its exact version and platform`,
-      );
-    }
-    if (entry.platformDirectory !== MANUAL_RUNTIME_KEY) {
-      throw new Error(
-        `AionCore managed ${name} CLI platform must be ${MANUAL_RUNTIME_KEY}`,
-      );
-    }
-    if (
-      !Array.isArray(entry.requiredFiles) ||
-      !Array.isArray(entry.requiredDirectories)
-    ) {
-      throw new Error(
-        `AionCore managed ${name} CLI required paths are invalid`,
-      );
-    }
-    const root = requireStrictDescendant(
-      managedRoot,
-      path.join(managedRoot, ...rootRelative.split('/')),
-      `${name} CLI root`,
-    );
-    if (!fs.statSync(root).isDirectory()) {
-      throw new Error(`AionCore managed ${name} CLI root is missing: ${root}`);
-    }
-    const executableRelative = requiredRelativePath(
-      entry.executable,
-      `managed ${name} CLI executable`,
-    );
-    const executable = requireStrictDescendant(
-      root,
-      path.join(root, ...executableRelative.split('/')),
-      `${name} CLI executable`,
-    );
-    requireFile(executable, `managed ${name} CLI executable`);
-    const requiredFiles = entry.requiredFiles.map((value, index) => {
-      const relativePath = requiredRelativePath(
-        value,
-        `managed ${name} required file ${index}`,
-      );
-      const file = requireStrictDescendant(
-        root,
-        path.join(root, ...relativePath.split('/')),
-        `${name} CLI required file`,
-      );
-      requireFile(file, `managed ${name} CLI required file`);
-      return {
-        relative_path: relativePath,
-        path: file,
-        sha256: fileSha256(file),
-      };
-    });
-    const requiredDirectories = entry.requiredDirectories.map((value, index) => {
-      const relativePath = requiredRelativePath(
-        value,
-        `managed ${name} required directory ${index}`,
-      );
-      const directory = requireStrictDescendant(
-        root,
-        path.join(root, ...relativePath.split('/')),
-        `${name} CLI required directory`,
-      );
-      if (!fs.statSync(directory).isDirectory()) {
-        throw new Error(
-          `AionCore managed ${name} CLI required directory is missing: ${directory}`,
-        );
-      }
-      return {
-        relative_path: relativePath,
-        path: directory,
-        tree_sha256: directoryTreeSha256(directory, `${name} required directory`),
-      };
-    });
-    return {
-      name,
-      version,
-      platform_directory: MANUAL_RUNTIME_KEY,
-      root_relative: rootRelative,
-      root,
-      executable_relative: executableRelative,
-      executable,
-      executable_sha256: fileSha256(executable),
-      required_files: requiredFiles,
-      required_directories: requiredDirectories,
-    };
-  };
-  const codexCli = resolveCli('codex');
-  const aioncoreBinary = requireFile(
-    path.join(runtimeRoot, 'aioncore'),
-    'AionCore binary',
-  );
-
-  return {
-    schema: 'opl_manual_aioncore_codex_only_projection_binding.v1',
-    runtime_key: MANUAL_RUNTIME_KEY,
-    aioncore: {
-      version: aioncoreVersion,
-      source_type: requiredString(
-        rootManifest.sourceType,
-        'AionCore source type',
-      ),
-      source_url: sourceUrl,
-      root: runtimeRoot,
-      root_manifest: rootManifestPath,
-      root_manifest_sha256: fileSha256(rootManifestPath),
-      binary: aioncoreBinary,
-      binary_sha256: fileSha256(aioncoreBinary),
-    },
-    managed_resources: {
-      projection_schema: managedManifest.schema,
-      producer_schema_version: producer.schemaVersion,
-      producer_manifest_sha256: producerManifestSha256,
-      included_cli_names: projection.includedCliNames,
-      excluded_cli_names: projection.excludedCliNames,
-      required_absent_paths: projection.requiredAbsentPaths,
-      root: managedRoot,
-      manifest: managedManifestPath,
-      manifest_sha256: fileSha256(managedManifestPath),
-    },
-    node_runtime: {
-      version: nodeVersion,
-      root_relative: nodeRootRelative,
-      root: nodeRoot,
-      executable_relative: nodeExecutableRelative,
-      executable: nodeExecutable,
-      executable_sha256: fileSha256(nodeExecutable),
-    },
-    codex_cli: codexCli,
-  };
-}
-
-function prepareAioncoreManagedCodexBinding(shellRoot: string) {
-  const prepareScript = requireFile(
-    path.join(shellRoot, 'scripts', 'prepareAioncore.js'),
-    'selected Shell prepareAioncore script',
-  );
-  commandResult(process.execPath, [prepareScript], {
-    cwd: shellRoot,
-    env: { ...process.env, AIONUI_BACKEND_ARCH: 'arm64' },
-    timeoutMs: 20 * 60 * 1000,
-  });
-  const verifierPath = requireFile(path.join(shellRoot, 'packages', 'shared-scripts', 'src', 'verify-bundled-aioncore-resources.js'), 'Shell AionCore resource verifier');
-  commandResult(process.execPath, ['-e', `const {verifyBundledAioncoreResources}=require(process.argv[1]); const result=verifyBundledAioncoreResources({resourcesDir:process.argv[2],electronPlatformName:'darwin',targetArch:'arm64'}); if(result.missing.length || result.invalid.length) throw new Error(JSON.stringify({missing:result.missing,invalid:result.invalid}));`, verifierPath, path.join(shellRoot, 'resources')], { cwd: shellRoot });
-  return resolveAioncoreManagedCodexBinding(shellRoot);
-}
 
 export function buildManualRuntimeDependencyLock(
-  binding: ReturnType<typeof resolveAioncoreManagedCodexBinding> | null,
   carrier: FullCarrierProfile = resolveFullCarrierProfile(),
 ) {
-  if (binding) return { aioncore_managed_codex: binding };
-  if (carrier.aioncoreRequired) throw new Error('AionUI requires its exact managed Codex binding.');
+  if (carrier.aioncoreRequired) {
+    throw new Error('Retired AionUI/AionCore carriers are not supported by manual builds.');
+  }
   return { opl_codex_native: {
     carrier_id: carrier.carrierId,
     codex_carrier: carrier.codexCarrier,
@@ -507,9 +100,8 @@ export function buildManualRuntimeDependencyLock(
   } };
 }
 
-export function prepareManualRuntimeDependencies(shellRoot: string, carrier = resolveFullCarrierProfile()) {
-  const binding = carrier.aioncoreRequired ? prepareAioncoreManagedCodexBinding(shellRoot) : null;
-  return { binding, lock: buildManualRuntimeDependencyLock(binding, carrier) };
+export function prepareManualRuntimeDependencies(_shellRoot: string, carrier = resolveFullCarrierProfile()) {
+  return { binding: null, lock: buildManualRuntimeDependencyLock(carrier) };
 }
 
 export function assertFullDmgCodexCarrierBoundary(manifest: any) {
@@ -517,55 +109,17 @@ export function assertFullDmgCodexCarrierBoundary(manifest: any) {
     throw new Error('Full manifest must not contain components.codex.');
   }
   const boundary = manifest?.package_optimization?.package_boundary_audit;
-  if (manifest?.carrier?.carrier_id === 'opl-studio') {
-    if (manifest.carrier.codex_carrier !== 'opl_codex_native'
-      || manifest.carrier.aioncore_required !== false
-      || boundary?.contains_opl_full_runtime !== true
-      || boundary?.contains_shell_runtime !== false
-      || boundary?.aioncore_codex_carrier_present !== false
-      || boundary?.aioncore_codex_only_projection_present !== false
-      || boundary?.aioncore_claude_payload_absent !== true
-      || boundary?.framework_codex_payload_absent !== true
-      || boundary?.aioncore_codex_only_projection_audit?.schema !== 'opl_codex_native_carrier_audit.v1') {
-      throw new Error('Studio Full must prove native Codex ownership without AionCore or duplicate Codex payloads.');
-    }
-  } else {
-    if (
-      boundary?.aioncore_codex_carrier_present !== true
-      || boundary?.aioncore_codex_only_projection_present !== true
-      || boundary?.aioncore_claude_payload_absent !== true
-      || boundary?.framework_codex_payload_absent !== true
-    ) {
-      throw new Error(
-        'Full manifest must prove the AionCore Codex-only projection is present and both Claude and Framework Codex payloads are absent.',
-      );
-    }
-    const projectionAudit = boundary.aioncore_codex_only_projection_audit;
-    const expectedAbsenceChecks = [
-      'managed_claude_subtree',
-      'claude_executable_or_symlink',
-      'anthropic_package_or_archive',
-      'claude_distribution_cache_entry',
-      'raw_producer_manifest',
-    ];
-    if (
-      projectionAudit?.schema !== 'opl_aioncore_codex_only_projection_audit.v1'
-      || !Number.isSafeInteger(projectionAudit?.runtime_count)
-      || projectionAudit.runtime_count < 1
-      || !Array.isArray(projectionAudit?.runtimes)
-      || projectionAudit.runtimes.length !== projectionAudit.runtime_count
-      || projectionAudit.runtimes.some((runtime) => runtime?.projection_valid !== true)
-      || !Array.isArray(projectionAudit?.required_absence_checks)
-      || JSON.stringify(projectionAudit.required_absence_checks.map((check) => check?.id))
-        !== JSON.stringify(expectedAbsenceChecks)
-      || projectionAudit.required_absence_checks.some((check) =>
-        check?.expected_match_count !== 0
-        || check?.match_count !== 0
-        || !Array.isArray(check?.matches)
-        || check.matches.length !== 0)
-    ) {
-      throw new Error('Full manifest AionCore Codex-only projection evidence is incomplete.');
-    }
+  if (manifest?.carrier?.carrier_id !== 'opl-studio'
+    || manifest.carrier.codex_carrier !== 'opl_codex_native'
+    || manifest.carrier.aioncore_required !== false
+    || boundary?.contains_opl_full_runtime !== true
+    || boundary?.contains_shell_runtime !== false
+    || boundary?.native_codex_external_carrier_present !== true
+    || boundary?.native_codex_embedded_payload_present !== false
+    || boundary?.claude_payload_absent !== true
+    || boundary?.framework_codex_payload_absent !== true
+    || boundary?.codex_carrier_audit?.schema !== 'opl_codex_native_carrier_audit.v1') {
+    throw new Error('Studio Full must prove native Codex ownership without AionUI or AionCore.');
   }
   const forbidden = boundary.forbidden_framework_codex_paths;
   const expected = ['bin/codex', 'bin/rg', 'vendor/codex', '.runtime-cache/codex-cli'];
@@ -575,17 +129,6 @@ export function assertFullDmgCodexCarrierBoundary(manifest: any) {
     || forbidden.some((entry) => entry?.exists !== false)
   ) {
     throw new Error('Full manifest Framework Codex absence evidence is incomplete.');
-  }
-}
-
-function assertAioncoreManagedCodexBindingUnchanged(
-  expected: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
-  actual: ReturnType<typeof resolveAioncoreManagedCodexBinding>,
-) {
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error(
-      'AionCore managed Codex binding changed after source-lock freeze',
-    );
   }
 }
 
@@ -990,12 +533,6 @@ function main() {
       );
     } finally {
       restoreShellBuildProjection(shellBuildProjection);
-    }
-    if (runtimeDependencies.binding) {
-      assertAioncoreManagedCodexBindingUnchanged(
-        runtimeDependencies.binding,
-        resolveAioncoreManagedCodexBinding(snapshots.shellRoot),
-      );
     }
     let installation = null;
     if (options.mode === 'local-app') {

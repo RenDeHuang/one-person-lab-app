@@ -3,14 +3,14 @@ import { assertDeepEqualJson, assertIncludesAll } from '../assertions.ts';
 export function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
   const policy = runtimeBridge.canonical_conversation_continuity_policy;
   for (const [field, expected] of Object.entries({
-    state: 'target_with_current_shell_deviations',
+    state: 'active_studio_canonical_thread_projection',
     thread_truth_owner: 'codex_core_app_server',
     thread_turn_authority: 'codex_core_app_server',
     canonical_identity: 'host_identity_plus_opaque_app_server_thread_id',
     ordinary_rail_authority: 'codex_app_server_thread_list_read_resume',
     canonical_runtime_owner: 'codex_core_app_server',
-    aioncore_runtime_ensure_scope: 'non_canonical_acp_conversations_only',
-    canonical_input_focus_warmup_policy: 'skip_aioncore_runtime_ensure',
+    runtime_ensure_scope: 'none_opl_codex_native_is_the_only_runtime',
+    canonical_input_focus_warmup_policy: 'no_legacy_runtime_ensure',
     canonical_send_transport: 'codex_app_server_thread_resume_then_turn_start',
     stale_acp_resume_anchor_policy: 'ignore_for_canonical_history_and_turn_execution',
     shell_local_storage_role: 'ui_preferences_drafts_and_rebuildable_cache_only',
@@ -23,19 +23,18 @@ export function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     direct_cross_shell_private_store_access_allowed: false,
     duplicate_thread_store_allowed: false,
     simultaneous_same_thread_write_safety_claimed: false,
-    active_aionui_status: 'shell_local_conversation_repository_requires_canonical_projection',
-    opl_studio_status: 'resume_capable_full_local_transcript_cache_requires_canonical_thread_directory',
+    historical_aionui_status: 'retired_historical_provenance_only',
+    opl_studio_status: 'canonical_codex_app_server_thread_directory_and_resume',
     pin_role: 'shell_ui_metadata_only',
-    local_reset_role: 'retain_existing_aionui_conversation_semantics_not_app_server_history_reset',
+    local_reset_role: 'studio_local_metadata_reset_without_codex_app_server_history_reset',
     workspace_directory_role:
       'new_session_initial_cwd_projectless_adoption_grouping_and_visible_metadata_only_not_authorization_domain',
     row_identity: 'canonical_thread_id',
     duplicate_row_per_canonical_thread_allowed: false,
     title_based_deduplication_allowed: false,
     e2e_fixture_storage_policy: 'isolated_storage_root_never_production_user_data',
-    acceptance: 'both_shells_project_the_same_app_server_thread_directory_and_resume_by_canonical_identity',
-    implementation_status:
-      'project_affinity_source_implemented_other_continuity_not_proven_across_both_shells',
+    acceptance: 'opl_studio_projects_codex_app_server_threads_and_resumes_by_canonical_identity',
+    implementation_status: 'active_studio_canonical_thread_projection',
   })) {
     if (policy?.[field] !== expected) {
       throw new Error(`Runtime bridge canonical conversation continuity policy ${field} must be ${expected}`);
@@ -75,7 +74,7 @@ export function validateCanonicalConversationContinuityPolicy(runtimeBridge) {
     {
       source: 'app_state.transport_bindings',
       surface_kind: 'opl_app_transport_bindings_projection.v1',
-      migration_state: 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed',
+      migration_state: 'framework_transport_binding_projection_and_studio_source_e2e_completed',
       projection_runtime_status: 'current_framework_projection_proven',
       raw_fact_owner: 'current_shell_exact_binding_store',
       projection_owner: 'one-person-lab-framework',

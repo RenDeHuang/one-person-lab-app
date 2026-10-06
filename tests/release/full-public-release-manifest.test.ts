@@ -12,7 +12,7 @@ import {
 import { readAppShellAdapterContract } from '../../scripts/app-shell-adapter.ts';
 import { resolveFullCarrierProfile } from '../../scripts/build-full-first-install-package/carrier-profile.ts';
 
-function buildManifestFixture(t: test.TestContext, carrierId: 'aionui' | 'opl-studio') {
+function buildManifestFixture(t: test.TestContext, carrierId: 'opl-studio' = 'opl-studio') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-public-manifest-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const carrier = resolveFullCarrierProfile({ carrierId, ...(carrierId === 'opl-studio' ? { contract: readAppShellAdapterContract('contracts/shell-adapters/opl-studio.json') } : {}) });
@@ -51,7 +51,7 @@ function buildManifestFixture(t: test.TestContext, carrierId: 'aionui' | 'opl-st
 }
 
 test('Full public manifest binds its DMG with a canonical prefixed SHA-256 digest', (t) => {
-  const { manifest, dmgPath, dmgName, carrier } = buildManifestFixture(t, 'aionui');
+  const { manifest, dmgPath, dmgName, carrier } = buildManifestFixture(t);
   const expected = crypto.createHash('sha256').update(fs.readFileSync(dmgPath)).digest('hex');
 
   assert.equal(manifest.assets.length, 1);
@@ -63,8 +63,8 @@ test('Full public manifest binds its DMG with a canonical prefixed SHA-256 diges
   assert.equal(manifest.carrier.profile_id, carrier.profileId);
 });
 
-test('Studio Full public manifest keeps Studio identity instead of AionUI defaults', (t) => {
-  const { manifest, dmgName, carrier } = buildManifestFixture(t, 'opl-studio');
+test('Studio Full public manifest keeps Studio identity as the only current carrier', (t) => {
+  const { manifest, dmgName, carrier } = buildManifestFixture(t);
 
   assert.equal(manifest.package_kind, 'opl_studio_full_first_install_macos_arm64');
   assert.equal(manifest.primary_install_asset, dmgName);
@@ -75,10 +75,9 @@ test('Studio Full public manifest keeps Studio identity instead of AionUI defaul
   assert.equal(manifest.carrier.aioncore_required, false);
 });
 
-test('Full carrier profiles keep AionUI calendar versions and Studio numeric SemVer separate', () => {
-  const aionui = resolveFullCarrierProfile({ carrierId: 'aionui' });
+test('Full carrier profiles reject retired AionUI and keep Studio numeric SemVer', () => {
+  assert.throws(() => resolveFullCarrierProfile({ carrierId: 'aionui' }), /invalid schema|Unsupported Full payload carrier/);
   const studio = resolveFullCarrierProfile({ carrierId: 'opl-studio', contract: readAppShellAdapterContract('contracts/shell-adapters/opl-studio.json') });
-  assert.equal(aionui.versionPolicy, 'stable_calendar');
   assert.equal(studio.versionPolicy, 'numeric_semver');
   assert.doesNotThrow(() => assertFullCarrierReleaseVersions(studio, '0.1.1', '0.1.1'));
   assert.throws(
@@ -88,9 +87,5 @@ test('Full carrier profiles keep AionUI calendar versions and Studio numeric Sem
   assert.throws(
     () => assertFullCarrierReleaseVersions(studio, '0.1.1', '0.1.2'),
     /must equal opl-studio Full release version/,
-  );
-  assert.throws(
-    () => assertFullCarrierReleaseVersions(aionui, '0.1.1', '0.1.1'),
-    /Invalid stable App release version/,
   );
 });

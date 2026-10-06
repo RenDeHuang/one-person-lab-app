@@ -37,18 +37,18 @@
   "ui_experience_contract_ref": "contracts/app-gui-product-contract.json#ui_experience_contract",
   "acceptance_boundary": {
     "human_target_owner": "one-person-lab-app",
-    "active_aionui_role": "current_implementation_conformance_only",
+    "active_shell_role": "current_implementation_conformance_only",
     "contract_target_implies_source_complete": false,
     "contract_target_implies_pixel_complete": false,
     "contract_target_implies_release_complete": false,
     "authority_status": "active_mainline_authority",
-    "shell_implementation_status": "current_source_and_historical_pixels_separately_bound",
-    "current_source_head_source": "active_shell_checkout_git_head",
-    "current_source_head_must_contain_verified_gui_ancestor": true,
+    "shell_implementation_status": "active_studio_source_historical_aionui_pixels_are_provenance_only",
+    "current_source_head_source": "contracts/app-shell-adapter.json#shell_source",
+    "current_source_head_must_contain_verified_gui_ancestor": false,
     "current_source_evidence_ref": "contracts/app-shell-adapter.json#shell_source",
     "historical_pixel_shell_sha": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
     "historical_pixel_shell_sha_binding_status": "bound_to_exact_historical_evidence",
-    "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json",
+    "pixel_evidence_ref": null,
     "runtime_product_contract_ref": "contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract",
     "runtime_route_classification": "core_dynamic_agent_runtime",
     "runtime_default_product_required": true,
@@ -305,8 +305,8 @@
           "projectless_conversation_supported": true,
           "text_chat_without_workspace": "available",
           "workspace_session_rail_default_state": "visible_wide_drawer_narrow",
-          "active_aionui_primary_navigation": {
-            "scope": "active_aionui_current_product_only",
+          "active_studio_primary_navigation": {
+            "scope": "active_opl_studio_current_product_only",
             "ordered_entry_ids": [
               "new_task",
               "runtime",
@@ -326,7 +326,7 @@
               "narrow_drawer_behavior": "icon_and_label",
               "keyboard_reachable": true,
               "home_content_effect": "navigation_only_no_dashboard",
-              "route_gate_boundary": "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime"
+              "route_gate_boundary": "default_release_gate_requires_opl_studio_runtime"
             }
           },
           "right_context_inspector_default_state": "collapsed",
@@ -1072,7 +1072,7 @@
           "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
         },
         "artifact_preview": {
-          "surface": "existing_aionui_preview_context_and_panel",
+          "surface": "opl_studio_preview_context_and_panel",
           "entry_sources": [
             "session_attachment_ref",
             "conversation_result_ref",

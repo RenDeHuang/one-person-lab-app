@@ -28,7 +28,7 @@ export const REQUIRED_CODEX_RUNTIME_ERROR_CODES = [
   'RUNTIME_IDENTITY_MISMATCH',
 ] as const;
 
-const CLAIM_SCOPE = 'opl_controlled_input_and_successful_handshake_without_aioncore_native_readback';
+const CLAIM_SCOPE = 'opl_controlled_input_and_successful_handshake_with_studio_native_external_binary';
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 type JsonRecord = Record<string, unknown>;
@@ -206,13 +206,13 @@ function validateIdentity(value: unknown, label: string): JsonRecord {
   const carrier = record(identity.carrier, `${label}.carrier`);
   exactKeys(
     carrier,
-    ['kind', 'producer_manifest_sha256', 'projection_manifest_sha256', 'aioncore_native_readback'],
+    ['kind', 'external_binary_sha256', 'external_binary_path', 'studio_native_readback'],
     `${label}.carrier`,
   );
-  exactValue(carrier.kind, 'aioncore_managed_resources_projection', `${label}.carrier.kind`);
-  digest(carrier.producer_manifest_sha256, `${label}.carrier.producer_manifest_sha256`);
-  digest(carrier.projection_manifest_sha256, `${label}.carrier.projection_manifest_sha256`);
-  exactValue(carrier.aioncore_native_readback, false, `${label}.carrier.aioncore_native_readback`);
+  exactValue(carrier.kind, 'studio_native_external_binary', `${label}.carrier.kind`);
+  digest(carrier.external_binary_sha256, `${label}.carrier.external_binary_sha256`);
+  string(carrier.external_binary_path, `${label}.carrier.external_binary_path`);
+  exactValue(carrier.studio_native_readback, true, `${label}.carrier.studio_native_readback`);
   return identity;
 }
 
@@ -274,7 +274,7 @@ function validateRun(value: unknown, index: number, context: EvidenceValidationC
       'artifact',
       'managed_candidate',
       'direct_app_server',
-      'aioncore_acp',
+      'studio_native_app_server',
       'identity_comparison',
       'typed_error_probes',
     ],
@@ -334,29 +334,29 @@ function validateRun(value: unknown, index: number, context: EvidenceValidationC
     ['process_inspection', 'handshake_log'],
   );
 
-  const acp = record(run.aioncore_acp, `${label}.aioncore_acp`);
+  const acp = record(run.studio_native_app_server, `${label}.studio_native_app_server`);
   exactKeys(
     acp,
-    ['observation_mode', 'native_readback', 'managed_candidate_count', 'handshake', 'identity', 'evidence_refs'],
-    `${label}.aioncore_acp`,
+    ['observation_mode', 'native_readback', 'resolved_candidate_count', 'handshake', 'identity', 'evidence_refs'],
+    `${label}.studio_native_app_server`,
   );
   exactValue(
     acp.observation_mode,
-    'unique_managed_candidate_inherited_environment_and_conversation_handshake',
-    `${label}.aioncore_acp.observation_mode`,
+    'resolved_external_binary_and_app_server_handshake',
+    `${label}.studio_native_app_server.observation_mode`,
   );
-  exactValue(acp.native_readback, false, `${label}.aioncore_acp.native_readback`);
-  exactValue(acp.managed_candidate_count, 1, `${label}.aioncore_acp.managed_candidate_count`);
+  exactValue(acp.native_readback, true, `${label}.studio_native_app_server.native_readback`);
+  exactValue(acp.resolved_candidate_count, 1, `${label}.studio_native_app_server.resolved_candidate_count`);
   exactValue(
     acp.handshake,
-    'ordinary_conversation_real_response_passed',
-    `${label}.aioncore_acp.handshake`,
+    'initialize_passed',
+    `${label}.studio_native_app_server.handshake`,
   );
-  const acpIdentity = validateIdentity(acp.identity, `${label}.aioncore_acp.identity`);
-  validateIdentityEquality(managedCandidate, acpIdentity, `${label}.aioncore_acp.identity`);
+  const acpIdentity = validateIdentity(acp.identity, `${label}.studio_native_app_server.identity`);
+  validateIdentityEquality(managedCandidate, acpIdentity, `${label}.studio_native_app_server.identity`);
   validateEvidenceRefs(
     acp.evidence_refs,
-    `${label}.aioncore_acp.evidence_refs`,
+    `${label}.studio_native_app_server.evidence_refs`,
     2,
     context,
     ['environment_capture', 'handshake_log'],
@@ -383,7 +383,7 @@ export function validateCodexRuntimeIdentityEvidence(
   schema: 'opl_codex_runtime_identity_evidence_validation.v1';
   status: 'passed';
   run_ids: string[];
-  aioncore_native_readback: false;
+  studio_native_readback: true;
   evidence_manifest_valid: true;
   artifact_evidence_complete: boolean;
   verified_file_count: number;
@@ -405,8 +405,8 @@ export function validateCodexRuntimeIdentityEvidence(
       'policy_owner',
       'runtime_identity_producer',
       'carrier',
-      'aioncore_modified',
-      'aioncore_native_readback',
+      'retired_aionui_dependency',
+      'studio_native_readback',
       'exact_identity_may_gate_install_or_runtime',
       'claim_scope',
     ],
@@ -415,16 +415,16 @@ export function validateCodexRuntimeIdentityEvidence(
   exactValue(authority.policy_owner, 'one-person-lab-app', 'evidence.authority.policy_owner');
   exactValue(
     authority.runtime_identity_producer,
-    'gaofeng21cn/opl-aion-shell',
+    'gaofeng21cn/opl-studio',
     'evidence.authority.runtime_identity_producer',
   );
   exactValue(
     authority.carrier,
-    'aioncore_managed_resources_projection',
+    'studio_native_external_binary',
     'evidence.authority.carrier',
   );
-  exactValue(authority.aioncore_modified, false, 'evidence.authority.aioncore_modified');
-  exactValue(authority.aioncore_native_readback, false, 'evidence.authority.aioncore_native_readback');
+  exactValue(authority.retired_aionui_dependency, false, 'evidence.authority.retired_aionui_dependency');
+  exactValue(authority.studio_native_readback, true, 'evidence.authority.studio_native_readback');
   exactValue(
     authority.exact_identity_may_gate_install_or_runtime,
     false,
@@ -447,7 +447,7 @@ export function validateCodexRuntimeIdentityEvidence(
     schema: 'opl_codex_runtime_identity_evidence_validation.v1',
     status: 'passed',
     run_ids: runIds,
-    aioncore_native_readback: false,
+    studio_native_readback: true,
     evidence_manifest_valid: true,
     artifact_evidence_complete: context.verifyReferencedFiles,
     verified_file_count: context.verifiedFiles.size,

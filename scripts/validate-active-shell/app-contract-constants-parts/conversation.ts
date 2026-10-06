@@ -27,7 +27,7 @@ export const appOwnedTranscriptExport = {
   workspace_bundle_authorized: false,
 };
 export const appOwnedArtifactPreview = {
-  surface: "existing_aionui_preview_context_and_panel",
+  surface: "opl_studio_preview_context_and_panel",
   entry_sources: [
     "session_attachment_ref",
     "conversation_result_ref",

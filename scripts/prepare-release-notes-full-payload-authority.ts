@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
-import { resolveAioncoreManagedCodexBinding } from './manual-latest-build.ts';
+import { readAppShellAdapterContract } from './app-shell-adapter.ts';
 
 type JsonRecord = Record<string, any>;
 
@@ -212,24 +212,21 @@ function shellRelativePath(shellRoot: string, candidate: string, label: string):
   return relative.split(path.sep).join('/');
 }
 
-function directCliAuthority(
-  shellRoot: string,
-  cli: ReturnType<typeof resolveAioncoreManagedCodexBinding>['codex_cli'],
-) {
+function studioCodexAuthority() {
+  const adapter = readAppShellAdapterContract();
+  const qualification = adapter.qualification_external_carrier;
+  if (!qualification || qualification.schema !== 'opl_studio_external_codex_qualification_input.v1') {
+    throw new Error('Studio external Codex qualification input is missing.');
+  }
   return {
-    name: cli.name,
-    version: cli.version,
-    root_ref: shellRelativePath(shellRoot, cli.root, `${cli.name} CLI root`),
-    executable_ref: shellRelativePath(shellRoot, cli.executable, `${cli.name} CLI executable`),
-    executable_sha256: `sha256:${cli.executable_sha256}`,
-    required_files: cli.required_files.map((file) => ({
-      ref: shellRelativePath(shellRoot, file.path, `${cli.name} CLI required file`),
-      sha256: `sha256:${file.sha256}`,
-    })),
-    required_directories: cli.required_directories.map((directory) => ({
-      ref: shellRelativePath(shellRoot, directory.path, `${cli.name} CLI required directory`),
-      tree_sha256: `sha256:${directory.tree_sha256}`,
-    })),
+    version: qualification.platform.version,
+    source: 'studio_opl_codex_native_external_binary_v1',
+    binary_path: qualification.platform.binary_path,
+    os: qualification.platform.os,
+    cpu: qualification.platform.cpu,
+    resolver_env: qualification.injection.resolver_env,
+    bundle_included: qualification.injection.bundle_included,
+    app_bundle_codex_forbidden: qualification.injection.app_bundle_codex_forbidden,
   };
 }
 
@@ -284,51 +281,15 @@ export function buildReleaseNotesFullPayloadAuthority(
   const officeSource = requiredObject(thirdPartySources.officecli, 'OfficeCLI source authority');
   const mineruSource = requiredObject(thirdPartySources.mineru, 'MinerU source authority');
   const officePayload = requiredObject(runtimePayloads.officecli, 'OfficeCLI runtime authority');
-  const aioncoreBinding = resolveAioncoreManagedCodexBinding(shellRoot);
-  const shellPackage = readRegularJson(path.join(shellRoot, 'package.json'), 'exact Shell package.json');
-  const aioncoreVersion = requiredString(shellPackage.aioncoreVersion, 'Shell package.json#aioncoreVersion');
-  if (!/^v\d+\.\d+\.\d+$/.test(aioncoreVersion)) {
-    throw new Error(`Shell AionCore pin must be an exact version tag, got ${aioncoreVersion}.`);
-  }
-  const expectedAioncoreUrl = [
-    'https://github.com/iOfficeAI/AionCore/releases/download',
-    aioncoreVersion,
-    `aioncore-${aioncoreVersion}-aarch64-apple-darwin.tar.gz`,
-  ].join('/');
-  if (
-    aioncoreBinding.runtime_key !== 'darwin-arm64'
-    || aioncoreBinding.aioncore.version !== aioncoreVersion
-    || aioncoreBinding.aioncore.source_type !== 'download'
-    || aioncoreBinding.aioncore.source_url !== expectedAioncoreUrl
-  ) {
-    throw new Error('AionCore root manifest must exactly match the Shell pin and official darwin-arm64 release.');
-  }
-  const codexVersion = requiredString(aioncoreBinding.codex_cli.version, 'AionCore managed Codex CLI version');
-  if (
-    aioncoreBinding.schema !== 'opl_manual_aioncore_codex_only_projection_binding.v1'
-    || aioncoreBinding.managed_resources.projection_schema
-      !== 'opl_aioncore_managed_resources_projection.v1'
-    || aioncoreBinding.managed_resources.producer_schema_version !== 2
-  ) {
-    throw new Error('AionCore managed resources must resolve to the OPL Codex-only projection binding.');
-  }
-  const nodeRuntime = {
-    version: aioncoreBinding.node_runtime.version,
-    root_ref: shellRelativePath(shellRoot, aioncoreBinding.node_runtime.root, 'managed Node root'),
-    executable_ref: shellRelativePath(shellRoot, aioncoreBinding.node_runtime.executable, 'managed Node executable'),
-    executable_sha256: `sha256:${aioncoreBinding.node_runtime.executable_sha256}`,
-  };
-  const codexCli = directCliAuthority(shellRoot, aioncoreBinding.codex_cli);
+  const codexAuthority = studioCodexAuthority();
+  const codexVersion = requiredString(codexAuthority.version, 'Studio external Codex version');
   components.codex = { version: `codex-cli ${codexVersion}` };
   resolvedRefs.codex_cli = {
     label: 'Codex CLI',
-    repository: 'iOfficeAI/AionCore',
-    authority: 'opl_aioncore_managed_resources_projection_v1_codex_cli',
+    repository: 'openai/codex',
+    authority: 'studio_opl_codex_native_external_binary_v1',
     resolved_version: codexVersion,
-    aioncore_version: aioncoreBinding.aioncore.version,
-    node_runtime: nodeRuntime,
-    direct_cli: codexCli,
-    managed_resources_manifest_sha256: `sha256:${aioncoreBinding.managed_resources.manifest_sha256}`,
+    qualification_input: codexAuthority,
   };
   const officeRef = requiredString(officeSource.ref, 'OfficeCLI source ref');
   const mineruRef = requiredString(mineruSource.ref, 'MinerU source ref');
@@ -368,27 +329,12 @@ export function buildReleaseNotesFullPayloadAuthority(
     },
     runtime_authority: {
       codex_cli: {
-        source: 'shell_opl_composed_managed_resources_projection_v1',
+        source: 'studio_opl_codex_native_external_binary_v1',
         shell_source_commit: shellRef,
-        runtime_key: aioncoreBinding.runtime_key,
-        aioncore_version: aioncoreBinding.aioncore.version,
-        aioncore_source_url: aioncoreBinding.aioncore.source_url,
-        aioncore_root_manifest_ref: path.relative(shellRoot, aioncoreBinding.aioncore.root_manifest).split(path.sep).join('/'),
-        aioncore_root_manifest_sha256: `sha256:${aioncoreBinding.aioncore.root_manifest_sha256}`,
-        managed_resources_manifest_ref: path.relative(shellRoot, aioncoreBinding.managed_resources.manifest).split(path.sep).join('/'),
-        managed_resources_manifest_sha256: `sha256:${aioncoreBinding.managed_resources.manifest_sha256}`,
-        managed_resources_projection_schema: aioncoreBinding.managed_resources.projection_schema,
-        producer_managed_resources_schema_version:
-          aioncoreBinding.managed_resources.producer_schema_version,
-        producer_managed_resources_manifest_sha256:
-          `sha256:${aioncoreBinding.managed_resources.producer_manifest_sha256}`,
-        included_cli_names: aioncoreBinding.managed_resources.included_cli_names,
-        excluded_cli_names: aioncoreBinding.managed_resources.excluded_cli_names,
-        required_absent_paths: aioncoreBinding.managed_resources.required_absent_paths,
-        node_runtime: nodeRuntime,
-        direct_cli: codexCli,
+        qualification_input_ref: 'contracts/shell-adapters/opl-studio.json#qualification_external_carrier',
+        qualification_input: codexAuthority,
         version: codexVersion,
-        postbuild_codex_only_projection_content_bytes_required: true,
+        app_bundle_codex_payload_forbidden: true,
       },
       officecli: { source_commit: officeRef, version: officeVersion },
       mineru: { source_commit: mineruRef },

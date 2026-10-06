@@ -96,16 +96,16 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     state: 'source_binding_and_packaged_artifact_evidence_complete',
     policy_owner: 'one-person-lab-app',
-    runtime_identity_owner: 'gaofeng21cn/opl-aion-shell',
+    runtime_identity_owner: 'gaofeng21cn/opl-studio',
     resolver_source: 'contracts/app-runtime-bridge.json#command_resolution_policy.shared_gui_target',
     logical_control_plane_shared: true,
     parity_admission_basis: 'compatible_runtime_capability_and_versioned_schema_range',
     exact_runtime_identity_equality_may_gate_install_or_runtime: false,
     host_path_only_resolution_can_prove_parity: false,
-    active_aionui_status: 'aioncore_managed_identity_binding_packaged_full_standard_finder_replay_passed',
-    opl_studio_status: 'launcher_explicit_runtime_resolution_implemented_direct_launch_host_path_fallback_remains',
-    same_physical_runtime_currently_claimed: true,
-    implementation_status: 'source_identity_binding_and_full_standard_finder_evidence_complete',
+    historical_aionui_status: 'retired_historical_provenance_only',
+    opl_studio_status: 'opl_codex_native_managed_app_server_is_the_only_current_runtime',
+    same_physical_runtime_currently_claimed: false,
+    implementation_status: 'active_studio_native_codex_runtime',
   })) {
     if (policy?.[field] !== expected) {
       throw new Error(`Runtime bridge shared GUI runtime resolution policy ${field} must be ${expected}`);
@@ -116,15 +116,11 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
   for (const [field, expected] of Object.entries({
     schema: 'opl_codex_runtime_identity.v1',
     contract_owner: 'one-person-lab-app',
-    producer_owner: 'gaofeng21cn/opl-aion-shell',
-    carrier: 'aioncore_managed_resources_projection',
+    producer_owner: 'gaofeng21cn/opl-studio',
+    carrier: 'opl_codex_native_managed_app_server_stdio',
     direct_app_server_binding: 'identity_verified_before_exact_codex_app_server_spawn',
-    aioncore_acp_binding:
-      'unique_managed_candidate_plus_inherited_environment_plus_successful_conversation_handshake',
-    aioncore_modification_required: false,
-    aioncore_native_readback_required: false,
-    aioncore_native_readback_currently_available: false,
-    aioncore_native_readback_claim_allowed: false,
+    opl_codex_native_binding:
+      'studio_resolved_codex_executable_plus_managed_app_server_initialize_handshake',
   })) {
     if (identityContract?.[field] !== expected) {
       throw new Error(`Runtime bridge Codex identity contract ${field} must be ${expected}`);
@@ -140,8 +136,8 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
       'codex_home',
       'runtime_key',
       'runtime_cohort_ref',
-      'carrier.producer_manifest_sha256',
-      'carrier.projection_manifest_sha256',
+      'carrier.codex_cli_version',
+      'carrier.codex_cli_realpath',
     ],
     'Runtime bridge Codex identity fields',
   );
@@ -175,7 +171,7 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     minimal_path: '/usr/bin:/bin',
     global_codex_required: false,
     referenced_file_sha256_required: true,
-    claim_scope: 'opl_controlled_input_and_successful_handshake_without_aioncore_native_readback',
+    claim_scope: 'studio_resolved_codex_executable_and_successful_native_app_server_handshake',
     artifact_trigger_status: 'complete',
     evidence_receipt: 'docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json',
   })) {
@@ -195,7 +191,7 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
   );
   assertDeepEqualJson(
     evidenceContract?.required_handshakes,
-    ['direct_app_server_initialize', 'aioncore_acp_ordinary_conversation_real_response'],
+    ['opl_codex_native_app_server_initialize'],
     'Runtime bridge Codex packaged handshakes',
   );
 }

@@ -441,7 +441,7 @@ test('Runtime keeps its Framework producer and is required for every adopted she
 
   assert.equal(runtimeRow.route_classification, 'core_dynamic_agent_runtime');
   assert.equal(runtimeRow.producer_required, true);
-  assert.equal(runtimeRow.aionui_route_required, true);
+  assert.equal(runtimeRow.active_shell_route_required, true);
   assert.equal(runtimeRow.adopted_shell_route_required, true);
   assert.equal(
     runtimeBridge.canonical_state_display_action_map.shells.opl_studio.role,

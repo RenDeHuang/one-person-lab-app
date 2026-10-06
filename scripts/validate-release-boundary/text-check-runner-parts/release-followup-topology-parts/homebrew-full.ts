@@ -63,9 +63,7 @@ export function validateHomebrewFullPromotionTopology(appRoot: string): number {
     'standard_manifest_url=',
     'opl-app-component-manifest.json',
     '--expected-source-commit "$base_target_commitish"',
-    'a1561bdf1dfe6f316dad22f16152a537ddfb69d5',
-    'merge-base --is-ancestor "$embedded_base_floor" "$shell_sha"',
-    'predates the embedded-Base fail-closed carrier',
+    'git -C shell-product cat-file -e "$shell_sha:desktop/runtime-bootstrap.mjs"',
     'qualification_receipt_sha256',
     'release-operation-deadline.ts check',
   ]) {

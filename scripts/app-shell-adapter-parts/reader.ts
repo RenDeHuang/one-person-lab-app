@@ -124,7 +124,7 @@ export function resolveClientRendererAdmission(
     compatibility.transport_binding_source !== 'app_state.transport_bindings' ||
     compatibility.transport_binding_schema !== 'opl_app_transport_bindings_projection.v1' ||
     compatibility.transport_binding_migration_state !==
-      'framework_transport_binding_projection_and_dual_shell_source_e2e_completed' ||
+      'framework_transport_binding_projection_and_studio_source_e2e_completed' ||
     compatibility.transport_binding_event !== 'opl/app-transport-bindings/updated' ||
     compatibility.typed_state_rpc !== 'opl app state --profile fast --json' ||
     compatibility.typed_action_rpc !==

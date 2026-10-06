@@ -840,7 +840,7 @@ services:
       - $(Convert-ToComposeScalar "127.0.0.1:${HostPort}:3000")
     environment:
       AIONUI_ALLOW_REMOTE: "true"
-      AIONUI_DATA_DIR: /data
+      OPL_DATA_DIR: /data
       OPL_PROJECTS_DIR: /projects
     volumes:
       - $(Convert-ToComposeScalar "${HostDataDir}:/data")

@@ -11,8 +11,8 @@ export function validateDeliveryTopology(profile) {
       JSON.stringify(['electron_desktop', 'standalone_headless_webui', 'docker_webui']) ||
     Object.hasOwn(profile.product ?? {}, 'supported_release_platforms') ||
     topology?.schema !== 'opl_app_delivery_topology.v2' ||
-    topology.role !== 'successor_target_only' ||
-    topology.decision_status !== 'approved_target_current_release_admission_separate' ||
+    topology.role !== 'active_product_and_release_target' ||
+    topology.decision_status !== 'active_studio_only_aionui_retired' ||
     topology.product_behavior_authority !== 'one-person-lab-app' ||
     topology.release_roles_source_ref !== 'release_roles'
   ) {
@@ -30,9 +30,9 @@ export function validateDeliveryTopology(profile) {
       successor: {
         candidate_id: 'opl-studio',
         topology_ref: 'delivery_topology',
-        active_release_carrier: false,
-        release_admission_separate: true,
-        target_platforms_are_not_current_release_evidence: true,
+        active_release_carrier: true,
+        release_admission_separate: false,
+        target_platforms_are_not_current_release_evidence: false,
       },
     },
     'Product profile current and successor release roles',
@@ -43,7 +43,7 @@ export function validateDeliveryTopology(profile) {
       product_owner: 'one-person-lab-app',
       technology: 'deepseek_harness_derived_react',
       role: 'single_opl_owned_product_renderer',
-      implementation_status: 'approved_active_product_development_release_admission_separate',
+      implementation_status: 'active_product_implementation',
       technical_evaluation_candidate: 'opl-studio',
       required_surfaces: ['electron_desktop', 'standalone_headless_webui', 'docker_webui'],
       source_reuse_policy_ref: 'docs/product/gui/deepseek-harness-composition-plan.md',
@@ -58,7 +58,7 @@ export function validateDeliveryTopology(profile) {
     {
       implementation_repo: 'gaofeng21cn/opl-studio',
       role: 'deepseek_harness_cordis_application_host',
-      implementation_status: 'source_implemented_release_admission_separate',
+      implementation_status: 'source_implemented_active_shell_carrier_qualification_separate',
       upstream_version: '0.2.0-rc.2',
       upstream_ref: '639ed015397290b3745d163aafe02ffee4aa3f84',
       profile: 'opl-studio',
@@ -67,7 +67,7 @@ export function validateDeliveryTopology(profile) {
       dsh_base_loaded: false,
       codex_runtime_owner: 'opl-codex-native',
       framework_bridge_scope: 'framework_app_state_action_authentication_and_channel_callbacks_only',
-      active_shell_adopted: false,
+      active_shell_adopted: true,
       release_ready: false,
     },
     'Product profile DSH Application Host topology',
@@ -293,14 +293,14 @@ export function validateDeliveryTopology(profile) {
       candidate_id: 'opl-studio',
       user_visible_product_name: 'One Person Lab',
       development_codename_user_visible: false,
-      role: 'first_party_cross_platform_app_successor_implementation',
+      role: 'active_first_party_app_implementation',
       product_development_required: true,
-      current_mainline: false,
+      current_mainline: true,
       minimum_complete_product_obligation: true,
       aionui_feature_parity_obligation: false,
       release_blocking: false,
-      active_release_carrier: false,
-      release_adoption_requires_separate_qualification: true,
+      active_release_carrier: true,
+      release_qualification_remains_carrier_specific: true,
       candidate_policy_ref: 'contracts/app-shell-candidates.json',
     },
     'Product profile successor product policy',
@@ -308,15 +308,15 @@ export function validateDeliveryTopology(profile) {
   assertDeepEqualJson(
     topology.aionui_reference,
     {
-      role: 'current_release_shell_and_bounded_requirements_evidence_only',
+      role: 'retired_historical_provenance_only',
       target_renderer_owner: false,
       target_feature_inventory_owner: false,
       target_runtime_dependency: false,
       aioncore_target_runtime_dependency: false,
-      source_reuse_requires_separate_decision: false,
-      source_reuse_policy: 'bounded_pinned_dsh_visual_cohort_only_through_opl_visual_provider_and_icon_adapter',
-      source_reuse_cohort_ref: 'contracts/app-gui-visual-source-cohort.json',
-      active_release_shell_source_ref: 'contract_refs.active_shell',
+      source_reuse_requires_separate_decision: true,
+      source_reuse_policy: 'historical_provenance_only_no_runtime_build_or_conformance_dependency',
+      source_reuse_cohort_ref: null,
+      active_release_shell_source_ref: null,
     },
     'Product profile AionUI reference boundary',
   );
@@ -381,7 +381,7 @@ export function validateDeliveryTopology(profile) {
         client_renderer_compatibility_profile: 'client_renderer_compatibility',
         client_renderer_switch_policy: 'explicit_adapter_selection_after_compatibility_admission_never_unverified_hot_switch',
         brand_capability_projection_policy: 'dynamic_framework_host_projection_no_fixed_brand_or_domain_registry_in_app_or_client',
-        shared_shell_consumers: ['opl-aion-shell', 'opl-studio'],
+        shared_shell_consumers: ['opl-studio'],
         renderer_and_package_carrier_may_differ: true,
         independent_host_truth_allowed: false,
         second_client_composition_graph_allowed: false,
@@ -402,17 +402,16 @@ export function validateDeliveryTopology(profile) {
         'destructive_storage_cleanup_ui_for_initial_cutover',
       ],
       cutover_policy: {
-        strategy: 'establish_then_replace',
+        strategy: 'studio_active_aionui_retired',
         ordered_gates: [
-          'complete_minimum_product_outcomes',
-          'qualify_electron_desktop_headless_webui_docker_packaging_install_update_and_release',
-          'explicitly_switch_active_shell_and_release_carrier',
+          'maintain_studio_product_outcomes',
+          'qualify_each_published_studio_carrier_independently',
           'verify_installed_and_runtime_readback',
-          'retire_aionui_mainline',
         ],
-        aionui_remains_only_mainline_until_cutover: true,
-        aionui_retirement_before_studio_qualification_allowed: false,
-        source_or_local_candidate_evidence_may_trigger_cutover: false,
+        aionui_mainline_retired: true,
+        aionui_source_or_runtime_required: false,
+        historical_aionui_data_auto_discovery_or_import_allowed: false,
+        source_or_local_candidate_evidence_implies_release_ready: false,
       },
     },
     'Product profile minimum complete successor product contract',

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "schema": "opl_app_gui_visual_source_cohort.v1",
   "owner": "one-person-lab-app",
-  "state": "pinned_for_aionui_visual_foundation",
+  "state": "pinned_for_opl_studio_visual_foundation",
   "machine_boundary": "Defines the only external source cohort allowed to own ordinary AionUI icon glyphs, theme tokens, and visual primitive geometry. It does not own product behavior, routes, Framework ABI, App state/actions, runtime, sessions, connections, release authority, or pixel acceptance.",
   "upstream": {
     "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
@@ -47,7 +47,7 @@
     "packages/client/ui-primitives/src/markdown/MessageText.module.css"
   ],
   "shell_adoption": {
-    "active_shell": "aionui",
+    "active_shell": "opl-studio",
     "reuse_mode": "bounded_vendored_visual_source_with_opl_adapters",
     "required_source_manifest": "packages/desktop/src/renderer/vendor/deepseek-harness/visual-source-manifest.json",
     "required_license_notice": "packages/desktop/src/renderer/vendor/deepseek-harness/LICENSE",

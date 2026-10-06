@@ -17,7 +17,7 @@
     "swift_appkit_wkwebview_product_host_allowed": false,
     "electron_in_headless_or_container_allowed": false,
     "aionui_or_aioncore_target_dependency_allowed": false,
-    "active_release_shell": "aionui",
+    "active_release_shell": "opl-studio",
     "candidate_or_contract_evidence_implies_active_adoption_or_release_ready": false
   },
   "docker_webui_workspace_file_policy": {
@@ -492,23 +492,23 @@
     ],
     "acceptance_boundary": {
       "human_target_owner": "one-person-lab-app",
-      "active_shell": "aionui",
+      "active_shell": "opl-studio",
       "active_shell_role": "current_implementation_conformance_only",
       "docs_or_contract_imply_source_complete": false,
       "docs_or_contract_imply_pixel_complete": false,
       "docs_or_contract_imply_release_ready": false,
       "authority_status": "active_mainline_authority",
-      "shell_implementation_status": "current_source_and_historical_pixels_separately_bound",
-      "source_evidence_status": "active_shell_checkout_contains_verified_gui_ancestor",
-      "pixel_evidence_status": "historical_packaged_route_visual_matrix_verified_current_pixels_unverified",
-      "release_evidence_status": "historical_local_packaged_visual_evidence_complete_release_not_claimed",
-      "current_source_head_source": "active_shell_checkout_git_head",
-      "current_source_head_must_contain_verified_gui_ancestor": true,
+      "shell_implementation_status": "active_studio_source_historical_aionui_pixels_are_provenance_only",
+      "source_evidence_status": "active_shell_checkout_git_head",
+      "pixel_evidence_status": "historical_aionui_visual_evidence_not_current_studio_qualification",
+      "release_evidence_status": "studio_carrier_qualification_is_independent",
+      "current_source_head_source": "contracts/app-shell-adapter.json#shell_source",
+      "current_source_head_must_contain_verified_gui_ancestor": false,
       "current_source_evidence_ref": "contracts/app-shell-adapter.json#shell_source",
       "historical_pixel_shell_sha": "0ebc1fdd278e8a79602458e15e28cf814dfd917d",
       "historical_pixel_shell_sha_binding_status": "bound_to_exact_historical_evidence",
-      "pixel_evidence_ref": "docs/product/gui/evidence/aionui-41301/manifest.json",
-      "pixel_evidence_entry_count": 8,
+      "pixel_evidence_ref": null,
+      "historical_pixel_evidence_entry_count": 8,
       "historical_pixel_shell_sha_must_not_be_inferred_as_current_source_head": true
     },
     "feature_preservation_policy": {
@@ -528,7 +528,7 @@
         "removal_before_replacement_forbidden": true
       },
       "runtime_surface_roles": {
-        "navigation_runtime": "active_aionui_primary_navigation",
+        "navigation_runtime": "opl_studio_primary_navigation",
         "navigation_runtime_default_visible": true,
         "context_runtime": "selected_conversation_or_task_details",
         "context_runtime_independent_of_navigation_runtime": true
@@ -540,8 +540,8 @@
         "default_product_requirement": true,
         "default_release_gate": true,
         "adopted_shell_requirement": true,
-        "active_aionui_navigation_requirement": true,
-        "active_aionui_navigation_may_remove_or_weaken": false,
+        "active_studio_navigation_requirement": true,
+        "active_studio_navigation_may_remove_or_weaken": false,
         "explicit_validation_command": "npm run validate:runtime-route",
         "route_change_requirements": [
           "product_contract",
@@ -592,7 +592,7 @@
         "min": 280,
         "max": 340
       },
-      "top_entries_scope": "active_aionui_current_product",
+      "top_entries_scope": "active_opl_studio_current_product",
       "top_entries": [
         "new_task",
         "runtime",
@@ -600,7 +600,7 @@
         "archived"
       ],
       "conditional_entries": [],
-      "runtime_entry_role": "active_aionui_primary_navigation_and_default_release_requirement_while_native_phase_one_candidate_parity_may_omit_runtime",
+      "runtime_entry_role": "opl_studio_primary_navigation_and_default_release_requirement",
       "runtime_entry": {
         "route": "/runtime",
         "label_i18n": {
@@ -614,7 +614,7 @@
         "narrow_drawer_behavior": "icon_and_label",
         "keyboard_reachable": true,
         "home_content_effect": "navigation_only_no_dashboard",
-        "route_gate_boundary": "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime"
+      "route_gate_boundary": "default_release_gate_requires_opl_studio_runtime"
       },
       "capabilities_mapping": "capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page",
       "legacy_capabilities_route": "/capabilities redirects to /guid without deleting capability data or Settings management",
@@ -663,7 +663,7 @@
           "delete": "thread/delete"
         },
         "pin_role": "shell_ui_metadata_only",
-        "local_reset_role": "retain_existing_aionui_conversation_semantics_not_app_server_history_reset",
+      "local_reset_role": "studio_local_metadata_reset_without_codex_app_server_history_reset",
         "shell_local_storage_role": "drafts_preferences_and_rebuildable_cache_only",
         "shell_thread_history_authority": false,
         "codex_session_directory_authority": "canonical_app_server_thread_overview_when_available",
@@ -973,7 +973,7 @@
       },
       "project_workspace_role": "new_thread_initial_cwd_sidebar_grouping_and_visible_metadata_only_not_authorization_domain",
       "state_authority": "codex_app_server",
-      "plain_conversation_policy": "existing_aionui_acp_unchanged",
+      "plain_conversation_policy": "opl_studio_codex_native_app_server",
       "forbidden_private_layers": [
         "second_json_rpc_client",
         "jsonl_coordination_audit_store",
@@ -1245,7 +1245,7 @@
     },
     "artifact_preview": {
       "definition_role": "opl_target_translation_not_literal_codex_observation",
-      "surface": "existing_aionui_preview_context_and_panel",
+      "surface": "opl_studio_preview_context_and_panel",
       "entry_sources": [
         "session_attachment_ref",
         "conversation_result_ref",
@@ -1506,7 +1506,7 @@
     "owner": "one-person-lab-app",
     "human_policy_ref": "docs/product/gui/gui-maintenance-policy.md",
     "goal": {
-      "upstream_following": "aionui_stable_tags_through_bounded_selective_intake",
+      "upstream_following": "disabled_for_retired_aionui_historical_provenance_only",
       "visual_alignment": "pinned_deepseek_harness_visual_source_with_opl_brand_and_app_owned_pixel_baselines",
       "one_to_one_claim_policy": "scene_bound_comparison_only_never_unqualified_product_wide_claim"
     },
@@ -1526,7 +1526,7 @@
       "release_independence": true,
       "external_artifact_download_install_or_launch_required": false
     },
-    "aionui_upstream_following": {
+    "historical_aionui_upstream_provenance": {
       "channel": "stable_tags_only",
       "required_release_metadata": [
         "tag",
@@ -1571,7 +1571,7 @@
     "visual_comparison_protocol": {
       "schema": "opl_app_gui_visual_comparison.v1",
       "active_reference_cohort_ref": "contracts/app-gui-visual-reference-cohort.json",
-      "shell_comparator_ref": "opl-aion-shell/scripts/compare-gui-visual-cohort.ts",
+      "shell_comparator_ref": "app-owned-scene-comparison",
       "shared_primitive_ids": [
         "composer",
         "rail_row",
@@ -2132,7 +2132,6 @@
         "app_fixed_brand_registry_allowed": false,
         "client_fixed_brand_registry_allowed": false,
         "shared_shell_consumers": [
-          "opl-aion-shell",
           "opl-studio"
         ],
         "renderer_and_package_carrier_may_differ": true,
@@ -2549,7 +2548,7 @@
       "quality_verdict_authority": false,
       "readiness_authority": false,
       "app_role": "display_only_artifact_provenance_bundle_refs_consumer",
-      "shell_implementation_status": "aionui_refs_only_drawer_implemented",
+      "shell_implementation_status": "opl_studio_refs_only_drawer_implemented",
       "forbidden_claims": [
         "artifact_body",
         "domain_artifact_body",
@@ -3462,8 +3461,8 @@
     "projectless_conversation_supported": true,
     "text_chat_without_workspace": "available",
     "workspace_session_rail_default_state": "visible_wide_drawer_narrow",
-    "active_aionui_primary_navigation": {
-      "scope": "active_aionui_current_product_only",
+    "active_studio_primary_navigation": {
+      "scope": "active_opl_studio_current_product_only",
       "ordered_entry_ids": ["new_task", "runtime", "scheduled_tasks", "archived"],
       "runtime_entry": {
         "route": "/runtime",
@@ -3478,7 +3477,7 @@
         "narrow_drawer_behavior": "icon_and_label",
         "keyboard_reachable": true,
         "home_content_effect": "navigation_only_no_dashboard",
-        "route_gate_boundary": "default_release_gate_requires_runtime_native_phase_one_candidate_parity_may_omit_runtime"
+        "route_gate_boundary": "default_release_gate_requires_opl_studio_runtime"
       }
     },
     "runtime_notice_policy_ref": "ui_experience_contract.home.runtime_notice",
@@ -4041,7 +4040,7 @@
       "slice_policy": "same_task_run_projection_v2_filtered_by_current_conversation_or_selected_task"
     },
     "artifact_preview": {
-      "surface": "existing_aionui_preview_context_and_panel",
+      "surface": "opl_studio_preview_context_and_panel",
       "entry_sources": [
         "session_attachment_ref",
         "conversation_result_ref",

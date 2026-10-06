@@ -328,7 +328,7 @@ export type AppDeliveryTopology = {
       client_renderer_compatibility_profile: 'client_renderer_compatibility';
       client_renderer_switch_policy: 'explicit_adapter_selection_after_compatibility_admission_never_unverified_hot_switch';
       brand_capability_projection_policy: 'dynamic_framework_host_projection_no_fixed_brand_or_domain_registry_in_app_or_client';
-      shared_shell_consumers: ['opl-aion-shell', 'opl-studio'];
+      shared_shell_consumers: ['opl-studio'];
       renderer_and_package_carrier_may_differ: true;
       independent_host_truth_allowed: false;
       second_client_composition_graph_allowed: false;
@@ -389,7 +389,7 @@ export type AppProductProfile = {
     ];
     transport_binding_source: 'app_state.transport_bindings';
     transport_binding_schema: 'opl_app_transport_bindings_projection.v1';
-    transport_binding_migration_state: 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed';
+    transport_binding_migration_state: 'framework_transport_binding_projection_and_studio_source_e2e_completed';
     transport_binding_event: 'opl/app-transport-bindings/updated';
     typed_state_rpc: 'opl app state --profile fast --json';
     typed_action_rpc: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json';
@@ -649,7 +649,7 @@ export type AppProductProfile = {
         projectless_conversation_supported: boolean;
         text_chat_without_workspace: string;
         workspace_session_rail_default_state: string;
-        active_aionui_primary_navigation: {
+        active_studio_primary_navigation: {
           scope: string;
           ordered_entry_ids: string[];
           runtime_entry: {

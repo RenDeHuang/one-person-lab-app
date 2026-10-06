@@ -1,11 +1,10 @@
 import { after } from 'node:test';
+import { createHash } from 'node:crypto';
 import { validateGuiDesignSystem } from '../../../scripts/validate-gui-design-system.ts';
 import {
   resolveShellDshVisualSourceMode,
   validateShellDshVisualSource,
 } from '../../../scripts/validate-active-shell/shell-implementation-validator.ts';
-import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { assert, fs, os, path, test, appRoot } from './helpers.ts';
 
 const ownedFixtureRoots = new Set<string>();
@@ -32,21 +31,7 @@ function copyFixtureFile(root: string, relativePath: string): void {
   writeFile(root, relativePath, fs.readFileSync(path.join(appRoot, relativePath), 'utf8'));
 }
 
-function copyFixtureAsset(root: string, relativePath: string): void {
-  const target = path.join(root, relativePath);
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.copyFileSync(path.join(appRoot, relativePath), target);
-}
-
-function refreshSourceManifestHash(root: string): void {
-  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
-  const manifestPath = path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json');
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-  manifest.source_manifest_sha256 = createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex');
-  writeJson(root, 'docs/product/gui/evidence/aionui-41301/manifest.json', manifest);
-}
-
-function createFixture(activeShell: 'aionui' | 'opl-studio' = 'aionui'): string {
+function createFixture(activeShell: 'opl-studio' = 'opl-studio'): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-gui-design-system-'));
   ownedFixtureRoots.add(root);
   for (const relativePath of [
@@ -66,15 +51,11 @@ function createFixture(activeShell: 'aionui' | 'opl-studio' = 'aionui'): string 
     'contracts/app-remote-companion.json',
     'contracts/app-gui-visual-reference-cohort.json',
     'contracts/app-page-state-matrix.json',
-    'docs/product/gui/evidence/aionui-41301/manifest.json',
-    'docs/product/gui/evidence/aionui-41301/source-manifest.json',
     'package.json',
   ]) {
     copyFixtureFile(root, relativePath);
   }
 
-  // The retained AionUI pixel/source evidence is a historical conformance fixture.
-  // It must not accidentally treat the currently selected Studio adapter as AionUI.
   const shellAdapter = JSON.parse(fs.readFileSync(path.join(appRoot, `contracts/shell-adapters/${activeShell}.json`), 'utf8'));
   shellAdapter.active_shell = activeShell;
   writeJson(root, 'contracts/app-shell-adapter.json', shellAdapter);
@@ -84,38 +65,10 @@ function createFixture(activeShell: 'aionui' | 'opl-studio' = 'aionui'): string 
   registry.active_gui_mainline.shell_root = shellAdapter.shell_root;
   registry.active_gui_mainline.source_repo = shellAdapter.shell_source.owner_repo;
   writeJson(root, 'contracts/app-shell-candidates.json', registry);
-  if (activeShell === 'aionui') {
-    shellAdapter.shell_source.upstream_ref = createShellCheckout(root);
-    writeJson(root, 'contracts/app-shell-adapter.json', shellAdapter);
-  }
-  const evidenceManifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json'), 'utf8'));
-  for (const entry of evidenceManifest.entries) copyFixtureAsset(root, entry.screenshot_path);
   return root;
 }
 
-function createShellCheckout(root: string): string {
-  const shellRoot = path.join(root, 'shells/aionui');
-  fs.mkdirSync(shellRoot, { recursive: true });
-  execFileSync('git', ['init', '--quiet'], { cwd: shellRoot });
-  writeFile(shellRoot, 'README.md', '# fixture shell\n');
-  execFileSync('git', ['add', 'README.md'], { cwd: shellRoot });
-  execFileSync(
-    'git',
-    ['-c', 'user.name=OPL Test', '-c', 'user.email=opl-test@example.invalid', 'commit', '--quiet', '-m', 'fixture'],
-    { cwd: shellRoot },
-  );
-  const verifiedAncestor = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: shellRoot, encoding: 'utf8' }).trim();
-  writeFile(shellRoot, 'CURRENT.md', '# current fixture shell\n');
-  execFileSync('git', ['add', 'CURRENT.md'], { cwd: shellRoot });
-  execFileSync(
-    'git',
-    ['-c', 'user.name=OPL Test', '-c', 'user.email=opl-test@example.invalid', 'commit', '--quiet', '-m', 'current'],
-    { cwd: shellRoot },
-  );
-  return verifiedAncestor;
-}
-
-test('GUI design-system validator accepts a complete fixture without promoting release readiness', () => {
+test('GUI design-system validator accepts a complete Studio fixture without promoting release readiness', () => {
   const root = createFixture();
   const summary = validateGuiDesignSystem(root);
   const profile = JSON.parse(fs.readFileSync(path.join(root, 'contracts/app-product-profile.json'), 'utf8'));
@@ -123,7 +76,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   const historicalPixelShellSha =
     contract.interaction_baseline.acceptance_boundary.historical_pixel_shell_sha;
   assert.equal(summary.status, 'consistent');
-  assert.equal(summary.shell_roles.active, 'aionui');
+  assert.equal(summary.shell_roles.active, 'opl-studio');
   assert.equal(summary.release_ready, false);
   assert.deepEqual(summary.visual_source_cohort, {
     contract: 'contracts/app-gui-visual-source-cohort.json',
@@ -137,21 +90,22 @@ test('GUI design-system validator accepts a complete fixture without promoting r
   assert.equal(summary.reference_boundary.page_state_status, 'aligned_contract');
   assert.equal(summary.reference_boundary.candidate_detail_validation, 'explicit_on_demand');
   assert.equal(summary.state_boundary.ideal_native_rail_visible, true);
-  assert.equal(summary.state_boundary.active_aionui_rail_state, 'visible_wide_drawer_narrow');
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, true);
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'aligned_contract');
-  assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
-  assert.equal(summary.state_boundary.active_aionui_conformance.permission_access_mode_status, 'aligned_contract');
-  assert.equal(summary.state_boundary.active_aionui_conformance.side_panel_information_architecture_status, 'aligned_contract');
+  assert.equal(summary.state_boundary.active_studio_rail_state, 'visible_wide_drawer_narrow');
+  assert.equal(summary.state_boundary.active_studio_conformance.rail_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_studio_conformance.rail_status, 'aligned_contract');
+  assert.equal(summary.state_boundary.active_studio_conformance.inspector_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_studio_conformance.permission_access_mode_status, 'aligned_contract');
+  assert.equal(summary.state_boundary.active_studio_conformance.side_panel_information_architecture_status, 'aligned_contract');
   assert.deepEqual(summary.model_defaults, {
     model: profile.codex.default_model,
     reasoning_effort: profile.codex.default_reasoning_effort,
   });
   assert.deepEqual(summary.visual_evidence, {
-    manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
-    shell_head: historicalPixelShellSha,
-    entries_verified: 8,
-    packaged_command: true,
+    current_studio_manifest: null,
+    historical_aionui_manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
+    current_studio_entries_verified: 0,
+    historical_entry_count: 8,
+    packaged_command: false,
   });
   assert.deepEqual(summary.visual_reference_cohort, {
     contract: 'contracts/app-gui-visual-reference-cohort.json',
@@ -170,7 +124,7 @@ test('GUI design-system validator accepts a complete fixture without promoting r
 
 test('GUI design-system validator accepts active Studio without a legacy GUI ancestor', () => {
   for (const upstreamRef of ['main', '0'.repeat(40)]) {
-    const root = createFixture('opl-studio');
+    const root = createFixture();
     const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
     const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
     adapter.shell_source.upstream_ref = upstreamRef;
@@ -179,27 +133,24 @@ test('GUI design-system validator accepts active Studio without a legacy GUI anc
     const summary = validateGuiDesignSystem(root);
     assert.equal(summary.shell_roles.active, 'opl-studio');
     assert.equal(summary.release_ready, false);
-    assert.equal(summary.visual_evidence.manifest, 'docs/product/gui/evidence/aionui-41301/manifest.json');
+    assert.equal(summary.visual_evidence.current_studio_manifest, null);
   }
 });
 
-test('GUI design-system validator rejects active registry identity drift for either adapter', () => {
-  for (const activeShell of ['aionui', 'opl-studio'] as const) {
-    for (const field of ['active_shell_unchanged', 'active_gui_mainline'] as const) {
-      const root = createFixture(activeShell);
-      const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
-      const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
-      const otherShell = activeShell === 'aionui' ? 'opl-studio' : 'aionui';
-      if (field === 'active_shell_unchanged') registry[field] = otherShell;
-      else registry[field].shell = otherShell;
-      writeJson(root, 'contracts/app-shell-candidates.json', registry);
+test('GUI design-system validator rejects active registry identity drift for Studio', () => {
+  for (const field of ['active_shell_unchanged', 'active_gui_mainline'] as const) {
+    const root = createFixture();
+    const registryPath = path.join(root, 'contracts/app-shell-candidates.json');
+    const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    if (field === 'active_shell_unchanged') registry[field] = 'aionui';
+    else registry[field].shell = 'aionui';
+    writeJson(root, 'contracts/app-shell-candidates.json', registry);
 
-      assert.throws(() => validateGuiDesignSystem(root), /candidate registry must match the App-selected active Shell/);
-    }
+    assert.throws(() => validateGuiDesignSystem(root), /candidate registry must match the App-selected active Shell/);
   }
 });
 
-test('GUI design-system validator still requires the legacy AionUI ancestor binding', () => {
+test('GUI design-system validator does not require a retired AionUI ancestor binding', () => {
   const root = createFixture();
   const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
   const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
@@ -207,7 +158,7 @@ test('GUI design-system validator still requires the legacy AionUI ancestor bind
   delete adapter.shell_source.upstream_ref_role;
   writeJson(root, 'contracts/app-shell-adapter.json', adapter);
 
-  assert.throws(() => validateGuiDesignSystem(root), /active shell adapter must bind a verified GUI ancestor/);
+  assert.doesNotThrow(() => validateGuiDesignSystem(root));
 });
 
 test('GUI design-system validator accepts an approved App-owned baseline without promoting release readiness', () => {
@@ -255,7 +206,7 @@ test('GUI design-system validator fail-closes the pinned DSH phase, deferred, up
 
     assert.throws(
       () => validateGuiDesignSystem(root),
-      /visual source cohort must pin the DSH commit, require the Shell source implementation, and keep AionUI limited to visual adapters without runtime or release authority/,
+      /visual source cohort must pin the DSH commit, require the Studio source implementation, and keep the source limited to visual adapters without runtime or release authority/,
       label,
     );
   }
@@ -507,7 +458,7 @@ test('GUI design-system validator rejects prerelease upstream intake and unscope
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
-  contract.gui_maintenance_policy.aionui_upstream_following.channel = 'latest_tag_including_prerelease';
+  contract.gui_maintenance_policy.historical_aionui_upstream_provenance.channel = 'latest_tag_including_prerelease';
   contract.gui_maintenance_policy.goal.one_to_one_claim_policy = 'product_wide_one_to_one';
   writeJson(root, 'contracts/app-gui-product-contract.json', contract);
 
@@ -612,7 +563,7 @@ test('GUI design-system validator ignores explicit Native candidate detail drift
   assert.equal(validateGuiDesignSystem(root).status, 'consistent');
 });
 
-test('GUI design-system validator reports a collapsed active AionUI rail as a contract deviation', () => {
+test('GUI design-system validator reports a collapsed active Studio rail as a contract deviation', () => {
   const root = createFixture();
   const profilePath = path.join(root, 'contracts', 'app-product-profile.json');
   const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'));
@@ -620,11 +571,11 @@ test('GUI design-system validator reports a collapsed active AionUI rail as a co
   writeJson(root, 'contracts/app-product-profile.json', profile);
 
   const summary = validateGuiDesignSystem(root);
-  assert.equal(summary.state_boundary.active_aionui_rail_state, 'collapsed');
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_matches_ideal, false);
-  assert.equal(summary.state_boundary.active_aionui_conformance.rail_status, 'current_contract_deviation');
-  assert.equal(summary.state_boundary.active_aionui_inspector_state, 'collapsed');
-  assert.equal(summary.state_boundary.active_aionui_conformance.inspector_matches_ideal, true);
+  assert.equal(summary.state_boundary.active_studio_rail_state, 'collapsed');
+  assert.equal(summary.state_boundary.active_studio_conformance.rail_matches_ideal, false);
+  assert.equal(summary.state_boundary.active_studio_conformance.rail_status, 'current_contract_deviation');
+  assert.equal(summary.state_boundary.active_studio_inspector_state, 'collapsed');
+  assert.equal(summary.state_boundary.active_studio_conformance.inspector_matches_ideal, true);
 });
 
 test('GUI design-system validator rejects a floating visual source', () => {
@@ -684,7 +635,7 @@ test('GUI design-system validator rejects mixing OPL target entries into literal
   assert.throws(() => validateGuiDesignSystem(root), /must separate literal Codex observations from OPL-owned target translation/);
 });
 
-test('GUI design-system validator rejects removing Runtime from the active AionUI primary rail', () => {
+test('GUI design-system validator rejects removing Runtime from the active Studio primary rail', () => {
   const root = createFixture();
   const contractPath = path.join(root, 'contracts/app-gui-product-contract.json');
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
@@ -755,7 +706,7 @@ test('GUI design-system validator rejects a historical evidence binding that dri
 
   assert.throws(
     () => validateGuiDesignSystem(root),
-    /AionUI 41301 visual evidence manifest must bind eight packaged route\/layout entries/,
+    /page-state acceptance boundary must keep human target separate from source and pixel completion/,
   );
 });
 
@@ -772,17 +723,14 @@ test('GUI design-system validator rejects treating historical pixels as the curr
   );
 });
 
-test('GUI design-system validator rejects a verified ancestor outside the active checkout', () => {
+test('GUI design-system validator does not inspect a retired shell checkout', () => {
   const root = createFixture();
   const adapterPath = path.join(root, 'contracts/app-shell-adapter.json');
   const adapter = JSON.parse(fs.readFileSync(adapterPath, 'utf8'));
   adapter.shell_source.upstream_ref = '0000000000000000000000000000000000000000';
   writeJson(root, 'contracts/app-shell-adapter.json', adapter);
 
-  assert.throws(
-    () => validateGuiDesignSystem(root),
-    /active AionUI checkout [0-9a-f]{40} must contain verified GUI ancestor 0000000000000000000000000000000000000000/,
-  );
+  assert.doesNotThrow(() => validateGuiDesignSystem(root));
 });
 
 test('GUI design-system validator treats declared Markdown as human-readable content', () => {
@@ -1092,46 +1040,9 @@ test('GUI design-system validator rejects an App-owned ideal rail regression', (
   );
 });
 
-test('GUI design-system validator rejects promoted and source evidence timestamp drift', () => {
+test('GUI design-system validator accepts Studio without retired evidence files', () => {
   const root = createFixture();
-  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
-  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  source.generated_at = '2026-07-11T00:00:00.000Z';
-  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
-  refreshSourceManifestHash(root);
-
-  assert.throws(() => validateGuiDesignSystem(root), /must share one exact ISO generated_at timestamp/);
-});
-
-test('GUI design-system validator rejects promoted and source evidence scope drift', () => {
-  const root = createFixture();
-  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
-  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  source.evidence_scope = 'route_state_only';
-  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
-  refreshSourceManifestHash(root);
-
-  assert.throws(() => validateGuiDesignSystem(root), /must share the route-state and layout-only evidence_scope/);
-});
-
-test('GUI design-system validator rejects promoted and source evidence claim drift', () => {
-  const root = createFixture();
-  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
-  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  source.claims.parity_1_to_1 = true;
-  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
-  refreshSourceManifestHash(root);
-
-  assert.throws(() => validateGuiDesignSystem(root), /evidence claims must be identical and limited to the governed claim set/);
-});
-
-test('GUI design-system validator rejects promoted and source evidence entry ID drift', () => {
-  const root = createFixture();
-  const sourcePath = path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json');
-  const source = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
-  source.entries[0].id = 'stale-entry-id';
-  writeJson(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json', source);
-  refreshSourceManifestHash(root);
-
-  assert.throws(() => validateGuiDesignSystem(root), /must preserve the same ordered entry ID set/);
+  assert.equal(fs.existsSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/manifest.json')), false);
+  assert.equal(fs.existsSync(path.join(root, 'docs/product/gui/evidence/aionui-41301/source-manifest.json')), false);
+  assert.equal(validateGuiDesignSystem(root).visual_evidence.current_studio_entries_verified, 0);
 });

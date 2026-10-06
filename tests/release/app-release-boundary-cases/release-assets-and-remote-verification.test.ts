@@ -202,9 +202,9 @@ test('remote release verifier rejects a duplicate Framework Codex manifest or ab
       label: 'claude-presence-claim',
       mutate(manifest) {
         manifest.manifest.package_optimization.package_boundary_audit
-          .aioncore_claude_payload_absent = false;
+          .claude_payload_absent = false;
       },
-      expected: /both Claude and Framework Codex payloads are absent/,
+      expected: /Studio native Codex carrier is external/,
     },
   ];
 

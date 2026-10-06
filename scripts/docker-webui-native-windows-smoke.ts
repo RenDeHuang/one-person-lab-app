@@ -99,7 +99,7 @@ export function buildComposeYaml(options: {
     '    restart: "no"',
     '    environment:',
     '      AIONUI_ALLOW_REMOTE: "true"',
-    '      AIONUI_DATA_DIR: /data',
+    '      OPL_DATA_DIR: /data',
     '      OPL_PROJECTS_DIR: /projects',
     '    volumes:',
     `      - ${quote(`${options.dataDir}:/data`)}`,

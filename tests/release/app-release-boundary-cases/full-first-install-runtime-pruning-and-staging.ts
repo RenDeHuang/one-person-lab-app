@@ -213,13 +213,7 @@ test("Full domain copy keeps only contract-declared authority inventories from r
   }
 });
 
-test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only composition", async (context) => {
-  const previousCarrier = process.env.OPL_FULL_CARRIER_ID;
-  process.env.OPL_FULL_CARRIER_ID = 'aionui';
-  context.after(() => {
-    if (previousCarrier === undefined) delete process.env.OPL_FULL_CARRIER_ID;
-    else process.env.OPL_FULL_CARRIER_ID = previousCarrier;
-  });
+test("Studio Full App bundle trim preserves its runtime and native Codex composition", async () => {
   const { trimFullAppBundleForDmg, auditFullPackageBundleBoundaries, withFullPackageOptimization } =
     await import("../../../scripts/build-full-first-install-package/package-optimization.ts");
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opl-full-app-bundle-trim-"));
@@ -251,7 +245,7 @@ test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only co
       appPath,
       "Contents",
       "Resources",
-      "opl-full-runtime",
+      "opl-studio-full-runtime",
       "runtime",
       "current",
       "bin",
@@ -334,6 +328,7 @@ test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only co
     ),
     "electron",
   );
+  fs.rmSync(path.join(appPath, "Contents", "Resources", "bundled-aioncore"), { recursive: true, force: true });
 
   const trimReport = trimFullAppBundleForDmg(appPath);
   assert.equal(trimReport.schema, "opl_full_app_bundle_trim_report.v1");
@@ -346,7 +341,7 @@ test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only co
         appPath,
         "Contents",
         "Resources",
-        "opl-full-runtime",
+        "opl-studio-full-runtime",
         "runtime",
         "current",
         "bin",
@@ -357,13 +352,13 @@ test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only co
   );
   assert.equal(
     fs.existsSync(path.join(appPath, "Contents", "Resources", "bundled-aioncore", "node")),
-    true,
+    false,
   );
   assert.equal(
     fs.existsSync(
       path.join(appPath, "Contents", "Resources", "bundled-aioncore", "runtime.js.map"),
     ),
-    true,
+    false,
   );
   assert.equal(
     fs.existsSync(
@@ -394,15 +389,16 @@ test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only co
     false,
   );
   assert.equal(boundaryAudit.full_package_boundary.contains_opl_full_runtime, true);
-  assert.equal(boundaryAudit.full_package_boundary.contains_shell_runtime, true);
+  assert.equal(boundaryAudit.full_package_boundary.contains_shell_runtime, false);
   assert.equal(
-    boundaryAudit.full_package_boundary.aioncore_codex_only_projection_present,
+    boundaryAudit.full_package_boundary.native_codex_external_carrier_present,
     true,
   );
   assert.equal(
-    boundaryAudit.full_package_boundary.aioncore_claude_payload_absent,
-    true,
+    boundaryAudit.full_package_boundary.native_codex_embedded_payload_present,
+    false,
   );
+  assert.equal(boundaryAudit.full_package_boundary.claude_payload_absent, true);
   const manifest = withFullPackageOptimization(
     { manifest_version: 2, package_kind: "opl_full_first_install_macos_arm64" },
     { trimReport, boundaryAudit },
@@ -425,50 +421,6 @@ test("legacy AionUI Full App bundle trim preserves its runtime and Codex-only co
     trimReport.bytes_removed,
   );
 
-  fs.rmSync(codexExecutablePath);
-  const missingCodexAudit = auditFullPackageBundleBoundaries(appPath, {
-    package_kind: "opl_full_first_install_macos_arm64",
-    version: "26.6.21-size-opt",
-  });
-  assert.equal(
-    missingCodexAudit.full_package_boundary.aioncore_codex_only_projection_present,
-    false,
-  );
-  writeFile(codexExecutablePath, "codex-runtime");
-
-  writeFile(
-    path.join(managedResourcesRoot, "cli", "claude", "2.1.215", "darwin-arm64", "claude"),
-    "claude-runtime",
-  );
-  const claudeAudit = auditFullPackageBundleBoundaries(appPath, {
-    package_kind: "opl_full_first_install_macos_arm64",
-    version: "26.6.21-size-opt",
-  });
-  assert.equal(
-    claudeAudit.full_package_boundary.aioncore_claude_payload_absent,
-    false,
-  );
-  assert.throws(
-    () =>
-      withFullPackageOptimization(
-        { manifest_version: 2, package_kind: "opl_full_first_install_macos_arm64" },
-        { trimReport, boundaryAudit: claudeAudit },
-      ),
-    /did not preserve the declared offline first-install App bundle boundary/,
-  );
-
-  const incompleteAudit = auditFullPackageBundleBoundaries(path.join(tempRoot, "Incomplete.app"), {
-    package_kind: "opl_full_first_install_macos_arm64",
-    version: "26.6.21-size-opt",
-  });
-  assert.throws(
-    () =>
-      withFullPackageOptimization(
-        { manifest_version: 2, package_kind: "opl_full_first_install_macos_arm64" },
-        { trimReport, boundaryAudit: incompleteAudit },
-      ),
-    /did not preserve the declared offline first-install App bundle boundary/,
-  );
 });
 
 test("Full runtime node payload prunes package-only docs while preserving offline launch executables", async () => {

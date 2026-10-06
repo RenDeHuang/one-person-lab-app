@@ -4030,19 +4030,19 @@
     "generated_companion_text_language": "en",
     "required_payloads": {
       "codex_cli": {
-        "compatibility_mode": "shell_carrier_exact_manifest_binary",
+        "compatibility_mode": "studio_native_exact_external_binary",
         "carrier_contract_ref": "contracts/app-shell-adapter.json#codex_executable_contract",
         "preferred_sources": [
-          "shell_opl_composed_managed_resources_projection_v1"
+          "studio_opl_codex_native_external_binary_v1"
         ],
         "resolver_env": "OPL_CODEX_BIN",
-        "version_source": "contracts/aionui-upstream-intake.json#managed_runtime.codex_cli",
-        "projection_schema": "opl_aioncore_managed_resources_projection.v1",
-        "producer_schema_version": 2,
+        "version_source": "contracts/shell-adapters/opl-studio.json#qualification_external_carrier",
+        "projection_schema": "opl_codex_native_external_binary.v1",
+        "producer_schema_version": 1,
         "forbidden_cli_names": [
           "claude"
         ],
-        "aioncore_required": true,
+        "aioncore_required": false,
         "framework_managed_payload_in_full_runtime_allowed": false,
         "forbidden_framework_runtime_paths": [
           "bin/codex",
@@ -4050,7 +4050,7 @@
           "vendor/codex",
           ".runtime-cache/codex-cli"
         ],
-        "verification": "The active AionUI shell must resolve one exact Codex executable from the bundled-aioncore managed-resources OPL-composed Codex-only projection and pass it through OPL_CODEX_BIN; the projection must bind the official npm platform package source, the final App tree must prove Claude absent, and the Full Framework runtime must prove all forbidden duplicate paths absent."
+        "verification": "The active Studio shell must resolve one exact external @openai/codex platform binary and pass it through OPL_CODEX_BIN; the App bundle must not embed a Codex payload, and the Full Framework runtime must prove all forbidden duplicate paths absent."
       },
       "temporal_cli": {
         "compatibility_mode": "minimum_version_plus_capability_smoke",
@@ -4180,7 +4180,6 @@
         ],
         "required_preserved_payloads": [
           "Contents/Resources/opl-full-runtime",
-          "Contents/Resources/bundled-aioncore",
           "Contents/Resources/app.asar",
           "Contents/Resources/app.asar.unpacked",
           "Contents/Frameworks/Electron Framework.framework"
@@ -4226,16 +4225,16 @@
           "app_role": "consumer_and_packager",
           "execution_environment_contract_ref": "full_first_install.opl_execution_environment_consumer.source_surface.contract_ref"
         },
-        "aionui_bundled_runtime": {
-          "path": "Contents/Resources/bundled-aioncore",
-          "owner": "active_shell",
-          "role": "AionUI shell runtime required by the App bundle",
+        "studio_shell_runtime": {
+          "path": "Contents/Resources/opl-studio-runtime",
+          "owner": "gaofeng21cn/opl-studio",
+          "role": "Studio shell runtime; current carrier intentionally embeds no shell runtime",
           "does_not_replace": "opl_full_runtime"
         },
         "app_asar": {
           "path": "Contents/Resources/app.asar",
-          "owner": "active_shell",
-          "role": "AionUI renderer and process bundle"
+          "owner": "gaofeng21cn/opl-studio",
+          "role": "Studio renderer and process bundle"
         },
         "electron_framework": {
           "path": "Contents/Frameworks/Electron Framework.framework",
@@ -4282,7 +4281,7 @@
           "id": "dedupe_or_split_declared_full_runtime_layers",
           "target_contributors": [
             "opl-full-runtime",
-            "bundled-aioncore"
+            "opl-studio-runtime"
           ],
           "rule": "Reduce duplicated runtime payloads and layer contents only when Full offline Core readiness and native trust evidence remain intact."
         },
@@ -4290,7 +4289,7 @@
           "rank": 2,
           "id": "shrink_aionui_app_bundle_payloads",
           "target_contributors": [
-            "bundled-aioncore",
+            "app.asar",
             "app.asar"
           ],
           "rule": "Remove non-runtime shell assets, maps, tests, caches, or reports without changing App-owned GUI behavior or shell authority boundaries."

@@ -2,7 +2,7 @@ import { assertExpectedFields } from '../value-assertions.ts';
 import type { ProductProfileLike } from './types.ts';
 import { assertExactStringArray } from './model-display.ts';
 import {
-  appOwnedActiveAionuiPrimaryNavigation,
+  appOwnedActiveStudioPrimaryNavigation,
   appOwnedCodexSubagentActivityPolicy,
   appOwnedExplicitSessionInputPolicy,
   appOwnedRightContextInspectorForbiddenOwners,
@@ -65,11 +65,11 @@ export function assertAppProductProfileGuiInteractionBaseline(
     `${label} GUI interaction profile must match the Codex baseline`,
   );
   if (
-    JSON.stringify(homeLayout?.active_aionui_primary_navigation) !==
-    JSON.stringify(appOwnedActiveAionuiPrimaryNavigation)
+    JSON.stringify(homeLayout?.active_studio_primary_navigation) !==
+    JSON.stringify(appOwnedActiveStudioPrimaryNavigation)
   ) {
     throw new Error(
-      `${label} GUI Home must keep Runtime status in the active AionUI primary navigation without expanding Native or release gates`,
+      `${label} GUI Home must keep Runtime status in the active Studio primary navigation without expanding Native or release gates`,
     );
   }
   assertExactStringArray(

@@ -233,8 +233,8 @@ test('Full Homebrew reusable publishes hosted-qualified bytes before optional ph
   assert.match(source, /no second push was attempted/);
   assert.match(source, /opl_homebrew_full_unknown_outcome\.v2/);
   assert.match(source, /required_action:"read_only_reconcile"/);
-  assert.match(source, /a1561bdf1dfe6f316dad22f16152a537ddfb69d5/);
-  assert.match(source, /merge-base --is-ancestor "\$embedded_base_floor" "\$shell_sha"/);
+  assert.match(source, /git -C shell-product cat-file -e "\$shell_sha:desktop\/runtime-bootstrap\.mjs"/);
+  assert.doesNotMatch(source, /merge-base --is-ancestor "\$embedded_base_floor" "\$shell_sha"/);
   assert.match(source, /standard_manifest_url=.*opl-app-component-manifest\.json/);
   assert.match(source, /--expected-source-commit "\$base_target_commitish"/);
   assert.doesNotMatch(source, /\.target_standard\.target_commitish == \.build_provenance\.app_sha/);

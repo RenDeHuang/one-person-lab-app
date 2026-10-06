@@ -696,32 +696,14 @@ test('Full notes derive only selected prebuild input refs from exact App, Shell,
     build_artifact_bytes_known: false,
     usage: 'prepared_release_notes_evidence',
   });
-  assert.deepEqual(authority.components.codex, { version: `codex-cli ${fixture.codexVersion}` });
+  assert.deepEqual(authority.components.codex, { version: 'codex-cli 0.147.0-darwin-arm64' });
   assert.equal(authority.runtime_authority.codex_cli.shell_source_commit, fixture.shell.ref);
-  assert.equal(authority.runtime_authority.codex_cli.source, 'shell_opl_composed_managed_resources_projection_v1');
-  assert.equal(
-    authority.runtime_authority.codex_cli.managed_resources_projection_schema,
-    'opl_aioncore_managed_resources_projection.v1',
-  );
-  assert.equal(authority.runtime_authority.codex_cli.producer_managed_resources_schema_version, 2);
-  assert.equal(authority.runtime_authority.codex_cli.node_runtime.version, fixture.nodeVersion);
-  assert.deepEqual(authority.runtime_authority.codex_cli.included_cli_names, ['codex']);
-  assert.deepEqual(authority.runtime_authority.codex_cli.excluded_cli_names, ['claude']);
-  assert.deepEqual(authority.runtime_authority.codex_cli.required_absent_paths, [
-    'cli/claude',
-    'acp',
-    'node_modules/@anthropic-ai/claude-code',
-    'node_modules/claude-code',
-    'claude',
-  ]);
+  assert.equal(authority.runtime_authority.codex_cli.source, 'studio_opl_codex_native_external_binary_v1');
+  assert.equal(authority.runtime_authority.codex_cli.qualification_input_ref, 'contracts/shell-adapters/opl-studio.json#qualification_external_carrier');
+  assert.equal(authority.runtime_authority.codex_cli.qualification_input.version, '0.147.0-darwin-arm64');
+  assert.equal(authority.runtime_authority.codex_cli.app_bundle_codex_payload_forbidden, true);
   assert.equal(Object.hasOwn(authority.runtime_authority.codex_cli, 'claude_cli'), false);
-  assert.equal(authority.runtime_authority.codex_cli.direct_cli.name, 'codex');
-  assert.equal(authority.runtime_authority.codex_cli.version, fixture.codexVersion);
-  assert.match(authority.runtime_authority.codex_cli.managed_resources_manifest_sha256, /^sha256:[0-9a-f]{64}$/);
-  assert.match(authority.runtime_authority.codex_cli.direct_cli.executable_sha256, /^sha256:[0-9a-f]{64}$/);
-  assert.match(authority.runtime_authority.codex_cli.direct_cli.required_files[0].sha256, /^sha256:[0-9a-f]{64}$/);
-  assert.match(authority.runtime_authority.codex_cli.direct_cli.required_directories[0].tree_sha256, /^sha256:[0-9a-f]{64}$/);
-  assert.equal(authority.runtime_authority.codex_cli.qualification_input_ref, undefined);
+  assert.equal(authority.runtime_authority.codex_cli.version, '0.147.0-darwin-arm64');
   assert.notEqual(authority.runtime_authority.codex_cli.version, fixture.staleAppCodexProjection);
   assert.doesNotMatch(JSON.stringify(authority), /codex_acp|package_lock|npm_integrity|tarball_url/);
   assert.equal('framework_release_set' in authority, false);
@@ -749,7 +731,7 @@ test('Full notes derive only selected prebuild input refs from exact App, Shell,
   const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
   const expectedRefs = [
     `OPL Framework @ ${fixture.framework.ref.slice(0, 7)}`,
-    `Codex CLI ${fixture.codexVersion}`,
+    'Codex CLI 0.147.0-darwin-arm64',
     `OfficeCLI @ ${fixture.officeRef.slice(0, 7)}`,
     `MinerU @ ${fixture.mineruRef.slice(0, 7)}`,
   ];
@@ -906,97 +888,6 @@ test('prebuild Full notes authority does not require a Release Set input', () =>
   const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
   assert.equal('framework_release_set' in authority, false);
   assert.equal('packages' in authority, false);
-});
-
-test('prebuild Full notes authority rejects absent or drifted Shell AionCore materialization', async (context) => {
-  for (const [label, mutate, expected] of [
-    [
-      'missing root manifest',
-      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => fs.rmSync(path.join(
-        fixture.shell.root,
-        'resources',
-        'bundled-aioncore',
-        'darwin-arm64',
-        'manifest.json',
-      )),
-      /AionCore root manifest file is missing/,
-    ],
-    [
-      'missing managed manifest',
-      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => fs.rmSync(path.join(
-        fixture.shell.root,
-        'resources',
-        'bundled-aioncore',
-        'darwin-arm64',
-        'managed-resources',
-        'manifest.json',
-      )),
-      /AionCore managed-resources manifest file is missing/,
-    ],
-    [
-      'Shell pin drift',
-      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => jsonFile(
-        path.join(fixture.shell.root, 'package.json'),
-        { aioncoreVersion: 'v0.1.50' },
-      ),
-      /root manifest must exactly match the Shell pin/,
-    ],
-    [
-      'official release URL drift',
-      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => {
-        const manifestPath = path.join(
-          fixture.shell.root,
-          'resources',
-          'bundled-aioncore',
-          'darwin-arm64',
-          'manifest.json',
-        );
-        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        manifest.source.url = 'https://github.com/iOfficeAI/AionCore/releases/latest/download/aioncore.tar.gz';
-        jsonFile(manifestPath, manifest);
-      },
-      /root manifest must exactly match the Shell pin/,
-    ],
-    [
-      'missing Codex required file',
-      (fixture: ReturnType<typeof fullPayloadAuthorityFixture>) => {
-        fs.rmSync(fixture.codexRequiredFile);
-      },
-      /codex CLI required file is missing/,
-    ],
-  ] as const) {
-    await context.test(label, () => {
-      const fixture = fullPayloadAuthorityFixture();
-      mutate(fixture);
-      fixture.shell.ref = commitFixtureChange(fixture.shell.root, label);
-      const authorityPath = path.join(fixture.root, 'invalid-aioncore-authority.json');
-      const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
-      assert.notEqual(result.status, 0);
-      assert.match(result.stderr, expected);
-      assert.equal(fs.existsSync(authorityPath), false);
-    });
-  }
-});
-
-test('prebuild Full notes authority rejects Shell direct CLI materialization drift before writing evidence', () => {
-  const fixture = fullPayloadAuthorityFixture();
-  const managedManifestPath = path.join(
-    fixture.shell.root,
-    'resources',
-    'bundled-aioncore',
-    'darwin-arm64',
-    'managed-resources',
-    'manifest.json',
-  );
-  const managedManifest = JSON.parse(fs.readFileSync(managedManifestPath, 'utf8'));
-  managedManifest.clis[0].root = 'cli/codex/0.143.0/darwin-arm64';
-  jsonFile(managedManifestPath, managedManifest);
-  fixture.shell.ref = commitFixtureChange(fixture.shell.root, 'drift direct Codex CLI root');
-  const authorityPath = path.join(fixture.root, 'drifted-codex-authority.json');
-  const result = runNode(fullPayloadAuthorityArgs(fixture, authorityPath));
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /managed codex CLI root must match its exact version and platform/);
-  assert.equal(fs.existsSync(authorityPath), false);
 });
 
 test('prebuild Full notes authority ignores unselected Package metadata', () => {

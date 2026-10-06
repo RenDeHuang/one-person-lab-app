@@ -184,7 +184,7 @@
         "workspace_session_rail_default_visible": true,
         "inspector_default_visible": false
       },
-      "active_aionui": {
+      "active_studio": {
         "source": "contracts/app-product-profile.json#gui.home.home_layout",
         "conformance_policy": "read_current_profile_state_and_compare_to_ideal_without_freezing_values"
       }
@@ -1163,7 +1163,7 @@
           }
         ],
         "minimum_acceptance": [
-          "default App release adapter still validates as aionui",
+          "default App release adapter validates as opl-studio",
           "candidate registry validates without changing release_shell_contract",
           "candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT",
           "candidate consumes OPL App state/action contracts without owning runtime or domain truth",
@@ -1236,7 +1236,7 @@
         }
       ],
       "non_goals": [
-        "do not switch active_shell away from aionui",
+        "do not switch active_shell away from opl-studio",
         "do not enter default stable or nightly release packaging",
         "do not introduce runtime or domain truth into the App repo",
         "do not use same-agent-tree send_input as a cross-top-level message bus",

@@ -98,13 +98,13 @@ export function validatePackageReadinessProjection(runtimeBridge) {
   if (
     runtimeRow?.route_classification !== 'core_dynamic_agent_runtime'
     || runtimeRow.producer_required !== true
-    || runtimeRow.aionui_route_required !== true
+    || runtimeRow.active_shell_route_required !== true
     || runtimeRow.adopted_shell_route_required !== true
     || runtimeRow?.canonical_source !==
       'opl app state --profile fast --json#app_state.operator.workbench.work_item_projection_v2'
-    || runtimeRow.aion_display_role !==
-      'minimal WorkItem status, Stage, Attempt, Token, next action, and archive/restore'
-    || runtimeRow.workbench_display_role !== 'core Runtime consumer required before shell adoption'
+    || runtimeRow.studio_display_role !==
+      'WorkItem status, Stage, Attempt, Token, next action, and archive/restore'
+    || runtimeRow.workbench_display_role !== 'core Runtime consumer required in the active shell'
     || nativeShellRole !== 'active_release_shell_thin_display_consumer'
   ) {
     throw new Error('Runtime bridge canonical Runtime row must preserve the Framework producer and require the core route in every adopted shell');

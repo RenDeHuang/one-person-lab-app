@@ -29,8 +29,6 @@ export PYTHONDONTWRITEBYTECODE="1"
 OPL_RUNTIME_STATE_ROOT="\${OPL_STATE_DIR:-}"
 if [[ -z "$OPL_RUNTIME_STATE_ROOT" && -n "\${OPL_DATA_DIR:-}" ]]; then
   OPL_RUNTIME_STATE_ROOT="$OPL_DATA_DIR/opl/state"
-elif [[ -z "$OPL_RUNTIME_STATE_ROOT" && -n "\${AIONUI_DATA_DIR:-}" ]]; then
-  OPL_RUNTIME_STATE_ROOT="$AIONUI_DATA_DIR/opl/state"
 elif [[ -z "$OPL_RUNTIME_STATE_ROOT" ]]; then
   OPL_RUNTIME_STATE_ROOT="\${HOME:-$RUNTIME_HOME}/Library/Application Support/OPL/state"
 fi

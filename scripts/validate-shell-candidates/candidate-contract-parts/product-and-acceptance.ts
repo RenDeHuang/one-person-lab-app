@@ -95,12 +95,12 @@ export function validateMinimumCompleteProductContract(minimumProduct: MinimumCo
   const scope = minimumProduct.functional_baseline_scope;
   if (
     scope?.first_qualification_platform !== 'macos' ||
-    scope.macos_full_functional_baseline_required_before_cutover !== true ||
+    scope.macos_full_functional_baseline_required_for_stable_release !== true ||
     scope.windows_linux_full_vm_required_before_declared_platform_support !== true ||
     scope.source_portability_may_substitute_for_platform_vm_evidence !== false ||
-    scope.current_state !== 'candidate_validation_only_not_active_shell_admitted'
+    scope.current_state !== 'active_studio_implementation_with_carrier_specific_qualification'
   ) {
-    throw new Error('OPL Studio minimum-complete contract must preserve the macOS-first candidate-only qualification boundary');
+    throw new Error('OPL Studio minimum-complete contract must preserve carrier-specific qualification boundaries');
   }
 
   const evidenceAxes = minimumProduct.evidence_axes;
@@ -247,7 +247,7 @@ function validateCandidateAiFirstInteractionModel(candidate: ShellCandidate): vo
 
 export function validateCandidateMinimumAcceptance(candidate: ShellCandidate): void {
   assertStringArrayIncludes(candidate.technical_verification?.minimum_acceptance ?? [], [
-    'default App release adapter still validates as aionui',
+    'default App release adapter validates as opl-studio',
     'candidate registry validates without changing release_shell_contract',
     'candidate adapter can be selected only through OPL_APP_SHELL_ADAPTER_CONTRACT',
     'candidate consumes OPL App state/action contracts without owning runtime or domain truth',
@@ -326,7 +326,7 @@ export function validateCandidateAuthorityBoundaries(candidate: ShellCandidate):
     'provider marketplace',
   ], `${candidate.id}.forbidden_home_controls`);
   assertStringArrayIncludes(candidate.non_goals, [
-    'do not switch active_shell away from aionui',
+    'do not switch active_shell away from opl-studio',
     'do not enter default stable or nightly release packaging',
     'do not introduce runtime or domain truth into the App repo',
     'do not add a private coordination host, model-triggered cross-thread tools, OPL-owned queue, coordination ledger, receipts, advisory, idempotency, or cross-host handoff layer',

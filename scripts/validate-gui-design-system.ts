@@ -4,10 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readActiveShellBuildProfile } from './active-shell-build-profile.ts';
-import { validateActiveShellCheckout } from './validate-gui-design-system-parts/active-shell-checkout.ts';
-import { validateVisualEvidence } from './validate-gui-design-system-parts/visual-evidence.ts';
 import {
-  appOwnedActiveAionuiPrimaryNavigation,
+  appOwnedActiveStudioPrimaryNavigation,
   appOwnedCodexSubagentActivityPolicy,
   appOwnedDirectoryGroupPolicy,
   appOwnedExplicitSessionInputPolicy,
@@ -33,7 +31,7 @@ export type GuiDesignSystemValidation = {
   root: string;
   definition_stack: string[];
   shell_roles: {
-    active: 'aionui' | 'opl-studio';
+    active: 'opl-studio';
     foreground: 'opl-studio';
   };
   visual_source_cohort: {
@@ -56,9 +54,9 @@ export type GuiDesignSystemValidation = {
   state_boundary: {
     ideal_native_rail_visible: true;
     ideal_native_inspector_visible: false;
-    active_aionui_rail_state: ActiveSurfaceState;
-    active_aionui_inspector_state: ActiveSurfaceState;
-    active_aionui_conformance: {
+    active_studio_rail_state: ActiveSurfaceState;
+    active_studio_inspector_state: ActiveSurfaceState;
+    active_studio_conformance: {
       rail_matches_ideal: boolean;
       inspector_matches_ideal: boolean;
       rail_status: ContractConformanceStatus;
@@ -69,10 +67,11 @@ export type GuiDesignSystemValidation = {
   };
   evidence_scope: 'design_system_governance_consistency_only';
   visual_evidence: {
-    manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json';
-    shell_head: string;
-    entries_verified: 8;
-    packaged_command: true;
+    current_studio_manifest: null;
+    historical_aionui_manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json';
+    current_studio_entries_verified: 0;
+    historical_entry_count: 8;
+    packaged_command: false;
   };
   visual_reference_cohort: {
     contract: 'contracts/app-gui-visual-reference-cohort.json';
@@ -499,7 +498,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const maintenancePolicy = record(guiContract.gui_maintenance_policy);
   const maintenanceGoal = record(maintenancePolicy.goal);
   const referencePromotion = record(maintenancePolicy.visual_source_promotion);
-  const upstreamFollowing = record(maintenancePolicy.aionui_upstream_following);
+  const upstreamFollowing = record(maintenancePolicy.historical_aionui_upstream_provenance);
   const classificationMeanings = record(upstreamFollowing.classification_meanings);
   const maintenanceBudgets = record(maintenancePolicy.maintenance_budgets);
   const auditBaseline = record(maintenanceBudgets.audit_baseline);
@@ -531,7 +530,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     maintenancePolicy.owner !== 'one-person-lab-app' ||
     maintenancePolicy.human_policy_ref !== maintenancePolicyRef ||
     !fs.existsSync(path.join(root, maintenancePolicyRef)) ||
-    maintenanceGoal.upstream_following !== 'aionui_stable_tags_through_bounded_selective_intake' ||
+    maintenanceGoal.upstream_following !== 'disabled_for_retired_aionui_historical_provenance_only' ||
     maintenanceGoal.visual_alignment !==
       'pinned_deepseek_harness_visual_source_with_opl_brand_and_app_owned_pixel_baselines' ||
     maintenanceGoal.one_to_one_claim_policy !== 'scene_bound_comparison_only_never_unqualified_product_wide_claim' ||
@@ -599,7 +598,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     visualComparison.schema !== 'opl_app_gui_visual_comparison.v1' ||
     visualComparison.active_reference_cohort_ref !== visualReferenceCohortPath ||
-    visualComparison.shell_comparator_ref !== 'opl-aion-shell/scripts/compare-gui-visual-cohort.ts' ||
+    visualComparison.shell_comparator_ref !== 'app-owned-scene-comparison' ||
     !sameStrings(visualComparison.shared_primitive_ids, visualPrimitiveIds) ||
     !sameStrings(visualComparison.required_binding_fields, [
       'reference_baseline_id',
@@ -642,7 +641,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     visualSourceCohort.schema_version !== 1 ||
     visualSourceCohort.schema !== 'opl_app_gui_visual_source_cohort.v1' ||
     visualSourceCohort.owner !== 'one-person-lab-app' ||
-    visualSourceCohort.state !== 'pinned_for_aionui_visual_foundation' ||
+    visualSourceCohort.state !== 'pinned_for_opl_studio_visual_foundation' ||
     sourceUpstream.repository !== 'https://github.com/deepseek-ai/deepseek-harness.git' ||
     sourceUpstream.commit !== visualSourceCommit ||
     sourceUpstream.license !== 'MIT' ||
@@ -681,7 +680,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       'packages/client/ui-primitives/src/markdown/MessageText.tsx',
       'packages/client/ui-primitives/src/markdown/MessageText.module.css',
     ]) ||
-    sourceShellAdoption.active_shell !== 'aionui' ||
+    sourceShellAdoption.active_shell !== 'opl-studio' ||
     sourceShellAdoption.reuse_mode !== 'bounded_vendored_visual_source_with_opl_adapters' ||
     sourceShellAdoption.required_source_manifest !==
       'packages/desktop/src/renderer/vendor/deepseek-harness/visual-source-manifest.json' ||
@@ -714,7 +713,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     sourceEvidenceBoundary.installed_current !== false ||
     sourceEvidenceBoundary.release_ready !== false
   ) {
-    issues.add('visual source cohort must pin the DSH commit, require the Shell source implementation, and keep AionUI limited to visual adapters without runtime or release authority');
+    issues.add('visual source cohort must pin the DSH commit, require the Studio source implementation, and keep the source limited to visual adapters without runtime or release authority');
   }
   if (
     visualReferenceCohort.schema_version !== 1 ||
@@ -742,11 +741,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     cohortReference.external_product_artifact_required !== false ||
     cohortReference.stable_release_dependency !== false ||
     cohortCandidate.product !== 'One Person Lab App' ||
-    cohortCandidate.shell !== 'opl-aion-shell' ||
+    cohortCandidate.shell !== 'opl-studio' ||
     cohortCandidate.app_contract_ref !==
       'contracts/app-gui-product-contract.json#gui_maintenance_policy.visual_comparison_protocol' ||
-    cohortCandidate.shell_source_ref !== 'active_shell_checkout_git_head' ||
-    cohortCandidate.comparison_tool !== 'opl-aion-shell/scripts/compare-gui-visual-cohort.ts'
+    cohortCandidate.shell_source_ref !== 'contracts/app-shell-adapter.json#shell_source' ||
+    cohortCandidate.comparison_tool !== 'app-owned-scene-comparison'
   ) {
     issues.add('visual reference cohort must bind a reachable pending-or-approved App-owned pixel baseline and thin AionUI candidate route');
   }
@@ -976,43 +975,35 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const guiConformanceRef = String(shellSource.upstream_ref ?? '');
   if (
     acceptanceBoundary.human_target_owner !== 'one-person-lab-app' ||
-    acceptanceBoundary.active_shell !== 'aionui' ||
+    acceptanceBoundary.active_shell !== 'opl-studio' ||
     acceptanceBoundary.active_shell_role !== 'current_implementation_conformance_only' ||
     acceptanceBoundary.docs_or_contract_imply_source_complete !== false ||
     acceptanceBoundary.docs_or_contract_imply_pixel_complete !== false ||
     acceptanceBoundary.docs_or_contract_imply_release_ready !== false ||
     acceptanceBoundary.authority_status !== 'active_mainline_authority' ||
-    acceptanceBoundary.shell_implementation_status !== 'current_source_and_historical_pixels_separately_bound' ||
-    acceptanceBoundary.source_evidence_status !== 'active_shell_checkout_contains_verified_gui_ancestor' ||
+    acceptanceBoundary.shell_implementation_status !== 'active_studio_source_historical_aionui_pixels_are_provenance_only' ||
+    acceptanceBoundary.source_evidence_status !== 'active_shell_checkout_git_head' ||
     acceptanceBoundary.pixel_evidence_status !==
-      'historical_packaged_route_visual_matrix_verified_current_pixels_unverified' ||
+      'historical_aionui_visual_evidence_not_current_studio_qualification' ||
     acceptanceBoundary.release_evidence_status !==
-      'historical_local_packaged_visual_evidence_complete_release_not_claimed' ||
-    acceptanceBoundary.current_source_head_source !== 'active_shell_checkout_git_head' ||
-    acceptanceBoundary.current_source_head_must_contain_verified_gui_ancestor !== true ||
+      'studio_carrier_qualification_is_independent' ||
+    acceptanceBoundary.current_source_head_source !== 'contracts/app-shell-adapter.json#shell_source' ||
+    acceptanceBoundary.current_source_head_must_contain_verified_gui_ancestor !== false ||
     acceptanceBoundary.current_source_evidence_ref !== 'contracts/app-shell-adapter.json#shell_source' ||
     !/^[0-9a-f]{40}$/.test(historicalPixelShellSha) ||
     acceptanceBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
-    acceptanceBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
-    acceptanceBoundary.pixel_evidence_entry_count !== 8 ||
+    acceptanceBoundary.pixel_evidence_ref !== null ||
+    acceptanceBoundary.historical_pixel_evidence_entry_count !== 8 ||
     acceptanceBoundary.historical_pixel_shell_sha_must_not_be_inferred_as_current_source_head !== true
   ) {
     issues.add('interaction baseline must keep the human target separate from source, pixel, and release completion');
   }
-  if (activeBuild.id === 'aionui') {
-    if (
-      !/^[0-9a-f]{40}$/.test(guiConformanceRef) ||
-      shellSource.upstream_ref_role !== 'minimum_verified_gui_conformance_ancestor' ||
-      shellSource.current_head_source !== 'active_shell_checkout_git_head' ||
-      shellSource.current_head_must_contain_upstream_ref !== true
-    ) {
-      issues.add('active shell adapter must bind a verified GUI ancestor separately from the current shell Git head');
-    }
-    if (/^[0-9a-f]{40}$/.test(guiConformanceRef)) {
-      validateActiveShellCheckout(root, shellSource, guiConformanceRef, issues);
-    }
+  if (
+    acceptanceBoundary.pixel_evidence_ref !== null ||
+    acceptanceBoundary.pixel_evidence_status !== 'historical_aionui_visual_evidence_not_current_studio_qualification'
+  ) {
+    issues.add('historical AionUI visual evidence must not serve as current Studio pixel qualification');
   }
-  const visualEvidenceEntries = validateVisualEvidence(root, historicalPixelShellSha, issues);
 
   const literalObservation = record(interactionBaseline.literal_observation);
   const featurePreservation = record(interactionBaseline.feature_preservation_policy);
@@ -1070,7 +1061,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     relocationGate.replacement_reachable_in_same_change !== true ||
     relocationGate.contract_source_tests_updated_together !== true ||
     relocationGate.removal_before_replacement_forbidden !== true ||
-    runtimeSurfaceRoles.navigation_runtime !== 'active_aionui_primary_navigation' ||
+    runtimeSurfaceRoles.navigation_runtime !== 'opl_studio_primary_navigation' ||
     runtimeSurfaceRoles.navigation_runtime_default_visible !== true ||
     runtimeSurfaceRoles.context_runtime !== 'selected_conversation_or_task_details' ||
     runtimeSurfaceRoles.context_runtime_independent_of_navigation_runtime !== true ||
@@ -1082,8 +1073,8 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     runtimePreservationGate.default_product_requirement !== true ||
     runtimePreservationGate.default_release_gate !== true ||
     runtimePreservationGate.adopted_shell_requirement !== true ||
-    runtimePreservationGate.active_aionui_navigation_requirement !== true ||
-    runtimePreservationGate.active_aionui_navigation_may_remove_or_weaken !== false ||
+    runtimePreservationGate.active_studio_navigation_requirement !== true ||
+    runtimePreservationGate.active_studio_navigation_may_remove_or_weaken !== false ||
     runtimePreservationGate.explicit_validation_command !== 'npm run validate:runtime-route' ||
     !sameStrings(runtimePreservationGate.route_change_requirements, [
       'product_contract',
@@ -1105,13 +1096,13 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     navigationRail.narrow_window_mode !== 'drawer' ||
     railWidth.min !== 280 ||
     railWidth.max !== 340 ||
-    navigationRail.top_entries_scope !== 'active_aionui_current_product' ||
+    navigationRail.top_entries_scope !== 'active_opl_studio_current_product' ||
     !sameStrings(navigationRail.top_entries, ['new_task', 'runtime', 'scheduled_tasks', 'archived']) ||
     !sameStrings(navigationRail.conditional_entries, []) ||
     navigationRail.runtime_entry_role !==
-      'active_aionui_primary_navigation_and_default_release_requirement_while_native_phase_one_candidate_parity_may_omit_runtime' ||
+      'opl_studio_primary_navigation_and_default_release_requirement' ||
     JSON.stringify(navigationRail.runtime_entry) !==
-      JSON.stringify(appOwnedActiveAionuiPrimaryNavigation.runtime_entry) ||
+      JSON.stringify(appOwnedActiveStudioPrimaryNavigation.runtime_entry) ||
     navigationRail.capabilities_mapping !==
       'capability_selection_lives_in_new_task_home_and_capability_management_lives_in_settings_without_a_duplicate_primary_navigation_page' ||
     navigationRail.legacy_capabilities_route !==
@@ -1144,7 +1135,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
       }) ||
     threadDirectoryPolicy.pin_role !== 'shell_ui_metadata_only' ||
     threadDirectoryPolicy.local_reset_role !==
-      'retain_existing_aionui_conversation_semantics_not_app_server_history_reset' ||
+      'studio_local_metadata_reset_without_codex_app_server_history_reset' ||
     threadDirectoryPolicy.shell_local_storage_role !== 'drafts_preferences_and_rebuildable_cache_only' ||
     threadDirectoryPolicy.shell_thread_history_authority !== false ||
     threadDirectoryPolicy.codex_session_directory_authority !==
@@ -1386,7 +1377,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     threadCoordination.thread_turn_authority !== 'codex_core_app_server' ||
     !requiredThreadProtocols.every((protocol) => stringArray(threadCoordination.supported_protocols).includes(protocol)) ||
     threadCoordination.state_authority !== 'codex_app_server' ||
-    threadCoordination.plain_conversation_policy !== 'existing_aionui_acp_unchanged' ||
+    threadCoordination.plain_conversation_policy !== 'opl_studio_codex_native_app_server' ||
     !sameStrings(threadCoordination.forbidden_private_layers, [
       'second_json_rpc_client',
       'jsonl_coordination_audit_store',
@@ -1476,7 +1467,7 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     issues.add('ordinary conversation Environment must remain read-only without workspace handoff state');
   }
   if (
-    artifactPreview.surface !== 'existing_aionui_preview_context_and_panel' ||
+    artifactPreview.surface !== 'opl_studio_preview_context_and_panel' ||
     !sameStrings(artifactPreview.entry_sources, [
       'session_attachment_ref',
       'conversation_result_ref',
@@ -1691,18 +1682,18 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   if (
     pageStateMatrix.interaction_baseline_ref !== 'contracts/app-gui-product-contract.json#interaction_baseline' ||
     pageStateBoundary.human_target_owner !== 'one-person-lab-app' ||
-    pageStateBoundary.active_aionui_role !== 'current_implementation_conformance_only' ||
+    pageStateBoundary.active_shell_role !== 'current_implementation_conformance_only' ||
     pageStateBoundary.contract_target_implies_source_complete !== false ||
     pageStateBoundary.contract_target_implies_pixel_complete !== false ||
     pageStateBoundary.contract_target_implies_release_complete !== false ||
     pageStateBoundary.authority_status !== 'active_mainline_authority' ||
-    pageStateBoundary.shell_implementation_status !== 'current_source_and_historical_pixels_separately_bound' ||
-    pageStateBoundary.current_source_head_source !== 'active_shell_checkout_git_head' ||
-    pageStateBoundary.current_source_head_must_contain_verified_gui_ancestor !== true ||
+    pageStateBoundary.shell_implementation_status !== 'active_studio_source_historical_aionui_pixels_are_provenance_only' ||
+    pageStateBoundary.current_source_head_source !== 'contracts/app-shell-adapter.json#shell_source' ||
+    pageStateBoundary.current_source_head_must_contain_verified_gui_ancestor !== false ||
     pageStateBoundary.current_source_evidence_ref !== 'contracts/app-shell-adapter.json#shell_source' ||
     pageStateBoundary.historical_pixel_shell_sha !== historicalPixelShellSha ||
     pageStateBoundary.historical_pixel_shell_sha_binding_status !== 'bound_to_exact_historical_evidence' ||
-    pageStateBoundary.pixel_evidence_ref !== 'docs/product/gui/evidence/aionui-41301/manifest.json' ||
+    pageStateBoundary.pixel_evidence_ref !== null ||
     pageStateBoundary.runtime_product_contract_ref !==
       'contracts/app-gui-product-contract.json#pages.runtime_status.runtime_cockpit_product_contract' ||
     pageStateBoundary.runtime_route_classification !== 'core_dynamic_agent_runtime' ||
@@ -1757,25 +1748,25 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
   const homeLayout = record(profileHome.home_layout);
   const activeConversation = record(profileGui.ordinary_conversation);
   const activeInspector = record(profileGui.right_context_inspector);
-  const activeAionui = record(stateBoundary.active_aionui);
+  const activeStudio = record(stateBoundary.active_studio);
   const activeRailState = homeLayout.workspace_session_rail_default_state;
   const activeInspectorState = homeLayout.right_context_inspector_default_state;
   const allowedActiveRailStates = ['collapsed', 'visible_wide_drawer_narrow'];
   const allowedActiveInspectorStates = ['collapsed', 'visible'];
   if (!allowedActiveRailStates.includes(String(activeRailState))) {
-    issues.add('active AionUI rail state must be collapsed or visible_wide_drawer_narrow in app-product-profile');
+    issues.add('active Studio rail state must be collapsed or visible_wide_drawer_narrow in app-product-profile');
   }
   if (!allowedActiveInspectorStates.includes(String(activeInspectorState))) {
-    issues.add('active AionUI inspector state must be collapsed or visible in app-product-profile');
+    issues.add('active Studio inspector state must be collapsed or visible in app-product-profile');
   }
-  if (activeAionui.source !== 'contracts/app-product-profile.json#gui.home.home_layout') {
-    issues.add('active AionUI state must source app-product-profile gui.home.home_layout');
+  if (activeStudio.source !== 'contracts/app-product-profile.json#gui.home.home_layout') {
+    issues.add('active Studio state must source app-product-profile gui.home.home_layout');
   }
-  if (activeAionui.conformance_policy !== 'read_current_profile_state_and_compare_to_ideal_without_freezing_values') {
-    issues.add('active AionUI conformance policy must compare current profile state to ideal without freezing values');
+  if (activeStudio.conformance_policy !== 'read_current_profile_state_and_compare_to_ideal_without_freezing_values') {
+    issues.add('active Studio conformance policy must compare current profile state to ideal without freezing values');
   }
-  if (JSON.stringify(Object.keys(activeAionui).sort()) !== JSON.stringify(['conformance_policy', 'source'])) {
-    issues.add('active AionUI governance must store only source and conformance_policy');
+  if (JSON.stringify(Object.keys(activeStudio).sort()) !== JSON.stringify(['conformance_policy', 'source'])) {
+    issues.add('active Studio governance must store only source and conformance_policy');
   }
   const railMatchesIdeal =
     activeRailState === (idealTarget.workspace_session_rail_default_visible ? 'visible_wide_drawer_narrow' : 'collapsed');
@@ -1891,9 +1882,9 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     state_boundary: {
       ideal_native_rail_visible: true,
       ideal_native_inspector_visible: false,
-      active_aionui_rail_state: activeRailState as ActiveSurfaceState,
-      active_aionui_inspector_state: activeInspectorState as ActiveSurfaceState,
-      active_aionui_conformance: {
+      active_studio_rail_state: activeRailState as ActiveSurfaceState,
+      active_studio_inspector_state: activeInspectorState as ActiveSurfaceState,
+      active_studio_conformance: {
         rail_matches_ideal: railMatchesIdeal,
         inspector_matches_ideal: inspectorMatchesIdeal,
         rail_status: conformanceStatus(railMatchesIdeal),
@@ -1904,10 +1895,11 @@ export function validateGuiDesignSystem(root = defaultRoot): GuiDesignSystemVali
     },
     evidence_scope: 'design_system_governance_consistency_only',
     visual_evidence: {
-      manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
-      shell_head: historicalPixelShellSha,
-      entries_verified: visualEvidenceEntries as 8,
-      packaged_command: true,
+      current_studio_manifest: null,
+      historical_aionui_manifest: 'docs/product/gui/evidence/aionui-41301/manifest.json',
+      current_studio_entries_verified: 0,
+      historical_entry_count: 8,
+      packaged_command: false,
     },
     visual_reference_cohort: {
       contract: visualReferenceCohortPath,

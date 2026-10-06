@@ -1238,9 +1238,9 @@
         "First-install Official Profile converges the exact desired and installed root Package IDs without invoking the restore action before the Full candidate can publish",
         "Framework reports and reconciles installed Packages independently of provider configuration and API key availability; no fixed Package set, Flow lock, or optional Skill payload is required for App or Full readiness",
         "Fresh App readback reports the package set selected for this Full build without requiring a fixed count; workspace-scoped capabilities remain out of global marketplace or config exposure until their owner-projected workspace binding exists",
-        "Bundled AionCore producer intake supplies schema v2 Node and Codex identities, while the distributed opl_aioncore_managed_resources_projection.v1 manifest carries exactly Node plus Codex and physically excludes Claude; Codex completes a real app-server initialize handshake with model_reasoning_effort = max, and no retired codex-acp resource or parallel ACP truth remains",
+        "Studio resolves the external native Codex binary and completes a real app-server initialize handshake with model_reasoning_effort = max; the Full bundle embeds no AionUI, AionCore, Claude, or duplicate Codex payload, and no retired codex-acp resource or parallel ACP truth remains",
         "Conversation readiness is confirmed only by POST /api/conversations/<id>/runtime/ensure; the retired /warmup route and every 404 or 500 remain retryable errors and never mark a conversation ready",
-        "Desktop preserves an explicit CODEX_HOME and otherwise leaves it unset so Codex, AionCore, managed Codex ACP, and OPL runtime commands use ~/.codex; startup and recheck preserve the config digest, while an explicit Gateway or API Key action may update it only through Framework atomic merge with backup and restore",
+        "Desktop preserves an explicit CODEX_HOME and otherwise leaves it unset so the Studio native Codex app-server and OPL runtime commands use ~/.codex; startup and recheck preserve the config digest, while an explicit Gateway or API Key action may update it only through Framework atomic merge with backup and restore",
         "Domain modules and family runtime provider readiness are verified as Full readiness after ready_to_launch",
         "Settings pages are navigable after first-run initialization",
       "Packaged GUI route smoke resolves every release qualification target from fresh Framework-projected professional Agent Package shortcuts, hides ordinary backend/provider selectors, shows the App-owned model/reasoning and permission/access controls, and records cohort-bound route evidence without treating the fixture as runtime catalog authority"
@@ -1285,9 +1285,9 @@
       "id": "docker_webui_smoke",
       "package_type": "docker_webui",
       "release_gate": true,
-      "command": "docker build -t one-person-lab-webui:<version> shells/aionui && docker run -p 127.0.0.1::<container_port> one-person-lab-webui:<version>",
+      "command": "docker build -t one-person-lab-webui:<version> shells/opl-studio && docker run -p 127.0.0.1::<container_port> one-person-lab-webui:<version>",
       "expects": [
-        "Docker image builds from the active AionUI shell Dockerfile",
+        "Docker image builds from the active OPL Studio Dockerfile",
         "Docker image declares /data and /projects volumes",
         "Docker image exposes /opt/opl/image-manifest.json and /opt/opl/seed/metadata.json",
         "Stable/latest WebUI image validates as webui-full rather than metadata-only slim",
@@ -1373,7 +1373,7 @@
     }
   ],
   "commands": [
-    "bun run --cwd shells/aionui test:opl-first-run-vm",
-    "bun run --cwd shells/aionui test:opl-first-run-vm:tart"
+    "npm run test:opl-first-run-vm",
+    "npm run test:opl-first-run-vm:tart"
   ]
 }

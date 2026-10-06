@@ -410,7 +410,7 @@ export function validatePackageAppContributionsProductContract(contract) {
       brand_capability_projection_policy: 'dynamic_framework_host_projection_no_fixed_brand_or_domain_registry_in_app_or_client',
       app_fixed_brand_registry_allowed: false,
       client_fixed_brand_registry_allowed: false,
-      shared_shell_consumers: ['opl-aion-shell', 'opl-studio'],
+      shared_shell_consumers: ['opl-studio'],
       renderer_and_package_carrier_may_differ: true,
       slots: ['composer.palette', 'runtime.detail', 'settings.section'],
       contribution_kinds: ['view', 'command_group'],

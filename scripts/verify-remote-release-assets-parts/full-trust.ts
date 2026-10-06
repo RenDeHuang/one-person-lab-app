@@ -98,7 +98,7 @@ export function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
     || carrier.aioncore_required !== false || carrier.runtime_resource_dir !== 'opl-studio-full-runtime')) {
     throw new Error('Full manifest Studio Stable carrier identity is invalid.');
   }
-  if (carrier && !['aionui', 'opl-studio'].includes(carrier.carrier_id)) throw new Error('Unsupported Full carrier identity.');
+  if (carrier && carrier.carrier_id !== 'opl-studio') throw new Error('Unsupported Full carrier identity.');
   const runtimeResource = `Contents/Resources/${studio ? 'opl-studio-full-runtime' : 'opl-full-runtime'}`;
 
   const trimReport = readFullReleaseSection(
@@ -133,7 +133,7 @@ export function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
   const protectedPayloads = trimReport.required_payload_boundary?.protected_payloads;
   for (const requiredPayload of [
     runtimeResource,
-    ...(!studio ? ["Contents/Resources/bundled-aioncore"] : []),
+    ...(studio ? [] : ["Contents/Resources/bundled-aioncore"]),
     "Contents/Resources/app.asar",
     "Contents/Frameworks/Electron Framework.framework",
   ]) {

@@ -20,11 +20,11 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   ]);
   assert.equal('supported_release_platforms' in profile.product, false);
   assert.deepEqual(profile.release_roles.current.admitted_product_platforms, ['macos-arm64']);
-  assert.equal(profile.release_roles.successor.active_release_carrier, false);
-  assert.equal(profile.delivery_topology.role, 'successor_target_only');
+  assert.equal(profile.release_roles.successor.active_release_carrier, true);
+  assert.equal(profile.delivery_topology.role, 'active_product_and_release_target');
   assert.equal(profile.delivery_topology.shared_renderer.product_owner, 'one-person-lab-app');
   assert.equal(profile.delivery_topology.shared_renderer.technology, 'deepseek_harness_derived_react');
-  assert.equal(profile.delivery_topology.shared_renderer.implementation_status, 'approved_active_product_development_release_admission_separate');
+  assert.equal(profile.delivery_topology.shared_renderer.implementation_status, 'active_product_implementation');
   assert.equal(profile.delivery_topology.shared_host_core.technology, 'node');
   assert.equal(profile.delivery_topology.shared_host_core.same_core_required_across_carriers, true);
   assert.equal(profile.delivery_topology.runtime.supported_backend_scope, 'codex_cli_only');
@@ -75,7 +75,7 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   assert.equal(profile.delivery_topology.docker_webui.same_renderer_host_core_and_bridge_abi_required, true);
   assert.equal(profile.delivery_topology.docker_webui.existing_aionui_container_counts_as_successor_implementation, false);
   assert.equal(profile.delivery_topology.successor_product.product_development_required, true);
-  assert.equal(profile.delivery_topology.successor_product.current_mainline, false);
+  assert.equal(profile.delivery_topology.successor_product.current_mainline, true);
   assert.equal(profile.delivery_topology.successor_product.minimum_complete_product_obligation, true);
   assert.equal(profile.delivery_topology.successor_product.aionui_feature_parity_obligation, false);
   assert.equal(gui.successor_delivery_policy.renderer, 'single_deepseek_harness_derived_react_renderer');
@@ -106,12 +106,12 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_renderer_compatibility_profile, 'client_renderer_compatibility');
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.client_renderer_switch_policy, 'explicit_adapter_selection_after_compatibility_admission_never_unverified_hot_switch');
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.brand_capability_projection_policy, 'dynamic_framework_host_projection_no_fixed_brand_or_domain_registry_in_app_or_client');
-  assert.deepEqual(profile.delivery_topology.minimum_complete_product.composition_model.shared_shell_consumers, ['opl-aion-shell', 'opl-studio']);
+  assert.deepEqual(profile.delivery_topology.minimum_complete_product.composition_model.shared_shell_consumers, ['opl-studio']);
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.independent_host_truth_allowed, false);
   assert.equal(profile.delivery_topology.minimum_complete_product.composition_model.second_client_composition_graph_allowed, false);
   assert.equal(profile.delivery_topology.minimum_complete_product.update_ownership.agent_packages, 'part_of_opl_packages_never_a_fourth_updater');
-  assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.strategy, 'establish_then_replace');
-  assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.aionui_remains_only_mainline_until_cutover, true);
+  assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.strategy, 'studio_active_aionui_retired');
+  assert.equal(profile.delivery_topology.minimum_complete_product.cutover_policy.aionui_mainline_retired, true);
   assert.deepEqual(profile.client_renderer_compatibility, {
     schema: 'opl_app_client_renderer_compatibility.v1',
     owner: 'one-person-lab-app',
@@ -124,7 +124,7 @@ test('App approves one DSH-derived renderer and Node host core across desktop, h
     standard_view_types: ['list_detail', 'timeline', 'approval_diff', 'task_board', 'artifact_view', 'activity_log', 'service_status', 'channel_access', 'remote_companion_access'],
     transport_binding_source: 'app_state.transport_bindings',
     transport_binding_schema: 'opl_app_transport_bindings_projection.v1',
-    transport_binding_migration_state: 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed',
+    transport_binding_migration_state: 'framework_transport_binding_projection_and_studio_source_e2e_completed',
     transport_binding_event: 'opl/app-transport-bindings/updated',
     typed_state_rpc: 'opl app state --profile fast --json',
     typed_action_rpc: 'opl app action execute --action <action_id> [--payload json] [--dry-run] --json',

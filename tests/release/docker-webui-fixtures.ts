@@ -17,7 +17,7 @@ export function writeDockerWebuiDiagnostics(root: string) {
       '  webui:',
       `    image: ${dockerWebuiImageRef}`,
       '    environment:',
-      '      AIONUI_DATA_DIR: /data',
+      '      OPL_DATA_DIR: /data',
       '      OPL_PROJECTS_DIR: /projects',
       '    volumes:',
       '      - "/tmp/data:/data"',
