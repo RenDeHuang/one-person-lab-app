@@ -690,15 +690,10 @@ test('local data lifecycle separates runtime inventory from managed prune and ca
     () => validateReleaseChannelContract(futureDatedAllowed),
     /reject future-dated versions/,
   );
-  const missingShellRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-local-data-shell-'));
-  try {
-    assert.throws(
-      () => validateReleaseChannelContract(release, { shellRoot: missingShellRoot, contract: JSON.parse(fs.readFileSync(path.join(process.cwd(), 'contracts/shell-adapters/aionui.json'), 'utf8')) }),
-      /Missing active shell implementation file .*localDataLifecycleBridge/,
-    );
-  } finally {
-    fs.rmSync(missingShellRoot, { recursive: true, force: true });
-  }
+  assert.equal(localDataLifecycle.updater_cache.implementation, 'shells/opl-studio/desktop/updater.mjs');
+  assert.equal(localDataLifecycle.storage_inventory.implementation, 'one-person-lab-app:App-owned storage inventory projection and carrier-host action ABI');
+  assert.doesNotMatch(localDataLifecycle.updater_cache.implementation, /aionui/i);
+  assert.doesNotMatch(localDataLifecycle.storage_inventory.implementation, /aionui/i);
   assert.deepEqual(
     runtime.inventory_roots.map((root) => root.id),
     ['shell_toolchain_runtime', 'managed_opl_runtime'],

@@ -95,7 +95,6 @@ test('App contract selects Studio for the next Stable release while preserving s
     archive_url_template: 'https://github.com/gaofeng21cn/one-person-lab/archive/<framework-ref>.tar.gz',
     install_source_mode: 'archive',
     active_shell_adopted: false,
-    aionui_standard_payload_preparation: false,
   });
   assert.equal(admission.source_admission_is_release_ready, false);
   assert.equal(admission.active_release_carrier_after_admission, false);

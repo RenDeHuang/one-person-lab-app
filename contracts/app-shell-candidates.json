@@ -514,19 +514,19 @@
         "dynamic plugin inventory and configuration rendered from installed deployment state"
       ],
       "opl_mapping": [
-        "OPL Studio runs the complete pinned DeepSeek Harness Application Host and selected GUI source with OPL-owned plugins; AionUI may consume only the separately pinned bounded visual source cohort through OplVisualProvider and OplIcon",
+        "OPL Studio runs the complete pinned DeepSeek Harness Application Host and selected GUI source with OPL-owned plugins; the retired AionUI source remains historical provenance and is never a runtime consumer",
         "OPL App keeps product truth slot policy active-shell adoption and release authority while Framework projections and App actions remain the only OPL runtime state and mutation ABI",
         "Agent Package descriptors may contribute typed view and slot declarations without owning runtime, domain truth, artifacts, credentials, or release state",
         "slot contributions must be capability-gated, scope-bound, reversible, and absent without leaving placeholder navigation",
         "OPL should reuse the smallest independently testable GUI packages and vendor selected source only when the published package boundary is broken or insufficient while preserving the exact ref and notices",
         "Framework remains the authoritative OPL runtime Package graph and App projection Host; Studio separately owns its DSH Application Host lifecycle without receiving Framework runtime or Package authority",
-        "channel_access is the App-owned declarative standard view for Weixin/channel providers while current AionUI keeps its AionCore-built-in Weixin settings; remote_companion_access is the separate OPL Link pairing/device view and must not be filtered by channel view type"
+        "channel_access is the App-owned declarative standard view for Weixin/channel providers; remote_companion_access is the separate OPL Link pairing/device view and must not be filtered by channel view type"
       ],
       "forbidden_reuse": [
         "do not adopt DeepSeek Harness session log, agent loop, provider routing, credential store, Package currentness, product, domain, or release authority",
         "do not create a second OPL Package registry, runtime, settings store, action bus, or currentness plane",
         "do not add DeepSeek Harness as a second foreground shell beside opl-studio",
-        "do not import DeepSeek Harness runtime, session, router, provider, credential, action, connection, complete renderer, product routes, or Framework ABI into the AionUI mainline; only the bounded visual source cohort may be consumed through OplVisualProvider and OplIcon",
+        "do not import DeepSeek Harness runtime, session, router, provider, credential, action, connection, complete renderer, product routes, or Framework ABI into the OPL Studio mainline",
         "do not depend on floating npm latest tags while upstream is a developer preview with compatibility-breaking changes",
         "do not assume the repository root license covers every selected package or third-party payload without per-package notices review",
         "do not expose generic provider, backend, or arbitrary-code plugin controls as ordinary OPL App product surfaces",
@@ -910,7 +910,7 @@
           "ChatGPT Codex macOS 26.707.31428 (2026-07-10)",
           "ChatGPT Codex macOS 26.707.31123 (2026-07-10)"
         ],
-        "regression_floor": "AionUI active release shell",
+        "regression_floor": "historical AionUI release evidence only",
         "source_usage": "pinned_application_host_runtime_and_gui_source_reuse",
         "application_host_runtime_adopted": true,
         "dsh_product_runtime_authority_adopted": false,

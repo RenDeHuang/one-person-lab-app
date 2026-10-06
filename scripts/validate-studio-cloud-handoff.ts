@@ -51,7 +51,7 @@ export function validateStudioCloudHandoff(value: any): void {
     auth_mode: 'password',
     username_default: 'opl',
     environment: ['OPL_WEBUI_DEPLOYMENT_MODE', 'OPL_WEBUI_AUTH_MODE', 'OPL_WEBUI_USERNAME', 'OPL_WEBUI_PASSWORD_FILE', 'OPL_WEBUI_SESSION_SECRET_FILE'],
-    cookie_name: 'aionui-session',
+    cookie_name: 'opl-studio-session',
     session_days: 30,
     csrf: 'session_bound_header',
   }, 'runtime ABI');

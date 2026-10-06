@@ -26,7 +26,6 @@ function validateSuccessorProtectedReleaseAdmission(successor, fullFirstInstall)
     || admission?.framework_bootstrap?.archive_url_template !== 'https://github.com/gaofeng21cn/one-person-lab/archive/<framework-ref>.tar.gz'
     || admission?.framework_bootstrap?.install_source_mode !== 'archive'
     || admission?.framework_bootstrap?.active_shell_adopted !== false
-    || admission?.framework_bootstrap?.aionui_standard_payload_preparation !== false
     || admission?.source_admission_is_release_ready !== false
     || admission?.active_release_carrier_after_admission !== false
     || admission?.framework_release_operation_created !== false

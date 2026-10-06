@@ -820,8 +820,7 @@
       "id": "native_automation_surface",
       "owner": "one-person-lab-app",
       "members": [
-        "scheduled_tasks",
-        "aionui_cron"
+        "scheduled_tasks"
       ],
       "default_app_visible": true,
       "sync_target": "app_automation_surface",

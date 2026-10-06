@@ -138,15 +138,15 @@ export function manualAppLaunchArgs(
   appPath: string,
   environment: NodeJS.ProcessEnv = process.env,
 ) {
-  const cdpPort = environment.AIONUI_CDP_PORT?.trim();
+  const cdpPort = environment.OPL_STUDIO_CDP_PORT?.trim();
   if (!cdpPort) return [appPath];
   if (
     !/^[1-9]\d{0,4}$/.test(cdpPort)
     || Number(cdpPort) > 65_535
   ) {
-    throw new Error(`Invalid AIONUI_CDP_PORT for installed App launch: ${cdpPort}`);
+    throw new Error(`Invalid OPL_STUDIO_CDP_PORT for installed App launch: ${cdpPort}`);
   }
-  return ['--env', `AIONUI_CDP_PORT=${cdpPort}`, appPath];
+  return ['--env', `OPL_STUDIO_CDP_PORT=${cdpPort}`, appPath];
 }
 
 function stopInstalledApp(appPath: string, bundleId: string) {
@@ -219,8 +219,7 @@ function readAppVersionIdentityUnchecked(appPath: string): ManualAppVersionIdent
     build_kind: optionalPlistValue(appPath, 'OPLBuildKind'),
     local_build_id: optionalPlistValue(appPath, 'OPLLocalBuildID'),
     updater_policy: optionalPlistValue(appPath, 'OPLUpdaterPolicy'),
-    auto_update_disabled:
-      optionalPlistValue(appPath, 'LSEnvironment.AIONUI_DISABLE_AUTO_UPDATE') === '1',
+    auto_update_disabled: optionalPlistValue(appPath, 'OPLBuildKind') === 'local-development',
     source_provenance_sha256: optionalPlistValue(appPath, 'OPLSourceProvenanceSHA256'),
     source_lock_sha256: optionalPlistValue(appPath, 'OPLSourceLockSHA256'),
     cf_bundle_short_version: shortVersion,

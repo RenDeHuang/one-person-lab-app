@@ -81,7 +81,7 @@ test('dual GUI launcher selection stays separate from release adoption', () => {
   removedTarget.interactive_launcher_policy.selectable_shells.push('removed-shell');
   assert.throws(
     () => validateRegistryShape(removedTarget),
-    /selectable_shells must be exactly the active mainline and foreground alternative/,
+    /selectable_shells must contain only OPL Studio/,
   );
 
   const candidateDetailDrift = structuredClone(registry);
@@ -109,7 +109,7 @@ test('shell transition preserves the active App identity and uses an exact Previ
   databaseCopy.state_continuity.shell_local_migration.direct_database_copy_allowed = true;
   assert.throws(
     () => validateShellTransitionPolicy(databaseCopy),
-    /shell-local migration must stay allowlisted, versioned, idempotent, recoverable, and secret-free/,
+    /shell transition rollback must be qualified and must not assume automatic downgrade/,
   );
 
   const prematurePreviewCleanup = structuredClone(policy);
@@ -120,13 +120,6 @@ test('shell transition preserves the active App identity and uses an exact Previ
     /Studio Preview route must use an exact signed handoff/,
   );
 
-  const bridgeOnly = structuredClone(policy);
-  bridgeOnly.upgrade_routes.aionui_mainline_to_target
-    .intermediate_aionui_bridge_release_required_for_correctness = true;
-  assert.throws(
-    () => validateShellTransitionPolicy(bridgeOnly),
-    /AionUI route must be a direct in-place update/,
-  );
 });
 
 test('explicit Studio adapter keeps its candidate implementation role', () => {
@@ -176,7 +169,7 @@ test('retired Hermes and AGUI GUI candidate chains stay physically absent', () =
   assert.equal(packageScripts['validate:candidate:agui'], undefined);
 });
 
-test('DeepSeek Harness Application Host and full GUI reuse stay Studio-only while AionUI gets only the bounded visual cohort', () => {
+test('DeepSeek Harness Application Host and visual source reuse stay Studio-only after AionUI retirement', () => {
   const registry = readJson<ShellCandidateRegistry>('contracts/app-shell-candidates.json');
   const reference = registry.design_references?.find(({ id }) => id === 'deepseek-harness');
   const visualCohort = readJson<any>('contracts/app-gui-visual-source-cohort.json');
@@ -275,7 +268,7 @@ test('Framework transport binding projection and renderer-specific Weixin routes
   assert.equal(profile.client_renderer_compatibility.transport_binding_source, 'app_state.transport_bindings');
   assert.equal(
     profile.client_renderer_compatibility.transport_binding_migration_state,
-    'framework_transport_binding_projection_and_dual_shell_source_e2e_completed',
+    'framework_transport_binding_projection_and_studio_source_e2e_completed',
   );
   assert.equal(
     runtimeBridge.canonical_conversation_continuity_policy.transport_binding_projection
@@ -325,11 +318,11 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
   assert.equal('same_cohort_runtime_identity_required_for_parity' in policy, false);
   assert.equal(policy.parity_admission_basis, 'compatible_runtime_capability_and_versioned_schema_range');
   assert.equal(policy.exact_runtime_identity_equality_may_gate_install_or_runtime, false);
-  assert.equal(policy.runtime_identity_owner, 'gaofeng21cn/opl-aion-shell');
-  assert.equal(policy.same_physical_runtime_currently_claimed, true);
+  assert.equal(policy.runtime_identity_owner, 'gaofeng21cn/opl-studio');
+  assert.equal(policy.same_physical_runtime_currently_claimed, false);
   assert.equal(
     policy.implementation_status,
-    'source_identity_binding_and_full_standard_finder_evidence_complete',
+    'active_studio_native_codex_runtime',
   );
   assert.deepEqual(
     policy.runtime_identity_contract.required_fields,
@@ -341,22 +334,21 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
       'codex_home',
       'runtime_key',
       'runtime_cohort_ref',
-      'carrier.producer_manifest_sha256',
-      'carrier.projection_manifest_sha256',
+      'carrier.external_binary_sha256',
+      'carrier.external_binary_path',
+      'carrier.studio_native_readback',
     ],
   );
   assert.deepEqual(
     policy.packaged_evidence_contract.required_run_ids,
     ['full_clean_install_finder', 'standard_update_after_full_finder'],
   );
-  assert.equal(policy.runtime_identity_contract.aioncore_modification_required, false);
-  assert.equal(policy.runtime_identity_contract.aioncore_native_readback_required, false);
-  assert.equal(policy.runtime_identity_contract.aioncore_native_readback_claim_allowed, false);
+  assert.equal(policy.runtime_identity_contract.carrier, 'opl_codex_native_managed_app_server_stdio');
   assert.equal(policy.packaged_evidence_contract.referenced_file_sha256_required, true);
   assert.equal(policy.packaged_evidence_contract.artifact_trigger_status, 'complete');
   assert.equal(
     policy.packaged_evidence_contract.evidence_receipt,
-    'docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json',
+    'contracts/opl-codex-runtime-identity-evidence.schema.json',
   );
   assert.deepEqual(
     target.compatibility_requirements.map(({ component_id, capability_id, schema_range }: any) => ({
@@ -414,12 +406,12 @@ test('dual GUI runtime parity admits compatible capabilities and treats exact so
     /observational build provenance may_gate_install_or_runtime must be false/,
   );
 
-  const inventedAionCoreReadback = structuredClone(runtimeBridge);
-  inventedAionCoreReadback.shared_gui_runtime_resolution_policy.runtime_identity_contract
-    .aioncore_native_readback_claim_allowed = true;
+  const invalidCarrier = structuredClone(runtimeBridge);
+  invalidCarrier.shared_gui_runtime_resolution_policy.runtime_identity_contract.carrier =
+    'legacy_runtime_carrier';
   assert.throws(
-    () => validateRuntimeBridgeContract(inventedAionCoreReadback, activeAdapter),
-    /aioncore_native_readback_claim_allowed must be false/,
+    () => validateRuntimeBridgeContract(invalidCarrier, activeAdapter),
+    /Runtime bridge Codex identity contract carrier must be opl_codex_native_managed_app_server_stdio/,
   );
 
   const missingArtifactRun = structuredClone(runtimeBridge);

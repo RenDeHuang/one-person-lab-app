@@ -4,6 +4,9 @@ import path from 'node:path';
 import { assertDeepEqualJson, readJson } from './assertions.ts';
 import { validateScheduledTasksAionuiAdapter } from './scheduled-tasks-policy-validator.ts';
 
+// This validator is retained only for the historical AionUI adapter contract.
+// Studio is the sole current carrier and must never enter this AionCore intake path.
+const HISTORICAL_ADAPTER_ID = 'aionui';
 const ALLOWED_CLASSIFICATIONS = ['absorbed', 'rejected', 'deferred'];
 const REQUIRED_RECORD_FIELDS = [
   'id',
@@ -1028,7 +1031,10 @@ function validateRejectedBoundaries(contract, capabilityById) {
   }
 }
 
-export function validateUpstreamIntakePolicy(contract, shellPaths, options = {}) {
+export function validateHistoricalAionuiUpstreamIntakePolicy(contract, shellPaths, options = {}) {
+  if (contract?.adapter_id !== HISTORICAL_ADAPTER_ID && contract?.active_shell !== HISTORICAL_ADAPTER_ID) {
+    throw new Error('Historical AionUI upstream intake validation cannot be used for the active Studio carrier');
+  }
   const upstreamIntake = contract.upstream_intake;
   if (
     upstreamIntake?.classification_policy !==

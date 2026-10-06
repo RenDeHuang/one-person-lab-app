@@ -136,8 +136,9 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
       'codex_home',
       'runtime_key',
       'runtime_cohort_ref',
-      'carrier.codex_cli_version',
-      'carrier.codex_cli_realpath',
+      'carrier.external_binary_sha256',
+      'carrier.external_binary_path',
+      'carrier.studio_native_readback',
     ],
     'Runtime bridge Codex identity fields',
   );
@@ -173,7 +174,7 @@ export function validateSharedGuiRuntimeResolutionPolicy(runtimeBridge) {
     referenced_file_sha256_required: true,
     claim_scope: 'studio_resolved_codex_executable_and_successful_native_app_server_handshake',
     artifact_trigger_status: 'complete',
-    evidence_receipt: 'docs/delivery/release-evidence/issue-122-codex-runtime-identity-v26.8.1-r5.json',
+    evidence_receipt: 'contracts/opl-codex-runtime-identity-evidence.schema.json',
   })) {
     if (evidenceContract?.[field] !== expected) {
       throw new Error(`Runtime bridge Codex packaged evidence ${field} must be ${expected}`);

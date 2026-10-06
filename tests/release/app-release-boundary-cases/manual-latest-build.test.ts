@@ -79,11 +79,7 @@ function createTestApp(
   <key>OPLSourceLockSHA256</key>
   <string>${input.buildIdentity.sourceLockSha256}</string>`
     : '';
-  const updaterGuard = input.buildIdentity
-    ? `
-    <key>AIONUI_DISABLE_AUTO_UPDATE</key>
-    <string>1</string>`
-    : '';
+  const updaterGuard = '';
   fs.mkdirSync(manifestRoot, { recursive: true });
   fs.writeFileSync(path.join(contents, 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -352,12 +348,12 @@ test('manual App launch forwards an explicit valid CDP port without changing the
   const appPath = '/Applications/One Person Lab.app';
   assert.deepEqual(manualAppLaunchArgs(appPath, {}), [appPath]);
   assert.deepEqual(
-    manualAppLaunchArgs(appPath, { AIONUI_CDP_PORT: '9230' }),
-    ['--env', 'AIONUI_CDP_PORT=9230', appPath],
+    manualAppLaunchArgs(appPath, { OPL_STUDIO_CDP_PORT: '9230' }),
+    ['--env', 'OPL_STUDIO_CDP_PORT=9230', appPath],
   );
   assert.throws(
-    () => manualAppLaunchArgs(appPath, { AIONUI_CDP_PORT: '65536' }),
-    /Invalid AIONUI_CDP_PORT/,
+    () => manualAppLaunchArgs(appPath, { OPL_STUDIO_CDP_PORT: '65536' }),
+    /Invalid OPL_STUDIO_CDP_PORT/,
   );
 });
 

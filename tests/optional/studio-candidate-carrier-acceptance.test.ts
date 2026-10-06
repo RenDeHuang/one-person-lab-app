@@ -154,7 +154,7 @@ test('OPL Studio carrier evidence rejects distribution or release status promoti
   );
 });
 
-test('OPL Studio carrier evidence cannot reuse current AionUI release evidence', (t) => {
+test('OPL Studio carrier evidence cannot reuse retired AionUI release evidence', (t) => {
   const root = createCandidateTree();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const manifest = carrierManifest();

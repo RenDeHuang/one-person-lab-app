@@ -169,11 +169,6 @@ export function stampManualLocalAppIdentity(
       capture: true,
     });
   }
-  setPlistString(
-    plistPath,
-    'LSEnvironment.AIONUI_DISABLE_AUTO_UPDATE',
-    '1',
-  );
   return identity;
 }
 

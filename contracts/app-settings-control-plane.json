@@ -4526,7 +4526,6 @@
                 "purpose_en": "App data, Framework state, Codex Home and sessions, and logs",
                 "container_environment": [
                   "HOME=/data",
-                  "AIONUI_DATA_DIR=/data",
                   "OPL_DATA_DIR=/data"
                 ],
                 "settings_relation": "Data and log locations are deployment-managed and Settings never rewires the host data bind"

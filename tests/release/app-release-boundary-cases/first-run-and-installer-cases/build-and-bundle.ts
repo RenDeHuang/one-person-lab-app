@@ -33,7 +33,7 @@ test("reusable build validates the Shell consumer after syncing the App product 
   );
   assert.match(
     workflow.slice(consumerGate),
-    /bunx vitest run tests\/unit\/common-config\/oplProductProfile\.test\.ts/,
+    /npm run validate:candidate/,
   );
 });
 

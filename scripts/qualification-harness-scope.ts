@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
-type ShellRepository = 'gaofeng21cn/opl-aion-shell' | 'gaofeng21cn/opl-studio';
+type ShellRepository = 'gaofeng21cn/opl-studio';
 
 const shaPattern = /^[0-9a-f]{40}$/i;
 
@@ -161,8 +161,7 @@ export function readRemoteExpectationDigests(
       ['show', `${sha}:contracts/app-shell-adapter.json`], root,
       `read App@${sha} active Shell identity`));
     const shellRepository = adapter.shell_source?.owner_repo;
-    if ((adapter.active_shell === 'opl-studio' && shellRepository === 'gaofeng21cn/opl-studio') ||
-        (adapter.active_shell === 'aionui' && shellRepository === 'gaofeng21cn/opl-aion-shell')) {
+    if (adapter.active_shell === 'opl-studio' && shellRepository === 'gaofeng21cn/opl-studio') {
       return { semantic, probe, shellRepository };
     }
     throw new Error(`App@${sha} has an inconsistent active Shell identity.`);
@@ -199,8 +198,8 @@ export function buildQualificationHarnessScopeProof(input: {
   const verificationShellSha = assertSha('verification Shell SHA', input.verificationShellSha);
   const appChangedPaths = normalizeChangedPaths('App', input.appChangedPaths);
   const shellChangedPaths = normalizeChangedPaths('Shell', input.shellChangedPaths);
-  const shellRepository = input.shellRepository ?? 'gaofeng21cn/opl-aion-shell';
-  if (!['gaofeng21cn/opl-aion-shell', 'gaofeng21cn/opl-studio'].includes(shellRepository)) {
+  const shellRepository = input.shellRepository ?? 'gaofeng21cn/opl-studio';
+  if (shellRepository !== 'gaofeng21cn/opl-studio') {
     throw new Error('Unsupported Shell repository in qualification scope.');
   }
   const profile = input.profile ?? 'standard';
@@ -254,7 +253,7 @@ export function buildQualificationHarnessScopeProof(input: {
     'tests/release/release-stable-post-success-followups.test.ts',
     'tests/release/release-workflow-broker-admission.test.ts',
   ];
-  const shellHarnessMechanicsPaths = shellRepository === 'gaofeng21cn/opl-studio' ? [
+  const shellHarnessMechanicsPaths = [
     // Stable smoke imports the shared Preview UI and Gateway probes.
     'scripts/desktop/preview-smoke.mjs',
     'scripts/desktop/qualify-clean-vm.mjs',
@@ -262,11 +261,6 @@ export function buildQualificationHarnessScopeProof(input: {
     'scripts/desktop/stable-smoke.mjs',
     'scripts/desktop/stable-upgrade-vm.mjs',
     'tests/desktop/preview-smoke.test.mjs',
-  ] : [
-    'scripts/opl-first-run-tart-smoke.mjs',
-    'scripts/opl-first-run-vm-smoke.mjs',
-    'tests/unit/opl-runtime/firstRunVmSmoke.test.ts',
-    'tests/unit/opl-runtime/firstRunVmSmokeScripts.test.ts',
   ];
   const appHarnessMechanicsOnly = appDiffers &&
     appChangedPaths.every((entry) => appHarnessMechanicsPaths.includes(entry));

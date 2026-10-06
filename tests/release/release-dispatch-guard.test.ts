@@ -66,7 +66,7 @@ function successfulRunner(runs: unknown[] = []): CommandRunner {
       const remote = args[3];
       const sha = remote === 'origin'
         ? appSha
-        : String(remote).includes('opl-aion-shell')
+        : String(remote).includes('opl-studio')
           ? shellSha
           : frameworkSha;
       return {

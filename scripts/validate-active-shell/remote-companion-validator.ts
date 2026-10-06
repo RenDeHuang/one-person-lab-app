@@ -238,7 +238,6 @@ export function validateRemoteCompanionContract(policy: Record<string, any>): vo
       opaque_field: 'transport_credential',
       opaque_to: [
         'one-person-lab-app',
-        'opl-aion-shell',
         'opl-studio',
         'one-person-lab-framework',
         'codex_core_app_server',

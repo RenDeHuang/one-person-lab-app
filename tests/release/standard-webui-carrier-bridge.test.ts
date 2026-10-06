@@ -228,7 +228,7 @@ function bridgeFixture() {
     },
     sources: {
       app: { repo: 'gaofeng21cn/one-person-lab-app', source_commit: app.sha },
-      shell: { repo: 'gaofeng21cn/opl-aion-shell', source_commit: shell.sha },
+      shell: { repo: 'gaofeng21cn/opl-studio', source_commit: shell.sha },
       framework: { repo: 'gaofeng21cn/one-person-lab', source_commit: framework.sha },
     },
     identity_mode: 'app_standard_compatibility',

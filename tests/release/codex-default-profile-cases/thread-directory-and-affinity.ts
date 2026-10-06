@@ -255,7 +255,7 @@ test('OPL Link projects a projectless canonical conversation binding without She
   );
   assert.equal(projection.source, 'app_state.transport_bindings');
   assert.equal(projection.surface_kind, 'opl_app_transport_bindings_projection.v1');
-  assert.equal(projection.migration_state, 'framework_transport_binding_projection_and_dual_shell_source_e2e_completed');
+  assert.equal(projection.migration_state, 'framework_transport_binding_projection_and_studio_source_e2e_completed');
   assert.equal(projection.projection_runtime_status, 'current_framework_projection_proven');
   assert.equal(projection.binding_field_contract.project_affinity, 'projectless');
   assert.equal(projection.binding_field_contract.status, 'bound');

@@ -632,7 +632,6 @@ export function validateSettingsExperienceContract(experience) {
               "App data, Framework state, Codex Home and sessions, and logs",
             container_environment: [
               "HOME=/data",
-              "AIONUI_DATA_DIR=/data",
               "OPL_DATA_DIR=/data",
             ],
             settings_relation:

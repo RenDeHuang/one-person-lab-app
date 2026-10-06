@@ -152,7 +152,6 @@ function validateReleaseFullSizeOptimizationPolicy(sizePolicy) {
     artifacts.required_preserved_payloads,
     [
       'Contents/Resources/opl-full-runtime',
-      'Contents/Resources/bundled-aioncore',
       'Contents/Resources/app.asar',
       'Contents/Resources/app.asar.unpacked',
       'Contents/Frameworks/Electron Framework.framework',

@@ -35,7 +35,6 @@ export type StudioStandardBootstrapManifest = {
   installer_size_bytes: number;
   source: 'one-person-lab-app/scripts/prepare-standard-release-payload.ts';
   active_shell_adopted: false;
-  aionui_standard_payload_preparation: false;
 };
 
 export function resolveStandardFrameworkBootstrapPin(
@@ -148,7 +147,6 @@ export function materializeStudioStandardBootstrapPayload(input: {
     installer_size_bytes: Buffer.byteLength(installerPayload),
     source: 'one-person-lab-app/scripts/prepare-standard-release-payload.ts',
     active_shell_adopted: false,
-    aionui_standard_payload_preparation: false,
   };
   writeJsonAtomic(manifestPath, manifest);
   materializeStudioOfficialProfileResources(targetRoot, appRoot);
@@ -167,7 +165,7 @@ export function prepareStandardReleasePayload(env: NodeJS.ProcessEnv = process.e
   if (shellPaths.contract.release_role === 'experimental_candidate_shell') {
     return {
       status: 'standard_release_payload_skipped_for_candidate_shell',
-      reason: 'Experimental candidate shells do not consume AionUI stable payload preparation before active-shell adoption',
+      reason: 'Experimental candidate shells do not consume Stable payload preparation before active-shell adoption',
       shell_root: shellPaths.shellRootForDisplay,
       candidate_shell: resolveShellAdapterIdentity(shellPaths.contract),
     };

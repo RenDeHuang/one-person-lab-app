@@ -825,7 +825,6 @@ compose_content() {
     '    ports:' \
     "      - \"127.0.0.1:${PORT}:3000\"" \
     '    environment:' \
-    '      AIONUI_ALLOW_REMOTE: "true"' \
     '      OPL_DATA_DIR: /data' \
     '      OPL_PROJECTS_DIR: /projects' \
     '    volumes:' \

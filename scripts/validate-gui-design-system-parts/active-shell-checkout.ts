@@ -27,7 +27,7 @@ export function validateActiveShellCheckout(
       encoding: 'utf8',
     }).trim();
     if (!/^[0-9a-f]{40}$/.test(currentHead)) {
-      issues.add('active AionUI checkout must resolve a 40-character Git HEAD');
+      issues.add('active Studio checkout must resolve a 40-character Git HEAD');
       return;
     }
     try {
@@ -35,9 +35,9 @@ export function validateActiveShellCheckout(
         stdio: 'pipe',
       });
     } catch {
-      issues.add(`active AionUI checkout ${currentHead} must contain verified GUI ancestor ${verifiedAncestor}`);
+      issues.add(`active Studio checkout ${currentHead} must contain verified GUI ancestor ${verifiedAncestor}`);
     }
   } catch (error) {
-    issues.add(`unable to read active AionUI checkout: ${error instanceof Error ? error.message : String(error)}`);
+    issues.add(`unable to read active Studio checkout: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

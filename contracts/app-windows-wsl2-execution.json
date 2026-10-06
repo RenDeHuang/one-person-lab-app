@@ -31,7 +31,7 @@
     "workspace_root": "/home/opl/code"
   },
   "execution_port": {
-    "owner": "opl-aion-shell",
+    "owner": "opl-studio",
     "host_transport": "structured_wsl_exe_direct_child",
     "guest_entrypoints": {
       "inspect": "/opt/opl/bootstrap/opl-runtime-inspect",
@@ -39,12 +39,10 @@
       "control": "/opt/opl/bootstrap/opl-runtime-control"
     },
     "allowed_programs": [
-      "aioncore",
       "codex-app-server",
       "opl-cli"
     ],
     "required_routes": [
-      "aioncore_acp",
       "direct_codex_app_server",
       "framework_cli_state_and_action"
     ],
@@ -55,7 +53,6 @@
       "architecture",
       "carrier_activation_digest",
       "bootstrap_digest",
-      "aioncore_digest",
       "codex_digest",
       "framework_digest",
       "codex_home",
@@ -65,7 +62,7 @@
     "unrestricted_guest_command_allowed": false
   },
   "provisioning": {
-    "owner": "opl-aion-shell",
+    "owner": "opl-studio",
     "states": [
       "checking_host",
       "enabling_wsl",
@@ -129,7 +126,6 @@
       "clean_windows_no_wsl_guided_install_uac_restart_resume",
       "owned_distribution_identity_and_wsl2_readback",
       "one_linux_codex_realpath_sha_owner_receipt_codex_home_and_workspace_across_all_routes",
-      "aioncore_acp_real_request",
       "direct_codex_app_server_real_request",
       "framework_state_and_action_real_request",
       "no_native_windows_executor_static_and_runtime_inventory",

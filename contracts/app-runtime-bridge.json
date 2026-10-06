@@ -720,7 +720,7 @@
     "transport_binding_projection": {
       "source": "app_state.transport_bindings",
       "surface_kind": "opl_app_transport_bindings_projection.v1",
-      "migration_state": "framework_transport_binding_projection_and_dual_shell_source_e2e_completed",
+      "migration_state": "framework_transport_binding_projection_and_studio_source_e2e_completed",
       "projection_runtime_status": "current_framework_projection_proven",
       "raw_fact_owner": "current_shell_exact_binding_store",
       "projection_owner": "one-person-lab-framework",

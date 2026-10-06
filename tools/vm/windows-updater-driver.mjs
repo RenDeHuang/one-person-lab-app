@@ -182,7 +182,7 @@ async function startApp(input, feedUrl, label) {
   const port = await freePort();
   const output = fs.openSync(path.join(input.outputDirectory, `${label}.log`), 'wx');
   const child = spawn(input.appExecutable, [`--inspect=127.0.0.1:${port}`], {
-    env: { ...process.env, AIONUI_DISABLE_AUTO_UPDATE: '1',
+    env: { ...process.env,
       OPL_DESKTOP_UPDATE_QUALIFICATION_FEED_URL: feedUrl },
     stdio: ['ignore', output, output],
   });

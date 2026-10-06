@@ -1,4 +1,4 @@
-import { validateUpstreamIntakePolicy } from '../../../scripts/validate-active-shell/upstream-intake-policy-validator.ts';
+import { validateHistoricalAionuiUpstreamIntakePolicy } from '../../../scripts/validate-active-shell/upstream-intake-policy-validator.ts';
 import { readAppProductProfile } from '../../../scripts/app-product-profile/profile-contract.ts';
 import { validateProductProfile } from '../../../scripts/validate-active-shell/product-profile-validator.ts';
 import { assert, fs, path, test, appRoot } from './helpers.ts';
@@ -146,7 +146,7 @@ function stableCurrentnessReceipt() {
 
 function validateContract(contract, options = {}) {
   const receipt = stableCurrentnessReceipt();
-  return validateUpstreamIntakePolicy(contract, shellPaths, {
+  return validateHistoricalAionuiUpstreamIntakePolicy(contract, shellPaths, {
     readJsonFile: () => ({ aioncoreVersion: receipt.managed_runtime.aioncore.version }),
     readShellReceipt: () => receipt,
     readShellSourceFiles: () => managedAgentStructuralFiles(contract),
@@ -443,11 +443,11 @@ test('Manual qualification contract preserves the system Codex home and keeps MA
   const fullDmgScenario = firstRunMatrix.scenarios.find((scenario) => scenario.id === 'full_dmg_clean_vm_smoke');
   assert.ok(fullDmgScenario.expects.some((entry: string) => entry.includes('without requiring a fixed count')));
   const managedRuntimeExpectation = fullDmgScenario.expects.find((entry: string) =>
-    entry.includes('opl_aioncore_managed_resources_projection.v1')
+    entry.includes('Studio resolves the external native Codex binary')
   );
   assert.match(
     managedRuntimeExpectation,
-    /producer intake supplies schema v2 Node and Codex identities.*carries exactly Node plus Codex.*physically excludes Claude/,
+    /Studio resolves the external native Codex binary.*Full bundle embeds no AionUI, AionCore, Claude, or duplicate Codex payload/,
   );
   assert.doesNotThrow(() => validateProductProfile(profile, installExposure));
 });

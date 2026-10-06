@@ -93,13 +93,16 @@ export function assertFullRuntimeCurrentnessProbe(downloadDir, manifest) {
 
 export function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
   const carrier = manifest.carrier;
-  const studio = carrier?.carrier_id === 'opl-studio';
-  if (studio && (carrier.bundle_id !== 'cn.onepersonlab.opl' || carrier.codex_carrier !== 'opl_codex_native'
-    || carrier.aioncore_required !== false || carrier.runtime_resource_dir !== 'opl-studio-full-runtime')) {
-    throw new Error('Full manifest Studio Stable carrier identity is invalid.');
+  if (
+    carrier?.carrier_id !== 'opl-studio'
+    || carrier.bundle_id !== 'cn.onepersonlab.opl'
+    || carrier.codex_carrier !== 'opl_codex_native'
+    || carrier.aioncore_required !== false
+    || carrier.runtime_resource_dir !== 'opl-studio-full-runtime'
+  ) {
+    throw new Error('Full manifest must use the Studio Stable carrier identity.');
   }
-  if (carrier && carrier.carrier_id !== 'opl-studio') throw new Error('Unsupported Full carrier identity.');
-  const runtimeResource = `Contents/Resources/${studio ? 'opl-studio-full-runtime' : 'opl-full-runtime'}`;
+  const runtimeResource = 'Contents/Resources/opl-studio-full-runtime';
 
   const trimReport = readFullReleaseSection(
     downloadDir,
@@ -133,7 +136,6 @@ export function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
   const protectedPayloads = trimReport.required_payload_boundary?.protected_payloads;
   for (const requiredPayload of [
     runtimeResource,
-    ...(studio ? [] : ["Contents/Resources/bundled-aioncore"]),
     "Contents/Resources/app.asar",
     "Contents/Frameworks/Electron Framework.framework",
   ]) {
@@ -159,15 +161,15 @@ export function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
       "Full package boundary audit must prove the Full package still contains the OPL Full runtime.",
     );
   }
-  if (boundaryAudit.full_package_boundary?.contains_shell_runtime !== !studio) {
+  if (boundaryAudit.full_package_boundary?.contains_shell_runtime !== false) {
     throw new Error(
-      "Full package boundary audit must prove the Full package still contains the shell runtime.",
+      "Full package boundary audit must prove the Studio Full package contains no embedded shell runtime.",
     );
   }
   assertFrameworkCodexCarrierBoundary(
     boundaryAudit.full_package_boundary,
     "Full package boundary audit",
-    studio,
+    true,
   );
   if (boundaryAudit.entries?.app_asar?.exists !== true) {
     throw new Error(
@@ -206,7 +208,7 @@ export function assertFullPackageOptimizationArtifacts(downloadDir, manifest) {
   assertFrameworkCodexCarrierBoundary(
     manifest.package_optimization?.package_boundary_audit,
     "Full manifest package_optimization",
-    studio,
+    true,
   );
   return {
     app_bundle_trim: {

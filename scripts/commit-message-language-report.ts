@@ -15,7 +15,6 @@ import { parseArgs } from 'node:util';
 
 const defaultRepositories = [
   'gaofeng21cn/one-person-lab-app',
-  'gaofeng21cn/opl-aion-shell',
   'gaofeng21cn/one-person-lab',
   'gaofeng21cn/opl-studio',
 ];

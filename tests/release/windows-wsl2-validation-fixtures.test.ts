@@ -216,7 +216,7 @@ function makeIntakeManifest() {
       app_acceptance_tree_sha: '2'.repeat(40),
       app_repository: 'https://github.com/gaofeng21cn/one-person-lab-app.git',
       shell: {
-        repository: 'https://github.com/gaofeng21cn/opl-aion-shell.git',
+        repository: 'https://github.com/gaofeng21cn/opl-studio.git',
         git_sha: refs.shellSha,
         root_tree_sha: '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7',
         validation_tree_sha: '6f8519a26c3075f8b252c79a81e42f328c6efbb8',
@@ -342,7 +342,7 @@ function makeBuildReceipt({
       framework_cli_blob_sha256: refs.frameworkCliBlobSha256,
     },
     checkout: {
-      repository: 'https://github.com/gaofeng21cn/opl-aion-shell.git',
+      repository: 'https://github.com/gaofeng21cn/opl-studio.git',
       head_sha: refs.shellSha,
       root_tree_sha: '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7',
       clean: true,

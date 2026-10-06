@@ -284,7 +284,7 @@ export function validateOPLStudioCandidateContract(candidate: ShellCandidate): v
     visual.css_override_policy !== 'forbidden_for_dsh_covered_modules_unless_a_real_opl_semantic_host_accessibility_or_platform_boundary_requires_the_smallest_external_delta' ||
     visual.pixel_evidence_role !== 'detect_regressions_after_source_reuse_and_opl_integration_not_reconstruct_or_approximate_dsh' ||
     visual.current_reference_status !== 'pinned_application_host_runtime_and_gui_source_reuse' ||
-    visual.regression_floor !== 'AionUI active release shell' ||
+    visual.regression_floor !== 'historical AionUI release evidence only' ||
     visual.source_usage !== 'pinned_application_host_runtime_and_gui_source_reuse' ||
     visual.application_host_runtime_adopted !== true ||
     visual.dsh_product_runtime_authority_adopted !== false ||

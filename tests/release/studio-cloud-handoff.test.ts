@@ -23,7 +23,7 @@ function fixture(): any {
     runtime: {
       endpoint: 'http:3000', health_path: '/healthz', readiness_path: '/readyz', deployment_mode: 'cloud', auth_mode: 'password', username_default: 'opl',
       environment: ['OPL_WEBUI_DEPLOYMENT_MODE', 'OPL_WEBUI_AUTH_MODE', 'OPL_WEBUI_USERNAME', 'OPL_WEBUI_PASSWORD_FILE', 'OPL_WEBUI_SESSION_SECRET_FILE'],
-      cookie_name: 'aionui-session', session_days: 30, csrf: 'session_bound_header',
+      cookie_name: 'opl-studio-session', session_days: 30, csrf: 'session_bound_header',
     },
     container: { user: '1000:1000', read_only_root: true, capabilities_dropped: 'ALL', no_new_privileges: true, volumes: ['/data', '/projects'], staged_inputs_root: '/data/inputs' },
     supply_chain: {

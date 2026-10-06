@@ -1,5 +1,4 @@
 import { assertDeepEqualJson, assertIncludesAll } from '../assertions.ts';
-import { assertShellTextIncludesAll } from '../shell-implementation-helpers.ts';
 import {
   appOwnedStorageCarrierBehavior,
   appOwnedWebuiDataVolumeHostActionCapabilityId,
@@ -26,8 +25,8 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
   if (
     lifecycle.updater_cache?.owner !== 'active_shell' ||
     lifecycle.updater_cache?.implementation !==
-      'shells/aionui/packages/desktop/src/process/services/autoUpdateCacheCleanup.ts' ||
-    lifecycle.updater_cache?.cache_dir !== '~/Library/Caches/one-person-lab-aion-shell-updater' ||
+      'shells/opl-studio/desktop/updater.mjs' ||
+    lifecycle.updater_cache?.cache_dir !== '~/Library/Caches/cn.onepersonlab.opl.ShipIt' ||
     lifecycle.updater_cache?.auto_cleanup !== 'startup_and_before_install'
   ) {
     throw new Error('Local data lifecycle must bind updater cache cleanup to the active shell implementation');
@@ -44,7 +43,7 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
   );
   assertDeepEqualJson(
     lifecycle.updater_cache?.retired_cache_dirs,
-    ['~/Library/Caches/aionui-updater'],
+    ['~/Library/Caches/one-person-lab-aion-shell-updater'],
     'Local data lifecycle retired updater cache roots',
   );
   assertIncludesAll(
@@ -75,7 +74,7 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
     lifecycle.storage_inventory?.surface !== 'Settings / Storage' ||
     lifecycle.storage_inventory?.execution_mode !== 'scan_dry_run_first' ||
     lifecycle.storage_inventory?.implementation !==
-      'shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts' ||
+      'one-person-lab-app:App-owned storage inventory projection and carrier-host action ABI' ||
     ownerStorage?.projection_source !== 'opl app state --profile fast --json' ||
     ownerStorage?.missing_projection_policy !== 'fail_open_keep_shell_owned_categories_available' ||
     ownerStorage?.unknown_bytes_policy !== 'unavailable_never_zero' ||
@@ -198,11 +197,6 @@ function validateLocalDataLifecycle(lifecycle, shellPaths) {
     ['logs_root', 'dry_run_plan_id', 'deleted_paths', 'deleted_bytes', 'created_at'],
     'Local data lifecycle log rotation execute receipt fields',
   );
-  if (shellPaths?.contract.active_shell === 'aionui') validateLocalDataLifecycleImplementation(shellPaths);
-  if (shellPaths?.contract.active_shell === 'opl-studio') {
-    assertShellTextIncludesAll(shellPaths, 'src/host/aion-migration-source.mjs', ['readFile', 'source'], 'Studio read-only legacy source');
-    assertShellTextIncludesAll(shellPaths, 'src/host/aion-migration.mjs', ['CodexThreadAdapter', 'canonical_metadata_only', 'this.transport.readThread'], 'Studio canonical metadata continuity');
-  }
 }
 
 function validateWebuiDataVolumeHostActionAbi(abi) {
@@ -309,65 +303,6 @@ function validateWebuiDataVolumeHostActionAbi(abi) {
       'Local data lifecycle WebUI carrier-host action ABI must preserve its endpoint, action, payload, readback, restore, and security boundaries',
     );
   }
-}
-
-function validateLocalDataLifecycleImplementation(shellPaths) {
-  const bridgePath = 'packages/desktop/src/process/bridge/localDataLifecycleBridge.ts';
-  const bridgeText = assertShellTextIncludesAll(
-    shellPaths,
-    bridgePath,
-    [
-      'function shellToolchainRuntimeRoot(): string',
-      "path.join(getSystemDir().workDir, 'runtime')",
-      "import { resolveHostRuntimeRoots } from '../services/localDataLifecycle/hostRuntimeRoots';",
-      'function hostRuntimeRoots()',
-      'runtimeRoots: hostRuntimeRoots().inventoryRoots',
-      'runtimeRoot: hostRuntimeRoots().pruneRoot',
-      'archiveRoot: archiveRoot()',
-      'receiptRoot: receiptRoot()',
-      'allowedSourcePaths: [conversationRoot()]',
-    ],
-    'local data lifecycle bridge split-root and delete boundary',
-  );
-  assertManagedRuntimeRootBridgeSemantics(bridgeText, bridgePath);
-  assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/process/services/localDataLifecycle/hostRuntimeRoots.ts',
-    [
-      'export type HostRuntimeRoots = {',
-      'inventoryRoots: string[];',
-      'managedRuntimeRoot: string | null;',
-      'pruneRoot: string;',
-      'export function resolveHostRuntimeRoots(options:',
-      "if (options.platform === 'win32')",
-      'inventoryRoots: [shellToolchainRuntimeRoot]',
-      'managedRuntimeRoot: null',
-      'pruneRoot: shellToolchainRuntimeRoot',
-      'configuredManagedRuntimeRoot ||',
-      "path.join(options.homeDir, 'Library', 'Application Support', 'OPL', 'runtime')",
-      'OPL_RUNTIME_TOOLCHAIN_ROOT is required outside the macOS desktop release.',
-      'inventoryRoots: [...new Set([shellToolchainRuntimeRoot, managedRuntimeRoot])]',
-      'pruneRoot: managedRuntimeRoot',
-    ],
-    'host runtime root resolver boundary',
-  );
-  assertShellTextIncludesAll(
-    shellPaths,
-    'packages/desktop/src/process/services/localDataLifecycle/index.ts',
-    [
-      'const archiveReceipt = verifyConversationArchiveReceipt(input);',
-      "requirePathInsidePlainRoot(normalizedReceiptRoot, archiveReceiptPath, 'Archive receipt')",
-      "requirePathInsidePlainRoot(normalizedArchiveRoot, archivePath, 'Archive path')",
-      'Conversation source path is invalid or symlinked',
-      "const RUNTIME_INSTALL_MARKER = '.opl-full-runtime-installed.json'",
-      'resolveRuntimePruneAuthority',
-      "authority_state?: 'ready' | 'blocked'",
-      'authority_state: authority.state',
-      'isRuntimeGenerationRoot(resolvedCandidate)',
-      'Runtime prune authority changed after the dry-run plan',
-    ],
-    'local data lifecycle canonical verifier and runtime authority gate',
-  );
 }
 
 export function assertManagedRuntimeRootBridgeSemantics(

@@ -98,7 +98,6 @@ export function buildComposeYaml(options: {
     `    container_name: ${quote(options.containerName)}`,
     '    restart: "no"',
     '    environment:',
-    '      AIONUI_ALLOW_REMOTE: "true"',
     '      OPL_DATA_DIR: /data',
     '      OPL_PROJECTS_DIR: /projects',
     '    volumes:',

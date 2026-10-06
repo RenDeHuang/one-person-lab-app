@@ -98,7 +98,7 @@ const expectedVisualSourceNormalizations = [
     path: 'packages/client/ui-primitives/src/icons/index.tsx',
     kind: 'classic_react_jsx_runtime_import',
     change: "add import React from 'react' without changing glyph markup",
-    reason: 'AionUI compiles TSX with jsx=react while the pinned DSH package uses the automatic JSX runtime',
+    reason: 'OPL Studio compiles TSX with jsx=react while the pinned DSH package uses the automatic JSX runtime',
   },
 ] as const;
 const expectedPhaseOneBehaviorInvariants = [

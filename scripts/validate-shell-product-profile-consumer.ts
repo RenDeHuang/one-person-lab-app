@@ -25,7 +25,7 @@ type CommandResult = {
 export type ShellProductProfileConsumerOptions = {
   shellRoot: string;
   expectedShellSha: string;
-  shellId?: 'aionui' | 'opl-studio';
+  shellId?: 'opl-studio';
 };
 
 export type ShellProductProfileConsumerReport = {

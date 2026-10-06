@@ -367,9 +367,8 @@ test('source-validation sparse checkout includes nested active-shell files witho
   assert.match(workflow, /https:\/\/github\.com\/gaofeng21cn\/opl-studio\.git/);
   assert.match(workflow, /sparse-checkout set --cone desktop scripts\/desktop/);
   assert.match(workflow, /OPL_APP_SHELL_ROOT: \$\{\{ runner\.temp \}\}\/opl-studio/);
-  assert.match(workflow, /https:\/\/github\.com\/gaofeng21cn\/opl-aion-shell\.git/);
-  assert.match(workflow, /sparse-checkout set --cone scripts/);
-  assert.match(workflow, /OPL_AIONUI_TEST_SHELL_ROOT: \$\{\{ runner\.temp \}\}\/opl-aion-shell/);
+  assert.doesNotMatch(workflow, /https:\/\/github\.com\/gaofeng21cn\/opl-aion-shell\.git/);
+  assert.doesNotMatch(workflow, /OPL_AIONUI_TEST_SHELL_ROOT/);
   assert.match(packageJson.scripts['test:release-boundary:pr'], /--test-skip-pattern 'W6 \(App gate\|Studio consumes\)'/);
 });
 

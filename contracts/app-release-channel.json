@@ -39,8 +39,7 @@
         "installer_url_template": "https://raw.githubusercontent.com/gaofeng21cn/one-person-lab/<framework-ref>/install.sh",
         "archive_url_template": "https://github.com/gaofeng21cn/one-person-lab/archive/<framework-ref>.tar.gz",
         "install_source_mode": "archive",
-        "active_shell_adopted": false,
-        "aionui_standard_payload_preparation": false
+        "active_shell_adopted": false
       },
       "source_admission_is_release_ready": false,
       "active_release_carrier_after_admission": false,
@@ -3044,7 +3043,7 @@
     },
     "storage_inventory": {
       "surface": "Settings / Storage",
-      "implementation": "shells/aionui/packages/desktop/src/process/services/localDataLifecycle/index.ts",
+      "implementation": "one-person-lab-app:App-owned storage inventory projection and carrier-host action ABI",
       "execution_mode": "scan_dry_run_first",
       "sections": [
         "updater_cache",
@@ -3235,10 +3234,10 @@
     },
     "updater_cache": {
       "owner": "active_shell",
-      "implementation": "shells/aionui/packages/desktop/src/process/services/autoUpdateCacheCleanup.ts",
-      "cache_dir": "~/Library/Caches/one-person-lab-aion-shell-updater",
+      "implementation": "shells/opl-studio/desktop/updater.mjs",
+      "cache_dir": "~/Library/Caches/cn.onepersonlab.opl.ShipIt",
       "retired_cache_dirs": [
-        "~/Library/Caches/aionui-updater"
+        "~/Library/Caches/one-person-lab-aion-shell-updater"
       ],
       "auto_cleanup": "startup_and_before_install",
       "keep": [
@@ -4050,7 +4049,7 @@
           "vendor/codex",
           ".runtime-cache/codex-cli"
         ],
-        "verification": "The active Studio shell must resolve one exact external @openai/codex platform binary and pass it through OPL_CODEX_BIN; the App bundle must not embed a Codex payload, and the Full Framework runtime must prove all forbidden duplicate paths absent."
+        "verification": "The active Studio shell must resolve one exact external @openai/codex platform binary and pass it through OPL_CODEX_BIN; the App bundle must prove Claude absent and must not embed a Codex payload, and the Full Framework runtime must prove all forbidden duplicate paths absent."
       },
       "temporal_cli": {
         "compatibility_mode": "minimum_version_plus_capability_smoke",
@@ -4258,11 +4257,6 @@
               "boundary_ref": "full_first_install.size_policy.runtime_boundary.opl_full_runtime"
             },
             {
-              "id": "bundled-aioncore",
-              "size_label": "678M",
-              "boundary_ref": "full_first_install.size_policy.runtime_boundary.aionui_bundled_runtime"
-            },
-            {
               "id": "app.asar",
               "size_label": "367M",
               "boundary_ref": "full_first_install.size_policy.runtime_boundary.app_asar"
@@ -4287,7 +4281,7 @@
         },
         {
           "rank": 2,
-          "id": "shrink_aionui_app_bundle_payloads",
+          "id": "shrink_studio_app_bundle_payloads",
           "target_contributors": [
             "app.asar",
             "app.asar"
