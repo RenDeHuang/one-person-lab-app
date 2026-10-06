@@ -21,14 +21,14 @@ $ErrorActionPreference = 'Stop'
 
 $shellSha = '868d6e818583547a5ec982b10b34464a3fa47c10'
 $shellTreeSha = '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7'
-$shellRepository = 'https://github.com/gaofeng21cn/opl-aion-shell.git'
+$shellRepository = 'https://github.com/gaofeng21cn/opl-studio.git'
 $approvedRoot = 'C:\Users\Public\Documents\OnePersonLabValidation\windows-wsl2-v6-v1'
 $manifestPath = Join-Path $ValidationRoot 'windows-wsl2-v6-intake-manifest.json'
 $writerLeasePath = Join-Path $ValidationRoot 'writer-lease.json'
 $receiptPath = Join-Path $ValidationRoot 'v6-build-seal-receipt.json'
 $sealedZipPath = Join-Path $ValidationRoot 'OPL-Windows-WSL2-Validation-v6.zip'
 $logsRoot = Join-Path $ValidationRoot 'build-logs'
-$sourceRoot = Join-Path $ValidationRoot ('opl-aion-shell-' + $shellSha.Substring(0, 12))
+$sourceRoot = Join-Path $ValidationRoot ('opl-studio-' + $shellSha.Substring(0, 12))
 $sourceZipRelativePath =
   'out\windows-wsl2-validation\OPL Windows WSL2 Validation-0.0.0-validation.0-win.zip'
 $sourceExeRelativePath =

@@ -124,7 +124,7 @@
           ],
           "properties": {
             "repository": {
-              "const": "https://github.com/gaofeng21cn/opl-aion-shell.git"
+              "const": "https://github.com/gaofeng21cn/opl-studio.git"
             },
             "git_sha": {
               "const": "868d6e818583547a5ec982b10b34464a3fa47c10"
