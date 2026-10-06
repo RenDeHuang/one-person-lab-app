@@ -5,60 +5,23 @@ import {
   sameStringSet,
   stringArrayIncludesAll,
 } from './types.ts';
+import {
+  evaluateReleaseBrokerAuthorityReadiness,
+  requiredRemovedReleaseImplementationPaths,
+  requiredRetainedNonAuthoritativeImplementationPaths,
+  requiredRetiredReleasePackageScripts,
+  retiredReleaseControlPlaneViolations,
+} from './retirement.ts';
 
-const requiredHomebrewStandardCaskRef = 'gaofeng21cn/one-person-lab/one-person-lab';
-const requiredHomebrewTrustedCaskRefs = [
-  'gaofeng21cn/one-person-lab/one-person-lab',
-  'gaofeng21cn/one-person-lab/one-person-lab-full',
-  'gaofeng21cn/one-person-lab/one-person-lab-nightly',
-];
-const requiredHomebrewTrustScope = 'explicit_standard_and_conflicting_cask_refs_not_whole_tap';
+export {
+  evaluateReleaseBrokerAuthorityReadiness,
+} from './retirement.ts';
+export type { ReleaseBrokerAuthorityReadiness } from './retirement.ts';
+export {
+  validateHomebrewVmGateStaticPolicy,
+  validateWebuiPackagePolicy,
+} from './distribution.ts';
 
-
-const requiredRetiredReleasePackageScripts = [
-  'release:stable',
-  'release:operator',
-  'release:publish',
-  'release:bundle',
-  'release:plan',
-  'release:cohort-lock',
-  'release:cohort-plan',
-  'release:preflight',
-  'release:closeout',
-  'release:cleanup-drafts',
-  'release:gate-reuse-plan',
-  'release:cohort-manifest',
-  'release:candidate-record',
-  'release:candidate-record:resolve-owner',
-  'release:candidate-record:validate',
-  'release:candidate-record:status',
-  'release:owner-candidate-record:verify',
-];
-const requiredRemovedReleaseImplementationPaths = [
-  'scripts/run-stable-release.ts',
-  'scripts/release-operator.ts',
-  'scripts/release-mutation-broker.ts',
-  'scripts/release-session-lease.ts',
-  'scripts/publish-full-addon.ts',
-  'scripts/plan-release-candidate.ts',
-  'scripts/validate-release-preflight.ts',
-  'scripts/release-cohort-lock.ts',
-  'scripts/plan-release-cohort.ts',
-  'scripts/plan-release-gate-reuse.ts',
-  'scripts/write-release-cohort-manifest.ts',
-  'scripts/write-release-candidate-record.ts',
-  'scripts/resolve-release-owner-candidate-record.ts',
-  'scripts/verify-release-owner-candidate-record.ts',
-  'scripts/cleanup-draft-release-candidates.ts',
-  'scripts/stable-release-reconcile.ts',
-];
-const requiredRetainedNonAuthoritativeImplementationPaths = [
-  'scripts/release-bundle.ts',
-  'scripts/validate-release-candidate-record.ts',
-  'scripts/stable-release-session.ts',
-  'scripts/closeout-release-run.ts',
-  'scripts/inspect-release-draft-candidates.ts',
-];
 const requiredStandardLatestAdmission = {
   validator: 'scripts/validate-standard-latest-admission.ts',
   receipt_schema: 'opl_standard_latest_admission_receipt.v1',
@@ -209,169 +172,6 @@ const requiredValidationCanary = {
   synthetic_identity_may_authorize_release: false,
 };
 
-
-function retiredReleaseControlPlaneViolations(releaseContract: Record<string, any>): string[] {
-  const violations: string[] = [];
-  const forbiddenKeys = new Set([
-    'stable_release_state_machine',
-    'cohort_prepare',
-    'release_operator',
-    'release_monitor',
-    'gate_reuse',
-    'publish_resume',
-    'post_owner_receipt_fast_path',
-    'broker_authority_gate',
-    'promotion_saga',
-    'attempt_ledger',
-    'signed_mutation_authority',
-  ]);
-  const forbiddenWorkflowValues = new Set([
-    '.github/workflows/desktop-release.yml',
-    '.github/workflows/desktop-release-promote.yml',
-    '.github/workflows/desktop-release-full-addon.yml',
-  ]);
-
-  const visit = (value: unknown, pathName = 'release_channel') => {
-    if (Array.isArray(value)) {
-      value.forEach((entry, index) => visit(entry, `${pathName}[${index}]`));
-      return;
-    }
-    if (!value || typeof value !== 'object') return;
-    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-      const entryPath = `${pathName}.${key}`;
-      if (forbiddenKeys.has(key)) violations.push(`retired field ${entryPath}`);
-      if (typeof entry === 'string' && forbiddenWorkflowValues.has(entry)) {
-        violations.push(`retired writer workflow ${entryPath}`);
-      }
-      if (entry === 'release_operator_plan') violations.push(`retired operator admission ${entryPath}`);
-      visit(entry, entryPath);
-    }
-  };
-
-  visit(releaseContract);
-  return violations;
-}
-
-
-
-export function validateHomebrewVmGateStaticPolicy(
-  appRoot: string,
-  releaseContract: Record<string, any>,
-  firstRunMatrix: Record<string, any>,
-): number {
-  let failures = 0;
-  const homebrewVmScenario = Array.isArray(firstRunMatrix.scenarios)
-    ? firstRunMatrix.scenarios.find((scenario) => scenario.id === 'homebrew_standard_cask_clean_vm_smoke')
-    : null;
-  const homebrewVm = homebrewVmScenario?.vm;
-  const homebrewPolicy = releaseContract.homebrew_tap_distribution?.cask_install_policy;
-  const workflowVmText = fs.readFileSync(path.join(appRoot, '.github/workflows/opl-first-run-vm.yml'), 'utf8');
-
-  if (
-    homebrewVm?.homebrew_cask_install_ref !== requiredHomebrewStandardCaskRef ||
-    homebrewPolicy?.standard_cask_install_ref !== requiredHomebrewStandardCaskRef ||
-    !workflowVmText.includes(`homebrew_cask=${requiredHomebrewStandardCaskRef}`)
-  ) {
-    console.error('FAIL homebrew_vm_gate_static_policy: the standalone Homebrew VM gate must install the fully qualified App cask ref');
-    failures += 1;
-  }
-  if (
-    !sameStringSet(homebrewVm?.homebrew_trusted_cask_refs, requiredHomebrewTrustedCaskRefs) ||
-    !sameStringSet(homebrewPolicy?.standard_install_trusted_cask_refs, requiredHomebrewTrustedCaskRefs)
-  ) {
-    console.error('FAIL homebrew_vm_gate_static_policy: trusted refs must cover explicit standard/full/nightly cask refs');
-    failures += 1;
-  }
-  if (
-    homebrewVm?.homebrew_trust_scope !== requiredHomebrewTrustScope ||
-    homebrewPolicy?.trust_scope !== requiredHomebrewTrustScope
-  ) {
-    console.error('FAIL homebrew_vm_gate_static_policy: trust scope must stay explicit cask refs, not whole tap');
-    failures += 1;
-  }
-  if (
-    homebrewVm?.homebrew_trusted_cask_refs?.includes('gaofeng21cn/one-person-lab') ||
-    homebrewPolicy?.standard_install_trusted_cask_refs?.includes('gaofeng21cn/one-person-lab')
-  ) {
-    console.error('FAIL homebrew_vm_gate_static_policy: whole tap trust is not allowed');
-    failures += 1;
-  }
-
-  return failures;
-}
-
-export function validateWebuiPackagePolicy(releaseContract: Record<string, any>): number {
-  let failures = 0;
-  const webuiPackage = releaseContract.webui_ghcr_image;
-  if (webuiPackage?.github_package_access?.target_repository_association !== 'gaofeng21cn/one-person-lab-app') {
-    console.error('FAIL webui_package_association: target repository association must be gaofeng21cn/one-person-lab-app');
-    failures += 1;
-  }
-  if (webuiPackage?.github_package_access?.current_historical_association_allowed_until_ui_migration !== 'gaofeng21cn/one-person-lab') {
-    console.error('FAIL webui_package_association: historical association allowance must name gaofeng21cn/one-person-lab');
-    failures += 1;
-  }
-  if (webuiPackage?.retention_policy?.cleanup_execution_mode !== 'dry_run_first_explicit_execute_required') {
-    console.error('FAIL webui_retention_policy: cleanup must be dry-run first with explicit execute');
-    failures += 1;
-  }
-  if (!webuiPackage?.retention_policy?.protected_tags?.includes('nightly')) {
-    console.error('FAIL webui_retention_policy: protected tags must include nightly');
-    failures += 1;
-  }
-  return failures;
-}
-
-
-
-export type ReleaseBrokerAuthorityReadiness = {
-  current_release_admission_readiness: {
-    status: 'retired' | 'blocked';
-    mode: 'framework_checkpoint_app_executor';
-    blockers: string[];
-  };
-  isolated_broker_hardening: {
-    status: 'retired' | 'blocked';
-    disposition: 'historical_receipt_verification_only';
-    blockers: string[];
-  };
-};
-
-export function evaluateReleaseBrokerAuthorityReadiness(
-  authority: unknown,
-): ReleaseBrokerAuthorityReadiness {
-  const candidate = authority as Record<string, any> | null;
-  const admission = candidate?.current_release_admission;
-  const blockers: string[] = [];
-  if (
-    candidate?.schema !== 'opl_app_release_broker_authority.v1' ||
-    candidate?.lifecycle !== 'retired_historical_receipt_verification_only' ||
-    candidate?.live_mutation_authority !== false ||
-    candidate?.new_admission_allowed !== false ||
-    candidate?.new_dispatch_publish_promote_rebuild_or_cancel_allowed !== false ||
-    candidate?.replacement_authority_ref !== 'contracts/app-release-channel.json#release_bundle_control_plane.live_authority' ||
-    admission?.lifecycle !== 'retired_historical_projection' ||
-    admission?.live_admission_authority !== false ||
-    admission?.historical_receipt_verification_only !== true ||
-    admission?.new_admission_allowed !== false ||
-    candidate?.mutation_broker?.execution_allowed !== false ||
-    candidate?.mutation_broker?.receipt_verification_only !== true ||
-    candidate?.workflow_lookup?.new_lookup_or_mutation_allowed !== false ||
-    candidate?.workflow_lookup?.historical_receipt_verification_only !== true
-  ) blockers.push('legacy broker contract is not fully retired to historical receipt verification');
-  return {
-    current_release_admission_readiness: {
-      status: blockers.length === 0 ? 'retired' : 'blocked',
-      mode: 'framework_checkpoint_app_executor',
-      blockers,
-    },
-    isolated_broker_hardening: {
-      status: blockers.length === 0 ? 'retired' : 'blocked',
-      disposition: 'historical_receipt_verification_only',
-      blockers,
-    },
-  };
-}
 
 export function validateReleaseAccelerationPolicy(
   appRoot: string,
@@ -979,4 +779,3 @@ export function validateReleaseAccelerationPolicy(
 
   return failures;
 }
-
