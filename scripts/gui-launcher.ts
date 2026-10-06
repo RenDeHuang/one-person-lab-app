@@ -340,7 +340,7 @@ export function createGuiLaunchPlan(options: {
     app_path: appPath,
     package_app_path: packageAppPath,
     bundle_id: profile.bundle_id,
-    bundle_identity_isolated: false,
+    bundle_identity_isolated: shell === 'opl-studio' && !activeStudioDefault,
     build_required: buildRequired,
     rebuild_requested: options.args.rebuild,
     workspace,

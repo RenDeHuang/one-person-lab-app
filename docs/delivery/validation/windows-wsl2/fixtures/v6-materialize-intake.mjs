@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const APP_REPOSITORY = 'https://github.com/gaofeng21cn/one-person-lab-app.git';
-const SHELL_REPOSITORY = 'https://github.com/gaofeng21cn/opl-aion-shell.git';
+const SHELL_REPOSITORY = 'https://github.com/gaofeng21cn/opl-studio.git';
 const SHELL_SHA = '868d6e818583547a5ec982b10b34464a3fa47c10';
 const SHELL_TREE_SHA = '1dc9960a357d9f64eaaac7eadf44b9c1a1d00ca7';
 const SHELL_VALIDATION_TREE_SHA = '6f8519a26c3075f8b252c79a81e42f328c6efbb8';

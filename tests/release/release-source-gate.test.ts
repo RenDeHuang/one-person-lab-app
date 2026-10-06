@@ -18,7 +18,7 @@ import {
 } from '../../scripts/validate-release-source-gate.ts';
 
 const repoRoot = '/tmp/opl-app';
-const shellRoot = path.join(repoRoot, 'shells', 'aionui');
+const shellRoot = path.join(repoRoot, 'shells', 'opl-studio');
 const frameworkRoot = '/tmp/one-person-lab';
 const repoLocalFrameworkRoot = path.join(repoRoot, 'one-person-lab');
 const appHead = '0123456789abcdef0123456789abcdef01234567';
@@ -33,8 +33,8 @@ const managedUpdateProviders = {
   opl_packages: 'capability_packages',
 };
 
-function readSourceJson(candidatePath: string, shellName = 'one-person-lab-aion-shell'): any {
-  if (candidatePath.endsWith('app-shell-adapter.json')) return { active_shell: 'aionui', shell_root: 'shells/aionui', shell_source: { owner_repo: 'gaofeng21cn/opl-aion-shell', checkout_path: 'shells/aionui' }, shell_contract: { paths: { electron_builder_config: 'packages/desktop/electron-builder.yml', packaged_runtime_root: 'resources/opl-full-runtime' } } };
+function readSourceJson(candidatePath: string, shellName = 'opl-studio'): any {
+  if (candidatePath.endsWith('app-shell-adapter.json')) return { active_shell: 'opl-studio', shell_root: 'shells/opl-studio', shell_source: { owner_repo: 'gaofeng21cn/opl-studio', checkout_path: 'shells/opl-studio' }, shell_contract: { paths: { electron_builder_config: 'desktop/electron-builder.yml', packaged_runtime_root: 'resources/opl-studio-full-runtime' } } };
   if (candidatePath.endsWith('package.json')) return { name: shellName };
   if (candidatePath.endsWith('app-release-channel.json')) {
     return {
@@ -91,27 +91,21 @@ test('release source gate accepts explicit isolated source checkout roots', () =
   assert.equal(parsed.frameworkRoot, '/private/tmp/release-framework');
 });
 
-test('Shell product-profile consumer uses the frozen local vitest executable without bunx discovery', () => {
+test('Shell product-profile consumer uses the frozen Studio candidate validator', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-shell-consumer-command-'));
   const shellRoot = path.join(root, 'shell');
-  const markerPath = path.join(root, 'vitest-invocation.txt');
+  const markerPath = path.join(root, 'studio-validator-invocation.txt');
   const fakeBin = path.join(root, 'fake-bin');
   const previousPath = process.env.PATH;
-  fs.mkdirSync(path.join(shellRoot, 'node_modules', '.bin'), { recursive: true });
-  fs.mkdirSync(path.join(shellRoot, 'tests', 'unit', 'common-config'), { recursive: true });
+  fs.mkdirSync(path.join(shellRoot, 'node_modules'), { recursive: true });
+  fs.mkdirSync(path.join(shellRoot, 'scripts'), { recursive: true });
   fs.mkdirSync(fakeBin, { recursive: true });
   fs.writeFileSync(path.join(shellRoot, '.gitignore'), 'node_modules/\n', 'utf8');
-  fs.writeFileSync(path.join(shellRoot, 'package.json'), '{"name":"one-person-lab-aion-shell"}\n', 'utf8');
+  fs.writeFileSync(path.join(shellRoot, 'package.json'), '{"name":"opl-studio"}\n', 'utf8');
   fs.writeFileSync(
-    path.join(shellRoot, 'tests', 'unit', 'common-config', 'oplProductProfile.test.ts'),
-    'export {};\n',
+    path.join(shellRoot, 'scripts', 'validate-opl-studio-candidate.mjs'),
+    `import fs from 'node:fs';\nfs.writeFileSync(${JSON.stringify(markerPath)}, process.cwd() + '\\n');\n`,
     'utf8',
-  );
-  const vitest = path.join(shellRoot, 'node_modules', '.bin', 'vitest');
-  fs.writeFileSync(
-    vitest,
-    `#!/bin/sh\nset -eu\ntest "$1" = run\ntest "$2" = tests/unit/common-config/oplProductProfile.test.ts\nprintf '%s\\n' "$PWD" > ${JSON.stringify(markerPath)}\n`,
-    { encoding: 'utf8', mode: 0o755 },
   );
   fs.writeFileSync(path.join(fakeBin, 'bunx'), '#!/bin/sh\nexit 97\n', { encoding: 'utf8', mode: 0o755 });
 
@@ -125,14 +119,14 @@ test('Shell product-profile consumer uses the frozen local vitest executable wit
     git('init', '-q');
     git('config', 'user.name', 'OPL Release Test');
     git('config', 'user.email', 'release-test@example.invalid');
-    git('add', '.gitignore', 'package.json', 'tests/unit/common-config/oplProductProfile.test.ts');
+    git('add', '.gitignore', 'package.json', 'scripts/validate-opl-studio-candidate.mjs');
     git('commit', '-qm', 'fixture');
     process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
 
     const report = runShellProductProfileConsumerGate({
       shellRoot,
       expectedShellSha: git('rev-parse', 'HEAD'),
-      shellId: 'aionui',
+      shellId: 'opl-studio',
     });
 
     assert.equal(report.status, 'passed');
@@ -374,7 +368,7 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     if (command === 'git' && args.join(' ') === 'rev-parse HEAD' && commandOptions.cwd === repoLocalFrameworkRoot) {
       return { status: 0, stdout: `${frameworkHead}\n`, stderr: '' };
     }
-    if (command === 'bun' && args.join(' ') === 'run format:check' && commandOptions.cwd === shellRoot) {
+    if (command === 'npm' && args.join(' ') === 'run typecheck' && commandOptions.cwd === shellRoot) {
       return { status: 0, stdout: 'format ok\n', stderr: '' };
     }
     if (
@@ -432,7 +426,7 @@ test('release source gate fails stale expected App HEAD before expensive release
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
   assert.equal(calls.some((call) => call === 'npm run validate:release-boundary'), false);
-  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call === 'npm run typecheck'), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
@@ -918,7 +912,7 @@ test('release source gate blocks pre-admission when required shell format is not
   assert.equal(policyOnly.typed_blocker?.phase, 'pre_admission');
   assert.equal(policyOnly.typed_blocker?.next_action, 'repair_pre_admission');
   assert.equal(requiredGate?.required, true);
-  assert.equal(requiredGate?.command, 'bun run format:check');
+  assert.equal(requiredGate?.command, 'npm run typecheck');
   assert.equal(requiredGate?.cwd, shellRoot);
   assert.equal(requiredGate?.executed, false);
   assert.equal(checkStatus(policyOnly, 'active_shell_format_pre_admission'), 'blocked');
@@ -983,7 +977,7 @@ test('release source gate stops at the first required gate failure', () => {
   assert.equal(checkStatus(report, 'framework_release_cli_consumer'), 'blocked');
   assert.equal(report.typed_blocker?.phase, 'required_gate_execution');
   assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
-  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call === 'npm run typecheck'), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
 });
 
@@ -1020,7 +1014,7 @@ test('release source gate stops before Shell gates when the exact Framework rele
   assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
   assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
   assert.equal(calls.some((call) => call.includes('validate-shell-product-profile-consumer.ts')), false);
-  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call === 'npm run typecheck'), false);
   assert.equal(report.typed_blocker?.failed_check_ids[0], 'framework_release_cli_consumer');
 });
 
@@ -1055,7 +1049,7 @@ test('release source gate stops before Shell-wide gates when current App profile
   );
   assert.equal(checkStatus(report, 'active_shell_format_check'), 'blocked');
   assert.equal(checkStatus(report, 'active_shell_node_dom_tests'), 'blocked');
-  assert.equal(calls.some((call) => call === 'bun run format:check'), false);
+  assert.equal(calls.some((call) => call === 'npm run typecheck'), false);
   assert.equal(calls.some((call) => call.includes('run-active-shell-tests.ts')), false);
   assert.equal(report.typed_blocker?.next_action, 'repair_source_gate');
 });

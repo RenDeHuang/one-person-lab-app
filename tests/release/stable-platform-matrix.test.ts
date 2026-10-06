@@ -117,7 +117,7 @@ test('Stable additional Desktop publication is limited to Linux x64 and Windows 
   assert.deepEqual(productProfile.product.target_desktop_platforms, ['macos', 'windows', 'linux']);
   assert.deepEqual(productProfile.release_roles.current.admitted_product_platforms, ['macos-arm64']);
   assert.equal(productProfile.release_roles.current.release_channel_ref, 'contracts/app-release-channel.json');
-  assert.equal(productProfile.release_roles.successor.target_platforms_are_not_current_release_evidence, true);
+  assert.equal(productProfile.release_roles.successor.target_platforms_are_not_current_release_evidence, false);
   assert.equal('supported_release_platforms' in productProfile.product, false);
 });
 

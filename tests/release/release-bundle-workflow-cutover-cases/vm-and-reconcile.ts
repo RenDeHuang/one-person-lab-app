@@ -402,11 +402,11 @@ test('release helpers reject duplicate mounted Apps and packaged runtime executa
   assert.match(codexCarrierValidator, /resolver_env !== 'OPL_CODEX_BIN'/);
   assert.match(
     codexCarrierValidator,
-    /version_source !== 'contracts\/aionui-upstream-intake\.json#managed_runtime\.codex_cli'/,
+    /version_source !== 'contracts\/shell-adapters\/opl-studio\.json#qualification_external_carrier'/,
   );
   assert.match(
     codexCarrierValidator,
-    /projection_schema !== 'opl_aioncore_managed_resources_projection\.v1'/,
+    /projection_schema !== 'opl_codex_native_external_binary\.v1'/,
   );
   assert.match(
     codexCarrierValidator,

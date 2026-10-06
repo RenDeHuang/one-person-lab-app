@@ -260,6 +260,7 @@ export function buildQualificationHarnessScopeProof(input: {
     'scripts/desktop/stable-clean-vm.mjs',
     'scripts/desktop/stable-smoke.mjs',
     'scripts/desktop/stable-upgrade-vm.mjs',
+    'scripts/opl-first-run-vm-smoke.mjs',
     'tests/desktop/preview-smoke.test.mjs',
   ];
   const appHarnessMechanicsOnly = appDiffers &&
