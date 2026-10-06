@@ -748,18 +748,6 @@ jobs:
           bunx electron-builder install-app-deps
           echo "OPL_FULL_SHELL_DEPS_READY_AT=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Restore Full shell Vite output cache
-        if: ${{ steps.shell_profile.outputs.shell_id == 'aionui' && (!inputs.cache_only) }}
-        id: restore-shell-vite-output
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/main
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/preload
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/renderer
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/.build-hash
-          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-${{ hashFiles('one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/package.json', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/bun.lock', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/tsconfig.json', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/packages/desktop/src/**', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/public/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
-
       - name: Prepare domain runtime dependencies
         shell: bash
         run: |
@@ -1589,18 +1577,6 @@ jobs:
             ~/.cache/uv
             ~/Library/Caches/uv
           key: full-uv-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('med-autoscience/uv.lock', 'med-autoscience/pyproject.toml', 'med-autogrant/uv.lock', 'med-autogrant/pyproject.toml') }}
-
-      - name: Save Full shell Vite output cache
-        if: ${{ steps.shell_profile.outputs.shell_id == 'aionui' && (github.ref == 'refs/heads/main' && !inputs.cache_only && steps.restore-shell-vite-output.outputs.cache-hit != 'true') }}
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        continue-on-error: true
-        with:
-          path: |
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/main
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/preload
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/renderer
-            one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/out/.build-hash
-          key: full-shell-vite-output-${{ runner.os }}-${{ runner.arch }}-${{ inputs.opl_version }}-${{ hashFiles('one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/package.json', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/bun.lock', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/tsconfig.json', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/packages/desktop/electron.vite.config.ts', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/packages/desktop/src/**', 'one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/public/**', 'one-person-lab-app/contracts/app-product-profile.json') }}
 
       - name: Save Full toolchain runtime cache
         id: save-runtime-cache-toolchain

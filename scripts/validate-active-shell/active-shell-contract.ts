@@ -10,7 +10,6 @@ import {
   validateStateSurfaceContract,
   validateValidationCommands,
 } from './active-shell-boundary-validators.ts';
-import { validateUpstreamIntakePolicy } from './upstream-intake-policy-validator.ts';
 
 export function resolveValidationCwd(entry, contract, shellPaths) {
   if (entry.cwd === contract.shell_root) {
@@ -20,15 +19,12 @@ export function resolveValidationCwd(entry, contract, shellPaths) {
 }
 
 export function isDefaultReleaseAdapter(contract) {
-  return ['aionui', 'opl-studio'].includes(contract.active_shell) && contract.shell_root === `shells/${contract.active_shell}` && !contract.candidate_shell;
+  return contract.active_shell === 'opl-studio' && contract.shell_root === 'shells/opl-studio' && !contract.candidate_shell;
 }
 
 export function validateContractShape(contract) {
   if (contract.app_repo !== 'gaofeng21cn/one-person-lab-app') {
     throw new Error(`Unexpected app_repo: ${contract.app_repo}`);
-  }
-  if (contract.active_shell === 'aionui' && contract.shell_source?.owner_repo !== 'gaofeng21cn/opl-aion-shell') {
-    throw new Error(`Unexpected AionUI shell_source owner: ${contract.shell_source?.owner_repo}`);
   }
   if (contract.shell_source?.history_policy !== 'external_checkout_not_merged_into_app_default_branch') {
     throw new Error(`Unexpected shell history policy: ${contract.shell_source?.history_policy}`);
@@ -52,12 +48,6 @@ export function validateContractShape(contract) {
   }
   assertFile(shellPaths.packageManifestPath, 'active shell package.json');
   assertFile(shellPaths.agentsGuidePath, 'active shell AGENTS.md');
-  if (defaultReleaseAdapter && contract.active_shell === 'aionui') {
-    assertFile(shellPaths.vitestConfigPath, 'active shell vitest config');
-    assertFile(shellPaths.electronBuilderConfigPath, 'active shell electron-builder config');
-    validateUpstreamIntakePolicy(contract, shellPaths);
-  }
-
   if (defaultReleaseAdapter && contract.active_shell === 'opl-studio') {
     assertFile(shellPaths.electronBuilderConfigPath, 'active Studio Stable electron-builder config');
     assertFile(shellPaths.desktopReleaseCarrierManifestPath, 'active Studio Stable carrier manifest');

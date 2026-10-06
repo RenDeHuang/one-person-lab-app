@@ -83,7 +83,6 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   BUN_INSTALL_REGISTRY: 'https://registry.npmjs.org/'
-  AIONUI_HUB_TAG: 'dist-ebc6a2b'
 
 jobs:
   resolve-active-shell-ref:
@@ -280,70 +279,6 @@ jobs:
         working-directory: .
         run: node --experimental-strip-types scripts/run-active-shell-tests.ts --project ${{ matrix.project }} --max-workers 2
 
-  prepare-windows-linux-runtime:
-    name: Prepare Windows Linux runtime
-    runs-on: ubuntu-latest
-    needs: [resolve-active-shell-ref]
-    if: ${{ contains(inputs.matrix, 'windows') && needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' }}
-
-    steps:
-      - name: Checkout App repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.ref }}
-
-      - name: Checkout active shell
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ needs.resolve-active-shell-ref.outputs.shell_repository }}
-          ref: ${{ needs.resolve-active-shell-ref.outputs.shell_sha }}
-          path: ${{ needs.resolve-active-shell-ref.outputs.shell_root }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '24'
-
-      - name: Bind Windows Framework manifest for prepared runtime
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
-            --manifest ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/resources/opl-linux/product.json \
-            --framework-ref "${{ inputs.framework_ref }}"
-
-      - name: Prepare target-executed Linux runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const path = require('node:path');
-          const {
-            prepareAioncore,
-          } = require('./${{ needs.resolve-active-shell-ref.outputs.shell_root }}/packages/shared-scripts/src/prepare-aioncore.js');
-          const {
-            resolveAioncoreVersion,
-          } = require('./${{ needs.resolve-active-shell-ref.outputs.shell_root }}/scripts/resolveAioncoreVersion.js');
-
-          const projectRoot = path.resolve('${{ needs.resolve-active-shell-ref.outputs.shell_root }}');
-          prepareAioncore({
-            projectRoot,
-            platform: 'linux',
-            arch: 'x64',
-            version: resolveAioncoreVersion(projectRoot),
-            materializeInternalSymlinksForWindows: true,
-          });
-          NODE
-
-      - name: Upload target-executed Linux runtime
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: opl-windows-linux-runtime-${{ github.run_id }}
-          path: ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/resources/bundled-aioncore/linux-x64
-          if-no-files-found: error
-          include-hidden-files: true
-          retention-days: 7
-
   prepare-studio-wsl-host:
     name: Prepare Studio Windows guest Host
     runs-on: ubuntu-latest
@@ -442,11 +377,10 @@ jobs:
     environment: ${{ inputs.require_macos_gatekeeper && startsWith(matrix.platform, 'macos') && 'release-stable' || null }}
     # Build isolated artifacts while source checks run; build-summary joins all gates.
     needs:
-      - prepare-windows-linux-runtime
       - prepare-studio-wsl-host
       - macos-signing-preflight
       - resolve-active-shell-ref
-    if: ${{ !cancelled() && needs['resolve-active-shell-ref'].result == 'success' && (needs['prepare-windows-linux-runtime'].result == 'success' || needs['prepare-windows-linux-runtime'].result == 'skipped') && (needs['prepare-studio-wsl-host'].result == 'success' || needs['prepare-studio-wsl-host'].result == 'skipped') && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') }}
+    if: ${{ !cancelled() && needs['resolve-active-shell-ref'].result == 'success' && (needs['prepare-studio-wsl-host'].result == 'success' || needs['prepare-studio-wsl-host'].result == 'skipped') && (needs['macos-signing-preflight'].result == 'success' || needs['macos-signing-preflight'].result == 'skipped') }}
     defaults:
       run:
         working-directory: ${{ needs.resolve-active-shell-ref.outputs.shell_root }}
@@ -539,12 +473,6 @@ jobs:
         run: node scripts/desktop/prepare-wsl-host-payload.mjs --validate resources/opl-wsl-host
 
       - name: Download target-executed Linux runtime
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: opl-windows-linux-runtime-${{ github.run_id }}
-          path: ${{ runner.temp }}/opl-windows-linux-runtime
-
       - name: Get commit hash
         id: commit
         shell: bash
@@ -698,10 +626,6 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Run postinstall
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' }}
-        run: bun run postinstall || true
-
       - name: Prepare standard App payload
         working-directory: ${{ github.workspace }}
         env:
@@ -709,63 +633,13 @@ jobs:
           OPL_STANDARD_PAYLOAD_RELEASE_BOUND: ${{ inputs.operation != '' && 'true' || 'false' }}
         run: node --experimental-strip-types scripts/prepare-standard-release-payload.ts
 
-      - name: Bind Windows Framework manifest
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
-            --manifest ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/resources/opl-linux/product.json \
-            --framework-ref "${{ inputs.framework_ref }}"
-
       - name: Validate synced App product profile consumer
         working-directory: ${{ needs.resolve-active-shell-ref.outputs.shell_root }}
         shell: bash
         env:
           OPL_APP_REPO_ROOT: ${{ github.workspace }}
         run: |
-          if [ '${{ needs.resolve-active-shell-ref.outputs.shell_id }}' = opl-studio ]; then
-            npm run validate:candidate
-          else
-            bunx vitest run tests/unit/common-config/oplProductProfile.test.ts
-          fi
-
-      - name: Setup Windows native dependencies (Windows only)
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        run: bun install --global node-gyp
-
-      - name: Install MSVC ARM64 toolchain (Windows ARM64 only)
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (matrix.platform == 'windows-arm64') }}
-        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
-        with:
-          timeout_minutes: 20
-          max_attempts: 3
-          retry_wait_seconds: 60
-          shell: pwsh
-          command: |
-            choco install visualstudio2022buildtools --yes --params "'--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.Windows11SDK.22000 --includeRecommended --includeOptional'"
-
-      - name: Setup Windows build environment (Windows only)
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        shell: pwsh
-        run: |
-          Write-Host "Setting Windows SDK version for ConPty support"
-          "WindowsTargetPlatformVersion=10.0.19041.0" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Setup MSBuild (Windows only)
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
-        with:
-          vs-version: '17.0'
-
-      - name: Rebuild native modules for Electron
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (!startsWith(matrix.platform, 'windows')) }}
-        run: bunx electron-builder install-app-deps
-        env:
-          npm_config_runtime: electron
-          npm_config_disturl: https://electronjs.org/headers
-          ELECTRON_CACHE: ${{ runner.temp }}/.cache/electron
-          ELECTRON_BUILDER_CACHE: ${{ runner.temp }}/.cache/electron-builder
+          npm run validate:candidate
 
       - name: Print build configuration
         shell: bash
@@ -823,75 +697,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential python3 python3-pip pkg-config libsqlite3-dev fakeroot dpkg-dev rpm libnss3-dev libatk-bridge2.0-dev libdrm2 libxkbcommon-dev libxss1 libatspi2.0-dev libgtk-3-dev libxrandr2 libasound2-dev
 
-      - name: Rebuild native modules for Electron (Windows)
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && startsWith(matrix.platform, 'windows') }}
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $arch = "${{ matrix.native_arch || matrix.arch }}"
-          $electronVer = (node -p "require('./package.json').devDependencies.electron.replace(/[\^~]/g, '')").Trim()
-          $sqliteNode = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
-
-          Write-Host "Rebuilding native modules for Electron $electronVer ($arch)"
-          $bunPath = (Get-Command bun -CommandType Application).Source
-          $prebuild = Start-Process -FilePath $bunPath -ArgumentList @(
-            'x',
-            '--yes',
-            'prebuild-install',
-            '--runtime=electron',
-            "--target=$electronVer",
-            '--platform=win32',
-            "--arch=$arch",
-            '--force'
-          ) -NoNewWindow -Wait -PassThru
-          $prebuildFailed = $prebuild.ExitCode -ne 0
-          if ($prebuildFailed) {
-            Write-Warning "No matching better-sqlite3 prebuild was available; falling back to electron-rebuild."
-          }
-          $needsElectronRebuild = $prebuildFailed -or -not (Test-Path $sqliteNode)
-          if ($needsElectronRebuild) {
-            Remove-Item $sqliteNode -Force -ErrorAction SilentlyContinue
-            bunx --yes @electron/rebuild@4.2.0 -f -w better-sqlite3
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "electron-rebuild failed with exit code $LASTEXITCODE"
-              exit $LASTEXITCODE
-            }
-          }
-          if (-not (Test-Path $sqliteNode)) {
-            Write-Error "better-sqlite3 native module not found at: $sqliteNode"
-            exit 1
-          }
-        env:
-          npm_config_runtime: electron
-          npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
-          npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
-          npm_config_disturl: https://electronjs.org/headers
-          MSVS_VERSION: 2022
-          GYP_MSVS_VERSION: 2022
-
-      - name: Build Windows Vite bundles with the configured Node runtime
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        timeout-minutes: 5
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          # Keep bundling bounded and invoke the installed Node entry directly
-          # when recovering a stall between the main and preload build phases.
-          $ViteEntry = node -e "const path = require('node:path'); process.stdout.write(path.join(path.dirname(require.resolve('electron-vite/package.json')), 'bin/electron-vite.js'))"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node $ViteEntry build --config packages/desktop/electron.vite.config.ts
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
-          ELECTRON_BUILDER_ARCH: ${{ matrix.native_arch || matrix.arch }}
-
       - name: Build with electron-builder (Windows)
         if: startsWith(matrix.platform, 'windows')
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $Command = $env:WINDOWS_BUILD_COMMAND
-          if ('${{ needs.resolve-active-shell-ref.outputs.shell_id }}' -eq 'aionui') { $Command += ' --skip-vite' }
           if ($env:OPL_REQUIRE_WINDOWS_UPDATER_ASSETS -eq 'true') {
             if ('${{ matrix.platform }}' -ne 'windows-x64') {
               throw 'Windows updater assets are supported only for windows-x64.'
@@ -906,7 +717,6 @@ jobs:
           WINDOWS_BUILD_COMMAND: ${{ matrix.command }}
           OPL_REQUIRE_WINDOWS_UPDATER_ASSETS: ${{ inputs.require_windows_updater_assets }}
           OPL_APP_REPO_ROOT: ${{ github.workspace }}
-          AIONUI_PREPARED_AIONCORE_RUNTIME_DIR: ${{ runner.temp }}/opl-windows-linux-runtime
           NODE_OPTIONS: '--max-old-space-size=8192'
           npm_config_arch: ${{ matrix.native_arch || matrix.arch }}
           npm_config_target_arch: ${{ matrix.native_arch || matrix.arch }}
@@ -990,15 +800,6 @@ jobs:
           $json = ($receipt | ConvertTo-Json -Depth 6) + "`n"
           $output = Join-Path $installer.DirectoryName 'opl-windows-authenticode-receipt.json'
           [System.IO.File]::WriteAllText($output, $json, [System.Text.UTF8Encoding]::new($false))
-
-      - name: Bind packaged Windows Framework manifest
-        if: ${{ needs.resolve-active-shell-ref.outputs.shell_id == 'aionui' && (startsWith(matrix.platform, 'windows')) }}
-        shell: bash
-        working-directory: ${{ github.workspace }}
-        run: |
-          node --experimental-strip-types scripts/bind-windows-framework-manifest.ts \
-            --manifest ${{ needs.resolve-active-shell-ref.outputs.shell_root }}/out/win-unpacked/resources/opl-linux/product.json \
-            --framework-ref "${{ inputs.framework_ref }}"
 
       # Clean up any stale disk images before DMG creation (macOS only)
       # 清理可能残留的磁盘镜像，避免 hdiutil "Device not configured" 错误

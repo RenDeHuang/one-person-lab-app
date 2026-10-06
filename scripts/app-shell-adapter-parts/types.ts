@@ -80,7 +80,7 @@ export const REQUIRED_BASE_SHELL_OWNED_SURFACES = [
   'shell tests and release hooks',
 ] as const;
 
-export const DEFAULT_RELEASE_SHELL_OWNED_SURFACE = 'upstream AionUI intake';
+export const DEFAULT_RELEASE_SHELL_OWNED_SURFACE = 'OPL Studio implementation';
 
 export const FORBIDDEN_SHELL_OWNED_SURFACES = [
   'App GUI product truth',

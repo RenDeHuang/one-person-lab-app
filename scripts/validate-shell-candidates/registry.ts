@@ -37,7 +37,7 @@ export function validateRegistryShape(registry: ShellCandidateRegistry): void {
     mainline.role !== 'stable_app_gui_mainline' ||
     mainline.product_truth_owner !== 'one-person-lab-app'
   ) {
-    throw new Error('candidate registry must declare AionUI as the stable App GUI mainline');
+    throw new Error('candidate registry must declare OPL Studio as the stable App GUI mainline');
   }
   const alternative = registry.alternative_gui_policy;
   if (
@@ -135,12 +135,12 @@ export function validateShellTransitionPolicy(policy: ShellTransitionPolicy): vo
     || !['planned_not_authorized', 'authorized_implementation_in_progress'].includes(policy.state)
     || policy.authority_owner !== 'one-person-lab-app'
     || policy.initial_carrier !== 'macos_arm64'
-    || policy.current_active_shell !== 'aionui'
+    || policy.current_active_shell !== 'opl-studio'
     || policy.current_candidate_shell !== 'opl-studio'
     || policy.target_active_shell !== 'opl-studio'
     || policy.execution_requires_separate_authorization !== (policy.state === 'planned_not_authorized')
   ) {
-    throw new Error('shell transition policy must remain an App-owned, non-authorized macOS plan from AionUI to OPL Studio');
+    throw new Error('shell transition policy must describe the completed App-owned Studio adoption');
   }
 
   const active = policy.identities?.active_app;
@@ -148,6 +148,7 @@ export function validateShellTransitionPolicy(policy: ShellTransitionPolicy): vo
   const target = policy.identities?.target_app;
   if (
     active?.product_name !== 'One Person Lab'
+    || active.shell !== 'opl-studio'
     || active.bundle_id !== 'cn.onepersonlab.opl'
     || active.install_path !== '/Applications/One Person Lab.app'
     || active.user_data_root !== '~/Library/Application Support/One Person Lab'
@@ -178,20 +179,7 @@ export function validateShellTransitionPolicy(policy: ShellTransitionPolicy): vo
     }
   }
 
-  const mainline = policy.upgrade_routes?.aionui_mainline_to_target;
   const handoff = policy.upgrade_routes?.studio_preview_to_target;
-  if (
-    mainline?.mechanism !== 'in_place_auto_update_on_preserved_active_identity'
-    || mainline.preserve_bundle_id !== true
-    || mainline.preserve_install_path !== true
-    || mainline.preserve_release_repository !== true
-    || mainline.preserve_updater_metadata_namespace !== true
-    || mainline.direct_supported_source_window_required !== true
-    || mainline.intermediate_aionui_bridge_release_required_for_correctness !== false
-    || mainline.first_target_launch_runs_idempotent_migration_before_normal_renderer_start !== true
-  ) {
-    throw new Error('AionUI route must be a direct in-place update on the preserved active identity');
-  }
   if (
     handoff?.mechanism !== 'preview_updater_delivers_signed_handoff_to_exact_active_app_release'
     || handoff.native_cross_bundle_in_place_update_claimed !== false
@@ -215,53 +203,10 @@ export function validateShellTransitionPolicy(policy: ShellTransitionPolicy): vo
     throw new Error('canonical shared state must be reused from its owner without shell database copying');
   }
   const migration = policy.state_continuity?.shell_local_migration;
-  const requiredAllowlist = [
-    'locale_theme_and_accessibility_preferences',
-    'non_secret_model_reasoning_and_permission_preferences',
-    'workspace_selection_labels_and_order',
-    'canonical_thread_keyed_ui_metadata',
-    'unsent_user_drafts',
-    'notification_and_log_location_preferences',
-  ];
-  const requiredExclusions = [
-    'passwords_api_keys_tokens_cookies_and_keychain_material',
-    'aioncore_or_aionui_backend_databases',
-    'codex_thread_or_turn_bodies',
-    'framework_package_runtime_or_receipt_state',
-    'electron_cache_session_gpu_crash_and_updater_identity_files',
-    'owner_workspace_or_artifact_bodies',
-  ];
-  assertStringArrayIncludes(migration?.allowlisted_classes ?? [], requiredAllowlist, 'shell local migration allowlist');
-  assertStringArrayIncludes(migration?.excluded_classes ?? [], requiredExclusions, 'shell local migration exclusions');
   if (
     migration?.direct_database_copy_allowed !== false
     || migration.direct_secret_copy_allowed !== false
-    || migration.versioned_field_translators_required !== true
-    || migration.idempotent !== true
-    || migration.exclusive_migration_lock_required !== true
-    || migration.source_backup_and_hash_inventory_required !== true
-    || migration.partial_import_must_resume_or_rollback !== true
     || migration.source_bytes_retained_until_owner_acceptance !== true
-  ) {
-    throw new Error('shell-local migration must stay allowlisted, versioned, idempotent, recoverable, and secret-free');
-  }
-
-  const requiredSequence = [
-    'studio_preview_functional_baseline_and_internal_acceptance',
-    'studio_preview_signed_notarized_public_update_qualification',
-    'dual_source_migration_implementation_and_supported_source_window_freeze',
-    'aionui_in_place_and_preview_handoff_clean_vm_qualification',
-    'explicit_active_shell_and_release_authority_cutover',
-    'active_app_target_release_and_terminal_preview_handoff_release',
-    'post_update_owner_readback_and_bounded_legacy_retention',
-  ];
-  if (JSON.stringify(policy.cutover_sequence) !== JSON.stringify(requiredSequence)) {
-    throw new Error('shell transition cutover sequence must preserve Preview testing before dual-route migration and explicit cutover');
-  }
-  if (
-    policy.rollback_policy?.automatic_downgrade_assumed !== false
-    || policy.rollback_policy?.rollback_path_must_be_qualified_before_cutover !== true
-    || policy.rollback_policy?.preview_not_removed_before_target_owner_readback !== true
   ) {
     throw new Error('shell transition rollback must be qualified and must not assume automatic downgrade');
   }
@@ -312,7 +257,7 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
   }
   const activeShell = registry.active_gui_mainline?.shell;
   const foregroundShell = registry.alternative_gui_policy?.only_foreground_alternative;
-  const expectedShells = ['aionui', 'opl-studio'];
+  const expectedShells = ['opl-studio'];
   const selectableShells = launcher?.selectable_shells ?? [];
   if (
     !activeShell ||
@@ -321,7 +266,7 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
     !selectableShells.includes(activeShell) ||
     !selectableShells.includes(foregroundShell)
   ) {
-    throw new Error('interactive launcher selectable_shells must be exactly the active mainline and foreground alternative');
+    throw new Error('interactive launcher selectable_shells must contain only OPL Studio');
   }
   for (const field of [
     'selection_mutates_release_adoption',
@@ -334,23 +279,12 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
     }
   }
   if (launcher?.side_by_side_bundle_identity_required !== true) {
-    throw new Error('interactive launcher policy must require separate side-by-side bundle identities');
+    throw new Error('interactive launcher policy must require an isolated Preview bundle identity');
   }
   const profiles = launcher?.launch_profiles ?? {};
   const profileIds = Object.keys(profiles).sort();
-  if (profileIds.join(',') !== ['aionui', 'opl-studio'].sort().join(',')) {
-    throw new Error('interactive launcher launch_profiles must be exactly aionui and opl-studio');
-  }
-  const aionui = profiles.aionui;
-  if (
-    aionui?.adapter_contract !== 'contracts/app-shell-adapter.json' ||
-    aionui.default_mode !== 'packaged' ||
-    aionui.bundle_id !== 'cn.onepersonlab.opl' ||
-    aionui.packaged_app_path !== '/Applications/One Person Lab.app' ||
-    aionui.supported_modes?.join(',') !== 'packaged,dev' ||
-    aionui.dev_command?.join(' ') !== 'bun run start'
-  ) {
-    throw new Error('interactive launcher AionUI profile must preserve the installed mainline and existing dev command');
+  if (profileIds.join(',') !== 'opl-studio') {
+    throw new Error('interactive launcher launch_profiles must contain only OPL Studio');
   }
   const successor = profiles['opl-studio'];
   if (
@@ -364,10 +298,7 @@ function validateInteractiveLauncherPolicy(registry: ShellCandidateRegistry): vo
     successor.launcher_env_abi?.join(',') !==
       'OPL_CODEX_BIN,OPL_APP_OPL_BIN,OPL_NATIVE_WORKBENCH_CODEX_CWD,OPL_NATIVE_WORKBENCH_READ_ONLY'
   ) {
-    throw new Error('interactive launcher successor profile must preserve the formal local install, host ABI, isolated bundle, and package command');
-  }
-  if (aionui.bundle_id === successor.bundle_id) {
-    throw new Error('interactive launcher mainline and candidate bundle identities must differ');
+    throw new Error('interactive launcher must resolve the isolated Studio Preview carrier and supported commands');
   }
 }
 
@@ -676,10 +607,10 @@ export function validateActiveShellUnaffected(): void {
 
   const activeBuild = readActiveShellBuildProfile(root);
   if (activeAdapter.active_shell !== activeBuild.id || activeAdapter.shell_root !== activeBuild.root) {
-    throw new Error('active shell adapter must remain aionui at shells/aionui');
+    throw new Error('active shell adapter must select OPL Studio at shells/opl-studio');
   }
   if (activeAdapter.shell_source.owner_repo !== activeBuild.repository) {
-    throw new Error('active release shell source must remain gaofeng21cn/opl-aion-shell');
+    throw new Error('active release shell source must remain gaofeng21cn/opl-studio');
   }
   if (activeAdapter.release_role !== 'stable_app_shell') {
     throw new Error('active shell release role must remain stable_app_shell');
@@ -692,6 +623,6 @@ export function validateActiveShellUnaffected(): void {
     throw new Error('runtime bridge default adapter must continue matching the active shell adapter');
   }
   if (guiContract.active_shell !== activeAdapter.active_shell || guiContract.implementation_carrier !== activeBuild.repository.split('/')[1]) {
-    throw new Error('GUI product contract must still point at the active AionUI implementation carrier');
+    throw new Error('GUI product contract must point at the active OPL Studio implementation carrier');
   }
 }

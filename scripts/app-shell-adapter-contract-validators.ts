@@ -10,15 +10,12 @@ export function validateGuiProductContractPolicyFields(contract, options = {}) {
     throw new Error(`${subject} GUI product contract source of truth must stay in one-person-lab-app`);
   }
   if (contract.gui_product_contract_policy.upstream_override_allowed !== false) {
-    throw new Error('AionUI upstream must not override App GUI product truth');
+    throw new Error('Upstream GUI behavior must not override App product truth');
   }
   if (contract.gui_product_contract_policy.upstream_family_role !== 'implementation_material_only') {
     throw new Error(`Unexpected upstream GUI role: ${contract.gui_product_contract_policy.upstream_family_role}`);
   }
-  if (
-    contract.gui_product_contract_policy.upstream_must_not_override_app_truth !== true &&
-    contract.gui_product_contract_policy.aionui_upstream_must_not_override_app_truth !== true
-  ) {
+  if (contract.gui_product_contract_policy.upstream_must_not_override_app_truth !== true) {
     throw new Error(`${subject} must declare that upstream GUI behavior cannot override App truth`);
   }
 }

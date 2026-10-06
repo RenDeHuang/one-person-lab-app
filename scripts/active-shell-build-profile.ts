@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 export type ActiveShellBuildProfile = {
-  id: 'aionui' | 'opl-studio';
+  id: 'opl-studio';
   repository: string;
   root: string;
   packageName: string;
@@ -18,8 +18,8 @@ export type ActiveShellBuildProfile = {
 export function readActiveShellBuildProfile(repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), readJson = (file: string) => JSON.parse(fs.readFileSync(file, 'utf8'))): ActiveShellBuildProfile {
   const adapter = readJson(path.join(repositoryRoot, 'contracts/app-shell-adapter.json'));
   const id = adapter.active_shell;
-  if (id !== 'aionui' && id !== 'opl-studio') throw new Error(`Unsupported active Shell build identity: ${String(id)}`);
-  const expectedRepository = id === 'opl-studio' ? 'gaofeng21cn/opl-studio' : 'gaofeng21cn/opl-aion-shell';
+  if (id !== 'opl-studio') throw new Error(`Unsupported active Shell build identity: ${String(id)}`);
+  const expectedRepository = 'gaofeng21cn/opl-studio';
   if (adapter.shell_source?.owner_repo !== expectedRepository) throw new Error('Active Shell repository does not match its build identity.');
   const root = adapter.shell_root;
   if (root !== `shells/${id}` || adapter.shell_source?.checkout_path !== root) throw new Error('Active Shell checkout path does not match its build identity.');
@@ -29,12 +29,12 @@ export function readActiveShellBuildProfile(repositoryRoot = path.resolve(path.d
     id,
     repository: expectedRepository,
     root,
-    packageName: id === 'opl-studio' ? 'opl-studio' : 'one-person-lab-aion-shell',
-    packageManager: id === 'opl-studio' ? 'npm' : 'bun',
-    lockfile: id === 'opl-studio' ? 'package-lock.json' : 'bun.lock',
+    packageName: 'opl-studio',
+    packageManager: 'npm',
+    lockfile: 'package-lock.json',
     builderConfig,
     fullRuntimeResourceDir: path.posix.basename(adapter.shell_contract.paths.packaged_runtime_root),
-    smokeHarness: id === 'opl-studio' ? 'scripts/desktop/stable-smoke.mjs' : 'scripts/opl-first-run-vm-smoke.mjs',
+    smokeHarness: 'scripts/desktop/stable-smoke.mjs',
   };
 }
 

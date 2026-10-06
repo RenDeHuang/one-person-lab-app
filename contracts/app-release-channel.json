@@ -2,7 +2,7 @@
   "schema_version": 1,
   "owner": "one-person-lab-app",
   "purpose": "release_channel_contract",
-  "state": "active",
+  "state": "authorized_implementation_in_progress",
   "successor_delivery_target": {
     "schema": "opl_app_successor_delivery_target.v1",
     "candidate_id": "opl-studio",
@@ -77,7 +77,7 @@
         "deployment_allowed": false,
         "publication_allowed": false
       },
-      "rule": "The App-owned protected admission binds one exact Studio commit, tree, and tag to the shared desktop carrier stage order, dedicated Studio repository, and carrier-specific qualification. Admission is source evidence only: it does not create a Framework release operation, authorize publication, change the active shell, or make Studio the active release carrier."
+      "rule": "The App-owned protected admission binds one exact Studio commit, tree, and tag to the shared desktop carrier stage order, dedicated Studio repository, and carrier-specific qualification. Admission remains source evidence and does not authorize publication or make Preview the Stable carrier."
     },
     "protected_release_execution": {
       "schema": "opl_studio_protected_release_execution_policy.v2",
@@ -144,7 +144,7 @@
       ],
       "active_shell_after_release": "opl-studio",
       "active_release_carrier_after_release": false,
-      "rule": "A successful Studio Preview release makes only the dedicated Preview package and updater feed current; the App Stable release remains the authority that ships the active Studio shell under the preserved App identity. Build, qualification and public readback remain independently recoverable; only the exact GitHub Release mutation is serialized. A publication repair reuses the same checkpoint and tag and never creates a product version merely because the release mechanism failed."
+      "rule": "A successful Studio Preview release makes only the dedicated Preview package and updater feed current. The App Stable release remains the authority that ships the active Studio shell under the preserved App identity after independent qualification and explicit adoption. Build, qualification and public readback remain independently recoverable; only the exact GitHub Release mutation is serialized."
     },
     "public_clean_vm_qualification": {
       "schema": "opl_app_studio_preview_vm_qualification_policy.v1",
@@ -223,7 +223,9 @@
       "mutation_policy": "read_only_public_asset_qualification_no_release_or_asset_mutation",
       "active_shell_after_qualification": "opl-studio",
       "active_release_carrier_after_qualification": false
-    }
+    },
+    "active_release_carrier_after_admission": false,
+    "active_release_carrier_after_release": false
   },
   "desktop_release_kernel": {
     "schema": "opl_app_desktop_release_kernel.v1",
@@ -234,11 +236,6 @@
     "carrier_manifest_adapter_path": "shell_contract.paths.desktop_release_carrier_manifest",
     "toolchain_profile_selector": "carrier_id",
     "toolchain_profiles": {
-      "aionui": {
-        "electron": "41.10.3",
-        "electron_builder": "26.15.3",
-        "electron_updater": "6.8.9"
-      },
       "opl-studio": {
         "electron": "44.0.0",
         "electron_builder": "26.15.3",
@@ -296,7 +293,7 @@
     "state": "authorized_implementation_in_progress",
     "authority_owner": "one-person-lab-app",
     "initial_carrier": "macos_arm64",
-    "current_active_shell": "aionui",
+    "current_active_shell": "opl-studio",
     "current_candidate_shell": "opl-studio",
     "target_active_shell": "opl-studio",
     "execution_requires_separate_authorization": false,
@@ -311,7 +308,8 @@
           "latest-mac.yml",
           "latest-arm64-mac.yml"
         ],
-        "transition_role": "preserved_canonical_identity"
+        "transition_role": "preserved_canonical_identity",
+        "shell": "opl-studio"
       },
       "studio_preview": {
         "product_name": "One Person Lab Preview",
@@ -344,22 +342,9 @@
       "studio_preview": "independent_strictly_monotonic_preview_line_ending_in_terminal_handoff",
       "merge_policy": "do_not_merge_version_sequences_preview_handoff_targets_one_exact_active_app_release",
       "target_first_version_rule": "strictly_newer_than_the_current_public_active_app_release",
-      "source_window_rule": "direct_upgrade_from_every_supported_public_aionui_version_and_handoff_from_the_latest_public_preview_plus_one_previous_public_preview_when_present"
+      "source_window_rule": "direct_upgrade_from_existing_one_person_lab_identity_and_exact_studio_preview_handoff_when_present"
     },
     "upgrade_routes": {
-      "aionui_mainline_to_target": {
-        "source_identity": "active_app",
-        "target_identity": "target_app",
-        "mechanism": "in_place_auto_update_on_preserved_active_identity",
-        "preserve_bundle_id": true,
-        "preserve_install_path": true,
-        "preserve_release_repository": true,
-        "preserve_updater_metadata_namespace": true,
-        "direct_supported_source_window_required": true,
-        "intermediate_aionui_bridge_release_required_for_correctness": false,
-        "pre_cutover_aionui_migration_inventory_allowed": true,
-        "first_target_launch_runs_idempotent_migration_before_normal_renderer_start": true
-      },
       "studio_preview_to_target": {
         "source_identity": "studio_preview",
         "target_identity": "target_app",
@@ -400,7 +385,6 @@
         "manifest_schema": "opl_app_shell_local_migration.v1",
         "receipt_schema": "opl_app_shell_local_migration_receipt.v1",
         "sources": {
-          "aionui": "~/Library/Application Support/One Person Lab",
           "studio_preview": "~/Library/Application Support/opl-studio"
         },
         "target": "~/Library/Application Support/One Person Lab",
@@ -409,7 +393,6 @@
           "non_secret_model_reasoning_and_permission_preferences",
           "workspace_selection_labels_and_order",
           "canonical_thread_keyed_ui_metadata",
-          "unsent_user_drafts",
           "notification_and_log_location_preferences"
         ],
         "excluded_classes": [
@@ -420,10 +403,10 @@
           "electron_cache_session_gpu_crash_and_updater_identity_files",
           "owner_workspace_or_artifact_bodies"
         ],
-        "source_route_policy": "the_route_that_started_handoff_supplies_shell_local_values_existing_target_values_win_and_secondary_sources_import_only_missing_keys",
+        "source_route_policy": "Studio Preview handoff may supply only allowlisted shell-local metadata; existing App values win and no legacy backend import occurs",
         "draft_collision_policy": "preserve_each_source_as_a_namespaced_draft_without_silent_overwrite",
         "conversation_policy": "reuse_same_CODEX_HOME_and_Codex_App_Server_threads_without_importing_or_creating_conversations",
-        "legacy_metadata_policy": "read_only_OPL_owned_sources_for_confirmed_canonical_thread_pins_order_and_preferences",
+        "legacy_metadata_policy": "read_only_studio_preview_metadata_and_existing_app_metadata_until_target_owner_acceptance",
         "unrelated_aionui_directories_auto_discovery": false,
         "legacy_backend_history_auto_import": false,
         "direct_database_copy_allowed": false,
@@ -439,19 +422,13 @@
     "cutover_sequence": [
       "studio_preview_functional_baseline_and_internal_acceptance",
       "studio_preview_signed_notarized_public_update_qualification",
-      "dual_source_migration_implementation_and_supported_source_window_freeze",
-      "aionui_in_place_and_preview_handoff_clean_vm_qualification",
-      "explicit_active_shell_and_release_authority_cutover",
-      "active_app_target_release_and_terminal_preview_handoff_release",
-      "post_update_owner_readback_and_bounded_legacy_retention"
+      "exact_active_studio_stable_release",
+      "post_update_owner_readback_and_bounded_preview_retention"
     ],
     "cutover_gates": [
       "functional_baseline_and_internal_user_acceptance",
       "same_cohort_app_shell_contract_and_runtime_conformance",
-      "aionui_direct_automatic_update_with_config_and_data_readback",
-      "studio_preview_automatic_handoff_with_config_and_data_readback",
-      "both_installed_source_precedence_and_no_dual_writer_proof",
-      "interrupted_migration_resume_or_rollback_proof",
+      "studio_preview_automatic_handoff_with_config_readback",
       "signed_notarized_stapled_gatekeeper_accepted_exact_public_bytes",
       "anonymous_active_and_preview_feed_and_artifact_readback",
       "post_restart_version_runtime_gateway_thread_workspace_and_settings_readback"
@@ -3972,29 +3949,6 @@
       "user_state_root_preserved": true
     },
     "carrier_profiles": {
-      "aionui": {
-        "schema": "opl_app_full_payload_carrier_profile.v1",
-        "carrier_id": "aionui",
-        "version_policy": "stable_calendar",
-        "profile_id": "opl-aionui-full-first-install",
-        "product_name": "One Person Lab",
-        "app_bundle_name": "One Person Lab.app",
-        "bundle_id": "cn.onepersonlab.opl",
-        "package_kind": "opl_full_first_install_macos_arm64",
-        "artifact_name_template": "One-Person-Lab-Full-${version}-${arch}.dmg",
-        "runtime_artifact_name_template": "opl-runtime-full-${version}-macos-arm64.tar.zst",
-        "standard_artifact_name_template": "One-Person-Lab-${version}-${arch}.dmg",
-        "standard_zip_artifact_name_template": "One-Person-Lab-${version}-${arch}.zip",
-        "runtime_resource_dir": "opl-full-runtime",
-        "runtime_install_root_template": "~/Library/Application Support/OPL/runtime/current",
-        "runtime_version_metadata_path": "~/Library/Application Support/OPL/runtime/current/.opl-full-runtime-installed.json",
-        "dmg_volume_name_template": "One Person Lab ${version}",
-        "shell_runtime_path": "Contents/Resources/bundled-aioncore",
-        "shell_runtime_required": true,
-        "codex_carrier": "aioncore_codex_only",
-        "aioncore_required": true,
-        "full_runtime_codex_payload_allowed": false
-      },
       "opl-studio": {
         "schema": "opl_app_full_payload_carrier_profile.v1",
         "carrier_id": "opl-studio",

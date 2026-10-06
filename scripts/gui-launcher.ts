@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const defaultAppRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const supportedShells = ['aionui', 'opl-studio'] as const;
+const supportedShells = ['opl-studio'] as const;
 
 export type GuiShellId = (typeof supportedShells)[number];
 export type GuiLaunchMode = 'packaged' | 'dev';
@@ -220,8 +220,7 @@ export function buildNativeCandidateOpenArgs(options: {
 
 function resolveShellRoot(appRoot: string, shell: GuiShellId): string | null {
   const localRoot = path.join(appRoot, 'shells', shell);
-  const siblingName = shell === 'aionui' ? 'opl-aion-shell' : 'opl-studio';
-  const siblingRoot = path.resolve(appRoot, '..', siblingName);
+  const siblingRoot = path.resolve(appRoot, '..', 'opl-studio');
   for (const candidate of [localRoot, siblingRoot]) {
     if (fs.existsSync(path.join(candidate, 'package.json'))) return candidate;
   }
@@ -233,7 +232,7 @@ function validateLauncherContracts(
   activeAdapter: ActiveShellAdapter,
 ): Record<GuiShellId, LaunchProfile> {
   if (registry.interactive_launcher_policy.selectable_shells.join(',') !== supportedShells.join(',')) {
-    throw new Error('Launcher contract selectable_shells must be exactly aionui and opl-studio');
+    throw new Error('Launcher contract selectable_shells must contain only opl-studio');
   }
   if (
     registry.interactive_launcher_policy.selection_mutates_release_adoption ||
@@ -242,14 +241,9 @@ function validateLauncherContracts(
     throw new Error('Launcher contract must keep local selection separate from release adoption');
   }
   assertGuiShell(activeAdapter.active_shell);
-  const profiles = registry.interactive_launcher_policy.launch_profiles;
-  const aionui = profiles.aionui;
-  const native = profiles['opl-studio'];
-  if (!aionui || !native) throw new Error('Launcher contract is missing a required launch profile');
-  if (aionui.bundle_id === native.bundle_id) {
-    throw new Error('Mainline and candidate GUI bundle identities must differ');
-  }
-  return { aionui, 'opl-studio': native };
+  const profile = registry.interactive_launcher_policy.launch_profiles['opl-studio'];
+  if (!profile) throw new Error('Launcher contract is missing the opl-studio launch profile');
+  return { 'opl-studio': profile };
 }
 
 function resolveWorkspace(workspace: string | undefined): string {
@@ -274,14 +268,18 @@ export function createGuiLaunchPlan(options: {
   assertGuiShell(shell);
   const activeStudioDefault = !options.args.shell && activeAdapter.active_shell === 'opl-studio';
   const profile: LaunchProfile = activeStudioDefault
-    ? { adapter_contract: 'contracts/app-shell-adapter.json', default_mode: 'packaged', supported_modes: ['packaged', 'dev'], bundle_id: 'cn.onepersonlab.opl', packaged_app_path: '/Applications/One Person Lab.app', dev_command: ['npm', 'run', 'dev:desktop'] }
+    ? {
+      adapter_contract: 'contracts/app-shell-adapter.json',
+      default_mode: 'packaged',
+      supported_modes: ['packaged', 'dev'],
+      bundle_id: 'cn.onepersonlab.opl',
+      packaged_app_path: '/Applications/One Person Lab.app',
+      dev_command: ['npm', 'run', 'dev:desktop'],
+    }
     : profiles[shell];
   const mode = options.args.mode ?? profile.default_mode;
   if (!profile.supported_modes.includes(mode)) {
     throw new Error(`GUI shell ${shell} does not support ${mode} mode`);
-  }
-  if (shell !== 'opl-studio' && (options.args.rebuild || options.args.workspace || options.args.allowActions)) {
-    throw new Error('--rebuild, --workspace and --allow-actions apply only to opl-studio');
   }
 
   const runtimeIdentity = resolveGuiRuntimeIdentity({ env });
@@ -301,7 +299,7 @@ export function createGuiLaunchPlan(options: {
     }
     [executable, ...commandArgs] = profile.dev_command;
     commandCwd = shellRoot;
-  } else if (shell === 'aionui' || activeStudioDefault) {
+  } else if (activeStudioDefault) {
     appPath = profile.packaged_app_path ?? null;
     if (!appPath || !fs.existsSync(appPath)) {
       throw new Error(`Installed mainline GUI is missing at ${appPath ?? 'an unspecified path'}`);
@@ -342,7 +340,7 @@ export function createGuiLaunchPlan(options: {
     app_path: appPath,
     package_app_path: packageAppPath,
     bundle_id: profile.bundle_id,
-    bundle_identity_isolated: profiles.aionui.bundle_id !== profiles['opl-studio'].bundle_id,
+    bundle_identity_isolated: false,
     build_required: buildRequired,
     rebuild_requested: options.args.rebuild,
     workspace,

@@ -67,7 +67,7 @@ export function readAppShellAdapterContract(filePath = resolveAdapterContractPat
   resolveClientRendererAdmissionFromReader(contract);
   validateCodexExecutableContract(contract);
   const shellIdentity = contract.active_shell ?? contract.candidate_shell ?? contract.adapter_id;
-  if (shellIdentity === 'aionui' || shellIdentity === 'opl-studio') {
+  if (shellIdentity === 'opl-studio') {
     validateChannelThreadBindingBoundary(contract.channel_thread_binding_boundary, shellIdentity);
   }
   assertAdapterGuiAuthority(contract);

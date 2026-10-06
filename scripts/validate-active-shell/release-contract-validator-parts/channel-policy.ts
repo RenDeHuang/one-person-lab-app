@@ -152,11 +152,6 @@ function validateDesktopReleaseKernel(kernel) {
   assertDeepEqualJson(
     kernel.toolchain_profiles,
     {
-      aionui: {
-        electron: '41.10.3',
-        electron_builder: '26.15.3',
-        electron_updater: '6.8.9',
-      },
       'opl-studio': {
         electron: '44.0.0',
         electron_builder: '26.15.3',

@@ -223,6 +223,7 @@
       "process and preload implementation",
       "shell package metadata",
       "shell tests and release hooks",
+      "OPL Studio implementation",
       "OPL Studio implementation experiments",
       "shell-local implementation details",
       "shell-local tests that prove App contracts are implemented"

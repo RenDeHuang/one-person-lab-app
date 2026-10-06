@@ -425,7 +425,7 @@ export type ShellTransitionPolicy = {
   authority_owner: string;
   initial_carrier: string;
   current_active_shell: string;
-  current_candidate_shell: string;
+  current_candidate_shell: string | null;
   target_active_shell: string;
   execution_requires_separate_authorization: boolean;
   identities: Record<'active_app' | 'studio_preview' | 'target_app', {
@@ -446,7 +446,6 @@ export type ShellTransitionPolicy = {
     source_window_rule: string;
   };
   upgrade_routes: {
-    aionui_mainline_to_target: Record<string, unknown>;
     studio_preview_to_target: Record<string, unknown>;
   };
   state_continuity: {

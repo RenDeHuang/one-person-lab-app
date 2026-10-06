@@ -3,7 +3,7 @@
   "owner": "one-person-lab-app",
   "purpose": "app_shell_candidate_registry",
   "state": "active_gui_route_policy",
-  "machine_boundary": "GUI shell role registry. OPL Studio is selected for the next Stable App. Preview remains an independent identity until its terminal handoff is qualified.",
+  "machine_boundary": "GUI shell role registry. OPL Studio is the sole active App shell; its isolated Preview carrier remains available only for the explicit Preview to Stable handoff.",
   "active_shell_unchanged": "opl-studio",
   "active_gui_mainline": {
     "shell": "opl-studio",
@@ -25,7 +25,6 @@
     "state": "active_local_launcher_policy",
     "topology": "single_control_plane_multiple_independent_gui_clients",
     "selectable_shells": [
-      "aionui",
       "opl-studio"
     ],
     "selection_scope": "per_local_launch_only",
@@ -43,21 +42,6 @@
     "missing_target_policy": "fail_closed_with_actionable_blocker",
     "implementation_status": "implemented",
     "launch_profiles": {
-      "aionui": {
-        "adapter_contract": "contracts/app-shell-adapter.json",
-        "default_mode": "packaged",
-        "supported_modes": [
-          "packaged",
-          "dev"
-        ],
-        "bundle_id": "cn.onepersonlab.opl",
-        "packaged_app_path": "/Applications/One Person Lab.app",
-        "dev_command": [
-          "bun",
-          "run",
-          "start"
-        ]
-      },
       "opl-studio": {
         "adapter_contract": "contracts/shell-adapters/opl-studio.json",
         "default_mode": "packaged",

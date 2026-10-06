@@ -8,7 +8,7 @@ import {
   type ShellAdapterContract,
 } from '../app-shell-adapter.ts';
 
-export type FullCarrierId = 'aionui' | 'opl-studio';
+export type FullCarrierId = 'opl-studio';
 
 export type FullCarrierProfile = {
   schema: 'opl_app_full_payload_carrier_profile.v1';
@@ -29,7 +29,7 @@ export type FullCarrierProfile = {
   dmgVolumeNameTemplate: string;
   shellRuntimePath: string | null;
   shellRuntimeRequired: boolean;
-  codexCarrier: 'aioncore_codex_only' | 'opl_codex_native';
+  codexCarrier: 'opl_codex_native';
   aioncoreRequired: boolean;
   fullRuntimeCodexPayloadAllowed: false;
 };
@@ -89,7 +89,7 @@ function validateProfile(value: unknown, carrierId: string): CarrierProfileContr
   invariant(profile?.schema === 'opl_app_full_payload_carrier_profile.v1',
     `Full payload carrier profile ${carrierId} has an invalid schema.`);
   invariant(profile.carrier_id === carrierId, `Full payload carrier profile ${carrierId} has an invalid carrier_id.`);
-  invariant(profile.carrier_id === 'aionui' || profile.carrier_id === 'opl-studio',
+  invariant(profile.carrier_id === 'opl-studio',
     `Unsupported Full payload carrier: ${carrierId}`);
   invariant(profile.version_policy === (profile.bundle_id === 'cn.onepersonlab.opl' ? 'stable_calendar' : 'numeric_semver'),
     `${carrierId} Full payload profile has an invalid version_policy.`);
@@ -126,9 +126,6 @@ export function resolveFullCarrierProfile(options: CarrierProfileOptions = {}): 
   const profile = validateProfile(readCarrierProfiles()[stableStudio ? 'opl-studio-stable' : carrierId], carrierId);
   if (!explicitCarrierId && contract.candidate_shell === 'opl-studio' && carrierId !== 'opl-studio') {
     throw new Error('OPL Studio Full build must resolve the opl-studio payload carrier profile.');
-  }
-  if (!explicitCarrierId && contract.active_shell === 'aionui' && carrierId !== 'aionui') {
-    throw new Error('AionUI Full build must resolve the aionui payload carrier profile.');
   }
   return Object.freeze({
     schema: profile.schema,

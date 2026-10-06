@@ -31,11 +31,9 @@ export function validateChannelThreadBindingBoundary(
     'thread_turn_authority',
     'unknown_binding_policy',
   ];
-  const expectedImplementationStatus = shellIdentity === 'aionui'
-    ? 'framework_projection_consumer_without_cached_conversation_binding_source_e2e_completed'
-    : shellIdentity === 'opl-studio'
-      ? 'framework_projection_consumer_and_exact_binding_source_e2e_completed'
-      : null;
+  const expectedImplementationStatus = shellIdentity === 'opl-studio'
+    ? 'framework_projection_consumer_and_exact_binding_source_e2e_completed'
+    : null;
   if (
     !boundary
     || !expectedImplementationStatus
@@ -70,7 +68,7 @@ export function validateChannelThreadBindingBoundary(
 export function validateCodexExecutableContract(contract: ShellAdapterContract): void {
   const executable = contract.codex_executable_contract;
   if (!executable) {
-    if (contract.active_shell !== 'aionui' && contract.candidate_shell !== 'opl-studio') {
+    if (contract.active_shell !== 'opl-studio' && contract.candidate_shell !== 'opl-studio') {
       return;
     }
     throw new Error('shell adapter must declare codex_executable_contract');
@@ -95,102 +93,6 @@ export function validateCodexExecutableContract(contract: ShellAdapterContract):
   }
   if (executable.framework_headless_carrier_policy !== 'preserved_outside_app_bundle') {
     throw new Error('Framework headless Codex carrier policy must remain outside the App bundle');
-  }
-
-  if (contract.active_shell === 'aionui') {
-    const target = executable.carrier.target_packaging_policy;
-    if (
-      executable.carrier.kind !== 'aioncore_managed_resources_manifest' ||
-      executable.carrier.source_ref !==
-        'manual_qualification_contract.runtime_dependencies.aioncore.resource_authority' ||
-      executable.carrier.manifest_parser_owner !== 'gaofeng21cn/opl-aion-shell' ||
-      executable.carrier.aioncore_required !== true
-    ) {
-      throw new Error('active AionUI must resolve its Codex executable only from the bundled AionCore manifest');
-    }
-    if (
-      target?.schema !== 'opl_aioncore_codex_only_packaging_policy.v1' ||
-      target?.implementation_status !== 'verified_shell_composition_and_packaged_smoke' ||
-      target?.aioncore_modification_policy !== 'consume_upstream_release_without_fork_or_patch' ||
-      target?.producer_export?.owner !== 'AionCore' ||
-      target?.producer_export?.role !== 'build_intermediate_node_only' ||
-      target?.producer_export?.schema_version !== 2 ||
-      JSON.stringify(target?.producer_export?.required_cli_names) !== JSON.stringify([]) ||
-      target?.producer_export?.distributed_manifest_allowed !== false ||
-      target?.codex_carrier?.owner !== 'gaofeng21cn/opl-aion-shell' ||
-      target?.codex_carrier?.package !== '@openai/codex' ||
-      target?.codex_carrier?.version_and_digest_source !==
-        'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli' ||
-      target?.codex_carrier?.authority !== 'official_npm_platform_package' ||
-      target?.codex_carrier?.aioncore_compatibility_source !==
-        'contracts/aionui-upstream-intake.json#managed_runtime.codex_cli.opl_verified_aioncore_version' ||
-      target?.packaged_projection?.owner !== 'gaofeng21cn/opl-aion-shell' ||
-      target?.packaged_projection?.schema !== 'opl_aioncore_managed_resources_projection.v1' ||
-      target?.packaged_projection?.authority_path !==
-        'bundled-aioncore/<platform>-<arch>/managed-resources/manifest.json' ||
-      JSON.stringify(target?.packaged_projection?.included_cli_names) !== JSON.stringify(['codex']) ||
-      JSON.stringify(target?.packaged_projection?.excluded_cli_names) !== JSON.stringify(['claude']) ||
-      target?.packaged_projection?.version_and_digest_source !==
-        'aioncore_node_export_plus_opl_selected_official_codex_package' ||
-      JSON.stringify(target?.distributed_bundle?.applies_to) !== JSON.stringify(['standard', 'full']) ||
-      JSON.stringify(target?.distributed_bundle?.required_runtime_components) !==
-        JSON.stringify(['aioncore', 'node_runtime', 'codex_cli']) ||
-      JSON.stringify(target?.distributed_bundle?.required_metadata) !==
-        JSON.stringify(['projection_manifest', 'producer_manifest_digest_provenance', 'codex_source_identity']) ||
-      JSON.stringify(target?.distributed_bundle?.cli_names_exact) !== JSON.stringify(['codex']) ||
-      JSON.stringify(target?.distributed_bundle?.required_absence_checks) !== JSON.stringify([
-        {
-          id: 'managed_claude_subtree',
-          scope: 'distributed_bundle_root',
-          matcher: 'path_glob',
-          patterns: [
-            'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude',
-            'bundled-aioncore/<platform>-<arch>/managed-resources/cli/claude/**',
-          ],
-          expected_match_count: 0,
-        },
-        {
-          id: 'claude_executable_or_symlink',
-          scope: 'distributed_bundle_root',
-          matcher: 'executable_or_symlink_basename',
-          patterns: ['claude', 'claude.exe'],
-          expected_match_count: 0,
-        },
-        {
-          id: 'anthropic_package_or_archive',
-          scope: 'distributed_bundle_root',
-          matcher: 'path_glob',
-          patterns: [
-            '**/node_modules/@anthropic-ai/claude-code/**',
-            '**/claude-code*.tgz',
-            '**/claude-code*.tar.gz',
-          ],
-          expected_match_count: 0,
-        },
-        {
-          id: 'claude_distribution_cache_entry',
-          scope: 'distributed_bundle_root',
-          matcher: 'path_glob',
-          patterns: ['**/.cache/**/claude*', '**/cache/**/claude*'],
-          expected_match_count: 0,
-        },
-        {
-          id: 'raw_producer_manifest',
-          scope: 'distributed_bundle_root',
-          matcher: 'root_manifest_schema_version_equals',
-          patterns: ['**/managed-resources/manifest.json'],
-          values: ['2'],
-          expected_match_count: 0,
-        },
-      ]) ||
-      target?.opl_selected_official_codex_carrier_required !== true ||
-      target?.second_codex_carrier_or_registry_allowed !== false
-    ) {
-      throw new Error(
-        'active AionUI must compose the official AionCore Node export with one OPL-selected official Codex carrier without modifying AionCore or adding a second carrier or registry',
-      );
-    }
-    return;
   }
 
   if (contract.candidate_shell === 'opl-studio') {
@@ -220,7 +122,7 @@ export function assertAdapterContractIdentity(contract: ShellAdapterContract, op
   }
   const adapterIdentity = resolveShellAdapterIdentity(contract);
   if (!options.explicitOverride) {
-    if (!['aionui', 'opl-studio'].includes(contract.active_shell ?? '') || adapterIdentity !== contract.active_shell) {
+  if (contract.active_shell !== 'opl-studio' || adapterIdentity !== contract.active_shell) {
       throw new Error(`Default active shell adapter identity is invalid: ${adapterIdentity}`);
     }
     if (contract.candidate_shell || contract.adapter_id || contract.adapter_role) {
@@ -258,27 +160,13 @@ export function assertAdapterGuiAuthority(contract: ShellAdapterContract): void 
 }
 
 export function assertActiveShellSpecificPolicy(contract: ShellAdapterContract): void {
-  if (contract.active_shell === 'aionui') {
-    if (
-      contract.upstream_intake?.classification_policy !==
-      'classify_every_required_capability_and_dependency_before_app_release'
-    ) {
-      throw new Error('active shell upstream intake must classify required capabilities and dependencies before release');
+  if (contract.release_role === 'experimental_candidate_shell') {
+    if (contract.candidate_shell !== 'opl-studio') {
+      throw new Error('Only OPL Studio may be the candidate shell');
     }
-    if (!contract.upstream_intake.capability_classifications?.some((entry) => (
-      entry.id === 'aionui_team' &&
-      entry.classification === 'rejected' &&
-      entry.ordinary_surface === 'forbidden'
-    ))) {
-      throw new Error('active shell upstream intake must reject AionUI Team for ordinary surfaces');
-    }
-    if (contract.implementation_probes?.aionui_team_disabled_surface?.policy !== 'fail_closed_required_for_active_shell_upgrade') {
-      throw new Error('active shell must declare fail-closed AionUI Team implementation probes');
-    }
-    if (contract.disabled_feature_policy?.aionui_team?.agent_switching_policy !== 'must_not_inherit_team_mcp') {
-      throw new Error('active shell disabled Team policy must prevent Team MCP inheritance during agent switching');
-    }
+    return;
   }
+  if (contract.active_shell !== 'opl-studio') throw new Error('Only OPL Studio may be the active release shell');
 }
 
 export function assertShellReplacementPolicy(contract: ShellAdapterContract): void {
