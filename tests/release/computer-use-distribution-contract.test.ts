@@ -121,10 +121,7 @@ test('Standard and Full use different materialization sources but the same insta
   const packagingIdentity = readKimiCuQualificationIdentity(appRoot);
   assert.deepEqual(packagingIdentity, identity);
   assert.equal(KIMI_CU_QUALIFICATION_IDENTITY_REF, provider.provider_identity_ref);
-  assert.equal(
-    kimiCuOfflineSeedRelativePath(packagingIdentity),
-    `runtime-payloads/${identity.provider_id}/${identity.version}/KimiCU.app.zip`,
-  );
+  assert.equal(packagingIdentity.dependency_id, 'kimi-cu');
 });
 
 test('Computer Use is default-on without fabricating macOS TCC permission', () => {

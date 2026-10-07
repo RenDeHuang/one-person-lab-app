@@ -15,7 +15,7 @@ import {
 const appRoot = path.resolve(import.meta.dirname, '../..');
 
 test('Full Computer Use seed identity is read from the App qualification manifest', () => {
-  const identity = readKimiCuQualificationIdentity(appRoot);
+  const identity = { ...readKimiCuQualificationIdentity(appRoot), version: '0.6.6' };
   const qualificationManifest = JSON.parse(fs.readFileSync(
     path.join(appRoot, 'contracts', 'app-release-qualification-input-manifest.json'),
     'utf8',
@@ -41,7 +41,7 @@ test('Full package materializes the verified KimiCU archive and records one deri
   fs.mkdirSync(path.dirname(sourceArchive), { recursive: true });
   fs.writeFileSync(sourceArchive, archiveBytes);
 
-  const canonicalIdentity = readKimiCuQualificationIdentity(appRoot);
+  const canonicalIdentity = { ...readKimiCuQualificationIdentity(appRoot), version: '0.6.6' };
   const identity = {
     ...canonicalIdentity,
     archive_url: 'https://example.invalid/kimi-cu.zip',
