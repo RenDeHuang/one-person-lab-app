@@ -150,6 +150,20 @@ jobs:
           ref: ${{ github.sha }}
           path: webui-executor-source
 
+      - name: Resolve immutable dependency release inputs once
+        id: dependency-resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/resolve-build-dependencies.ts \
+            --app-root frozen-app-source \
+            --framework-root framework-source \
+            --platform linux --arch '${{ matrix.architecture }}' \
+            --output webui-carrier/dependency-resolution \
+            --github-output "$GITHUB_OUTPUT"
+          test -s webui-carrier/dependency-resolution/qualification-input-manifest.json
+          echo "OPL_RELEASE_DEPENDENCY_MANIFEST=$GITHUB_WORKSPACE/webui-carrier/dependency-resolution/qualification-input-manifest.json" >> "$GITHUB_ENV"
+
       - name: Setup ORAS for exact external build inputs
         uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
 
@@ -211,7 +225,7 @@ jobs:
             --output webui-carrier/base-image-index.json \
             docker.io/library/node:22-bookworm-slim
           codex_version="$(jq -er '.runtime_payloads.codex_cli.version | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"))' \
-            frozen-app-source/contracts/app-release-qualification-input-manifest.json)"
+            webui-carrier/dependency-resolution/qualification-input-manifest.json)"
           codex_tarball_url="$(npm view --json "@openai/codex@${codex_version}" dist.tarball \
             | jq -er 'select(type == "string" and startswith("https://"))')"
           curl -L --fail --silent --show-error "$codex_tarball_url" \
@@ -225,6 +239,7 @@ jobs:
             --source-cutoff-observed-at "$source_cutoff_observed_at" \
             --base-image-index webui-carrier/base-image-index.json \
             --frozen-codex-tarball webui-carrier/frozen-codex/codex-cli.tgz \
+            --resolved-dependency-manifest webui-carrier/dependency-resolution/qualification-input-manifest.json \
             --architecture '${{ matrix.architecture }}' \
             --output webui-carrier/build-input-draft.json
 

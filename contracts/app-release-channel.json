@@ -463,7 +463,7 @@
     "default_enabled": true,
     "standard": {
       "payload_density": "standard",
-      "source": "pinned_vendor_archive_download",
+      "source": "framework_resolved_vendor_archive_download",
       "network_required_for_first_materialization": true,
       "target_path": "/Applications/KimiCU.app"
     },
@@ -483,7 +483,8 @@
       "same_default_enabled_state": true,
       "same_required_tool_set": true,
       "same_permission_and_health_readback": true,
-      "full_second_manifest_or_provider_allowed": false
+      "full_second_manifest_or_provider_allowed": false,
+      "same_version_scope": "same_frozen_release_qualification_operation_not_permanent_runtime_pin"
     },
     "release_qualification": {
       "standard_clean_vm_requires_network_materialization": true,
@@ -503,9 +504,9 @@
       "policy_ref": "contracts/app-gui-product-contract.json#computer_use_policy.browser_provider",
       "provider_id": "playwright-mcp",
       "mcp_server_id": "playwright",
-      "package": "@playwright/mcp@0.0.79",
+      "package": "@playwright/mcp",
       "browser_mode": "isolated_headless_system_chrome",
-      "runtime_carrier": "framework_pinned_dependency",
+      "runtime_carrier": "framework_managed_dependency",
       "host_browser_requirement": "Google Chrome",
       "registry_authority": "existing_codex_mcp_registry",
       "registry_writer_ref": "one-person-lab/src/adapters/integration/system-installation/codex-plugin-registry.ts#registerOplManagedMcpServer",
@@ -537,7 +538,9 @@
         "both_require_structured_browser_smoke": true,
         "kimi_cu_visual_fallback_may_substitute_for_playwright_qualification": false,
         "installed_and_release_status": "unverified"
-      }
+      },
+      "dependency_id": "playwright-mcp",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "next_stable_release_gate": {
       "status": "pending_next_stable_release",
@@ -567,6 +570,16 @@
       ],
       "current_source_linked_host_evidence_may_substitute": false,
       "close_condition": "standard_and_full_qualification_and_public_readback_are_bound_to_the_same_stable_cohort"
+    },
+    "version_resolution": {
+      "owner": "one-person-lab",
+      "source_policy_ref": "one-person-lab/contracts/opl-framework/dependency-release-sources.json#sources.kimi-cu",
+      "selection_policy": "latest_stable_at_operation_start",
+      "same_resolver_for_full_and_managed_update": true,
+      "automatic_update": true,
+      "automatic_downgrade_allowed": false,
+      "full_seed_is_initial_install_snapshot_only": true,
+      "preserve_verified_newer_installed_versions": true
     }
   },
   "distribution_semantics": {
@@ -6835,6 +6848,17 @@
       "app_projects_framework_terminal_readback_and_apply_receipts_without_a_second_update_catalog",
       "clean_managed_targets_may_update_silently_and_dirty_or_user_managed_targets_require_attention",
       "packages_activate_after_receipt_while_base_runtime_and_app_switch_on_restart"
-    ]
+    ],
+    "dependency_resolution": {
+      "owner": "one-person-lab",
+      "source_policy_ref": "one-person-lab/contracts/opl-framework/dependency-release-sources.json",
+      "same_resolver_for_full_and_managed_update": true,
+      "selection_policy": "latest_stable_at_operation_start",
+      "package_selection": "installed_descriptors_and_selected_plugin_dependency_closure",
+      "app_fixed_package_or_version_catalog_allowed": false,
+      "operation_freeze_is_composition_lock": false,
+      "automatic_downgrade_allowed": false,
+      "fast_projection_network_lookup_allowed": false
+    }
   }
 }

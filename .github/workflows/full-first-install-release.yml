@@ -317,10 +317,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          third_party="$GITHUB_WORKSPACE/one-person-lab-app/contracts/app-full-third-party-source-manifest.json"
+          node --experimental-strip-types one-person-lab-app/scripts/resolve-build-dependencies.ts \
+            --app-root one-person-lab-app \
+            --framework-root one-person-lab \
+            --platform darwin --arch arm64 \
+            --output "$RUNNER_TEMP/opl-full-dependency-resolution" \
+            --github-output "$GITHUB_OUTPUT"
+          resolved_full="$RUNNER_TEMP/opl-full-dependency-resolution/full-input-manifest.json"
+          resolved_qualification="$RUNNER_TEMP/opl-full-dependency-resolution/qualification-input-manifest.json"
+          test -s "$resolved_full" && test -s "$resolved_qualification"
+          echo "OPL_RELEASE_DEPENDENCY_MANIFEST=$resolved_qualification" >> "$GITHUB_ENV"
+          echo "OPL_FULL_RESOLVED_INPUT_MANIFEST=$resolved_full" >> "$GITHUB_ENV"
           for output in officecli mineru; do
-            ref="$(jq -er --arg id "$output" '.sources[$id].ref' "$third_party")"
-            [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Third-party $output ref is missing or invalid."; exit 1; }
+            ref="$(jq -er --arg id "$output" '.sources[$id].ref' "$resolved_full")"
+            [[ "$ref" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Resolved third-party $output ref is missing or invalid."; exit 1; }
             echo "${output}_ref=$ref" >> "$GITHUB_OUTPUT"
           done
           for selector in \
@@ -328,7 +338,7 @@ jobs:
             python_version:.toolchain.python.version uv_version:.toolchain.uv.version zstd_version:.toolchain.zstd.version \
             temporal_version:.runtime_payloads.temporal_cli.version temporal_sha256:.runtime_payloads.temporal_cli.darwin_arm64_archive_sha256 \
             officecli_version:.runtime_payloads.officecli.version officecli_sha256:.runtime_payloads.officecli.darwin_arm64_asset_sha256; do
-            output="${selector%%:*}"; query="${selector#*:}"; value="$(jq -er "$query" "$third_party")"
+            output="${selector%%:*}"; query="${selector#*:}"; value="$(jq -er "$query" "$resolved_full")"
             echo "${output}=$value" >> "$GITHUB_OUTPUT"
           done
       - name: Checkout MAS
@@ -1765,8 +1775,8 @@ jobs:
             --gui-contract one-person-lab-app/contracts/app-gui-product-contract.json \
             --smoke-harness one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/${{ steps.shell_profile.outputs.smoke_harness }} \
             --compiled-expectations one-person-lab-app/contracts/app-first-run-compiled-expectations.json \
-            --qualification-input-manifest one-person-lab-app/contracts/app-release-qualification-input-manifest.json \
-            --full-input-manifest one-person-lab-app/contracts/app-full-third-party-source-manifest.json \
+            --qualification-input-manifest "$RUNNER_TEMP/opl-full-dependency-resolution/qualification-input-manifest.json" \
+            --full-input-manifest "$RUNNER_TEMP/opl-full-dependency-resolution/full-input-manifest.json" \
             --full-toolchain-observation-receipt "$RUNNER_TEMP/opl-full-toolchain-observation-receipt.json" \
             --app-sha "$(git -C one-person-lab-app rev-parse HEAD)" \
             --shell-sha "$(git -C one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }} rev-parse HEAD)" \
@@ -2297,8 +2307,8 @@ jobs:
             --gui-contract one-person-lab-app/contracts/app-gui-product-contract.json \
             --smoke-harness one-person-lab-app/${{ steps.shell_profile.outputs.shell_root }}/${{ steps.shell_profile.outputs.smoke_harness }} \
             --compiled-expectations one-person-lab-app/contracts/app-first-run-compiled-expectations.json \
-            --qualification-input-manifest one-person-lab-app/contracts/app-release-qualification-input-manifest.json \
-            --full-input-manifest one-person-lab-app/contracts/app-full-third-party-source-manifest.json \
+            --qualification-input-manifest "$RUNNER_TEMP/opl-full-dependency-resolution/qualification-input-manifest.json" \
+            --full-input-manifest "$RUNNER_TEMP/opl-full-dependency-resolution/full-input-manifest.json" \
             --full-package-manifest one-person-lab-app/dist/opl-full-release/full-package-manifest.json \
             --full-toolchain-observation-receipt one-person-lab-app/dist/opl-full-release/opl-full-toolchain-observation-receipt.json \
             --app-sha '${{ inputs.artifact_app_sha }}' \

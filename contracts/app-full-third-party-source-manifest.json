@@ -14,73 +14,76 @@
       "preexisting_lock_required": false,
       "payload_inventory_required": false,
       "selected_inputs_recorded_after_resolution": true
-    }
+    },
+    "resolution_authority": "one-person-lab dependency release resolver",
+    "resolved_manifest_env": "OPL_RELEASE_DEPENDENCY_MANIFEST"
   },
   "sources": {
     "officecli": {
       "repository": "iOfficeAI/OfficeCLI",
-      "ref": "e402d2853259177aba05ee6f79d38b7e1ff067ae",
-      "release_tag": "v1.0.145"
+      "dependency_id": "officecli",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "mineru": {
       "repository": "opendatalab/MinerU-Ecosystem",
-      "ref": "5733c03b3d53cb01c0361bb6acecda3f554c8c12"
+      "dependency_id": "mineru-open-api",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "kimi_cu": {
       "product": "KimiCU",
-      "version": "0.5.4",
-      "source": "https://cdn.kimi.com/kimi-computer-use/0.5.4/KimiCU.app.zip",
       "license_spdx": "MIT",
-      "distribution_role": "offline_seed_for_the_same_managed_dependency_used_by_standard"
+      "distribution_role": "offline_seed_for_the_same_managed_dependency_used_by_standard",
+      "dependency_id": "kimi-cu",
+      "selection_policy": "latest_stable_at_operation_start"
     }
   },
   "toolchain": {
     "bun": {
-      "version": "1.4.0",
-      "source": "oven-sh/setup-bun GitHub release asset",
-      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version",
+      "dependency_id": "bun",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "go": {
-      "version": "1.26.4",
-      "source": "actions/setup-go toolcache resolved from go.dev release",
-      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version",
+      "dependency_id": "go",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "python": {
-      "version": "3.12.12",
-      "source": "uv-managed CPython standalone release",
-      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version",
+      "dependency_id": "python",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "uv": {
-      "version": "0.9.5",
-      "source": "PyPI exact-version distribution",
-      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version",
+      "dependency_id": "uv",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "zstd": {
-      "version": "1.5.7",
-      "source": "Homebrew versioned bottle",
-      "build_receipt_requirement": "record_resolved_executable_sha256_and_version"
+      "build_receipt_requirement": "record_resolved_executable_sha256_and_version",
+      "dependency_id": "zstd",
+      "selection_policy": "latest_stable_at_operation_start"
     }
   },
   "runtime_payloads": {
     "codex_cli": {
-      "version": "0.157.0",
-      "qualification_input_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.codex_cli"
+      "qualification_input_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.codex_cli",
+      "dependency_id": "codex-cli",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "temporal_cli": {
-      "version": "1.8.0",
-      "darwin_arm64_archive_sha256": "46b4ac2b603e2b68d684da728bccd938a69acfad9c5e1a469d28d00a64e8bc9c"
+      "dependency_id": "temporal-cli",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "officecli": {
-      "version": "1.0.141",
-      "darwin_arm64_asset_sha256": "a9639df060513d73b125849e4c630383f7a80f70e61911ef486dd24ec2208e37"
+      "dependency_id": "officecli",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "kimi_cu": {
-      "version": "0.5.4",
-      "archive_sha256": "77a7515cf7fd4b7bfa46a95eab0dff7378d00a2c5003bcf7ad93f17667e2808e",
-      "archive_size_bytes": 1498360,
       "qualification_input_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
       "materialization_role": "full_offline_seed_only",
-      "target_install_path": "/Applications/KimiCU.app"
+      "target_install_path": "/Applications/KimiCU.app",
+      "dependency_id": "kimi-cu",
+      "selection_policy": "latest_stable_at_operation_start"
     }
   },
   "authority_boundary": {
@@ -88,10 +91,12 @@
     "manifest_is_bound_by_controller_workflow_sha": true,
     "full_toolchain_observation_receipt_required": true,
     "manifest_is_dependency_authority": false,
-    "source_versions_are_default_selection_hints": true,
+    "source_versions_are_default_selection_hints": false,
     "kimi_cu_is_the_same_managed_dependency_as_standard": true,
     "kimi_cu_full_seed_may_define_second_provider_or_behavior": false,
     "credential_values_may_be_bundled": false,
-    "unknown_user_or_third_party_mcp_may_be_removed": false
+    "unknown_user_or_third_party_mcp_may_be_removed": false,
+    "permanent_version_pins_allowed": false,
+    "same_resolver_for_full_and_managed_update": true
   }
 }

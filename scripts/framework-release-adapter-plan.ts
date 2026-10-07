@@ -62,6 +62,7 @@ export function parseCommon(argv: string[]) {
       'base-image-index': { type: 'string' },
       architecture: { type: 'string' },
       'frozen-codex-tarball': { type: 'string' },
+      'resolved-dependency-manifest': { type: 'string' },
       'standard-identity': { type: 'string' },
       'source-authority': { type: 'string' },
       output: { type: 'string' },
@@ -157,8 +158,7 @@ function frozenBuildInputs(input: {
   if (!dockerfile.includes('ARG NODE_IMAGE=node:22-bookworm-slim@sha256:')) {
     throw new Error('Exact Studio Dockerfile must bind a digest-pinned Node base.');
   }
-  const intake = JSON.parse(gitFileBytes(input.appRoot, input.appRef,
-    'contracts/app-release-qualification-input-manifest.json', 'App runtime input contract').toString('utf8')) as JsonRecord;
+  const intake = readJson(path.resolve(requireOption(input.values, 'resolved-dependency-manifest')));
   const codexVersion = String(intake.runtime_payloads?.codex_cli?.version ?? '');
   if (intake.runtime_payloads?.codex_cli?.package !== '@openai/codex'
     || !/^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/.test(codexVersion)) {

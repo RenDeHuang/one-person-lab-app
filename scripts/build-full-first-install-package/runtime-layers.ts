@@ -53,7 +53,9 @@ function safePathSegment(value, label) {
 }
 
 export function readKimiCuQualificationIdentity(root = appRepoRoot) {
-  const manifestPath = path.join(root, 'contracts', 'app-release-qualification-input-manifest.json');
+  const manifestPath = process.env.OPL_RELEASE_DEPENDENCY_MANIFEST
+    ? path.resolve(process.env.OPL_RELEASE_DEPENDENCY_MANIFEST)
+    : path.join(root, 'contracts', 'app-release-qualification-input-manifest.json');
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const identity = manifest?.runtime_payloads?.kimi_cu;
   if (!identity || typeof identity !== 'object' || Array.isArray(identity)) {
@@ -61,7 +63,7 @@ export function readKimiCuQualificationIdentity(root = appRepoRoot) {
   }
 
   safePathSegment(identity.provider_id, 'provider_id');
-  safePathSegment(identity.version, 'version');
+  if (identity.version !== undefined) safePathSegment(identity.version, 'version');
   requiredString(identity.product_name, 'product_name');
   requiredString(identity.archive_url, 'archive_url');
   if (!/^[a-f0-9]{64}$/.test(String(identity.archive_sha256 ?? ''))) {
@@ -76,6 +78,7 @@ export function readKimiCuQualificationIdentity(root = appRepoRoot) {
 }
 
 export function kimiCuOfflineSeedRelativePath(identity = readKimiCuQualificationIdentity()) {
+  if (!identity.version) throw new Error('KimiCU offline seed path requires an operation-resolved version.');
   return path.posix.join(
     'runtime-payloads',
     safePathSegment(identity.provider_id, 'provider_id'),
@@ -156,7 +159,9 @@ export function writeKimiCuOfflineSeedManifest(
       qualification_identity_ref: KIMI_CU_QUALIFICATION_IDENTITY_REF,
       provider_id: identity.provider_id,
       version: identity.version,
+      archive_url: identity.archive_url,
       runtime_relative_path: seed.path,
+      archive_relative_path: seed.path,
       archive_sha256: seed.archive_sha256,
       archive_size_bytes: seed.size_bytes,
       target_install_path: identity.bundle.target_install_path,

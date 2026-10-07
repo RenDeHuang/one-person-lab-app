@@ -11,7 +11,10 @@
     "distribution_ref": "contracts/app-release-channel.json#computer_use_distribution",
     "provider_identity_ref": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu",
     "provider_id": "kimi-cu",
-    "applies_to": ["standard", "full"],
+    "applies_to": [
+      "standard",
+      "full"
+    ],
     "default_expectation": {
       "installed": true,
       "registered": true,
@@ -22,7 +25,7 @@
       "full": "materialize_and_verify_exact_bundled_seed"
     },
     "required_identity_readback": [
-      "version=0.5.4",
+      "version=operation_resolved_version",
       "bundle_id=ai.kimi.cu",
       "team_id=2J9472RW75",
       "target_path=/Applications/KimiCU.app"
@@ -71,7 +74,7 @@
       "observed_at": "2026-08-11",
       "runtime_source": "globally_linked_canonical_framework_checkout",
       "installed_identity": {
-        "version": "0.5.4",
+        "version": "operation_resolved_version",
         "bundle_id": "ai.kimi.cu",
         "team_id": "2J9472RW75",
         "target_path": "/Applications/KimiCU.app",
@@ -113,7 +116,8 @@
       ]
     },
     "full_second_manifest_or_provider_allowed": false,
-    "computer_use_missing_permission_blocks_app_or_plain_codex_use": false
+    "computer_use_missing_permission_blocks_app_or_plain_codex_use": false,
+    "version_resolution": "framework_operation_resolved_dependency_identity"
   },
   "browser_provider_qualification": {
     "schema": "opl_first_run_browser_provider_qualification.v1",
@@ -1347,7 +1351,7 @@
       "package_type": "standard_or_full",
       "provider_id": "kimi-cu",
       "expects": [
-        "Standard downloads and verifies the pinned KimiCU archive while Full materializes the exact same archive from its offline seed",
+        "Standard downloads and verifies the operation-resolved KimiCU archive while Full materializes the exact same archive from its offline seed",
         "both carriers install the same version, Bundle ID, signing Team ID, target path, MCP command, MCP args, and required tool set",
         "both carriers register and enable KimiCU by default in the OPL-managed Codex configuration",
         "missing Accessibility or Screen Recording permission reports installed, registered, and enabled with permission_required and ready=false",

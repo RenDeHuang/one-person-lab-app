@@ -3,31 +3,26 @@
   "runtime_payloads": {
     "codex_cli": {
       "package": "@openai/codex",
-      "version": "0.157.0",
-      "npm_integrity": "sha512-st1R2MhP3ndngOqj2SVh1qk6ED1lpgtlDxipDUyxlKfbsna0imwU2FdTnCjohFQpVh4bR5D5m1hA05AuW2v8Xg==",
-      "tarball_url": "https://registry.npmjs.org/@openai/codex/-/codex-0.157.0.tgz",
-      "tarball_sha256": "f15a756cb568359327c47afcb5a6c5a5ce03215a96bbb284eef9e0ebd991f214",
       "platform": {
         "package": "@openai/codex",
-        "version": "0.157.0-darwin-arm64",
-        "npm_integrity": "sha512-mcaLbR+tTizMr7nzxBscNfPpGrdxmsyyDqXnpPPd2419YXorDiLGpF5QmtA29gUUFg9ppjhZjM854R4tXNHzVQ==",
-        "tarball_url": "https://registry.npmjs.org/@openai/codex/-/codex-0.157.0-darwin-arm64.tgz",
-        "tarball_sha256": "8ed1854086533492068d2c103e4b13c627b0def7716d038874f05474cb4fc718"
-      }
+        "os": "darwin",
+        "cpu": "arm64",
+        "binary_path": "package/vendor/aarch64-apple-darwin/bin/codex"
+      },
+      "dependency_id": "codex-cli",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "kimi_cu": {
       "provider_id": "kimi-cu",
       "product_name": "KimiCU",
-      "version": "0.5.4",
-      "archive_url": "https://cdn.kimi.com/kimi-computer-use/0.5.4/KimiCU.app.zip",
-      "archive_sha256": "77a7515cf7fd4b7bfa46a95eab0dff7378d00a2c5003bcf7ad93f17667e2808e",
-      "archive_size_bytes": 1498360,
       "license_spdx": "MIT",
       "redistribution_allowed": true,
       "platform": {
         "os": "macos",
         "minimum_version": "14.0",
-        "architectures": ["arm64"]
+        "architectures": [
+          "arm64"
+        ]
       },
       "bundle": {
         "bundle_id": "ai.kimi.cu",
@@ -38,7 +33,11 @@
         "executable": "/Applications/KimiCU.app/Contents/MacOS/kimi-cu"
       },
       "mcp": {
-        "args": ["mcp", "-s", "user"],
+        "args": [
+          "mcp",
+          "-s",
+          "user"
+        ],
         "required_tools": [
           "list_apps",
           "get_app_state",
@@ -53,16 +52,39 @@
         ]
       },
       "health": {
-        "service_status_args": ["service-status"],
-        "xpc_ping_args": ["xpc-ping"],
-        "permission_status_args": ["doctor"],
-        "mcp_handshake": ["initialize", "tools/list", "tools/call:list_apps"]
-      }
+        "service_status_args": [
+          "service-status"
+        ],
+        "xpc_ping_args": [
+          "xpc-ping"
+        ],
+        "permission_status_args": [
+          "doctor"
+        ],
+        "mcp_handshake": [
+          "initialize",
+          "tools/list",
+          "tools/call:list_apps"
+        ]
+      },
+      "dependency_id": "kimi-cu",
+      "selection_policy": "latest_stable_at_operation_start"
     }
   },
   "release_boundary": {
     "release_qualification_must_consume_exact_identity": true,
-    "moving_npm_dist_tags_forbidden": true,
-    "build_cohort_and_attempt_receipt_binding_required": true
+    "moving_npm_dist_tags_forbidden": false,
+    "build_cohort_and_attempt_receipt_binding_required": true,
+    "moving_sources_must_resolve_before_candidate_freeze": true,
+    "frozen_candidate_re_resolves_dependencies": false
+  },
+  "resolution": {
+    "owner": "one-person-lab",
+    "source_policy_ref": "one-person-lab/contracts/opl-framework/dependency-release-sources.json",
+    "resolver": "one-person-lab/scripts/resolve-dependency-releases.mjs",
+    "resolved_manifest_env": "OPL_RELEASE_DEPENDENCY_MANIFEST",
+    "resolved_identity_is_operation_scoped": true,
+    "permanent_version_pins_allowed": false,
+    "preserve_verified_newer_installed_versions": true
   }
 }

@@ -106,7 +106,7 @@ managed installation 中下载并校验固定归档；Full 把完全相同的归
 放入安装包。因此 Full 的差异只有约 `1.43 MiB` 的压缩 seed 和离线可用性，不是
 另一个 Computer Use 产品或运行路径。
 
-两种载体完成安装后必须具有相同的 KimiCU `0.5.4`、归档 SHA-256、Bundle ID、
+两种载体完成同一发布操作后必须具有相同的操作冻结 KimiCU 版本、归档 SHA-256、Bundle ID、
 Team ID、`/Applications/KimiCU.app` 路径、MCP command/args、默认 enablement、
 工具集与 TCC 状态模型。Standard 网络故障只降级 Computer Use 并提供重试，不阻塞
 普通 OPL/Codex；Full 的 clean VM 必须证明不联网也能 materialize。权限提示可由用户

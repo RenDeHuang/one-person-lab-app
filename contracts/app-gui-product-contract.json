@@ -82,7 +82,10 @@
   "computer_use_policy": {
     "schema": "opl_app_computer_use_policy.v1",
     "product_status": "default_managed_capability",
-    "platform_scope": ["macos-arm64", "macos>=14.0"],
+    "platform_scope": [
+      "macos-arm64",
+      "macos>=14.0"
+    ],
     "desktop_provider": {
       "provider_id": "kimi-cu",
       "display_name": "Computer Use",
@@ -93,7 +96,11 @@
       "managed_install_path": "/Applications/KimiCU.app",
       "mcp_server_id": "kimi-cu",
       "mcp_command": "/Applications/KimiCU.app/Contents/MacOS/kimi-cu",
-      "mcp_args": ["mcp", "-s", "user"],
+      "mcp_args": [
+        "mcp",
+        "-s",
+        "user"
+      ],
       "managed_codex_home_registration": true,
       "local_agent_backend": {
         "agent_id": "codex",
@@ -113,7 +120,10 @@
         "core_launch_blocking": false
       },
       "permission_model": {
-        "required_permissions": ["accessibility", "screen_recording"],
+        "required_permissions": [
+          "accessibility",
+          "screen_recording"
+        ],
         "system_prompt_or_settings_action_required": true,
         "permission_can_be_bypassed_or_fabricated": false,
         "permission_missing_state": {
@@ -130,7 +140,10 @@
           "permission": "granted",
           "ready": true
         }
-      }
+      },
+      "release_policy_ref": "one-person-lab/contracts/opl-framework/dependency-release-sources.json#sources.kimi-cu",
+      "automatic_update": true,
+      "preserve_verified_newer_installed_versions": true
     },
     "distribution_parity": {
       "standard_materialization": "download_exact_pinned_archive_during_managed_install",
@@ -151,7 +164,6 @@
       "delivery_status": "source_implementation_complete_installed_qualification_pending",
       "mcp_server_id": "playwright",
       "upstream_package": "@playwright/mcp",
-      "upstream_package_version": "0.0.79",
       "upstream_implementation_owner": "microsoft/playwright-mcp",
       "lifecycle_owner": "one-person-lab",
       "app_role": "default_policy_and_standard_full_parity",
@@ -168,7 +180,7 @@
         "missing_status": "attention_required",
         "missing_blocks_plain_codex_or_kimi_cu": false
       },
-      "runtime_carrier": "framework_pinned_dependency_in_standard_and_full",
+      "runtime_carrier": "framework_managed_dependency_in_standard_and_full",
       "primary_role": "structured_repeatable_browser_automation",
       "structured_tasks": [
         "dom_and_accessibility_tree_inspection",
@@ -180,7 +192,10 @@
       "fallback_policy": "use_kimi_cu_only_for_visual_desktop_interaction_or_when_the_structured_browser_path_cannot_represent_the_task",
       "existing_chrome_session_followup": {
         "status": "separate_validation_required",
-        "candidate_paths": ["kimi_webbridge", "playwright_cdp"],
+        "candidate_paths": [
+          "kimi_webbridge",
+          "playwright_cdp"
+        ],
         "must_not_create_second_default_browser_provider": true
       },
       "distribution_parity": {
@@ -202,7 +217,9 @@
         "codex_thread_or_session_authority_transfer_allowed": false,
         "shell_may_mutate_codex_mcp_registry": false,
         "kimi_cu_visual_fallback_may_replace_structured_default": false
-      }
+      },
+      "dependency_id": "playwright-mcp",
+      "selection_policy": "latest_stable_at_operation_start"
     },
     "authority_boundary": {
       "codex_app_dependency_required": false,

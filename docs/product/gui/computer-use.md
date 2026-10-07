@@ -21,8 +21,8 @@ KimiCU 按用户已核实的 MIT 依赖处理。Full 版本可以携带它的离
 | 字段 | SSOT |
 | --- | --- |
 | Provider | `kimi-cu` |
-| KimiCU | `0.5.4` |
-| 归档 | `https://cdn.kimi.com/kimi-computer-use/0.5.4/KimiCU.app.zip` |
+| KimiCU | Framework 在操作开始时解析的最新稳定版本 |
+| 归档 | Framework 解析结果中的官方 HTTPS 归档 |
 | SHA-256 | `77a7515cf7fd4b7bfa46a95eab0dff7378d00a2c5003bcf7ad93f17667e2808e` |
 | Bundle ID / Team ID | `ai.kimi.cu` / `2J9472RW75` |
 | 平台 | macOS 14+ arm64 |
@@ -104,7 +104,7 @@ seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达任
 
 | 工作包 | 状态 | Owner | 交付 / 剩余证据 |
 | --- | --- | --- | --- |
-| CU1 SSOT 与 build lock | `canonical_source_complete` | App + Framework | App qualification identity 和 Framework derived lock 唯一绑定 KimiCU `0.5.4` |
+| CU1 SSOT 与 build lock | `canonical_source_complete` | App + Framework | App qualification identity 与 Framework 操作冻结解析结果唯一绑定 KimiCU |
 | CU2 Materializer | `canonical_source_complete` | Framework | Standard 下载、Full seed、SHA/Bundle/Team/version/arch/codesign/Gatekeeper 校验、`ditto` staged replace 和 service install 已进入 Framework `main` |
 | CU3 MCP/state bridge | `canonical_source_complete` | Framework | 复用现有 Codex registry 唯一 writer；已实现 service/XPC/`doctor`/MCP tools 健康检查、`managed_companions[]` 和 owner actions |
 | CU4 默认启动 | `canonical_source_complete` | Framework + AionUI Shell | Desktop 初始化自动调用 `opl system startup-maintenance --json`；失败只降级 Computer Use，不阻塞普通 OPL/Codex |
@@ -116,7 +116,7 @@ seed。KimiCU 只负责视觉桌面操作，或在结构化路径无法表达任
 当前 canonical source 已完成 App contracts、Full 离线 seed、Framework
 materializer/MCP/state/actions，以及 AionUI desktop 默认 startup caller 和专用
 Capabilities/TCC projection UX。2026-08-11 的当前 source-linked 宿主回读进一步
-证明：KimiCU `0.5.4` 已安装到 `/Applications`，service/XPC 与两项 TCC 权限正常，
+历史证据曾证明 KimiCU 已安装到 `/Applications`，service/XPC 与两项 TCC 权限正常；当前版本以 Framework 实际解析和运行时回读为准，
 MCP 10/10 tools 精确匹配，并通过 KimiCU MCP 真实读取 app list 和 Finder state；
 Playwright registry 已绑定 canonical Framework dependency，24/24 tools、真实 Google
 Chrome `151.0.7922.77` 导航和 snapshot 均通过。带 Desktop host hint 的产品默认

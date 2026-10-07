@@ -3,15 +3,12 @@
   "owner": "one-person-lab-app",
   "platform": "linux",
   "arch": "x64",
-  "node": {
-    "version": "24.21.0",
-    "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.gz",
-    "sha256": "6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff"
+  "resolution": {
+    "owner": "one-person-lab",
+    "resolver": "one-person-lab/scripts/resolve-dependency-releases.mjs",
+    "resolved_manifest_env": "OPL_RELEASE_DEPENDENCY_MANIFEST",
+    "selection_policy": "latest_stable_at_operation_start"
   },
-  "codex": {
-    "version": "0.157.0",
-    "version_source": "contracts/app-release-qualification-input-manifest.json#runtime_payloads.codex_cli.version",
-    "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.157.0-linux-x64.tgz",
-    "integrity": "sha512-3TEPslRaNmlgJST5xMJJ9ZWXW1hr4RlVEpF0tO4NULNGj4b5naWlHa6PlSRiDpnMz322aJkz0uvyyKqc37rLJQ=="
-  }
+  "node": { "dependency_id": "node" },
+  "codex": { "dependency_id": "codex-cli", "version_source": "resolved_manifest.runtime_payloads.codex_cli" }
 }

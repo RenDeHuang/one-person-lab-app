@@ -31,13 +31,10 @@ const browserDistribution = distribution.browser_provider;
 const computerUseQualification = qualification.computer_use_qualification;
 const browserQualification = qualification.browser_provider_qualification;
 
-test('Computer Use has one pinned KimiCU identity across all App contracts', () => {
+test('Computer Use has one dynamically resolved KimiCU identity across all App contracts', () => {
   assert.deepEqual(
     {
       provider_id: identity.provider_id,
-      version: identity.version,
-      archive_url: identity.archive_url,
-      archive_sha256: identity.archive_sha256,
       bundle_id: identity.bundle.bundle_id,
       team_id: identity.bundle.team_id,
       target_install_path: identity.bundle.target_install_path,
@@ -47,9 +44,6 @@ test('Computer Use has one pinned KimiCU identity across all App contracts', () 
     },
     {
       provider_id: 'kimi-cu',
-      version: '0.5.4',
-      archive_url: 'https://cdn.kimi.com/kimi-computer-use/0.5.4/KimiCU.app.zip',
-      archive_sha256: '77a7515cf7fd4b7bfa46a95eab0dff7378d00a2c5003bcf7ad93f17667e2808e',
       bundle_id: 'ai.kimi.cu',
       team_id: '2J9472RW75',
       target_install_path: '/Applications/KimiCU.app',
@@ -78,6 +72,8 @@ test('Computer Use has one pinned KimiCU identity across all App contracts', () 
   assert.equal(distribution.qualification_identity_ref, provider.provider_identity_ref);
   assert.equal(qualification.computer_use_qualification.provider_id, identity.provider_id);
   assert.equal(profile.computer_use.desktop_default_provider, identity.provider_id);
+  assert.equal(identity.dependency_id, 'kimi-cu');
+  assert.equal(identity.selection_policy, 'latest_stable_at_operation_start');
   assert.equal(settings.managed_computer_use.provider_identity_ref, provider.provider_identity_ref);
   assert.deepEqual(provider.local_agent_backend, {
     agent_id: 'codex',
@@ -89,7 +85,7 @@ test('Computer Use has one pinned KimiCU identity across all App contracts', () 
 });
 
 test('Standard and Full use different materialization sources but the same installed behavior', () => {
-  assert.equal(distribution.standard.source, 'pinned_vendor_archive_download');
+  assert.equal(distribution.standard.source, 'framework_resolved_vendor_archive_download');
   assert.equal(distribution.standard.network_required_for_first_materialization, true);
   assert.equal(distribution.full.source, 'bundled_exact_vendor_archive_seed');
   assert.equal(distribution.full.network_required_for_first_materialization, false);
@@ -119,8 +115,8 @@ test('Standard and Full use different materialization sources but the same insta
   assert.equal(fullManifest.runtime_payloads.kimi_cu.materialization_role, 'full_offline_seed_only');
   assert.equal(fullManifest.authority_boundary.kimi_cu_is_the_same_managed_dependency_as_standard, true);
   assert.equal(fullManifest.authority_boundary.kimi_cu_full_seed_may_define_second_provider_or_behavior, false);
-  assert.equal(fullManifest.runtime_payloads.kimi_cu.version, identity.version);
-  assert.equal(fullManifest.runtime_payloads.kimi_cu.archive_sha256, identity.archive_sha256);
+  assert.equal(fullManifest.runtime_payloads.kimi_cu.dependency_id, identity.dependency_id);
+  assert.equal(fullManifest.runtime_payloads.kimi_cu.selection_policy, identity.selection_policy);
 
   const packagingIdentity = readKimiCuQualificationIdentity(appRoot);
   assert.deepEqual(packagingIdentity, identity);
@@ -238,7 +234,7 @@ test('current source-linked host proves KimiCU effective without claiming packag
   assert.equal(evidence.evidence_class, 'current_source_linked_host_only');
   assert.equal(evidence.runtime_source, 'globally_linked_canonical_framework_checkout');
   assert.deepEqual(evidence.installed_identity, {
-    version: '0.5.4',
+    version: 'operation_resolved_version',
     bundle_id: 'ai.kimi.cu',
     team_id: '2J9472RW75',
     target_path: '/Applications/KimiCU.app',

@@ -13,7 +13,7 @@ const preflightPath = path.join(artifactRoot, 'codex-package-preflight.json');
 const packageName = '@openai/codex';
 fs.mkdirSync(npmCacheDir, { recursive: true });
 fs.mkdirSync(path.dirname(tarballPath), { recursive: true });
-const prewarmManifestPath = process.env.OPL_CODEX_PREWARM_MANIFEST;
+const prewarmManifestPath = process.env.OPL_RELEASE_DEPENDENCY_MANIFEST || process.env.OPL_CODEX_PREWARM_MANIFEST;
 const buildCohortPath = process.env.OPL_CODEX_BUILD_COHORT_MANIFEST || 'artifacts/release-cohort/opl-build-cohort.json';
 const buildCohort = prewarmManifestPath ? null
   : JSON.parse(fs.readFileSync(buildCohortPath, 'utf8'));
@@ -124,7 +124,7 @@ const metadata = npmView.stdout ? parseJson(npmView.stdout, `npm view ${packageS
 const version = metadata?.version || null;
 const tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
 const distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
-const platformPackageSpec = `${packageName}@${frozen.platform.version}`;
+const platformPackageSpec = `${frozen.platform.package || packageName}@${frozen.platform.version}`;
 const platformPackageLabel = platformPackageSpec || '@openai/codex@<version>-darwin-arm64';
 let platformNpmView = null;
 let platformMetadata = null;
