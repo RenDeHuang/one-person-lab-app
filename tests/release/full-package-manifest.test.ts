@@ -21,7 +21,8 @@ test('Full Computer Use seed identity is read from the App qualification manifes
     'utf8',
   ));
 
-  assert.deepEqual(identity, qualificationManifest.runtime_payloads.kimi_cu);
+  const { version: _resolvedVersion, ...identityWithoutVersion } = identity;
+  assert.deepEqual(identityWithoutVersion, qualificationManifest.runtime_payloads.kimi_cu);
   assert.equal(
     KIMI_CU_QUALIFICATION_IDENTITY_REF,
     'contracts/app-release-qualification-input-manifest.json#runtime_payloads.kimi_cu',
