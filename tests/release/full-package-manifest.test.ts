@@ -43,6 +43,7 @@ test('Full package materializes the verified KimiCU archive and records one deri
   const canonicalIdentity = readKimiCuQualificationIdentity(appRoot);
   const identity = {
     ...canonicalIdentity,
+    archive_url: 'https://example.invalid/kimi-cu.zip',
     archive_sha256: crypto.createHash('sha256').update(archiveBytes).digest('hex'),
     archive_size_bytes: archiveBytes.length,
   };
@@ -115,7 +116,7 @@ test('Full package rejects KimiCU seed bytes that drift from the qualification i
   try {
     assert.throws(
       () => materializeFullKimiCuOfflineSeed(prepared, {
-        identity: readKimiCuQualificationIdentity(appRoot),
+        identity: { ...readKimiCuQualificationIdentity(appRoot), archive_url: 'https://example.invalid/kimi-cu.zip' },
         sourcePath: sourceArchive,
       }),
       /size drifted|SHA-256 drifted/,

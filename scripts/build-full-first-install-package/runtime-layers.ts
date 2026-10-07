@@ -65,11 +65,11 @@ export function readKimiCuQualificationIdentity(root = appRepoRoot) {
   safePathSegment(identity.provider_id, 'provider_id');
   if (identity.version !== undefined) safePathSegment(identity.version, 'version');
   requiredString(identity.product_name, 'product_name');
-  requiredString(identity.archive_url, 'archive_url');
-  if (!/^[a-f0-9]{64}$/.test(String(identity.archive_sha256 ?? ''))) {
+  if (identity.archive_url !== undefined) requiredString(identity.archive_url, 'archive_url');
+  if (identity.archive_sha256 !== undefined && !/^[a-f0-9]{64}$/.test(String(identity.archive_sha256))) {
     throw new Error('KimiCU qualification identity archive_sha256 must be a lowercase SHA-256 digest.');
   }
-  if (!Number.isSafeInteger(identity.archive_size_bytes) || identity.archive_size_bytes <= 0) {
+  if (identity.archive_size_bytes !== undefined && (!Number.isSafeInteger(identity.archive_size_bytes) || identity.archive_size_bytes <= 0)) {
     throw new Error('KimiCU qualification identity archive_size_bytes must be a positive integer.');
   }
   requiredString(identity.bundle?.target_install_path, 'bundle.target_install_path');
@@ -92,6 +92,9 @@ function fileSha256(filePath) {
 }
 
 export function assertKimiCuOfflineSeed(runtimeRoot, identity = readKimiCuQualificationIdentity()) {
+  if (!identity.archive_sha256 || !Number.isSafeInteger(identity.archive_size_bytes) || identity.archive_size_bytes <= 0) {
+    throw new Error('KimiCU offline seed requires a resolved archive identity from OPL_RELEASE_DEPENDENCY_MANIFEST.');
+  }
   const relativePath = kimiCuOfflineSeedRelativePath(identity);
   const archivePath = path.join(runtimeRoot, ...relativePath.split('/'));
   if (!fs.existsSync(archivePath) || !fs.statSync(archivePath).isFile()) {
@@ -125,6 +128,7 @@ export function materializeKimiCuOfflineSeed(
   sourceArchivePath,
   identity = readKimiCuQualificationIdentity(),
 ) {
+  if (!identity.archive_url) throw new Error('KimiCU offline seed requires a resolved archive URL.');
   const targetPath = path.join(runtimeRoot, ...kimiCuOfflineSeedRelativePath(identity).split('/'));
   copySingleFile(sourceArchivePath, targetPath);
   return assertKimiCuOfflineSeed(runtimeRoot, identity);
