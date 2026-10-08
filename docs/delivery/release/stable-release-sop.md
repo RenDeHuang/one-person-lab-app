@@ -134,6 +134,12 @@ no signed artifact was produced; do not rerun failed workflow jobs.
 
 Standard 发布恢复：
 
+首装已通过但 Standard 检查点导出失败时，controller 可选择原 run 的 sealed bound artifact，
+从同一 run 的 Bundle、签名身份、已通过的 VM 回执和已消费的发布授权恢复检查点。
+恢复校验原 run 已终止、尚未进入 publication，并由 Framework 登记原字节；不重建或重跑首装。
+Docker 已独立完成时，给 `publish-qualified-standard` 传入 `--completed-webui-run-id <成功 run>`；
+只读校验其回执、双架构和版本／Stable／Latest 公开摘要，不再次构建或 promote。
+
 ```bash
 npm run release:stable-dispatch -- publish-qualified-standard \
   --run-id <含合格-checkpoint-的-run-id> --execute

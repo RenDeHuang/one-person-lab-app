@@ -11,6 +11,7 @@ import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
 import {
   appStandardIdentityMode,
   digestPattern,
+  digestRef,
   exactJson,
   fileDescriptor,
   frozenBuildInputIds,

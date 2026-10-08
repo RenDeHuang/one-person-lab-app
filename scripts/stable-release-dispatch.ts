@@ -268,6 +268,7 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
       'source-gate-run-id': { type: 'string' },
       'source-run-id': { type: 'string' },
       'source-artifact': { type: 'string' },
+      'completed-webui-run-id': { type: 'string' },
       'app-ref': { type: 'string' },
       'shell-ref': { type: 'string' },
       'framework-ref': { type: 'string' },
@@ -433,6 +434,14 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
     });
   } else {
     usage();
+  }
+
+  if (values['completed-webui-run-id']) {
+    if (command !== 'publish-qualified-standard') throw new Error('--completed-webui-run-id requires publish-qualified-standard.');
+    plan.workflow_inputs.source_artifact = JSON.stringify({
+      checkpoint: plan.workflow_inputs.source_artifact,
+      completed_webui_run_id: runId(values['completed-webui-run-id'], 'completed_webui_run_id'),
+    });
   }
 
   if (!values.execute) {

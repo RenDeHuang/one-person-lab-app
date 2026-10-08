@@ -1,6 +1,7 @@
 import test from 'node:test';
 import {
   assert,
+  crypto,
   fs,
   os,
   path,
@@ -34,6 +35,46 @@ import type {
   GitHubCommandOptions,
   Asset,
 } from "./fixtures.ts";
+
+test('completed build receipt hashes exact asset bytes and rejects symlinks', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-build-executor-receipt-'));
+  const bundlePath = path.join(root, 'bundle.json');
+  const assetName = 'standard.dmg';
+  const assetPath = path.join(root, assetName);
+  const bytes = Buffer.from('qualified signed artifact bytes');
+  const options = {
+    operation: 'build',
+    'release-operation': 'standard',
+    'operation-id': standardOperationId,
+    executor: 'remote',
+    'attempt-id': workflowAttemptId,
+    'remote-target': `github-actions:${repo}/runs/123/standard-build`,
+    track: 'standard',
+    outcome: 'complete',
+    bundle: bundlePath,
+    'assets-dir': root,
+  };
+  try {
+    fs.writeFileSync(bundlePath, JSON.stringify({
+      surface_kind: 'opl_release_bundle.v1',
+      bundle_digest: bundleDigest,
+      tracks: { standard: { required_asset_names: [assetName] } },
+    }));
+    fs.writeFileSync(assetPath, bytes);
+    const receipt = buildExecutorReceipt(options as any);
+    assert.deepEqual(receipt.assets, [{
+      name: assetName,
+      size_bytes: bytes.length,
+      sha256: `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`,
+      path: assetPath,
+    }]);
+    fs.renameSync(assetPath, `${assetPath}.original`);
+    fs.symlinkSync(`${assetPath}.original`, assetPath);
+    assert.throws(() => buildExecutorReceipt(options as any), /Invalid standard asset/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('absent GitHub Release remote inspection yields an empty receipt for the first upload plan', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-absent-release-receipt-'));
