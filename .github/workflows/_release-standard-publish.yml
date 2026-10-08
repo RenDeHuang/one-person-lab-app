@@ -613,7 +613,8 @@ jobs:
           }
           operation_started_at="$previous_operation_started_at"
           operation_deadline_at="$previous_operation_deadline_at"
-          release_operation=standard
+          release_operation="$(node --experimental-strip-types app-source/scripts/release-operation-deadline.ts infer-standard \
+            --started-at "$operation_started_at" --deadline-at "$operation_deadline_at" | jq -er .operation)"
           if [ "$requested_operation" = resume_standard ] && \
             [ "$(jq -r '.release_bundle_status.operation_controls.standard.deadline_elapsed' operation-status-after-reconcile.json)" = true ]; then
             release_operation=resume_standard

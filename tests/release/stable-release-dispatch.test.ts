@@ -298,6 +298,9 @@ test('qualified Standard publication selects only the exact qualification checkp
     () => selectQualifiedStandardCheckpointArtifact([], '123'),
     /exactly one qualified Standard checkpoint/,
   );
+  assert.equal(selectQualifiedStandardCheckpointArtifact([
+    { id: 1, name: 'opl-release-standard-operation-checkpoint-123', expired: false },
+  ], '123'), 'opl-release-standard-operation-checkpoint-123');
 });
 
 test('Standard mutation recovery explicitly preserves the run-bound publication checkpoint', () => {

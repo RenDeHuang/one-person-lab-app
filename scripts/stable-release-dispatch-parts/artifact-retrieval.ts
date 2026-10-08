@@ -76,9 +76,10 @@ export function selectQualifiedStandardCheckpointArtifact(
 ): string {
   const id = runId(sourceRunId, 'source_run_id');
   const checkpoint = `opl-release-standard-checkpoint-${id}`;
+  const operationCheckpoint = `opl-release-standard-operation-checkpoint-${id}`;
   const bound = `opl-release-standard-bound-${id}`;
-  const expected = requestedArtifact ?? (artifacts.some(artifact => !artifact.expired && artifact.name === checkpoint) ? checkpoint : bound);
-  if (![checkpoint, `opl-release-standard-published-${id}`, bound].includes(expected)) {
+  const expected = requestedArtifact ?? [checkpoint, operationCheckpoint, bound].find(name => artifacts.some(artifact => !artifact.expired && artifact.name === name)) ?? checkpoint;
+  if (![checkpoint, operationCheckpoint, `opl-release-standard-published-${id}`, bound].includes(expected)) {
     throw new Error('Standard recovery requires the exact run-bound qualification or publication checkpoint.');
   }
   const matches = artifacts.filter((artifact) => !artifact.expired && artifact.name === expected);
