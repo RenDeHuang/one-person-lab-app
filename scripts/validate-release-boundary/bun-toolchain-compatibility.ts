@@ -74,7 +74,9 @@ export function collectBunToolchainCompatibilityViolations(
       'utf8',
     ),
   ) as JsonRecord;
-  const appBunVersion = manifest.toolchain?.bun?.version;
+  let appBunVersion = manifest.toolchain?.bun?.version;
+  const dynamicBunPolicy = manifest.toolchain?.bun?.dependency_id === 'bun'
+    && manifest.toolchain?.bun?.selection_policy === 'latest_stable_at_operation_start';
   const shellPackage = JSON.parse(fs.readFileSync(path.join(shellRoot, 'package.json'), 'utf8'));
   const studio = shellPackage.name === 'opl-studio';
   const lockfileVersion = studio ? null : shellLockfileVersion(shellRoot);
@@ -131,10 +133,21 @@ export function collectBunToolchainCompatibilityViolations(
   ];
   const violations: string[] = [];
   if (typeof appBunVersion !== 'string' || !versionParts(appBunVersion)) {
-    violations.push(
-      'Full toolchain manifest must declare one exact Bun semantic version.',
-    );
-    return violations;
+    if (!dynamicBunPolicy) {
+      violations.push(
+        'Full toolchain manifest must declare one exact Bun semantic version or an admitted operation-time Bun resolver policy.',
+      );
+      return violations;
+    }
+    const effectiveCaller = callers.find((caller) => caller.id === 'setup-active-shell-deps' && versionParts(caller.version))
+      ?? callers.find((caller) => caller.id === '_build-reusable' && versionParts(caller.version));
+    if (!effectiveCaller || !versionParts(effectiveCaller.version)) {
+      violations.push(
+        'Operation-time Bun resolver policy requires one exact effective Bun version across release callers.',
+      );
+      return violations;
+    }
+    appBunVersion = effectiveCaller.version;
   }
   if (studio) {
     const lock = JSON.parse(fs.readFileSync(path.join(shellRoot, 'package-lock.json'), 'utf8'));
