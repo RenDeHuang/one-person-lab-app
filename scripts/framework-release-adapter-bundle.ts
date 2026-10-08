@@ -118,7 +118,8 @@ export function fullAddonPublicReleaseBody(bundle: JsonRecord, addon: JsonRecord
   const artifact = addon.artifact as JsonRecord | undefined;
   const manifest = addon.manifest as JsonRecord | undefined;
   if (
-    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
+    !artifact
+    || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
     || !/^v[0-9A-Za-z.-]+$/.test(tag)
     || !releaseAssetNamePattern.test(String(artifact?.name ?? ''))
     || !digestPattern.test(String(artifact?.sha256 ?? ''))

@@ -244,6 +244,8 @@ Full checkpoint. Same-byte requalification uses `materialize-full-build` and ski
 `full-build`; an already `full_qualified` checkpoint can continue publication directly.
 The [v26.10.2 retrospective](incidents/2026-10-02-stable-release-recovery.md) records the
 observed selection error, transport repairs and complete public closeout.
+The [v26.10.8 efficiency review](incidents/2026-10-08-release-efficiency.md) records the
+release-executor typecheck, prepared-tarball preference, and verified offline preflight path.
 
 The three Framework-backed workflow mutation operations remain exactly:
 

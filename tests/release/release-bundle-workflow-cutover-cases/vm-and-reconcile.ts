@@ -483,6 +483,21 @@ test('first-run VM prefetches frozen Codex install assets from a physical script
   }
 });
 
+test('first-run VM prefers prepared install tarballs and restores the cache only as fallback', () => {
+  const workflow = parseWorkflow('opl-first-run-vm.yml');
+  const steps = workflow.jobs['clean-vm-first-run'].steps as Array<Record<string, any>>;
+  const preparedIndex = steps.findIndex((step) => step.name === 'Restore prepared install tarballs');
+  const cacheIndex = steps.findIndex((step) => step.name === 'Restore Codex install asset cache');
+  assert.ok(preparedIndex >= 0);
+  assert.ok(cacheIndex > preparedIndex);
+  const prepared = steps[preparedIndex];
+  const cache = steps[cacheIndex];
+  assert.equal(prepared.id, 'prepared_install_assets');
+  assert.match(String(cache.if), /inputs\.prepared_inputs_artifact == ''/);
+  assert.match(String(cache.if), /steps\.prepared_install_assets\.outcome != 'success'/);
+  assert.match(String(cache.with.path), /codex-package-tarballs/);
+});
+
 test('release VM does not invoke the model with the zero-balance test account', () => {
   const workflow = parseWorkflow('opl-first-run-vm.yml');
   const smoke = workflow.jobs['clean-vm-first-run'].steps.find(
@@ -631,6 +646,9 @@ test('Codex install asset prefetch preserves frozen identities and content-addre
     const fakeNpm = path.join(fakeBin, 'npm');
     fs.writeFileSync(fakeNpm, `#!/usr/bin/env bash
 set -euo pipefail
+if [ "\${PREFETCH_OFFLINE:-false}" = "true" ] && [ "\${1:-}" != "cache" ]; then
+  exit 91
+fi
 case "\${1:-}" in
   config)
     printf '%s\\n' 'https://registry.example/'
@@ -654,6 +672,9 @@ esac
     const fakeCurl = path.join(fakeBin, 'curl');
     fs.writeFileSync(fakeCurl, `#!/usr/bin/env bash
 set -euo pipefail
+if [ "\${PREFETCH_OFFLINE:-false}" = "true" ]; then
+  exit 91
+fi
 output=''
 previous=''
 for argument in "$@"; do
@@ -713,9 +734,12 @@ printf '200'
         cwd: root, encoding: 'utf8',
         env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}`, ...extraEnv },
       });
-    const cached = rerun();
+    const cached = rerun({ PREFETCH_OFFLINE: 'true' });
     assert.equal(cached.status, 0, cached.stderr);
     const cachedReport = JSON.parse(fs.readFileSync(path.join(artifactRoot, 'codex-package-preflight.json'), 'utf8'));
+    assert.match(cachedReport.diagnostics.join('\n'), /frozen_identity_and_verified_tarballs/);
+    assert.equal(cachedReport.registry.npm_view, null);
+    assert.equal(cachedReport.registry.metadata_request, null);
     assert.equal(cachedReport.tarball.source, 'verified_cache');
     assert.equal(cachedReport.platform_tarball.source, 'verified_cache');
     assert.equal(cachedReport.tarball.download, null);

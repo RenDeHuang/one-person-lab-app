@@ -16,6 +16,7 @@
     "postinstall": "node --experimental-strip-types scripts/validate-active-shell.ts --quick",
     "verify": "scripts/verify.sh",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:release": "tsc --noEmit -p tsconfig.release.json",
     "ensure:shell": "node --experimental-strip-types scripts/ensure-active-shell.ts",
     "gui": "node --experimental-strip-types scripts/gui-launcher.ts",
     "install:shell": "node --experimental-strip-types scripts/run-active-shell-command.ts bun install --frozen-lockfile",

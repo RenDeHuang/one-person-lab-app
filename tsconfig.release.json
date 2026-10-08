@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "files": [
+    "scripts/framework-release-adapter.ts",
+    "scripts/stable-release-dispatch.ts",
+    "scripts/recover-qualified-standard-checkpoint.ts"
+  ]
+}

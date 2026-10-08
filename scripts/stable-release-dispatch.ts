@@ -412,6 +412,9 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
         appSha, shellSha, frameworkSha,
       });
     }
+    if (target.state !== 'dispatch_required' || target.source_run_id === null || target.source_artifact === null) {
+      throw new Error('Append Full target reconciliation did not produce a dispatch-required source.');
+    }
     const sourceRunId = target.source_run_id;
     const sourceArtifact = target.source_artifact;
     const isFullRecovery = isFullCheckpointArtifact(sourceArtifact, sourceRunId);
