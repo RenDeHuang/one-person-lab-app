@@ -66,13 +66,14 @@ export function evaluateFailureFingerprintGuard(input: {
   const prior = normalizeStableFailureFingerprint(input.priorFailureFingerprint);
   const current = normalizeStableFailureFingerprint(input.currentFailureFingerprint);
   const unchanged = stableFailureFingerprintsEqual(prior, current);
-  return {
-    status: unchanged ? 'blocked_unchanged' : 'changed',
+  const identities = {
     prior,
     current,
-    unchanged,
-    dispatch_count: 0,
+    dispatch_count: 0 as const,
   };
+  return unchanged
+    ? { ...identities, status: 'blocked_unchanged', unchanged: true }
+    : { ...identities, status: 'changed', unchanged: false };
 }
 
 export function buildPreNonceDispatchGuard(
@@ -218,12 +219,12 @@ export function buildPreNonceDispatchGuard(
       && run.head_branch === 'main'
       && run.run_attempt === 1
     ));
-  const operationMatches = input.operationId === undefined
+  const operationMatches = operationId === null
     ? ownerWorkflowMatches
-    : ownerWorkflowMatches.filter((run) => run.display_title.includes(input.operationId));
-  const authorityMatches = input.authorityId === undefined
+    : ownerWorkflowMatches.filter((run) => run.display_title.includes(operationId));
+  const authorityMatches = authorityId === null
     ? operationMatches
-    : operationMatches.filter((run) => run.display_title.includes(input.authorityId));
+    : operationMatches.filter((run) => run.display_title.includes(authorityId));
   const activeStableMatches = ownerWorkflowMatches.filter((run) => activeRunStatuses.has(run.status));
   const ownRunMatches = input.currentRunId === undefined
     ? []

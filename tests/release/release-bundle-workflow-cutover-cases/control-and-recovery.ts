@@ -991,11 +991,16 @@ test('mandatory publication ancestors allow only the protected exact-candidate c
   };
   for (const jobName of ['publish-standard-nonlatest', 'remote-digest-verify']) {
     for (const ancestor of ancestors(jobName)) {
-      assert.doesNotMatch(
-        JSON.stringify(standard.jobs[ancestor]),
-        /self-hosted|(?:^|[^a-z])tart(?:[^a-z]|$)|opl-first-run-vm/i,
-        `${jobName} directly depends on unexpected physical execution ${ancestor}`,
-      );
+      const job = standard.jobs[ancestor];
+      const runners = Array.isArray(job['runs-on']) ? job['runs-on'] : [job['runs-on']];
+      assert.equal(runners.includes('self-hosted'), false, `${ancestor} must not allocate a physical runner`);
+      assert.notEqual(job.uses, './.github/workflows/opl-first-run-vm.yml');
+      for (const step of job.steps ?? []) {
+        assert.notEqual(step.uses, './.github/workflows/opl-first-run-vm.yml');
+        // Downloading an existing opl-first-run-vm artifact does not execute a VM.
+        assert.doesNotMatch(step.run ?? '', /(?:^|[\s;])tart\s+(?:run|clone|start)\b|opl-first-run-tart-smoke\.mjs/m,
+          `${jobName} directly depends on unexpected physical execution ${ancestor}`);
+      }
     }
   }
   assert.deepEqual(publish.needs, ['restore', 'pre-publication-admission']);

@@ -472,7 +472,6 @@ jobs:
           OPL_SHELL_SOURCE_REF: ${{ needs.resolve-active-shell-ref.outputs.shell_sha }}
         run: node scripts/desktop/prepare-wsl-host-payload.mjs --validate resources/opl-wsl-host
 
-      - name: Download target-executed Linux runtime
       - name: Get commit hash
         id: commit
         shell: bash

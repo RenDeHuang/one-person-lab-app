@@ -334,6 +334,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     'protected-operation-admission',
     'admission',
     'stable-admission-manifest',
+    'reconcile-completed-webui',
     'webui-source-authority',
     'webui-carrier',
     'webui-promotion',
@@ -368,7 +369,7 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
   if (
     !webuiSourceAuthority
     || !needsExactly(webuiSourceAuthority, ['admission', 'stable-admission-manifest', 'standard', 'resume-standard'])
-    || webuiSourceAuthority.if !== "${{ always() && !cancelled() && needs.admission.result == 'success' && ((inputs.operation == 'standard' && needs.standard.result == 'success') || (inputs.operation == 'resume_standard' && needs.resume-standard.result == 'success')) }}"
+    || webuiSourceAuthority.if !== "${{ always() && !cancelled() && needs.admission.outputs.completed_webui_run_id == '' && needs.admission.result == 'success' && ((inputs.operation == 'standard' && needs.standard.result == 'success') || (inputs.operation == 'resume_standard' && needs.resume-standard.result == 'success')) }}"
     || !exactObject(webuiSourceAuthority.permissions, exactReadPermissions)
     || webuiCheckpointDownload?.with?.name !== "${{ inputs.operation == 'standard' && needs.standard.outputs.source_artifact || needs.admission.outputs.source_artifact }}"
     || webuiCheckpointDownload?.with?.['run-id'] !== "${{ inputs.operation == 'standard' && needs.standard.outputs.source_run_id || needs.admission.outputs.source_run_id }}"
@@ -381,6 +382,12 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     || !isAuthorizedStableWebuiWriteJob('.github/workflows/release-stable.yml', 'webui-promotion', jobs['webui-promotion'])
   ) {
     failures += reportFailure(id, 'Stable Standard must own one exact same-cohort Docker authority, carrier, and promotion chain');
+  }
+  const completedWebui = jobs['reconcile-completed-webui'];
+  if (!completedWebui || !needsExactly(completedWebui, ['admission', 'resume-standard'])
+    || !exactObject(completedWebui.permissions, exactReadPermissions)
+    || completedWebui.if !== "${{ !cancelled() && inputs.operation == 'resume_standard' && needs.admission.outputs.completed_webui_run_id != '' && needs.resume-standard.result == 'success' }}") {
+    failures += reportFailure(id, 'Completed independent Docker recovery must be read-only and follow Standard publication');
   }
   const admission = jobs.admission;
   const admissionRun = jobRuns(admission);

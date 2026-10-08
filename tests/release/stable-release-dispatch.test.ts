@@ -298,6 +298,9 @@ test('qualified Standard publication selects only the exact qualification checkp
     () => selectQualifiedStandardCheckpointArtifact([], '123'),
     /exactly one qualified Standard checkpoint/,
   );
+  assert.equal(selectQualifiedStandardCheckpointArtifact([
+    { id: 1, name: 'opl-release-standard-operation-checkpoint-123', expired: false },
+  ], '123'), 'opl-release-standard-operation-checkpoint-123');
 });
 
 test('Standard mutation recovery explicitly preserves the run-bound publication checkpoint', () => {
@@ -311,6 +314,18 @@ test('Standard mutation recovery explicitly preserves the run-bound publication 
     /exact run-bound/);
   assert.throws(() => selectQualifiedStandardCheckpointArtifact([artifacts[0]!], '123', 'opl-release-standard-published-123'),
     /exactly one/);
+});
+
+test('a failed Standard checkpoint export can recover only with all original qualification evidence', () => {
+  const names = ['opl-release-standard-bound-123', 'opl-release-bundle-123', 'opl-first-run-vm-standard-123',
+    'opl-qualification-attempt-standard-123', 'opl-stable-operation-consumption-123'];
+  const artifacts = names.map((name, index) => ({ id: index + 1, name, expired: false }));
+  assert.equal(selectQualifiedStandardCheckpointArtifact(artifacts, '123'), names[0]);
+  for (const name of names.slice(1)) {
+    assert.throws(() => selectQualifiedStandardCheckpointArtifact(artifacts.filter(artifact => artifact.name !== name), '123'),
+      /requires exactly one/);
+  }
+  assert.throws(() => selectQualifiedStandardCheckpointArtifact(artifacts, '124'), /exactly one qualified Standard checkpoint/);
 });
 
 test('Full checkpoint reuse requires an exact content cohort and otherwise returns to Standard', () => {

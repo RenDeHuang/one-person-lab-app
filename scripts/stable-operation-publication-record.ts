@@ -618,6 +618,9 @@ export function validateStableOperationPublishedCarrierBinding(value: unknown): 
   }
   const target = record(binding.publication_target, 'publication_target');
   const carrier = record(binding.published_carrier, 'published_carrier');
+  if (carrier.immutable !== true || carrier.draft !== false) {
+    throw new Error('Stable operation published carrier must be immutable and not a draft.');
+  }
   const assets = normalizeAssets(carrier.assets, 'published_carrier.assets');
   const core = {
     schema: 'opl_app_stable_operation_published_carrier_binding.v1' as const,
@@ -629,8 +632,8 @@ export function validateStableOperationPublishedCarrierBinding(value: unknown): 
     },
     published_carrier: {
       release_id: positiveInteger(carrier.release_id, 'published_carrier.release_id'),
-      immutable: carrier.immutable,
-      draft: carrier.draft,
+      immutable: true as const,
+      draft: false as const,
       assets,
     },
   };

@@ -11,6 +11,7 @@ import { validateWebuiSourceAuthority } from './webui-source-authority.ts';
 import {
   appStandardIdentityMode,
   digestPattern,
+  digestRef,
   exactJson,
   fileDescriptor,
   frozenBuildInputIds,
@@ -559,7 +560,7 @@ export function buildQualificationReceipt(values: AdapterOptionValues): JsonReco
   }
   if (hostedCoreQualification) {
     if (track !== 'full') throw new Error('--hosted-core-qualification supports only the Full track.');
-    const hostedPath = path.resolve(hostedCoreQualification);
+    const hostedPath = path.resolve(requireOption(values, 'hosted-core-qualification'));
     const hosted = readJson(hostedPath);
     const subjectName = String(hosted.subject?.asset_name ?? '');
     const sizeBytes = Number(hosted.subject?.size_bytes);

@@ -49,6 +49,10 @@ matrix delivery includes Docker publication and pointer readback. The manual wor
 available for qualification, explicit Preview publication and same-version recovery. These
 publication operations are not part of PR/main CI.
 
+Studio images default to the non-root `node` user. The legacy-volume qualification first invokes
+the image entrypoint once as root to repair App data ownership, preserving ownership of existing
+project files. It then starts and restarts the normal non-root host and verifies its actual UID.
+
 ## Release acceleration
 
 Standard checks the dedicated Gateway account during protected admission; a fresh Full append
@@ -240,6 +244,8 @@ Full checkpoint. Same-byte requalification uses `materialize-full-build` and ski
 `full-build`; an already `full_qualified` checkpoint can continue publication directly.
 The [v26.10.2 retrospective](incidents/2026-10-02-stable-release-recovery.md) records the
 observed selection error, transport repairs and complete public closeout.
+The [v26.10.8 efficiency review](incidents/2026-10-08-release-efficiency.md) records the
+release-executor typecheck, prepared-tarball preference, and verified offline preflight path.
 
 The three Framework-backed workflow mutation operations remain exactly:
 

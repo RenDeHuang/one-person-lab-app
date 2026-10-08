@@ -1711,7 +1711,7 @@ jobs:
               --expected-shell-sha '${{ needs.freeze.outputs.shell_sha }}' \
               --expected-framework-sha '${{ needs.freeze.outputs.framework_sha }}'
           fi
-          node --experimental-strip-types app-source/scripts/framework-release-adapter.ts executor-receipt \
+          node --experimental-strip-types app-executor/scripts/framework-release-adapter.ts executor-receipt \
             --operation build --executor remote --attempt-id "gha-${GITHUB_RUN_ID}-standard-build" \
             --release-operation standard --operation-id '${{ needs.freeze.outputs.operation_id }}' \
             --remote-target "github-actions:${GITHUB_REPOSITORY}/runs/${{ needs.seal-standard-identity.outputs.standard_artifact_run_id }}/standard-build" \

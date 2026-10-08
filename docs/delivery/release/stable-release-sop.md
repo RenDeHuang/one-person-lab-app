@@ -24,7 +24,7 @@
 
 1. 核对 App、实际 Shell、Framework 的真实源版本、工作区改动和远端主线。需要交付源码时使用 `$software-development`；worktree 吸收沿用 `$manage-codex-tasks` 和仓库现有生命周期。保留其他任务的改动。
 2. 采用正式 controller 解析版本与候选，不手填新的 Stable 版本。用户可见变更摘要来自实际改动，不能为重跑发布编造产品变化。
-3. 执行当前写集所需检查和合同要求的源码门禁。记录已有结果的准确候选、依赖与环境；仅在相关事实变化使旧结果失效时重跑。controller 已负责的检查不在旁路重复执行。
+3. 执行当前写集所需检查和合同要求的源码门禁。`validate:release-boundary` 会先运行 `typecheck:release`，覆盖 App release executor 的入口脚本；普通 App `typecheck` 只证明产品源码类型正确，不能替代这条检查。记录已有结果的准确候选、依赖与环境；仅在相关事实变化使旧结果失效时重跑。controller 已负责的检查不在旁路重复执行。
 4. 确认正式发布前提：授权、唯一 writer、可用的签名／公证环境、专用普通测试账号及其既有瞬态凭据桥。使用现有预检，不能把密码写到命令参数、仓库、GitHub Secrets、日志或回执，也不能换用管理员账号绕过失败。该账号无模型额度；VM 只做登录、就绪读回和不调用 LLM 的确定性检查，不自动执行 Codex AI self-check 或生成式模型探测。
 
 云环境源码门禁保留既有代理与 CA 信任配置；GitHub CLI 的认证变量只传给只读 owner 核验，不传给依赖脚本或 Shell 测试，也不写入门禁回执。
@@ -134,6 +134,12 @@ no signed artifact was produced; do not rerun failed workflow jobs.
 
 Standard 发布恢复：
 
+首装已通过但 Standard 检查点导出失败时，controller 可选择原 run 的 sealed bound artifact，
+从同一 run 的 Bundle、签名身份、已通过的 VM 回执和已消费的发布授权恢复检查点。
+恢复校验原 run 已终止、尚未进入 publication，并由 Framework 登记原字节；不重建或重跑首装。
+Docker 已独立完成时，给 `publish-qualified-standard` 传入 `--completed-webui-run-id <成功 run>`；
+只读校验其回执、双架构和版本／Stable／Latest 公开摘要，不再次构建或 promote。
+
 ```bash
 npm run release:stable-dispatch -- publish-qualified-standard \
   --run-id <含合格-checkpoint-的-run-id> --execute
@@ -200,7 +206,7 @@ do not reconstruct ZIPs, create a parallel downloader, or rebuild product bytes 
 the operator's download path failed. Never retain signed redirect URLs or credentials
 in durable evidence.
 
-预备安装包是可选加速。只有实际上传成功后才向 VM consumer 提供 artifact 名；主上传与一次重试都失败时输出为空，由现有按摘要校验的本地准备路径继续。不能用一个拼接出来的名字表示资产存在，也不因此重建签名产物。
+预备安装包是可选加速。只有实际上传成功后才向 VM consumer 提供 artifact 名；主上传与一次重试都失败时输出为空，由现有按摘要校验的本地准备路径继续。VM 先恢复这批 prepared tarballs，只有下载没有成功时才恢复 runner cache；两条路径仍由 frozen cohort 的 SHA-256 校验决定是否可用，成功下载不代表内容已验收。已验证的两份 tarball 会直接消费 frozen identity，跳过 registry metadata 与 `npm view` 查询；任一份缺失或摘要不符时回到原在线查询和下载路径。不能用一个拼接出来的名字表示资产存在，也不因此重建签名产物。
 
 Linux／Windows／Homebrew 的独立恢复使用 [现有 follow-up workflow](../../../.github/workflows/release-stable-post-success-followups.yml) 的 `reconcile_desktop_platform`、`reconcile_homebrew_standard`、`reconcile_homebrew_full` 等对应 operation。执行前确认源 run、目标渠道及该渠道 owner；参数以当前 workflow 为准，不将内部 `standard` 输入搬到这个入口。`repair_additive` 只适用于其合同规定的安装器资产 CAS，不能当作任意资产替换工具。
 
@@ -259,7 +265,7 @@ Studio 及领域 Package 若在用户明确范围内，按各自 owner 的合同
 
 在现有完成记录中保留：首次正式尝试时间、Standard 公开时间、每个要求渠道的完成时间、最后一次成功单轮、失败／恢复区间，以及能回查的 run／产物链接。无必需未完成项才报告全部完成；存在阻塞时报告已完成面、缺口与解除条件，不把未知状态填成成功。
 
-耗时比较保持相同口径。参考 [2026-09-22 复盘](incidents/2026-09-22-release-efficiency.md)及 [2026-09-15 复盘](incidents/2026-09-15-release-efficiency.md)中的失败模式与证据，不把旧 run ID、版本、摘要或估算节省时间当作下一次发布参数或保证。
+耗时比较保持相同口径。参考 [2026-10-08 复盘](incidents/2026-10-08-release-efficiency.md)、[2026-09-22 复盘](incidents/2026-09-22-release-efficiency.md)及 [2026-09-15 复盘](incidents/2026-09-15-release-efficiency.md)中的失败模式与证据，不把旧 run ID、版本、摘要或估算节省时间当作下一次发布参数或保证。
 
 ## 维护和安装
 

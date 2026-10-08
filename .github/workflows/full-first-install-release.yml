@@ -1016,8 +1016,6 @@ jobs:
           )
           if [ '${{ inputs.cache_only }}' = 'true' ]; then
             FULL_BUILD_CMD+=(--warm-runtime-cache-only)
-          elif [ "${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}" = "true" ]; then
-            FULL_BUILD_CMD+=(--reuse-gui-vite-output)
           fi
           if [ "$RELEASE_OPERATION" = "append_full" ]; then
             full_build_timeout_ms="$(DEADLINE="$OPERATION_DEADLINE_AT" node --input-type=module -e '
@@ -1435,7 +1433,6 @@ jobs:
               uv_artifacts: '${{ steps.uv-cache.outputs.cache-hit || 'false' }}',
               go_modules_build: '${{ steps.go-cache.outputs.cache-hit || 'unknown' }}',
               electron_artifacts: '${{ steps.electron-cache.outputs.cache-hit || 'false' }}',
-              shell_vite_output: '${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }}',
               full_runtime_layers: env.OPL_FULL_RUNTIME_CACHE_HIT || 'unknown',
               full_runtime_cache_key: '${{ steps.runtime-cache-keys.outputs.cache_key }}',
               full_runtime_cache_digest: '${{ steps.runtime-cache-keys.outputs.cache_digest }}',
@@ -1472,7 +1469,6 @@ jobs:
             echo "| uv artifacts | ${{ steps.uv-cache.outputs.cache-hit || 'false' }} |"
             echo "| Go modules/build | ${{ steps.go-cache.outputs.cache-hit || 'unknown' }} |"
             echo "| Electron artifacts | ${{ steps.electron-cache.outputs.cache-hit || 'false' }} |"
-            echo "| Shell Vite output | ${{ steps.restore-shell-vite-output.outputs.cache-hit || 'false' }} |"
             echo "| Full runtime layers | $OPL_FULL_RUNTIME_CACHE_HIT |"
             echo
             echo "## Full Payload Resolved Refs"

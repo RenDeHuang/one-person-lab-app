@@ -268,6 +268,7 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
       'source-gate-run-id': { type: 'string' },
       'source-run-id': { type: 'string' },
       'source-artifact': { type: 'string' },
+      'completed-webui-run-id': { type: 'string' },
       'app-ref': { type: 'string' },
       'shell-ref': { type: 'string' },
       'framework-ref': { type: 'string' },
@@ -411,6 +412,9 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
         appSha, shellSha, frameworkSha,
       });
     }
+    if (target.state !== 'dispatch_required' || target.source_run_id === null || target.source_artifact === null) {
+      throw new Error('Append Full target reconciliation did not produce a dispatch-required source.');
+    }
     const sourceRunId = target.source_run_id;
     const sourceArtifact = target.source_artifact;
     const isFullRecovery = isFullCheckpointArtifact(sourceArtifact, sourceRunId);
@@ -433,6 +437,14 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
     });
   } else {
     usage();
+  }
+
+  if (values['completed-webui-run-id']) {
+    if (command !== 'publish-qualified-standard') throw new Error('--completed-webui-run-id requires publish-qualified-standard.');
+    plan.workflow_inputs.source_artifact = JSON.stringify({
+      checkpoint: plan.workflow_inputs.source_artifact,
+      completed_webui_run_id: runId(values['completed-webui-run-id'], 'completed_webui_run_id'),
+    });
   }
 
   if (!values.execute) {

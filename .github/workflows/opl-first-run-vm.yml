@@ -1315,18 +1315,6 @@ jobs:
             echo "codex_readiness_phase_timeout_ms=$CODEX_READINESS_PHASE_TIMEOUT_MS"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Restore Codex install asset cache
-        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' }}
-        id: codex_install_asset_cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            artifacts/opl-first-run-vm/codex-npm-cache
-            artifacts/opl-first-run-vm/codex-package-tarballs
-          key: opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-latest
-          restore-keys: |
-            opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-
-
       - name: Download release DMG artifact
         if: ${{ inputs.release_artifact_name != '' }}
         id: release_artifact_download_1
@@ -1826,11 +1814,24 @@ jobs:
 
       - name: Restore prepared install tarballs
         if: ${{ inputs.prepared_inputs_artifact != '' }}
+        id: prepared_install_assets
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.prepared_inputs_artifact }}
           path: artifacts/opl-first-run-vm/codex-package-tarballs
+
+      - name: Restore Codex install asset cache
+        if: ${{ needs.validate-vm-inputs.outputs.diagnostic_scope != 'bootstrap_only' && (inputs.prepared_inputs_artifact == '' || steps.prepared_install_assets.outcome != 'success') }}
+        id: codex_install_asset_cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            artifacts/opl-first-run-vm/codex-npm-cache
+            artifacts/opl-first-run-vm/codex-package-tarballs
+          key: opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-latest
+          restore-keys: |
+            opl-first-run-codex-install-assets-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Restore frozen Codex qualification cohort
         if: ${{ inputs.codex_qualification_cohort_artifact_name != '' && inputs.release_artifact_run_id != '' }}

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { assertAppRootBoundary } from './app-root-boundary.ts';
 import { validateReleaseContractPolicies } from './validate-release-boundary/release-contract-policy.ts';
@@ -20,6 +21,15 @@ const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const validationProfile = releaseValidationProfile();
 
 let failures = 0;
+const releaseExecutorTypecheck = spawnSync('npm', ['run', '--silent', 'typecheck:release'], {
+  cwd: appRoot,
+  encoding: 'utf8',
+  stdio: 'inherit',
+});
+if (releaseExecutorTypecheck.status !== 0) {
+  console.error('FAIL release_executor_typecheck: npm run --silent typecheck:release');
+  failures += 1;
+}
 try {
   assertAppRootBoundary({ phase: 'release boundary validation' });
 } catch (error) {

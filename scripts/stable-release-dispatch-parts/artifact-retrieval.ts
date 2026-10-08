@@ -75,13 +75,24 @@ export function selectQualifiedStandardCheckpointArtifact(
   requestedArtifact?: string,
 ): string {
   const id = runId(sourceRunId, 'source_run_id');
-  const expected = requestedArtifact ?? `opl-release-standard-checkpoint-${id}`;
-  if (![`opl-release-standard-checkpoint-${id}`, `opl-release-standard-published-${id}`].includes(expected)) {
+  const checkpoint = `opl-release-standard-checkpoint-${id}`;
+  const operationCheckpoint = `opl-release-standard-operation-checkpoint-${id}`;
+  const bound = `opl-release-standard-bound-${id}`;
+  const expected = requestedArtifact ?? [checkpoint, operationCheckpoint, bound].find(name => artifacts.some(artifact => !artifact.expired && artifact.name === name)) ?? checkpoint;
+  if (![checkpoint, operationCheckpoint, `opl-release-standard-published-${id}`, bound].includes(expected)) {
     throw new Error('Standard recovery requires the exact run-bound qualification or publication checkpoint.');
   }
   const matches = artifacts.filter((artifact) => !artifact.expired && artifact.name === expected);
   if (matches.length !== 1) {
     throw new Error(`Run ${id} must expose exactly one qualified Standard checkpoint; found ${matches.length}.`);
+  }
+  if (expected === bound) {
+    for (const required of [`opl-release-bundle-${id}`, `opl-first-run-vm-standard-${id}`,
+      `opl-qualification-attempt-standard-${id}`, `opl-stable-operation-consumption-${id}`]) {
+      if (artifacts.filter(artifact => !artifact.expired && artifact.name === required).length !== 1) {
+        throw new Error(`Qualified Standard checkpoint recovery requires exactly one ${required}.`);
+      }
+    }
   }
   return matches[0]!.name;
 }

@@ -13,7 +13,7 @@ const preflightPath = path.join(artifactRoot, 'codex-package-preflight.json');
 const packageName = '@openai/codex';
 fs.mkdirSync(npmCacheDir, { recursive: true });
 fs.mkdirSync(path.dirname(tarballPath), { recursive: true });
-const prewarmManifestPath = process.env.OPL_RELEASE_DEPENDENCY_MANIFEST || process.env.OPL_CODEX_PREWARM_MANIFEST;
+const prewarmManifestPath = process.env.OPL_CODEX_PREWARM_MANIFEST;
 const buildCohortPath = process.env.OPL_CODEX_BUILD_COHORT_MANIFEST || 'artifacts/release-cohort/opl-build-cohort.json';
 const buildCohort = prewarmManifestPath ? null
   : JSON.parse(fs.readFileSync(buildCohortPath, 'utf8'));
@@ -82,50 +82,20 @@ function verifiedCachedTarball(filePath, expectedSha256) {
 
 const diagnostics = [];
 const blockingFailures = [];
-const npmRegistry = run('npm', ['config', 'get', 'registry']);
-if (npmRegistry.exit_code !== 0 || npmRegistry.error) {
-  blockingFailures.push('npm config get registry failed');
-}
-const registryUrl = normalizeRegistryUrl(npmRegistry.stdout);
-const registryMetadataUrl = registryPackageMetadataUrl(registryUrl);
-const registryResponse = run('curl', [
-  '-sS',
-  '-L',
-  '--connect-timeout',
-  '30',
-  '--max-time',
-  '180',
-  '-o',
-  registryResponsePath,
-  '-w',
-  '%{http_code}',
-  registryMetadataUrl,
-], { timeout: 240000 });
-const registryStatusCode = Number(registryResponse.stdout);
-if (registryResponse.exit_code !== 0 || registryResponse.error) {
-  diagnostics.push('registry package metadata request failed');
-}
-if (registryStatusCode !== 200) {
-  diagnostics.push(`registry package metadata returned status ${registryResponse.stdout || 'unknown'}`);
-}
-
-const npmView = run('npm', [
-  'view',
-  packageSpec,
-  'version',
-  'dist.tarball',
-  'dist.integrity',
-  '--json',
-], { timeout: 240000 });
-if (npmView.exit_code !== 0 || npmView.error) {
-  blockingFailures.push(`npm view ${packageSpec} version dist.tarball failed`);
-}
-const metadata = npmView.stdout ? parseJson(npmView.stdout, `npm view ${packageSpec}`, blockingFailures) : null;
-const version = metadata?.version || null;
-const tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
-const distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
 const platformPackageSpec = `${frozen.platform.package || packageName}@${frozen.platform.version}`;
 const platformPackageLabel = platformPackageSpec || '@openai/codex@<version>-darwin-arm64';
+const cachedTarball = verifiedCachedTarball(tarballPath, frozen.tarball_sha256);
+const cachedPlatformTarball = verifiedCachedTarball(platformTarballPath, frozen.platform.tarball_sha256);
+const verifiedFrozenTarballs = Boolean(cachedTarball && cachedPlatformTarball);
+let npmRegistry = null;
+let registryUrl = null;
+let registryMetadataUrl = null;
+let registryResponse = null;
+let registryStatusCode = null;
+let npmView = null;
+let version = null;
+let tarballUrl = null;
+let distIntegrity = null;
 let platformNpmView = null;
 let platformMetadata = null;
 let platformVersion = null;
@@ -133,57 +103,69 @@ let platformTarballUrl = null;
 let platformDistIntegrity = null;
 let platformTarballUrlHost = null;
 let tarballUrlHost = null;
-if (!version) {
-  blockingFailures.push('npm package metadata did not include version');
-}
-if (version !== frozen.version || distIntegrity !== frozen.npm_integrity || tarballUrl !== frozen.tarball_url) {
-  blockingFailures.push('Codex package metadata does not match the frozen qualification identity');
-}
-if (!tarballUrl) {
-  blockingFailures.push('npm package metadata did not include dist.tarball');
-} else {
+if (verifiedFrozenTarballs) {
+  diagnostics.push('registry metadata and npm view skipped: frozen_identity_and_verified_tarballs');
+  version = frozen.version;
+  tarballUrl = frozen.tarball_url;
+  distIntegrity = frozen.npm_integrity;
+  platformVersion = frozen.platform.version;
+  platformTarballUrl = frozen.platform.tarball_url;
+  platformDistIntegrity = frozen.platform.npm_integrity;
   try {
     tarballUrlHost = new URL(tarballUrl).host;
   } catch (error) {
-    blockingFailures.push(`dist.tarball is not a valid URL: ${error.message}`);
+    blockingFailures.push(`frozen dist.tarball is not a valid URL: ${error.message}`);
   }
-}
-
-if (platformPackageSpec) {
-  platformNpmView = run('npm', [
-    'view',
-    platformPackageSpec,
-    'name',
-    'version',
-    'dist.tarball',
-    'dist.integrity',
-    '--json',
+  try {
+    platformTarballUrlHost = new URL(platformTarballUrl).host;
+  } catch (error) {
+    blockingFailures.push(`frozen platform dist.tarball is not a valid URL: ${error.message}`);
+  }
+} else {
+  npmRegistry = run('npm', ['config', 'get', 'registry']);
+  if (npmRegistry.exit_code !== 0 || npmRegistry.error) {
+    blockingFailures.push('npm config get registry failed');
+  }
+  registryUrl = normalizeRegistryUrl(npmRegistry.stdout);
+  registryMetadataUrl = registryPackageMetadataUrl(registryUrl);
+  registryResponse = run('curl', [
+    '-sS', '-L', '--connect-timeout', '30', '--max-time', '180', '-o', registryResponsePath,
+    '-w', '%{http_code}', registryMetadataUrl,
   ], { timeout: 240000 });
-  if (platformNpmView.exit_code !== 0 || platformNpmView.error) {
-    blockingFailures.push(`npm view ${platformPackageSpec} name version dist.tarball failed`);
+  registryStatusCode = Number(registryResponse.stdout);
+  if (registryResponse.exit_code !== 0 || registryResponse.error) diagnostics.push('registry package metadata request failed');
+  if (registryStatusCode !== 200) diagnostics.push(`registry package metadata returned status ${registryResponse.stdout || 'unknown'}`);
+
+  npmView = run('npm', [
+    'view', packageSpec, 'version', 'dist.tarball', 'dist.integrity', '--json',
+  ], { timeout: 240000 });
+  if (npmView.exit_code !== 0 || npmView.error) blockingFailures.push(`npm view ${packageSpec} version dist.tarball failed`);
+  const metadata = npmView.stdout ? parseJson(npmView.stdout, `npm view ${packageSpec}`, blockingFailures) : null;
+  version = metadata?.version || null;
+  tarballUrl = metadata?.['dist.tarball'] || metadata?.dist?.tarball || null;
+  distIntegrity = metadata?.['dist.integrity'] || metadata?.dist?.integrity || null;
+  if (!version) blockingFailures.push('npm package metadata did not include version');
+  if (version !== frozen.version || distIntegrity !== frozen.npm_integrity || tarballUrl !== frozen.tarball_url) blockingFailures.push('Codex package metadata does not match the frozen qualification identity');
+  if (!tarballUrl) blockingFailures.push('npm package metadata did not include dist.tarball');
+  else {
+    try { tarballUrlHost = new URL(tarballUrl).host; }
+    catch (error) { blockingFailures.push(`dist.tarball is not a valid URL: ${error.message}`); }
   }
+
+  platformNpmView = run('npm', [
+    'view', platformPackageSpec, 'name', 'version', 'dist.tarball', 'dist.integrity', '--json',
+  ], { timeout: 240000 });
+  if (platformNpmView.exit_code !== 0 || platformNpmView.error) blockingFailures.push(`npm view ${platformPackageSpec} name version dist.tarball failed`);
   platformMetadata = platformNpmView.stdout ? parseJson(platformNpmView.stdout, `npm view ${platformPackageSpec}`, blockingFailures) : null;
   platformVersion = platformMetadata?.version || null;
   platformTarballUrl = platformMetadata?.['dist.tarball'] || platformMetadata?.dist?.tarball || null;
   platformDistIntegrity = platformMetadata?.['dist.integrity'] || platformMetadata?.dist?.integrity || null;
-  if (!platformVersion) {
-    blockingFailures.push('npm platform package metadata did not include version');
-  }
-  if (
-    platformVersion !== frozen.platform.version ||
-    platformDistIntegrity !== frozen.platform.npm_integrity ||
-    platformTarballUrl !== frozen.platform.tarball_url
-  ) {
-    blockingFailures.push('Codex platform package metadata does not match the frozen qualification identity');
-  }
-  if (!platformTarballUrl) {
-    blockingFailures.push('npm platform package metadata did not include dist.tarball');
-  } else {
-    try {
-      platformTarballUrlHost = new URL(platformTarballUrl).host;
-    } catch (error) {
-      blockingFailures.push(`platform dist.tarball is not a valid URL: ${error.message}`);
-    }
+  if (!platformVersion) blockingFailures.push('npm platform package metadata did not include version');
+  if (platformVersion !== frozen.platform.version || platformDistIntegrity !== frozen.platform.npm_integrity || platformTarballUrl !== frozen.platform.tarball_url) blockingFailures.push('Codex platform package metadata does not match the frozen qualification identity');
+  if (!platformTarballUrl) blockingFailures.push('npm platform package metadata did not include dist.tarball');
+  else {
+    try { platformTarballUrlHost = new URL(platformTarballUrl).host; }
+    catch (error) { blockingFailures.push(`platform dist.tarball is not a valid URL: ${error.message}`); }
   }
 }
 
@@ -195,8 +177,6 @@ let platformTarballDownload = null;
 let platformTarballStatusCode = null;
 let platformTarballSha256 = null;
 let platformTarballSizeBytes = null;
-const cachedTarball = verifiedCachedTarball(tarballPath, frozen.tarball_sha256);
-const cachedPlatformTarball = verifiedCachedTarball(platformTarballPath, frozen.platform.tarball_sha256);
 if (cachedTarball) {
   tarballSha256 = cachedTarball.sha256;
   tarballSizeBytes = cachedTarball.size;

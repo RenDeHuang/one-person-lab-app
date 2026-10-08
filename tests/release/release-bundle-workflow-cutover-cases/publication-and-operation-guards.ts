@@ -738,7 +738,7 @@ test('production Standard and Full builds fail closed on Apple distribution trus
   );
   assert.match(
     String(cohortWriter.run),
-    /--full-input-manifest one-person-lab-app\/contracts\/app-full-third-party-source-manifest\.json/,
+    /--full-input-manifest (?:"\$RUNNER_TEMP\/opl-full-dependency-resolution\/full-input-manifest\.json"|one-person-lab-app\/contracts\/app-full-third-party-source-manifest\.json)/,
   );
   assert.match(
     String(cohortWriter.run),
