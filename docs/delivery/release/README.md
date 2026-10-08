@@ -49,6 +49,10 @@ matrix delivery includes Docker publication and pointer readback. The manual wor
 available for qualification, explicit Preview publication and same-version recovery. These
 publication operations are not part of PR/main CI.
 
+Studio images default to the non-root `node` user. The legacy-volume qualification first invokes
+the image entrypoint once as root to repair App data ownership, preserving ownership of existing
+project files. It then starts and restarts the normal non-root host and verifies its actual UID.
+
 ## Release acceleration
 
 Standard checks the dedicated Gateway account during protected admission; a fresh Full append

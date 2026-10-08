@@ -375,6 +375,13 @@ jobs:
           mkdir -p "$data_dir" "$projects_dir"
           # Exercise compatibility with root-owned volumes from the legacy image.
           sudo chown -R 0:0 "$data_dir" "$projects_dir"
+          sudo touch "$projects_dir/legacy-owner.txt"
+          # Repair legacy volume ownership once, then qualify the default non-root host.
+          docker run --rm --user 0:0 \
+            -v "$data_dir:/data" \
+            -v "$projects_dir:/projects" \
+            "$local_image" true
+          test "$(stat -c %u "$projects_dir/legacy-owner.txt")" = 0
           capture_runtime_diagnostics() {
             docker inspect "$container_name" > webui-carrier/container-inspect.json \
               2> webui-carrier/container-inspect.stderr || true

@@ -310,7 +310,7 @@ test('WebUI runtime validation binds each native image to its Studio runtime', (
       Os: 'linux',
       Architecture: architecture,
       Config: {
-        User: 'root', Entrypoint: ['/usr/local/bin/opl-webui-entrypoint'], Cmd: ['node', 'scripts/headless/run.mjs'],
+        User: 'node', Entrypoint: ['/usr/local/bin/opl-webui-entrypoint'], Cmd: ['node', 'scripts/headless/run.mjs'],
         Labels: {
           'org.opencontainers.image.source': 'https://github.com/gaofeng21cn/one-person-lab-app',
           'org.opencontainers.image.revision': appSha,
@@ -347,7 +347,7 @@ test('WebUI runtime validation binds each native image to its Studio runtime', (
       projects_dir: '/projects',
     });
     const summaryPath = path.join(root, 'summary.json');
-    const result = spawnSync(process.execPath, [
+    const validatorArgs = [
       '--experimental-strip-types',
       runtimeValidatorPath,
       '--image-inspect', imageInspectPath,
@@ -355,11 +355,18 @@ test('WebUI runtime validation binds each native image to its Studio runtime', (
       '--seed-metadata', seedMetadataPath,
       '--expected-profile', 'webui-slim',
       '--summary-path', summaryPath,
-    ], { cwd: appRoot, encoding: 'utf8' });
+    ];
+    const result = spawnSync(process.execPath, validatorArgs, { cwd: appRoot, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
     assert.deepEqual(summary.platform, { os: 'linux', architecture });
     assert.equal(summary.application_host, 'opl-studio');
+    const rootImage = JSON.parse(fs.readFileSync(imageInspectPath, 'utf8'));
+    rootImage[0].Config.User = 'root';
+    fs.writeFileSync(imageInspectPath, JSON.stringify(rootImage));
+    const rootResult = spawnSync(process.execPath, validatorArgs, { cwd: appRoot, encoding: 'utf8' });
+    assert.notEqual(rootResult.status, 0);
+    assert.match(rootResult.stderr, /Studio WebUI must run the non-root Node headless host/);
   }
 });
 
@@ -873,6 +880,8 @@ test('reusable WebUI workflow qualifies both architectures before the public ver
     'runtime qualification and packaging must follow the one image build in order',
   );
   assert.equal(qualification.id, 'qualify');
+  assert.match(qualification.run, /docker run --rm --user 0:0[\s\S]*"\$local_image" true/);
+  assert.match(qualification.run, /test "\$\(stat -c %u "\$projects_dir\/legacy-owner\.txt"\)" = 0/);
   assert.match(qualification.run, /capture_runtime_diagnostics/);
   assert.match(qualification.run, /docker inspect "\$container_name" > webui-carrier\/container-inspect\.json/);
   assert.match(qualification.run, /docker logs "\$container_name" > webui-carrier\/container\.log/);
