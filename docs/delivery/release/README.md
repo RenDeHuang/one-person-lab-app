@@ -138,6 +138,8 @@ report real events, without inferring progress from elapsed time.
 
 Standard freeze resolves Codex once and shares the exact dependency artifact with the build and optional VM preparation. Artifact cohorts bind that resolved manifest. Standalone/platform builds resolve their own native Codex input; WebUI maps OCI amd64 to Framework x64 and resolves only Codex. Framework source resolvers require their lockfile dependencies before invocation, including the independent Full build.
 
+Studio payload environment preserves both controller-provided display and updater versions. The package version is only a fallback for local builds; it must not overwrite the display version used in public asset names.
+
 ## Stable Operations
 
 The legacy Full notes authority helper consumes an operation-resolved Codex qualification manifest via `--resolved-qualification-manifest` or `OPL_RELEASE_DEPENDENCY_MANIFEST`. It records the manifest digest and refuses missing or mismatched package/platform identities; the App carrier contract supplies policy, not a pinned version.
