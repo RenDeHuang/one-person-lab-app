@@ -548,6 +548,12 @@ jobs:
           test -n "$OPERATION_ID"
           test -n "$AUTHORITY_CARRIER"
           [[ "$AUTHORITY_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          if [ -n "$SOURCE_ARTIFACT" ]; then
+            test -n "$PRIOR_STANDARD_ARTIFACT_RUN_ID"
+            jq -e 'type == "object" and (keys == ["completed_webui_run_id"])
+              and (.completed_webui_run_id | type == "string" and test("^[1-9][0-9]*$"))' <<<"$SOURCE_ARTIFACT" >/dev/null
+            SOURCE_ARTIFACT=''
+          fi
           test -z "$REQUESTED_VERSION$REQUESTED_APP_REF$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID"
           if [ -n "$REQUESTED_SMOKE_HARNESS_REF" ]; then
             test -n "$PRIOR_STANDARD_ARTIFACT_RUN_ID"

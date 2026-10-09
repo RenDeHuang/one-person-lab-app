@@ -30,6 +30,17 @@ test('signed Standard recovery keeps the workflow executor distinct from frozen 
   assert.notEqual(run({ ...owner, head_sha: 'invalid' }).status, 0);
 });
 
+test('protected Standard admission accepts completed Docker only for exact signed-byte recovery', () => {
+  const script = String(workflowStep('release-stable.yml', 'protected-operation-admission', 'Reject bare or rerun Stable request before expensive work').run);
+  const env = Object.fromEntries([...script.matchAll(/\$([A-Z][A-Z0-9_]*)/g)].map(match => [match[1]!, '']));
+  Object.assign(env, { GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/main', GITHUB_RUN_ATTEMPT: '1', GITHUB_RUN_ID: '456', OPERATION: 'standard', RELEASE_INTENT: 'new_product', PRODUCT_CHANGE_SUMMARY: 'Recovery', AUTHORITY_ID: 'authority', OPERATION_ID: 'operation', AUTHORITY_CARRIER: 'carrier', AUTHORITY_DIGEST: `sha256:${'1'.repeat(64)}`, INCLUDE_FULL: 'false', REQUESTED_DESKTOP_ADDITIONAL_PLATFORMS: '["linux-x64","windows-x64"]', PRIOR_STANDARD_ARTIFACT_RUN_ID: '123', REQUESTED_SMOKE_HARNESS_REF: '2'.repeat(40), SOURCE_ARTIFACT: '{"completed_webui_run_id":"789"}' });
+  const run = (overrides: Record<string, string> = {}) => spawnSync('bash', ['-c', script], { encoding: 'utf8', env: { ...process.env, ...env, ...overrides } });
+  assert.equal(run().status, 0);
+  assert.notEqual(run({ PRIOR_STANDARD_ARTIFACT_RUN_ID: '' }).status, 0);
+  assert.notEqual(run({ SOURCE_ARTIFACT: '{"completed_webui_run_id":"../789"}' }).status, 0);
+  assert.notEqual(run({ SOURCE_ARTIFACT: '{"completed_webui_run_id":"789","checkpoint":"other"}' }).status, 0);
+});
+
 test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
   const source = readWorkflow('_release-bundle.yml');
