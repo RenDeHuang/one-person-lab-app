@@ -142,6 +142,8 @@ Studio payload environment preserves both controller-provided display and update
 
 Prequalified WebUI publication preserves the original source authority release bundle/cohort fields, falling back to its authority digest only for independent source qualification. Re-dispatching publication must not rebind qualified image labels to a different build identity.
 
+Docker promotion distinguishes original qualification authorization from the exact publishing workflow. Stable qualification may be published through the dedicated WebUI recovery entry; run, branch, repository, attempt, executor and successful publisher job bindings remain required.
+
 ## Stable Operations
 
 The legacy Full notes authority helper consumes an operation-resolved Codex qualification manifest via `--resolved-qualification-manifest` or `OPL_RELEASE_DEPENDENCY_MANIFEST`. It records the manifest digest and refuses missing or mismatched package/platform identities; the App carrier contract supplies policy, not a pinned version.

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { parse } from 'yaml';
+import { spawnSync } from 'node:child_process';
 import {
   createWebuiSourceAuthority,
   validateWebuiSourceAuthority,
@@ -116,4 +117,17 @@ test('independent WebUI source authority admits Stable and fails closed on sourc
       label,
     );
   }
+});
+
+
+test('Docker promotion admits its exact recovery publisher without changing source authorization', () => {
+  const workflow = parse(fs.readFileSync(path.join(process.cwd(), '.github/workflows/release-webui-stable.yml'), 'utf8'));
+  const source = String(workflow.jobs.admission.steps.find((step: any) => step.name === 'Reject noncanonical or partial promotion runs').run);
+  const command = source.slice(source.indexOf('jq -e --arg run'));
+  const filter = command.slice(command.indexOf("'\n") + 2, command.indexOf("' evidence/carrier-follower-run.json"));
+  const base = { id: 302, repository: { full_name: 'gaofeng21cn/one-person-lab-app' }, head_repository: { full_name: 'gaofeng21cn/one-person-lab-app' }, path: '.github/workflows/release-webui-development.yml', event: 'workflow_dispatch', head_branch: 'main', run_attempt: 1, head_sha: executorSha };
+  const check = (value: any) => spawnSync('jq', ['-e', '--arg', 'run', '302', '--arg', 'head', executorSha, '--argjson', 'run_attempt', '1', '--arg', 'path', '.github/workflows/release-stable.yml', '--arg', 'promotion_run', '303', filter], { input: JSON.stringify(value), encoding: 'utf8' });
+  assert.equal(check(base).status, 0);
+  assert.equal(check({ ...base, path: '.github/workflows/release-stable.yml' }).status, 0);
+  for (const change of [{ path: '.github/workflows/untrusted.yml' }, { head_sha: appSha }, { run_attempt: 2 }, { head_branch: 'feature' }, { event: 'pull_request' }, { id: 303 }, { head_repository: { full_name: 'fork/app' } }]) assert.notEqual(check({ ...base, ...change }).status, 0);
 });

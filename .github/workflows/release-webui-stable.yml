@@ -196,7 +196,7 @@ jobs:
             (.id | tostring) == $run
             and .repository.full_name == "gaofeng21cn/one-person-lab-app"
             and .head_repository.full_name == "gaofeng21cn/one-person-lab-app"
-            and .path == $path
+            and (.path == $path or .path == ".github/workflows/release-webui-development.yml")
             and .event == "workflow_dispatch"
             and .head_branch == "main"
             and .run_attempt == $run_attempt

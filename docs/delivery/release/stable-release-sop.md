@@ -253,6 +253,8 @@ Full DMG 按用户明确要求优先缩小下载体积，允许压缩花更长�
 
 Docker 复用主发布的合格镜像时，Bundle 与 cohort 绑定来自原 source authority 的 release 字段；新的渠道派发不能改写镜像内的原构建身份。独立源码资格没有这些字段时才使用其 source-authority digest。
 
+从主发布资格恢复的 Docker promotion 保留原资格授权，同时核对实际发布者是主发布或专用 WebUI 入口的准确 main workflow_dispatch；签名候选、公开镜像及指针绑定不变。
+
 Docker 使用 [独立 WebUI 入口](../../../.github/workflows/release-webui-development.yml) 和 [Docker 操作参考](README.md#docker-webui)。只检查而未授权发布时使用 `qualify`；已授权“所有附加发布”时继续该独立渠道的 qualify／publish／promote 和公开 digest 回读，不停在 qualify 成功。执行前读取当前入口：`publish` 当前会接续其受保护 promotion，不能再无条件重复 promote。
 
 Studio 及领域 Package 若在用户明确范围内，按各自 owner 的合同执行；它们与 Desktop 的构建、签名、准入和互斥边界独立。只对真正相同的公开目标保持唯一 writer。
