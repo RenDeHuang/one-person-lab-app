@@ -52,7 +52,7 @@ function observation(ref: string, status: 'present' | 'absent' | 'unknown', obse
   };
 }
 
-function fixture(mode: 'independent_stable' | 'independent_preview', qualifiedArtifactRunId?: string) {
+function fixture(mode: 'independent_stable' | 'independent_preview', qualifiedArtifactRunId?: string, stableSource = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-independent-webui-'));
   const version = mode === 'independent_stable' ? '26.8.5' : '26.8.5-preview.r1';
   const carrierRunId = '302';
@@ -64,13 +64,14 @@ function fixture(mode: 'independent_stable' | 'independent_preview', qualifiedAr
     frameworkSha,
     runId: qualifiedArtifactRunId || carrierRunId,
     executorSha: qualifiedArtifactRunId ? 'f'.repeat(40) : carrierExecutorSha,
+    ...(stableSource ? { origin: 'stable_standard' as const, bundleDigest: digest('4') } : {}),
   });
   const carrierReceipt = {
     schema: 'opl_app_webui_release_carrier.v1',
     release: {
       version,
-      bundle_digest: sourceAuthority.source_authority_digest,
-      cohort_ref: sourceAuthority.source_authority_digest,
+      bundle_digest: sourceAuthority.release.bundle_digest ?? sourceAuthority.source_authority_digest,
+      cohort_ref: sourceAuthority.release.cohort_ref ?? sourceAuthority.source_authority_digest,
     },
     cohort: { app_sha: appSha, shell_sha: shellSha, framework_sha: frameworkSha },
     carrier: {
@@ -353,4 +354,14 @@ test('durable publication evidence paths are digest-bound', () => {
   assert.deepEqual(admitWebuiStablePromotion(input).target.promotion_tags, ['stable', 'latest']);
   input.publicationRecord!.authority.qualified_artifact_run_id = '300';
   assert.throws(() => admitWebuiStablePromotion(input), /qualified source authority run id/);
+});
+
+
+test('Stable-qualified source can be promoted after exact publication through the recovery workflow', () => {
+  const { input } = fixture('independent_stable', '301', true);
+  const admission = admitWebuiStablePromotion(input);
+  assert.equal(admission.source_authority.authorization.workflow, '.github/workflows/release-stable.yml');
+  assert.equal(admission.carrier_follower.workflow, '.github/workflows/release-webui-development.yml');
+  assert.deepEqual(admission.target.promotion_tags, ['stable', 'latest']);
+  for (const change of [{ path: '.github/workflows/untrusted.yml' }, { head_sha: 'f'.repeat(40) }, { run_attempt: 2 }, { head_branch: 'feature' }, { head_repository: { full_name: 'fork/app' } }]) assert.throws(() => admitWebuiStablePromotion({ ...input, carrierFollowerRun: { ...input.carrierFollowerRun, ...change } }));
 });

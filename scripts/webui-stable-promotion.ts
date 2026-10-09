@@ -158,11 +158,11 @@ function validateCarrierFollowerRun(
   exact(String(run.id), runId, 'carrier follower run.id');
   exact(run.repository?.full_name, appRepository, 'carrier follower run.repository');
   exact(run.head_repository?.full_name, appRepository, 'carrier follower run.head_repository');
-  exact(
-    run.path,
-    sourceAuthority.authorization.workflow,
-    'carrier follower run.path',
-  );
+  const sourceWorkflow = text(sourceAuthority.authorization.workflow, 'source authority workflow');
+  const publicationWorkflow = text(run.path, 'carrier follower run.path');
+  if (![sourceWorkflow, '.github/workflows/release-webui-development.yml'].includes(publicationWorkflow)) {
+    throw new Error('carrier follower run.path is not an authorized Docker publication entry.');
+  }
   exact(
     run.event,
     'workflow_dispatch',
@@ -570,7 +570,7 @@ export function admitWebuiStablePromotion(input: WebuiStableAdmissionInput): Jso
       carrier_job_id: input.carrierFollowerJob.id,
       carrier_job_name: input.carrierFollowerJob.name,
       app_head_sha: carrierExecutorAppSha,
-      workflow: sourceAuthority.authorization.workflow,
+      workflow: input.carrierFollowerRun.path,
     },
     promotion_executor: {
       app_repository: appRepository,
