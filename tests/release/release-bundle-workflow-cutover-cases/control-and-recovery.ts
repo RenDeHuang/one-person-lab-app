@@ -16,6 +16,20 @@ import {
   runAdmissionGate,
 } from "./fixtures.ts";
 
+test('signed Standard recovery keeps the workflow executor distinct from frozen product source', () => {
+  const script = String(workflowStep('_release-bundle.yml', 'seal-standard-identity', 'Verify reusable signed and notarized Standard bytes').run);
+  const guard = script.slice(script.indexOf('          jq -e'), script.indexOf('          current_bundle='));
+  // YAML removes indentation from block scalars.
+  const actualGuard = guard || script.slice(script.indexOf('jq -e'), script.indexOf('current_bundle='));
+  const owner = { id: 123, run_attempt: 1, event: 'workflow_dispatch', status: 'completed', conclusion: 'failure', head_sha: '2'.repeat(40), path: '.github/workflows/release-stable.yml' };
+  const run = (value: unknown) => spawnSync('bash', ['-c', `run_json="$OWNER_JSON"\n${actualGuard}`], {
+    encoding: 'utf8', env: { ...process.env, OWNER_JSON: JSON.stringify(value), PRIOR_RUN_ID: '123', EXPECTED_APP_SHA: '1'.repeat(40) },
+  });
+  assert.equal(run(owner).status, 0);
+  assert.notEqual(run({ ...owner, id: 124 }).status, 0);
+  assert.notEqual(run({ ...owner, head_sha: 'invalid' }).status, 0);
+});
+
 test('Standard notes and Bundle freeze stay independent from Full and Package authority', () => {
   const workflow = parseWorkflow('_release-bundle.yml');
   const source = readWorkflow('_release-bundle.yml');

@@ -440,9 +440,11 @@ async function main(argv: string[], runtime: Runtime = defaultRuntime): Promise<
   }
 
   if (values['completed-webui-run-id']) {
-    if (command !== 'publish-qualified-standard') throw new Error('--completed-webui-run-id requires publish-qualified-standard.');
+    if (command !== 'publish-qualified-standard' && !(command === 'new-product-release' && values['reuse-standard-run-id'])) {
+      throw new Error('--completed-webui-run-id requires publish-qualified-standard or signed Standard recovery.');
+    }
     plan.workflow_inputs.source_artifact = JSON.stringify({
-      checkpoint: plan.workflow_inputs.source_artifact,
+      ...(command === 'publish-qualified-standard' ? { checkpoint: plan.workflow_inputs.source_artifact } : {}),
       completed_webui_run_id: runId(values['completed-webui-run-id'], 'completed_webui_run_id'),
     });
   }

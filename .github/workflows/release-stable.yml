@@ -865,6 +865,14 @@ jobs:
                 echo "::error::A new product release requires a user-visible product change summary."
                 exit 1
               }
+              completed_webui_run_id=''
+              if [ -n "$SOURCE_ARTIFACT" ]; then
+                test -n "$PRIOR_STANDARD_ARTIFACT_RUN_ID"
+                jq -e 'type == "object" and (keys == ["completed_webui_run_id"])
+                  and (.completed_webui_run_id | type == "string" and test("^[1-9][0-9]*$"))' <<<"$SOURCE_ARTIFACT" >/dev/null
+                completed_webui_run_id="$(jq -er .completed_webui_run_id <<<"$SOURCE_ARTIFACT")"
+                SOURCE_ARTIFACT=''
+              fi
               test -z "$REQUESTED_VERSION$REQUESTED_APP_REF$REQUESTED_SHELL_REF$REQUESTED_FRAMEWORK_REF$SOURCE_RUN_ID$SOURCE_ARTIFACT$PRIOR_FULL_ARTIFACT_RUN_ID" || {
                 echo "::error::A new Standard Bundle accepts no external source artifact."
                 exit 1
@@ -1237,6 +1245,7 @@ jobs:
       stable_admission_manifest_digest: ${{ needs.stable-admission-manifest.outputs.manifest_digest }}
       stable_desktop_additional_platforms: ${{ needs.protected-operation-admission.outputs.desktop_additional_platforms }}
       prior_standard_artifact_run_id: ${{ needs.admission.outputs.prior_standard_artifact_run_id }}
+      skip_webui_qualification: ${{ needs.admission.outputs.completed_webui_run_id != '' }}
       smoke_harness_ref: ${{ needs.admission.outputs.smoke_harness_ref }}
     secrets: inherit
 
@@ -1253,8 +1262,8 @@ jobs:
     secrets: inherit
 
   reconcile-completed-webui:
-    if: ${{ !cancelled() && inputs.operation == 'resume_standard' && needs.admission.outputs.completed_webui_run_id != '' && needs.resume-standard.result == 'success' }}
-    needs: [admission, resume-standard]
+    if: ${{ always() && !cancelled() && needs.admission.outputs.completed_webui_run_id != '' && ((inputs.operation == 'standard' && needs.standard.result == 'success') || (inputs.operation == 'resume_standard' && needs.resume-standard.result == 'success')) }}
+    needs: [admission, protected-operation-admission, stable-admission-manifest, standard, resume-standard]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1270,9 +1279,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           COMPLETED_WEBUI_RUN_ID: ${{ needs.admission.outputs.completed_webui_run_id }}
-          VERSION: ${{ needs.resume-standard.outputs.version }}
-          SHELL_SHA: ${{ needs.resume-standard.outputs.shell_ref }}
-          FRAMEWORK_SHA: ${{ needs.resume-standard.outputs.framework_source_ref }}
+          VERSION: ${{ needs.stable-admission-manifest.outputs.version || needs.resume-standard.outputs.version }}
+          SHELL_SHA: ${{ needs.protected-operation-admission.outputs.shell_ref || needs.resume-standard.outputs.shell_ref }}
+          FRAMEWORK_SHA: ${{ needs.protected-operation-admission.outputs.framework_ref || needs.resume-standard.outputs.framework_source_ref }}
         shell: bash
         run: |
           set -euo pipefail

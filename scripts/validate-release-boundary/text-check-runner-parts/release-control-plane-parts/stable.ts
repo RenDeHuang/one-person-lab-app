@@ -384,9 +384,9 @@ export function validateStableReleaseControlPlane(appRoot: string): number {
     failures += reportFailure(id, 'Stable Standard must own one exact same-cohort Docker authority, carrier, and promotion chain');
   }
   const completedWebui = jobs['reconcile-completed-webui'];
-  if (!completedWebui || !needsExactly(completedWebui, ['admission', 'resume-standard'])
+  if (!completedWebui || !needsExactly(completedWebui, ['admission', 'protected-operation-admission', 'stable-admission-manifest', 'standard', 'resume-standard'])
     || !exactObject(completedWebui.permissions, exactReadPermissions)
-    || completedWebui.if !== "${{ !cancelled() && inputs.operation == 'resume_standard' && needs.admission.outputs.completed_webui_run_id != '' && needs.resume-standard.result == 'success' }}") {
+    || completedWebui.if !== "${{ always() && !cancelled() && needs.admission.outputs.completed_webui_run_id != '' && ((inputs.operation == 'standard' && needs.standard.result == 'success') || (inputs.operation == 'resume_standard' && needs.resume-standard.result == 'success')) }}") {
     failures += reportFailure(id, 'Completed independent Docker recovery must be read-only and follow Standard publication');
   }
   const admission = jobs.admission;

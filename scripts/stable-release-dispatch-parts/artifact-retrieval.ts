@@ -194,7 +194,9 @@ export function readReusableStandardSourceGate(
     const control = validateStableOperationControl(readJsonFile(path.join(tempRoot, 'stable-operation-control.json')));
     const bytes = fs.readFileSync(path.join(tempRoot, 'source-gate.json'));
     const digest = `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
-    if (control.run_id !== sourceRunId || control.cohort.app_sha !== source.head_sha || control.source_gate_digest !== digest) {
+    // Actions head_sha identifies the workflow executor; control.cohort binds
+    // the immutable product source, which may precede that executor.
+    if (control.run_id !== sourceRunId || control.source_gate_digest !== digest) {
       throw new Error('Original Standard source-gate bytes do not match their run-bound control.');
     }
     // The pre-nonce guard below revalidates the report against the requested

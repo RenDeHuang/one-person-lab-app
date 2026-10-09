@@ -139,6 +139,8 @@ Standard 发布恢复：
 恢复校验原 run 已终止、尚未进入 publication，并由 Framework 登记原字节；不重建或重跑首装。
 Docker 已独立完成时，给 `publish-qualified-standard` 传入 `--completed-webui-run-id <成功 run>`；
 只读校验其回执、双架构和版本／Stable／Latest 公开摘要，不再次构建或 promote。
+该参数也适用于 `new-product-release --reuse-standard-run-id` 的同字节验收恢复；
+保留冻结产品 cohort，workflow executor 的 `head_sha` 不要求等于产品 App SHA。
 
 ```bash
 npm run release:stable-dispatch -- publish-qualified-standard \

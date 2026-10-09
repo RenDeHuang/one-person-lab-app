@@ -96,6 +96,11 @@ on:
         required: false
         default: ''
         type: string
+      skip_webui_qualification:
+        description: Completed independent Docker release will be reconciled by the caller
+        required: false
+        default: false
+        type: boolean
       smoke_harness_ref:
         description: Exact Shell verification SHA for unchanged signed Standard artifact recovery.
         required: false
@@ -835,7 +840,7 @@ jobs:
           retention-days: 30
 
   webui-source-authority:
-    if: ${{ inputs.channel == 'stable' && needs.freeze.result == 'success' }}
+    if: ${{ inputs.channel == 'stable' && !inputs.skip_webui_qualification && needs.freeze.result == 'success' }}
     needs: [freeze]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1143,13 +1148,13 @@ jobs:
           run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRIOR_RUN_ID")"
           jq -e \
             --arg run_id "$PRIOR_RUN_ID" \
-            --arg app "$EXPECTED_APP_SHA" '
+            '
               .id == ($run_id | tonumber)
               and .run_attempt == 1
               and .event == "workflow_dispatch"
               and .status == "completed"
               and .conclusion == "failure"
-              and .head_sha == $app
+              and (.head_sha | test("^[0-9a-f]{40}$"))
               and .path == ".github/workflows/release-stable.yml"
             ' <<<"$run_json" >/dev/null
 
