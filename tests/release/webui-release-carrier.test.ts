@@ -1209,3 +1209,26 @@ test('dependency consumers use frozen runtime inputs after installing the resolv
   const fullSteps: any[] = Object.values<any>(full).find((job: any) => job.steps?.some((step: any) => step.name === 'Resolve default Full build inputs')).steps;
   assert.ok(fullSteps.findIndex((step: any) => step.name === 'Install frozen Framework resolver dependencies') < fullSteps.findIndex((step: any) => step.name === 'Resolve default Full build inputs'));
 });
+
+
+test('WebUI prequalified recovery preserves the original build bundle and cohort identity', () => {
+  const workflow = YAML.parse(fs.readFileSync(developmentWorkflowPath, 'utf8'));
+  const steps = workflow.jobs['source-authority'].steps;
+  const source = steps.find((step: any) => step.id === 'authority');
+  const lines = String(source.run).split('\n').filter(line => /echo "build_(bundle_digest|cohort_ref)=/.test(line));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-webui-recovery-bindings-'));
+  try {
+    for (const release of [{ version: '26.10.9', bundle_digest: bundleDigest, cohort_ref: cohortRef }, { version: '26.10.9' }]) {
+      const output = path.join(temp, 'outputs');
+      fs.writeFileSync(path.join(temp, 'source-authority.json'), JSON.stringify({ release, source_authority_digest: digest('9') }));
+      fs.writeFileSync(output, '');
+      const result = spawnSync('bash', ['-c', 'set -euo pipefail\n{\n' + lines.join('\n') + '\n} >> "$GITHUB_OUTPUT"'], { cwd: temp, env: { ...process.env, GITHUB_OUTPUT: output }, encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(fs.readFileSync(output, 'utf8'), `build_bundle_digest=${release.bundle_digest ?? digest('9')}\nbuild_cohort_ref=${release.cohort_ref ?? digest('9')}\n`);
+    }
+    for (const id of ['webui-carrier', 'webui-carrier-qualification']) {
+      assert.equal(workflow.jobs[id].with.release_bundle_digest, '${{ needs.source-authority.outputs.build_bundle_digest }}');
+      assert.equal(workflow.jobs[id].with.release_cohort_ref, '${{ needs.source-authority.outputs.build_cohort_ref }}');
+    }
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});

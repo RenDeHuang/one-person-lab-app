@@ -77,6 +77,8 @@ jobs:
       source_run_id: ${{ steps.authority.outputs.source_run_id }}
       source_authority_artifact_name: ${{ steps.authority.outputs.source_authority_artifact_name }}
       source_authority_digest: ${{ steps.authority.outputs.source_authority_digest }}
+      build_bundle_digest: ${{ steps.authority.outputs.build_bundle_digest }}
+      build_cohort_ref: ${{ steps.authority.outputs.build_cohort_ref }}
       version: ${{ steps.authority.outputs.version }}
       app_ref: ${{ steps.authority.outputs.app_ref }}
       shell_ref: ${{ steps.authority.outputs.shell_ref }}
@@ -153,6 +155,8 @@ jobs:
             echo "source_run_id=$GITHUB_RUN_ID"
             echo "source_authority_artifact_name=$source_authority_artifact_name"
             echo "source_authority_digest=$(jq -er .source_authority_digest source-authority.json)"
+            echo "build_bundle_digest=$(jq -er '.release.bundle_digest // .source_authority_digest' source-authority.json)"
+            echo "build_cohort_ref=$(jq -er '.release.cohort_ref // .source_authority_digest' source-authority.json)"
             echo "version=$VERSION"
             echo "app_ref=$APP_REF"
             echo "shell_ref=$SHELL_REF"
@@ -188,8 +192,8 @@ jobs:
       shell_ref: ${{ needs.source-authority.outputs.shell_ref }}
       framework_ref: ${{ needs.source-authority.outputs.framework_ref }}
       opl_version: ${{ needs.source-authority.outputs.version }}
-      release_bundle_digest: ${{ needs.source-authority.outputs.source_authority_digest }}
-      release_cohort_ref: ${{ needs.source-authority.outputs.source_authority_digest }}
+      release_bundle_digest: ${{ needs.source-authority.outputs.build_bundle_digest }}
+      release_cohort_ref: ${{ needs.source-authority.outputs.build_cohort_ref }}
       source_artifact_run_id: ${{ needs.source-authority.outputs.source_run_id }}
       source_authority_artifact_name: ${{ needs.source-authority.outputs.source_authority_artifact_name }}
       source_cutoff_observed_at: ${{ needs.source-authority.outputs.source_cutoff_observed_at }}
@@ -209,8 +213,8 @@ jobs:
       shell_ref: ${{ needs.source-authority.outputs.shell_ref }}
       framework_ref: ${{ needs.source-authority.outputs.framework_ref }}
       opl_version: ${{ needs.source-authority.outputs.version }}
-      release_bundle_digest: ${{ needs.source-authority.outputs.source_authority_digest }}
-      release_cohort_ref: ${{ needs.source-authority.outputs.source_authority_digest }}
+      release_bundle_digest: ${{ needs.source-authority.outputs.build_bundle_digest }}
+      release_cohort_ref: ${{ needs.source-authority.outputs.build_cohort_ref }}
       source_artifact_run_id: ${{ needs.source-authority.outputs.source_run_id }}
       source_authority_artifact_name: ${{ needs.source-authority.outputs.source_authority_artifact_name }}
       source_cutoff_observed_at: ${{ needs.source-authority.outputs.source_cutoff_observed_at }}
