@@ -26,7 +26,7 @@ import {
   validateActiveProjectLineStateModel,
 } from './shared.ts';
 
-const deepSeekHarnessApplicationHostRef = '639ed015397290b3745d163aafe02ffee4aa3f84';
+const deepSeekHarnessApplicationHostRef = '5badb15009ae1756c3afe0ae0cef1faafc290ccc';
 const deepSeekHarnessPackageRoots = [
   'packages/client/ui-layout/src',
   'packages/client/ui-sidebar/src',
@@ -412,7 +412,7 @@ function validateOPLStudioImplementationEvidence(
   if (
     evidence.reuse_policy?.deepseek_harness_source_usage !== 'pinned_application_host_runtime_and_gui_source_reuse'
     || evidence.reuse_policy?.deepseek_harness_source_ref !== deepSeekHarnessApplicationHostRef
-    || evidence.reuse_policy?.deepseek_harness_package_version !== '0.2.0-rc.2'
+    || evidence.reuse_policy?.deepseek_harness_package_version !== '0.2.1-alpha.1'
     || evidence.reuse_policy?.deepseek_harness_selected_source_reused !== true
     || evidence.reuse_policy?.other_external_gui_source_copied !== false
     || evidence.reuse_policy?.application_host_runtime_adopted !== true
@@ -468,52 +468,51 @@ function validateOPLStudioImplementationEvidence(
     reusedModules?.policy !== 'pinned_deepseek_harness_application_host_and_gui_source_reuse_other_gui_sources_reference_only'
     || reusedModules?.vendored_source_root !== 'src/vendor/deepseek-harness'
     || reusedModules?.source_manifest !== 'src/composition/deepseekHarnessSourceManifest.json'
-    || reusedModules?.vendored_file_count !== 552
+    || reusedModules?.vendored_file_count !== 559
     || reusedModules?.byte_identical !== true
     || reusedModules?.byte_identical_to_pinned_ref !== true
     || reusedModules?.slot_renderer_source !== 'packages/client/ui-renderer/src/client/scoped-slots.tsx#createSlotRenderer'
-    || reusedModules?.brand_override !== 'upstream_rc2_brand_slots_with_text_only_opl_occupants'
+    || reusedModules?.brand_override !== 'upstream_dsh_brand_slots_with_text_only_opl_occupants'
     || reusedModules?.attachment_slot_policy !== 'registered_empty_slot_with_studio_controlled_inputbar_attachment_rail'
     || reusedModules?.workspace_host_description_policy !== 'unavailable_until_app_abi_exists'
     || reusedModules?.home_path_abbreviation_policy !== 'posix_boundary_shim_windows_fail_open_without_app_home_field'
     || reusedModules?.application_host_runtime_adopted !== true
     || reusedModules?.dsh_product_runtime_authority_adopted !== false
   ) {
-    throw new Error(`${candidate.id} evidence must bind the pinned Application Host and 552 byte-identical GUI files to OPL-owned plugins without product authority transfer`);
+    throw new Error(`${candidate.id} evidence must bind the pinned Application Host and 559 byte-identical GUI files to OPL-owned plugins without product authority transfer`);
   }
   assertDeepEqualJson(reusedModules.direct_reuse_modules, [
-    '@deepseek-ai/cordis@4.0.4',
-    '@deepseek-ai/cordis-plugin-group@1.0.4',
-    '@deepseek-ai/cordis-plugin-include@1.0.9',
-    '@deepseek-ai/cordis-plugin-loader@1.0.5',
-    '@deepseek-ai/dsh-client-store@0.2.0-rc.2',
-    '@deepseek-ai/dsh-util-workspace-path@0.2.0-rc.2',
-    '@deepseek-ai/dsh-util-values@0.2.0-rc.2',
-    '@deepseek-ai/dsh-util-code-language@0.2.0-rc.2',
-    '@deepseek-ai/dsh-app-boot@0.2.0-rc.2',
-    '@deepseek-ai/dsh-agent-preset-registry@0.2.0-rc.2',
-    '@deepseek-ai/dsh-brand@0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-modules@0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-sidebar-documentpreview@0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-dockkit@0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-primitives@0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-slots@0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-web@0.2.0-rc.2',
-    '@deepseek-ai/dsh-home-paths@0.2.0-rc.2',
-    '@deepseek-ai/dsh-host-frontend-static@0.2.0-rc.2',
-    '@deepseek-ai/dsh-host-plugin-inventory@0.2.0-rc.2',
-    '@deepseek-ai/dsh-host-webserver@0.2.0-rc.2',
-    '@deepseek-ai/dsh-invariants@0.2.0-rc.2',
-    '@deepseek-ai/dsh-launch-environment@0.2.0-rc.2',
-    '@deepseek-ai/dsh-llm@0.2.0-rc.2',
-    '@deepseek-ai/dsh-scope@0.2.0-rc.2',
-    '@deepseek-ai/dsh-sandbox@0.2.0-rc.2',
-    '@deepseek-ai/dsh-sandbox-policy@0.2.0-rc.2',
-    '@deepseek-ai/dsh-session@0.2.0-rc.2',
-    '@deepseek-ai/dsh-system-prompt@0.2.0-rc.2',
-    '@deepseek-ai/dsh-timeout@0.2.0-rc.2',
-    '@deepseek-ai/dsh-tools@0.2.0-rc.2',
-    '@deepseek-ai/dsh-typert-protocol@0.2.0-rc.2',
+    '@deepseek-ai/cordis@4.0.5-alpha.1',
+    '@deepseek-ai/cordis-plugin-group@1.0.5-alpha.1',
+    '@deepseek-ai/cordis-plugin-include@1.0.10-alpha.1',
+    '@deepseek-ai/cordis-plugin-loader@1.0.6-alpha.1',
+    '@deepseek-ai/dsh-client-store@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-util-workspace-path@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-util-values@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-util-code-language@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-app-boot@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-agent-preset-registry@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-brand@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-modules@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-sidebar-documentpreview@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-dockkit@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-primitives@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-slots@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-web@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-home-paths@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-host-frontend-static@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-host-plugin-inventory@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-host-webserver@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-launch-environment@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-llm@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-scope@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-sandbox@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-sandbox-policy@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-session@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-system-prompt@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-timeout@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-tools@0.2.1-alpha.1',
+    '@deepseek-ai/dsh-typert-protocol@0.2.1-alpha.1',
     'use-sync-external-store@1.2.0',
   ], `${candidate.id} evidence reused_oss_module_policy.direct_reuse_modules`);
   assertDeepEqualJson(

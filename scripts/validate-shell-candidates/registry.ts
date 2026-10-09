@@ -433,52 +433,51 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
   }
   if (
     deepseekHarness.source_repo !== 'https://github.com/deepseek-ai/deepseek-harness' ||
-    deepseekHarness.evaluated_ref !== '639ed015397290b3745d163aafe02ffee4aa3f84' ||
-    deepseekHarness.evaluated_at !== '2026-09-29' ||
-    deepseekHarness.evaluated_version !== '0.2.0-rc.2 Application Host and GUI source cohort' ||
+    deepseekHarness.evaluated_ref !== '5badb15009ae1756c3afe0ae0cef1faafc290ccc' ||
+    deepseekHarness.evaluated_at !== '2026-10-09' ||
+    deepseekHarness.evaluated_version !== '0.2.1-alpha.1 Application Host and GUI source cohort' ||
     deepseekHarness.license !== 'MIT' ||
     deepseekHarness.source_usage !== 'approved_application_host_runtime_and_gui_source_reuse'
   ) {
     throw new Error('DeepSeek Harness reference must stay pinned to the evaluated Application Host source, version, date, license, and reuse status');
   }
   assertDeepEqualJson(deepseekHarness.adopted_packages, {
-    '@deepseek-ai/cordis': '4.0.4',
-    '@deepseek-ai/cordis-plugin-group': '1.0.4',
-    '@deepseek-ai/cordis-plugin-include': '1.0.9',
-    '@deepseek-ai/cordis-plugin-loader': '1.0.5',
-    '@deepseek-ai/dsh-client-store': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-util-workspace-path': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-util-values': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-util-code-language': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-app-boot': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-agent-preset-registry': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-brand': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-modules': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-sidebar-documentpreview': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-dockkit': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-primitives': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-ui-slots': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-client-web': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-home-paths': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-host-frontend-static': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-host-plugin-inventory': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-host-webserver': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-invariants': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-launch-environment': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-llm': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-scope': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-sandbox': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-sandbox-policy': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-session': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-system-prompt': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-timeout': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-tools': '0.2.0-rc.2',
-    '@deepseek-ai/dsh-typert-protocol': '0.2.0-rc.2',
+    '@deepseek-ai/cordis': '4.0.5-alpha.1',
+    '@deepseek-ai/cordis-plugin-group': '1.0.5-alpha.1',
+    '@deepseek-ai/cordis-plugin-include': '1.0.10-alpha.1',
+    '@deepseek-ai/cordis-plugin-loader': '1.0.6-alpha.1',
+    '@deepseek-ai/dsh-client-store': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-util-workspace-path': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-util-values': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-util-code-language': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-app-boot': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-agent-preset-registry': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-brand': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-modules': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-sidebar-documentpreview': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-dockkit': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-primitives': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-ui-slots': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-client-web': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-home-paths': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-host-frontend-static': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-host-plugin-inventory': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-host-webserver': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-launch-environment': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-llm': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-scope': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-sandbox': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-sandbox-policy': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-session': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-system-prompt': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-timeout': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-tools': '0.2.1-alpha.1',
+    '@deepseek-ai/dsh-typert-protocol': '0.2.1-alpha.1',
     'use-sync-external-store': '1.2.0',
   }, 'DeepSeek Harness adopted_packages');
   assertDeepEqualJson(deepseekHarness.adopted_source, {
     root: 'src/vendor/deepseek-harness',
-    ref: '639ed015397290b3745d163aafe02ffee4aa3f84',
+    ref: '5badb15009ae1756c3afe0ae0cef1faafc290ccc',
     path_policy: 'preserve_upstream_package_relative_paths',
     byte_policy: 'byte_identical_to_pinned_ref',
     package_roots: [
@@ -552,7 +551,7 @@ function validateDesignReferences(registry: ShellCandidateRegistry): void {
     'DSH app boot profile loader overlay and Cordis plugin lifecycle',
     'DSH native tools registry host webserver and plugin inventory',
     'authenticated stateful loopback MCP from DSH ctx.tools to the persistent Codex App Server',
-    'rc2 brand attachment and workspace hooks satisfied by OPL-owned plugins without product authority transfer',
+    'pinned DSH brand attachment and workspace hooks satisfied by OPL-owned plugins without product authority transfer',
   ], 'DeepSeek Harness adopted_surface');
   assertDeepEqualJson(deepseekHarness.upstream_intake, {
     mode: 'pinned_application_host_packages_and_vendor_snapshot_with_opl_plugins',

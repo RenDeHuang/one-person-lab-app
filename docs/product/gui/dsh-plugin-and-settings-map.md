@@ -2,7 +2,7 @@
 
 Owner: `one-person-lab-app`
 State: `active`
-Scope: DeepSeek Harness `dsh-v0.2.0-rc.2` (`639ed015397290b3745d163aafe02ffee4aa3f84`) 与 OPL Studio 适配。
+Scope: DeepSeek Harness `dsh-v0.2.1-alpha.1` (`5badb15009ae1756c3afe0ae0cef1faafc290ccc`) 与 OPL Studio 适配。
 
 这份文档说明插件的源码和安装位置、开发归口、DSH 官方插件在 OPL 中的状态，以及设置归属。默认策略是吸收 DSH 的有价值能力；已有 OPL owner 时复用 DSH 的 UI、协议和交互，再接入现有 owner。只有明确与 OPL 设计冲突、会制造第二份 authority 或无法满足安全/数据边界的部分才排除。
 
