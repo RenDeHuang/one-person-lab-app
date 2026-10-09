@@ -206,6 +206,8 @@ do not reconstruct ZIPs, create a parallel downloader, or rebuild product bytes 
 the operator's download path failed. Never retain signed redirect URLs or credentials
 in durable evidence.
 
+Standard 在 freeze 中解析一次 Codex 依赖并上传准确清单；构建、构建 cohort 与可选 VM 预备包消费同一清单。WebUI 只解析其 Codex 输入，并将 OCI amd64 映射为 Framework x64；源码解析器先安装其冻结 Framework 依赖。Full 独立解析前也安装对应依赖。
+
 预备安装包是可选加速。只有实际上传成功后才向 VM consumer 提供 artifact 名；主上传与一次重试都失败时输出为空，由现有按摘要校验的本地准备路径继续。VM 先恢复这批 prepared tarballs，只有下载没有成功时才恢复 runner cache；两条路径仍由 frozen cohort 的 SHA-256 校验决定是否可用，成功下载不代表内容已验收。已验证的两份 tarball 会直接消费 frozen identity，跳过 registry metadata 与 `npm view` 查询；任一份缺失或摘要不符时回到原在线查询和下载路径。不能用一个拼接出来的名字表示资产存在，也不因此重建签名产物。
 
 Linux／Windows／Homebrew 的独立恢复使用 [现有 follow-up workflow](../../../.github/workflows/release-stable-post-success-followups.yml) 的 `reconcile_desktop_platform`、`reconcile_homebrew_standard`、`reconcile_homebrew_full` 等对应 operation。执行前确认源 run、目标渠道及该渠道 owner；参数以当前 workflow 为准，不将内部 `standard` 输入搬到这个入口。`repair_additive` 只适用于其合同规定的安装器资产 CAS，不能当作任意资产替换工具。

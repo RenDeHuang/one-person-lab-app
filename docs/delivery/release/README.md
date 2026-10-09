@@ -136,6 +136,8 @@ Gateway credentials. The final VM gate revalidates tarball digests against the b
 a missing preparation result takes the normal fetch path. Runtime stage and Apple observation logs
 report real events, without inferring progress from elapsed time.
 
+Standard freeze resolves Codex once and shares the exact dependency artifact with the build and optional VM preparation. Artifact cohorts bind that resolved manifest. Standalone/platform builds resolve their own native Codex input; WebUI maps OCI amd64 to Framework x64 and resolves only Codex. Framework source resolvers require their lockfile dependencies before invocation, including the independent Full build.
+
 ## Stable Operations
 
 The legacy Full notes authority helper consumes an operation-resolved Codex qualification manifest via `--resolved-qualification-manifest` or `OPL_RELEASE_DEPENDENCY_MANIFEST`. It records the manifest digest and refuses missing or mismatched package/platform identities; the App carrier contract supplies policy, not a pinned version.

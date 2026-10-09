@@ -150,6 +150,9 @@ jobs:
           ref: ${{ github.sha }}
           path: webui-executor-source
 
+      - name: Install frozen Framework resolver dependencies
+        run: npm --prefix framework-source ci --ignore-scripts --no-audit --no-fund
+
       - name: Resolve immutable dependency release inputs once
         id: dependency-resolution
         shell: bash
@@ -158,7 +161,8 @@ jobs:
           node --experimental-strip-types scripts/resolve-build-dependencies.ts \
             --app-root frozen-app-source \
             --framework-root framework-source \
-            --platform linux --arch '${{ matrix.architecture }}' \
+            --dependency codex-cli \
+            --platform linux --arch '${{ matrix.architecture == 'amd64' && 'x64' || 'arm64' }}' \
             --output webui-carrier/dependency-resolution \
             --github-output "$GITHUB_OUTPUT"
           test -s webui-carrier/dependency-resolution/qualification-input-manifest.json

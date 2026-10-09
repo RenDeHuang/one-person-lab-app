@@ -1182,3 +1182,30 @@ test('WebUI version tag authority accepts only exact linux/amd64 and linux/arm64
   assert.notEqual(unknown.status, 0);
   assert.equal(fs.existsSync(unknownReceiptPath), false);
 });
+
+
+test('dependency consumers use frozen runtime inputs after installing the resolver closure', () => {
+  const read = (name: string) => YAML.parse(fs.readFileSync(path.join(appRoot, '.github/workflows', name), 'utf8'));
+  const carrier = read('_release-webui-carrier.yml').jobs['build-and-qualify'];
+  const install = carrier.steps.findIndex((step: any) => step.name === 'Install frozen Framework resolver dependencies');
+  const resolve = carrier.steps.findIndex((step: any) => step.name === 'Resolve immutable dependency release inputs once');
+  assert.ok(install >= 0 && install < resolve);
+  assert.match(carrier.steps[install].run, /npm --prefix framework-source ci --ignore-scripts/);
+  assert.match(carrier.steps[resolve].run, /--dependency codex-cli/);
+  assert.match(carrier.steps[resolve].run, /matrix.architecture == 'amd64' && 'x64'/);
+  const standard = read('_release-bundle.yml').jobs;
+  const upload = standard.freeze.steps.find((step: any) => step.name === 'Upload frozen Standard qualification dependencies');
+  assert.ok(upload);
+  assert.equal(standard['standard-build'].with.dependency_manifest_artifact, upload.with.name);
+  assert.equal(standard['prepare-standard-vm-inputs'].with.dependency_manifest_artifact, upload.with.name);
+  const build = read('_build-reusable.yml').jobs.build.steps;
+  const cohort = build.find((step: any) => step.name === 'Write build artifact cohort manifest');
+  assert.match(cohort.run, /--qualification-input-manifest "\$OPL_RELEASE_DEPENDENCY_MANIFEST"/);
+  assert.doesNotMatch(cohort.run, /--qualification-input-manifest .*contracts\//);
+  const prepare = read('_prepare-clean-vm-inputs.yml').jobs.prepare.steps;
+  const prefetch = prepare.find((step: any) => step.id === 'prefetch');
+  assert.equal(prefetch.env.OPL_CODEX_PREWARM_MANIFEST, 'frozen-dependency-resolution/qualification-input-manifest.json');
+  const full = read('full-first-install-release.yml').jobs;
+  const fullSteps: any[] = Object.values<any>(full).find((job: any) => job.steps?.some((step: any) => step.name === 'Resolve default Full build inputs')).steps;
+  assert.ok(fullSteps.findIndex((step: any) => step.name === 'Install frozen Framework resolver dependencies') < fullSteps.findIndex((step: any) => step.name === 'Resolve default Full build inputs'));
+});

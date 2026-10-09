@@ -410,6 +410,21 @@ jobs:
           npm --prefix app-executor ci --ignore-scripts
           npm --prefix framework-source ci --ignore-scripts
 
+      - name: Resolve frozen Standard qualification dependencies
+        run: |
+          node --experimental-strip-types app-executor/scripts/resolve-build-dependencies.ts \
+            --app-root app-source --framework-root framework-source \
+            --dependency codex-cli --platform darwin --arch arm64 \
+            --output standard-dependency-resolution
+
+      - name: Upload frozen Standard qualification dependencies
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: opl-standard-dependency-resolution-${{ github.run_id }}
+          path: standard-dependency-resolution
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Freeze source, version, and compatibility identity
         id: identity
         env:
@@ -922,6 +937,7 @@ jobs:
     with:
       app_ref: ${{ needs.freeze.outputs.app_sha }}
       package_profile: standard
+      dependency_manifest_artifact: opl-standard-dependency-resolution-${{ github.run_id }}
       retry_artifact_upload_once: true
 
   standard-build:
@@ -934,6 +950,7 @@ jobs:
     with:
       matrix: ${{ needs.resolve-platform-matrix.outputs.matrix }}
       release_validation_profile: stable
+      dependency_manifest_artifact: opl-standard-dependency-resolution-${{ github.run_id }}
       ref: ${{ needs.freeze.outputs.app_sha }}
       shell_ref: ${{ needs.freeze.outputs.shell_sha }}
       framework_ref: ${{ needs.freeze.outputs.framework_sha }}

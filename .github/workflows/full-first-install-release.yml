@@ -312,6 +312,9 @@ jobs:
           ref: ${{ inputs.framework_ref }}
           path: one-person-lab
 
+      - name: Install frozen Framework resolver dependencies
+        run: npm --prefix one-person-lab ci --ignore-scripts --no-audit --no-fund
+
       - name: Resolve default Full build inputs
         id: full-build-inputs
         shell: bash
