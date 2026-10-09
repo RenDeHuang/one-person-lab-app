@@ -1,5 +1,5 @@
 ---
-title: "One Person Lab WebUI 图文安装教程"
+title: "One Person Lab WebUI 安装与开始工作图文教程"
 subtitle: "Windows / macOS / Linux Docker"
 lang: zh-CN
 ---
@@ -253,9 +253,11 @@ http://localhost:3000/
 
 `compose.yaml` 使用 `restart: unless-stopped`。Docker Desktop 随 Windows 启动后，WebUI 容器通常会自动恢复；桌面入口仍会确认容器和页面均已就绪再打开浏览器。启动失败时窗口会保留错误信息，按提示重新运行一次安装器即可刷新启动文件和快捷方式。
 
-本机 Docker 安装会自动建立本机 WebUI 会话。登录后的单次 Core 检查上限为 20 秒，明确发现未配置时会尝试自动进入首次设置；检查未知、失败、超时，或自动跳转没有发生时会先进入工作台。无论是否自动跳转，只要左下角出现“完成首次设置”，点击它就会进入同一个向导。普通启动、刷新或打开具体页面不会反复打断当前工作，也不会无条件等待 20 秒。
+本机 Docker 安装会自动建立本机 WebUI 会话。打开后先读取当前设置，模型访问尚未完成时按“完成本机准备”提示处理；也可先进入工作台，再从“设置 → 账户与模型”完成配置。状态读取失败时保留工作台和错误提示，先排查服务及网络。
 
-![浏览器直接进入 One Person Lab 工作台](screenshots/01-browser-open-webui.png){width=96% fig-align="center"}
+![共享工作台界面示意](screenshots/01-browser-open-webui.png){width=96% fig-align="center"}
+
+本教程的工作台与设置截图展示桌面版和 WebUI 共用的界面；浏览器边框、工作目录选择等入口可能随运行方式不同。
 
 如果页面打不开：
 
@@ -266,9 +268,9 @@ http://localhost:3000/
 
 ## 4. 完成首次设置
 
-工作台会在后台读取当前状态。只有工作目录、本机助手或模型访问尚未完成时，侧栏左下角才会显示“完成首次设置”；点击后进入独立的首次设置页面。如果刚安装后没有自动打开向导，优先使用这个入口，无需重装或重置密码。工作台中央不会常驻“本机运行环境需要处理”横幅，避免把仍可浏览的 Home 误解成故障页。
+首次准备面板集中显示工作目录、本机助手和模型访问检查。点击“重新检查”刷新状态，点击“打开设置”处理未完成项；“稍后处理”允许先进入工作台，需要模型的任务仍须完成访问配置。无需为进入设置而重装或重置密码。
 
-![从工作台进入完成首次设置](screenshots/02-first-run-overview.png){width=96% fig-align="center"}
+![居中显示的首次准备面板](screenshots/02-first-run-overview.png){width=96% fig-align="center"}
 
 首次设置包含三个项目：
 
@@ -278,9 +280,9 @@ http://localhost:3000/
 
 ### 配置模型访问
 
-保持默认的“账户登录”，输入 OPL Gateway 账户邮箱和密码，然后点击“登录并继续”。密码仅用于本次登录，不会保存在 App 中。
+打开“设置 → 账户与模型 → 账户与访问”，选择“OPL Gateway 账户”，输入邮箱和密码并点击“登录”。也可选择“API Key”配置模型访问。密码只用于登录。
 
-![在 WebUI 首次设置中登录 OPL Gateway 账户](screenshots/03-gateway-account-login.png){width=96% fig-align="center"}
+![在账户与访问页面配置模型访问](screenshots/03-gateway-account-login.png){width=96% fig-align="center"}
 
 登录成功后，如果页面出现“设为模型访问方式”，再点击一次确认。账户连接和切换模型访问方式是两个明确步骤，只有需要确认时页面才会显示第二个按钮。
 
@@ -288,7 +290,7 @@ http://localhost:3000/
 
 旧配置不会隐式迁移。`OnePersonLab/data` 中已有 OPL Gateway Codex 配置时，App 会按 Gateway 地址原位复用，不改写原 provider ID、名称或 Base URL，以保留既有会话和配置关联。
 
-“重新检测已有配置”只检查同一 `OnePersonLab/data` 持久目录中已有的 WebUI/Codex 配置。Windows 宿主机原有的 `%USERPROFILE%\.codex` 登录或配置不会自动挂载进容器。
+已有配置的检查与复用只针对同一 `OnePersonLab/data` 持久目录中的 WebUI/Codex 配置。Windows 宿主机原有的 `%USERPROFILE%\.codex` 登录或配置不会自动挂载进容器。
 
 暂时没有 Gateway 账户或 API Key 时可以先进入工作台。准备好后，打开：
 
@@ -296,11 +298,9 @@ http://localhost:3000/
 设置 -> 账户与模型 -> 账户与访问
 ```
 
-![从账户与访问页面管理 WebUI 模型凭据](screenshots/04-settings-entry.png){width=96% fig-align="center"}
+默认模型和推理强度位于“设置 → 账户与模型 → 模型与执行”，也可在任务输入框右下角选择。
 
-默认模型和推理强度位于“设置 -> 账户与模型 -> 模型”，与凭据管理是两个独立页面。
-
-如果你已经输入任务并点击发送，系统此时才发现本机助手或模型访问尚未完成，会在输入框下方显示局部恢复提示。当前草稿会保留；点击提示中的“完成首次设置”，完成后即可继续发送。
+如果发送任务时提示本机助手或模型访问尚未完成，先保留草稿，按提示进入设置，处理后继续发送。
 
 ::: {.callout-important title="不要混淆三种凭据"}
 
@@ -310,7 +310,30 @@ http://localhost:3000/
 
 :::
 
-## 5. 日常使用与更新
+## 5. 选择智能体，开始专项工作
+
+点击“新建任务”，选择工作区，再点击输入框上方的“日常工作”。Docker 中的工作目录使用容器内路径，例如 `/projects/研究项目`，对应宿主机 `OnePersonLab/projects/研究项目`。
+
+![按工作目标选择智能体](screenshots/07-agent-selector.png){width=96% fig-align="center"}
+
+| 目标 | 选择 |
+|---|---|
+| 文献、研究设计、数据分析与论文 | 医学科研 · Med Auto Science（MAS） |
+| 基金申请与标书修改 | 医学基金 · Med Auto Grant（MAG） |
+| 汇报、幻灯片与视觉内容 | 汇报展示 · RedCube AI（RCA） |
+| 长篇书稿 | 书籍写作 · OPL Book Forge（OBF） |
+| 智能体设计与改进 | 智能演进 · OPL Meta Agent（OMA） |
+| 医学科普动画 | 医学科普视频 · Med Auto Cast（按实际安装情况） |
+
+入口随当前安装与可用情况变化。找不到所需项时，从“管理智能体…”或“设置 → 智能体与能力”查看状态。普通整理与问答直接使用“日常工作”。
+
+选好智能体后，用“＋”添加材料，说明目标、材料位置和想得到的结果。例如选“医学基金”后输入：
+
+> 请根据附件中的申请指南和现有标书，先评估科学问题与研究方案的对应关系，列出主要缺口，再给出修改建议。
+
+模型通常保留“自动（推荐）”。在同一任务中回答问题、补充要求并查看生成文件；新的独立工作再新建任务。患者及敏感研究资料先脱敏，并遵守机构要求。
+
+## 6. 日常使用与更新
 
 Windows 日常使用时双击桌面的 **One Person Lab**；只有需要修复启动文件、改变端口或手动更新时才重新运行安装器。Linux 先确认 Docker Engine 正常。浏览器继续访问 <http://localhost:3000/>。
 

@@ -4,7 +4,7 @@
   "quarto_version": "1.9.38",
   "source_qmd": "docs/guides/windows-app-install/guide.qmd",
   "manifest": "docs/delivery/user-guides/windows-app-install/source/windows-app-install.quarto.json",
-  "screenshots_manifest": null,
+  "screenshots_manifest": "docs/guides/windows-app-install/screenshots.manifest.json",
   "generated_markdown": "docs/delivery/user-guides/windows-app-install/generated/windows-app-install.md",
   "output_html": "docs/site/latest/windows-app-install/windows-app-install.html",
   "output_pdf": "docs/site/latest/windows-app-install/windows-app-install-detailed-guide.pdf",
@@ -14,19 +14,63 @@
   "pdf_engine": "xelatex",
   "pdf_engine_reason": "The current shared Chinese guide template uses the verified xelatex path for deterministic HTML/PDF publication.",
   "pdf_layout": "quarto_portrait_ebook",
-  "pdf_pages": 7,
+  "pdf_pages": 9,
   "pdf_page_size_pts": {
     "width": 595.28,
     "height": 841.89
   },
-  "rendered_pages": 7,
+  "rendered_pages": 9,
   "rendered_dir": "tmp/quarto-guides/windows-app-install/rendered",
-  "html_bytes": 2209039,
+  "html_bytes": 2616414,
   "html_pdf_download": {
     "href": "windows-app-install-detailed-guide.pdf",
     "status": "present"
   },
-  "screenshot_assets": [],
+  "screenshot_assets": [
+    {
+      "role": "configure_access",
+      "description": "Account and model access",
+      "file": "docs/guides/windows-app-install/screenshots/03-codex-config-needed.png",
+      "public_file": "screenshots/03-codex-config-needed.png",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "9fd7110c5869859de7fa599cc998f4c46f2a79d661a4768f955a0cbc9e4a38ee",
+      "referenced": true,
+      "source_kind": "clean_macos_vm_studio_renderer_capture",
+      "source": "Clean macOS VM; Studio baseline 13bb0bc9744d39fa25e78bb5995f8bd376b6644e plus the recorded first-run repair; non-secret tutorial fixtures.",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "账户与访问",
+        "OPL Gateway 账户",
+        "邮箱",
+        "密码",
+        "登录"
+      ],
+      "note": "UI illustration only. No task was sent and no real credentials were entered."
+    },
+    {
+      "role": "agent_selector",
+      "description": "Select a specialist agent",
+      "file": "docs/guides/windows-app-install/screenshots/07-agent-selector.png",
+      "public_file": "screenshots/07-agent-selector.png",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "ea9d66ddc08b79c9c879e56aca8f7dcd8fde53dc0c353c1ed76c17fb59b6629f",
+      "referenced": true,
+      "source_kind": "clean_macos_vm_studio_renderer_capture",
+      "source": "Clean macOS VM; Studio baseline 13bb0bc9744d39fa25e78bb5995f8bd376b6644e plus the recorded first-run repair; non-secret tutorial fixtures.",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "医学科研",
+        "医学基金",
+        "汇报展示",
+        "书籍写作",
+        "智能演进",
+        "医学科普视频"
+      ],
+      "note": "UI illustration only. No task was sent and no real credentials were entered."
+    }
+  ],
   "unresolved_templates_status": "absent",
   "secret_scan_status": "passed"
 }

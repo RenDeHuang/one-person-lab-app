@@ -1,7 +1,7 @@
 {
   "schema": "opl_quarto_user_guide_manifest.v1",
   "id": "windows-app-install",
-  "title": "One Person Lab Windows x64 安装与配置教程",
+  "title": "One Person Lab Windows x64 安装与开始工作教程",
   "short_title": "Windows x64 Desktop",
   "owner": "one-person-lab-app",
   "purpose": "windows_app_install_quarto_manifest",
@@ -28,7 +28,7 @@
     "docker_guide_url": "https://gaofeng21cn.github.io/one-person-lab-app/latest/docker-webui-install/docker-webui-install.html",
     "issues_url": "https://github.com/gaofeng21cn/one-person-lab-app/issues/new"
   },
-  "assets": [],
+  "screenshots_manifest": "docs/guides/windows-app-install/screenshots.manifest.json",
   "publishing": {
     "template": "opl-guide",
     "preferred_pdf_engine": "typst",

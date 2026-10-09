@@ -76,6 +76,7 @@ clean-user installed/callable readback 为准；本文只定义首启体验，�
 ## 桌面布局
 
 - 使用全视口 `focused_setup_workspace`，覆盖普通 Titlebar、Sider 和会话历史区。
+- Studio 的首次准备层通过 body portal 挂载，独立于 Settings slot 所在的侧栏；覆盖整个视口，居中显示工作目录、本机助手和模型访问检查，窄窗口内可滚动。打开时普通 App 根节点设置 `inert` 和 `aria-hidden`，首焦点与 Tab 循环留在准备层，退出后恢复原属性和焦点。不得把完整准备面板作为侧栏底部的普通内容渲染。
 - `/first-run` 是认证后的独立路由，不挂载普通 Layout，因此普通快捷键、托盘、deep link 和通知导航不会卸载首启。
 - readiness 的 ready、blocked、unknown、timeout 和读取失败都不得把普通启动改道到
   `/first-run`。fresh WebUI login 是唯一例外：它先进入 `/guid` 并携带一次性检查意图，

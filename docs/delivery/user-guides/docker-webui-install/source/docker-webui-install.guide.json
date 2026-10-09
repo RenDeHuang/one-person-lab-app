@@ -1,7 +1,7 @@
 {
   "schema": "opl_quarto_user_guide_manifest.v1",
   "id": "docker-webui-install",
-  "title": "One Person Lab WebUI 图文安装教程",
+  "title": "One Person Lab WebUI 安装与开始工作图文教程",
   "short_title": "Windows / macOS / Linux Docker",
   "owner": "one-person-lab-app",
   "purpose": "docker_webui_install_quarto_manifest",

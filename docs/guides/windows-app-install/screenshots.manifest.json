@@ -1,0 +1,64 @@
+{
+  "schema": "opl_guide_screenshots_manifest.v1",
+  "guide_id": "windows-app-install",
+  "status": "active",
+  "source_summary": {
+    "kind": "clean_macos_vm_current_studio_renderer",
+    "locale": "zh-CN",
+    "current_shell_commit": "13bb0bc9744d39fa25e78bb5995f8bd376b6644e",
+    "source_files_sha256": {
+      "src/composition/dshSlotHost.tsx": "aa32271e06264e210bd694b60887b1fdaa5c42fd46001f0bc9ffa8aab69c1b3f",
+      "src/workbench/codexWorkbenchStyles.ts": "8392894c4db2929451447c0e2601031167b903cc05c11516a23d1ac417c1fa84",
+      "dist/desktop/renderer.js": "053dc34fa57fac3285744ca40452c75d72b7daf6514ba966596126a53650b8e7",
+      "dist/desktop/renderer.css": "dab7f2f77fa4715a6620ed130345ef6ab1a207f86f2431df8e2822c58cce46d5"
+    },
+    "vm_name": "opl-guide-refresh-20261009",
+    "guest_os": "macOS 26.3 (25D125)",
+    "captured_at": "2026-10-09T04:09:41.997Z",
+    "viewport": "900x650 @2x",
+    "note": "Shared desktop UI illustrated in a clean macOS VM; not Windows/WSL installed acceptance evidence."
+  },
+  "screenshots": [
+    {
+      "file": "03-codex-config-needed.png",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "9fd7110c5869859de7fa599cc998f4c46f2a79d661a4768f955a0cbc9e4a38ee",
+      "role": "configure_access",
+      "title": "Account and model access",
+      "description": "Account and model access",
+      "source_kind": "clean_macos_vm_studio_renderer_capture",
+      "source": "Clean macOS VM; Studio baseline 13bb0bc9744d39fa25e78bb5995f8bd376b6644e plus the recorded first-run repair; non-secret tutorial fixtures.",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "账户与访问",
+        "OPL Gateway 账户",
+        "邮箱",
+        "密码",
+        "登录"
+      ],
+      "note": "UI illustration only. No task was sent and no real credentials were entered."
+    },
+    {
+      "file": "07-agent-selector.png",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "ea9d66ddc08b79c9c879e56aca8f7dcd8fde53dc0c353c1ed76c17fb59b6629f",
+      "role": "agent_selector",
+      "title": "Select a specialist agent",
+      "description": "Select a specialist agent",
+      "source_kind": "clean_macos_vm_studio_renderer_capture",
+      "source": "Clean macOS VM; Studio baseline 13bb0bc9744d39fa25e78bb5995f8bd376b6644e plus the recorded first-run repair; non-secret tutorial fixtures.",
+      "locale": "zh-CN",
+      "expected_ui_text": [
+        "医学科研",
+        "医学基金",
+        "汇报展示",
+        "书籍写作",
+        "智能演进",
+        "医学科普视频"
+      ],
+      "note": "UI illustration only. No task was sent and no real credentials were entered."
+    }
+  ]
+}

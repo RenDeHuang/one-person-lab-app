@@ -1,14 +1,14 @@
 {
   "schema": "opl_quarto_user_guide_manifest.v1",
   "id": "macos-app-install",
-  "title": "One Person Lab App 首次安装图文教程",
-  "short_title": "macOS App 首次安装",
+  "title": "One Person Lab App 安装与使用图文教程",
+  "short_title": "macOS 安装与专项工作",
   "owner": "one-person-lab-app",
   "purpose": "macos_app_install_quarto_manifest",
   "state": "active",
   "machine_boundary": "Machine-readable Quarto guide manifest. Human-readable long-form guide body is maintained in docs/guides/macos-app-install/guide.qmd. Release contracts, workflows, VM smoke artifacts, screenshot manifest, and App release metadata remain the machine truth.",
   "audience": "医生、PI、课题负责人；不要求计算机基础。",
-  "intro": "本文按安装 App、完成首次检查、登录或确认模型访问、进入工作台的顺序，说明 One Person Lab App 的首次使用。",
+  "intro": "本文说明安装、首次设置、选择智能体与开展第一项专项工作的步骤。",
   "source_qmd": "docs/guides/macos-app-install/guide.qmd",
   "output": {
     "public_dir": "docs/site/latest/macos-app-install",

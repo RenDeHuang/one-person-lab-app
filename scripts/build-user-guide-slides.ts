@@ -277,7 +277,7 @@ function coverSlide(slides: SlideBlock[], manifest: GuideManifest, screenshotTag
   const image = intro.image ?? '05-opl-ready-dynamic-entries.png';
   const checklist = intro.bullets.slice(0, 4);
   return `<!-- _class: cover -->
-<div class="brand"><strong>One Person Lab App</strong><span>macOS 首次安装与首启</span></div>
+<div class="brand"><strong>One Person Lab App</strong><span>${escapeHtml(manifest.short_title)}</span></div>
 
 <div class="cover-copy">
   <h1>${escapeHtml(title)}</h1>
@@ -308,7 +308,7 @@ function stepSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, s
   }
 
   return `<!-- _class: step -->
-<div class="brand"><strong>One Person Lab App</strong><span>macOS 首次安装与首启</span></div>
+<div class="brand"><strong>One Person Lab App</strong><span>${escapeHtml(manifest.short_title)}</span></div>
 
 <header class="step-title">
   <h1>${escapeHtml(slide.title)}</h1>
@@ -339,7 +339,7 @@ function finalSlide(slide: SlideBlock, slideIndex: number, totalSlides: number, 
   const usageNotes = finalUsageNotes();
 
   return `<!-- _class: final -->
-<div class="brand"><strong>One Person Lab App</strong><span>macOS 首次安装与首启</span></div>
+<div class="brand"><strong>One Person Lab App</strong><span>${escapeHtml(manifest.short_title)}</span></div>
 
 <header class="final-title">
   <h1>${escapeHtml(slide.title)}</h1>
@@ -393,8 +393,8 @@ ${renderedSlides.join('\n\n---\n\n')}
 
 function finalUsageNotes() {
   return [
-    '账户与访问：打开“设置 -> 账户与访问”。',
-    '模型选择：打开“设置 -> 模型”。',
+    '账户与访问：打开“设置 -> 账户与模型 -> 账户与访问”。',
+    '模型选择：打开“设置 -> 账户与模型 -> 模型与执行”。',
     '工作目录：打开“设置 -> 工作区”。',
     'App 更新：打开“设置 -> 关于”，点击“检查更新”。',
   ];

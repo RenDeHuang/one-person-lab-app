@@ -1,5 +1,5 @@
 ---
-title: "One Person Lab Windows x64 安装与配置教程"
+title: "One Person Lab Windows x64 安装与开始工作教程"
 lang: zh-CN
 ---
 
@@ -110,13 +110,17 @@ $receipt.code_signing | Format-List
 
 ## 4. 首次启动与 Gateway 账户
 
-首次启动后，按 App 当前界面完成设置。若界面要求 Gateway 账户：
+首次启动后，按“完成本机准备”提示处理工作目录、本机助手和模型访问。账户配置入口是“设置 → 账户与模型 → 账户与访问”：
 
 1. 在 App 的受控输入界面填写邮箱和密码。
-2. 点击“登录并继续”。
+2. 选择“OPL Gateway 账户”并点击“登录”，或使用同页的“API Key”路径。
 3. 确认 App 显示当前账户。
 4. 按界面提示完成“设为模型访问方式”或等价的模型访问确认。
-5. 打开模型设置，确认模型目录可读。
+5. 打开“模型与执行”，确认模型目录可读。
+
+![共享账户与访问页面示意](screenshots/03-codex-config-needed.png){width=96% fig-align="center"}
+
+本教程的设置与工作台截图展示共享界面，Windows 窗口边框与 macOS 不同；Windows 安装、WSL 2 和运行检查仍按本机实际提示处理。
 
 Gateway 密码、token 和 API Key 不应进入 PowerShell、命令行参数、日志、截图或
 问题报告。
@@ -159,7 +163,30 @@ wsl.exe --list --verbose
 只有真实回复、会话完成和重新打开后的状态 readback 才能说明这次模型访问成功。
 只打开窗口、只看到首页、下载成功或本地 health 响应都不能替代模型访问结果。
 
-## 7. 检查更新
+## 7. 选择智能体，开始专项工作
+
+点击“新建任务”，选择工作区，再点击输入框上方的“日常工作”。按目标选择当前已安装且可用的智能体。
+
+![从日常工作菜单选择专项智能体](screenshots/07-agent-selector.png){width=96% fig-align="center"}
+
+| 目标 | 选择 |
+|---|---|
+| 文献、研究设计、分析与论文 | 医学科研 · Med Auto Science（MAS） |
+| 基金申请与标书修改 | 医学基金 · Med Auto Grant（MAG） |
+| 汇报、幻灯片与视觉内容 | 汇报展示 · RedCube AI（RCA） |
+| 长篇书稿 | 书籍写作 · OPL Book Forge（OBF） |
+| 智能体设计与改进 | 智能演进 · OPL Meta Agent（OMA） |
+| 医学科普动画 | 医学科普视频 · Med Auto Cast（按实际安装情况） |
+
+普通整理与问答可用“日常工作”；没有所需入口时，从“管理智能体…”或“设置 → 智能体与能力”查看安装状态。
+
+点击“＋”添加材料，说明目标与交付结果。例如选“汇报展示”后输入：
+
+> 请根据附件中的论文与图表，设计一份 10 分钟学术汇报。先给出主线与页纲，确认后制作幻灯片。
+
+模型通常保留“自动（推荐）”。同一工作的补充和修改继续原任务，独立工作再新建任务；生成文件可在任务中查看。患者及敏感研究资料先脱敏。
+
+## 8. 检查更新
 
 Latest Release 中的 Windows updater metadata `{{download.updater_metadata_asset}}` 和
 receipt `{{download.updater_receipt_asset}}` 证明当前 Release 上存在 updater 资产，
@@ -174,7 +201,7 @@ receipt `{{download.updater_receipt_asset}}` 证明当前 Release 上存在 upda
 
 不要手工替换 `latest.yml`、blockmap 或安装目录中的二进制文件。
 
-## 8. 可选：Docker WebUI
+## 9. 可选：Docker WebUI
 
 Container WebUI 是独立运行形态：
 
@@ -187,7 +214,7 @@ Windows Desktop App 不要求 Docker Desktop。只有在选择 Container WebUI �
 
 不要为修复桌面 App 执行 Docker Factory Reset 或全局 Docker prune。
 
-## 9. 日志与问题报告
+## 10. 日志与问题报告
 
 遇到问题时记录：
 
@@ -205,7 +232,7 @@ Windows Desktop App 不要求 Docker Desktop。只有在选择 Container WebUI �
 
 不要上传整个用户数据目录。先删除邮箱、项目内容、token、API Key 和其他秘密。
 
-## 10. 卸载与用户数据
+## 11. 卸载与用户数据
 
 1. 正常退出 One Person Lab。
 2. 打开“设置 -> 应用 -> 已安装的应用”。

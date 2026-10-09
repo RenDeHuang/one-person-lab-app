@@ -1,7 +1,7 @@
 {
   "status": "macos_app_install_slides_ready",
   "generator": "marp_pdf_plus_officecli_static_slides",
-  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.4.0); OfficeCLI 1.0.152",
+  "generator_version": "@marp-team/marp-cli v4.4.0 (w/ @marp-team/marp-core v4.4.0); OfficeCLI 1.0.155",
   "source_model": "qmd_body_manifest_metadata_to_marp_pdf_rendered_pages_and_officecli_pptx",
   "download_url": "https://github.com/gaofeng21cn/one-person-lab-app/releases/latest",
   "recommended_first_install_asset": "One-Person-Lab-Full-<version>-mac-arm64.dmg",
@@ -16,8 +16,8 @@
   "output_pptx": "docs/site/latest/macos-app-install/macos-app-install-slides.pptx",
   "output_pdf": "docs/site/latest/macos-app-install/macos-app-install-slides.pdf",
   "slide_layout": "16:9",
-  "slides": 7,
-  "pdf_pages": 7,
+  "slides": 8,
+  "pdf_pages": 8,
   "pdf_page_size_pts": {
     "width": 960,
     "height": 540
@@ -40,12 +40,13 @@
       "role": "configure_access",
       "description": "Account and model access",
       "file": "docs/guides/macos-app-install/screenshots/03-codex-config-needed.png",
-      "width": 2880,
-      "height": 1800,
-      "sha256": "dc459033587d6824ddc7a058881242c963de2a9ff5948278f3ecdf5c93d6a1eb",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "9fd7110c5869859de7fa599cc998f4c46f2a79d661a4768f955a0cbc9e4a38ee",
       "referenced": true,
       "expected_ui_text": [
-        "账户与模型",
+        "账户与访问",
+        "OPL Gateway 账户",
         "邮箱",
         "密码",
         "登录"
@@ -53,45 +54,78 @@
     },
     {
       "role": "first_run_check",
-      "description": "Local preparation",
+      "description": "Centered local preparation",
       "file": "docs/guides/macos-app-install/screenshots/04-first-run-checking.png",
-      "width": 2880,
-      "height": 1800,
-      "sha256": "983c429d61046ebbb6de3f8e88aa02eb85b162b5322cd4a1ba2843d6a8cff5d3",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "edd08f8f56c7c7174d010b63375cc8c7c65a7a2c3f1672e08028db41b5b1f56a",
       "referenced": true,
       "expected_ui_text": [
         "完成本机准备",
         "工作目录",
-        "重新检查",
+        "本机助手",
+        "模型访问",
         "稍后处理"
       ]
     },
     {
       "role": "workbench_entry",
-      "description": "Native Codex workbench",
+      "description": "New task workbench",
       "file": "docs/guides/macos-app-install/screenshots/05-opl-ready-dynamic-entries.png",
-      "width": 2880,
-      "height": 1800,
-      "sha256": "29ffa6637240cd74e94ec562cd3a29beb8633053d0624e9b7d143c564654e8d2",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "8a5b6feae8c53d8e9e224bb510188e3ade9382d3055a95a1580e3eaa0a060eaf",
       "referenced": true,
       "expected_ui_text": [
         "新任务",
-        "One Person Lab",
-        "日常工作"
+        "日常工作",
+        "向 OPL 描述你的目标"
+      ]
+    },
+    {
+      "role": "agent_selector",
+      "description": "Select a specialist agent",
+      "file": "docs/guides/macos-app-install/screenshots/07-agent-selector.png",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "ea9d66ddc08b79c9c879e56aca8f7dcd8fde53dc0c353c1ed76c17fb59b6629f",
+      "referenced": true,
+      "expected_ui_text": [
+        "医学科研",
+        "医学基金",
+        "汇报展示",
+        "书籍写作",
+        "智能演进",
+        "医学科普视频"
       ]
     },
     {
       "role": "runtime_overview",
-      "description": "Overview with collapsed diagnostics",
+      "description": "Current work environment overview",
       "file": "docs/guides/macos-app-install/screenshots/08-opl-runtime-status.png",
-      "width": 2880,
-      "height": 1800,
-      "sha256": "ed3c0d211e77d069daeccc48919de1716537b71744608b684a0f6e97f576a354",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "abef2ab50f47916df46f813d1d3d5ed4a37545e1a94d8f2d229ef975bed3c2bc",
       "referenced": true,
       "expected_ui_text": [
         "概览",
-        "当前运行状态",
-        "功能诊断"
+        "需要关注",
+        "当前工作环境",
+        "常用功能"
+      ]
+    },
+    {
+      "role": "research_task_example",
+      "description": "Describe the first research task",
+      "file": "docs/guides/macos-app-install/screenshots/09-research-task-example.png",
+      "width": 1800,
+      "height": 1300,
+      "sha256": "95a054e074958a97b3a86a6c2c026566d855ab1427b54c5bad7a4e3b7d43deb9",
+      "referenced": true,
+      "expected_ui_text": [
+        "医学科研",
+        "脱敏研究材料",
+        "研究建议"
       ]
     }
   ],
@@ -102,17 +136,17 @@
   "pptx_layout_issues": "Found 0 issue(s):",
   "text_status": "checked_generated_marp_source_and_pdf_text_no_placeholder_tokens",
   "pptx_roundtrip_pdf": "tmp/pdfs/macos-app-install-slides/pptx-roundtrip/macos-app-install-slides.pdf",
-  "pptx_roundtrip_pages": 7,
+  "pptx_roundtrip_pages": 8,
   "pptx_generation": {
     "generator": "officecli",
-    "generator_version": "1.0.152",
+    "generator_version": "1.0.155",
     "source": "marp_pdf_rendered_png_pages",
-    "slides": 7,
-    "pictures": 7,
+    "slides": 8,
+    "pictures": 8,
     "slide_size": "widescreen",
     "speaker_notes": "retained_in_generated_marp_source_not_embedded_in_pptx"
   },
-  "rendered_pages": 7,
+  "rendered_pages": 8,
   "rendered_dir": "tmp/pdfs/macos-app-install-slides/rendered",
   "unresolved_templates_status": "absent",
   "forbidden_secret_markers_status": "absent"
