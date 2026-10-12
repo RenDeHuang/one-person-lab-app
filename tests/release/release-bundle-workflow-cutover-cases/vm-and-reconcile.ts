@@ -493,8 +493,14 @@ test('first-run VM prefers prepared install tarballs and restores the cache only
   const prepared = steps[preparedIndex];
   const cache = steps[cacheIndex];
   assert.equal(prepared.id, 'prepared_install_assets');
-  assert.equal(prepared.with['run-id'], '${{ inputs.prepared_inputs_run_id || github.run_id }}');
-  assert.equal(prepared.with['github-token'], '${{ github.token }}');
+  assert.equal(prepared.env.OPL_ARTIFACT_RUN_ID, '${{ inputs.prepared_inputs_run_id || github.run_id }}');
+  assert.equal(prepared.env.GH_TOKEN, '${{ github.token }}');
+  assert.equal(prepared.env.OPL_ARTIFACT_NAME, '${{ inputs.prepared_inputs_artifact }}');
+  assert.equal(prepared.env.OPL_ARTIFACT_DEST, 'artifacts/opl-first-run-vm/codex-package-tarballs');
+  assert.equal(prepared.env.OPL_ARTIFACT_CACHE, '${{ runner.tool_cache }}/opl-exact-artifact-downloads');
+  assert.equal(prepared.run, 'node "$RUNNER_TEMP/opl-download-github-artifact.mjs"');
+  assert.equal(prepared['continue-on-error'], true);
+  assert.ok(prepared['timeout-minutes'] <= 10);
   const release = parseWorkflow('_release-bundle.yml').jobs['standard-clean-vm-qualification'].with;
   assert.equal(release.prepared_inputs_run_id, '${{ inputs.prior_standard_artifact_run_id || github.run_id }}');
   assert.match(release.prepared_inputs_artifact, /inputs\.prior_standard_artifact_run_id/);
