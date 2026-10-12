@@ -148,16 +148,20 @@ Docker promotion distinguishes original qualification authorization from the exa
 
 The legacy Full notes authority helper consumes an operation-resolved Codex qualification manifest via `--resolved-qualification-manifest` or `OPL_RELEASE_DEPENDENCY_MANIFEST`. It records the manifest digest and refuses missing or mismatched package/platform identities; the App carrier contract supplies policy, not a pinned version.
 
-The online notes writer follows `public_release_notes.preferred_ai_route` in the release
-contract: `deepseek-flash`, then `gpt-6-luna`, low reasoning, one transport attempt per model,
-and a 180-second per-attempt response deadline. Synchronous Chat Completions returns the
-complete document at once; the deadline must cover generation, not only connection
-establishment. A short provider probe proves connectivity; only validated full notes
-prove that preparation succeeded.
+Stable, Nightly and OPL DSH use the [Framework shared release-note writer](https://github.com/gaofeng21cn/one-person-lab/tree/main/scripts/release-note-writer).
+Change `policy.json` there to configure provider order, Gateway endpoint, timeout, Copilot
+version and credit budget once. Product workflows resolve central `main` once per notes
+preparation, then download code and policy at that SHA into runner temporary storage.
+The receipt records the source commit and policy digest independently of the product cohort.
+A source-loading failure uses product mechanical copy; a CLI installation failure leaves
+Gateway and mechanical writers available. Products retain prompts, language, exact facts,
+validation and mechanical copy. Credentials remain in each caller's Secrets and token;
+the shared writer is a CI tool, not a product runtime dependency. Stable freezes the resulting
+body before paid gates and never regenerates it during publish, promote or recovery.
 
 Public bodies follow `public_release_notes.public_body_language`. The AI writer generates the
 hidden `en-US` and `zh-CN` blocks, and its validator rejects Chinese in the visible English body.
-Automated Nightly notes are deterministic instead, so they copy component commit subjects only when
+Nightly uses the same bounded shared writer, with program-owned scope and identity. Its mechanical fallback copies component commit subjects only when
 those subjects are written in English; the rest are left out of the body with no operator-facing
 notice, stay readable in `nightly-notes-evidence.json`, and never block publication. Commit subjects
 in the App, Shell, Framework, and Studio repositories are authored in English; subjects already

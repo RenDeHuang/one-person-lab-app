@@ -18,8 +18,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-      - name: Install fixed Copilot CLI
-        run: npm install --global @github/copilot@1.0.95
+      - name: Load shared release-note writer policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/prepare-shared-release-note-writer.mjs
       - name: Check live writers and injected fallback failures
         env:
           GITHUB_TOKEN: ${{ github.token }}

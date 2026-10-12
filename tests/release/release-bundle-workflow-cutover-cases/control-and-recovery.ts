@@ -94,19 +94,14 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
   const route = JSON.parse(fs.readFileSync(
     new URL('../../../contracts/app-release-channel.json', import.meta.url), 'utf8',
   )).public_release_notes.preferred_ai_route;
-  assert.equal(step.env.OPL_RELEASE_NOTES_MODEL, route.model);
-  assert.equal(
-    step.env.OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS,
-    [route.model, ...route.fallback_models].join(','),
-  );
-  assert.equal(step.env.OPL_RELEASE_NOTES_CODEX_BASE_URL, route.compatibility_base_url);
-  assert.equal(step.env.OPL_RELEASE_NOTES_AI_REASONING_EFFORT, route.reasoning_effort);
-  assert.equal(Number(step.env.OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS), route.response_timeout_seconds);
-  assert.equal(Number(step.env.OPL_RELEASE_NOTES_AI_TRANSPORT_ATTEMPTS), route.transport_attempts_per_model);
-  const probe = workflowStep('release-qualification.yml', 'release-boundary', 'Probe release-note online AI provider');
+  assert.equal(route.owner_repository, 'gaofeng21cn/one-person-lab');
+  assert.equal(route.source_ref, 'main');
+  const shared = workflowStep('_release-bundle.yml', 'freeze', 'Load shared release-note writer policy');
+  assert.equal(shared.run, 'node app-executor/scripts/prepare-shared-release-note-writer.mjs');
+  assert.equal(shared['continue-on-error'], true);
   for (const name of ['OPL_RELEASE_NOTES_MODEL', 'OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS',
-    'OPL_RELEASE_NOTES_CODEX_BASE_URL', 'OPL_RELEASE_NOTES_CODEX_API_KEY', 'OPL_RELEASE_NOTES_AI_REASONING_EFFORT']) {
-    assert.equal(probe.env[name], step.env[name], `probe and full notes must use the same ${name}`);
+    'OPL_RELEASE_NOTES_CODEX_BASE_URL', 'OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS']) {
+    assert.equal(step.env[name], undefined, 'Product workflow must not duplicate central provider policy.');
   }
   const script = String(step.run);
   assert.doesNotMatch(script, /--include-full-package|--full-payload-authority|--full-package-manifest/);

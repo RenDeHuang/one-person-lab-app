@@ -2774,7 +2774,7 @@
   },
   "public_release_notes": {
     "owner": "one-person-lab-app",
-    "default_public_writer": "pre_release_copilot_gateway_mechanical_chain",
+    "default_public_writer": "framework_shared_release_note_writer",
     "evidence_first": true,
     "script": "scripts/generate-release-notes.ts",
     "publish_script": "scripts/framework-release-adapter.ts",
@@ -2788,24 +2788,24 @@
         "zh-CN"
       ],
       "stable_rule": "The visible GitHub body and the hidden OPL_RELEASE_NOTES:en-US block contain no Chinese text; Chinese reaches App users only through the hidden OPL_RELEASE_NOTES:zh-CN block selected by App locale.",
-      "nightly_rule": "Nightly notes are English-only. Copilot auto summarizes exact public Git evidence first, then deepseek-flash, then gpt-6-luna, then the deterministic disclosure. Non-English commit subjects remain in evidence and are omitted from mechanical public listings. Writer failure never blocks publication.",
+      "nightly_rule": "Nightly notes are English-only. The Framework shared writer summarizes exact public Git evidence; all provider and source failures fall back to deterministic disclosure. Non-English commit subjects remain in evidence and are omitted from mechanical public listings.",
       "component_subject_rule": "App, Shell, Framework, and Studio commit subjects are authored in English so that generated public bodies stay readable; subjects already recorded in other languages stay in history and are omitted from generated bodies instead of being translated, rewritten, or treated as failures.",
       "app_surface_rule": "The App update popup renders the hidden locale block when present and otherwise falls back to the published body, so a mixed-language body is user-visible in both GitHub and the App.",
       "repair_route": "A published body that violates this boundary is repaired in place under the same tag with unchanged assets and public readback."
     },
     "preferred_ai_route": {
       "provider": "fallback_chain",
-      "compatibility_base_url": "https://gateway.medopl.com/v1",
-      "model": "deepseek-flash",
-      "fallback_models": [
-        "gpt-6-luna"
-      ],
-      "reasoning_effort": "low",
-      "response_timeout_seconds": 90,
-      "transport_attempts_per_model": 1,
+      "owner_repository": "gaofeng21cn/one-person-lab",
+      "policy_path": "scripts/release-note-writer/policy.json",
+      "module_path": "scripts/release-note-writer/writer.mjs",
+      "source_ref": "main",
+      "resolve_once_per_preparation": true,
+      "bootstrap_script": "scripts/prepare-shared-release-note-writer.mjs",
       "api_key_secret": "OPL_RELEASE_NOTES_CODEX_API_KEY",
-      "first_provider": "copilot-auto",
-      "mechanical_fallback": true
+      "copilot_token": "GITHUB_TOKEN",
+      "copilot_permission": "copilot-requests: write",
+      "mechanical_fallback": true,
+      "source_failure_blocks_publication": false
     },
     "ai_assisted_draft_scope": "pre_release_preparation_only_not_publish_or_promote",
     "channels": {
@@ -2819,7 +2819,7 @@
           "compatibility notes",
           "known follow-up"
         ],
-        "writer": "copilot_auto_then_deepseek_flash_then_gpt_6_luna_then_mechanical"
+        "writer": "framework_shared_release_note_writer"
       },
       "nightly": {
         "status": "automatic_standard_prerelease",
@@ -2827,7 +2827,7 @@
         "comparison": "current frozen App Shell Framework cohort without a Stable qualification claim",
         "new_note_generation_available": true,
         "publication_available": true,
-        "writer": "copilot_auto_then_deepseek_flash_then_gpt_6_luna_then_mechanical",
+        "writer": "framework_shared_release_note_writer",
         "ai_on_release_critical_path_allowed": true,
         "lead_with": [
           "automated Standard preview",
@@ -2838,22 +2838,14 @@
         ],
         "writer_policy": {
           "script": "scripts/nightly-release-note-writer.ts",
-          "copilot_cli_version": "1.0.95",
-          "providers": [
-            "copilot-auto",
-            "deepseek-flash",
-            "gpt-6-luna",
-            "mechanical"
-          ],
           "copilot_token": "GITHUB_TOKEN",
           "copilot_permission": "copilot-requests: write",
-          "gateway_base_url": "https://gateway.medopl.com/v1",
           "gateway_api_key_secret": "OPL_RELEASE_NOTES_CODEX_API_KEY",
-          "timeout_seconds_per_provider": 90,
           "generation_failure_blocks_publication": false,
           "ai_scope": "user_visible_summary_only",
           "fixed_disclosure_and_release_identity_owner": "scripts/nightly-release-notes.ts",
-          "check_workflow": ".github/workflows/nightly-release-notes-check.yml"
+          "check_workflow": ".github/workflows/nightly-release-notes-check.yml",
+          "shared_route": "public_release_notes.preferred_ai_route"
         }
       }
     },
@@ -2895,7 +2887,7 @@
       "rule": "Mechanical fallback may be published when all writing providers fail. It records exact supplied changes, install commands, scope and bilingual popup blocks without inferring migration safety or validated functionality. Prepared notes remain frozen before expensive Stable gates; publish and promote do not regenerate them."
     },
     "public_asset_policy": "Release-note evidence JSON and technical audit output are operator evidence, not public download assets; the public GitHub Release asset list stays focused on install, update, checksum, and manifest entrypoints.",
-    "rule": "Stable release notes use prepared user copy derived from script-generated evidence before expensive gates; Stable publish and promote jobs do not call AI. Nightly permits a bounded Copilot auto, deepseek-flash, gpt-6-luna, mechanical chain before publication, with generation failures non-blocking and program-owned channel, risk and exact identity disclosures. The body leads with user scenarios, upgrade value, and actions; technical evidence stays at the end or in artifacts.",
+    "rule": "Stable release notes use prepared user copy derived from script-generated evidence before expensive gates; Stable publish and promote jobs do not call AI. Stable and Nightly share the Framework-owned provider policy; Nightly invokes that bounded chain before publication, with generation failures non-blocking and program-owned channel, risk and exact identity disclosures. The body leads with user scenarios, upgrade value, and actions; technical evidence stays at the end or in artifacts.",
     "default_policy_channel": "stable"
   },
   "active_shell": "opl-studio",

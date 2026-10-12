@@ -661,10 +661,12 @@ jobs:
           node --conditions=opl-source --experimental-strip-types --test ../framework-source/tests/src/cli/cases/release-bundle.test.ts
           npm --prefix ../framework-source run typecheck
 
-      - name: Install optional Copilot release-note writer
+      - name: Load shared release-note writer policy
         if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         continue-on-error: true
-        run: npm install --global @github/copilot@1.0.95
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node app-executor/scripts/prepare-shared-release-note-writer.mjs
 
       - name: Prepare and validate online AI notes
         if: ${{ inputs.prior_standard_artifact_run_id == '' }}
@@ -674,13 +676,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           OPL_RELEASE_NOTES_MODE: ai
           OPL_RELEASE_NOTES_PROVIDER: fallback_chain
-          OPL_RELEASE_NOTES_CODEX_BASE_URL: https://gateway.medopl.com/v1
           OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
-          OPL_RELEASE_NOTES_MODEL: deepseek-flash
-          OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS: deepseek-flash,gpt-6-luna
-          OPL_RELEASE_NOTES_AI_REASONING_EFFORT: low
-          OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '90'
-          OPL_RELEASE_NOTES_AI_TRANSPORT_ATTEMPTS: '1'
         shell: bash
         run: |
           set -euo pipefail

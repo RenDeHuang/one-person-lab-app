@@ -250,7 +250,7 @@ async function writeFixture(input: ReturnType<typeof fixture>, options: Paramete
 const summary = JSON.stringify({ overview: 'Provider readiness is now visible in settings.', changes: ['Preview update metadata is preserved.'] });
 const gatewaySuccess = async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: summary } }] });
 
-test('Nightly Copilot wins without Gateway calls and cannot replace exact channel or identity disclosure', async (t) => {
+test('Nightly Copilot wins without Gateway calls and cannot replace exact channel or identity disclosure', { skip: !process.env.OPL_RELEASE_NOTES_WRITER_MODULE }, async (t) => {
   const input = fixture(t);
   const source = build(input);
   const result = await writeFixture(input, {
@@ -264,7 +264,7 @@ test('Nightly Copilot wins without Gateway calls and cannot replace exact channe
   assert.equal(result.evidence.notes_sha256, `sha256:${crypto.createHash('sha256').update(result.notes).digest('hex')}`);
 });
 
-test('Nightly Copilot quota, invalid output or missing installation falls through to real Gateway route', async (t) => {
+test('Nightly Copilot quota, invalid output or missing installation falls through to real Gateway route', { skip: !process.env.OPL_RELEASE_NOTES_WRITER_MODULE }, async (t) => {
   const input = fixture(t);
   for (const failure of ['quota', 'ENOENT', 'invalid']) {
     const result = await writeFixture(input, {
@@ -281,7 +281,7 @@ test('Nightly Copilot quota, invalid output or missing installation falls throug
   }
 });
 
-test('Nightly both-provider failures keep the complete mechanical notes without secrets', async (t) => {
+test('Nightly both-provider failures keep the complete mechanical notes without secrets', { skip: !process.env.OPL_RELEASE_NOTES_WRITER_MODULE }, async (t) => {
   const input = fixture(t);
   for (const request of [
     async () => new Response(null, { status: 429 }),

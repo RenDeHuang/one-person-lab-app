@@ -21,7 +21,7 @@ const evidence: ReleaseNotesEvidence = {
 const copy = validStandardAiReleaseNotes(evidence.version);
 const fail = async () => { throw new Error('copilot-fixture-key'); };
 
-test('Stable provider order stops at the first valid writer and falls through content errors', async () => {
+test('Stable provider order stops at the first valid writer and falls through content errors', { skip: !process.env.OPL_RELEASE_NOTES_WRITER_MODULE }, async () => {
   for (const winner of ['copilot-auto', 'deepseek-flash', 'gpt-6-luna']) {
     const calls: string[] = [];
     const result = await buildFallbackReleaseNotes(evidence, {
@@ -39,7 +39,7 @@ test('Stable provider order stops at the first valid writer and falls through co
   }
 });
 
-test('Stable exhaustion produces honest, bilingual mechanical notes with exact install and comparison facts', async () => {
+test('Stable exhaustion produces honest, bilingual mechanical notes with exact install and comparison facts', { skip: !process.env.OPL_RELEASE_NOTES_WRITER_MODULE }, async () => {
   const result = await buildFallbackReleaseNotes(evidence, {
     copilotToken: 'copilot-fixture-key', apiKey: 'gateway-fixture-key', copilot: fail,
     request: async () => new Response(null, { status: 429 }),
@@ -69,6 +69,19 @@ test('Stable CLI missing credentials succeeds mechanically and records truthful 
   assert.match(fs.readFileSync(path.join(root, 'notes.md'), 'utf8'), /GENERATOR:mechanical/);
 });
 
+test('shared source unavailable still produces valid Stable mechanical copy with credentials present', async (t) => {
+  const old = process.env.OPL_RELEASE_NOTES_WRITER_MODULE;
+  t.after(() => { if (old === undefined) delete process.env.OPL_RELEASE_NOTES_WRITER_MODULE; else process.env.OPL_RELEASE_NOTES_WRITER_MODULE = old; });
+  process.env.OPL_RELEASE_NOTES_WRITER_MODULE = '/missing-shared-note-writer/writer.mjs';
+  const result = await buildFallbackReleaseNotes(evidence, {
+    copilotToken: 'copilot-fixture-key', apiKey: 'gateway-fixture-key',
+    copilot: async () => { assert.fail('Unavailable central source cannot call providers'); },
+  });
+  assert.equal(result.writer.mode, 'mechanical');
+  assert.equal(result.writer.reason, 'shared_writer_unavailable');
+  validatePreparedReleaseNotes(result.notes, evidence);
+});
+
 test('the shared Preview finalizer preserves mechanical provenance and excludes Stable install instructions', async () => {
   const { finalizePreviewReleaseNotesDocument } = await import('../../scripts/release-notes.ts');
   const preview = { ...evidence, channel: 'preview' as const, install_command: null,
@@ -80,7 +93,7 @@ test('the shared Preview finalizer preserves mechanical provenance and excludes 
   validatePreparedReleaseNotes(finalized, preview);
 });
 
-test('the new Stable chain does not invent highlights or upgrade safety while filling exact facts', async () => {
+test('the new Stable chain does not invent highlights or upgrade safety while filling exact facts', { skip: !process.env.OPL_RELEASE_NOTES_WRITER_MODULE }, async () => {
   const visible = 'Recorded change: an existing draft is preserved.';
   const raw = `${visible}\n<!-- OPL_RELEASE_NOTES:en-US\n${evidence.release_title}\n${visible}\n-->\n<!-- OPL_RELEASE_NOTES:zh-CN\n${evidence.release_title}\n保留已有草稿。\n-->`;
   const result = await buildFallbackReleaseNotes(evidence, { copilotToken: 'copilot-fixture-key', apiKey: '', copilot: async () => raw });

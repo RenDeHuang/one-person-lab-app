@@ -83,7 +83,8 @@ export type NightlyReleaseNotesEvidence = {
   notes_sha256: `sha256:${string}`;
   writer?: {
     mode: 'online-ai' | 'mechanical';
-    model?: 'copilot-auto' | 'deepseek-flash' | 'gpt-6-luna';
+    model?: string;
+    policy?: { repository: string; source_commit: string | null; policy_sha256: string };
     attempts: { provider: string; status: 'passed' | 'failed' }[];
     reason?: string;
   };
