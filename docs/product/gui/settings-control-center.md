@@ -60,6 +60,12 @@ Successor Settings completion is action-based:
 - a status without an available action remains read-only and names its owner route; it never becomes an inert
   toggle, optimistic success or shell-owned fallback.
 
+An API key write and the live Codex refresh have separate results. Once the
+Framework confirms the write, a deferred or failed refresh cannot turn that
+receipt into a save failure. A failed state refresh reports that the key was
+written and model access still needs a recheck. If the bridge returns no write
+receipt, the write remains unconfirmed; the UI does not claim that it was absent.
+
 Studio implementation and adoption are tracked through its current adapter and
 [product boundary](opl-studio-plan.md); this page does not maintain a second candidate work plan.
 

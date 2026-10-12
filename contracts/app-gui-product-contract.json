@@ -5840,6 +5840,8 @@
           "role": "compatibility",
           "bridge": "configureCodex",
           "transport": "stdin",
+          "write_result_policy": "preserve_successful_framework_write_across_deferred_or_failed_live_reload",
+          "refresh_failure_policy": "report_saved_but_refresh_unconfirmed_after_successful_write_and_unknown_before_receipt",
           "redaction_policy": "redact_before_renderer_diagnostics"
         },
         "existing_codex_recheck": {
