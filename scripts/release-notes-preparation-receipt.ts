@@ -1,4 +1,5 @@
 export type ReleaseNotesPreparationReceiptV1 = {
+  writer?: import('./release-note-writer-chain.ts').ReleaseNoteWriter;
   schema: 'opl_app_release_notes_prepare_receipt.v1';
   written_at: string;
   status: 'passed' | 'failed';

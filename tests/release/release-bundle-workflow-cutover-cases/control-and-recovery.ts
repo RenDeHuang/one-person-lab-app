@@ -90,7 +90,7 @@ test('Standard notes and Bundle freeze stay independent from Full and Package au
     'Prepare and validate online AI notes',
   );
   assert.equal(step.env.OPL_RELEASE_NOTES_MODE, 'ai');
-  assert.equal(step.env.OPL_RELEASE_NOTES_PROVIDER, 'openai_compatible');
+  assert.equal(step.env.OPL_RELEASE_NOTES_PROVIDER, 'fallback_chain');
   const route = JSON.parse(fs.readFileSync(
     new URL('../../../contracts/app-release-channel.json', import.meta.url), 'utf8',
   )).public_release_notes.preferred_ai_route;
@@ -327,7 +327,7 @@ test('the live control plane is split into Standard build, Standard publish, and
       } else if (jobId === 'webui-qualify') {
         assert.deepEqual(job.permissions, { actions: 'read', contents: 'read', packages: 'read' }, `${jobId} must stay packages:read`);
       } else {
-        assert.deepEqual(job.permissions, { contents: 'read', actions: 'read' }, `${jobId} must be read-only`);
+        assert.deepEqual(job.permissions, jobId === 'freeze' ? { contents: 'read', actions: 'read', 'copilot-requests': 'write' } : { contents: 'read', actions: 'read' }, `${jobId} must keep the admitted scope`);
       }
     }
   }

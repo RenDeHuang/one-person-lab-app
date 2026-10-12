@@ -168,13 +168,13 @@ test('the App adapter freezes the App Standard compatibility union without Packa
   }
 });
 
-test('the App adapter rejects notes without online AI provenance before build', () => {
+test('the App adapter rejects notes without supported writer provenance before build', () => {
   const fixture = adapterFixture();
   try {
     fs.writeFileSync(fixture.notesPath, '# One Person Lab v26.7.20\n\nTemplate notes.\n');
     const result = runFreezeRequest(fixture, path.join(fixture.root, 'untrusted-notes.json'));
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /not bound to the online AI writer/);
+    assert.match(result.stderr, /not bound to a supported writer/);
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
@@ -427,4 +427,15 @@ test('Stable and Full publication consume one mutable-Standard attestation witho
   assert.match(standardPublicationSource, /github_native_immutable_expected: false/);
   assert.match(full, /index\("stable-operation-publication-record\.json"\) \| not/);
   assert.doesNotMatch(full, /--publication-record|--pattern stable-operation-publication-record\.json/);
+});
+
+test('the App adapter admits mechanical notes with truthful provenance instead of an AI marker', () => {
+  const fixture = adapterFixture();
+  try {
+    fs.writeFileSync(fixture.notesPath, '# One Person Lab v26.7.20\nRecorded changes.\n<!-- OPL_RELEASE_NOTES_GENERATOR:mechanical -->\n');
+    const output = path.join(fixture.root, 'freeze-mechanical.json');
+    const run = runFreezeRequest(fixture, output);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(JSON.parse(fs.readFileSync(output, 'utf8')).prepared_notes.source, 'prepared_mechanical');
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });

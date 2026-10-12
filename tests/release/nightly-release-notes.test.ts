@@ -272,11 +272,11 @@ test('Nightly Copilot quota, invalid output or missing installation falls throug
       copilot: async () => { if (failure === 'invalid') return '{}'; throw new Error(failure); },
       request: async (url, options) => {
         assert.equal(url, 'https://gateway.medopl.com/v1/chat/completions');
-        assert.equal(JSON.parse(String(options?.body)).model, 'gpt-6-luna');
+        assert.equal(JSON.parse(String(options?.body)).model, 'deepseek-flash');
         return gatewaySuccess();
       },
     });
-    assert.equal(result.evidence.writer?.model, 'gpt-6-luna');
+    assert.equal(result.evidence.writer?.model, 'deepseek-flash');
     assert.deepEqual(result.evidence.writer?.attempts.map((attempt) => attempt.status), ['failed', 'passed']);
   }
 });
@@ -294,7 +294,7 @@ test('Nightly both-provider failures keep the complete mechanical notes without 
     });
     assert.equal(result.evidence.writer?.mode, 'mechanical');
     assert.equal(result.notes, build(input).notes);
-    assert.deepEqual(result.evidence.writer?.attempts.map((attempt) => attempt.status), ['failed', 'failed']);
+    assert.deepEqual(result.evidence.writer?.attempts.map((attempt) => attempt.status), ['failed', 'failed', 'failed']);
     assert.doesNotMatch(JSON.stringify(result), /copilot-test-key|gateway-test-key/);
   }
 });

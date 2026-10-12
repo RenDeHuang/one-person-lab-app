@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import { buildFallbackReleaseNotes, validatePreparedReleaseNotes } from './fallback-chain.ts';
+import type { ReleaseNoteWriter } from '../release-note-writer-chain.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs as parseNodeArgs } from 'node:util';
@@ -108,7 +110,7 @@ function readReleaseNotesEvidence(evidencePath: string): ReleaseNotesEvidence {
   return (payload?.release_evidence ?? payload) as ReleaseNotesEvidence;
 }
 
-export function runAiReleaseNotesCli() {
+export async function runAiReleaseNotesCli() {
   const options = parseCliArgs(process.argv.slice(2));
   if (options.probeOpenAICompatible) {
     runOpenAICompatibleProbe();
@@ -136,13 +138,17 @@ export function runAiReleaseNotesCli() {
     if (mode === 'template' && !options.inputPath) {
       throw new Error('OPL_RELEASE_NOTES_MODE=template requires --input with a deterministic template file.');
     }
-    const notes =
+    let writer: ReleaseNoteWriter | undefined;
+    const chain = mode === 'ai' && !options.inputPath && process.env.OPL_RELEASE_NOTES_PROVIDER === 'fallback_chain'
+      ? await buildFallbackReleaseNotes(evidence) : null;
+    if (chain) writer = chain.writer;
+    const notes = chain ? chain.notes :
       mode === 'template'
         ? completeAiReleaseNotesWithEvidence(fs.readFileSync(options.inputPath, 'utf8'), evidence)
         : options.inputPath
           ? fs.readFileSync(options.inputPath, 'utf8')
           : buildAiReleaseNotesDocument(evidence, options);
-    validateAiReleaseNotes(notes, evidence);
+    validatePreparedReleaseNotes(notes, evidence);
     if (options.outputPath) {
       fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
       fs.writeFileSync(options.outputPath, notes);
@@ -151,6 +157,7 @@ export function runAiReleaseNotesCli() {
     }
     writePreparationReceipt(options.receiptPath, {
       ...receiptBase,
+      ...(writer ? { writer, provider: { ...receiptBase.provider, model: writer.model ?? null } } : {}),
       written_at: new Date().toISOString(),
       status: 'passed',
       notes_sha256: sha256(notes),

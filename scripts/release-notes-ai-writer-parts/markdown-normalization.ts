@@ -164,8 +164,8 @@ function removePayloadEvidenceBeforeTechnical(visibleMarkdown: string, evidence:
     return visibleMarkdown;
   }
   const source = evidence as any;
-  const payloadRefs = compactArray(source.payload?.bundled_refs, 24);
-  const payloadUpdates = compactArray(source.payload?.updates_since_previous_stable, 24);
+  const payloadRefs = compactArray<string>(source.payload?.bundled_refs, 24);
+  const payloadUpdates = compactArray<string>(source.payload?.updates_since_previous_stable, 24);
   const before = visibleMarkdown
     .slice(0, offset)
     .split('\n')
@@ -221,7 +221,7 @@ function formatFamilyUpdate(change: any) {
 function buildHighlightsSection(evidence: ReleaseNotesEvidence) {
   const source = evidence as any;
   const groupedBullets = compactArray(source.grouped_changes, 4)
-    .flatMap((group: any) => compactArray(group.bullets, 1))
+    .flatMap((group: any) => compactArray<string>(group.bullets, 1))
     .filter(Boolean);
   const fullPackage = source.payload?.include_full_package
     ? 'Full first-install users get the App plus bundled research, grant, visual, Office, and document-intake tools from one Stable package.'
@@ -240,7 +240,7 @@ function buildHighlightsSection(evidence: ReleaseNotesEvidence) {
 function buildWhatImprovedSection(evidence: ReleaseNotesEvidence) {
   const source = evidence as any;
   const bullets = compactArray(source.grouped_changes, 6)
-    .flatMap((group: any) => compactArray(group.bullets, 2))
+    .flatMap((group: any) => compactArray<string>(group.bullets, 2))
     .filter(Boolean);
   const fallback = [
     'Users can start OPL App sessions with clearer setup, readiness, and built-in agent entry points.',
@@ -385,7 +385,7 @@ function buildReleaseScopeSection(evidence: ReleaseNotesEvidence) {
 
 function buildTechnicalDetailsSection(evidence: ReleaseNotesEvidence) {
   const source = evidence as any;
-  const payloadLines = compactArray(source.payload?.lines, 12);
+  const payloadLines = compactArray<string>(source.payload?.lines, 12);
   const lines = [
     '## Technical details',
     '',
@@ -430,7 +430,7 @@ export function completeAiReleaseNotesWithEvidence(markdown: string, evidence: R
     visible = `${beforeTechnical}\n\n${afterTechnical}`;
   }
   const source = evidence as any;
-  for (const line of compactArray(source.payload?.lines, 12)) {
+  for (const line of compactArray<string>(source.payload?.lines, 12)) {
     if (!visible.includes(line)) {
       visible = `${visible.trimEnd()}\n${line}`;
     }

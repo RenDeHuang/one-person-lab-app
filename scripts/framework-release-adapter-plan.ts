@@ -1,3 +1,4 @@
+import { mechanicalNotesMarker } from './release-notes-ai-writer-parts/mechanical.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -228,8 +229,8 @@ export function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
     throw new Error('App Standard Package compatibility must use the supported typed ABI and range.');
   }
   const preparedNotes = fs.readFileSync(notesPath, 'utf8');
-  if (!preparedNotes.includes(aiNotesMarker)) {
-    throw new Error('Prepared release notes are not bound to the online AI writer.');
+  if (!preparedNotes.includes(aiNotesMarker) && !preparedNotes.includes(mechanicalNotesMarker)) {
+    throw new Error('Prepared release notes are not bound to a supported writer.');
   }
   const notesEvidence = readJson(evidencePath);
   if (notesEvidence.schema !== 'opl_app_release_notes_evidence.v1') {
@@ -282,7 +283,7 @@ export function buildFreezeRequest(values: AdapterOptionValues): JsonRecord {
     identity_mode: appStandardIdentityMode,
     package_compatibility: packageCompatibility,
     prepared_notes: {
-      source: 'prepared_ai',
+      source: preparedNotes.includes(mechanicalNotesMarker) ? 'prepared_mechanical' : 'prepared_ai',
       format: 'markdown',
       markdown: preparedNotes,
       evidence: notesEvidence,

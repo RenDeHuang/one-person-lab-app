@@ -54,7 +54,9 @@ function validateReusablePermissionInheritance(
     }
     const expectedPermissions = name === 'bundle' && jobId === 'webui-qualify'
       ? { contents: 'read', actions: 'read', packages: 'read' }
-      : exactReadPermissions;
+      : name === 'bundle' && jobId === 'freeze'
+        ? { ...exactReadPermissions, 'copilot-requests': 'write' }
+        : exactReadPermissions;
     if (!exactObject(job.permissions, expectedPermissions)) {
       failures += reportFailure(
         id,

@@ -99,7 +99,7 @@ export function buildFamilyRepoChanges(currentManifest: any, previousManifest: a
     return [];
   }
   return familyPayloadRefSpecs
-    .map((spec) => {
+    .map((spec): FamilyRepoChange | null => {
       const current = resolvedRefValue(currentManifest, spec);
       const previous = resolvedRefValue(previousManifest, spec);
       if (!current.ref && !current.version) {
@@ -201,7 +201,7 @@ export function buildDefaultFamilyRepoWindowChanges(options: ReleaseNoteOptions,
     return [];
   }
   return defaultFamilyRepoWindowSpecs
-    .map((spec) => {
+    .map((spec): FamilyRepoChange | null => {
       const previousRef = readDefaultBranchRef(spec.repository, previousTimestamp);
       const currentRef = readDefaultBranchRef(spec.repository);
       if (!currentRef || previousRef === currentRef) {

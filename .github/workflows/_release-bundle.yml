@@ -326,6 +326,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      copilot-requests: write
     outputs:
       version: ${{ steps.identity.outputs.version }}
       updater_version: ${{ steps.identity.outputs.updater_version }}
@@ -660,24 +661,29 @@ jobs:
           node --conditions=opl-source --experimental-strip-types --test ../framework-source/tests/src/cli/cases/release-bundle.test.ts
           npm --prefix ../framework-source run typecheck
 
+      - name: Install optional Copilot release-note writer
+        if: ${{ inputs.prior_standard_artifact_run_id == '' }}
+        continue-on-error: true
+        run: npm install --global @github/copilot@1.0.95
+
       - name: Prepare and validate online AI notes
         if: ${{ inputs.prior_standard_artifact_run_id == '' }}
         working-directory: app-source
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           OPL_RELEASE_NOTES_MODE: ai
-          OPL_RELEASE_NOTES_PROVIDER: openai_compatible
+          OPL_RELEASE_NOTES_PROVIDER: fallback_chain
           OPL_RELEASE_NOTES_CODEX_BASE_URL: https://gateway.medopl.com/v1
           OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
           OPL_RELEASE_NOTES_MODEL: deepseek-flash
           OPL_RELEASE_NOTES_OPENAI_COMPATIBLE_MODELS: deepseek-flash,gpt-6-luna
           OPL_RELEASE_NOTES_AI_REASONING_EFFORT: low
-          OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '180'
+          OPL_RELEASE_NOTES_AI_TIMEOUT_SECONDS: '90'
           OPL_RELEASE_NOTES_AI_TRANSPORT_ATTEMPTS: '1'
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$OPL_RELEASE_NOTES_CODEX_API_KEY" || { echo "::error::Online AI release-note credential is missing."; exit 1; }
           notes_root="$RUNNER_TEMP/opl-release-prepared-notes-$GITHUB_RUN_ID"
           mkdir -p "$notes_root"
           notes_intent_args=()

@@ -31,7 +31,7 @@ export { validateAiReleaseNotes } from './release-notes-ai-writer-parts/validati
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    runAiReleaseNotesCli();
+    await runAiReleaseNotesCli();
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

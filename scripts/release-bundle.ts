@@ -91,7 +91,7 @@ export type ReleaseBundleV1 = {
   };
   cohort: ReleaseBundleInputV1['cohort'];
   notes: {
-    source: 'prepared_ai';
+    source: 'prepared_ai' | 'prepared_mechanical';
     format: 'markdown';
     markdown_sha256: string;
     evidence_schema: 'opl_app_release_notes_evidence.v1';
@@ -447,7 +447,7 @@ function assembleHistoricalBundleForVerification(inputDirectory: string): Releas
     },
     cohort: { ...input.cohort },
     notes: {
-      source: 'prepared_ai',
+      source: notes.includes('<!-- OPL_RELEASE_NOTES_GENERATOR:mechanical -->') ? 'prepared_mechanical' : 'prepared_ai',
       format: 'markdown',
       markdown_sha256: fileSha256(notesPath),
       evidence_schema: 'opl_app_release_notes_evidence.v1',
@@ -605,7 +605,7 @@ export function validateReleaseBundle(value: unknown): string[] {
       'evidence_schema',
       'evidence_sha256',
     ]);
-    if (bundle.notes.source !== 'prepared_ai' || bundle.notes.format !== 'markdown') {
+    if (!['prepared_ai', 'prepared_mechanical'].includes(bundle.notes.source) || bundle.notes.format !== 'markdown') {
       errors.push('notes source/format is invalid');
     }
     if (bundle.notes.evidence_schema !== 'opl_app_release_notes_evidence.v1') {

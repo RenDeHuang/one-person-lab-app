@@ -115,7 +115,7 @@ export function buildBundledVersionLines(manifest: any) {
       }
       return value.kind === 'git' ? `${label} @ ${value.value}` : `${label} ${value.value}`;
     })
-    .filter(Boolean);
+    .filter((value): value is string => value !== null);
   return modules;
 }
 
@@ -146,7 +146,7 @@ export function buildPayloadUpdateLines(currentManifest: any, previousManifest: 
       }
       return `${label} ${previous.value} -> ${current.value}`;
     })
-    .filter(Boolean);
+    .filter((value): value is string => value !== null);
 }
 
 function componentRefValue(label: string, component: any) {
@@ -188,7 +188,7 @@ export function buildAgentRuntimeChanges(currentManifest: any, previousManifest:
     ? previousManifest.components
     : {};
   return payloadComponentSpecs
-    .map(({ label, key, role, user_value_hint }) => {
+    .map(({ label, key, role, user_value_hint }): AgentRuntimeChange | null => {
       const currentComponent = currentManifest.components[key];
       if (!currentComponent || typeof currentComponent !== 'object') {
         return null;

@@ -36,6 +36,7 @@ export const exactStableStandardBundlePermissions = {
   contents: 'write',
   actions: 'read',
   packages: 'read',
+  'copilot-requests': 'write',
 } as const;
 export const manualPreviewWorkflowPath = '.github/workflows/release-manual-preview.yml';
 export const manualFullPreviewWorkflowPath = '.github/workflows/release-manual-full-preview.yml';
@@ -141,7 +142,7 @@ function isAuthorizedManualPreviewWriteJob(
   if (
     workflowPath !== manualPreviewWorkflowPath
     || !needsExactly(job, ['admission'])
-    || !exactObject(job.permissions, exactStableEntryPermissions)
+    || !exactObject(job.permissions, jobId === 'preview' ? { ...exactStableEntryPermissions, 'copilot-requests': 'write' } : exactStableEntryPermissions)
     || job.secrets !== 'inherit'
     || Object.prototype.hasOwnProperty.call(job, 'steps')
   ) {

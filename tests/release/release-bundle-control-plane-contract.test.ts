@@ -222,7 +222,7 @@ test("local and GitHub executors consume one exact build-once Bundle", () => {
   );
   assert.equal(control.prepared_notes.required_before_expensive_build, true);
   assert.equal(control.prepared_notes.publish_may_generate_or_replace, false);
-  assert.equal(control.prepared_notes.template_fallback_may_publish, false);
+  assert.equal(control.prepared_notes.template_fallback_may_publish, true);
 });
 
 test("qualified Stable defaults Latest while daily-default Nightly keeps development validation identity-distinct", () => {
