@@ -1,3 +1,4 @@
+import { mechanicalNotesMarker } from './release-notes-ai-writer-parts/mechanical.ts';
 import { readActiveShellBuildProfile } from './active-shell-build-profile.ts';
 import { collectCommitSubjects, gitRefExists } from './release-notes/command.ts';
 import { appendAgentChangeSummary, normalizedSubject, summarizeChanges } from './release-notes/changes.ts';
@@ -146,13 +147,14 @@ export function finalizePreviewReleaseNotesDocument(markdown: string, evidence: 
   if (evidence.channel !== 'preview') {
     throw new Error('Preview release-note finalization requires channel=preview evidence.');
   }
-  if (!markdown.includes(onlineAiReleaseNotesMarker)) {
-    throw new Error('Preview release notes are not bound to the online AI writer.');
+  if (!markdown.includes(onlineAiReleaseNotesMarker) && !markdown.includes(mechanicalNotesMarker)) {
+    throw new Error('Preview release notes are not bound to a supported writer.');
   }
-  const visible = normalizeEnglishPreviewNotes(stripLocalizedReleaseNotes(markdown), evidence);
+  const marker = markdown.includes(mechanicalNotesMarker) ? mechanicalNotesMarker : onlineAiReleaseNotesMarker;
+  const visible = normalizeEnglishPreviewNotes(stripLocalizedReleaseNotes(markdown), evidence).replaceAll(mechanicalNotesMarker, '').trimEnd();
   const enUS = `${evidence.release_title}\n\n${visible}`;
   const zhCN = normalizeChinesePreviewNotes(extractLocalizedReleaseNotes(markdown, 'zh-CN'), evidence);
-  const finalized = `${visible}\n\n<!-- OPL_RELEASE_NOTES:en-US\n${enUS}\n-->\n<!-- OPL_RELEASE_NOTES:zh-CN\n${zhCN}\n-->\n\n${onlineAiReleaseNotesMarker}\n`;
+  const finalized = `${visible}\n\n<!-- OPL_RELEASE_NOTES:en-US\n${enUS}\n-->\n<!-- OPL_RELEASE_NOTES:zh-CN\n${zhCN}\n-->\n\n${marker}\n`;
   const publicMarkdown = stripLocalizedReleaseNotes(finalized);
   for (const required of [
     'qualified manual Preview',

@@ -68,3 +68,14 @@ test('Stable CLI missing credentials succeeds mechanically and records truthful 
   assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'receipt.json'), 'utf8')).writer.mode, 'mechanical');
   assert.match(fs.readFileSync(path.join(root, 'notes.md'), 'utf8'), /GENERATOR:mechanical/);
 });
+
+test('the shared Preview finalizer preserves mechanical provenance and excludes Stable install instructions', async () => {
+  const { finalizePreviewReleaseNotesDocument } = await import('../../scripts/release-notes.ts');
+  const preview = { ...evidence, channel: 'preview' as const, install_command: null,
+    release_scope: 'Qualified manual Standard macOS arm64 Desktop publication. It may temporarily become Latest; the next qualified Stable reclaims Latest. Preview does not publish Homebrew, Full, Native WebUI, Container WebUI, or a production WebUI follower handoff.' };
+  const result = await buildFallbackReleaseNotes(preview, { copilotToken: '', apiKey: '' });
+  const finalized = finalizePreviewReleaseNotesDocument(result.notes, preview);
+  assert.match(finalized, /GENERATOR:mechanical/);
+  assert.doesNotMatch(finalized, /GENERATOR:online-ai|## Install Stable/);
+  validatePreparedReleaseNotes(finalized, preview);
+});
