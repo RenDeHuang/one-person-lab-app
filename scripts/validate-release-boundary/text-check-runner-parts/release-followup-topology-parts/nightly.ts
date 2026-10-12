@@ -12,7 +12,7 @@ import {
 } from '../report.ts';
 import {
   exactReadPermissions,
-  exactStableStandardPermissions,
+  exactNightlyPublishPermissions,
   nightlyReleaseWorkflowPath,
   nightlyFollowupWorkflowPath,
 } from '../workflow-policy.ts';
@@ -75,7 +75,7 @@ export function validateNightlyReleaseTopology(appRoot: string): number {
     || !publish
     || !needsExactly(publish, ['admission', 'standard-build'])
     || publish.environment !== 'release-nightly'
-    || !exactObject(publish.permissions, exactStableStandardPermissions)
+    || !exactObject(publish.permissions, exactNightlyPublishPermissions)
   ) {
     failures += reportFailure(id, 'Nightly must reuse the physical build without Stable Bundle authority and protect only its thin publisher');
   }

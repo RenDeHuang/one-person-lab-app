@@ -169,6 +169,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      copilot-requests: write
     steps:
       - name: Checkout exact App executor
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -294,7 +295,14 @@ jobs:
           git -C ${{ needs.admission.outputs.shell_root }} fetch --no-tags origin "$previous_shell_ref"
           git -C framework-source fetch --no-tags origin "$previous_framework_ref"
 
-      - name: Write deterministic Nightly changelog
+      - name: Install optional Copilot release-note writer
+        continue-on-error: true
+        run: npm install --global @github/copilot@1.0.95
+
+      - name: Write Nightly notes with non-blocking writer fallback
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          OPL_RELEASE_NOTES_CODEX_API_KEY: ${{ secrets.OPL_RELEASE_NOTES_CODEX_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail

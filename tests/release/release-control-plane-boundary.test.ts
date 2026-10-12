@@ -481,3 +481,13 @@ jobs:
 
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
+
+
+test('Nightly writer access does not grant repository mutation or broader token authority', (t) => {
+  const root = fixture(t);
+  assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
+  updateWorkflow(root, 'nightly-release-notes-check.yml', (workflow) => {
+    workflow.jobs.writers.permissions.contents = 'write';
+  });
+  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});

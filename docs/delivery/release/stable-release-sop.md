@@ -244,6 +244,8 @@ checkpoint digest。该参数只允许用于已有检查点的恢复，迁移回
 
 ## 6. 推进附加发布，保持产品独立
 
+Nightly 发布说明在 GitHub Actions 中依次使用 Copilot CLI `--model auto`、Gateway `gpt-6-luna` 和机械说明。Copilot 使用 Actions 的 `GITHUB_TOKEN` 与 `copilot-requests: write`，受仓库所有者 Copilot 额度限制；Gateway 使用已有 `OPL_RELEASE_NOTES_CODEX_API_KEY`。安装失败、额度不足、超时或无效输出都会降级，两次写作均失败时仍发布机械说明。AI 只整理冻结 App/Shell/Framework 的公开 diff 与提交证据，英文正文中的渠道、风险、升级及提交身份由程序填入。独立的 `nightly-release-notes-check.yml` 只验证写作链，不构建或发布产品。Stable 继续使用其现有发布前写作流程。
+
 Nightly 抽样 VM 使用原发布 cohort、公开 DMG 摘要和带 `-nightly.N` 的机器版本，
 通过 `--channel nightly` 验证 Standard 安装、Gateway 登录与 Official Profile。
 其回执为 `opl_studio_nightly_clean_vm.v1`，不声明 Stable 签名、公证或 Gatekeeper 资格；

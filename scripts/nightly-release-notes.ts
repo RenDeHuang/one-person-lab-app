@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { writeNightlyReleaseNotes } from './nightly-release-note-writer.ts';
 import { readActiveShellBuildProfile } from './active-shell-build-profile.ts';
 
 import crypto from 'node:crypto';
@@ -39,7 +40,7 @@ export type NightlyNotesBaseline = {
 
 type RepositoryInput = {
   id: 'app' | 'shell' | 'framework';
-  label: 'One Person Lab App' | 'OPL Aion Shell' | 'OPL Framework';
+  label: 'One Person Lab App' | 'OPL Studio' | 'OPL Aion Shell' | 'OPL Framework';
   repository: string;
   root: string;
   previousRef: string;
@@ -80,6 +81,12 @@ export type NightlyReleaseNotesEvidence = {
   components: NightlyComponentChange[];
   user_visible_changes: string[];
   notes_sha256: `sha256:${string}`;
+  writer?: {
+    mode: 'online-ai' | 'mechanical';
+    model?: 'copilot-auto' | 'gpt-6-luna';
+    attempts: { provider: string; status: 'passed' | 'failed' }[];
+    reason?: string;
+  };
 };
 
 const exactShaPattern = /^[0-9a-f]{40}$/;
@@ -391,7 +398,7 @@ function readJson<T>(filePath: string): T {
   return JSON.parse(fs.readFileSync(path.resolve(filePath), 'utf8')) as T;
 }
 
-function main(argv: string[]): void {
+async function main(argv: string[]): Promise<void> {
   const { values } = parseArgs({
     args: argv,
     options: {
@@ -412,13 +419,16 @@ function main(argv: string[]): void {
     if (typeof value !== 'string' || value.trim() === '') throw new Error(`Missing --${String(name)}.`);
     return value.trim();
   };
-  const result = buildNightlyReleaseNotes({
+  const input = {
     request: readJson<NightlyReleaseRequest>(required('request')),
     qualification: readJson<NightlyQualificationReceipt>(required('qualification')),
     baseline: readJson<NightlyNotesBaseline>(required('baseline')),
     appRoot: path.resolve(required('app-root')),
     shellRoot: path.resolve(required('shell-root')),
     frameworkRoot: path.resolve(required('framework-root')),
+  };
+  const result = await writeNightlyReleaseNotes(buildNightlyReleaseNotes(input), {
+    app: input.appRoot, shell: input.shellRoot, framework: input.frameworkRoot,
   });
   fs.writeFileSync(path.resolve(required('output')), result.notes, 'utf8');
   fs.writeFileSync(
@@ -430,7 +440,7 @@ function main(argv: string[]): void {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    main(process.argv.slice(2));
+    await main(process.argv.slice(2));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

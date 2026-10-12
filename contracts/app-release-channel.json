@@ -2785,7 +2785,7 @@
         "zh-CN"
       ],
       "stable_rule": "The visible GitHub body and the hidden OPL_RELEASE_NOTES:en-US block contain no Chinese text; Chinese reaches App users only through the hidden OPL_RELEASE_NOTES:zh-CN block selected by App locale.",
-      "nightly_rule": "Deterministic Nightly notes are English-only: component commit subjects that are not written in English are left out of the published body without any operator-facing notice about omitted content, and remain readable in the notes evidence artifact. Commit-subject language never blocks, delays, or fails a Nightly publication.",
+      "nightly_rule": "Nightly notes are English-only. Copilot auto summarizes exact public Git evidence first, then gpt-6-luna, then the deterministic disclosure. Non-English commit subjects remain in evidence and are omitted from mechanical public listings. Writer failure never blocks publication.",
       "component_subject_rule": "App, Shell, Framework, and Studio commit subjects are authored in English so that generated public bodies stay readable; subjects already recorded in other languages stay in history and are omitted from generated bodies instead of being translated, rewritten, or treated as failures.",
       "app_surface_rule": "The App update popup renders the hidden locale block when present and otherwise falls back to the published body, so a mixed-language body is user-visible in both GitHub and the App.",
       "repair_route": "A published body that violates this boundary is repaired in place under the same tag with unchanged assets and public readback."
@@ -2821,15 +2821,33 @@
         "comparison": "current frozen App Shell Framework cohort without a Stable qualification claim",
         "new_note_generation_available": true,
         "publication_available": true,
-        "writer": "deterministic_scope_and_risk_disclosure",
-        "ai_on_release_critical_path_allowed": false,
+        "writer": "copilot_auto_then_gpt_6_luna_then_mechanical",
+        "ai_on_release_critical_path_allowed": true,
         "lead_with": [
           "automated Standard preview",
           "not Stable-qualified",
           "no Full or WebUI assets",
           "does not change Latest",
           "sampled clean-VM follow-up is non-blocking"
-        ]
+        ],
+        "writer_policy": {
+          "script": "scripts/nightly-release-note-writer.ts",
+          "copilot_cli_version": "1.0.95",
+          "providers": [
+            "copilot-auto",
+            "gpt-6-luna",
+            "mechanical"
+          ],
+          "copilot_token": "GITHUB_TOKEN",
+          "copilot_permission": "copilot-requests: write",
+          "gateway_base_url": "https://gateway.medopl.com/v1",
+          "gateway_api_key_secret": "OPL_RELEASE_NOTES_CODEX_API_KEY",
+          "timeout_seconds_per_provider": 90,
+          "generation_failure_blocks_publication": false,
+          "ai_scope": "user_visible_summary_only",
+          "fixed_disclosure_and_release_identity_owner": "scripts/nightly-release-notes.ts",
+          "check_workflow": ".github/workflows/nightly-release-notes-check.yml"
+        }
       }
     },
     "public_body_order": [
@@ -2869,7 +2887,8 @@
       "rule": "Template release notes preserve evidence facts and technical details only when the operator requested a dry-run or diagnostic preview and must not replace prepared Stable copy. Automated Nightly uses a separate fixed scope-and-risk disclosure that cannot claim Stable qualification, Full, WebUI, Latest, or heavy-VM completion."
     },
     "public_asset_policy": "Release-note evidence JSON and technical audit output are operator evidence, not public download assets; the public GitHub Release asset list stays focused on install, update, checksum, and manifest entrypoints.",
-    "rule": "Public release notes use prepared user copy derived from script-generated evidence before the expensive release train starts. Publish and promote jobs must not call AI to generate or replace notes on the critical path. The body leads with user scenarios, upgrade value, and action items; commit logs, refs, workflow facts, changelog details, and packaging audit material belong in Technical details or evidence artifacts instead of the main narrative."
+    "rule": "Stable release notes use prepared user copy derived from script-generated evidence before expensive gates; Stable publish and promote jobs do not call AI. Nightly permits a bounded Copilot auto, gpt-6-luna, mechanical chain before publication, with generation failures non-blocking and program-owned channel, risk and exact identity disclosures. The body leads with user scenarios, upgrade value, and actions; technical evidence stays at the end or in artifacts.",
+    "default_policy_channel": "stable"
   },
   "active_shell": "opl-studio",
   "shell_root": "shells/opl-studio",

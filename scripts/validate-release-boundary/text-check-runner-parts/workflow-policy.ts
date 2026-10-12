@@ -31,6 +31,7 @@ export const exactWebUiCompileCeilingPermissions = {
   packages: 'write',
 } as const;
 export const exactStableStandardPermissions = { contents: 'write', actions: 'read' } as const;
+export const exactNightlyPublishPermissions = { ...exactStableStandardPermissions, 'copilot-requests': 'write' } as const;
 export const exactStableStandardBundlePermissions = {
   contents: 'write',
   actions: 'read',
@@ -540,6 +541,15 @@ export function validateWorkflowDispatchWriteAuthorityForWorkflows(appRoot: stri
       const writes = Object.entries(permissions).filter(([, value]) => value === 'write').map(([key]) => key);
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
+      if (
+        workflowPath === '.github/workflows/nightly-release-notes-check.yml'
+        && jobId === 'writers'
+        && exactObject(job.permissions, { contents: 'read', 'copilot-requests': 'write' })
+        && jobRuns(job).includes('scripts/check-nightly-release-note-writers.ts')
+      ) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
       if (isAuthorizedWebuiStablePromotionWriteJob(workflowPath, jobId, job)) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;
@@ -563,7 +573,7 @@ export function validateWorkflowDispatchWriteAuthorityForWorkflows(appRoot: stri
         && jobId === 'qualify-and-publish'
         && job.environment === 'release-nightly'
         && needsExactly(job, ['admission', 'standard-build'])
-        && exactObject(job.permissions, exactStableStandardPermissions)
+        && exactObject(job.permissions, exactNightlyPublishPermissions)
       ) {
         failures += validateExactActionPins(workflowPath, jobId, steps);
         continue;

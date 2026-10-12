@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { writeNightlyReleaseNotes } from '../../scripts/nightly-release-note-writer.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -238,4 +240,77 @@ test('Nightly notes fail closed when the checked out source is not the frozen re
     }),
     /request digest does not bind the exact request body/,
   );
+});
+
+async function writeFixture(input: ReturnType<typeof fixture>, options: Parameters<typeof writeNightlyReleaseNotes>[2]) {
+  return writeNightlyReleaseNotes(build(input), {
+    app: path.join(input.root, 'app'), shell: path.join(input.root, 'shell'), framework: path.join(input.root, 'framework'),
+  }, options);
+}
+const summary = JSON.stringify({ overview: 'Provider readiness is now visible in settings.', changes: ['Preview update metadata is preserved.'] });
+const gatewaySuccess = async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: summary } }] });
+
+test('Nightly Copilot wins without Gateway calls and cannot replace exact channel or identity disclosure', async (t) => {
+  const input = fixture(t);
+  const source = build(input);
+  const result = await writeFixture(input, {
+    copilotToken: 'copilot-test-key', apiKey: 'gateway-test-key',
+    copilot: async (prompt) => { assert.match(prompt, /diff/); return summary; },
+    request: async () => { assert.fail('Gateway must not run after Copilot succeeds'); },
+  });
+  assert.equal(result.evidence.writer?.model, 'copilot-auto');
+  assert.match(result.notes, /Provider readiness is now visible/);
+  assert.equal(result.notes.split('## Compatibility and upgrade')[1], source.notes.split('## Compatibility and upgrade')[1]);
+  assert.equal(result.evidence.notes_sha256, `sha256:${crypto.createHash('sha256').update(result.notes).digest('hex')}`);
+});
+
+test('Nightly Copilot quota, invalid output or missing installation falls through to real Gateway route', async (t) => {
+  const input = fixture(t);
+  for (const failure of ['quota', 'ENOENT', 'invalid']) {
+    const result = await writeFixture(input, {
+      copilotToken: 'copilot-test-key', apiKey: 'gateway-test-key',
+      copilot: async () => { if (failure === 'invalid') return '{}'; throw new Error(failure); },
+      request: async (url, options) => {
+        assert.equal(url, 'https://gateway.medopl.com/v1/chat/completions');
+        assert.equal(JSON.parse(String(options?.body)).model, 'gpt-6-luna');
+        return gatewaySuccess();
+      },
+    });
+    assert.equal(result.evidence.writer?.model, 'gpt-6-luna');
+    assert.deepEqual(result.evidence.writer?.attempts.map((attempt) => attempt.status), ['failed', 'passed']);
+  }
+});
+
+test('Nightly both-provider failures keep the complete mechanical notes without secrets', async (t) => {
+  const input = fixture(t);
+  for (const request of [
+    async () => new Response(null, { status: 429 }),
+    async () => { throw new Error('gateway-test-key'); },
+    async () => Response.json({ choices: [{ message: { content: 'gateway-test-key' } }] }),
+  ]) {
+    const result = await writeFixture(input, {
+      copilotToken: 'copilot-test-key', apiKey: 'gateway-test-key',
+      copilot: async () => { throw new Error('copilot-test-key'); }, request,
+    });
+    assert.equal(result.evidence.writer?.mode, 'mechanical');
+    assert.equal(result.notes, build(input).notes);
+    assert.deepEqual(result.evidence.writer?.attempts.map((attempt) => attempt.status), ['failed', 'failed']);
+    assert.doesNotMatch(JSON.stringify(result), /copilot-test-key|gateway-test-key/);
+  }
+});
+
+test('Nightly CLI writes mechanical notes successfully when no cloud credentials are available', (t) => {
+  const input = fixture(t);
+  for (const [name, value] of Object.entries({ request: input.request, qualification: input.qualification, baseline: input.baseline })) {
+    fs.writeFileSync(path.join(input.root, name + '.json'), JSON.stringify(value));
+  }
+  const result = spawnSync(process.execPath, ['--experimental-strip-types', 'scripts/nightly-release-notes.ts',
+    '--request', path.join(input.root, 'request.json'), '--qualification', path.join(input.root, 'qualification.json'),
+    '--baseline', path.join(input.root, 'baseline.json'), '--app-root', path.join(input.root, 'app'),
+    '--shell-root', path.join(input.root, 'shell'), '--framework-root', path.join(input.root, 'framework'),
+    '--output', path.join(input.root, 'notes.md'), '--evidence-output', path.join(input.root, 'evidence.json')],
+  { encoding: 'utf8', env: { ...process.env, GITHUB_TOKEN: '', OPL_RELEASE_NOTES_CODEX_API_KEY: '' } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(path.join(input.root, 'notes.md'), 'utf8'), build(input).notes);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(input.root, 'evidence.json'), 'utf8')).writer.mode, 'mechanical');
 });
