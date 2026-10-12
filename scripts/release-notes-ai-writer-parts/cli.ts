@@ -148,7 +148,8 @@ export async function runAiReleaseNotesCli() {
         : options.inputPath
           ? fs.readFileSync(options.inputPath, 'utf8')
           : buildAiReleaseNotesDocument(evidence, options);
-    validatePreparedReleaseNotes(notes, evidence);
+    if (process.env.OPL_RELEASE_NOTES_PROVIDER === 'fallback_chain') validatePreparedReleaseNotes(notes, evidence);
+    else validateAiReleaseNotes(notes, evidence);
     if (options.outputPath) {
       fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
       fs.writeFileSync(options.outputPath, notes);

@@ -79,3 +79,14 @@ test('the shared Preview finalizer preserves mechanical provenance and excludes 
   assert.doesNotMatch(finalized, /GENERATOR:online-ai|## Install Stable/);
   validatePreparedReleaseNotes(finalized, preview);
 });
+
+test('the new Stable chain does not invent highlights or upgrade safety while filling exact facts', async () => {
+  const visible = 'Recorded change: an existing draft is preserved.';
+  const raw = `${visible}\n<!-- OPL_RELEASE_NOTES:en-US\n${evidence.release_title}\n${visible}\n-->\n<!-- OPL_RELEASE_NOTES:zh-CN\n${evidence.release_title}\n保留已有草稿。\n-->`;
+  const result = await buildFallbackReleaseNotes(evidence, { copilotToken: 'copilot-fixture-key', apiKey: '', copilot: async () => raw });
+  assert.match(result.notes, /an existing draft is preserved/);
+  assert.doesNotMatch(result.notes, /refreshed built-in|clearer setup|No manual migration|## Highlights/);
+  assert.ok(result.notes.includes(stableInstallCommand));
+  assert.ok(result.notes.includes(evidence.release_scope));
+  validatePreparedReleaseNotes(result.notes, evidence);
+});
