@@ -154,7 +154,9 @@ run_lane() {
       write_preflight_summary "$OPL_PREFLIGHT_SUMMARY_PATH" running
       trap 'rc=$?; write_preflight_summary "$OPL_PREFLIGHT_SUMMARY_PATH" "$OPL_PREFLIGHT_FINAL_STATUS"; trap - EXIT; exit "$rc"' EXIT
       npm run ensure:shell
-      actionlint -shellcheck= -pyflakes=
+      # actionlint 1.7.12 lacks this documented GitHub scope; the release-boundary
+      # validator below still enforces every exact job permission and value.
+      actionlint -shellcheck= -pyflakes= -ignore '^unknown permission scope "copilot-requests"\.'
       npm run typecheck
       npm run validate:active-shell
       OPL_RELEASE_VALIDATION_PROFILE=stable run_release_boundary_profile stable
