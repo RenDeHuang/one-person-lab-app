@@ -155,7 +155,7 @@ jobs:
           echo "$RUNNER_TEMP/actionlint-bin" >> "$GITHUB_PATH"
 
       - name: Lint GitHub Actions workflows
-        run: actionlint -color -shellcheck= -pyflakes=
+        run: actionlint -color -shellcheck= -pyflakes= -ignore '^unknown permission scope "copilot-requests"\.'
 
   lint-format:
     name: Lint and format
