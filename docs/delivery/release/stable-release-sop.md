@@ -239,6 +239,10 @@ Linux／Windows／Homebrew 的独立恢复使用 [现有 follow-up workflow](../
 SHA-256 和新正文文件；正文在资产提升后才按 CAS 更新。不为修复分配新 tag 或新增 Release Notes。
 中断或结果未知时先读回原 Release 的旧资产、暂存资产和正式名称，按当前状态续接，不能盲目重传。
 
+本机大文件上传受网络限制时，可使用 `replace-same-tag-assets.yml` 在 GitHub runner 下载已验收的
+原构建资产。请求绑定每个文件的摘要和通过的 clean-VM 回执，仍调用同一 CAS 工具暂存与提升；
+它只改变文件传输位置，不重建候选，也不替代签名、公证或安装验收。
+
 Studio Preview 已签名、公证且字节不变时，使用受保护 Studio lane 的
 `prior_studio_artifact_run_id` 续接原检查点。仅验收脚本修复可同时指定准确 Studio commit
 作为 `smoke_harness_ref`；它只改变 qualification checkout，不改变签名源 SHA、tree、tag 或

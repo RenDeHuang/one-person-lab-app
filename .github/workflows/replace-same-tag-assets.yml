@@ -1,0 +1,41 @@
+name: Qualified same-tag asset replacement
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: Exact replacement plan, file digests, metadata, and passed clean-VM receipt.
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: qualified-same-tag-release-replacement
+  cancel-in-progress: false
+jobs:
+  replace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release-stable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Prepare exact qualified files and existing CAS plan
+        env:
+          REPLACEMENT_REQUEST: ${{ inputs.request }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          printf '%s' "$REPLACEMENT_REQUEST" > "$RUNNER_TEMP/replacement-request.json"
+          node --experimental-strip-types scripts/prepare-same-tag-replacement-request.ts "$RUNNER_TEMP/replacement-request.json" "$RUNNER_TEMP/replacement"
+      - name: Stage and promote through the canonical same-tag CAS utility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/replace-same-tag-release-assets.ts --plan "$RUNNER_TEMP/replacement/replacement-plan.json" --stage
+          node --experimental-strip-types scripts/replace-same-tag-release-assets.ts --plan "$RUNNER_TEMP/replacement/replacement-plan.json" --promote
