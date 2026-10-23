@@ -32,3 +32,17 @@ test('Full finalizers unlock the signing keychain and stop before notarization i
     }
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('candidate and normal Full paths verify embedded signatures and outer Gatekeeper trust consistently', () => {
+  const workflow = parse(fs.readFileSync('.github/workflows/full-first-install-release.yml', 'utf8'));
+  for (const job of Object.values(workflow.jobs) as any[]) {
+    const verification = job.steps?.find((step: any) => step.run?.includes('spctl --assess --type execute --verbose=4 "$mounted_app_path"'));
+    if (!verification) continue;
+    const nativeCall = verification.run.match(/node --experimental-strip-types [^\n]*verify-full-runtime-native-trust\.ts[\s\S]*?--output [^\n]+/);
+    assert.ok(nativeCall);
+    assert.match(nativeCall[0], /--expected-team-id/);
+    assert.doesNotMatch(nativeCall[0], /--require-spctl/);
+    assert.match(verification.run, /codesign --verify --deep --strict/);
+    assert.match(verification.run, /stapler validate/);
+  }
+});

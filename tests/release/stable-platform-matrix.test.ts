@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
@@ -15,6 +16,26 @@ import { validateReleasePlatformMatrix } from '../../scripts/validate-release-bo
 import { validateReleaseChannelContract } from '../../scripts/validate-active-shell/release-contract-validator.ts';
 
 const appRoot = path.resolve(import.meta.dirname, '../..');
+
+test('same-tag Full recovery retains the passed candidate version after Standard promotion', () => {
+  const workflow = parseYaml(fs.readFileSync(path.join(appRoot, '.github/workflows/build-manual.yml'), 'utf8'));
+  const step = workflow.jobs['prepare-matrix'].steps.find((item: any) => item.name === 'Resolve same-tag signed replacement candidate');
+  const script = step.run.match(/node <<'NODE'\n([\s\S]*?)\nNODE/)[1];
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-qualified-version-'));
+  try {
+    fs.mkdirSync(path.join(root, 'replacement-feed'));
+    fs.writeFileSync(path.join(root, 'replacement-feed/latest-mac.yml'), 'version: 26.10.2392\n');
+    fs.mkdirSync(path.join(root, 'qualified-candidate'));
+    const receipt = path.join(root, 'qualified-candidate/tart-smoke-summary.json');
+    const output = path.join(root, 'output');
+    fs.writeFileSync(receipt, JSON.stringify({schema:'opl_studio_stable_clean_vm.v1',status:'passed',artifact:{expected_version:'26.10.2392'}}));
+    const run = () => spawnSync(process.execPath, ['-e', script], {cwd:root,encoding:'utf8',env:{...process.env,GITHUB_OUTPUT:output,REPLACEMENT_TAG:'v26.10.23'}});
+    const result = run(); assert.equal(result.status, 0, result.stderr);
+    assert.match(fs.readFileSync(output, 'utf8'), /updater_version=26\.10\.2392\n/);
+    fs.writeFileSync(receipt, JSON.stringify({schema:'opl_studio_stable_clean_vm.v1',status:'failed',artifact:{expected_version:'26.10.2392'}}));
+    assert.notEqual(run().status, 0);
+  } finally { fs.rmSync(root, {recursive:true,force:true}); }
+});
 const contract = JSON.parse(
   fs.readFileSync(path.join(appRoot, 'contracts/app-release-channel.json'), 'utf8'),
 );

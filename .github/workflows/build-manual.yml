@@ -200,12 +200,26 @@ jobs:
           jq -e '.draft == false and .prerelease == false and .immutable != true' replacement-release.json >/dev/null
           mkdir replacement-feed
           gh release download "$REPLACEMENT_TAG" --repo "$GITHUB_REPOSITORY" --pattern latest-mac.yml --dir replacement-feed
+          if [ -n "$CANDIDATE_RUN" ]; then
+            gh run download "$CANDIDATE_RUN" --repo "$GITHUB_REPOSITORY" --name "opl-first-run-vm-standard-$CANDIDATE_RUN" --dir qualified-candidate
+          fi
           node <<'NODE'
           const fs = require('node:fs');
           const feed = fs.readFileSync('replacement-feed/latest-mac.yml', 'utf8');
           const current = /^version: *["']?(\d+)\.(\d+)\.(\d+)["']? *$/m.exec(feed);
           if (!current) throw new Error('Stable machine version is missing or invalid');
-          const next = Number(current[3]) + 1;
+          const qualifiedFile = 'qualified-candidate/tart-smoke-summary.json';
+          const qualified = fs.existsSync(qualifiedFile) ? JSON.parse(fs.readFileSync(qualifiedFile, 'utf8')) : null;
+          if (qualified && (qualified.schema !== 'opl_studio_stable_clean_vm.v1' || qualified.status !== 'passed')) {
+            throw new Error('Replacement recovery requires the passed Standard candidate receipt');
+          }
+          const frozen = qualified?.artifact?.expected_version;
+          if (qualified && !/^\d+\.\d+\.\d+$/.test(frozen ?? '')) throw new Error('Qualified candidate machine version is missing');
+          const next = qualified ? Number(frozen.split('.')[2]) : Number(current[3]) + 1;
+          if (qualified && (!frozen.startsWith(`${current[1]}.${current[2]}.`)
+            || Math.floor(next / 100) !== Math.floor(Number(current[3]) / 100))) {
+            throw new Error('Qualified candidate machine version belongs to another release');
+          }
           if (!Number.isSafeInteger(next)) throw new Error('Machine version overflow');
           fs.appendFileSync(process.env.GITHUB_OUTPUT,
             `version=${process.env.REPLACEMENT_TAG.slice(1)}\nupdater_version=${current[1]}.${current[2]}.${next}\nsigned=true\n`);
