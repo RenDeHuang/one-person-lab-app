@@ -444,9 +444,12 @@ jobs:
             'printf "%s\n" "$1" > /projects/.opl-qualification-persistence-marker' \
             sh "$persistence_marker"
           docker exec "$container_name" node --input-type=module -e '
-            const ready = await fetch("http://127.0.0.1:3000/readyz");
+            const { resolveWebBindAddress } = await import("/app/src/host/dsh/host.mjs");
+            const host = resolveWebBindAddress(process.env.OPL_HEADLESS_HOST);
+            const base = `http://${host.includes(":") ? `[${host}]` : host}:3000`;
+            const ready = await fetch(`${base}/readyz`);
             if (!ready.ok || (await ready.json()).status !== "ready") process.exit(1);
-            const response = await fetch("http://127.0.0.1:3000/api/opl/state?profile=fast");
+            const response = await fetch(`${base}/api/opl/state?profile=fast`);
             const state = await response.json();
             if (!response.ok || state.readback?.exitCode !== 0 || !state.app_state) process.exit(1);'
           docker exec "$container_name" codex --version
@@ -463,9 +466,12 @@ jobs:
           test "$(docker exec "$container_name" cat /data/opl/qualification-persistence-marker.txt)" = "$persistence_marker"
           test "$(docker exec "$container_name" cat /projects/.opl-qualification-persistence-marker)" = "$persistence_marker"
           docker exec "$container_name" node --input-type=module -e '
-            const ready = await fetch("http://127.0.0.1:3000/readyz");
+            const { resolveWebBindAddress } = await import("/app/src/host/dsh/host.mjs");
+            const host = resolveWebBindAddress(process.env.OPL_HEADLESS_HOST);
+            const base = `http://${host.includes(":") ? `[${host}]` : host}:3000`;
+            const ready = await fetch(`${base}/readyz`);
             if (!ready.ok || (await ready.json()).status !== "ready") process.exit(1);
-            const response = await fetch("http://127.0.0.1:3000/api/opl/state?profile=fast");
+            const response = await fetch(`${base}/api/opl/state?profile=fast`);
             const state = await response.json();
             if (!response.ok || state.readback?.exitCode !== 0 || !state.app_state) process.exit(1);'
           docker exec "$container_name" codex --version
