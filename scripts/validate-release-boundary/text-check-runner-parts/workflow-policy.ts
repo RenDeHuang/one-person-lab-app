@@ -542,6 +542,23 @@ export function validateWorkflowDispatchWriteAuthorityForWorkflows(appRoot: stri
       const writes = Object.entries(permissions).filter(([, value]) => value === 'write').map(([key]) => key);
       if (writes.length === 0) continue;
       const steps = Array.isArray(job.steps) ? job.steps as Array<Record<string, any>> : [];
+      const prepareReplacement = steps.find(step => step.name === 'Prepare exact qualified files and existing CAS plan');
+      const replaceAssets = steps.find(step => step.name === 'Stage and promote through the canonical same-tag CAS utility');
+      const expectedReplacementCommands = ['set -euo pipefail',
+        'node --experimental-strip-types scripts/replace-same-tag-release-assets.ts --plan "$RUNNER_TEMP/replacement/replacement-plan.json" --stage',
+        'node --experimental-strip-types scripts/replace-same-tag-release-assets.ts --plan "$RUNNER_TEMP/replacement/replacement-plan.json" --promote'];
+      if (workflowPath === '.github/workflows/replace-same-tag-assets.yml'
+        && jobId === 'replace' && job.environment === 'release-stable'
+        && exactObject(job.permissions, { contents: 'write', actions: 'read' })
+        && prepareReplacement?.env?.REPLACEMENT_REQUEST === '${{ inputs.request }}'
+        && String(prepareReplacement?.run).includes('scripts/prepare-same-tag-replacement-request.ts')
+        && String(prepareReplacement?.run).includes('test "$GITHUB_REF" = refs/heads/main')
+        && String(prepareReplacement?.run).includes('test "$GITHUB_RUN_ATTEMPT" = 1')
+        && replaceAssets?.if === "${{ inputs.operation != 'verify_public' }}"
+        && JSON.stringify(String(replaceAssets?.run).trim().split('\n').map(line => line.trim())) === JSON.stringify(expectedReplacementCommands)) {
+        failures += validateExactActionPins(workflowPath, jobId, steps);
+        continue;
+      }
       if (
         workflowPath === '.github/workflows/nightly-release-notes-check.yml'
         && jobId === 'writers'

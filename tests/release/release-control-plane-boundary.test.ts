@@ -482,6 +482,15 @@ jobs:
   assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
 });
 
+test('same-tag transport admits only the protected qualified CAS writer', (t) => {
+  const root = fixture(t);
+  assert.equal(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)), 0);
+  updateWorkflow(root, 'replace-same-tag-assets.yml', workflow => {
+    workflow.jobs.replace.environment = 'unprotected';
+  });
+  assert.ok(withoutExpectedDiagnostics(() => validateWorkflowDispatchWriteAuthority(root)) > 0);
+});
+
 
 test('Nightly writer access does not grant repository mutation or broader token authority', (t) => {
   const root = fixture(t);

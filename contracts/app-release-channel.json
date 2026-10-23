@@ -1549,6 +1549,15 @@
       ],
       "same_tag_asset_and_notes_replacement_allowed": true,
       "same_tag_mutation_requires_exact_current_identity_cas_and_public_readback": true,
+      "same_tag_replacement_transport": {
+        "workflow": ".github/workflows/replace-same-tag-assets.yml",
+        "writer_job": "replace",
+        "protected_environment": "release-stable",
+        "candidate_source": "immutable_actions_artifacts",
+        "qualification": "exact_passed_standard_or_full_clean_vm_receipt",
+        "asset_mutation": "scripts/replace-same-tag-release-assets.ts_compare_and_swap",
+        "verify_public_operation_mutates_release": false
+      },
       "nonfunctional_release_work_may_allocate_version": false
     },
     "machine_version": {
