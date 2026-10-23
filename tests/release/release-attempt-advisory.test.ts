@@ -64,6 +64,7 @@ test("Full VM validation rejects Framework injection into an already-built DMG",
 
 test("Full build artifacts survive optional upload while the real publication caller rehearses", () => {
   assert.match(fullWorkflow, /id: full_package_build/);
+  assert.match(fullWorkflow, /name: Verify Full package checksums and distribution trust\n\s+id: full_package_verify/);
   assert.doesNotMatch(fullWorkflow, /scripts\/publish-release\.ts|OPL_RELEASE_NOTES_MODE: template/);
   assert.doesNotMatch(fullWorkflow, /OPL_RELEASE_NOTES_CODEX_API_KEY:[\s\S]*release:notes:prepare/);
   assert.match(
@@ -76,7 +77,7 @@ test("Full build artifacts survive optional upload while the real publication ca
   );
   assert.match(
     fullWorkflow,
-    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ success\(\) && steps\.full_package_build\.outcome == 'success'/,
+    /name: Upload Full DMG-only workflow artifact\n\s+if: \$\{\{ always\(\) && steps\.full_package_verify\.outcome == 'success'/,
   );
 });
 
