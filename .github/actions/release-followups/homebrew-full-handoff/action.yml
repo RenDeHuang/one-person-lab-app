@@ -69,6 +69,7 @@ runs:
       id: handoff
       env:
         AUTHORITY_RUN_ID: ${{ steps.authority.outputs.authority_run_id }}
+        GH_TOKEN: ${{ inputs.github_token }}
       shell: bash
       run: |
         set -euo pipefail
@@ -126,6 +127,9 @@ runs:
         test "$head_branch" = main
         standard_tag="$(jq -er .release.standard_tag "$handoff")"
         test "$standard_tag" = "$(jq -er .release.target_standard.tag "$handoff")"
+        gh api "repos/$GITHUB_REPOSITORY/releases/tags/$standard_tag" > current-full-release.json
+        curl --fail --location --retry 2 "$(jq -er .manifest.url "$handoff")" --output current-full-manifest.json
+        node --experimental-strip-types scripts/resolve-homebrew-full-publication.ts "$handoff" current-full-release.json current-full-manifest.json
         handoff_sha="sha256:$(shasum -a 256 "$handoff" | awk '{print $1}')"
         handoff_base64="$(base64 < "$handoff" | tr -d '\n')"
         {

@@ -8,6 +8,7 @@ import test from 'node:test';
 import { createAppComponentManifest } from '../../scripts/write-opl-app-component-manifest.ts';
 import { resolveReleaseVersionIdentity } from '../../scripts/release-version.ts';
 import { resolveHomebrewStandardPublication } from '../../scripts/resolve-homebrew-standard-publication.ts';
+import { resolveHomebrewFullPublication } from '../../scripts/resolve-homebrew-full-publication.ts';
 
 const digest = (s: string | Buffer) => `sha256:${crypto.createHash('sha256').update(s).digest('hex')}`;
 function fixture() {
@@ -67,4 +68,28 @@ test('Standard follower rejects unbound public bytes, duplicate assets and unqua
   const g = fixture(); g.manifest.primary_artifact.digest = digest('unsigned replacement');
   g.release.assets.find(a => a.name.endsWith('.dmg'))!.digest = g.manifest.primary_artifact.digest; seal(g);
   assert.throws(() => resolveHomebrewStandardPublication(g.handoff, g.release, g.bytes), /Unqualified changes/);
+});
+
+test('Full follower reads a qualified public replacement while preserving original publication provenance', () => {
+  const handoff = JSON.parse(fs.readFileSync('tests/release/fixtures/homebrew-full-handoff-g32.json', 'utf8'));
+  const target = handoff.release.target_standard;
+  const dmg = { name: handoff.artifact.name, digest: digest('new Full DMG'), size: 200 };
+  const attestation = { name: 'opl-release-attestation.json', digest: digest('new Standard attestation'), size: 100 };
+  const manifest: any = { schema: 'opl_public_release_manifest.v1', package_kind: 'opl_full_first_install_macos_arm64',
+    version: handoff.release.version, primary_install_asset: dmg.name,
+    assets: [{ name: dmg.name, sha256: dmg.digest, size_bytes: dmg.size }],
+    carrier_context: { standard_attestation: { sha256: attestation.digest, size_bytes: attestation.size } },
+    same_tag_replacement: { schema: 'opl_app_same_tag_replacement.v1', tag_source_commit: target.target_commitish,
+      previous_manifest_digest: handoff.manifest.sha256, qualification_receipt_sha256: digest('Full VM'), build_run_id: '20', qualification_run_id: '21' } };
+  const bytes = Buffer.from(JSON.stringify(manifest));
+  const release = { id: target.release_id, tag_name: target.tag, target_commitish: target.target_commitish,
+    draft: false, prerelease: false, immutable: false, assets: [dmg, attestation, { name: 'opl-release-manifest.json', digest: digest(bytes), size: bytes.length }] };
+  const result = resolveHomebrewFullPublication(handoff, release, bytes);
+  assert.equal(result.artifact.sha256, dmg.digest);
+  assert.deepEqual(result.source, handoff.source);
+  assert.equal(result.same_tag_replacement.qualification_receipt_sha256, digest('Full VM'));
+  delete manifest.same_tag_replacement;
+  const unqualified = Buffer.from(JSON.stringify(manifest));
+  Object.assign(release.assets[2], { digest: digest(unqualified), size: unqualified.length });
+  assert.throws(() => resolveHomebrewFullPublication(handoff, release, unqualified));
 });
