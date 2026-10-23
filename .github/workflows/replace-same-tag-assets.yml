@@ -2,6 +2,11 @@ name: Qualified same-tag asset replacement
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Replace qualified files or verify their existing public downloads.
+        type: choice
+        options: [replace, verify_public]
+        default: replace
       request:
         description: Exact replacement plan, file digests, metadata, and passed clean-VM receipt.
         required: true
@@ -33,9 +38,38 @@ jobs:
           printf '%s' "$REPLACEMENT_REQUEST" > "$RUNNER_TEMP/replacement-request.json"
           node --experimental-strip-types scripts/prepare-same-tag-replacement-request.ts "$RUNNER_TEMP/replacement-request.json" "$RUNNER_TEMP/replacement"
       - name: Stage and promote through the canonical same-tag CAS utility
+        if: ${{ inputs.operation != 'verify_public' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           node --experimental-strip-types scripts/replace-same-tag-release-assets.ts --plan "$RUNNER_TEMP/replacement/replacement-plan.json" --stage
           node --experimental-strip-types scripts/replace-same-tag-release-assets.ts --plan "$RUNNER_TEMP/replacement/replacement-plan.json" --promote
+      - name: Verify actual public download bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          import assert from 'node:assert/strict';
+          import {spawnSync} from 'node:child_process';
+          const root=path.join(process.env.RUNNER_TEMP,'replacement');
+          const plan=JSON.parse(fs.readFileSync(path.join(root,'replacement-plan.json')));
+          const directory=path.join(root,'public');fs.mkdirSync(directory);
+          const names=plan.replacements.map(item=>item.current.name);
+          const download=spawnSync('gh',['release','download',plan.tag,'--repo',plan.repository,'--dir',directory,...names.flatMap(name=>['--pattern',name])],{stdio:'inherit',timeout:900000});
+          assert.equal(download.status,0,'Public asset download failed');
+          const digest=bytes=>'sha256:'+crypto.createHash('sha256').update(bytes).digest('hex');
+          const assets=plan.replacements.map(item=>{const bytes=fs.readFileSync(path.join(directory,item.current.name));const expected=fs.readFileSync(item.file);assert.equal(digest(bytes),digest(expected),item.current.name);return {name:item.current.name,size_bytes:bytes.length,digest:digest(bytes)};});
+          const receipt={schema:'opl_app_public_download_readback.v1',status:'passed',repository:plan.repository,tag:plan.tag,observed_at:new Date().toISOString(),assets};
+          fs.writeFileSync(path.join(root,'public-download-readback.json'),JSON.stringify(receipt,null,2)+'\n');
+          console.log(JSON.stringify(receipt));
+          NODE
+      - name: Save public download evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v6.0.0
+        with:
+          name: opl-same-tag-public-download-readback-${{ github.run_id }}
+          path: ${{ runner.temp }}/replacement/public-download-readback.json
