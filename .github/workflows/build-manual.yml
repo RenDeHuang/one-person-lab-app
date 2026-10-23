@@ -401,7 +401,9 @@ jobs:
       verification_app_ref: ${{ inputs.verification_app_ref || needs.prepare-matrix.outputs.app_ref }}
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
+      framework_executor_ref: ${{ inputs.framework_ref }}
       package_profile: full
+      codex_qualification_cohort_artifact_name: opl-full-first-install-dmg-${{ needs.prepare-matrix.outputs.candidate_version }}-mac-arm64-cohort
       mas_ref: ${{ needs.prepare-matrix.outputs.full_mas_ref || needs.build-full-replacement.outputs.mas_ref }}
       mas_scholar_skills_ref: ${{ needs.prepare-matrix.outputs.full_mas_scholar_skills_ref || needs.build-full-replacement.outputs.mas_scholar_skills_ref }}
       diagnostic_scope: release_gate

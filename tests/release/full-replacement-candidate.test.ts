@@ -41,4 +41,7 @@ test('same-tag qualification defaults to the frozen App and skips rebuilding a r
   assert.equal(workflow.match(/verification_app_ref: \$\{\{ inputs\.verification_app_ref \|\| needs\.prepare-matrix\.outputs\.app_ref \}\}/g)?.length, 2);
   assert.match(workflow, /build-full-replacement:[\s\S]*if:.*inputs\.replacement_full_candidate_run_id == ''/);
   assert.match(workflow, /qualify-full-replacement:[\s\S]*release_artifact_run_id: \$\{\{ inputs\.replacement_full_candidate_run_id \|\| github\.run_id \}\}/);
+  const full = workflow.slice(workflow.indexOf('  qualify-full-replacement:'));
+  assert.match(full, /framework_executor_ref: \$\{\{ inputs\.framework_ref \}\}/);
+  assert.match(full, /codex_qualification_cohort_artifact_name: opl-full-first-install-dmg-\$\{\{ needs\.prepare-matrix\.outputs\.candidate_version \}\}-mac-arm64-cohort/);
 });
