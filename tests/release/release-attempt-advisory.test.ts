@@ -62,6 +62,22 @@ test("Full VM validation rejects Framework injection into an already-built DMG",
   assert.match(firstRunVmWorkflow, /framework_args=\(--framework-sha/);
 });
 
+test("both Full cohort writers bind the actual package manifest and frozen inputs", () => {
+  const writers = [...fullWorkflow.matchAll(/node --experimental-strip-types [^\n]*scripts\/write-build-artifact-cohort\.ts \\\n([\s\S]*?)--release-cohort-ref[^\n]*/g)];
+  assert.equal(writers.length, 2);
+  for (const [command] of writers) {
+    assert.match(command, /--full-package-manifest one-person-lab-app\/dist\/opl-full-release\/full-package-manifest\.json/);
+    assert.match(command, /--full-input-manifest /);
+    assert.match(command, /--qualification-input-manifest /);
+    assert.match(command, /--full-toolchain-observation-receipt /);
+  }
+  const write = fullWorkflow.indexOf('node --experimental-strip-types one-person-lab-app/scripts/write-build-artifact-cohort.ts');
+  for (const name of ['opl-full-toolchain-observation-receipt.json', 'full-input-manifest.json', 'qualification-input-manifest.json']) {
+    const preserve = fullWorkflow.indexOf(`cp "$RUNNER_TEMP/${name.startsWith('opl-') ? '' : 'opl-full-dependency-resolution/'}${name}" "$output_dir/"`);
+    assert.ok(preserve >= 0 && preserve < write, `${name} must survive a cohort-writer failure`);
+  }
+});
+
 test("Full build artifacts survive optional upload while the real publication caller rehearses", () => {
   assert.match(fullWorkflow, /id: full_package_build/);
   assert.match(fullWorkflow, /name: Verify Full package checksums and distribution trust\n\s+id: full_package_verify/);
