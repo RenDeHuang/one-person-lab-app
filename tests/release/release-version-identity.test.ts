@@ -337,3 +337,12 @@ test('Stable promotion compares every published Stable rather than GitHub Latest
     'v26.7.21',
   );
 });
+
+
+test('same-tag repairs stay in the selected Stable display day and require explicit admission', () => {
+  assert.equal(assertUpdaterVersionMatchesDisplay('stable', '26.10.23', '26.10.2392', { allowSameTagRepair: true }).updaterVersion, '26.10.2392');
+  for (const version of ['26.10.2390', '26.10.2400', '26.11.2392', '26.10.2392-preview']) {
+    assert.throws(() => assertUpdaterVersionMatchesDisplay('stable', '26.10.23', version, { allowSameTagRepair: true }), /Updater version/);
+  }
+  assert.throws(() => assertUpdaterVersionMatchesDisplay('stable', '26.10.23', '26.10.2392'), /Updater version/);
+});

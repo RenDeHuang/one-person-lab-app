@@ -104,6 +104,11 @@ on:
         required: false
         type: boolean
         default: false
+      replacement_full_only:
+        description: Recover Full only; reuse the supplied Standard candidate run without requalifying it.
+        required: false
+        type: boolean
+        default: false
       replacement_include_full:
         description: Build and qualify Full for the same exact replacement cohort; never publishes.
         required: false
@@ -315,7 +320,7 @@ jobs:
   qualify-replacement:
     name: Qualify the signed same-tag replacement
     needs: [prepare-matrix, build-pipeline]
-    if: ${{ always() && inputs.replacement_tag != '' && needs.prepare-matrix.result == 'success' && (needs.build-pipeline.result == 'success' || inputs.replacement_candidate_run_id != '') }}
+    if: ${{ always() && inputs.replacement_tag != '' && !inputs.replacement_full_only && needs.prepare-matrix.result == 'success' && (needs.build-pipeline.result == 'success' || inputs.replacement_candidate_run_id != '') }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_artifact_name: macos-build-arm64-dmg
@@ -333,7 +338,7 @@ jobs:
   build-full-replacement:
     name: Build the same-tag Full replacement
     needs: prepare-matrix
-    if: ${{ inputs.replacement_tag != '' && inputs.replacement_include_full && inputs.replacement_candidate_run_id == '' }}
+    if: ${{ inputs.replacement_tag != '' && inputs.replacement_include_full }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ needs.prepare-matrix.outputs.candidate_version }}
@@ -343,6 +348,7 @@ jobs:
       artifact_app_sha: ${{ needs.prepare-matrix.outputs.app_ref }}
       upload_full_package_artifact: true
       candidate_only: true
+      same_tag_replacement: true
     secrets: inherit
 
   qualify-full-replacement:
@@ -358,6 +364,8 @@ jobs:
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
       package_profile: full
+      mas_ref: ${{ needs.build-full-replacement.outputs.mas_ref }}
+      mas_scholar_skills_ref: ${{ needs.build-full-replacement.outputs.mas_scholar_skills_ref }}
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
       expected_updater_version: ${{ needs.prepare-matrix.outputs.candidate_updater_version }}

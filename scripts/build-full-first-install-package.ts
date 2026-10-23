@@ -72,7 +72,7 @@ function fullRuntimeSignIgnorePattern() {
 export function assertFullCarrierReleaseVersions(carrier, version, updaterVersion) {
   if (carrier.versionPolicy === 'stable_calendar') {
     assertReleaseVersionNotFuture('stable', version);
-    assertUpdaterVersionMatchesDisplay('stable', version, updaterVersion);
+    assertUpdaterVersionMatchesDisplay('stable', version, updaterVersion, { allowSameTagRepair: process.env.OPL_FULL_SAME_TAG_REPLACEMENT === '1' });
     return;
   }
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {

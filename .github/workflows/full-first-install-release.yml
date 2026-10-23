@@ -46,6 +46,11 @@ on:
         required: false
         default: false
         type: boolean
+      same_tag_replacement:
+        description: Accept the monotonic machine patch of an existing display tag for a candidate-only build.
+        required: false
+        default: false
+        type: boolean
       candidate_only:
         description: Build, sign, and notarize exact Full bytes without GitHub Release or Homebrew mutation
         required: false
@@ -120,6 +125,7 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPL_FULL_SAME_TAG_REPLACEMENT: ${{ inputs.same_tag_replacement && '1' || '0' }}
 
 jobs:
   full-first-install:
@@ -507,7 +513,7 @@ jobs:
 
       - name: Validate canonical Stable version
         working-directory: one-person-lab-app
-        run: npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION" --updater-version "$OPL_UPDATER_VERSION"
+        run: npm run release:version:validate -- --channel stable --version "$OPL_RELEASE_VERSION" --updater-version "$OPL_UPDATER_VERSION" ${{ inputs.same_tag_replacement && '--same-tag-replacement' || '' }}
 
       - name: Verify frozen OfficeCLI source
         shell: bash

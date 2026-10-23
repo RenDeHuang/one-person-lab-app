@@ -456,8 +456,17 @@ export function assertUpdaterVersionMatchesDisplay(
   channel: AppReleaseChannel,
   displayVersion: string,
   updaterVersion: string,
+  options: { allowSameTagRepair?: boolean } = {},
 ): ReleaseVersionIdentity {
   const identity = resolveReleaseVersionIdentity(channel, displayVersion);
+  if (options.allowSameTagRepair && channel === 'stable') {
+    const expected = identity.updaterVersion.split('.').map(Number);
+    const supplied = /^\d+\.\d+\.\d+$/.test(updaterVersion) ? updaterVersion.split('.').map(Number) : [];
+    if (expected[2] >= 100 && supplied[0] === expected[0] && supplied[1] === expected[1]
+      && supplied[2] > expected[2] && Math.floor(supplied[2] / 100) === Math.floor(expected[2] / 100)) {
+      return { ...identity, updaterVersion };
+    }
+  }
   if (identity.updaterVersion !== updaterVersion) {
     throw new Error(
       `Updater version ${updaterVersion || '<empty>'} does not match ${displayVersion}; expected ${identity.updaterVersion}.`,
@@ -773,6 +782,7 @@ function main(): void {
       channel: { type: 'string' },
       version: { type: 'string' },
       'updater-version': { type: 'string' },
+      'same-tag-replacement': { type: 'boolean', default: false },
       json: { type: 'boolean' },
     },
     strict: true,
@@ -784,9 +794,9 @@ function main(): void {
   const version = values.version?.trim() ?? '';
   if (!version) throw new Error('Pass --version <version>.');
   assertReleaseVersionNotFuture(values.channel, version);
-  const identity = resolveReleaseVersionIdentity(values.channel, version);
+  let identity = resolveReleaseVersionIdentity(values.channel, version);
   if (values['updater-version'] !== undefined) {
-    assertUpdaterVersionMatchesDisplay(values.channel, version, values['updater-version'].trim());
+    identity = assertUpdaterVersionMatchesDisplay(values.channel, version, values['updater-version'].trim(), { allowSameTagRepair: values['same-tag-replacement'] });
   }
   const payload = {
     channel: values.channel,
