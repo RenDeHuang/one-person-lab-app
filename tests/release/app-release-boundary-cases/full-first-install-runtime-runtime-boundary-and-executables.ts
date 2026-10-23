@@ -493,7 +493,7 @@ test("real Full domain and prepareRuntime builders package the current MAS Schol
 
     const domainCacheInputs = prepared.runtime_cache.key_inputs["domain-runtime"];
     assert.equal(domainCacheInputs.selected_package_set.profile_id, "starter");
-    assert.equal(domainCacheInputs.selected_package_set.packages.length, 7);
+    assert.equal(domainCacheInputs.selected_package_set.packages.length, 9);
     assert.equal(
       domainCacheInputs.selected_package_set.packages.find(
         (entry) => entry.package_id === "mas-scholar-skills",

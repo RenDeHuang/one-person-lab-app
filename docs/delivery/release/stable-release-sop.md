@@ -225,6 +225,8 @@ Linux／Windows／Homebrew 的独立恢复使用 [现有 follow-up workflow](../
 该入口读取原 tag 和公开更新元数据：显示版本和资产名保留，内部 updater patch 递增，
 使已安装同一显示版本的用户也能收到修复。它只生成候选，不创建或公开 Release。
 新字节仍须签名、公证及公开前首装验收；迁移缺陷须由对应升级路径验证。
+需要同时替换 Full 时传 `replacement_include_full=true`，沿用同一候选版本与准确 refs，
+由现有 Full builder 和 clean-VM qualifier 生成并验收；公开步骤仍使用同一资产 CAS 工具。
 恢复已有签名候选时传 `replacement_candidate_run_id` 和原 App/Shell/Framework SHA；无验证脚本
 变更时 `verification_app_ref` 使用原 App SHA，不能因 main 前进把其他合同或文档改动混入
 同字节验证。检查 Tart 运行名额，保留其他任务的 VM。

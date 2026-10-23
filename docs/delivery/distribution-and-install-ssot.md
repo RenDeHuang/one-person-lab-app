@@ -101,6 +101,10 @@ Linux、Windows 和 Full 不创建 optional、adjunct 或独立 Release/tag。�
 
 ## Computer Use 分发一致性
 
+Standard 与 Full 共用 Official Profile，包含 Med Auto Cast (`med-autocast`)。
+MAC 及其 manifest 声明的必需素材库由 Framework Package 生命周期安装；Full 提供相同包的离线 seed。
+已有安装保留用户选择，只在首次安装或显式恢复 Official Profile 时收敛全部 roots。
+
 macOS arm64 Standard 与 Full 都默认安装、注册并启用 KimiCU。Standard 在首次
 managed installation 中下载并校验固定归档；Full 把完全相同的归档作为离线 seed
 放入安装包。因此 Full 的差异只有约 `1.43 MiB` 的压缩 seed 和离线可用性，不是

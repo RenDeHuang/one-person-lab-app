@@ -255,6 +255,7 @@ test('product profile has one presence-only Official Profile shared by Standard 
     'rca',
     'oma',
     'obf',
+    'med-autocast',
     'opl-flow',
     'opl-channel-weixin',
   ]);

@@ -52,6 +52,8 @@ clean-user installed/callable readback 为准；本文只定义首启体验，�
 当前 App source 路径：
 
 - App 只有一个 `OPL Official Profile`，列出首次安装需要的官方 root Packages。
+  Med Auto Cast (`med-autocast`) 是标准集成；Framework 按 MAC manifest 安装必需的
+  `mac-media-assets`，并通过 installed descriptor 提供能力和素材库路径。
   Standard 在线安装，Full 优先使用离线 seed；两者读取同一 Profile 和同一 source
   helper，Full 不增加第二 root 清单。
 - 首次安装通过 generic Package directory/status/action projection 逐 root 收敛，并按

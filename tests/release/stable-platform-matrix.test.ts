@@ -488,7 +488,7 @@ test('additional Desktop platform publication is an independent protected post-s
   assert.match(manualMatrixRun, /\. == \["linux-x64", "windows-x64"\]/);
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_updater_assets,
-    "${{ inputs.invocation_mode == 'stable_app_build' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
+    "${{ (inputs.invocation_mode == 'stable_app_build' || inputs.replacement_tag != '') && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}",
   );
   assert.equal(
     manual.jobs['build-pipeline'].with.require_windows_authenticode,

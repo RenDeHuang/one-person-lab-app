@@ -138,8 +138,8 @@
       "implementation_repo": "gaofeng21cn/opl-studio",
       "role": "deepseek_harness_cordis_application_host",
       "implementation_status": "source_implemented_active_shell_carrier_qualification_separate",
-      "upstream_version": "0.2.1-alpha.1",
-      "upstream_ref": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+      "upstream_version": "0.2.1-rc.2",
+      "upstream_ref": "687f282e8625c6b8d11ff58211a90524be2e4317",
       "profile": "opl-studio",
       "profile_source": "src/host/dsh/cordis.yml",
       "web_overlay": "src/host/dsh/web.patch.yml",
@@ -747,7 +747,7 @@
     "authority": "one-person-lab-app",
     "additional_official_profiles_allowed": false,
     "user_composed_profiles_allowed": true,
-    "desired_root_package_ids": ["mas", "mag", "rca", "oma", "obf", "opl-flow", "opl-channel-weixin"],
+    "desired_root_package_ids": ["mas", "mag", "rca", "oma", "obf", "med-autocast", "opl-flow", "opl-channel-weixin"],
     "apply_on": ["first_install", "explicit_restore"],
     "never_apply_on": ["app_startup", "silent_package_update", "app_update"],
     "first_install_execution": {
@@ -7100,7 +7100,7 @@
       "cli_and_app_share_skill_semantics": true
     },
     "exposure_classes_ref": "contracts/app-install-exposure-policy.json#exposure_classes",
-    "domain_modules": ["med-autoscience", "med-autogrant", "redcube-ai", "opl-meta-agent", "opl-bookforge"],
+    "domain_modules": ["med-autoscience", "med-autogrant", "redcube-ai", "opl-meta-agent", "opl-bookforge", "med-autocast"],
     "capability_strategy_consumer": {
       "strategy_authority": "opl-flow",
       "compiler_authority": "opl-framework",

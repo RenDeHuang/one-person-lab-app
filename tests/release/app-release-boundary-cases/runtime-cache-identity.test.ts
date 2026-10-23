@@ -98,6 +98,8 @@ test('selected package set uses Official Profile roots and records the offline d
 
     const options = {
       masRoot: sourceRoots.mas,
+      macRoot: sourceRoots['med-autocast'],
+      macMediaAssetsRoot: sourceRoots['mac-media-assets'],
       magRoot: sourceRoots.mag,
       rcaRoot: sourceRoots.rca,
       metaAgentRoot: sourceRoots.oma,

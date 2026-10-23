@@ -261,6 +261,8 @@ function main() {
     ['GUI root', options.guiRoot],
     ['Framework root', options.frameworkRoot],
     ['MAS root', options.masRoot],
+    ['MAC root', options.macRoot],
+    ['MAC media assets root', options.macMediaAssetsRoot],
     ['MAS Scholar Skills root', options.masScholarSkillsRoot],
     ['MAG root', options.magRoot],
     ['RCA root', options.rcaRoot],

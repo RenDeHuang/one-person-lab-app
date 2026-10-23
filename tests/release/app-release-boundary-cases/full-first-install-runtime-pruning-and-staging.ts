@@ -157,6 +157,8 @@ test("Full domain copy keeps only contract-declared authority inventories from r
   const options = {
     masRoot: path.join(sourceRoot, "mas"),
     masScholarSkillsRoot: path.join(sourceRoot, "mas-scholar-skills"),
+    macRoot: path.join(sourceRoot, "med-autocast"),
+    macMediaAssetsRoot: path.join(sourceRoot, "mac-media-assets"),
     magRoot: path.join(sourceRoot, "mag"),
     rcaRoot: path.join(sourceRoot, "rca"),
     metaAgentRoot: path.join(sourceRoot, "meta-agent"),

@@ -99,6 +99,16 @@ on:
         required: false
         type: string
         default: ''
+      replacement_include_platforms:
+        description: Also build Linux x64 and Windows x64 replacements for the same candidate.
+        required: false
+        type: boolean
+        default: false
+      replacement_include_full:
+        description: Build and qualify Full for the same exact replacement cohort; never publishes.
+        required: false
+        type: boolean
+        default: false
       replacement_candidate_run_id:
         description: 'Qualify an existing signed replacement candidate without rebuilding; requires replacement_tag and exact app_ref.'
         required: false
@@ -251,10 +261,16 @@ jobs:
                 exit 1
                 ;;
             esac
+            if [ '${{ inputs.replacement_tag }}' != '' ] && [ '${{ inputs.replacement_include_platforms }}' = true ]; then
+              node --experimental-strip-types .release-control/scripts/resolve-release-platform-matrix.ts \
+                --policy manual_all --platforms-json '["macos-arm64","linux-x64","windows-x64"]' \
+                --github-output "$GITHUB_OUTPUT"
+            else
             node --experimental-strip-types .release-control/scripts/resolve-release-platform-matrix.ts \
               --policy manual_all \
               --platform '${{ inputs.platform }}' \
               --github-output "$GITHUB_OUTPUT"
+            fi
             {
               echo 'artifact_pattern=*'
               echo 'validation_profile=${{ inputs.replacement_tag != '' && 'stable' || 'aggregate' }}'
@@ -285,7 +301,7 @@ jobs:
       upload_installers_only: ${{ inputs.replacement_tag == '' }}
       opl_release_version: ${{ needs.prepare-matrix.outputs.candidate_version || inputs.opl_release_version }}
       opl_updater_version: ${{ needs.prepare-matrix.outputs.candidate_updater_version || inputs.opl_updater_version || inputs.opl_release_version }}
-      require_windows_updater_assets: ${{ inputs.invocation_mode == 'stable_app_build' && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
+      require_windows_updater_assets: ${{ (inputs.invocation_mode == 'stable_app_build' || inputs.replacement_tag != '') && contains(needs.prepare-matrix.outputs.platform_ids, 'windows-x64') }}
       require_windows_authenticode: false
       require_macos_gatekeeper: ${{ needs.prepare-matrix.outputs.signed_replacement == 'true' || needs.prepare-matrix.outputs.macos_x64_signed_development_validation == 'true' }}
       shell_ref: ${{ inputs.shell_ref }}
@@ -309,6 +325,39 @@ jobs:
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
       package_profile: standard
+      diagnostic_scope: release_gate
+      require_macos_gatekeeper: true
+      expected_updater_version: ${{ needs.prepare-matrix.outputs.candidate_updater_version }}
+    secrets: inherit
+
+  build-full-replacement:
+    name: Build the same-tag Full replacement
+    needs: prepare-matrix
+    if: ${{ inputs.replacement_tag != '' && inputs.replacement_include_full && inputs.replacement_candidate_run_id == '' }}
+    uses: ./.github/workflows/full-first-install-release.yml
+    with:
+      opl_version: ${{ needs.prepare-matrix.outputs.candidate_version }}
+      opl_updater_version: ${{ needs.prepare-matrix.outputs.candidate_updater_version }}
+      shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
+      artifact_app_sha: ${{ needs.prepare-matrix.outputs.app_ref }}
+      upload_full_package_artifact: true
+      candidate_only: true
+    secrets: inherit
+
+  qualify-full-replacement:
+    name: Qualify the signed same-tag Full replacement
+    needs: [prepare-matrix, build-full-replacement]
+    if: ${{ always() && inputs.replacement_tag != '' && inputs.replacement_include_full && needs.build-full-replacement.result == 'success' }}
+    uses: ./.github/workflows/opl-first-run-vm.yml
+    with:
+      release_artifact_name: opl-full-first-install-dmg-${{ needs.prepare-matrix.outputs.candidate_version }}-mac-arm64
+      release_artifact_run_id: ${{ github.run_id }}
+      artifact_app_ref: ${{ needs.prepare-matrix.outputs.app_ref }}
+      verification_app_ref: ${{ inputs.verification_app_ref || github.sha }}
+      shell_ref: ${{ inputs.shell_ref }}
+      framework_ref: ${{ inputs.framework_ref }}
+      package_profile: full
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
       expected_updater_version: ${{ needs.prepare-matrix.outputs.candidate_updater_version }}

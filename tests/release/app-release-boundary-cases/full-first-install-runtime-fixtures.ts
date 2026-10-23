@@ -387,6 +387,10 @@ export function createFullRuntimeFixture() {
   const frameworkCommit = commitFixtureRepo(frameworkRoot, "fixture framework source");
 
   const masRoot = path.join(tempRoot, "med-autoscience");
+  const macRoot = path.join(tempRoot, "med-autocast");
+  const macMediaAssetsRoot = path.join(tempRoot, "mac-media-assets");
+  writeDomainPlugin(macRoot, "med-autocast");
+  writeDomainPlugin(macMediaAssetsRoot, "mac-media-assets");
   const magRoot = path.join(tempRoot, "med-autogrant");
   const rcaRoot = path.join(tempRoot, "redcube-ai");
   const metaAgentRoot = path.join(tempRoot, "opl-meta-agent");
@@ -445,6 +449,8 @@ export function createFullRuntimeFixture() {
   writeFile(path.join(oplFlowRoot, "skills", "opl-flow", "SKILL.md"), "# OPL Flow\n");
 
   const packageRoots = {
+    "med-autocast": macRoot,
+    "mac-media-assets": macMediaAssetsRoot,
     mas: masRoot,
     mag: magRoot,
     rca: rcaRoot,
@@ -501,6 +507,8 @@ export function createFullRuntimeFixture() {
     masRef: "mas-fixture-ref",
     masScholarSkillsRoot: scholarRoot,
     masScholarSkillsRef: "scholar-fixture-ref",
+    macRoot,
+    macMediaAssetsRoot,
     magRoot,
     magRef: "mag-fixture-ref",
     rcaRoot,
