@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { gzipSync } from 'node:zlib';
 import { prepareReplacementRequest } from '../../scripts/prepare-same-tag-replacement-request.ts';
 
 test('runner transport binds exact candidate bytes to the downloaded passed VM receipt', () => {
@@ -21,6 +22,10 @@ test('runner transport binds exact candidate bytes to the downloaded passed VM r
   try {
     const file = prepareReplacementRequest(request, path.join(root, 'pass'), download);
     assert.equal(fs.readFileSync(JSON.parse(fs.readFileSync(file, 'utf8')).replacements[0].file, 'utf8'), 'qualified bytes');
+    const compressed: any = structuredClone(request);
+    delete compressed.files[0].source;
+    compressed.files[0].gzip_base64 = gzipSync('qualified bytes').toString('base64');
+    assert.ok(prepareReplacementRequest(compressed, path.join(root, 'compressed'), download));
     const changed = structuredClone(request); changed.files[0].digest = hash('other bytes');
     assert.throws(() => prepareReplacementRequest(changed, path.join(root, 'changed'), download), /Candidate bytes changed/);
     const unqualified = structuredClone(request); unqualified.updater_version = '26.10.2393';

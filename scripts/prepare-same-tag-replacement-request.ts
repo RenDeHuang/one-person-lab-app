@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
 const digest = (bytes: Buffer) => `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
 const namePattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -39,7 +40,8 @@ export function prepareReplacementRequest(request: any, root: string, download: 
   for (const file of request.files) {
     assert.match(file.name, namePattern);
     assert.ok(!files.has(file.name));
-    const bytes = file.base64 !== undefined ? Buffer.from(file.base64, 'base64')
+    const bytes = file.gzip_base64 !== undefined ? gunzipSync(Buffer.from(file.gzip_base64, 'base64'))
+      : file.base64 !== undefined ? Buffer.from(file.base64, 'base64')
       : fs.readFileSync(path.join(source(file.source), file.name));
     assert.equal(digest(bytes), file.digest, `Candidate bytes changed: ${file.name}`);
     const destination = path.join(root, file.name);

@@ -308,6 +308,8 @@ Skill 的版本化源是 `skills/opl-app-release`。本机 `~/.codex/skills/opl-
 
 Full Homebrew 同样从公开 Standard component manifest 读取机器版本；其独立 Full DMG 和
 `opl-release-manifest.json` 的摘要与大小仍由 Full follower 逐项验证，再使用当前 Cask 摘要 CAS。
+同 tag 替换时，Full follower 保留原发布 handoff 的历史来源，从公开 Full manifest 的
+`same_tag_replacement` 核对上一份 manifest 和新验收回执，再采用当前 Full 文件身份。
 
 ## 8. 发布后改进
 
