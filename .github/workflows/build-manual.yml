@@ -119,6 +119,11 @@ on:
         required: false
         type: string
         default: ''
+      replacement_full_candidate_run_id:
+        description: Qualify an existing signed Full replacement and its frozen cohort without rebuilding.
+        required: false
+        type: string
+        default: ''
       replacement_tag:
         description: 'Build a signed macOS arm64 replacement candidate for an existing mutable Stable tag; never publishes. The machine version advances independently.'
         required: false
@@ -148,6 +153,8 @@ jobs:
       validation_profile: ${{ steps.set-matrix.outputs.validation_profile }}
       candidate_version: ${{ steps.replacement.outputs.version }}
       candidate_updater_version: ${{ steps.replacement.outputs.updater_version }}
+      full_mas_ref: ${{ steps.replacement.outputs.full_mas_ref }}
+      full_mas_scholar_skills_ref: ${{ steps.replacement.outputs.full_mas_scholar_skills_ref }}
       signed_replacement: ${{ steps.replacement.outputs.signed }}
       macos_x64_signed_development_validation: ${{ steps.set-matrix.outputs.macos_x64_signed_development_validation }}
 
@@ -165,6 +172,7 @@ jobs:
           sparse-checkout: |
             contracts/app-release-channel.json
             scripts/resolve-release-platform-matrix.ts
+            scripts/resolve-full-replacement-candidate.ts
           persist-credentials: false
 
       - name: Setup Node.js
@@ -183,6 +191,7 @@ jobs:
           CANDIDATE_FRAMEWORK: ${{ inputs.framework_ref }}
           CANDIDATE_RUN: ${{ inputs.replacement_candidate_run_id }}
           CANDIDATE_APP: ${{ inputs.app_ref }}
+          CANDIDATE_FULL_RUN: ${{ inputs.replacement_full_candidate_run_id }}
         shell: bash
         run: |
           set -euo pipefail
@@ -202,6 +211,21 @@ jobs:
           gh release download "$REPLACEMENT_TAG" --repo "$GITHUB_REPOSITORY" --pattern latest-mac.yml --dir replacement-feed
           if [ -n "$CANDIDATE_RUN" ]; then
             gh run download "$CANDIDATE_RUN" --repo "$GITHUB_REPOSITORY" --name "opl-first-run-vm-standard-$CANDIDATE_RUN" --dir qualified-candidate
+          fi
+          if [ -n "$CANDIDATE_FULL_RUN" ]; then
+            [[ "$CANDIDATE_FULL_RUN" =~ ^[1-9][0-9]*$ ]]
+            test -n "$CANDIDATE_RUN"
+            test '${{ inputs.replacement_full_only }}' = true
+            test '${{ inputs.replacement_include_full }}' = true
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_FULL_RUN" > full-candidate-run.json
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_FULL_RUN/jobs?per_page=100" > full-candidate-jobs.json
+            full_name="opl-full-first-install-dmg-${REPLACEMENT_TAG#v}-mac-arm64"
+            gh run download "$CANDIDATE_FULL_RUN" --repo "$GITHUB_REPOSITORY" --name "$full_name-cohort" --dir full-candidate-cohort
+            gh run download "$CANDIDATE_FULL_RUN" --repo "$GITHUB_REPOSITORY" --name "opl-full-diagnostics-${REPLACEMENT_TAG#v}" --dir full-candidate-diagnostics
+            node --experimental-strip-types .release-control/scripts/resolve-full-replacement-candidate.ts \
+              --run full-candidate-run.json --jobs full-candidate-jobs.json \
+              --cohort full-candidate-cohort/opl-build-cohort.json \
+              --diagnostics full-candidate-diagnostics --github-output "$GITHUB_OUTPUT"
           fi
           node <<'NODE'
           const fs = require('node:fs');
@@ -340,7 +364,7 @@ jobs:
       release_artifact_name: macos-build-arm64-dmg
       release_artifact_run_id: ${{ inputs.replacement_candidate_run_id || github.run_id }}
       artifact_app_ref: ${{ needs.prepare-matrix.outputs.app_ref }}
-      verification_app_ref: ${{ inputs.verification_app_ref || github.sha }}
+      verification_app_ref: ${{ inputs.verification_app_ref || needs.prepare-matrix.outputs.app_ref }}
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
       package_profile: standard
@@ -352,7 +376,7 @@ jobs:
   build-full-replacement:
     name: Build the same-tag Full replacement
     needs: prepare-matrix
-    if: ${{ inputs.replacement_tag != '' && inputs.replacement_include_full }}
+    if: ${{ inputs.replacement_tag != '' && inputs.replacement_include_full && inputs.replacement_full_candidate_run_id == '' }}
     uses: ./.github/workflows/full-first-install-release.yml
     with:
       opl_version: ${{ needs.prepare-matrix.outputs.candidate_version }}
@@ -368,18 +392,18 @@ jobs:
   qualify-full-replacement:
     name: Qualify the signed same-tag Full replacement
     needs: [prepare-matrix, build-full-replacement]
-    if: ${{ always() && inputs.replacement_tag != '' && inputs.replacement_include_full && needs.build-full-replacement.result == 'success' }}
+    if: ${{ always() && inputs.replacement_tag != '' && inputs.replacement_include_full && needs.prepare-matrix.result == 'success' && (needs.build-full-replacement.result == 'success' || inputs.replacement_full_candidate_run_id != '') }}
     uses: ./.github/workflows/opl-first-run-vm.yml
     with:
       release_artifact_name: opl-full-first-install-dmg-${{ needs.prepare-matrix.outputs.candidate_version }}-mac-arm64
-      release_artifact_run_id: ${{ github.run_id }}
+      release_artifact_run_id: ${{ inputs.replacement_full_candidate_run_id || github.run_id }}
       artifact_app_ref: ${{ needs.prepare-matrix.outputs.app_ref }}
-      verification_app_ref: ${{ inputs.verification_app_ref || github.sha }}
+      verification_app_ref: ${{ inputs.verification_app_ref || needs.prepare-matrix.outputs.app_ref }}
       shell_ref: ${{ inputs.shell_ref }}
       framework_ref: ${{ inputs.framework_ref }}
       package_profile: full
-      mas_ref: ${{ needs.build-full-replacement.outputs.mas_ref }}
-      mas_scholar_skills_ref: ${{ needs.build-full-replacement.outputs.mas_scholar_skills_ref }}
+      mas_ref: ${{ needs.prepare-matrix.outputs.full_mas_ref || needs.build-full-replacement.outputs.mas_ref }}
+      mas_scholar_skills_ref: ${{ needs.prepare-matrix.outputs.full_mas_scholar_skills_ref || needs.build-full-replacement.outputs.mas_scholar_skills_ref }}
       diagnostic_scope: release_gate
       require_macos_gatekeeper: true
       expected_updater_version: ${{ needs.prepare-matrix.outputs.candidate_updater_version }}

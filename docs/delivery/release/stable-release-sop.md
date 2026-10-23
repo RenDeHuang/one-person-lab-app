@@ -311,6 +311,14 @@ Full Homebrew 同样从公开 Standard component manifest 读取机器版本；�
 同 tag 替换时，Full follower 保留原发布 handoff 的历史来源，从公开 Full manifest 的
 `same_tag_replacement` 核对上一份 manifest 和新验收回执，再采用当前 Full 文件身份。
 
+同 tag Full 构建成功而后续 VM 前置检查失败时，`build-manual.yml` 的
+`replacement_full_candidate_run_id` 消费原 Full run 的 DMG、cohort 和 diagnostics，
+核对成功构建 job、准确源码组合、签名公证摘要及大小，再仅恢复 clean-VM。
+保留已通过 Standard 的 `replacement_candidate_run_id` 以继承其机器版本，并同时设置
+`replacement_full_only` 和 `replacement_include_full`。Full 的资格验证来源于原包清单，
+不重新解析依赖或重建签名包。Standard 和 Full 默认使用冻结 App SHA 的验收器；
+只有确需纯验收修复时才显式指定 `verification_app_ref` 并通过原有 scope proof。
+
 ## 8. 发布后改进
 
 只固化有证据的真实断点和恢复路径：先修 caller，再用对应失败样例或边界用例验证；通用操作写入本 SOP，入口提示写入发布 Skill，具体版本、run、时间和未知原因放入事故复盘；本轮见 [26.10.9 复盘](incidents/2026-10-09-release-efficiency.md)，此前记录保留各自历史证据。不为经验沉淀重复发布或运行已通过的产品门禁。
