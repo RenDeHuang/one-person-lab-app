@@ -1215,6 +1215,7 @@ jobs:
           test -z "$forbidden" || { echo "::error::Cache-only warmup emitted forbidden release assets:"; printf '%s\n' "$forbidden"; exit 1; }
 
       - name: Verify Full package checksums and distribution trust
+        id: full_package_verify
         if: ${{ !inputs.cache_only && inputs.operation != 'append_full' }}
         shell: bash
         env:
@@ -1601,7 +1602,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full local authorization policy
-        if: ${{ !inputs.cache_only && inputs.upload_full_package_artifact && inputs.operation == '' }}
+        if: ${{ !inputs.cache_only && !inputs.candidate_only && inputs.upload_full_package_artifact && inputs.operation == '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: opl-full-local-authorization-policy-${{ env.OPL_RELEASE_VERSION }}
@@ -1793,7 +1794,7 @@ jobs:
           printf 'artifact_digest=%s\n' "$canonical_digest" >> "$GITHUB_OUTPUT"
 
       - name: Write Full build artifact cohort manifest
-        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
+        if: ${{ always() && steps.full_package_verify.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -1908,7 +1909,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Full package workflow artifact
-        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' && inputs.upload_full_package_artifact }}
+        if: ${{ always() && steps.full_package_verify.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' && inputs.upload_full_package_artifact }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: opl-full-first-install-${{ env.OPL_RELEASE_VERSION }}-mac-arm64
@@ -1918,7 +1919,7 @@ jobs:
           compression-level: 0
 
       - name: Upload Full build artifact cohort manifest
-        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
+        if: ${{ always() && steps.full_package_verify.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64-cohort
@@ -1927,7 +1928,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Full DMG-only workflow artifact
-        if: ${{ success() && steps.full_package_build.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
+        if: ${{ always() && steps.full_package_verify.outcome == 'success' && !inputs.cache_only && inputs.operation != 'append_full' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: opl-full-first-install-dmg-${{ env.OPL_RELEASE_VERSION }}-mac-arm64

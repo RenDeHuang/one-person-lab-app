@@ -46,3 +46,17 @@ test('candidate and normal Full paths verify embedded signatures and outer Gatek
     assert.match(verification.run, /stapler validate/);
   }
 });
+
+test('verified Full carriers survive diagnostic failures and signed candidates need no local authorization attachment', () => {
+  const workflow = parse(fs.readFileSync('.github/workflows/full-first-install-release.yml', 'utf8'));
+  const steps = workflow.jobs['full-first-install'].steps;
+  const verify = steps.find((step: any) => step.name === 'Verify Full package checksums and distribution trust');
+  assert.equal(verify.id, 'full_package_verify');
+  const policy = steps.find((step: any) => step.name === 'Upload Full local authorization policy');
+  assert.match(policy.if, /!inputs\.candidate_only/);
+  for (const name of ['Write Full build artifact cohort manifest', 'Upload Full package workflow artifact', 'Upload Full build artifact cohort manifest', 'Upload Full DMG-only workflow artifact']) {
+    const step = steps.find((item: any) => item.name === name);
+    assert.match(step.if, /always\(\)/);
+    assert.match(step.if, /steps\.full_package_verify\.outcome == 'success'/);
+  }
+});
