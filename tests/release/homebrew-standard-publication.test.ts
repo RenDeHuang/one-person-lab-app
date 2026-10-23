@@ -78,7 +78,8 @@ test('Full follower reads a qualified public replacement while preserving origin
   const manifest: any = { schema: 'opl_public_release_manifest.v1', package_kind: 'opl_full_first_install_macos_arm64',
     version: handoff.release.version, primary_install_asset: dmg.name,
     assets: [{ name: dmg.name, sha256: dmg.digest, size_bytes: dmg.size }],
-    carrier_context: { standard_attestation: { sha256: attestation.digest, size_bytes: attestation.size } },
+    carrier_context: { standard_attestation: { sha256: attestation.digest, size_bytes: attestation.size },
+      full_content_sources: { app_sha: 'd'.repeat(40), shell_sha: 'e'.repeat(40), framework_sha: 'f'.repeat(40) } },
     same_tag_replacement: { schema: 'opl_app_same_tag_replacement.v1', tag_source_commit: target.target_commitish,
       previous_manifest_digest: handoff.manifest.sha256, qualification_receipt_sha256: digest('Full VM'), build_run_id: '20', qualification_run_id: '21' } };
   const bytes = Buffer.from(JSON.stringify(manifest));
@@ -87,6 +88,7 @@ test('Full follower reads a qualified public replacement while preserving origin
   const result = resolveHomebrewFullPublication(handoff, release, bytes);
   assert.equal(result.artifact.sha256, dmg.digest);
   assert.deepEqual(result.source, handoff.source);
+  assert.equal(result.build_provenance.shell_sha, 'e'.repeat(40));
   assert.equal(result.same_tag_replacement.qualification_receipt_sha256, digest('Full VM'));
   delete manifest.same_tag_replacement;
   const unqualified = Buffer.from(JSON.stringify(manifest));

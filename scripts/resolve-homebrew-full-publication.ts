@@ -41,9 +41,12 @@ export function resolveHomebrewFullPublication(handoff: any, release: any, bytes
   const attestation = asset('opl-release-attestation.json');
   assert.equal(manifest.carrier_context.standard_attestation.sha256, attestation.digest);
   assert.equal(manifest.carrier_context.standard_attestation.size_bytes, attestation.size);
+  const sources = manifest.carrier_context.full_content_sources;
+  for (const key of ['app_sha', 'shell_sha', 'framework_sha']) assert.match(sources[key], /^[0-9a-f]{40}$/);
   // The original append_full handoff remains publication provenance. The public
   // replacement carries the qualification for the effective Full bytes.
   return { ...handoff, same_tag_replacement: replacement,
+    build_provenance: { ...handoff.build_provenance, app_sha: sources.app_sha, shell_sha: sources.shell_sha, framework_sha: sources.framework_sha },
     artifact: { ...handoff.artifact, sha256: dmg.digest, size_bytes: dmg.size },
     manifest: { ...handoff.manifest, sha256: manifestAsset.digest, size_bytes: manifestAsset.size },
     release: { ...handoff.release, standard_attestation: { ...handoff.release.standard_attestation, sha256: attestation.digest, size_bytes: attestation.size } } };
