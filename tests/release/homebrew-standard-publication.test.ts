@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import { createAppComponentManifest } from '../../scripts/write-opl-app-component-manifest.ts';
 import { resolveReleaseVersionIdentity } from '../../scripts/release-version.ts';
@@ -35,6 +39,22 @@ test('Standard follower accepts original public bytes and qualified newer same-t
   f.release.assets.find(a => a.name.endsWith('.dmg'))!.digest = f.manifest.primary_artifact.digest;
   seal(f);
   assert.equal(resolveHomebrewStandardPublication(f.handoff, f.release, f.bytes).updater_version, f.manifest.updater_version);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'opl-full-cask-replacement-'));
+  try {
+    const component = path.join(root, 'component.json');
+    fs.writeFileSync(component, f.bytes);
+    const base = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${f.release.tag_name}`;
+    const args = ['scripts/update-homebrew-tap.ts', '--channel', 'stable', '--package-kind', 'app_full_first_install',
+      '--version', f.manifest.version, '--updater-version', f.manifest.updater_version, '--component-manifest', component,
+      '--tap-root', root, '--cask', 'Casks/one-person-lab-full.rb', '--manifest-url', `${base}/opl-release-manifest.json`,
+      '--checksum-sha256', 'f'.repeat(64), '--download-url', `${base}/One-Person-Lab-Full-${f.manifest.version}-mac-arm64.dmg`];
+    const run = () => spawnSync(process.execPath, args, { encoding: 'utf8' });
+    const full = run();
+    assert.equal(full.status, 0, full.stderr);
+    assert.equal(JSON.parse(full.stdout).updater_version, f.manifest.updater_version);
+    args[args.indexOf('--updater-version') + 1] = f.handoff.release.updater_version;
+    assert.notEqual(run().status, 0, 'Full must use the qualified replacement machine version');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
   f.release.target_commitish = 'e'.repeat(40);
   assert.throws(() => resolveHomebrewStandardPublication(f.handoff, f.release, f.bytes), /identity changed/);
 });

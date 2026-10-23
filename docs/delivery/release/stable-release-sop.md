@@ -302,6 +302,9 @@ Skill 的版本化源是 `skills/opl-app-release`。本机 `~/.codex/skills/opl-
 替换包，而不是重新从显示版本推导旧机器版本。继续使用当前 Cask 摘要 CAS，验证公开 Release
 资产与 manifest 后写入下游；不得仅改 Cask 版本或校验和。
 
+Full Homebrew 同样从公开 Standard component manifest 读取机器版本；其独立 Full DMG 和
+`opl-release-manifest.json` 的摘要与大小仍由 Full follower 逐项验证，再使用当前 Cask 摘要 CAS。
+
 ## 8. 发布后改进
 
 只固化有证据的真实断点和恢复路径：先修 caller，再用对应失败样例或边界用例验证；通用操作写入本 SOP，入口提示写入发布 Skill，具体版本、run、时间和未知原因放入事故复盘；本轮见 [26.10.9 复盘](incidents/2026-10-09-release-efficiency.md)，此前记录保留各自历史证据。不为经验沉淀重复发布或运行已通过的产品门禁。

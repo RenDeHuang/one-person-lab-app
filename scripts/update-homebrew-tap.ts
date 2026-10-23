@@ -236,19 +236,20 @@ function validateOptions(options: Options): ResolvedOptions {
     throw new Error('Stable Homebrew tap updates must use YY.M.D or YY.M.D-r1 through r9.');
   }
   if (options.componentManifest) {
-    if (options.channel !== 'stable' || packageKind !== 'app_standard') {
-      throw new Error('Component manifest replacement is limited to Stable Standard.');
+    if (options.channel !== 'stable') {
+      throw new Error('Component manifest replacement is limited to Stable.');
     }
     const manifest = JSON.parse(fs.readFileSync(options.componentManifest, 'utf8'));
     const tag = `v${options.version}`;
     const identity = readAppComponentManifestIdentity(manifest, tag, false,
       manifest.same_tag_replacement?.tag_source_commit ?? manifest.source_commit);
     const base = `https://github.com/gaofeng21cn/one-person-lab-app/releases/download/${tag}`;
+    const full = packageKind === 'app_full_first_install';
     if (identity.updater_version !== options.updaterVersion
-      || options.manifestUrl !== `${base}/opl-app-component-manifest.json`
-      || manifest.primary_artifact.ref !== options.downloadUrl
-      || manifest.primary_artifact.digest !== `sha256:${options.checksumSha256}`
-      || options.downloadUrl !== `${base}/One-Person-Lab-${options.version}-mac-arm64.dmg`) {
+      || options.manifestUrl !== `${base}/${full ? fullReleaseManifestName : 'opl-app-component-manifest.json'}`
+      || (!full && (manifest.primary_artifact.ref !== options.downloadUrl
+        || manifest.primary_artifact.digest !== `sha256:${options.checksumSha256}`))
+      || options.downloadUrl !== `${base}/One-Person-Lab-${full ? 'Full-' : ''}${options.version}-mac-arm64.dmg`) {
       throw new Error('Homebrew inputs must match the exact qualified component manifest.');
     }
   } else {
