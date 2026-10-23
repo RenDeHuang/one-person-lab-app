@@ -520,3 +520,10 @@ test('additional Desktop platform publication is an independent protected post-s
   );
   assert.doesNotMatch(manualSource, /windows_preview_rc|windows-rc-|release-preview|gh release upload/);
 });
+
+
+test('same-tag manual replacement resolves an audited Desktop subset and rejects unadmitted IDs', () => {
+  const platforms = ['macos-arm64', 'linux-x64', 'windows-x64'];
+  assert.deepEqual(resolveReleasePlatformMatrix({ policy: 'manual_all', platforms }).include.map(entry => entry.platform), platforms);
+  assert.throws(() => resolveReleasePlatformMatrix({ policy: 'manual_all', platforms: ['custom-shell-command'] }), /outside audited policy/);
+});

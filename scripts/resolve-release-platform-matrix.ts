@@ -119,8 +119,8 @@ export function resolveReleasePlatformMatrix(input: {
     throw new Error('Use either one --platform or one audited platform ID list, never both.');
   }
   if (input.platforms !== undefined) {
-    if (input.policy !== 'stable_desktop_additional') {
-      throw new Error('An explicit platform ID list is allowed only with stable_desktop_additional.');
+    if (!['stable_desktop_additional', 'manual_all'].includes(input.policy)) {
+      throw new Error('An explicit platform ID list requires stable_desktop_additional or manual_all.');
     }
     if (!Array.isArray(input.platforms) || input.platforms.some(
       (platform) => typeof platform !== 'string' || !platform.trim() || platform.trim() !== platform,
