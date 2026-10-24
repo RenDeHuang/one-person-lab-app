@@ -427,6 +427,42 @@ export function validateProviderReadinessRepairProjectionContract(projection, la
       `${label} missing_search_attributes must be surfaced as a repair command, not a shell-owned safe action`,
     );
   }
+  const searchAttributesCapacity = cases.find(
+    (repairCase) => repairCase?.blocker === "search_attribute_capacity_exceeded",
+  );
+  if (!searchAttributesCapacity) {
+    throw new Error(`${label} must declare search_attribute_capacity_exceeded repair case`);
+  }
+  for (const [field, expected] of Object.entries({
+    source_status: "temporal_visibility_readiness.readiness_status=search_attribute_capacity_exceeded",
+    display_state: "temporal_search_attributes_capacity_exceeded",
+    command_role: "provider_visibility_migration_readback_only",
+  })) {
+    if (searchAttributesCapacity[field] !== expected) {
+      throw new Error(`${label} search_attribute_capacity_exceeded.${field} must be ${expected}`);
+    }
+  }
+  if (searchAttributesCapacity.safe_action_id !== null || searchAttributesCapacity.runtime_action_id !== null) {
+    throw new Error(`${label} search_attribute_capacity_exceeded must not expose a shell-owned action`);
+  }
+  const visibilityDegraded = cases.find(
+    (repairCase) => repairCase?.blocker === "visibility_degraded",
+  );
+  if (!visibilityDegraded) {
+    throw new Error(`${label} must declare visibility_degraded repair case`);
+  }
+  for (const [field, expected] of Object.entries({
+    source_status: "temporal_visibility_readiness.indexing_ready=false_and_execution_ready=true",
+    display_state: "temporal_visibility_degraded_unindexed",
+    command_role: "provider_visibility_optional_degradation",
+  })) {
+    if (visibilityDegraded[field] !== expected) {
+      throw new Error(`${label} visibility_degraded.${field} must be ${expected}`);
+    }
+  }
+  if (visibilityDegraded.safe_action_id !== null || visibilityDegraded.runtime_action_id !== null) {
+    throw new Error(`${label} visibility_degraded must not expose a shell-owned action`);
+  }
   assertIncludesAll(
     projection.forbidden_claims,
     [

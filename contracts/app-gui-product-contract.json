@@ -2990,6 +2990,24 @@
           "safe_action_id": null,
           "runtime_action_id": null,
           "command_role": "provider_visibility_repair_only"
+        },
+        {
+          "blocker": "search_attribute_capacity_exceeded",
+          "source_status": "temporal_visibility_readiness.readiness_status=search_attribute_capacity_exceeded",
+          "display_state": "temporal_search_attributes_capacity_exceeded",
+          "next_repair_command_source": "app_state.provider.temporal.details.worker_readiness.visibility_readiness.repair_action.next_check",
+          "safe_action_id": null,
+          "runtime_action_id": null,
+          "command_role": "provider_visibility_migration_readback_only"
+        },
+        {
+          "blocker": "visibility_degraded",
+          "source_status": "temporal_visibility_readiness.indexing_ready=false_and_execution_ready=true",
+          "display_state": "temporal_visibility_degraded_unindexed",
+          "next_repair_command_source": "app_state.provider.temporal.details.worker_readiness.visibility_readiness.repair_action.next_check",
+          "safe_action_id": null,
+          "runtime_action_id": null,
+          "command_role": "provider_visibility_optional_degradation"
         }
       ],
       "current_owner_delta_policy": "never_replace_default_operator_payload_or_owner_delta_show_as_provider_readiness_repair_only",
