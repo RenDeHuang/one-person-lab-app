@@ -1,0 +1,197 @@
+import type { OplStandardAgentMembershipPolicy } from './architecture.ts';
+
+export type AppGuiConversationProfile = {
+  path_id: string;
+  entry_source: string;
+  executor: string;
+  composer_position: string;
+  active_capability_chip_visible: boolean;
+  persistent_purpose_selector_visible: boolean;
+  backend_selector_visible: boolean;
+  model_selector_visible: boolean;
+  permission_mode_selector_visible: boolean;
+  permission_mode_language_policy: string;
+  provider_selector_visible: boolean;
+  model_status_surface: string;
+  technical_details_policy: string;
+  composer_placeholder_policy: string;
+  composer_context_strip: string[];
+  composer_send_scoped_inputs: string[];
+  composer_send_scoped_consumption_policy: string;
+  send_failure_input_policy: {
+    must_preserve_send_scoped_local_inputs: boolean;
+    failure_scopes: string[];
+    preserved_inputs: string[];
+    success_consumption_policy: string;
+    failure_restore_policy: string;
+    concurrent_edit_merge_policy: string;
+    initial_message_handoff_policy: string;
+  };
+  composer_forbidden_persistent_context: string[];
+  composer_bottom_action_row: string[];
+  composer_optional_actions: string[];
+  mobile_action_sheet: {
+    trigger: string;
+    allowed_actions: string[];
+    send_stop_location: string;
+    forbidden_actions: string[];
+  };
+  unified_context_menu: {
+    trigger: string;
+    placement: string;
+    trigger_dispatch_policy: string;
+    direct_file_picker_fallback_allowed: boolean;
+    shared_desktop_mobile_content: boolean;
+    presentation: string;
+    searchable: boolean;
+    search_field_policy: string;
+    keyboard_navigation: boolean;
+    keyboard_commands: string[];
+    escape_focus_return: string;
+    query_fields: string[];
+    desktop_panel_width_policy: string;
+    desktop_panel_max_width_px: number;
+    desktop_panel_alignment: string;
+    mobile_panel_policy: string;
+    item_content_policy: string;
+    group_heading_policy: string;
+    viewport_policy: string;
+    scroll_region_policy: string;
+    empty_state_policy: string;
+    capability_catalog_empty_policy: string;
+    groups: Array<{
+      id: string;
+      scope: string;
+      source?: string;
+      source_ref?: string;
+      label_i18n?: Record<'zh-CN' | 'en-US', string>;
+      catalog_membership_source_ref?: string;
+      opl_standard_agent_membership_policy?: OplStandardAgentMembershipPolicy;
+      status_source_ref?: string;
+      required_package_ids?: string[];
+      catalog_order_policy?: string;
+      home_shortcut_independence_policy?: string;
+      availability_policy?: string;
+      action_policy?: string;
+      unknown_standard_agent_policy?: string;
+      agent_owned_skill_deduplication_policy?: string;
+      label_policy?: string;
+      mode_deduplication_policy?: string;
+      existing_session_rebinding_allowed?: boolean;
+      surface_actions: {
+        home_new_session: string[];
+        existing_conversation: string[];
+      };
+    }>;
+    selected_context_presentation: {
+      workspace_or_initial_cwd: string;
+      attachments: string;
+      agent_packages_skills_modes_and_connections: string;
+    };
+    surface_behavior: {
+      home_new_session: string;
+      existing_conversation: string;
+      settings_route_policy: string;
+    };
+    authority_policy: string;
+    forbidden_entries: string[];
+  };
+  projectless_conversation_supported: boolean;
+  session_workspace_model: {
+    primary_unit: string;
+    identity_authority: string;
+    project_affinity_states: string[];
+    project_affinity_cardinality: string;
+    projectless_session_semantics: string;
+    projectless_detection: string;
+    project_affinity_role: string;
+    workspace_binding_role: string;
+    workspace_path_projection: {
+      picker_result: string;
+      host_path_role: string;
+      runtime_path_role: string;
+      windows_projection: string;
+      non_windows_projection: string;
+      native_windows_backend_fallback_allowed: boolean;
+      generic_local_picker_projection_allowed: boolean;
+    };
+    runtime_pwd_role: string;
+    turn_cwd_override_allowed: boolean;
+    writable_roots_role: string;
+    core_workspace_application: string;
+    runtime_pwd_changes_project_affinity: boolean;
+    project_affinity_changes_writable_roots: boolean;
+    project_adoption_transition: string;
+    bound_project_reassignment: string;
+    workspace_owns_session: boolean;
+    workspace_owns_context: boolean;
+    workspace_owns_artifacts: boolean;
+    workspace_group_cascade_session_delete_allowed: boolean;
+  };
+  explicit_session_input_policy: {
+    scope: string;
+    surfaces: string[];
+    selection_scope: string;
+    workspace_required: boolean;
+    access_authority: string;
+    shell_extra_path_authorization_allowed: boolean;
+    user_initiated_only: boolean;
+    workspace_preload_allowed: boolean;
+    workspace_scoped_persistence_allowed: boolean;
+    implicit_workspace_context_injection_allowed: boolean;
+    composer_consumption: string;
+    composer_persistence_after_send: string;
+    workspace_readiness_boundary: {
+      gates: string[];
+      plain_local_conversation_requires_workspace_root: boolean;
+      send_scoped_local_file_inputs_require_workspace_root: boolean;
+      agent_package_workspace_requirement_policy: string;
+      ordinary_codex_conversation_independent_of_agent_package_readiness: boolean;
+      codex_and_model_prerequisites_unchanged: boolean;
+    };
+  };
+  codex_subagent_activity: {
+    feature_id: 'B0-11';
+    product_role: string;
+    source: string;
+    metadata_authority: {
+      collaboration: string;
+      subagent: string;
+    };
+    state_mapping: {
+      active_agent_states: string[];
+      done_agent_states: string[];
+      active_tool_call_statuses: string[];
+      done_tool_call_statuses: string[];
+      unknown_or_malformed: string;
+      canonical_child_thread_status_not_loaded_is_not_activity_state: boolean;
+    };
+    display: {
+      groups: string[];
+      read_only: boolean;
+      detail_fields: string[];
+      open_thread_action: string;
+      open_failure_policy: string;
+    };
+    forbidden_layers: string[];
+  };
+  transcript_export: {
+    scope: string;
+    history_loading_policy: string;
+    incomplete_history_policy: string;
+    silent_truncation_allowed: boolean;
+    shareable_roles: string[];
+    shareable_message_types: string[];
+    excluded_content: string[];
+    default_format: string;
+    allowed_formats: string[];
+    strict_json_document_fields: string[];
+    strict_json_message_fields: string[];
+    redaction_required: boolean;
+    explicit_directory_required: boolean;
+    explicit_filename_required: boolean;
+    filename_extension_follows_format: boolean;
+    errors_visible: boolean;
+    workspace_bundle_authorized: boolean;
+  };
+};
