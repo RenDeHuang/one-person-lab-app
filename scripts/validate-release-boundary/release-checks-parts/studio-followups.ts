@@ -11,6 +11,13 @@ export const studioFollowupChecks: ReleaseBoundaryCheck[] = [
       "scripts/manual-full-preview-release-parts/github.ts",
       "scripts/manual-full-preview-release-parts/artifact-transport.ts",
     ],
+    files: [
+      "scripts/manual-full-preview-release.ts",
+      "scripts/manual-full-preview-release-parts/contract.ts",
+      "scripts/manual-full-preview-release-parts/handoff.ts",
+      "scripts/manual-full-preview-release-parts/github.ts",
+      "scripts/manual-full-preview-release-parts/artifact-transport.ts",
+    ],
     required: [
       "opl_manual_full_preview_manifest.v1",
       "MANUAL_USABLE_DELIVERED",

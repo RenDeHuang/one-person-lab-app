@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 import {
   remoteDigest,
+  type AssetIdentity,
   type JsonRecord,
   type PreviewRelease,
   type PreviewRemote,
