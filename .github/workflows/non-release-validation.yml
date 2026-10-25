@@ -35,6 +35,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+          check-latest: true
           cache: npm
 
       - name: Install App validation dependencies
@@ -58,6 +59,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+          check-latest: true
           cache: npm
 
       - name: Install App validation dependencies
@@ -68,7 +70,7 @@ jobs:
         run: |
           git clone --depth 1 --filter=blob:none --sparse \
             https://github.com/gaofeng21cn/opl-studio.git "$RUNNER_TEMP/opl-studio"
-          git -C "$RUNNER_TEMP/opl-studio" sparse-checkout set --cone desktop scripts/desktop
+          git -C "$RUNNER_TEMP/opl-studio" sparse-checkout set --cone contracts desktop scripts/desktop
 
       # The suite owns App release admission, dispatch guards, notes, carriers
       # and installers. It used to run only under the manual release workflows,
