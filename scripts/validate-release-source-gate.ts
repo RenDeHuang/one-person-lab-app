@@ -606,6 +606,49 @@ export function buildReleaseSourceGateReport(
         expected: buildProfile.packageName,
       });
     }
+    if (environmentProblems.length === 0 && shellSha && sameSha(shellHead, shellSha) && checks.find((check) => check.id === 'active_shell_type')?.status === 'passed') {
+      // Use the frozen carrier's admission policy, not an App-owned Node floor.
+      // Probe PATH Node because npm and the Shell test scripts use that binary.
+      try {
+        const adapter = readJson(path.join(options.repoRoot, 'contracts/app-shell-adapter.json')) as {
+          shell_contract?: { paths?: { desktop_release_carrier_manifest?: string } };
+        };
+        const shellPath = (relative: unknown): string => {
+          if (typeof relative !== 'string' || !relative || path.isAbsolute(relative) || relative.split(/[\\/]/).includes('..')) {
+            throw new Error('Carrier preparation paths must be Shell-relative.');
+          }
+          return path.join(shellRoot, relative);
+        };
+        const carrier = readJson(shellPath(adapter.shell_contract?.paths?.desktop_release_carrier_manifest)) as { node_host_runtime?: string };
+        const runtimeUrl = pathToFileURL(shellPath(carrier.node_host_runtime)).href;
+        const args = ['--input-type=module', '--eval', `import { assertPatchedHostNode } from ${JSON.stringify(runtimeUrl)}; assertPatchedHostNode(process.versions.node); console.log(process.versions.node);`];
+        const result = runner('node', args, { cwd: shellRoot, env: commandEnvironment });
+        addCheck(checks, {
+          id: 'active_shell_host_node_pre_admission',
+          status: result.status === 0 ? 'passed' : 'failed',
+          message: result.status === 0
+            ? `PATH Node ${firstLine(result.stdout)} is admitted by the frozen Shell carrier.`
+            : `Select a Node runtime admitted by the frozen Shell carrier before source gates. ${commandDetail(result)}`,
+          command: commandText('node', args),
+        });
+      } catch (error) {
+        addCheck(checks, {
+          id: 'active_shell_host_node_pre_admission',
+          status: 'failed',
+          message: `Unable to check the frozen Shell carrier's Node admission. ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
+      const dependencyArgs = ['--offline', 'ls', '--depth=0', '--include=dev', '--json'];
+      const dependencies = runner('npm', dependencyArgs, { cwd: shellRoot, env: commandEnvironment });
+      addCheck(checks, {
+        id: 'active_shell_direct_dependencies_pre_admission',
+        status: dependencies.status === 0 ? 'passed' : 'failed',
+        message: dependencies.status === 0
+          ? 'Installed Shell direct dependencies satisfy its frozen package manifest.'
+          : `Repair installed Shell dependencies with the frozen lockfile before source gates. ${commandDetail(dependencies)}`,
+        command: commandText('npm', dependencyArgs),
+      });
+    }
   }
 
   if (!pathExists(frameworkRoot)) {

@@ -34,7 +34,8 @@ const managedUpdateProviders = {
 };
 
 function readSourceJson(candidatePath: string, shellName = 'opl-studio'): any {
-  if (candidatePath.endsWith('app-shell-adapter.json')) return { active_shell: 'opl-studio', shell_root: 'shells/opl-studio', shell_source: { owner_repo: 'gaofeng21cn/opl-studio', checkout_path: 'shells/opl-studio' }, shell_contract: { paths: { electron_builder_config: 'desktop/electron-builder.yml', packaged_runtime_root: 'resources/opl-studio-full-runtime' } } };
+  if (candidatePath.endsWith('app-shell-adapter.json')) return { active_shell: 'opl-studio', shell_root: 'shells/opl-studio', shell_source: { owner_repo: 'gaofeng21cn/opl-studio', checkout_path: 'shells/opl-studio' }, shell_contract: { paths: { electron_builder_config: 'desktop/electron-builder.yml', packaged_runtime_root: 'resources/opl-studio-full-runtime', desktop_release_carrier_manifest: 'contracts/desktop-release-carrier.stable.json' } } };
+  if (candidatePath.endsWith('desktop-release-carrier.stable.json')) return { node_host_runtime: 'desktop/node-host-runtime.mjs' };
   if (candidatePath.endsWith('package.json')) return { name: shellName };
   if (candidatePath.endsWith('app-release-channel.json')) {
     return {
@@ -370,6 +371,12 @@ function runner(overrides: Record<string, { status: number; stdout?: string; std
     }
     if (command === 'npm' && args.join(' ') === 'run typecheck' && commandOptions.cwd === shellRoot) {
       return { status: 0, stdout: 'format ok\n', stderr: '' };
+    }
+    if (command === 'node' && args[0] === '--input-type=module' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: '24.22.1\n', stderr: '' };
+    }
+    if (command === 'npm' && args.join(' ') === '--offline ls --depth=0 --include=dev --json' && commandOptions.cwd === shellRoot) {
+      return { status: 0, stdout: '{"dependencies":{}}\n', stderr: '' };
     }
     if (
       command === process.execPath
@@ -868,6 +875,8 @@ test('release source gate passes for clean canonical main and an immutable sourc
   assert.equal(report.required_gates.find((gate) => gate.id === 'shell_product_profile_consumer')?.executed, true);
   assert.equal(checkStatus(report, 'active_shell_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'active_shell_type'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_host_node_pre_admission'), 'passed');
+  assert.equal(checkStatus(report, 'active_shell_direct_dependencies_pre_admission'), 'passed');
   assert.equal(checkStatus(report, 'framework_ref_resolved'), 'passed');
   assert.equal(checkStatus(report, 'managed_update_provider_contract_aligned'), 'passed');
   assert.equal(report.admission.status, 'passed');
@@ -880,6 +889,38 @@ test('release source gate passes for clean canonical main and an immutable sourc
   });
   assert.equal(report.typed_blocker, null);
 });
+
+for (const failure of ['host_node', 'direct_dependencies'] as const) {
+  test(`release source gate rejects stale ${failure} before expensive consumers`, () => {
+    const calls: string[] = [];
+    const baseRunner = runner();
+    const report = buildReleaseSourceGateReport(options(), (command, args, commandOptions) => {
+      calls.push(`${command} ${args.join(' ')}`);
+      if (failure === 'host_node' && command === 'node' && args[0] === '--input-type=module') {
+        assert.match(args[2]!, /import \{ assertPatchedHostNode \} from "file:\/\/\/tmp\/opl-app\/shells\/opl-studio\/desktop\/node-host-runtime.mjs"/);
+        return { status: 1, stdout: '', stderr: 'node_host_security_update_required: received 26.10.0' };
+      }
+      if (failure === 'direct_dependencies' && command === 'npm' && args[0] === '--offline') {
+        return { status: 1, stdout: '', stderr: 'ELSPROBLEMS: invalid @deepseek-ai/dsh-core@0.2.0-rc.2' };
+      }
+      return baseRunner(command, args, commandOptions);
+    }, '2026-10-26T00:00:00.000Z', {
+      variables: {},
+      pathExists: (candidatePath) => candidatePath === shellRoot || candidatePath === frameworkRoot,
+      readJson: readSourceJson,
+    });
+
+    const failedId = failure === 'host_node' ? 'active_shell_host_node_pre_admission' : 'active_shell_direct_dependencies_pre_admission';
+    assert.equal(report.admission.status, 'blocked');
+    assert.equal(checkStatus(report, failedId), 'failed');
+    assert.deepEqual(report.typed_blocker?.failed_check_ids, [failedId]);
+    assert.equal(report.typed_blocker?.phase, 'pre_admission');
+    assert.ok(report.required_gates.every((gate) => !gate.executed));
+    assert.equal(calls.some((call) => call.includes('validate-framework-release-cli-consumer.ts')), false);
+    assert.equal(calls.some((call) => call.includes('validate-shell-product-profile-consumer.ts')), false);
+    assert.equal(calls.some((call) => call.includes('npm run typecheck')), false);
+  });
+}
 
 test('release source gate rejects managed update provider contract drift before packaging', () => {
   const report = buildReleaseSourceGateReport(

@@ -29,6 +29,8 @@
 
 云环境源码门禁保留既有代理与 CA 信任配置；GitHub CLI 的认证变量只传给只读 owner 核验，不传给依赖脚本或 Shell 测试，也不写入门禁回执。
 
+source gate 在 Framework CLI／公开 Package 源预检、Shell consumer、typecheck 和测试前，先检查本机准备情况：用冻结 carrier 的 `node_host_runtime` adapter 校验 PATH 中实际执行脚本的 Node，再用离线 `npm ls --depth=0 --include=dev` 检查已安装的 Shell 直接依赖。失败沿用 `pre_admission` blocker，先修本机环境再继续；App 不复制 Node 安全版本表，也不把直接依赖检查当作完整 lockfile 验证。依赖陈旧时按冻结 lockfile 执行 `npm ci`；Node 不合格时选择已接纳的运行时并核对 Node、npm／npx 的实际来源，不自动改全局 Node。只有 Node 二进制的工具目录不能作为完整 Full 打包工具链。
+
 In a managed executor, establish GitHub capability with a sanitized read of the actual
 repository or owner run. `gh auth status` can reject a proxy credential placeholder even
 when the configured API path works; that output alone does not prove credentials are
@@ -102,6 +104,8 @@ npm run --silent release:incident-status -- --run-id <owner-run-id> \
 ```
 
 日志 API 在 job 运行中返回 404 时，优先读取同一 job 的 runner 日志或现有 smoke wrapper stderr；先核对 run、job 和 VM 名，再按上面的参数绑定分析。保留 `[opl-studio-clean-vm]` 的原始 JSON，解析器同时识别 `phase`／`at` 和带 Actions 时间前缀的形式。无实际 runtime marker 时仍不能声明 VM 已创建。
+
+先核对当前机器是否就是执行 runner；若是，直接读取该 job 的 wrapper 日志和产物变化。否则使用已授权的 runner 入口或 GitHub 当前 step 日志。`child_running: true` 只证明子进程存活；压缩进展、签名产物、公证请求编号、VM marker 才分别证明对应阶段。确认日志来源后复用 incident CLI 的 `--job-id`／`--job-log-file`，不另造状态控制器。
 
 Full 构建对签名、复制、压缩与磁盘映像挂载操作输出阶段起止、退出码和耗时；失败定位以实际阶段为准。首次自动安装的结构化终态失败与本次启动 PID、时间绑定后，harness 立即报告错误，不再等待安装成功超时；旧日志不构成本次失败证据。Stable 首装读取普通 `fast` 投影，安装包是 Full 不表示要执行 Framework `full` 诊断。初次 exit 1 只在当前 PID 的安装记录仍为 `running` 时有界重读；根包未齐且当前安装记录已 `failed` 时直接结束等待，不延长诊断超时掩盖断点。
 
@@ -323,7 +327,7 @@ Full Homebrew 同样从公开 Standard component manifest 读取机器版本；�
 
 ## 8. 发布后改进
 
-只固化有证据的真实断点和恢复路径：先修 caller，再用对应失败样例或边界用例验证；通用操作写入本 SOP，入口提示写入发布 Skill，具体版本、run、时间和未知原因放入事故复盘；本轮见 [26.10.9 复盘](incidents/2026-10-09-release-efficiency.md)，此前记录保留各自历史证据。不为经验沉淀重复发布或运行已通过的产品门禁。
+只固化有证据的真实断点和恢复路径：先修 caller，再用对应失败样例或边界用例验证；通用操作写入本 SOP，入口提示写入发布 Skill，具体版本、run、时间和未知原因放入事故复盘；最近见 [26.10.26 复盘](incidents/2026-10-26-release-efficiency.md)和 [26.10.9 复盘](incidents/2026-10-09-release-efficiency.md)，此前记录保留各自历史证据。不为经验沉淀重复发布或运行已通过的产品门禁。
 
 一次未保留 owner 原因的 Gateway 失败，只能记录最深已证断点；后续同字节成功不能倒推出当次根因。持续失败时读取已脱敏的 machine reason code 和 owner 只读投影，再决定修哪一层。进度只在阶段变化、出现真实失败或需要用户动作时汇报；没有变化的轮询不产生新验收证据。
 
