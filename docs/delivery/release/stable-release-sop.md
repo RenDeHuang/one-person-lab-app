@@ -212,6 +212,8 @@ in durable evidence.
 
 Standard 在 freeze 中解析一次 Codex 依赖并上传准确清单；构建、构建 cohort 与可选 VM 预备包消费同一清单。WebUI 只解析其 Codex 输入，并将 OCI amd64 映射为 Framework x64；源码解析器先安装其冻结 Framework 依赖。Full 独立解析前也安装对应依赖。
 
+Full workflow 的每次 Node 24 设置都查询最新稳定补丁；缓存键计算、打包和 finalizer 继续由 carrier 的 Node admission 校验实际版本，避免复用 runner 中低于安全下限的旧 Node 缓存。
+
 Studio 的共享 payload 环境必须保留控制器传入的显示版本与机器 updater 版本；不得从已改为机器版本的 package.json 覆盖显示版本。更新资产名继续用显示版本，feed 与 App 内版本继续用机器版本。
 
 Full 的预备输入来自该 Full 产物的冻结 build cohort；恢复时按原 producer run 下载小型 cohort，不能消费当前依赖清单或误用 Standard 的恢复 harness。新构建完成后，准备 tarballs 与 hosted qualification 并行，随后交给 VM；准备失败沿用现有 VM 在线预检，不改变签名产物。runner cache 只保留两份需要的 Codex tarballs，使用独立缓存命名空间，避免重复传输 npm cache 中的副本。
